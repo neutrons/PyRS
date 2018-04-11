@@ -26,3 +26,12 @@ class FileReadWriteController(object):
         """
 
         return
+
+
+    def save_scan_data(self, scan_data_set, file_name):
+        """
+        save scan data
+        :param scan_data_set:
+        :param file_name:
+        :return:
+        """

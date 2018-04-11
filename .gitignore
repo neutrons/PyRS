@@ -102,3 +102,9 @@ ENV/
 
 # vim swap
 *.swp
+
+# pycharm
+.idea/
+
+# QtCreator
+*.autosave
