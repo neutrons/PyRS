@@ -14,7 +14,7 @@
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QPushButton" name="pushButton_3">
+   <widget class="QPushButton" name="pushButton_loadScans">
     <property name="geometry">
      <rect>
       <x>370</x>
@@ -27,7 +27,7 @@
      <string>Load</string>
     </property>
    </widget>
-   <widget class="QLineEdit" name="lineEdit_3">
+   <widget class="QLineEdit" name="lineEdit_scanNumbers">
     <property name="geometry">
      <rect>
       <x>200</x>
@@ -76,7 +76,7 @@
      <string>Scan Numbers</string>
     </property>
    </widget>
-   <widget class="QLineEdit" name="lineEdit">
+   <widget class="QLineEdit" name="lineEdit_iptsNumber">
     <property name="geometry">
      <rect>
       <x>200</x>
@@ -86,7 +86,7 @@
      </rect>
     </property>
    </widget>
-   <widget class="QLineEdit" name="lineEdit_2">
+   <widget class="QLineEdit" name="lineEdit_expNumber">
     <property name="geometry">
      <rect>
       <x>200</x>
@@ -296,7 +296,7 @@
      <x>0</x>
      <y>0</y>
      <width>1336</width>
-     <height>25</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
