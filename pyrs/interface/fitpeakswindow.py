@@ -1,5 +1,5 @@
 from PyQt4.QtGui import QMainWindow, QFileDialog
-from gui.ui_fitpeakwindow import MainWindow
+import ui.ui_peakfitwindow
 
 
 class FitPeaksWindow(QMainWindow):
@@ -17,7 +17,7 @@ class FitPeaksWindow(QMainWindow):
         self._core = None
 
         # set up UI
-        self.ui = MainWindow()
+        self.ui = ui.ui_peakfitwindow.Ui_MainWindow()
         self.ui.setupUi(self)
 
         # set up handling

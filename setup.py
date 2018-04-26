@@ -1,10 +1,36 @@
 import codecs
+import sys
 import os
 import re
-import versioneer
+import versioneer  # https://github.com/warner/python-versioneer
 
 from setuptools import setup, find_packages
-from setup_qt import build_qt
+
+if sys.argv[-1] == 'pyuic':
+    indir = 'designer'
+    outdir = 'pyrs/interface/ui'
+    files = os.listdir(indir)
+    files = [os.path.join('designer', item) for item in files]
+    files = [item for item in files if item.endswith('.ui')]
+    
+    print (files)
+
+    done = 0
+    for inname in files:
+        base_inname = os.path.basename(inname)
+        outname = 'ui_' + base_inname.replace('.ui', '.py')
+        outname = os.path.join(outdir, outname)
+        if os.path.exists(outname):
+            if os.stat(inname).st_mtime < os.stat(outname).st_mtime:
+                continue
+        print("Converting '%s' to '%s'" % (inname, outname))
+        command = "pyuic4 %s -o %s"  % (inname, outname)
+        os.system(command)
+        done += 1
+    if not done:
+        print("Did not convert any '.ui' files")
+    sys.exit(0)
+
 
 ###################################################################
 
@@ -87,6 +113,6 @@ if __name__ == "__main__":
         install_requires=INSTALL_REQUIRES,
         # from ours
         package_dir={},  # {"": "src"},
-        scripts=["scripts/pyrsplot.py"],
-        cmdclass={'build_qt': build_qt} #versioneer.get_cmdclass(),
+        scripts=["scripts/pyrsplot"],
+        cmdclass=versioneer.get_cmdclass(),
     )
