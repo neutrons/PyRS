@@ -1,5 +1,6 @@
 from PyQt4.QtGui import QMainWindow, QFileDialog
 import ui.ui_peakfitwindow
+from pyrs.core import scandataio as scandataio
 
 
 class FitPeaksWindow(QMainWindow):
@@ -21,7 +22,8 @@ class FitPeaksWindow(QMainWindow):
         self.ui.setupUi(self)
 
         # set up handling
-        self.ui.pushButton_loadScans.clicked.connect(self.do_load_scans)
+        self.ui.pushButton_loadHDF.clicked.connect(self.do_load_scans)
+        self.ui.pushButton_browseHDF
 
         return
 
@@ -38,6 +40,9 @@ class FitPeaksWindow(QMainWindow):
         load scan's reduced files
         :return:
         """
+        scan_file = scandataio.DiffractionDataFile()
+        scan_file.load_rs_file(None)
+
         self._check_core()
 
         # get file name from working directory
@@ -45,7 +50,6 @@ class FitPeaksWindow(QMainWindow):
         # blabla
 
         return
-
 
     def setup_window(self, pyrs_core):
         """
