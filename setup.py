@@ -113,6 +113,6 @@ if __name__ == "__main__":
         install_requires=INSTALL_REQUIRES,
         # from ours
         package_dir={},  # {"": "src"},
-        scripts=["scripts/pyrsplot"],
+        scripts=["scripts/pyrsplot", "tests/unittest/scandataio_test.py"],
         cmdclass=versioneer.get_cmdclass(),
     )
