@@ -1,5 +1,6 @@
 from PyQt4.QtGui import QMainWindow, QFileDialog
 import ui.ui_peakfitwindow
+import os
 from pyrs.core import scandataio as scandataio
 
 
@@ -23,7 +24,7 @@ class FitPeaksWindow(QMainWindow):
 
         # set up handling
         self.ui.pushButton_loadHDF.clicked.connect(self.do_load_scans)
-        self.ui.pushButton_browseHDF
+        self.ui.pushButton_browseHDF.clicked.connect(self.do_browse_hdf)
 
         return
 
@@ -34,6 +35,25 @@ class FitPeaksWindow(QMainWindow):
         """
         if self._core is None:
             raise RuntimeError('Not set up yet!')
+
+    def do_browse_hdf(self):
+        """
+        browse HDF file
+        :return:
+        """
+        ipts_number = None
+        exp_number = None
+        scan_number = None
+
+        default_dir = self._get_default_hdf(ipts_number, exp_number, scan_number)
+        if default_dir is None:
+            default_dir = self._core.get_working_dir()
+
+        hdf_name = str(QFileDialog.getOpenFileName(self, 'HB2B Raw HDF File', default_dir, 'HDF(*.h5);;All Files(*.*)'))
+        if os.path.exists(hdf_name):
+            setText(hdf_name)
+
+        return
 
     def do_load_scans(self):
         """
