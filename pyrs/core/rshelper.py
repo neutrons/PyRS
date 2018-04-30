@@ -2,6 +2,10 @@
 import os
 import numpy
 
+def check_bool_variable(var_name, bool_var):
+    # TODO Implement
+    return True
+
 
 def check_dict(var_name, dict_var):
     """
@@ -115,11 +119,13 @@ def check_numpy_arrays(var_name, variables, dimension, check_same_shape):
                                                                             ''.format(variables, type(variables))
 
     for variable in variables:
-
+        # TODO
+        pass
 
 
     if check_same_shape:
-
+        # TODO
+        pass
 
     return
 
@@ -130,7 +136,7 @@ def check_string_variable(var_name, variable):
     :except ValueError:
     :param var_name:
     :param variable:
-]    :return:
+    :return:
     """
     assert isinstance(var_name, str), 'Variable name {0} must be a string but not a {1}'\
         .format(var_name, type(var_name))

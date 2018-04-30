@@ -36,22 +36,31 @@ class FitPeaksWindow(QMainWindow):
         if self._core is None:
             raise RuntimeError('Not set up yet!')
 
+    def _get_default_hdf(self):
+        """
+        use IPTS and Exp to determine
+        :return:
+        """
+        # TODO
+        ipts_number = None
+        exp_number = None
+
+        return None
+
     def do_browse_hdf(self):
         """
         browse HDF file
         :return:
         """
-        ipts_number = None
-        exp_number = None
-        scan_number = None
+        self._check_core()
 
-        default_dir = self._get_default_hdf(ipts_number, exp_number, scan_number)
+        default_dir = self._get_default_hdf()
         if default_dir is None:
-            default_dir = self._core.get_working_dir()
+            default_dir = self._core.working_dir
 
         hdf_name = str(QFileDialog.getOpenFileName(self, 'HB2B Raw HDF File', default_dir, 'HDF(*.h5);;All Files(*.*)'))
         if os.path.exists(hdf_name):
-            setText(hdf_name)
+            self.ui.lineEdit_expFileName.setText(hdf_name)
 
         return
 
@@ -60,14 +69,30 @@ class FitPeaksWindow(QMainWindow):
         load scan's reduced files
         :return:
         """
-        scan_file = scandataio.DiffractionDataFile()
-        scan_file.load_rs_file(None)
-
         self._check_core()
 
-        # get file name from working directory
+        rs_file_name = str(self.ui.lineEdit_expFileName.text())
 
-        # blabla
+        data_key = self._core.load_rs_raw(rs_file_name)
+
+        # scan_file = scandataio.DiffractionDataFile()
+        # scan_file.load_rs_file(rs_file_name)
+
+        # edit information
+        self.ui.label_loadedFileInfo.setText('File Loaded: {0}'.format(os.path.basename(rs_file_name)))
+
+        # get the range of log indexes
+        log_range = self._core.data_center.get_scan_range(data_key)
+        self.ui.label_logIndexMin.setText(str(log_range[0]))
+        self.ui.label_logIndexMax.setText(str(log_range[1]))
+
+        # get the sample logs
+        sample_log_names = self._core.data_center.get_sample_logs_list(data_key)
+
+        self.ui.comboBox_xaxisNames.clear()
+        self.ui.comboBox_yaxisNames.clear()
+        self.ui.comboBox_xaxisNames.addItem('Log Index')
+
 
         return
 

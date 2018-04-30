@@ -41,6 +41,11 @@ class PyRsCore(object):
         """
         return self._data_manager
 
+    @property
+    def working_dir(self):
+        # TODO
+        return 'tests/testdata/'
+
     def load_rs_raw(self, h5file):
         """
         load HB2B raw h5 file

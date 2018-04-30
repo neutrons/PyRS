@@ -1,5 +1,6 @@
 from PyQt4.QtGui import QMainWindow
 from ui import ui_pyrsmain as ui_pyrsmain
+from pyrs.core import pyrscore
 import fitpeakswindow
 
 
@@ -13,6 +14,9 @@ class PyRSLauncher(QMainWindow):
         """
         super(PyRSLauncher, self).__init__(None)
 
+        # core
+        self._reduction_core = pyrscore.PyRsCore()
+
         # blabla
         self.ui = ui_pyrsmain.Ui_MainWindow()
         self.ui.setupUi(self)
@@ -20,18 +24,24 @@ class PyRSLauncher(QMainWindow):
         # define
         self.ui.pushButton_fitPeaks.clicked.connect(self.do_launch_fit_peak_window)
 
+        # child windows
+        self.peak_fit_window = None
+
         return
+    
+    @property
+    def core(self):
+        return self._reduction_core
 
     def do_launch_fit_peak_window(self):
         """
 
         :return:
         """
-        print ('Launch fit peak window')
-
         self.peak_fit_window = fitpeakswindow.FitPeaksWindow(self)
+        self.peak_fit_window.setup_window(self._reduction_core)
         self.peak_fit_window.show()
 
-
         return
+
 
