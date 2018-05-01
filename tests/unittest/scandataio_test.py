@@ -25,11 +25,17 @@ if True:
     import scipy.optimize
     import numpy
 
-    def func(x, a, b, c, x0):
-        return a * numpy.exp(-b * (x-x0)**2) + c
+    # def func(x, a, b, c, x0):
+    #     return a * numpy.exp(-b * (x-x0)**2) + c
 
-    p0 = [300, 1, 40, 82]
-    fit_results = scipy.optimize.curve_fit(func, vec_2theta, vec_intensity, p0=p0)  # bounds=([a, b, c, x0], [a, b, c, x0])
+    def func1(x, a, b, x0):
+        return a * numpy.exp(-b * (x-x0)**2)
+
+    def func2(x, c):
+        return c
+
+    p0 = [300, 1, 82, 40]
+    fit_results = scipy.optimize.curve_fit(func1+func2, vec_2theta, vec_intensity, p0=p0)
     print (fit_results)
 
     fit_result = fit_results[0]

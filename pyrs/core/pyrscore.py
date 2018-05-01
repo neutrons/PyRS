@@ -1,6 +1,7 @@
 # This is the core of PyRS serving as the controller of PyRS and hub for all the data
 import scandataio
 import datamanagers
+import peakfitengine
 
 
 class PyRsCore(object):
@@ -45,6 +46,18 @@ class PyRsCore(object):
     def working_dir(self):
         # TODO
         return 'tests/testdata/'
+
+    def fit_peak(self, data_key, scan_index):
+        """
+        fit a single peak of a measurement in a multiple-log scan
+        :param data_key:
+        :param scan_index:
+        :return:
+        """
+        # TODO - If it gets too big, consider to move to a new class
+
+        return
+
 
     def load_rs_raw(self, h5file):
         """
