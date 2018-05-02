@@ -2,6 +2,7 @@
 import scandataio
 import datamanagers
 import peakfitengine
+import rshelper
 
 
 class PyRsCore(object):
@@ -15,6 +16,9 @@ class PyRsCore(object):
         # declaration of class members
         self._file_io_controller = scandataio.DiffractionDataFile()  # a I/O instance for standard HB2B file
         self._data_manager = datamanagers.RawDataManager()
+
+        # working environment
+        self._working_dir = 'tests/testdata/'
 
         return
 
@@ -44,17 +48,37 @@ class PyRsCore(object):
 
     @property
     def working_dir(self):
-        # TODO
-        return 'tests/testdata/'
+        """
+        get working directory
+        :return:
+        """
+        return self._working_dir
 
-    def fit_peak(self, data_key, scan_index):
+    @working_dir.setter
+    def working_dir(self, user_dir):
+        """
+        set working directory
+        :param user_dir:
+        :return:
+        """
+        rshelper.check_file_name('Working directory', user_dir, check_writable=False, is_dir=True)
+
+        self._working_dir = user_dir
+
+        return
+
+    def fit_peak(self, data_key, scan_index, peak_type, background_type):
         """
         fit a single peak of a measurement in a multiple-log scan
         :param data_key:
         :param scan_index:
+        :param peak_type:
+        :param background_type:
         :return:
         """
-        # TODO - If it gets too big, consider to move to a new class
+        # get data
+        diff_data = self._data_manager.get_data_set(data_key, scan_index)
+
 
         return
 

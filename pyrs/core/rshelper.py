@@ -31,12 +31,13 @@ def check_dict(var_name, dict_var):
     return
 
 
-def check_file_name(file_name, check_exist=True, check_writable=False):
+def check_file_name(file_name, check_exist=True, check_writable=False, is_dir=False):
     """
     check whether an input file name is a string and whether it is a file or a file can be written to
     :param file_name:
     :param check_exist:
     :param check_writable:
+    :param is_dir:
     :return:
     """
     assert isinstance(file_name, str), 'Input file name {0}  must be a string but not a {1}.' \
@@ -47,6 +48,10 @@ def check_file_name(file_name, check_exist=True, check_writable=False):
 
     if check_writable and os.access(file_name, os.W_OK):
         raise RuntimeError('File {0} is not writable.'.format(file_name))
+
+    check_bool_variable('Flag for input string is a directory', is_dir)
+    assert os.path.isdir(file_name) == is_dir, 'Path {0} shall {1} be a directory and it is {2}.' \
+                                               ''.format(file_name, os.path.isdir(file_name), is_dir)
 
     return
 
