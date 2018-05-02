@@ -82,7 +82,6 @@ class PyRsCore(object):
 
         return
 
-
     def load_rs_raw(self, h5file):
         """
         load HB2B raw h5 file
@@ -94,4 +93,4 @@ class PyRsCore(object):
         data_key = self.data_center.add_raw_data(diff_data_dict, sample_log_dict, h5file, replace=True)
         message = 'Load {0} with reference ID {1}'.format(h5file, data_key)
 
-        return message
+        return data_key, message

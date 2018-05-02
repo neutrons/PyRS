@@ -6,7 +6,6 @@ import numpy
 
 # default testing directory is ..../PyRS/
 print (os.getcwd())
-
 # therefore it is not too hard to locate testing data
 test_data = 'tests/testdata/BD_Data_Log.hdf5'
 print ('Data file {0} exists? : {1}'.format(test_data, os.path.exists(test_data)))

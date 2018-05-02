@@ -76,35 +76,38 @@ class DiffractionDataFile(object):
 
         for log_index in range(num_logs):
             log_name_i = 'Log {0}'.format(log_index)
-            log_i = diff_data_group[log_name_i]
+            h5_log_i = diff_data_group[log_name_i]
 
             vec_2theta = None
             vec_y = None
 
-            for item_name in log_i.keys():
-                item_i = log_i[item_name].value
+            for item_name in h5_log_i.keys():
+                item_i = h5_log_i[item_name].value
 
                 if isinstance(item_i, numpy.ndarray):
                     if item_name == 'Corrected 2theta':
                         # corrected 2theta
-                        if not (len(item_i.shape) == 1 or log_i[item_name].value.shape[1] == 1):
+                        if not (len(item_i.shape) == 1 or h5_log_i[item_name].value.shape[1] == 1):
                             raise RuntimeError('Unable to support a non-1D corrected 2theta entry')
-                        vec_2theta = log_i[item_name].value.flatten('F')
+                        vec_2theta = h5_log_i[item_name].value.flatten('F')
                     elif item_name == 'Corrected Intensity':
-                        if not (len(item_i.shape) == 1 or log_i[item_name].value.shape[1] == 1):
+                        if not (len(item_i.shape) == 1 or h5_log_i[item_name].value.shape[1] == 1):
                             raise RuntimeError('Unable to support a non-1D corrected intensity entry')
-                        vec_y = log_i[item_name].value.flatten('F')
+                        vec_y = h5_log_i[item_name].value.flatten('F')
                 else:
                     # 1 dimensional (single data point)
-                    if item_name not in sample_logs:
+                    item_name_str = str(item_name)
+                    if item_name_str not in sample_logs:
                         # create entry as ndarray if it does not exist
                         if isinstance(item_i, str):
-                            sample_logs[item_name] = numpy.ndarray(shape=(num_logs,), dtype=object)
+                            # string can only be object type
+                            sample_logs[item_name_str] = numpy.ndarray(shape=(num_logs,), dtype=object)
                         else:
-                            sample_logs[item_name] = numpy.ndarray(shape=(num_logs,), dtype=item_i.dtype)
+                            # raw type
+                            sample_logs[item_name_str] = numpy.ndarray(shape=(num_logs,), dtype=item_i.dtype)
 
                     # add the log
-                    sample_logs[item_name][log_index] = log_i[item_name].value
+                    sample_logs[item_name_str][log_index] = h5_log_i[item_name].value
                 # END-IF
             # END-FOR
 

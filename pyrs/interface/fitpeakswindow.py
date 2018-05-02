@@ -1,8 +1,9 @@
-#from PyQt4.QtGui import QMainWindow, QFileDialog
-from PyQt5.QtWidgets import QMainWindow, QFileDialog
+try:
+    from PyQt5.QtWidgets import QMainWindow, QFileDialog
+except ImportError:
+    from PyQt4.QtGui import QMainWindow, QFileDialog
 import ui.ui_peakfitwindow
 import os
-from pyrs.core import scandataio as scandataio
 
 
 class FitPeaksWindow(QMainWindow):
@@ -26,6 +27,8 @@ class FitPeaksWindow(QMainWindow):
         # set up handling
         self.ui.pushButton_loadHDF.clicked.connect(self.do_load_scans)
         self.ui.pushButton_browseHDF.clicked.connect(self.do_browse_hdf)
+
+        # TODO actionQuit
 
         return
 
@@ -59,9 +62,25 @@ class FitPeaksWindow(QMainWindow):
         if default_dir is None:
             default_dir = self._core.working_dir
 
-        hdf_name = str(QFileDialog.getOpenFileName(self, 'HB2B Raw HDF File', default_dir, 'HDF(*.h5);;All Files(*.*)'))
+        file_filter = 'HDF(*.h5);;All Files(*.*)'
+        open_value = QFileDialog.getOpenFileName(self, 'HB2B Raw HDF File', default_dir, file_filter)
+        print open_value
+
+        if isinstance(open_value, tuple):
+            # PyQt5
+            hdf_name = str(open_value[0])
+        else:
+            hdf_name = str(open_value)
+
+        if len(hdf_name) == 0:
+            # use cancel
+            return
+
         if os.path.exists(hdf_name):
             self.ui.lineEdit_expFileName.setText(hdf_name)
+        else:
+            # pass
+            raise RuntimeError('File {0} does not exist.'.format(hdf_name))
 
         return
 
@@ -72,20 +91,19 @@ class FitPeaksWindow(QMainWindow):
         """
         self._check_core()
 
+        # get file
         rs_file_name = str(self.ui.lineEdit_expFileName.text())
 
-        data_key = self._core.load_rs_raw(rs_file_name)
-
-        # scan_file = scandataio.DiffractionDataFile()
-        # scan_file.load_rs_file(rs_file_name)
+        # load file
+        data_key, message = self._core.load_rs_raw(rs_file_name)
 
         # edit information
-        self.ui.label_loadedFileInfo.setText('File Loaded: {0}'.format(os.path.basename(rs_file_name)))
+        self.ui.label_loadedFileInfo.setText(message)
 
         # get the range of log indexes
         log_range = self._core.data_center.get_scan_range(data_key)
         self.ui.label_logIndexMin.setText(str(log_range[0]))
-        self.ui.label_logIndexMax.setText(str(log_range[1]))
+        self.ui.label_logIndexMax.setText(str(log_range[-1]))
 
         # get the sample logs
         sample_log_names = self._core.data_center.get_sample_logs_list(data_key)
@@ -93,6 +111,8 @@ class FitPeaksWindow(QMainWindow):
         self.ui.comboBox_xaxisNames.clear()
         self.ui.comboBox_yaxisNames.clear()
         self.ui.comboBox_xaxisNames.addItem('Log Index')
+
+        # TODO continue to set all the sample log names to combos!
 
 
         return

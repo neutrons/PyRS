@@ -1,5 +1,7 @@
-#from PyQt4.QtGui import QMainWindow
-from PyQt5.QtWidgets import QMainWindow
+try:
+    from PyQt5.QtWidgets import QMainWindow
+except ImportError:
+    from PyQt4.QtGui import QMainWindow
 from ui import ui_pyrsmain as ui_pyrsmain
 from pyrs.core import pyrscore
 import fitpeakswindow
@@ -24,6 +26,8 @@ class PyRSLauncher(QMainWindow):
 
         # define
         self.ui.pushButton_fitPeaks.clicked.connect(self.do_launch_fit_peak_window)
+
+        # TODO actionQuit
 
         # child windows
         self.peak_fit_window = None

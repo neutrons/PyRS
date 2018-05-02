@@ -73,6 +73,10 @@ class ScanDataHolder(object):
 
         return self._diff_data_dict[scan_log_index]
 
+    def get_sample_log_names(self):
+        # TODO
+        return sorted(self._sample_log_dict.keys())
+
     def get_sample_log_value(self, sample_log_name):
         """
         get sample log value
@@ -84,6 +88,10 @@ class ScanDataHolder(object):
             raise RuntimeError('Sample log {0} cannot be found.'.format(sample_log_name))
 
         return self._scan_log_index_vec, self._sample_log_dict[sample_log_name]
+
+    def get_scan_log_index_range(self):
+        # TODO
+        return self._scan_log_indexes[:]
 
 
 class RawDataManager(object):
@@ -116,7 +124,7 @@ class RawDataManager(object):
         self._data_dict[data_key] = ScanDataHolder(h5file, diff_data_dict, sample_log_dict)
         self._file_ref_dict[h5file] = data_key
 
-        return
+        return data_key
 
     def delete_data(self, reference_id):
         """
@@ -169,6 +177,14 @@ class RawDataManager(object):
         data_set = self._data_dict[data_ref_id].get_diff_data(scan_index)
 
         return data_set
+
+    def get_sample_logs_list(self, data_key):
+        # TODO
+        return self._data_dict[data_key].get_sample_log_names()
+
+    def get_scan_range(self, data_key):
+        # TODO
+        return self._data_dict[data_key].get_scan_log_index_range()
 
     def has_data(self, reference_id):
         """
