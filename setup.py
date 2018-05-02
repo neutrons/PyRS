@@ -12,9 +12,13 @@ if sys.argv[-1] == 'pyuic':
     files = os.listdir(indir)
     files = [os.path.join('designer', item) for item in files]
     files = [item for item in files if item.endswith('.ui')]
-    
-    print (files)
 
+    try:
+        import PyQt5
+        pyui_ver = 5
+    except ImportError:
+        pyui_ver = 4
+    
     done = 0
     for inname in files:
         base_inname = os.path.basename(inname)
@@ -24,7 +28,7 @@ if sys.argv[-1] == 'pyuic':
             if os.stat(inname).st_mtime < os.stat(outname).st_mtime:
                 continue
         print("Converting '%s' to '%s'" % (inname, outname))
-        command = "pyuic4 %s -o %s"  % (inname, outname)
+        command = "pyuic%d %s -o %s"  % (pyui_ver, inname, outname)
         os.system(command)
         done += 1
     if not done:

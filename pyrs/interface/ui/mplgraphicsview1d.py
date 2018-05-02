@@ -5,12 +5,18 @@ Graphics class with matplotlib backend specific for advanced 1D plot
 import os
 import numpy as np
 
+from PyQt5.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
+from PyQt5.QtCore import pyqtSignal
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
+
 try:
     from PyQt5.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
     from PyQt5.QtCore import pyqtSignal
     from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
-except (ImportError, RuntimeError):
+except (ImportError, RuntimeError) as err:
+    print ('Importing PyQt5 widgets error! Details: {0}'.format(err))
     from PyQt4.QtGui import QWidget, QSizePolicy, QVBoxLayout
     from PyQt4.QtCore import pyqtSignal
     from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas

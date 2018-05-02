@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # GUI (python) application of PyRS
-from PyQt4.QtGui import QApplication
+from PyQt5.QtWidgets import QApplication
 import sys
 import pyrs.interface.pyrs_main
 

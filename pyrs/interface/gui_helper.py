@@ -1,6 +1,6 @@
 # a collection of helper methdos for GUI
 import os
-from PyQt4.QtGui import QDialog
+from PyQt5.QtGui import QDialog
 
 
 def pop_message(parent, message, message_type='error'):

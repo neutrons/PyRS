@@ -1,4 +1,5 @@
-from PyQt4.QtGui import QMainWindow
+#from PyQt4.QtGui import QMainWindow
+from PyQt5.QtWidgets import QMainWindow
 from ui import ui_pyrsmain as ui_pyrsmain
 from pyrs.core import pyrscore
 import fitpeakswindow

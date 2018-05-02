@@ -1,4 +1,5 @@
-from PyQt4.QtGui import QMainWindow, QFileDialog
+#from PyQt4.QtGui import QMainWindow, QFileDialog
+from PyQt5.QtWidgets import QMainWindow, QFileDialog
 import ui.ui_peakfitwindow
 import os
 from pyrs.core import scandataio as scandataio
