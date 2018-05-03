@@ -4,6 +4,7 @@ except ImportError:
     from PyQt4.QtGui import QMainWindow, QFileDialog
 import ui.ui_peakfitwindow
 import os
+import gui_helper
 
 
 class FitPeaksWindow(QMainWindow):
@@ -28,7 +29,7 @@ class FitPeaksWindow(QMainWindow):
         self.ui.pushButton_loadHDF.clicked.connect(self.do_load_scans)
         self.ui.pushButton_browseHDF.clicked.connect(self.do_browse_hdf)
 
-        # TODO actionQuit
+        self.ui.actionQuit.triggered.connect(self.do_quit)
 
         return
 
@@ -45,9 +46,14 @@ class FitPeaksWindow(QMainWindow):
         use IPTS and Exp to determine
         :return:
         """
-        # TODO
-        ipts_number = None
-        exp_number = None
+        try:
+            ipts_number = gui_helper.parse_integer(self.ui.lineEdit_iptsNumber)
+            exp_number = gui_helper.parse_integer(self.ui.lineEdit_expNumber)
+        except RuntimeError as run_err:
+            gui_helper.pop_message(self, 'Unable to parse IPTS or Exp due to {0}'.format(run_err))
+            return None
+
+        # TODO - NEED TO FIND OUT HOW TO DEFINE hdf FROM IPTS and EXP
 
         return None
 
@@ -111,9 +117,60 @@ class FitPeaksWindow(QMainWindow):
         self.ui.comboBox_xaxisNames.clear()
         self.ui.comboBox_yaxisNames.clear()
         self.ui.comboBox_xaxisNames.addItem('Log Index')
+        for sample_log in sample_log_names:
+            self.ui.comboBox_xaxisNames.addItem(sample_log)
+            self.ui.comboBox_yaxisNames.addItem(sample_log)
 
-        # TODO continue to set all the sample log names to combos!
+        return
 
+    def do_plot_diff_data(self):
+        """
+        plot diffraction data
+        :return:
+        """
+        # gather the information
+        scan_log_index_list = gui_helper.parse_integers(str(self.ui.lineEdit_scanNUmbers.text()))
+        if len(scan_log_index_list) == 0:
+            gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
+
+        # possibly clean the previous
+        if keep_prev is False:
+            self.ui.graphicsView_fitSetup.clear_all_lines()
+
+        # get data and plot
+        err_msg = ''
+        for scan_log_index in scan_log_index_list:
+            try:
+                diff_data_set = self._core.get_diff_data(data_key=None, scan_log_index=scan_log_index)
+                self.ui.graphicsView_fitSetup.plot_diff_data(diff_data_set)
+            except RuntimeError as run_err:
+                err_msg += '{0}\n'.format(run_err)
+        # END-FOR
+
+        return
+
+    def do_plot_meta_data(self):
+        """
+        plot the meta/fit result data on the right side GUI
+        :return:
+        """
+        # get the sample log/meta data name
+        x_axis_name = str(self.ui.comboBox_xaxisNames.currentText())
+        y_axis_name = str(self.ui.comboBox_yaxisNames.currentText())
+
+        vec_x = self.get_meta_sample_data(x_axis_name)
+        vec_y = self.get_meta_sample_data(y_axis_name)
+
+        self.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y)
+
+        return
+
+    def do_quit(self):
+        """
+        close the window and quit
+        :return:
+        """
+        self.close()
 
         return
 

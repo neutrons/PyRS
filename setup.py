@@ -96,8 +96,15 @@ def find_meta(meta):
     raise RuntimeError("Unable to find __{meta}__ string.".format(meta=meta))
 
 
-
 if __name__ == "__main__":
+    """
+    main
+    """
+    scripts = ['scripts/pyrsplot']
+    test_scripts = ['tests/unittest/pyrs_core_test.py',
+                    'tests/unittest/utilities_test.py',
+                    'tests/guitest/peakfitgui_test.py']
+    scripts.extend(test_scripts)
 
     setup(
         name=NAME,
@@ -117,6 +124,9 @@ if __name__ == "__main__":
         install_requires=INSTALL_REQUIRES,
         # from ours
         package_dir={},  # {"": "src"},
-        scripts=["scripts/pyrsplot", "tests/unittest/pyrs_core_test.py", "tests/guitest/peakfitgui_test.py"],
+        scripts=scripts,
+        #scripts=["scripts/pyrsplot", "tests/unittest/pyrs_core_test.py", "tests/guitest/peakfitgui_test.py"],
         cmdclass=versioneer.get_cmdclass(),
     )
+
+    print ('Scripts compiled: {0}'.format(scripts))

@@ -74,7 +74,10 @@ class ScanDataHolder(object):
         return self._diff_data_dict[scan_log_index]
 
     def get_sample_log_names(self):
-        # TODO
+        """
+        get sample log names
+        :return:
+        """
         return sorted(self._sample_log_dict.keys())
 
     def get_sample_log_value(self, sample_log_name):
@@ -90,7 +93,10 @@ class ScanDataHolder(object):
         return self._scan_log_index_vec, self._sample_log_dict[sample_log_name]
 
     def get_scan_log_index_range(self):
-        # TODO
+        """
+        get the list of all the log indexes
+        :return:
+        """
         return self._scan_log_indexes[:]
 
 
@@ -179,11 +185,27 @@ class RawDataManager(object):
         return data_set
 
     def get_sample_logs_list(self, data_key):
-        # TODO
+        """
+        get the list of sample logs' names
+        :param data_key:
+        :return: list of strings
+        """
+        rshelper.check_string_variable('Data reference ID', data_key)
+        if data_key not in self._data_dict:
+            raise RuntimeError('Data reference ID (key) {0} does not exist.'.format(data_key))
+
         return self._data_dict[data_key].get_sample_log_names()
 
     def get_scan_range(self, data_key):
-        # TODO
+        """
+        get the range of scan log indexes
+        :param data_key:
+        :return: list of scan log indexes
+        """
+        rshelper.check_string_variable('Data reference ID', data_key)
+        if data_key not in self._data_dict:
+            raise RuntimeError('Data reference ID (key) {0} does not exist.'.format(data_key))
+
         return self._data_dict[data_key].get_scan_log_index_range()
 
     def has_data(self, reference_id):
