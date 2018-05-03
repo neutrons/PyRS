@@ -5,7 +5,10 @@ import pyrs.interface
 from pyrs.interface import fitpeakswindow
 import pyrs.core
 from pyrs.core import pyrscore
-from PyQt4.QtGui import QApplication
+try:
+    from PyQt5.QtWidgets import QApplication
+except ImportError:
+    from PyQt4.QtGui import QApplication
 
 
 def test_main():
@@ -13,10 +16,14 @@ def test_main():
     test main
     """
     fit_window = fitpeakswindow.FitPeaksWindow(None)
-    # fit_window.show()
     pyrs_core = pyrscore.PyRsCore()
+    fit_window.setup_window(pyrs_core)
 
     fit_window.ui.lineEdit_expFileName.setText('tests/testdata/BD_Data_Log.hdf5')
+    fit_window.do_load_scans()
+    fit_window.ui.lineEdit_scanNUmbers.setText('4')
+    fit_window.do_plot_diff_data()
+    fit_window.do_plot_meta_data()
 
     return fit_window
 

@@ -20,22 +20,50 @@
       <item row="0" column="3">
        <widget class="QComboBox" name="comboBox_yaxisNames"/>
       </item>
-      <item row="0" column="2">
-       <widget class="QLabel" name="label_6">
-        <property name="text">
-         <string>Y-axis</string>
+      <item row="0" column="4">
+       <spacer name="horizontalSpacer_4">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
         </property>
-       </widget>
+        <property name="sizeType">
+         <enum>QSizePolicy::Preferred</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item row="0" column="1">
+       <widget class="QComboBox" name="comboBox_xaxisNames"/>
       </item>
       <item row="0" column="0">
        <widget class="QLabel" name="label_5">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
         <property name="text">
          <string>X-axis</string>
         </property>
        </widget>
       </item>
-      <item row="0" column="1">
-       <widget class="QComboBox" name="comboBox_xaxisNames"/>
+      <item row="0" column="2">
+       <widget class="QLabel" name="label_6">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>Y-axis</string>
+        </property>
+       </widget>
       </item>
       <item row="1" column="3">
        <spacer name="verticalSpacer">
@@ -52,6 +80,13 @@
          </size>
         </property>
        </spacer>
+      </item>
+      <item row="0" column="5">
+       <widget class="QCheckBox" name="checkBox_keepPrevPlotRight">
+        <property name="text">
+         <string>Keep</string>
+        </property>
+       </widget>
       </item>
      </layout>
     </item>
@@ -142,6 +177,13 @@
          <widget class="QLabel" name="label_logIndexMax">
           <property name="text">
            <string>-1</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="checkBox_keepPrevPlot">
+          <property name="text">
+           <string>Keep</string>
           </property>
          </widget>
         </item>

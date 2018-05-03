@@ -20,6 +20,9 @@ class PyRsCore(object):
         # working environment
         self._working_dir = 'tests/testdata/'
 
+        # current/default status
+        self._curr_data_key = None
+
         return
 
     @property
@@ -37,6 +40,11 @@ class PyRsCore(object):
         :return:
         """
         return self._peak_fitting_controller
+
+    @property
+    def current_data_reference_id(self):
+        # TODO
+        return self._curr_data_key
 
     @property
     def data_center(self):
@@ -79,8 +87,43 @@ class PyRsCore(object):
         # get data
         diff_data = self._data_manager.get_data_set(data_key, scan_index)
 
+        # TODO Refactor the following
+        # These shall be real
+        vec_x_list = list()
+        vec_y_list = list()
+        for log_index in sorted(diff_data_dict.keys()):
+            vec_x = diff_data_dict[log_index][0]
+            vec_y = diff_data_dict[log_index][1]
+            vec_x_list.append(vec_x)
+            vec_y_list.append(vec_y)
+        datax = np.concatenate(vec_x_list, axis=0)
+        datay = np.concatenate(vec_y_list, axis=0)
+        ws_full = CreateWorkspace(DataX=datax, DataY=datay, NSpec=len(vec_x_list))
+        FitPeaks(InputWorkspace='ws_full', OutputWorkspace='full_fitted', PeakCenters='82', PeakFunction='Gaussian',
+                 BackgroundType='Linear',
+                 PositionTolerance=3, OutputPeakParametersWorkspace='param_m', FittedPeaksWorkspace='model_full',
+                 FitWindowBoundaryList='79, 85')
 
         return
+
+    def get_diff_data(self, data_key, scan_log_index):
+        """
+        get diffraction data of a certain
+        :param data_key:
+        :param scan_log_index:
+        :return:
+        """
+        # get data key
+        if data_key is None:
+            data_key = self._curr_data_key
+            if data_key is None:
+                raise RuntimeError('There is no current loaded data.')
+        # END-IF
+
+        # get data
+        diff_data_set = self._data_manager.get_data_set(data_key, scan_log_index)
+
+        return diff_data_set
 
     def load_rs_raw(self, h5file):
         """
@@ -92,5 +135,8 @@ class PyRsCore(object):
 
         data_key = self.data_center.add_raw_data(diff_data_dict, sample_log_dict, h5file, replace=True)
         message = 'Load {0} with reference ID {1}'.format(h5file, data_key)
+
+        # set to current key
+        self._curr_data_key = data_key
 
         return data_key, message

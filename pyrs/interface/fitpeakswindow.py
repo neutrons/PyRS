@@ -5,6 +5,7 @@ except ImportError:
 import ui.ui_peakfitwindow
 import os
 import gui_helper
+import numpy
 
 
 class FitPeaksWindow(QMainWindow):
@@ -24,12 +25,22 @@ class FitPeaksWindow(QMainWindow):
         # set up UI
         self.ui = ui.ui_peakfitwindow.Ui_MainWindow()
         self.ui.setupUi(self)
+        self.ui.graphicsView_fitResult.set_subplots(1, 1)
+        self.ui.graphicsView_fitSetup.set_subplots(1, 1)
 
         # set up handling
         self.ui.pushButton_loadHDF.clicked.connect(self.do_load_scans)
         self.ui.pushButton_browseHDF.clicked.connect(self.do_browse_hdf)
+        self.ui.pushButton_plotPeaks.clicked.connect(self.do_plot_diff_data)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
+
+        # TODO
+        self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
+        self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
+
+        # mutexes
+        self._sample_log_names_mutex = False
 
         return
 
@@ -112,14 +123,16 @@ class FitPeaksWindow(QMainWindow):
         self.ui.label_logIndexMax.setText(str(log_range[-1]))
 
         # get the sample logs
-        sample_log_names = self._core.data_center.get_sample_logs_list(data_key)
+        sample_log_names = self._core.data_center.get_sample_logs_list(data_key, can_plot=True)
 
+        self._sample_log_names_mutex = True
         self.ui.comboBox_xaxisNames.clear()
         self.ui.comboBox_yaxisNames.clear()
         self.ui.comboBox_xaxisNames.addItem('Log Index')
         for sample_log in sample_log_names:
             self.ui.comboBox_xaxisNames.addItem(sample_log)
             self.ui.comboBox_yaxisNames.addItem(sample_log)
+        self._sample_log_names_mutex = False
 
         return
 
@@ -134,8 +147,9 @@ class FitPeaksWindow(QMainWindow):
             gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
 
         # possibly clean the previous
+        keep_prev = self.ui.checkBox_keepPrevPlot.isChecked()
         if keep_prev is False:
-            self.ui.graphicsView_fitSetup.clear_all_lines()
+            self.ui.graphicsView_fitSetup.clear_all_lines(include_right=False)
 
         # get data and plot
         err_msg = ''
@@ -154,6 +168,12 @@ class FitPeaksWindow(QMainWindow):
         plot the meta/fit result data on the right side GUI
         :return:
         """
+        if self._sample_log_names_mutex:
+            return
+
+        if self.ui.checkBox_keepPrevPlotRight.isChecked() is False:
+            self.ui.graphicsView_fitResult.clear_all_lines(include_right=False)
+
         # get the sample log/meta data name
         x_axis_name = str(self.ui.comboBox_xaxisNames.currentText())
         y_axis_name = str(self.ui.comboBox_yaxisNames.currentText())
@@ -161,7 +181,7 @@ class FitPeaksWindow(QMainWindow):
         vec_x = self.get_meta_sample_data(x_axis_name)
         vec_y = self.get_meta_sample_data(y_axis_name)
 
-        self.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y)
+        self.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y, x_axis_name, y_axis_name)
 
         return
 
@@ -173,6 +193,29 @@ class FitPeaksWindow(QMainWindow):
         self.close()
 
         return
+
+    def get_meta_sample_data(self, name):
+        """
+        get meta data to plot.
+        the meta data can contain sample log data and fitted peak parameters
+        :param name:
+        :return:
+        """
+        # get data key
+        data_key = self._core.current_data_reference_id
+        if data_key is None:
+            gui_helper.pop_message(self, 'No data loaded', 'error')
+            return
+
+        if name == 'Log Index':
+            value_vector = numpy.array(self._core.data_center.get_scan_range(data_key))
+        elif self._core.data_center.has_sample_log(data_key, name):
+            value_vector = self._core.data_center.get_sample_log_values(data_key, name)
+        else:
+            # this is for fitted data parameters
+            raise NotImplementedError('ASAP')
+
+        return value_vector
 
     def setup_window(self, pyrs_core):
         """

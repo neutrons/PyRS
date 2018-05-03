@@ -3,10 +3,11 @@ import os
 from pyrs.core import rshelper
 try:
     from PyQt5.QtWidgets import QDialog, QLineEdit
-    from PyQt5.QtCore import QString
+    is_qt4 = False
 except ImportError:
     from PyQt4.QtGui import QDialog, QLineEdit
-    from PyQt4.QtCore import QString
+    from PyQt4 import QtCore
+    is_qt4 = True
 
 
 def parse_integer(int_str):
@@ -17,7 +18,8 @@ def parse_integer(int_str):
     """
     if isinstance(int_str, QLineEdit):
         int_str = str(int_str.text())
-    elif isinstance(int_str, QString):
+    elif is_qt4 and isinstance(int_str, QtCore.QString):
+        # There is no QString in PyQt5
         int_str = str(int_str)
     else:
         rshelper.check_string_variable('Integer string', int_str)
