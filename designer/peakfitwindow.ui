@@ -206,7 +206,7 @@
      </layout>
     </item>
     <item row="3" column="0">
-     <widget class="QTableView" name="tableView">
+     <widget class="FitResultTable" name="tableView_fitSummary">
       <property name="toolTip">
        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Peak fit result&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
       </property>
@@ -385,6 +385,11 @@
    <class>PeakFitSetupView</class>
    <extends>QGraphicsView</extends>
    <header>diffdataviews.h</header>
+  </customwidget>
+  <customwidget>
+   <class>FitResultTable</class>
+   <extends>QTableView</extends>
+   <header>rstables.h</header>
   </customwidget>
  </customwidgets>
  <resources/>
