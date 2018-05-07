@@ -24,6 +24,7 @@ def test_main():
     fit_window.ui.lineEdit_scanNUmbers.setText('4')
     fit_window.do_plot_diff_data()
     fit_window.do_plot_meta_data()
+    fit_window.do_fit_peaks()
 
     return fit_window
 

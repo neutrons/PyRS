@@ -202,6 +202,8 @@ class RawDataManager(object):
         if data_key not in self._data_dict:
             raise RuntimeError('Data reference ID (key) {0} does not exist.'.format(data_key))
 
+        # TODO FIXME - Apply 'can_plot'
+
         return self._data_dict[data_key].get_sample_log_names(can_plot)
 
     def get_sample_log_values(self, data_key, sample_log_name):

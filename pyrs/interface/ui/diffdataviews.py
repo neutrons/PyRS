@@ -27,7 +27,7 @@ class GeneralDiffDataView(MplGraphicsView1D):
         """
         # TODO Future: Need to write use cases.  Now it is for demo
         if self._last_line_reference is not None:
-            if x_label != self.get_xlabel(self._last_line_reference):
+            if x_label != self.get_label_x():
                 self.reset_viewer()
 
         # plot data in a scattering plot
@@ -73,6 +73,10 @@ class PeakFitSetupView(MplGraphicsView1D):
 
         return
 
+    def _next_color(self):
+        # TODO Implement ASAP
+        return 'blue'
+
     def plot_diff_data(self, diff_data_set, data_reference):
         """
         plot a diffraction data
@@ -85,7 +89,7 @@ class PeakFitSetupView(MplGraphicsView1D):
         vec_y = diff_data_set[1]
 
         # plot data
-        ref_id = self.add_plot(vec_x, vec_y, color=self._next_color(), x_label='$2\\theta$', marker=None,
+        ref_id = self.add_plot(vec_x, vec_y, color=self._next_color(), x_label='$2\\theta (degree)$', marker=None,
                                show_legend=True, y_label=data_reference)
 
         self._diff_reference_list.append(ref_id)

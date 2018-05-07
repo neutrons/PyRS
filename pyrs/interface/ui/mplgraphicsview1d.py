@@ -462,6 +462,16 @@ class MplGraphicsView1D(QWidget):
         """
         return self._myCanvas.getLastPlotIndexKey()
 
+    def get_label_x(self, row_index=0, col_index=0):
+        """
+
+        :param row_index:
+        :param col_index:
+        :return:
+        """
+        # TODO blabla
+        return self._myCanvas.axes_main[row_index, col_index].get_xlabel()
+
     def get_y_limit(self):
         """ Get limit of Y-axis
         """
@@ -491,7 +501,7 @@ class MplGraphicsView1D(QWidget):
         Returns:
 
         """
-        return self._myCanvas
+        return self._myCanvas.axes_main
 
     def get_subplots_indexes(self):
         """

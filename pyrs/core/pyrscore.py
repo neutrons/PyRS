@@ -3,6 +3,7 @@ import scandataio
 import datamanagers
 import peakfitengine
 import rshelper
+import numpy as np
 
 
 class PyRsCore(object):
@@ -75,7 +76,7 @@ class PyRsCore(object):
 
         return
 
-    def fit_peak(self, data_key, scan_index, peak_type, background_type):
+    def fit_peaks(self, data_key, scan_index, peak_type, background_type):
         """
         fit a single peak of a measurement in a multiple-log scan
         :param data_key:
@@ -84,27 +85,43 @@ class PyRsCore(object):
         :param background_type:
         :return:
         """
+        # TODO check inputs
+
+        # get scan indexes
+        if scan_index is None:
+            scan_index_list = self._data_manager.get_scan_range(data_key)
+        elif isinstance(scan_index, int):
+            # check range
+            scan_index_list = [scan_index]
+        elif isinstance(scan_index, list):
+            scan_index_list = scan_index
+        else:
+            raise  # TODO FIXME
+
         # get data
-        diff_data = self._data_manager.get_data_set(data_key, scan_index)
+        diff_data_list = list()
+        for log_index in scan_index_list:
+            diff_data = self._data_manager.get_data_set(data_key, log_index)
+            diff_data_list.append(diff_data)
+        # END-FOR
 
-        # TODO Refactor the following
-        # These shall be real
-        vec_x_list = list()
-        vec_y_list = list()
-        for log_index in sorted(diff_data_dict.keys()):
-            vec_x = diff_data_dict[log_index][0]
-            vec_y = diff_data_dict[log_index][1]
-            vec_x_list.append(vec_x)
-            vec_y_list.append(vec_y)
-        datax = np.concatenate(vec_x_list, axis=0)
-        datay = np.concatenate(vec_y_list, axis=0)
-        ws_full = CreateWorkspace(DataX=datax, DataY=datay, NSpec=len(vec_x_list))
-        FitPeaks(InputWorkspace='ws_full', OutputWorkspace='full_fitted', PeakCenters='82', PeakFunction='Gaussian',
-                 BackgroundType='Linear',
-                 PositionTolerance=3, OutputPeakParametersWorkspace='param_m', FittedPeaksWorkspace='model_full',
-                 FitWindowBoundaryList='79, 85')
+        import mantid_fit_peak
 
-        return
+        ref_id = 'TODO FIND A GOOD NAMING CONVENTION'
+        peak_optimizer = mantid_fit_peak.MantidPeakFitEngine(diff_data_list, ref_id=ref_id)
+        peak_optimizer.fit_peaks(peak_type, background_type, None)
+
+        self._last_optimizer = peak_optimizer
+
+        return ref_id
+
+    def get_fit_parameters(self, data_key):
+        # TODO
+        return self._last_optimizer.get_function_parameter_names()
+
+    def get_peak_fit_param_value(self, data_key, param_name):
+        # TODO
+        return self._last_optimizer.get_fitted_params(param_name)
 
     def get_diff_data(self, data_key, scan_log_index):
         """

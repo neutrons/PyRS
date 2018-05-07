@@ -32,6 +32,7 @@ class FitPeaksWindow(QMainWindow):
         self.ui.pushButton_loadHDF.clicked.connect(self.do_load_scans)
         self.ui.pushButton_browseHDF.clicked.connect(self.do_browse_hdf)
         self.ui.pushButton_plotPeaks.clicked.connect(self.do_plot_diff_data)
+        self.ui.pushButton_fitPeaks.clicked.connect(self.do_fit_peaks)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
 
@@ -134,7 +135,34 @@ class FitPeaksWindow(QMainWindow):
             self.ui.comboBox_yaxisNames.addItem(sample_log)
         self._sample_log_names_mutex = False
 
+        # TODO FIXME: how to record data key?
+
         return
+
+    def do_fit_peaks(self):
+        # TODO
+        int_string_list = str(self.ui.lineEdit_scanNUmbers.text()).strip()
+        if len(int_string_list) == 0:
+            scan_log_index = None
+        else:
+            scan_log_index = gui_helper.parse_integers(int_string_list)
+        data_key = self._core.current_data_reference_id
+
+        peak_function = str(self.ui.comboBox_peakType.currentText())
+        bkgd_function = str(self.ui.comboBox_backgroundType.currentText())
+
+        self._core.fit_peaks(data_key, scan_log_index, peak_function, bkgd_function)
+
+        function_params = self._core.get_fit_parameters(data_key)
+        self._sample_log_names_mutex = True
+        # TODO FIXME : add to X axis too
+        curr_index = self.ui.comboBox_yaxisNames.currentIndex()
+        for param_name in function_params:
+            self.ui.comboBox_yaxisNames.addItem(param_name)
+            # self.ui.com
+        self.ui.comboBox_yaxisNames.setCurrentIndex(curr_index)
+        self._sample_log_names_mutex = False
+
 
     def do_plot_diff_data(self):
         """
@@ -156,7 +184,7 @@ class FitPeaksWindow(QMainWindow):
         for scan_log_index in scan_log_index_list:
             try:
                 diff_data_set = self._core.get_diff_data(data_key=None, scan_log_index=scan_log_index)
-                self.ui.graphicsView_fitSetup.plot_diff_data(diff_data_set)
+                self.ui.graphicsView_fitSetup.plot_diff_data(diff_data_set, 'Scan {0}'.format(scan_log_index))
             except RuntimeError as run_err:
                 err_msg += '{0}\n'.format(run_err)
         # END-FOR
@@ -180,6 +208,11 @@ class FitPeaksWindow(QMainWindow):
 
         vec_x = self.get_meta_sample_data(x_axis_name)
         vec_y = self.get_meta_sample_data(y_axis_name)
+
+        print (len(vec_x))
+        print (len(vec_y))
+        print (vec_x)
+        print (vec_y)
 
         self.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y, x_axis_name, y_axis_name)
 
@@ -213,7 +246,7 @@ class FitPeaksWindow(QMainWindow):
             value_vector = self._core.data_center.get_sample_log_values(data_key, name)
         else:
             # this is for fitted data parameters
-            raise NotImplementedError('ASAP')
+            value_vector = self._core.get_peak_fit_param_value(data_key, name)
 
         return value_vector
 

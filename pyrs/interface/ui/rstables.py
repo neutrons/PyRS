@@ -10,6 +10,6 @@ class FitResultTable(NTableWidget.NTableWidget):
         """
 
         """
-        super(FitResultTable).__init__(parent)
+        super(FitResultTable, self).__init__(parent)
 
         return
