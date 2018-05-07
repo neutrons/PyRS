@@ -3,7 +3,7 @@ from mplgraphicsview1d import MplGraphicsView1D
 
 class GeneralDiffDataView(MplGraphicsView1D):
     """
-    blabla
+    generalized diffraction view
     """
     def __init__(self, parent):
         """
@@ -11,6 +11,10 @@ class GeneralDiffDataView(MplGraphicsView1D):
         :param parent:
         """
         super(GeneralDiffDataView, self).__init__(parent)
+
+        # management
+        self._line_reference_list = list()
+        self._last_line_reference = None
 
         return
 
@@ -21,31 +25,106 @@ class GeneralDiffDataView(MplGraphicsView1D):
         :param vec_y:
         :return:
         """
-        # TODO
-        self.add_plot(vec_x, vec_y, line_style=None, color='red', x_label=x_label, y_label=y_label)
+        # TODO Future: Need to write use cases.  Now it is for demo
+        if self._last_line_reference is not None:
+            if x_label != self.get_xlabel(self._last_line_reference):
+                self.reset_viewer()
+
+        # plot data in a scattering plot
+        ref_id = self.add_plot(vec_x, vec_y, line_style=None, color='red', x_label=x_label, y_label=y_label)
+        self._line_reference_list.append(ref_id)
+        self._last_line_reference = ref_id
+
+        return
+
+    def reset_viewer(self):
+        """
+        reset current graphics view
+        :return:
+        """
+        # reset all the management data structures
+        self._last_line_reference = None
+        self._line_reference_list = list()
+
+        # call to clean lines
+        self.clear_all_lines(row_number=0, col_number=0)
+
+        return
 
 
 class PeakFitSetupView(MplGraphicsView1D):
     """
-    blabla
+    Matplotlib graphics view to set up peak fitting
     """
     def __init__(self, parent):
         """
-        blabla
+        Graphics view for peak fitting setup
         :param parent:
         """
         super(PeakFitSetupView, self).__init__(parent)
 
+        # management
+        self._diff_reference_list = list()
+        self._last_diff_reference = None  # last diffraction (raw) line ID
+        self._last_model_reference = None  # last model diffraction (raw) line ID
+
+        #
+        self._auto_color = True
+
         return
 
-    def plot_diff_data(self, diff_data_set):
+    def plot_diff_data(self, diff_data_set, data_reference):
         """
-
+        plot a diffraction data
         :param diff_data_set:
+        :param data_reference: reference name for the data to plot
         :return:
         """
-        # TODO
+        # parse the data
         vec_x = diff_data_set[0]
         vec_y = diff_data_set[1]
 
-        self.add_plot(vec_x, vec_y)
+        # plot data
+        ref_id = self.add_plot(vec_x, vec_y, color=self._next_color(), x_label='$2\\theta$', marker=None,
+                               show_legend=True, y_label=data_reference)
+
+        self._diff_reference_list.append(ref_id)
+        self._last_diff_reference = ref_id
+
+        return
+
+    def plot_model(self, model_data_set):
+        """
+        plot a model diffraction data
+        :param model_data_set:
+        :return:
+        """
+        # check condition
+        if len(self._diff_reference_list) > 1:
+            # very confusion to plot model
+            raise RuntimeError('There are more than 1 raw data plot.  It is very confusing to plot model.')
+
+        # remove previous model
+        if self._last_model_reference is not None:
+            self.remove_line(row_index=0, col_index=0, line_id=self._last_model_reference)
+            self._last_model_reference = None
+
+        # plot
+        self._last_model_reference = self.add_plot(model_data_set[0], model_data_set[1], color='red')
+
+        return
+
+    def reset_viewer(self):
+        """
+        reset current graphics view
+        :return:
+        """
+        # reset all the management data structures
+        self._last_model_reference = None
+        self._last_diff_reference = None
+        self._diff_reference_list = list()
+
+        # call to clean lines
+        self.clear_all_lines(row_number=0, col_number=0)
+
+        return

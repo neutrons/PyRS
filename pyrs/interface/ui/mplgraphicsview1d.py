@@ -240,7 +240,7 @@ class MplGraphicsView1D(QWidget):
         :param line_style:
         :param line_width:
         :param show_legend:
-        :return:
+        :return: string/integer as line reference ID
         """
         # check whether the input is empty
         if len(vec_y) == 0:
