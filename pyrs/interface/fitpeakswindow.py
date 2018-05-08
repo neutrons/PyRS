@@ -36,6 +36,9 @@ class FitPeaksWindow(QMainWindow):
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
 
+        # others
+        self.ui.tableView_fitSummary.setup()
+
         # TODO
         self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
         self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
@@ -137,6 +140,11 @@ class FitPeaksWindow(QMainWindow):
 
         # TODO FIXME: how to record data key?
 
+        # About table
+        if self.ui.tableView_fitSummary.rowCount() > 0:
+            self.ui.tableView_fitSummary.remove_all_rows()
+        self.ui.tableView_fitSummary.init_exp(self._core.data_center.get_scan_range(data_key))
+
         return
 
     def do_fit_peaks(self):
@@ -163,6 +171,21 @@ class FitPeaksWindow(QMainWindow):
         self.ui.comboBox_yaxisNames.setCurrentIndex(curr_index)
         self._sample_log_names_mutex = False
 
+        # fill up the table
+        # ['wsindex', 'peakindex', 'Height', 'PeakCentre', 'Sigma', 'A0', 'A1', 'chi2']
+        center_vec = self._core.get_peak_fit_param_value(data_key, 'PeakCentre')
+        height_vec = self._core.get_peak_fit_param_value(data_key, 'Height')
+        fwhm_vec = self._core.get_peak_fit_param_value(data_key, 'Sigma') * 2.3548
+        chi2_vec = self._core.get_peak_fit_param_value(data_key, 'chi2')
+
+        for row_index in range(len(center_vec)):
+            self.ui.tableView_fitSummary.set_peak_params(row_index,
+                                                         center_vec[row_index],
+                                                         height_vec[row_index],
+                                                         fwhm_vec[row_index],
+                                                         chi2_vec[row_index])
+
+        return
 
     def do_plot_diff_data(self):
         """
@@ -177,7 +200,7 @@ class FitPeaksWindow(QMainWindow):
         # possibly clean the previous
         keep_prev = self.ui.checkBox_keepPrevPlot.isChecked()
         if keep_prev is False:
-            self.ui.graphicsView_fitSetup.clear_all_lines(include_right=False)
+            self.ui.graphicsView_fitSetup.reset_viewer()
 
         # get data and plot
         err_msg = ''
@@ -188,6 +211,15 @@ class FitPeaksWindow(QMainWindow):
             except RuntimeError as run_err:
                 err_msg += '{0}\n'.format(run_err)
         # END-FOR
+
+        # model???
+        print ('[DB...BAT] {0}'.format(scan_log_index_list))
+        if len(scan_log_index_list) == 1:
+            model_data_set = self._core.get_modeled_data(data_key=None, scan_log_index=scan_log_index_list[0])
+            if model_data_set is not None:
+                self.ui.graphicsView_fitSetup.plot_model(model_data_set)
+            else:
+                print ('[DB...BAT] No modeled peak for {0}'.format(scan_log_index_list[0]))
 
         return
 

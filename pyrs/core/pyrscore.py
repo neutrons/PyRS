@@ -23,6 +23,7 @@ class PyRsCore(object):
 
         # current/default status
         self._curr_data_key = None
+        self._last_optimizer = None
 
         return
 
@@ -141,6 +142,23 @@ class PyRsCore(object):
         diff_data_set = self._data_manager.get_data_set(data_key, scan_log_index)
 
         return diff_data_set
+
+    def get_modeled_data(self, data_key, scan_log_index):
+        # TODO
+        # get data key
+        if data_key is None:
+            data_key = self._curr_data_key
+            if data_key is None:
+                raise RuntimeError('There is no current loaded data.')
+        # END-IF
+
+        # TODO : better data manager!
+        if self._last_optimizer is not None:
+            data_set = self._last_optimizer.get_calculated_peak(scan_log_index)
+        else:
+            data_set = None
+
+        return data_set
 
     def load_rs_raw(self, h5file):
         """

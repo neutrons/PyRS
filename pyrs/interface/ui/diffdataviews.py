@@ -129,6 +129,6 @@ class PeakFitSetupView(MplGraphicsView1D):
         self._diff_reference_list = list()
 
         # call to clean lines
-        self.clear_all_lines(row_number=0, col_number=0)
+        self.clear_all_lines(row_number=0, col_number=0, include_main=True, include_right=False)
 
         return

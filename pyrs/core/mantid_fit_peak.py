@@ -88,6 +88,13 @@ class MantidPeakFitEngine(object):
 
         return
 
+    def get_calculated_peak(self, log_index):
+        # TODO
+        vec_x = self.fitted_ws.readX(log_index)
+        vec_y = self.fitted_ws.readY(log_index)
+
+        return vec_x, vec_y
+
     def get_function_parameter_names(self):
         # TODO
         return self.func_param_ws.getColumnNames()
