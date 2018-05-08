@@ -1,4 +1,11 @@
 # Peak fitting engine by calling mantid
+# Set up the testing environment for PyVDrive commands
+import os
+import sys
+home_dir = os.path.expanduser('~')
+if home_dir.startswith('/SNS/'):
+    # analysis
+    sys.path.insert(1, '/opt/mantidnightly/bin/')
 from mantid.simpleapi import FitPeaks, CreateWorkspace
 import rshelper
 import numpy as np
