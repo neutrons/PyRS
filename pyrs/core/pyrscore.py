@@ -77,7 +77,7 @@ class PyRsCore(object):
 
         return
 
-    def fit_peaks(self, data_key, scan_index, peak_type, background_type):
+    def fit_peaks(self, data_key, scan_index, peak_type, background_type, fit_range):
         """
         fit a single peak of a measurement in a multiple-log scan
         :param data_key:
@@ -97,7 +97,7 @@ class PyRsCore(object):
         elif isinstance(scan_index, list):
             scan_index_list = scan_index
         else:
-            raise  # TODO FIXME
+            raise RuntimeError('Scan index ({0}) is not supported.'.format(scan_index))
 
         # get data
         diff_data_list = list()
@@ -110,7 +110,11 @@ class PyRsCore(object):
 
         ref_id = 'TODO FIND A GOOD NAMING CONVENTION'
         peak_optimizer = mantid_fit_peak.MantidPeakFitEngine(diff_data_list, ref_id=ref_id)
-        peak_optimizer.fit_peaks(peak_type, background_type, None)
+
+        # TODO FIXME: A quick observe?  Use center of mass!
+        peak_center = 84.  #
+
+        peak_optimizer.fit_peaks(peak_type, background_type, peak_center, fit_range, None)
 
         self._last_optimizer = peak_optimizer
 

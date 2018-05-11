@@ -1,4 +1,16 @@
 from mplgraphicsview1d import MplGraphicsView1D
+from mplgraphicsview2d import MplGraphicsView2D
+
+
+class Diffraction2DPlot(MplGraphicsView2D):
+    """
+    General 2D plot view for diffraction data set
+    """
+    def __init__(self, parent):
+        # TODO
+        super(Diffraction2DPlot, self).__init__(parent)
+
+        return
 
 
 class GeneralDiffDataView(MplGraphicsView1D):

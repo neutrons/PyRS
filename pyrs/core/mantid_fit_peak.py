@@ -53,10 +53,13 @@ class MantidPeakFitEngine(object):
 
         return ws_full
 
-    def fit_peaks(self, peak_function_name, background_function_name, scan_index=None):
+    def fit_peaks(self, peak_function_name, background_function_name, peak_center, fit_range, scan_index=None):
         """
         fit peaks
         :param peak_function_name:
+        :param background_function_name:
+        :param peak_center:
+        :param fit_range:
         :return:
         """
         rshelper.check_string_variable('Peak function name', peak_function_name)
@@ -69,28 +72,31 @@ class MantidPeakFitEngine(object):
             start = 0
             stop = self.get_number_scans() - 1
 
-        # fit
-        # results = FitPeaks(InputWorkspace=self._workspace_name, OutputWorkspace=self._output_name,
-        #                    StartWorkspaceIndex=start, StopWorkspaceIndex=stop,
-        #                    PeakFunction=peak_function_name, BackgroundType=background_function_name,
-        #                    PeakCenters=observed_peak_centers)
+        # check peak function name:
+        if peak_function_name not in ['Gaussian']:
+            raise RuntimeError('Peak function {0} is not supported yet.'.format(peak_function_name))
+        if background_function_name not in ['Linear', 'Flat']:
+            raise RuntimeError('Background type {0} is not supported yet.'.format(background_function_name))
 
+        # fit
         print ('[DB...BAT] Data workspace # spec = {0}'.format(self._data_workspace.getNumberHistograms()))
 
         r = FitPeaks(InputWorkspace=self._data_workspace,
-                 OutputWorkspace='full_fitted', PeakCenters='82', PeakFunction='Gaussian',
-                 StartWorkspaceIndex=start, StopWorkspaceIndex=stop,
-                 BackgroundType='Linear',
-                 PositionTolerance=3, OutputPeakParametersWorkspace='param_m',
-                 FittedPeaksWorkspace='model_full',
-                 FitWindowBoundaryList='79, 85')
+                     OutputWorkspace='full_fitted',
+                     PeakCenters=peak_center,
+                     PeakFunction=peak_function_name,
+                     StartWorkspaceIndex=start, StopWorkspaceIndex=stop,
+                     BackgroundType='Linear',
+                     PositionTolerance=3, OutputPeakParametersWorkspace='param_m',
+                     FittedPeaksWorkspace='model_full',
+                     FitWindowBoundaryList=fit_range)
+
 
         # process output
         # TODO: Clean!
         self.peak_pos_ws = r[0]
         self.func_param_ws = r[1]
         self.fitted_ws = r[2]
-
 
 
         return

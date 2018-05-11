@@ -3,7 +3,6 @@
 Graphics class with matplotlib backend specific for advanced 1D plot
 """
 import numpy as np
-
 try:
     from PyQt5.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
     from PyQt5.QtCore import pyqtSignal
@@ -15,7 +14,6 @@ except (ImportError, RuntimeError) as err:
     from PyQt4.QtCore import pyqtSignal
     from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
-
 from matplotlib.figure import Figure
 
 MplLineStyles = ['-', '--', '-.', ':', 'None', ' ', '']
@@ -471,6 +469,10 @@ class MplGraphicsView1D(QWidget):
         """
         # TODO blabla
         return self._myCanvas.axes_main[row_index, col_index].get_xlabel()
+
+    def get_x_limit(self):
+        # TODO
+        return self._myCanvas.getXLimit()
 
     def get_y_limit(self):
         """ Get limit of Y-axis
@@ -930,7 +932,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         else:
             msg = 'Return from plot is a %d-tuple: %s.. \n' % (len(plot_info), plot_info)
             for i_r in range(len(plot_info)):
-                msg += 'r[%d] = %s\n' % (i_r, str(r[i_r]))
+                msg += 'r[%d] = %s\n' % (i_r, str(plot_info[i_r]))
             raise NotImplementedError(msg)
 
         # Flush/commit
@@ -1073,11 +1075,13 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
     def getXLimit(self):
         """ Get limit of Y-axis
         """
-        return self.axes.get_xlim()
+        # FIXME : make it work for multiple axes!
+        return self.axes_main[0, 0].get_xlim()
 
     def getYLimit(self):
         """ Get limit of Y-axis
         """
+        # FIXME : make it work for multiple axes!
         return self.axes.get_ylim()
 
     def hide_legend(self, row_number, col_number, is_main, is_right):

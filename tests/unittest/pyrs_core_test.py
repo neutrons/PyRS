@@ -24,7 +24,7 @@ def test_main():
     # sample logs
     print ('Sample logs: {0}'.format(rs_core.data_center.get_sample_logs_list(data_key, can_plot=True)))
     # fit peaks
-    rs_core.fit_peaks(data_key, None, 'Gaussian', 'Linear')
+    rs_core.fit_peaks(data_key, None, 'Gaussian', 'Linear', [80, 90])
     vec_index = rs_core.data_center.get_scan_range(data_key)
     print (type(vec_index))
     vec_chi2 = rs_core.get_peak_fit_param_value(data_key, 'chi2')

@@ -35,6 +35,7 @@ class FitPeaksWindow(QMainWindow):
         self.ui.pushButton_fitPeaks.clicked.connect(self.do_fit_peaks)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
+        self.ui.actionSave_as.triggered.connect(self.do_save_as)
 
         # others
         self.ui.tableView_fitSummary.setup()
@@ -159,7 +160,11 @@ class FitPeaksWindow(QMainWindow):
         peak_function = str(self.ui.comboBox_peakType.currentText())
         bkgd_function = str(self.ui.comboBox_backgroundType.currentText())
 
-        self._core.fit_peaks(data_key, scan_log_index, peak_function, bkgd_function)
+        # TODO .. TEST
+        fit_range = self.ui.graphicsView_fitSetup.get_x_limit()
+        print ('Fit range: {0}'.format(fit_range))
+
+        self._core.fit_peaks(data_key, scan_log_index, peak_function, bkgd_function, fit_range)
 
         function_params = self._core.get_fit_parameters(data_key)
         self._sample_log_names_mutex = True
@@ -248,6 +253,10 @@ class FitPeaksWindow(QMainWindow):
 
         self.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y, x_axis_name, y_axis_name)
 
+        return
+
+    def do_save_as(self):
+        # TODO
         return
 
     def do_quit(self):
