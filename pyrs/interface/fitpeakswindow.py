@@ -291,6 +291,10 @@ class FitPeaksWindow(QMainWindow):
 
         return value_vector
 
+    def save_data_for_mantid(self, data_key, file_name):
+        # TODO
+        self._core.save_nexus(data_key, file_name)
+
     def setup_window(self, pyrs_core):
         """
 

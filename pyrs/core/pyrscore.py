@@ -179,3 +179,12 @@ class PyRsCore(object):
         self._curr_data_key = data_key
 
         return data_key, message
+
+    def save_nexus(self, data_key, file_name):
+        # TODO
+        data_key = self._curr_data_key
+        # TODO check data key with last optimizer
+        matrix_name = self._last_optimizer.get_data_workspace_name()
+
+        import scandataio
+        scandataio.save_mantid_nexus(matrix_name, file_name)

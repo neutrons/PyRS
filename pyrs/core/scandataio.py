@@ -2,6 +2,7 @@ import os
 import rshelper as helper
 import h5py
 import numpy
+from mantid.simpleapi import SaveNexusProcessed
 
 
 class DiffractionDataFile(object):
@@ -130,3 +131,10 @@ class DiffractionDataFile(object):
         """
 
         return
+
+
+def save_mantid_nexus(workspace_name, file_name):
+    # TODO
+    SaveNexusProcessed(InputWorkspace=workspace_name,
+                       Filename=file_name,
+                       Title='blabla')

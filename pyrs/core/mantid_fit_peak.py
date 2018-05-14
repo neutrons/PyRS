@@ -35,8 +35,11 @@ class MantidPeakFitEngine(object):
         # TODO
         return 'vulcan_test'
 
-    @staticmethod
-    def generate_matrix_workspace(data_set_list):
+    def calculate_center_of_mass(self):
+        # TODO
+        np.sum(vec_x6 * vec_y6) / np.sum(vec_y6)
+
+    def generate_matrix_workspace(self, data_set_list):
         # TODO
         vec_x_list = list()
         vec_y_list = list()
@@ -49,9 +52,13 @@ class MantidPeakFitEngine(object):
 
         datax = np.concatenate(vec_x_list, axis=0)
         datay = np.concatenate(vec_y_list, axis=0)
-        ws_full = CreateWorkspace(DataX=datax, DataY=datay, NSpec=len(vec_x_list))
+        ws_full = CreateWorkspace(DataX=datax, DataY=datay, NSpec=len(vec_x_list),
+                                  OutputWorkspace=self._workspace_name)
 
         return ws_full
+
+    def get_data_workspace_name(self):
+        return self._workspace_name
 
     def fit_peaks(self, peak_function_name, background_function_name, peak_center, fit_range, scan_index=None):
         """
@@ -79,7 +86,10 @@ class MantidPeakFitEngine(object):
             raise RuntimeError('Background type {0} is not supported yet.'.format(background_function_name))
 
         # fit
-        print ('[DB...BAT] Data workspace # spec = {0}'.format(self._data_workspace.getNumberHistograms()))
+        print ('[DB...BAT] Data workspace # spec = {0}. Fit range = {1}'
+               ''.format(self._data_workspace.getNumberHistograms(), fit_range))
+        # TODO FIXME - Fit range shall be determined by boundary of plot!
+        fit_range = [70, 90]
 
         r = FitPeaks(InputWorkspace=self._data_workspace,
                      OutputWorkspace='full_fitted',

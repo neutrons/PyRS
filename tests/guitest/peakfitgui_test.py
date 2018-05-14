@@ -21,10 +21,15 @@ def test_main():
 
     fit_window.ui.lineEdit_expFileName.setText('tests/testdata/BD_Data_Log.hdf5')
     fit_window.do_load_scans()
-    fit_window.ui.lineEdit_scanNUmbers.setText('4')
-    fit_window.do_plot_diff_data()
-    fit_window.do_plot_meta_data()
-    fit_window.do_fit_peaks()
+    if False:
+        fit_window.ui.lineEdit_scanNUmbers.setText('4')
+        fit_window.do_plot_diff_data()
+        fit_window.do_plot_meta_data()
+        fit_window.do_fit_peaks()
+    if True:
+        fit_window.do_fit_peaks()
+        fit_window.save_data_for_mantid(None, 'peaks.nxs')
+
 
     return fit_window
 
