@@ -35,7 +35,7 @@ class FitPeaksWindow(QMainWindow):
         self.ui.pushButton_fitPeaks.clicked.connect(self.do_fit_peaks)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
-        self.ui.actionSave_as.triggered.connect(self.do_save_as)
+        self.ui.actionSave_As.triggered.connect(self.do_save_as)
 
         # others
         self.ui.tableView_fitSummary.setup()
@@ -146,6 +146,12 @@ class FitPeaksWindow(QMainWindow):
             self.ui.tableView_fitSummary.remove_all_rows()
         self.ui.tableView_fitSummary.init_exp(self._core.data_center.get_scan_range(data_key))
 
+        # plot the first index
+        self.ui.lineEdit_scanNUmbers.setText('0')
+
+        # plot the contour
+        self.ui.graphicsView_contourView.plot_contour(self._core.data_center.get_data_2d(data_key))
+
         return
 
     def do_fit_peaks(self):
@@ -164,6 +170,8 @@ class FitPeaksWindow(QMainWindow):
         fit_range = self.ui.graphicsView_fitSetup.get_x_limit()
         print ('Fit range: {0}'.format(fit_range))
 
+        # FIXME It is better to fit all the peaks at the same time!
+        scan_log_index = None
         self._core.fit_peaks(data_key, scan_log_index, peak_function, bkgd_function, fit_range)
 
         function_params = self._core.get_fit_parameters(data_key)
@@ -190,6 +198,12 @@ class FitPeaksWindow(QMainWindow):
                                                          fwhm_vec[row_index],
                                                          chi2_vec[row_index])
 
+        # plot the model and difference
+        if scan_log_index is None:
+            scan_log_index = 0
+            # FIXME This case is not likely to occur
+        self.do_plot_diff_data()
+
         return
 
     def do_plot_diff_data(self):
@@ -203,9 +217,9 @@ class FitPeaksWindow(QMainWindow):
             gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
 
         # possibly clean the previous
-        keep_prev = self.ui.checkBox_keepPrevPlot.isChecked()
-        if keep_prev is False:
-            self.ui.graphicsView_fitSetup.reset_viewer()
+        # keep_prev = self.ui.checkBox_keepPrevPlot.isChecked()
+        # if keep_prev is False:
+        #     self.ui.graphicsView_fitSetup.reset_viewer()
 
         # get data and plot
         err_msg = ''
@@ -213,18 +227,20 @@ class FitPeaksWindow(QMainWindow):
             try:
                 diff_data_set = self._core.get_diff_data(data_key=None, scan_log_index=scan_log_index)
                 self.ui.graphicsView_fitSetup.plot_diff_data(diff_data_set, 'Scan {0}'.format(scan_log_index))
+
+                # more than 1 scan required to plot... no need to plot model and difference
+                if len(scan_log_index_list) > 1:
+                    continue
+
+                model_data_set = self._core.get_modeled_data(data_key=None, scan_log_index=scan_log_index_list[0])
+                if model_data_set is None:
+                    continue
+                # existing model
+                self.ui.graphicsView_fitSetup.plot_model(model_data_set)
+                self.ui.graphicsView_fitSetup.plot_fit_diff(diff_data_set, model_data_set)
             except RuntimeError as run_err:
                 err_msg += '{0}\n'.format(run_err)
         # END-FOR
-
-        # model???
-        print ('[DB...BAT] {0}'.format(scan_log_index_list))
-        if len(scan_log_index_list) == 1:
-            model_data_set = self._core.get_modeled_data(data_key=None, scan_log_index=scan_log_index_list[0])
-            if model_data_set is not None:
-                self.ui.graphicsView_fitSetup.plot_model(model_data_set)
-            else:
-                print ('[DB...BAT] No modeled peak for {0}'.format(scan_log_index_list[0]))
 
         return
 
@@ -236,8 +252,9 @@ class FitPeaksWindow(QMainWindow):
         if self._sample_log_names_mutex:
             return
 
-        if self.ui.checkBox_keepPrevPlotRight.isChecked() is False:
-            self.ui.graphicsView_fitResult.clear_all_lines(include_right=False)
+        # if self.ui.checkBox_keepPrevPlotRight.isChecked() is False:
+        # TODO - Shall be controlled by a more elegant mechanism
+        self.ui.graphicsView_fitResult.clear_all_lines(include_right=False)
 
         # get the sample log/meta data name
         x_axis_name = str(self.ui.comboBox_xaxisNames.currentText())

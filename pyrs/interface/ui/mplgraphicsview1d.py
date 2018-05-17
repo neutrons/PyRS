@@ -441,7 +441,7 @@ class MplGraphicsView1D(QWidget):
         """
         # record home XY limit if it is never zoomed
         if self._isZoomed is False:
-            self._homeXYLimit = list(self.getXLimit())
+            self._homeXYLimit = list(self.get_x_limit())
             self._homeXYLimit.extend(list(self.get_y_limit()))
         # END-IF
 
@@ -1076,13 +1076,15 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         """ Get limit of Y-axis
         """
         # FIXME : make it work for multiple axes!
-        return self.axes_main[0, 0].get_xlim()
+        x_lim = self.axes_main[0, 0].get_xlim()
+        print ('x limit: {0}'.format(x_lim))
+        return x_lim
 
     def getYLimit(self):
         """ Get limit of Y-axis
         """
         # FIXME : make it work for multiple axes!
-        return self.axes.get_ylim()
+        return self.axes_main[0, 0].get_ylim()
 
     def hide_legend(self, row_number, col_number, is_main, is_right):
         """ Hide the legend if it is not None

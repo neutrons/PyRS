@@ -13,6 +13,11 @@ class Diffraction2DPlot(MplGraphicsView2D):
         return
 
 
+class DiffContourView(MplGraphicsView2D):
+    def __init__(self, parent):
+        super(DiffContourView, self).__init__(parent)
+
+
 class GeneralDiffDataView(MplGraphicsView1D):
     """
     generalized diffraction view
@@ -79,6 +84,7 @@ class PeakFitSetupView(MplGraphicsView1D):
         self._diff_reference_list = list()
         self._last_diff_reference = None  # last diffraction (raw) line ID
         self._last_model_reference = None  # last model diffraction (raw) line ID
+        self._last_fit_diff_reference = None  # TODO
 
         #
         self._auto_color = True
@@ -106,6 +112,20 @@ class PeakFitSetupView(MplGraphicsView1D):
 
         self._diff_reference_list.append(ref_id)
         self._last_diff_reference = ref_id
+
+        return
+
+    def plot_fit_diff(self, diff_data_set, model_data_set):
+        # TODO
+        if self._last_fit_diff_reference is not None:
+            self.remove_line(row_index=0, col_index=0, line_id=self._last_fit_diff_reference)
+            self._last_fit_diff_reference = None
+
+        # calculate
+        fit_diff_vec = diff_data_set[1] - model_data_set[1]
+
+        # plot
+        self._last_fit_diff_reference = self.add_plot(diff_data_set[0], fit_diff_vec, color='green')
 
         return
 

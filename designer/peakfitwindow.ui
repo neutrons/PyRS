@@ -229,9 +229,28 @@
          </widget>
         </item>
         <item>
+         <spacer name="horizontalSpacer_6">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeType">
+           <enum>QSizePolicy::Preferred</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
          <widget class="QCheckBox" name="checkBox_keepPrevPlot">
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If checked, as new peaks are plotted, the previously peaks on canvas won't be removed.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
           <property name="text">
-           <string>Keep</string>
+           <string/>
           </property>
          </widget>
         </item>
@@ -405,6 +424,7 @@
     <property name="title">
      <string>File</string>
     </property>
+    <addaction name="actionSave_As"/>
     <addaction name="actionQuit"/>
    </widget>
    <widget class="QMenu" name="menuPlot">
@@ -428,6 +448,11 @@
   <action name="action_launchPlotControl">
    <property name="text">
     <string>More Options ... ...</string>
+   </property>
+  </action>
+  <action name="actionSave_As">
+   <property name="text">
+    <string>Save As ...</string>
    </property>
   </action>
  </widget>

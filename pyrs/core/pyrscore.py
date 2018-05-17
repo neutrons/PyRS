@@ -173,7 +173,7 @@ class PyRsCore(object):
         diff_data_dict, sample_log_dict = self._file_io_controller.load_rs_file(h5file)
 
         data_key = self.data_center.add_raw_data(diff_data_dict, sample_log_dict, h5file, replace=True)
-        message = 'Load {0} with reference ID {1}'.format(h5file, data_key)
+        message = 'Load {0} (Ref ID {1})'.format(h5file, data_key)
 
         # set to current key
         self._curr_data_key = data_key
