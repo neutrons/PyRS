@@ -7,6 +7,7 @@ if home_dir.startswith('/SNS/'):
     # analysis
     sys.path.insert(1, '/opt/mantidnightly/bin/')
 from mantid.simpleapi import FitPeaks, CreateWorkspace
+from mantid.api import AnalysisDataService
 import rshelper
 import numpy as np
 
@@ -37,7 +38,30 @@ class MantidPeakFitEngine(object):
 
     def calculate_center_of_mass(self):
         # TODO
-        np.sum(vec_x6 * vec_y6) / np.sum(vec_y6)
+
+        # alculate center of mass and highest data point
+
+        data_ws = AnalysisDataService.retrieve(self._workspace_name)
+        num_spectra = data_ws.getNumberHistograms()
+
+        peak_center_vec = np.ndarray(shape=(num_spectra, 2), dtype='float')
+
+        for iws in range(num_spectra):
+            vec_x = data_ws.readX(iws)
+            vec_y = data_ws.readY(iws)
+            com_i = np.sum(vec_x * vec_y) / np.sum(vec_y)
+            peak_center_vec[iws, 0] = com_i
+            imax_peak = np.argmax(vec_y, axis=0)
+            peak_center_vec[iws, 1] = vec_x[imax_peak]
+
+        # create 2 workspaces
+        print ('[DB...BAT] Number of spec: {0}....\n{1}'.format(num_spectra, peak_center_vec[:, 0]))
+        self._center_of_mass_ws = CreateWorkspace(DataX=peak_center_vec[:, 0], DataY=peak_center_vec[:, 0],
+                                                  NSpec=num_spectra, OutputWorkspace='CenterOfMassWS')
+        self._highest_point_ws = CreateWorkspace(DataX=peak_center_vec[:, 1], DataY=peak_center_vec[:, 1],
+                                                 NSpec=num_spectra, OutputWorkspace='HighestPointWS')
+
+        return
 
     def generate_matrix_workspace(self, data_set_list):
         # TODO
@@ -80,26 +104,37 @@ class MantidPeakFitEngine(object):
             stop = self.get_number_scans() - 1
 
         # check peak function name:
-        if peak_function_name not in ['Gaussian']:
+        if peak_function_name not in ['Gaussian', 'Voigt', 'PseudoVoigt']:
             raise RuntimeError('Peak function {0} is not supported yet.'.format(peak_function_name))
         if background_function_name not in ['Linear', 'Flat']:
             raise RuntimeError('Background type {0} is not supported yet.'.format(background_function_name))
+
+        num_spectra = self._data_workspace.getNumberHistograms()
+        peak_window_ws = CreateWorkspace(DataX=np.array([fit_range[0], fit_range[1]] * num_spectra),
+                                         DataY=np.array([fit_range[0], fit_range[1]] * num_spectra),
+                                         NSpec=num_spectra)
 
         # fit
         print ('[DB...BAT] Data workspace # spec = {0}. Fit range = {1}'
                ''.format(self._data_workspace.getNumberHistograms(), fit_range))
         # TODO FIXME - Fit range shall be determined by boundary of plot!
-        fit_range = [70, 90]
-
+        # no pre-determined peak center: use center of mass
         r = FitPeaks(InputWorkspace=self._data_workspace,
                      OutputWorkspace='full_fitted',
-                     PeakCenters=peak_center,
+                     # PeakCenters=peak_center,
+                     # TODO FIXME - Need to make it more general for peak center workspace
+                     PeakCentersWorkspace=self._center_of_mass_ws,
                      PeakFunction=peak_function_name,
-                     StartWorkspaceIndex=start, StopWorkspaceIndex=stop,
-                     BackgroundType='Linear',
-                     PositionTolerance=3, OutputPeakParametersWorkspace='param_m',
+                     BackgroundType=background_function_name,
+                     StartWorkspaceIndex=start,
+                     StopWorkspaceIndex=stop,
+                     OutputPeakParametersWorkspace='param_m',
                      FittedPeaksWorkspace='model_full',
-                     FitWindowBoundaryList=fit_range)
+                     FindBackgroundSigma=1,
+                     HighBackground=False,
+                     ConstrainPeakPositions=False,
+                     RawPeakParameters=True,
+                     FitPeakWindowWorkspace=peak_window_ws)
 
 
         # process output
@@ -107,6 +142,8 @@ class MantidPeakFitEngine(object):
         self.peak_pos_ws = r[0]
         self.func_param_ws = r[1]
         self.fitted_ws = r[2]
+
+        print 'fitted workspace: {0}'.format(r[2])
 
 
         return
@@ -137,15 +174,18 @@ class MantidPeakFitEngine(object):
 
         :return:
         """
+        # init parameters
+        param_vec = np.ndarray(shape=(self.func_param_ws.rowCount()), dtype='float')
+
         col_names = self.func_param_ws.getColumnNames()
         if param_name in col_names:
             col_index = col_names.index(param_name)
+            for row_index in range(self.func_param_ws.rowCount()):
+                param_vec[row_index] = self.func_param_ws.cell(row_index, col_index)
         else:
-            raise RuntimeError('Function parameter {0} does not exist.'.format(param_name))
-
-        param_vec = np.ndarray(shape=(self.func_param_ws.rowCount()), dtype='float')
-        for row_index in range(self.func_param_ws.rowCount()):
-            param_vec[row_index] = self.func_param_ws.cell(row_index, col_index)
+            err_msg = 'Function parameter {0} does not exist.'.format(param_name)
+            # raise RuntimeError()
+            print (err_msg)
 
         return param_vec
 

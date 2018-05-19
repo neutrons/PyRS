@@ -19,7 +19,10 @@ def test_main():
     pyrs_core = pyrscore.PyRsCore()
     fit_window.setup_window(pyrs_core)
 
+    fit_window.show()
+
     fit_window.ui.lineEdit_expFileName.setText('tests/testdata/BD_Data_Log.hdf5')
+    fit_window.ui.comboBox_peakType.setCurrentIndex(1)
     fit_window.do_load_scans()
     if False:
         fit_window.ui.lineEdit_scanNUmbers.setText('4')
@@ -29,7 +32,6 @@ def test_main():
     if True:
         fit_window.do_fit_peaks()
         fit_window.save_data_for_mantid(None, 'peaks.nxs')
-
 
     return fit_window
 
@@ -50,7 +52,6 @@ if __name__ == '__main__':
 
     # this must be here!
     test_window = test_main()
-    test_window.show()
     # I cannot close it!  test_window.close()
 
     app.exec_()

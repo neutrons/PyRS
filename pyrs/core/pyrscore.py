@@ -4,6 +4,7 @@ import datamanagers
 import peakfitengine
 import rshelper
 import numpy as np
+import mantid_fit_peak
 
 
 class PyRsCore(object):
@@ -84,9 +85,12 @@ class PyRsCore(object):
         :param scan_index:
         :param peak_type:
         :param background_type:
+        :param fit_range
         :return:
         """
         # TODO check inputs
+        rshelper.check_string_variable('Peak type', peak_type)
+        rshelper.check_string_variable('Background type', background_type)
 
         # get scan indexes
         if scan_index is None:
@@ -106,15 +110,13 @@ class PyRsCore(object):
             diff_data_list.append(diff_data)
         # END-FOR
 
-        import mantid_fit_peak
-
         ref_id = 'TODO FIND A GOOD NAMING CONVENTION'
         peak_optimizer = mantid_fit_peak.MantidPeakFitEngine(diff_data_list, ref_id=ref_id)
 
         # TODO FIXME: A quick observe?  Use center of mass!
-        peak_center = 84.  #
+        peak_center_vec = peak_optimizer.calculate_center_of_mass()
 
-        peak_optimizer.fit_peaks(peak_type, background_type, peak_center, fit_range, None)
+        peak_optimizer.fit_peaks(peak_type, background_type, peak_center_vec, fit_range, None)
 
         self._last_optimizer = peak_optimizer
 
@@ -161,6 +163,7 @@ class PyRsCore(object):
             data_set = self._last_optimizer.get_calculated_peak(scan_log_index)
         else:
             data_set = None
+            print ('[LAST OPTIMIZER IS NONE')
 
         return data_set
 

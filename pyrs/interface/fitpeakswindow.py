@@ -148,9 +148,10 @@ class FitPeaksWindow(QMainWindow):
 
         # plot the first index
         self.ui.lineEdit_scanNUmbers.setText('0')
+        self.do_plot_diff_data()
 
         # plot the contour
-        self.ui.graphicsView_contourView.plot_contour(self._core.data_center.get_data_2d(data_key))
+        # FIXME/TODO/ASAP3 self.ui.graphicsView_contourView.plot_contour(self._core.data_center.get_data_2d(data_key))
 
         return
 
@@ -219,7 +220,7 @@ class FitPeaksWindow(QMainWindow):
         # possibly clean the previous
         # keep_prev = self.ui.checkBox_keepPrevPlot.isChecked()
         # if keep_prev is False:
-        #     self.ui.graphicsView_fitSetup.reset_viewer()
+        self.ui.graphicsView_fitSetup.reset_viewer()
 
         # get data and plot
         err_msg = ''
@@ -241,6 +242,9 @@ class FitPeaksWindow(QMainWindow):
             except RuntimeError as run_err:
                 err_msg += '{0}\n'.format(run_err)
         # END-FOR
+
+        if len(err_msg) > 0:
+            gui_helper.pop_message(self, err_msg, message_type='error')
 
         return
 

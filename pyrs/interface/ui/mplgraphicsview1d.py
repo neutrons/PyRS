@@ -1245,7 +1245,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
 
             is_on_main = True
 
-        elif plot_key in self._rightLineDict[row_index, col_index]:
+        elif (row_index, col_index) in self._rightLineDict and plot_key in self._rightLineDict[row_index, col_index]:
             # plot key is on right axis
             try:
                 self.axes_right[row_index, col_index].lines.remove(self._rightLineDict[plot_key])

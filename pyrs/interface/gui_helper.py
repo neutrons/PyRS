@@ -85,6 +85,7 @@ def pop_message(parent, message, message_type='error'):
         raise TypeError('Message type {0} is not supported.'.format(message_type))
 
     # TODO finish it!
+    print ('[POP] {0}'.format(message))
 
     return
 
