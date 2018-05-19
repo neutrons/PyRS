@@ -186,18 +186,20 @@ class FitPeaksWindow(QMainWindow):
         self._sample_log_names_mutex = False
 
         # fill up the table
-        # ['wsindex', 'peakindex', 'Height', 'PeakCentre', 'Sigma', 'A0', 'A1', 'chi2']
-        center_vec = self._core.get_peak_fit_param_value(data_key, 'PeakCentre')
-        height_vec = self._core.get_peak_fit_param_value(data_key, 'Height')
-        fwhm_vec = self._core.get_peak_fit_param_value(data_key, 'Sigma') * 2.3548
+        center_vec = self._core.get_peak_fit_param_value(data_key, 'centre')
+        height_vec = self._core.get_peak_fit_param_value(data_key, 'height')
+        fwhm_vec = self._core.get_peak_fit_param_value(data_key, 'width')
         chi2_vec = self._core.get_peak_fit_param_value(data_key, 'chi2')
+        intensity_vec = self._core.get_peak_fit_param_value(data_key, 'intensity')
 
         for row_index in range(len(center_vec)):
             self.ui.tableView_fitSummary.set_peak_params(row_index,
                                                          center_vec[row_index],
                                                          height_vec[row_index],
                                                          fwhm_vec[row_index],
-                                                         chi2_vec[row_index])
+                                                         intensity_vec[row_index],
+                                                         chi2_vec[row_index],
+                                                         peak_function)
 
         # plot the model and difference
         if scan_log_index is None:

@@ -133,7 +133,7 @@ class MantidPeakFitEngine(object):
                      FindBackgroundSigma=1,
                      HighBackground=False,
                      ConstrainPeakPositions=False,
-                     RawPeakParameters=True,
+                     RawPeakParameters=False,
                      FitPeakWindowWorkspace=peak_window_ws)
 
 

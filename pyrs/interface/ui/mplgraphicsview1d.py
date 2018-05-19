@@ -374,7 +374,7 @@ class MplGraphicsView1D(QWidget):
                 self._myMainPlotDict[row_index, col_index].clear()
                 # self._statMainPlotDict ???
 
-            if include_right:
+            if include_right and (row_index, col_index) in self._myCanvas:
                 # right axis if it does exist. the caller shall check. no worry to raise exception
                 self._myCanvas.clear_subplot_lines(row_index, col_index, False)
                 self._myRightPlotDict[row_index, col_index].clear()

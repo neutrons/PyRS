@@ -10,7 +10,9 @@ class FitResultTable(NTableWidget.NTableWidget):
                       ('Center', 'float'),
                       ('Height', 'float'),
                       ('FWHM', 'float'),
-                      ('Chi^2', 'float')]
+                      ('Intensity', 'float'),
+                      ('Chi^2', 'float'),
+                      ('Profile', 'string')]
 
     def __init__(self, parent):
         """
@@ -23,7 +25,7 @@ class FitResultTable(NTableWidget.NTableWidget):
     def init_exp(self, index_list):
         # TODO
         for index in index_list:
-            self.append_row([index, None, None, None, None])
+            self.append_row([index, None, None, None, None, None, ''])
 
     def setup(self):
         """
@@ -33,25 +35,29 @@ class FitResultTable(NTableWidget.NTableWidget):
         self.init_setup(self.TableSetupList)
 
         # Set up column width
-        self.setColumnWidth(0, 200)
-        self.setColumnWidth(1, 200)
-        self.setColumnWidth(2, 100)
-        self.setColumnWidth(3, 100)
+        self.setColumnWidth(0, 60)
+        self.setColumnWidth(1, 80)
+        self.setColumnWidth(2, 80)
+        self.setColumnWidth(3, 80)
 
         # Set up the column index for start, stop and select
         self._colIndexIndex = self.TableSetupList.index(('Index', 'int'))
         self._colIndexCenter = self.TableSetupList.index(('Center', 'float'))
         self._colIndexHeight = self.TableSetupList.index(('Height', 'float'))
         self._colIndexWidth = self.TableSetupList.index(('FWHM', 'float'))
+        self._colIndexIntensity = self.TableSetupList.index(('Intensity', 'float'))
         self._colIndexChi2 = self.TableSetupList.index(('Chi^2', 'float'))
+        self._colIndexProfile = self.TableSetupList.index(('Profile', 'string'))
 
         return
 
-    def set_peak_params(self, row_number, center, height, fwhm, chi2):
+    def set_peak_params(self, row_number, center, height, fwhm, intensity, chi2, profile):
         # TODO
         self.update_cell_value(row_number, self._colIndexCenter, center)
         self.update_cell_value(row_number, self._colIndexHeight, height)
         self.update_cell_value(row_number, self._colIndexWidth, fwhm)
         self.update_cell_value(row_number, self._colIndexChi2, chi2)
+        self.update_cell_value(row_number, self._colIndexIntensity, intensity)
+        self.update_cell_value(row_number, self._colIndexProfile, profile)
 
         return
