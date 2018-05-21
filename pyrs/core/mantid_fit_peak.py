@@ -5,7 +5,9 @@ import sys
 home_dir = os.path.expanduser('~')
 if home_dir.startswith('/SNS/'):
     # analysis
-    sys.path.insert(1, '/opt/mantidnightly/bin/')
+    # sys.path.insert(1, '/opt/mantidnightly/bin/')
+    # local build
+    sys.path.insert(1, '/SNS/users/wzz/Mantid_Project/builds/debug/bin/')
 from mantid.simpleapi import FitPeaks, CreateWorkspace
 from mantid.api import AnalysisDataService
 import rshelper
@@ -61,6 +63,8 @@ class MantidPeakFitEngine(object):
         self._highest_point_ws = CreateWorkspace(DataX=peak_center_vec[:, 1], DataY=peak_center_vec[:, 1],
                                                  NSpec=num_spectra, OutputWorkspace='HighestPointWS')
 
+        self._peak_center_vec = peak_center_vec
+
         return
 
     def generate_matrix_workspace(self, data_set_list):
@@ -80,6 +84,10 @@ class MantidPeakFitEngine(object):
                                   OutputWorkspace=self._workspace_name)
 
         return ws_full
+
+    def get_center_of_mass(self):
+        # TODO
+        return self._peak_center_vec
 
     def get_data_workspace_name(self):
         return self._workspace_name
@@ -104,7 +112,7 @@ class MantidPeakFitEngine(object):
             stop = self.get_number_scans() - 1
 
         # check peak function name:
-        if peak_function_name not in ['Gaussian', 'Voigt', 'PseudoVoigt']:
+        if peak_function_name not in ['Gaussian', 'Voigt', 'PseudoVoigt', 'Lorentzian']:
             raise RuntimeError('Peak function {0} is not supported yet.'.format(peak_function_name))
         if background_function_name not in ['Linear', 'Flat']:
             raise RuntimeError('Background type {0} is not supported yet.'.format(background_function_name))

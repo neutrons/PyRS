@@ -179,9 +179,12 @@ class FitPeaksWindow(QMainWindow):
         self._sample_log_names_mutex = True
         # TODO FIXME : add to X axis too
         curr_index = self.ui.comboBox_yaxisNames.currentIndex()
+        # add fitted parameters
         for param_name in function_params:
             self.ui.comboBox_yaxisNames.addItem(param_name)
-            # self.ui.com
+        # add observed parameters
+        self.ui.comboBox_yaxisNames.addItem('Center of mass')
+        # keep current selected item unchanged
         self.ui.comboBox_yaxisNames.setCurrentIndex(curr_index)
         self._sample_log_names_mutex = False
 
@@ -191,6 +194,7 @@ class FitPeaksWindow(QMainWindow):
         fwhm_vec = self._core.get_peak_fit_param_value(data_key, 'width')
         chi2_vec = self._core.get_peak_fit_param_value(data_key, 'chi2')
         intensity_vec = self._core.get_peak_fit_param_value(data_key, 'intensity')
+        com_vec = self._core.get_peak_center_of_mass(data_key)
 
         for row_index in range(len(center_vec)):
             self.ui.tableView_fitSummary.set_peak_params(row_index,
@@ -200,6 +204,7 @@ class FitPeaksWindow(QMainWindow):
                                                          intensity_vec[row_index],
                                                          chi2_vec[row_index],
                                                          peak_function)
+            self.ui.tableView_fitSummary.set_peak_center_of_mass(row_index, com_vec[row_index])
 
         # plot the model and difference
         if scan_log_index is None:
@@ -269,11 +274,6 @@ class FitPeaksWindow(QMainWindow):
         vec_x = self.get_meta_sample_data(x_axis_name)
         vec_y = self.get_meta_sample_data(y_axis_name)
 
-        print (len(vec_x))
-        print (len(vec_y))
-        print (vec_x)
-        print (vec_y)
-
         self.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y, x_axis_name, y_axis_name)
 
         return
@@ -308,6 +308,8 @@ class FitPeaksWindow(QMainWindow):
             value_vector = numpy.array(self._core.data_center.get_scan_range(data_key))
         elif self._core.data_center.has_sample_log(data_key, name):
             value_vector = self._core.data_center.get_sample_log_values(data_key, name)
+        elif name == 'Center of mass':
+            value_vector = self._core.get_peak_center_of_mass(data_key)
         else:
             # this is for fitted data parameters
             value_vector = self._core.get_peak_fit_param_value(data_key, name)

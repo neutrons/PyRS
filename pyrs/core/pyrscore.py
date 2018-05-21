@@ -130,6 +130,9 @@ class PyRsCore(object):
         # TODO
         return self._last_optimizer.get_fitted_params(param_name)
 
+    def get_peak_center_of_mass(self, data_key):
+        return self._last_optimizer.get_center_of_mass()[:, 0]
+
     def get_diff_data(self, data_key, scan_log_index):
         """
         get diffraction data of a certain

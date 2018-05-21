@@ -156,6 +156,11 @@
             <string>PseudoVoigt</string>
            </property>
           </item>
+          <item>
+           <property name="text">
+            <string>Lorentzian</string>
+           </property>
+          </item>
          </widget>
         </item>
         <item>

@@ -12,6 +12,7 @@ class FitResultTable(NTableWidget.NTableWidget):
                       ('FWHM', 'float'),
                       ('Intensity', 'float'),
                       ('Chi^2', 'float'),
+                      ('C.O.M', 'float'),  # center of mass
                       ('Profile', 'string')]
 
     def __init__(self, parent):
@@ -25,7 +26,7 @@ class FitResultTable(NTableWidget.NTableWidget):
     def init_exp(self, index_list):
         # TODO
         for index in index_list:
-            self.append_row([index, None, None, None, None, None, ''])
+            self.append_row([index, None, None, None, None, None, None, ''])
 
     def setup(self):
         """
@@ -47,9 +48,13 @@ class FitResultTable(NTableWidget.NTableWidget):
         self._colIndexWidth = self.TableSetupList.index(('FWHM', 'float'))
         self._colIndexIntensity = self.TableSetupList.index(('Intensity', 'float'))
         self._colIndexChi2 = self.TableSetupList.index(('Chi^2', 'float'))
+        self._colIndexCoM = self.TableSetupList.index(('C.O.M', 'float'))
         self._colIndexProfile = self.TableSetupList.index(('Profile', 'string'))
 
         return
+
+    def set_peak_center_of_mass(self, row_number, com):
+        self.update_cell_value(row_number, self._colIndexCoM, com)
 
     def set_peak_params(self, row_number, center, height, fwhm, intensity, chi2, profile):
         # TODO
