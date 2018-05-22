@@ -1,10 +1,10 @@
 #!/usr/bin/python
 # In order to test the peak fit window (GUI)
+from pyrs.core import pyrscore
 import sys
 import pyrs.interface
 from pyrs.interface import fitpeakswindow
 import pyrs.core
-from pyrs.core import pyrscore
 try:
     from PyQt5.QtWidgets import QApplication
 except ImportError:

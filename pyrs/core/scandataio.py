@@ -2,6 +2,13 @@ import os
 import rshelper as helper
 import h5py
 import numpy
+import sys
+home_dir = os.path.expanduser('~')
+if home_dir.startswith('/SNS/'):
+    # analysis
+    # sys.path.insert(1, '/opt/mantidnightly/bin/')
+    # local build
+    sys.path.insert(1, '/SNS/users/wzz/Mantid_Project/builds/debug/bin/')
 from mantid.simpleapi import SaveNexusProcessed
 
 

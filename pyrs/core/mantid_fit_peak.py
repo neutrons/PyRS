@@ -8,6 +8,8 @@ if home_dir.startswith('/SNS/'):
     # sys.path.insert(1, '/opt/mantidnightly/bin/')
     # local build
     sys.path.insert(1, '/SNS/users/wzz/Mantid_Project/builds/debug/bin/')
+import mantid
+print mantid
 from mantid.simpleapi import FitPeaks, CreateWorkspace
 from mantid.api import AnalysisDataService
 import rshelper
