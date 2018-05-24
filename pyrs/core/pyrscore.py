@@ -5,6 +5,7 @@ import peakfitengine
 import rshelper
 import numpy as np
 import mantid_fit_peak
+import scandataio
 
 
 class PyRsCore(object):
@@ -46,7 +47,10 @@ class PyRsCore(object):
 
     @property
     def current_data_reference_id(self):
-        # TODO
+        """
+        get the current/latest data reference ID
+        :return:
+        """
         return self._curr_data_key
 
     @property
@@ -88,7 +92,8 @@ class PyRsCore(object):
         :param fit_range
         :return:
         """
-        # TODO check inputs
+        # Check inputs
+        rshelper.check_string_variable('Data reference ID', data_key)
         rshelper.check_string_variable('Peak type', peak_type)
         rshelper.check_string_variable('Background type', background_type)
 
@@ -113,10 +118,10 @@ class PyRsCore(object):
         ref_id = 'TODO FIND A GOOD NAMING CONVENTION'
         peak_optimizer = mantid_fit_peak.MantidPeakFitEngine(diff_data_list, ref_id=ref_id)
 
-        # TODO FIXME: A quick observe?  Use center of mass!
-        peak_center_vec = peak_optimizer.calculate_center_of_mass()
+        # observed COM and highest Y value data point
+        peak_optimizer.calculate_center_of_mass()
 
-        peak_optimizer.fit_peaks(peak_type, background_type, peak_center_vec, fit_range, None)
+        peak_optimizer.fit_peaks(peak_type, background_type, fit_range, None)
 
         self._last_optimizer = peak_optimizer
 
@@ -131,7 +136,7 @@ class PyRsCore(object):
         return self._last_optimizer.get_fitted_params(param_name)
 
     def get_peak_center_of_mass(self, data_key):
-        return self._last_optimizer.get_center_of_mass()[:, 0]
+        return self._last_optimizer.get_observed_peaks_centers()[:, 0]
 
     def get_diff_data(self, data_key, scan_log_index):
         """
@@ -187,10 +192,22 @@ class PyRsCore(object):
         return data_key, message
 
     def save_nexus(self, data_key, file_name):
-        # TODO
-        data_key = self._curr_data_key
-        # TODO check data key with last optimizer
+        """
+        save data in a MatrixWorkspace to Mantid processed NeXus file
+        :param data_key:
+        :param file_name:
+        :return:
+        """
+        # FIXME TODO! There shall be a container for multiple optimizer!
+        # Check
+        if data_key is None:
+            data_key = self._curr_data_key
+        else:
+            rshelper.check_string_variable('Data reference ID', data_key)
+
+        # get the workspace name
         matrix_name = self._last_optimizer.get_data_workspace_name()
 
-        import scandataio
         scandataio.save_mantid_nexus(matrix_name, file_name)
+
+        return
