@@ -40,7 +40,6 @@ class FitPeaksWindow(QMainWindow):
         # others
         self.ui.tableView_fitSummary.setup()
 
-        # TODO
         self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
         self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
 
@@ -71,7 +70,7 @@ class FitPeaksWindow(QMainWindow):
 
         # TODO - NEED TO FIND OUT HOW TO DEFINE hdf FROM IPTS and EXP
 
-        return None
+        return '/HFIR/HB2B/'
 
     def do_browse_hdf(self):
         """
