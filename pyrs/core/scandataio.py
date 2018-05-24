@@ -2,6 +2,14 @@ import os
 import rshelper as helper
 import h5py
 import numpy
+import sys
+home_dir = os.path.expanduser('~')
+if home_dir.startswith('/SNS/'):
+    # analysis
+    # sys.path.insert(1, '/opt/mantidnightly/bin/')
+    # local build
+    sys.path.insert(1, '/SNS/users/wzz/Mantid_Project/builds/debug/bin/')
+from mantid.simpleapi import SaveNexusProcessed
 
 
 class DiffractionDataFile(object):
@@ -130,3 +138,10 @@ class DiffractionDataFile(object):
         """
 
         return
+
+
+def save_mantid_nexus(workspace_name, file_name):
+    # TODO
+    SaveNexusProcessed(InputWorkspace=workspace_name,
+                       Filename=file_name,
+                       Title='blabla')

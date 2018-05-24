@@ -54,7 +54,10 @@ class ScanDataHolder(object):
 
     @property
     def sample_log_names(self):
-        # TODO
+        """
+        return the sample log names
+        :return:
+        """
         return self._sample_log_dict.keys()
 
     @property
@@ -81,11 +84,19 @@ class ScanDataHolder(object):
     def get_sample_log_names(self, can_plot):
         """
         get sample log names
-        :param can_plot
+        :param can_plot: if True, only return the sample logs that can be plotted (i.e., float or integer)
         :return:
         """
-        # TODO: apply can_plot
-        return sorted(self._sample_log_dict.keys())
+        if can_plot:
+            sample_logs = list()
+            for sample_log_name in self._sample_log_dict.keys():
+                sample_log_value = self._sample_log_dict[sample_log_name]
+                if sample_log_value.dtype != object:
+                    sample_logs.append(sample_log_name)
+        else:
+            sample_logs = self._sample_log_dict.keys()
+
+        return sorted(sample_logs)
 
     def sample_log_values(self, sample_log_name):
         """
@@ -202,12 +213,20 @@ class RawDataManager(object):
         if data_key not in self._data_dict:
             raise RuntimeError('Data reference ID (key) {0} does not exist.'.format(data_key))
 
-        # TODO FIXME - Apply 'can_plot'
-
         return self._data_dict[data_key].get_sample_log_names(can_plot)
 
     def get_sample_log_values(self, data_key, sample_log_name):
-        # TODO
+        """
+        get sample log values as a vector
+        :param data_key:
+        :param sample_log_name:
+        :return:
+        """
+        rshelper.check_string_variable('Data reference ID (key)', data_key)
+        if data_key not in self._data_dict:
+            raise RuntimeError('Data reference ID/key {0} does not exist in available keys: {1}'
+                               ''.format(data_key, self._data_dict.keys()))
+
         return self._data_dict[data_key].sample_log_values(sample_log_name)
 
     def get_scan_range(self, data_key):
@@ -234,17 +253,24 @@ class RawDataManager(object):
 
     def has_raw_data(self, file_name):
         """
-        check whether
+        check whether a raw file that has been loaded
         :param file_name:
         :return:
         """
-        # TODO
+        rshelper.check_file_name(file_name, check_exist=False, check_writable=False, is_dir=False)
+
+        return file_name in self._file_ref_dict
 
     def has_sample_log(self, data_reference_id, sample_log_name):
-        # TODO
+        """
+        check whether a certain sample log exists in a loaded data file
+        :param data_reference_id:
+        :param sample_log_name:
+        :return:
+        """
+        rshelper.check_string_variable('Data reference ID', data_reference_id)
+
         if data_reference_id not in self._data_dict:
-            raise RuntimeError()
+            raise RuntimeError('Data reference ID (key) {0} does not exist.'.format(data_reference_id))
 
         return sample_log_name in self._data_dict[data_reference_id].sample_log_names
-
-

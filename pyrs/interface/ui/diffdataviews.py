@@ -1,4 +1,21 @@
 from mplgraphicsview1d import MplGraphicsView1D
+from mplgraphicsview2d import MplGraphicsView2D
+
+
+class Diffraction2DPlot(MplGraphicsView2D):
+    """
+    General 2D plot view for diffraction data set
+    """
+    def __init__(self, parent):
+        # TODO
+        super(Diffraction2DPlot, self).__init__(parent)
+
+        return
+
+
+class DiffContourView(MplGraphicsView2D):
+    def __init__(self, parent):
+        super(DiffContourView, self).__init__(parent)
 
 
 class GeneralDiffDataView(MplGraphicsView1D):
@@ -67,6 +84,7 @@ class PeakFitSetupView(MplGraphicsView1D):
         self._diff_reference_list = list()
         self._last_diff_reference = None  # last diffraction (raw) line ID
         self._last_model_reference = None  # last model diffraction (raw) line ID
+        self._last_fit_diff_reference = None  # TODO
 
         #
         self._auto_color = True
@@ -97,6 +115,20 @@ class PeakFitSetupView(MplGraphicsView1D):
 
         return
 
+    def plot_fit_diff(self, diff_data_set, model_data_set):
+        # TODO
+        if self._last_fit_diff_reference is not None:
+            self.remove_line(row_index=0, col_index=0, line_id=self._last_fit_diff_reference)
+            self._last_fit_diff_reference = None
+
+        # calculate
+        fit_diff_vec = diff_data_set[1] - model_data_set[1]
+
+        # plot
+        self._last_fit_diff_reference = self.add_plot(diff_data_set[0], fit_diff_vec, color='green')
+
+        return
+
     def plot_model(self, model_data_set):
         """
         plot a model diffraction data
@@ -106,14 +138,20 @@ class PeakFitSetupView(MplGraphicsView1D):
         # check condition
         if len(self._diff_reference_list) > 1:
             # very confusion to plot model
+            print ('There are more than 1 raw data plot.  It is very confusing to plot model.'
+                   '\n FYI current diffraction data references: {0}'.format(self._diff_reference_list))
             raise RuntimeError('There are more than 1 raw data plot.  It is very confusing to plot model.')
 
         # remove previous model
         if self._last_model_reference is not None:
+
+            print ('[DB...BAT] About to remove last reference: {0}'.format(self._last_model_reference))
             self.remove_line(row_index=0, col_index=0, line_id=self._last_model_reference)
             self._last_model_reference = None
 
         # plot
+        print ('model X: {0}'.format(model_data_set[0]))
+        print ('model Y: {0}'.format(model_data_set[1]))
         self._last_model_reference = self.add_plot(model_data_set[0], model_data_set[1], color='red')
 
         return
@@ -126,6 +164,7 @@ class PeakFitSetupView(MplGraphicsView1D):
         # reset all the management data structures
         self._last_model_reference = None
         self._last_diff_reference = None
+        self._last_fit_diff_reference = None
         self._diff_reference_list = list()
 
         # call to clean lines

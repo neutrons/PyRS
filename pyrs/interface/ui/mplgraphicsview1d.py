@@ -3,7 +3,6 @@
 Graphics class with matplotlib backend specific for advanced 1D plot
 """
 import numpy as np
-
 try:
     from PyQt5.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
     from PyQt5.QtCore import pyqtSignal
@@ -15,7 +14,6 @@ except (ImportError, RuntimeError) as err:
     from PyQt4.QtCore import pyqtSignal
     from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
-
 from matplotlib.figure import Figure
 
 MplLineStyles = ['-', '--', '-.', ':', 'None', ' ', '']
@@ -376,7 +374,7 @@ class MplGraphicsView1D(QWidget):
                 self._myMainPlotDict[row_index, col_index].clear()
                 # self._statMainPlotDict ???
 
-            if include_right:
+            if include_right and (row_index, col_index) in self._myCanvas:
                 # right axis if it does exist. the caller shall check. no worry to raise exception
                 self._myCanvas.clear_subplot_lines(row_index, col_index, False)
                 self._myRightPlotDict[row_index, col_index].clear()
@@ -443,7 +441,7 @@ class MplGraphicsView1D(QWidget):
         """
         # record home XY limit if it is never zoomed
         if self._isZoomed is False:
-            self._homeXYLimit = list(self.getXLimit())
+            self._homeXYLimit = list(self.get_x_limit())
             self._homeXYLimit.extend(list(self.get_y_limit()))
         # END-IF
 
@@ -471,6 +469,10 @@ class MplGraphicsView1D(QWidget):
         """
         # TODO blabla
         return self._myCanvas.axes_main[row_index, col_index].get_xlabel()
+
+    def get_x_limit(self):
+        # TODO
+        return self._myCanvas.getXLimit()
 
     def get_y_limit(self):
         """ Get limit of Y-axis
@@ -930,7 +932,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         else:
             msg = 'Return from plot is a %d-tuple: %s.. \n' % (len(plot_info), plot_info)
             for i_r in range(len(plot_info)):
-                msg += 'r[%d] = %s\n' % (i_r, str(r[i_r]))
+                msg += 'r[%d] = %s\n' % (i_r, str(plot_info[i_r]))
             raise NotImplementedError(msg)
 
         # Flush/commit
@@ -1073,12 +1075,16 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
     def getXLimit(self):
         """ Get limit of Y-axis
         """
-        return self.axes.get_xlim()
+        # FIXME : make it work for multiple axes!
+        x_lim = self.axes_main[0, 0].get_xlim()
+        print ('x limit: {0}'.format(x_lim))
+        return x_lim
 
     def getYLimit(self):
         """ Get limit of Y-axis
         """
-        return self.axes.get_ylim()
+        # FIXME : make it work for multiple axes!
+        return self.axes_main[0, 0].get_ylim()
 
     def hide_legend(self, row_number, col_number, is_main, is_right):
         """ Hide the legend if it is not None
@@ -1239,7 +1245,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
 
             is_on_main = True
 
-        elif plot_key in self._rightLineDict[row_index, col_index]:
+        elif (row_index, col_index) in self._rightLineDict and plot_key in self._rightLineDict[row_index, col_index]:
             # plot key is on right axis
             try:
                 self.axes_right[row_index, col_index].lines.remove(self._rightLineDict[plot_key])

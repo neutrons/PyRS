@@ -4,6 +4,8 @@ import datamanagers
 import peakfitengine
 import rshelper
 import numpy as np
+import mantid_fit_peak
+import scandataio
 
 
 class PyRsCore(object):
@@ -45,7 +47,10 @@ class PyRsCore(object):
 
     @property
     def current_data_reference_id(self):
-        # TODO
+        """
+        get the current/latest data reference ID
+        :return:
+        """
         return self._curr_data_key
 
     @property
@@ -77,16 +82,20 @@ class PyRsCore(object):
 
         return
 
-    def fit_peaks(self, data_key, scan_index, peak_type, background_type):
+    def fit_peaks(self, data_key, scan_index, peak_type, background_type, fit_range):
         """
         fit a single peak of a measurement in a multiple-log scan
         :param data_key:
         :param scan_index:
         :param peak_type:
         :param background_type:
+        :param fit_range
         :return:
         """
-        # TODO check inputs
+        # Check inputs
+        rshelper.check_string_variable('Data reference ID', data_key)
+        rshelper.check_string_variable('Peak type', peak_type)
+        rshelper.check_string_variable('Background type', background_type)
 
         # get scan indexes
         if scan_index is None:
@@ -97,7 +106,7 @@ class PyRsCore(object):
         elif isinstance(scan_index, list):
             scan_index_list = scan_index
         else:
-            raise  # TODO FIXME
+            raise RuntimeError('Scan index ({0}) is not supported.'.format(scan_index))
 
         # get data
         diff_data_list = list()
@@ -106,11 +115,13 @@ class PyRsCore(object):
             diff_data_list.append(diff_data)
         # END-FOR
 
-        import mantid_fit_peak
-
         ref_id = 'TODO FIND A GOOD NAMING CONVENTION'
         peak_optimizer = mantid_fit_peak.MantidPeakFitEngine(diff_data_list, ref_id=ref_id)
-        peak_optimizer.fit_peaks(peak_type, background_type, None)
+
+        # observed COM and highest Y value data point
+        peak_optimizer.calculate_center_of_mass()
+
+        peak_optimizer.fit_peaks(peak_type, background_type, fit_range, None)
 
         self._last_optimizer = peak_optimizer
 
@@ -123,6 +134,9 @@ class PyRsCore(object):
     def get_peak_fit_param_value(self, data_key, param_name):
         # TODO
         return self._last_optimizer.get_fitted_params(param_name)
+
+    def get_peak_center_of_mass(self, data_key):
+        return self._last_optimizer.get_observed_peaks_centers()[:, 0]
 
     def get_diff_data(self, data_key, scan_log_index):
         """
@@ -157,6 +171,7 @@ class PyRsCore(object):
             data_set = self._last_optimizer.get_calculated_peak(scan_log_index)
         else:
             data_set = None
+            print ('[LAST OPTIMIZER IS NONE')
 
         return data_set
 
@@ -169,9 +184,30 @@ class PyRsCore(object):
         diff_data_dict, sample_log_dict = self._file_io_controller.load_rs_file(h5file)
 
         data_key = self.data_center.add_raw_data(diff_data_dict, sample_log_dict, h5file, replace=True)
-        message = 'Load {0} with reference ID {1}'.format(h5file, data_key)
+        message = 'Load {0} (Ref ID {1})'.format(h5file, data_key)
 
         # set to current key
         self._curr_data_key = data_key
 
         return data_key, message
+
+    def save_nexus(self, data_key, file_name):
+        """
+        save data in a MatrixWorkspace to Mantid processed NeXus file
+        :param data_key:
+        :param file_name:
+        :return:
+        """
+        # FIXME TODO! There shall be a container for multiple optimizer!
+        # Check
+        if data_key is None:
+            data_key = self._curr_data_key
+        else:
+            rshelper.check_string_variable('Data reference ID', data_key)
+
+        # get the workspace name
+        matrix_name = self._last_optimizer.get_data_workspace_name()
+
+        scandataio.save_mantid_nexus(matrix_name, file_name)
+
+        return
