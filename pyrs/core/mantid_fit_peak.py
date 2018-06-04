@@ -5,17 +5,22 @@ import sys
 home_dir = os.path.expanduser('~')
 if home_dir.startswith('/SNS/'):
     # analysis
-    # sys.path.insert(1, '/opt/mantidnightly/bin/')
+    # nightly: sys.path.insert(1, '/opt/mantidnightly/bin/')
     # local build
     sys.path.insert(1, '/SNS/users/wzz/Mantid_Project/builds/debug/bin/')
-    # sys.path.insert(1, '/opt/mantidnightly/bin/')
 elif home_dir.startswith('/Users/wzz'):
     # VZ local mac
     sys.path.append('/Users/wzz/MantidBuild/debug/bin')
+elif home_dir.startswith('/home/wzz'):
+    # VZ workstation
+    sys.path.insert(1, '/home/wzz/Mantid_Project/builds/debug-master/bin')
+import mantid
 from mantid.simpleapi import FitPeaks, CreateWorkspace
 from mantid.api import AnalysisDataService
 import rshelper
 import numpy as np
+
+print ('[DB...INFO] Import mantid from {0}'.format(mantid))
 
 
 class MantidPeakFitEngine(object):
@@ -166,15 +171,20 @@ class MantidPeakFitEngine(object):
                ''.format(self._data_workspace.getNumberHistograms(), fit_range))
 
         # no pre-determined peak center: use center of mass
+
+
+        r_positions_ws_name = 'fitted_peak_positions'
+        r_param_table_name = 'param_m'
+        r_model_ws_name = 'model_full'
         r = FitPeaks(InputWorkspace=self._data_workspace,
-                     OutputWorkspace='full_fitted',
+                     OutputWorkspace=r_positions_ws_name,
                      PeakCentersWorkspace=self._center_of_mass_ws,
                      PeakFunction=peak_function_name,
                      BackgroundType=background_function_name,
                      StartWorkspaceIndex=start,
                      StopWorkspaceIndex=stop,
-                     OutputPeakParametersWorkspace='param_m',
-                     FittedPeaksWorkspace='model_full',
+                     OutputPeakParametersWorkspace=r_param_table_name,
+                     FittedPeaksWorkspace=r_model_ws_name,
                      FindBackgroundSigma=1,
                      HighBackground=False,
                      ConstrainPeakPositions=False,
@@ -182,9 +192,9 @@ class MantidPeakFitEngine(object):
                      FitPeakWindowWorkspace=peak_window_ws)
 
         # process output
-        self._fitted_peak_position_ws = r[0]
-        self._fitted_function_param_table = r[1]
-        self._model_matrix_ws = r[2]
+        self._fitted_peak_position_ws = AnalysisDataService.retrieve(r_positions_ws_name)
+        self._fitted_function_param_table = AnalysisDataService.retrieve(r_param_table_name)
+        self._model_matrix_ws = AnalysisDataService.retrieve(r_model_ws_name)
 
         return
 
