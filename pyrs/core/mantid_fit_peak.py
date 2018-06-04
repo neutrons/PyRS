@@ -8,7 +8,7 @@ if home_dir.startswith('/SNS/'):
     # sys.path.insert(1, '/opt/mantidnightly/bin/')
     # local build
     sys.path.insert(1, '/SNS/users/wzz/Mantid_Project/builds/debug/bin/')
-    sys.path.insert(1, '/opt/mantidnightly/bin/')
+    # sys.path.insert(1, '/opt/mantidnightly/bin/')
 elif home_dir.startswith('/Users/wzz'):
     # VZ local mac
     sys.path.append('/Users/wzz/MantidBuild/debug/bin')
