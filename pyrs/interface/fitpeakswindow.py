@@ -36,7 +36,7 @@ class FitPeaksWindow(QMainWindow):
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.actionSave_As.triggered.connect(self.do_save_as)
-        self.ui.actionSave_Fit.triggered.connect(self.do_save_fit_result)
+        self.ui.actionSave_Fit_Result.triggered.connect(self.do_save_fit_result)
 
         # others
         self.ui.tableView_fitSummary.setup()
@@ -293,14 +293,19 @@ class FitPeaksWindow(QMainWindow):
         """
         # get file name
         csv_filter = 'CSV Files(*.csv);;DAT Files(*.dat);;All Files(*.*)'
-        file_name = str(QFileDialog.getSaveFileName(self, 'CSV file for peak fitting result', self._core.working_dir,
-                                                    csv_filter))
+        # with filter, the returned will contain 2 values
+        user_input = QFileDialog.getSaveFileName(self, 'CSV file for peak fitting result', self._core.working_dir,
+                                                 csv_filter)
+        if isinstance(user_input, tuple) and len(user_input) == 2:
+            file_name = str(user_input[0])
+        else:
+            file_name = str(user_input)
 
         if file_name == '':
             # user cancels
             return
 
-        self.export_fit_result(csv_filter)
+        self.export_fit_result(file_name)
 
         return
 
