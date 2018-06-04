@@ -7,14 +7,24 @@ class Diffraction2DPlot(MplGraphicsView2D):
     General 2D plot view for diffraction data set
     """
     def __init__(self, parent):
-        # TODO
+        """
+        initialization
+        :param parent:
+        """
         super(Diffraction2DPlot, self).__init__(parent)
 
         return
 
 
 class DiffContourView(MplGraphicsView2D):
+    """
+    Diffraction contour viewer
+    """
     def __init__(self, parent):
+        """
+        initialization
+        :param parent:
+        """
         super(DiffContourView, self).__init__(parent)
 
 
@@ -36,13 +46,15 @@ class GeneralDiffDataView(MplGraphicsView1D):
         return
 
     def plot_scatter(self, vec_x, vec_y, x_label, y_label):
-        """
-        plot figure in scatter-style
+        """ plot figure in scatter-style
         :param vec_x:
         :param vec_y:
+        :param x_label:
+        :param y_label:
         :return:
         """
         # TODO Future: Need to write use cases.  Now it is for demo
+        # It is not allowed to plot 2 plot with different x-axis
         if self._last_line_reference is not None:
             if x_label != self.get_label_x():
                 self.reset_viewer()
@@ -64,7 +76,7 @@ class GeneralDiffDataView(MplGraphicsView1D):
         self._line_reference_list = list()
 
         # call to clean lines
-        self.clear_all_lines(row_number=0, col_number=0)
+        self.clear_all_lines(row_number=0, col_number=0, include_right=False)
 
         return
 

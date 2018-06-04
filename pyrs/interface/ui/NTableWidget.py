@@ -116,19 +116,19 @@ class NTableWidget(QTableWidget):
 
     def export_table_csv(self, csv_file_name):
         """ Export table to a CSV fie
-        :param csv_file_name:
+        :param csv_file_name: csv file name
         :return:
         """
+        # check input
+        assert isinstance(csv_file_name, str), 'CSV file name {0} to export table must be a string but not a {1}' \
+                                               ''.format(csv_file_name, type(csv_file_name))
+
         # get title as header
         col_names = self._myColumnNameList[:]
-        # col_names_str = '{0}'.format(col_names)
-        # col_names_str = col_names_str.replace(', ', ' ')
-        # headeder = col_names_str
-
         num_columns = self.columnCount()
-
         num_rows = self.rowCount()
         content_line_list = list()
+
         for i_row in range(num_rows):
             line_items = list()
             for j_col in range(num_columns):

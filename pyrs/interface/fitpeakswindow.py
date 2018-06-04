@@ -36,6 +36,7 @@ class FitPeaksWindow(QMainWindow):
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.actionSave_As.triggered.connect(self.do_save_as)
+        self.ui.actionSave_Fit.triggered.connect(self.do_save_fit_result)
 
         # others
         self.ui.tableView_fitSummary.setup()
@@ -264,7 +265,7 @@ class FitPeaksWindow(QMainWindow):
 
         # if self.ui.checkBox_keepPrevPlotRight.isChecked() is False:
         # TODO - Shall be controlled by a more elegant mechanism
-        self.ui.graphicsView_fitResult.clear_all_lines(include_right=False)
+        self.ui.graphicsView_fitResult.reset_viewer()
 
         # get the sample log/meta data name
         x_axis_name = str(self.ui.comboBox_xaxisNames.currentText())
@@ -278,7 +279,29 @@ class FitPeaksWindow(QMainWindow):
         return
 
     def do_save_as(self):
+        """
+
+        :return:
+        """
         # TODO
+        return
+
+    def do_save_fit_result(self):
+        """
+        save fit result
+        :return:
+        """
+        # get file name
+        csv_filter = 'CSV Files(*.csv);;DAT Files(*.dat);;All Files(*.*)'
+        file_name = str(QFileDialog.getSaveFileName(self, 'CSV file for peak fitting result', self._core.working_dir,
+                                                    csv_filter))
+
+        if file_name == '':
+            # user cancels
+            return
+
+        self.export_fit_result(csv_filter)
+
         return
 
     def do_quit(self):
@@ -287,6 +310,16 @@ class FitPeaksWindow(QMainWindow):
         :return:
         """
         self.close()
+
+        return
+
+    def export_fit_result(self, file_name):
+        """
+        export fit result to a csv file
+        :param file_name:
+        :return:
+        """
+        self.ui.tableView_fitSummary.export_table_csv(file_name)
 
         return
 

@@ -82,6 +82,49 @@ class PyRsCore(object):
 
         return
 
+    def calculate_pole_figure(self, data_key, peak_type, background_type, peak_range, use_mantid_engine):
+        """ calculate pole figure
+        :param data_key:
+        :param peak_type:
+        :param background_type:
+        :param peak_range:
+        :param use_mantid_engine:
+        :return:
+        """
+        import polefigurecalculator
+
+        # Check inputs
+        rshelper.check_string_variable('Data reference ID', data_key)
+        rshelper.check_string_variable('Peak type', peak_type)
+        rshelper.check_string_variable('Background type', background_type)
+        rshelper.check_bool_variable('Flag to use Mantid as fit engine', use_mantid_engine)
+
+        # get scans
+        scan_index_list = self._data_manager.get_scan_range(data_key)
+
+        # construct data set
+        pole_figure_data_dict = dict()
+        for scan_index in scan_index_list:
+            # get diffraction data
+            reflection = dict()
+            reflection['diff data'] = self._data_manager.get_data_set(data_key, scan_index)
+            # get sample logs
+            reflection['omega'] = self._data_manager.get_sample_log_values(data_key, 'omega')
+            reflection['2theta'] = self._data_manager.get_sample_log_values(data_key, '2theta')
+            reflection['chi'] = self._data_manager.get_sample_log_values(data_key, 'chi')
+            reflection['phi'] = self._data_manager.get_sample_log_values(data_key, 'phi')
+            # add
+            pole_figure_data_dict[scan_index] = reflection
+        # END-FOR
+
+        # call pole figure calculator
+        curr_pf_calculator = polefigurecalculator.PoleFigureCalculator()
+        curr_pf_calculator.execute(pole_figure_data_dict, peak_type, background_type, peak_range, use_mantid_engine)
+
+        self._pole_figure_calculator[data_key] = curr_pf_calculator
+
+        return
+
     def fit_peaks(self, data_key, scan_index, peak_type, background_type, fit_range):
         """
         fit a single peak of a measurement in a multiple-log scan
