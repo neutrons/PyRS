@@ -27,6 +27,9 @@ class PyRsCore(object):
         self._curr_data_key = None
         self._last_optimizer = None
 
+        # container for optimizers
+        self._optimizer_dict = None
+
         return
 
     @property
@@ -167,19 +170,62 @@ class PyRsCore(object):
         peak_optimizer.fit_peaks(peak_type, background_type, fit_range, None)
 
         self._last_optimizer = peak_optimizer
+        self._optimizer_dict[data_key] = self._last_optimizer
 
         return ref_id
 
-    def get_fit_parameters(self, data_key):
-        # TODO
-        return self._last_optimizer.get_function_parameter_names()
+    def _get_optimizer(self, data_key):
+        """
+        get optimizer.
+        raise exception if optimizer to return is None
+        :param data_key:
+        :return:
+        """
+        # check input
+        if data_key is None and self._last_optimizer is not None:
+            # by default: current optimizer
+            optimizer = self._last_optimizer
+        elif data_key in self._optimizer_dict:
+            # with data key
+            optimizer = self._optimizer_dict[data_key]
+        else:
+            raise RuntimeError('Unable to find optimizer related to data with reference ID {0} of type {1}.'
+                               'Or there is NO optimizer ever created.'.format(data_key, type(data_key)))
+
+        return optimizer
+
+    def get_fit_parameters(self, data_key=None):
+        """
+        get the fitted function's parameters
+        :param data_key:
+        :return:
+        """
+        # check input
+        optimizer = self._get_optimizer(data_key)
+
+        return optimizer.get_function_parameter_names()
 
     def get_peak_fit_param_value(self, data_key, param_name):
-        # TODO
-        return self._last_optimizer.get_fitted_params(param_name)
+        """
+        get a specific parameter's fitted value
+        :param data_key:
+        :param param_name:
+        :return:
+        """
+        # check input
+        optimizer = self._get_optimizer(data_key)
+
+        return optimizer.get_fitted_params(param_name)
 
     def get_peak_center_of_mass(self, data_key):
-        return self._last_optimizer.get_observed_peaks_centers()[:, 0]
+        """
+        get 'observed' center of mass of a peak
+        :param data_key:
+        :return:
+        """
+        optimizer = self._get_optimizer(data_key)
+
+        return optimizer.get_observed_peaks_centers()[:, 0]
 
     def get_diff_data(self, data_key, scan_log_index):
         """
@@ -201,6 +247,12 @@ class PyRsCore(object):
         return diff_data_set
 
     def get_modeled_data(self, data_key, scan_log_index):
+        """
+        get calculated data according to fitted model
+        :param data_key:
+        :param scan_log_index:
+        :return:
+        """
         # TODO
         # get data key
         if data_key is None:

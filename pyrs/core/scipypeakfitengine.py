@@ -22,40 +22,17 @@ class ScipyPeakFitEngine(object):
         rshelper.check_list('Data set list', data_set_list)
         rshelper.check_string_variable('Peak fitting reference ID', ref_id)
 
-        self._workspace_name = self._get_matrix_name(ref_id)
-        self._data_workspace = self.generate_matrix_workspace(data_set_list)
-        print self._data_workspace[0].shape
+        # for scipy: keep the numpy array will be good enough
+        self._data_set = data_set_list
 
         return
-
-    def _get_matrix_name(self, ref_id):
-        # TODO
-        return 'vulcan_test'
-
-    @staticmethod
-    def generate_matrix_workspace(data_set_list):
-        # TODO
-        vec_x_list = list()
-        vec_y_list = list()
-        for index in range(len(data_set_list)):
-            diff_data = data_set_list[index]
-            vec_x = diff_data[0]
-            vec_y = diff_data[1]
-            vec_x_list.append(vec_x)
-            vec_y_list.append(vec_y)
-
-        datax = np.concatenate(vec_x_list, axis=0)
-        datay = np.concatenate(vec_y_list, axis=0)
-        
-#        ws_full = CreateWorkspace(DataX=datax, DataY=datay, NSpec=len(vec_x_list))
-
-#        return ws_full
-        return [datax.reshape(len(vec_x_list),len(vec_x)), datay.reshape(len(vec_x_list),len(vec_x)), len(vec_x_list)]
 
     def fit_peaks(self, peak_function_name, background_function_name, scan_index=None):
         """
         fit peaks
         :param peak_function_name:
+        :param background_function_name:
+        :param scan_index:
         :return:
         """
         rshelper.check_string_variable('Peak function name', peak_function_name)

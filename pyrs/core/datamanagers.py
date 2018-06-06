@@ -131,6 +131,18 @@ class RawDataManager(object):
 
         return
 
+    def _check_data_key(self, data_key):
+        """
+        check whether a data key is valid and exist
+        :param data_key:
+        :return:
+        """
+        rshelper.check_string_variable('Data reference ID', data_key)
+        if data_key not in self._data_dict:
+            raise RuntimeError('Data reference ID (key) {0} does not exist.'.format(data_key))
+
+        return
+
     def add_raw_data(self, diff_data_dict, sample_log_dict, h5file, replace=True):
         """
         add a loaded raw data set
@@ -157,9 +169,7 @@ class RawDataManager(object):
         :return: boolean (False if reference ID is not in this instance)
         """
         # check input: correct type and existed
-        rshelper.check_string_variable('Data reference ID', reference_id)
-        if reference_id not in self._data_dict:
-            return False
+        self._check_data_key(reference_id)
 
         # remove from both site
         file_name = self._data_dict[reference_id].raw_file_name
@@ -195,9 +205,7 @@ class RawDataManager(object):
         :return:
         """
         # check input
-        if self.has_data(data_ref_id) is False:
-            raise RuntimeError('Data reference ID {0} is not found in data center.'.format(data_ref_id))
-
+        self._check_data_key(data_ref_id)
         data_set = self._data_dict[data_ref_id].get_diff_data(scan_index)
 
         return data_set
@@ -209,9 +217,7 @@ class RawDataManager(object):
         :param can_plot: True for log that can be plotted (no object type); Otherwise, all sample logs
         :return: list of strings
         """
-        rshelper.check_string_variable('Data reference ID', data_key)
-        if data_key not in self._data_dict:
-            raise RuntimeError('Data reference ID (key) {0} does not exist.'.format(data_key))
+        self._check_data_key(data_key)
 
         return self._data_dict[data_key].get_sample_log_names(can_plot)
 
@@ -222,10 +228,7 @@ class RawDataManager(object):
         :param sample_log_name:
         :return:
         """
-        rshelper.check_string_variable('Data reference ID (key)', data_key)
-        if data_key not in self._data_dict:
-            raise RuntimeError('Data reference ID/key {0} does not exist in available keys: {1}'
-                               ''.format(data_key, self._data_dict.keys()))
+        self._check_data_key(data_key)
 
         return self._data_dict[data_key].sample_log_values(sample_log_name)
 
@@ -235,10 +238,7 @@ class RawDataManager(object):
         :param data_key:
         :return: list of scan log indexes
         """
-        rshelper.check_string_variable('Data reference ID', data_key)
-        if data_key not in self._data_dict:
-            raise RuntimeError('Data reference ID (key) {0} does not exist.'.format(data_key))
-
+        self._check_data_key(data_key)
         return self._data_dict[data_key].get_scan_log_index_range()
 
     def has_data(self, reference_id):
@@ -268,9 +268,6 @@ class RawDataManager(object):
         :param sample_log_name:
         :return:
         """
-        rshelper.check_string_variable('Data reference ID', data_reference_id)
-
-        if data_reference_id not in self._data_dict:
-            raise RuntimeError('Data reference ID (key) {0} does not exist.'.format(data_reference_id))
+        self._check_data_key(data_reference_id)
 
         return sample_log_name in self._data_dict[data_reference_id].sample_log_names
