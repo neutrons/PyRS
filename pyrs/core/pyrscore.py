@@ -253,7 +253,7 @@ class PyRsCore(object):
         :param scan_log_index:
         :return:
         """
-        # TODO
+        rshelper.check_int_variable('Scan index', scan_log_index, (0, None))
         # get data key
         if data_key is None:
             data_key = self._curr_data_key
@@ -261,12 +261,8 @@ class PyRsCore(object):
                 raise RuntimeError('There is no current loaded data.')
         # END-IF
 
-        # TODO : better data manager!
-        if self._last_optimizer is not None:
-            data_set = self._last_optimizer.get_calculated_peak(scan_log_index)
-        else:
-            data_set = None
-            print ('[LAST OPTIMIZER IS NONE')
+        optimizer = self._get_optimizer(data_key)
+        data_set = optimizer.get_calculated_peak(scan_log_index)
 
         return data_set
 
@@ -293,16 +289,17 @@ class PyRsCore(object):
         :param file_name:
         :return:
         """
-        # FIXME TODO! There shall be a container for multiple optimizer!
         # Check
-        if data_key is None:
-            data_key = self._curr_data_key
-        else:
-            rshelper.check_string_variable('Data reference ID', data_key)
+        optimizer = self._get_optimizer(data_key)
 
         # get the workspace name
-        matrix_name = self._last_optimizer.get_data_workspace_name()
+        try:
+            matrix_name = optimizer.get_data_workspace_name()
+        except RuntimeError as run_err:
+            raise RuntimeError('Unable to write to NeXus because Mantid fit engine is not used.\nError info: {0}'
+                               ''.format(run_err))
 
+        # save
         scandataio.save_mantid_nexus(matrix_name, file_name)
 
         return

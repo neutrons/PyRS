@@ -20,7 +20,7 @@ from mantid.api import AnalysisDataService
 import rshelper
 import numpy as np
 
-print ('[DB...INFO] Import mantid from {0}'.format(mantid))
+print ('[CHECK] Import Mantid from {0}'.format(mantid))
 
 
 class MantidPeakFitEngine(object):

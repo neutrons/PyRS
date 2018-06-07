@@ -5,9 +5,10 @@ from scipy.optimize import leastsq
 import pandas as pd
 import rshelper
 import numpy as np
+from pyrs_fit_engine import RsPeakFitEngine
 
 
-class ScipyPeakFitEngine(object):
+class ScipyPeakFitEngine(RsPeakFitEngine):
     """
     peak fitting engine class for mantid
     """
@@ -18,12 +19,7 @@ class ScipyPeakFitEngine(object):
         :param ref_id:
         :param
         """
-        # check
-        rshelper.check_list('Data set list', data_set_list)
-        rshelper.check_string_variable('Peak fitting reference ID', ref_id)
-
-        # for scipy: keep the numpy array will be good enough
-        self._data_set = data_set_list
+        super(ScipyPeakFitEngine, self).__init__(data_set_list, ref_id)
 
         return
 
@@ -135,10 +131,15 @@ class ScipyPeakFitEngine(object):
 
         return
 
-    def get_calculated_peak(self, log_index):
+    def get_calculated_peak(self, scan_index):
+        """
+        get the calculated peak's value
+        :param scan_index:
+        :return:
+        """
         # TODO
-        vec_x = self.fitted_ws[log_index][0].T
-        vec_y = self.fitted_ws[log_index][1].T
+        vec_x = self.fitted_ws[scan_index][0].T
+        vec_y = self.fitted_ws[scan_index][1].T
 
         return vec_x, vec_y
 
