@@ -39,4 +39,19 @@ class RsPeakFitEngine(object):
         """
         raise NotImplementedError('Virtual base class member method get_calculated_peak()')
 
+    def get_fitted_params(self, param_name):
+        """
+        get the value of a fitted parameter
+        :return:
+        """
+        raise NotImplementedError('Virtual base class member method get_calculated_peak()')
+
+    def get_number_scans(self):
+        """
+        get number of scans in input data to fit
+        :return:
+        """
+        raise NotImplementedError('Virtual base class member method get_calculated_peak()')
+
+
 

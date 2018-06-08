@@ -72,7 +72,7 @@ class ScipyPeakFitEngine(RsPeakFitEngine):
             Data = self._data_workspace[1][i]
             TTH = self._data_workspace[0][i]
 
-            MaxIndex = np.where(np.max(Data)==Data)[0][0]
+            MaxIndex = np.where(np.max(Data) == Data)[0][0]
 
             Pos = TTH[MaxIndex]
             LL = np.where((Pos-1.) < TTH)[0][0]

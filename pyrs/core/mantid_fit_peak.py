@@ -171,8 +171,6 @@ class MantidPeakFitEngine(object):
                ''.format(self._data_workspace.getNumberHistograms(), fit_range))
 
         # no pre-determined peak center: use center of mass
-
-
         r_positions_ws_name = 'fitted_peak_positions'
         r_param_table_name = 'param_m'
         r_model_ws_name = 'model_full'
