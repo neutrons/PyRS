@@ -28,7 +28,7 @@ class PyRsCore(object):
         self._last_optimizer = None
 
         # container for optimizers
-        self._optimizer_dict = None
+        self._optimizer_dict = dict()
 
         return
 

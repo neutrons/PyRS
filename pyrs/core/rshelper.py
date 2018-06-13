@@ -114,13 +114,14 @@ def check_float_variable(var_name, variable, value_range):
     return
 
 
-def check_list(var_name, variable):
+def check_list(var_name, variable, allowed_values=None):
     """
     check whether a variable is a list
     :param var_name:
     :param variable:
     :return:
     """
+    # TODO-000: Complete it!
     check_string_variable('var_name', var_name)
 
     assert isinstance(variable, list), '{0} {1} must be an instance of list but not a {2}' \

@@ -223,7 +223,7 @@ class RawDataManager(object):
 
     def get_sample_log_values(self, data_key, sample_log_name):
         """
-        get sample log values as a vector
+        Get ONE INDIVIDUAL sample log's values as a vector
         :param data_key:
         :param sample_log_name:
         :return:
@@ -231,6 +231,26 @@ class RawDataManager(object):
         self._check_data_key(data_key)
 
         return self._data_dict[data_key].sample_log_values(sample_log_name)
+
+    def get_scan_index_logs_values(self, data_key, log_name_list):
+        """
+        Get a set of sample logs' values and return with scan indexes
+        :param data_key:
+        :param log_name_list:
+        :return:
+        """
+        # TODO : make doc
+        sample_log_list = self.get_sample_logs_list(data_key, True)
+        rshelper.check_list('Sample logs names', log_name_list, sample_log_list)
+        for target_name, log_name in log_name_list:
+            # need  more check
+            if log_name not in sample_log_list:
+                raise RuntimeError('Log {0} not in {1}'.format(log_name, sample_log_list))
+
+        # TODO-001: continue from here
+        # get each index to form a dictionary
+
+        raise NotImplementedError('From now on!')
 
     def get_scan_range(self, data_key):
         """

@@ -157,6 +157,15 @@ class MantidPeakFitEngine(object):
         """
         return self._workspace_name
 
+    def get_scan_indexes(self):
+        """
+        get a vector of scan indexes
+        :return:
+        """
+        indexes_list = range(self._data_workspace.getNumberHistograms())
+
+        return np.array(indexes_list)
+
     def fit_peaks(self, peak_function_name, background_function_name, fit_range, scan_index=None):
         """
         fit peaks

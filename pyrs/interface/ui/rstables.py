@@ -101,7 +101,7 @@ class FitResultTable(NTableWidget.NTableWidget):
         return
 
 
-class PoleFigureTable(NTableWidget):
+class PoleFigureTable(NTableWidget.NTableWidget):
     """
     A table tailored to pole figure
     """
@@ -116,7 +116,7 @@ class PoleFigureTable(NTableWidget):
         """
         initialization
         """
-        super(PoleFigureTable, self).__init__()
+        super(PoleFigureTable, self).__init__(parent)
 
         # declare class instance
         self._col_index_alpha = None

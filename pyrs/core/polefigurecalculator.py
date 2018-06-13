@@ -65,7 +65,7 @@ class PoleFigureCalculator(object):
         initialization
         """
         # initialize class instances
-        self._data_set = None
+        self._sample_logs_dict = None
 
         self._cal_successful = False
 
@@ -75,12 +75,12 @@ class PoleFigureCalculator(object):
         """ Calculate pole figures
         :return:
         """
-        rshelper.check_dict('(class variable) data set', self._data_set)
+        rshelper.check_dict('(class variable) data set', self._sample_logs_dict)
         rshelper.check_dict('(peak intensities', peak_intensity_dict)
 
         pole_figure_list = list()
 
-        for index, scan_index in enumerate(self._data_set.keys()):
+        for index, scan_index in enumerate(self._sample_logs_dict.keys()):
             # check fitting result
             if scan_index in peak_intensity_dict:
                 intensity_i = peak_intensity_dict[scan_index]
@@ -88,10 +88,10 @@ class PoleFigureCalculator(object):
                 continue
 
             # rotate Q from instrument coordinate to sample coordinate
-            two_theta_i = self._data_set[scan_index]['2theta']
-            omega_i = self._data_set[scan_index]['omega']
-            chi_i = self._data_set[scan_index]['chi']
-            phi_i = self._data_set[scan_index]['phi']
+            two_theta_i = self._sample_logs_dict[scan_index]['2theta']
+            omega_i = self._sample_logs_dict[scan_index]['omega']
+            chi_i = self._sample_logs_dict[scan_index]['chi']
+            phi_i = self._sample_logs_dict[scan_index]['phi']
             alpha, beta = self.rotate_project_q(two_theta_i, omega_i, chi_i, phi_i)
 
             pole_figure_list.append([alpha, beta, intensity_i])
@@ -110,9 +110,9 @@ class PoleFigureCalculator(object):
         # fit peaks
         # choose peak fit engine
         if use_mantid:
-            fit_engine = mantid_fit_peak.MantidPeakFitEngine(self._data_set)
+            fit_engine = mantid_fit_peak.MantidPeakFitEngine(self._sample_logs_dict)
         else:
-            fit_engine = peakfitengine.ScipyPeakFitEngine(self._data_set)
+            fit_engine = peakfitengine.ScipyPeakFitEngine(self._sample_logs_dict)
 
         # fit peaks
         fit_engine.fit_peaks(peak_function_name=profile_type, background_function_name=background_type,
@@ -179,3 +179,13 @@ class PoleFigureCalculator(object):
         beta = math.acos(numpy.dot(vec_q_prime, numpy.array([1., 0., 0.])))
 
         return alpha, beta
+
+    def set_experiment_logs(self, log_dict):
+        """
+
+        :param log_dict:
+        :return:
+        """
+        # TODO check: input
+
+        self._sample_logs_dict = log_dict

@@ -103,7 +103,8 @@ if __name__ == "__main__":
     scripts = ['scripts/pyrsplot']
     test_scripts = ['tests/unittest/pyrs_core_test.py',
                     'tests/unittest/utilities_test.py',
-                    'tests/guitest/peakfitgui_test.py']
+                    'tests/guitest/peakfitgui_test.py',
+                    'tests/unittest/polefigurecal_test.py']
     scripts.extend(test_scripts)
 
     setup(
