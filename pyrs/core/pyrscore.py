@@ -8,6 +8,10 @@ import mantid_fit_peak
 import scandataio
 
 
+# Define Constants
+SUPPORTED_PEAK_TYPES = ['Gaussian', 'Voigt', 'PseudoVoigt', 'Lorentzian']
+
+
 class PyRsCore(object):
     """
     PyRS core
@@ -313,3 +317,11 @@ class PyRsCore(object):
         scandataio.save_mantid_nexus(matrix_name, file_name)
 
         return
+
+    @property
+    def supported_peak_types(self):
+        """
+        list of supported peaks' types for fitting
+        :return:
+        """
+        return SUPPORTED_PEAK_TYPES[:]

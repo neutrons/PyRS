@@ -18,14 +18,14 @@
     <item row="0" column="0">
      <widget class="QPushButton" name="pushButton_2">
       <property name="text">
-       <string>Re-Reduce Data</string>
+       <string>Data Re-Reduction</string>
       </property>
      </widget>
     </item>
     <item row="2" column="0">
      <widget class="QPushButton" name="pushButton_fitPeaks">
       <property name="text">
-       <string>Fit Peaks</string>
+       <string>Peak Fitting</string>
       </property>
      </widget>
     </item>
@@ -62,9 +62,9 @@
      </spacer>
     </item>
     <item row="4" column="0">
-     <widget class="QPushButton" name="pushButton">
+     <widget class="QPushButton" name="pushButton_launchTextureAnalysis">
       <property name="text">
-       <string>Calculate Stress/etc</string>
+       <string>Texture Analysis</string>
       </property>
      </widget>
     </item>
