@@ -3,6 +3,7 @@ try:
 except ImportError:
     from PyQt4.QtGui import QMainWindow, QFileDialog
 import ui.ui_peakfitwindow
+import pyrs.core.hb2b_utilities as hb2b
 import os
 import gui_helper
 import numpy
@@ -69,9 +70,9 @@ class FitPeaksWindow(QMainWindow):
             gui_helper.pop_message(self, 'Unable to parse IPTS or Exp due to {0}'.format(run_err))
             return None
 
-        # TODO - NEED TO FIND OUT HOW TO DEFINE hdf FROM IPTS and EXP
+        archive_data = hb2b.get_hb2b_raw_data(ipts_number, exp_number)
 
-        return '/HFIR/HB2B/'
+        return archive_data
 
     def do_browse_hdf(self):
         """
@@ -354,17 +355,23 @@ class FitPeaksWindow(QMainWindow):
         return value_vector
 
     def save_data_for_mantid(self, data_key, file_name):
-        # TODO
+        """
+        save data to Mantid-compatible NeXus
+        :param data_key:
+        :param file_name:
+        :return:
+        """
         self._core.save_nexus(data_key, file_name)
 
     def setup_window(self, pyrs_core):
-        """
-
+        """ set up the window.  It must be called mandatory
         :param pyrs_core:
         :return:
         """
+        from pyrs.core.pyrscore import PyRsCore
         # check
-        # blabla
+        assert isinstance(pyrs_core, PyRsCore), 'Controller core {0} must be a PyRSCore instance but not a {1}.' \
+                                                ''.format(pyrs_core, pyrs_core.__class__.__name__)
 
         self._core = pyrs_core
 

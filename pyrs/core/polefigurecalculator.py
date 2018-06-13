@@ -72,11 +72,11 @@ class PoleFigureCalculator(object):
         return
 
     def calculate_pole_figure(self, peak_intensity_dict):
-        """
-
+        """ Calculate pole figures
         :return:
         """
         rshelper.check_dict('(class variable) data set', self._data_set)
+        rshelper.check_dict('(peak intensities', peak_intensity_dict)
 
         pole_figure_list = list()
 
@@ -100,6 +100,7 @@ class PoleFigureCalculator(object):
         # convert
         self._pole_figure = numpy.array(pole_figure_list)
 
+        return
 
     def execute(self):
         """
@@ -121,7 +122,7 @@ class PoleFigureCalculator(object):
         fit_engine.mask_bad_fit(max_chi2=self._maxChi2)
 
         # get fitted peak parameters from engine
-        self._peak_intensity_dict = fit_engine.get_intensities()
+        peak_intensity_dict = fit_engine.get_intensities()
 
         # calculate pole figure
         self._cal_successful = self.calculate_pole_figure(peak_intensity_dict)
@@ -136,8 +137,8 @@ class PoleFigureCalculator(object):
         """
         rshelper.check_file_name(file_name, check_exist=False, check_writable=True)
 
-        # TODO - Implement
-        raise NotImplementedError('ASAP')
+        # TEST
+        numpy.savetxt(file_name, self._pole_figure)   # x,y,z equal sized 1D arrays
 
         return
 
@@ -149,7 +150,8 @@ class PoleFigureCalculator(object):
 
         return self._pole_figure
 
-    def rotate_project_q(self, two_theta, omega, chi, phi):
+    @staticmethod
+    def rotate_project_q(two_theta, omega, chi, phi):
         """
         Rotate Q from instrument coordinate to sample coordinate defined by goniometer angles
         and project rotation Q to (001) and (100)
@@ -159,6 +161,12 @@ class PoleFigureCalculator(object):
         :param phi:
         :return: 2-tuple as the projection (alpha, beta)
         """
+        # check inputs
+        rshelper.check_float_variable('2theta', two_theta, (None, None))
+        rshelper.check_float_variable('Omega', omega, (None, None))
+        rshelper.check_float_variable('chi', chi, (None, None))
+        rshelper.check_float_variable('phi', phi, (None, None))
+
         # rotate Q
         vec_q = numpy.array([0., 1., 0.])
         vec_q = rotation_matrix_z(-(180. - two_theta)*0.5, is_degree=True) * vec_q

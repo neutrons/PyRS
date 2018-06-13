@@ -136,7 +136,7 @@ class PyRsCore(object):
         :param peak_type:
         :param background_type:
         :param fit_range
-        :return:
+        :return: reference ID
         """
         # Check inputs
         rshelper.check_string_variable('Data reference ID', data_key)
@@ -226,6 +226,16 @@ class PyRsCore(object):
         optimizer = self._get_optimizer(data_key)
 
         return optimizer.get_observed_peaks_centers()[:, 0]
+
+    def get_peak_intensities(self, data_key):
+        """
+        get the peak intensities
+        :param data_key:
+        :return: a dictionary (key = scan index, value = peak intensity)
+        """
+        optimizer = self._get_optimizer(data_key)
+
+        return optimizer.get_peak_intensities()
 
     def get_diff_data(self, data_key, scan_log_index):
         """
