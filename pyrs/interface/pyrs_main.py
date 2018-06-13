@@ -5,6 +5,7 @@ except ImportError:
 from ui import ui_pyrsmain as ui_pyrsmain
 from pyrs.core import pyrscore
 import fitpeakswindow
+import textureanalysiswindow
 
 
 class PyRSLauncher(QMainWindow):
@@ -26,11 +27,13 @@ class PyRSLauncher(QMainWindow):
 
         # define
         self.ui.pushButton_fitPeaks.clicked.connect(self.do_launch_fit_peak_window)
+        self.ui.pushButton_launchTextureAnalysis.clicked.connect(self.do_launch_texture_window)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
 
         # child windows
         self.peak_fit_window = None
+        self.texture_analysis_window = None
 
         return
     
@@ -47,9 +50,24 @@ class PyRSLauncher(QMainWindow):
         launch peak fit window
         :return:
         """
-        self.peak_fit_window = fitpeakswindow.FitPeaksWindow(self)
-        self.peak_fit_window.setup_window(self._reduction_core)
+        if self.peak_fit_window is None:
+            self.peak_fit_window = fitpeakswindow.FitPeaksWindow(self)
+            self.peak_fit_window.setup_window(self._reduction_core)
         self.peak_fit_window.show()
+
+        return
+
+    def do_launch_texture_window(self):
+        """
+        launch texture analysis home
+        :return:
+        """
+        if self.texture_analysis_window is None:
+            self.texture_analysis_window = textureanalysiswindow.TextureAnalysisWindow(self)
+            self.texture_analysis_window.setup_window(self._reduction_core)
+
+        # show
+        self.texture_analysis_window.show()
 
         return
 
@@ -58,8 +76,12 @@ class PyRSLauncher(QMainWindow):
         close window
         :return:
         """
+        # close child windows
         if self.peak_fit_window is not None:
             self.peak_fit_window.close()
+
+        if self.texture_analysis_window is not None:
+            self.texture_analysis_window.close()
 
         self.close()
 

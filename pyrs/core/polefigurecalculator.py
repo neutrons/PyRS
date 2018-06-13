@@ -181,11 +181,17 @@ class PoleFigureCalculator(object):
         return alpha, beta
 
     def set_experiment_logs(self, log_dict):
-        """
-
+        """ set experiment logs that are required by pole figure calculation
         :param log_dict:
         :return:
         """
-        # TODO check: input
+        # check inputs
+        rshelper.check_dict('Log values for pole figure', log_dict)
+
+        # go through all the values
+        for log_index in log_dict:
+            log_names = log_dict[log_index].keys()
+            rshelper.check_list('Pole figure motor names', log_names,
+                                ['2theta', 'chi', 'phi', 'omega'])
 
         self._sample_logs_dict = log_dict

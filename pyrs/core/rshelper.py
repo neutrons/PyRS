@@ -119,13 +119,24 @@ def check_list(var_name, variable, allowed_values=None):
     check whether a variable is a list
     :param var_name:
     :param variable:
+    :param allowed_values:
     :return:
     """
-    # TODO-000: Complete it!
     check_string_variable('var_name', var_name)
+    if allowed_values is not None:
+        assert isinstance(allowed_values, list), 'Allowed values (other than None) {0} must be given in' \
+                                                 'a list but not {1}'.format(allowed_values,
+                                                                             type(allowed_values))
+    # END-IF
 
     assert isinstance(variable, list), '{0} {1} must be an instance of list but not a {2}' \
                                        ''.format(var_name, variable, type(variable))
+
+    if allowed_values is not None:
+        for item in variable:
+            if item not in allowed_values:
+                raise RuntimeError('In {0} item {1} is not in allowed list {2}'
+                                   ''.format(var_name, item, allowed_values))
 
     return
 

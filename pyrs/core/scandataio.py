@@ -143,8 +143,19 @@ class DiffractionDataFile(object):
         return
 
 
-def save_mantid_nexus(workspace_name, file_name):
-    # TODO
+def save_mantid_nexus(workspace_name, file_name, title=''):
+    """
+    save workspace to NeXus for Mantid to import
+    :param workspace_name:
+    :param file_name:
+    :param title:
+    :return:
+    """
+    # check input
+    helper.check_file_name(file_name, check_exist=False,
+                           check_writable=True, is_dir=False)
+    helper.check_string_variable('Workspace title', title)
+
     SaveNexusProcessed(InputWorkspace=workspace_name,
                        Filename=file_name,
-                       Title='blabla')
+                       Title=title)

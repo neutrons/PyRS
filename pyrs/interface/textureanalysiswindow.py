@@ -157,7 +157,11 @@ class TextureAnalysisWindow(QMainWindow):
         return
 
     def do_fit_peaks(self):
-        # TODO
+        """
+        respond to the event triggered to fit all the peaks
+        :return:
+        """
+        # get the data
         int_string_list = str(self.ui.lineEdit_scanNUmbers.text()).strip()
         if len(int_string_list) == 0:
             scan_log_index = None
@@ -168,14 +172,14 @@ class TextureAnalysisWindow(QMainWindow):
         peak_function = str(self.ui.comboBox_peakType.currentText())
         bkgd_function = str(self.ui.comboBox_backgroundType.currentText())
 
-        # TODO .. TEST
+        # get fit range
         fit_range = self.ui.graphicsView_fitSetup.get_x_limit()
-        print ('Fit range: {0}'.format(fit_range))
+        print ('[DB...BAT] Fit range: {0}'.format(fit_range))
 
-        # FIXME It is better to fit all the peaks at the same time!
-        scan_log_index = None
+        # call the core's method to fit peaks
         self._core.fit_peaks(data_key, scan_log_index, peak_function, bkgd_function, fit_range)
 
+        # report fit result
         function_params = self._core.get_fit_parameters(data_key)
         self._sample_log_names_mutex = True
         # TODO FIXME : add to X axis too
