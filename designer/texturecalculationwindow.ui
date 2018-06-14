@@ -250,7 +250,7 @@
      </layout>
     </item>
     <item row="3" column="0">
-     <widget class="FitResultTable" name="tableView_fitSummary">
+     <widget class="PoleFigureTable" name="tableView_poleFigureParams">
       <property name="toolTip">
        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Peak fit result&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
       </property>
@@ -419,14 +419,14 @@
    <header>diffdataviews.h</header>
   </customwidget>
   <customwidget>
-   <class>FitResultTable</class>
-   <extends>QTableView</extends>
-   <header>rstables.h</header>
-  </customwidget>
-  <customwidget>
    <class>Diffraction2DPlot</class>
    <extends>QGraphicsView</extends>
    <header>diffdataviews.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PoleFigureTable</class>
+   <extends>QTableView</extends>
+   <header>rstables.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

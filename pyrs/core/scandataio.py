@@ -133,6 +133,17 @@ class DiffractionDataFile(object):
 
         return diff_data_dict, sample_logs
 
+    def load_rs_file_set(self, file_name_list):
+        """
+
+        :param file_name_list:
+        :return:
+        """
+        # TODO - NowNow : similar to an rs file with entry "Log" under diffraction.
+        #                 There is no "Log" entry but each file is a single "Log"
+        #                 Output shall be same as load_rs_file()
+        return
+
     def save_rs_file(self, file_name):
         """
 

@@ -110,11 +110,12 @@ class PoleFigureTable(NTableWidget.NTableWidget):
                       ('intensity', 'float'),
                       ('2theta', 'float'),
                       ('omega', 'float'),
-                      ('scan index', 'int')]
+                      ('index', 'int')]
 
-    def __init__(self):
+    def __init__(self, parent):
         """
         initialization
+        parent
         """
         super(PoleFigureTable, self).__init__(parent)
 
@@ -147,6 +148,6 @@ class PoleFigureTable(NTableWidget.NTableWidget):
         self._col_index_intensity = self.TableSetupList.index(('intensity', 'float'))
         self._col_index_2theta = self.TableSetupList.index(('2theta', 'float'))
         self._col_index_omega = self.TableSetupList.index(('omega', 'float'))
-        self._col_index_scan_index = self.TableSetupList.index(('scan index', 'int'))
+        self._col_index_scan_index = self.TableSetupList.index(('index', 'int'))
 
         return

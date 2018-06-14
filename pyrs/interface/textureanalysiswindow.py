@@ -53,7 +53,7 @@ class TextureAnalysisWindow(QMainWindow):
         self.ui.graphicsView_fitSetup.set_subplots(1, 1)
 
         # table
-        self.ui.tableView_fitSummary.setup()
+        self.ui.tableView_poleFigureParams.setup()
 
         return
 
@@ -95,7 +95,32 @@ class TextureAnalysisWindow(QMainWindow):
             default_dir = self._core.working_dir
 
         file_filter = 'HDF(*.h5);;All Files(*.*)'
-        open_value = QFileDialog.getOpenFileName(self, 'HB2B Raw HDF File', default_dir, file_filter)
+        open_value = QFileDialog.getOpenFileNames(self, 'HB2B Raw HDF File', default_dir, file_filter)
+        print (open_value)
+        print (type(open_value))
+        # FIXME - NowNow Need to open many files
+        """
+        Scripts compiled: ['scripts/pyrsplot', 'tests/unittest/pyrs_core_test.py', 'tests/unittest/utilities_test.py', 'tests/unittest/polefigurecal_test.py', 'tests/guitest/peakfitgui_test.py', 'tests/guitest/texturegui_test.py']
+FrameworkManager-[Notice] Welcome to Mantid 3.12.20180604.1803
+FrameworkManager-[Notice] Please cite: http://dx.doi.org/10.1016/j.nima.2014.07.029 and this release: http://dx.doi.org/10.5286/Software/Mantid
+[CHECK] Import Mantid from <module 'mantid' from '/home/wzz/Mantid_Project/builds/debug-master/bin/mantid/__init__.pyc'>
+[POP] Unable to parse IPTS or Exp due to Unable to parse  to integer due to invalid literal for int() with base 10: ''
+([u'/home/wzz/Projects/PyRS/tests/testdata/HB2B_exp129_Long_Al_222[1]_single.hdf5', u'/home/wzz/Projects/PyRS/tests/testdata/HB2B_exp129_Long_Al_222[2]_single.hdf5', u'/home/wzz/Projects/PyRS/tests/testdata/HB2B_exp129_Long_Al_222[3]_single.hdf5', u'/home/wzz/Projects/PyRS/tests/testdata/HB2B_exp129_Long_Al_222[4]_single.hdf5', u'/home/wzz/Projects/PyRS/tests/testdata/HB2B_exp129_Long_Al_222[5]_single.hdf5', u'/home/wzz/Projects/PyRS/tests/testdata/HB2B_exp129_Long_Al_222[6]_single.hdf5', u'/home/wzz/Projects/PyRS/tests/testdata/HB2B_exp129_Long_Al_222[7]_single.hdf5'], u'All Files(*.*)')
+<type 'tuple'>
+Traceback (most recent call last):
+  File "/home/wzz/Projects/PyRS/pyrs/interface/textureanalysiswindow.py", line 112, in do_load_scans_hdf
+    self.load_h5_scans(hdf_name)
+  File "/home/wzz/Projects/PyRS/pyrs/interface/textureanalysiswindow.py", line 123, in load_h5_scans
+    data_key, message = self._core.load_rs_raw(rs_file_name)
+  File "/home/wzz/Projects/PyRS/pyrs/core/pyrscore.py", line 289, in load_rs_raw
+    diff_data_dict, sample_log_dict = self._file_io_controller.load_rs_file(h5file)
+  File "/home/wzz/Projects/PyRS/pyrs/core/scandataio.py", line 75, in load_rs_file
+    helper.check_file_name(file_name, check_exist=True)
+  File "/home/wzz/Projects/PyRS/pyrs/core/rshelper.py", line 47, in check_file_name
+    raise RuntimeError('File {0} does not exist.'.format(file_name))
+RuntimeError: File [u'/home/wzz/Projects/PyRS/tests/testdata/HB2B_exp129_Long_Al_222[1]_single.hdf5', u'/home/wzz/Projects/PyRS/tests/testdata/HB2B_exp129_Long_Al_222[2]_single.hdf5', u'/home/wzz/Projects/PyRS/tests/testdata/HB2B_exp129_Long_Al_222[3]_single.hdf5', u'/home/wzz/Projects/PyRS/tests/testdata/HB2B_exp129_Long_Al_222[4]_single.hdf5', u'/home/wzz/Projects/PyRS/tests/testdata/HB2B_exp129_Long_Al_222[5]_single.hdf5', u'/home/wzz/Projects/PyRS/tests/testdata/HB2B_exp129_Long_Al_222[6]_single.hdf5', u'/home/wzz/Projects/PyRS/tests/testdata/HB2B_exp129_Long_Al_222[7]_single.hdf5'] does not exist.
+Aborted (core dumped)
+        """
 
         if isinstance(open_value, tuple):
             # PyQt5
@@ -143,9 +168,9 @@ class TextureAnalysisWindow(QMainWindow):
         # TODO FIXME: how to record data key?
 
         # About table
-        if self.ui.tableView_fitSummary.rowCount() > 0:
-            self.ui.tableView_fitSummary.remove_all_rows()
-        self.ui.tableView_fitSummary.init_exp(self._core.data_center.get_scan_range(data_key))
+        if self.ui.tableView_poleFigureParams.rowCount() > 0:
+            self.ui.tableView_poleFigureParams.remove_all_rows()
+        self.ui.tableView_poleFigureParams.init_exp(self._core.data_center.get_scan_range(data_key))
 
         # plot the first index
         self.ui.lineEdit_scanNUmbers.setText('0')

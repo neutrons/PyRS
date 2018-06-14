@@ -28,7 +28,8 @@ def test_pole_figure_calculation():
     rs_core = pyrscore.PyRsCore()
 
     # import data file
-    data_key, message = rs_core.load_rs_raw(test_data)
+    # TODO - NowNow Use a set of data files otherthan 1
+    data_key, message = rs_core.load_rs_raw(test_data_set)
 
     # peak fitting
     scan_range = rs_core.data_center.get_scan_range(data_key)
