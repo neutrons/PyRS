@@ -146,7 +146,7 @@ class DiffractionDataFile(object):
         sample_logs = dict()
         diff_data_dict = dict()
 
-        for file_name in file_name_list:
+        for log_index, file_name in file_name_list:
             checkdatatypes.check_file_name(file_name, check_exist=True)
 
             # access sub tree
@@ -154,16 +154,21 @@ class DiffractionDataFile(object):
             if 'Diffraction Data' not in scan_h5.keys():
                 raise RuntimeError(scan_h5.keys())
             diff_data_group = scan_h5['Diffraction Data']
+            print ('File: {0}'.format(file_name))
 
             # loop through the Logs
             vec_2theta = None
             vec_y = None
             h5_log_i = diff_data_group
 
+            # TODO FXINE : They all 3D array
             for item_name in h5_log_i.keys():
                 item_i = h5_log_i[item_name].value
+                print ('Item name {0}:'.format(item_name))
 
                 if isinstance(item_i, numpy.ndarray):
+                    print ('Yes {0}... {1}'.format(item_i.shape, item_i[0, 0]))
+                    # case for diffraction data
                     if item_name == 'Corrected 2theta':
                         # corrected 2theta
                         if not (len(item_i.shape) == 1 or h5_log_i[item_name].value.shape[1] == 1):
@@ -176,6 +181,7 @@ class DiffractionDataFile(object):
                 else:
                     # 1 dimensional (single data point)
                     item_name_str = str(item_name)
+                    print (item_i)
                     if item_name_str not in sample_logs:
                         # create entry as ndarray if it does not exist
                         if isinstance(item_i, str):

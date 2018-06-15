@@ -3,9 +3,9 @@
 import os
 from scipy.optimize import leastsq
 import pandas as pd
-import rshelper
 import numpy as np
 from pyrs_fit_engine import RsPeakFitEngine
+from pyrs.utilities import checkdatatypes
 
 
 class ScipyPeakFitEngine(RsPeakFitEngine):
@@ -31,8 +31,8 @@ class ScipyPeakFitEngine(RsPeakFitEngine):
         :param scan_index:
         :return:
         """
-        rshelper.check_string_variable('Peak function name', peak_function_name)
-        rshelper.check_string_variable('Background function name', background_function_name)
+        checkdatatypes.check_string_variable('Peak function name', peak_function_name)
+        checkdatatypes.check_string_variable('Background function name', background_function_name)
 
 
         M = []

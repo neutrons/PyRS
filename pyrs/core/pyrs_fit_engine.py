@@ -1,5 +1,5 @@
 # This is the virtual base class as the fitting frame
-import rshelper
+from pyrs.utilities import checkdatatypes
 
 
 class RsPeakFitEngine(object):
@@ -13,8 +13,8 @@ class RsPeakFitEngine(object):
         :param ref_id:
         """
         # check
-        rshelper.check_list('Data set list', data_set_list)
-        rshelper.check_string_variable('Peak fitting reference ID', ref_id)
+        checkdatatypes.check_list('Data set list', data_set_list)
+        checkdatatypes.check_string_variable('Peak fitting reference ID', ref_id)
 
         # for scipy: keep the numpy array will be good enough
         self._data_set = data_set_list

@@ -28,8 +28,11 @@ def test_pole_figure_calculation():
     rs_core = pyrscore.PyRsCore()
 
     # import data file
-    # TODO - NowNow Use a set of data files otherthan 1
-    data_key, message = rs_core.load_rs_raw(test_data_set)
+    test_data_set = [(1, 'tests/testdata/HB2B_exp129_Long_Al_222[1]_single.hdf5'),
+                     (2, 'tests/testdata/HB2B_exp129_Long_Al_222[2]_single.hdf5'),
+                     (3, 'tests/testdata/HB2B_exp129_Long_Al_222[3]_single.hdf5'),
+                     (4, 'tests/testdata/HB2B_exp129_Long_Al_222[4]_single.hdf5')]
+    data_key, message = rs_core.load_rs_raw_set(test_data_set)
 
     # peak fitting
     scan_range = rs_core.data_center.get_scan_range(data_key)

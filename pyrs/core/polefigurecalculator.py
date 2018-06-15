@@ -1,7 +1,7 @@
 # This module is to calculate Pole Figure
 import mantid_fit_peak
 import peakfitengine
-import rshelper
+from pyrs.utilities import checkdatatypes
 import numpy
 
 
@@ -75,8 +75,8 @@ class PoleFigureCalculator(object):
         """ Calculate pole figures
         :return:
         """
-        rshelper.check_dict('(class variable) data set', self._sample_logs_dict)
-        rshelper.check_dict('(peak intensities', peak_intensity_dict)
+        checkdatatypes.check_dict('(class variable) data set', self._sample_logs_dict)
+        checkdatatypes.check_dict('(peak intensities', peak_intensity_dict)
 
         pole_figure_list = list()
 
@@ -135,7 +135,7 @@ class PoleFigureCalculator(object):
         :param file_name:
         :return:
         """
-        rshelper.check_file_name(file_name, check_exist=False, check_writable=True)
+        checkdatatypes.check_file_name(file_name, check_exist=False, check_writable=True)
 
         # TEST
         numpy.savetxt(file_name, self._pole_figure)   # x,y,z equal sized 1D arrays
@@ -162,10 +162,10 @@ class PoleFigureCalculator(object):
         :return: 2-tuple as the projection (alpha, beta)
         """
         # check inputs
-        rshelper.check_float_variable('2theta', two_theta, (None, None))
-        rshelper.check_float_variable('Omega', omega, (None, None))
-        rshelper.check_float_variable('chi', chi, (None, None))
-        rshelper.check_float_variable('phi', phi, (None, None))
+        checkdatatypes.check_float_variable('2theta', two_theta, (None, None))
+        checkdatatypes.check_float_variable('Omega', omega, (None, None))
+        checkdatatypes.check_float_variable('chi', chi, (None, None))
+        checkdatatypes.check_float_variable('phi', phi, (None, None))
 
         # rotate Q
         vec_q = numpy.array([0., 1., 0.])
@@ -186,12 +186,12 @@ class PoleFigureCalculator(object):
         :return:
         """
         # check inputs
-        rshelper.check_dict('Log values for pole figure', log_dict)
+        checkdatatypes.check_dict('Log values for pole figure', log_dict)
 
         # go through all the values
         for log_index in log_dict:
             log_names = log_dict[log_index].keys()
-            rshelper.check_list('Pole figure motor names', log_names,
+            checkdatatypes.check_list('Pole figure motor names', log_names,
                                 ['2theta', 'chi', 'phi', 'omega'])
 
         self._sample_logs_dict = log_dict
