@@ -296,6 +296,16 @@ class PyRsCore(object):
 
         return data_key, message
 
+    def load_rs_raw_set(self, h5file_list):
+        """
+
+        :param h5file_list:
+        :return:
+        """
+        self._file_io_controller.load_rs_file_set(h5file_list)
+
+        return
+
     def save_nexus(self, data_key, file_name):
         """
         save data in a MatrixWorkspace to Mantid processed NeXus file

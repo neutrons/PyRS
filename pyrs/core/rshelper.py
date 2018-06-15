@@ -41,7 +41,7 @@ def check_file_name(file_name, check_exist=True, check_writable=False, is_dir=Fa
     :return:
     """
     assert isinstance(file_name, str), 'Input file name {0}  must be a string but not a {1}.' \
-                                       ''.format(file_name, str(file_name))
+                                       ''.format(file_name, type(file_name))
 
     if check_exist and os.path.exists(file_name) is False:
         raise RuntimeError('File {0} does not exist.'.format(file_name))
