@@ -239,7 +239,7 @@ class RawDataManager(object):
         :param log_name_list:
         :return:
         """
-        # TODO : make doc
+        # check input
         sample_log_list = self.get_sample_logs_list(data_key, True)
         rshelper.check_list('Sample logs names', log_name_list, sample_log_list)
         for target_name, log_name in log_name_list:
@@ -247,10 +247,20 @@ class RawDataManager(object):
             if log_name not in sample_log_list:
                 raise RuntimeError('Log {0} not in {1}'.format(log_name, sample_log_list))
 
-        # TODO-001: continue from here
-        # get each index to form a dictionary
+        # go through scan index
+        scan_logs_dict = dict()
+        for scan_index in self._data_dict[data_key].get_sample_log_index_range():
+            entry_dict = dict()
+            for log_name in log_name_list:
+                log_value = self._data_dict[data_key].sample_log_values(log_name)
+                print ('[DB...INFO] Log value = {0} of type {1}'.format(log_value, type(log_value)))
+                entry_dict[log_name] = log_value[0]
+            # END-FOR
 
-        raise NotImplementedError('From now on!')
+            scan_logs_dict[scan_index] = entry_dict
+        # END-FOR
+
+        return scan_logs_dict
 
     def get_scan_range(self, data_key):
         """

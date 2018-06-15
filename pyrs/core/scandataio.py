@@ -139,9 +139,58 @@ class DiffractionDataFile(object):
         :param file_name_list:
         :return:
         """
-        # TODO - NowNow : similar to an rs file with entry "Log" under diffraction.
-        #                 There is no "Log" entry but each file is a single "Log"
-        #                 Output shall be same as load_rs_file()
+        file_name_list.sort()
+
+        # prepare
+        num_logs = len(file_name_list)
+        sample_logs = dict()
+        diff_data_dict = dict()
+
+        for file_name in file_name_list:
+            helper.check_file_name(file_name, check_exist=True)
+
+            # access sub tree
+            scan_h5 = h5py.File(file_name)
+            if 'Diffraction Data' not in scan_h5.keys():
+                raise RuntimeError(scan_h5.keys())
+            diff_data_group = scan_h5['Diffraction Data']
+
+            # loop through the Logs
+            vec_2theta = None
+            vec_y = None
+            h5_log_i = diff_data_group
+
+            for item_name in h5_log_i.keys():
+                item_i = h5_log_i[item_name].value
+
+                if isinstance(item_i, numpy.ndarray):
+                    if item_name == 'Corrected 2theta':
+                        # corrected 2theta
+                        if not (len(item_i.shape) == 1 or h5_log_i[item_name].value.shape[1] == 1):
+                            raise RuntimeError('Unable to support a non-1D corrected 2theta entry')
+                        vec_2theta = h5_log_i[item_name].value.flatten('F')
+                    elif item_name == 'Corrected Intensity':
+                        if not (len(item_i.shape) == 1 or h5_log_i[item_name].value.shape[1] == 1):
+                            raise RuntimeError('Unable to support a non-1D corrected intensity entry')
+                        vec_y = h5_log_i[item_name].value.flatten('F')
+                else:
+                    # 1 dimensional (single data point)
+                    item_name_str = str(item_name)
+                    if item_name_str not in sample_logs:
+                        # create entry as ndarray if it does not exist
+                        if isinstance(item_i, str):
+                            # string can only be object type
+                            sample_logs[item_name_str] = numpy.ndarray(shape=(num_logs,), dtype=object)
+                        else:
+                            # raw type
+                            sample_logs[item_name_str] = numpy.ndarray(shape=(num_logs,), dtype=item_i.dtype)
+
+                    # add the log
+                    sample_logs[item_name_str][log_index] = h5_log_i[item_name].value
+                # END-IF
+            # END-FOR
+
+
         return
 
     def save_rs_file(self, file_name):
