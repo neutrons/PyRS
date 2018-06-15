@@ -1,7 +1,7 @@
 # Data manager
 import numpy
 import os
-import rshelper
+from pyrs.utilities import checkdatatypes
 
 
 class ScanDataHolder(object):
@@ -16,18 +16,18 @@ class ScanDataHolder(object):
         :param sample_log_dict:
         """
         # check
-        rshelper.check_file_name(file_name)
-        rshelper.check_dict('Diffraction data dictionary', diff_data_dict)
-        rshelper.check_dict('Sample log dictionary', sample_log_dict)
+        checkdatatypes.check_file_name(file_name)
+        checkdatatypes.check_dict('Diffraction data dictionary', diff_data_dict)
+        checkdatatypes.check_dict('Sample log dictionary', sample_log_dict)
 
         # check diffraction data dictionary
         for log_index in diff_data_dict:
-            rshelper.check_int_variable('Diffraction data log index', log_index, value_range=[0, None])
+            checkdatatypes.check_int_variable('Diffraction data log index', log_index, value_range=[0, None])
             diff_tup = diff_data_dict[log_index]
-            rshelper.check_tuple('Diffraction data set', diff_tup, 2)
+            checkdatatypes.check_tuple('Diffraction data set', diff_tup, 2)
             vec_2theta = diff_tup[0]
             vec_intensity = diff_tup[1]
-            rshelper.check_numpy_arrays('Vector for 2theta and intensity', [vec_2theta, vec_intensity], dimension=1,
+            checkdatatypes.check_numpy_arrays('Vector for 2theta and intensity', [vec_2theta, vec_intensity], dimension=1,
                                         check_same_shape=True)
 
         # store a list of all existing scan (log) indexes in ascending order
@@ -37,9 +37,9 @@ class ScanDataHolder(object):
 
         # check sample log dictionary
         for log_name in sample_log_dict:
-            rshelper.check_string_variable('Sample log name', log_name)
+            checkdatatypes.check_string_variable('Sample log name', log_name)
             log_value_vec = sample_log_dict[log_name]
-            rshelper.check_numpy_arrays('Sample log {0} value vector'.format(log_name),
+            checkdatatypes.check_numpy_arrays('Sample log {0} value vector'.format(log_name),
                                         log_value_vec, 1, False)
             if len(log_value_vec) != len(self._scan_log_indexes):
                 raise RuntimeError('Number of log values of {0} {1} is not equal to number of scan logs {2}'
@@ -74,7 +74,7 @@ class ScanDataHolder(object):
         :param scan_log_index:
         :return:
         """
-        rshelper.check_int_variable('Scan (log) index', scan_log_index, [0, None])
+        checkdatatypes.check_int_variable('Scan (log) index', scan_log_index, [0, None])
         if scan_log_index not in self._scan_log_indexes:
             raise RuntimeError('User specified scan log with index {0} is not found with range [{1}, {2}]'
                                ''.format(scan_log_index, self._scan_log_indexes[0], self._scan_log_indexes[-1]))
@@ -104,7 +104,7 @@ class ScanDataHolder(object):
         :param sample_log_name:
         :return:
         """
-        rshelper.check_string_variable('Sample log name', sample_log_name)
+        checkdatatypes.check_string_variable('Sample log name', sample_log_name)
         if sample_log_name not in self._sample_log_dict:
             raise RuntimeError('Sample log {0} cannot be found.'.format(sample_log_name))
 
@@ -137,7 +137,7 @@ class RawDataManager(object):
         :param data_key:
         :return:
         """
-        rshelper.check_string_variable('Data reference ID', data_key)
+        checkdatatypes.check_string_variable('Data reference ID', data_key)
         if data_key not in self._data_dict:
             raise RuntimeError('Data reference ID (key) {0} does not exist.'.format(data_key))
 
@@ -188,7 +188,7 @@ class RawDataManager(object):
         :param file_name:
         :return:
         """
-        rshelper.check_string_variable('Data file name for data reference ID', file_name)
+        checkdatatypes.check_string_variable('Data file name for data reference ID', file_name)
 
         base_name = os.path.basename(file_name)
         dir_name = os.path.dirname(file_name)
@@ -241,7 +241,7 @@ class RawDataManager(object):
         """
         # check input
         sample_log_list = self.get_sample_logs_list(data_key, True)
-        rshelper.check_list('Sample logs names', log_name_list, sample_log_list)
+        checkdatatypes.check_list('Sample logs names', log_name_list, sample_log_list)
         for target_name, log_name in log_name_list:
             # need  more check
             if log_name not in sample_log_list:
@@ -277,7 +277,7 @@ class RawDataManager(object):
         :param reference_id:
         :return:
         """
-        rshelper.check_string_variable('Reference ID', reference_id)
+        checkdatatypes.check_string_variable('Reference ID', reference_id)
 
         return reference_id in self._data_dict
 
@@ -287,7 +287,7 @@ class RawDataManager(object):
         :param file_name:
         :return:
         """
-        rshelper.check_file_name(file_name, check_exist=False, check_writable=False, is_dir=False)
+        checkdatatypes.check_file_name(file_name, check_exist=False, check_writable=False, is_dir=False)
 
         return file_name in self._file_ref_dict
 

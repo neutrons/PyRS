@@ -2,7 +2,7 @@
 import numpy
 import scipy
 import scipy.optimize
-import rshelper
+from pyrs.utilities import checkdatatypes
 
 
 def gaussian(x, a, sigma, x0):
@@ -62,7 +62,7 @@ def fit_peak(peak_func, vec_x, obs_vec_y, p0, p_range):
         return 1.
 
     # check input
-    rshelper.check_numpy_arrays('Vec X and observed vec Y', [vec_x, obs_vec_y], 1, check_same_shape=True)
+    checkdatatypes.check_numpy_arrays('Vec X and observed vec Y', [vec_x, obs_vec_y], 1, check_same_shape=True)
 
     # fit
     fit_results = scipy.optimize.curve_fit(peak_func, vec_x, obs_vec_y, p0=p0, bounds=p_range)

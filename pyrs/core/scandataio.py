@@ -1,5 +1,5 @@
 import os
-import rshelper as helper
+from pyrs.utilities import checkdatatypes
 import h5py
 import numpy
 import sys
@@ -72,7 +72,7 @@ class DiffractionDataFile(object):
         :param file_name:
         :return:
         """
-        helper.check_file_name(file_name, check_exist=True)
+        checkdatatypes.check_file_name(file_name, check_exist=True)
 
         # access sub tree
         scan_h5 = h5py.File(file_name)
@@ -147,7 +147,7 @@ class DiffractionDataFile(object):
         diff_data_dict = dict()
 
         for file_name in file_name_list:
-            helper.check_file_name(file_name, check_exist=True)
+            checkdatatypes.check_file_name(file_name, check_exist=True)
 
             # access sub tree
             scan_h5 = h5py.File(file_name)
@@ -212,9 +212,9 @@ def save_mantid_nexus(workspace_name, file_name, title=''):
     :return:
     """
     # check input
-    helper.check_file_name(file_name, check_exist=False,
+    checkdatatypes.check_file_name(file_name, check_exist=False,
                            check_writable=True, is_dir=False)
-    helper.check_string_variable('Workspace title', title)
+    checkdatatypes.check_string_variable('Workspace title', title)
 
     SaveNexusProcessed(InputWorkspace=workspace_name,
                        Filename=file_name,

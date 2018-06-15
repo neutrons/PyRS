@@ -40,7 +40,7 @@ if sys.argv[-1] == 'pyuic':
 
 NAME = "pyrs"
 PACKAGES = find_packages(where="src")
-PACKAGES = ["pyrs", "pyrs/core", "pyrs/interface", "pyrs/interface/ui"]
+PACKAGES = ["pyrs", "pyrs/core", "pyrs/interface", "pyrs/interface/ui", "pyrs/utilities"]
 META_PATH = os.path.join("src", "pyrs", "__init__.py")
 KEYWORDS = ["class", "attribute", "boilerplate"]
 CLASSIFIERS = [

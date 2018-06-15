@@ -2,7 +2,7 @@
 import scandataio
 import datamanagers
 import peakfitengine
-import rshelper
+from pyrs.utilities import checkdatatypes
 import numpy as np
 import mantid_fit_peak
 import scandataio
@@ -83,7 +83,7 @@ class PyRsCore(object):
         :param user_dir:
         :return:
         """
-        rshelper.check_file_name('Working directory', user_dir, check_writable=False, is_dir=True)
+        checdatatypes.check_file_name('Working directory', user_dir, check_writable=False, is_dir=True)
 
         self._working_dir = user_dir
 
@@ -101,10 +101,10 @@ class PyRsCore(object):
         import polefigurecalculator
 
         # Check inputs
-        rshelper.check_string_variable('Data reference ID', data_key)
-        rshelper.check_string_variable('Peak type', peak_type)
-        rshelper.check_string_variable('Background type', background_type)
-        rshelper.check_bool_variable('Flag to use Mantid as fit engine', use_mantid_engine)
+        checdatatypes.check_string_variable('Data reference ID', data_key)
+        checdatatypes.check_string_variable('Peak type', peak_type)
+        checdatatypes.check_string_variable('Background type', background_type)
+        checdatatypes.check_bool_variable('Flag to use Mantid as fit engine', use_mantid_engine)
 
         # get scans
         scan_index_list = self._data_manager.get_scan_range(data_key)
@@ -143,9 +143,9 @@ class PyRsCore(object):
         :return: reference ID
         """
         # Check inputs
-        rshelper.check_string_variable('Data reference ID', data_key)
-        rshelper.check_string_variable('Peak type', peak_type)
-        rshelper.check_string_variable('Background type', background_type)
+        checdatatypes.check_string_variable('Data reference ID', data_key)
+        checdatatypes.check_string_variable('Peak type', peak_type)
+        checdatatypes.check_string_variable('Background type', background_type)
 
         # get scan indexes
         if scan_index is None:
@@ -267,7 +267,7 @@ class PyRsCore(object):
         :param scan_log_index:
         :return:
         """
-        rshelper.check_int_variable('Scan index', scan_log_index, (0, None))
+        checdatatypes.check_int_variable('Scan index', scan_log_index, (0, None))
         # get data key
         if data_key is None:
             data_key = self._curr_data_key

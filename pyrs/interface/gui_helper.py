@@ -1,6 +1,6 @@
 # a collection of helper methdos for GUI
 import os
-from pyrs.core import rshelper
+from pyrs.utilities import checkdatatypes
 try:
     from PyQt5.QtWidgets import QDialog, QLineEdit
     is_qt4 = False
@@ -22,7 +22,7 @@ def parse_integer(int_str):
         # There is no QString in PyQt5
         int_str = str(int_str)
     else:
-        rshelper.check_string_variable('Integer string', int_str)
+        checkdatatypes.check_string_variable('Integer string', int_str)
 
     try:
         int_value = int(int_str)
@@ -38,7 +38,7 @@ def parse_integers(int_list_string):
     :param int_list_string:
     :return: list of int or range tuples
     """
-    rshelper.check_string_variable('Integer list (string)', int_list_string)
+    checkdatatypes.check_string_variable('Integer list (string)', int_list_string)
 
     # remove unnecessary spaces
     int_list_string = int_list_string.replace(' ', '')

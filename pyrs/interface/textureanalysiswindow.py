@@ -3,6 +3,7 @@ try:
 except ImportError:
     from PyQt4.QtGui import QMainWindow, QFileDialog
 import ui.ui_texturecalculationwindow
+from pyrs.utilities import checkdatatypes
 import os
 import gui_helper
 import numpy
@@ -94,7 +95,8 @@ class TextureAnalysisWindow(QMainWindow):
         if default_dir is None:
             default_dir = self._core.working_dir
 
-        file_filter = 'HDF(*.h5);;All Files(*.*)'
+        # FIXME : multiple file types seems not be supported on some MacOSX
+        file_filter = 'HDF(*.hdf5);;All Files(*.*)'
         open_value = QFileDialog.getOpenFileNames(self, 'HB2B Raw HDF File', default_dir, file_filter)
 
         if isinstance(open_value, tuple):
@@ -107,7 +109,14 @@ class TextureAnalysisWindow(QMainWindow):
             # use cancel
             return
 
-        self.load_h5_scans_multi_h5(hdf_name_list)
+        # convert the files
+        # TODO checkdatatypes.check_list
+        new_list = list()
+        for ifile, file_name in enumerate(hdf_name_list):
+            #hdf_name_list[ifile] = str(file_name)
+            new_list.append(str(file_name))
+
+        self.load_h5_scans_multi_h5(new_list)
 
         return
 
@@ -163,6 +172,8 @@ class TextureAnalysisWindow(QMainWindow):
         :return:
         """
         self._core.load_rs_raw_set(rs_file_name_list)
+
+        print ('[DB...INFO] Loading {0} ... ... Completed.'.format(rs_file_name_list))
 
         return
 

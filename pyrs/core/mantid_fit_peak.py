@@ -17,7 +17,7 @@ elif home_dir.startswith('/home/wzz'):
 import mantid
 from mantid.simpleapi import FitPeaks, CreateWorkspace
 from mantid.api import AnalysisDataService
-import rshelper
+from pyrs.utilities import checkdatatypes
 import numpy as np
 
 print ('[CHECK] Import Mantid from {0}'.format(mantid))
@@ -35,8 +35,8 @@ class MantidPeakFitEngine(object):
         :param
         """
         # check
-        rshelper.check_list('Data set list', data_set_list)
-        rshelper.check_string_variable('Peak fitting reference ID', ref_id)
+        checkdatatypes.check_list('Data set list', data_set_list)
+        checkdatatypes.check_string_variable('Peak fitting reference ID', ref_id)
 
         self._workspace_name = self._get_matrix_name(ref_id)
         self._data_workspace = self.generate_matrix_workspace(data_set_list, matrix_ws_name=self._workspace_name)
@@ -101,8 +101,8 @@ class MantidPeakFitEngine(object):
         :return:
         """
         # check input
-        rshelper.check_list('Data set list', data_set_list)
-        rshelper.check_string_variable('MatrixWorkspace name', matrix_ws_name)
+        checkdatatypes.check_list('Data set list', data_set_list)
+        checkdatatypes.check_string_variable('MatrixWorkspace name', matrix_ws_name)
 
         # convert input data set to list of vector X and vector Y
         vec_x_list = list()
@@ -175,10 +175,10 @@ class MantidPeakFitEngine(object):
         :param scan_index: single scan index to fit for.  If None, then fit for all spectra
         :return:
         """
-        rshelper.check_string_variable('Peak function name', peak_function_name)
-        rshelper.check_string_variable('Background function name', background_function_name)
+        checkdatatypes.check_string_variable('Peak function name', peak_function_name)
+        checkdatatypes.check_string_variable('Background function name', background_function_name)
         if scan_index is not None:
-            rshelper.check_int_variable('Scan (log) index', scan_index, value_range=[0, self.get_number_scans()])
+            checkdatatypes.check_int_variable('Scan (log) index', scan_index, value_range=[0, self.get_number_scans()])
             start = scan_index
             stop = scan_index
         else:
@@ -235,7 +235,7 @@ class MantidPeakFitEngine(object):
         if self._model_matrix_ws is None:
             raise RuntimeError('There is no fitting result!')
 
-        rshelper.check_int_variable('Scan log index', log_index, (0, self._model_matrix_ws.getNumberHistograms()))
+        checkdatatypes.check_int_variable('Scan log index', log_index, (0, self._model_matrix_ws.getNumberHistograms()))
 
         vec_x = self._model_matrix_ws.readX(log_index)
         vec_y = self._model_matrix_ws.readY(log_index)
@@ -265,7 +265,7 @@ class MantidPeakFitEngine(object):
         :return:
         """
         # check
-        rshelper.check_string_variable('Function parameter', param_name)
+        checkdatatypes.check_string_variable('Function parameter', param_name)
 
         # init parameters
         param_vec = np.ndarray(shape=(self._fitted_function_param_table.rowCount()), dtype='float')

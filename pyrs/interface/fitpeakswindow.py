@@ -3,7 +3,7 @@ try:
 except ImportError:
     from PyQt4.QtGui import QMainWindow, QFileDialog
 import ui.ui_peakfitwindow
-import pyrs.core.hb2b_utilities as hb2b
+import pyrs.utilities.hb2b_utilities as hb2b
 import os
 import gui_helper
 import numpy
@@ -85,7 +85,7 @@ class FitPeaksWindow(QMainWindow):
         if default_dir is None:
             default_dir = self._core.working_dir
 
-        file_filter = 'HDF(*.h5);;All Files(*.*)'
+        file_filter = 'HDF(*.hdf5);;All Files(*.*)'
         open_value = QFileDialog.getOpenFileName(self, 'HB2B Raw HDF File', default_dir, file_filter)
         print open_value
 
