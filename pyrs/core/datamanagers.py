@@ -162,6 +162,31 @@ class RawDataManager(object):
 
         return data_key
 
+    def add_raw_data_set(self, diff_data_dict, sample_log_dict, h5file_list, replace=True):
+        """
+        add a loaded raw data set
+        :param diff_data_dict:
+        :param sample_log_dict:
+        :param h5file_list:
+        :param replace:
+        :return:
+        """
+        data_key = self.generate_data_set_key(h5file_list)
+
+        if data_key in self._data_dict and not replace:
+            raise RuntimeError('Data file {0} has been loaded and not allowed to be replaced.'.format(h5file_list))
+        else:
+            self._data_dict[data_key] = dict()
+
+        for h5file in h5file_list:
+            sub_key = self.generate_sub_data_key(h5file)
+            self._data_dict[data_key][sub_key] = ScanDataHolder(h5file, diff_data_dict[h5file],
+                                                                sample_log_dict[h5file])
+            self._file_ref_dict[h5file] = data_key, sub_key
+        # END-FOR
+
+        return data_key
+
     def delete_data(self, reference_id):
         """
         delete a data set data key/reference ID
@@ -194,6 +219,39 @@ class RawDataManager(object):
         dir_name = os.path.dirname(file_name)
 
         data_key = base_name + '_' + str(abs(hash(dir_name) % 256))
+
+        return data_key
+
+    @staticmethod
+    def generate_data_set_key(file_name_list):
+        """
+        generate a quasi-unique data (reference) ID for a file and unique within 2^8 occurance with same file name
+        :param file_name_list:
+        :return:
+        """
+        # TODO - doc and check
+        file_name_list.sort()
+
+        file_name = file_name_list[0]
+        checkdatatypes.check_string_variable('Data file name for data reference ID', file_name)
+
+        base_name = os.path.basename(file_name)
+        dir_name = os.path.dirname(file_name)
+
+        data_key = base_name + '_{0}_'.format(len(file_name_list)) + str(abs(hash(dir_name) % 256))
+
+        return data_key
+
+    @staticmethod
+    def generate_sub_data_key(file_name):
+        """
+        generate a quasi-unique data (reference) ID for a file under a unique data key
+        :param file_name:
+        :return:
+        """
+        checkdatatypes.check_string_variable('Data file name for data reference ID', file_name)
+
+        data_key = os.path.basename(file_name)
 
         return data_key
 

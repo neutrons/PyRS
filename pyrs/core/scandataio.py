@@ -139,15 +139,20 @@ class DiffractionDataFile(object):
         :param file_name_list:
         :return:
         """
+        # TODO - docs
         file_name_list.sort()
 
         # prepare
         num_logs = len(file_name_list)
-        sample_logs = dict()
-        diff_data_dict = dict()
+        sample_logs_set = dict()
+        diff_data_dict_set = dict()
 
-        for log_index, file_name in file_name_list:
+        for det_id, file_name in file_name_list:
             checkdatatypes.check_file_name(file_name, check_exist=True)
+
+            # define single file dictionary
+            sample_logs = dict()
+            diff_data_dict = dict()
 
             # access sub tree
             scan_h5 = h5py.File(file_name)
@@ -161,15 +166,21 @@ class DiffractionDataFile(object):
             vec_y = None
             h5_log_i = diff_data_group
 
-            # TODO FXINE : They all 3D array
-            for item_name in h5_log_i.keys():
-                item_i = h5_log_i[item_name].value
-                print ('Item name {0}:'.format(item_name))
+            # get 'Log #'
+            log_index_vec = h5_log_i['Log #'].value[0, 0]
+            print ('Log #: Shape = {0}. Value = {1}'.format(log_index_vec.shape, log_index_vec))
 
+            for item_name in h5_log_i.keys():
+                # skip log index
+                if item_name == 'Log #':
+                    continue
+
+                item_i = h5_log_i[item_name].value
                 if isinstance(item_i, numpy.ndarray):
-                    print ('Yes {0}... {1}'.format(item_i.shape, item_i[0, 0]))
                     # case for diffraction data
-                    if item_name == 'Corrected 2theta':
+                    # TODO/FIXME/TOMORROW: continued from here!
+                    if item_name == 'Corrected Diffraction':
+                        print ('Item {0}: shape = {1}'.format(item_name, item_i.shape))  # , item_i[0, 0]))
                         # corrected 2theta
                         if not (len(item_i.shape) == 1 or h5_log_i[item_name].value.shape[1] == 1):
                             raise RuntimeError('Unable to support a non-1D corrected 2theta entry')
@@ -178,26 +189,40 @@ class DiffractionDataFile(object):
                         if not (len(item_i.shape) == 1 or h5_log_i[item_name].value.shape[1] == 1):
                             raise RuntimeError('Unable to support a non-1D corrected intensity entry')
                         vec_y = h5_log_i[item_name].value.flatten('F')
+                        raise NotImplementedError('Not supposed to be here!')
+                    else:
+                        # sample log data
+                        vec_sample_i = item_i[0, 0]
+                        print ('{0}'.format(vec_sample_i.shape))
+                        if item_name not in sample_logs:
+                            sample_logs[item_name] = vec_sample_i
+
+
+
                 else:
                     # 1 dimensional (single data point)
-                    item_name_str = str(item_name)
-                    print (item_i)
-                    if item_name_str not in sample_logs:
-                        # create entry as ndarray if it does not exist
-                        if isinstance(item_i, str):
-                            # string can only be object type
-                            sample_logs[item_name_str] = numpy.ndarray(shape=(num_logs,), dtype=object)
-                        else:
-                            # raw type
-                            sample_logs[item_name_str] = numpy.ndarray(shape=(num_logs,), dtype=item_i.dtype)
-
-                    # add the log
-                    sample_logs[item_name_str][log_index] = h5_log_i[item_name].value
+                    raise RuntimeError('There is no use case for single-value item so far. '
+                                       '{0} of value {1} is not supported to parse in.'
+                                       ''.format(item_i, item_i.value))
                 # END-IF
             # END-FOR
 
 
-        return
+            # convert sample logs from vector to dictionary
+            for log_name in sample_logs.keys():
+
+
+                dictionary = dict(zip(log_index_vec, sample_logs[log_name]))
+                sample_logs[log_name] = dictionary
+            # END-FOR
+
+            # conclude for single file
+            sample_logs_set[det_id] = sample_logs
+            diff_data_dict_set[det_id] = diff_data_dict
+
+        # END-FOR (log_index, file_name)
+
+        return diff_data_dict_set, sample_logs_set
 
     def save_rs_file(self, file_name):
         """

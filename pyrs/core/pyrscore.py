@@ -302,9 +302,16 @@ class PyRsCore(object):
         :param h5file_list:
         :return:
         """
-        self._file_io_controller.load_rs_file_set(h5file_list)
+        # TODO: docs!
+        diff_data_dict, sample_log_dict = self._file_io_controller.load_rs_file_set(h5file_list)
 
-        return
+        data_key = self.data_center.add_raw_data_set(diff_data_dict, sample_log_dict, h5file_list, replace=True)
+        message = 'Load {0} (Ref ID {1})'.format(h5file_list, data_key)
+
+        # set to current key
+        self._curr_data_key = data_key
+
+        return data_key, message
 
     def save_nexus(self, data_key, file_name):
         """
