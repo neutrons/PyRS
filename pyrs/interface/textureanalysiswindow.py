@@ -31,6 +31,7 @@ class TextureAnalysisWindow(QMainWindow):
         # set up handling
         self.ui.pushButton_plotPeaks.clicked.connect(self.do_plot_diff_data)
         self.ui.pushButton_fitPeaks.clicked.connect(self.do_fit_peaks)
+        self.ui.pushButton_calPoleFigure.clicked.connect(self.do_cal_pole_figure)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.actionOpen_HDF5.triggered.connect(self.do_load_scans_hdf)
@@ -82,6 +83,10 @@ class TextureAnalysisWindow(QMainWindow):
 
         return '/HFIR/HB2B/'
 
+    def do_cal_pole_figure(self):
+        det_id = 1
+        self._core.calculate_pole_figure(data_key=(self._data_key, det_id))
+
     def do_load_scans_hdf(self):
         """
         load scan's reduced files
@@ -116,29 +121,34 @@ class TextureAnalysisWindow(QMainWindow):
             #hdf_name_list[ifile] = str(file_name)
             new_list.append(str(file_name))
 
-        self.load_h5_scans_multi_h5(new_list)
+        checkdatatypes.check_dict('Detector file dictionary', new_list)
+        self.load_h5_scans(new_list)
 
         return
 
-    def load_h5_scans(self, rs_file_name):
+    def load_h5_scans(self, rs_file_set):
         """
         load HDF5 for the reduced scans
-        :param rs_file_name:
+        :param rs_file_set:
         :return:
         """
         # load file
-        data_key, message = self._core.load_rs_raw(rs_file_name)
+        data_key, message = self._core.load_rs_raw_set(rs_file_set)
+        self._data_key = data_key
 
         # edit information
+        message = str(message)
+        if len(message) > 80:
+            message = message[:80]
         self.ui.label_loadedFileInfo.setText(message)
 
-        # get the range of log indexes
-        log_range = self._core.data_center.get_scan_range(data_key)
+        # get the range of log indexes from detector 1 in order to set up the UI
+        log_range = self._core.data_center.get_scan_range(data_key, 1)
         self.ui.label_logIndexMin.setText(str(log_range[0]))
         self.ui.label_logIndexMax.setText(str(log_range[-1]))
 
         # get the sample logs
-        sample_log_names = self._core.data_center.get_sample_logs_list(data_key, can_plot=True)
+        sample_log_names = self._core.data_center.get_sample_logs_list((data_key, 1), can_plot=True)
 
         self._sample_log_names_mutex = True
         self.ui.comboBox_xaxisNames.clear()
@@ -154,26 +164,14 @@ class TextureAnalysisWindow(QMainWindow):
         # About table
         if self.ui.tableView_poleFigureParams.rowCount() > 0:
             self.ui.tableView_poleFigureParams.remove_all_rows()
-        self.ui.tableView_poleFigureParams.init_exp(self._core.data_center.get_scan_range(data_key))
+        self.ui.tableView_poleFigureParams.init_exp({1: self._core.data_center.get_scan_range(data_key, 1)})
 
         # plot the first index
-        self.ui.lineEdit_scanNUmbers.setText('0')
+        self.ui.lineEdit_scanNumbers.setText('0')
         self.do_plot_diff_data()
 
         # plot the contour
         # FIXME/TODO/ASAP3 self.ui.graphicsView_contourView.plot_contour(self._core.data_center.get_data_2d(data_key))
-
-        return
-
-    def load_h5_scans_multi_h5(self, rs_file_name_list):
-        """
-        Load
-        :param rs_file_name_list:
-        :return:
-        """
-        self._core.load_rs_raw_set(rs_file_name_list)
-
-        print ('[DB...INFO] Loading {0} ... ... Completed.'.format(rs_file_name_list))
 
         return
 
@@ -183,7 +181,7 @@ class TextureAnalysisWindow(QMainWindow):
         :return:
         """
         # get the data
-        int_string_list = str(self.ui.lineEdit_scanNUmbers.text()).strip()
+        int_string_list = str(self.ui.lineEdit_scanNumbers.text()).strip()
         if len(int_string_list) == 0:
             scan_log_index = None
         else:
@@ -198,10 +196,11 @@ class TextureAnalysisWindow(QMainWindow):
         print ('[DB...BAT] Fit range: {0}'.format(fit_range))
 
         # call the core's method to fit peaks
-        self._core.fit_peaks(data_key, scan_log_index, peak_function, bkgd_function, fit_range)
+        det_id = 1
+        self._core.fit_peaks((data_key, det_id), scan_log_index, peak_function, bkgd_function, fit_range)
 
         # report fit result
-        function_params = self._core.get_fit_parameters(data_key)
+        function_params = self._core.get_fit_parameters((data_key, det_id))
         self._sample_log_names_mutex = True
         # TODO FIXME : add to X axis too
         curr_index = self.ui.comboBox_yaxisNames.currentIndex()
@@ -215,6 +214,7 @@ class TextureAnalysisWindow(QMainWindow):
         self._sample_log_names_mutex = False
 
         # fill up the table
+        data_key = data_key, det_id
         center_vec = self._core.get_peak_fit_param_value(data_key, 'centre')
         height_vec = self._core.get_peak_fit_param_value(data_key, 'height')
         fwhm_vec = self._core.get_peak_fit_param_value(data_key, 'width')
@@ -223,14 +223,11 @@ class TextureAnalysisWindow(QMainWindow):
         com_vec = self._core.get_peak_center_of_mass(data_key)
 
         for row_index in range(len(center_vec)):
-            self.ui.tableView_fitSummary.set_peak_params(row_index,
-                                                         center_vec[row_index],
-                                                         height_vec[row_index],
-                                                         fwhm_vec[row_index],
-                                                         intensity_vec[row_index],
-                                                         chi2_vec[row_index],
-                                                         peak_function)
-            self.ui.tableView_fitSummary.set_peak_center_of_mass(row_index, com_vec[row_index])
+            det_id_i, log_index_i = self.ui.tableView_poleFigureParams.get_detector_log_index(row_index)
+            # TODO: match the detector ID to current one!
+            intensity_i = intensity_vec[log_index_i]
+            self.ui.tableView_poleFigureParams.set_intensity(row_index, intensity_i)
+        # END-FOR
 
         # plot the model and difference
         if scan_log_index is None:
@@ -246,7 +243,8 @@ class TextureAnalysisWindow(QMainWindow):
         :return:
         """
         # gather the information
-        scan_log_index_list = gui_helper.parse_integers(str(self.ui.lineEdit_scanNUmbers.text()))
+        scan_log_index_list = gui_helper.parse_integers(str(self.ui.lineEdit_scanNumbers.text()))
+
         if len(scan_log_index_list) == 0:
             gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
 
@@ -259,7 +257,7 @@ class TextureAnalysisWindow(QMainWindow):
         err_msg = ''
         for scan_log_index in scan_log_index_list:
             try:
-                diff_data_set = self._core.get_diff_data(data_key=None, scan_log_index=scan_log_index)
+                diff_data_set = self._core.get_diff_data(data_key=(self._data_key, 1), scan_log_index=scan_log_index)
                 self.ui.graphicsView_fitSetup.plot_diff_data(diff_data_set, 'Scan {0}'.format(scan_log_index))
 
                 # more than 1 scan required to plot... no need to plot model and difference

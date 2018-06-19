@@ -21,15 +21,22 @@ def test_main():
 
     texture_window.show()
     texture_window.ui.comboBox_peakType.setCurrentIndex(1)
-    texture_window.load_h5_scans('tests/testdata/BD_Data_Log.hdf5')
-    if False:
-        texture_window.ui.lineEdit_scanNUmbers.setText('4')
-        texture_window.do_plot_diff_data()
-        texture_window.do_plot_meta_data()
-        texture_window.do_fit_peaks()
+
+    test_data_set = [(1, 'tests/testdata/HB2B_exp129_Long_Al_222[1]_single.hdf5'),
+                     (2, 'tests/testdata/HB2B_exp129_Long_Al_222[2]_single.hdf5'),
+                     (3, 'tests/testdata/HB2B_exp129_Long_Al_222[3]_single.hdf5'),
+                     (4, 'tests/testdata/HB2B_exp129_Long_Al_222[4]_single.hdf5'),
+                     (5, 'tests/testdata/HB2B_exp129_Long_Al_222[5]_single.hdf5'),
+                     (6, 'tests/testdata/HB2B_exp129_Long_Al_222[6]_single.hdf5'),
+                     (7, 'tests/testdata/HB2B_exp129_Long_Al_222[7]_single.hdf5')]
+
+    # load data
+    texture_window.load_h5_scans(test_data_set)
+
+    # fit and calculate pole figure
     if True:
         texture_window.do_fit_peaks()
-        texture_window.save_data_for_mantid(None, 'peaks.nxs')
+        # texture_window.save_data_for_mantid(None, 'peaks.nxs')
 
     return texture_window
 

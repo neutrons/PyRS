@@ -6,7 +6,7 @@ from pyrs.utilities import checkdatatypes
 import numpy as np
 import mantid_fit_peak
 import scandataio
-
+import polefigurecalculator
 
 # Define Constants
 SUPPORTED_PEAK_TYPES = ['Gaussian', 'Voigt', 'PseudoVoigt', 'Lorentzian']
@@ -98,37 +98,49 @@ class PyRsCore(object):
         :param use_mantid_engine:
         :return:
         """
-        import polefigurecalculator
+        peak_intensities = self.get_peak_intensities((data_key, 1))
 
-        # Check inputs
-        checkdatatypes.check_string_variable('Data reference ID', data_key)
-        checkdatatypes.check_string_variable('Peak type', peak_type)
-        checkdatatypes.check_string_variable('Background type', background_type)
-        checkdatatypes.check_bool_variable('Flag to use Mantid as fit engine', use_mantid_engine)
+        # initialize pole figure
+        self.pole_figure_calculator = polefigurecalculator.PoleFigureCalculator()
 
-        # get scans
-        scan_index_list = self._data_manager.get_scan_range(data_key)
+        log_names = [('2theta', '2theta'),
+                     ('omega', 'omega'),
+                     ('chi', 'chi'),
+                     ('phi', 'phi')]
 
-        # construct data set
-        pole_figure_data_dict = dict()
-        for scan_index in scan_index_list:
-            # get diffraction data
-            reflection = dict()
-            reflection['diff data'] = self._data_manager.get_data_set(data_key, scan_index)
-            # get sample logs
-            reflection['omega'] = self._data_manager.get_sample_log_values(data_key, 'omega')
-            reflection['2theta'] = self._data_manager.get_sample_log_values(data_key, '2theta')
-            reflection['chi'] = self._data_manager.get_sample_log_values(data_key, 'chi')
-            reflection['phi'] = self._data_manager.get_sample_log_values(data_key, 'phi')
-            # add
-            pole_figure_data_dict[scan_index] = reflection
-        # END-FOR
+        self.pole_figure_calculator.set_experiment_logs(self.data_center.get_scan_index_logs_values((data_key, 1),
+                                                                                                    log_names))
+        self.pole_figure_calculator.calculate_pole_figure(peak_intensity_dict=peak_intensities)
 
-        # call pole figure calculator
-        curr_pf_calculator = polefigurecalculator.PoleFigureCalculator()
-        curr_pf_calculator.execute(pole_figure_data_dict, peak_type, background_type, peak_range, use_mantid_engine)
-
-        self._pole_figure_calculator[data_key] = curr_pf_calculator
+        # # Check inputs
+        # checkdatatypes.check_string_variable('Data reference ID', data_key)
+        # checkdatatypes.check_string_variable('Peak type', peak_type)
+        # checkdatatypes.check_string_variable('Background type', background_type)
+        # checkdatatypes.check_bool_variable('Flag to use Mantid as fit engine', use_mantid_engine)
+        #
+        # # get scans
+        # scan_index_list = self._data_manager.get_scan_range(data_key)
+        #
+        # # construct data set
+        # pole_figure_data_dict = dict()
+        # for scan_index in scan_index_list:
+        #     # get diffraction data
+        #     reflection = dict()
+        #     reflection['diff data'] = self._data_manager.get_data_set(data_key, scan_index)
+        #     # get sample logs
+        #     reflection['omega'] = self._data_manager.get_sample_log_values(data_key, 'omega')
+        #     reflection['2theta'] = self._data_manager.get_sample_log_values(data_key, '2theta')
+        #     reflection['chi'] = self._data_manager.get_sample_log_values(data_key, 'chi')
+        #     reflection['phi'] = self._data_manager.get_sample_log_values(data_key, 'phi')
+        #     # add
+        #     pole_figure_data_dict[scan_index] = reflection
+        # # END-FOR
+        #
+        # # call pole figure calculator
+        # curr_pf_calculator = polefigurecalculator.PoleFigureCalculator()
+        # curr_pf_calculator.execute(pole_figure_data_dict, peak_type, background_type, peak_range, use_mantid_engine)
+        #
+        # self._pole_figure_calculator[data_key] = curr_pf_calculator
 
         return
 
@@ -215,7 +227,8 @@ class PyRsCore(object):
             optimizer = self._optimizer_dict[data_key]
         else:
             raise RuntimeError('Unable to find optimizer related to data with reference ID {0} of type {1}.'
-                               'Or there is NO optimizer ever created.'.format(data_key, type(data_key)))
+                               'Or there is NO optimizer ever created.  Current keys are {2}.'
+                               ''.format(data_key, type(data_key), self._optimizer_dict.keys()))
 
         return optimizer
 
@@ -269,7 +282,7 @@ class PyRsCore(object):
         :param scan_log_index:
         :return:
         """
-        # get data key
+        # get data key: by default for single data set but not for pole figure!
         if data_key is None:
             data_key = self._curr_data_key
             if data_key is None:

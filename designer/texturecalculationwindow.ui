@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1473</width>
-    <height>1089</height>
+    <width>1695</width>
+    <height>1270</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -178,7 +178,21 @@
       <item row="0" column="1">
        <layout class="QHBoxLayout" name="horizontalLayout_5">
         <item>
-         <widget class="QLineEdit" name="lineEdit_scanNUmbers"/>
+         <widget class="QLineEdit" name="lineEdit_scanNumbers"/>
+        </item>
+        <item>
+         <widget class="QPushButton" name="pushButton_scanNumberBackward">
+          <property name="text">
+           <string>&lt;</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="pushButton_scanNumberForward">
+          <property name="text">
+           <string>&gt;</string>
+          </property>
+         </widget>
         </item>
         <item>
          <widget class="QLabel" name="label_8">
@@ -224,26 +238,33 @@
           </property>
          </widget>
         </item>
-        <item>
-         <widget class="QCheckBox" name="checkBox_keepPrevPlot">
-          <property name="text">
-           <string>Keep</string>
-          </property>
-         </widget>
-        </item>
        </layout>
       </item>
-      <item row="0" column="2">
+      <item row="1" column="2">
+       <widget class="QPushButton" name="pushButton_fitPeaks">
+        <property name="text">
+         <string>Fit Peak(s)</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="3">
+       <widget class="QPushButton" name="pushButton_calPoleFigure">
+        <property name="text">
+         <string>Pole Figure</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="3">
        <widget class="QPushButton" name="pushButton_plotPeaks">
         <property name="text">
          <string>Plot Peak(s)</string>
         </property>
        </widget>
       </item>
-      <item row="1" column="2">
-       <widget class="QPushButton" name="pushButton_fitPeaks">
+      <item row="0" column="2">
+       <widget class="QCheckBox" name="checkBox_keepPrevPlot">
         <property name="text">
-         <string>Fit Peak(s)</string>
+         <string>Keep</string>
         </property>
        </widget>
       </item>
@@ -373,7 +394,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1473</width>
+     <width>1695</width>
      <height>25</height>
     </rect>
    </property>
