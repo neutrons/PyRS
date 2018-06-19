@@ -169,14 +169,18 @@ class PoleFigureCalculator(object):
 
         # rotate Q
         vec_q = numpy.array([0., 1., 0.])
-        vec_q = rotation_matrix_z(-(180. - two_theta)*0.5, is_degree=True) * vec_q
-        vec_q_prime = rotation_matrix_z(-omega, True) * rotation_matrix_x(chi, True) * rotation_matrix_z(phi, True) * \
-                      vec_q
+        rotation_matrix = rotation_matrix_z(-(180. - two_theta)*0.5, is_degree=True)
+        vec_q = numpy.matmul(rotation_matrix, vec_q.transpose())
+        # vec_q_prime = rotation_matrix_z(-omega, True) * rotation_matrix_x(chi, True) *
+        #               rotation_matrix_z(phi, True) *  vec_q
+        temp_matrix = numpy.matmul(rotation_matrix_z(-omega, True), rotation_matrix_x(chi, True))
+        temp_matrix = numpy.matmul(temp_matrix, rotation_matrix_z(phi, True))
+        vec_q_prime = numpy.matmul(temp_matrix, vec_q.transpose())
 
         # project
         import math
-        alpha = math.acos(numpy.dot(vec_q_prime, numpy.array([0., 0., 1.])))
-        beta = math.acos(numpy.dot(vec_q_prime, numpy.array([1., 0., 0.])))
+        alpha = math.acos(numpy.dot(vec_q_prime.transpose(), numpy.array([0., 0., 1.])))
+        beta = math.acos(numpy.dot(vec_q_prime.transpose(), numpy.array([1., 0., 0.])))
 
         return alpha, beta
 

@@ -38,21 +38,21 @@ def test_pole_figure_calculation():
 
     data_key, message = rs_core.load_rs_raw_set(test_data_set)
 
-    # peak fitting
-    scan_range = rs_core.data_center.get_scan_range(data_key)
-    rs_core.fit_peaks(data_key, scan_index=scan_range, peak_type='Gaussian',
+    # peak fitting for detector 1
+    scan_range = rs_core.data_center.get_scan_range(data_key, 1)
+    rs_core.fit_peaks((data_key, 1), scan_index=scan_range, peak_type='Gaussian',
                       background_type='Linear', fit_range=(80, 85))
-    peak_intensities = rs_core.get_peak_intensities(data_key)
+    peak_intensities = rs_core.get_peak_intensities((data_key, 1))
 
     # initialize pole figure
     pole_figure_calculator = PoleFigureCalculator()
 
     log_names = [('2theta', '2theta'),
                  ('omega', 'omega'),
-                 ('chi', 'mrot'),
-                 ('phi', 'mtilt')]
+                 ('chi', 'chi'),
+                 ('phi', 'phi')]
 
-    pole_figure_calculator.set_experiment_logs(rs_core.data_center.get_scan_index_logs_values(data_key,
+    pole_figure_calculator.set_experiment_logs(rs_core.data_center.get_scan_index_logs_values((data_key, 1),
                                                                                               log_names))
     pole_figure_calculator.calculate_pole_figure(peak_intensity_dict=peak_intensities)
     pole_figure_calculator.export_pole_figure('/tmp/test_polefigure.dat')

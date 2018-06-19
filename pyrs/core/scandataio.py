@@ -162,13 +162,11 @@ class DiffractionDataFile(object):
             print ('File: {0}'.format(file_name))
 
             # loop through the Logs
-            vec_2theta = None
-            vec_y = None
             h5_log_i = diff_data_group
 
             # get 'Log #'
-            log_index_vec = h5_log_i['Log #'].value[0, 0]
-            print ('Log #: Shape = {0}. Value = {1}'.format(log_index_vec.shape, log_index_vec))
+            log_index_vec = h5_log_i['Log #'].value[0, 0].astype(int)
+            # print ('Log #: Shape = {0}. Value = {1}'.format(log_index_vec.shape, log_index_vec))
 
             for item_name in h5_log_i.keys():
                 # skip log index
@@ -178,27 +176,28 @@ class DiffractionDataFile(object):
                 item_i = h5_log_i[item_name].value
                 if isinstance(item_i, numpy.ndarray):
                     # case for diffraction data
-                    # TODO/FIXME/TOMORROW: continued from here!
-                    if item_name == 'Corrected Diffraction':
-                        print ('Item {0}: shape = {1}'.format(item_name, item_i.shape))  # , item_i[0, 0]))
-                        # corrected 2theta
-                        if not (len(item_i.shape) == 1 or h5_log_i[item_name].value.shape[1] == 1):
-                            raise RuntimeError('Unable to support a non-1D corrected 2theta entry')
-                        vec_2theta = h5_log_i[item_name].value.flatten('F')
+                    if item_name == 'Corrected Diffraction Data':
+                        print ('Item {0}: shape = {1}'.format(item_name, item_i.shape))
+                        # corrected 2theta and diffraction
+                        if item_i.shape[2] != len(log_index_vec):
+                            raise RuntimeError('File {0}: Corrected Diffraction Data ({1}) has different '
+                                               'number of entries than log indexes ({2})'
+                                               ''.format(file_name, item_i.shape[2], len(log_index_vec)))
+                        for i_log_index in range(len(log_index_vec)):
+                            vec_2theta = item_i[:, 0, i_log_index]
+                            vec_intensity = item_i[:, 1, i_log_index]
+                            diff_data_dict[log_index_vec[i_log_index]] = vec_2theta, vec_intensity
+                        # END-FOR
+
                     elif item_name == 'Corrected Intensity':
-                        if not (len(item_i.shape) == 1 or h5_log_i[item_name].value.shape[1] == 1):
-                            raise RuntimeError('Unable to support a non-1D corrected intensity entry')
-                        vec_y = h5_log_i[item_name].value.flatten('F')
                         raise NotImplementedError('Not supposed to be here!')
                     else:
                         # sample log data
-                        vec_sample_i = item_i[0, 0]
-                        print ('{0}'.format(vec_sample_i.shape))
-                        if item_name not in sample_logs:
-                            sample_logs[item_name] = vec_sample_i
-
-
-
+                        vec_sample_i = item_i[0, 0].astype(float)
+                        # dictionary = dict(zip(log_index_vec, vec_sample_i))
+                        # sample_logs[str(item_name)] = dictionary  # make sure the log name is a string
+                        sample_logs[str(item_name)] = vec_sample_i
+                    # END-IF-ELSE
                 else:
                     # 1 dimensional (single data point)
                     raise RuntimeError('There is no use case for single-value item so far. '
@@ -207,19 +206,9 @@ class DiffractionDataFile(object):
                 # END-IF
             # END-FOR
 
-
-            # convert sample logs from vector to dictionary
-            for log_name in sample_logs.keys():
-
-
-                dictionary = dict(zip(log_index_vec, sample_logs[log_name]))
-                sample_logs[log_name] = dictionary
-            # END-FOR
-
             # conclude for single file
             sample_logs_set[det_id] = sample_logs
             diff_data_dict_set[det_id] = diff_data_dict
-
         # END-FOR (log_index, file_name)
 
         return diff_data_dict_set, sample_logs_set

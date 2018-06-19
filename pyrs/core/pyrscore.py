@@ -83,7 +83,7 @@ class PyRsCore(object):
         :param user_dir:
         :return:
         """
-        checdatatypes.check_file_name('Working directory', user_dir, check_writable=False, is_dir=True)
+        checkdatatypes.check_file_name('Working directory', user_dir, check_writable=False, is_dir=True)
 
         self._working_dir = user_dir
 
@@ -101,10 +101,10 @@ class PyRsCore(object):
         import polefigurecalculator
 
         # Check inputs
-        checdatatypes.check_string_variable('Data reference ID', data_key)
-        checdatatypes.check_string_variable('Peak type', peak_type)
-        checdatatypes.check_string_variable('Background type', background_type)
-        checdatatypes.check_bool_variable('Flag to use Mantid as fit engine', use_mantid_engine)
+        checkdatatypes.check_string_variable('Data reference ID', data_key)
+        checkdatatypes.check_string_variable('Peak type', peak_type)
+        checkdatatypes.check_string_variable('Background type', background_type)
+        checkdatatypes.check_bool_variable('Flag to use Mantid as fit engine', use_mantid_engine)
 
         # get scans
         scan_index_list = self._data_manager.get_scan_range(data_key)
@@ -132,7 +132,20 @@ class PyRsCore(object):
 
         return
 
-    def fit_peaks(self, data_key, scan_index, peak_type, background_type, fit_range):
+    @staticmethod
+    def _check_data_key(data_key_set):
+        if isinstance(data_key_set, tuple) and len(data_key_set) == 2:
+            data_key, sub_key = data_key_set
+        elif isinstance(data_key_set, tuple):
+            raise RuntimeError('Wrong!')
+        else:
+            data_key = data_key_set
+            checkdatatypes.check_string_variable('Data reference ID', data_key)
+            sub_key = None
+
+        return data_key, sub_key
+
+    def fit_peaks(self, data_key_set, scan_index, peak_type, background_type, fit_range):
         """
         fit a single peak of a measurement in a multiple-log scan
         :param data_key:
@@ -143,13 +156,21 @@ class PyRsCore(object):
         :return: reference ID
         """
         # Check inputs
-        checdatatypes.check_string_variable('Data reference ID', data_key)
-        checdatatypes.check_string_variable('Peak type', peak_type)
-        checdatatypes.check_string_variable('Background type', background_type)
+        if isinstance(data_key_set, tuple) and len(data_key_set) == 2:
+            data_key, sub_key = data_key_set
+        elif isinstance(data_key_set, tuple):
+            raise RuntimeError('Wrong!')
+        else:
+            data_key = data_key_set
+            checkdatatypes.check_string_variable('Data reference ID', data_key)
+            sub_key = None
+
+        checkdatatypes.check_string_variable('Peak type', peak_type)
+        checkdatatypes.check_string_variable('Background type', background_type)
 
         # get scan indexes
         if scan_index is None:
-            scan_index_list = self._data_manager.get_scan_range(data_key)
+            scan_index_list = self._data_manager.get_scan_range(data_key, sub_key)
         elif isinstance(scan_index, int):
             # check range
             scan_index_list = [scan_index]
@@ -161,7 +182,7 @@ class PyRsCore(object):
         # get data
         diff_data_list = list()
         for log_index in scan_index_list:
-            diff_data = self._data_manager.get_data_set(data_key, log_index)
+            diff_data = self._data_manager.get_data_set(data_key_set, log_index)
             diff_data_list.append(diff_data)
         # END-FOR
 
@@ -174,7 +195,7 @@ class PyRsCore(object):
         peak_optimizer.fit_peaks(peak_type, background_type, fit_range, None)
 
         self._last_optimizer = peak_optimizer
-        self._optimizer_dict[data_key] = self._last_optimizer
+        self._optimizer_dict[data_key_set] = self._last_optimizer
 
         return ref_id
 
@@ -267,7 +288,7 @@ class PyRsCore(object):
         :param scan_log_index:
         :return:
         """
-        checdatatypes.check_int_variable('Scan index', scan_log_index, (0, None))
+        checkdatatypes.check_int_variable('Scan index', scan_log_index, (0, None))
         # get data key
         if data_key is None:
             data_key = self._curr_data_key
@@ -296,17 +317,17 @@ class PyRsCore(object):
 
         return data_key, message
 
-    def load_rs_raw_set(self, h5file_list):
+    def load_rs_raw_set(self, det_h5_list):
         """
 
-        :param h5file_list:
+        :param det_h5_list:
         :return:
         """
         # TODO: docs!
-        diff_data_dict, sample_log_dict = self._file_io_controller.load_rs_file_set(h5file_list)
+        diff_data_dict, sample_log_dict = self._file_io_controller.load_rs_file_set(det_h5_list)
 
-        data_key = self.data_center.add_raw_data_set(diff_data_dict, sample_log_dict, h5file_list, replace=True)
-        message = 'Load {0} (Ref ID {1})'.format(h5file_list, data_key)
+        data_key = self.data_center.add_raw_data_set(diff_data_dict, sample_log_dict, det_h5_list, replace=True)
+        message = 'Load {0} (Ref ID {1})'.format(det_h5_list, data_key)
 
         # set to current key
         self._curr_data_key = data_key

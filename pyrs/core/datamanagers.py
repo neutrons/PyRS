@@ -21,14 +21,14 @@ class ScanDataHolder(object):
         checkdatatypes.check_dict('Sample log dictionary', sample_log_dict)
 
         # check diffraction data dictionary
-        for log_index in diff_data_dict:
+        for log_index in sorted(diff_data_dict.keys()):
             checkdatatypes.check_int_variable('Diffraction data log index', log_index, value_range=[0, None])
             diff_tup = diff_data_dict[log_index]
             checkdatatypes.check_tuple('Diffraction data set', diff_tup, 2)
             vec_2theta = diff_tup[0]
             vec_intensity = diff_tup[1]
-            checkdatatypes.check_numpy_arrays('Vector for 2theta and intensity', [vec_2theta, vec_intensity], dimension=1,
-                                        check_same_shape=True)
+            checkdatatypes.check_numpy_arrays('Vector for 2theta and intensity', [vec_2theta, vec_intensity],
+                                              dimension=1, check_same_shape=True)
 
         # store a list of all existing scan (log) indexes in ascending order
         self._scan_log_indexes = diff_data_dict.keys()
@@ -40,7 +40,7 @@ class ScanDataHolder(object):
             checkdatatypes.check_string_variable('Sample log name', log_name)
             log_value_vec = sample_log_dict[log_name]
             checkdatatypes.check_numpy_arrays('Sample log {0} value vector'.format(log_name),
-                                        log_value_vec, 1, False)
+                                               log_value_vec, 1, False)
             if len(log_value_vec) != len(self._scan_log_indexes):
                 raise RuntimeError('Number of log values of {0} {1} is not equal to number of scan logs {2}'
                                    ''.format(log_name, len(log_value_vec), len(self._scan_log_indexes)))
@@ -162,26 +162,26 @@ class RawDataManager(object):
 
         return data_key
 
-    def add_raw_data_set(self, diff_data_dict, sample_log_dict, h5file_list, replace=True):
+    def add_raw_data_set(self, diff_data_dict_set, sample_log_dict, det_h5_list, replace=True):
         """
         add a loaded raw data set
-        :param diff_data_dict:
+        :param diff_data_dict_set:
         :param sample_log_dict:
-        :param h5file_list:
+        :param det_h5_list:
         :param replace:
         :return:
         """
-        data_key = self.generate_data_set_key(h5file_list)
+        data_key = self.generate_data_set_key(det_h5_list)
 
         if data_key in self._data_dict and not replace:
-            raise RuntimeError('Data file {0} has been loaded and not allowed to be replaced.'.format(h5file_list))
+            raise RuntimeError('Data file {0} has been loaded and not allowed to be replaced.'.format(det_h5_list))
         else:
             self._data_dict[data_key] = dict()
 
-        for h5file in h5file_list:
-            sub_key = self.generate_sub_data_key(h5file)
-            self._data_dict[data_key][sub_key] = ScanDataHolder(h5file, diff_data_dict[h5file],
-                                                                sample_log_dict[h5file])
+        for det_id, h5file in det_h5_list:
+            sub_key = self.generate_sub_data_key(det_id, h5file)
+            self._data_dict[data_key][sub_key] = ScanDataHolder(h5file, diff_data_dict_set[det_id],
+                                                                sample_log_dict[det_id])
             self._file_ref_dict[h5file] = data_key, sub_key
         # END-FOR
 
@@ -223,61 +223,87 @@ class RawDataManager(object):
         return data_key
 
     @staticmethod
-    def generate_data_set_key(file_name_list):
+    def generate_data_set_key(det_h5_list):
         """
         generate a quasi-unique data (reference) ID for a file and unique within 2^8 occurance with same file name
-        :param file_name_list:
+        :param det_h5_list:
         :return:
         """
         # TODO - doc and check
-        file_name_list.sort()
+        det_h5_list.sort()
 
-        file_name = file_name_list[0]
+        file_name = det_h5_list[0][1]
         checkdatatypes.check_string_variable('Data file name for data reference ID', file_name)
 
         base_name = os.path.basename(file_name)
         dir_name = os.path.dirname(file_name)
 
-        data_key = base_name + '_{0}_'.format(len(file_name_list)) + str(abs(hash(dir_name) % 256))
+        data_key = base_name + '_{0}_'.format(len(det_h5_list)) + str(abs(hash(dir_name) % 256))
 
         return data_key
 
     @staticmethod
-    def generate_sub_data_key(file_name):
+    def generate_sub_data_key(det_id, file_name):
         """
         generate a quasi-unique data (reference) ID for a file under a unique data key
+        :param det_id
         :param file_name:
         :return:
         """
+        # FUTURE: in this stage, detector ID as integer is good enough to be a sub key
         checkdatatypes.check_string_variable('Data file name for data reference ID', file_name)
-
-        data_key = os.path.basename(file_name)
+        checkdatatypes.check_int_variable('Detector ID', det_id, (0, None))
+        data_key = det_id
 
         return data_key
 
-    def get_data_set(self, data_ref_id, scan_index):
+    def get_data_set(self, data_key_set, scan_index):
         """
         get data set of a single diffraction pattern
         :param data_ref_id:
         :param scan_index:
         :return:
         """
+        if isinstance(data_key_set, tuple) and len(data_key_set) == 2:
+            data_ref_id, sub_key = data_key_set
+        elif isinstance(data_key_set, tuple):
+            raise RuntimeError('Wrong!')
+        else:
+            data_ref_id = data_key_set
+            checkdatatypes.check_string_variable('Data reference ID', data_ref_id)
+            sub_key = None
+
         # check input
         self._check_data_key(data_ref_id)
-        data_set = self._data_dict[data_ref_id].get_diff_data(scan_index)
+        if sub_key is None:
+            data_set = self._data_dict[data_ref_id].get_diff_data(scan_index)
+        else:
+            data_set = self._data_dict[data_ref_id][sub_key].get_diff_data(scan_index)
 
         return data_set
 
-    def get_sample_logs_list(self, data_key, can_plot):
+    def get_sample_logs_list(self, data_key_set, can_plot):
         """
         get the list of sample logs' names
-        :param data_key:
+        :param data_key_set:
         :param can_plot: True for log that can be plotted (no object type); Otherwise, all sample logs
         :return: list of strings
         """
+        # TODO/FIXME/DOC/CHECK
+        if isinstance(data_key_set, tuple):
+            data_key, sub_key = data_key_set
+        else:
+            data_key = data_key_set
+            sub_key = None
+
         self._check_data_key(data_key)
 
-        return self._data_dict[data_key].get_sample_log_names(can_plot)
+        if sub_key is None:
+            names = self._data_dict[data_key].get_sample_log_names(can_plot)
+        else:
+            names = self._data_dict[data_key][sub_key].get_sample_log_names(can_plot)
+
+        return names
 
     def get_sample_log_values(self, data_key, sample_log_name):
         """
@@ -290,7 +316,7 @@ class RawDataManager(object):
 
         return self._data_dict[data_key].sample_log_values(sample_log_name)
 
-    def get_scan_index_logs_values(self, data_key, log_name_list):
+    def get_scan_index_logs_values(self, data_key_set, log_name_pair_list):
         """
         Get a set of sample logs' values and return with scan indexes
         :param data_key:
@@ -298,20 +324,33 @@ class RawDataManager(object):
         :return:
         """
         # check input
-        sample_log_list = self.get_sample_logs_list(data_key, True)
-        checkdatatypes.check_list('Sample logs names', log_name_list, sample_log_list)
-        for target_name, log_name in log_name_list:
+        if isinstance(data_key_set, tuple):
+            data_key, sub_key = data_key_set
+        else:
+            data_key = data_key_set
+            sub_key = None
+        sample_log_list = self.get_sample_logs_list(data_key_set, True)
+
+        checkdatatypes.check_list('Sample logs names', log_name_pair_list)  #, sample_log_list)
+        for target_name, log_name in log_name_pair_list:
             # need  more check
             if log_name not in sample_log_list:
                 raise RuntimeError('Log {0} not in {1}'.format(log_name, sample_log_list))
 
         # go through scan index
         scan_logs_dict = dict()
-        for scan_index in self._data_dict[data_key].get_sample_log_index_range():
+        if sub_key is None:
+            scan_index_range = self._data_dict[data_key].get_scan_log_index_range()
+        else:
+            scan_index_range = self._data_dict[data_key][sub_key].get_scan_log_index_range()
+        for scan_index in scan_index_range:
             entry_dict = dict()
-            for log_name in log_name_list:
-                log_value = self._data_dict[data_key].sample_log_values(log_name)
-                print ('[DB...INFO] Log value = {0} of type {1}'.format(log_value, type(log_value)))
+            for target_name, log_name in log_name_pair_list:
+                if sub_key is None:
+                    log_value = self._data_dict[data_key].sample_log_values(log_name)
+                else:
+                    log_value = self._data_dict[data_key][sub_key].sample_log_values(log_name)
+                # print ('[DB...INFO] Log value = {0} of type {1}'.format(log_value, type(log_value)))
                 entry_dict[log_name] = log_value[0]
             # END-FOR
 
@@ -320,14 +359,24 @@ class RawDataManager(object):
 
         return scan_logs_dict
 
-    def get_scan_range(self, data_key):
+    def get_scan_range(self, data_key, sub_key=None):
         """
         get the range of scan log indexes
         :param data_key:
         :return: list of scan log indexes
         """
         self._check_data_key(data_key)
-        return self._data_dict[data_key].get_scan_log_index_range()
+
+        if isinstance(self._data_dict[data_key], dict):
+            if sub_key is None:
+                raise RuntimeError('Sub-key must be given for data set case')
+            ret_range = self._data_dict[data_key][sub_key].get_scan_log_index_range()
+        else:
+            if sub_key is not None:
+                raise RuntimeError('Not-data-set mode.  Sub key does not make sense')
+            ret_range = self._data_dict[data_key].get_scan_log_index_range()
+
+        return ret_range
 
     def has_data(self, reference_id):
         """
