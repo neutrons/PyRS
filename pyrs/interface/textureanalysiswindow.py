@@ -37,6 +37,8 @@ class TextureAnalysisWindow(QMainWindow):
         self.ui.actionOpen_HDF5.triggered.connect(self.do_load_scans_hdf)
         # TODO: move to action self.ui.actionSave_As.triggered.connect(self.do_save_as)
 
+        self.ui.actionSave_Diffraction_Data_For_Mantid.connect(do_save_workspace)
+
         self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
         self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
 
@@ -85,7 +87,14 @@ class TextureAnalysisWindow(QMainWindow):
 
     def do_cal_pole_figure(self):
         det_id = 1
-        self._core.calculate_pole_figure(data_key=(self._data_key, det_id))
+        self._core.calculate_pole_figure(data_key_pair=(self._data_key, det_id))
+
+        # get result out and show in table
+        num_rows = self.ui.tableView_poleFigureParams.rowCount()
+        for row_number in range(num_rows):
+            det_id, log_index = self.ui.tableView_poleFigureParams.get_detector_log_index(row_number)
+            alpha, beta = self._core.get_pole_figure_value((self._data_key, det_id), log_index)
+            self.ui.tableView_poleFigureParams.set_pole_figure_projection(row_number, alpha, beta)
 
     def do_load_scans_hdf(self):
         """
@@ -165,6 +174,16 @@ class TextureAnalysisWindow(QMainWindow):
         if self.ui.tableView_poleFigureParams.rowCount() > 0:
             self.ui.tableView_poleFigureParams.remove_all_rows()
         self.ui.tableView_poleFigureParams.init_exp({1: self._core.data_center.get_scan_range(data_key, 1)})
+
+        log_names = [('2theta', '2theta'),
+                     ('omega', 'omega'),
+                     ('chi', 'chi'),
+                     ('phi', 'phi')]
+        scan_log_dict = self._core.data_center.get_scan_index_logs_values((data_key, 1), log_names)
+        for i_row in range(self.ui.tableView_poleFigureParams.rowCount()):
+            det_id, scan_log_index = self.ui.tableView_poleFigureParams.get_detector_log_index(i_row)
+            pole_figure_pos_dict = scan_log_dict[scan_log_index]
+            self.ui.tableView_poleFigureParams.set_pole_figure_motors_position(i_row, pole_figure_pos_dict)
 
         # plot the first index
         self.ui.lineEdit_scanNumbers.setText('0')
@@ -247,6 +266,7 @@ class TextureAnalysisWindow(QMainWindow):
 
         if len(scan_log_index_list) == 0:
             gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
+            return
 
         # possibly clean the previous
         # keep_prev = self.ui.checkBox_keepPrevPlot.isChecked()
@@ -255,26 +275,32 @@ class TextureAnalysisWindow(QMainWindow):
 
         # get data and plot
         err_msg = ''
-        for scan_log_index in scan_log_index_list:
+        detid = 1
+        for scan_log_index in scan_log_index_list[:1]:
             try:
-                diff_data_set = self._core.get_diff_data(data_key=(self._data_key, 1), scan_log_index=scan_log_index)
+                diff_data_set = self._core.get_diff_data(data_key=(self._data_key, detid), scan_log_index=scan_log_index)
                 self.ui.graphicsView_fitSetup.plot_diff_data(diff_data_set, 'Scan {0}'.format(scan_log_index))
 
                 # more than 1 scan required to plot... no need to plot model and difference
                 if len(scan_log_index_list) > 1:
                     continue
 
-                model_data_set = self._core.get_modeled_data(data_key=None, scan_log_index=scan_log_index_list[0])
-                if model_data_set is None:
-                    continue
                 # existing model
-                self.ui.graphicsView_fitSetup.plot_model(model_data_set)
-                self.ui.graphicsView_fitSetup.plot_fit_diff(diff_data_set, model_data_set)
-            except RuntimeError as run_err:
+                if self._data_key is not None:
+                    model_data_set = self._core.get_modeled_data(data_key=(self._data_key, detid),
+                                                                 scan_log_index=scan_log_index_list[0])
+                else:
+                    model_data_set = None
+
+                if model_data_set is not None:
+                    self.ui.graphicsView_fitSetup.plot_model(model_data_set)
+                    self.ui.graphicsView_fitSetup.plot_fit_diff(diff_data_set, model_data_set)
+            except NotImplementedError as run_err:
                 err_msg += '{0}\n'.format(run_err)
         # END-FOR
 
         if len(err_msg) > 0:
+            raise RuntimeError(err_msg)
             gui_helper.pop_message(self, err_msg, message_type='error')
 
         return
@@ -304,6 +330,20 @@ class TextureAnalysisWindow(QMainWindow):
 
     def do_save_as(self):
         # TODO
+        return
+
+    def do_save_workspace(self):
+        """
+
+        :return:
+        """
+        nxs_file_name = str(QFileDialog.getSaveFileName(self, 'Mantid Processed NeXus File Name',
+                                                        self._core.working_dir))
+        if len(nxs_file_name) == 0:
+            return
+
+        self._core.save_nexus((self._data_key, 1), nxs_file_name)
+
         return
 
     def do_quit(self):

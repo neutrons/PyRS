@@ -89,16 +89,17 @@ class PyRsCore(object):
 
         return
 
-    def calculate_pole_figure(self, data_key, peak_type, background_type, peak_range, use_mantid_engine):
+    def calculate_pole_figure(self, data_key_pair):  # , peak_type, background_type, peak_range, use_mantid_engine):
         """ calculate pole figure
-        :param data_key:
+        :param data_key_pair: shall be data_key and sub_key
         :param peak_type:
         :param background_type:
         :param peak_range:
         :param use_mantid_engine:
         :return:
         """
-        peak_intensities = self.get_peak_intensities((data_key, 1))
+        checkdatatypes.check_tuple('Pole figure data key/detector ID (sub key)', data_key_pair, 2)
+        peak_intensities = self.get_peak_intensities(data_key_pair)
 
         # initialize pole figure
         self.pole_figure_calculator = polefigurecalculator.PoleFigureCalculator()
@@ -108,7 +109,7 @@ class PyRsCore(object):
                      ('chi', 'chi'),
                      ('phi', 'phi')]
 
-        self.pole_figure_calculator.set_experiment_logs(self.data_center.get_scan_index_logs_values((data_key, 1),
+        self.pole_figure_calculator.set_experiment_logs(self.data_center.get_scan_index_logs_values(data_key_pair,
                                                                                                     log_names))
         self.pole_figure_calculator.calculate_pole_figure(peak_intensity_dict=peak_intensities)
 
@@ -143,6 +144,19 @@ class PyRsCore(object):
         # self._pole_figure_calculator[data_key] = curr_pf_calculator
 
         return
+
+    def get_pole_figure_value(self, data_key_pair, log_index):
+        print ('Use data key pair {0} {1} to locate optimizer'.format(data_key_pair[0], data_key_pair[1]))
+
+        pole_figures = self.pole_figure_calculator.get_pole_figure()
+        if len(pole_figures) < log_index + 1:
+            alpha = 0
+            beta = 0
+        else:
+            alpha = pole_figures[log_index][0]
+            beta = pole_figures[log_index][1]
+
+        return alpha, beta
 
     @staticmethod
     def _check_data_key(data_key_set):
@@ -219,7 +233,10 @@ class PyRsCore(object):
         :return:
         """
         # check input
-        if data_key is None and self._last_optimizer is not None:
+        if self._last_optimizer is None:
+            # never been used
+            return None
+        elif data_key is None and self._last_optimizer is not None:
             # by default: current optimizer
             optimizer = self._last_optimizer
         elif data_key in self._optimizer_dict:
@@ -227,7 +244,7 @@ class PyRsCore(object):
             optimizer = self._optimizer_dict[data_key]
         else:
             raise RuntimeError('Unable to find optimizer related to data with reference ID {0} of type {1}.'
-                               'Or there is NO optimizer ever created.  Current keys are {2}.'
+                               'Current keys are {2}.'
                                ''.format(data_key, type(data_key), self._optimizer_dict.keys()))
 
         return optimizer
@@ -240,6 +257,8 @@ class PyRsCore(object):
         """
         # check input
         optimizer = self._get_optimizer(data_key)
+        if optimizer  is None:
+            return None
 
         return optimizer.get_function_parameter_names()
 
@@ -310,7 +329,10 @@ class PyRsCore(object):
         # END-IF
 
         optimizer = self._get_optimizer(data_key)
-        data_set = optimizer.get_calculated_peak(scan_log_index)
+        if optimizer is None:
+            data_set = None
+        else:
+            data_set = optimizer.get_calculated_peak(scan_log_index)
 
         return data_set
 

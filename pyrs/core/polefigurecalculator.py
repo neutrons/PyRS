@@ -145,7 +145,7 @@ class PoleFigureCalculator(object):
     def get_pole_figure(self):
         """
         return Pole figure in a numpy 2D array
-        :return:
+        :return: numpy array with shape (n, 3).  n is the number of data points
         """
 
         return self._pole_figure

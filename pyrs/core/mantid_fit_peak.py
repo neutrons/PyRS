@@ -136,7 +136,7 @@ class MantidPeakFitEngine(object):
         """
         # get value
         scan_index_vector = self.get_scan_indexes()
-        intensity_vector = self.get_fitted_params(param_name='Intensity')
+        intensity_vector = self.get_fitted_params(param_name='intensity')
 
         # check
         if len(scan_index_vector) != len(intensity_vector):
@@ -276,9 +276,10 @@ class MantidPeakFitEngine(object):
             for row_index in range(self._fitted_function_param_table.rowCount()):
                 param_vec[row_index] = self._fitted_function_param_table.cell(row_index, col_index)
         else:
-            err_msg = 'Function parameter {0} does not exist.'.format(param_name)
+            err_msg = 'Function parameter {0} does not exist. Supported parameters are {1}' \
+                      ''.format(param_name, col_names)
             # raise RuntimeError()
-            print (err_msg)
+            raise KeyError(err_msg)
 
         return param_vec
 

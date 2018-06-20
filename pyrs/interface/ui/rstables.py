@@ -166,6 +166,17 @@ class PoleFigureTable(NTableWidget.NTableWidget):
 
         return
 
+    def set_pole_figure_motors_position(self, row_number, motor_pos_dict):
+        # TODO - DOC & CHECK
+        self.update_cell_value(row_number, self._col_index_2theta, motor_pos_dict['2theta'])
+        self.update_cell_value(row_number, self._col_index_phi, motor_pos_dict['phi'])
+        self.update_cell_value(row_number, self._col_index_omega, motor_pos_dict['omega'])
+        self.update_cell_value(row_number, self._col_index_chi, motor_pos_dict['chi'])
+
+    def set_pole_figure_projection(self, row_number, alpha, beta):
+        self.update_cell_value(row_number, self._col_index_alpha, alpha)
+        self.update_cell_value(row_number, self._col_index_beta, beta)
+
     def setup(self):
         """
         Init setup

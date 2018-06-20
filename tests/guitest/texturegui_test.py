@@ -32,10 +32,16 @@ def test_main():
 
     # load data
     texture_window.load_h5_scans(test_data_set)
+    texture_window.ui.lineEdit_scanNumbers.setText('0:200')
 
     # fit and calculate pole figure
     if True:
+        # fit peaks
         texture_window.do_fit_peaks()
+
+        # calcualte pole figure
+        texture_window.do_cal_pole_figure()
+
         # texture_window.save_data_for_mantid(None, 'peaks.nxs')
 
     return texture_window

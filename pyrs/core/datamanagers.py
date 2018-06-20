@@ -321,7 +321,7 @@ class RawDataManager(object):
         Get a set of sample logs' values and return with scan indexes
         :param data_key:
         :param log_name_list:
-        :return:
+        :return: dictionary (key = scan log index) of dictionary (key = sample log name)
         """
         # check input
         if isinstance(data_key_set, tuple):
@@ -351,7 +351,7 @@ class RawDataManager(object):
                 else:
                     log_value = self._data_dict[data_key][sub_key].sample_log_values(log_name)
                 # print ('[DB...INFO] Log value = {0} of type {1}'.format(log_value, type(log_value)))
-                entry_dict[log_name] = log_value[0]
+                entry_dict[log_name] = log_value[scan_index]
             # END-FOR
 
             scan_logs_dict[scan_index] = entry_dict

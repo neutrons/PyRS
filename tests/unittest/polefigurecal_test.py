@@ -42,6 +42,8 @@ def test_pole_figure_calculation():
     scan_range = rs_core.data_center.get_scan_range(data_key, 1)
     rs_core.fit_peaks((data_key, 1), scan_index=scan_range, peak_type='Gaussian',
                       background_type='Linear', fit_range=(80, 85))
+    rs_core.save_nexus((data_key, 1), '/tmp/matrix.nxs')
+
     peak_intensities = rs_core.get_peak_intensities((data_key, 1))
 
     # initialize pole figure
