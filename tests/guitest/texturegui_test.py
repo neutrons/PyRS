@@ -32,7 +32,7 @@ def test_main():
 
     # load data
     texture_window.load_h5_scans(test_data_set)
-    texture_window.ui.lineEdit_scanNumbers.setText('0:200')
+    texture_window.ui.lineEdit_scanNumbers.setText('0:2')
 
     # fit and calculate pole figure
     if True:

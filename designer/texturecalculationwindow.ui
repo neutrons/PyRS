@@ -406,7 +406,14 @@
     <addaction name="actionSave_as"/>
     <addaction name="actionQuit"/>
    </widget>
+   <widget class="QMenu" name="menuPeak_Fitting">
+    <property name="title">
+     <string>Peak Fitting</string>
+    </property>
+    <addaction name="actionSave_Diffraction_Data_For_Mantid"/>
+   </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuPeak_Fitting"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionQuit">
@@ -425,6 +432,11 @@
   <action name="actionOpen_HDF5">
    <property name="text">
     <string>Open Re-Reduced File</string>
+   </property>
+  </action>
+  <action name="actionSave_Diffraction_Data_For_Mantid">
+   <property name="text">
+    <string>Save Diffraction Data For Mantid</string>
    </property>
   </action>
  </widget>

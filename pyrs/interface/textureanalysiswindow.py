@@ -35,9 +35,9 @@ class TextureAnalysisWindow(QMainWindow):
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.actionOpen_HDF5.triggered.connect(self.do_load_scans_hdf)
-        self.ui.actionSave_As.triggered.connect(self.do_save_as)
+        self.ui.actionSave_as.triggered.connect(self.do_save_as)
 
-        self.ui.actionSave_Diffraction_Data_For_Mantid.connect(self.do_save_workspace)
+        self.ui.actionSave_Diffraction_Data_For_Mantid.triggered.connect(self.do_save_pole_figure)
 
         self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
         self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
@@ -69,6 +69,19 @@ class TextureAnalysisWindow(QMainWindow):
         if self._core is None:
             raise RuntimeError('Not set up yet!')
 
+    def _get_scan_log_indexes(self):
+        """ from the line editor
+        :return:
+        """
+        int_string_list = str(self.ui.lineEdit_scanNumbers.text()).strip()
+
+        if len(int_string_list) == 0:
+            scan_log_index = None
+        else:
+            scan_log_index = gui_helper.parse_integers(int_string_list)
+
+        return scan_log_index
+
     def _get_default_hdf(self):
         """
         use IPTS and Exp to determine
@@ -86,6 +99,7 @@ class TextureAnalysisWindow(QMainWindow):
         return '/HFIR/HB2B/'
 
     def do_cal_pole_figure(self):
+        # TODO/FIXME Det ID must be passed in!
         det_id = 1
         self._core.calculate_pole_figure(data_key_pair=(self._data_key, det_id))
 
@@ -95,6 +109,8 @@ class TextureAnalysisWindow(QMainWindow):
             det_id, log_index = self.ui.tableView_poleFigureParams.get_detector_log_index(row_number)
             alpha, beta = self._core.get_pole_figure_value((self._data_key, det_id), log_index)
             self.ui.tableView_poleFigureParams.set_pole_figure_projection(row_number, alpha, beta)
+
+        return
 
     def do_load_scans_hdf(self):
         """
@@ -199,11 +215,7 @@ class TextureAnalysisWindow(QMainWindow):
         :return:
         """
         # get the data
-        int_string_list = str(self.ui.lineEdit_scanNumbers.text()).strip()
-        if len(int_string_list) == 0:
-            scan_log_index = None
-        else:
-            scan_log_index = gui_helper.parse_integers(int_string_list)
+        scan_log_index = None
         data_key = self._core.current_data_reference_id
 
         peak_function = str(self.ui.comboBox_peakType.currentText())
@@ -275,7 +287,7 @@ class TextureAnalysisWindow(QMainWindow):
         # get data and plot
         err_msg = ''
         detid = 1
-        for scan_log_index in scan_log_index_list[:1]:
+        for scan_log_index in scan_log_index_list:
             try:
                 diff_data_set = self._core.get_diff_data(data_key=(self._data_key, detid), scan_log_index=scan_log_index)
                 self.ui.graphicsView_fitSetup.plot_diff_data(diff_data_set, 'Scan {0}'.format(scan_log_index))
@@ -332,8 +344,32 @@ class TextureAnalysisWindow(QMainWindow):
         save current pole figure to a text file
         :return:
         """
-        file_name = str(QFileDialog.getSaveFileName(self, directory=self._core.working_dir,
-                                                    caption='Save Pole Figure To ASCII File'))
+        file_info = QFileDialog.getSaveFileName(self, directory=self._core.working_dir,
+                                                caption='Save Pole Figure To ASCII File')
+        if isinstance(file_info, tuple):
+            file_name = file_info[0]
+        else:
+            file_name = file_info
+        file_name = str(file_name)
+
+        if len(file_name) == 0:
+            return
+
+        raise NotImplementedError("I don't know what to do with save as ...")
+
+    def do_save_pole_figure(self):
+        """
+
+        :return:
+        """
+        file_info = QFileDialog.getSaveFileName(self, directory=self._core.working_dir,
+                                                caption='Save Pole Figure To ASCII File')
+        if isinstance(file_info, tuple):
+            file_name = file_info[0]
+        else:
+            file_name = file_info
+        file_name = str(file_name)
+
         if len(file_name) == 0:
             return
 

@@ -146,7 +146,7 @@ class PyRsCore(object):
         return
 
     def get_pole_figure_value(self, data_key_pair, log_index):
-        print ('Use data key pair {0} {1} to locate optimizer'.format(data_key_pair[0], data_key_pair[1]))
+        # print ('Use data key pair {0} {1} to locate optimizer'.format(data_key_pair[0], data_key_pair[1]))
 
         pole_figures = self.pole_figure_calculator.get_pole_figure()
         if len(pole_figures) < log_index + 1:
@@ -368,6 +368,12 @@ class PyRsCore(object):
         self._curr_data_key = data_key
 
         return data_key, message
+
+    def save_pole_figure(self, data_key, detector, file_name):
+        # TODO/ISSUE - Implement!
+        self.pole_figure_calculator.export_pole_figure(file_name)
+
+        return
 
     def save_nexus(self, data_key, file_name):
         """

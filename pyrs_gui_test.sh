@@ -6,7 +6,7 @@ if [ $1 ]; then
 else
     CMD=''
 fi
-# PYTHONPATH=build/lib:$PYTHONPATH $CMD build/scripts-2.7/peakfitgui_test.py
+PYTHONPATH=/home/wzz/Mantid_Project/debug/bin:$PYTHONPATH:/Users/wzz/MantidBuild/debug-stable/bin
 PYTHONPATH=build/lib:$PYTHONPATH $CMD build/scripts-2.7/texturegui_test.py
 
 # PYTHONPATH=build/lib:$PYTHONPATH $CMD build/scripts-2.7/polefigurecal_test.py

@@ -13,10 +13,10 @@ def nice(matrix):
     :return:
     """
     nice_out = ''
-    for i_row in matrix.shape[0]:
+    for i_row in range(matrix.shape[0]):
         row = ''
-        for j_col in matrix.shape[1]:
-            row += '{0:10.10f}'.format(matrix[i_row, j_col])
+        for j_col in range(matrix.shape[1]):
+            row += '{0:5.5f}\t'.format(matrix[i_row, j_col])
         nice_out += row + '\n'
 
     return nice_out
@@ -95,7 +95,8 @@ class PoleFigureCalculator(object):
         checkdatatypes.check_dict('(class variable) data set', self._sample_logs_dict)
         checkdatatypes.check_dict('(peak intensities', peak_intensity_dict)
 
-        pole_figure_list = list()
+        num_pts = len(self._sample_logs_dict)
+        pole_figure_array = numpy.ndarray(shape=(num_pts, 3), dtype='float')
 
         for index, scan_index in enumerate(self._sample_logs_dict.keys()):
             # check fitting result
@@ -111,11 +112,13 @@ class PoleFigureCalculator(object):
             phi_i = self._sample_logs_dict[scan_index]['phi']
             alpha, beta = self.rotate_project_q(two_theta_i, omega_i, chi_i, phi_i)
 
-            pole_figure_list.append([alpha, beta, intensity_i])
+            pole_figure_array[index, 0] = alpha
+            pole_figure_array[index, 1] = beta
+            pole_figure_array[index, 2] = intensity_i
         # END-FOR
 
         # convert
-        self._pole_figure = numpy.array(pole_figure_list)
+        self._pole_figure = pole_figure_array
 
         return
 
