@@ -35,9 +35,9 @@ class TextureAnalysisWindow(QMainWindow):
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.actionOpen_HDF5.triggered.connect(self.do_load_scans_hdf)
-        # TODO: move to action self.ui.actionSave_As.triggered.connect(self.do_save_as)
+        self.ui.actionSave_As.triggered.connect(self.do_save_as)
 
-        self.ui.actionSave_Diffraction_Data_For_Mantid.connect(do_save_workspace)
+        self.ui.actionSave_Diffraction_Data_For_Mantid.connect(self.do_save_workspace)
 
         self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
         self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
@@ -99,7 +99,7 @@ class TextureAnalysisWindow(QMainWindow):
     def do_load_scans_hdf(self):
         """
         load scan's reduced files
-        :return:
+        :return: a list of tuple (detector ID, file name)
         """
         # check
         self._check_core()
@@ -124,14 +124,13 @@ class TextureAnalysisWindow(QMainWindow):
             return
 
         # convert the files
-        # TODO checkdatatypes.check_list
-        new_list = list()
+        new_file_list = list()
         for ifile, file_name in enumerate(hdf_name_list):
-            #hdf_name_list[ifile] = str(file_name)
-            new_list.append(str(file_name))
+            det_id = int(file_name.split('[')[1].split(']')[0])
+            new_file_list.append((det_id, file_name))
+        # END-FOR
 
-        checkdatatypes.check_dict('Detector file dictionary', new_list)
-        self.load_h5_scans(new_list)
+        self.load_h5_scans(new_file_list)
 
         return
 
@@ -329,7 +328,17 @@ class TextureAnalysisWindow(QMainWindow):
         return
 
     def do_save_as(self):
-        # TODO
+        """
+        save current pole figure to a text file
+        :return:
+        """
+        file_name = str(QFileDialog.getSaveFileName(self, directory=self._core.working_dir,
+                                                    caption='Save Pole Figure To ASCII File'))
+        if len(file_name) == 0:
+            return
+
+        self._core.save_pole_figure(self._data_key, detector=1, file_name=file_name)
+
         return
 
     def do_save_workspace(self):
