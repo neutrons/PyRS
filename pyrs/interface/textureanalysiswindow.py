@@ -104,14 +104,14 @@ class TextureAnalysisWindow(QMainWindow):
         calculate pole figure
         :return:
         """
-        det_id = None
-        self._core.calculate_pole_figure(data_key_pair=(self._data_key, det_id))
+        det_id_list = None
+        self._core.calculate_pole_figure(data_key=self._data_key, detector_id_list=det_id_list)
 
         # get result out and show in table
         num_rows = self.ui.tableView_poleFigureParams.rowCount()
         for row_number in range(num_rows):
             det_id, log_index = self.ui.tableView_poleFigureParams.get_detector_log_index(row_number)
-            alpha, beta = self._core.get_pole_figure_value((self._data_key, det_id), log_index)
+            alpha, beta = self._core.get_pole_figure_value(self._data_key, det_id, log_index)
             self.ui.tableView_poleFigureParams.set_pole_figure_projection(row_number, alpha, beta)
 
         return
@@ -230,11 +230,15 @@ class TextureAnalysisWindow(QMainWindow):
         print ('[DB...BAT] Fit range: {0}'.format(fit_range))
 
         # call the core's method to fit peaks
-        det_id = 1
-        self._core.fit_peaks((data_key, det_id), scan_log_index, peak_function, bkgd_function, fit_range)
+        det_id_list = self._core.get_detector_ids(data_key)
+        for det_id in det_id_list:
+            self._core.fit_peaks((data_key, det_id), scan_log_index,
+                                 peak_function, bkgd_function, fit_range)
+        # END-FOR
 
-        # report fit result
-        function_params = self._core.get_fit_parameters((data_key, det_id))
+        # report fit result... ...
+        # add function parameters and detector IDs to UI
+        function_params = self._core.get_fit_parameters((data_key, det_id_list[0]))
         self._sample_log_names_mutex = True
         # TODO FIXME : add to X axis too
         curr_index = self.ui.comboBox_yaxisNames.currentIndex()
@@ -246,27 +250,31 @@ class TextureAnalysisWindow(QMainWindow):
         # keep current selected item unchanged
         self.ui.comboBox_yaxisNames.setCurrentIndex(curr_index)
         self._sample_log_names_mutex = False
+        # END-BLOCK
 
         # fill up the table
-        data_key = data_key, det_id
-        center_vec = self._core.get_peak_fit_param_value(data_key, 'centre')
-        height_vec = self._core.get_peak_fit_param_value(data_key, 'height')
-        fwhm_vec = self._core.get_peak_fit_param_value(data_key, 'width')
-        chi2_vec = self._core.get_peak_fit_param_value(data_key, 'chi2')
-        intensity_vec = self._core.get_peak_fit_param_value(data_key, 'intensity')
-        com_vec = self._core.get_peak_center_of_mass(data_key)
+        for det_id in det_id_list:
+            # form data key (pair)
+            data_key_pair = data_key, det_id
+            center_vec = self._core.get_peak_fit_param_value(data_key_pair, 'centre')
+            chi2_vec = self._core.get_peak_fit_param_value(data_key_pair, 'chi2')
+            intensity_vec = self._core.get_peak_fit_param_value(data_key_pair, 'intensity')
 
-        for row_index in range(len(center_vec)):
-            det_id_i, log_index_i = self.ui.tableView_poleFigureParams.get_detector_log_index(row_index)
-            # TODO: match the detector ID to current one!
-            intensity_i = intensity_vec[log_index_i]
-            self.ui.tableView_poleFigureParams.set_intensity(row_index, intensity_i)
-        # END-FOR
+            # FIXME : this is not a good approach with scan table for a few times
+            for row_index in range(len(center_vec)):
+                # TODO skip for non-related
+                det_id_i, log_index_i = \
+                    self.ui.tableView_poleFigureParams.get_detector_log_index(row_index)
+                if det_id_i != det_id:
+                    continue
+                # set
+                self.ui.tableView_poleFigureParams.set_intensity(row_index, intensity_vec[log_index_i],
+                                                                 chi2_vec[log_index_i])
+                # END-FOR
+            # END-FOR (rows)
+        # END-FOR (each detector)
 
         # plot the model and difference
-        if scan_log_index is None:
-            scan_log_index = 0
-            # FIXME This case is not likely to occur
         self.do_plot_diff_data()
 
         return

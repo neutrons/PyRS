@@ -149,52 +149,103 @@ def cal_rotation_matrix_z(angle, is_degree, use_matrix):
 
 class PoleFigureCalculator(object):
     """
-    A container for a workflow to calculate Pole Figure
+    A calculator for Pole Figure.
+    It has the memory and result for the last time it is called to calculate
     """
     def __init__(self):
         """
         initialization
         """
         # initialize class instances
-        self._sample_logs_dict = None
+        self._peak_info_dict = dict()   # key: detector ID, scan log index  (int, int)
+        self._peak_intensity_dict = dict()   # key: detector ID, scan log index (int, int)
+        self._pole_figure_dict = dict()  # key: detector ID, value: 2-tuple.  scan log index list, 2D array
 
+        # flag
         self._cal_successful = False
 
         self._use_matmul = does_numpy_support_matmul()
 
         return
 
-    def calculate_pole_figure(self, peak_intensity_dict):
-        """ Calculate pole figures
+    def add_input_data_set(self, det_id, peak_intensity_dict, log_dict):
+        """ set peak intensity log and experiment logs that are required by pole figure calculation
+        :param det_id
+        :param peak_intensity_dict : dictionary (key = scan log index (int), value = peak intensity (float)
+        :param log_dict: dictionary (key = scan log index (int), value = dictionary (log name, log value))
         :return:
         """
-        checkdatatypes.check_dict('(class variable) data set', self._sample_logs_dict)
-        checkdatatypes.check_dict('(peak intensities', peak_intensity_dict)
+        # check inputs
+        if det_id in self._peak_intensity_dict:
+            raise RuntimeError('Detector ID {0} already been added.  Must be reset calculator.'
+                               ''.format(det_id))
+        checkdatatypes.check_int_variable('Detector ID', det_id, (0, None))
+        checkdatatypes.check_dict('Peak intensities', peak_intensity_dict)
+        checkdatatypes.check_dict('Log values for pole figure', log_dict)
 
-        num_pts = len(self._sample_logs_dict)
-        pole_figure_array = numpy.ndarray(shape=(num_pts, 3), dtype='float')
+        # check sample log index
+        if set(peak_intensity_dict.keys()) != set(log_dict.keys()):
+            raise RuntimeError('Sample log indexes from peak intensities and sample logs'
+                               ' do not match.')
 
-        for index, scan_index in enumerate(self._sample_logs_dict.keys()):
-            # check fitting result
-            if scan_index in peak_intensity_dict:
-                intensity_i = peak_intensity_dict[scan_index]
-            else:
-                continue
+        # add peak intensity
+        self._peak_intensity_dict[det_id] = peak_intensity_dict
 
-            # rotate Q from instrument coordinate to sample coordinate
-            two_theta_i = self._sample_logs_dict[scan_index]['2theta']
-            omega_i = self._sample_logs_dict[scan_index]['omega']
-            chi_i = self._sample_logs_dict[scan_index]['chi']
-            phi_i = self._sample_logs_dict[scan_index]['phi']
-            alpha, beta = self.rotate_project_q(two_theta_i, omega_i, chi_i, phi_i)
-
-            pole_figure_array[index, 0] = alpha
-            pole_figure_array[index, 1] = beta
-            pole_figure_array[index, 2] = intensity_i
+        # go through all the values
+        for log_index in log_dict:
+            # check
+            log_names = log_dict[log_index].keys()
+            checkdatatypes.check_list('Pole figure motor names', log_names, ['2theta', 'chi', 'phi', 'omega'])
+            # set
+            self._peak_info_dict[det_id] = log_dict
         # END-FOR
 
-        # convert
-        self._pole_figure = pole_figure_array
+        return
+
+    def calculate_pole_figure(self, det_id_list):
+        """ Calculate pole figures
+        :param det_id_list:
+        :return:
+        """
+        # check input
+        if det_id_list is None:
+            det_id_list = self.get_detector_ids()
+        else:
+            checkdatatypes.check_list('Detector IDs to calculate pole figure', det_id_list,
+                                      self.get_detector_ids())
+        # END-IF
+
+        for det_id in det_id_list:
+            # calculator by each detector
+            peak_intensity_dict = self._peak_intensity_dict[det_id]
+            peak_info_dict = self._peak_info_dict[det_id]
+
+            # construct the output
+            scan_log_index_list = sorted(peak_intensity_dict.keys())
+            num_pts = len(scan_log_index_list)
+            pole_figure_array = numpy.ndarray(shape=(num_pts, 3), dtype='float')
+
+            for index, scan_index in enumerate(scan_log_index_list):
+                # check fitting result
+                intensity_i = peak_intensity_dict[scan_index]
+
+                # rotate Q from instrument coordinate to sample coordinate
+                two_theta_i = peak_info_dict[scan_index]['2theta']
+                omega_i = peak_info_dict[scan_index]['omega']
+                chi_i = peak_info_dict[scan_index]['chi']
+                phi_i = peak_info_dict[scan_index]['phi']
+                alpha, beta = self.rotate_project_q(two_theta_i, omega_i, chi_i, phi_i)
+
+                pole_figure_array[index, 0] = alpha
+                pole_figure_array[index, 1] = beta
+                pole_figure_array[index, 2] = intensity_i
+                # END-FOR
+            # END-FOR
+
+            # convert
+            self._pole_figure_dict[det_id] = scan_log_index_list, pole_figure_array
+
+        # END-FOR
 
         return
 
@@ -206,9 +257,9 @@ class PoleFigureCalculator(object):
         # fit peaks
         # choose peak fit engine
         if use_mantid:
-            fit_engine = mantid_fit_peak.MantidPeakFitEngine(self._sample_logs_dict)
+            fit_engine = mantid_fit_peak.MantidPeakFitEngine(self._peak_info_dict)
         else:
-            fit_engine = peakfitengine.ScipyPeakFitEngine(self._sample_logs_dict)
+            fit_engine = peakfitengine.ScipyPeakFitEngine(self._peak_info_dict)
 
         # fit peaks
         fit_engine.fit_peaks(peak_function_name=profile_type, background_function_name=background_type,
@@ -231,7 +282,7 @@ class PoleFigureCalculator(object):
         :param file_name:
         :return:
         """
-        # process detecotr ID list
+        # process detector ID list
         if detector_id_list is None:
             detector_id_list = self.get_detector_ids()
         else:
@@ -241,9 +292,9 @@ class PoleFigureCalculator(object):
         checkdatatypes.check_string_variable('Output pole figure file type/format', file_type)
 
         if file_type.lower() == 'ascii':
-            numpy.savetxt(file_name, self._pole_figure)   # x,y,z equal sized 1D arrays
+            numpy.savetxt(file_name, self._pole_figure_dict)   # x,y,z equal sized 1D arrays
         elif file_type.lower == 'mtex':
-            export_to_mtex(detector_id_list, file_name, self._pole_figure)
+            export_to_mtex(detector_id_list, file_name, self._pole_figure_dict)
 
         return
 
@@ -252,16 +303,15 @@ class PoleFigureCalculator(object):
         get all the detector IDs
         :return: list of integer
         """
-        # TODO FIXME! - Need to find a way to set up detector IDs
-        return [1]
+        return self._peak_intensity_dict.keys()
 
-    def get_pole_figure(self):
+    def get_pole_figure(self, det_id):
         """
         return Pole figure in a numpy 2D array
         :return: numpy array with shape (n, 3).  n is the number of data points
         """
 
-        return self._pole_figure
+        return self._pole_figure_dict[det_id]
 
     def rotate_project_q(self, two_theta, omega, chi, phi):
         """
@@ -335,21 +385,16 @@ class PoleFigureCalculator(object):
 
         return alpha, beta
 
-    def set_experiment_logs(self, log_dict):
-        """ set experiment logs that are required by pole figure calculation
-        :param log_dict:
+    def reset_calculator(self):
+        """
+
         :return:
         """
-        # check inputs
-        checkdatatypes.check_dict('Log values for pole figure', log_dict)
+        self._peak_info_dict = dict()
+        self._peak_intensity_dict = dict()
+        self._pole_figure_dict = dict()
 
-        # go through all the values
-        for log_index in log_dict:
-            log_names = log_dict[log_index].keys()
-            checkdatatypes.check_list('Pole figure motor names', log_names,
-                                ['2theta', 'chi', 'phi', 'omega'])
-
-        self._sample_logs_dict = log_dict
+        return
 
 
 def export_to_mtex(detector_id_list, file_name, pole_figure_array, header):

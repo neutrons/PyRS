@@ -99,16 +99,15 @@ class PyRsCore(object):
         :param detector_id_list:
         :return:
         """
-        # TODO/FIXME : make this method work
         # check input
         checkdatatypes.check_string_variable('Data key/ID', data_key)
         if detector_id_list is None:
-            detector_id_list = self.get_detectors_ids(data_key)
+            detector_id_list = self.get_detector_ids(data_key)
         else:
             checkdatatypes.check_list('Detector IDs', detector_id_list)
 
         # get peak intensities from fitting
-        peak_intensities = self.get_peak_intensities(data_key, detector_id_list)
+        # peak_intensities = self.get_peak_intensities(data_key, detector_id_list)
 
         # initialize pole figure
         self._last_pole_figure_calculator = polefigurecalculator.PoleFigureCalculator()
@@ -119,11 +118,20 @@ class PyRsCore(object):
                      ('omega', 'omega'),
                      ('chi', 'chi'),
                      ('phi', 'phi')]
-        log_values = self.data_center.get_scan_index_logs_values(data_key, detector_id_list, log_names)
 
-        # create pole figure calculator
-        self._last_pole_figure_calculator.set_experiment_logs(log_values)
-        self._last_pole_figure_calculator.calculate_pole_figure(peak_intensity_dict=peak_intensities)
+        for det_id in detector_id_list:
+            # get intensity and log value
+            log_values = self.data_center.get_scan_index_logs_values((data_key, det_id), log_names)
+
+            optimizer = self._get_optimizer((data_key, det_id))
+            peak_intensities = optimizer.get_peak_intensities()
+
+            # add value to pole figure calcualte
+            self._last_pole_figure_calculator.add_input_data_set(det_id, peak_intensities, log_values)
+        # END-FOR
+
+        # do calculation
+        self._last_pole_figure_calculator.calculate_pole_figure(detector_id_list)
 
         return
 
@@ -169,7 +177,7 @@ class PyRsCore(object):
     def fit_peaks(self, data_key_set, scan_index, peak_type, background_type, fit_range):
         """
         fit a single peak of a measurement in a multiple-log scan
-        :param data_key:
+        :param data_key_set:
         :param scan_index:
         :param peak_type:
         :param background_type:
@@ -207,7 +215,10 @@ class PyRsCore(object):
             diff_data_list.append(diff_data)
         # END-FOR
 
-        ref_id = 'TODO FIND A GOOD NAMING CONVENTION'
+        if sub_key is None:
+            ref_id = '{0}'.format(data_key)
+        else:
+            ref_id = '{0}_{1}'.format(data_key, sub_key)
         peak_optimizer = mantid_fit_peak.MantidPeakFitEngine(diff_data_list, ref_id=ref_id)
 
         # observed COM and highest Y value data point
@@ -233,10 +244,12 @@ class PyRsCore(object):
             return None
         elif data_key is None and self._last_optimizer is not None:
             # by default: current optimizer
+            print ('Return last')
             optimizer = self._last_optimizer
         elif data_key in self._optimizer_dict:
             # with data key
             optimizer = self._optimizer_dict[data_key]
+            print ('Return in dictionary: {0}'.format(optimizer))
         else:
             raise RuntimeError('Unable to find optimizer related to data with reference ID {0} of type {1}.'
                                'Current keys are {2}.'
@@ -262,7 +275,7 @@ class PyRsCore(object):
         """
         # check input
         optimizer = self._get_optimizer(data_key)
-        if optimizer  is None:
+        if optimizer is None:
             return None
 
         return optimizer.get_function_parameter_names()
@@ -289,15 +302,16 @@ class PyRsCore(object):
 
         return optimizer.get_observed_peaks_centers()[:, 0]
 
-    def get_peak_intensities(self, data_key):
+    def get_peak_intensities(self, data_key_pair):
         """
         get the peak intensities
-        :param data_key:
-        :return: a dictionary (key = scan index, value = peak intensity)
+        :param data_key_pair:
+        :return: a dictionary (key = detector ID) of dictionary (key = scan index, value = peak intensity)
         """
-        optimizer = self._get_optimizer(data_key)
+        optimizer = self._get_optimizer(data_key_pair)
+        peak_intensities = optimizer.get_peak_intensities()
 
-        return optimizer.get_peak_intensities()
+        return peak_intensities
 
     def get_diff_data(self, data_key, scan_log_index):
         """

@@ -319,8 +319,8 @@ class RawDataManager(object):
     def get_scan_index_logs_values(self, data_key_set, log_name_pair_list):
         """
         Get a set of sample logs' values and return with scan indexes
-        :param data_key:
-        :param log_name_list:
+        :param data_key_set:
+        :param log_name_pair_list:
         :return: dictionary (key = scan log index) of dictionary (key = sample log name)
         """
         # check input
@@ -363,13 +363,14 @@ class RawDataManager(object):
         """
         get the range of scan log indexes
         :param data_key:
+        :param sub_key:
         :return: list of scan log indexes
         """
         self._check_data_key(data_key)
 
         if isinstance(self._data_dict[data_key], dict):
             if sub_key is None:
-                raise RuntimeError('Sub-key must be given for data set case')
+                raise RuntimeError('Sub-key must be given by user/caller for data set case')
             ret_range = self._data_dict[data_key][sub_key].get_scan_log_index_range()
         else:
             if sub_key is not None:

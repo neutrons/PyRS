@@ -57,8 +57,12 @@ def test_pole_figure_calculation():
                  ('chi', 'chi'),
                  ('phi', 'phi')]
 
-    pole_figure_calculator.set_experiment_logs(rs_core.data_center.get_scan_index_logs_values(data_key, None,
-                                                                                              log_names))
+    # TODO / FIXME - This is completely broken!
+    for det_id in range(1, 8):
+        pole_figure_calculator.add_input_data_set(det_id, peak_intensities, ...
+
+            .data_center.get_scan_index_logs_values(data_key, None,
+                                                                                             log_names))
     pole_figure_calculator.calculate_pole_figure(peak_intensity_dict=peak_intensities)
     pole_figure_calculator.export_pole_figure(None, 'tmp_test_polefigure.dat', 'ascii')
     pole_figure_calculator.export_pole_figure(None, 'tmp_test_polefigure.mtex', 'mtex')

@@ -113,7 +113,8 @@ class PoleFigureTable(NTableWidget.NTableWidget):
                       ('2theta', 'float'),
                       ('omega', 'float'),
                       ('phi', 'float'),
-                      ('chi', 'float')]
+                      ('chi', 'float'),
+                      ('cost', 'float')]
 
     def __init__(self, parent):
         """
@@ -134,6 +135,8 @@ class PoleFigureTable(NTableWidget.NTableWidget):
         self._col_index_omega = None
         self._col_index_phi = None
         self._col_index_chi = None
+
+        self._col_index_goodness = None
 
         return
 
@@ -156,13 +159,14 @@ class PoleFigureTable(NTableWidget.NTableWidget):
 
         for det_id in sorted(scan_log_indexes_dict.keys()):
             for scan_index in sorted(scan_log_indexes_dict[det_id]):
-                self.append_row([None, None, 0., det_id, scan_index, None, None, None, None])
+                self.append_row([None, None, 0., det_id, scan_index, None, None, None, None, None])
 
         return
 
-    def set_intensity(self, row_number, intensity):
+    def set_intensity(self, row_number, intensity, chi2):
         # TODO - DOC & CHECK
         self.update_cell_value(row_number, self._col_index_intensity, intensity)
+        self.update_cell_value(row_number, self._col_index_goodness, chi2)
 
         return
 
@@ -207,5 +211,7 @@ class PoleFigureTable(NTableWidget.NTableWidget):
         self._col_index_omega = self.TableSetupList.index(('omega', 'float'))
         self._col_index_phi = self.TableSetupList.index(('phi', 'float'))
         self._col_index_chi = self.TableSetupList.index(('chi', 'float'))
+
+        self._col_index_goodness = self.TableSetupList.index(('cost', 'float'))
 
         return
