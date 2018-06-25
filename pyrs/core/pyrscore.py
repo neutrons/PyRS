@@ -34,6 +34,10 @@ class PyRsCore(object):
         # container for optimizers
         self._optimizer_dict = dict()
 
+        # pole figure calculation
+        self._pole_figure_calculator_dict = dict()
+        self._last_pole_figure_calculator = None
+
         return
 
     @property
@@ -89,72 +93,63 @@ class PyRsCore(object):
 
         return
 
-    def calculate_pole_figure(self, data_key_pair):  # , peak_type, background_type, peak_range, use_mantid_engine):
+    def calculate_pole_figure(self, data_key, detector_id_list):
         """ calculate pole figure
-        :param data_key_pair: shall be data_key and sub_key
-        :param peak_type:
-        :param background_type:
-        :param peak_range:
-        :param use_mantid_engine:
+        :param data_key:
+        :param detector_id_list:
         :return:
         """
-        checkdatatypes.check_tuple('Pole figure data key/detector ID (sub key)', data_key_pair, 2)
-        peak_intensities = self.get_peak_intensities(data_key_pair)
+        # TODO/FIXME : make this method work
+        # check input
+        checkdatatypes.check_string_variable('Data key/ID', data_key)
+        if detector_id_list is None:
+            detector_id_list = self.get_detectors_ids(data_key)
+        else:
+            checkdatatypes.check_list('Detector IDs', detector_id_list)
+
+        # get peak intensities from fitting
+        peak_intensities = self.get_peak_intensities(data_key, detector_id_list)
 
         # initialize pole figure
-        self.pole_figure_calculator = polefigurecalculator.PoleFigureCalculator()
+        self._last_pole_figure_calculator = polefigurecalculator.PoleFigureCalculator()
+        self._pole_figure_calculator_dict[data_key] = self._last_pole_figure_calculator
 
+        # set up pole figure logs and get it
         log_names = [('2theta', '2theta'),
                      ('omega', 'omega'),
                      ('chi', 'chi'),
                      ('phi', 'phi')]
+        log_values = self.data_center.get_scan_index_logs_values(data_key, detector_id_list, log_names)
 
-        self.pole_figure_calculator.set_experiment_logs(self.data_center.get_scan_index_logs_values(data_key_pair,
-                                                                                                    log_names))
-        self.pole_figure_calculator.calculate_pole_figure(peak_intensity_dict=peak_intensities)
-
-        # # Check inputs
-        # checkdatatypes.check_string_variable('Data reference ID', data_key)
-        # checkdatatypes.check_string_variable('Peak type', peak_type)
-        # checkdatatypes.check_string_variable('Background type', background_type)
-        # checkdatatypes.check_bool_variable('Flag to use Mantid as fit engine', use_mantid_engine)
-        #
-        # # get scans
-        # scan_index_list = self._data_manager.get_scan_range(data_key)
-        #
-        # # construct data set
-        # pole_figure_data_dict = dict()
-        # for scan_index in scan_index_list:
-        #     # get diffraction data
-        #     reflection = dict()
-        #     reflection['diff data'] = self._data_manager.get_data_set(data_key, scan_index)
-        #     # get sample logs
-        #     reflection['omega'] = self._data_manager.get_sample_log_values(data_key, 'omega')
-        #     reflection['2theta'] = self._data_manager.get_sample_log_values(data_key, '2theta')
-        #     reflection['chi'] = self._data_manager.get_sample_log_values(data_key, 'chi')
-        #     reflection['phi'] = self._data_manager.get_sample_log_values(data_key, 'phi')
-        #     # add
-        #     pole_figure_data_dict[scan_index] = reflection
-        # # END-FOR
-        #
-        # # call pole figure calculator
-        # curr_pf_calculator = polefigurecalculator.PoleFigureCalculator()
-        # curr_pf_calculator.execute(pole_figure_data_dict, peak_type, background_type, peak_range, use_mantid_engine)
-        #
-        # self._pole_figure_calculator[data_key] = curr_pf_calculator
+        # create pole figure calculator
+        self._last_pole_figure_calculator.set_experiment_logs(log_values)
+        self._last_pole_figure_calculator.calculate_pole_figure(peak_intensity_dict=peak_intensities)
 
         return
 
-    def get_pole_figure_value(self, data_key_pair, log_index):
-        # print ('Use data key pair {0} {1} to locate optimizer'.format(data_key_pair[0], data_key_pair[1]))
+    def get_pole_figure_value(self, data_key, detector_id, log_index):
+        """
+        get pole figure value of a certain measurement identified by data key and log index
+        :param data_key:
+        :param detector_id
+        :param log_index:
+        :return:
+        """
+        checkdatatypes.check_int_variable('Scan log #', log_index, (0, None))
 
-        pole_figures = self.pole_figure_calculator.get_pole_figure()
+        pole_figures = self._last_pole_figure_calculator.get_pole_figure(detector_id)
         if len(pole_figures) < log_index + 1:
             alpha = 0
             beta = 0
         else:
-            alpha = pole_figures[log_index][0]
-            beta = pole_figures[log_index][1]
+            try:
+                alpha = pole_figures[log_index][0]
+                beta = pole_figures[log_index][1]
+            except ValueError as val_err:
+                raise RuntimeError('Given detector {0} scan log index {1} of data IDed as {2} is out of range as '
+                                   '({3}, {4})  (error = {5})'
+                                   ''.format(detector_id, log_index, data_key, 0, len(pole_figures), val_err))
+        # END-IF-ELSE
 
         return alpha, beta
 
@@ -248,6 +243,16 @@ class PyRsCore(object):
                                ''.format(data_key, type(data_key), self._optimizer_dict.keys()))
 
         return optimizer
+
+    def get_detector_ids(self, data_key):
+        """
+        get detector IDs for the data loaded as h5 list
+        :param data_key:
+        :return:
+        """
+        self._check_data_key(data_key)
+
+        return self._data_manager.get_sub_keys(data_key)
 
     def get_fit_parameters(self, data_key=None):
         """
@@ -354,12 +359,13 @@ class PyRsCore(object):
 
     def load_rs_raw_set(self, det_h5_list):
         """
-
+        Load a set of HB2B raw daa file with information of detector IDs
         :param det_h5_list:
         :return:
         """
-        # TODO: docs!
+        # read data and store in arrays managed by dictionary with detector IDs
         diff_data_dict, sample_log_dict = self._file_io_controller.load_rs_file_set(det_h5_list)
+        print ('INFO: detector keys: {0}'.format(diff_data_dict.keys()))
 
         data_key = self.data_center.add_raw_data_set(diff_data_dict, sample_log_dict, det_h5_list, replace=True)
         message = 'Load {0} (Ref ID {1})'.format(det_h5_list, data_key)
@@ -369,9 +375,22 @@ class PyRsCore(object):
 
         return data_key, message
 
-    def save_pole_figure(self, data_key, detector, file_name):
-        # TODO/ISSUE - Implement!
-        self.pole_figure_calculator.export_pole_figure(file_name)
+    def save_pole_figure(self, data_key, detector, file_name, file_type):
+        """
+        save pole figure/export pole figure
+        :param data_key:
+        :param detector:
+        :param file_name:
+        :param file_type:
+        :return:
+        """
+        checkdatatypes.check_string_variable('Data key', data_key)
+
+        if data_key in self._pole_figure_calculator_dict:
+            self._pole_figure_calculator_dict[data_key].export_pole_figure(detector, file_name, file_type)
+        else:
+            raise RuntimeError('Data key {0} is not calculated for pole figure.  Current data keys contain {1}'
+                               ''.format(data_key, self._pole_figure_calculator_dict.keys()))
 
         return
 

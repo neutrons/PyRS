@@ -378,6 +378,17 @@ class RawDataManager(object):
 
         return ret_range
 
+    def get_sub_keys(self, data_key):
+        """
+        get sub key for a dta
+        :param data_key:
+        :return:
+        """
+        if isinstance(self._data_dict[data_key], dict):
+            return self._data_dict[data_key].keys()
+
+        return None
+
     def has_data(self, reference_id):
         """
         check whether a data key/reference ID exists

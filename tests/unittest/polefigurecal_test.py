@@ -38,13 +38,16 @@ def test_pole_figure_calculation():
 
     data_key, message = rs_core.load_rs_raw_set(test_data_set)
 
-    # peak fitting for detector 1
-    scan_range = rs_core.data_center.get_scan_range(data_key, 1)
-    rs_core.fit_peaks((data_key, 1), scan_index=scan_range, peak_type='Gaussian',
-                      background_type='Linear', fit_range=(80, 85))
-    rs_core.save_nexus((data_key, 1), '/tmp/matrix.nxs')
+    # peak fitting for detector - ALL
+    detector_id_list = rs_core.get_detector_ids(data_key)
 
-    peak_intensities = rs_core.get_peak_intensities((data_key, 1))
+    for det_id in detector_id_list:
+        scan_range = rs_core.data_center.get_scan_range((data_key, det_id))
+        rs_core.fit_peaks((data_key, det_id), scan_index=scan_range, peak_type='Gaussian',
+                          background_type='Linear', fit_range=(80, 85))
+    # END-FOR
+
+    peak_intensities = rs_core.get_peak_intensities((data_key, None))
 
     # initialize pole figure
     pole_figure_calculator = PoleFigureCalculator()
@@ -54,10 +57,11 @@ def test_pole_figure_calculation():
                  ('chi', 'chi'),
                  ('phi', 'phi')]
 
-    pole_figure_calculator.set_experiment_logs(rs_core.data_center.get_scan_index_logs_values((data_key, 1),
+    pole_figure_calculator.set_experiment_logs(rs_core.data_center.get_scan_index_logs_values(data_key, None,
                                                                                               log_names))
     pole_figure_calculator.calculate_pole_figure(peak_intensity_dict=peak_intensities)
-    pole_figure_calculator.export_pole_figure('/tmp/test_polefigure.dat')
+    pole_figure_calculator.export_pole_figure(None, 'tmp_test_polefigure.dat', 'ascii')
+    pole_figure_calculator.export_pole_figure(None, 'tmp_test_polefigure.mtex', 'mtex')
 
 
 if __name__ == '__main__':

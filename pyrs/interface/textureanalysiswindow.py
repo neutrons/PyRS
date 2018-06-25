@@ -4,6 +4,7 @@ except ImportError:
     from PyQt4.QtGui import QMainWindow, QFileDialog
 import ui.ui_texturecalculationwindow
 from pyrs.utilities import checkdatatypes
+import pyrs.core.pyrscore
 import os
 import gui_helper
 import numpy
@@ -99,8 +100,11 @@ class TextureAnalysisWindow(QMainWindow):
         return '/HFIR/HB2B/'
 
     def do_cal_pole_figure(self):
-        # TODO/FIXME Det ID must be passed in!
-        det_id = 1
+        """
+        calculate pole figure
+        :return:
+        """
+        det_id = None
         self._core.calculate_pole_figure(data_key_pair=(self._data_key, det_id))
 
         # get result out and show in table
@@ -426,17 +430,24 @@ class TextureAnalysisWindow(QMainWindow):
         return value_vector
 
     def save_data_for_mantid(self, data_key, file_name):
-        # TODO
+        """
+        save the loaded diffraction data to Mantid processed NeXus file format
+        :param data_key:
+        :param file_name:
+        :return:
+        """
         self._core.save_nexus(data_key, file_name)
 
-    def setup_window(self, pyrs_core):
-        """
+        return
 
+    def setup_window(self, pyrs_core):
+        """ set up the texture analysis window
         :param pyrs_core:
         :return:
         """
         # check
-        # blabla TODO
+        assert isinstance(pyrs_core, pyrs.core.pyrscore.PyRsCore), 'PyRS core {0} of type {1} must be a PyRsCore ' \
+                                                                   'instance.'.format(pyrs_core, type(pyrs_core))
 
         self._core = pyrs_core
 
