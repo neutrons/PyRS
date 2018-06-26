@@ -39,6 +39,8 @@ class FitPeaksWindow(QMainWindow):
         self.ui.actionSave_As.triggered.connect(self.do_save_as)
         self.ui.actionSave_Fit_Result.triggered.connect(self.do_save_fit_result)
 
+        # TODO - Implement : pushButton_plotLogs, comboBox_detectorID
+
         # others
         self.ui.tableView_fitSummary.setup()
 
