@@ -159,7 +159,10 @@ class FitPeaksWindow(QMainWindow):
         return
 
     def do_fit_peaks(self):
-        # TODO
+        """
+        Fit all peaks
+        :return:
+        """
         int_string_list = str(self.ui.lineEdit_scanNUmbers.text()).strip()
         if len(int_string_list) == 0:
             scan_log_index = None

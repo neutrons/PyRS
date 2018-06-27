@@ -42,30 +42,16 @@ def test_pole_figure_calculation():
     detector_id_list = rs_core.get_detector_ids(data_key)
 
     for det_id in detector_id_list:
-        scan_range = rs_core.data_center.get_scan_range((data_key, det_id))
+        scan_range = rs_core.data_center.get_scan_range(data_key, det_id)
         rs_core.fit_peaks((data_key, det_id), scan_index=scan_range, peak_type='Gaussian',
                           background_type='Linear', fit_range=(80, 85))
     # END-FOR
 
-    peak_intensities = rs_core.get_peak_intensities((data_key, None))
+    # calculate pole figure
+    rs_core.calculate_pole_figure(data_key, range(1, 8))
 
-    # initialize pole figure
-    pole_figure_calculator = PoleFigureCalculator()
-
-    log_names = [('2theta', '2theta'),
-                 ('omega', 'omega'),
-                 ('chi', 'chi'),
-                 ('phi', 'phi')]
-
-    # TODO / FIXME - This is completely broken!
-    for det_id in range(1, 8):
-        pole_figure_calculator.add_input_data_set(det_id, peak_intensities, ...
-
-            .data_center.get_scan_index_logs_values(data_key, None,
-                                                                                             log_names))
-    pole_figure_calculator.calculate_pole_figure(peak_intensity_dict=peak_intensities)
-    pole_figure_calculator.export_pole_figure(None, 'tmp_test_polefigure.dat', 'ascii')
-    pole_figure_calculator.export_pole_figure(None, 'tmp_test_polefigure.mtex', 'mtex')
+    # export
+    rs_core.save_pole_figure(data_key, None, '/tmp/polefiguretest.mtex', 'mtex')
 
 
 if __name__ == '__main__':

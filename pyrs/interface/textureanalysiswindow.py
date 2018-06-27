@@ -46,6 +46,9 @@ class TextureAnalysisWindow(QMainWindow):
         # mutexes
         self._sample_log_names_mutex = False
 
+        # current data information
+        self._data_key = None
+
         return
 
     def _init_widgets(self):
@@ -170,13 +173,24 @@ class TextureAnalysisWindow(QMainWindow):
             message = message[:80]
         self.ui.label_loadedFileInfo.setText(message)
 
+        # About table
+        det_id_list = self._core.get_detector_ids(data_key)
+        if self.ui.tableView_poleFigureParams.rowCount() > 0:
+            self.ui.tableView_poleFigureParams.remove_all_rows()
+        table_init_dict = dict()
+        for det_id in sorted(det_id_list):
+            table_init_dict[det_id] = self._core.data_center.get_scan_range(data_key, det_id)
+            # self.ui.tableView_poleFigureParams.init_exp({1: self._core.data_center.get_scan_range(data_key, 1)})
+        self.ui.tableView_poleFigureParams.init_exp(table_init_dict)
+
         # get the range of log indexes from detector 1 in order to set up the UI
-        log_range = self._core.data_center.get_scan_range(data_key, 1)
+        log_range = self._core.data_center.get_scan_range(data_key, det_id_list[0])
         self.ui.label_logIndexMin.setText(str(log_range[0]))
         self.ui.label_logIndexMax.setText(str(log_range[-1]))
 
         # get the sample logs
-        sample_log_names = self._core.data_center.get_sample_logs_list((data_key, 1), can_plot=True)
+        sample_log_names = self._core.data_center.get_sample_logs_list((data_key, det_id_list[0]),
+                                                                       can_plot=True)
 
         self._sample_log_names_mutex = True
         self.ui.comboBox_xaxisNames.clear()
@@ -187,13 +201,7 @@ class TextureAnalysisWindow(QMainWindow):
             self.ui.comboBox_yaxisNames.addItem(sample_log)
         self._sample_log_names_mutex = False
 
-        # TODO FIXME: how to record data key?
-
-        # About table
-        if self.ui.tableView_poleFigureParams.rowCount() > 0:
-            self.ui.tableView_poleFigureParams.remove_all_rows()
-        self.ui.tableView_poleFigureParams.init_exp({1: self._core.data_center.get_scan_range(data_key, 1)})
-
+        # set the pole figure related sample log values
         log_names = [('2theta', '2theta'),
                      ('omega', 'omega'),
                      ('chi', 'chi'),
@@ -231,6 +239,7 @@ class TextureAnalysisWindow(QMainWindow):
 
         # call the core's method to fit peaks
         det_id_list = self._core.get_detector_ids(data_key)
+        print ('[INFO] Detector ID list: {0}'.format(det_id_list))
         for det_id in det_id_list:
             self._core.fit_peaks((data_key, det_id), scan_log_index,
                                  peak_function, bkgd_function, fit_range)
