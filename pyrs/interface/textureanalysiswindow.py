@@ -33,6 +33,7 @@ class TextureAnalysisWindow(QMainWindow):
         self.ui.pushButton_plotPeaks.clicked.connect(self.do_plot_diff_data)
         self.ui.pushButton_fitPeaks.clicked.connect(self.do_fit_peaks)
         self.ui.pushButton_calPoleFigure.clicked.connect(self.do_cal_pole_figure)
+        self.ui.pushButton_save_pf.clicked.connect(self.do_save_pole_figure)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.actionOpen_HDF5.triggered.connect(self.do_load_scans_hdf)
@@ -383,8 +384,10 @@ class TextureAnalysisWindow(QMainWindow):
         """
         file_info = QFileDialog.getSaveFileName(self, directory=self._core.working_dir,
                                                 caption='Save Pole Figure To ASCII File')
+
         if isinstance(file_info, tuple):
             file_name = file_info[0]
+            print ('[DB...Save Pole Figure] File name: {0}, Filter = {1}'.format(file_info))
         else:
             file_name = file_info
         file_name = str(file_name)
