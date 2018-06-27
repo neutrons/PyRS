@@ -135,6 +135,32 @@ class PyRsCore(object):
 
         return
 
+    def get_pole_figures(self, data_key, detector_id_list):
+        """
+        get the (N, 3) array for pole figures
+        :param data_key:
+        :param detector_id_list:
+        :return:
+        """
+        pole_figure_calculator = self._pole_figure_calculator_dict[data_key]
+        assert isinstance(pole_figure_calculator, polefigurecalculator.PoleFigureCalculator), 'Pole figure calculator ' \
+                                                                                              'type mismatched'
+
+        if detector_id_list is None:
+            detector_id_list = pole_figure_calculator.get_detector_ids()
+
+        pole_figure_array = None
+        for det_id in detector_id_list:
+            # get_pole_figure returned 2 tuple.  we need the second one as an array for alpha, beta, intensity
+            sub_array = pole_figure_calculator.get_pole_figure(det_id)[1]
+            if pole_figure_array is None:
+                pole_figure_array = sub_array
+            else:
+                numpy.expand_array(pole_figure_array, sub_array)
+        # END-FOR
+
+        return pole_figure_array
+
     def get_pole_figure_value(self, data_key, detector_id, log_index):
         """
         get pole figure value of a certain measurement identified by data key and log index
@@ -145,7 +171,7 @@ class PyRsCore(object):
         """
         checkdatatypes.check_int_variable('Scan log #', log_index, (0, None))
 
-        pole_figures = self._last_pole_figure_calculator.get_pole_figure(detector_id)
+        log_index_list, pole_figures = self._last_pole_figure_calculator.get_pole_figure(detector_id)
         if len(pole_figures) < log_index + 1:
             alpha = 0
             beta = 0

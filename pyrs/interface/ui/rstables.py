@@ -1,5 +1,6 @@
 # Module containing extended TableWidgets for PyRS project
 import NTableWidget
+from pyrs.utilities import checkdatatypes
 
 
 class FitResultTable(NTableWidget.NTableWidget):
@@ -141,8 +142,15 @@ class PoleFigureTable(NTableWidget.NTableWidget):
         return
 
     def get_detector_log_index(self, row_number):
-        # TODO DOC/CHECK
+        """
+        get detector ID and scan log index of a row
+        :param row_number:
+        :return:
+        """
+        # check
+        checkdatatypes.check_int_variable('Row number', row_number, (0, self.rowCount()))
 
+        # get values
         det_id = self.get_cell_value(row_number, self._col_det_id)
         log_number = self.get_cell_value(row_number, self._col_index_scan_index)
 

@@ -159,7 +159,7 @@ class PoleFigureCalculator(object):
         # initialize class instances
         self._peak_info_dict = dict()   # key: detector ID, scan log index  (int, int)
         self._peak_intensity_dict = dict()   # key: detector ID, scan log index (int, int)
-        self._pole_figure_dict = dict()  # key: detector ID, value: 2-tuple.  scan log index list, 2D array
+        self._pole_figure_dict = dict()  # key: detector ID, value: 2-tuple.  scan log indexes (list), 2D array
 
         # flag
         self._cal_successful = False
@@ -239,6 +239,7 @@ class PoleFigureCalculator(object):
                 pole_figure_array[index, 0] = alpha
                 pole_figure_array[index, 1] = beta
                 pole_figure_array[index, 2] = intensity_i
+                print ('[DB...BAT] index: {0} scan {1} alpha = {2}, beta = {3}'.format(index, scan_index, alpha, beta))
                 # END-FOR
             # END-FOR
 
@@ -308,9 +309,8 @@ class PoleFigureCalculator(object):
     def get_pole_figure(self, det_id):
         """
         return Pole figure in a numpy 2D array
-        :return: numpy array with shape (n, 3).  n is the number of data points
+        :return: 2-tuple: (1) an integer list (2) numpy array with shape (n, 3).  n is the number of data points
         """
-
         return self._pole_figure_dict[det_id]
 
     def rotate_project_q(self, two_theta, omega, chi, phi):

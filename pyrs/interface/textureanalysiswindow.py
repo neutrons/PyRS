@@ -115,6 +115,7 @@ class TextureAnalysisWindow(QMainWindow):
         for row_number in range(num_rows):
             det_id, log_index = self.ui.tableView_poleFigureParams.get_detector_log_index(row_number)
             alpha, beta = self._core.get_pole_figure_value(self._data_key, det_id, log_index)
+            print ('[DB...BAT] row {0}:  alpha = {1}, beta = {2}'.format(row_number, alpha, beta))
             self.ui.tableView_poleFigureParams.set_pole_figure_projection(row_number, alpha, beta)
 
         return
@@ -206,18 +207,20 @@ class TextureAnalysisWindow(QMainWindow):
                      ('omega', 'omega'),
                      ('chi', 'chi'),
                      ('phi', 'phi')]
-        scan_log_dict = self._core.data_center.get_scan_index_logs_values((data_key, 1), log_names)
+        pole_figure_logs_dict = dict()
+        for det_id in det_id_list:
+            scan_log_dict = self._core.data_center.get_scan_index_logs_values((data_key, det_id), log_names)
+            pole_figure_logs_dict[det_id] = scan_log_dict
+
+        # set the pole figure motor positions to each row
         for i_row in range(self.ui.tableView_poleFigureParams.rowCount()):
             det_id, scan_log_index = self.ui.tableView_poleFigureParams.get_detector_log_index(i_row)
-            pole_figure_pos_dict = scan_log_dict[scan_log_index]
+            pole_figure_pos_dict = pole_figure_logs_dict[det_id][scan_log_index]
             self.ui.tableView_poleFigureParams.set_pole_figure_motors_position(i_row, pole_figure_pos_dict)
 
         # plot the first index
         self.ui.lineEdit_scanNumbers.setText('0')
         self.do_plot_diff_data()
-
-        # plot the contour
-        # FIXME/TODO/ASAP3 self.ui.graphicsView_contourView.plot_contour(self._core.data_center.get_data_2d(data_key))
 
         return
 
@@ -262,26 +265,21 @@ class TextureAnalysisWindow(QMainWindow):
         # END-BLOCK
 
         # fill up the table
+        chi2_dict = dict()
+        intensity_dict = dict()
         for det_id in det_id_list:
-            # form data key (pair)
             data_key_pair = data_key, det_id
-            center_vec = self._core.get_peak_fit_param_value(data_key_pair, 'centre')
             chi2_vec = self._core.get_peak_fit_param_value(data_key_pair, 'chi2')
             intensity_vec = self._core.get_peak_fit_param_value(data_key_pair, 'intensity')
+            chi2_dict[det_id] = chi2_vec
+            intensity_dict[det_id] = intensity_vec
+        # END-FOR
 
-            # FIXME : this is not a good approach with scan table for a few times
-            for row_index in range(len(center_vec)):
-                # TODO skip for non-related
-                det_id_i, log_index_i = \
-                    self.ui.tableView_poleFigureParams.get_detector_log_index(row_index)
-                if det_id_i != det_id:
-                    continue
-                # set
-                self.ui.tableView_poleFigureParams.set_intensity(row_index, intensity_vec[log_index_i],
-                                                                 chi2_vec[log_index_i])
-                # END-FOR
-            # END-FOR (rows)
-        # END-FOR (each detector)
+        for row_index in range(self.ui.tableView_poleFigureParams.rowCount()):
+            det_id, scan_log_index = self.ui.tableView_poleFigureParams.get_detector_log_index(row_index)
+            self.ui.tableView_poleFigureParams.set_intensity(row_index, intensity_dict[det_id][scan_log_index],
+                                                             chi2_dict[det_id][scan_log_index])
+        # END-FOR
 
         # plot the model and difference
         self.do_plot_diff_data()
@@ -409,6 +407,17 @@ class TextureAnalysisWindow(QMainWindow):
             return
 
         self._core.save_nexus((self._data_key, 1), nxs_file_name)
+
+        return
+
+    def do_plot_pole_figure(self):
+        """
+        plot pole figure in the 2D
+        :return:
+        """
+        pole_figure_array = self._core.get_pole_figures(self._data_key, None)
+
+        self.ui.graphicsView_contour.plot_pole_figure(pole_figure_array)
 
         return
 
