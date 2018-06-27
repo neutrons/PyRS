@@ -38,6 +38,7 @@ class MantidPeakFitEngine(object):
         checkdatatypes.check_list('Data set list', data_set_list)
         checkdatatypes.check_string_variable('Peak fitting reference ID', ref_id)
 
+        self._reference_id = ref_id
         self._workspace_name = self._get_matrix_name(ref_id)
         self._data_workspace = self.generate_matrix_workspace(data_set_list, matrix_ws_name=self._workspace_name)
 
@@ -201,9 +202,9 @@ class MantidPeakFitEngine(object):
                ''.format(self._data_workspace.getNumberHistograms(), fit_range))
 
         # no pre-determined peak center: use center of mass
-        r_positions_ws_name = 'fitted_peak_positions'
-        r_param_table_name = 'param_m'
-        r_model_ws_name = 'model_full'
+        r_positions_ws_name = 'fitted_peak_positions_{0}'.format(self._reference_id)
+        r_param_table_name = 'param_m_{0}'.format(self._reference_id)
+        r_model_ws_name = 'model_full_{0}'.format(self._reference_id)
         r = FitPeaks(InputWorkspace=self._data_workspace,
                      OutputWorkspace=r_positions_ws_name,
                      PeakCentersWorkspace=self._center_of_mass_ws,

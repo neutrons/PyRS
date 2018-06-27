@@ -39,6 +39,8 @@ class FitPeaksWindow(QMainWindow):
         self.ui.actionSave_As.triggered.connect(self.do_save_as)
         self.ui.actionSave_Fit_Result.triggered.connect(self.do_save_fit_result)
 
+        # TODO - Implement : pushButton_plotLogs, comboBox_detectorID
+
         # others
         self.ui.tableView_fitSummary.setup()
 
@@ -157,7 +159,10 @@ class FitPeaksWindow(QMainWindow):
         return
 
     def do_fit_peaks(self):
-        # TODO
+        """
+        Fit all peaks
+        :return:
+        """
         int_string_list = str(self.ui.lineEdit_scanNUmbers.text()).strip()
         if len(int_string_list) == 0:
             scan_log_index = None

@@ -17,32 +17,30 @@
    <layout class="QGridLayout" name="gridLayout">
     <item row="2" column="2">
      <layout class="QGridLayout" name="gridLayout_4">
-      <item row="0" column="1">
-       <widget class="QComboBox" name="comboBox_xaxisNames"/>
-      </item>
-      <item row="0" column="0">
-       <widget class="QLabel" name="label_5">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
+      <item row="1" column="5">
+       <spacer name="verticalSpacer">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
         </property>
-        <property name="maximumSize">
+        <property name="sizeType">
+         <enum>QSizePolicy::Ignored</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
          <size>
-          <width>60</width>
-          <height>16777215</height>
+          <width>20</width>
+          <height>40</height>
          </size>
         </property>
+       </spacer>
+      </item>
+      <item row="0" column="7">
+       <widget class="QCheckBox" name="checkBox_keepPrevPlotRight">
         <property name="text">
-         <string>X-axis</string>
+         <string>Keep</string>
         </property>
        </widget>
       </item>
-      <item row="0" column="4">
-       <widget class="QComboBox" name="comboBox_yaxisNames"/>
-      </item>
-      <item row="0" column="5">
+      <item row="0" column="6">
        <spacer name="horizontalSpacer_4">
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
@@ -58,7 +56,26 @@
         </property>
        </spacer>
       </item>
+      <item row="0" column="5">
+       <widget class="QComboBox" name="comboBox_yaxisNames"/>
+      </item>
       <item row="0" column="3">
+       <spacer name="horizontalSpacer_5">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeType">
+         <enum>QSizePolicy::Ignored</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item row="0" column="4">
        <widget class="QLabel" name="label_6">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
@@ -77,44 +94,54 @@
         </property>
        </widget>
       </item>
-      <item row="1" column="4">
-       <spacer name="verticalSpacer">
-        <property name="orientation">
-         <enum>Qt::Vertical</enum>
+      <item row="0" column="2">
+       <widget class="QComboBox" name="comboBox_xaxisNames"/>
+      </item>
+      <item row="0" column="0">
+       <widget class="QComboBox" name="comboBox_detectorID"/>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLabel" name="label_5">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
         </property>
-        <property name="sizeType">
-         <enum>QSizePolicy::Ignored</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
+        <property name="maximumSize">
          <size>
-          <width>20</width>
-          <height>40</height>
+          <width>60</width>
+          <height>16777215</height>
          </size>
         </property>
-       </spacer>
-      </item>
-      <item row="0" column="6">
-       <widget class="QCheckBox" name="checkBox_keepPrevPlotRight">
         <property name="text">
-         <string>Keep</string>
+         <string>X-axis</string>
         </property>
        </widget>
       </item>
-      <item row="0" column="2">
-       <spacer name="horizontalSpacer_5">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
+      <item row="0" column="8">
+       <widget class="QPushButton" name="pushButton_plotLogs">
+        <property name="text">
+         <string>Plot</string>
         </property>
-        <property name="sizeType">
-         <enum>QSizePolicy::Ignored</enum>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QPushButton" name="pushButton_save_pf">
+        <property name="toolTip">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Save pole figure to a file&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
         </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>40</width>
-          <height>20</height>
-         </size>
+        <property name="text">
+         <string>Save P.F.</string>
         </property>
-       </spacer>
+       </widget>
+      </item>
+      <item row="1" column="2">
+       <widget class="QPushButton" name="pushButton_plot_pf">
+        <property name="text">
+         <string>Plot P.F.</string>
+        </property>
+       </widget>
       </item>
      </layout>
     </item>
