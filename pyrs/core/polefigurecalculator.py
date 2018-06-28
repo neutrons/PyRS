@@ -280,6 +280,7 @@ class PoleFigureCalculator(object):
     def export_pole_figure(self, detector_id_list,  file_name, file_type):
         """
         exported the calculated pole figure
+        :param detector_id_list:
         :param file_name:
         :return:
         """

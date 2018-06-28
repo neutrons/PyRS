@@ -415,11 +415,11 @@ class PyRsCore(object):
 
         return data_key, message
 
-    def save_pole_figure(self, data_key, detector, file_name, file_type):
+    def save_pole_figure(self, data_key, detectors, file_name, file_type):
         """
         save pole figure/export pole figure
         :param data_key:
-        :param detector:
+        :param detectors: a list of detector (ID)s or None (default for all detectors)
         :param file_name:
         :param file_type:
         :return:
@@ -427,7 +427,7 @@ class PyRsCore(object):
         checkdatatypes.check_string_variable('Data key', data_key)
 
         if data_key in self._pole_figure_calculator_dict:
-            self._pole_figure_calculator_dict[data_key].export_pole_figure(detector, file_name, file_type)
+            self._pole_figure_calculator_dict[data_key].export_pole_figure(detectors, file_name, file_type)
         else:
             raise RuntimeError('Data key {0} is not calculated for pole figure.  Current data keys contain {1}'
                                ''.format(data_key, self._pole_figure_calculator_dict.keys()))

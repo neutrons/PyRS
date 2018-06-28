@@ -98,7 +98,7 @@
        <widget class="QComboBox" name="comboBox_xaxisNames"/>
       </item>
       <item row="0" column="0">
-       <widget class="QComboBox" name="comboBox_detectorID"/>
+       <widget class="QComboBox" name="comboBox_detectorIDsForLogs"/>
       </item>
       <item row="0" column="1">
        <widget class="QLabel" name="label_5">
@@ -163,13 +163,6 @@
     </item>
     <item row="2" column="0">
      <layout class="QGridLayout" name="gridLayout_3">
-      <item row="0" column="0">
-       <widget class="QLabel" name="label_4">
-        <property name="text">
-         <string>Scan Numbers</string>
-        </property>
-       </widget>
-      </item>
       <item row="1" column="0">
        <widget class="QLabel" name="label_7">
         <property name="text">
@@ -288,12 +281,15 @@
         </property>
        </widget>
       </item>
-      <item row="0" column="2">
-       <widget class="QCheckBox" name="checkBox_keepPrevPlot">
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_4">
         <property name="text">
-         <string>Keep</string>
+         <string>Scan Numbers</string>
         </property>
        </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QComboBox" name="comboBox_detectorIDsFitPeak"/>
       </item>
      </layout>
     </item>
@@ -422,7 +418,7 @@
      <x>0</x>
      <y>0</y>
      <width>1695</width>
-     <height>25</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -439,8 +435,14 @@
     </property>
     <addaction name="actionSave_Diffraction_Data_For_Mantid"/>
    </widget>
+   <widget class="QMenu" name="menuPlot">
+    <property name="title">
+     <string>Plot</string>
+    </property>
+   </widget>
    <addaction name="menuFile"/>
    <addaction name="menuPeak_Fitting"/>
+   <addaction name="menuPlot"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionQuit">

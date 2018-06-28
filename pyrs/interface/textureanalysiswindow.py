@@ -152,7 +152,7 @@ class TextureAnalysisWindow(QMainWindow):
         new_file_list = list()
         for ifile, file_name in enumerate(hdf_name_list):
             det_id = int(file_name.split('[')[1].split(']')[0])
-            new_file_list.append((det_id, file_name))
+            new_file_list.append((det_id, str(file_name)))
         # END-FOR
 
         self.load_h5_scans(new_file_list)
@@ -165,9 +165,12 @@ class TextureAnalysisWindow(QMainWindow):
         :param rs_file_set:
         :return:
         """
-        # load file
+        # load file: the data key usually is based on the first file's name
         data_key, message = self._core.load_rs_raw_set(rs_file_set)
         self._data_key = data_key
+
+        print ('[DB...BAT] Loaded data keys: {0}  with sub keys: {1}'.format(self._data_key,
+                                                                             self._core.get_detector_ids(data_key)))
 
         # edit information
         message = str(message)
@@ -189,6 +192,13 @@ class TextureAnalysisWindow(QMainWindow):
         log_range = self._core.data_center.get_scan_range(data_key, det_id_list[0])
         self.ui.label_logIndexMin.setText(str(log_range[0]))
         self.ui.label_logIndexMax.setText(str(log_range[-1]))
+
+        # Fill the combobox for detector IDs
+        self.ui.comboBox_detectorIDsFitPeak.clear()
+        self.ui.comboBox_detectorIDsForLogs.clear()
+        for det_id in sorted(det_id_list):
+            self.ui.comboBox_detectorIDsFitPeak.addItem(str(det_id))
+            self.ui.comboBox_detectorIDsForLogs.addItem(str(det_id))
 
         # get the sample logs
         sample_log_names = self._core.data_center.get_sample_logs_list((data_key, det_id_list[0]),
@@ -293,7 +303,12 @@ class TextureAnalysisWindow(QMainWindow):
         :return:
         """
         # gather the information
+        det_id = gui_helper.parse_integer(str(self.ui.comboBox_detectorIDsFitPeak.currentText()))
         scan_log_index_list = gui_helper.parse_integers(str(self.ui.lineEdit_scanNumbers.text()))
+        det_id_list = [det_id] * len(scan_log_index_list)
+        # else:
+        #     if len(det_id_list) != len(scan_log_index_list):
+        #         gui_helper.pop_message('Number of detectors and scans do not match!', 'error')
 
         if len(scan_log_index_list) == 0:
             gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
@@ -306,11 +321,17 @@ class TextureAnalysisWindow(QMainWindow):
 
         # get data and plot
         err_msg = ''
-        detid = 1
-        for scan_log_index in scan_log_index_list:
+        for index in range(len(scan_log_index_list)):
+            det_id = det_id_list[index]
+            scan_log_index = scan_log_index_list[index]
+
             try:
-                diff_data_set = self._core.get_diff_data(data_key=(self._data_key, detid), scan_log_index=scan_log_index)
-                self.ui.graphicsView_fitSetup.plot_diff_data(diff_data_set, 'Scan {0}'.format(scan_log_index))
+                # get diffraction data
+                diff_data_set = self._core.get_diff_data(data_key=(self._data_key, det_id),
+                                                         scan_log_index=scan_log_index)
+                self.ui.graphicsView_fitSetup.plot_diff_data(diff_data_set,
+                                                             'Detector {0} Scan {1}'
+                                                             ''.format(det_id, scan_log_index))
 
                 # more than 1 scan required to plot... no need to plot model and difference
                 if len(scan_log_index_list) > 1:
@@ -318,7 +339,7 @@ class TextureAnalysisWindow(QMainWindow):
 
                 # existing model
                 if self._data_key is not None:
-                    model_data_set = self._core.get_modeled_data(data_key=(self._data_key, detid),
+                    model_data_set = self._core.get_modeled_data(data_key=(self._data_key, det_id),
                                                                  scan_log_index=scan_log_index_list[0])
                 else:
                     model_data_set = None
@@ -379,23 +400,33 @@ class TextureAnalysisWindow(QMainWindow):
 
     def do_save_pole_figure(self):
         """
-
+        save pole figure in both ascii and mtex format
         :return:
         """
+        file_filter = 'MTEX (*.mtex);;ASCII (*.dat);;All Files (*.*)'
+        # FIXME - Make file filter work when using Linux - TODO
         file_info = QFileDialog.getSaveFileName(self, directory=self._core.working_dir,
                                                 caption='Save Pole Figure To ASCII File')
 
         if isinstance(file_info, tuple):
             file_name = file_info[0]
-            print ('[DB...Save Pole Figure] File name: {0}, Filter = {1}'.format(file_info))
+            print ('[DB...Save Pole Figure] File name: {0}, Filter = {1}'.format(file_info[0],
+                                                                                 file_info[1]))
         else:
             file_name = file_info
+
         file_name = str(file_name)
 
         if len(file_name) == 0:
             return
 
-        self._core.save_pole_figure(self._data_key, detector=1, file_name=file_name)
+        dir_name = os.path.dirname(file_name)
+        base_name = os.path.basename(file_name).split('.')[0]
+        for file_type, posfix in [('ascii', 'dat'), ('mtex', 'mtex')]:
+            file_name_i = os.path.join(dir_name, '{0}.{1}'.format(base_name, posfix))
+            self._core.save_pole_figure(self._data_key, detectors=None, file_name=file_name_i,
+                                        file_type=file_type)
+        # END-FOR
 
         return
 

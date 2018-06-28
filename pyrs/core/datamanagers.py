@@ -225,13 +225,16 @@ class RawDataManager(object):
     @staticmethod
     def generate_data_set_key(det_h5_list):
         """
-        generate a quasi-unique data (reference) ID for a file and unique within 2^8 occurance with same file name
+        generate a quasi-unique data (reference) ID for a file and unique within 2^8 occurance
+        with same file name:  the name will be based on the first file's name
         :param det_h5_list:
         :return:
         """
-        # TODO - doc and check
+        # check input and sort the files
+        checkdatatypes.check_list('HDF5 file list for each detector', det_h5_list)
         det_h5_list.sort()
 
+        # construct the name from the first file
         file_name = det_h5_list[0][1]
         checkdatatypes.check_string_variable('Data file name for data reference ID', file_name)
 
