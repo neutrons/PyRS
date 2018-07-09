@@ -3,15 +3,15 @@ from pyrs.utilities import checkdatatypes
 import h5py
 import numpy
 import sys
-home_dir = os.path.expanduser('~')
-if home_dir.startswith('/SNS/'):
-    # analysis cluster
-    # nightly: sys.path.insert(1, '/opt/mantidnightly/bin/')
-    # local build
-    sys.path.insert(1, '/SNS/users/wzz/Mantid_Project/builds/debug/bin/')
-elif home_dir.startswith('/home/wzz'):
-    # VZ's workstation
-    sys.path.insert(1, '/home/wzz/Mantid_Project/builds/debug-master/bin')
+# home_dir = os.path.expanduser('~')
+# if home_dir.startswith('/SNS/'):
+#     # analysis cluster
+#     # nightly: sys.path.insert(1, '/opt/mantidnightly/bin/')
+#     # local build
+#     sys.path.insert(1, '/SNS/users/wzz/Mantid_Project/builds/debug/bin/')
+# elif home_dir.startswith('/home/wzz'):
+#     # VZ's workstation
+#     sys.path.insert(1, '/home/wzz/Mantid_Project/builds/debug-master/bin')
 from mantid.simpleapi import SaveNexusProcessed
 
 

@@ -98,7 +98,7 @@
        <widget class="QComboBox" name="comboBox_xaxisNames"/>
       </item>
       <item row="0" column="0">
-       <widget class="QComboBox" name="comboBox_detectorIDsForLogs"/>
+       <widget class="QComboBox" name="comboBox_detectorID"/>
       </item>
       <item row="0" column="1">
        <widget class="QLabel" name="label_5">
@@ -198,10 +198,23 @@
       <item row="0" column="1">
        <layout class="QHBoxLayout" name="horizontalLayout_5">
         <item>
+         <widget class="QLabel" name="label_4">
+          <property name="text">
+           <string>Scan Numbers</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QLineEdit" name="lineEdit_scanNumbers"/>
         </item>
         <item>
          <widget class="QPushButton" name="pushButton_scanNumberBackward">
+          <property name="maximumSize">
+           <size>
+            <width>40</width>
+            <height>16777215</height>
+           </size>
+          </property>
           <property name="text">
            <string>&lt;</string>
           </property>
@@ -209,6 +222,12 @@
         </item>
         <item>
          <widget class="QPushButton" name="pushButton_scanNumberForward">
+          <property name="maximumSize">
+           <size>
+            <width>40</width>
+            <height>16777215</height>
+           </size>
+          </property>
           <property name="text">
            <string>&gt;</string>
           </property>
@@ -217,7 +236,7 @@
         <item>
          <widget class="QLabel" name="label_8">
           <property name="text">
-           <string>min: </string>
+           <string>Range</string>
           </property>
          </widget>
         </item>
@@ -243,13 +262,6 @@
            </size>
           </property>
          </spacer>
-        </item>
-        <item>
-         <widget class="QLabel" name="label_10">
-          <property name="text">
-           <string>max:</string>
-          </property>
-         </widget>
         </item>
         <item>
          <widget class="QLabel" name="label_logIndexMax">
@@ -281,15 +293,15 @@
         </property>
        </widget>
       </item>
-      <item row="0" column="0">
-       <widget class="QLabel" name="label_4">
+      <item row="0" column="2">
+       <widget class="QCheckBox" name="checkBox_keepPrevPlot">
         <property name="text">
-         <string>Scan Numbers</string>
+         <string>Keep</string>
         </property>
        </widget>
       </item>
-      <item row="0" column="2">
-       <widget class="QComboBox" name="comboBox_detectorIDsFitPeak"/>
+      <item row="0" column="0">
+       <widget class="QComboBox" name="comboBox_detectorIDsPlotPeak"/>
       </item>
      </layout>
     </item>
@@ -418,7 +430,7 @@
      <x>0</x>
      <y>0</y>
      <width>1695</width>
-     <height>22</height>
+     <height>25</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -435,14 +447,15 @@
     </property>
     <addaction name="actionSave_Diffraction_Data_For_Mantid"/>
    </widget>
-   <widget class="QMenu" name="menuPlot">
+   <widget class="QMenu" name="menuPole_Figure">
     <property name="title">
-     <string>Plot</string>
+     <string>Pole Figure</string>
     </property>
+    <addaction name="actionExport_Table"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuPeak_Fitting"/>
-   <addaction name="menuPlot"/>
+   <addaction name="menuPole_Figure"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionQuit">
@@ -466,6 +479,11 @@
   <action name="actionSave_Diffraction_Data_For_Mantid">
    <property name="text">
     <string>Save Diffraction Data For Mantid</string>
+   </property>
+  </action>
+  <action name="actionExport_Table">
+   <property name="text">
+    <string>Export Table</string>
    </property>
   </action>
  </widget>

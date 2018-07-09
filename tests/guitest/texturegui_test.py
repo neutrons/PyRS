@@ -39,7 +39,7 @@ def test_main():
     # fit peaks
     texture_window.do_fit_peaks()
     # calcualte pole figure
-    texture_window.do_cal_pole_figure()
+    # texture_window.do_cal_pole_figure()
 
     # texture_window.save_data_for_mantid(None, 'peaks.nxs')
 

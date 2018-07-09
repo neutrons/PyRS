@@ -6,10 +6,10 @@ if [ $1 ]; then
 else
     CMD=''
 fi
+MANTIDLOCALPATH=/home/wzz/Mantid_Project/builds/debug-master/bin/
 MANTIDMACPATH=/Users/wzz/MantidBuild/debug-stable/bin/
 MANTIDSNSDEBUGPATH=/SNS/users/wzz/Mantid_Project/builds/debug/bin/
-MANTIDLOCALPATH=/home/wzz/Mantid_Project/debug/bin/
-MANTIDPATH=$MANTIDMACPATH:$MANTIDSNSDEBUGPATH:$MANTIDLOCALPATH
+MANTIDPATH=$MANTIDMACPATH:$MANTIDLOCALPATH:$MANTIDSNSDEBUGPATH
 PYTHONPATH=$MANTIDPATH:$PYTHONPATH
 echo $PYTHONPATH
 PYTHONPATH=build/lib:$PYTHONPATH $CMD build/scripts-2.7/texturegui_test.py

@@ -1,12 +1,10 @@
 # This is the core of PyRS serving as the controller of PyRS and hub for all the data
-import scandataio
 import datamanagers
-import peakfitengine
 from pyrs.utilities import checkdatatypes
-import numpy as np
 import mantid_fit_peak
 import scandataio
 import polefigurecalculator
+import os
 
 # Define Constants
 SUPPORTED_PEAK_TYPES = ['Gaussian', 'Voigt', 'PseudoVoigt', 'Lorentzian']
@@ -249,7 +247,7 @@ class PyRsCore(object):
 
         # observed COM and highest Y value data point
         peak_optimizer.calculate_center_of_mass()
-
+        # fit peaks
         peak_optimizer.fit_peaks(peak_type, background_type, fit_range, None)
 
         self._last_optimizer = peak_optimizer
@@ -270,12 +268,12 @@ class PyRsCore(object):
             return None
         elif data_key is None and self._last_optimizer is not None:
             # by default: current optimizer
-            print ('Return last')
+            print ('Return last optimizer')
             optimizer = self._last_optimizer
         elif data_key in self._optimizer_dict:
             # with data key
             optimizer = self._optimizer_dict[data_key]
-            print ('Return in dictionary: {0}'.format(optimizer))
+            print ('Return optimizer in dictionary: {0}'.format(optimizer))
         else:
             raise RuntimeError('Unable to find optimizer related to data with reference ID {0} of type {1}.'
                                'Current keys are {2}.'
@@ -447,12 +445,22 @@ class PyRsCore(object):
         # get the workspace name
         try:
             matrix_name = optimizer.get_data_workspace_name()
+            # save
+            scandataio.save_mantid_nexus(matrix_name, file_name)
         except RuntimeError as run_err:
             raise RuntimeError('Unable to write to NeXus because Mantid fit engine is not used.\nError info: {0}'
                                ''.format(run_err))
 
-        # save
-        scandataio.save_mantid_nexus(matrix_name, file_name)
+        try:
+            matrix_name = optimizer.get_center_of_mass_workspace_name()
+            # save
+            dir_name = os.path.dirname(file_name)
+            base_name = os.path.basename(file_name)
+            file_name = os.path.join(dir_name, base_name.split('.')[0] + '_com.nxs')
+            scandataio.save_mantid_nexus(matrix_name, file_name)
+        except RuntimeError as run_err:
+            raise RuntimeError('Unable to write COM to NeXus because Mantid fit engine is not used.\nError info: {0}'
+                               ''.format(run_err))
 
         return
 

@@ -293,7 +293,10 @@ class PoleFigureCalculator(object):
         checkdatatypes.check_file_name(file_name, check_exist=False, check_writable=True)
         checkdatatypes.check_string_variable('Output pole figure file type/format', file_type)
 
+        print ('[DB...BAT] Pole figure to export:  type: {0}\n{1}'.format(type(self._pole_figure_dict),
+                                                                          self._pole_figure_dict))
         if file_type.lower() == 'ascii':
+            # TODO - 20180809 - It does not work!
             numpy.savetxt(file_name, self._pole_figure_dict)   # x,y,z equal sized 1D arrays
         elif file_type.lower == 'mtex':
             export_to_mtex(detector_id_list, file_name, self._pole_figure_dict)
@@ -332,55 +335,96 @@ class PoleFigureCalculator(object):
 
         print ('2theta = {0}\nomega = {1}\nchi = {2}\nphi = {3}'
                ''.format(two_theta, omega, chi, phi))
+        #
+        # # rotate Q
+        # vec_q = numpy.array([0., 1., 0.])
+        # rotation_matrix = cal_rotation_matrix_z(-(180. - two_theta) * 0.5, is_degree=True, use_matrix=self._use_matmul)
+        #
+        # print ('Rotation about Z-axis:\n{0}'.format(nice(rotation_matrix)))
+        #
+        # if self._use_matmul:
+        #     vec_q = numpy.matmul(rotation_matrix, vec_q.transpose())
+        # else:
+        #     vec_q = matrix_mul_vector(rotation_matrix, vec_q)
+        #
+        # # vec_q_prime = rotation_matrix_z(-omega, True) * rotation_matrix_x(chi, True) *
+        # #               rotation_matrix_z(phi, True) *  vec_q
+        # # R(omega) * R(chi)
+        # matrix_omega = cal_rotation_matrix_z(-omega, True, use_matrix=self._use_matmul)
+        # matrix_chi = cal_rotation_matrix_x(chi, True, use_matrix=self._use_matmul)
+        # if self._use_matmul:
+        #     temp_matrix = numpy.matmul(matrix_omega, matrix_chi)
+        # else:
+        #     temp_matrix = matrix_mul_matrix(matrix_omega, matrix_chi)
+        #
+        # # (R(omega) * R(chi)) * R(phi)
+        # matrix_phi = cal_rotation_matrix_z(phi, True, use_matrix=self._use_matmul)
+        # if self._use_matmul:
+        #     temp_matrix = numpy.matmul(temp_matrix, matrix_phi)
+        # else:
+        #     temp_matrix = matrix_mul_matrix(temp_matrix, matrix_phi)
+        #
+        # # Q = (R(omega) * R(chi)) * R(phi)
+        # if self._use_matmul:
+        #     vec_q_prime = numpy.matmul(temp_matrix, vec_q.transpose())
+        # else:
+        #     vec_q_prime = matrix_mul_vector(temp_matrix, vec_q)
+        #
+        # print ('Vector Q (rotated): {0}'.format(vec_q))
+        # print ('Rotation about Z-axis (-omega): A\n{0}'
+        #        ''.format(nice(matrix_omega)))
+        # print ('Rotation about X-axis (chi):    B\n{0}'
+        #        ''.format(nice(matrix_chi)))
+        # print ('Production 1: A x B\n{0}'.format(nice(temp_matrix)))
+        # print ('Rotation about Z-axis (phi):    C\n{0}'
+        #        ''.format(nice(matrix_phi)))
+        # print ('Production 2: A x B x C\n{0}'.format(nice(temp_matrix)))
+        # print ('Vector Q\': {0}'.format(vec_q_prime))
+        #
+        # # project
+        # alpha = math.acos(numpy.dot(vec_q_prime.transpose(), numpy.array([0., 0., 1.])))
+        # beta = math.acos(numpy.dot(vec_q_prime.transpose(), numpy.array([1., 0., 0.])))
+        #
+        # print ('Alpha = {0}\tBeta = {1}'.format(alpha, beta))
 
+        # TODO - 20180709 - (1) make numpy 2.0 happy  (2) make numpy 1.7 happy  - Refer to older version
         # rotate Q
-        vec_q = numpy.array([0., 1., 0.])
-        rotation_matrix = cal_rotation_matrix_z(-(180. - two_theta) * 0.5, is_degree=True, use_matrix=self._use_matmul)
+        rotation_matrix = cal_rotation_matrix_z(-two_theta * 0.5, is_degree=True, use_matrix=True)
 
         print ('Rotation about Z-axis:\n{0}'.format(nice(rotation_matrix)))
 
-        if self._use_matmul:
-            vec_q = numpy.matmul(rotation_matrix, vec_q.transpose())
-        else:
-            vec_q = matrix_mul_vector(rotation_matrix, vec_q)
+        vec_q1 = numpy.matmul(rotation_matrix.transpose(), numpy.array([0., 1., 0.]))
+        vec_q2 = numpy.matmul(rotation_matrix.transpose(), numpy.array([1., 0., 0.]))
 
-        # vec_q_prime = rotation_matrix_z(-omega, True) * rotation_matrix_x(chi, True) *
-        #               rotation_matrix_z(phi, True) *  vec_q
-        # R(omega) * R(chi)
-        matrix_omega = cal_rotation_matrix_z(-omega, True, use_matrix=self._use_matmul)
-        matrix_chi = cal_rotation_matrix_x(chi, True, use_matrix=self._use_matmul)
-        if self._use_matmul:
-            temp_matrix = numpy.matmul(matrix_omega, matrix_chi)
-        else:
-            temp_matrix = matrix_mul_matrix(matrix_omega, matrix_chi)
+        print ('Rotation about X-axis (phi+90): A\n{0}'
+               ''.format(nice(cal_rotation_matrix_x(phi + 90, True, True))))
+        # print ('Rotation about Y-axis (chi):    B\n{0}'
+        #        ''.format(nice(rotation_matrix_y(chi, True))))
 
-        # (R(omega) * R(chi)) * R(phi)
-        matrix_phi = cal_rotation_matrix_z(phi, True, use_matrix=self._use_matmul)
-        if self._use_matmul:
-            temp_matrix = numpy.matmul(temp_matrix, matrix_phi)
-        else:
-            temp_matrix = matrix_mul_matrix(temp_matrix, matrix_phi)
+        temp_matrix = numpy.matmul(cal_rotation_matrix_x(phi + 90, True, True),
+                                   cal_rotation_matrix_y(chi, True, True))
 
-        # Q = (R(omega) * R(chi)) * R(phi)
-        if self._use_matmul:
-            vec_q_prime = numpy.matmul(temp_matrix, vec_q.transpose())
-        else:
-            vec_q_prime = matrix_mul_vector(temp_matrix, vec_q)
-
-        print ('Vector Q (rotated): {0}'.format(vec_q))
-        print ('Rotation about Z-axis (-omega): A\n{0}'
-               ''.format(nice(matrix_omega)))
-        print ('Rotation about X-axis (chi):    B\n{0}'
-               ''.format(nice(matrix_chi)))
         print ('Production 1: A x B\n{0}'.format(nice(temp_matrix)))
-        print ('Rotation about Z-axis (phi):    C\n{0}'
-               ''.format(nice(matrix_phi)))
-        print ('Production 2: A x B x C\n{0}'.format(nice(temp_matrix)))
-        print ('Vector Q\': {0}'.format(vec_q_prime))
+        print ('Rotation about Z-axis (-omega):    C\n{0}'
+               ''.format(nice(cal_rotation_matrix_z(-omega, True, True))))
 
-        # project
-        alpha = math.acos(numpy.dot(vec_q_prime.transpose(), numpy.array([0., 0., 1.])))
-        beta = math.acos(numpy.dot(vec_q_prime.transpose(), numpy.array([1., 0., 0.])))
+        temp_matrix = numpy.matmul(temp_matrix, cal_rotation_matrix_z(-omega, True, True))
+        print ('Production 2: A x B x C\n{0}'.format(nice(temp_matrix)))
+
+        vec_q_prime1 = numpy.matmul(temp_matrix.transpose(), numpy.array([0., 1., 0.]))
+        vec_q_prime2 = numpy.matmul(temp_matrix.transpose(), numpy.array([1., 0., 0.]))
+
+        if vec_q_prime1[0, 2] >= 0:
+            beta = 360 - math.acos(numpy.dot(vec_q_prime1, vec_q1.transpose())) * 180. / numpy.pi
+        else:
+            beta = math.acos(numpy.dot(vec_q_prime1, vec_q1.transpose())) * 180. / numpy.pi
+
+        alpha = math.acos(numpy.dot(vec_q_prime2, vec_q2.transpose())) * 180. / numpy.pi
+
+        if beta <= 90:
+            beta = 360 + (beta - 90)
+        else:
+            beta -= 90.
 
         print ('Alpha = {0}\tBeta = {1}'.format(alpha, beta))
 

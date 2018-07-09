@@ -39,10 +39,13 @@ class TextureAnalysisWindow(QMainWindow):
         self.ui.actionOpen_HDF5.triggered.connect(self.do_load_scans_hdf)
         self.ui.actionSave_as.triggered.connect(self.do_save_as)
 
-        self.ui.actionSave_Diffraction_Data_For_Mantid.triggered.connect(self.do_save_pole_figure)
+        self.ui.actionSave_Diffraction_Data_For_Mantid.triggered.connect(self.do_save_workspace)
 
         self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
         self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
+
+        # TODO - 20180709 - Implement
+        # actionExport_Table
 
         # mutexes
         self._sample_log_names_mutex = False
@@ -194,11 +197,11 @@ class TextureAnalysisWindow(QMainWindow):
         self.ui.label_logIndexMax.setText(str(log_range[-1]))
 
         # Fill the combobox for detector IDs
-        self.ui.comboBox_detectorIDsFitPeak.clear()
-        self.ui.comboBox_detectorIDsForLogs.clear()
+        self.ui.comboBox_detectorIDsPlotPeak.clear()
+        self.ui.comboBox_detectorID.clear()
         for det_id in sorted(det_id_list):
-            self.ui.comboBox_detectorIDsFitPeak.addItem(str(det_id))
-            self.ui.comboBox_detectorIDsForLogs.addItem(str(det_id))
+            self.ui.comboBox_detectorIDsPlotPeak.addItem(str(det_id))
+            self.ui.comboBox_detectorID.addItem(str(det_id))
 
         # get the sample logs
         sample_log_names = self._core.data_center.get_sample_logs_list((data_key, det_id_list[0]),
@@ -303,7 +306,7 @@ class TextureAnalysisWindow(QMainWindow):
         :return:
         """
         # gather the information
-        det_id = gui_helper.parse_integer(str(self.ui.comboBox_detectorIDsFitPeak.currentText()))
+        det_id = gui_helper.parse_integer(str(self.ui.comboBox_detectorIDsPlotPeak.currentText()))
         scan_log_index_list = gui_helper.parse_integers(str(self.ui.lineEdit_scanNumbers.text()))
         det_id_list = [det_id] * len(scan_log_index_list)
         # else:
@@ -404,9 +407,10 @@ class TextureAnalysisWindow(QMainWindow):
         :return:
         """
         file_filter = 'MTEX (*.mtex);;ASCII (*.dat);;All Files (*.*)'
-        # FIXME - Make file filter work when using Linux - TODO
+        # FIXME - Make file filter work when using Mac - TODO - 20180709
         file_info = QFileDialog.getSaveFileName(self, directory=self._core.working_dir,
-                                                caption='Save Pole Figure To ASCII File')
+                                                caption='Save Pole Figure To ASCII File',
+                                                filter=file_filter)
 
         if isinstance(file_info, tuple):
             file_name = file_info[0]
@@ -435,12 +439,19 @@ class TextureAnalysisWindow(QMainWindow):
 
         :return:
         """
-        nxs_file_name = str(QFileDialog.getSaveFileName(self, 'Mantid Processed NeXus File Name',
-                                                        self._core.working_dir))
+        nxs_file_name_set = QFileDialog.getSaveFileName(self, 'Mantid Processed NeXus File Name',
+                                                        self._core.working_dir)
+
+        if isinstance(nxs_file_name_set, tuple):
+            nxs_file_name = str(nxs_file_name_set[0])
+            print ('[DB...BAT] Filter: {0}'.format(nxs_file_name_set[1]))
+        else:
+            nxs_file_name = str(nxs_file_name_set)
+
         if len(nxs_file_name) == 0:
             return
-
-        self._core.save_nexus((self._data_key, 1), nxs_file_name)
+        else:
+            self._core.save_nexus((self._data_key, 1), nxs_file_name)
 
         return
 
