@@ -1,0 +1,79 @@
+\documentclass[12pt,bezier,amstex]{report}  % include bezier curves
+\renewcommand\baselinestretch{1.0}           % single space
+%\pagestyle{empty}                            % no headers and page numbers
+\oddsidemargin -10 true pt      % Left margin on odd-numbered pages.
+\evensidemargin 10 true pt      % Left margin on even-numbered pages.
+\marginparwidth 0.75 true in    % Width of marginal notes.
+\oddsidemargin  0 true in       % Note that \oddsidemargin=\evensidemargin
+\evensidemargin 0 true in
+\topmargin 0.25 true in        % Nominal distance from top of page to top of
+\textheight 9.0 true in         % Height of text (including footnotes and figures)
+\textwidth 6.375 true in        % Width of text line.
+\parindent=0pt                  % Do not indent paragraphs
+\parskip=0.15 true in
+\usepackage{color}              % Need the color package
+\usepackage{epsfig}
+
+\usepackage{algorithmic}
+
+
+\title{NRSF2 Design Document Appendix}
+
+\begin{document}
+
+\maketitle
+
+Construct 2 orthogonal {\it q} vectors:
+
+\begin{eqnarray*}
+\vec{q}_1 &=& 
+	R_z (- \frac{2\theta}{2}) (010)  \\
+\vec{q}_2 &=&
+	R_z(-\frac{2\theta}{2}) (100)
+\end{eqnarray*}
+
+where 
+\begin{itemize}
+\item	$2\theta_{peak}$ = position of peak (which is in plane)
+%\item	$\omega$ = incident angle
+%\item	$\chi$ = $\chi$ rotation about (100) of sample
+%\item	$\phi$ =  $\phi$ rotation about sample normal
+\end{itemize}
+
+In order to convert $\vec{q}$ from instrument coordinate to sample coordinate, the ration will be done on
+$\omega$, $\chi$ and $\phi$ respectively. 
+
+The rotation matrix $R_p$ is defined as
+\begin{eqnarray*}
+R_p &=& R_x(\phi + 90^o) \times R_y(\chi) \times R_z(-\omega)
+\end{eqnarray*}
+
+where 
+\begin{itemize}
+\item	$\omega$ = incident angle
+\item	$\chi$ = $\chi$ rotation about (100) of sample
+\item	$\phi$ =  $\phi$ rotation about sample normal
+\end{itemize}
+
+Thus, $\vec{q}_1$ and $\vec{q}_2$ are rotated as
+% TO BE CONTINUED
+
+
+The projection is then
+\begin{eqnarray*}
+\alpha
+	&=& \cos^{-1}(Q) (001))	\\
+\beta
+	&=& \cos^{-1}(Q) (100))	\\
+\alpha
+	&=& \cos^{-1}(Q\prime) (001))	\\
+\beta
+	&=& \cos^{-1}(Q\prime) (100))	\\
+\alpha_p
+	&=& \alpha - \alpha\prime	\\
+\beta_p
+	&=& \beta - \beta\prime
+\end{eqnarray*}
+
+\end{document}
+
