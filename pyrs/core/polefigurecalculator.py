@@ -473,7 +473,11 @@ def export_arrays_to_ascii(array_dict, out_file_name):
            ''.format(array_dict.keys(), array_dict.values()[0]))
 
     # combine
-    combined_array = numpy.concatenate(array_dict.values(), axis=0)
+    pole_figure_array_list = list()
+    for index_vec, pole_figure_vec in array_dict.values():
+        pole_figure_array_list.append(pole_figure_vec)
+
+    combined_array = numpy.concatenate(pole_figure_array_list, axis=0)
     # sort
     combined_array = numpy.sort(combined_array, axis=0)
     # save

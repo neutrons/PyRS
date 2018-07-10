@@ -46,8 +46,21 @@ def check_file_name(file_name, check_exist=True, check_writable=False, is_dir=Fa
     if check_exist and os.path.exists(file_name) is False:
         raise RuntimeError('File {0} does not exist.'.format(file_name))
 
-    if check_writable and os.access(file_name, os.W_OK):
-        raise RuntimeError('File {0} is not writable.'.format(file_name))
+    if check_writable:
+        if os.path.exists(file_name) and os.access(file_name, os.W_OK) is False:
+            # file exists but cannot be  overwritten
+            raise RuntimeError('File {0} exists but is not writable.'.format(file_name))
+        elif os.path.exists(file_name) is False:
+            # file does not exist and the directory is not writable
+            dir_name = os.path.dirname(file_name)
+            if dir_name == '':
+                # current working dir
+                dir_name = os.getcwd()
+            if os.access(dir_name, os.W_OK) is False:
+                raise RuntimeError('File {0} does not exist but directory {1} is not writable.'
+                                   ''.format(file_name, dir_name))
+        # END-IF-ELIF
+    # END-IF
 
     check_bool_variable('Flag for input string is a directory', is_dir)
     assert os.path.isdir(file_name) == is_dir, 'Path {0} shall {1} be a directory and it is {2}.' \

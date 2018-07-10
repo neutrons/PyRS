@@ -38,6 +38,8 @@ class TextureAnalysisWindow(QMainWindow):
         self.ui.pushButton_scanNumberForward.clicked.connect(self.do_forward_scan_log_index)
         self.ui.pushButton_scanNumberBackward.clicked.connect(self.do_rewind_scan_log_index)
 
+        self.ui.pushButton_plotLogs.clicked.connect(self.do_plot_meta_data)
+
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.actionOpen_HDF5.triggered.connect(self.do_load_scans_hdf)
         self.ui.actionSave_as.triggered.connect(self.do_save_as)
@@ -121,7 +123,7 @@ class TextureAnalysisWindow(QMainWindow):
         for row_number in range(num_rows):
             det_id, log_index = self.ui.tableView_poleFigureParams.get_detector_log_index(row_number)
             alpha, beta = self._core.get_pole_figure_value(self._data_key, det_id, log_index)
-            print ('[DB...BAT] row {0}:  alpha = {1}, beta = {2}'.format(row_number, alpha, beta))
+            # print ('[DB...BAT] row {0}:  alpha = {1}, beta = {2}'.format(row_number, alpha, beta))
             self.ui.tableView_poleFigureParams.set_pole_figure_projection(row_number, alpha, beta)
 
         return
@@ -391,6 +393,9 @@ class TextureAnalysisWindow(QMainWindow):
         """
         if self._sample_log_names_mutex:
             return
+
+        # TODO - 20180710 - FIXME - This part is out of date for multiple detectors!
+        raise RuntimeError('This does not work at this moment!')
 
         # if self.ui.checkBox_keepPrevPlotRight.isChecked() is False:
         # TODO - Shall be controlled by a more elegant mechanism

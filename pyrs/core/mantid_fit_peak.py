@@ -152,17 +152,18 @@ class MantidPeakFitEngine(object):
             print ('[INFO] Mantid fit debugging data files will be written to {0}'.format(dir_name))
 
             # workspace for data
-            raw_file_name = os.path.join(dir_name, '{0}_data.nxs'.format(self._reference_id))
+            base_name = self._reference_id.replace('.', '_') + '_' + peak_function_name
+            raw_file_name = os.path.join(dir_name, '{0}_data.nxs'.format(base_name))
             scandataio.save_mantid_nexus(self._workspace_name, raw_file_name,
                                          title='raw data for {0}'.format(self._reference_id))
 
             # peak window workspace
-            fit_window_name = os.path.join(dir_name, '{0}_fit_window.nxs'.format(self._reference_id))
+            fit_window_name = os.path.join(dir_name, '{0}_fit_window.nxs'.format(base_name))
             scandataio.save_mantid_nexus(peak_window_ws_name, fit_window_name, title='Peak fit window workspace')
 
             # peak center workspace
-            peak_center_file_name = os.path.join(dir_name, '{0}_peak_center.nxs'.format(self._reference_id))
-            scandataio.save_mantid_nexus(peak_center_file_name, self._center_of_mass_ws_name,
+            peak_center_file_name = os.path.join(dir_name, '{0}_peak_center.nxs'.format(base_name))
+            scandataio.save_mantid_nexus(self._center_of_mass_ws_name, peak_center_file_name,
                                          title='Peak center (center of mass) workspace')
         # END-IF-DEBUG (True)
 
@@ -283,7 +284,7 @@ class MantidPeakFitEngine(object):
         get number of scans in input data to fit
         :return:
         """
-        data_workspace = self.retrieve_workspace(self._workspace_name)
+        data_workspace = self.retrieve_workspace(self._workspace_name, True)
         return data_workspace.getNumberHistograms()
 
     def get_fitted_params(self, param_name):

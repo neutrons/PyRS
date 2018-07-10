@@ -3,6 +3,7 @@ from pyrs.utilities import checkdatatypes
 import h5py
 import numpy
 from mantid.simpleapi import SaveNexusProcessed
+from mantid.api import AnalysisDataService
 
 
 class DiffractionDataFile(object):
@@ -244,9 +245,20 @@ def save_mantid_nexus(workspace_name, file_name, title=''):
     """
     # check input
     checkdatatypes.check_file_name(file_name, check_exist=False,
-                           check_writable=True, is_dir=False)
+                                   check_writable=True, is_dir=False)
     checkdatatypes.check_string_variable('Workspace title', title)
 
-    SaveNexusProcessed(InputWorkspace=workspace_name,
-                       Filename=file_name,
-                       Title=title)
+    # check workspace
+    checkdatatypes.check_string_variable('Workspace name', workspace_name)
+    if AnalysisDataService.doesExist(workspace_name):
+        SaveNexusProcessed(InputWorkspace=workspace_name,
+                           Filename=file_name,
+                           Title=title)
+    else:
+        raise RuntimeError('Workspace {0} does not exist in Analysis data service. Available '
+                           'workspaces are {1}.'
+                           ''.format(workspace_name, AnalysisDataService.getObjectNames()))
+
+    # END-IF-ELSE
+
+    return

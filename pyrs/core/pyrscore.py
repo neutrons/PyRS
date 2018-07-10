@@ -246,6 +246,7 @@ class PyRsCore(object):
         peak_optimizer = mantid_fit_peak.MantidPeakFitEngine(diff_data_list, ref_id=ref_id)
 
         # observed COM and highest Y value data point
+        print ('[DB...BAT] Fit Engine w/ Key: {0}'.format(data_key_set))
         peak_optimizer.calculate_center_of_mass()
         # fit peaks
         peak_optimizer.fit_peaks(peak_type, background_type, fit_range, None)
