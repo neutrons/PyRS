@@ -8,6 +8,7 @@ import pyrs.core.pyrscore
 import os
 import gui_helper
 import numpy
+import platform
 
 
 class TextureAnalysisWindow(QMainWindow):
@@ -34,6 +35,8 @@ class TextureAnalysisWindow(QMainWindow):
         self.ui.pushButton_fitPeaks.clicked.connect(self.do_fit_peaks)
         self.ui.pushButton_calPoleFigure.clicked.connect(self.do_cal_pole_figure)
         self.ui.pushButton_save_pf.clicked.connect(self.do_save_pole_figure)
+        self.ui.pushButton_scanNumberForward.clicked.connect(self.do_forward_scan_log_index)
+        self.ui.pushButton_scanNumberBackward.clicked.connect(self.do_rewind_scan_log_index)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.actionOpen_HDF5.triggered.connect(self.do_load_scans_hdf)
@@ -44,8 +47,7 @@ class TextureAnalysisWindow(QMainWindow):
         self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
         self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
 
-        # TODO - 20180709 - Implement
-        # actionExport_Table
+        self.ui.actionExport_Table.triggered.connect(self.do_export_pole_figure_table)
 
         # mutexes
         self._sample_log_names_mutex = False
@@ -121,6 +123,28 @@ class TextureAnalysisWindow(QMainWindow):
             alpha, beta = self._core.get_pole_figure_value(self._data_key, det_id, log_index)
             print ('[DB...BAT] row {0}:  alpha = {1}, beta = {2}'.format(row_number, alpha, beta))
             self.ui.tableView_poleFigureParams.set_pole_figure_projection(row_number, alpha, beta)
+
+        return
+
+    def do_export_pole_figure_table(self):
+        """
+        export pole figure table
+        :return:
+        """
+        # get inputs
+        default_dir = self._core.working_dir
+        if platform.system() == 'Darwin':
+            file_filter = ''
+        else:
+            file_filter = 'CSV Files (*.csv);;All Files (*.*)'
+        table_file_set = QFileDialog.getSaveFileName(self, caption='Select file name for pole figure calculation data',
+                                                     directory=default_dir, filter=file_filter)
+        if isinstance(table_file_set, tuple):
+            table_file_name = str(table_file_set[0])
+        else:
+            table_file_name = str(table_file_set)
+
+        self.ui.tableView_poleFigureParams.export_table_csv(table_file_name)
 
         return
 
@@ -388,8 +412,13 @@ class TextureAnalysisWindow(QMainWindow):
         save current pole figure to a text file
         :return:
         """
+        if platform.system() == 'Darwin':
+            file_filter = ''
+        else:
+            file_filter = ''
         file_info = QFileDialog.getSaveFileName(self, directory=self._core.working_dir,
-                                                caption='Save Pole Figure To ASCII File')
+                                                caption='Save Pole Figure To ASCII File',
+                                                filter=file_filter)
         if isinstance(file_info, tuple):
             file_name = file_info[0]
         else:
@@ -406,8 +435,10 @@ class TextureAnalysisWindow(QMainWindow):
         save pole figure in both ascii and mtex format
         :return:
         """
-        file_filter = 'MTEX (*.mtex);;ASCII (*.dat);;All Files (*.*)'
-        # FIXME - Make file filter work when using Mac - TODO - 20180709
+        if platform.system() == 'Darwin':
+            file_filter = ''
+        else:
+            file_filter = 'MTEX (*.mtex);;ASCII (*.dat);;All Files (*.*)'
         file_info = QFileDialog.getSaveFileName(self, directory=self._core.working_dir,
                                                 caption='Save Pole Figure To ASCII File',
                                                 filter=file_filter)
@@ -435,12 +466,17 @@ class TextureAnalysisWindow(QMainWindow):
         return
 
     def do_save_workspace(self):
-        """
-
+        """ save workspace to NeXus file readable to Mantid
         :return:
         """
-        nxs_file_name_set = QFileDialog.getSaveFileName(self, 'Mantid Processed NeXus File Name',
-                                                        self._core.working_dir)
+        if platform.system() == 'Darwin':
+            file_filter = ''
+        else:
+            file_filter = 'NeXus Files (*.nxs);;All Files (*.*)'
+
+        nxs_file_name_set = QFileDialog.getSaveFileName(self, caption='Mantid Processed NeXus File Name',
+                                                        directory=self._core.working_dir,
+                                                        filter=file_filter)
 
         if isinstance(nxs_file_name_set, tuple):
             nxs_file_name = str(nxs_file_name_set[0])
@@ -472,6 +508,48 @@ class TextureAnalysisWindow(QMainWindow):
         :return:
         """
         self.close()
+
+        return
+
+    def do_forward_scan_log_index(self):
+        """
+        move scan log index (to plot) forward by 1
+        :return:
+        """
+        try:
+            current_log_index = int(self.ui.lineEdit_scanNumbers.text())
+            current_log_index += 1
+            # check whether the log index value exceeds the limit
+            max_log_index = int(self.ui.label_logIndexMax.text())
+            if current_log_index > max_log_index:
+                current_log_index = 0
+            # set value
+            self.ui.lineEdit_scanNumbers.setText(str(current_log_index))
+            # re-plot
+            self.do_plot_diff_data()
+        except ValueError:
+            print ('[WARNING] Current value {0} cannot be forwarded'.format(self.ui.lineEdit_scanNumbers.text()))
+
+        return
+
+    def do_rewind_scan_log_index(self):
+        """
+        move scan log index (to plot) backward by 1
+        :return:
+        """
+        try:
+            current_log_index = int(self.ui.lineEdit_scanNumbers.text())
+            current_log_index -= 1
+            # check whether the log index value exceeds the limit
+            if current_log_index < 0:
+                max_log_index = int(self.ui.label_logIndexMax.text())
+                current_log_index = max_log_index
+            # set value
+            self.ui.lineEdit_scanNumbers.setText(str(current_log_index))
+            # re-plot
+            self.do_plot_diff_data()
+        except ValueError:
+            print ('[WARNING] Current value {0} cannot be moved backward'.format(self.ui.lineEdit_scanNumbers.text()))
 
         return
 

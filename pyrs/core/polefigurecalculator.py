@@ -295,11 +295,14 @@ class PoleFigureCalculator(object):
 
         print ('[DB...BAT] Pole figure to export:  type: {0}\n{1}'.format(type(self._pole_figure_dict),
                                                                           self._pole_figure_dict))
+
+        # it is a dictionary now
         if file_type.lower() == 'ascii':
-            # TODO - 20180809 - It does not work!
-            numpy.savetxt(file_name, self._pole_figure_dict)   # x,y,z equal sized 1D arrays
+            # export pole figure arrays as ascii column file
+            export_arrays_to_ascii(self._pole_figure_dict, file_name)
         elif file_type.lower == 'mtex':
-            export_to_mtex(detector_id_list, file_name, self._pole_figure_dict)
+            # export to mtex format
+            export_to_mtex(self._pole_figure_dict, file_name)
 
         return
 
@@ -389,32 +392,47 @@ class PoleFigureCalculator(object):
 
         # TODO - 20180709 - (1) make numpy 2.0 happy  (2) make numpy 1.7 happy  - Refer to older version
         # rotate Q
-        rotation_matrix = cal_rotation_matrix_z(-two_theta * 0.5, is_degree=True, use_matrix=True)
 
-        print ('Rotation about Z-axis:\n{0}'.format(nice(rotation_matrix)))
+        rotation_matrix = cal_rotation_matrix_z(-two_theta * 0.5, is_degree=True, use_matrix=self._use_matmul)
 
-        vec_q1 = numpy.matmul(rotation_matrix.transpose(), numpy.array([0., 1., 0.]))
-        vec_q2 = numpy.matmul(rotation_matrix.transpose(), numpy.array([1., 0., 0.]))
+        print ('Rotation about Z-axis with {0}:\n{1}'.format(-two_theta * 0.5, nice(rotation_matrix)))
 
-        print ('Rotation about X-axis (phi+90): A\n{0}'
-               ''.format(nice(cal_rotation_matrix_x(phi + 90, True, True))))
-        # print ('Rotation about Y-axis (chi):    B\n{0}'
-        #        ''.format(nice(rotation_matrix_y(chi, True))))
+        if self._use_matmul:
+            vec_q1 = numpy.matmul(rotation_matrix.transpose(), numpy.array([0., 1., 0.]))
+            vec_q2 = numpy.matmul(rotation_matrix.transpose(), numpy.array([1., 0., 0.]))
+        else:
+            vec_q1 = matrix_mul_vector(rotation_matrix, numpy.array([0., 1., 0.]))
+            vec_q2 = matrix_mul_vector(rotation_matrix, numpy.array([1., 0., 0.]))
+        print ('[DB...BAT] vec(Q) shape: {0}'.format(vec_q1.shape))
 
-        temp_matrix = numpy.matmul(cal_rotation_matrix_x(phi + 90, True, True),
-                                   cal_rotation_matrix_y(chi, True, True))
+        # print ('[INFO] Rotation about X-axis (phi+90): A\n{0}'
+        #        ''.format(nice(cal_rotation_matrix_x(phi + 90, True, True))))
+        # print ('Production 1: A x B\n{0}'.format(nice(temp_matrix)))
+        # print ('Rotation about Z-axis (-omega):    C\n{0}'
+        #        ''.format(nice(cal_rotation_matrix_z(-omega, True, True))))
+        # print ('Production 2: A x B x C\n{0}'.format(nice(temp_matrix)))
 
-        print ('Production 1: A x B\n{0}'.format(nice(temp_matrix)))
-        print ('Rotation about Z-axis (-omega):    C\n{0}'
-               ''.format(nice(cal_rotation_matrix_z(-omega, True, True))))
+        # rotate about phi, chi and omega
+        if self._use_matmul:
+            temp_matrix = numpy.matmul(cal_rotation_matrix_x(phi + 90, True, self._use_matmul),
+                                       cal_rotation_matrix_y(chi, True, self._use_matmul))
+            temp_matrix = numpy.matmul(temp_matrix, cal_rotation_matrix_z(-omega, True, self._use_matmul))
 
-        temp_matrix = numpy.matmul(temp_matrix, cal_rotation_matrix_z(-omega, True, True))
-        print ('Production 2: A x B x C\n{0}'.format(nice(temp_matrix)))
+            vec_q_prime1 = numpy.matmul(temp_matrix.transpose(), numpy.array([0., 1., 0.]))
+            vec_q_prime2 = numpy.matmul(temp_matrix.transpose(), numpy.array([1., 0., 0.]))
+        else:
+            temp_matrix = matrix_mul_matrix(cal_rotation_matrix_x(phi + 90, True, self._use_matmul),
+                                            cal_rotation_matrix_y(chi, True, self._use_matmul))
+            temp_matrix = matrix_mul_matrix(temp_matrix, cal_rotation_matrix_z(-omega, True, self._use_matmul))
 
-        vec_q_prime1 = numpy.matmul(temp_matrix.transpose(), numpy.array([0., 1., 0.]))
-        vec_q_prime2 = numpy.matmul(temp_matrix.transpose(), numpy.array([1., 0., 0.]))
+            vec_q_prime1 = matrix_mul_vector(temp_matrix, numpy.array([0., 1., 0.]))
+            vec_q_prime2 = matrix_mul_vector(temp_matrix, numpy.array([1., 0., 0.]))
+        # END-IF-ELSE
+        print ('[DB...BAT] vec(Q\') shape: {0}'.format(vec_q1.shape))
 
-        if vec_q_prime1[0, 2] >= 0:
+        # calculate projection to alpha and beta
+        if len(vec_q_prime1.shape) == 2 and vec_q_prime1[0, 2] >= 0 or \
+                len(vec_q_prime1.shape) == 1 and vec_q_prime1[2] >= 0:
             beta = 360 - math.acos(numpy.dot(vec_q_prime1, vec_q1.transpose())) * 180. / numpy.pi
         else:
             beta = math.acos(numpy.dot(vec_q_prime1, vec_q1.transpose())) * 180. / numpy.pi
@@ -426,7 +444,7 @@ class PoleFigureCalculator(object):
         else:
             beta -= 90.
 
-        print ('Alpha = {0}\tBeta = {1}'.format(alpha, beta))
+        # print ('[INFO] Alpha = {0}\tBeta = {1}'.format(alpha, beta))
 
         return alpha, beta
 
@@ -441,26 +459,59 @@ class PoleFigureCalculator(object):
 
         return
 
+# END-OF-CLASS (PoleFigureCalculator)
 
-def export_to_mtex(detector_id_list, file_name, pole_figure_array, header):
+
+def export_arrays_to_ascii(array_dict, out_file_name):
     """
-    export to mtex
-    :param detector_id_list:
+    export a dictionary of arrays to an ASCII file
+    :param array_dict: 
+    :param out_file_name: 
+    :return: 
+    """
+    print ('[DB...Export Pole Figure Arrays To ASCII:\nKeys: {0}\nValues[0]: {1}'
+           ''.format(array_dict.keys(), array_dict.values()[0]))
+
+    # combine
+    combined_array = numpy.concatenate(array_dict.values(), axis=0)
+    # sort
+    combined_array = numpy.sort(combined_array, axis=0)
+    # save
+    numpy.savetxt(out_file_name, combined_array)   # x,y,z equal sized 1D arrays
+
+    return
+
+
+def export_to_mtex(pole_figure_array_dict, file_name, header):
+    """
+    export to mtex format, which includes
+    line 1: header
+    line 2 and on: alpha\tbeta\tintensity
     :param file_name:
-    :param pole_figure_array:
+    :param pole_figure_array_dict:
+    :param header
     :return:
     """
+    # check input types
+    checkdatatypes.check_dict('Pole figure array dictionary', pole_figure_array_dict)
+
+    # initialize output string
     mtex = ''
 
     # header
     mtex += '{0}\n'.format(header)
 
     # writing data
-    for i_pt in range(pole_figure_array.size):
-        mtex += '{0:5.5f}\t{1:5.5f}\t{2:5.5f}\n'.format(pole_figure_array[i_pt, 0], pole_figure_array[i_pt, 1],
-                                                        pole_figure_array[i_pt, 2])
+    pf_keys = sorted(pole_figure_array_dict.keys())
+    for pf_key in pf_keys:
+        pole_figure_array = pole_figure_array_dict[pf_key]
+        for i_pt in range(pole_figure_array.size):
+            mtex += '{0:5.5f}\t{1:5.5f}\t{2:5.5f}\n' \
+                    ''.format(pole_figure_array[i_pt, 0], pole_figure_array[i_pt, 1], pole_figure_array[i_pt, 2])
+        # END-FOR (i_pt)
     # END-FOR
 
+    # write file
     p_file = open(file_name, 'w')
     p_file.write(mtex)
     p_file.close()

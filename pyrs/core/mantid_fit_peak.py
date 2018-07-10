@@ -1,26 +1,13 @@
 # Peak fitting engine by calling mantid
-# Set up the testing environment for PyVDrive commands
-import os
-import sys
-# home_dir = os.path.expanduser('~')
-# if home_dir.startswith('/SNS/'):
-#     # analysis
-#     # nightly: sys.path.insert(1, '/opt/mantidnightly/bin/')
-#     # local build
-#     sys.path.insert(1, '/SNS/users/wzz/Mantid_Project/builds/debug/bin/')
-# elif home_dir.startswith('/Users/wzz'):
-#     # VZ local mac
-#     sys.path.append('/Users/wzz/MantidBuild/debug/bin')
-# elif home_dir.startswith('/home/wzz'):
-#     # VZ workstation
-#     sys.path.insert(1, '/home/wzz/Mantid_Project/builds/debug-master/bin')
 import mantid
 from mantid.simpleapi import FitPeaks, CreateWorkspace
 from mantid.api import AnalysisDataService
 from pyrs.utilities import checkdatatypes
 import numpy as np
+import scandataio
+import os
 
-print ('[CHECK] Import Mantid from {0}'.format(mantid))
+print ('[DEBUG-INFO] Mantid is loaded from : {0}'.format(mantid))
 
 
 class MantidPeakFitEngine(object):
@@ -40,11 +27,11 @@ class MantidPeakFitEngine(object):
 
         self._reference_id = ref_id
         self._workspace_name = self._get_matrix_name(ref_id)
-        self._data_workspace = self.generate_matrix_workspace(data_set_list, matrix_ws_name=self._workspace_name)
+        self.generate_matrix_workspace(data_set_list, matrix_ws_name=self._workspace_name)
 
         # some observed properties
         self._center_of_mass_ws_name = None
-        self._highest_point_ws = None
+        self._highest_point_ws_name = None
         self._peak_center_vec = None  # 2D vector for observed center of mass and highest data point
 
         # fitting result
@@ -90,9 +77,11 @@ class MantidPeakFitEngine(object):
         print ('[INFO] Center of Mass Workspace: {0} Number of spectra = {1}'
                ''.format(self._center_of_mass_ws_name, com_ws.getNumberHistograms()))
 
-        # TODO - 20180709 - Use workspace name and with better name
-        self._highest_point_ws = CreateWorkspace(DataX=peak_center_vec[:, 1], DataY=peak_center_vec[:, 1],
-                                                 NSpec=num_spectra, OutputWorkspace='HighestPointWS')
+        self._highest_point_ws_name = '{0}_HighestPoints'.format(self._workspace_name)
+        high_ws = CreateWorkspace(DataX=peak_center_vec[:, 1], DataY=peak_center_vec[:, 1],
+                                  NSpec=num_spectra, OutputWorkspace=self._highest_point_ws_name)
+        print ('[INFO] Highest Point Workspace: {0} Number of spectra = {1}'
+               ''.format(self._highest_point_ws_name, high_ws.getNumberHistograms()))
 
         self._peak_center_vec = peak_center_vec
 
@@ -117,28 +106,28 @@ class MantidPeakFitEngine(object):
             start = 0
             stop = self.get_number_scans() - 1
 
-        # TODO - 20180709 - Use better output and internal workspace names
-
         # check peak function name:
         if peak_function_name not in ['Gaussian', 'Voigt', 'PseudoVoigt', 'Lorentzian']:
             raise RuntimeError('Peak function {0} is not supported yet.'.format(peak_function_name))
         if background_function_name not in ['Linear', 'Flat']:
             raise RuntimeError('Background type {0} is not supported yet.'.format(background_function_name))
 
-        num_spectra = self._data_workspace.getNumberHistograms()
-        peak_window_ws = CreateWorkspace(DataX=np.array([fit_range[0], fit_range[1]] * num_spectra),
-                                         DataY=np.array([fit_range[0], fit_range[1]] * num_spectra),
-                                         NSpec=num_spectra)
+        data_workspace = self.retrieve_workspace(self._workspace_name, True)
+        num_spectra = data_workspace.getNumberHistograms()
+        peak_window_ws_name = 'fit_window_{0}'.format(self._reference_id)
+        CreateWorkspace(DataX=np.array([fit_range[0], fit_range[1]] * num_spectra),
+                        DataY=np.array([fit_range[0], fit_range[1]] * num_spectra),
+                        NSpec=num_spectra, OutputWorkspace=peak_window_ws_name)
 
         # fit
         print ('[DB...BAT] Data workspace # spec = {0}. Fit range = {1}'
-               ''.format(self._data_workspace.getNumberHistograms(), fit_range))
+               ''.format(num_spectra, fit_range))
 
         # no pre-determined peak center: use center of mass
         r_positions_ws_name = 'fitted_peak_positions_{0}'.format(self._reference_id)
         r_param_table_name = 'param_m_{0}'.format(self._reference_id)
         r_model_ws_name = 'model_full_{0}'.format(self._reference_id)
-        r = FitPeaks(InputWorkspace=self._data_workspace,
+        r = FitPeaks(InputWorkspace=self._workspace_name,
                      OutputWorkspace=r_positions_ws_name,
                      PeakCentersWorkspace=self._center_of_mass_ws_name,
                      PeakFunction=peak_function_name,
@@ -151,14 +140,31 @@ class MantidPeakFitEngine(object):
                      RawPeakParameters=False,
                      OutputPeakParametersWorkspace=r_param_table_name,
                      FittedPeaksWorkspace=r_model_ws_name,
-                     # FitWindowBoundaryList='{0}, {1}'.format(fit_range[0], fit_range[1]))
-                     FitPeakWindowWorkspace=peak_window_ws)
+                     FitPeakWindowWorkspace=peak_window_ws_name)
 
         print ('Fit peaks parameters: range {0} - {1}.  Fit window boundary: {2} - {3}'
                ''.format(start, stop, fit_range[0], fit_range[1]))
-        print ('Mantid is from : {0}'.format(mantid))
 
-        # TODO - 20180709 - Save all the workspaces automatically for further review
+        # Save all the workspaces automatically for further review
+        if True:
+            # find the directory for file
+            dir_name = scandataio.get_temp_directory()
+            print ('[INFO] Mantid fit debugging data files will be written to {0}'.format(dir_name))
+
+            # workspace for data
+            raw_file_name = os.path.join(dir_name, '{0}_data.nxs'.format(self._reference_id))
+            scandataio.save_mantid_nexus(self._workspace_name, raw_file_name,
+                                         title='raw data for {0}'.format(self._reference_id))
+
+            # peak window workspace
+            fit_window_name = os.path.join(dir_name, '{0}_fit_window.nxs'.format(self._reference_id))
+            scandataio.save_mantid_nexus(peak_window_ws_name, fit_window_name, title='Peak fit window workspace')
+
+            # peak center workspace
+            peak_center_file_name = os.path.join(dir_name, '{0}_peak_center.nxs'.format(self._reference_id))
+            scandataio.save_mantid_nexus(peak_center_file_name, self._center_of_mass_ws_name,
+                                         title='Peak center (center of mass) workspace')
+        # END-IF-DEBUG (True)
 
         # process output
         self._fitted_peak_position_ws = AnalysisDataService.retrieve(r_positions_ws_name)
@@ -244,7 +250,8 @@ class MantidPeakFitEngine(object):
         get a vector of scan indexes
         :return:
         """
-        indexes_list = range(self._data_workspace.getNumberHistograms())
+        data_workspace = self.retrieve_workspace(self._workspace_name, True)
+        indexes_list = range(data_workspace.getNumberHistograms())
 
         return np.array(indexes_list)
 
@@ -276,10 +283,8 @@ class MantidPeakFitEngine(object):
         get number of scans in input data to fit
         :return:
         """
-        if self._data_workspace is None:
-            raise RuntimeError('No data is set up!')
-
-        return self._data_workspace.getNumberHistograms()
+        data_workspace = self.retrieve_workspace(self._workspace_name)
+        return data_workspace.getNumberHistograms()
 
     def get_fitted_params(self, param_name):
         """
@@ -305,6 +310,25 @@ class MantidPeakFitEngine(object):
 
         return param_vec
 
+    @staticmethod
+    def retrieve_workspace(ws_name, throw_if_not_exist):
+        """
+        retrieve the workspace.
+        optionally throw a runtime error if the workspace does not exist.
+        :param ws_name:
+        :param throw_if_not_exist:
+        :return: workspace instance or None (if throw_if_not_exist is set to False)
+        """
+        # check inputs
+        checkdatatypes.check_string_variable('Workspace name', ws_name)
+        checkdatatypes.check_bool_variable('Throw exception if workspace does not exist', throw_if_not_exist)
 
+        # get
+        if AnalysisDataService.doesExist(ws_name):
+            workspace = AnalysisDataService.retrieve(ws_name)
+        elif throw_if_not_exist:
+            raise RuntimeError('Workspace {0} does not exist in Mantid ADS'.format(throw_if_not_exist))
+        else:
+            workspace = None
 
-
+        return workspace
