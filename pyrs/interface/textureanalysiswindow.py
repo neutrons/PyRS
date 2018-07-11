@@ -39,6 +39,7 @@ class TextureAnalysisWindow(QMainWindow):
         self.ui.pushButton_scanNumberBackward.clicked.connect(self.do_rewind_scan_log_index)
 
         self.ui.pushButton_plotLogs.clicked.connect(self.do_plot_meta_data)
+        self.ui.pushButton_plot_pf.clicked.connect(self.do_plot_pole_figure)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.actionOpen_HDF5.triggered.connect(self.do_load_scans_hdf)
@@ -396,7 +397,7 @@ class TextureAnalysisWindow(QMainWindow):
 
         # TEST - 20180711
         # get the detector ID
-        det_id = int(self.ui.comboBox_detectorIDsForLogs.currentText())
+        det_id = int(self.ui.comboBox_detectorID.currentText())
         # get the sample log/meta data name
         x_axis_name = str(self.ui.comboBox_xaxisNames.currentText())
         y_axis_name = str(self.ui.comboBox_yaxisNames.currentText())
@@ -406,9 +407,9 @@ class TextureAnalysisWindow(QMainWindow):
 
         # clear whatever on the graph if the previous is not to be kept
         if not self.ui.checkBox_keepPrevPlotRight.isChecked():
-            self.ui.graphicsView_fitResult.reset()
+            self.ui.graphicsView_fitResult.reset_viewer()
         elif self.ui.graphicsView_fitResult.current_x_name != x_axis_name:
-            self.ui.graphicsView_fitResult.reset()
+            self.ui.graphicsView_fitResult.reset_viewer()
 
         # plot
         self.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y, x_axis_name, y_axis_name)
@@ -443,6 +444,7 @@ class TextureAnalysisWindow(QMainWindow):
         save pole figure in both ascii and mtex format
         :return:
         """
+        # get output file name
         if platform.system() == 'Darwin':
             file_filter = ''
         else:
@@ -452,16 +454,25 @@ class TextureAnalysisWindow(QMainWindow):
                                                 filter=file_filter)
 
         if isinstance(file_info, tuple):
-            file_name = file_info[0]
-            print ('[DB...Save Pole Figure] File name: {0}, Filter = {1}'.format(file_info[0],
-                                                                                 file_info[1]))
+            file_name = str(file_info[0])
+            file_filter = file_info[1]
+            print ('[DB...Save Pole Figure] File name: {0}, Filter = {1}'.format(file_name, file_filter))
         else:
-            file_name = file_info
+            file_name = str(file_info)
+            file_filter = None
 
-        file_name = str(file_name)
-
+        # return/quit if action is cancelled
         if len(file_name) == 0:
             return
+
+        # reconstruct name if required
+        # TODO - 20180711 - use filter to determine the file type and default posfix
+        # file_type_list = list()
+        # if file_filter == 'MTEX (*.mtex)':
+        #     file_type_list.append(('mtex', 'mtex'))
+        # elif file_filter == 'ASCII (*.dat)':
+        #     file_type_list.append('ascii')
+        #
 
         dir_name = os.path.dirname(file_name)
         base_name = os.path.basename(file_name).split('.')[0]
@@ -504,7 +515,8 @@ class TextureAnalysisWindow(QMainWindow):
         plot pole figure in the 2D
         :return:
         """
-        pole_figure_array = self._core.get_pole_figures(self._data_key, None)
+        # TODO - 20180711 - Make it work: pole_figure_array = self._core.get_pole_figures(self._data_key, None)
+        pole_figure_array = None
 
         self.ui.graphicsView_contour.plot_pole_figure(pole_figure_array)
 
@@ -576,7 +588,7 @@ class TextureAnalysisWindow(QMainWindow):
             return
 
         if name == 'Log Index':
-            value_vector = numpy.array(self._core.data_center.get_scan_range((data_key, det_id)))
+            value_vector = numpy.array(self._core.data_center.get_scan_range(data_key, sub_key=det_id))
         elif self._core.data_center.has_sample_log((data_key, det_id), name):
             value_vector = self._core.data_center.get_sample_log_values((data_key, det_id), name)
         elif name == 'Center of mass':

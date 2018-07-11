@@ -6,6 +6,7 @@ class Diffraction2DPlot(MplGraphicsView2D):
     """
     General 2D plot view for diffraction data set
     """
+    # TODO - 20180711 - Rewrite this in MplGraphicsView2D style to set the figure to projection
     def __init__(self, parent):
         """
         initialization
@@ -14,6 +15,35 @@ class Diffraction2DPlot(MplGraphicsView2D):
         super(Diffraction2DPlot, self).__init__(parent)
 
         return
+
+    def plot_pole_figure(self, whatever):
+        """
+        plot pole figure in contour.... this is a test!
+        :param whatever:
+        :return:
+        """
+        import numpy as np
+
+        # -- Generate Data -----------------------------------------
+        # Using linspace so that the endpoint of 360 is included...
+        azimuths = np.radians(np.linspace(0, 360, 100))  # degree
+        zeniths = np.arange(0, 70, 1)  #
+
+        r, theta = np.meshgrid(zeniths, azimuths)
+        values = np.random.random((azimuths.size, zeniths.size))
+
+        self._myCanvas.axes.contourf(theta, r, values)
+
+        self.show()
+        #
+        # self.axes = self.fig.add_subplot(111)  # return: matplotlib.axes.AxesSubplot
+        # self.fig.subplots_adjust(bottom=0.15)
+        # self.axes2 = None
+        #
+        # fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
+        # ax.contourf(theta, r, values)
+        #
+        # plt.show()
 
 
 class DiffContourView(MplGraphicsView2D):

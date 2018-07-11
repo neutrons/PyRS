@@ -137,9 +137,26 @@ class RawDataManager(object):
         :param data_key:
         :return:
         """
-        checkdatatypes.check_string_variable('Data reference ID', data_key)
-        if data_key not in self._data_dict:
-            raise RuntimeError('Data reference ID (key) {0} does not exist.'.format(data_key))
+        # 2 cases
+        if isinstance(data_key, tuple):
+            # it could be main-key/sub-key pair
+            assert len(data_key) == 2, 'If data key is tuple, then it must have 2 elements.'
+            main_key = data_key[0]
+            sub_key = data_key[1]
+        else:
+            main_key = data_key
+            sub_key = None
+
+        # check main keys
+        checkdatatypes.check_string_variable('Data reference ID', main_key)
+        if main_key not in self._data_dict:
+            raise RuntimeError('Data reference ID (key) {0} does not exist. Existing keys are {1}'
+                               ''.format(data_key, self._data_dict.keys()))
+
+        # check possibly sub-key
+        if sub_key is not None and sub_key not in self._data_dict[main_key]:
+            raise RuntimeError('Sub key {0} does not exist in data with main-key {1}. Existing '
+                               'sub-keys are {2}'.format(sub_key, main_key, self._data_dict[main_key].keys()))
 
         return
 
@@ -317,7 +334,17 @@ class RawDataManager(object):
         """
         self._check_data_key(data_key)
 
-        return self._data_dict[data_key].sample_log_values(sample_log_name)
+        # return log values in 2 style
+        if isinstance(data_key, tuple):
+            # with sub keys
+            main_key = data_key[0]
+            sub_key = data_key[1]
+            log_value_vec = self._data_dict[main_key][sub_key].sample_log_values(sample_log_name)
+        else:
+            # without sub keys
+            log_value_vec = self._data_dict[data_key].sample_log_values(sample_log_name)
+
+        return log_value_vec
 
     def get_scan_index_logs_values(self, data_key_set, log_name_pair_list):
         """
@@ -422,4 +449,13 @@ class RawDataManager(object):
         """
         self._check_data_key(data_reference_id)
 
-        return sample_log_name in self._data_dict[data_reference_id].sample_log_names
+        # separate main key and sub key
+        if isinstance(data_reference_id, tuple):
+            main_key = data_reference_id[0]
+            sub_key = data_reference_id[1]
+            has_log = sample_log_name in self._data_dict[main_key][sub_key].sample_log_names
+        else:
+            main_key = data_reference_id
+            has_log = sample_log_name in self._data_dict[main_key].sample_log_names
+
+        return has_log

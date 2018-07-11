@@ -284,6 +284,7 @@ class PoleFigureCalculator(object):
         :param file_name:
         :return:
         """
+        # TODO - 20180711 - Clean this method and allow user to specifiy header
         # process detector ID list
         if detector_id_list is None:
             detector_id_list = self.get_detector_ids()
@@ -300,9 +301,9 @@ class PoleFigureCalculator(object):
         if file_type.lower() == 'ascii':
             # export pole figure arrays as ascii column file
             export_arrays_to_ascii(self._pole_figure_dict, file_name)
-        elif file_type.lower == 'mtex':
+        elif file_type.lower() == 'mtex':
             # export to mtex format
-            export_to_mtex(self._pole_figure_dict, file_name)
+            export_to_mtex(self._pole_figure_dict, file_name, header='....')
 
         return
 

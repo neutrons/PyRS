@@ -40,6 +40,10 @@ def test_main():
     texture_window.do_fit_peaks()
     # calculate pole figure
     texture_window.do_cal_pole_figure()
+    # test plot the sample logs or values
+    texture_window.do_plot_meta_data()
+    # plot pole figure
+    texture_window.do_plot_pole_figure()
 
     # texture_window.save_data_for_mantid(None, 'peaks.nxs')
 
