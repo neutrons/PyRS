@@ -394,20 +394,23 @@ class TextureAnalysisWindow(QMainWindow):
         if self._sample_log_names_mutex:
             return
 
-        # TODO - 20180710 - FIXME - This part is out of date for multiple detectors!
-        raise RuntimeError('This does not work at this moment!')
-
-        # if self.ui.checkBox_keepPrevPlotRight.isChecked() is False:
-        # TODO - Shall be controlled by a more elegant mechanism
-        self.ui.graphicsView_fitResult.clear_all_lines(include_right=False)
-
+        # TEST - 20180711
+        # get the detector ID
+        det_id = int(self.ui.comboBox_detectorIDsForLogs.currentText())
         # get the sample log/meta data name
         x_axis_name = str(self.ui.comboBox_xaxisNames.currentText())
         y_axis_name = str(self.ui.comboBox_yaxisNames.currentText())
 
-        vec_x = self.get_meta_sample_data(x_axis_name)
-        vec_y = self.get_meta_sample_data(y_axis_name)
+        vec_x = self.get_meta_sample_data(det_id, x_axis_name)
+        vec_y = self.get_meta_sample_data(det_id, y_axis_name)
 
+        # clear whatever on the graph if the previous is not to be kept
+        if not self.ui.checkBox_keepPrevPlotRight.isChecked():
+            self.ui.graphicsView_fitResult.reset()
+        elif self.ui.graphicsView_fitResult.current_x_name != x_axis_name:
+            self.ui.graphicsView_fitResult.reset()
+
+        # plot
         self.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y, x_axis_name, y_axis_name)
 
         return
@@ -558,10 +561,11 @@ class TextureAnalysisWindow(QMainWindow):
 
         return
 
-    def get_meta_sample_data(self, name):
+    def get_meta_sample_data(self, det_id, name):
         """
         get meta data to plot.
         the meta data can contain sample log data and fitted peak parameters
+        :param det_id:
         :param name:
         :return:
         """
@@ -572,14 +576,14 @@ class TextureAnalysisWindow(QMainWindow):
             return
 
         if name == 'Log Index':
-            value_vector = numpy.array(self._core.data_center.get_scan_range(data_key))
-        elif self._core.data_center.has_sample_log(data_key, name):
-            value_vector = self._core.data_center.get_sample_log_values(data_key, name)
+            value_vector = numpy.array(self._core.data_center.get_scan_range((data_key, det_id)))
+        elif self._core.data_center.has_sample_log((data_key, det_id), name):
+            value_vector = self._core.data_center.get_sample_log_values((data_key, det_id), name)
         elif name == 'Center of mass':
-            value_vector = self._core.get_peak_center_of_mass(data_key)
+            value_vector = self._core.get_peak_center_of_mass((data_key, det_id))
         else:
             # this is for fitted data parameters
-            value_vector = self._core.get_peak_fit_param_value(data_key, name)
+            value_vector = self._core.get_peak_fit_param_value((data_key, det_id), name)
 
         return value_vector
 

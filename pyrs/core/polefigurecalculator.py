@@ -338,61 +338,8 @@ class PoleFigureCalculator(object):
 
         print ('2theta = {0}\nomega = {1}\nchi = {2}\nphi = {3}'
                ''.format(two_theta, omega, chi, phi))
-        #
-        # # rotate Q
-        # vec_q = numpy.array([0., 1., 0.])
-        # rotation_matrix = cal_rotation_matrix_z(-(180. - two_theta) * 0.5, is_degree=True, use_matrix=self._use_matmul)
-        #
-        # print ('Rotation about Z-axis:\n{0}'.format(nice(rotation_matrix)))
-        #
-        # if self._use_matmul:
-        #     vec_q = numpy.matmul(rotation_matrix, vec_q.transpose())
-        # else:
-        #     vec_q = matrix_mul_vector(rotation_matrix, vec_q)
-        #
-        # # vec_q_prime = rotation_matrix_z(-omega, True) * rotation_matrix_x(chi, True) *
-        # #               rotation_matrix_z(phi, True) *  vec_q
-        # # R(omega) * R(chi)
-        # matrix_omega = cal_rotation_matrix_z(-omega, True, use_matrix=self._use_matmul)
-        # matrix_chi = cal_rotation_matrix_x(chi, True, use_matrix=self._use_matmul)
-        # if self._use_matmul:
-        #     temp_matrix = numpy.matmul(matrix_omega, matrix_chi)
-        # else:
-        #     temp_matrix = matrix_mul_matrix(matrix_omega, matrix_chi)
-        #
-        # # (R(omega) * R(chi)) * R(phi)
-        # matrix_phi = cal_rotation_matrix_z(phi, True, use_matrix=self._use_matmul)
-        # if self._use_matmul:
-        #     temp_matrix = numpy.matmul(temp_matrix, matrix_phi)
-        # else:
-        #     temp_matrix = matrix_mul_matrix(temp_matrix, matrix_phi)
-        #
-        # # Q = (R(omega) * R(chi)) * R(phi)
-        # if self._use_matmul:
-        #     vec_q_prime = numpy.matmul(temp_matrix, vec_q.transpose())
-        # else:
-        #     vec_q_prime = matrix_mul_vector(temp_matrix, vec_q)
-        #
-        # print ('Vector Q (rotated): {0}'.format(vec_q))
-        # print ('Rotation about Z-axis (-omega): A\n{0}'
-        #        ''.format(nice(matrix_omega)))
-        # print ('Rotation about X-axis (chi):    B\n{0}'
-        #        ''.format(nice(matrix_chi)))
-        # print ('Production 1: A x B\n{0}'.format(nice(temp_matrix)))
-        # print ('Rotation about Z-axis (phi):    C\n{0}'
-        #        ''.format(nice(matrix_phi)))
-        # print ('Production 2: A x B x C\n{0}'.format(nice(temp_matrix)))
-        # print ('Vector Q\': {0}'.format(vec_q_prime))
-        #
-        # # project
-        # alpha = math.acos(numpy.dot(vec_q_prime.transpose(), numpy.array([0., 0., 1.])))
-        # beta = math.acos(numpy.dot(vec_q_prime.transpose(), numpy.array([1., 0., 0.])))
-        #
-        # print ('Alpha = {0}\tBeta = {1}'.format(alpha, beta))
 
-        # TODO - 20180709 - (1) make numpy 2.0 happy  (2) make numpy 1.7 happy  - Refer to older version
-        # rotate Q
-
+        # rotate Q about theta along z-axis
         rotation_matrix = cal_rotation_matrix_z(-two_theta * 0.5, is_degree=True, use_matrix=self._use_matmul)
 
         print ('Rotation about Z-axis with {0}:\n{1}'.format(-two_theta * 0.5, nice(rotation_matrix)))
@@ -405,6 +352,7 @@ class PoleFigureCalculator(object):
             vec_q2 = matrix_mul_vector(rotation_matrix, numpy.array([1., 0., 0.]))
         print ('[DB...BAT] vec(Q) shape: {0}'.format(vec_q1.shape))
 
+        # some debugging print commented out
         # print ('[INFO] Rotation about X-axis (phi+90): A\n{0}'
         #        ''.format(nice(cal_rotation_matrix_x(phi + 90, True, True))))
         # print ('Production 1: A x B\n{0}'.format(nice(temp_matrix)))

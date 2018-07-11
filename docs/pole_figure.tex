@@ -23,8 +23,7 @@
 
 \maketitle
 
-Construct 2 orthogonal {\it q} vectors:
-
+Construct 2 orthogonal {\it q} vectors from y-direction and x-direction respectively with rotation by $\theta$ along z-axis
 \begin{eqnarray*}
 \vec{q}_1 &=& 
 	R_z (- \frac{2\theta}{2}) (010)  \\
@@ -55,25 +54,29 @@ where
 \item	$\phi$ =  $\phi$ rotation about sample normal
 \end{itemize}
 
-Thus, $\vec{q}_1$ and $\vec{q}_2$ are rotated as
-% TO BE CONTINUED
-
-
-The projection is then
+Thus, $\vec{q}_1$ and $\vec{q}_2$ are rotated by $R_p$ such as
 \begin{eqnarray*}
-\alpha
-	&=& \cos^{-1}(Q) (001))	\\
-\beta
-	&=& \cos^{-1}(Q) (100))	\\
-\alpha
-	&=& \cos^{-1}(Q\prime) (001))	\\
-\beta
-	&=& \cos^{-1}(Q\prime) (100))	\\
-\alpha_p
-	&=& \alpha - \alpha\prime	\\
-\beta_p
-	&=& \beta - \beta\prime
+\vec{q\prime}_1 &=& R_p\times \vec{q}_1	\\
+\vec{q\prime}_2 &=& R_p\times \vec{q}_2
 \end{eqnarray*}
+
+Finally angle $\alpha$ and $\beta$ are between $\vec{q}_1$, $\vec{q\prime}_1$, $\vec{q}_2$ and $\vec{q\prime}_2$.
+Such that
+\begin{eqnarray*}
+\alpha &=& \cos^{-1}(\vec{q\prime}_2\cdot\vec{q}_2)
+\end{eqnarray*}
+
+It is a little complicated for $\beta$:
+\begin{itemize}
+\item If $(\vec{q}_1)_z >= 0$: $beta = 360^o - \cos^{-1}(\vec{q\prime}_1\cdot\vec{q}_1)$;
+\item if $(\vec{q}_1)_z < 0$: $beta =  \cos^{-1}(\vec{q\prime}_1\cdot\vec{q}_1)$
+\end{itemize}
+Then
+\begin{itemize}
+\item If $\beta <= 90^o$: $beta = 360^o + (\beta - 90^o)$;
+\item if $\beta > 90^o$: $beta = (\beta - 90^o)$
+\end{itemize}
+Such that $\beta$ is between $0^o$ and $360^o$.
 
 \end{document}
 
