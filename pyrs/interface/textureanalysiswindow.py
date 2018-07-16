@@ -518,7 +518,11 @@ class TextureAnalysisWindow(QMainWindow):
         # TODO - 20180711 - Make it work: pole_figure_array = self._core.get_pole_figures(self._data_key, None)
         pole_figure_array = None
 
-        self.ui.graphicsView_contour.plot_pole_figure(pole_figure_array)
+        # Filter out the peaks that are not fitted - TODO
+
+        # Construct vectors for alpha, beta and intensity - TODO
+
+        # FIXME - Temporary disabled self.ui.graphicsView_contour.plot_pole_figure(vec_alpha, vec_beta, vec_intensity)
 
         return
 

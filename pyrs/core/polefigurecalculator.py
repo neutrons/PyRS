@@ -1,7 +1,7 @@
 # This module is to calculate Pole Figure
-import mantid_fit_peak
-import peakfitengine
-from pyrs.utilities import checkdatatypes
+# import mantid_fit_peak
+# import peakfitengine
+#from pyrs.utilities import checkdatatypes
 import numpy
 import math
 
@@ -331,11 +331,11 @@ class PoleFigureCalculator(object):
         :param phi:
         :return: 2-tuple as the projection (alpha, beta)
         """
-        # check inputs
-        checkdatatypes.check_float_variable('2theta', two_theta, (None, None))
-        checkdatatypes.check_float_variable('Omega', omega, (None, None))
-        checkdatatypes.check_float_variable('chi', chi, (None, None))
-        checkdatatypes.check_float_variable('phi', phi, (None, None))
+        # check inputs - FIXME 20180716 - Recover check types after debugging - TODO
+        # checkdatatypes.check_float_variable('2theta', two_theta, (None, None))
+        # checkdatatypes.check_float_variable('Omega', omega, (None, None))
+        # checkdatatypes.check_float_variable('chi', chi, (None, None))
+        # checkdatatypes.check_float_variable('phi', phi, (None, None))
 
         print ('2theta = {0}\nomega = {1}\nchi = {2}\nphi = {3}'
                ''.format(two_theta, omega, chi, phi))
@@ -352,14 +352,14 @@ class PoleFigureCalculator(object):
             vec_q1 = matrix_mul_vector(rotation_matrix, numpy.array([0., 1., 0.]))
             vec_q2 = matrix_mul_vector(rotation_matrix, numpy.array([1., 0., 0.]))
         print ('[DB...BAT] vec(Q) shape: {0}'.format(vec_q1.shape))
+        print ('Vec(q)_1: {0}'.format(vec_q1))
+        print ('Vec(q)_2: {0}'.format(vec_q2))
 
-        # some debugging print commented out
         # print ('[INFO] Rotation about X-axis (phi+90): A\n{0}'
         #        ''.format(nice(cal_rotation_matrix_x(phi + 90, True, True))))
         # print ('Production 1: A x B\n{0}'.format(nice(temp_matrix)))
         # print ('Rotation about Z-axis (-omega):    C\n{0}'
         #        ''.format(nice(cal_rotation_matrix_z(-omega, True, True))))
-        # print ('Production 2: A x B x C\n{0}'.format(nice(temp_matrix)))
 
         # rotate about phi, chi and omega
         if self._use_matmul:
@@ -377,6 +377,9 @@ class PoleFigureCalculator(object):
             vec_q_prime1 = matrix_mul_vector(temp_matrix, numpy.array([0., 1., 0.]))
             vec_q_prime2 = matrix_mul_vector(temp_matrix, numpy.array([1., 0., 0.]))
         # END-IF-ELSE
+        print ('Production 2: A x B x C\n{0}'.format(nice(temp_matrix)))
+        print ('Vec(q)_1\': {0}'.format(vec_q_prime1))
+        print ('Vec(q)_2\': {0}'.format(vec_q_prime2))
         print ('[DB...BAT] vec(Q\') shape: {0}'.format(vec_q1.shape))
 
         # calculate projection to alpha and beta
@@ -409,6 +412,21 @@ class PoleFigureCalculator(object):
         return
 
 # END-OF-CLASS (PoleFigureCalculator)
+
+
+def test_rotate():
+    pf_cal = PoleFigureCalculator()
+    pf_cal._use_matmul = False
+    
+
+    # row 636: same from pyrs-gui-test
+    two_theta   = 82.3940
+    omega       = -48.805
+    chi         = 8.992663
+    phi         = 60.00
+        
+    a, b = pf_cal.rotate_project_q(two_theta, omega, chi, phi)
+    print (a, b)
 
 
 def export_arrays_to_ascii(array_dict, out_file_name):
@@ -488,3 +506,7 @@ def does_numpy_support_matmul():
         return True
 
     return False
+
+
+
+test_rotate()
