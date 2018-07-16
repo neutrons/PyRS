@@ -1,12 +1,14 @@
 from mplgraphicsview1d import MplGraphicsView1D
 from mplgraphicsview2d import MplGraphicsView2D
+from mplgraphicsviewpolar import MplGraphicsPolarView
+import numpy as np
+import mplgraphicsviewpolar
 
 
-class Diffraction2DPlot(MplGraphicsView2D):
+class Diffraction2DPlot(MplGraphicsPolarView):
     """
     General 2D plot view for diffraction data set
     """
-    # TODO - 20180711 - Rewrite this in MplGraphicsView2D style to set the figure to projection
     def __init__(self, parent):
         """
         initialization
@@ -16,34 +18,25 @@ class Diffraction2DPlot(MplGraphicsView2D):
 
         return
 
-    def plot_pole_figure(self, whatever):
+    def plot_pole_figure(self, vec_alpha, vec_beta, vec_intensity):
         """
-        plot pole figure in contour.... this is a test!
-        :param whatever:
+        plot pole figure in contour
+        :param vec_alpha:
+        :param vec_beta:
+        :param vec_intensity:
         :return:
         """
-        import numpy as np
+        # check inputs which are only mattering here
+        mplgraphicsviewpolar.check_1D_array(vec_alpha)
 
-        # -- Generate Data -----------------------------------------
-        # Using linspace so that the endpoint of 360 is included...
-        azimuths = np.radians(np.linspace(0, 360, 100))  # degree
-        zeniths = np.arange(0, 70, 1)  #
+        # project vector to XY plane, i.e., convert alpha (phi) azimuthal angle to r
+        vec_r = np.sin(vec_alpha * np.pi / 180.)
 
-        r, theta = np.meshgrid(zeniths, azimuths)
-        values = np.random.random((azimuths.size, zeniths.size))
-
-        self._myCanvas.axes.contourf(theta, r, values)
+        self._myCanvas.plot_contour(vec_theta=vec_beta, vec_r=vec_r, vec_values=vec_intensity)
 
         self.show()
-        #
-        # self.axes = self.fig.add_subplot(111)  # return: matplotlib.axes.AxesSubplot
-        # self.fig.subplots_adjust(bottom=0.15)
-        # self.axes2 = None
-        #
-        # fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
-        # ax.contourf(theta, r, values)
-        #
-        # plt.show()
+
+        return
 
 
 class DiffContourView(MplGraphicsView2D):
