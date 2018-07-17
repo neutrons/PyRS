@@ -219,9 +219,9 @@ class MantidPeakFitEngine(object):
         """
         # get value
         scan_index_vector = self.get_scan_indexes()
-        cost_vector = self.get_fitted_params(param_name='cost')
+        cost_vector = self.get_fitted_params(param_name='chi2')
         height_vector = self.get_fitted_params(param_name='height')
-        width_vector = self.get_fitted_params(param_name='fwhm')
+        width_vector = self.get_fitted_params(param_name='width')
 
         # check
         if len(scan_index_vector) != len(cost_vector) or len(cost_vector) != len(height_vector) \
@@ -231,11 +231,15 @@ class MantidPeakFitEngine(object):
                                          len(width_vector)))
 
         # combine to dictionary
-        intensity_dict = dict()
+        fit_params_dict = dict()
         for index in range(len(scan_index_vector)):
-            intensity_dict[scan_index_vector[index]] = intensity_vector[index]
+            scan_log_index = scan_index_vector[index]
+            fit_params_dict[scan_log_index] = dict()
+            fit_params_dict[scan_log_index]['cost'] = cost_vector[index]
+            fit_params_dict[scan_log_index]['height'] = height_vector[index]
+            fit_params_dict[scan_log_index]['width'] = width_vector[index]
 
-        return intensity_dict
+        return fit_params_dict
 
     def get_peak_intensities(self):
         """

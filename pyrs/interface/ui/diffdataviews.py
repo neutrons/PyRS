@@ -32,7 +32,9 @@ class Diffraction2DPlot(MplGraphicsPolarView):
         # project vector to XY plane, i.e., convert alpha (phi) azimuthal angle to r
         vec_r = np.sin(vec_alpha * np.pi / 180.)
 
-        self._myCanvas.plot_contour(vec_theta=vec_beta, vec_r=vec_r, vec_values=vec_intensity)
+        #     def plot_contour(self, vec_theta, vec_r, vec_values, max_r, r_resolution, theta_resolution):
+        self._myCanvas.plot_contour(vec_theta=vec_beta, vec_r=vec_r, vec_values=vec_intensity, max_r=1.,
+                                    r_resolution=0.05, theta_resolution=3.)
 
         self.show()
 

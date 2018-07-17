@@ -1,7 +1,7 @@
 # This module is to calculate Pole Figure
 # import mantid_fit_peak
 # import peakfitengine
-#from pyrs.utilities import checkdatatypes
+from pyrs.utilities import checkdatatypes
 import numpy
 import math
 
@@ -318,16 +318,23 @@ class PoleFigureCalculator(object):
         """
         return self._peak_intensity_dict.keys()
 
-    def get_peak_fit_parameter_vec(self, param_name):
+    def get_peak_fit_parameter_vec(self, param_name, det_id):
         """
 
         :param param_name:
         :return:
         """
+        checkdatatypes.check_int_variable('Detector ID', det_id, (0, None))
+
         param_vec = numpy.ndarray(shape=(len(self._peak_fit_info_dict), ), dtype='float')
         log_index_list = sorted(self._peak_fit_info_dict.keys())
         for i, log_index in enumerate(log_index_list):
-            param_vec[i] = self._peak_fit_info_dict[log_index][param_name]
+            try:
+                param_vec[i] = self._peak_fit_info_dict[det_id][log_index][param_name]
+            except KeyError:
+                raise RuntimeError('Parameter {0} is not a key.  Candidates are {1} ... {2}'
+                                   ''.format(param_name, self._peak_fit_info_dict[det_id].keys(),
+                                             self._peak_fit_info_dict[det_id][log_index].keys()))
 
         return param_vec
 
@@ -338,7 +345,7 @@ class PoleFigureCalculator(object):
         :return: 2-tuple: (1) an integer list (2) numpy array with shape (n, 3).  n is the number of data points
         """
         log_index_vec, pole_figure_vec = self._pole_figure_dict[det_id]
-        cost_vec = self.get_peak_fit_parameter_vec('cost')
+        cost_vec = self.get_peak_fit_parameter_vec('cost', det_id)
 
         # filter out the value by cost
         if max_cost is None:
@@ -367,28 +374,28 @@ class PoleFigureCalculator(object):
         :return: 2-tuple as the projection (alpha, beta)
         """
         # check inputs - FIXME 20180716 - Recover check types after debugging - TODO
-        # checkdatatypes.check_float_variable('2theta', two_theta, (None, None))
-        # checkdatatypes.check_float_variable('Omega', omega, (None, None))
-        # checkdatatypes.check_float_variable('chi', chi, (None, None))
-        # checkdatatypes.check_float_variable('phi', phi, (None, None))
+        checkdatatypes.check_float_variable('2theta', two_theta, (None, None))
+        checkdatatypes.check_float_variable('Omega', omega, (None, None))
+        checkdatatypes.check_float_variable('chi', chi, (None, None))
+        checkdatatypes.check_float_variable('phi', phi, (None, None))
 
-        print ('2theta = {0}\nomega = {1}\nchi = {2}\nphi = {3}'
-               ''.format(two_theta, omega, chi, phi))
+        # print ('2theta = {0}\nomega = {1}\nchi = {2}\nphi = {3}'
+        #        ''.format(two_theta, omega, chi, phi))
 
         # rotate Q about theta along z-axis
         rotation_matrix = cal_rotation_matrix_z(-two_theta * 0.5, is_degree=True, use_matrix=self._use_matmul)
 
-        print ('Rotation about Z-axis with {0}:\n{1}'.format(-two_theta * 0.5, nice(rotation_matrix)))
+        # print ('Rotation about Z-axis with {0}:\n{1}'.format(-two_theta * 0.5, nice(rotation_matrix)))
 
         if self._use_matmul:
-            vec_q1 = numpy.matmul(rotation_matrix.transpose(), numpy.array([0., 1., 0.]))
-            vec_q2 = numpy.matmul(rotation_matrix.transpose(), numpy.array([1., 0., 0.]))
+            vec_q1 = numpy.matmul(rotation_matrix, numpy.array([0., 1., 0.]))
+            vec_q2 = numpy.matmul(rotation_matrix, numpy.array([1., 0., 0.]))
         else:
             vec_q1 = matrix_mul_vector(rotation_matrix, numpy.array([0., 1., 0.]))
             vec_q2 = matrix_mul_vector(rotation_matrix, numpy.array([1., 0., 0.]))
-        print ('[DB...BAT] vec(Q) shape: {0}'.format(vec_q1.shape))
-        print ('Vec(q)_1: {0}'.format(vec_q1))
-        print ('Vec(q)_2: {0}'.format(vec_q2))
+        # print ('[DB...BAT] vec(Q) shape: {0}'.format(vec_q1.shape))
+        # print ('Vec(q)_1: {0}'.format(vec_q1))
+        # print ('Vec(q)_2: {0}'.format(vec_q2))
 
         # print ('[INFO] Rotation about X-axis (phi+90): A\n{0}'
         #        ''.format(nice(cal_rotation_matrix_x(phi + 90, True, True))))
@@ -402,8 +409,8 @@ class PoleFigureCalculator(object):
                                        cal_rotation_matrix_y(chi, True, self._use_matmul))
             temp_matrix = numpy.matmul(temp_matrix, cal_rotation_matrix_z(-omega, True, self._use_matmul))
 
-            vec_q_prime1 = numpy.matmul(temp_matrix.transpose(), numpy.array([0., 1., 0.]))
-            vec_q_prime2 = numpy.matmul(temp_matrix.transpose(), numpy.array([1., 0., 0.]))
+            vec_q_prime1 = numpy.matmul(temp_matrix, numpy.array([0., 1., 0.]))
+            vec_q_prime2 = numpy.matmul(temp_matrix, numpy.array([1., 0., 0.]))
         else:
             temp_matrix = matrix_mul_matrix(cal_rotation_matrix_x(phi + 90, True, self._use_matmul),
                                             cal_rotation_matrix_y(chi, True, self._use_matmul))
@@ -412,10 +419,11 @@ class PoleFigureCalculator(object):
             vec_q_prime1 = matrix_mul_vector(temp_matrix, numpy.array([0., 1., 0.]))
             vec_q_prime2 = matrix_mul_vector(temp_matrix, numpy.array([1., 0., 0.]))
         # END-IF-ELSE
-        print ('Production 2: A x B x C\n{0}'.format(nice(temp_matrix)))
-        print ('Vec(q)_1\': {0}'.format(vec_q_prime1))
-        print ('Vec(q)_2\': {0}'.format(vec_q_prime2))
-        print ('[DB...BAT] vec(Q\') shape: {0}'.format(vec_q1.shape))
+
+        # print ('Production 2: A x B x C\n{0}'.format(nice(temp_matrix)))
+        # print ('Vec(q)_1\': {0}'.format(vec_q_prime1))
+        # print ('Vec(q)_2\': {0}'.format(vec_q_prime2))
+        # print ('[DB...BAT] vec(Q\') shape: {0}'.format(vec_q1.shape))
 
         # calculate projection to alpha and beta
         if len(vec_q_prime1.shape) == 2 and vec_q_prime1[0, 2] >= 0 or \
@@ -451,7 +459,7 @@ class PoleFigureCalculator(object):
 
 def test_rotate():
     pf_cal = PoleFigureCalculator()
-    pf_cal._use_matmul = False
+    pf_cal._use_matmul = True
     
 
     # row 636: same from pyrs-gui-test

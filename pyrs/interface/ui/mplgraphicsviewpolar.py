@@ -191,13 +191,14 @@ def check_1D_array(vector):
 def check_float(value_name, value, min_value=None, max_value=None):
     """
     check whether a value is a float or at least an integer
+    :param value_name
     :param value:
     :param min_value:
     :param max_value:
     :return:
     """
-    assert isinstance(value, float), 'Variable {0} must be an integer but not a {1}.' \
-                                     ''.format(value_name, value)
+    assert isinstance(value, float) or isinstance(value, int), '{0} {1} must be a float but not a {2}.' \
+                                                               ''.format(value_name, value, type(value))
 
     # check boundary
     if min_value is not None and value <= min_value:

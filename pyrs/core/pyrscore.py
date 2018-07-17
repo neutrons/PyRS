@@ -185,7 +185,7 @@ class PyRsCore(object):
         """
         checkdatatypes.check_int_variable('Scan log #', log_index, (0, None))
 
-        log_index_list, pole_figures = self._last_pole_figure_calculator.get_pole_figure(detector_id)
+        log_index_list, pole_figures = self._last_pole_figure_calculator.get_pole_figure(detector_id, max_cost=None)
         if len(pole_figures) < log_index + 1:
             alpha = 0
             beta = 0
