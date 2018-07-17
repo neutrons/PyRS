@@ -211,6 +211,32 @@ class MantidPeakFitEngine(object):
         """
         return self._peak_center_vec
 
+    def get_peak_fit_parameters(self):
+        """
+        get fitted peak's parameters
+        :return: dictionary of dictionary. level 0: key as scan index, value as dictionary
+                                           level 1: key as parameter name such as height, cost, and etc
+        """
+        # get value
+        scan_index_vector = self.get_scan_indexes()
+        cost_vector = self.get_fitted_params(param_name='cost')
+        height_vector = self.get_fitted_params(param_name='height')
+        width_vector = self.get_fitted_params(param_name='fwhm')
+
+        # check
+        if len(scan_index_vector) != len(cost_vector) or len(cost_vector) != len(height_vector) \
+                or len(cost_vector) != len(width_vector):
+            raise RuntimeError('Scan indexes ({0}) and cost/height/width ({1}/{2}/{3}) have different sizes.'
+                               ''.format(len(scan_index_vector), len(cost_vector), len(height_vector),
+                                         len(width_vector)))
+
+        # combine to dictionary
+        intensity_dict = dict()
+        for index in range(len(scan_index_vector)):
+            intensity_dict[scan_index_vector[index]] = intensity_vector[index]
+
+        return intensity_dict
+
     def get_peak_intensities(self):
         """
         get peak intensities for each fitted peaks

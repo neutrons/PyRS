@@ -159,6 +159,7 @@ class PoleFigureCalculator(object):
         # initialize class instances
         self._peak_info_dict = dict()   # key: detector ID, scan log index  (int, int)
         self._peak_intensity_dict = dict()   # key: detector ID, scan log index (int, int)
+        self._peak_fit_info_dict = dict()  # key: detector ID, value: dict of  floats
         self._pole_figure_dict = dict()  # key: detector ID, value: 2-tuple.  scan log indexes (list), 2D array
 
         # flag
@@ -168,10 +169,11 @@ class PoleFigureCalculator(object):
 
         return
 
-    def add_input_data_set(self, det_id, peak_intensity_dict, log_dict):
+    def add_input_data_set(self, det_id, peak_intensity_dict, peak_fit_info_dict, log_dict):
         """ set peak intensity log and experiment logs that are required by pole figure calculation
         :param det_id
         :param peak_intensity_dict : dictionary (key = scan log index (int), value = peak intensity (float)
+        :param peak_fit_info_dict: dictionary (key = scan log index (int), value = peak fitting information (float)
         :param log_dict: dictionary (key = scan log index (int), value = dictionary (log name, log value))
         :return:
         """
@@ -181,6 +183,7 @@ class PoleFigureCalculator(object):
                                ''.format(det_id))
         checkdatatypes.check_int_variable('Detector ID', det_id, (0, None))
         checkdatatypes.check_dict('Peak intensities', peak_intensity_dict)
+        checkdatatypes.check_dict('Peak fitting information', peak_fit_info_dict)
         checkdatatypes.check_dict('Log values for pole figure', log_dict)
 
         # check sample log index
@@ -198,6 +201,7 @@ class PoleFigureCalculator(object):
             checkdatatypes.check_list('Pole figure motor names', log_names, ['2theta', 'chi', 'phi', 'omega'])
             # set
             self._peak_info_dict[det_id] = log_dict
+            self._peak_fit_info_dict[det_id] = peak_fit_info_dict
         # END-FOR
 
         return
@@ -314,12 +318,43 @@ class PoleFigureCalculator(object):
         """
         return self._peak_intensity_dict.keys()
 
-    def get_pole_figure(self, det_id):
+    def get_peak_fit_parameter_vec(self, param_name):
         """
-        return Pole figure in a numpy 2D array
+
+        :param param_name:
+        :return:
+        """
+        param_vec = numpy.ndarray(shape=(len(self._peak_fit_info_dict), ), dtype='float')
+        log_index_list = sorted(self._peak_fit_info_dict.keys())
+        for i, log_index in enumerate(log_index_list):
+            param_vec[i] = self._peak_fit_info_dict[log_index][param_name]
+
+        return param_vec
+
+    def get_pole_figure(self, det_id, max_cost):
+        """ return Pole figure in a numpy 2D array
+        :param det_id:
+        :param max_cost:
         :return: 2-tuple: (1) an integer list (2) numpy array with shape (n, 3).  n is the number of data points
         """
-        return self._pole_figure_dict[det_id]
+        log_index_vec, pole_figure_vec = self._pole_figure_dict[det_id]
+        cost_vec = self.get_peak_fit_parameter_vec('cost')
+
+        # filter out the value by cost
+        if max_cost is None:
+            return log_index_vec, pole_figure_vec
+
+        # selected, i.e., filtered by maximum
+        # check input
+        checkdatatypes.check_float_variable('Maximum cost', max_cost, (0, None))
+
+        indexes = numpy.where(cost_vec < max_cost)
+        indexes = indexes[0]
+
+        selected_log_index_vec = numpy.take(log_index_vec, indexes, axis=0)
+        selected_pole_figure_vec = numpy.take(pole_figure_vec, indexes, axis=0)
+
+        return selected_log_index_vec, selected_pole_figure_vec
 
     def rotate_project_q(self, two_theta, omega, chi, phi):
         """

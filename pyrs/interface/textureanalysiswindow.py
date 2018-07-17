@@ -515,14 +515,12 @@ class TextureAnalysisWindow(QMainWindow):
         plot pole figure in the 2D
         :return:
         """
-        # TODO - 20180711 - Make it work: pole_figure_array = self._core.get_pole_figures(self._data_key, None)
-        pole_figure_array = None
+        # get pole figure from core
+        vec_alpha, vec_beta, vec_intensity = self._core.get_pole_figure_values(data_key=self._data_key,
+                                                                               detector_id_list=None,
+                                                                               max_cost=500.)
 
-        # Filter out the peaks that are not fitted - TODO
-
-        # Construct vectors for alpha, beta and intensity - TODO
-
-        # FIXME - Temporary disabled self.ui.graphicsView_contour.plot_pole_figure(vec_alpha, vec_beta, vec_intensity)
+        self.ui.graphicsView_contour.plot_pole_figure(vec_alpha, vec_beta, vec_intensity)
 
         return
 

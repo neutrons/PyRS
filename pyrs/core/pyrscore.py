@@ -5,6 +5,7 @@ import mantid_fit_peak
 import scandataio
 import polefigurecalculator
 import os
+import numpy
 
 # Define Constants
 SUPPORTED_PEAK_TYPES = ['Gaussian', 'Voigt', 'PseudoVoigt', 'Lorentzian']
@@ -123,9 +124,10 @@ class PyRsCore(object):
 
             optimizer = self._get_optimizer((data_key, det_id))
             peak_intensities = optimizer.get_peak_intensities()
+            fit_info_dict = optimizer.get_peak_fit_parameters()
 
-            # add value to pole figure calcualte
-            self._last_pole_figure_calculator.add_input_data_set(det_id, peak_intensities, log_values)
+            # add value to pole figure calculate
+            self._last_pole_figure_calculator.add_input_data_set(det_id, peak_intensities, fit_info_dict, log_values)
         # END-FOR
 
         # do calculation
@@ -133,31 +135,45 @@ class PyRsCore(object):
 
         return
 
-    def get_pole_figures(self, data_key, detector_id_list):
+    def get_pole_figure_values(self, data_key, detector_id_list, max_cost):
         """
         get the (N, 3) array for pole figures
         :param data_key:
         :param detector_id_list:
+        :param max_cost:
         :return:
         """
         pole_figure_calculator = self._pole_figure_calculator_dict[data_key]
-        assert isinstance(pole_figure_calculator, polefigurecalculator.PoleFigureCalculator), 'Pole figure calculator ' \
-                                                                                              'type mismatched'
+        assert isinstance(pole_figure_calculator, polefigurecalculator.PoleFigureCalculator),\
+            'Pole figure calculator type mismatched. Input is of type {0} but expected as {1}.' \
+            ''.format(type(pole_figure_calculator), 'polefigurecalculator.PoleFigureCalculato')
 
         if detector_id_list is None:
             detector_id_list = pole_figure_calculator.get_detector_ids()
+        else:
+            checkdatatypes.check_list('Detector ID list', detector_id_list)
 
-        pole_figure_array = None
+        # get all the pole figure vectors
+        vec_alpha = None
+        vec_beta = None
+        vec_intensity = None
         for det_id in detector_id_list:
             # get_pole_figure returned 2 tuple.  we need the second one as an array for alpha, beta, intensity
-            sub_array = pole_figure_calculator.get_pole_figure(det_id)[1]
-            if pole_figure_array is None:
-                pole_figure_array = sub_array
+            sub_array = pole_figure_calculator.get_pole_figure(det_id, max_cost)[1]
+            vec_alpha_i = sub_array[:, 0]
+            vec_beta_i = sub_array[:, 1]
+            vec_intensity_i = sub_array[:, 2]
+            if vec_alpha is None:
+                vec_alpha = vec_alpha_i
+                vec_beta = vec_beta_i
+                vec_intensity = vec_intensity_i
             else:
-                numpy.expand_array(pole_figure_array, sub_array)
+                numpy.concatenate((vec_alpha, vec_alpha_i), axis=0)
+                numpy.concatenate((vec_beta, vec_beta_i), axis=0)
+                numpy.concatenate((vec_intensity, vec_intensity_i), axis=0)
         # END-FOR
 
-        return pole_figure_array
+        return vec_alpha, vec_beta, vec_intensity
 
     def get_pole_figure_value(self, data_key, detector_id, log_index):
         """
