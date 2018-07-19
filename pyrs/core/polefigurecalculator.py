@@ -358,8 +358,16 @@ class PoleFigureCalculator(object):
         indexes = numpy.where(cost_vec < max_cost)
         indexes = indexes[0]
 
+        selected_cost_vec = numpy.take(cost_vec, indexes, axis=0)
         selected_log_index_vec = numpy.take(log_index_vec, indexes, axis=0)
         selected_pole_figure_vec = numpy.take(pole_figure_vec, indexes, axis=0)
+
+        # must be greater than 0
+        min_cost = 1.
+        indexes2 = numpy.where(selected_cost_vec > min_cost)
+        indexes = indexes2[0]
+        selected_log_index_vec = numpy.take(selected_log_index_vec, indexes, axis=0)
+        selected_pole_figure_vec = numpy.take(selected_pole_figure_vec, indexes, axis=0)
 
         return selected_log_index_vec, selected_pole_figure_vec
 

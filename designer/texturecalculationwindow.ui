@@ -17,22 +17,6 @@
    <layout class="QGridLayout" name="gridLayout">
     <item row="2" column="2">
      <layout class="QGridLayout" name="gridLayout_4">
-      <item row="1" column="5">
-       <spacer name="verticalSpacer">
-        <property name="orientation">
-         <enum>Qt::Vertical</enum>
-        </property>
-        <property name="sizeType">
-         <enum>QSizePolicy::Ignored</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>20</width>
-          <height>40</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
       <item row="0" column="7">
        <widget class="QCheckBox" name="checkBox_keepPrevPlotRight">
         <property name="text">
@@ -140,6 +124,29 @@
        <widget class="QPushButton" name="pushButton_plot_pf">
         <property name="text">
          <string>Plot P.F.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="4">
+       <spacer name="verticalSpacer">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+        <property name="sizeType">
+         <enum>QSizePolicy::Ignored</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>20</width>
+          <height>40</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item row="1" column="5">
+       <widget class="QPushButton" name="pushButton_clearPF">
+        <property name="text">
+         <string>Clear P.F.</string>
         </property>
        </widget>
       </item>

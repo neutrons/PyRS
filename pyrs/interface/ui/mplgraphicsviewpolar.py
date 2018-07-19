@@ -45,6 +45,17 @@ class MplGraphicsPolarView(QWidget):
         self._hasImage = False
 
         return
+
+    def clear_image(self):
+        """
+
+        :return:
+        """
+        self._myCanvas.axes.cla()
+        self._myCanvas._flush()
+
+        return
+
 # END-CLASS
 
 
@@ -80,6 +91,15 @@ class Qt4MplPolarCanvas(FigureCanvas):
         self._colorBar = None
         self._isLegendOn = False
         self._legendFontSize = 8
+
+        return
+
+    def _flush(self):
+        """ A dirty hack to flush the image
+        """
+        w, h = self.get_width_height()
+        self.resize(w+1, h)
+        self.resize(w, h)
 
         return
 
@@ -166,11 +186,14 @@ class Qt4MplPolarCanvas(FigureCanvas):
         # plot
         self.axes.contourf(mesh_theta, mesh_r, mesh_values)
 
+        # flush
+        self._flush()
+
         # fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
         # ax.contourf(theta, r, values)
 
         return
-
+    #
 
 def check_1D_array(vector):
     """

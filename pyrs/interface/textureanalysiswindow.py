@@ -40,6 +40,7 @@ class TextureAnalysisWindow(QMainWindow):
 
         self.ui.pushButton_plotLogs.clicked.connect(self.do_plot_meta_data)
         self.ui.pushButton_plot_pf.clicked.connect(self.do_plot_pole_figure)
+        self.ui.pushButton_clearPF.clicked.connect(self.do_clear_pole_figure_plot)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.actionOpen_HDF5.triggered.connect(self.do_load_scans_hdf)
@@ -128,6 +129,13 @@ class TextureAnalysisWindow(QMainWindow):
             self.ui.tableView_poleFigureParams.set_pole_figure_projection(row_number, alpha, beta)
 
         return
+
+    def do_clear_pole_figure_plot(self):
+        """
+        clear pole figure plot
+        :return:
+        """
+        self.ui.graphicsView_contour.clear_image()
 
     def do_export_pole_figure_table(self):
         """

@@ -158,19 +158,26 @@ class PyRsCore(object):
         vec_beta = None
         vec_intensity = None
         for det_id in detector_id_list:
+            print ('[DB...BAt] Get pole figure from detector {0}'.format(det_id))
             # get_pole_figure returned 2 tuple.  we need the second one as an array for alpha, beta, intensity
             sub_array = pole_figure_calculator.get_pole_figure(det_id, max_cost)[1]
             vec_alpha_i = sub_array[:, 0]
             vec_beta_i = sub_array[:, 1]
             vec_intensity_i = sub_array[:, 2]
+
+            print ('# data points = {0}'.format(len(sub_array)))
+            print ('alpha: {0}'.format(vec_alpha_i))
+
             if vec_alpha is None:
                 vec_alpha = vec_alpha_i
                 vec_beta = vec_beta_i
                 vec_intensity = vec_intensity_i
             else:
-                numpy.concatenate((vec_alpha, vec_alpha_i), axis=0)
-                numpy.concatenate((vec_beta, vec_beta_i), axis=0)
-                numpy.concatenate((vec_intensity, vec_intensity_i), axis=0)
+                vec_alpha = numpy.concatenate((vec_alpha, vec_alpha_i), axis=0)
+                vec_beta = numpy.concatenate((vec_beta, vec_beta_i), axis=0)
+                vec_intensity = numpy.concatenate((vec_intensity, vec_intensity_i), axis=0)
+            # END-IF-ELSE
+            print ('Updated alpha: size = {0}: {1}'.format(len(vec_alpha), vec_alpha))
         # END-FOR
 
         return vec_alpha, vec_beta, vec_intensity

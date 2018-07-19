@@ -29,6 +29,10 @@ class Diffraction2DPlot(MplGraphicsPolarView):
         # check inputs which are only mattering here
         mplgraphicsviewpolar.check_1D_array(vec_alpha)
 
+        # clear the image
+        print ('[DB...BAT] Plot pole figure for {0} data points!'.format(len(vec_alpha)))
+        # self._myCanvas.axes.clear()
+
         # project vector to XY plane, i.e., convert alpha (phi) azimuthal angle to r
         vec_r = np.sin(vec_alpha * np.pi / 180.)
 

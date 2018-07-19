@@ -20,7 +20,7 @@ def test_main():
     texture_window.setup_window(pyrs_core)
 
     texture_window.show()
-    texture_window.ui.comboBox_peakType.setCurrentIndex(1)
+    texture_window.ui.comboBox_peakType.setCurrentIndex(0)
 
     test_data_set = [(1, 'tests/testdata/HB2B_exp129_Long_Al_222[1]_single.hdf5'),
                      (2, 'tests/testdata/HB2B_exp129_Long_Al_222[2]_single.hdf5'),
