@@ -205,6 +205,10 @@ class PoleFigureCalculator(object):
         self._peak_info_dict[det_id] = log_dict
         self._peak_fit_info_dict[det_id] = peak_fit_info_dict
 
+        # for scan_log_index in peak_fit_info_dict:
+        #     print peak_fit_info_dict[scan_log_index].keys()
+        #     print peak_fit_info_dict[scan_log_index]['cost']
+
         return
 
     def calculate_pole_figure(self, det_id_list):
@@ -252,33 +256,6 @@ class PoleFigureCalculator(object):
             self._pole_figure_dict[det_id] = scan_log_index_list, pole_figure_array
 
         # END-FOR
-
-        return
-
-    def execute(self):
-        """
-        calculate pole figure
-        :return:
-        """
-        # fit peaks
-        # choose peak fit engine
-        if use_mantid:
-            fit_engine = mantid_fit_peak.MantidPeakFitEngine(self._peak_info_dict)
-        else:
-            fit_engine = peakfitengine.ScipyPeakFitEngine(self._peak_info_dict)
-
-        # fit peaks
-        fit_engine.fit_peaks(peak_function_name=profile_type, background_function_name=background_type,
-                             fit_range=peak_range)
-
-        # check result
-        fit_engine.mask_bad_fit(max_chi2=self._maxChi2)
-
-        # get fitted peak parameters from engine
-        peak_intensity_dict = fit_engine.get_intensities()
-
-        # calculate pole figure
-        self._cal_successful = self.calculate_pole_figure(peak_intensity_dict)
 
         return
 
@@ -333,7 +310,7 @@ class PoleFigureCalculator(object):
         checkdatatypes.check_int_variable('Detector ID', det_id, (0, None))
 
         param_vec = numpy.ndarray(shape=(len(self._peak_fit_info_dict[det_id]), ), dtype='float')
-        log_index_list = sorted(self._peak_fit_info_dict.keys())
+        log_index_list = sorted(self._peak_fit_info_dict[det_id].keys())
         for i, log_index in enumerate(log_index_list):
             try:
                 param_vec[i] = self._peak_fit_info_dict[det_id][log_index][param_name]
@@ -341,8 +318,8 @@ class PoleFigureCalculator(object):
                 raise RuntimeError('Parameter {0} is not a key.  Candidates are {1} ... {2}'
                                    ''.format(param_name, self._peak_fit_info_dict[det_id].keys(),
                                              self._peak_fit_info_dict[det_id][log_index].keys()))
-
-        print ('[DB...BAT] Param {} Detector {}: {}'.format(param_name, det_id, param_vec))
+        # END-FOR
+        # print ('[DB...BAT] Param {} Detector {}: {}'.format(param_name, det_id, param_vec))
 
         return param_vec
 
@@ -385,6 +362,7 @@ class PoleFigureCalculator(object):
 
         # get costs and filter out isnan()
         cost_vec = self.get_peak_fit_parameter_vec('cost', det_id)
+        print
         taken_index_list = list()
         for idx in range(len(cost_vec)):
             if min_cost < cost_vec[idx] < max_cost:
@@ -554,8 +532,11 @@ def export_to_mtex(pole_figure_array_dict, file_name, header):
     # writing data
     pf_keys = sorted(pole_figure_array_dict.keys())
     for pf_key in pf_keys:
-        pole_figure_array = pole_figure_array_dict[pf_key]
-        for i_pt in range(pole_figure_array.size):
+        sample_log_index, pole_figure_array = pole_figure_array_dict[pf_key]
+
+        print ('[DB...BAT] PF-key: {}... Array Shape: {}'.format(pf_key, pole_figure_array.shape))
+
+        for i_pt in range(pole_figure_array.shape[0]):
             mtex += '{0:5.5f}\t{1:5.5f}\t{2:5.5f}\n' \
                     ''.format(pole_figure_array[i_pt, 0], pole_figure_array[i_pt, 1], pole_figure_array[i_pt, 2])
         # END-FOR (i_pt)

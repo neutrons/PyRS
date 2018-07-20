@@ -35,6 +35,7 @@ class Diffraction2DPlot(MplGraphicsPolarView):
 
         # project vector to XY plane, i.e., convert alpha (phi) azimuthal angle to r
         vec_r = np.sin(vec_alpha * np.pi / 180.)
+        vec_intensity = np.log(vec_intensity+1.)
 
         #     def plot_contour(self, vec_theta, vec_r, vec_values, max_r, r_resolution, theta_resolution):
         self._myCanvas.plot_contour(vec_theta=vec_beta, vec_r=vec_r, vec_values=vec_intensity, max_r=1.,
@@ -196,14 +197,11 @@ class PeakFitSetupView(MplGraphicsView1D):
 
         # remove previous model
         if self._last_model_reference is not None:
-
             print ('[DB...BAT] About to remove last reference: {0}'.format(self._last_model_reference))
             self.remove_line(row_index=0, col_index=0, line_id=self._last_model_reference)
             self._last_model_reference = None
 
         # plot
-        print ('model X: {0}'.format(model_data_set[0]))
-        print ('model Y: {0}'.format(model_data_set[1]))
         self._last_model_reference = self.add_plot(model_data_set[0], model_data_set[1], color='red')
 
         return
