@@ -160,7 +160,7 @@ class PyRsCore(object):
         for det_id in detector_id_list:
             print ('[DB...BAt] Get pole figure from detector {0}'.format(det_id))
             # get_pole_figure returned 2 tuple.  we need the second one as an array for alpha, beta, intensity
-            sub_array = pole_figure_calculator.get_pole_figure(det_id, max_cost)[1]
+            sub_array = pole_figure_calculator.get_pole_figure_vectors(det_id, max_cost)[1]
             vec_alpha_i = sub_array[:, 0]
             vec_beta_i = sub_array[:, 1]
             vec_intensity_i = sub_array[:, 2]
@@ -192,19 +192,21 @@ class PyRsCore(object):
         """
         checkdatatypes.check_int_variable('Scan log #', log_index, (0, None))
 
-        log_index_list, pole_figures = self._last_pole_figure_calculator.get_pole_figure(detector_id, max_cost=None)
-        if len(pole_figures) < log_index + 1:
-            alpha = 0
-            beta = 0
-        else:
-            try:
-                alpha = pole_figures[log_index][0]
-                beta = pole_figures[log_index][1]
-            except ValueError as val_err:
-                raise RuntimeError('Given detector {0} scan log index {1} of data IDed as {2} is out of range as '
-                                   '({3}, {4})  (error = {5})'
-                                   ''.format(detector_id, log_index, data_key, 0, len(pole_figures), val_err))
-        # END-IF-ELSE
+        alpha, beta = self._last_pole_figure_calculator.get_pole_figure_1_pt(detector_id, log_index)
+
+        # log_index_list, pole_figures = self._last_pole_figure_calculator.get_pole_figure_vectors(detector_id, max_cost=None)
+        # if len(pole_figures) < log_index + 1:
+        #     alpha = 0
+        #     beta = 0
+        # else:
+        #     try:
+        #         alpha = pole_figures[log_index][0]
+        #         beta = pole_figures[log_index][1]
+        #     except ValueError as val_err:
+        #         raise RuntimeError('Given detector {0} scan log index {1} of data IDed as {2} is out of range as '
+        #                            '({3}, {4})  (error = {5})'
+        #                            ''.format(detector_id, log_index, data_key, 0, len(pole_figures), val_err))
+        # # END-IF-ELSE
 
         return alpha, beta
 
@@ -328,17 +330,23 @@ class PyRsCore(object):
 
         return optimizer.get_function_parameter_names()
 
-    def get_peak_fit_param_value(self, data_key, param_name):
+    def get_peak_fit_param_value(self, data_key, param_name, max_cost):
         """
         get a specific parameter's fitted value
         :param data_key:
         :param param_name:
-        :return:
+        :param max_cost:
+        :return: 1 vector or 2-tuple (vector + vector)
         """
         # check input
         optimizer = self._get_optimizer(data_key)
 
-        return optimizer.get_fitted_params(param_name)
+        if max_cost is None:
+            return_value = optimizer.get_fitted_params(param_name)
+        else:
+            return_value = optimizer.get_good_fitted_params(param_name, max_cost)
+
+        return return_value
 
     def get_peak_center_of_mass(self, data_key):
         """

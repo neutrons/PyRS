@@ -157,9 +157,9 @@ class PoleFigureCalculator(object):
         initialization
         """
         # initialize class instances
-        self._peak_info_dict = dict()   # key: detector ID, scan log index  (int, int)
+        self._peak_info_dict = dict()   # key: detector ID, value: dict; key: scan log index, value: dict
         self._peak_intensity_dict = dict()   # key: detector ID, scan log index (int, int)
-        self._peak_fit_info_dict = dict()  # key: detector ID, value: dict of  floats
+        self._peak_fit_info_dict = dict()  # key: detector ID, value: dict; key: log index, value: dict
         self._pole_figure_dict = dict()  # key: detector ID, value: 2-tuple.  scan log indexes (list), 2D array
 
         # flag
@@ -195,14 +195,15 @@ class PoleFigureCalculator(object):
         self._peak_intensity_dict[det_id] = peak_intensity_dict
 
         # go through all the values
-        for log_index in log_dict:
-            # check
-            log_names = log_dict[log_index].keys()
+        for scan_log_index in log_dict:
+            # check each log index (entry) whether there are enough 2theta
+            log_names = log_dict[scan_log_index].keys()
             checkdatatypes.check_list('Pole figure motor names', log_names, ['2theta', 'chi', 'phi', 'omega'])
-            # set
-            self._peak_info_dict[det_id] = log_dict
-            self._peak_fit_info_dict[det_id] = peak_fit_info_dict
         # END-FOR
+
+        # set
+        self._peak_info_dict[det_id] = log_dict
+        self._peak_fit_info_dict[det_id] = peak_fit_info_dict
 
         return
 
@@ -318,15 +319,20 @@ class PoleFigureCalculator(object):
         """
         return self._peak_intensity_dict.keys()
 
-    def get_peak_fit_parameter_vec(self, param_name, det_id):
-        """
+    # TODO - 20180720 - New Feature : peak fit info dictionary can be updated
+    def todo_method(self):
+        return
 
+    def get_peak_fit_parameter_vec(self, param_name, det_id):
+        """ get the fitted parameters and return in vector
         :param param_name:
+        :param det_id:
         :return:
         """
+        checkdatatypes.check_string_variable('Peak fitting parameter name', param_name)
         checkdatatypes.check_int_variable('Detector ID', det_id, (0, None))
 
-        param_vec = numpy.ndarray(shape=(len(self._peak_fit_info_dict), ), dtype='float')
+        param_vec = numpy.ndarray(shape=(len(self._peak_fit_info_dict[det_id]), ), dtype='float')
         log_index_list = sorted(self._peak_fit_info_dict.keys())
         for i, log_index in enumerate(log_index_list):
             try:
@@ -336,38 +342,60 @@ class PoleFigureCalculator(object):
                                    ''.format(param_name, self._peak_fit_info_dict[det_id].keys(),
                                              self._peak_fit_info_dict[det_id][log_index].keys()))
 
+        print ('[DB...BAT] Param {} Detector {}: {}'.format(param_name, det_id, param_vec))
+
         return param_vec
 
-    def get_pole_figure(self, det_id, max_cost):
+    def get_pole_figure_1_pt(self, det_id, log_index):
+        """ get 1 pole figure value determined by detector and sample log index
+        :param det_id:
+        :param log_index:
+        :return:
+        """
+        checkdatatypes.check_int_variable('Sample log index', log_index, (None, None))
+
+        # get raw parameters' fitted value
+        log_index_vec, pole_figure_vec = self._pole_figure_dict[det_id]
+
+        # check
+        if log_index != int(log_index_vec[log_index]):
+            raise RuntimeError('Log index {0} does not match the value in log index vector')
+
+        pf_tuple = pole_figure_vec[log_index]
+        alpha = pf_tuple[0]
+        beta = pf_tuple[1]
+
+        return alpha, beta
+
+    def get_pole_figure_vectors(self, det_id, max_cost, min_cost=1.):
         """ return Pole figure in a numpy 2D array
         :param det_id:
         :param max_cost:
+        :param min_cost:
         :return: 2-tuple: (1) an integer list (2) numpy array with shape (n, 3).  n is the number of data points
         """
-        log_index_vec, pole_figure_vec = self._pole_figure_dict[det_id]
-        cost_vec = self.get_peak_fit_parameter_vec('cost', det_id)
-
-        # filter out the value by cost
-        if max_cost is None:
-            return log_index_vec, pole_figure_vec
-
-        # selected, i.e., filtered by maximum
         # check input
-        checkdatatypes.check_float_variable('Maximum cost', max_cost, (0, None))
+        if max_cost is None:
+            max_cost = 1.E20
+        else:
+            checkdatatypes.check_float_variable('Maximum peak fitting cost value', max_cost, (0., None))
 
-        indexes = numpy.where(cost_vec < max_cost)
-        indexes = indexes[0]
+        # get raw parameters' fitted value
+        log_index_vec, pole_figure_vec = self._pole_figure_dict[det_id]
 
-        selected_cost_vec = numpy.take(cost_vec, indexes, axis=0)
-        selected_log_index_vec = numpy.take(log_index_vec, indexes, axis=0)
-        selected_pole_figure_vec = numpy.take(pole_figure_vec, indexes, axis=0)
+        # get costs and filter out isnan()
+        cost_vec = self.get_peak_fit_parameter_vec('cost', det_id)
+        taken_index_list = list()
+        for idx in range(len(cost_vec)):
+            if min_cost < cost_vec[idx] < max_cost:
+                taken_index_list.append(idx)
+        # END-IF
 
-        # must be greater than 0
-        min_cost = 1.
-        indexes2 = numpy.where(selected_cost_vec > min_cost)
-        indexes = indexes2[0]
-        selected_log_index_vec = numpy.take(selected_log_index_vec, indexes, axis=0)
-        selected_pole_figure_vec = numpy.take(selected_pole_figure_vec, indexes, axis=0)
+        print ('[DB...BAT] detector: {} has total {} peaks; {} are selected due to cost < {}.'
+               ''.format(det_id, len(cost_vec), len(taken_index_list), max_cost))
+
+        selected_log_index_vec = numpy.take(log_index_vec, taken_index_list, axis=0)
+        selected_pole_figure_vec = numpy.take(pole_figure_vec, taken_index_list, axis=0)
 
         return selected_log_index_vec, selected_pole_figure_vec
 

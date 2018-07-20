@@ -71,8 +71,17 @@ class GeneralDiffDataView(MplGraphicsView1D):
         # management
         self._line_reference_list = list()
         self._last_line_reference = None
+        self._current_x_axis_name = None
 
         return
+
+    @property
+    def current_x_name(self):
+        """
+
+        :return:
+        """
+        return self._current_x_axis_name
 
     def plot_scatter(self, vec_x, vec_y, x_label, y_label):
         """ plot figure in scatter-style
@@ -89,9 +98,11 @@ class GeneralDiffDataView(MplGraphicsView1D):
                 self.reset_viewer()
 
         # plot data in a scattering plot
-        ref_id = self.add_plot(vec_x, vec_y, line_style=None, color='red', x_label=x_label, y_label=y_label)
+        ref_id = self.add_plot(vec_x, vec_y, line_style='', marker='.',
+                               color='red', x_label=x_label, y_label=y_label)
         self._line_reference_list.append(ref_id)
         self._last_line_reference = ref_id
+        self._current_x_axis_name = x_label
 
         return
 

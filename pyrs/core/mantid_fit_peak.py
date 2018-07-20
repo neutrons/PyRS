@@ -6,6 +6,7 @@ from pyrs.utilities import checkdatatypes
 import numpy as np
 import scandataio
 import os
+import math
 
 print ('[DEBUG-INFO] Mantid is loaded from : {0}'.format(mantid))
 
@@ -318,9 +319,9 @@ class MantidPeakFitEngine(object):
         return data_workspace.getNumberHistograms()
 
     def get_fitted_params(self, param_name):
-        """
-        get the value of a fitted parameter
-        :return:
+        """ get the value of a fitted parameter
+        :param param_name:
+        :return: a 1-D numpy.ndarray
         """
         # check
         checkdatatypes.check_string_variable('Function parameter', param_name)
@@ -340,6 +341,57 @@ class MantidPeakFitEngine(object):
             raise KeyError(err_msg)
 
         return param_vec
+
+    def get_good_fitted_params(self, param_name, max_chi2=1.E20):
+        """
+        get fitted parameter's value for good fit specified by maximum chi2
+        :param param_name:
+        :param max_chi2:
+        :return: 2-vector of same size
+        """
+        # check
+        checkdatatypes.check_string_variable('Function parameter', param_name)
+        checkdatatypes.check_float_variable('Chi^2', max_chi2, (1., None))
+
+        # get all the column names
+        col_names = self._fitted_function_param_table.getColumnNames()
+        if not ('chi2' in col_names and param_name in col_names):
+            err_msg = 'Function parameter {0} does not exist. Supported parameters are {1}' \
+                      ''.format(param_name, col_names)
+            # raise RuntimeError()
+            raise KeyError(err_msg)
+        elif param_name == 'chi2':
+            is_chi2 = True
+        else:
+            is_chi2 = False
+
+        # get chi2 first
+        chi2_col_index = col_names.index('chi2')
+        if not is_chi2:
+            param_col_index = col_names.index(param_name)
+        else:
+            param_col_index = chi2_col_index
+
+        param_list = list()
+        selected_row_index = list()
+        for row_index in range(self._fitted_function_param_table.rowCount()):
+            chi2 = self._fitted_function_param_table.cell(row_index, chi2_col_index)
+            if math.isnan(chi2) or chi2 > max_chi2:
+                continue
+
+            if is_chi2:
+                value_i = chi2
+            else:
+                value_i = self._fitted_function_param_table.cell(row_index, param_col_index)
+
+            param_list.append(value_i)
+            selected_row_index.append(row_index)
+        # END-IF
+
+        log_index_vec = np.array(selected_row_index) + 1
+        param_vec = np.array(param_list)
+
+        return log_index_vec, param_vec
 
     @staticmethod
     def retrieve_workspace(ws_name, throw_if_not_exist):

@@ -39,8 +39,7 @@ class MplGraphicsPolarView(QWidget):
 
         # set up layout
         self._vBox = QVBoxLayout(self)
-        self._vBox.addWidget(self._myCanvas)  #, alignment=)
-        # self._vBox.addWidget(self._myToolBar)
+        self._vBox.addWidget(self._myCanvas)
 
         self._hasImage = False
 
@@ -75,7 +74,7 @@ class Qt4MplPolarCanvas(FigureCanvas):
         self.setParent(parent)
 
         # Set size policy to be able to expanding and resizable with frame
-        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding,QSizePolicy.Expanding)
+        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
 
         # set up axis/subplot (111) only for 2D
@@ -138,6 +137,10 @@ class Qt4MplPolarCanvas(FigureCanvas):
         num_pts = vec_theta.shape[0]
         r_ref_vec = mesh_r[0]
         theta_ref_vec = mesh_theta[:, 0]
+
+        print ('[DB...BAT] Plot pole figure:  Number of data points = {}, '
+               'Maximum intensity = {}'.format(num_pts, np.max(vec_values)))
+
         for i in range(num_pts):
             r_i = vec_r[i]
             theta_i = vec_theta[i] * np.pi / 180.  # convert from degree to rad
@@ -180,7 +183,7 @@ class Qt4MplPolarCanvas(FigureCanvas):
             # END-IF-ELSE
 
             # set value
-            mesh_values[index_theta, index_r] = value_i
+            mesh_values[index_theta, index_r] += value_i
         # END-FOR
 
         # plot

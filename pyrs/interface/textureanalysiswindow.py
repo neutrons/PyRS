@@ -318,8 +318,8 @@ class TextureAnalysisWindow(QMainWindow):
         intensity_dict = dict()
         for det_id in det_id_list:
             data_key_pair = data_key, det_id
-            chi2_vec = self._core.get_peak_fit_param_value(data_key_pair, 'chi2')
-            intensity_vec = self._core.get_peak_fit_param_value(data_key_pair, 'intensity')
+            chi2_vec = self._core.get_peak_fit_param_value(data_key_pair, 'chi2', max_cost=None)
+            intensity_vec = self._core.get_peak_fit_param_value(data_key_pair, 'intensity', max_cost=None)
             chi2_dict[det_id] = chi2_vec
             intensity_dict[det_id] = intensity_vec
         # END-FOR
@@ -403,15 +403,14 @@ class TextureAnalysisWindow(QMainWindow):
         if self._sample_log_names_mutex:
             return
 
-        # TEST - 20180711
         # get the detector ID
         det_id = int(self.ui.comboBox_detectorID.currentText())
         # get the sample log/meta data name
         x_axis_name = str(self.ui.comboBox_xaxisNames.currentText())
         y_axis_name = str(self.ui.comboBox_yaxisNames.currentText())
 
-        vec_x = self.get_meta_sample_data(det_id, x_axis_name)
-        vec_y = self.get_meta_sample_data(det_id, y_axis_name)
+        vec_x = self.get_meta_sample_data(det_id, x_axis_name, max_cost=70.)
+        vec_y = self.get_meta_sample_data(det_id, y_axis_name, max_cost=70.)
 
         # clear whatever on the graph if the previous is not to be kept
         if not self.ui.checkBox_keepPrevPlotRight.isChecked():
@@ -420,7 +419,15 @@ class TextureAnalysisWindow(QMainWindow):
             self.ui.graphicsView_fitResult.reset_viewer()
 
         # plot
-        self.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y, x_axis_name, y_axis_name)
+        if isinstance(vec_x, tuple):
+            # TODO - 20180820 - It is tricky to have selected log indexed X
+            print ('[CRITICAL/ERROR] Not Implemented Yet! Contact Developer!')
+        elif isinstance(vec_y, tuple):
+            # log indexes:
+            vec_x, vec_y = vec_y
+            self.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y, x_axis_name, y_axis_name)
+        else:
+            self.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y, x_axis_name, y_axis_name)
 
         return
 
@@ -524,9 +531,10 @@ class TextureAnalysisWindow(QMainWindow):
         :return:
         """
         # get pole figure from core
+        # TODO - 20180720 - maximum cost shall be specified by user
         vec_alpha, vec_beta, vec_intensity = self._core.get_pole_figure_values(data_key=self._data_key,
                                                                                detector_id_list=None,
-                                                                               max_cost=500.)
+                                                                               max_cost=70.)
 
         self.ui.graphicsView_contour.plot_pole_figure(vec_alpha, vec_beta, vec_intensity)
 
@@ -583,12 +591,13 @@ class TextureAnalysisWindow(QMainWindow):
 
         return
 
-    def get_meta_sample_data(self, det_id, name):
+    def get_meta_sample_data(self, det_id, name, max_cost=None):
         """
         get meta data to plot.
         the meta data can contain sample log data and fitted peak parameters
         :param det_id:
         :param name:
+        :param max_cost
         :return:
         """
         # get data key
@@ -605,7 +614,7 @@ class TextureAnalysisWindow(QMainWindow):
             value_vector = self._core.get_peak_center_of_mass((data_key, det_id))
         else:
             # this is for fitted data parameters
-            value_vector = self._core.get_peak_fit_param_value((data_key, det_id), name)
+            value_vector = self._core.get_peak_fit_param_value((data_key, det_id), name, max_cost=max_cost)
 
         return value_vector
 
