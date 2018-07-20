@@ -1,15 +1,9 @@
 import os
-import rshelper as helper
+from pyrs.utilities import checkdatatypes
 import h5py
 import numpy
-import sys
-home_dir = os.path.expanduser('~')
-if home_dir.startswith('/SNS/'):
-    # analysis
-    # sys.path.insert(1, '/opt/mantidnightly/bin/')
-    # local build
-    sys.path.insert(1, '/SNS/users/wzz/Mantid_Project/builds/debug/bin/')
 from mantid.simpleapi import SaveNexusProcessed
+from mantid.api import AnalysisDataService
 
 
 class DiffractionDataFile(object):
@@ -69,7 +63,7 @@ class DiffractionDataFile(object):
         :param file_name:
         :return:
         """
-        helper.check_file_name(file_name, check_exist=True)
+        checkdatatypes.check_file_name(file_name, check_exist=True)
 
         # access sub tree
         scan_h5 = h5py.File(file_name)
@@ -130,6 +124,86 @@ class DiffractionDataFile(object):
 
         return diff_data_dict, sample_logs
 
+    def load_rs_file_set(self, file_name_list):
+        """
+
+        :param file_name_list:
+        :return:
+        """
+        # TODO - docs
+        file_name_list.sort()
+
+        # prepare
+        num_logs = len(file_name_list)
+        sample_logs_set = dict()
+        diff_data_dict_set = dict()
+
+        for det_id, file_name in file_name_list:
+            checkdatatypes.check_file_name(file_name, check_exist=True)
+
+            # define single file dictionary
+            sample_logs = dict()
+            diff_data_dict = dict()
+
+            # access sub tree
+            scan_h5 = h5py.File(file_name)
+            if 'Diffraction Data' not in scan_h5.keys():
+                raise RuntimeError(scan_h5.keys())
+            diff_data_group = scan_h5['Diffraction Data']
+            print ('File: {0}'.format(file_name))
+
+            # loop through the Logs
+            h5_log_i = diff_data_group
+
+            # get 'Log #'
+            log_index_vec = h5_log_i['Log #'].value[0, 0].astype(int)
+            # print ('Log #: Shape = {0}. Value = {1}'.format(log_index_vec.shape, log_index_vec))
+
+            for item_name in h5_log_i.keys():
+                # skip log index
+                if item_name == 'Log #':
+                    continue
+
+                item_i = h5_log_i[item_name].value
+                if isinstance(item_i, numpy.ndarray):
+                    # case for diffraction data
+                    if item_name == 'Corrected Diffraction Data':
+                        print ('Item {0}: shape = {1}'.format(item_name, item_i.shape))
+                        # corrected 2theta and diffraction
+                        if item_i.shape[2] != len(log_index_vec):
+                            raise RuntimeError('File {0}: Corrected Diffraction Data ({1}) has different '
+                                               'number of entries than log indexes ({2})'
+                                               ''.format(file_name, item_i.shape[2], len(log_index_vec)))
+                        for i_log_index in range(len(log_index_vec)):
+                            vec_2theta = item_i[:, 0, i_log_index]
+                            vec_intensity = item_i[:, 1, i_log_index]
+                            diff_data_dict[log_index_vec[i_log_index]] = vec_2theta, vec_intensity
+                        # END-FOR
+
+                    elif item_name == 'Corrected Intensity':
+                        raise NotImplementedError('Not supposed to be here!')
+                    else:
+                        # sample log data
+                        vec_sample_i = item_i[0, 0].astype(float)
+                        # dictionary = dict(zip(log_index_vec, vec_sample_i))
+                        # sample_logs[str(item_name)] = dictionary  # make sure the log name is a string
+                        sample_logs[str(item_name)] = vec_sample_i
+                    # END-IF-ELSE
+                else:
+                    # 1 dimensional (single data point)
+                    raise RuntimeError('There is no use case for single-value item so far. '
+                                       '{0} of value {1} is not supported to parse in.'
+                                       ''.format(item_i, item_i.value))
+                # END-IF
+            # END-FOR
+
+            # conclude for single file
+            sample_logs_set[det_id] = sample_logs
+            diff_data_dict_set[det_id] = diff_data_dict
+        # END-FOR (log_index, file_name)
+
+        return diff_data_dict_set, sample_logs_set
+
     def save_rs_file(self, file_name):
         """
 
@@ -140,8 +214,51 @@ class DiffractionDataFile(object):
         return
 
 
-def save_mantid_nexus(workspace_name, file_name):
-    # TODO
-    SaveNexusProcessed(InputWorkspace=workspace_name,
-                       Filename=file_name,
-                       Title='blabla')
+def get_temp_directory():
+    """
+    get a temporary directory to write files
+    :return:
+    """
+    # current workspace first
+    temp_dir = os.getcwd()
+    if os.access(temp_dir, os.W_OK):
+        return temp_dir
+
+    # /tmp/ second
+    temp_dir = '/tmp/'
+    if os.path.exists(temp_dir):
+        return temp_dir
+
+    # last solution: home directory
+    temp_dir = os.path.expanduser('~')
+
+    return temp_dir
+
+
+def save_mantid_nexus(workspace_name, file_name, title=''):
+    """
+    save workspace to NeXus for Mantid to import
+    :param workspace_name:
+    :param file_name:
+    :param title:
+    :return:
+    """
+    # check input
+    checkdatatypes.check_file_name(file_name, check_exist=False,
+                                   check_writable=True, is_dir=False)
+    checkdatatypes.check_string_variable('Workspace title', title)
+
+    # check workspace
+    checkdatatypes.check_string_variable('Workspace name', workspace_name)
+    if AnalysisDataService.doesExist(workspace_name):
+        SaveNexusProcessed(InputWorkspace=workspace_name,
+                           Filename=file_name,
+                           Title=title)
+    else:
+        raise RuntimeError('Workspace {0} does not exist in Analysis data service. Available '
+                           'workspaces are {1}.'
+                           ''.format(workspace_name, AnalysisDataService.getObjectNames()))
+
+    # END-IF-ELSE
+
+    return

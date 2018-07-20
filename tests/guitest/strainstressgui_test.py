@@ -1,9 +1,9 @@
 #!/usr/bin/python
-# In order to test the peak fit window (GUI)
+# In order to test the strain/stress calculation/visualization GUI (GUI)
 from pyrs.core import pyrscore
 import sys
 import pyrs.interface
-from pyrs.interface import fitpeakswindow
+from pyrs.interface import strainstresscalwindow
 import pyrs.core
 try:
     from PyQt5.QtWidgets import QApplication

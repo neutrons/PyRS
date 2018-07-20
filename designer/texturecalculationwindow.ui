@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1473</width>
-    <height>1089</height>
+    <width>1695</width>
+    <height>1270</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,10 +17,74 @@
    <layout class="QGridLayout" name="gridLayout">
     <item row="2" column="2">
      <layout class="QGridLayout" name="gridLayout_4">
-      <item row="0" column="1">
+      <item row="0" column="7">
+       <widget class="QCheckBox" name="checkBox_keepPrevPlotRight">
+        <property name="text">
+         <string>Keep</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="6">
+       <spacer name="horizontalSpacer_4">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeType">
+         <enum>QSizePolicy::Preferred</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item row="0" column="5">
+       <widget class="QComboBox" name="comboBox_yaxisNames"/>
+      </item>
+      <item row="0" column="3">
+       <spacer name="horizontalSpacer_5">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeType">
+         <enum>QSizePolicy::Ignored</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item row="0" column="4">
+       <widget class="QLabel" name="label_6">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>60</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Y-axis</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
        <widget class="QComboBox" name="comboBox_xaxisNames"/>
       </item>
       <item row="0" column="0">
+       <widget class="QComboBox" name="comboBox_detectorID"/>
+      </item>
+      <item row="0" column="1">
        <widget class="QLabel" name="label_5">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
@@ -39,41 +103,27 @@
         </property>
        </widget>
       </item>
-      <item row="0" column="4">
-       <widget class="QComboBox" name="comboBox_yaxisNames"/>
+      <item row="0" column="8">
+       <widget class="QPushButton" name="pushButton_plotLogs">
+        <property name="text">
+         <string>Plot</string>
+        </property>
+       </widget>
       </item>
-      <item row="0" column="5">
-       <spacer name="horizontalSpacer_4">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-        <property name="sizeType">
-         <enum>QSizePolicy::Preferred</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>40</width>
-          <height>20</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item row="0" column="3">
-       <widget class="QLabel" name="label_6">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>60</width>
-          <height>16777215</height>
-         </size>
+      <item row="1" column="0">
+       <widget class="QPushButton" name="pushButton_save_pf">
+        <property name="toolTip">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Save pole figure to a file&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
         </property>
         <property name="text">
-         <string>Y-axis</string>
+         <string>Save P.F.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="2">
+       <widget class="QPushButton" name="pushButton_plot_pf">
+        <property name="text">
+         <string>Plot P.F.</string>
         </property>
        </widget>
       </item>
@@ -93,28 +143,12 @@
         </property>
        </spacer>
       </item>
-      <item row="0" column="6">
-       <widget class="QCheckBox" name="checkBox_keepPrevPlotRight">
+      <item row="1" column="5">
+       <widget class="QPushButton" name="pushButton_clearPF">
         <property name="text">
-         <string>Keep</string>
+         <string>Clear P.F.</string>
         </property>
        </widget>
-      </item>
-      <item row="0" column="2">
-       <spacer name="horizontalSpacer_5">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-        <property name="sizeType">
-         <enum>QSizePolicy::Ignored</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>40</width>
-          <height>20</height>
-         </size>
-        </property>
-       </spacer>
       </item>
      </layout>
     </item>
@@ -136,13 +170,6 @@
     </item>
     <item row="2" column="0">
      <layout class="QGridLayout" name="gridLayout_3">
-      <item row="0" column="0">
-       <widget class="QLabel" name="label_4">
-        <property name="text">
-         <string>Scan Numbers</string>
-        </property>
-       </widget>
-      </item>
       <item row="1" column="0">
        <widget class="QLabel" name="label_7">
         <property name="text">
@@ -178,12 +205,45 @@
       <item row="0" column="1">
        <layout class="QHBoxLayout" name="horizontalLayout_5">
         <item>
-         <widget class="QLineEdit" name="lineEdit_scanNUmbers"/>
+         <widget class="QLabel" name="label_4">
+          <property name="text">
+           <string>Scan Numbers</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="lineEdit_scanNumbers"/>
+        </item>
+        <item>
+         <widget class="QPushButton" name="pushButton_scanNumberBackward">
+          <property name="maximumSize">
+           <size>
+            <width>40</width>
+            <height>16777215</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>&lt;</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="pushButton_scanNumberForward">
+          <property name="maximumSize">
+           <size>
+            <width>40</width>
+            <height>16777215</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>&gt;</string>
+          </property>
+         </widget>
         </item>
         <item>
          <widget class="QLabel" name="label_8">
           <property name="text">
-           <string>min: </string>
+           <string>Range</string>
           </property>
          </widget>
         </item>
@@ -211,34 +271,13 @@
          </spacer>
         </item>
         <item>
-         <widget class="QLabel" name="label_10">
-          <property name="text">
-           <string>max:</string>
-          </property>
-         </widget>
-        </item>
-        <item>
          <widget class="QLabel" name="label_logIndexMax">
           <property name="text">
            <string>-1</string>
           </property>
          </widget>
         </item>
-        <item>
-         <widget class="QCheckBox" name="checkBox_keepPrevPlot">
-          <property name="text">
-           <string>Keep</string>
-          </property>
-         </widget>
-        </item>
        </layout>
-      </item>
-      <item row="0" column="2">
-       <widget class="QPushButton" name="pushButton_plotPeaks">
-        <property name="text">
-         <string>Plot Peak(s)</string>
-        </property>
-       </widget>
       </item>
       <item row="1" column="2">
        <widget class="QPushButton" name="pushButton_fitPeaks">
@@ -247,10 +286,34 @@
         </property>
        </widget>
       </item>
+      <item row="1" column="3">
+       <widget class="QPushButton" name="pushButton_calPoleFigure">
+        <property name="text">
+         <string>Pole Figure</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="3">
+       <widget class="QPushButton" name="pushButton_plotPeaks">
+        <property name="text">
+         <string>Plot Peak(s)</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QCheckBox" name="checkBox_keepPrevPlot">
+        <property name="text">
+         <string>Keep</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0">
+       <widget class="QComboBox" name="comboBox_detectorIDsPlotPeak"/>
+      </item>
      </layout>
     </item>
     <item row="3" column="0">
-     <widget class="FitResultTable" name="tableView_fitSummary">
+     <widget class="PoleFigureTable" name="tableView_poleFigureParams">
       <property name="toolTip">
        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Peak fit result&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
       </property>
@@ -373,7 +436,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1473</width>
+     <width>1695</width>
      <height>25</height>
     </rect>
    </property>
@@ -385,7 +448,21 @@
     <addaction name="actionSave_as"/>
     <addaction name="actionQuit"/>
    </widget>
+   <widget class="QMenu" name="menuPeak_Fitting">
+    <property name="title">
+     <string>Peak Fitting</string>
+    </property>
+    <addaction name="actionSave_Diffraction_Data_For_Mantid"/>
+   </widget>
+   <widget class="QMenu" name="menuPole_Figure">
+    <property name="title">
+     <string>Pole Figure</string>
+    </property>
+    <addaction name="actionExport_Table"/>
+   </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuPeak_Fitting"/>
+   <addaction name="menuPole_Figure"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionQuit">
@@ -406,6 +483,16 @@
     <string>Open Re-Reduced File</string>
    </property>
   </action>
+  <action name="actionSave_Diffraction_Data_For_Mantid">
+   <property name="text">
+    <string>Save Diffraction Data For Mantid</string>
+   </property>
+  </action>
+  <action name="actionExport_Table">
+   <property name="text">
+    <string>Export Table</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
@@ -419,14 +506,14 @@
    <header>diffdataviews.h</header>
   </customwidget>
   <customwidget>
-   <class>FitResultTable</class>
-   <extends>QTableView</extends>
-   <header>rstables.h</header>
-  </customwidget>
-  <customwidget>
    <class>Diffraction2DPlot</class>
    <extends>QGraphicsView</extends>
    <header>diffdataviews.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PoleFigureTable</class>
+   <extends>QTableView</extends>
+   <header>rstables.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

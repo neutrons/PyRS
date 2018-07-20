@@ -3,6 +3,7 @@ try:
 except ImportError:
     from PyQt4.QtGui import QMainWindow, QFileDialog
 import ui.ui_peakfitwindow
+import pyrs.utilities.hb2b_utilities as hb2b
 import os
 import gui_helper
 import numpy
@@ -36,6 +37,9 @@ class FitPeaksWindow(QMainWindow):
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.actionSave_As.triggered.connect(self.do_save_as)
+        self.ui.actionSave_Fit_Result.triggered.connect(self.do_save_fit_result)
+
+        # TODO - Implement : pushButton_plotLogs, comboBox_detectorID
 
         # others
         self.ui.tableView_fitSummary.setup()
@@ -68,9 +72,9 @@ class FitPeaksWindow(QMainWindow):
             gui_helper.pop_message(self, 'Unable to parse IPTS or Exp due to {0}'.format(run_err))
             return None
 
-        # TODO - NEED TO FIND OUT HOW TO DEFINE hdf FROM IPTS and EXP
+        archive_data = hb2b.get_hb2b_raw_data(ipts_number, exp_number)
 
-        return '/HFIR/HB2B/'
+        return archive_data
 
     def do_browse_hdf(self):
         """
@@ -83,7 +87,7 @@ class FitPeaksWindow(QMainWindow):
         if default_dir is None:
             default_dir = self._core.working_dir
 
-        file_filter = 'HDF(*.h5);;All Files(*.*)'
+        file_filter = 'HDF(*.hdf5);;All Files(*.*)'
         open_value = QFileDialog.getOpenFileName(self, 'HB2B Raw HDF File', default_dir, file_filter)
         print open_value
 
@@ -155,7 +159,10 @@ class FitPeaksWindow(QMainWindow):
         return
 
     def do_fit_peaks(self):
-        # TODO
+        """
+        Fit all peaks
+        :return:
+        """
         int_string_list = str(self.ui.lineEdit_scanNUmbers.text()).strip()
         if len(int_string_list) == 0:
             scan_log_index = None
@@ -264,7 +271,7 @@ class FitPeaksWindow(QMainWindow):
 
         # if self.ui.checkBox_keepPrevPlotRight.isChecked() is False:
         # TODO - Shall be controlled by a more elegant mechanism
-        self.ui.graphicsView_fitResult.clear_all_lines(include_right=False)
+        self.ui.graphicsView_fitResult.reset_viewer()
 
         # get the sample log/meta data name
         x_axis_name = str(self.ui.comboBox_xaxisNames.currentText())
@@ -278,7 +285,34 @@ class FitPeaksWindow(QMainWindow):
         return
 
     def do_save_as(self):
+        """
+
+        :return:
+        """
         # TODO
+        return
+
+    def do_save_fit_result(self):
+        """
+        save fit result
+        :return:
+        """
+        # get file name
+        csv_filter = 'CSV Files(*.csv);;DAT Files(*.dat);;All Files(*.*)'
+        # with filter, the returned will contain 2 values
+        user_input = QFileDialog.getSaveFileName(self, 'CSV file for peak fitting result', self._core.working_dir,
+                                                 csv_filter)
+        if isinstance(user_input, tuple) and len(user_input) == 2:
+            file_name = str(user_input[0])
+        else:
+            file_name = str(user_input)
+
+        if file_name == '':
+            # user cancels
+            return
+
+        self.export_fit_result(file_name)
+
         return
 
     def do_quit(self):
@@ -287,6 +321,16 @@ class FitPeaksWindow(QMainWindow):
         :return:
         """
         self.close()
+
+        return
+
+    def export_fit_result(self, file_name):
+        """
+        export fit result to a csv file
+        :param file_name:
+        :return:
+        """
+        self.ui.tableView_fitSummary.export_table_csv(file_name)
 
         return
 
@@ -316,17 +360,23 @@ class FitPeaksWindow(QMainWindow):
         return value_vector
 
     def save_data_for_mantid(self, data_key, file_name):
-        # TODO
+        """
+        save data to Mantid-compatible NeXus
+        :param data_key:
+        :param file_name:
+        :return:
+        """
         self._core.save_nexus(data_key, file_name)
 
     def setup_window(self, pyrs_core):
-        """
-
+        """ set up the window.  It must be called mandatory
         :param pyrs_core:
         :return:
         """
+        from pyrs.core.pyrscore import PyRsCore
         # check
-        # blabla
+        assert isinstance(pyrs_core, PyRsCore), 'Controller core {0} must be a PyRSCore instance but not a {1}.' \
+                                                ''.format(pyrs_core, pyrs_core.__class__.__name__)
 
         self._core = pyrs_core
 

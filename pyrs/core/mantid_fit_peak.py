@@ -1,21 +1,14 @@
 # Peak fitting engine by calling mantid
-# Set up the testing environment for PyVDrive commands
-import os
-import sys
-home_dir = os.path.expanduser('~')
-if home_dir.startswith('/SNS/'):
-    # analysis
-    # sys.path.insert(1, '/opt/mantidnightly/bin/')
-    # local build
-    sys.path.insert(1, '/SNS/users/wzz/Mantid_Project/builds/debug/bin/')
-    sys.path.insert(1, '/opt/mantidnightly/bin/')
-elif home_dir.startswith('/Users/wzz'):
-    # VZ local mac
-    sys.path.append('/Users/wzz/MantidBuild/debug/bin')
+import mantid
 from mantid.simpleapi import FitPeaks, CreateWorkspace
 from mantid.api import AnalysisDataService
-import rshelper
+from pyrs.utilities import checkdatatypes
 import numpy as np
+import scandataio
+import os
+import math
+
+print ('[DEBUG-INFO] Mantid is loaded from : {0}'.format(mantid))
 
 
 class MantidPeakFitEngine(object):
@@ -30,15 +23,16 @@ class MantidPeakFitEngine(object):
         :param
         """
         # check
-        rshelper.check_list('Data set list', data_set_list)
-        rshelper.check_string_variable('Peak fitting reference ID', ref_id)
+        checkdatatypes.check_list('Data set list', data_set_list)
+        checkdatatypes.check_string_variable('Peak fitting reference ID', ref_id)
 
+        self._reference_id = ref_id
         self._workspace_name = self._get_matrix_name(ref_id)
-        self._data_workspace = self.generate_matrix_workspace(data_set_list, matrix_ws_name=self._workspace_name)
+        self.generate_matrix_workspace(data_set_list, matrix_ws_name=self._workspace_name)
 
         # some observed properties
-        self._center_of_mass_ws = None
-        self._highest_point_ws = None
+        self._center_of_mass_ws_name = None
+        self._highest_point_ws_name = None
         self._peak_center_vec = None  # 2D vector for observed center of mass and highest data point
 
         # fitting result
@@ -78,12 +72,106 @@ class MantidPeakFitEngine(object):
             peak_center_vec[iws, 1] = vec_x[imax_peak]
 
         # create 2 workspaces
-        self._center_of_mass_ws = CreateWorkspace(DataX=peak_center_vec[:, 0], DataY=peak_center_vec[:, 0],
-                                                  NSpec=num_spectra, OutputWorkspace='CenterOfMassWS')
-        self._highest_point_ws = CreateWorkspace(DataX=peak_center_vec[:, 1], DataY=peak_center_vec[:, 1],
-                                                 NSpec=num_spectra, OutputWorkspace='HighestPointWS')
+        self._center_of_mass_ws_name = '{0}_COM'.format(self._workspace_name)
+        com_ws = CreateWorkspace(DataX=peak_center_vec[:, 0], DataY=peak_center_vec[:, 0],
+                                 NSpec=num_spectra, OutputWorkspace=self._center_of_mass_ws_name)
+        print ('[INFO] Center of Mass Workspace: {0} Number of spectra = {1}'
+               ''.format(self._center_of_mass_ws_name, com_ws.getNumberHistograms()))
+
+        self._highest_point_ws_name = '{0}_HighestPoints'.format(self._workspace_name)
+        high_ws = CreateWorkspace(DataX=peak_center_vec[:, 1], DataY=peak_center_vec[:, 1],
+                                  NSpec=num_spectra, OutputWorkspace=self._highest_point_ws_name)
+        print ('[INFO] Highest Point Workspace: {0} Number of spectra = {1}'
+               ''.format(self._highest_point_ws_name, high_ws.getNumberHistograms()))
 
         self._peak_center_vec = peak_center_vec
+
+        return
+
+    def fit_peaks(self, peak_function_name, background_function_name, fit_range, scan_index=None):
+        """
+        fit peaks
+        :param peak_function_name:
+        :param background_function_name:
+        :param fit_range:
+        :param scan_index: single scan index to fit for.  If None, then fit for all spectra
+        :return:
+        """
+        checkdatatypes.check_string_variable('Peak function name', peak_function_name)
+        checkdatatypes.check_string_variable('Background function name', background_function_name)
+        if scan_index is not None:
+            checkdatatypes.check_int_variable('Scan (log) index', scan_index, value_range=[0, self.get_number_scans()])
+            start = scan_index
+            stop = scan_index
+        else:
+            start = 0
+            stop = self.get_number_scans() - 1
+
+        # check peak function name:
+        if peak_function_name not in ['Gaussian', 'Voigt', 'PseudoVoigt', 'Lorentzian']:
+            raise RuntimeError('Peak function {0} is not supported yet.'.format(peak_function_name))
+        if background_function_name not in ['Linear', 'Flat']:
+            raise RuntimeError('Background type {0} is not supported yet.'.format(background_function_name))
+
+        data_workspace = self.retrieve_workspace(self._workspace_name, True)
+        num_spectra = data_workspace.getNumberHistograms()
+        peak_window_ws_name = 'fit_window_{0}'.format(self._reference_id)
+        CreateWorkspace(DataX=np.array([fit_range[0], fit_range[1]] * num_spectra),
+                        DataY=np.array([fit_range[0], fit_range[1]] * num_spectra),
+                        NSpec=num_spectra, OutputWorkspace=peak_window_ws_name)
+
+        # fit
+        print ('[DB...BAT] Data workspace # spec = {0}. Fit range = {1}'
+               ''.format(num_spectra, fit_range))
+
+        # no pre-determined peak center: use center of mass
+        r_positions_ws_name = 'fitted_peak_positions_{0}'.format(self._reference_id)
+        r_param_table_name = 'param_m_{0}'.format(self._reference_id)
+        r_model_ws_name = 'model_full_{0}'.format(self._reference_id)
+        r = FitPeaks(InputWorkspace=self._workspace_name,
+                     OutputWorkspace=r_positions_ws_name,
+                     PeakCentersWorkspace=self._center_of_mass_ws_name,
+                     PeakFunction=peak_function_name,
+                     BackgroundType=background_function_name,
+                     StartWorkspaceIndex=start,
+                     StopWorkspaceIndex=stop,
+                     FindBackgroundSigma=1,
+                     HighBackground=False,
+                     ConstrainPeakPositions=False,
+                     RawPeakParameters=False,
+                     OutputPeakParametersWorkspace=r_param_table_name,
+                     FittedPeaksWorkspace=r_model_ws_name,
+                     FitPeakWindowWorkspace=peak_window_ws_name)
+
+        print ('Fit peaks parameters: range {0} - {1}.  Fit window boundary: {2} - {3}'
+               ''.format(start, stop, fit_range[0], fit_range[1]))
+
+        # Save all the workspaces automatically for further review
+        if True:
+            # find the directory for file
+            dir_name = scandataio.get_temp_directory()
+            print ('[INFO] Mantid fit debugging data files will be written to {0}'.format(dir_name))
+
+            # workspace for data
+            base_name = self._reference_id.replace('.', '_') + '_' + peak_function_name
+            raw_file_name = os.path.join(dir_name, '{0}_data.nxs'.format(base_name))
+            scandataio.save_mantid_nexus(self._workspace_name, raw_file_name,
+                                         title='raw data for {0}'.format(self._reference_id))
+
+            # peak window workspace
+            fit_window_name = os.path.join(dir_name, '{0}_fit_window.nxs'.format(base_name))
+            scandataio.save_mantid_nexus(peak_window_ws_name, fit_window_name, title='Peak fit window workspace')
+
+            # peak center workspace
+            peak_center_file_name = os.path.join(dir_name, '{0}_peak_center.nxs'.format(base_name))
+            scandataio.save_mantid_nexus(self._center_of_mass_ws_name, peak_center_file_name,
+                                         title='Peak center (center of mass) workspace')
+        # END-IF-DEBUG (True)
+
+        # process output
+        self._fitted_peak_position_ws = AnalysisDataService.retrieve(r_positions_ws_name)
+        self._fitted_function_param_table = AnalysisDataService.retrieve(r_param_table_name)
+        self._model_matrix_ws = AnalysisDataService.retrieve(r_model_ws_name)
 
         return
 
@@ -96,8 +184,8 @@ class MantidPeakFitEngine(object):
         :return:
         """
         # check input
-        rshelper.check_list('Data set list', data_set_list)
-        rshelper.check_string_variable('MatrixWorkspace name', matrix_ws_name)
+        checkdatatypes.check_list('Data set list', data_set_list)
+        checkdatatypes.check_string_variable('MatrixWorkspace name', matrix_ws_name)
 
         # convert input data set to list of vector X and vector Y
         vec_x_list = list()
@@ -124,6 +212,57 @@ class MantidPeakFitEngine(object):
         """
         return self._peak_center_vec
 
+    def get_peak_fit_parameters(self):
+        """
+        get fitted peak's parameters
+        :return: dictionary of dictionary. level 0: key as scan index, value as dictionary
+                                           level 1: key as parameter name such as height, cost, and etc
+        """
+        # get value
+        scan_index_vector = self.get_scan_indexes()
+        cost_vector = self.get_fitted_params(param_name='chi2')
+        height_vector = self.get_fitted_params(param_name='height')
+        width_vector = self.get_fitted_params(param_name='width')
+
+        # check
+        if len(scan_index_vector) != len(cost_vector) or len(cost_vector) != len(height_vector) \
+                or len(cost_vector) != len(width_vector):
+            raise RuntimeError('Scan indexes ({0}) and cost/height/width ({1}/{2}/{3}) have different sizes.'
+                               ''.format(len(scan_index_vector), len(cost_vector), len(height_vector),
+                                         len(width_vector)))
+
+        # combine to dictionary
+        fit_params_dict = dict()
+        for index in range(len(scan_index_vector)):
+            scan_log_index = scan_index_vector[index]
+            fit_params_dict[scan_log_index] = dict()
+            fit_params_dict[scan_log_index]['cost'] = cost_vector[index]
+            fit_params_dict[scan_log_index]['height'] = height_vector[index]
+            fit_params_dict[scan_log_index]['width'] = width_vector[index]
+
+        return fit_params_dict
+
+    def get_peak_intensities(self):
+        """
+        get peak intensities for each fitted peaks
+        :return:
+        """
+        # get value
+        scan_index_vector = self.get_scan_indexes()
+        intensity_vector = self.get_fitted_params(param_name='intensity')
+
+        # check
+        if len(scan_index_vector) != len(intensity_vector):
+            raise RuntimeError('Scan indexes ({0}) and intensity ({1}) have different sizes.'
+                               ''.format(len(scan_index_vector), len(intensity_vector)))
+
+        # combine to dictionary
+        intensity_dict = dict()
+        for index in range(len(scan_index_vector)):
+            intensity_dict[scan_index_vector[index]] = intensity_vector[index]
+
+        return intensity_dict
+
     def get_data_workspace_name(self):
         """
         get the data workspace name
@@ -131,62 +270,22 @@ class MantidPeakFitEngine(object):
         """
         return self._workspace_name
 
-    def fit_peaks(self, peak_function_name, background_function_name, fit_range, scan_index=None):
+    def get_center_of_mass_workspace_name(self):
         """
-        fit peaks
-        :param peak_function_name:
-        :param background_function_name:
-        :param fit_range:
-        :param scan_index: single scan index to fit for.  If None, then fit for all spectra
+        Get the center of mass workspace name
         :return:
         """
-        rshelper.check_string_variable('Peak function name', peak_function_name)
-        rshelper.check_string_variable('Background function name', background_function_name)
-        if scan_index is not None:
-            rshelper.check_int_variable('Scan (log) index', scan_index, value_range=[0, self.get_number_scans()])
-            start = scan_index
-            stop = scan_index
-        else:
-            start = 0
-            stop = self.get_number_scans() - 1
+        return self._center_of_mass_ws_name
 
-        # check peak function name:
-        if peak_function_name not in ['Gaussian', 'Voigt', 'PseudoVoigt', 'Lorentzian']:
-            raise RuntimeError('Peak function {0} is not supported yet.'.format(peak_function_name))
-        if background_function_name not in ['Linear', 'Flat']:
-            raise RuntimeError('Background type {0} is not supported yet.'.format(background_function_name))
+    def get_scan_indexes(self):
+        """
+        get a vector of scan indexes
+        :return:
+        """
+        data_workspace = self.retrieve_workspace(self._workspace_name, True)
+        indexes_list = range(data_workspace.getNumberHistograms())
 
-        num_spectra = self._data_workspace.getNumberHistograms()
-        peak_window_ws = CreateWorkspace(DataX=np.array([fit_range[0], fit_range[1]] * num_spectra),
-                                         DataY=np.array([fit_range[0], fit_range[1]] * num_spectra),
-                                         NSpec=num_spectra)
-
-        # fit
-        print ('[DB...BAT] Data workspace # spec = {0}. Fit range = {1}'
-               ''.format(self._data_workspace.getNumberHistograms(), fit_range))
-
-        # no pre-determined peak center: use center of mass
-        r = FitPeaks(InputWorkspace=self._data_workspace,
-                     OutputWorkspace='full_fitted',
-                     PeakCentersWorkspace=self._center_of_mass_ws,
-                     PeakFunction=peak_function_name,
-                     BackgroundType=background_function_name,
-                     StartWorkspaceIndex=start,
-                     StopWorkspaceIndex=stop,
-                     OutputPeakParametersWorkspace='param_m',
-                     FittedPeaksWorkspace='model_full',
-                     FindBackgroundSigma=1,
-                     HighBackground=False,
-                     ConstrainPeakPositions=False,
-                     RawPeakParameters=False,
-                     FitPeakWindowWorkspace=peak_window_ws)
-
-        # process output
-        self._fitted_peak_position_ws = r[0]
-        self._fitted_function_param_table = r[1]
-        self._model_matrix_ws = r[2]
-
-        return
+        return np.array(indexes_list)
 
     def get_calculated_peak(self, log_index):
         """
@@ -197,7 +296,7 @@ class MantidPeakFitEngine(object):
         if self._model_matrix_ws is None:
             raise RuntimeError('There is no fitting result!')
 
-        rshelper.check_int_variable('Scan log index', log_index, (0, self._model_matrix_ws.getNumberHistograms()))
+        checkdatatypes.check_int_variable('Scan log index', log_index, (0, self._model_matrix_ws.getNumberHistograms()))
 
         vec_x = self._model_matrix_ws.readX(log_index)
         vec_y = self._model_matrix_ws.readY(log_index)
@@ -216,18 +315,16 @@ class MantidPeakFitEngine(object):
         get number of scans in input data to fit
         :return:
         """
-        if self._data_workspace is None:
-            raise RuntimeError('No data is set up!')
-
-        return self._data_workspace.getNumberHistograms()
+        data_workspace = self.retrieve_workspace(self._workspace_name, True)
+        return data_workspace.getNumberHistograms()
 
     def get_fitted_params(self, param_name):
-        """
-        get the value of a fitted parameter
-        :return:
+        """ get the value of a fitted parameter
+        :param param_name:
+        :return: a 1-D numpy.ndarray
         """
         # check
-        rshelper.check_string_variable('Function parameter', param_name)
+        checkdatatypes.check_string_variable('Function parameter', param_name)
 
         # init parameters
         param_vec = np.ndarray(shape=(self._fitted_function_param_table.rowCount()), dtype='float')
@@ -238,12 +335,83 @@ class MantidPeakFitEngine(object):
             for row_index in range(self._fitted_function_param_table.rowCount()):
                 param_vec[row_index] = self._fitted_function_param_table.cell(row_index, col_index)
         else:
-            err_msg = 'Function parameter {0} does not exist.'.format(param_name)
+            err_msg = 'Function parameter {0} does not exist. Supported parameters are {1}' \
+                      ''.format(param_name, col_names)
             # raise RuntimeError()
-            print (err_msg)
+            raise KeyError(err_msg)
 
         return param_vec
 
+    def get_good_fitted_params(self, param_name, max_chi2=1.E20):
+        """
+        get fitted parameter's value for good fit specified by maximum chi2
+        :param param_name:
+        :param max_chi2:
+        :return: 2-vector of same size
+        """
+        # check
+        checkdatatypes.check_string_variable('Function parameter', param_name)
+        checkdatatypes.check_float_variable('Chi^2', max_chi2, (1., None))
 
+        # get all the column names
+        col_names = self._fitted_function_param_table.getColumnNames()
+        if not ('chi2' in col_names and param_name in col_names):
+            err_msg = 'Function parameter {0} does not exist. Supported parameters are {1}' \
+                      ''.format(param_name, col_names)
+            # raise RuntimeError()
+            raise KeyError(err_msg)
+        elif param_name == 'chi2':
+            is_chi2 = True
+        else:
+            is_chi2 = False
 
+        # get chi2 first
+        chi2_col_index = col_names.index('chi2')
+        if not is_chi2:
+            param_col_index = col_names.index(param_name)
+        else:
+            param_col_index = chi2_col_index
 
+        param_list = list()
+        selected_row_index = list()
+        for row_index in range(self._fitted_function_param_table.rowCount()):
+            chi2 = self._fitted_function_param_table.cell(row_index, chi2_col_index)
+            if math.isnan(chi2) or chi2 > max_chi2:
+                continue
+
+            if is_chi2:
+                value_i = chi2
+            else:
+                value_i = self._fitted_function_param_table.cell(row_index, param_col_index)
+
+            param_list.append(value_i)
+            selected_row_index.append(row_index)
+        # END-IF
+
+        log_index_vec = np.array(selected_row_index) + 1
+        param_vec = np.array(param_list)
+
+        return log_index_vec, param_vec
+
+    @staticmethod
+    def retrieve_workspace(ws_name, throw_if_not_exist):
+        """
+        retrieve the workspace.
+        optionally throw a runtime error if the workspace does not exist.
+        :param ws_name:
+        :param throw_if_not_exist:
+        :return: workspace instance or None (if throw_if_not_exist is set to False)
+        """
+        # check inputs
+        checkdatatypes.check_string_variable('Workspace name', ws_name)
+        checkdatatypes.check_bool_variable('Throw exception if workspace does not exist', throw_if_not_exist)
+
+        # get
+        if AnalysisDataService.doesExist(ws_name):
+            workspace = AnalysisDataService.retrieve(ws_name)
+        elif throw_if_not_exist:
+            raise RuntimeError('Workspace {0} does not exist in Mantid ADS'.format(throw_if_not_exist))
+        else:
+            workspace = None
+
+        return workspace

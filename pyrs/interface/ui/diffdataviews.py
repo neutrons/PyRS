@@ -1,20 +1,60 @@
 from mplgraphicsview1d import MplGraphicsView1D
 from mplgraphicsview2d import MplGraphicsView2D
+from mplgraphicsviewpolar import MplGraphicsPolarView
+import numpy as np
+import mplgraphicsviewpolar
 
 
-class Diffraction2DPlot(MplGraphicsView2D):
+class Diffraction2DPlot(MplGraphicsPolarView):
     """
     General 2D plot view for diffraction data set
     """
     def __init__(self, parent):
-        # TODO
+        """
+        initialization
+        :param parent:
+        """
         super(Diffraction2DPlot, self).__init__(parent)
+
+        return
+
+    def plot_pole_figure(self, vec_alpha, vec_beta, vec_intensity):
+        """
+        plot pole figure in contour
+        :param vec_alpha:
+        :param vec_beta:
+        :param vec_intensity:
+        :return:
+        """
+        # check inputs which are only mattering here
+        mplgraphicsviewpolar.check_1D_array(vec_alpha)
+
+        # clear the image
+        print ('[DB...BAT] Plot pole figure for {0} data points!'.format(len(vec_alpha)))
+        # self._myCanvas.axes.clear()
+
+        # project vector to XY plane, i.e., convert alpha (phi) azimuthal angle to r
+        vec_r = np.sin(vec_alpha * np.pi / 180.)
+        vec_intensity = np.log(vec_intensity+1.)
+
+        #     def plot_contour(self, vec_theta, vec_r, vec_values, max_r, r_resolution, theta_resolution):
+        self._myCanvas.plot_contour(vec_theta=vec_beta, vec_r=vec_r, vec_values=vec_intensity, max_r=1.,
+                                    r_resolution=0.05, theta_resolution=3.)
+
+        self.show()
 
         return
 
 
 class DiffContourView(MplGraphicsView2D):
+    """
+    Diffraction contour viewer
+    """
     def __init__(self, parent):
+        """
+        initialization
+        :param parent:
+        """
         super(DiffContourView, self).__init__(parent)
 
 
@@ -32,25 +72,38 @@ class GeneralDiffDataView(MplGraphicsView1D):
         # management
         self._line_reference_list = list()
         self._last_line_reference = None
+        self._current_x_axis_name = None
 
         return
 
-    def plot_scatter(self, vec_x, vec_y, x_label, y_label):
+    @property
+    def current_x_name(self):
         """
-        plot figure in scatter-style
+
+        :return:
+        """
+        return self._current_x_axis_name
+
+    def plot_scatter(self, vec_x, vec_y, x_label, y_label):
+        """ plot figure in scatter-style
         :param vec_x:
         :param vec_y:
+        :param x_label:
+        :param y_label:
         :return:
         """
         # TODO Future: Need to write use cases.  Now it is for demo
+        # It is not allowed to plot 2 plot with different x-axis
         if self._last_line_reference is not None:
             if x_label != self.get_label_x():
                 self.reset_viewer()
 
         # plot data in a scattering plot
-        ref_id = self.add_plot(vec_x, vec_y, line_style=None, color='red', x_label=x_label, y_label=y_label)
+        ref_id = self.add_plot(vec_x, vec_y, line_style='', marker='.',
+                               color='red', x_label=x_label, y_label=y_label)
         self._line_reference_list.append(ref_id)
         self._last_line_reference = ref_id
+        self._current_x_axis_name = x_label
 
         return
 
@@ -64,7 +117,7 @@ class GeneralDiffDataView(MplGraphicsView1D):
         self._line_reference_list = list()
 
         # call to clean lines
-        self.clear_all_lines(row_number=0, col_number=0)
+        self.clear_all_lines(row_number=0, col_number=0, include_right=False)
 
         return
 
@@ -144,14 +197,11 @@ class PeakFitSetupView(MplGraphicsView1D):
 
         # remove previous model
         if self._last_model_reference is not None:
-
             print ('[DB...BAT] About to remove last reference: {0}'.format(self._last_model_reference))
             self.remove_line(row_index=0, col_index=0, line_id=self._last_model_reference)
             self._last_model_reference = None
 
         # plot
-        print ('model X: {0}'.format(model_data_set[0]))
-        print ('model Y: {0}'.format(model_data_set[1]))
         self._last_model_reference = self.add_plot(model_data_set[0], model_data_set[1], color='red')
 
         return

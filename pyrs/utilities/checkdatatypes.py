@@ -41,13 +41,26 @@ def check_file_name(file_name, check_exist=True, check_writable=False, is_dir=Fa
     :return:
     """
     assert isinstance(file_name, str), 'Input file name {0}  must be a string but not a {1}.' \
-                                       ''.format(file_name, str(file_name))
+                                       ''.format(file_name, type(file_name))
 
     if check_exist and os.path.exists(file_name) is False:
         raise RuntimeError('File {0} does not exist.'.format(file_name))
 
-    if check_writable and os.access(file_name, os.W_OK):
-        raise RuntimeError('File {0} is not writable.'.format(file_name))
+    if check_writable:
+        if os.path.exists(file_name) and os.access(file_name, os.W_OK) is False:
+            # file exists but cannot be  overwritten
+            raise RuntimeError('File {0} exists but is not writable.'.format(file_name))
+        elif os.path.exists(file_name) is False:
+            # file does not exist and the directory is not writable
+            dir_name = os.path.dirname(file_name)
+            if dir_name == '':
+                # current working dir
+                dir_name = os.getcwd()
+            if os.access(dir_name, os.W_OK) is False:
+                raise RuntimeError('File {0} does not exist but directory {1} is not writable.'
+                                   ''.format(file_name, dir_name))
+        # END-IF-ELIF
+    # END-IF
 
     check_bool_variable('Flag for input string is a directory', is_dir)
     assert os.path.isdir(file_name) == is_dir, 'Path {0} shall {1} be a directory and it is {2}.' \
@@ -114,17 +127,29 @@ def check_float_variable(var_name, variable, value_range):
     return
 
 
-def check_list(var_name, variable):
+def check_list(var_name, variable, allowed_values=None):
     """
     check whether a variable is a list
     :param var_name:
     :param variable:
+    :param allowed_values:
     :return:
     """
     check_string_variable('var_name', var_name)
+    if allowed_values is not None:
+        assert isinstance(allowed_values, list), 'Allowed values (other than None) {0} must be given in' \
+                                                 'a list but not {1}'.format(allowed_values,
+                                                                             type(allowed_values))
+    # END-IF
 
     assert isinstance(variable, list), '{0} {1} must be an instance of list but not a {2}' \
                                        ''.format(var_name, variable, type(variable))
+
+    if allowed_values is not None:
+        for item in variable:
+            if item not in allowed_values:
+                raise RuntimeError('In {0} item {1} is not in allowed list {2}'
+                                   ''.format(var_name, item, allowed_values))
 
     return
 

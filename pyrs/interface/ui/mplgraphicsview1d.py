@@ -9,7 +9,7 @@ try:
     from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
 except (ImportError, RuntimeError) as err:
-    print ('Importing PyQt5 widgets error! Details: {0}'.format(err))
+    print ('[INFO] Import PyQt4. Unable to importing PyQt5. Details: {0}'.format(err))
     from PyQt4.QtGui import QWidget, QSizePolicy, QVBoxLayout
     from PyQt4.QtCore import pyqtSignal
     from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas

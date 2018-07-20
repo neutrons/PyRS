@@ -3,9 +3,12 @@ try:
 except ImportError:
     from PyQt4.QtGui import QMainWindow, QFileDialog
 import ui.ui_texturecalculationwindow
+from pyrs.utilities import checkdatatypes
+import pyrs.core.pyrscore
 import os
 import gui_helper
 import numpy
+import platform
 
 
 class TextureAnalysisWindow(QMainWindow):
@@ -30,16 +33,31 @@ class TextureAnalysisWindow(QMainWindow):
         # set up handling
         self.ui.pushButton_plotPeaks.clicked.connect(self.do_plot_diff_data)
         self.ui.pushButton_fitPeaks.clicked.connect(self.do_fit_peaks)
+        self.ui.pushButton_calPoleFigure.clicked.connect(self.do_cal_pole_figure)
+        self.ui.pushButton_save_pf.clicked.connect(self.do_save_pole_figure)
+        self.ui.pushButton_scanNumberForward.clicked.connect(self.do_forward_scan_log_index)
+        self.ui.pushButton_scanNumberBackward.clicked.connect(self.do_rewind_scan_log_index)
+
+        self.ui.pushButton_plotLogs.clicked.connect(self.do_plot_meta_data)
+        self.ui.pushButton_plot_pf.clicked.connect(self.do_plot_pole_figure)
+        self.ui.pushButton_clearPF.clicked.connect(self.do_clear_pole_figure_plot)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.actionOpen_HDF5.triggered.connect(self.do_load_scans_hdf)
-        # TODO: move to action self.ui.actionSave_As.triggered.connect(self.do_save_as)
+        self.ui.actionSave_as.triggered.connect(self.do_save_as)
+
+        self.ui.actionSave_Diffraction_Data_For_Mantid.triggered.connect(self.do_save_workspace)
 
         self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
         self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
 
+        self.ui.actionExport_Table.triggered.connect(self.do_export_pole_figure_table)
+
         # mutexes
         self._sample_log_names_mutex = False
+
+        # current data information
+        self._data_key = None
 
         return
 
@@ -53,7 +71,7 @@ class TextureAnalysisWindow(QMainWindow):
         self.ui.graphicsView_fitSetup.set_subplots(1, 1)
 
         # table
-        self.ui.tableView_fitSummary.setup()
+        self.ui.tableView_poleFigureParams.setup()
 
         return
 
@@ -64,6 +82,19 @@ class TextureAnalysisWindow(QMainWindow):
         """
         if self._core is None:
             raise RuntimeError('Not set up yet!')
+
+    def _get_scan_log_indexes(self):
+        """ from the line editor
+        :return:
+        """
+        int_string_list = str(self.ui.lineEdit_scanNumbers.text()).strip()
+
+        if len(int_string_list) == 0:
+            scan_log_index = None
+        else:
+            scan_log_index = gui_helper.parse_integers(int_string_list)
+
+        return scan_log_index
 
     def _get_default_hdf(self):
         """
@@ -81,10 +112,57 @@ class TextureAnalysisWindow(QMainWindow):
 
         return '/HFIR/HB2B/'
 
+    def do_cal_pole_figure(self):
+        """
+        calculate pole figure
+        :return:
+        """
+        det_id_list = None
+        self._core.calculate_pole_figure(data_key=self._data_key, detector_id_list=det_id_list)
+
+        # get result out and show in table
+        num_rows = self.ui.tableView_poleFigureParams.rowCount()
+        for row_number in range(num_rows):
+            det_id, log_index = self.ui.tableView_poleFigureParams.get_detector_log_index(row_number)
+            alpha, beta = self._core.get_pole_figure_value(self._data_key, det_id, log_index)
+            # print ('[DB...BAT] row {0}:  alpha = {1}, beta = {2}'.format(row_number, alpha, beta))
+            self.ui.tableView_poleFigureParams.set_pole_figure_projection(row_number, alpha, beta)
+
+        return
+
+    def do_clear_pole_figure_plot(self):
+        """
+        clear pole figure plot
+        :return:
+        """
+        self.ui.graphicsView_contour.clear_image()
+
+    def do_export_pole_figure_table(self):
+        """
+        export pole figure table
+        :return:
+        """
+        # get inputs
+        default_dir = self._core.working_dir
+        if platform.system() == 'Darwin':
+            file_filter = ''
+        else:
+            file_filter = 'CSV Files (*.csv);;All Files (*.*)'
+        table_file_set = QFileDialog.getSaveFileName(self, caption='Select file name for pole figure calculation data',
+                                                     directory=default_dir, filter=file_filter)
+        if isinstance(table_file_set, tuple):
+            table_file_name = str(table_file_set[0])
+        else:
+            table_file_name = str(table_file_set)
+
+        self.ui.tableView_poleFigureParams.export_table_csv(table_file_name)
+
+        return
+
     def do_load_scans_hdf(self):
         """
         load scan's reduced files
-        :return:
+        :return: a list of tuple (detector ID, file name)
         """
         # check
         self._check_core()
@@ -94,42 +172,75 @@ class TextureAnalysisWindow(QMainWindow):
         if default_dir is None:
             default_dir = self._core.working_dir
 
-        file_filter = 'HDF(*.h5);;All Files(*.*)'
-        open_value = QFileDialog.getOpenFileName(self, 'HB2B Raw HDF File', default_dir, file_filter)
+        # FIXME : multiple file types seems not be supported on some MacOSX
+        file_filter = 'HDF(*.hdf5);;All Files(*.*)'
+        open_value = QFileDialog.getOpenFileNames(self, 'HB2B Raw HDF File', default_dir, file_filter)
 
         if isinstance(open_value, tuple):
             # PyQt5
-            hdf_name = str(open_value[0])
+            hdf_name_list = open_value[0]
         else:
-            hdf_name = str(open_value)
+            hdf_name_list = open_value
 
-        if len(hdf_name) == 0:
+        if len(hdf_name_list) == 0:
             # use cancel
             return
 
-        self.load_h5_scans(hdf_name)
+        # convert the files
+        new_file_list = list()
+        for ifile, file_name in enumerate(hdf_name_list):
+            det_id = int(file_name.split('[')[1].split(']')[0])
+            new_file_list.append((det_id, str(file_name)))
+        # END-FOR
+
+        self.load_h5_scans(new_file_list)
 
         return
 
-    def load_h5_scans(self, rs_file_name):
+    def load_h5_scans(self, rs_file_set):
         """
         load HDF5 for the reduced scans
-        :param rs_file_name:
+        :param rs_file_set:
         :return:
         """
-        # load file
-        data_key, message = self._core.load_rs_raw(rs_file_name)
+        # load file: the data key usually is based on the first file's name
+        data_key, message = self._core.load_rs_raw_set(rs_file_set)
+        self._data_key = data_key
+
+        print ('[DB...BAT] Loaded data keys: {0}  with sub keys: {1}'.format(self._data_key,
+                                                                             self._core.get_detector_ids(data_key)))
 
         # edit information
+        message = str(message)
+        if len(message) > 80:
+            message = message[:80]
         self.ui.label_loadedFileInfo.setText(message)
 
-        # get the range of log indexes
-        log_range = self._core.data_center.get_scan_range(data_key)
+        # About table
+        det_id_list = self._core.get_detector_ids(data_key)
+        if self.ui.tableView_poleFigureParams.rowCount() > 0:
+            self.ui.tableView_poleFigureParams.remove_all_rows()
+        table_init_dict = dict()
+        for det_id in sorted(det_id_list):
+            table_init_dict[det_id] = self._core.data_center.get_scan_range(data_key, det_id)
+            # self.ui.tableView_poleFigureParams.init_exp({1: self._core.data_center.get_scan_range(data_key, 1)})
+        self.ui.tableView_poleFigureParams.init_exp(table_init_dict)
+
+        # get the range of log indexes from detector 1 in order to set up the UI
+        log_range = self._core.data_center.get_scan_range(data_key, det_id_list[0])
         self.ui.label_logIndexMin.setText(str(log_range[0]))
         self.ui.label_logIndexMax.setText(str(log_range[-1]))
 
+        # Fill the combobox for detector IDs
+        self.ui.comboBox_detectorIDsPlotPeak.clear()
+        self.ui.comboBox_detectorID.clear()
+        for det_id in sorted(det_id_list):
+            self.ui.comboBox_detectorIDsPlotPeak.addItem(str(det_id))
+            self.ui.comboBox_detectorID.addItem(str(det_id))
+
         # get the sample logs
-        sample_log_names = self._core.data_center.get_sample_logs_list(data_key, can_plot=True)
+        sample_log_names = self._core.data_center.get_sample_logs_list((data_key, det_id_list[0]),
+                                                                       can_plot=True)
 
         self._sample_log_names_mutex = True
         self.ui.comboBox_xaxisNames.clear()
@@ -140,43 +251,55 @@ class TextureAnalysisWindow(QMainWindow):
             self.ui.comboBox_yaxisNames.addItem(sample_log)
         self._sample_log_names_mutex = False
 
-        # TODO FIXME: how to record data key?
+        # set the pole figure related sample log values
+        log_names = [('2theta', '2theta'),
+                     ('omega', 'omega'),
+                     ('chi', 'chi'),
+                     ('phi', 'phi')]
+        pole_figure_logs_dict = dict()
+        for det_id in det_id_list:
+            scan_log_dict = self._core.data_center.get_scan_index_logs_values((data_key, det_id), log_names)
+            pole_figure_logs_dict[det_id] = scan_log_dict
 
-        # About table
-        if self.ui.tableView_fitSummary.rowCount() > 0:
-            self.ui.tableView_fitSummary.remove_all_rows()
-        self.ui.tableView_fitSummary.init_exp(self._core.data_center.get_scan_range(data_key))
+        # set the pole figure motor positions to each row
+        for i_row in range(self.ui.tableView_poleFigureParams.rowCount()):
+            det_id, scan_log_index = self.ui.tableView_poleFigureParams.get_detector_log_index(i_row)
+            pole_figure_pos_dict = pole_figure_logs_dict[det_id][scan_log_index]
+            self.ui.tableView_poleFigureParams.set_pole_figure_motors_position(i_row, pole_figure_pos_dict)
 
         # plot the first index
-        self.ui.lineEdit_scanNUmbers.setText('0')
+        self.ui.lineEdit_scanNumbers.setText('0')
         self.do_plot_diff_data()
-
-        # plot the contour
-        # FIXME/TODO/ASAP3 self.ui.graphicsView_contourView.plot_contour(self._core.data_center.get_data_2d(data_key))
 
         return
 
     def do_fit_peaks(self):
-        # TODO
-        int_string_list = str(self.ui.lineEdit_scanNUmbers.text()).strip()
-        if len(int_string_list) == 0:
-            scan_log_index = None
-        else:
-            scan_log_index = gui_helper.parse_integers(int_string_list)
+        """
+        respond to the event triggered to fit all the peaks
+        :return:
+        """
+        # get the data
+        scan_log_index = None
         data_key = self._core.current_data_reference_id
 
         peak_function = str(self.ui.comboBox_peakType.currentText())
         bkgd_function = str(self.ui.comboBox_backgroundType.currentText())
 
-        # TODO .. TEST
+        # get fit range
         fit_range = self.ui.graphicsView_fitSetup.get_x_limit()
-        print ('Fit range: {0}'.format(fit_range))
+        print ('[DB...BAT] Fit range: {0}'.format(fit_range))
 
-        # FIXME It is better to fit all the peaks at the same time!
-        scan_log_index = None
-        self._core.fit_peaks(data_key, scan_log_index, peak_function, bkgd_function, fit_range)
+        # call the core's method to fit peaks
+        det_id_list = self._core.get_detector_ids(data_key)
+        print ('[INFO] Detector ID list: {0}'.format(det_id_list))
+        for det_id in det_id_list:
+            self._core.fit_peaks((data_key, det_id), scan_log_index,
+                                 peak_function, bkgd_function, fit_range)
+        # END-FOR
 
-        function_params = self._core.get_fit_parameters(data_key)
+        # report fit result... ...
+        # add function parameters and detector IDs to UI
+        function_params = self._core.get_fit_parameters((data_key, det_id_list[0]))
         self._sample_log_names_mutex = True
         # TODO FIXME : add to X axis too
         curr_index = self.ui.comboBox_yaxisNames.currentIndex()
@@ -188,29 +311,26 @@ class TextureAnalysisWindow(QMainWindow):
         # keep current selected item unchanged
         self.ui.comboBox_yaxisNames.setCurrentIndex(curr_index)
         self._sample_log_names_mutex = False
+        # END-BLOCK
 
         # fill up the table
-        center_vec = self._core.get_peak_fit_param_value(data_key, 'centre')
-        height_vec = self._core.get_peak_fit_param_value(data_key, 'height')
-        fwhm_vec = self._core.get_peak_fit_param_value(data_key, 'width')
-        chi2_vec = self._core.get_peak_fit_param_value(data_key, 'chi2')
-        intensity_vec = self._core.get_peak_fit_param_value(data_key, 'intensity')
-        com_vec = self._core.get_peak_center_of_mass(data_key)
+        chi2_dict = dict()
+        intensity_dict = dict()
+        for det_id in det_id_list:
+            data_key_pair = data_key, det_id
+            chi2_vec = self._core.get_peak_fit_param_value(data_key_pair, 'chi2', max_cost=None)
+            intensity_vec = self._core.get_peak_fit_param_value(data_key_pair, 'intensity', max_cost=None)
+            chi2_dict[det_id] = chi2_vec
+            intensity_dict[det_id] = intensity_vec
+        # END-FOR
 
-        for row_index in range(len(center_vec)):
-            self.ui.tableView_fitSummary.set_peak_params(row_index,
-                                                         center_vec[row_index],
-                                                         height_vec[row_index],
-                                                         fwhm_vec[row_index],
-                                                         intensity_vec[row_index],
-                                                         chi2_vec[row_index],
-                                                         peak_function)
-            self.ui.tableView_fitSummary.set_peak_center_of_mass(row_index, com_vec[row_index])
+        for row_index in range(self.ui.tableView_poleFigureParams.rowCount()):
+            det_id, scan_log_index = self.ui.tableView_poleFigureParams.get_detector_log_index(row_index)
+            self.ui.tableView_poleFigureParams.set_intensity(row_index, intensity_dict[det_id][scan_log_index],
+                                                             chi2_dict[det_id][scan_log_index])
+        # END-FOR
 
         # plot the model and difference
-        if scan_log_index is None:
-            scan_log_index = 0
-            # FIXME This case is not likely to occur
         self.do_plot_diff_data()
 
         return
@@ -221,9 +341,16 @@ class TextureAnalysisWindow(QMainWindow):
         :return:
         """
         # gather the information
-        scan_log_index_list = gui_helper.parse_integers(str(self.ui.lineEdit_scanNUmbers.text()))
+        det_id = gui_helper.parse_integer(str(self.ui.comboBox_detectorIDsPlotPeak.currentText()))
+        scan_log_index_list = gui_helper.parse_integers(str(self.ui.lineEdit_scanNumbers.text()))
+        det_id_list = [det_id] * len(scan_log_index_list)
+        # else:
+        #     if len(det_id_list) != len(scan_log_index_list):
+        #         gui_helper.pop_message('Number of detectors and scans do not match!', 'error')
+
         if len(scan_log_index_list) == 0:
             gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
+            return
 
         # possibly clean the previous
         # keep_prev = self.ui.checkBox_keepPrevPlot.isChecked()
@@ -232,26 +359,38 @@ class TextureAnalysisWindow(QMainWindow):
 
         # get data and plot
         err_msg = ''
-        for scan_log_index in scan_log_index_list:
+        for index in range(len(scan_log_index_list)):
+            det_id = det_id_list[index]
+            scan_log_index = scan_log_index_list[index]
+
             try:
-                diff_data_set = self._core.get_diff_data(data_key=None, scan_log_index=scan_log_index)
-                self.ui.graphicsView_fitSetup.plot_diff_data(diff_data_set, 'Scan {0}'.format(scan_log_index))
+                # get diffraction data
+                diff_data_set = self._core.get_diff_data(data_key=(self._data_key, det_id),
+                                                         scan_log_index=scan_log_index)
+                self.ui.graphicsView_fitSetup.plot_diff_data(diff_data_set,
+                                                             'Detector {0} Scan {1}'
+                                                             ''.format(det_id, scan_log_index))
 
                 # more than 1 scan required to plot... no need to plot model and difference
                 if len(scan_log_index_list) > 1:
                     continue
 
-                model_data_set = self._core.get_modeled_data(data_key=None, scan_log_index=scan_log_index_list[0])
-                if model_data_set is None:
-                    continue
                 # existing model
-                self.ui.graphicsView_fitSetup.plot_model(model_data_set)
-                self.ui.graphicsView_fitSetup.plot_fit_diff(diff_data_set, model_data_set)
-            except RuntimeError as run_err:
+                if self._data_key is not None:
+                    model_data_set = self._core.get_modeled_data(data_key=(self._data_key, det_id),
+                                                                 scan_log_index=scan_log_index_list[0])
+                else:
+                    model_data_set = None
+
+                if model_data_set is not None:
+                    self.ui.graphicsView_fitSetup.plot_model(model_data_set)
+                    self.ui.graphicsView_fitSetup.plot_fit_diff(diff_data_set, model_data_set)
+            except NotImplementedError as run_err:
                 err_msg += '{0}\n'.format(run_err)
         # END-FOR
 
         if len(err_msg) > 0:
+            raise RuntimeError(err_msg)
             gui_helper.pop_message(self, err_msg, message_type='error')
 
         return
@@ -264,23 +403,141 @@ class TextureAnalysisWindow(QMainWindow):
         if self._sample_log_names_mutex:
             return
 
-        # if self.ui.checkBox_keepPrevPlotRight.isChecked() is False:
-        # TODO - Shall be controlled by a more elegant mechanism
-        self.ui.graphicsView_fitResult.clear_all_lines(include_right=False)
-
+        # get the detector ID
+        det_id = int(self.ui.comboBox_detectorID.currentText())
         # get the sample log/meta data name
         x_axis_name = str(self.ui.comboBox_xaxisNames.currentText())
         y_axis_name = str(self.ui.comboBox_yaxisNames.currentText())
 
-        vec_x = self.get_meta_sample_data(x_axis_name)
-        vec_y = self.get_meta_sample_data(y_axis_name)
+        vec_x = self.get_meta_sample_data(det_id, x_axis_name, max_cost=70.)
+        vec_y = self.get_meta_sample_data(det_id, y_axis_name, max_cost=70.)
 
-        self.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y, x_axis_name, y_axis_name)
+        # clear whatever on the graph if the previous is not to be kept
+        if not self.ui.checkBox_keepPrevPlotRight.isChecked():
+            self.ui.graphicsView_fitResult.reset_viewer()
+        elif self.ui.graphicsView_fitResult.current_x_name != x_axis_name:
+            self.ui.graphicsView_fitResult.reset_viewer()
+
+        # plot
+        if isinstance(vec_x, tuple):
+            # TODO - 20180820 - It is tricky to have selected log indexed X
+            print ('[CRITICAL/ERROR] Not Implemented Yet! Contact Developer!')
+        elif isinstance(vec_y, tuple):
+            # log indexes:
+            vec_x, vec_y = vec_y
+            self.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y, x_axis_name, y_axis_name)
+        else:
+            self.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y, x_axis_name, y_axis_name)
 
         return
 
     def do_save_as(self):
-        # TODO
+        """
+        save current pole figure to a text file
+        :return:
+        """
+        if platform.system() == 'Darwin':
+            file_filter = ''
+        else:
+            file_filter = ''
+        file_info = QFileDialog.getSaveFileName(self, directory=self._core.working_dir,
+                                                caption='Save Pole Figure To ASCII File',
+                                                filter=file_filter)
+        if isinstance(file_info, tuple):
+            file_name = file_info[0]
+        else:
+            file_name = file_info
+        file_name = str(file_name)
+
+        if len(file_name) == 0:
+            return
+
+        raise NotImplementedError("I don't know what to do with save as ...")
+
+    def do_save_pole_figure(self):
+        """
+        save pole figure in both ascii and mtex format
+        :return:
+        """
+        # get output file name
+        if platform.system() == 'Darwin':
+            file_filter = ''
+        else:
+            file_filter = 'MTEX (*.mtex);;ASCII (*.dat);;All Files (*.*)'
+        file_info = QFileDialog.getSaveFileName(self, directory=self._core.working_dir,
+                                                caption='Save Pole Figure To ASCII File',
+                                                filter=file_filter)
+
+        if isinstance(file_info, tuple):
+            file_name = str(file_info[0])
+            file_filter = file_info[1]
+            print ('[DB...Save Pole Figure] File name: {0}, Filter = {1}'.format(file_name, file_filter))
+        else:
+            file_name = str(file_info)
+            file_filter = None
+
+        # return/quit if action is cancelled
+        if len(file_name) == 0:
+            return
+
+        # reconstruct name if required
+        # TODO - 20180711 - use filter to determine the file type and default posfix
+        # file_type_list = list()
+        # if file_filter == 'MTEX (*.mtex)':
+        #     file_type_list.append(('mtex', 'mtex'))
+        # elif file_filter == 'ASCII (*.dat)':
+        #     file_type_list.append('ascii')
+        #
+
+        dir_name = os.path.dirname(file_name)
+        base_name = os.path.basename(file_name).split('.')[0]
+        for file_type, posfix in [('ascii', 'dat'), ('mtex', 'mtex')]:
+            file_name_i = os.path.join(dir_name, '{0}.{1}'.format(base_name, posfix))
+            self._core.save_pole_figure(self._data_key, detectors=None, file_name=file_name_i,
+                                        file_type=file_type)
+        # END-FOR
+
+        return
+
+    def do_save_workspace(self):
+        """ save workspace to NeXus file readable to Mantid
+        :return:
+        """
+        if platform.system() == 'Darwin':
+            file_filter = ''
+        else:
+            file_filter = 'NeXus Files (*.nxs);;All Files (*.*)'
+
+        nxs_file_name_set = QFileDialog.getSaveFileName(self, caption='Mantid Processed NeXus File Name',
+                                                        directory=self._core.working_dir,
+                                                        filter=file_filter)
+
+        if isinstance(nxs_file_name_set, tuple):
+            nxs_file_name = str(nxs_file_name_set[0])
+            print ('[DB...BAT] Filter: {0}'.format(nxs_file_name_set[1]))
+        else:
+            nxs_file_name = str(nxs_file_name_set)
+
+        if len(nxs_file_name) == 0:
+            return
+        else:
+            self._core.save_nexus((self._data_key, 1), nxs_file_name)
+
+        return
+
+    def do_plot_pole_figure(self):
+        """
+        plot pole figure in the 2D
+        :return:
+        """
+        # get pole figure from core
+        # TODO - 20180720 - maximum cost shall be specified by user
+        vec_alpha, vec_beta, vec_intensity = self._core.get_pole_figure_values(data_key=self._data_key,
+                                                                               detector_id_list=None,
+                                                                               max_cost=70.)
+
+        self.ui.graphicsView_contour.plot_pole_figure(vec_alpha, vec_beta, vec_intensity)
+
         return
 
     def do_quit(self):
@@ -292,11 +549,55 @@ class TextureAnalysisWindow(QMainWindow):
 
         return
 
-    def get_meta_sample_data(self, name):
+    def do_forward_scan_log_index(self):
+        """
+        move scan log index (to plot) forward by 1
+        :return:
+        """
+        try:
+            current_log_index = int(self.ui.lineEdit_scanNumbers.text())
+            current_log_index += 1
+            # check whether the log index value exceeds the limit
+            max_log_index = int(self.ui.label_logIndexMax.text())
+            if current_log_index > max_log_index:
+                current_log_index = 0
+            # set value
+            self.ui.lineEdit_scanNumbers.setText(str(current_log_index))
+            # re-plot
+            self.do_plot_diff_data()
+        except ValueError:
+            print ('[WARNING] Current value {0} cannot be forwarded'.format(self.ui.lineEdit_scanNumbers.text()))
+
+        return
+
+    def do_rewind_scan_log_index(self):
+        """
+        move scan log index (to plot) backward by 1
+        :return:
+        """
+        try:
+            current_log_index = int(self.ui.lineEdit_scanNumbers.text())
+            current_log_index -= 1
+            # check whether the log index value exceeds the limit
+            if current_log_index < 0:
+                max_log_index = int(self.ui.label_logIndexMax.text())
+                current_log_index = max_log_index
+            # set value
+            self.ui.lineEdit_scanNumbers.setText(str(current_log_index))
+            # re-plot
+            self.do_plot_diff_data()
+        except ValueError:
+            print ('[WARNING] Current value {0} cannot be moved backward'.format(self.ui.lineEdit_scanNumbers.text()))
+
+        return
+
+    def get_meta_sample_data(self, det_id, name, max_cost=None):
         """
         get meta data to plot.
         the meta data can contain sample log data and fitted peak parameters
+        :param det_id:
         :param name:
+        :param max_cost
         :return:
         """
         # get data key
@@ -306,29 +607,36 @@ class TextureAnalysisWindow(QMainWindow):
             return
 
         if name == 'Log Index':
-            value_vector = numpy.array(self._core.data_center.get_scan_range(data_key))
-        elif self._core.data_center.has_sample_log(data_key, name):
-            value_vector = self._core.data_center.get_sample_log_values(data_key, name)
+            value_vector = numpy.array(self._core.data_center.get_scan_range(data_key, sub_key=det_id))
+        elif self._core.data_center.has_sample_log((data_key, det_id), name):
+            value_vector = self._core.data_center.get_sample_log_values((data_key, det_id), name)
         elif name == 'Center of mass':
-            value_vector = self._core.get_peak_center_of_mass(data_key)
+            value_vector = self._core.get_peak_center_of_mass((data_key, det_id))
         else:
             # this is for fitted data parameters
-            value_vector = self._core.get_peak_fit_param_value(data_key, name)
+            value_vector = self._core.get_peak_fit_param_value((data_key, det_id), name, max_cost=max_cost)
 
         return value_vector
 
     def save_data_for_mantid(self, data_key, file_name):
-        # TODO
+        """
+        save the loaded diffraction data to Mantid processed NeXus file format
+        :param data_key:
+        :param file_name:
+        :return:
+        """
         self._core.save_nexus(data_key, file_name)
 
-    def setup_window(self, pyrs_core):
-        """
+        return
 
+    def setup_window(self, pyrs_core):
+        """ set up the texture analysis window
         :param pyrs_core:
         :return:
         """
         # check
-        # blabla TODO
+        assert isinstance(pyrs_core, pyrs.core.pyrscore.PyRsCore), 'PyRS core {0} of type {1} must be a PyRsCore ' \
+                                                                   'instance.'.format(pyrs_core, type(pyrs_core))
 
         self._core = pyrs_core
 

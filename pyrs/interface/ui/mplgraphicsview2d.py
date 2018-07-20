@@ -444,7 +444,13 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         super(Qt4Mpl2DCanvas, self).__init__(self.fig)
 
         # set up axis/subplot (111) only for 2D
-        self.axes = self.fig.add_subplot(111)  # return: matplotlib.axes.AxesSubplot
+        self.axes = self.fig.add_subplot(111, polar=True)  # return: matplotlib.axes.AxesSubplot
+        print ('[DB......................................BAT] ...............................')
+
+        # ax = fig.add_subplot(polar=True)
+
+
+
         self.fig.subplots_adjust(bottom=0.15)
         self.axes2 = None
 

@@ -40,7 +40,7 @@ if sys.argv[-1] == 'pyuic':
 
 NAME = "pyrs"
 PACKAGES = find_packages(where="src")
-PACKAGES = ["pyrs", "pyrs/core", "pyrs/interface", "pyrs/interface/ui"]
+PACKAGES = ["pyrs", "pyrs/core", "pyrs/interface", "pyrs/interface/ui", "pyrs/utilities"]
 META_PATH = os.path.join("src", "pyrs", "__init__.py")
 KEYWORDS = ["class", "attribute", "boilerplate"]
 CLASSIFIERS = [
@@ -103,6 +103,7 @@ if __name__ == "__main__":
     scripts = ['scripts/pyrsplot']
     test_scripts = ['tests/unittest/pyrs_core_test.py',
                     'tests/unittest/utilities_test.py',
+                    'tests/unittest/polefigurecal_test.py',
                     'tests/guitest/peakfitgui_test.py',
                     'tests/guitest/texturegui_test.py']
     scripts.extend(test_scripts)
