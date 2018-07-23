@@ -1,13 +1,84 @@
 # a collection of helper methdos for GUI
 import os
+import platform
 from pyrs.utilities import checkdatatypes
 try:
-    from PyQt5.QtWidgets import QDialog, QLineEdit
+    from PyQt5.QtWidgets import QDialog, QLineEdit, QFileDialog
     is_qt4 = False
 except ImportError:
-    from PyQt4.QtGui import QDialog, QLineEdit
+    from PyQt4.QtGui import QDialog, QLineEdit, QFileDialog
     from PyQt4 import QtCore
     is_qt4 = True
+
+
+def browse_file(parent, caption, default_dir, file_filter, file_list=False, save_file=False):
+    """ browse a file or files
+    :param parent:
+    :param caption:
+    :param default_dir:
+    :param file_filter:
+    :param file_list:
+    :param save_file:
+    :return: if file_list is False: return string (file name); otherwise, return a list;
+             if user cancels the operation, then return None
+    """
+    # check inputs
+    assert isinstance(parent, object), 'Parent {} must be of some object.'.format(parent)
+    checkdatatypes.check_string_variable('File browsing title/caption', caption)
+    checkdatatypes.check_file_name(default_dir, check_exist=False, is_dir=True)
+    checkdatatypes.check_bool_variable('Flag for browse a list of files to load', file_list)
+    checkdatatypes.check_bool_variable('Flag to select loading or saving file', save_file)
+    if file_filter is None:
+        file_filter = 'All Files (*.*)'
+    else:
+        checkdatatypes.check_string_variable('File filter', file_filter)
+
+    if save_file:
+        # browse file name to save to
+        if platform.system() == 'Darwin':
+            # TODO - 20180721 - Find out the behavior on Mac!
+            file_filter = ''
+        save_set = QFileDialog.getSaveFileName(parent, caption=caption, directory=default_dir,
+                                               filter=file_filter)
+        if isinstance(save_set, tuple):
+            # returned include both file name and filter
+            file_name = str(save_set[0])
+        else:
+            file_name = str(save_set)
+
+    elif file_list:
+        # browse file names to load
+        open_set = QFileDialog.getOpenFileNames(parent, caption, default_dir, file_filter)
+
+        if isinstance(open_set, tuple):
+            # PyQt5
+            file_name_list = open_set[0]
+        else:
+            file_name_list = open_set
+
+        if len(file_name_list) == 0:
+            # use cancel
+            return None
+        else:
+            return file_name_list
+
+    else:
+        # browse single file name
+        open_set = QFileDialog.getOpenFileName(parent, caption, default_dir, file_filter)
+
+        if isinstance(open_set, tuple):
+            # PyQt5
+            file_name = open_set[0]
+        else:
+            file_name = open_set
+
+    # END-IF-ELSE
+
+    # check result for single file whether user cancels operation
+    if len(file_name) == 0:
+        return None
+
+    return file_name
 
 
 def parse_integer(int_str):

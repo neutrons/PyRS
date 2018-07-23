@@ -9,6 +9,7 @@ import os
 import gui_helper
 import numpy
 import platform
+import ui.ui_sscalvizwindow
 
 
 class StrainStressCalculationWindow(QMainWindow):
@@ -26,64 +27,263 @@ class StrainStressCalculationWindow(QMainWindow):
         self._core = None
 
         # set up UI
-        self.ui = ui.ui_strainstresscalwindow.Ui_MainWindow()
+        self.ui = ui.ui_sscalvizwindow.Ui_MainWindow()
         self.ui.setupUi(self)
         self._init_widgets()
 
         # set up event handling
+        self.ui.pushButton_browseReducedFile.clicked.connect(self.do_browse_reduced_file)
+        self.ui.pushButton_browseTDScanFile.clicked.connect(self.do_browse_td_file)
+        self.ui.pushButton_browseNDScanFile.clicked.connect(self.do_browse_nd_file)
+        self.ui.pushButton_browseLDScanFile.clicked.connect(self.do_browse_ld_file)
+
+        self.ui.pushButton_loadFile.clicked.connect(self.do_load_strain_file)
+        self.ui.pushButton_calStrain.clicked.connect(self.do_cal_strain)
+        self.ui.pushButton_calStress.clicked.connect(self.do_cal_stress)
+
+        # strain/stress save and export
+        self.ui.pushButton_saveStressStrain.clicked.connect(self.save_stress_strain)
+        self.ui.pushButton_exportSpecialType.clicked.connect(self.export_stress_strain)
+
+        # radio buttons changed case
+        self.ui.radioButton_loadRaw.toggled.connect(self.evt_load_file_type)
+        self.ui.radioButton_loadReduced.toggled.setChecked(self.evt_load_file_type)
+
+        # combo boxes handling
+        self.ui.comboBox_plotParameterName.currentIndexChanged.connect(self.do_plot_sliced_3d)
+
+
+
+        self.lineEdit_tdScanFile..connect(self.)
+        self.lineEdit_ndScanFile..connect(self.)
+        self.lineEdit_rdScanFile..connect(self.)
+
+        self.lineEdit_reducedFile..connect(self.)
+
+        self.lineEdit_outputFileName..connect(self.)
+        self.lineEdit_exportFileName..connect(self.)
+        self.plainTextEdit_info..connect(self.)
+        self.graphicsView_sliceView..connect(self.)
+        self.lineEdit_sliceStartValue..connect(self.)
+        self.lineEdit_sliceEndValue..connect(self.)
+        self.horizontalSlider_slicer..connect(self.)
 
         # current data/states
+        self._core = None
         self._curr_data_key = None
+
+        # mutex
+        self._load_file_radio_mutex = False
+
+        return
+
+    def _init_widgets(self):
+        """
+        initialize widgets
+        :return:
+        """
+        self.ui.radioButton_loadRaw.setChecked(False)
+        self.ui.radioButton_loadReduced.setChecked(True)
+
 
         return
 
     def do_browse_ld_file(self):
-        """
-
+        """ browse LD raw file
         :return:
         """
+        ld_file_name = gui_helper.browse_file(self, caption='Load LD (raw) File',
+                                              default_dir=self._core.default_dir,
+                                              file_filter='Data File (*.dat)',
+                                              file_list=False,
+                                              save_file=False)
+        if ld_file_name is not None:
+            self.ui.lineEdit_ldScanFile.setText(ld_file_name)
+
+        return
 
     def do_browse_nd_file(self):
-        """
-
+        """ browse ND raw file
         :return:
         """
+        nd_file_name = gui_helper.browse_file(self, caption='Load ND (raw) File',
+                                              default_dir=self._core.default_dir,
+                                              file_filter='Data File (*.dat)',
+                                              file_list=False,
+                                              save_file=False)
+        if nd_file_name is not None:
+            self.ui.lineEdit_ndScanFile.setText(d_file_name)
+
+        return
 
     def do_browse_td_file(self):
-        """
-
+        """ browse TD raw file
         :return:
         """
+        td_file_name = gui_helper.browse_file(self, caption='Load TD (raw) File',
+                                              default_dir=self._core.default_dir,
+                                              file_filter='Data File (*.dat)',
+                                              file_list=False,
+                                              save_file=False)
+        if td_file_name is not None:
+            self.ui.lineEdit_tdScanFile.setText(td_file_name)
+
+        return
+
+    def do_browse_reduced_file(self):
+        """ browse the previous calculated and saved strain/stress file
+        :return:
+        """
+        reduced_file_name = gui_helper.browse_file(self, caption='Previously saved stress/strain File',
+                                                   default_dir=self._core.default_dir,
+                                                   file_filter='Data File (*.dat);;HDF File (*.hdf)',
+                                                   file_list=False,
+                                                   save_file=False)
+
+        if reduced_file_name is not None:
+            self.ui.lineEdit_reducedFile.setText(reduced_file_name)
+
+        return
+
+    def do_cal_strain(self):
+        """
+        calculate strain from loaded file
+        :return:
+        """
+        # TODO
+
+        return
+
+    def do_load_strain_file(self):
+        """
+        load strain/stress file from either raw files or previously saved file
+        :return:
+        """
+        # current session is not canceled: ask user whether it is OK to delete and start a new one
+        if self._curr_data_key is not None:
+            continue_load = gui_helper.get_user_permit(caption='Current session shall be closed '
+                                                               'before new session is started.', )
+            if continue_load is False:
+                return
+
+        # get new session name
+        session_name = gui_helper.get_session_dialog_name()
+
+        if self.ui.radioButton_loadRaw.isChecked():
+            # load raw files
+            td_file_name = str(self.ui.lineEdit_tdScanFile.text())
+            ld_file_name = str(self.ui.lineEdit_ldScanFile.text())
+            nd_file_name = str(self.ui.lineEdit_ndScanFile.text())
+
+            data_key, message = self._core.load_stain_stress_source_file(td_data_file=td_file_name,
+                                                                         nd_data_file=nd_file_name,
+                                                                         ld_data_file=ld_file_name)
+
+        else:
+            # load saved files
+            reduced_file_name = str(self.ui.lineEdit_reducedFile.text())
+            data_key, message = self._core.load_strain_stress_file(file_name=reduced_file_name)
+        # END-IF
+
+        if data_key is None:
+            gui_helper.pop_message(self, message, message_type='error')
+        else:
+            self._curr_data_key = data_key
+        # END-IF
+
+        return
 
     def do_load_peak_info_files(self):
         """
         load peak information files
         :return:
         """
-        td_file_name = str(self.ui.lineEdit.text())
-        ld_file_name = str(self.ui.lineEdit.text())
-        nd_file_name = str(self.ui.lineEdit.text())
 
-        data_key, message = self._core.load_stain_stress_source_file(td_data_file=td_file_name,
-                                                                     nd_data_file=nd_file_name,
-                                                                     ld_data_file=ld_file_name)
-        if data_key is None:
-            gui_helper.pop_message(self, message, message_type='error')
-        else:
-            self._curr_data_key = data_key
 
         return
 
-    def do_load_strain_file(self):
+    def save_stress_strain(self, file_type=None):
+        """
+        save the calculated strain/stress file
+        :return:
+        """
+        if file_type is None:
+            file_type = str(self.ui.comboBox_saveFileType.currentText())
+
+        and etc
+
+        return
+
+    def export_stress_strain(self):
+        """
+        export the stress/strain to some other format for future analysis
+        :return:
+        """
+
+    def evt_load_file_type(self):
+        """
+        triggered when the radio buttons selection for file type to load is changed.
+        enable and disable file loading group accordingly
+        :return:
+        """
+        # if mutex is on, leave the method
+        if self._load_file_radio_mutex:
+            return
+
+        # set the mutex
+        self._load_file_radio_mutex = True
+
+        # enable and disable
+        if self.ui.radioButton_loadRaw.isChecked():
+            self.ui.groupBox_importRawFiles.setEnabled(True)
+            self.ui.groupBox_importReducedFile.setEnabled(False)
+        else:
+            self.ui.groupBox_importReducedFile.setEnabled(True)
+            self.ui.groupBox_importRawFiles.setEnabled(False)
+        # END-IF-ELSE
+
+        # release the mutex
+        self._load_file_radio_mutex = False
+
+        return
+
+    def do_plot_sliced_3d(self):
+        """
+        slice loaded 3D stress/strain and plot
+        :return:
+        """
+        slice_direction = str(self.ui.comboBox_sliceDirection.currentText()).lower()
+        plot_term = str(self.ui.comboBox_plotParameterName.currentText())
+
+
+    def set_items_to_plot(self):
         """
 
         :return:
         """
+        try:
+            items = self._core.strain_calculator.get_plot_items(self._curr_data_key)
+        except RuntimeError as run_err:
+            return False, run_err
+
+        self.ui.comboBox_plotParameterName.clear()
+        for item in items:
+            self.ui.comboBox_plotParameterName.addItem(item)
 
         return
 
-    def browse_file(self, caption, filter):
+    def setup_window(self, pyrs_core):
+        """ set up the texture analysis window
+        :param pyrs_core:
+        :return:
+        """
+        # check
+        assert isinstance(pyrs_core, pyrs.core.pyrscore.PyRsCore), 'PyRS core {0} of type {1} must be a PyRsCore ' \
+                                                                   'instance.'.format(pyrs_core, type(pyrs_core))
 
+        self._core = pyrs_core
+
+        return
 
 
 

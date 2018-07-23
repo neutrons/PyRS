@@ -35,10 +35,10 @@
            </widget>
           </item>
           <item row="0" column="1">
-           <widget class="QLineEdit" name="lineEdit_4"/>
+           <widget class="QLineEdit" name="lineEdit_reducedFile"/>
           </item>
           <item row="0" column="2">
-           <widget class="QPushButton" name="pushButton_4">
+           <widget class="QPushButton" name="pushButton_browseReducedFile">
             <property name="text">
              <string>Browse</string>
             </property>
@@ -48,7 +48,7 @@
         </widget>
        </item>
        <item row="0" column="0">
-        <widget class="QRadioButton" name="radioButton">
+        <widget class="QRadioButton" name="radioButton_loadRaw">
          <property name="text">
           <string/>
          </property>
@@ -68,10 +68,10 @@
            </widget>
           </item>
           <item row="0" column="1">
-           <widget class="QLineEdit" name="lineEdit"/>
+           <widget class="QLineEdit" name="lineEdit_tdScanFile"/>
           </item>
           <item row="0" column="2">
-           <widget class="QPushButton" name="pushButton">
+           <widget class="QPushButton" name="pushButton_browseTDScanFile">
             <property name="text">
              <string>Browse</string>
             </property>
@@ -85,10 +85,10 @@
            </widget>
           </item>
           <item row="1" column="1">
-           <widget class="QLineEdit" name="lineEdit_2"/>
+           <widget class="QLineEdit" name="lineEdit_ndScanFile"/>
           </item>
           <item row="1" column="2">
-           <widget class="QPushButton" name="pushButton_2">
+           <widget class="QPushButton" name="pushButton_browseNDScanFile">
             <property name="text">
              <string>Browse</string>
             </property>
@@ -97,15 +97,15 @@
           <item row="2" column="0">
            <widget class="QLabel" name="label_3">
             <property name="text">
-             <string>RD Scan</string>
+             <string>LD Scan</string>
             </property>
            </widget>
           </item>
           <item row="2" column="1">
-           <widget class="QLineEdit" name="lineEdit_3"/>
+           <widget class="QLineEdit" name="lineEdit_ldScanFile"/>
           </item>
           <item row="2" column="2">
-           <widget class="QPushButton" name="pushButton_3">
+           <widget class="QPushButton" name="pushButton_browseRDScanFile">
             <property name="text">
              <string>Browse</string>
             </property>
@@ -115,7 +115,7 @@
         </widget>
        </item>
        <item row="1" column="0" colspan="2">
-        <widget class="QRadioButton" name="radioButton_2">
+        <widget class="QRadioButton" name="radioButton_loadReduced">
          <property name="text">
           <string/>
          </property>
@@ -137,7 +137,7 @@
           </spacer>
          </item>
          <item>
-          <widget class="QPushButton" name="pushButton_5">
+          <widget class="QPushButton" name="pushButton_loadFile">
            <property name="text">
             <string>Load</string>
            </property>
@@ -154,8 +154,15 @@
        <string>Viz</string>
       </property>
       <layout class="QGridLayout" name="gridLayout_5">
+       <item row="3" column="2">
+        <widget class="QSlider" name="horizontalSlider_slicer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
        <item row="0" column="0" colspan="4">
-        <widget class="QPlainTextEdit" name="plainTextEdit">
+        <widget class="QPlainTextEdit" name="plainTextEdit_info">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
            <horstretch>0</horstretch>
@@ -167,15 +174,15 @@
          </property>
         </widget>
        </item>
-       <item row="1" column="0" colspan="4">
-        <widget class="QGraphicsView" name="graphicsView">
+       <item row="2" column="0" colspan="4">
+        <widget class="QGraphicsView" name="graphicsView_sliceView">
          <property name="toolTip">
           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Sliced view in contour plot&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
          </property>
         </widget>
        </item>
-       <item row="2" column="0">
-        <widget class="QComboBox" name="comboBox_2">
+       <item row="3" column="0">
+        <widget class="QComboBox" name="comboBox_sliceDirection">
          <item>
           <property name="text">
            <string>X</string>
@@ -193,18 +200,28 @@
          </item>
         </widget>
        </item>
-       <item row="2" column="1">
-        <widget class="QLineEdit" name="lineEdit_7"/>
-       </item>
-       <item row="2" column="2">
-        <widget class="QSlider" name="horizontalSlider">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
+       <item row="3" column="1">
+        <widget class="QLineEdit" name="lineEdit_sliceStartValue">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
          </property>
         </widget>
        </item>
-       <item row="2" column="3">
-        <widget class="QLineEdit" name="lineEdit_8"/>
+       <item row="3" column="3">
+        <widget class="QLineEdit" name="lineEdit_sliceEndValue">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QComboBox" name="comboBox_plotParameterName"/>
        </item>
       </layout>
      </widget>
@@ -219,21 +236,21 @@
       </property>
       <layout class="QGridLayout" name="gridLayout_4">
        <item row="0" column="0" colspan="2">
-        <widget class="QPushButton" name="pushButton_6">
+        <widget class="QPushButton" name="pushButton_calStrain">
          <property name="text">
           <string>Calculate Strain</string>
          </property>
         </widget>
        </item>
        <item row="0" column="2" colspan="2">
-        <widget class="QPushButton" name="pushButton_7">
+        <widget class="QPushButton" name="pushButton_calStress">
          <property name="text">
           <string>Calculate Stress</string>
          </property>
         </widget>
        </item>
        <item row="1" column="0">
-        <widget class="QComboBox" name="comboBox">
+        <widget class="QComboBox" name="comboBox_saveFileType">
          <item>
           <property name="text">
            <string>Strain</string>
@@ -247,20 +264,20 @@
         </widget>
        </item>
        <item row="1" column="1" colspan="2">
-        <widget class="QLineEdit" name="lineEdit_5"/>
+        <widget class="QLineEdit" name="lineEdit_outputFileName"/>
        </item>
        <item row="1" column="3">
-        <widget class="QPushButton" name="pushButton_8">
+        <widget class="QPushButton" name="pushButton_saveStressStrain">
          <property name="text">
           <string>Save</string>
          </property>
         </widget>
        </item>
        <item row="2" column="1" colspan="2">
-        <widget class="QLineEdit" name="lineEdit_6"/>
+        <widget class="QLineEdit" name="lineEdit_exportFileName"/>
        </item>
        <item row="2" column="3">
-        <widget class="QPushButton" name="pushButton_9">
+        <widget class="QPushButton" name="pushButton_exportSpecialType">
          <property name="text">
           <string>Export</string>
          </property>
@@ -277,7 +294,7 @@
      <x>0</x>
      <y>0</y>
      <width>1116</width>
-     <height>25</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
