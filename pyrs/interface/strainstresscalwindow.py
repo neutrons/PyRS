@@ -2,7 +2,7 @@ try:
     from PyQt5.QtWidgets import QMainWindow, QFileDialog
 except ImportError:
     from PyQt4.QtGui import QMainWindow, QFileDialog
-import ui.ui_strainstresscalwindow
+import ui.ui_sscalvizwindow
 from pyrs.utilities import checkdatatypes
 import pyrs.core.pyrscore
 import os
@@ -47,26 +47,24 @@ class StrainStressCalculationWindow(QMainWindow):
 
         # radio buttons changed case
         self.ui.radioButton_loadRaw.toggled.connect(self.evt_load_file_type)
-        self.ui.radioButton_loadReduced.toggled.setChecked(self.evt_load_file_type)
+        self.ui.radioButton_loadReduced.toggled.connect(self.evt_load_file_type)
 
         # combo boxes handling
         self.ui.comboBox_plotParameterName.currentIndexChanged.connect(self.do_plot_sliced_3d)
 
-
-
-        self.lineEdit_tdScanFile..connect(self.)
-        self.lineEdit_ndScanFile..connect(self.)
-        self.lineEdit_rdScanFile..connect(self.)
-
-        self.lineEdit_reducedFile..connect(self.)
-
-        self.lineEdit_outputFileName..connect(self.)
-        self.lineEdit_exportFileName..connect(self.)
-        self.plainTextEdit_info..connect(self.)
-        self.graphicsView_sliceView..connect(self.)
-        self.lineEdit_sliceStartValue..connect(self.)
-        self.lineEdit_sliceEndValue..connect(self.)
-        self.horizontalSlider_slicer..connect(self.)
+        # self.lineEdit_tdScanFile..connect(self.)
+        # self.lineEdit_ndScanFile..connect(self.)
+        # self.lineEdit_rdScanFile..connect(self.)
+        #
+        # self.lineEdit_reducedFile..connect(self.)
+        #
+        # self.lineEdit_outputFileName..connect(self.)
+        # self.lineEdit_exportFileName..connect(self.)
+        # self.plainTextEdit_info..connect(self.)
+        # self.graphicsView_sliceView..connect(self.)
+        # self.lineEdit_sliceStartValue..connect(self.)
+        # self.lineEdit_sliceEndValue..connect(self.)
+        # self.horizontalSlider_slicer..connect(self.)
 
         # current data/states
         self._core = None
@@ -112,7 +110,7 @@ class StrainStressCalculationWindow(QMainWindow):
                                               file_list=False,
                                               save_file=False)
         if nd_file_name is not None:
-            self.ui.lineEdit_ndScanFile.setText(d_file_name)
+            self.ui.lineEdit_ndScanFile.setText(nd_file_name)
 
         return
 
@@ -151,6 +149,15 @@ class StrainStressCalculationWindow(QMainWindow):
         :return:
         """
         # TODO
+
+        return
+
+    def do_cal_stress(self):
+        """
+        calculate the stress from loaded file
+        :return:
+        """
+        # TODO - Implement
 
         return
 
@@ -202,6 +209,18 @@ class StrainStressCalculationWindow(QMainWindow):
 
         return
 
+    def load_colum_file(self, file_name):
+        """
+        load a column file (most for test)
+        :param file_name:
+        :return:
+        """
+        col_file = open(file_name, 'r')
+        lines = col_file.readline()
+        col_file.close()
+
+
+
     def save_stress_strain(self, file_type=None):
         """
         save the calculated strain/stress file
@@ -210,7 +229,7 @@ class StrainStressCalculationWindow(QMainWindow):
         if file_type is None:
             file_type = str(self.ui.comboBox_saveFileType.currentText())
 
-        and etc
+        raise NotImplementedError('TO BE CONTINUED')
 
         return
 

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1116</width>
-    <height>818</height>
+    <width>1330</width>
+    <height>955</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -105,7 +105,7 @@
            <widget class="QLineEdit" name="lineEdit_ldScanFile"/>
           </item>
           <item row="2" column="2">
-           <widget class="QPushButton" name="pushButton_browseRDScanFile">
+           <widget class="QPushButton" name="pushButton_browseLDScanFile">
             <property name="text">
              <string>Browse</string>
             </property>
@@ -175,7 +175,7 @@
         </widget>
        </item>
        <item row="2" column="0" colspan="4">
-        <widget class="QGraphicsView" name="graphicsView_sliceView">
+        <widget class="SampleSliceView" name="graphicsView_sliceView">
          <property name="toolTip">
           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Sliced view in contour plot&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
          </property>
@@ -293,8 +293,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1116</width>
-     <height>22</height>
+     <width>1330</width>
+     <height>25</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -324,6 +324,13 @@
    </property>
   </action>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>SampleSliceView</class>
+   <extends>QGraphicsView</extends>
+   <header>diffdataviews.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

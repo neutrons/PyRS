@@ -6,6 +6,7 @@ from ui import ui_pyrsmain as ui_pyrsmain
 from pyrs.core import pyrscore
 import fitpeakswindow
 import textureanalysiswindow
+import strainstresscalwindow
 
 
 class PyRSLauncher(QMainWindow):
@@ -28,12 +29,14 @@ class PyRSLauncher(QMainWindow):
         # define
         self.ui.pushButton_fitPeaks.clicked.connect(self.do_launch_fit_peak_window)
         self.ui.pushButton_launchTextureAnalysis.clicked.connect(self.do_launch_texture_window)
+        self.ui.pushButton_launchStrainStressCalculation.clicked.connect(self.do_launch_strain_stress_window)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
 
         # child windows
         self.peak_fit_window = None
         self.texture_analysis_window = None
+        self.strain_stress_window = None
 
         return
     
@@ -54,6 +57,20 @@ class PyRSLauncher(QMainWindow):
             self.peak_fit_window = fitpeakswindow.FitPeaksWindow(self)
             self.peak_fit_window.setup_window(self._reduction_core)
         self.peak_fit_window.show()
+
+        return
+
+    def do_launch_strain_stress_window(self):
+        """
+        launch the strain/stress calculation and visualization window
+        :return:
+        """
+        if self.strain_stress_window is None:
+            self.strain_stress_window = strainstresscalwindow.StrainStressCalculationWindow(self)
+            self.strain_stress_window.setup_window(self._reduction_core)
+
+        # launch
+        self.strain_stress_window.show()
 
         return
 

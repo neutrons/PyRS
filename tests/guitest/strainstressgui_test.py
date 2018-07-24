@@ -15,25 +15,25 @@ def test_main():
     """
     test main
     """
-    fit_window = fitpeakswindow.FitPeaksWindow(None)
+    ss_window = strainstresscalwindow.StrainStressCalculationWindow(None)
     pyrs_core = pyrscore.PyRsCore()
-    fit_window.setup_window(pyrs_core)
+    ss_window.setup_window(pyrs_core)
 
-    fit_window.show()
+    ss_window.show()
 
-    fit_window.ui.lineEdit_expFileName.setText('tests/testdata/BD_Data_Log.hdf5')
-    fit_window.ui.comboBox_peakType.setCurrentIndex(1)
-    fit_window.do_load_scans()
-    if False:
-        fit_window.ui.lineEdit_scanNUmbers.setText('4')
-        fit_window.do_plot_diff_data()
-        fit_window.do_plot_meta_data()
-        fit_window.do_fit_peaks()
-    if True:
-        fit_window.do_fit_peaks()
-        fit_window.save_data_for_mantid(None, 'peaks.nxs')
+    # fit_window.ui.lineEdit_expFileName.setText('tests/testdata/BD_Data_Log.hdf5')
+    # fit_window.ui.comboBox_peakType.setCurrentIndex(1)
+    # fit_window.do_load_scans()
+    # if False:
+    #     fit_window.ui.lineEdit_scanNUmbers.setText('4')
+    #     fit_window.do_plot_diff_data()
+    #     fit_window.do_plot_meta_data()
+    #     fit_window.do_fit_peaks()
+    # if True:
+    #     fit_window.do_fit_peaks()
+    #     fit_window.save_data_for_mantid(None, 'peaks.nxs')
 
-    return fit_window
+    return ss_window
 
 
 def main(argv):

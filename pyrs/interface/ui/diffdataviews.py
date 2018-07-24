@@ -221,3 +221,17 @@ class PeakFitSetupView(MplGraphicsView1D):
         self.clear_all_lines(row_number=0, col_number=0, include_main=True, include_right=False)
 
         return
+
+
+class SampleSliceView(MplGraphicsView2D):
+    """
+    2D contour view for sliced sample
+    """
+    def __init__(self, parent):
+        """
+        initialization
+        :param parent:
+        """
+        super(SampleSliceView, self).__init__(parent)
+
+        return
