@@ -1,0 +1,65 @@
+\documentclass[12pt,bezier,amstex]{report}  % include bezier curves
+\renewcommand\baselinestretch{1.0}           % single space
+%\pagestyle{empty}                            % no headers and page numbers
+\oddsidemargin -10 true pt      % Left margin on odd-numbered pages.
+\evensidemargin 10 true pt      % Left margin on even-numbered pages.
+\marginparwidth 0.75 true in    % Width of marginal notes.
+\oddsidemargin  0 true in       % Note that \oddsidemargin=\evensidemargin
+\evensidemargin 0 true in
+\topmargin 0.25 true in        % Nominal distance from top of page to top of
+\textheight 9.0 true in         % Height of text (including footnotes and figures)
+\textwidth 6.375 true in        % Width of text line.
+\parindent=0pt                  % Do not indent paragraphs
+\parskip=0.15 true in
+\usepackage{color}              % Need the color package
+\usepackage{epsfig}
+
+\usepackage{algorithmic}
+
+
+\title{NRSF2 Design Document Appendix: Strain and Stress Calculation}
+
+\begin{document}
+
+\maketitle
+
+{\bf Strain}, aka, unconstrained strain, is measured as the fraction change from a reference state ($d_0$).
+\begin{eqnarray}
+\epsilon_{ij} &=& \frac{d_{ij} - d_0}{d_0}
+\end{eqnarray}
+
+{\bf Residual stress} is determined by measuring stress along {\bf\it 3} orthogonal directions
+\begin{eqnarray}
+\sigma_{ij} &=&
+	\frac{E}{(1 + \nu)}[\epsilon_{ij} + \frac{\nu}{1-2\nu}(\epsilon_{11} + \epsilon_{22} + \epsilon_{33})]
+\end{eqnarray}
+
+where 
+\begin{itemize}
+\item $\nu$ is {\it Poisson's Ratio}.
+\item $E$ is {\it Young's Modulus}.
+\item $\epsilon_{ij}$ are strains.  Be noted that 
+	\begin{itemize}
+	\item  $\epsilon_{ij}$ with $i = j$ are principle strains.  But not all all three orthogonal strains are equivalent to principle strains.
+	\item The off-diagonal strain component, i.e., $\epsilon_{ij}$ with $i\neq j$ are all set to {\bf zero}.  It is very hard to measure these values in HB2B's setup.
+	\end{itemize}
+\end{itemize}
+
+In {\bf plane strain}, $\epsilon_{33}$ is {\bf zero}.
+
+In {\bf plane stress}, $\sigma_{33}$ is {\bf zero}.  
+Therefore, $\epsilon_{33}$ can be calculated from $\epsilon_{11}$ and $\epsilon_{22}$ from $\sigma_{33} = 0$. 
+\begin{eqnarray}
+\sigma_{33}
+	&=&	0	\\
+	&=& \frac{E}{(1 + \nu)}[\epsilon_{33} + \frac{\nu}{1-2\nu}(\epsilon_{11} + \epsilon_{22} + \epsilon_{33})]	\\
+\epsilon_{33}
+	&=& - \frac{\nu}{(1-2\nu)} (\epsilon_{11} + \epsilon_{22}) + - \frac{\nu}{(1-2\nu)} \epsilon_{33} \\
+\epsilon_{33} 
+	&=& \frac{\nu}{\nu-1}(\epsilon_{11} + \epsilon_{22})
+\end{eqnarray}
+
+Therefore, for both plain stress and plain strain, $d$ from 2 principle directions are enough, but not 3.
+
+\end{document}
+
