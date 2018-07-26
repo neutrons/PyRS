@@ -26,16 +26,26 @@ def test_strain_calculation():
     rs_core = pyrscore.PyRsCore()
 
     # import data file: detector ID and file name
-    test_data_set = {'TD': 'tests/testdata/HB2B_exp129_Long_Al_222[1]_single.hdf5',
-                     'ND': 'tests/testdata/HB2B_exp129_Long_Al_222[2]_single.hdf5',
-                     'LD': 'tests/testdata/HB2B_exp129_Long_Al_222[3]_single.hdf5'}
+    test_data_set = {'e11': 'tests/testdata/LD_Data_Log.hdf5',
+                     'e22': 'tests/testdata/BD_Data_Log.hdf5',
+                     'e33': 'tests/testdata/ND_Data_Log.hdf55'}
+
+    # start a session
+    rs_core.stress_calculator.new_session('test strain/stress module')
 
     # load data
-    data_key, message = rs_core.load_stain_stress_source_file(td_data_file=test_data_set['TD'],
-                                                              nd_data_file=test_data_set['ND'],
-                                                              ld_data_file=test_data_set['LD'])
+    rs_core.stress_calculator.load_stain_stress_source_file(file_name=test_data_set['e11'], direction='e11')
+    rs_core.stress_calculator.load_stain_stress_source_file(file_name=test_data_set['e22'], direction='e22')
+    rs_core.stress_calculator.load_stain_stress_source_file(file_name=test_data_set['e33'], direction='e33')
+
+    # check and align measurement points around
+    rs_core.stress_calculator.align_measuring_points(['e11', 'e22', 'e33'])
 
     # peak fitting for detector - ALL
+    for direction in ['e11', 'e22', 'e33']:
+        assert rs_core.stress_calculator.are_peaks_fitted(direction=direction),\
+            'Peaks must be fitted as a pre-requisite'
+
     rs_core.calculate_strain(data_key)
 
     # export

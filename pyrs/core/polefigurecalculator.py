@@ -85,9 +85,11 @@ def nice(matrix):
 
 def cal_rotation_matrix_x(angle, is_degree, use_matrix):
     """
-    calculate rotation matrix X
+    calculate rotation matrix X with Euler angle
     :param angle:
     :param is_degree: flag show that the angle is in degree but not radius
+    :param use_matrix: flag to define rotation matrix with numpy.matrix. Otherwise, it will be a shape=(3,3)
+                       numpy.ndarray
     :return:
     """
     if is_degree:
@@ -95,54 +97,60 @@ def cal_rotation_matrix_x(angle, is_degree, use_matrix):
 
     if use_matrix:
         rotation_matrix = numpy.matrix([[1., 0, 0],
-                                        [0, numpy.cos(angle), -numpy.sin(angle)],
-                                        [0, numpy.sin(angle), numpy.cos(angle)]], dtype='float')
+                                        [0, numpy.cos(angle), numpy.sin(angle)],
+                                        [0, -numpy.sin(angle), numpy.cos(angle)]], dtype='float')
     else:
         rotation_matrix = numpy.array([[1., 0, 0],
-                                        [0, numpy.cos(angle), -numpy.sin(angle)],
-                                        [0, numpy.sin(angle), numpy.cos(angle)]])
+                                        [0, numpy.cos(angle), numpy.sin(angle)],
+                                        [0, -numpy.sin(angle), numpy.cos(angle)]])
 
     return rotation_matrix
 
 
 def cal_rotation_matrix_y(angle, is_degree, use_matrix):
     """
-    calculate rotation matrix Y
+    calculate rotation matrix Y with Euler angle
     :param angle:
     :param is_degree: flag show that the angle is in degree but not radius
+    :param use_matrix: flag to define rotation matrix with numpy.matrix. Otherwise, it will be a shape=(3,3)
+                       numpy.ndarray
     :return:
     """
     if is_degree:
         angle = angle / 180. * numpy.pi
 
     if use_matrix:
-        rotation_matrix = numpy.matrix([[numpy.cos(angle), 0, numpy.sin(angle)],
+        rotation_matrix = numpy.matrix([[numpy.cos(angle), 0, -numpy.sin(angle)],
                                         [0, 1., 0.],
-                                        [-numpy.sin(angle), 0., numpy.cos(angle)]], dtype='float')
+                                        [numpy.sin(angle), 0., numpy.cos(angle)]], dtype='float')
     else:
-        rotation_matrix = numpy.array([[numpy.cos(angle), 0, numpy.sin(angle)],
-                                        [0, 1., 0.],
-                                        [-numpy.sin(angle), 0., numpy.cos(angle)]])
+        rotation_matrix = numpy.array([[numpy.cos(angle), 0, -numpy.sin(angle)],
+                                       [0, 1., 0.],
+                                       [numpy.sin(angle), 0., numpy.cos(angle)]])
 
     return rotation_matrix
 
 
 def cal_rotation_matrix_z(angle, is_degree, use_matrix):
     """
-    calculate rotation matrix Z
+    calculate rotation matrix Z, with Euler angle
     :param angle:
     :param is_degree: flag show that the angle is in degree but not radius
+    :param use_matrix: flag to define rotation matrix with numpy.matrix. Otherwise, it will be a shape=(3,3)
+                       numpy.ndarray
     :return:
     """
     if is_degree:
         angle = angle / 180. * numpy.pi
 
     if use_matrix:
-        rotation_matrix = numpy.matrix([[numpy.cos(angle), -numpy.sin(angle), 0.],
-                                        [numpy.sin(angle), numpy.cos(angle), 0.],
+        rotation_matrix = numpy.matrix([[numpy.cos(angle), numpy.sin(angle), 0.],
+                                        [-numpy.sin(angle), numpy.cos(angle), 0.],
                                         [0., 0., 1.]], dtype='float')
     else:
-        rotation_matrix = numpy.array([[numpy.cos(angle), -numpy.sin(angle), 0.], [numpy.sin(angle), numpy.cos(angle), 0.], [0., 0., 1.]])
+        rotation_matrix = numpy.array([[numpy.cos(angle), numpy.sin(angle), 0.],
+                                       [-numpy.sin(angle), numpy.cos(angle), 0.],
+                                       [0., 0., 1.]])
 
     return rotation_matrix
 
