@@ -2,6 +2,7 @@ import os
 from pyrs.utilities import checkdatatypes
 import h5py
 import numpy
+from shutil import copyfile
 from mantid.simpleapi import SaveNexusProcessed
 from mantid.api import AnalysisDataService
 
@@ -33,18 +34,18 @@ class DiffractionDataFile(object):
 
         # copy the file?
         if src_rs_file_name != target_rs_file_name:
-            os.copy_file(src_rs_file_name, target_rs_file_name)
+            copyfile(src_rs_file_name, target_rs_file_name)
 
         # open file
         target_file = h5py.File(target_rs_file_name, 'r+')
-        diff_entry = target_file['Diffraction']
+        diff_entry = target_file['Diffraction Data']
         for scan_log_key in diff_entry.keys():
             scan_log_index = int(scan_log_key.split()[1])
             fit_info_i = peak_fit_dict[scan_log_index]
             # add an entry
-            diff_entry[scan_log_key]['peakfit'] = h5py.entry()
+            diff_entry[scan_log_key].create_group('peak_fit')
             for key in fit_info_i:
-                diff_entry[scan_log_key]['peakfit'][key] = fit_info_i[key]
+                diff_entry[scan_log_key]['peak_fit'][key] = fit_info_i[key]
             # END-FOR
         # END-FOR
 
