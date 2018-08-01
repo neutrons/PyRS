@@ -3,6 +3,7 @@ import mantid
 from mantid.simpleapi import FitPeaks, CreateWorkspace
 from mantid.api import AnalysisDataService
 from pyrs.utilities import checkdatatypes
+import pyrs_fit_engine
 import numpy as np
 import scandataio
 import os
@@ -11,7 +12,7 @@ import math
 print ('[DEBUG-INFO] Mantid is loaded from : {0}'.format(mantid))
 
 
-class MantidPeakFitEngine(object):
+class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
     """
     peak fitting engine class for mantid
     """
@@ -22,20 +23,18 @@ class MantidPeakFitEngine(object):
         :param ref_id: reference ID
         :param
         """
-        # check
-        checkdatatypes.check_list('Data set list', data_set_list)
-        checkdatatypes.check_string_variable('Peak fitting reference ID', ref_id)
+        # call parent
+        super(MantidPeakFitEngine, self).__init__(data_set_list, ref_id)
 
-        self._reference_id = ref_id
+        # related to Mantid workspaces
         self._workspace_name = self._get_matrix_name(ref_id)
         self.generate_matrix_workspace(data_set_list, matrix_ws_name=self._workspace_name)
 
         # some observed properties
         self._center_of_mass_ws_name = None
         self._highest_point_ws_name = None
-        self._peak_center_vec = None  # 2D vector for observed center of mass and highest data point
 
-        # fitting result
+        # fitting result (Mantid specific)
         self._fitted_peak_position_ws = None  # fitted peak position workspace
         self._fitted_function_param_table = None  # fitted function parameters table workspace
         self._model_matrix_ws = None  # MatrixWorkspace of the model from fitted function parameters
@@ -287,19 +286,19 @@ class MantidPeakFitEngine(object):
 
         return np.array(indexes_list)
 
-    def get_calculated_peak(self, log_index):
+    def get_calculated_peak(self, scan_log_index):
         """
         get the model (calculated) peak of a certain scan
-        :param log_index:
+        :param scan_log_index:
         :return:
         """
         if self._model_matrix_ws is None:
             raise RuntimeError('There is no fitting result!')
 
-        checkdatatypes.check_int_variable('Scan log index', log_index, (0, self._model_matrix_ws.getNumberHistograms()))
+        checkdatatypes.check_int_variable('Scan log index', scan_log_index, (0, self._model_matrix_ws.getNumberHistograms()))
 
-        vec_x = self._model_matrix_ws.readX(log_index)
-        vec_y = self._model_matrix_ws.readY(log_index)
+        vec_x = self._model_matrix_ws.readX(scan_log_index)
+        vec_y = self._model_matrix_ws.readY(scan_log_index)
 
         return vec_x, vec_y
 

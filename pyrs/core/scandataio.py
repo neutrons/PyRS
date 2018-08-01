@@ -16,6 +16,42 @@ class DiffractionDataFile(object):
         """
         return
 
+    # TESTME TODO / Need to test and make h5py call correct!
+    @staticmethod
+    def export_peak_fit(src_rs_file_name, target_rs_file_name, peak_fit_dict):
+        """
+        export peak fitting result to a RS (residual stress) intermediate file
+        :param self:
+        :param src_rs_file_name:
+        :param target_rs_file_name:
+        :param peak_fit_dict:
+        :return:
+        """
+        # check
+        checkdatatypes.check_file_name(src_rs_file_name, check_exist=True)
+        checkdatatypes.check_file_name(target_rs_file_name, check_writable=True)
+
+        # copy the file?
+        if src_rs_file_name != target_rs_file_name:
+            os.copy_file(src_rs_file_name, target_rs_file_name)
+
+        # open file
+        target_file = h5py.File(target_rs_file_name, 'r+')
+        diff_entry = target_file['Diffraction']
+        for scan_log_key in diff_entry.keys():
+            scan_log_index = int(scan_log_key.split()[1])
+            fit_info_i = peak_fit_dict[scan_log_index]
+            # add an entry
+            diff_entry[scan_log_key]['peakfit'] = h5py.entry()
+            for key in fit_info_i:
+                diff_entry[scan_log_key]['peakfit'][key] = fit_info_i[key]
+            # END-FOR
+        # END-FOR
+
+        target_file.close()
+
+        return
+
     @staticmethod
     def find_changing_logs(sample_logs):
         """
@@ -125,15 +161,14 @@ class DiffractionDataFile(object):
         return diff_data_dict, sample_logs
 
     def load_rs_file_set(self, file_name_list):
-        """
-
+        """ Load a set of Residual Stress's intermediate data files
         :param file_name_list:
         :return:
         """
-        # TODO - docs
+        # sort file name by order
         file_name_list.sort()
 
-        # prepare
+        # prepare the data structures
         num_logs = len(file_name_list)
         sample_logs_set = dict()
         diff_data_dict_set = dict()
