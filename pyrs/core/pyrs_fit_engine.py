@@ -66,5 +66,31 @@ class RsPeakFitEngine(object):
 
 
 
+    def write_result(self):
+        """
+        write (append) the peak fitting result to input HDF5 for further data reduction such as
+        calculating stress/strain.
+        The file format shall be documented as a standard
+        :return:
+        """
+        # TODO - 20180727 - Implement!
+
+# In [17]: log97entry.create_group('peak_fit')
+# Out[17]: <HDF5 group "/Diffraction Data/Log 97/peak_fit" (0 members)>
+#
+# In [18]: peak_fit_97 = log
+# %logoff     %logon      %logstart   %logstate   %logstop    log97entry  log98entry
+#
+# In [18]: peak_fit_97 = log97entry['peak_fit']
+#
+# In [19]: peak_fit_97['type'
+#    ....: ] = 'Gaussian'
+#
+# In [20]: peak_fit_97['Height'] = 45.0
+#
+# In [21]: peak_fit_97['Chi2'] = 56.3
+#
+# In [22]: rwfile.close()
+
 
 
