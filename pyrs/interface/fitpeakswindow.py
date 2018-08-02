@@ -289,7 +289,7 @@ class FitPeaksWindow(QMainWindow):
 
         :return:
         """
-        # TODO
+        # TODO - 20180801 - Save as .. is used to save the fit result to original file
         return
 
     def do_save_fit_result(self):
