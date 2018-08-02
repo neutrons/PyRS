@@ -181,13 +181,12 @@ class StrainStressCalculationWindow(QMainWindow):
 
         if self.ui.radioButton_loadRaw.isChecked():
             # load raw files
-            td_file_name = str(self.ui.lineEdit_tdScanFile.text())
-            ld_file_name = str(self.ui.lineEdit_ldScanFile.text())
-            nd_file_name = str(self.ui.lineEdit_ndScanFile.text())
-
-            data_key, message = self._core.load_stain_stress_source_file(td_data_file=td_file_name,
-                                                                         nd_data_file=nd_file_name,
-                                                                         ld_data_file=ld_file_name)
+            e11_file_name = str(self.ui.lineEdit_e11ScanFile.text())
+            self.load_raw_file(e11_file_name, 'e11')
+            e22_file_name = str(self.ui.lineEdit_e22ScanFile.text())
+            self.load_raw_file(e22_file_name, 'e22')
+            e33_file_name = str(self.ui.lineEdit_e33ScanFile.text())
+            self.load_raw_file(e33_file_name, 'e33')
 
         else:
             # load saved files
@@ -212,17 +211,51 @@ class StrainStressCalculationWindow(QMainWindow):
 
         return
 
-    def load_colum_file(self, file_name):
-        """
-        load a column file (most for test)
+    @staticmethod
+    def load_column_file(file_name):
+        """ load a column file (most for test)
         :param file_name:
-        :return:
+        :return: an numpy.ndarray
         """
+        checkdatatypes.check_file_name(file_name, check_exist=True, is_dir=False)
+
+        # open file
         col_file = open(file_name, 'r')
         lines = col_file.readline()
         col_file.close()
 
+        # parse
+        data_set_list = list()
+        for line in lines:
+            line = line.strip()
+            if len(line) == 0 or line.startswith('#'):
+                # empty line or comment line
+                continue
+            terms = line.split()
 
+            line_values = numpy.ndarray(shape=(len(terms),), dtype='float')
+            for iterm in range(len(terms)):
+                line_values[iterm] = float(terms[iterm])
+
+            data_set_list.append(line_values)
+        # END-FOR
+
+        data_set = numpy.array(data_set_list)
+
+        return data_set
+
+    def load_raw_file(self, file_name, direction):
+        """
+        load stress/strain raw file with peak fit information
+        :param file_name:
+        :param direction:
+        :return:
+        """
+        # TODO - 20180801 - Implement
+        data_key, message = self._core.load_stain_stress_source_file(file_name=file_name,
+                                                                     direction=direction)
+
+        return
 
     def save_stress_strain(self, file_type=None):
         """
