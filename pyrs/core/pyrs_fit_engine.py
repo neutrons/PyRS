@@ -64,8 +64,6 @@ class RsPeakFitEngine(object):
         """
         raise NotImplementedError('Virtual base class member method get_number_scans()')
 
-
-
     def write_result(self):
         """
         write (append) the peak fitting result to input HDF5 for further data reduction such as

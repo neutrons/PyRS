@@ -267,33 +267,34 @@ class PoleFigureCalculator(object):
 
         return
 
-    def export_pole_figure(self, detector_id_list,  file_name, file_type):
+    def export_pole_figure(self, detector_id_list,  file_name, file_type, file_header=''):
         """
         exported the calculated pole figure
-        :param detector_id_list:
+        :param detector_id_list: list of detector IDs to write the pole figure file
         :param file_name:
+        :param file_header: for MTEX format
         :return:
         """
-        # TODO - 20180711 - Clean this method and allow user to specifiy header
+        # TESTME - 20180711 - Clean this method and allow user to specifiy header
+
         # process detector ID list
         if detector_id_list is None:
             detector_id_list = self.get_detector_ids()
         else:
             checkdatatypes.check_list('Detector IDs', detector_id_list)
+        print ('[DB...DEL] detector ID list: {}'.format(detector_id_list))
+
         # check inputs
         checkdatatypes.check_file_name(file_name, check_exist=False, check_writable=True)
         checkdatatypes.check_string_variable('Output pole figure file type/format', file_type)
 
-        print ('[DB...BAT] Pole figure to export:  type: {0}\n{1}'.format(type(self._pole_figure_dict),
-                                                                          self._pole_figure_dict))
-
         # it is a dictionary now
         if file_type.lower() == 'ascii':
             # export pole figure arrays as ascii column file
-            export_arrays_to_ascii(self._pole_figure_dict, file_name)
+            export_arrays_to_ascii(self._pole_figure_dict, detector_id_list, file_name)
         elif file_type.lower() == 'mtex':
             # export to mtex format
-            export_to_mtex(self._pole_figure_dict, file_name, header='....')
+            export_to_mtex(self._pole_figure_dict, detector_id_list, file_name, header=file_header)
 
         return
 
@@ -395,14 +396,10 @@ class PoleFigureCalculator(object):
         :param phi:
         :return: 2-tuple as the projection (alpha, beta)
         """
-        # check inputs - FIXME 20180716 - Recover check types after debugging - TODO
         checkdatatypes.check_float_variable('2theta', two_theta, (None, None))
         checkdatatypes.check_float_variable('Omega', omega, (None, None))
         checkdatatypes.check_float_variable('chi', chi, (None, None))
         checkdatatypes.check_float_variable('phi', phi, (None, None))
-
-        # print ('2theta = {0}\nomega = {1}\nchi = {2}\nphi = {3}'
-        #        ''.format(two_theta, omega, chi, phi))
 
         # rotate Q about theta along z-axis
         rotation_matrix = cal_rotation_matrix_z(-two_theta * 0.5, is_degree=True, use_matrix=self._use_matmul)
@@ -466,8 +463,7 @@ class PoleFigureCalculator(object):
         return alpha, beta
 
     def reset_calculator(self):
-        """
-
+        """ reset the pole figure calculator
         :return:
         """
         self._peak_info_dict = dict()
@@ -494,42 +490,56 @@ def test_rotate():
     print (a, b)
 
 
-def export_arrays_to_ascii(array_dict, out_file_name):
+def export_arrays_to_ascii(pole_figure_array_dict, detector_id_list, file_name):
     """
     export a dictionary of arrays to an ASCII file
-    :param array_dict: 
-    :param out_file_name: 
+    :param file_name:
+    :param detector_id_list: selected the detector IDs for pole figure
+    :param pole_figure_array_dict:
     :return: 
     """
+    # check input types
+    checkdatatypes.check_dict('Pole figure array dictionary', pole_figure_array_dict)
+    checkdatatypes.check_list('Detector ID list', detector_id_list)
+
     print ('[DB...Export Pole Figure Arrays To ASCII:\nKeys: {0}\nValues[0]: {1}'
-           ''.format(array_dict.keys(), array_dict.values()[0]))
+           ''.format(pole_figure_array_dict.keys(), pole_figure_array_dict.values()[0]))
 
     # combine
     pole_figure_array_list = list()
-    for index_vec, pole_figure_vec in array_dict.values():
+    for pf_key in pole_figure_array_dict.keys():
+        index_vec, pole_figure_vec = pole_figure_array_dict[pf_key]
+
+        if pf_key not in detector_id_list:
+            raise NotImplementedError('The data structure of pole figure array is not clear. '
+                                      'Find out how detector IDs are involved.')
+
         pole_figure_array_list.append(pole_figure_vec)
+    # END-FOR
 
     combined_array = numpy.concatenate(pole_figure_array_list, axis=0)
     # sort
     combined_array = numpy.sort(combined_array, axis=0)
     # save
-    numpy.savetxt(out_file_name, combined_array)   # x,y,z equal sized 1D arrays
+    numpy.savetxt(file_name, combined_array)   # x,y,z equal sized 1D arrays
 
     return
 
 
-def export_to_mtex(pole_figure_array_dict, file_name, header):
+def export_to_mtex(pole_figure_array_dict, detector_id_list, file_name, header):
     """
     export to mtex format, which includes
     line 1: header
     line 2 and on: alpha\tbeta\tintensity
     :param file_name:
+    :param detector_id_list: selected the detector IDs for pole figure
     :param pole_figure_array_dict:
     :param header
     :return:
     """
     # check input types
     checkdatatypes.check_dict('Pole figure array dictionary', pole_figure_array_dict)
+    checkdatatypes.check_list('Detector ID list', detector_id_list)
 
     # initialize output string
     mtex = ''
@@ -540,6 +550,12 @@ def export_to_mtex(pole_figure_array_dict, file_name, header):
     # writing data
     pf_keys = sorted(pole_figure_array_dict.keys())
     for pf_key in pf_keys:
+        print ('[STUDY ]Pole figure key = {}.  It is in detector ID list {} = {}'
+               ''.format(pf_key, detector_id_list, pf_key in detector_id_list))
+        if pf_key not in detector_id_list:
+            raise NotImplementedError('The data structure of pole figure array is not clear. '
+                                      'Find out how detector IDs are involved.')
+
         sample_log_index, pole_figure_array = pole_figure_array_dict[pf_key]
 
         print ('[DB...BAT] PF-key: {}... Array Shape: {}'.format(pf_key, pole_figure_array.shape))
@@ -574,7 +590,3 @@ def does_numpy_support_matmul():
         return True
 
     return False
-
-
-
-test_rotate()

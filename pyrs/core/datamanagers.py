@@ -309,7 +309,7 @@ class RawDataManager(object):
         :param can_plot: True for log that can be plotted (no object type); Otherwise, all sample logs
         :return: list of strings
         """
-        # TODO/FIXME/DOC/CHECK
+        # data key set can be a tuple for multiple sample rotations (pole figure)
         if isinstance(data_key_set, tuple):
             data_key, sub_key = data_key_set
         else:

@@ -23,6 +23,53 @@ class ScipyPeakFitEngine(RsPeakFitEngine):
 
         return
 
+    @staticmethod
+    def calculate_peak(X, Data, TTH, peak_function_name, background_function_name, ReturnModel=False):
+        """ static method to calculate peak
+        :param X:
+        :param Data:
+        :param TTH:
+        :param peak_function_name:
+        :param background_function_name:
+        :param ReturnModel:
+        :return:
+        """
+        checkdatatypes.check_string_variable('Peak profile function', peak_function_name)
+
+        model_y = np.zeros_like(Data)
+
+        if peak_function_name == 'Lorentzian':
+            # Lorentzian
+            x0 = X[0]
+            N = X[1]
+            f = X[2]
+            model_y += N * 2. / np.pi * 1 / f * 1 / (1 + 4 * (TTH - x0) ** 2 / f ** 2)
+
+        elif peak_function_name == 'Gaussian':
+            # Gaussian
+            x0 = X[0]
+            N = X[1]
+            f = X[2]
+            model_y += N * 2. * np.sqrt(np.log(2) / np.pi) * 1 / f * np.exp(-np.log(2) * 4 * (TTH - x0) ** 2 / f ** 2)
+
+        elif peak_function_name == 'PseudoVoigt':
+            x0 = X[0]
+            N = X[1]
+            f = X[2]
+            w = X[3]
+            model_y += N * (1. - w) * 2. / np.pi * 1 / f * 1 / (1 + 4 * (TTH - x0) ** 2 / f ** 2) + N * (
+                w) * 2. * np.sqrt(np.log(2) / np.pi) * 1 / f * np.exp(-np.log(2) * 4 * (TTH - x0) ** 2 / f ** 2)
+
+        if background_function_name == 'Linear':
+            model_y += X[-2:][0] * TTH + X[-2:][1]
+        elif background_function_name == 'Quadratic':
+            model_y += X[-3:][0] * TTH * TTH + X[-3:][1] * TTH + X[-3:][2]
+
+        if ReturnModel:
+            return [TTH, model_y]
+        else:
+            return Data - model_y
+
     def fit_peaks(self, peak_function_name, background_function_name, scan_index=None):
         """
         fit peaks
@@ -34,43 +81,12 @@ class ScipyPeakFitEngine(RsPeakFitEngine):
         checkdatatypes.check_string_variable('Peak function name', peak_function_name)
         checkdatatypes.check_string_variable('Background function name', background_function_name)
 
-
         M = []
-        def CalcPeak(X, Data, TTH, peak_function_name, background_function_name, ReturnModel=False ):
-            Model = np.zeros_like(Data)
-            
-            
-            if peak_function_name == 'Lorentzian':
-                x0 = X[0]
-                N  = X[1]
-                f  = X[2]
-                Model += N * 2./np.pi * 1/f * 1/(1+4*(TTH-x0)**2/f**2)
-            elif peak_function_name == 'Gaussian':
-                x0 = X[0]
-                N  = X[1]
-                f  = X[2]
-                Model += N * 2.*np.sqrt(np.log(2)/np.pi) * 1/f * np.exp(-np.log(2)*4*(TTH-x0)**2/f**2)
-            elif peak_function_name == 'PseudoVoigt':
-                x0 = X[0]
-                N  = X[1]
-                f  = X[2]
-                w  = X[3]
-                Model += N * (1. - w) * 2./np.pi * 1/f * 1/(1+4*(TTH-x0)**2/f**2) + N * (w) * 2.*np.sqrt(np.log(2)/np.pi) * 1/f * np.exp(-np.log(2)*4*(TTH-x0)**2/f**2)
 
-            if background_function_name == 'Linear':
-                Model += X[-2:][0] * TTH + X[-2:][1]
-            elif background_function_name == 'Quadratic':
-                Model += X[-3:][0] * TTH * TTH + X[-3:][1] * TTH + X[-3:][2]
-                
-            if ReturnModel:
-                return [TTH, Model]
-            else:
-                return Data - Model
-        
-        
-        for i in range(self._data_workspace[2]):
-            Data = self._data_workspace[1][i]
-            TTH = self._data_workspace[0][i]
+        # for i in range(self._data_workspace[2]):
+        for i in range(self._num_data_set):
+            Data = self._data_set[i].vec_x  # self._data_workspace[1][i]
+            TTH = self._data_set[i].vec_y   # self._data_workspace[0][i]
 
             MaxIndex = np.where(np.max(Data) == Data)[0][0]
 
@@ -92,42 +108,48 @@ class ScipyPeakFitEngine(RsPeakFitEngine):
                 x0.append(0)
                 x0.append(Data[0])
 
-            result = leastsq(CalcPeak,x0,args=(Data, TTH, peak_function_name, background_function_name.split(' ')[0]),full_output=True,ftol=1.e-15,  xtol=1.e-15)  
+            result = leastsq(self.calculate_peak, x0,
+                             args=(Data, TTH, peak_function_name, background_function_name.split(' ')[0]),
+                             full_output=True,ftol=1.e-15,  xtol=1.e-15)
 
             M.append(result[0])
         
-        M = np.array( M )
-        print M.shape
+        M = np.array(M)
+        print ('M is of shape {}'.format(M.shape))
             
         # process output
         # TODO: Clean!
 
-        if self._data_workspace[0][1].shape[0] == 1:
-            self.peak_pos_ws = M[0]
-            if peak_function_name == 'PseudoVoigt':
-                self.func_param_ws = pd.DataFrame.from_records([{'PeakCentre':M[0], 'Height': M[1], 'FWHM':M[2], 'Mixing':M[3]}])
-            else:
-                self.func_param_ws = pd.DataFrame.from_records([{'PeakCentre':M[0], 'Height': M[1], 'FWHM':M[2]}])
-            CalcPatts = []
-            CalcPatts.append(CalcPeak(M[:], self._data_workspace[1], self._data_workspace[0], peak_function_name, background_function_name.split(' ')[0], ReturnModel=True ))
+        # if self._data_workspace[0][1].shape[0] == 1:
+        #
+        #     self.peak_pos_ws = M[0]
+        #     if peak_function_name == 'PseudoVoigt':
+        #         self.func_param_ws = pd.DataFrame.from_records([{'PeakCentre':M[0], 'Height': M[1], 'FWHM':M[2], 'Mixing':M[3]}])
+        #     else:
+        #         self.func_param_ws = pd.DataFrame.from_records([{'PeakCentre':M[0], 'Height': M[1], 'FWHM':M[2]}])
+        #     CalcPatts = []
+        #     CalcPatts.append(self.calculate_peak(M[:], self._data_workspace[1], self._data_workspace[0], peak_function_name, background_function_name.split(' ')[0], ReturnModel=True ))
+        # else:
+
+        # create pandas data frame
+        self.peak_pos_ws = M[:, 0]
+        if peak_function_name == 'PseudoVoigt':
+            self.func_param_ws = pd.DataFrame(
+                data={'PeakCentre': M[:, 0], 'Height': M[:, 1], 'FWHM': M[:, 2], 'Mixing': M[:, 3]})
+        elif peak_function_name == 'Lorentzian':
+            self.func_param_ws = pd.DataFrame(
+                data={'PeakCentre': M[:, 0], 'Amplitude': M[:, 1], 'FWHM': M[:, 2], 'chi2': 0})
         else:
-            self.peak_pos_ws = M[:,0]
+            self.func_param_ws = pd.DataFrame(data={'PeakCentre':M[:,0].T, 'Height': M[:,1], 'Sigma':M[:,2] / 2.3548, 'chi2':0})
 
-            if peak_function_name == 'PseudoVoigt':
-                self.func_param_ws = pd.DataFrame(data={'PeakCentre':M[:,0], 'Height': M[:,1], 'FWHM':M[:,2], 'Mixing':M[:,3]})
-            elif peak_function_name == 'Lorentzian':
-                self.func_param_ws = pd.DataFrame(data={'PeakCentre':M[:,0], 'Amplitude': M[:,1], 'FWHM':M[:,2], 'chi2':0})
-            else:
-                self.func_param_ws = pd.DataFrame(data={'PeakCentre':M[:,0].T, 'Height': M[:,1], 'Sigma':M[:,2] / 2.3548, 'chi2':0})
-
-            CalcPatts = []
-            for log_index in range(self._data_workspace[2]):
-                CalcPatts.append(CalcPeak(M[log_index,:], self._data_workspace[1][log_index], self._data_workspace[0][log_index], peak_function_name, background_function_name.split(' ')[0], ReturnModel=True ))
-
+        # calculate patterns
+        CalcPatts = []
+        for log_index in range(self._data_workspace[2]):
+            CalcPatts.append(self.calculate_peak(M[log_index,:], self._data_workspace[1][log_index], self._data_workspace[0][log_index], peak_function_name, background_function_name.split(' ')[0], ReturnModel=True ))
 
         self.fitted_ws = np.array(CalcPatts)
        
-        print self.func_param_ws.keys
+        print ('[DB...BAT] function parameters keys: {}'.format(self.func_param_ws.keys))
 
         return
 
@@ -144,7 +166,10 @@ class ScipyPeakFitEngine(RsPeakFitEngine):
         return vec_x, vec_y
 
     def get_function_parameter_names(self):
-        # TODO
+        """
+        get function parameters' names
+        :return:
+        """
         return self.func_param_ws.keys()
 
     def get_number_scans(self):

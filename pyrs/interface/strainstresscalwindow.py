@@ -33,13 +33,14 @@ class StrainStressCalculationWindow(QMainWindow):
 
         # set up event handling
         self.ui.pushButton_browseReducedFile.clicked.connect(self.do_browse_reduced_file)
-        self.ui.pushButton_browseTDScanFile.clicked.connect(self.do_browse_td_file)
-        self.ui.pushButton_browseNDScanFile.clicked.connect(self.do_browse_nd_file)
-        self.ui.pushButton_browseLDScanFile.clicked.connect(self.do_browse_ld_file)
+        self.ui.pushButton_browse_e11ScanFile.clicked.connect(self.do_browse_e11_file)
+        self.ui.pushButton_browse_e22ScanFile.clicked.connect(self.do_browse_e22_file)
+        self.ui.pushButton_browse_e33ScanFile.clicked.connect(self.do_browse_e33_file)
 
         self.ui.pushButton_loadFile.clicked.connect(self.do_load_strain_file)
-        self.ui.pushButton_calStrain.clicked.connect(self.do_cal_strain)
-        self.ui.pushButton_calStress.clicked.connect(self.do_cal_stress)
+        self.ui.pushButton_calUnconstrainedStress.clicked.connect(self.do_cal_strain)
+        self.ui.pushButton_calPlaneStress.clicked.connect(self.do_cal_stress)
+        self.ui.pushButton_calPlaneStrain.clicked.connect(self.do_cal_stress)
 
         # strain/stress save and export
         self.ui.pushButton_saveStressStrain.clicked.connect(self.save_stress_strain)
@@ -83,48 +84,50 @@ class StrainStressCalculationWindow(QMainWindow):
         self.ui.radioButton_loadRaw.setChecked(False)
         self.ui.radioButton_loadReduced.setChecked(True)
 
+        # set up label with Greek
+        self.ui.label_poisson.setText(u'\u03BD (Poisson\' Ratio)')
 
         return
 
-    def do_browse_ld_file(self):
+    def do_browse_e11_file(self):
         """ browse LD raw file
         :return:
         """
         ld_file_name = gui_helper.browse_file(self, caption='Load LD (raw) File',
-                                              default_dir=self._core.default_dir,
+                                              default_dir=self._core.working_dir,
                                               file_filter='Data File (*.dat)',
                                               file_list=False,
                                               save_file=False)
         if ld_file_name is not None:
-            self.ui.lineEdit_ldScanFile.setText(ld_file_name)
+            self.ui.lineEdit_e11ScanFile.setText(ld_file_name)
 
         return
 
-    def do_browse_nd_file(self):
+    def do_browse_e22_file(self):
         """ browse ND raw file
         :return:
         """
         nd_file_name = gui_helper.browse_file(self, caption='Load ND (raw) File',
-                                              default_dir=self._core.default_dir,
+                                              default_dir=self._core.working_dir,
                                               file_filter='Data File (*.dat)',
                                               file_list=False,
                                               save_file=False)
         if nd_file_name is not None:
-            self.ui.lineEdit_ndScanFile.setText(nd_file_name)
+            self.ui.lineEdit_e22ScanFile.setText(nd_file_name)
 
         return
 
-    def do_browse_td_file(self):
+    def do_browse_e33_file(self):
         """ browse TD raw file
         :return:
         """
         td_file_name = gui_helper.browse_file(self, caption='Load TD (raw) File',
-                                              default_dir=self._core.default_dir,
+                                              default_dir=self._core.working_dir,
                                               file_filter='Data File (*.dat)',
                                               file_list=False,
                                               save_file=False)
         if td_file_name is not None:
-            self.ui.lineEdit_tdScanFile.setText(td_file_name)
+            self.ui.lineEdit_e33ScanFile.setText(td_file_name)
 
         return
 
