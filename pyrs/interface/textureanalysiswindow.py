@@ -299,7 +299,7 @@ class TextureAnalysisWindow(QMainWindow):
 
         # report fit result... ...
         # add function parameters and detector IDs to UI
-        function_params = self._core.get_fit_parameters((data_key, det_id_list[0]))
+        function_params = self._core.get_peak_fit_parameter_names((data_key, det_id_list[0]))
         self._sample_log_names_mutex = True
         # TODO FIXME : add to X axis too
         curr_index = self.ui.comboBox_yaxisNames.currentIndex()
@@ -365,8 +365,8 @@ class TextureAnalysisWindow(QMainWindow):
 
             try:
                 # get diffraction data
-                diff_data_set = self._core.get_diff_data(data_key=(self._data_key, det_id),
-                                                         scan_log_index=scan_log_index)
+                diff_data_set = self._core.get_diffraction_data(data_key=(self._data_key, det_id),
+                                                                scan_log_index=scan_log_index)
                 self.ui.graphicsView_fitSetup.plot_diff_data(diff_data_set,
                                                              'Detector {0} Scan {1}'
                                                              ''.format(det_id, scan_log_index))

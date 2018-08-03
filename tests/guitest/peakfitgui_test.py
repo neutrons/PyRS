@@ -29,9 +29,14 @@ def test_main():
         fit_window.do_plot_diff_data()
         fit_window.do_plot_meta_data()
         fit_window.do_fit_peaks()
+        out_file_name = 'BD_Data_Log_fitresult.hdf5'
+        fit_window.save_fit_result(out_file_name)
+
     if True:
         fit_window.do_fit_peaks()
         fit_window.save_data_for_mantid(None, 'peaks.nxs')
+        out_file_name = 'BD_Data_Log_fitresult.hdf5'
+        fit_window.save_fit_result(out_file_name)
 
     return fit_window
 

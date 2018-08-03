@@ -50,6 +50,10 @@ class FitPeaksWindow(QMainWindow):
         # mutexes
         self._sample_log_names_mutex = False
 
+        # current/last loaded data
+        self._curr_data_key = None
+        self._curr_file_name = None
+
         return
 
     def _check_core(self):
@@ -142,7 +146,9 @@ class FitPeaksWindow(QMainWindow):
             self.ui.comboBox_yaxisNames.addItem(sample_log)
         self._sample_log_names_mutex = False
 
-        # TODO FIXME: how to record data key?
+        # Record data key and next
+        self._curr_data_key = data_key
+        self._curr_file_name = rs_file_name
 
         # About table
         if self.ui.tableView_fitSummary.rowCount() > 0:
@@ -160,15 +166,18 @@ class FitPeaksWindow(QMainWindow):
 
     def do_fit_peaks(self):
         """
-        Fit all peaks
+        Fit ALL peaks
         :return:
         """
-        int_string_list = str(self.ui.lineEdit_scanNUmbers.text()).strip()
-        if len(int_string_list) == 0:
-            scan_log_index = None
-        else:
-            scan_log_index = gui_helper.parse_integers(int_string_list)
+        # int_string_list = str(self.ui.lineEdit_scanNUmbers.text()).strip()
+        # if len(int_string_list) == 0:
+        #     scan_log_index = None
+        # else:
+        #     scan_log_index = gui_helper.parse_integers(int_string_list)
         data_key = self._core.current_data_reference_id
+        if data_key != self._curr_data_key:
+            raise RuntimeError('Core current data key {} shall be same as UI current data key {}'
+                               ''.format(data_key, self._curr_data_key))
 
         peak_function = str(self.ui.comboBox_peakType.currentText())
         bkgd_function = str(self.ui.comboBox_backgroundType.currentText())
@@ -181,7 +190,7 @@ class FitPeaksWindow(QMainWindow):
         scan_log_index = None
         self._core.fit_peaks(data_key, scan_log_index, peak_function, bkgd_function, fit_range)
 
-        function_params = self._core.get_fit_parameters(data_key)
+        function_params = self._core.get_peak_fit_parameter_names(data_key)
         self._sample_log_names_mutex = True
         # TODO FIXME : add to X axis too
         curr_index = self.ui.comboBox_yaxisNames.currentIndex()
@@ -195,11 +204,11 @@ class FitPeaksWindow(QMainWindow):
         self._sample_log_names_mutex = False
 
         # fill up the table
-        center_vec = self._core.get_peak_fit_param_value(data_key, 'centre')
-        height_vec = self._core.get_peak_fit_param_value(data_key, 'height')
-        fwhm_vec = self._core.get_peak_fit_param_value(data_key, 'width')
-        chi2_vec = self._core.get_peak_fit_param_value(data_key, 'chi2')
-        intensity_vec = self._core.get_peak_fit_param_value(data_key, 'intensity')
+        center_vec = self._core.get_peak_fit_param_value(data_key, 'centre', max_cost=None)
+        height_vec = self._core.get_peak_fit_param_value(data_key, 'height', max_cost=None)
+        fwhm_vec = self._core.get_peak_fit_param_value(data_key, 'width', max_cost=None)
+        chi2_vec = self._core.get_peak_fit_param_value(data_key, 'chi2', max_cost=None)
+        intensity_vec = self._core.get_peak_fit_param_value(data_key, 'intensity', max_cost=None)
         com_vec = self._core.get_peak_center_of_mass(data_key)
 
         for row_index in range(len(center_vec)):
@@ -239,7 +248,7 @@ class FitPeaksWindow(QMainWindow):
         err_msg = ''
         for scan_log_index in scan_log_index_list:
             try:
-                diff_data_set = self._core.get_diff_data(data_key=None, scan_log_index=scan_log_index)
+                diff_data_set = self._core.get_diffraction_data(data_key=None, scan_log_index=scan_log_index)
                 self.ui.graphicsView_fitSetup.plot_diff_data(diff_data_set, 'Scan {0}'.format(scan_log_index))
 
                 # more than 1 scan required to plot... no need to plot model and difference
@@ -285,11 +294,17 @@ class FitPeaksWindow(QMainWindow):
         return
 
     def do_save_as(self):
-        """
-
+        """ export the peaks to another file
         :return:
         """
-        # TODO - 20180801 - Save as .. is used to save the fit result to original file
+        out_file_name = gui_helper.browse_file(self,
+                                               caption='Choose a file to save fitted peaks to',
+                                               default_dir=self._core.working_dir,
+                                               file_filter='HDF (*.hdf5)',
+                                               save_file=True)
+
+        self.save_fit_result(out_file_name)
+
         return
 
     def do_save_fit_result(self):
@@ -367,6 +382,20 @@ class FitPeaksWindow(QMainWindow):
         :return:
         """
         self._core.save_nexus(data_key, file_name)
+
+        return
+
+    def save_fit_result(self, out_file_name):
+        """
+        make a copy of the input file and add the fit result into it
+        :param out_file_name:
+        :return:
+        """
+        print ('Plan to copy {} to {} and insert fit result'.format(self._curr_file_name,
+                                                                    out_file_name))
+        self._core.save_peak_fit_result(self._curr_data_key, self._curr_file_name, out_file_name)
+
+        return
 
     def setup_window(self, pyrs_core):
         """ set up the window.  It must be called mandatory

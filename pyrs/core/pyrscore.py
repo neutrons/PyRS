@@ -317,64 +317,11 @@ class PyRsCore(object):
 
         return self._data_manager.get_sub_keys(data_key)
 
-    def get_fit_parameters(self, data_key=None):
-        """
-        get the fitted function's parameters
-        :param data_key:
-        :return:
-        """
-        # check input
-        optimizer = self._get_optimizer(data_key)
-        if optimizer is None:
-            return None
-
-        return optimizer.get_function_parameter_names()
-
-    def get_peak_fit_param_value(self, data_key, param_name, max_cost):
-        """
-        get a specific parameter's fitted value
-        :param data_key:
-        :param param_name:
-        :param max_cost:
-        :return: 1 vector or 2-tuple (vector + vector)
-        """
-        # check input
-        optimizer = self._get_optimizer(data_key)
-
-        if max_cost is None:
-            return_value = optimizer.get_fitted_params(param_name)
-        else:
-            return_value = optimizer.get_good_fitted_params(param_name, max_cost)
-
-        return return_value
-
-    def get_peak_center_of_mass(self, data_key):
-        """
-        get 'observed' center of mass of a peak
-        :param data_key:
-        :return:
-        """
-        optimizer = self._get_optimizer(data_key)
-
-        return optimizer.get_observed_peaks_centers()[:, 0]
-
-    def get_peak_intensities(self, data_key_pair):
-        """
-        get the peak intensities
-        :param data_key_pair:
-        :return: a dictionary (key = detector ID) of dictionary (key = scan index, value = peak intensity)
-        """
-        optimizer = self._get_optimizer(data_key_pair)
-        peak_intensities = optimizer.get_peak_intensities()
-
-        return peak_intensities
-
-    def get_diff_data(self, data_key, scan_log_index):
-        """
-        get diffraction data of a certain
+    def get_diffraction_data(self, data_key, scan_log_index):
+        """ get diffraction data of a certain
         :param data_key:
         :param scan_log_index:
-        :return:
+        :return: tuple: vec_2theta, vec_intensit
         """
         # get data key: by default for single data set but not for pole figure!
         if data_key is None:
@@ -411,6 +358,66 @@ class PyRsCore(object):
 
         return data_set
 
+    def get_peak_fit_parameter_names(self, data_key=None):
+        """
+        get the fitted function's parameters
+        :param data_key:
+        :return: list (of parameter names)
+        """
+        # check input
+        optimizer = self._get_optimizer(data_key)
+        if optimizer is None:
+            return None
+
+        return optimizer.get_function_parameter_names()
+
+    def get_peak_fit_param_value(self, data_key, param_name, max_cost):
+        """
+        get a specific parameter's fitted value
+        :param data_key:
+        :param param_name:
+        :param max_cost:
+        :return: 1 vector or 2-tuple (vector + vector)
+        """
+        # check input
+        optimizer = self._get_optimizer(data_key)
+
+        if max_cost is None:
+            return_value = optimizer.get_fitted_params(param_name)
+        else:
+            return_value = optimizer.get_good_fitted_params(param_name, max_cost)
+
+        return return_value
+
+    def get_peak_fit_params_in_dict(self, data_key):
+        """
+        export the complete set of peak parameters fitted to a dictionary
+        :param data_key:
+        :return:
+        """
+
+
+    def get_peak_center_of_mass(self, data_key):
+        """
+        get 'observed' center of mass of a peak
+        :param data_key:
+        :return:
+        """
+        optimizer = self._get_optimizer(data_key)
+
+        return optimizer.get_observed_peaks_centers()[:, 0]
+
+    def get_peak_intensities(self, data_key_pair):
+        """
+        get the peak intensities
+        :param data_key_pair:
+        :return: a dictionary (key = detector ID) of dictionary (key = scan index, value = peak intensity)
+        """
+        optimizer = self._get_optimizer(data_key_pair)
+        peak_intensities = optimizer.get_peak_intensities()
+
+        return peak_intensities
+
     def load_rs_raw(self, h5file):
         """
         load HB2B raw h5 file
@@ -424,6 +431,7 @@ class PyRsCore(object):
 
         # set to current key
         self._curr_data_key = data_key
+        self._curr_file_name = h5file  # TODO - Warning
 
         return data_key, message
 
@@ -444,6 +452,22 @@ class PyRsCore(object):
         self._curr_data_key = data_key
 
         return data_key, message
+
+    # TODO - 20180803 - check and doc
+    def save_peak_fit_result(self, data_key, src_rs_file_name, target_rs_file_name):
+        """
+
+        :param data_key:
+        :param src_rs_file_name:
+        :param target_rs_file_name:
+        :return:
+        """
+        peak_fit_dict = self.get_peak_fit_parameter_names(data_key)
+
+        self._file_io_controller.export_peak_fit(src_rs_file_name, target_rs_file_name,
+                                                 peak_fit_dict)
+
+        return
 
     def save_pole_figure(self, data_key, detectors, file_name, file_type):
         """

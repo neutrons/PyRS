@@ -17,12 +17,11 @@ class DiffractionDataFile(object):
         """
         return
 
-    # TESTME TODO / Need to test and make h5py call correct!
+    # TESTME - Recently implemented
     @staticmethod
     def export_peak_fit(src_rs_file_name, target_rs_file_name, peak_fit_dict):
         """
         export peak fitting result to a RS (residual stress) intermediate file
-        :param self:
         :param src_rs_file_name:
         :param target_rs_file_name:
         :param peak_fit_dict:
@@ -30,7 +29,7 @@ class DiffractionDataFile(object):
         """
         # check
         checkdatatypes.check_file_name(src_rs_file_name, check_exist=True)
-        checkdatatypes.check_file_name(target_rs_file_name, check_writable=True)
+        checkdatatypes.check_file_name(target_rs_file_name, check_writable=True, check_exist=False)
 
         # copy the file?
         if src_rs_file_name != target_rs_file_name:
@@ -45,6 +44,7 @@ class DiffractionDataFile(object):
             # add an entry
             diff_entry[scan_log_key].create_group('peak_fit')
             for key in fit_info_i:
+                print ('[db...bat] fit info: {}'.format(fit_info_i))
                 diff_entry[scan_log_key]['peak_fit'][key] = fit_info_i[key]
             # END-FOR
         # END-FOR
