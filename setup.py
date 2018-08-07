@@ -104,6 +104,7 @@ if __name__ == "__main__":
     test_scripts = ['tests/unittest/pyrs_core_test.py',
                     'tests/unittest/utilities_test.py',
                     'tests/unittest/polefigurecal_test.py',
+                    'tests/unittest/straincalculationtest.py',
                     'tests/guitest/peakfitgui_test.py',
                     'tests/guitest/texturegui_test.py',
                     'tests/guitest/strainstressgui_test.py']

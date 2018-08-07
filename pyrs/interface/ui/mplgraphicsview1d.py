@@ -1137,6 +1137,16 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
 
         return
 
+    def save_figure(self, image_file_name):
+        """
+        save canvas to image file
+        :param image_file_name:
+        :return:
+        """
+        self.figure.savefig(image_file_name)
+
+        return
+
     def set_x_limits(self, row_index, col_index, xmin, xmax, is_main=True, is_right=True, apply_change=True):
         """set limit on X-axis
         :param row_index:

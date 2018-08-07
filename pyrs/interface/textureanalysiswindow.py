@@ -531,10 +531,24 @@ class TextureAnalysisWindow(QMainWindow):
         :return:
         """
         # get pole figure from core
-        # TODO - 20180720 - maximum cost shall be specified by user
+        max_cost_str = str(self.ui.lineEdit_maxCost.text()).strip()
+        if len(max_cost_str) == 0:
+            # empty.. non given
+            max_cost = 100.
+            self.ui.lineEdit_maxCost.setText('{}'.format(max_cost))
+        else:
+            try:
+                max_cost = float(max_cost_str)
+            except ValueError:
+                max_cost = 100.
+                self.ui.lineEdit_maxCost.setText('{}'.format(max_cost))
+                gui_helper.pop_message(self, '{} is not a recognized float'.format(max_cost_str), message_type='error')
+                return
+        # END-IF-ELSE
+
         vec_alpha, vec_beta, vec_intensity = self._core.get_pole_figure_values(data_key=self._data_key,
                                                                                detector_id_list=None,
-                                                                               max_cost=70.)
+                                                                               max_cost=max_cost)
 
         self.ui.graphicsView_contour.plot_pole_figure(vec_alpha, vec_beta, vec_intensity)
 

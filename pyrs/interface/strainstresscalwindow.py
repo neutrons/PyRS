@@ -37,10 +37,11 @@ class StrainStressCalculationWindow(QMainWindow):
         self.ui.pushButton_browse_e22ScanFile.clicked.connect(self.do_browse_e22_file)
         self.ui.pushButton_browse_e33ScanFile.clicked.connect(self.do_browse_e33_file)
 
-        self.ui.pushButton_loadFile.clicked.connect(self.do_load_strain_file)
-        self.ui.pushButton_calUnconstrainedStress.clicked.connect(self.do_cal_strain)
-        self.ui.pushButton_calPlaneStress.clicked.connect(self.do_cal_stress)
-        self.ui.pushButton_calPlaneStrain.clicked.connect(self.do_cal_stress)
+        self.ui.pushButton_loadFile.clicked.connect(self.do_load_strain_files)
+        self.ui.pushButton_alignSampleLogXYZ.clicked.connect(self.do_align_xyz)
+        self.ui.pushButton_calUnconstrainedStress.clicked.connect(self.do_cal_unconstrained_strain_stress)
+        self.ui.pushButton_calPlaneStress.clicked.connect(self.do_cal_plane_stress)
+        self.ui.pushButton_calPlaneStrain.clicked.connect(self.do_cal_plane_strain)
 
         # strain/stress save and export
         self.ui.pushButton_saveStressStrain.clicked.connect(self.save_stress_strain)
@@ -70,6 +71,7 @@ class StrainStressCalculationWindow(QMainWindow):
         # current data/states
         self._core = None
         self._curr_data_key = None
+        self._session_name = None
 
         # mutex
         self._load_file_radio_mutex = False
@@ -86,6 +88,29 @@ class StrainStressCalculationWindow(QMainWindow):
 
         # set up label with Greek
         self.ui.label_poisson.setText(u'\u03BD (Poisson\' Ratio)')
+
+        return
+
+    def do_align_xyz(self):
+        """
+        align the loaded data for XYZ
+        :return:
+        """
+        # get user specified sample log names
+        pos_x_log_name = str(self.ui.comboBox_sampleLogNameX.currentText())
+        pos_y_log_name = str(self.ui.comboBox_sampleLogNameY.currentText())
+        pos_z_log_name = str(self.ui.comboBox_sampleLogNameZ.currentText())
+
+        error_message = self._core.strain_calculator.align_sample_positions(self._session_name,
+                                                                            pos_x_log_name,
+                                                                            pos_y_log_name,
+                                                                            pos_z_log_name)
+
+        if error_message is not None:
+            gui_helper.pop_message(self, error_message, message_type='error')
+        else:
+            # enable the group to calculate strain and stress
+            self.ui.groupBox_calculator.setEnabled(True)
 
         return
 
@@ -146,25 +171,68 @@ class StrainStressCalculationWindow(QMainWindow):
 
         return
 
-    def do_cal_strain(self):
+    def do_cal_unconstrained_strain_stress(self):
         """
         calculate strain from loaded file
         :return:
         """
+        # get values
+        params = self.get_strain_parameters()
+        if isinstance(params, str):
+            err_msg = params
+            gui_helper.pop_message(self, err_msg, message_type='error')
+            return
+        else:
+            e_young, nu_poisson = params
+
+        # call the core to calculate strain
+        self._core.calcualte_uncontrained_strain(self._session_name, e_young, nu_poisson)
+
         # TODO
 
         return
 
-    def do_cal_stress(self):
+    def do_cal_plane_strain(self):
         """
         calculate the stress from loaded file
         :return:
         """
+        # get values
+        params = self.get_strain_parameters()
+        if isinstance(params, str):
+            err_msg = params
+            gui_helper.pop_message(self, err_msg, message_type='error')
+            return
+        else:
+            e_young, nu_poisson = params
+
+        # call the core to calculate strain
+        self._core.calcualte_plane_strain(self._session_name, e_young, nu_poisson)
         # TODO - Implement
 
         return
 
-    def do_load_strain_file(self):
+    def do_cal_plane_stress(self):
+        """
+        calculate the stress from loaded file
+        :return:
+        """
+        # get values
+        params = self.get_strain_parameters()
+        if isinstance(params, str):
+            err_msg = params
+            gui_helper.pop_message(self, err_msg, message_type='error')
+            return
+        else:
+            e_young, nu_poisson = params
+
+        # call the core to calculate strain
+        self._core.calcualte_plane_stress(self._session_name, e_young, nu_poisson)
+        # TODO - Implement
+
+        return
+
+    def do_load_strain_files(self):
         """
         load strain/stress file from either raw files or previously saved file
         :return:
@@ -178,6 +246,9 @@ class StrainStressCalculationWindow(QMainWindow):
 
         # get new session name
         session_name = gui_helper.get_session_dialog_name()
+        if not self._core.strain_calculator.is_session_saved() is False or self._session_name is None:
+            gui_helper.pop_message(self, 'Previous session {} is not saved')
+        self._core.strain_calculator.create_session(session_name)
 
         if self.ui.radioButton_loadRaw.isChecked():
             # load raw files
@@ -198,6 +269,14 @@ class StrainStressCalculationWindow(QMainWindow):
             gui_helper.pop_message(self, message, message_type='error')
         else:
             self._curr_data_key = data_key
+
+            # set session name
+            self._session_name = session_name
+            self.setWindowTitle(session_name)
+
+            # disable calculation group before align the measuring data points
+            self.ui.groupBox_calculator.setEnabled(False)
+
         # END-IF
 
         return
@@ -210,6 +289,21 @@ class StrainStressCalculationWindow(QMainWindow):
 
 
         return
+
+    def get_strain_parameters(self):
+        """
+        parse Young's modulus and Poisson's ratio
+        :return:
+        """
+        try:
+            young_modulus = float(self.ui.lineEdit_youngModulus.text())
+            poisson_ratio = float(self.ui.lineEdit_poissonRatio.text())
+        except ValueError:
+            err_msg = 'Unable to parse Young\'s modulus E {} or Poisson\'s ratio {} to float' \
+                      ''.format(self.ui.lineEdit_youngModulus.text(), self.ui.lineEdit_poissonRatio.text())
+            return err_msg
+
+        return young_modulus, poisson_ratio
 
     @staticmethod
     def load_column_file(file_name):

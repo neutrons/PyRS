@@ -278,7 +278,7 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
 
     def get_scan_indexes(self):
         """
-        get a vector of scan indexes
+        get a vector of scan indexes and assume that the scan log indexes are from 0 and consecutive
         :return:
         """
         data_workspace = self.retrieve_workspace(self._workspace_name, True)

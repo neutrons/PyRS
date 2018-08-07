@@ -169,7 +169,21 @@ class PeakFitSetupView(MplGraphicsView1D):
         return
 
     def plot_fit_diff(self, diff_data_set, model_data_set):
-        # TODO
+        """
+        plot the difference between fitted diffraction data (model) and experimental data
+        :param diff_data_set:
+        :param model_data_set:
+        :return:
+        """
+        # check input
+        assert isinstance(diff_data_set, tuple) and len(diff_data_set) >= 2, 'Diffraction data set {} ' \
+                                                                             'must be a 2-tuple but not a {}' \
+                                                                             ''.format(diff_data_set,
+                                                                                       type(diff_data_set))
+        assert isinstance(model_data_set, tuple) and len(model_data_set) >= 2,\
+            'Model data set {} must be a 2-tuple but not a {}'.format(model_data_set, type(model_data_set))
+
+        # remove previous difference curve
         if self._last_fit_diff_reference is not None:
             self.remove_line(row_index=0, col_index=0, line_id=self._last_fit_diff_reference)
             self._last_fit_diff_reference = None

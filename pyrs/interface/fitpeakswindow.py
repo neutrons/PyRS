@@ -3,7 +3,8 @@ try:
 except ImportError:
     from PyQt4.QtGui import QMainWindow, QFileDialog
 import ui.ui_peakfitwindow
-import pyrs.utilities.hb2b_utilities as hb2b
+import pyrs.utilities.hb2b_utilities as hb2bhb2b
+import advpeakfitdialog
 import os
 import gui_helper
 import numpy
@@ -23,6 +24,9 @@ class FitPeaksWindow(QMainWindow):
         # class variables
         self._core = None
 
+        # sub windows
+        self._advanced_fit_dialog = None
+
         # set up UI
         self.ui = ui.ui_peakfitwindow.Ui_MainWindow()
         self.ui.setupUi(self)
@@ -33,13 +37,17 @@ class FitPeaksWindow(QMainWindow):
         self.ui.pushButton_loadHDF.clicked.connect(self.do_load_scans)
         self.ui.pushButton_browseHDF.clicked.connect(self.do_browse_hdf)
         self.ui.pushButton_plotPeaks.clicked.connect(self.do_plot_diff_data)
+        self.ui.pushButton_plotPreviousScan.clicked.connect(self.do_plot_prev_scan)
+        self.ui.pushButton_plotNextScan.clicked.connect(self.do_plot_next_scan)
         self.ui.pushButton_fitPeaks.clicked.connect(self.do_fit_peaks)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.actionSave_As.triggered.connect(self.do_save_as)
         self.ui.actionSave_Fit_Result.triggered.connect(self.do_save_fit_result)
+        self.ui.actionAdvanced_Peak_Fit_Settings.triggered.connect(self.do_launch_adv_fit)
+        self.ui.actionQuick_Fit_Result_Check.triggered.connect(self.do_make_movie)
 
-        # TODO - Implement : pushButton_plotLogs, comboBox_detectorID
+        # TODO - 20180805 - Implement : pushButton_plotLogs, comboBox_detectorID
 
         # others
         self.ui.tableView_fitSummary.setup()
@@ -113,6 +121,18 @@ class FitPeaksWindow(QMainWindow):
 
         return
 
+    def do_launch_adv_fit(self):
+        """
+        launch the dialog window for advanced peak fitting setup and control
+        :return:
+        """
+        if self._advanced_fit_dialog is None:
+            self._advanced_fit_dialog = advpeakfitdialog.SmartPeakFitControlDialog(self)
+
+        self._advanced_fit_dialog.show()
+
+        return
+
     def do_load_scans(self):
         """
         load scan's reduced files
@@ -156,7 +176,7 @@ class FitPeaksWindow(QMainWindow):
         self.ui.tableView_fitSummary.init_exp(self._core.data_center.get_scan_range(data_key))
 
         # plot the first index
-        self.ui.lineEdit_scanNUmbers.setText('0')
+        self.ui.lineEdit_scanNumbers.setText('0')
         self.do_plot_diff_data()
 
         # plot the contour
@@ -169,7 +189,7 @@ class FitPeaksWindow(QMainWindow):
         Fit ALL peaks
         :return:
         """
-        # int_string_list = str(self.ui.lineEdit_scanNUmbers.text()).strip()
+        # int_string_list = str(self.ui.lineEdit_scanNumbers.text()).strip()
         # if len(int_string_list) == 0:
         #     scan_log_index = None
         # else:
@@ -229,13 +249,40 @@ class FitPeaksWindow(QMainWindow):
 
         return
 
+    def do_make_movie(self):
+        """
+        plot all the fitted data for each scan log index and save the figure to PNG files
+        in order to make a movie for quick fit result check
+        :return:
+        """
+        # get target directory to save all the PNG files
+        target_dir = QFileDialog.getExistingDirectory(self, 'Select the directory to save PNGs for quick '
+                                                            'fit result checking movie',
+                                                      self._core.working_dir)
+        target_dir = str(target_dir)
+        if len(target_dir) == 0:
+            return
+
+        # plot
+        scan_log_indexes = self._core.get_peak_fit_scan_log_indexes(self._curr_data_key)
+        for sample_log_index in scan_log_indexes:
+            # reset the canvas
+            self.ui.graphicsView_fitSetup.reset_viewer()
+            # plot
+            self.plot_diff_data(sample_log_index, True)
+            png_name_i = os.path.join(target_dir, '{}_fit.png'.format(sample_log_index))
+            self.ui.graphicsView_fitSetup.canvas().save_figure(png_name_i)
+        # END-FOR
+
+        return
+
     def do_plot_diff_data(self):
         """
         plot diffraction data
         :return:
         """
         # gather the information
-        scan_log_index_list = gui_helper.parse_integers(str(self.ui.lineEdit_scanNUmbers.text()))
+        scan_log_index_list = gui_helper.parse_integers(str(self.ui.lineEdit_scanNumbers.text()))
         if len(scan_log_index_list) == 0:
             gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
 
@@ -246,21 +293,10 @@ class FitPeaksWindow(QMainWindow):
 
         # get data and plot
         err_msg = ''
+        plot_model = len(scan_log_index_list) == 1
         for scan_log_index in scan_log_index_list:
             try:
-                diff_data_set = self._core.get_diffraction_data(data_key=None, scan_log_index=scan_log_index)
-                self.ui.graphicsView_fitSetup.plot_diff_data(diff_data_set, 'Scan {0}'.format(scan_log_index))
-
-                # more than 1 scan required to plot... no need to plot model and difference
-                if len(scan_log_index_list) > 1:
-                    continue
-
-                model_data_set = self._core.get_modeled_data(data_key=None, scan_log_index=scan_log_index_list[0])
-                if model_data_set is None:
-                    continue
-                # existing model
-                self.ui.graphicsView_fitSetup.plot_model(model_data_set)
-                self.ui.graphicsView_fitSetup.plot_fit_diff(diff_data_set, model_data_set)
+                self.plot_diff_data(scan_log_index, plot_model)
             except RuntimeError as run_err:
                 err_msg += '{0}\n'.format(run_err)
         # END-FOR
@@ -268,6 +304,51 @@ class FitPeaksWindow(QMainWindow):
         if len(err_msg) > 0:
             gui_helper.pop_message(self, err_msg, message_type='error')
 
+        return
+
+    def do_plot_next_scan(self):
+        """ plot the next scan (log index)
+        It is assumed that al the scan log indexes are consecutive
+        :return:
+        """
+        scan_log_index_list = gui_helper.parse_integers(str(self.ui.lineEdit_scanNumbers.text()))
+        if len(scan_log_index_list) == 0:
+            gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
+        elif len(scan_log_index_list) > 1:
+            gui_helper.pop_message(self, 'There are too many scans for "next"', 'error')
+
+        next_scan_log = scan_log_index_list[0] + 1
+        try:
+            self.ui.graphicsView_fitSetup.reset_viewer()
+            self.plot_diff_data(next_scan_log, True)
+        except RuntimeError as run_err:
+            err_msg = 'Unable to plot next scan {} due to {}'.format(next_scan_log, run_err)
+            gui_helper.pop_message(self, err_msg, message_type='error')
+        else:
+            self.ui.lineEdit_scanNumbers.setText('{}'.format(next_scan_log))
+
+        return
+
+    def do_plot_prev_scan(self):
+        """ plot the previous scan (log index)
+        It is assumed that al the scan log indexes are consecutive
+        :return:
+        """
+        scan_log_index_list = gui_helper.parse_integers(str(self.ui.lineEdit_scanNumbers.text()))
+        if len(scan_log_index_list) == 0:
+            gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
+        elif len(scan_log_index_list) > 1:
+            gui_helper.pop_message(self, 'There are too many scans for "next"', 'error')
+
+        next_scan_log = scan_log_index_list[0] - 1
+        try:
+            self.ui.graphicsView_fitSetup.reset_viewer()
+            self.plot_diff_data(next_scan_log, True)
+        except RuntimeError as run_err:
+            err_msg = 'Unable to plot previous scan {} due to {}'.format(next_scan_log, run_err)
+            gui_helper.pop_message(self, err_msg, message_type='error')
+        else:
+            self.ui.lineEdit_scanNumbers.setText('{}'.format(next_scan_log))
         return
 
     def do_plot_meta_data(self):
@@ -349,6 +430,21 @@ class FitPeaksWindow(QMainWindow):
 
         return
 
+    def fit_peaks_smart(self, peak_profiles_order):
+        """
+        fit peaks with a "smart" algorithm
+        :param peak_profiles_order: a list for peak profile to fit in specified order
+        :return:
+        """
+        try:
+            self._core.fit_peaks_smart_alg(self._curr_data_key, peak_profiles_order)
+        except RuntimeError as run_err:
+            err_msg = 'Smart peak fitting with order {} failed due to {}' \
+                      ''.format(peak_profiles_order, run_err)
+            gui_helper.pop_message(self, err_msg, 'error')
+
+        return
+
     def get_meta_sample_data(self, name):
         """
         get meta data to plot.
@@ -370,9 +466,30 @@ class FitPeaksWindow(QMainWindow):
             value_vector = self._core.get_peak_center_of_mass(data_key)
         else:
             # this is for fitted data parameters
-            value_vector = self._core.get_peak_fit_param_value(data_key, name)
+            value_vector = self._core.get_peak_fit_param_value(data_key, name, max_cost=1000)
 
         return value_vector
+
+    def plot_diff_data(self, scan_log_index, plot_model):
+        """
+        plot a set of diffraction data (one scan log index) and plot its fitted data
+        :return:
+        """
+        # get experimental data and plot
+        diff_data_set = self._core.get_diffraction_data(data_key=None, scan_log_index=scan_log_index)
+        self.ui.graphicsView_fitSetup.plot_diff_data(diff_data_set, 'Scan {0}'.format(scan_log_index))
+
+        # plot model optionally
+        if plot_model:
+            model_data_set = self._core.get_modeled_data(data_key=None, scan_log_index=scan_log_index)
+            if model_data_set is not None:
+                # existing model
+                self.ui.graphicsView_fitSetup.plot_model(model_data_set)
+                self.ui.graphicsView_fitSetup.plot_fit_diff(diff_data_set, model_data_set)
+            # END-IF
+        # END-IF
+
+        return
 
     def save_data_for_mantid(self, data_key, file_name):
         """

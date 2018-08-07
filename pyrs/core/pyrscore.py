@@ -2,6 +2,7 @@
 import datamanagers
 from pyrs.utilities import checkdatatypes
 import mantid_fit_peak
+import strain_stress_calculator
 import scandataio
 import polefigurecalculator
 import os
@@ -37,6 +38,10 @@ class PyRsCore(object):
         self._pole_figure_calculator_dict = dict()
         self._last_pole_figure_calculator = None
 
+        # strain and stress calculator
+        self._ss_calculator_dict = dict()   # dictionary: key = session name, value = strain-stress-calculator
+        self._curr_ss_session = None
+
         return
 
     @property
@@ -46,6 +51,21 @@ class PyRsCore(object):
         :return:
         """
         return self._file_io_controller
+
+    def new_strain_stress_session(self, session_name, is_plane_stress, is_plane_strain):
+        """
+        create a new strain/stress session
+        :param session_name:
+        :param is_plane_stress:
+        :param is_plane_strain:
+        :return:
+        """
+        new_ss_calculator = strain_stress_calculator.StrainStressCalculator(session_name, is_plane_strain,
+                                                                            is_plane_stress)
+        self._ss_calculator_dict[session_name] = new_ss_calculator
+        self._curr_ss_session = session_name
+
+        return
 
     @property
     def peak_fitting_controller(self):
@@ -70,6 +90,17 @@ class PyRsCore(object):
         :return:
         """
         return self._data_manager
+
+    @property
+    def strain_stress_calculator(self):
+        """
+        return the handler to strain/stress calculator
+        :return:
+        """
+        if self._curr_ss_session is None:
+            return None
+
+        return self._ss_calculator_dict[self._curr_ss_session]
 
     @property
     def working_dir(self):
@@ -395,7 +426,46 @@ class PyRsCore(object):
         :param data_key:
         :return:
         """
+        # check input
+        optimizer = self._get_optimizer(data_key)
 
+        # get names, detector IDs (for check) & log indexes
+        param_names = optimizer.get_function_parameter_names()
+        detector_ids = self.get_detector_ids(data_key)
+        print ('[DB...BAT] Detector IDs = {}'.format(detector_ids))
+        if detector_ids is not None:
+            raise NotImplementedError('Multiple-detector ID case has not been considered yet. '
+                                      'Contact developer for this issue.')
+        scan_log_index_list = optimizer.get_scan_indexes()
+
+        # init dictionary
+        fit_param_value_dict = dict()
+        for scan_log_index in scan_log_index_list:
+            param_dict = dict()
+            fit_param_value_dict[scan_log_index] = param_dict
+        # END-FOR
+
+        for param_name in param_names:
+            param_value = self.get_peak_fit_param_value(data_key, param_name, max_cost=None)
+            checkdatatypes.check_numpy_arrays('Parameter values', [param_value], dimension=1, check_same_shape=False)
+            # add the values to dictionary
+            for scan_log_index in range(param_value.shape[0]):
+                fit_param_value_dict[scan_log_index][param_name] = param_value[scan_log_index]
+            # END-FOR (scan-log-index)
+        # END-FOR (param_name)
+
+        return fit_param_value_dict
+
+    def get_peak_fit_scan_log_indexes(self, data_key):
+        """
+        get the scan log indexes from an optimizer
+        :param data_key:
+        :return: list of integers
+        """
+        # check input
+        optimizer = self._get_optimizer(data_key)
+
+        return optimizer.get_scan_indexes()
 
     def get_peak_center_of_mass(self, data_key):
         """
@@ -462,7 +532,10 @@ class PyRsCore(object):
         :param target_rs_file_name:
         :return:
         """
-        peak_fit_dict = self.get_peak_fit_parameter_names(data_key)
+        peak_fit_dict = self.get_peak_fit_params_in_dict(data_key)
+
+        # peak_fit_dict = self.get_peak_fit_parameter_names(data_key)
+        print ('[DB...BAT] peak fit diction for {}: {}'.format(data_key, peak_fit_dict))
 
         self._file_io_controller.export_peak_fit(src_rs_file_name, target_rs_file_name,
                                                  peak_fit_dict)
