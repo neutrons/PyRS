@@ -137,10 +137,14 @@ class StrainStressCalculator(object):
         if self._is_plane_strain or self._is_plane_stress:
             self._direction_list.pop(2)
 
-        # data sets required
+        # data sets, sample logs and peak parameters required
         self._data_set_dict = dict()
+        self._peak_param_dict = dict()
+        self._sample_log_dict = dict()
         for dir_i in self._direction_list:
             self._data_set_dict[dir_i] = None
+            self._peak_param_dict[dir_i] = None
+            self._sample_log_dict[dir_i] = None
 
         # source files
         self._source_file_dict = dict()
@@ -193,6 +197,8 @@ class StrainStressCalculator(object):
         # do match or not
         for dir_i in self._direction_list:
             self._sample_positions_dict[dir_i] = sorted(self._dir_sample_scan_dict[dir_i].keys())
+            # print self._sample_positions_dict[dir_i]
+            # print '\n\n'
 
         # set flag
         self._sample_points_aligned = False
@@ -209,11 +215,11 @@ class StrainStressCalculator(object):
         # END-FOR
 
         # check whether all the data points matched with each other within resolution
-        num_sample_points = len(self._sample_positions_dict[0])
+        num_sample_points = len(self._sample_positions_dict[self._direction_list[0]])
         for ipt in range(num_sample_points):
             max_distance = self.calculate_max_distance(ipt)
             if max_distance > resolution:
-                err_msg = '{}-th sample position point: '
+                err_msg = '{}-th (of total {}) sample position point: '.format(ipt, num_sample_points)
                 for dir_i in self._direction_list:
                     err_msg += '{} @ {}; '.format(dir_i, self._sample_positions_dict[dir_i][ipt])
                 err_msg += ' with maximum distance {} over specified resolution {}'.format(max_distance, resolution)
@@ -294,12 +300,15 @@ class StrainStressCalculator(object):
 
         # retrieve data set
         data_set = self._data_set_dict[direction]
-        print ('DB...BAT] Data set: type = {}'.format(type(data_set)))
 
-        for scan_log_index in data_set.get_scan_log_indexes():
-            x_i = data_set.get_sample_log_value(pos_x)
-            y_i = data_set.get_sample_log_value(pos_y)
-            z_i = data_set.get_sample_log_value(pos_z)
+        # print ('DB...BAT] Data set: type = {}.... keys = {}'.format(type(data_set), data_set.keys()))
+
+        print ('[DB...BAT] sample log keys: {}'.format(self._sample_log_dict[direction].keys()))
+
+        for scan_log_index in sorted(data_set.keys()):
+            x_i = self._sample_log_dict[direction][pos_x][scan_log_index]
+            y_i = self._sample_log_dict[direction][pos_y][scan_log_index]
+            z_i = self._sample_log_dict[direction][pos_z][scan_log_index]
             xyz_log_index_dict[(x_i, y_i, z_i)] = scan_log_index
         # END-FOR
 
@@ -353,6 +362,11 @@ class StrainStressCalculator(object):
         :param file_name:
         :return:
         """
+        # check whether it has been loaded
+        if file_name in self._source_file_dict.values():
+            raise RuntimeError('File {} of direction {} has already been loaded. FYI: {}'
+                               ''.format(file_name, direction, self._source_file_dict))
+
         # check input
         pyrs.utilities.checkdatatypes.check_string_variable('Strain/Stress Direction', direction,
                                                             ['e11', 'e22', 'e33'])
@@ -361,23 +375,21 @@ class StrainStressCalculator(object):
 
         # import data
         diff_data_dict, sample_logs = self._file_io.load_rs_file(file_name)
-        print ('[DB...BAT] data dict: {}... sample logs: {}...'.format(diff_data_dict, sample_logs))
+        # print ('[DB...BAT] data dict: {}... sample logs: {}...'.format(diff_data_dict, sample_logs))
+        print ('[DB...BAT] Data dict type: {}.  Keys: {}'.format(type(diff_data_dict), diff_data_dict.keys()))
+        print ('[DB...BAT] Sample log dict keys: {}'.format(sample_logs.keys()))
 
-        print (type(sample_logs))
-        if data_set.has_fit_parameters is False:
+        if 'peak_fit' not in sample_logs:
             raise RuntimeError('File {} does not have fitted peak parameters value for strain/stress '
                                'calculation'.format(file_name))
 
         # assign data file to files
-        self._data_set_dict[direction] = data_set
+        self._data_set_dict[direction] = diff_data_dict
+        self._peak_param_dict[direction] = sample_logs['peak_fit']
+        self._sample_log_dict[direction] = sample_logs
 
         # record data file name
         self._source_file_dict[direction] = file_name
-        # check duplicate file
-        src_file_set = set(self._source_file_dict.values())
-        if len(src_file_set) != len(self._source_file_dict):
-            raise RuntimeError('There are duplicate files among various directions: {}'
-                               ''.format(self._source_file_dict))
 
         return
 

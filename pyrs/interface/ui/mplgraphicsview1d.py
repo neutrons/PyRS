@@ -805,7 +805,8 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         self._check_subplot_index(row_index, col_index, is_main=True)
 
         if isinstance(vec_x, np.ndarray) is False or isinstance(vec_y, np.ndarray) is False:
-            raise NotImplementedError('Input vec_x or vec_y for addPlot() must be numpy.array.')
+            raise NotImplementedError('Input vec_x or vec_y for addPlot() must be numpy.array,'
+                                      'but not {} and {}.'.format(type(vec_x), type(vec_y)))
         plot_error = y_err is not None
         if plot_error is True:
             if isinstance(y_err, np.ndarray) is False:

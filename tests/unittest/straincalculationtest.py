@@ -69,7 +69,10 @@ def test_strain_calculation():
     rs_core.strain_stress_calculator.load_raw_file(file_name=target_data_set['e33'], direction='e33')
 
     # check and align measurement points around
-    rs_core.strain_stress_calculator.align_measuring_points(pos_x='vx', pox_y='vy', pox_e='vz')
+    try:
+        rs_core.strain_stress_calculator.align_measuring_points(pos_x='vx', pos_y='vy', pos_z='vz')
+    except RuntimeError as run_err:
+        print ('Measuring points are not aligned: {}'.format(run_err))
 
     # peak fitting for detector - ALL
     for direction in ['e11', 'e22', 'e33']:

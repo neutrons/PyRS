@@ -112,7 +112,7 @@ def check_float_variable(var_name, variable, value_range):
     :return:
     """
     check_string_variable('var_name', var_name)
-    assert isinstance(variable, float), '{0} {1} must be a float but not a {2}'\
+    assert isinstance(variable, float) or isinstance(variable, int), '{0} {1} must be a float but not a {2}'\
         .format(var_name, variable, type(variable))
 
     if value_range is not None:

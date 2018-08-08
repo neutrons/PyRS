@@ -55,6 +55,10 @@ class FitPeaksWindow(QMainWindow):
         self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
         self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
 
+        # tracker for sample log names and peak parameter names
+        self._sample_log_name_set = set()
+        self._function_param_name_set = set()
+
         # mutexes
         self._sample_log_names_mutex = False
 
@@ -164,6 +168,7 @@ class FitPeaksWindow(QMainWindow):
         for sample_log in sample_log_names:
             self.ui.comboBox_xaxisNames.addItem(sample_log)
             self.ui.comboBox_yaxisNames.addItem(sample_log)
+            self._sample_log_name_set.add(sample_log)
         self._sample_log_names_mutex = False
 
         # Record data key and next
@@ -217,6 +222,7 @@ class FitPeaksWindow(QMainWindow):
         # add fitted parameters
         for param_name in function_params:
             self.ui.comboBox_yaxisNames.addItem(param_name)
+            self._function_param_name_set.add(param_name)
         # add observed parameters
         self.ui.comboBox_yaxisNames.addItem('Center of mass')
         # keep current selected item unchanged
@@ -224,11 +230,11 @@ class FitPeaksWindow(QMainWindow):
         self._sample_log_names_mutex = False
 
         # fill up the table
-        center_vec = self._core.get_peak_fit_param_value(data_key, 'centre', max_cost=None)
-        height_vec = self._core.get_peak_fit_param_value(data_key, 'height', max_cost=None)
-        fwhm_vec = self._core.get_peak_fit_param_value(data_key, 'width', max_cost=None)
-        chi2_vec = self._core.get_peak_fit_param_value(data_key, 'chi2', max_cost=None)
-        intensity_vec = self._core.get_peak_fit_param_value(data_key, 'intensity', max_cost=None)
+        not_used_vec, center_vec = self._core.get_peak_fit_param_value(data_key, 'centre', max_cost=None)
+        not_used_vec, height_vec = self._core.get_peak_fit_param_value(data_key, 'height', max_cost=None)
+        not_used_vec, fwhm_vec = self._core.get_peak_fit_param_value(data_key, 'width', max_cost=None)
+        not_used_vec, chi2_vec = self._core.get_peak_fit_param_value(data_key, 'chi2', max_cost=None)
+        not_used_vec, intensity_vec = self._core.get_peak_fit_param_value(data_key, 'intensity', max_cost=None)
         com_vec = self._core.get_peak_center_of_mass(data_key)
 
         for row_index in range(len(center_vec)):
@@ -273,6 +279,9 @@ class FitPeaksWindow(QMainWindow):
             png_name_i = os.path.join(target_dir, '{}_fit.png'.format(sample_log_index))
             self.ui.graphicsView_fitSetup.canvas().save_figure(png_name_i)
         # END-FOR
+
+        # TODO - 20180809 - Pop the following command
+        # TODO - continue - command to pop: ffmpeg -r 24 -framerate 8 -pattern_type glob -i '*_fit.png' out.mp4
 
         return
 
@@ -321,7 +330,8 @@ class FitPeaksWindow(QMainWindow):
         try:
             self.ui.graphicsView_fitSetup.reset_viewer()
             self.plot_diff_data(next_scan_log, True)
-        except RuntimeError as run_err:
+        except ValueError as run_err:
+            self.plot_diff_data(next_scan_log + 1, True)
             err_msg = 'Unable to plot next scan {} due to {}'.format(next_scan_log, run_err)
             gui_helper.pop_message(self, err_msg, message_type='error')
         else:
@@ -344,7 +354,7 @@ class FitPeaksWindow(QMainWindow):
         try:
             self.ui.graphicsView_fitSetup.reset_viewer()
             self.plot_diff_data(next_scan_log, True)
-        except RuntimeError as run_err:
+        except ValueError as run_err:
             err_msg = 'Unable to plot previous scan {} due to {}'.format(next_scan_log, run_err)
             gui_helper.pop_message(self, err_msg, message_type='error')
         else:
@@ -367,8 +377,17 @@ class FitPeaksWindow(QMainWindow):
         x_axis_name = str(self.ui.comboBox_xaxisNames.currentText())
         y_axis_name = str(self.ui.comboBox_yaxisNames.currentText())
 
-        vec_x = self.get_meta_sample_data(x_axis_name)
-        vec_y = self.get_meta_sample_data(y_axis_name)
+        if x_axis_name in self._function_param_name_set and y_axis_name == 'Log Index':
+            vec_y, vec_x = self.get_function_parameter_data(x_axis_name)
+        elif y_axis_name in self._function_param_name_set and x_axis_name == 'Log Index':
+            vec_x, vec_y = self.get_function_parameter_data(y_axis_name)
+        elif x_axis_name in self._function_param_name_set or y_axis_name in self._function_param_name_set:
+            gui_helper.pop_message(self, 'It has not considered how to plot 2 function parameters against '
+                                         'each other', message_type='error')
+            return
+        else:
+            vec_x = self.get_meta_sample_data(x_axis_name)
+            vec_y = self.get_meta_sample_data(y_axis_name)
 
         self.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y, x_axis_name, y_axis_name)
 
@@ -445,6 +464,21 @@ class FitPeaksWindow(QMainWindow):
 
         return
 
+    def get_function_parameter_data(self, param_name):
+        """ get the parameter function data
+        :param param_name:
+        :return:
+        """
+        # get data key
+        data_key = self._core.current_data_reference_id
+        if data_key is None:
+            gui_helper.pop_message(self, 'No data loaded', 'error')
+            return
+
+        vec_log_index, vec_param_value = self._core.get_peak_fit_param_value(data_key, param_name, max_cost=1000)
+
+        return vec_log_index, vec_param_value
+
     def get_meta_sample_data(self, name):
         """
         get meta data to plot.
@@ -465,8 +499,7 @@ class FitPeaksWindow(QMainWindow):
         elif name == 'Center of mass':
             value_vector = self._core.get_peak_center_of_mass(data_key)
         else:
-            # this is for fitted data parameters
-            value_vector = self._core.get_peak_fit_param_value(data_key, name, max_cost=1000)
+            value_vector = None
 
         return value_vector
 

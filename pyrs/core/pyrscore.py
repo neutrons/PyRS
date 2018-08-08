@@ -414,11 +414,12 @@ class PyRsCore(object):
         optimizer = self._get_optimizer(data_key)
 
         if max_cost is None:
-            return_value = optimizer.get_fitted_params(param_name)
+            param_vec = optimizer.get_fitted_params(param_name)
+            log_index_vec = numpy.arange(len(param_vec))
         else:
-            return_value = optimizer.get_good_fitted_params(param_name, max_cost)
+            log_index_vec, param_vec = optimizer.get_good_fitted_params(param_name, max_cost)
 
-        return return_value
+        return log_index_vec, param_vec
 
     def get_peak_fit_params_in_dict(self, data_key):
         """
@@ -446,10 +447,13 @@ class PyRsCore(object):
         # END-FOR
 
         for param_name in param_names:
-            param_value = self.get_peak_fit_param_value(data_key, param_name, max_cost=None)
+            scan_index_vec, param_value = self.get_peak_fit_param_value(data_key, param_name, max_cost=None)
             checkdatatypes.check_numpy_arrays('Parameter values', [param_value], dimension=1, check_same_shape=False)
             # add the values to dictionary
-            for scan_log_index in range(param_value.shape[0]):
+            for si in range(len(scan_index_vec)):
+                scan_log_index = scan_index_vec[si]
+                if scan_log_index not in fit_param_value_dict:
+                    fit_param_value_dict[scan_log_index] = dict()
                 fit_param_value_dict[scan_log_index][param_name] = param_value[scan_log_index]
             # END-FOR (scan-log-index)
         # END-FOR (param_name)

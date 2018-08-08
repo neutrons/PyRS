@@ -94,10 +94,10 @@ class DiffractionDataFile(object):
         """
         return
 
-
     @staticmethod
     def load_rs_file(file_name):
         """ parse h5 file
+        Note: peak_fit data are in sample log dictionary
         :param file_name:
         :return: 2-tuple as diff_data_dict, sample_logs
         """
@@ -112,8 +112,8 @@ class DiffractionDataFile(object):
             """
             # need it?
             need_init = False
-            if 'peak_fit' not in sample_logs:
-                sample_logs['peak_fit'] = dict()
+            if 'peak_fit' not in sample_log_dict:
+                sample_log_dict['peak_fit'] = dict()
                 need_init = True
 
             for par_name in h5_group.keys():
@@ -121,9 +121,9 @@ class DiffractionDataFile(object):
                 par_value = h5_group[par_name].value
                 # init sample logs vector if needed
                 if need_init:
-                    sample_logs['peak_fit'][par_name] = numpy.ndarray(shape=(total_scans,), dtype=par_value.dtype)
+                    sample_log_dict['peak_fit'][par_name] = numpy.ndarray(shape=(total_scans,), dtype=par_value.dtype)
                 # set value
-                sample_logs['peak_fit'][par_name][log_index] = par_value
+                    sample_log_dict['peak_fit'][par_name][log_index] = par_value
             # END-FOR
 
             return
