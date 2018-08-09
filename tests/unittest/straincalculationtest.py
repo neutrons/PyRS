@@ -70,16 +70,15 @@ def test_strain_calculation():
 
     # check and align measurement points around
     try:
-        rs_core.strain_stress_calculator.align_measuring_points(pos_x='vx', pos_y='vy', pos_z='vz')
+        rs_core.strain_stress_calculator.check_grids_alignment(pos_x='vx', pos_y='vy', pos_z='vz')
+        print ('Intermittent 1')
     except RuntimeError as run_err:
         print ('Measuring points are not aligned: {}'.format(run_err))
+        rs_core.strain_stress_calculator.align_grids(resolution=0.001)
+        print ('Intermittent 2')
 
-    # peak fitting for detector - ALL
-    for direction in ['e11', 'e22', 'e33']:
-        assert rs_core.strain_stress_calculator.are_peaks_fitted(direction=direction),\
-            'Peaks must be fitted as a pre-requisite'
-
-    rs_core.calculate_strain(data_key)
+    # calculate unconstrained strain and stress
+    rs_core.strain_stress_calculator.execute()
 
     # export
     rs_core.export_to_paraview(data_key, 'strain', '/tmp/stain_para.dat')

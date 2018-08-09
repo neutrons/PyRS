@@ -32,6 +32,8 @@ class StrainStress(object):
         else:
             self._calculate_as_unconstrained(d0, young_modulus, poisson_ratio)
 
+        return
+
     def _calculate_as_unconstrained(self, d0, young_e, poisson_nu):
         """
         unconstrained
@@ -109,6 +111,19 @@ class StrainStress(object):
 
         return
 
+    def get_strain(self):
+        """
+
+        :return:
+        """
+        return self._epsilon
+
+    def get_stress(self):
+        """
+
+        :return:
+        """
+        return self._sigma
 
 class StrainStressCalculator(object):
     """
@@ -154,7 +169,7 @@ class StrainStressCalculator(object):
         # transformed data set
         self._dir_sample_scan_dict = dict()
         for dir_i in self._direction_list:
-            self._dir_sample_scan_dict[dir_i] = None  # shall be a dictionary: key = sample position
+            self._dir_sample_scan_dict[dir_i] = None  # (value) a dictionary: key = sample position, value =
 
         # flag whether the measured sample points can be aligned. otherwise, more complicated algorithm is required
         # including searching and interpolation
@@ -163,7 +178,7 @@ class StrainStressCalculator(object):
         # list of sample positions for each data set
         self._sample_positions_dict = dict()
         for dir_i in self._direction_list:
-            self._sample_positions_dict[dir_i] = None  # each shall be None or a list of tuples
+            self._sample_positions_dict[dir_i] = None  # each shall be None or a LIST of 3-tuples
         # status
         self._is_saved = False
 
@@ -172,7 +187,200 @@ class StrainStressCalculator(object):
 
         return
 
-    def align_measuring_points(self, pos_x, pos_y, pos_z, resolution=0.001):
+    def align_grids(self, resolution=0.001):
+        """
+        align grids
+        :param resolution:
+        :return:
+        """
+        num_e11_pts = len(self._sample_positions_dict['e11'])
+        self._match11_dict = {'e22': [None] * num_e11_pts,
+                              'e33': [None] * num_e11_pts}
+        # list for the rest
+        other_dir_list = self._direction_list[:]
+        other_dir_list.pop(0)
+        other_dir_list.sort()
+        other_dir_matched_dict = dict()
+        for dir_i in other_dir_list:
+            other_dir_matched_dict[dir_i] = set()
+
+        message = ''
+        for ipt_e11 in range(num_e11_pts):
+            pos_11_i = self._sample_positions_dict['e11'][ipt_e11]
+            for dir_i in other_dir_list:
+                sorted_pos_list_i = self._sample_positions_dict[dir_i]
+                index_i = self.binary_search(sorted_pos_list_i, pos_11_i, resolution)
+                if index_i is None:
+                    print ('[DB...BAT] E11 Pt {} @ {} no match at direction {}'.format(ipt_e11, pos_11_i, dir_i))
+                else:
+                    print ('[DB...BAT] E11 Pt {} @ {} finds {} @ index = {} @ {}'
+                           ''.format(ipt_e11, pos_11_i, dir_i, index_i, sorted_pos_list_i[index_i]))
+                if index_i is not None:
+                    self._match11_dict[dir_i][ipt_e11] = index_i
+                    other_dir_matched_dict[dir_i].add(index_i)
+            # END-FOR
+        # END-FOR
+
+        for dir_i in other_dir_list:
+            unmatched_counts_i = len(self._sample_positions_dict[dir_i]) - len(other_dir_matched_dict[dir_i])
+            print ('[INFO] Numbers of grids at direction {} unmatched to E11: {}'
+                   ''.format(dir_i, unmatched_counts_i))
+
+        return
+
+    @staticmethod
+    def binary_search(sorted_positions, xyz, resolution):
+        """
+
+        :param sorted_positions:
+        :param xyz:
+        :return:
+        """
+        def search_neighborhood(sorted_list, start_index, stop_index, list_index, tuple_index, value_range):
+            """
+            search direction of tuple_index near list index within resolution
+            :param sorted_list:
+            :param list_index:
+            :param tuple_index:
+            :return:
+            """
+            idx_start = list_index
+            center_value = sorted_list[list_index][tuple_index]
+
+            # print ('\t\t[DB...BAT] Coordinate Index = {}. Center value = {}.  Resolution = {}.'
+            #        ''.format(tuple_index, center_value, value_range))
+
+            while True:
+                idx_start -= 1
+                if idx_start < start_index:
+                    idx_start = start_index
+                    break
+                elif sorted_list[idx_start][tuple_index] + value_range < center_value:
+                    idx_start += 1
+                    break
+            # END-WHILE
+
+            idx_stop = list_index
+            while True:
+                idx_stop += 1
+                if idx_stop > stop_index:
+                    # out of boundary
+                    idx_stop = stop_index
+                    break
+                elif center_value + value_range < sorted_list[idx_stop][tuple_index]:
+                    # x/y/z value is out of range
+                    idx_stop -= 1
+                    break
+            # END-WHILE
+
+            return idx_start, idx_stop
+
+        assert resolution > 0, 'resolution > 0 required'
+
+        i_start = 0
+        i_stop = len(sorted_positions) - 1
+
+        matched_x_not_found = True
+        matched_y_not_found = False
+        matched_z_not_found = False
+        i_middle = None
+        while matched_x_not_found:
+            i_middle = (i_start + i_stop) / 2
+            # print ('\t\t[DB...BAT] start = {}, middle = {}, stop = {}'.format(i_start, i_middle, i_stop))
+            if abs(xyz[0] - sorted_positions[i_middle][0]) < resolution:
+                # equal continue to find y to match
+                matched_x_not_found = False
+                matched_y_not_found = True
+                break
+            elif xyz[0] - sorted_positions[i_middle][0] < 0:
+                # data point to the left
+                i_stop = i_middle - 1
+            else:
+                # data point to the right
+                i_start = i_middle + 1
+            # check
+            if i_stop < i_start:
+                # it is over...
+                break
+            elif i_start < 0 or i_stop >= len(sorted_positions):
+                raise NotImplementedError('It could not happen!')
+        # END-WHILE
+
+        if matched_x_not_found:
+            # not founded matched X
+            print ('\t[DB...BAT] No matched X found')
+            return None
+        else:
+            # print ('\t[DB...BAT] Matched X (1 of many) index'.format(i_middle))
+            pass
+
+        # locate the range of X within tolerance/resolution for searching with Y
+        i_start, i_stop = search_neighborhood(sorted_positions, 0, len(sorted_positions)-1, i_middle, 0, resolution)
+        # print ('\t[DB...BAT] New search range for Y: {}, {}'.format(i_start, i_stop))
+        orig_start = i_start
+        orig_stop = i_stop
+        i_middle = None
+        while matched_y_not_found:
+            i_middle = (i_start + i_stop) / 2
+            if abs(xyz[1] - sorted_positions[i_middle][1]) < resolution:
+                # equal continue to find y to match
+                matched_y_not_found = False
+                matched_z_not_found = True
+                break
+            elif xyz[1] - sorted_positions[i_middle][1] < 0:
+                # data point to the left
+                i_stop = i_middle - 1
+            else:
+                # data point to the right
+                i_start = i_middle + 1
+            # check
+            if i_stop < i_start:
+                # it is over...
+                break
+            elif i_start < orig_start or i_stop > orig_stop:
+                raise NotImplementedError('It could not happen!')
+        # END-WHILE
+
+        if matched_y_not_found:
+            # not found match Y
+            print ('\t[DB...BAT] No matched X found')
+            return None
+        else:
+            # print ('\t[DB...BAT] Matched Y (1 of many) index'.format(i_middle))
+            pass
+
+        # locate the range of Y within tolerance/resolution for searching with X
+        i_start, i_stop = search_neighborhood(sorted_positions, orig_start, orig_stop, i_middle, 1, resolution)
+        # print ('\t[DB...BAT] New search range for Z, {}, {}'.format(i_start, i_stop))
+
+        orig_start = i_start
+        orig_stop = i_stop
+        i_middle = None
+        while matched_z_not_found:
+            i_middle = (i_start + i_stop) / 2
+            if abs(xyz[2] - sorted_positions[i_middle][2]) < resolution:
+                # equal continue to find y to match
+                matched_z_not_found = False
+            elif xyz[2] - sorted_positions[i_middle][2] < 0:
+                # data point to the left
+                i_stop = i_middle - 1
+            else:
+                # data point to the right
+                i_start = i_middle + 1
+            # check
+            if i_stop < i_start:
+                # it is over...
+                break
+            elif i_start < orig_start or i_stop > orig_stop:
+                raise NotImplementedError('It could not happen!')
+        # END-WHILE
+
+        if i_middle is None:
+            print ('\t[DB...BAT] No matched Z found')
+
+        return i_middle
+
+    def check_grids_alignment(self, pos_x, pos_y, pos_z, resolution=0.001):
         """
         Align the data points among e11, e22 and/or e33 with sample log positions
         :param pos_x: sample log name for x position
@@ -196,7 +404,7 @@ class StrainStressCalculator(object):
         # align: create a list of sorted tuples and compare among different data sets whether they
         # do match or not
         for dir_i in self._direction_list:
-            self._sample_positions_dict[dir_i] = sorted(self._dir_sample_scan_dict[dir_i].keys())
+            self._sample_positions_dict[dir_i] = sorted(self._dir_sample_scan_dict[dir_i].keys()) # list
             # print self._sample_positions_dict[dir_i]
             # print '\n\n'
 
@@ -280,6 +488,63 @@ class StrainStressCalculator(object):
         # END-FOR-i
 
         return max_distance
+
+    def execute(self):
+        """
+        calculate the strain and stress for all grids by using E11 as a standard
+        :return:
+        """
+        # it is assumed that the grids that have been aligned
+        # TODO - 20180810 - add some flags to check grid alignment
+
+        # using E11 as the standard grid set
+        for ipt_e11 in range(len(self._sample_positions_dict['e11'])):
+            # get matched grids from other
+            print ipt_e11
+            ipt_e22 = self._match11_dict['e22'][ipt_e11]
+            if not (self._is_plane_strain or self._is_plane_stress):
+                ipt_e33 = self._match11_dict['e33'][ipt_e11]
+            else:
+                ipt_e33 = True
+
+            if ipt_e22 is None:
+                print ('{}-th grid on e11 @ {} has no matched grid on e22... Find a way to interpolate'
+                       ''.format(ipt_e11, self._sample_positions_dict['e11'][ipt_e11]))
+            if ipt_e33 is None:
+                print ('{}-th grid on e11 @ {} has no matched grid on e33.. Find a way to interpolate'
+                       ''.format(ipt_e11, self._sample_positions_dict['e11'][ipt_e11]))
+            if ipt_e22 is None or ipt_e33 is None:
+                continue
+
+            # convert to sample log index
+            pos_e11 =  self._sample_positions_dict['e11'][ipt_e11]
+            scan_log_index_e11 = self._dir_sample_scan_dict['e11'][pos_e11]
+
+            pos_e22 =  self._sample_positions_dict['e22'][ipt_e22]
+            scan_log_index_e22 = self._dir_sample_scan_dict['e22'][pos_e22]
+
+            debug_out = 'e11: scan-index = {} @ {}, e22: scan-index = {} @ {}, ' \
+                        ''.format(scan_log_index_e11, pos_e11,
+                                  scan_log_index_e22, pos_e22)
+            if isinstance(ipt_e33, int):
+                pos_e33 = self._sample_positions_dict['e33'][ipt_e33]
+                scan_log_index_e33 = self._dir_sample_scan_dict['e33'][pos_e33]
+                debug_out += 'e33: scan-index = {} @ {}, ' \
+                             ''.format(scan_log_index_e33, pos_e33)
+            print (debug_out)
+
+
+            # ss_calculator = StrainStress(peak_pos_matrix=numpy.array([d_11, d_22, d_33]),
+            #                              d0=self._d0, young_modulus=self._young_e,
+            #                              poisson_ratio=self._poisson_nu,
+            #                              is_plane_train=self._is_plane_strain,
+            #                              is_plane_stress=self._is_plane_stress)
+            # ss_calculator.get_strain()
+            # ss_calculator.get_stress()
+
+        # END-FOR
+
+        return
 
     def generate_xyz_scan_log_dict(self, direction, pos_x, pos_y, pos_z):
         """
