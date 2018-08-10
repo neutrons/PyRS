@@ -15,6 +15,91 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout_6">
+    <item row="0" column="1" rowspan="2">
+     <widget class="QGroupBox" name="groupBox_3">
+      <property name="title">
+       <string>Viz</string>
+      </property>
+      <layout class="QGridLayout" name="gridLayout_5">
+       <item row="3" column="2">
+        <widget class="QSlider" name="horizontalSlider_slicer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="0" colspan="4">
+        <widget class="QPlainTextEdit" name="plainTextEdit_info">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Title and other information&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0" colspan="4">
+        <widget class="SampleSliceView" name="graphicsView_sliceView">
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Sliced view in contour plot&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <widget class="QComboBox" name="comboBox_sliceDirection">
+         <item>
+          <property name="text">
+           <string>X</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Y</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Z</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="QLineEdit" name="lineEdit_sliceStartValue">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="3">
+        <widget class="QLineEdit" name="lineEdit_sliceEndValue">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QComboBox" name="comboBox_plotParameterName">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
     <item row="0" column="0">
      <widget class="QGroupBox" name="groupBox">
       <property name="title">
@@ -235,94 +320,16 @@
               </property>
              </widget>
             </item>
+            <item row="1" column="2">
+             <widget class="QPushButton" name="pushButton">
+              <property name="text">
+               <string>Report</string>
+              </property>
+             </widget>
+            </item>
            </layout>
           </item>
          </layout>
-        </widget>
-       </item>
-      </layout>
-     </widget>
-    </item>
-    <item row="0" column="1" rowspan="2">
-     <widget class="QGroupBox" name="groupBox_3">
-      <property name="title">
-       <string>Viz</string>
-      </property>
-      <layout class="QGridLayout" name="gridLayout_5">
-       <item row="3" column="2">
-        <widget class="QSlider" name="horizontalSlider_slicer">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="0" colspan="4">
-        <widget class="QPlainTextEdit" name="plainTextEdit_info">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Title and other information&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="0" colspan="4">
-        <widget class="SampleSliceView" name="graphicsView_sliceView">
-         <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Sliced view in contour plot&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
-        </widget>
-       </item>
-       <item row="3" column="0">
-        <widget class="QComboBox" name="comboBox_sliceDirection">
-         <item>
-          <property name="text">
-           <string>X</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>Y</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>Z</string>
-          </property>
-         </item>
-        </widget>
-       </item>
-       <item row="3" column="1">
-        <widget class="QLineEdit" name="lineEdit_sliceStartValue">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-        </widget>
-       </item>
-       <item row="3" column="3">
-        <widget class="QLineEdit" name="lineEdit_sliceEndValue">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="0">
-        <widget class="QComboBox" name="comboBox_plotParameterName">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
         </widget>
        </item>
       </layout>
@@ -337,47 +344,23 @@
        <string>Stress/Strain Calculation</string>
       </property>
       <layout class="QGridLayout" name="gridLayout_4">
-       <item row="6" column="1" colspan="3">
-        <widget class="QLineEdit" name="lineEdit_outputFileName"/>
+       <item row="4" column="2">
+        <widget class="QRadioButton" name="radioButton">
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
        </item>
        <item row="3" column="1">
         <widget class="QLineEdit" name="lineEdit_poissonRatio"/>
        </item>
+       <item row="2" column="1">
+        <widget class="QLineEdit" name="lineEdit_youngModulus"/>
+       </item>
+       <item row="4" column="1">
+        <widget class="QLineEdit" name="lineEdit_d0"/>
+       </item>
        <item row="7" column="4">
-        <widget class="QPushButton" name="pushButton_exportSpecialType">
-         <property name="maximumSize">
-          <size>
-           <width>200</width>
-           <height>200</height>
-          </size>
-         </property>
-         <property name="text">
-          <string>Export</string>
-         </property>
-        </widget>
-       </item>
-       <item row="6" column="0">
-        <widget class="QLabel" name="label_7">
-         <property name="text">
-          <string>File Name</string>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="0">
-        <widget class="QLabel" name="label_5">
-         <property name="text">
-          <string>E (Young's Modulus)</string>
-         </property>
-        </widget>
-       </item>
-       <item row="3" column="0">
-        <widget class="QLabel" name="label_poisson">
-         <property name="text">
-          <string>Poisson's Ratio</string>
-         </property>
-        </widget>
-       </item>
-       <item row="6" column="4">
         <widget class="QPushButton" name="pushButton_saveStressStrain">
          <property name="maximumSize">
           <size>
@@ -390,11 +373,11 @@
          </property>
         </widget>
        </item>
-       <item row="2" column="1">
-        <widget class="QLineEdit" name="lineEdit_youngModulus"/>
+       <item row="7" column="1" colspan="3">
+        <widget class="QLineEdit" name="lineEdit_outputFileName"/>
        </item>
-       <item row="2" column="4">
-        <widget class="QPushButton" name="pushButton_calUnconstrainedStress">
+       <item row="8" column="4">
+        <widget class="QPushButton" name="pushButton_exportSpecialType">
          <property name="maximumSize">
           <size>
            <width>200</width>
@@ -402,51 +385,23 @@
           </size>
          </property>
          <property name="text">
-          <string>Unconstrain Strain/Stress</string>
+          <string>Export</string>
          </property>
         </widget>
        </item>
-       <item row="3" column="4">
-        <widget class="QPushButton" name="pushButton_calPlaneStrain">
-         <property name="maximumSize">
-          <size>
-           <width>200</width>
-           <height>200</height>
-          </size>
-         </property>
+       <item row="5" column="2">
+        <widget class="QRadioButton" name="radioButton_2">
          <property name="text">
-          <string>Plan Strain</string>
+          <string/>
          </property>
         </widget>
        </item>
-       <item row="4" column="4">
-        <widget class="QPushButton" name="pushButton_calPlaneStress">
-         <property name="maximumSize">
-          <size>
-           <width>200</width>
-           <height>200</height>
-          </size>
-         </property>
+       <item row="2" column="0">
+        <widget class="QLabel" name="label_5">
          <property name="text">
-          <string>Plane Stress</string>
+          <string>E (Young's Modulus)</string>
          </property>
         </widget>
-       </item>
-       <item row="5" column="4">
-        <spacer name="verticalSpacer_3">
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
-         </property>
-         <property name="sizeType">
-          <enum>QSizePolicy::Preferred</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>40</height>
-          </size>
-         </property>
-        </spacer>
        </item>
        <item row="2" column="2">
         <spacer name="horizontalSpacer_2">
@@ -464,10 +419,34 @@
          </property>
         </spacer>
        </item>
-       <item row="7" column="1" colspan="3">
-        <widget class="QLineEdit" name="lineEdit_exportFileName"/>
+       <item row="2" column="4">
+        <widget class="QPushButton" name="pushButton_calUnconstrainedStress">
+         <property name="maximumSize">
+          <size>
+           <width>200</width>
+           <height>200</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Calculate Strain/Stress</string>
+         </property>
+        </widget>
        </item>
-       <item row="8" column="1">
+       <item row="7" column="0">
+        <widget class="QLabel" name="label_7">
+         <property name="text">
+          <string>File Name</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <widget class="QLabel" name="label_poisson">
+         <property name="text">
+          <string>Poisson's Ratio</string>
+         </property>
+        </widget>
+       </item>
+       <item row="9" column="1">
         <spacer name="verticalSpacer">
          <property name="orientation">
           <enum>Qt::Vertical</enum>
@@ -480,6 +459,9 @@
          </property>
         </spacer>
        </item>
+       <item row="8" column="1" colspan="3">
+        <widget class="QLineEdit" name="lineEdit_exportFileName"/>
+       </item>
        <item row="4" column="0">
         <widget class="QLabel" name="label_10">
          <property name="text">
@@ -487,8 +469,28 @@
          </property>
         </widget>
        </item>
-       <item row="4" column="1">
-        <widget class="QLineEdit" name="lineEdit_d0"/>
+       <item row="6" column="2">
+        <spacer name="verticalSpacer_3">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::Preferred</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item row="5" column="1">
+        <widget class="QPushButton" name="pushButton_2">
+         <property name="text">
+          <string>Set d0 Grid</string>
+         </property>
+        </widget>
        </item>
       </layout>
      </widget>

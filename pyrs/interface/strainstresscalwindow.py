@@ -40,8 +40,9 @@ class StrainStressCalculationWindow(QMainWindow):
         self.ui.pushButton_loadFile.clicked.connect(self.do_load_strain_files)
         self.ui.pushButton_alignSampleLogXYZ.clicked.connect(self.do_align_xyz)
         self.ui.pushButton_calUnconstrainedStress.clicked.connect(self.do_cal_unconstrained_strain_stress)
-        self.ui.pushButton_calPlaneStress.clicked.connect(self.do_cal_plane_stress)
-        self.ui.pushButton_calPlaneStrain.clicked.connect(self.do_cal_plane_strain)
+
+        # TODO -2018 - Remove: self.ui.pushButton_calPlaneStress.clicked.connect(self.do_cal_plane_stress)
+        # TODO -2018 - Remove: self.ui.pushButton_calPlaneStrain.clicked.connect(self.do_cal_plane_strain)
 
         # strain/stress save and export
         self.ui.pushButton_saveStressStrain.clicked.connect(self.save_stress_strain)
@@ -56,6 +57,7 @@ class StrainStressCalculationWindow(QMainWindow):
 
         # menu
         self.ui.actionNew_Session.triggered.connect(self.do_new_session)
+        # TODO - 20180809 - actionQuit
 
         # self.lineEdit_tdScanFile..connect(self.)
         # self.lineEdit_ndScanFile..connect(self.)
@@ -411,11 +413,18 @@ class StrainStressCalculationWindow(QMainWindow):
         create a new session
         :return:
         """
+        import dialogs
+
+        self._temp_dialog = dialogs.CreateNewSessionDialog(self)
+        self._temp_dialog.show()
+
+        # self._temp_dialog =
+
         # session_name = gui_helper.get_value_from_dialog('Strain')
-
-        gui_helper.pop_message(self, 'Create a new session', message_type='info')
-
-        self.create_new_session('My test session')
+        #
+        # gui_helper.pop_message(self, 'Create a new session', message_type='info')
+        #
+        # self.create_new_session('My test session')
 
     def do_plot_sliced_3d(self):
         """
