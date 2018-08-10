@@ -64,12 +64,15 @@ def test_strain_calculation():
                                       is_plane_stress=False)
 
     # load data
+    # TODO - 20180810 - rename load_raw to load_reduced_
     rs_core.strain_stress_calculator.load_raw_file(file_name=target_data_set['e11'], direction='e11')
     rs_core.strain_stress_calculator.load_raw_file(file_name=target_data_set['e22'], direction='e22')
     rs_core.strain_stress_calculator.load_raw_file(file_name=target_data_set['e33'], direction='e33')
 
-    rs_core.strain_stress_calculator.set_d0(d0=1.2345)
+    # TODO - 20180810 - Wavelegth value can be found in HDF5's Wavelength
     rs_core.strain_stress_calculator.set_wave_length(wave_length=1.243)
+    # TODO - 20180810 - d0 might not be a single value but changes along grids.  So make it possible to accept d0 in a n x 3 matrix as (x, y, z) 
+    rs_core.strain_stress_calculator.set_d0(d0=1.2345)
     rs_core.strain_stress_calculator.set_youngs_modulus(young_e=500.)
     rs_core.strain_stress_calculator.set_poisson_ratio(poisson_ratio=0.23)
 
