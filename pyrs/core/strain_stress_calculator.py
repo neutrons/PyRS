@@ -1,4 +1,5 @@
 import numpy
+import math
 import pyrs.utilities.checkdatatypes
 import scandataio
 
@@ -125,6 +126,7 @@ class StrainStress(object):
         """
         return self._sigma
 
+
 class StrainStressCalculator(object):
     """
     class to manage strain stress calculation
@@ -184,6 +186,14 @@ class StrainStressCalculator(object):
 
         # file loader (static kind of)
         self._file_io = scandataio.DiffractionDataFile()
+
+        # strain stress parameters
+        self._d0 = None
+        self._2theta = None
+        self._lambda = None
+
+        self._young_e = None
+        self._poisson_nu = None
 
         return
 
@@ -517,28 +527,46 @@ class StrainStressCalculator(object):
                 continue
 
             # convert to sample log index
-            pos_e11 =  self._sample_positions_dict['e11'][ipt_e11]
-            scan_log_index_e11 = self._dir_sample_scan_dict['e11'][pos_e11]
+            scan_log_index_dict = dict()
 
-            pos_e22 =  self._sample_positions_dict['e22'][ipt_e22]
-            scan_log_index_e22 = self._dir_sample_scan_dict['e22'][pos_e22]
+            grid_pos_e11 =  self._sample_positions_dict['e11'][ipt_e11]
+            scan_log_index_dict['e11'] = self._dir_sample_scan_dict['e11'][grid_pos_e11]
+
+            grid_pos_e22 =  self._sample_positions_dict['e22'][ipt_e22]
+            scan_log_index_dict['e22'] = self._dir_sample_scan_dict['e22'][grid_pos_e22]
 
             debug_out = 'e11: scan-index = {} @ {}, e22: scan-index = {} @ {}, ' \
-                        ''.format(scan_log_index_e11, pos_e11,
-                                  scan_log_index_e22, pos_e22)
+                        ''.format(scan_log_index_dict['e11'], grid_pos_e11,
+                                  scan_log_index_dict['e22'], grid_pos_e22)
             if isinstance(ipt_e33, int):
                 pos_e33 = self._sample_positions_dict['e33'][ipt_e33]
-                scan_log_index_e33 = self._dir_sample_scan_dict['e33'][pos_e33]
+                scan_log_index_dict['e33'] = self._dir_sample_scan_dict['e33'][pos_e33]
                 debug_out += 'e33: scan-index = {} @ {}, ' \
-                             ''.format(scan_log_index_e33, pos_e33)
+                             ''.format(scan_log_index_dict['e33'], pos_e33)
             print (debug_out)
 
+            # calculate peak positions in d-spacing
+            peak_matrix = numpy.zeros(shape=(3, 3), dtype='float')
+            peak_fit_failed = False
+            for mindex, dir_i in enumerate(self._direction_list):
+                peak_i_2theta = self._peak_param_dict['e11']['centre'][scan_log_index_dict[dir_i]]
+                print ('[DB...BAT] Direction: {}. Log index = {}; Peak center (2theta): {}  degree'
+                       ''.format(dir_i, scan_log_index_dict[dir_i], peak_i_2theta))
+                if abs(peak_i_2theta) < 1:
+                    peak_fit_failed = True
+                    continue
+                peak_i_d = self._lambda * 0.5 / math.sin(peak_i_2theta * 0.5)   # self.convert_unit_to_d(peak_i_2theta)
+                peak_matrix[mindex, mindex] = peak_i_d
+            # END-FOR
 
-            # ss_calculator = StrainStress(peak_pos_matrix=numpy.array([d_11, d_22, d_33]),
-            #                              d0=self._d0, young_modulus=self._young_e,
-            #                              poisson_ratio=self._poisson_nu,
-            #                              is_plane_train=self._is_plane_strain,
-            #                              is_plane_stress=self._is_plane_stress)
+            if peak_fit_failed:
+                continue
+
+            ss_calculator = StrainStress(peak_pos_matrix=peak_matrix,
+                                         d0=self._d0, young_modulus=self._young_e,
+                                         poisson_ratio=self._poisson_nu,
+                                         is_plane_train=self._is_plane_strain,
+                                         is_plane_stress=self._is_plane_stress)
             # ss_calculator.get_strain()
             # ss_calculator.get_stress()
 
@@ -666,6 +694,58 @@ class StrainStressCalculator(object):
         """
         # TODO - 2018 - NEXT
         raise NotImplementedError('ASAP')
+
+    def set_d0(self, d0):
+        """
+
+        :param d0:
+        :return:
+        """
+        pyrs.utilities.checkdatatypes.check_float_variable('d0', d0, (1E-4, None))
+
+        self._d0 = d0
+
+        return
+
+    def set_2theta(self, twotheta):
+        """
+
+        :param twotheta:
+        :return:
+        """
+        pyrs.utilities.checkdatatypes.check_float_variable('Detector 2theta', twotheta, (-180, 180))
+
+        self._2theta = twotheta
+
+        return
+
+    def set_wave_length(self, wave_length):
+        """
+
+        :param wave_length:
+        :return:
+        """
+        pyrs.utilities.checkdatatypes.check_float_variable('Wave length', wave_length, (1E-10, None))
+
+        self._lambda = wave_length
+
+        return
+
+    def set_youngs_modulus(self, young_e):
+        """
+
+        :param young_e:
+        :return:
+        """
+        self._young_e = young_e
+
+    def set_poisson_ratio(self, poisson_ratio):
+        """
+
+        :param poisson_ratio:
+        :return:
+        """
+        self._poisson_nu = poisson_ratio
 
     @property
     def session(self):

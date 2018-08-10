@@ -68,6 +68,11 @@ def test_strain_calculation():
     rs_core.strain_stress_calculator.load_raw_file(file_name=target_data_set['e22'], direction='e22')
     rs_core.strain_stress_calculator.load_raw_file(file_name=target_data_set['e33'], direction='e33')
 
+    rs_core.strain_stress_calculator.set_d0(d0=1.2345)
+    rs_core.strain_stress_calculator.set_wave_length(wave_length=1.243)
+    rs_core.strain_stress_calculator.set_youngs_modulus(young_e=500.)
+    rs_core.strain_stress_calculator.set_poisson_ratio(poisson_ratio=0.23)
+
     # check and align measurement points around
     try:
         rs_core.strain_stress_calculator.check_grids_alignment(pos_x='vx', pos_y='vy', pos_z='vz')
@@ -81,7 +86,7 @@ def test_strain_calculation():
     rs_core.strain_stress_calculator.execute()
 
     # export
-    rs_core.export_to_paraview(data_key, 'strain', '/tmp/stain_para.dat')
+    #  rs_core.export_to_paraview(data_key, 'strain', '/tmp/stain_para.dat')
 
     return
 

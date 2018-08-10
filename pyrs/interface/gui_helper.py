@@ -3,10 +3,10 @@ import os
 import platform
 from pyrs.utilities import checkdatatypes
 try:
-    from PyQt5.QtWidgets import QDialog, QLineEdit, QFileDialog
+    from PyQt5.QtWidgets import QDialog, QLineEdit, QFileDialog, QMessageBox
     is_qt4 = False
 except ImportError:
-    from PyQt4.QtGui import QDialog, QLineEdit, QFileDialog
+    from PyQt4.QtGui import QDialog, QLineEdit, QFileDialog, QMessageBox
     from PyQt4 import QtCore
     is_qt4 = True
 
@@ -143,7 +143,29 @@ def parse_integers(int_list_string):
     return int_list
 
 
-def pop_message(parent, message, message_type='error'):
+def get_boolean_from_dialog(window_title, message):
+    """
+
+    :param message:
+    :return:
+    """
+    def msgbtn(i):
+        print "Button pressed is:", i.text()
+
+    msg = QMessageBox()
+    msg.setIcon(QMessageBox.Information)
+    msg.setText(message)
+    msg.setWindowTitle(window_title)
+    msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+    msg.buttonClicked.connect(msgbtn)
+
+    retval = msg.exec_()
+    print "value of pressed message box button:", retval
+
+    return
+
+
+def pop_message(parent, message, detailed_message=None, message_type='error'):
     """
 
     :param parent:
@@ -155,8 +177,23 @@ def pop_message(parent, message, message_type='error'):
     if message_type not in ['error', 'warning', 'info']:
         raise TypeError('Message type {0} is not supported.'.format(message_type))
 
-    # TODO finish it!
-    print ('[POP] {0}'.format(message))
+    msg = QMessageBox()
+    if message_type == 'info':
+        msg.setIcon(QMessageBox.Information)
+    elif message_type == 'error':
+        msg.setIcon(QMessageBox.Critical)
+
+    msg.setText(message)
+    # Line 2 msg.setInformativeText("This is additional information")
+    # msg.setWindowTitle("MessageBox demo")
+    msg.setDetailedText("The details are as follows:")  # another button
+    msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+    # msg.buttonClicked.connect(msgbtn)
+
+    retval = msg.exec_()
+    print "value of pressed message box button:", retval, type(retval)
+    # value of pressed message box button: 4194304 <type 'int'>
+    # value of pressed message box button: 1024 <type 'int'>
 
     return
 

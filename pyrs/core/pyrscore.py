@@ -117,7 +117,7 @@ class PyRsCore(object):
         :param user_dir:
         :return:
         """
-        checkdatatypes.check_file_name('Working directory', user_dir, check_writable=False, is_dir=True)
+        checkdatatypes.check_file_name(user_dir, check_writable=False, is_dir=True)
 
         self._working_dir = user_dir
 

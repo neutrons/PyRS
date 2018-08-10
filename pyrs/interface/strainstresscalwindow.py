@@ -54,6 +54,9 @@ class StrainStressCalculationWindow(QMainWindow):
         # combo boxes handling
         self.ui.comboBox_plotParameterName.currentIndexChanged.connect(self.do_plot_sliced_3d)
 
+        # menu
+        self.ui.actionNew_Session.triggered.connect(self.do_new_session)
+
         # self.lineEdit_tdScanFile..connect(self.)
         # self.lineEdit_ndScanFile..connect(self.)
         # self.lineEdit_rdScanFile..connect(self.)
@@ -101,16 +104,16 @@ class StrainStressCalculationWindow(QMainWindow):
         pos_y_log_name = str(self.ui.comboBox_sampleLogNameY.currentText())
         pos_z_log_name = str(self.ui.comboBox_sampleLogNameZ.currentText())
 
-        error_message = self._core.strain_calculator.align_sample_positions(self._session_name,
-                                                                            pos_x_log_name,
-                                                                            pos_y_log_name,
-                                                                            pos_z_log_name)
+        try:
+            self._core.strain_stress_calculator.check_grids_alignment(pos_x=pos_x_log_name,
+                                                                      pos_y=pos_y_log_name,
+                                                                      pos_z=pos_z_log_name)
+        except RuntimeError as run_err:
+            print ('Measuring points are not aligned: {}'.format(run_err))
+            self._core.strain_stress_calculator.align_grids(resolution=0.001)
+            print ('Intermittent 2')
 
-        if error_message is not None:
-            gui_helper.pop_message(self, error_message, message_type='error')
-        else:
-            # enable the group to calculate strain and stress
-            self.ui.groupBox_calculator.setEnabled(True)
+        self.ui.groupBox_calculator.setEnabled(True)
 
         return
 
@@ -345,9 +348,8 @@ class StrainStressCalculationWindow(QMainWindow):
         :param direction:
         :return:
         """
-        # TODO - 20180801 - Implement
-        data_key, message = self._core.load_stain_stress_source_file(file_name=file_name,
-                                                                     direction=direction)
+        # TODO - 20180801 - Try-Catch
+        self._core.strain_stress_calculator.load_raw_file(file_name=file_name, direction=direction)
 
         return
 
@@ -360,6 +362,14 @@ class StrainStressCalculationWindow(QMainWindow):
             file_type = str(self.ui.comboBox_saveFileType.currentText())
 
         raise NotImplementedError('TO BE CONTINUED')
+
+    def create_new_session(self, session_name):
+        """
+
+        :param session_name:
+        :return:
+        """
+        self._core.new_strain_stress_session('test strain/stress module', is_plane_strain=False, is_plane_stress=False)
 
         return
 
@@ -395,6 +405,17 @@ class StrainStressCalculationWindow(QMainWindow):
         self._load_file_radio_mutex = False
 
         return
+
+    def do_new_session(self):
+        """
+        create a new session
+        :return:
+        """
+        # session_name = gui_helper.get_value_from_dialog('Strain')
+
+        gui_helper.pop_message(self, 'Create a new session', message_type='info')
+
+        self.create_new_session('My test session')
 
     def do_plot_sliced_3d(self):
         """

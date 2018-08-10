@@ -27,15 +27,15 @@ def test_main(test_dir):
     ss_window.show()
 
     # start a new project
-    ss_window.create_new_project('test_strain_stress')
+    ss_window.create_new_session('test_strain_stress')
 
     # load files
-    ss_window.load_raw_file(file_name='LD', direction='e11')
-    ss_window.load_raw_file(file_name='TD', direction='e22')
-    ss_window.load_raw_file(file_name='RD', direction='e33')
+    ss_window.load_raw_file(file_name='tests/temp/LD_Data_Log.hdf5', direction='e11')
+    ss_window.load_raw_file(file_name='tests/temp/BD_Data_Log.hdf5', direction='e22')
+    ss_window.load_raw_file(file_name='tests/temp/ND_Data_Log.hdf5', direction='e33')
 
     # constrained stress/strain
-    ss_window.align_loaded_data(e33=False, sample_resolution=(0.01, 0.01, 0.01))
+    ss_window.do_align_xyz()   # e33=False, sample_resolution=(0.01, 0.01, 0.01))
 
     # plane strain and save
     ss_window.calcualte_plane_strain()

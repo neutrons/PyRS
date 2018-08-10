@@ -123,7 +123,7 @@ class DiffractionDataFile(object):
                 if need_init:
                     sample_log_dict['peak_fit'][par_name] = numpy.ndarray(shape=(total_scans,), dtype=par_value.dtype)
                 # set value
-                    sample_log_dict['peak_fit'][par_name][log_index] = par_value
+                sample_log_dict['peak_fit'][par_name][log_index] = par_value
             # END-FOR
 
             return
