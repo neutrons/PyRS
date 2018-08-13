@@ -57,7 +57,14 @@ class StrainStressCalculationWindow(QMainWindow):
 
         # menu
         self.ui.actionNew_Session.triggered.connect(self.do_new_session)
+        # TODO - 20180809 - radioButton_uniformD0
+        # TODO - 20180809 - radioButton_d0Grid
+        # TODO - 20180809 - pushButton_setd0Grid
         # TODO - 20180809 - actionQuit
+        # TODO - 20180813 - comboBox_alignmentCriteria: need to add e11, e22, e33, finest, user specified
+        # TODO - 20180813 - pushButton_launchSSTable: launch table for strain/stress calculated
+        # TODO - 20180813 - pushButton_showAlignGridTable: launch table to show how grids are aligned
+
 
         # self.lineEdit_tdScanFile..connect(self.)
         # self.lineEdit_ndScanFile..connect(self.)

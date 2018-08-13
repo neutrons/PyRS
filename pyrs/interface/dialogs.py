@@ -20,6 +20,9 @@ class CreateNewSessionDialog(QDialog):
         self.ui.buttonBox.accepted.connect(self.do_quit)
         self.ui.buttonBox.rejected.connect(self.do_quit)
 
+        # TODO - 20180813 - lineEdit_sessionName
+        # TODO - 20180813 - comboBox_strainStressType: need add Items
+
         return
 
     def do_quit(self):
