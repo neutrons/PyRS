@@ -47,7 +47,7 @@ class StrainStressCalculationWindow(QMainWindow):
         self.ui.pushButton_loadFile.clicked.connect(self.do_load_strain_files)
         self.ui.pushButton_alignSampleLogXYZ.clicked.connect(self.do_align_xyz)
         self.ui.pushButton_calUnconstrainedStress.clicked.connect(self.do_cal_unconstrained_strain_stress)
-        self.ui.pushButton_launchSSTable.clickec.connect(self.do_show_strain_stress_table)
+        self.ui.pushButton_launchSSTable.clicked.connect(self.do_show_strain_stress_table)
 
         self.ui.pushButton_setd0Grid.clicked.connect(self.do_set_d0_by_grid)
         self.ui.pushButton_showAlignGridTable.clicked.connect(self.do_show_aligned_grid)
@@ -69,6 +69,7 @@ class StrainStressCalculationWindow(QMainWindow):
         # menu
         self.ui.actionNew_Session.triggered.connect(self.do_new_session)
         self.ui.actionQuit.triggered.connect(self.do_quit)
+        # TODO - 20180814 - actionPlot_Grids_3D
 
         # self.lineEdit_tdScanFile..connect(self.)
         # self.lineEdit_ndScanFile..connect(self.)
@@ -100,8 +101,10 @@ class StrainStressCalculationWindow(QMainWindow):
         initialize widgets
         :return:
         """
-        self.ui.radioButton_loadRaw.setChecked(False)
-        self.ui.radioButton_loadReduced.setChecked(True)
+        self.ui.radioButton_loadRaw.setChecked(True)
+        self.ui.groupBox_importRawFiles.setEnabled(True)
+        self.ui.radioButton_loadReduced.setChecked(False)
+        self.ui.groupBox_importReducedFile.setEnabled(False)
 
         # set up label with Greek
         self.ui.label_poisson.setText(u'\u03BD (Poisson\' Ratio)')
@@ -229,41 +232,48 @@ class StrainStressCalculationWindow(QMainWindow):
                                                                'before new session is started.', )
             if continue_load is False:
                 return
-
-        # get new session name
-        session_name = gui_helper.get_session_dialog_name()
-        if not self._core.strain_calculator.is_session_saved() is False or self._session_name is None:
-            gui_helper.pop_message(self, 'Previous session {} is not saved')
-        self._core.strain_calculator.create_session(session_name)
+        # END-IF (need to save)
 
         if self.ui.radioButton_loadRaw.isChecked():
             # load raw files
             e11_file_name = str(self.ui.lineEdit_e11ScanFile.text())
             self.load_raw_file(e11_file_name, 'e11')
+            sample_logs_e11 = self._core.strain_stress_calculator.get_sample_logs_names('e11', to_set=True)
+
             e22_file_name = str(self.ui.lineEdit_e22ScanFile.text())
             self.load_raw_file(e22_file_name, 'e22')
-            e33_file_name = str(self.ui.lineEdit_e33ScanFile.text())
-            self.load_raw_file(e33_file_name, 'e33')
+            sample_logs_e22 = self._core.strain_stress_calculator.get_sample_logs_names('e22', to_set=True)
 
+            common_sample_logs = sample_logs_e11 & sample_logs_e22
+
+            if self._core.strain_stress_calculator.is_unconstrained_strain_stress:
+                e33_file_name = str(self.ui.lineEdit_e33ScanFile.text())
+                self.load_raw_file(e33_file_name, 'e33')
+                sample_logs_e33 = self._core.strain_stress_calculator.get_sample_logs_names('e33', to_set=True)
+
+                common_sample_logs = sample_logs_e33 & common_sample_logs
         else:
             # load saved files
+            # TODO - 2018 - Next - Need an example for such file!
             reduced_file_name = str(self.ui.lineEdit_reducedFile.text())
             data_key, message = self._core.load_strain_stress_file(file_name=reduced_file_name)
+            raise RuntimeError('Not Implemented')
         # END-IF
 
-        if data_key is None:
-            gui_helper.pop_message(self, message, message_type='error')
-        else:
-            self._curr_data_key = data_key
+        # disable calculation until the alignment is finished
+        self.ui.pushButton_calUnconstrainedStress.setEnabled(False)
 
-            # set session name
-            self._session_name = session_name
-            self.setWindowTitle(session_name)
+        # set up the combo box for 3 directions
+        self.ui.comboBox_sampleLogNameX.clear()
+        self.ui.comboBox_sampleLogNameY.clear()
+        self.ui.comboBox_sampleLogNameZ.clear()
 
-            # disable calculation group before align the measuring data points
-            self.ui.groupBox_calculator.setEnabled(False)
-
-        # END-IF
+        common_sample_logs = list(common_sample_logs)
+        common_sample_logs.sort()
+        for log_name in common_sample_logs:
+            self.ui.comboBox_sampleLogNameX.addItem(log_name)
+            self.ui.comboBox_sampleLogNameY.addItem(log_name)
+            self.ui.comboBox_sampleLogNameZ.addItem(log_name)
 
         return
 
@@ -366,7 +376,18 @@ class StrainStressCalculationWindow(QMainWindow):
 
         self._core.new_strain_stress_session(session_name, is_plane_stress=is_plane_stress,
                                              is_plane_strain=is_plane_strain)
+        # set the class variable
+        self._session_name = session_name
 
+        # disable calculation group before align the measuring data points
+        self.ui.groupBox_calculator.setEnabled(False)
+        # disable e33 if it is plane strain/stress
+        if is_plane_strain or is_plane_stress:
+            self.ui.lineEdit_e33ScanFile.setEnabled(False)
+            self.ui.pushButton_browse_e33ScanFile.setEnabled(False)
+        else:
+            self.ui.lineEdit_e33ScanFile.setEnabled(True)
+            self.ui.pushButton_browse_e33ScanFile.setEnabled(True)
         return
 
     def save_stress_strain(self, file_type=None):
@@ -379,13 +400,23 @@ class StrainStressCalculationWindow(QMainWindow):
 
         raise NotImplementedError('TO BE CONTINUED')
 
-    def create_new_session(self, session_name):
-        """
-
+    def create_new_session(self, session_name, is_plane_strain, is_plane_stress):
+        """ create a new strain/stress calculation session
         :param session_name:
+        :param is_plane_strain:
+        :param is_plane_stress:
         :return:
         """
-        self._core.new_strain_stress_session('test strain/stress module', is_plane_strain=False, is_plane_stress=False)
+        # check input
+        checkdatatypes.check_string_variable('Strain/stress calculating session name', session_name)
+        checkdatatypes.check_bool_variable('Flag to be plane strain', is_plane_strain)
+        checkdatatypes.check_bool_variable('Flag to be plane stress', is_plane_stress)
+
+        self._core.new_strain_stress_session(session_name,
+                                             is_plane_strain=is_plane_strain,
+                                             is_plane_stress=is_plane_stress)
+
+        self.setWindowTitle(session_name)
 
         return
 
@@ -429,12 +460,12 @@ class StrainStressCalculationWindow(QMainWindow):
         """
         # TODO - 20180813 - Implement the table view
         if self._grid_alignment_table is None:
-            self._grid_alignment_table = dialogs.GridAlignmentCheckTable(self)
+            self._grid_alignment_table = dialogs.GridAlignmentCheckTableView(self)
         else:
             self._grid_alignment_table.reset_table()
 
         # set up
-        self._grid_alignment_table.set_alignment_info(self._core.get_alignment_info())
+        # TODO - 20180814 - self._grid_alignment_table.set_alignment_info(self._core.get_alignment_info())
 
         # show table
         self._grid_alignment_table.show()

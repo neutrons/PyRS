@@ -195,6 +195,9 @@ class StrainStressCalculator(object):
         self._young_e = None
         self._poisson_nu = None
 
+        # alignment
+        self._match11_dict = None
+
         return
 
     def align_grids(self, resolution=0.001):
@@ -237,6 +240,12 @@ class StrainStressCalculator(object):
                    ''.format(dir_i, unmatched_counts_i))
 
         return
+
+    def align_grids_statics(self):
+        """
+        do statistics to grids to align
+        :return:
+        """
 
     @staticmethod
     def binary_search(sorted_positions, xyz, resolution):
@@ -606,6 +615,27 @@ class StrainStressCalculator(object):
         # END-FOR
 
         return xyz_log_index_dict
+
+    def get_sample_logs_names(self, direction, to_set):
+        """
+        get the sames of all the sample logs for one direction (e11/e22/e33)
+        :param direction:
+        :param to_set: if True, return in set, otherwise, return as a list
+        :return:
+        """
+        # check input
+        if direction not in self._direction_list:
+            raise NotImplementedError('Direction {} is not an allowed direction {}'
+                                      ''.format(direction, self._direction_list))
+
+        log_names = self._sample_log_dict[direction].keys()
+
+        if to_set:
+            log_names = set(log_names)
+        else:
+            log_names.sort()
+
+        return log_names
 
     @property
     def is_sample_positions_aligned(self):

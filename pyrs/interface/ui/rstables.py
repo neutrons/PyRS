@@ -102,6 +102,84 @@ class FitResultTable(NTableWidget.NTableWidget):
         return
 
 
+# TODO - 20180814 - Clean up and fill
+class GridsStatisticsTable(NTableWidget.NTableWidget):
+    """
+
+    """
+    TableSetupList = [('Item', 'str'),   # include min x, max x, num x, avg resolution x, ... (for y) .. (for z)... # data points
+                      ('e11', 'float'),
+                      ('e22', 'float'),
+                      ('e33', 'float')]
+
+    def __init__(self, parent):
+        return
+
+
+# TODO - 20180814 - Clean up and fill
+class GridAlignmentTable(NTableWidget.NTableWidget):
+    """
+
+    """
+    TableSetupList = [('x', 'float'),
+                      ('y', 'float'),
+                      ('z', 'float'),
+                      ('e11', 'int'),  # scan log index of e11 direction data, -1 for not found
+                      ('e22', 'int'),
+                      ('e33', 'int')]
+
+    def __init__(self, parent):
+        """
+
+        :param parent:
+        """
+        return
+
+# TODO - 20180814 - Clean up and fill
+class MatchedGridsTable(NTableWidget.NTableWidget):
+    """
+
+    """
+    TableSetupList = [('x', 'float'),
+                      ('y', 'float'),
+                      ('z', 'float'),
+                      ('e11', 'int'),  # scan log index of e11 direction data
+                      ('e22', 'int'),
+                      ('e33', 'int')]
+    def __init__(self, parent):
+        return
+
+# TODO - 20180814 - Clean up and fill
+class MismatchedGridsTable(NTableWidget.NTableWidget):
+    """
+
+    """
+    TableSetupList = [('Direction', 'str'),
+                      ('Scan Index', 'int'),
+                      ('x', 'float'),
+                      ('y', 'float'),
+                      ('z', 'float')]
+    def __init__(self, parent):
+        return
+
+
+
+# TODO - 20180814 - Clean up and fill
+class PartialMatchedGrids(NTableWidget.NTableWidget):
+    """
+
+    """
+    TableSetupList = [('Direction', 'str'),
+                      ('Scan Index', 'int'),  # main direction scan log index]
+                      ('x', 'float'),
+                      ('y', 'float'),
+                      ('z', 'float'),
+                      ('Direction', 'str'),  # other direction
+                      ('Scan Index', 'int')]
+    def __init__(self, parent):
+        return
+
+
 class PoleFigureTable(NTableWidget.NTableWidget):
     """
     A table tailored to pole figure

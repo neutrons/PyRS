@@ -27,30 +27,38 @@ def test_main(test_dir):
     ss_window.show()
 
     # start a new project
-    ss_window.create_new_session('test_strain_stress')
+    ss_window.create_new_session('test_strain_stress', False, False)
 
     # load files
-    ss_window.load_raw_file(file_name='tests/temp/LD_Data_Log.hdf5', direction='e11')
-    ss_window.load_raw_file(file_name='tests/temp/BD_Data_Log.hdf5', direction='e22')
-    ss_window.load_raw_file(file_name='tests/temp/ND_Data_Log.hdf5', direction='e33')
+    ss_window.ui.lineEdit_e11ScanFile.setText('tests/temp/LD_Data_Log.hdf5')
+    ss_window.ui.lineEdit_e22ScanFile.setText('tests/temp/BD_Data_Log.hdf5')
+    ss_window.ui.lineEdit_e33ScanFile.setText('tests/temp/ND_Data_Log.hdf5')
+    ss_window.do_load_strain_files()
 
-    # constrained stress/strain
-    ss_window.do_align_xyz()   # e33=False, sample_resolution=(0.01, 0.01, 0.01))
+    # # constrained stress/strain
+    # need to set the combo box correct!
+    ss_window.ui.comboBox_sampleLogNameX.insertItem(0, 'vx')
+    ss_window.ui.comboBox_sampleLogNameX.setCurrentIndex(0)
+    ss_window.ui.comboBox_sampleLogNameY.insertItem(0, 'vy')
+    ss_window.ui.comboBox_sampleLogNameY.setCurrentIndex(0)
+    ss_window.ui.comboBox_sampleLogNameZ.insertItem(0, 'vz')
+    ss_window.ui.comboBox_sampleLogNameZ.setCurrentIndex(0)
+    # ss_window.do_align_xyz()   # e33=False, sample_resolution=(0.01, 0.01, 0.01))
 
-    # plane strain and save
-    ss_window.calcualte_plane_strain()
-    ss_window.save_present_project('test_strain_stress_plane_stress.h5')
+    # # plane strain and save
+    # ss_window.calcualte_plane_strain()
+    # ss_window.save_present_project('test_strain_stress_plane_stress.h5')
 
-    # plain stress and save
-    ss_window.calcualte_plane_stress()
-    ss_window.save_present_project('test_strain_stress.h5')
+    # # plain stress and save
+    # ss_window.calcualte_plane_stress()
+    # ss_window.save_present_project('test_strain_stress.h5')
 
-    # unconstrained stress/strain
-    ss_window.align_loaded_data(e33=True, sample_resolution=(0.01, 0.01, 0.01))
+    # # unconstrained stress/strain
+    # ss_window.align_loaded_data(e33=True, sample_resolution=(0.01, 0.01, 0.01))
 
-    # calculate and save project
-    ss_window.calcualte_unconstrained_stress()
-    ss_window.save_present_project('test_strain_stress.h5')
+    # # calculate and save project
+    # ss_window.calcualte_unconstrained_stress()
+    # ss_window.save_present_project('test_strain_stress.h5')
 
     return ss_window
 

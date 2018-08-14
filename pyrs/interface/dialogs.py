@@ -1,7 +1,8 @@
 try:
-    from PyQt5.QtWidgets import QDialog
+    from PyQt5.QtWidgets import QDialog, QMainWindow
+    from PyQt5.QtCore import pyqtSignal
 except ImportError:
-    from PyQt4.QtGui import QDialog
+    from PyQt4.QtGui import QDialog, QMainWindow
     from PyQt4.QtCore import pyqtSignal
 
 import gui_helper
@@ -11,9 +12,7 @@ from ui import ui_newsessiondialog
 class CreateNewSessionDialog(QDialog):
     """ Create a new strain/stress session dialog
     """
-
-
-    NewSessionSignal = pyqtSignal(str, bool, bool, name='signal')
+    NewSessionSignal = pyqtSignal(str, bool, bool, name='new session signal')
 
     def __init__(self, parent):
         """
@@ -33,7 +32,9 @@ class CreateNewSessionDialog(QDialog):
 
         # init widgets
         self.ui.comboBox_strainStressType.clear()
-
+        self.ui.comboBox_strainStressType.addItem('Unconstrained Strain/Stress')
+        self.ui.comboBox_strainStressType.addItem('Plane Strain')
+        self.ui.comboBox_strainStressType.addItem('Plane Stress')
 
         return
 
@@ -47,9 +48,17 @@ class CreateNewSessionDialog(QDialog):
             gui_helper.pop_message(self, 'Session name must be specified', 'error')
             return
 
-        ss_type = str(self.ui.comboBox_strainStressType.currentText()).lower()
-        if ss_type
+        ss_type = self.ui.comboBox_strainStressType.currentIndex()
+        is_plane_stress = False
+        is_plane_strain = False
 
+        if ss_type == 1:
+            is_plane_strain = True
+        elif ss_type == 2:
+            is_plane_stress = True
+
+        # send signal
+        self.NewSessionSignal.emit(session_name, is_plane_strain, is_plane_stress)
 
         # quit eventually
         self.do_quit()
@@ -69,3 +78,26 @@ class CreateNewSessionDialog(QDialog):
 
         return
 
+
+class GridAlignmentCheckTableView(QMainWindow):
+    """
+
+    """
+
+    def __init__(self, parent):
+        """
+
+        :param parent:
+        """
+        import ui.ui_gridsalignmentview
+
+        super(GridAlignmentCheckTableView, self).__init__(parent)
+
+        self.ui = ui.ui_gridsalignmentview.Ui_MainWindow()
+        self.ui.setupUi(self)
+
+        # TODO - 20180814 - Clean up
+        # self.ui.actionQuit
+        #
+
+        return
