@@ -10,6 +10,7 @@ import gui_helper
 import numpy
 import platform
 import ui.ui_sscalvizwindow
+import dialogs
 
 
 class StrainStressCalculationWindow(QMainWindow):
@@ -26,6 +27,12 @@ class StrainStressCalculationWindow(QMainWindow):
         # class variables
         self._core = None
 
+        # child dialogs and windows
+        self._d0_grid_dialog = None
+        self._strain_stress_table_view = None
+        self._grid_alignment_table = None
+        self._new_session_dialog = None
+
         # set up UI
         self.ui = ui.ui_sscalvizwindow.Ui_MainWindow()
         self.ui.setupUi(self)
@@ -40,31 +47,28 @@ class StrainStressCalculationWindow(QMainWindow):
         self.ui.pushButton_loadFile.clicked.connect(self.do_load_strain_files)
         self.ui.pushButton_alignSampleLogXYZ.clicked.connect(self.do_align_xyz)
         self.ui.pushButton_calUnconstrainedStress.clicked.connect(self.do_cal_unconstrained_strain_stress)
+        self.ui.pushButton_launchSSTable.clickec.connect(self.do_show_strain_stress_table)
 
-        # TODO -2018 - Remove: self.ui.pushButton_calPlaneStress.clicked.connect(self.do_cal_plane_stress)
-        # TODO -2018 - Remove: self.ui.pushButton_calPlaneStrain.clicked.connect(self.do_cal_plane_strain)
+        self.ui.pushButton_setd0Grid.clicked.connect(self.do_set_d0_by_grid)
+        self.ui.pushButton_showAlignGridTable.clicked.connect(self.do_show_aligned_grid)
 
         # strain/stress save and export
         self.ui.pushButton_saveStressStrain.clicked.connect(self.save_stress_strain)
-        self.ui.pushButton_exportSpecialType.clicked.connect(self.export_stress_strain)
+        self.ui.pushButton_exportSpecialType.clicked.connect(self.do_export_stress_strain)
 
         # radio buttons changed case
         self.ui.radioButton_loadRaw.toggled.connect(self.evt_load_file_type)
         self.ui.radioButton_loadReduced.toggled.connect(self.evt_load_file_type)
+
+        self.ui.radioButton_uniformD0.toggled.connect(self.evt_change_d0_type)
+        self.ui.radioButton_d0Grid.toggled.connect(self.evt_change_d0_type)
 
         # combo boxes handling
         self.ui.comboBox_plotParameterName.currentIndexChanged.connect(self.do_plot_sliced_3d)
 
         # menu
         self.ui.actionNew_Session.triggered.connect(self.do_new_session)
-        # TODO - 20180809 - radioButton_uniformD0
-        # TODO - 20180809 - radioButton_d0Grid
-        # TODO - 20180809 - pushButton_setd0Grid
-        # TODO - 20180809 - actionQuit
-        # TODO - 20180813 - comboBox_alignmentCriteria: need to add e11, e22, e33, finest, user specified
-        # TODO - 20180813 - pushButton_launchSSTable: launch table for strain/stress calculated
-        # TODO - 20180813 - pushButton_showAlignGridTable: launch table to show how grids are aligned
-
+        self.ui.actionQuit.triggered.connect(self.do_quit)
 
         # self.lineEdit_tdScanFile..connect(self.)
         # self.lineEdit_ndScanFile..connect(self.)
@@ -87,6 +91,7 @@ class StrainStressCalculationWindow(QMainWindow):
 
         # mutex
         self._load_file_radio_mutex = False
+        self._d0_type_mutex = False
 
         return
 
@@ -100,6 +105,15 @@ class StrainStressCalculationWindow(QMainWindow):
 
         # set up label with Greek
         self.ui.label_poisson.setText(u'\u03BD (Poisson\' Ratio)')
+
+        # combo boxes
+        self.ui.comboBox_alignmentCriteria.clear()
+        self.ui.comboBox_alignmentCriteria.addItem('Finest Grid (Auto)')
+        self.ui.comboBox_alignmentCriteria.addItem('E11')
+        self.ui.comboBox_alignmentCriteria.addItem('E22')
+        self.ui.comboBox_alignmentCriteria.addItem('E33')
+        self.ui.comboBox_alignmentCriteria.addItem('User specified Grid')
+
 
         return
 
@@ -204,46 +218,6 @@ class StrainStressCalculationWindow(QMainWindow):
 
         return
 
-    def do_cal_plane_strain(self):
-        """
-        calculate the stress from loaded file
-        :return:
-        """
-        # get values
-        params = self.get_strain_parameters()
-        if isinstance(params, str):
-            err_msg = params
-            gui_helper.pop_message(self, err_msg, message_type='error')
-            return
-        else:
-            e_young, nu_poisson = params
-
-        # call the core to calculate strain
-        self._core.calcualte_plane_strain(self._session_name, e_young, nu_poisson)
-        # TODO - Implement
-
-        return
-
-    def do_cal_plane_stress(self):
-        """
-        calculate the stress from loaded file
-        :return:
-        """
-        # get values
-        params = self.get_strain_parameters()
-        if isinstance(params, str):
-            err_msg = params
-            gui_helper.pop_message(self, err_msg, message_type='error')
-            return
-        else:
-            e_young, nu_poisson = params
-
-        # call the core to calculate strain
-        self._core.calcualte_plane_stress(self._session_name, e_young, nu_poisson)
-        # TODO - Implement
-
-        return
-
     def do_load_strain_files(self):
         """
         load strain/stress file from either raw files or previously saved file
@@ -302,6 +276,20 @@ class StrainStressCalculationWindow(QMainWindow):
 
         return
 
+    def evt_change_d0_type(self):
+        """
+        in case the d0 type is toggled to uniform d0 or d0 in grid
+        :return:
+        """
+        if self.ui.radioButton_uniformD0.isChecked():
+            self.ui.lineEdit_d0.setEnabled(True)
+            self.ui.pushButton_setd0Grid.setEnabled(False)
+        elif self.ui.radioButton_d0Grid.isChecked():
+            self.ui.lineEdit_d0.setEnabled(False)
+            self.ui.pushButton_setd0Grid.setEnabled(True)
+
+        return
+
     def get_strain_parameters(self):
         """
         parse Young's modulus and Poisson's ratio
@@ -357,8 +345,27 @@ class StrainStressCalculationWindow(QMainWindow):
         :param direction:
         :return:
         """
-        # TODO - 20180801 - Try-Catch
-        self._core.strain_stress_calculator.load_raw_file(file_name=file_name, direction=direction)
+        try:
+            self._core.strain_stress_calculator.load_raw_file(file_name=file_name, direction=direction)
+        except RuntimeError as run_error:
+            gui_helper.pop_message(self, message='Unable to load reduced HB2B diffraction file {} '
+                                                 'due to {}'.format(file_name, run_error))
+
+        return
+
+    def new_strain_stress_session(self, session_name, is_plane_strain, is_plane_stress):
+        """
+        create a new session
+        :param session_name:
+        :param is_plane_strain:
+        :return:
+        """
+        checkdatatypes.check_string_variable('Strain/stress session name', session_name)
+        checkdatatypes.check_bool_variable('Flag for being plane strain', is_plane_strain)
+        checkdatatypes.check_bool_variable('Flag for being plane stress', is_plane_stress)
+
+        self._core.new_strain_stress_session(session_name, is_plane_stress=is_plane_stress,
+                                             is_plane_strain=is_plane_strain)
 
         return
 
@@ -382,11 +389,76 @@ class StrainStressCalculationWindow(QMainWindow):
 
         return
 
-    def export_stress_strain(self):
+    def do_export_stress_strain(self):
         """
         export the stress/strain to some other format for future analysis
         :return:
         """
+        # TODO - 20180813 - Next Step - Implement after discussing with beamline scientist
+        raise NotImplementedError('ASAP')
+
+    def do_quit(self):
+        """
+        quit without saving
+        :return:
+        """
+        self.close()
+
+        return
+
+    def do_set_d0_by_grid(self):
+        """
+        set up non-uniform d0 by given a grid
+        :return:
+        """
+        # TODO - 20180813 - SOON - Need data from beamline scientist
+        if self._d0_grid_dialog is None:
+            self._d0_grid_dialog = dialogs.GridD0SetupDialog(self)
+        else:
+            self._d0_grid_dialog.reset()
+
+        self._d0_grid_dialog.show()
+
+        return
+
+    def do_show_aligned_grid(self):
+        """
+        launch table to show how grids are aligned (match or not match)
+        :param self:
+        :return:
+        """
+        # TODO - 20180813 - Implement the table view
+        if self._grid_alignment_table is None:
+            self._grid_alignment_table = dialogs.GridAlignmentCheckTable(self)
+        else:
+            self._grid_alignment_table.reset_table()
+
+        # set up
+        self._grid_alignment_table.set_alignment_info(self._core.get_alignment_info())
+
+        # show table
+        self._grid_alignment_table.show()
+
+
+        return
+
+    def do_show_strain_stress_table(self):
+        """
+        show the calculated strain and stress values
+        :return:
+        """
+        # TODO - 20180813 - Implement the table view
+        if self._strain_stress_table_view is None:
+            self._strain_stress_table_view = dialogs.StrainStressTableView(self)
+        else:
+            self._strain_stress_table_view.reset_table()
+
+        # get value and setup
+        self._strain_stress_table_view.set_strain_stress_values(self._core.get_strain_stress_values())
+
+        self._strain_stress_table_view.show()
+
+        return
 
     def evt_load_file_type(self):
         """
@@ -420,18 +492,14 @@ class StrainStressCalculationWindow(QMainWindow):
         create a new session
         :return:
         """
-        import dialogs
+        if self._new_session_dialog is None:
+            self._new_session_dialog = dialogs.CreateNewSessionDialog(self)
+        else:
+            self._new_session_dialog.reset_dialog()
 
-        self._temp_dialog = dialogs.CreateNewSessionDialog(self)
-        self._temp_dialog.show()
+        self._new_session_dialog.show()
 
-        # self._temp_dialog =
-
-        # session_name = gui_helper.get_value_from_dialog('Strain')
-        #
-        # gui_helper.pop_message(self, 'Create a new session', message_type='info')
-        #
-        # self.create_new_session('My test session')
+        return
 
     def do_plot_sliced_3d(self):
         """
@@ -441,6 +509,7 @@ class StrainStressCalculationWindow(QMainWindow):
         slice_direction = str(self.ui.comboBox_sliceDirection.currentText()).lower()
         plot_term = str(self.ui.comboBox_plotParameterName.currentText())
 
+        # TODO - 20180813 - To be continued
 
     def set_items_to_plot(self):
         """
