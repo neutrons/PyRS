@@ -7,6 +7,7 @@ except ImportError:
 
 import gui_helper
 from ui import ui_newsessiondialog
+from ui import ui_strainstressgridsetup
 
 
 class CreateNewSessionDialog(QDialog):
@@ -101,3 +102,43 @@ class GridAlignmentCheckTableView(QMainWindow):
         #
 
         return
+
+
+# TODO - 20180818 - Clean up!
+class StrainStressGridSetup(QDialog):
+    """
+
+    """
+    def __init__(self, parent):
+        """
+
+        :param parent:
+        """
+        super(StrainStressGridSetup, self).__init__(parent)
+
+        self.ui = ui_strainstressgridsetup.Ui_Dialog()
+        self.ui.setupUi(self)
+
+        return
+
+# END-DEFINE-CLASS
+
+
+def get_strain_stress_grid_setup(parent):
+    """
+
+    :return:
+    """
+    # set up dialog
+    ss_dialog = StrainStressGridSetup(parent)
+
+    # launch dialog and wait for result
+    result = ss_dialog.exec_()
+
+    # process result
+    if not result:
+        return None
+
+    print (result)
+
+    return dict()

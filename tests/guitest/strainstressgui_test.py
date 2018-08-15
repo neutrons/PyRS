@@ -35,15 +35,18 @@ def test_main(test_dir):
     ss_window.ui.lineEdit_e33ScanFile.setText('tests/temp/ND_Data_Log.hdf5')
     ss_window.do_load_strain_files()
 
-    # # constrained stress/strain
-    # need to set the combo box correct!
+    # pre-grid-alignment
     ss_window.ui.comboBox_sampleLogNameX.insertItem(0, 'vx')
     ss_window.ui.comboBox_sampleLogNameX.setCurrentIndex(0)
     ss_window.ui.comboBox_sampleLogNameY.insertItem(0, 'vy')
     ss_window.ui.comboBox_sampleLogNameY.setCurrentIndex(0)
     ss_window.ui.comboBox_sampleLogNameZ.insertItem(0, 'vz')
     ss_window.ui.comboBox_sampleLogNameZ.setCurrentIndex(0)
-    # ss_window.do_align_xyz()   # e33=False, sample_resolution=(0.01, 0.01, 0.01))
+    ss_window.do_get_grid_alignment_info()   # e33=False, sample_resolution=(0.01, 0.01, 0.01))
+
+    # align grid
+
+    # constrained stress/strain
 
     # # plane strain and save
     # ss_window.calcualte_plane_strain()

@@ -248,7 +248,7 @@ class MismatchedGridsTable(NTableWidget.NTableWidget):
         initialization
         :param parent:
         """
-        super(MismatchedGridsTable, self).__init__(self)
+        super(MismatchedGridsTable, self).__init__(parent)
 
         return
 
@@ -267,7 +267,7 @@ class MismatchedGridsTable(NTableWidget.NTableWidget):
 
         checkdatatypes.check_int_variable('Scan log index for {}'.format(direction), scan_index, (1, None))
 
-        self.append_row([direction, scan_index, grid_pos_x, grid_pos_y, grid_pos_z)])
+        self.append_row([direction, scan_index, grid_pos_x, grid_pos_y, grid_pos_z])
 
         return
 

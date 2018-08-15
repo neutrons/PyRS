@@ -405,6 +405,7 @@ class StrainStressCalculator(object):
         :param pos_x: sample log name for x position
         :param pos_y: sample log name for y position
         :param pos_z: sample log name for z position
+        :param resolution:
         :return:
         """
         # check inputs
@@ -415,7 +416,7 @@ class StrainStressCalculator(object):
             raise RuntimeError('Position X ({}) Y ({}) and Z ({}) have duplicate sample log names.'
                                ''.format(pos_x, pos_y, pos_z))
 
-        # get the measuring points
+        # create the dictionaries, vectors and etc for checking how matching the grids are
         for dir_i in self._direction_list:
             self._dir_sample_scan_dict[dir_i] = self.generate_xyz_scan_log_dict(dir_i, pos_x, pos_y, pos_z)
         # END-FOR
@@ -423,9 +424,21 @@ class StrainStressCalculator(object):
         # align: create a list of sorted tuples and compare among different data sets whether they
         # do match or not
         for dir_i in self._direction_list:
-            self._sample_positions_dict[dir_i] = sorted(self._dir_sample_scan_dict[dir_i].keys()) # list
-            # print self._sample_positions_dict[dir_i]
-            # print '\n\n'
+            self._sample_positions_dict[dir_i] = sorted(self._dir_sample_scan_dict[dir_i].keys())  # list
+
+            # do statistics
+            # TODO - 20180815 - Tested and convert to a method to store the result for table output (***)
+            grid_pos_vec = numpy.array(self._sample_positions_dict[dir_i])
+            print ('[DB...BAT] Shape = {}'.format(grid_pos_vec.shape))
+            for i_coord in range(3):
+                # for x, y, z
+                min_i = numpy.min(grid_pos_vec[:, i_coord])
+                max_i = numpy.max(grid_pos_vec[:, i_coord])
+                num_individual_i = len(set(grid_pos_vec[:, i_coord]))
+                print ('[DB...BAT] Direction {}: Coordinate {}, Min = {}, Max = {}, Number of individual = {}'
+                       .format(dir_i, i_coord, min_i, max_i, num_individual_i))
+            # END-FOR
+        # END-FOR
 
         # set flag
         self._sample_points_aligned = False
@@ -615,6 +628,14 @@ class StrainStressCalculator(object):
         # END-FOR
 
         return xyz_log_index_dict
+
+    # TODO - 20180815 - Implement after (***)
+    def get_finest_direction(self):
+        """
+
+        :return:
+        """
+        return 'e22'
 
     def get_sample_logs_names(self, direction, to_set):
         """

@@ -45,12 +45,13 @@ class StrainStressCalculationWindow(QMainWindow):
         self.ui.pushButton_browse_e33ScanFile.clicked.connect(self.do_browse_e33_file)
 
         self.ui.pushButton_loadFile.clicked.connect(self.do_load_strain_files)
-        self.ui.pushButton_alignSampleLogXYZ.clicked.connect(self.do_align_xyz)
+        self.ui.pushButton_preAlignSampleLogXYZ.clicked.connect(self.do_get_grid_alignment_info)
         self.ui.pushButton_calUnconstrainedStress.clicked.connect(self.do_cal_unconstrained_strain_stress)
         self.ui.pushButton_launchSSTable.clicked.connect(self.do_show_strain_stress_table)
 
         self.ui.pushButton_setd0Grid.clicked.connect(self.do_set_d0_by_grid)
         self.ui.pushButton_showAlignGridTable.clicked.connect(self.do_show_aligned_grid)
+        self.ui.pushButton_alignGrids.clicked.connect(self.do_align_grids)
 
         # strain/stress save and export
         self.ui.pushButton_saveStressStrain.clicked.connect(self.save_stress_strain)
@@ -120,7 +121,7 @@ class StrainStressCalculationWindow(QMainWindow):
 
         return
 
-    def do_align_xyz(self):
+    def do_get_grid_alignment_info(self):
         """
         align the loaded data for XYZ
         :return:
@@ -137,9 +138,33 @@ class StrainStressCalculationWindow(QMainWindow):
         except RuntimeError as run_err:
             print ('Measuring points are not aligned: {}'.format(run_err))
             self._core.strain_stress_calculator.align_grids(resolution=0.001)
-            print ('Intermittent 2')
 
         self.ui.groupBox_calculator.setEnabled(True)
+
+        return
+
+    def do_align_grids(self):
+        """
+        align grids according to user input
+        :return:
+        """
+        # get the alignment method
+        alignment_method = str(self.ui.comboBox_alignmentCriteria.currentText()).lower()
+
+        direction = None
+        user_define = False
+
+        if alignment_method.count('auto'):
+            direction = self._core.strain_stress_calculator.get_finest_direction()
+        elif alignment_method.count('user'):
+            user_define = True
+        else:
+            direction = alignment_method
+
+        # pop out dialog and get data
+        ret_value = dialogs.get_strain_stress_grid_setup(self)
+
+        # TODO - 20180816 - To be continued
 
         return
 

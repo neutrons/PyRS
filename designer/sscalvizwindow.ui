@@ -238,19 +238,6 @@
          </property>
         </spacer>
        </item>
-       <item row="2" column="4">
-        <widget class="QPushButton" name="pushButton_calUnconstrainedStress">
-         <property name="maximumSize">
-          <size>
-           <width>200</width>
-           <height>200</height>
-          </size>
-         </property>
-         <property name="text">
-          <string>Calculate Strain/Stress</string>
-         </property>
-        </widget>
-       </item>
        <item row="7" column="0">
         <widget class="QLabel" name="label_7">
          <property name="text">
@@ -311,7 +298,14 @@
          </property>
         </widget>
        </item>
-       <item row="4" column="4">
+       <item row="3" column="4">
+        <widget class="QComboBox" name="comboBox_alignmentCriteria">
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Calculate strain/stress along the specified direction.&lt;/p&gt;&lt;p&gt;1. If the grids of e11, e22 and e33 do not match, grids will be aligned to e11, e22 or e33 as specified.&lt;/p&gt;&lt;p&gt;2. Automatically the finest grid among them or user defined grids.&lt;/p&gt;&lt;p&gt;3. User can specify a grid by 3D range and resolution&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="4">
         <widget class="QPushButton" name="pushButton_launchSSTable">
          <property name="toolTip">
           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Show strain stress in a table&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -321,10 +315,23 @@
          </property>
         </widget>
        </item>
-       <item row="3" column="4">
-        <widget class="QComboBox" name="comboBox_alignmentCriteria">
-         <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Calculate strain/stress along the specified direction.&lt;/p&gt;&lt;p&gt;1. If the grids of e11, e22 and e33 do not match, grids will be aligned to e11, e22 or e33 as specified.&lt;/p&gt;&lt;p&gt;2. Automatically the finest grid among them or user defined grids.&lt;/p&gt;&lt;p&gt;3. User can specify a grid by 3D range and resolution&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+       <item row="4" column="4">
+        <widget class="QPushButton" name="pushButton_calUnconstrainedStress">
+         <property name="maximumSize">
+          <size>
+           <width>200</width>
+           <height>200</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Calculate Strain/Stress</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="4">
+        <widget class="QPushButton" name="pushButton_alignGrids">
+         <property name="text">
+          <string>Align Grids</string>
          </property>
         </widget>
        </item>
@@ -425,7 +432,7 @@
        <item row="0" column="0">
         <layout class="QGridLayout" name="gridLayout_7">
          <item row="0" column="3">
-          <widget class="QPushButton" name="pushButton_alignSampleLogXYZ">
+          <widget class="QPushButton" name="pushButton_preAlignSampleLogXYZ">
            <property name="minimumSize">
             <size>
              <width>160</width>
@@ -542,6 +549,16 @@
             </size>
            </property>
           </spacer>
+         </item>
+         <item row="2" column="3">
+          <widget class="QPushButton" name="pushButton_showAlignGridTable">
+           <property name="toolTip">
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Show report (in table) for alignment&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           </property>
+           <property name="text">
+            <string>Alignment Report</string>
+           </property>
+          </widget>
          </item>
         </layout>
        </item>
