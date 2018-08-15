@@ -102,10 +102,8 @@ class FitResultTable(NTableWidget.NTableWidget):
         return
 
 
-# TODO - 20180814 - Clean up and fill
 class GridsStatisticsTable(NTableWidget.NTableWidget):
-    """
-
+    """ Table for grid statistics
     """
     TableSetupList = [('Item', 'str'),   # include min x, max x, num x, avg resolution x, ... (for y) .. (for z)... # data points
                       ('e11', 'float'),
@@ -113,13 +111,50 @@ class GridsStatisticsTable(NTableWidget.NTableWidget):
                       ('e33', 'float')]
 
     def __init__(self, parent):
+        """
+        initialization
+        :param parent:
+        """
+        super(GridsStatisticsTable, self).__init__(parent)
+
+        self._indexItemName = 0
+        self._indexDirDict = dict()
+        for i_dir, dir_name in enumerate(['e11', 'e22', 'e33']):
+            self._indexDirDict[dir_name] = i_dir + 1
+
+        return
+
+    def set_statistics(self, stat_dict, row_item_list):
+        """
+
+        :param stat_dict:
+        :param row_item_list: list of item names for each row in order to maitain the order
+        :return:
+        """
+        checkdatatypes.check_dict('Statistic dictionary', stat_dict)
+        checkdatatypes.check_list('Row item names', row_item_list)
+
+        # add rows to fill the table
+        num_diff = len(row_item_list) - self.rowCount()
+        if num_diff > 0:
+            for i_row in range(num_diff):
+                self.append_row(['', 0., 0., 0.])
+
+        # fill the table
+        for i_row, item_name in enumerate(row_item_list):
+            self.update_cell_value(i_row, self._indexItemName, item_name)
+            for dir_i in stat_dict.keys():
+                self.update_cell_value(i_row, self._indexDirDict[dir_i], stat_dict[dir_i][item_name])
+            # END-FOR (dir)
+        # END-FOR (row)
+
         return
 
 
-# TODO - 20180814 - Clean up and fill
 class GridAlignmentTable(NTableWidget.NTableWidget):
-    """
-
+    """ Table to show how the grids from e11/e22/e33 are aligned
+    The grids shown in the table are those for final strain/stress calculation.
+    So they are not necessary same as any from e11/e22/e33
     """
     TableSetupList = [('x', 'float'),
                       ('y', 'float'),
@@ -129,16 +164,40 @@ class GridAlignmentTable(NTableWidget.NTableWidget):
                       ('e33', 'int')]
 
     def __init__(self, parent):
-        """
-
+        """ Initialization
         :param parent:
         """
+        super(GridAlignmentTable, self).__init__(parent)
+
+        # indexes
+        self._index_x = 0
+        self._index_y = 1
+        self._index_z = 2
+
+        self._index_dir_dict = dict()
+        for i_dir, dir_name in enumerate(['e11', 'e22', 'e33']):
+            self._index_dir_dict[dir_name] = i_dir + 3
+
         return
 
-# TODO - 20180814 - Clean up and fill
-class MatchedGridsTable(NTableWidget.NTableWidget):
-    """
+    def add_grid(self, grid_pos_x, grid_pos_y, grid_pos_z, scan_index_e11, scan_index_e22, scan_index_e33):
+        """
+        add to grid
+        :param grid_pos_x:
+        :param grid_pos_y:
+        :param grid_pos_z:
+        :param scan_index_e11:
+        :param scan_index_e22:
+        :param scan_index_e33:
+        :return:
+        """
+        self.append_row([grid_pos_x, grid_pos_y, grid_pos_z, scan_index_e11, scan_index_e22, scan_index_e33])
 
+        return
+
+
+class MatchedGridsTable(NTableWidget.NTableWidget):
+    """ Table for matched grids, i.e., across e11/e22 (plane stress/strain) or e11/e22/e33 (unconstrained)
     """
     TableSetupList = [('x', 'float'),
                       ('y', 'float'),
@@ -146,28 +205,75 @@ class MatchedGridsTable(NTableWidget.NTableWidget):
                       ('e11', 'int'),  # scan log index of e11 direction data
                       ('e22', 'int'),
                       ('e33', 'int')]
+
     def __init__(self, parent):
+        """ initialization
+        :param parent:
+        """
+        super(MatchedGridsTable, self).__init__(parent)
+
         return
 
-# TODO - 20180814 - Clean up and fill
-class MismatchedGridsTable(NTableWidget.NTableWidget):
-    """
+    def add_matched_grid(self, grid_pos_x, grid_pos_y, grid_pos_z, scan_index_e11, scan_index_e22, scan_index_e33):
+        """
+        add an all-direction matched grid
+        :param grid_pos_x:
+        :param grid_pos_y:
+        :param grid_pos_z:
+        :param scan_index_e11:
+        :param scan_index_e22:
+        :param scan_index_e33:
+        :return:
+        """
+        checkdatatypes.check_int_variable('Scan log index for e11', scan_index_e11, (1, None))
+        checkdatatypes.check_int_variable('Scan log index for e22', scan_index_e22, (1, None))
+        # checkdatatypes.check_int_variable('Scan log index for e33', scan_index_e33, (1, None))
 
+        self.append_row([grid_pos_x, grid_pos_y, grid_pos_z, scan_index_e11, scan_index_e22, scan_index_e33])
+
+        return
+
+
+class MismatchedGridsTable(NTableWidget.NTableWidget):
+    """ Table for completed misaligned/mismatched grids
     """
     TableSetupList = [('Direction', 'str'),
                       ('Scan Index', 'int'),
                       ('x', 'float'),
                       ('y', 'float'),
                       ('z', 'float')]
+
     def __init__(self, parent):
+        """
+        initialization
+        :param parent:
+        """
+        super(MismatchedGridsTable, self).__init__(self)
+
+        return
+
+    def add_mismatched_grid(self, direction, scan_index, grid_pos_x, grid_pos_y, grid_pos_z):
+        """
+        add a line for mismatched grid
+        :param direction:
+        :param scan_index:
+        :param grid_pos_x:
+        :param grid_pos_y:
+        :param grid_pos_z:
+        :return:
+        """
+        if direction not in ['e11', 'e22', 'e33']:
+            raise RuntimeError('blabla')
+
+        checkdatatypes.check_int_variable('Scan log index for {}'.format(direction), scan_index, (1, None))
+
+        self.append_row([direction, scan_index, grid_pos_x, grid_pos_y, grid_pos_z)])
+
         return
 
 
-
-# TODO - 20180814 - Clean up and fill
 class PartialMatchedGrids(NTableWidget.NTableWidget):
-    """
-
+    """ Table for partially matched grids
     """
     TableSetupList = [('Direction', 'str'),
                       ('Scan Index', 'int'),  # main direction scan log index]
@@ -177,6 +283,12 @@ class PartialMatchedGrids(NTableWidget.NTableWidget):
                       ('Direction', 'str'),  # other direction
                       ('Scan Index', 'int')]
     def __init__(self, parent):
+        """
+
+        :param parent:
+        """
+        super(PartialMatchedGrids, self).__init__(parent)
+
         return
 
 

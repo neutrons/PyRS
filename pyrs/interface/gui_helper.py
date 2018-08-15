@@ -145,29 +145,40 @@ def parse_integers(int_list_string):
 
 def get_boolean_from_dialog(window_title, message):
     """
-
+    pop out a dialog showing a message to user.  User will choose OK or Cancel
+    :param window_title
     :param message:
     :return:
     """
     def msgbtn(i):
+        # debugging output
         print "Button pressed is:", i.text()
 
-    msg = QMessageBox()
-    msg.setIcon(QMessageBox.Information)
-    msg.setText(message)
-    msg.setWindowTitle(window_title)
-    msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
-    msg.buttonClicked.connect(msgbtn)
+    message_box = QMessageBox()
+    message_box.setIcon(QMessageBox.Information)
+    message_box.setText(message)
+    if window_title is not None:
+        message_box.setWindowTitle(window_title)
+    message_box.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+    message_box.buttonClicked.connect(msgbtn)
 
-    retval = msg.exec_()
-    print "value of pressed message box button:", retval
+    # get the message executed
+    return_value = message_box.exec_()
 
-    return
+    # identify output
+    if return_value == 4194304:
+        return_value = True
+    elif return_value == 1024:
+        return_value = False
+    else:
+        raise RuntimeError('Return value {} of type {} is not recognized.'
+                           ''.format(return_value, type(return_value)))
+
+    return return_value
 
 
 def pop_message(parent, message, detailed_message=None, message_type='error'):
-    """
-
+    """ pop up a message with specified message type such as error, warning, info...
     :param parent:
     :param message:
     :param message_type: str as ['error', 'warning', 'info'] but NOT case sensitive
@@ -192,8 +203,6 @@ def pop_message(parent, message, detailed_message=None, message_type='error'):
 
     retval = msg.exec_()
     print "value of pressed message box button:", retval, type(retval)
-    # value of pressed message box button: 4194304 <type 'int'>
-    # value of pressed message box button: 1024 <type 'int'>
 
     return
 
