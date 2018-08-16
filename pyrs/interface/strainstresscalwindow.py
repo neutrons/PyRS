@@ -46,7 +46,7 @@ class StrainStressCalculationWindow(QMainWindow):
 
         self.ui.pushButton_loadFile.clicked.connect(self.do_load_strain_files)
         self.ui.pushButton_preAlignSampleLogXYZ.clicked.connect(self.do_get_grid_alignment_info)
-        self.ui.pushButton_calUnconstrainedStress.clicked.connect(self.do_cal_unconstrained_strain_stress)
+        self.ui.pushButton_calUnconstrainedStress.clicked.connect(self.do_calculate_strain_stress)
         self.ui.pushButton_launchSSTable.clicked.connect(self.do_show_strain_stress_table)
 
         self.ui.pushButton_setd0Grid.clicked.connect(self.do_set_d0_by_grid)
@@ -112,12 +112,11 @@ class StrainStressCalculationWindow(QMainWindow):
 
         # combo boxes
         self.ui.comboBox_alignmentCriteria.clear()
-        self.ui.comboBox_alignmentCriteria.addItem('Finest Grid (Auto)')
         self.ui.comboBox_alignmentCriteria.addItem('E11')
         self.ui.comboBox_alignmentCriteria.addItem('E22')
         self.ui.comboBox_alignmentCriteria.addItem('E33')
         self.ui.comboBox_alignmentCriteria.addItem('User specified Grid')
-
+        self.ui.comboBox_alignmentCriteria.addItem('Finest Grid (Auto)')
 
         return
 
@@ -137,9 +136,10 @@ class StrainStressCalculationWindow(QMainWindow):
                                                                       pos_z=pos_z_log_name)
         except RuntimeError as run_err:
             print ('Measuring points are not aligned: {}'.format(run_err))
-            self._core.strain_stress_calculator.align_grids(resolution=0.001)
+            self._core.strain_stress_calculator.aligned_matched_grids(resolution=0.001)
 
-        self.ui.groupBox_calculator.setEnabled(True)
+        self.ui.pushButton_alignGrids.setEnabled(True)
+        # self.ui.groupBox_calculator.setEnabled(True)
 
         return
 
@@ -161,10 +161,29 @@ class StrainStressCalculationWindow(QMainWindow):
         else:
             direction = alignment_method
 
-        # pop out dialog and get data
-        ret_value = dialogs.get_strain_stress_grid_setup(self)
+        stat_dict = self._core.strain_stress_calculator.get_grids_information()
 
+        # pop out dialog and get data
+        ret_value = dialogs.get_strain_stress_grid_setup(self, user_define_grid=user_define,
+                                                         grid_stat_dict=stat_dict)
+
+        # return if user cancels the operation
+        if ret_value is None:
+            return
+
+        grid_array, mapping_array = self._core.strain_stress_calculator.align_grids(direction=direction,
+                                                                                    user_defined=user_define,
+                                                                                    grids_dimension_dict=ret_value)
+
+        # show the align grids report???
+        self.do_show_aligned_grid()
+        self._grid_alignment_table.set_aligned_grids_info(grid_array, mapping_array)
+
+        #
         # TODO - 20180816 - To be continued
+
+        # allow to calculate strain and stress
+        self.ui.pushButton_calUnconstrainedStress.setEnabled(True)
 
         return
 
@@ -225,7 +244,7 @@ class StrainStressCalculationWindow(QMainWindow):
 
         return
 
-    def do_cal_unconstrained_strain_stress(self):
+    def do_calculate_strain_stress(self):
         """
         calculate strain from loaded file
         :return:
@@ -239,9 +258,14 @@ class StrainStressCalculationWindow(QMainWindow):
         else:
             e_young, nu_poisson = params
 
-        # call the core to calculate strain
-        self._core.calcualte_uncontrained_strain(self._session_name, e_young, nu_poisson)
+        # TODO - 20180810 - d0 might not be a single value but changes along grids.
+        # TODO   (continue) So make it possible to accept d0 in a n x 3 matrix as (x, y, z)
+        rs_core.strain_stress_calculator.set_d0(d0=1.2345)
+        rs_core.strain_stress_calculator.set_youngs_modulus(young_e=500.)
+        rs_core.strain_stress_calculator.set_poisson_ratio(poisson_ratio=0.23)
 
+        # call the core to calculate strain
+        self._core.strain_stress_calculator.execute()
         # TODO
 
         return
@@ -286,6 +310,7 @@ class StrainStressCalculationWindow(QMainWindow):
         # END-IF
 
         # disable calculation until the alignment is finished
+        self.ui.pushButton_alignGrids.setEnabled(False)
         self.ui.pushButton_calUnconstrainedStress.setEnabled(False)
 
         # set up the combo box for 3 directions
@@ -299,6 +324,15 @@ class StrainStressCalculationWindow(QMainWindow):
             self.ui.comboBox_sampleLogNameX.addItem(log_name)
             self.ui.comboBox_sampleLogNameY.addItem(log_name)
             self.ui.comboBox_sampleLogNameZ.addItem(log_name)
+
+        # calculate peaks in d-spacing
+        # TODO - 20180810 - Wavelength value can be found in HDF5's Wavelength
+        # TODO   (continue) Log? - Wavelength
+        try:
+            self._core.strain_stress_calculator.calculate_peaks_positions_in_d()
+            self._peaks_in_d = True
+        except RuntimeError as run_err:
+            self._peaks_in_d = False
 
         return
 
@@ -487,7 +521,8 @@ class StrainStressCalculationWindow(QMainWindow):
         if self._grid_alignment_table is None:
             self._grid_alignment_table = dialogs.GridAlignmentCheckTableView(self)
         else:
-            self._grid_alignment_table.reset_table()
+            pass
+            # self._grid_alignment_table.reset_tables()
 
         # set up
         # TODO - 20180814 - self._grid_alignment_table.set_alignment_info(self._core.get_alignment_info())

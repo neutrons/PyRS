@@ -191,7 +191,23 @@ class GridAlignmentTable(NTableWidget.NTableWidget):
         :param scan_index_e33:
         :return:
         """
+        if scan_index_e11 < 0:
+            scan_index_e11 = None
+        if scan_index_e22 < 0:
+            scan_index_e22 = None
+        if scan_index_e33 < 0:
+            scan_index_e33 = None
+
         self.append_row([grid_pos_x, grid_pos_y, grid_pos_z, scan_index_e11, scan_index_e22, scan_index_e33])
+
+        return
+
+    def setup(self):
+        """
+        Init setup
+        :return:
+        """
+        self.init_setup(self.TableSetupList)
 
         return
 
@@ -227,7 +243,8 @@ class MatchedGridsTable(NTableWidget.NTableWidget):
         """
         checkdatatypes.check_int_variable('Scan log index for e11', scan_index_e11, (1, None))
         checkdatatypes.check_int_variable('Scan log index for e22', scan_index_e22, (1, None))
-        # checkdatatypes.check_int_variable('Scan log index for e33', scan_index_e33, (1, None))
+        if scan_index_e33 is not None:
+            checkdatatypes.check_int_variable('Scan log index for e33', scan_index_e33, (1, None))
 
         self.append_row([grid_pos_x, grid_pos_y, grid_pos_z, scan_index_e11, scan_index_e22, scan_index_e33])
 
@@ -270,6 +287,48 @@ class MismatchedGridsTable(NTableWidget.NTableWidget):
         self.append_row([direction, scan_index, grid_pos_x, grid_pos_y, grid_pos_z])
 
         return
+# END-CLASS
+
+
+class ParamValueGridTable(NTableWidget.NTableWidget):
+    """
+    Parameter values on strain/stress grids
+    """
+    TableSetupList = [('x', 'float'),
+                      ('y', 'float'),
+                      ('z', 'float'),
+                      ('e11', 'float'),  # scan log index of e11 direction data
+                      ('e22', 'float'),
+                      ('e33', 'float')]
+
+    def __init__(self, parent):
+        """ initialization
+        :param parent:
+        """
+        super(ParamValueGridTable, self).__init__(parent)
+
+        return
+
+    def add_matched_grid(self, grid_pos_x, grid_pos_y, grid_pos_z, param_value_11, param_value_22, param_value_33):
+        """
+        add an all-direction matched grid
+        :param grid_pos_x:
+        :param grid_pos_y:
+        :param grid_pos_z:
+        :param param_value_11:
+        :param param_value_22:
+        :param param_value_33:
+        :return:
+        """
+        checkdatatypes.check_float_variable('Parameter value for e11', param_value_11, (None, None))
+        checkdatatypes.check_float_variable('Parameter value for e22', param_value_22, (None, None))
+        if param_value_33 is not None:
+            checkdatatypes.check_float_variable('Parameter value for e33', param_value_33, (None, None))
+
+        self.append_row([grid_pos_x, grid_pos_y, grid_pos_z, param_value_11, param_value_22, param_value_33])
+
+        return
+# END-CLASS-DEF
 
 
 class PartialMatchedGrids(NTableWidget.NTableWidget):

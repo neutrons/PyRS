@@ -9,6 +9,7 @@ import gui_helper
 from pyrs.utilities import checkdatatypes
 from ui import ui_newsessiondialog
 from ui import ui_strainstressgridsetup
+import ui.ui_gridsalignmentview
 
 
 class CreateNewSessionDialog(QDialog):
@@ -81,38 +82,69 @@ class CreateNewSessionDialog(QDialog):
         return
 
 
+# TODO - 20180814 - Clean up
 class GridAlignmentCheckTableView(QMainWindow):
+    """ A set of tables in order to check grid alignment in order to set up the final grids
     """
-
-    """
-
     def __init__(self, parent):
-        """
-
+        """ Initialization
         :param parent:
         """
-        import ui.ui_gridsalignmentview
-
         super(GridAlignmentCheckTableView, self).__init__(parent)
 
         self.ui = ui.ui_gridsalignmentview.Ui_MainWindow()
         self.ui.setupUi(self)
 
-        # TODO - 20180814 - Clean up
-        # self.ui.actionQuit
-        #
+        # define events handlers
+        self.ui.actionQuit.triggered.connect(self.do_quit)
+
+        # set up all the tables
+        self.ui.tableView_gridAlignment.setup()
 
         return
 
-
-# TODO - 20180818 - Clean up!
-class StrainStressGridSetup(QDialog):
-    """
-
-    """
-    def __init__(self, parent):
+    def do_quit(self):
         """
 
+        :return:
+        """
+        self.close()
+
+    def set_aligned_grids_info(self, grid_array, mapping_array):
+        """
+
+        :param grid_array:
+        :param mapping_array:
+        :return:
+        """
+        assert grid_array.shape[0] == mapping_array.shape[0], 'blabla'
+
+        num_rows = grid_array.shape[0]
+        num_ss_dir = mapping_array.shape[1]
+
+        # clear the table
+        self.ui.tableView_gridAlignment.remove_all_rows()
+
+        for i in range(num_rows):
+            pos_x, pos_y, pos_z = grid_array[i]
+            e11_scan_index = mapping_array[i][0]
+            e22_scan_index = mapping_array[i][1]
+            if num_ss_dir == 3:
+                e33_scan_index = mapping_array[i][2]
+            else:
+                e33_scan_index = None
+
+            self.ui.tableView_gridAlignment.add_grid(pos_x, pos_y, pos_z, e11_scan_index, e22_scan_index,
+                                                     e33_scan_index)
+
+# END-DEF-CLASS ()
+
+
+class StrainStressGridSetup(QDialog):
+    """ Strain and stress calculation grids setup dialog
+    """
+    def __init__(self, parent):
+        """ initialization
         :param parent:
         """
         super(StrainStressGridSetup, self).__init__(parent)
@@ -159,6 +191,7 @@ class StrainStressGridSetup(QDialog):
 
         self._grid_setup_dict = dict()
         for param_name in ['Min', 'Max', 'Resolution']:
+            self._grid_setup_dict[param_name] = dict()
             for coord_i in ['X', 'Y', 'Z']:
                 self._grid_setup_dict[param_name][coord_i] = None
 
@@ -210,6 +243,7 @@ class StrainStressGridSetup(QDialog):
             for coord_i in ['X', 'Y', 'Z']:
                 line_edit_name = 'lineEdit_{}{}Min'.format(dir_i, coord_i)
                 line_edit = getattr(self.ui, line_edit_name)
+                print (stat_dict['min'][dir_i])
                 line_edit.setText('{}'.format(stat_dict['min'][dir_i][coord_i]))
             # END-FOR
         # END-FOR
@@ -238,7 +272,7 @@ class StrainStressGridSetup(QDialog):
 # END-DEFINE-CLASS
 
 
-def get_strain_stress_grid_setup(parent, grid_stat_dict):
+def get_strain_stress_grid_setup(parent, user_define_grid, grid_stat_dict):
     """
 
     :return:
@@ -246,6 +280,7 @@ def get_strain_stress_grid_setup(parent, grid_stat_dict):
     # set up dialog
     ss_dialog = StrainStressGridSetup(parent)
     ss_dialog.set_experimental_data_statistics(grid_stat_dict)
+    ss_dialog.set_user_grids(user_define_grid)
 
     # launch dialog and wait for result
     result = ss_dialog.exec_()

@@ -157,24 +157,11 @@
        <string>Stress/Strain Calculation</string>
       </property>
       <layout class="QGridLayout" name="gridLayout_4">
-       <item row="4" column="2">
-        <widget class="QRadioButton" name="radioButton_uniformD0">
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
-       </item>
-       <item row="3" column="1">
-        <widget class="QLineEdit" name="lineEdit_poissonRatio"/>
-       </item>
-       <item row="2" column="1">
-        <widget class="QLineEdit" name="lineEdit_youngModulus"/>
-       </item>
-       <item row="4" column="1">
+       <item row="5" column="1">
         <widget class="QLineEdit" name="lineEdit_d0"/>
        </item>
-       <item row="7" column="4">
-        <widget class="QPushButton" name="pushButton_saveStressStrain">
+       <item row="5" column="4">
+        <widget class="QPushButton" name="pushButton_calUnconstrainedStress">
          <property name="maximumSize">
           <size>
            <width>200</width>
@@ -182,14 +169,48 @@
           </size>
          </property>
          <property name="text">
-          <string>Save</string>
+          <string>Calculate Strain/Stress</string>
          </property>
         </widget>
        </item>
-       <item row="7" column="1" colspan="3">
-        <widget class="QLineEdit" name="lineEdit_outputFileName"/>
+       <item row="6" column="2">
+        <widget class="QRadioButton" name="radioButton_d0Grid">
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
        </item>
-       <item row="8" column="4">
+       <item row="6" column="1">
+        <widget class="QPushButton" name="pushButton_setd0Grid">
+         <property name="text">
+          <string>Set d0 Grid</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="0">
+        <widget class="QLabel" name="label_10">
+         <property name="text">
+          <string>Peak d0</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="2">
+        <spacer name="horizontalSpacer_2">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::Preferred</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item row="9" column="4">
         <widget class="QPushButton" name="pushButton_exportSpecialType">
          <property name="maximumSize">
           <size>
@@ -203,9 +224,88 @@
         </widget>
        </item>
        <item row="5" column="2">
-        <widget class="QRadioButton" name="radioButton_d0Grid">
+        <widget class="QRadioButton" name="radioButton_uniformD0">
          <property name="text">
           <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="9" column="1" colspan="3">
+        <widget class="QLineEdit" name="lineEdit_exportFileName"/>
+       </item>
+       <item row="10" column="1">
+        <spacer name="verticalSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item row="6" column="4">
+        <widget class="QPushButton" name="pushButton_launchSSTable">
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Show strain stress in a table&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+         <property name="text">
+          <string>Show Strain/Stress</string>
+         </property>
+        </widget>
+       </item>
+       <item row="8" column="0">
+        <widget class="QLabel" name="label_7">
+         <property name="text">
+          <string>File Name</string>
+         </property>
+        </widget>
+       </item>
+       <item row="8" column="4">
+        <widget class="QPushButton" name="pushButton_saveStressStrain">
+         <property name="maximumSize">
+          <size>
+           <width>200</width>
+           <height>200</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Save</string>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="2">
+        <spacer name="verticalSpacer_3">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::Preferred</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item row="8" column="1" colspan="3">
+        <widget class="QLineEdit" name="lineEdit_outputFileName"/>
+       </item>
+       <item row="2" column="4">
+        <widget class="QPushButton" name="pushButton_alignGrids">
+         <property name="text">
+          <string>Align Grids</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="4">
+        <widget class="QComboBox" name="comboBox_alignmentCriteria">
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Calculate strain/stress along the specified direction.&lt;/p&gt;&lt;p&gt;1. If the grids of e11, e22 and e33 do not match, grids will be aligned to e11, e22 or e33 as specified.&lt;/p&gt;&lt;p&gt;2. Automatically the finest grid among them or user defined grids.&lt;/p&gt;&lt;p&gt;3. User can specify a grid by 3D range and resolution&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
          </property>
         </widget>
        </item>
@@ -222,28 +322,8 @@
          </property>
         </widget>
        </item>
-       <item row="2" column="2">
-        <spacer name="horizontalSpacer_2">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeType">
-          <enum>QSizePolicy::Preferred</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item row="7" column="0">
-        <widget class="QLabel" name="label_7">
-         <property name="text">
-          <string>File Name</string>
-         </property>
-        </widget>
+       <item row="2" column="1">
+        <widget class="QLineEdit" name="lineEdit_youngModulus"/>
        </item>
        <item row="3" column="0">
         <widget class="QLabel" name="label_poisson">
@@ -252,88 +332,8 @@
          </property>
         </widget>
        </item>
-       <item row="9" column="1">
-        <spacer name="verticalSpacer">
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>40</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item row="8" column="1" colspan="3">
-        <widget class="QLineEdit" name="lineEdit_exportFileName"/>
-       </item>
-       <item row="4" column="0">
-        <widget class="QLabel" name="label_10">
-         <property name="text">
-          <string>Peak d0</string>
-         </property>
-        </widget>
-       </item>
-       <item row="6" column="2">
-        <spacer name="verticalSpacer_3">
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
-         </property>
-         <property name="sizeType">
-          <enum>QSizePolicy::Preferred</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>40</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item row="5" column="1">
-        <widget class="QPushButton" name="pushButton_setd0Grid">
-         <property name="text">
-          <string>Set d0 Grid</string>
-         </property>
-        </widget>
-       </item>
-       <item row="3" column="4">
-        <widget class="QComboBox" name="comboBox_alignmentCriteria">
-         <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Calculate strain/stress along the specified direction.&lt;/p&gt;&lt;p&gt;1. If the grids of e11, e22 and e33 do not match, grids will be aligned to e11, e22 or e33 as specified.&lt;/p&gt;&lt;p&gt;2. Automatically the finest grid among them or user defined grids.&lt;/p&gt;&lt;p&gt;3. User can specify a grid by 3D range and resolution&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
-        </widget>
-       </item>
-       <item row="5" column="4">
-        <widget class="QPushButton" name="pushButton_launchSSTable">
-         <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Show strain stress in a table&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
-         <property name="text">
-          <string>Show Strain/Stress</string>
-         </property>
-        </widget>
-       </item>
-       <item row="4" column="4">
-        <widget class="QPushButton" name="pushButton_calUnconstrainedStress">
-         <property name="maximumSize">
-          <size>
-           <width>200</width>
-           <height>200</height>
-          </size>
-         </property>
-         <property name="text">
-          <string>Calculate Strain/Stress</string>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="4">
-        <widget class="QPushButton" name="pushButton_alignGrids">
-         <property name="text">
-          <string>Align Grids</string>
-         </property>
-        </widget>
+       <item row="3" column="1">
+        <widget class="QLineEdit" name="lineEdit_poissonRatio"/>
        </item>
       </layout>
      </widget>

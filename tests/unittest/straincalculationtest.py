@@ -82,7 +82,7 @@ def test_strain_calculation():
         print ('Intermittent 1')
     except RuntimeError as run_err:
         print ('Measuring points are not aligned: {}'.format(run_err))
-        rs_core.strain_stress_calculator.align_grids(resolution=0.001)
+        rs_core.strain_stress_calculator.aligned_matched_grids(resolution=0.001)
         print ('Intermittent 2')
 
     # calculate unconstrained strain and stress
