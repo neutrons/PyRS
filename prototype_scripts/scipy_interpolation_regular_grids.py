@@ -1,3 +1,5 @@
+# This is a prototype example for REGULAR GRIDS
+
 # Evaluate a simple example function on the points of a 3D grid:
 from scipy.interpolate import RegularGridInterpolator
 import numpy as np
