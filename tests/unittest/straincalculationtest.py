@@ -57,39 +57,77 @@ def test_strain_calculation():
     target_data_set = {'e11': 'tests/temp/LD_Data_Log.hdf5',
                        'e22': 'tests/temp/BD_Data_Log.hdf5',
                        'e33': 'tests/temp/ND_Data_Log.hdf5'}
-    create_test_data(rs_core, test_data_set, target_data_set)
+
+    # NOTE: disabled because the peaks have been fitted and the output files exist.
+    # create_test_data(rs_core, test_data_set, target_data_set)
 
     # start a session
     rs_core.new_strain_stress_session('test strain/stress module', is_plane_strain=False,
                                       is_plane_stress=False)
 
-    # load data
-    # TODO - 20180810 - rename load_raw to load_reduced_
-    rs_core.strain_stress_calculator.load_raw_file(file_name=target_data_set['e11'], direction='e11')
-    rs_core.strain_stress_calculator.load_raw_file(file_name=target_data_set['e22'], direction='e22')
-    rs_core.strain_stress_calculator.load_raw_file(file_name=target_data_set['e33'], direction='e33')
-
-    # TODO - 20180810 - Wavelegth value can be found in HDF5's Wavelength
-    rs_core.strain_stress_calculator.set_wave_length(wave_length=1.243)
-    # TODO - 20180810 - d0 might not be a single value but changes along grids.  So make it possible to accept d0 in a n x 3 matrix as (x, y, z) 
+    # TODO - 20180810 - d0 might not be a single value but changes along grids.
+    # TODO   continue   So make it possible to accept d0 in a n x 3 matrix as (x, y, z)
     rs_core.strain_stress_calculator.set_d0(d0=1.2345)
     rs_core.strain_stress_calculator.set_youngs_modulus(young_e=500.)
     rs_core.strain_stress_calculator.set_poisson_ratio(poisson_ratio=0.23)
 
+    # load data
+    rs_core.strain_stress_calculator.load_reduced_file(file_name=target_data_set['e11'], direction='e11')
+    rs_core.strain_stress_calculator.load_reduced_file(file_name=target_data_set['e22'], direction='e22')
+    rs_core.strain_stress_calculator.load_reduced_file(file_name=target_data_set['e33'], direction='e33')
+
+    # convert peak positions to d-spacing
+    rs_core .strain_stress_calculator.convert_peaks_positions()
+
     # check and align measurement points around
     try:
         rs_core.strain_stress_calculator.check_grids_alignment(pos_x='vx', pos_y='vy', pos_z='vz')
-        print ('Intermittent 1')
     except RuntimeError as run_err:
         print ('Measuring points are not aligned: {}'.format(run_err))
-        rs_core.strain_stress_calculator.aligned_matched_grids(resolution=0.001)
-        print ('Intermittent 2')
+    rs_core.strain_stress_calculator.align_matched_grids(resolution=0.001)
+
+    # generate strain/stress grids
+    grid_dict = {'Min': {'X': -130, 'Y': None, 'Z': 9.},
+                 'Max': {'X': 130., 'Y': None, 'Z': None},
+                 'NotUsed': {}}
+    grids, maps = rs_core.strain_stress_calculator.align_grids('e22', user_defined=False, grids_dimension_dict=grid_dict)
+    rs_core.strain_stress_calculator.align_parameter_on_grids(grids, 'center_d', maps)
 
     # calculate unconstrained strain and stress
     rs_core.strain_stress_calculator.execute()
 
     # export
     #  rs_core.export_to_paraview(data_key, 'strain', '/tmp/stain_para.dat')
+
+    return
+
+
+def test_strain_stress_user_defined_grid():
+    """
+    Same as test_strain_calculation but using user-defined strain/stress grid
+    :return:
+    """
+    # TODO - 20180817 - Implement ASAP
+
+    return
+
+
+def test_plane_strain():
+    """
+    Same as test_strain_calculation but using plane strain
+    :return:
+    """
+    # TODO - 20180817 - Implement ASAP
+
+    return
+
+
+def test_plane_stress():
+    """
+    Same as test_strain_calculation but using plane stress
+    :return:
+    """
+    # TODO - 20180817 - Implement ASAP
 
     return
 

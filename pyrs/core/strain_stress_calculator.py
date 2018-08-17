@@ -193,8 +193,7 @@ class StrainStressCalculator(object):
 
         # strain stress parameters
         self._d0 = None
-        self._2theta = None
-        self._lambda = None
+        # self._2theta = None
 
         self._young_e = None
         self._poisson_nu = None
@@ -250,7 +249,8 @@ class StrainStressCalculator(object):
         :param direction:
         :param user_defined:
         :param grids_dimension_dict:
-        :return:
+        :return: 2-tuple: (1) grids (vector of position: (n, 3) array) (2) scan log map (vector of scan logs: (n, 2)
+                                                                           or (n, 3) int array)
         """
         # get the grids for strain/stress calculation
         if user_defined and direction is not None:
@@ -296,7 +296,7 @@ class StrainStressCalculator(object):
 
         return self._grid_array, mapping_vector
 
-    def aligned_matched_grids(self, resolution=0.001):
+    def align_matched_grids(self, resolution=0.001):
         """
         compare the grids among 3 (or 2) strain directions in order to search matched grids across
         :param resolution:
@@ -336,6 +336,34 @@ class StrainStressCalculator(object):
                    ''.format(dir_i, unmatched_counts_i))
 
         return
+
+    def align_parameter_on_grids(self, grids_vector, parameter, scan_log_map_vector):
+        """
+        align the parameter's values on a given grid
+        [3D interpolation]
+        1. regular grid interpolation CANNOT be used.
+           (https://docs.scipy.org/doc/scipy-0.16.1/reference/generated/scipy.interpolate.RegularGridInterpolator.html)
+           It requires the grid to be interpolated from, i.e., experimental data, to be on REGULAR grid.
+           It is NOT always TRUE in the experiment.
+        2. imaging map: I don't understand it completely
+           (map_coordinates)
+        :param grids_vector:
+        :param parameter: string, such as 'center_d'
+        :param scan_log_map_vector: for grid[i], if map[i][1] is integer, than e22 has a value matched. otherwise,
+                                    an interpolation is required
+        :return: 1D vector.  shape[0] = grids_vector.shape[0]
+        """
+        # TODO - 20180818 - Implement ASAP
+
+        # TODO - 2018080 - Understand: protoytpe/scipy_interpolate_prototype1.py
+
+        # interpolation:
+        # case 1: user defined grid:
+        #         regular grid interpolation:
+        #
+        #
+
+        return param_vector
 
     @staticmethod
     def binary_search(sorted_positions, xyz, resolution):
@@ -606,12 +634,23 @@ class StrainStressCalculator(object):
 
         return numpy.sqrt(numpy.sum(vec_pos_1 ** 2 + vec_pos_2 ** 2))
 
-    def calculate_peaks_positions_in_d(self):
-        """
-
+    def convert_peaks_positions(self):
+        """ convert all peaks' positions in d-space.
+        The convert peak positions shall be still recorded in "self._peak_param_dict"
+        example: self._peak_param_dict[dir_i]['centre'][scan_log_index_dict[dir_i]]
         :return:
         """
-        # TODO TODO - to be continued
+        # TODO - 20180817 - Finish it - TODO ASAP
+        for exx in []:
+            for scan_log_index in []:
+                peak_i_2theta = self._peak_param_dict[exx]['centre'][scan_log_index]
+                lambda_i = self._sample_log_dict[exx]['Wavelength'][scan_log_index]
+                peak_i_d = lambda_i * 0.5 / math.sin(peak_i_2theta * 0.5)  # self.convert_unit_to_d(peak_i_2theta)
+                self._sample_log_dict[exx]['center_d'][scan_log_index] = peak_i_d
+            # END-FOR
+        # END-FOR
+
+        return
 
     def calculate_max_distance(self, sample_point_index):
         """
@@ -639,7 +678,14 @@ class StrainStressCalculator(object):
 
     def execute(self):
         """
+        calculate strain/stress on the final output grids
+        :return:
+        """
+
+    def execute_old(self):
+        """
         calculate the strain and stress for all grids by using E11 as a standard
+        taken out because the workflow is changed!
         :return:
         """
         # it is assumed that the grids that have been aligned
@@ -667,10 +713,10 @@ class StrainStressCalculator(object):
             # convert to sample log index
             scan_log_index_dict = dict()
 
-            grid_pos_e11 =  self._sample_positions_dict['e11'][ipt_e11]
+            grid_pos_e11 = self._sample_positions_dict['e11'][ipt_e11]
             scan_log_index_dict['e11'] = self._dir_grid_pos_scan_index_dict['e11'][grid_pos_e11]
 
-            grid_pos_e22 =  self._sample_positions_dict['e22'][ipt_e22]
+            grid_pos_e22 = self._sample_positions_dict['e22'][ipt_e22]
             scan_log_index_dict['e22'] = self._dir_grid_pos_scan_index_dict['e22'][grid_pos_e22]
 
             debug_out = 'e11: scan-index = {} @ {}, e22: scan-index = {} @ {}, ' \
@@ -687,13 +733,15 @@ class StrainStressCalculator(object):
             peak_matrix = numpy.zeros(shape=(3, 3), dtype='float')
             peak_fit_failed = False
             for mindex, dir_i in enumerate(self._direction_list):
-                peak_i_2theta = self._peak_param_dict['e11']['centre'][scan_log_index_dict[dir_i]]
-                print ('[DB...BAT] Direction: {}. Log index = {}; Peak center (2theta): {}  degree'
-                       ''.format(dir_i, scan_log_index_dict[dir_i], peak_i_2theta))
+                peak_i_2theta = self._peak_param_dict[dir_i]['centre'][scan_log_index_dict[dir_i]]
+                lambda_i = self._sample_log_dict[dir_i]['Wavelength'][scan_log_index_dict[dir_i]]
+
+                print ('[DB...BAT] Direction: {}. Log index = {}; Peak center (2theta): {}  degree, wavelength: {}'
+                       ''.format(dir_i, scan_log_index_dict[dir_i], peak_i_2theta, lambda_i))
                 if abs(peak_i_2theta) < 1:
                     peak_fit_failed = True
                     continue
-                peak_i_d = self._lambda * 0.5 / math.sin(peak_i_2theta * 0.5)   # self.convert_unit_to_d(peak_i_2theta)
+                peak_i_d = lambda_i * 0.5 / math.sin(peak_i_2theta * 0.5)   # self.convert_unit_to_d(peak_i_2theta)
                 peak_matrix[mindex, mindex] = peak_i_d
             # END-FOR
 
@@ -826,9 +874,9 @@ class StrainStressCalculator(object):
         """
         return self._is_saved
 
-    def load_raw_file(self, direction, file_name):
+    def load_reduced_file(self, direction, file_name):
         """
-        load raw experimental file with fit result
+        load previously reduced experimental file with peak fit result and sample logs
         :param direction:
         :param file_name:
         :return:
@@ -847,8 +895,8 @@ class StrainStressCalculator(object):
         # import data
         diff_data_dict, sample_logs = self._file_io.load_rs_file(file_name)
         # print ('[DB...BAT] data dict: {}... sample logs: {}...'.format(diff_data_dict, sample_logs))
-        print ('[DB...BAT] Data dict type: {}.  Keys: {}'.format(type(diff_data_dict), diff_data_dict.keys()))
-        print ('[DB...BAT] Sample log dict keys: {}'.format(sample_logs.keys()))
+        # print ('[DB...BAT] Data dict type: {}.  Keys: {}'.format(type(diff_data_dict), diff_data_dict.keys()))
+        # print ('[DB...BAT] Sample log dict keys: {}'.format(sample_logs.keys()))
 
         if 'peak_fit' not in sample_logs:
             raise RuntimeError('File {} does not have fitted peak parameters value for strain/stress '
@@ -885,29 +933,29 @@ class StrainStressCalculator(object):
 
         return
 
-    def set_2theta(self, twotheta):
-        """
+    # def set_2theta(self, twotheta):
+    #     """
+    #
+    #     :param twotheta:
+    #     :return:
+    #     """
+    #     pyrs.utilities.checkdatatypes.check_float_variable('Detector 2theta', twotheta, (-180, 180))
+    #
+    #     self._2theta = twotheta
+    #
+    #     return
 
-        :param twotheta:
-        :return:
-        """
-        pyrs.utilities.checkdatatypes.check_float_variable('Detector 2theta', twotheta, (-180, 180))
-
-        self._2theta = twotheta
-
-        return
-
-    def set_wave_length(self, wave_length):
-        """
-
-        :param wave_length:
-        :return:
-        """
-        pyrs.utilities.checkdatatypes.check_float_variable('Wave length', wave_length, (1E-10, None))
-
-        self._lambda = wave_length
-
-        return
+    # def set_wave_length(self, wave_length):
+    #     """
+    #
+    #     :param wave_length:
+    #     :return:
+    #     """
+    #     pyrs.utilities.checkdatatypes.check_float_variable('Wave length', wave_length, (1E-10, None))
+    #
+    #     self._lambda = wave_length
+    #
+    #     return
 
     def set_youngs_modulus(self, young_e):
         """

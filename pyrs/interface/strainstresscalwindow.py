@@ -136,7 +136,7 @@ class StrainStressCalculationWindow(QMainWindow):
                                                                       pos_z=pos_z_log_name)
         except RuntimeError as run_err:
             print ('Measuring points are not aligned: {}'.format(run_err))
-            self._core.strain_stress_calculator.aligned_matched_grids(resolution=0.001)
+            self._core.strain_stress_calculator.align_matched_grids(resolution=0.001)
 
         self.ui.pushButton_alignGrids.setEnabled(True)
         # self.ui.groupBox_calculator.setEnabled(True)
@@ -325,14 +325,14 @@ class StrainStressCalculationWindow(QMainWindow):
             self.ui.comboBox_sampleLogNameY.addItem(log_name)
             self.ui.comboBox_sampleLogNameZ.addItem(log_name)
 
-        # calculate peaks in d-spacing
-        # TODO - 20180810 - Wavelength value can be found in HDF5's Wavelength
-        # TODO   (continue) Log? - Wavelength
-        try:
-            self._core.strain_stress_calculator.calculate_peaks_positions_in_d()
-            self._peaks_in_d = True
-        except RuntimeError as run_err:
-            self._peaks_in_d = False
+        # # calculate peaks in d-spacing
+        # # TODO - 20180810 - Wavelength value can be found in HDF5's Wavelength
+        # # TODO   (continue) Log? - Wavelength
+        # try:
+        #     self._core.strain_stress_calculator.calculate_peaks_positions_in_d()
+        #     self._peaks_in_d = True
+        # except RuntimeError as run_err:
+        #     self._peaks_in_d = False
 
         return
 
@@ -415,7 +415,7 @@ class StrainStressCalculationWindow(QMainWindow):
         :return:
         """
         try:
-            self._core.strain_stress_calculator.load_raw_file(file_name=file_name, direction=direction)
+            self._core.strain_stress_calculator.load_reduced_file(file_name=file_name, direction=direction)
         except RuntimeError as run_error:
             gui_helper.pop_message(self, message='Unable to load reduced HB2B diffraction file {} '
                                                  'due to {}'.format(file_name, run_error))

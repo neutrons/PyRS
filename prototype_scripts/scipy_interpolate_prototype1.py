@@ -1,7 +1,7 @@
 # scipy_prototype.py
 # reference: https://docs.scipy.org/doc/scipy-0.16.1/reference/generated/scipy.interpolate.griddata.html#scipy.interpolate.griddata
 
-----> 1 points3
+[0] 1 points3
 
 NameError: name 'points3' is not defined
 
