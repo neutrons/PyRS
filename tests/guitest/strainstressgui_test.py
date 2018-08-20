@@ -44,7 +44,15 @@ def test_main(test_dir):
     ss_window.ui.comboBox_sampleLogNameZ.setCurrentIndex(0)
     ss_window.do_get_grid_alignment_info()   # e33=False, sample_resolution=(0.01, 0.01, 0.01))
 
+    # set value
+    # TODO - 20180820 - set up these values
+    lineEdit_youngModulus
+    lineEdit_poissonRatio
+    lineEdit_d0
+
     # align grid
+    # set to align to E22 by comboBox_alignmentCriteria  
+    # ... 
 
     # constrained stress/strain
 

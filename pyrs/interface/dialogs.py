@@ -97,28 +97,44 @@ class GridAlignmentCheckTableView(QMainWindow):
 
         # define events handlers
         self.ui.actionQuit.triggered.connect(self.do_quit)
+        self.ui.pushButton_showParameterValue.clicked.connect(self.do_show_parameter)
 
         # set up all the tables
         self.ui.tableView_gridAlignment.setup()
+        self.ui.tableView_gridStatistic.setup()   # TODO - 20180824 - method to set up the table
+        self.ui.tabWidget_alignedParams.setup()   # TODO - 20180824 - method to set up the table
+        self.ui.tableView_matchedGrids.setup()
+        self.ui.tableView_partialMatchedGrids.setup()
+        self.ui.tableView_mismatchedGrids.setup()
 
         return
 
     def do_quit(self):
-        """
-
+        """ close the window
         :return:
         """
         self.close()
 
-    def reset_table(self):
+    def do_show_parameter(self):
+        """
+        show the selected parameter's values on the grids, native or interpolated.
+        :return:
+        """
+        # TODO - 20180824 - Implement
+
+        return
+
+    def reset_tables(self):
         """
 
         :return:
         """
+        # TODO - 20180824 - Implement
+
+        return
 
     def set_aligned_grids_info(self, grid_array, mapping_array):
-        """
-
+        """ set the aligned grid information to tableView_gridAlignment
         :param grid_array:
         :param mapping_array:
         :return:
@@ -142,6 +158,14 @@ class GridAlignmentCheckTableView(QMainWindow):
 
             self.ui.tableView_gridAlignment.add_grid(pos_x, pos_y, pos_z, e11_scan_index, e22_scan_index,
                                                      e33_scan_index)
+        # END-FOR (i)
+
+        return
+
+    # TODO - 20180824 - method to set up the table
+    def set_parameter_list(self):
+        # comboBox_parameterList
+        return
 
 # END-DEF-CLASS ()
 
@@ -165,6 +189,9 @@ class StrainStressGridSetup(QDialog):
         # for return
         self._grid_setup_dict = dict()
 
+        # flag that user input is OK
+        self._is_user_input_acceptable = True
+
         return
 
     def do_accept_user_input(self):
@@ -177,12 +204,14 @@ class StrainStressGridSetup(QDialog):
             gui_helper.pop_message(self,
                                    'User specified grids requiring all values to be input: {}'.format(run_err),
                                    'error')
-            return
+            self._is_user_input_acceptable = False
+
         except ValueError as value_err:
             gui_helper.pop_message(self, 'User specified value incorrect: {}'.format(value_err),
                                    'error')
-            return
+            self._is_user_input_acceptable = False
 
+        # this will be called anyway to close the dialog
         super(StrainStressGridSetup, self).accept()
 
         return
@@ -220,6 +249,14 @@ class StrainStressGridSetup(QDialog):
         :return:
         """
         return self._grid_setup_dict
+
+    @property
+    def is_input_acceptable(self):
+        """
+        whether the input is acceptable
+        :return:
+        """
+        return self._is_user_input_acceptable
 
     def set_user_grids(self, state=True):
         """
@@ -312,17 +349,26 @@ def get_strain_stress_grid_setup(parent, user_define_grid, grid_stat_dict):
     :return:
     """
     # set up dialog
-    ss_dialog = StrainStressGridSetup(parent)
-    ss_dialog.set_experimental_data_statistics(grid_stat_dict)
-    ss_dialog.set_user_grids(user_define_grid)
+    grid_setup_dict = None
 
-    # launch dialog and wait for result
-    result = ss_dialog.exec_()
+    while True:
+        ss_dialog = StrainStressGridSetup(parent)
+        ss_dialog.set_experimental_data_statistics(grid_stat_dict)
+        ss_dialog.set_user_grids(user_define_grid)
+        # TODO - 20180829 - Implement!
+        # ss_dialog.set_previous_inputs(grid_setup_dict)
 
-    # process result
-    if not result:
-        return None
+        # launch dialog and wait for result
+        result = ss_dialog.exec_()
 
-    grid_setup_dict = ss_dialog.get_grid_setup()
+        # process result
+        if not result:
+            grid_setup_dict = None
+            break
+        else:
+            # loop will be terminated if user cancels or user gives a good result
+            grid_setup_dict = ss_dialog.get_grid_setup()
+            if ss_dialog.is_input_acceptable:
+                break
 
     return grid_setup_dict

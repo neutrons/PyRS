@@ -506,21 +506,18 @@ class StrainStressCalculationWindow(QMainWindow):
     def do_show_aligned_grid(self):
         """
         launch table to show how grids are aligned (match or not match)
+        --->  show an empty table???
         :param self:
         :return:
         """
         if self._grid_alignment_table is None:
             self._grid_alignment_table = dialogs.GridAlignmentCheckTableView(self)
-        else:
-            # clear
-            self._grid_alignment_table.reset_table()
-
-        # set up
-        self._grid_alignment_table.set_alignment_info(self._core.get_alignment_info())
 
         # show table
         self._grid_alignment_table.show()
 
+        # try to gather some grid alignment information from loaded data
+        # TODO - 20180824 - method to set up the table
 
         return
 

@@ -199,8 +199,9 @@ class StrainStressCalculator(object):
         self._young_e = None
         self._poisson_nu = None
 
-        # alignment
-        self._match11_dict = None
+        # grid matching/alignment
+        self._match11_dict = None  # [dir: e22/e33][e11 scan log index] = e22/33 scan log index: matched to grid e11
+
 
         return
 
