@@ -150,6 +150,15 @@ class GridsStatisticsTable(NTableWidget.NTableWidget):
 
         return
 
+    def setup(self):
+        """
+        Init setup
+        :return:
+        """
+        self.init_setup(self.TableSetupList)
+
+        return
+
 
 class GridAlignmentTable(NTableWidget.NTableWidget):
     """ Table to show how the grids from e11/e22/e33 are aligned
@@ -250,6 +259,15 @@ class MatchedGridsTable(NTableWidget.NTableWidget):
 
         return
 
+    def setup(self):
+        """
+        Init setup
+        :return:
+        """
+        self.init_setup(self.TableSetupList)
+
+        return
+
 
 class MismatchedGridsTable(NTableWidget.NTableWidget):
     """ Table for completed misaligned/mismatched grids
@@ -285,6 +303,15 @@ class MismatchedGridsTable(NTableWidget.NTableWidget):
         checkdatatypes.check_int_variable('Scan log index for {}'.format(direction), scan_index, (1, None))
 
         self.append_row([direction, scan_index, grid_pos_x, grid_pos_y, grid_pos_z])
+
+        return
+
+    def setup(self):
+        """
+        Init setup
+        :return:
+        """
+        self.init_setup(self.TableSetupList)
 
         return
 # END-CLASS
@@ -326,6 +353,15 @@ class ParamValueGridTable(NTableWidget.NTableWidget):
             checkdatatypes.check_float_variable('Parameter value for e33', param_value_33, (None, None))
 
         self.append_row([grid_pos_x, grid_pos_y, grid_pos_z, param_value_11, param_value_22, param_value_33])
+
+        return
+
+    def setup(self):
+        """
+        Init setup
+        :return:
+        """
+        self.init_setup(self.TableSetupList)
 
         return
 # END-CLASS-DEF
@@ -470,5 +506,68 @@ class PoleFigureTable(NTableWidget.NTableWidget):
         self._col_index_chi = self.TableSetupList.index(('chi', 'float'))
 
         self._col_index_goodness = self.TableSetupList.index(('cost', 'float'))
+
+        return
+# END-DEF-CLASS()
+
+
+class StrainStressValueTable(NTableWidget.NTableWidget):
+    """
+    A table for strain and stress value
+    """
+    TableSetupList = [('x', 'float'),
+                      ('y', 'float'),
+                      ('z', 'float'),
+                      ('e11', 'float'),  # e is short for epsilon as strain
+                      ('e22', 'float'),
+                      ('e33', 'float'),
+                      ('s11', 'float'),  # s is short for sigma as stress
+                      ('s22', 'float'),
+                      ('s33', 'float')]
+
+    def __init__(self, parent):
+        """
+        initialization
+        :param parent:
+        """
+        super(StrainStressValueTable, self).__init__(parent)
+
+        self._col_index_strain_dict = dict()
+        self._col_index_stress_dict = dict()
+
+        return
+
+    def add_grid_strain_stress(self, grid_pos, strain_matrix, stress_matrix):
+        """
+        add a grid with strain and
+        :param grid_pos:
+        :param strain_matrix:
+        :param stress_matrix:
+        :return:
+        """
+        # check inputs
+        checkdatatypes.check_numpy_arrays('Grid position', [grid_pos], dimension=1, check_same_shape=False)
+        checkdatatypes.check_numpy_arrays('Strain and stress matrix', [strain_matrix, stress_matrix],
+                                          dimension=2, check_same_shape=True)
+
+        line_list = list()
+        line_list.extend([pos for pos in grid_pos])
+        line_list.extend([strain_matrix[i, i] for i in range(3)])
+        line_list.extend([stress_matrix[i, i] for i in range(3)])
+
+        self.append_row(line_list)
+
+    def setup(self):
+        """
+        Init setup
+        :return:
+        """
+        self.init_setup(self.TableSetupList)
+
+        for index, element_name in ['e11', 'e22', 'e33']:
+            self._col_index_strain_dict['e11'] = 3 + index
+
+        for index, element_name in ['s11', 's22', 's33']:
+            self._col_index_strain_dict['s11'] = 6 + index
 
         return

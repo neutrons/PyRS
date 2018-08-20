@@ -110,6 +110,12 @@ class GridAlignmentCheckTableView(QMainWindow):
         """
         self.close()
 
+    def reset_table(self):
+        """
+
+        :return:
+        """
+
     def set_aligned_grids_info(self, grid_array, mapping_array):
         """
 
@@ -270,6 +276,34 @@ class StrainStressGridSetup(QDialog):
 
 
 # END-DEFINE-CLASS
+
+
+class StrainStressTableView(QMainWindow):
+    """ A window to show the table of calculated strain and stress
+    """
+    def __init__(self, parent):
+        """
+        initialization
+        :param parent:
+        """
+        super(StrainStressTableView, self).__init__(parent)
+
+        return
+
+    def do_quit(self):
+        """
+        quit
+        :return:
+        """
+        self.close()
+
+        return
+
+    def reset_main_table(self):
+        """
+        reset the main strain/stress value table
+        :return:
+        """
 
 
 def get_strain_stress_grid_setup(parent, user_define_grid, grid_stat_dict):

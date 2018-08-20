@@ -181,6 +181,7 @@ def pop_message(parent, message, detailed_message=None, message_type='error'):
     """ pop up a message with specified message type such as error, warning, info...
     :param parent:
     :param message:
+    :param detailed_message: detailed message optionally shown to user
     :param message_type: str as ['error', 'warning', 'info'] but NOT case sensitive
     :return:
     """
@@ -188,22 +189,29 @@ def pop_message(parent, message, detailed_message=None, message_type='error'):
     if message_type not in ['error', 'warning', 'info']:
         raise TypeError('Message type {0} is not supported.'.format(message_type))
 
-    msg = QMessageBox()
+    # check types
+    checkdatatypes.check_string_variable('(Main) message to show', message)
+    checkdatatypes.check_string_variable('(Detailed) message to show', detailed_message)
+
+    # create a QMessageBox
+    msg_box = QMessageBox()
+
+    # set information type
     if message_type == 'info':
-        msg.setIcon(QMessageBox.Information)
+        msg_box.setIcon(QMessageBox.Information)
     elif message_type == 'error':
-        msg.setIcon(QMessageBox.Critical)
+        msg_box.setIcon(QMessageBox.Critical)
+    elif message_type == 'warning':
+        msg_box.setIcon(QMessageBox.Warning)
 
-    msg.setText(message)
-    # Line 2 msg.setInformativeText("This is additional information")
-    # msg.setWindowTitle("MessageBox demo")
-    msg.setDetailedText("The details are as follows:")  # another button
-    msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
-    # msg.buttonClicked.connect(msgbtn)
+    # set text
+    msg_box.setText(message)
+    msg_box.setDetailedText(detailed_message)  # another button
+    msg_box.setWindowTitle('PyRS Message')
 
-    retval = msg.exec_()
-    print "value of pressed message box button:", retval, type(retval)
+    # box
+    msg_box.setStandardButtons(QMessageBox.Ok)
+
+    ret_val = msg_box.exec_()
 
     return
-
-

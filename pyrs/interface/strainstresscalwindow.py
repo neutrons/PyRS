@@ -324,15 +324,7 @@ class StrainStressCalculationWindow(QMainWindow):
             self.ui.comboBox_sampleLogNameX.addItem(log_name)
             self.ui.comboBox_sampleLogNameY.addItem(log_name)
             self.ui.comboBox_sampleLogNameZ.addItem(log_name)
-
-        # # calculate peaks in d-spacing
-        # # TODO - 20180810 - Wavelength value can be found in HDF5's Wavelength
-        # # TODO   (continue) Log? - Wavelength
-        # try:
-        #     self._core.strain_stress_calculator.calculate_peaks_positions_in_d()
-        #     self._peaks_in_d = True
-        # except RuntimeError as run_err:
-        #     self._peaks_in_d = False
+        # END-FOR
 
         return
 
@@ -517,15 +509,14 @@ class StrainStressCalculationWindow(QMainWindow):
         :param self:
         :return:
         """
-        # TODO - 20180813 - Implement the table view
         if self._grid_alignment_table is None:
             self._grid_alignment_table = dialogs.GridAlignmentCheckTableView(self)
         else:
-            pass
-            # self._grid_alignment_table.reset_tables()
+            # clear
+            self._grid_alignment_table.reset_table()
 
         # set up
-        # TODO - 20180814 - self._grid_alignment_table.set_alignment_info(self._core.get_alignment_info())
+        self._grid_alignment_table.set_alignment_info(self._core.get_alignment_info())
 
         # show table
         self._grid_alignment_table.show()
