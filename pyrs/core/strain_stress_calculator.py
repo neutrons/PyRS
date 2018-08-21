@@ -161,7 +161,7 @@ class StrainStressCalculator(object):
         self._sample_log_dict = dict()
         for dir_i in self._direction_list:
             self._data_set_dict[dir_i] = None
-            self._peak_param_dict[dir_i] = None
+            self._peak_param_dict[dir_i] = None   # [dir][parameter name][scan log index]
             self._sample_log_dict[dir_i] = None
 
         # source files
@@ -947,6 +947,15 @@ class StrainStressCalculator(object):
         :return: dictionary (3-levels)
         """
         return self._grid_statistics_dict
+
+    def get_peak_parameter_names(self):
+        """
+        get the name of peak parameters.  It shouldn't be any difference among directions
+        :return:
+        """
+        arb_dir = self._direction_list[0]
+
+        return self._peak_param_dict[arb_dir].keys()
 
     def get_sample_logs_names(self, direction, to_set):
         """

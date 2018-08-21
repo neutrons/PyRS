@@ -30,7 +30,7 @@ class StrainStressCalculationWindow(QMainWindow):
         # child dialogs and windows
         self._d0_grid_dialog = None
         self._strain_stress_table_view = None
-        self._grid_alignment_table = None
+        self._grid_alignment_table_view = None
         self._new_session_dialog = None
 
         # set up UI
@@ -177,10 +177,9 @@ class StrainStressCalculationWindow(QMainWindow):
 
         # show the align grids report???
         self.do_show_aligned_grid()
-        self._grid_alignment_table.set_aligned_grids_info(grid_array, mapping_array)
-
-        #
-        # TODO - 20180816 - To be continued
+        self._grid_alignment_table_view.set_aligned_grids_info(grid_array, mapping_array)
+        self._grid_alignment_table_view.set_peak_parameter_names(
+            self._core.strain_stress_calculator.get_peak_parameter_names())
 
         # allow to calculate strain and stress
         self.ui.pushButton_calUnconstrainedStress.setEnabled(True)
@@ -258,15 +257,24 @@ class StrainStressCalculationWindow(QMainWindow):
         else:
             e_young, nu_poisson = params
 
-        # TODO - 20180810 - d0 might not be a single value but changes along grids.
-        # TODO   (continue) So make it possible to accept d0 in a n x 3 matrix as (x, y, z)
-        rs_core.strain_stress_calculator.set_d0(d0=1.2345)
-        rs_core.strain_stress_calculator.set_youngs_modulus(young_e=500.)
-        rs_core.strain_stress_calculator.set_poisson_ratio(poisson_ratio=0.23)
+        # set E, nu and d0 to calculator
+        self._core.strain_stress_calculator.set_youngs_modulus(young_e=e_young)
+        self._core.strain_stress_calculator.set_poisson_ratio(poisson_ratio=nu_poisson)
+
+        # get d0
+        if self.ui.radioButton_uniformD0.isChecked():
+            # uniformed d0
+            d0 = float(self.ui.lineEdit_d0.text())
+            self._core.strain_stress_calculator.set_d0(d0=d0)
+        else:
+            # d0 varies across sample grids
+            # TODO - 2018 - Need Jeff's data to develop the UI and etc
+            grids_d0 = self._grid_d0_dialog.get_d0_grids()
+            self._core.strain_stress_calculator.set_grids_d0(grids_d0)
+        # END-IF
 
         # call the core to calculate strain
         self._core.strain_stress_calculator.execute()
-        # TODO
 
         return
 
@@ -510,11 +518,11 @@ class StrainStressCalculationWindow(QMainWindow):
         :param self:
         :return:
         """
-        if self._grid_alignment_table is None:
-            self._grid_alignment_table = dialogs.GridAlignmentCheckTableView(self)
+        if self._grid_alignment_table_view is None:
+            self._grid_alignment_table_view = dialogs.GridAlignmentCheckTableView(self)
 
         # show table
-        self._grid_alignment_table.show()
+        self._grid_alignment_table_view.show()
 
         # try to gather some grid alignment information from loaded data
         # TODO - 20180824 - method to set up the table

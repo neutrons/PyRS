@@ -162,9 +162,18 @@ class GridAlignmentCheckTableView(QMainWindow):
 
         return
 
-    # TODO - 20180824 - method to set up the table
-    def set_parameter_list(self):
-        # comboBox_parameterList
+    def set_peak_parameter_names(self, peak_param_names):
+        """ set the peak parameter names to combo box for user to specify
+        :param peak_param_names:
+        :return:
+        """
+        checkdatatypes.check_list('Peak parameter names', peak_param_names)
+
+        self.ui.comboBox_parameterList.clear()
+        peak_param_names.sort()
+        for p_name in peak_param_names:
+            self.ui.comboBox_parameterList.addItem(p_name)
+
         return
 
 # END-DEF-CLASS ()
@@ -225,6 +234,7 @@ class StrainStressGridSetup(QDialog):
         checkdatatypes.check_bool_variable('Flag to allow empty input', allow_empty)
 
         self._grid_setup_dict = dict()
+        err_msg = ''
         for param_name in ['Min', 'Max', 'Resolution']:
             self._grid_setup_dict[param_name] = dict()
             for coord_i in ['X', 'Y', 'Z']:
@@ -234,12 +244,15 @@ class StrainStressGridSetup(QDialog):
                 line_edit = getattr(self.ui, line_edit_name)
                 value_str = str(line_edit.text()).strip()
                 if value_str == '' and not allow_empty:
-                    raise RuntimeError('{} {} is empty'.format(param_name, coord_i))
+                    err_msg += '{} {} is empty\n'.format(param_name, coord_i)
                 elif value_str != '':
                     value_i = float(value_str)
                     self._grid_setup_dict[param_name][coord_i] = value_i
             # END-FOR (coord_i)
         # END-FOR (param_name)
+
+        if len(err_msg) > 0:
+            raise RuntimeError(err_msg)
 
         return
 
@@ -258,7 +271,30 @@ class StrainStressGridSetup(QDialog):
         """
         return self._is_user_input_acceptable
 
-    def set_user_grids(self, state=True):
+    def set_previous_inputs(self, grid_setup_dict):
+        """
+        set the previous user inputs of grid setup
+        :param grid_setup_dict:
+        :return:
+        """
+        checkdatatypes.check_dict('Grid setup', grid_setup_dict)
+
+        for param_name in ['Min', 'Max', 'Resolution']:
+            for coord_i in ['X', 'Y', 'Z']:
+                # do not set up if there is no user input
+                if grid_setup_dict[param_name][coord_i] is None:
+                    continue
+
+                # set value
+                line_edit_name = 'lineEdit_grid{}{}'.format(param_name, coord_i)
+                line_edit = getattr(self.ui, line_edit_name)
+                line_edit.setText('{}'.format(grid_setup_dict[param_name][coord_i]))
+            # END-FOR
+        # END-FOR
+
+        return
+
+    def set_user_grids_flag(self, state=True):
         """
         set the status to be user specified grids or not
         :param state: 
@@ -341,6 +377,30 @@ class StrainStressTableView(QMainWindow):
         reset the main strain/stress value table
         :return:
         """
+        self.ui.tableView_gridAlignment.remove_all_rows()
+
+        return
+
+    def set_strain_stress_values(self, strain_stress_value_dict):
+        """ set strain and stress values.  Each row shall be a sample grid
+        :param strain_stress_value_dict: key = grid position (vector) value = dict [strain, stress]
+        :return:
+        """
+        grids = sorted(strain_stress_value_dict.keys())
+        for i_grid in range(len(grids)):
+            # get grid, strain and stress
+            grid_vec = grids[i_grid]
+            ss_dict = strain_stress_value_dict[grid_vec]
+            strain_matrix = ss_dict['strain']
+            stress_matrix = ss_dict['stress']
+
+            # get the elements needed
+            self.ui.tableView_gridAlignment.add_grid_strain_stress(grid_pos=grid_vec,
+                                                                   strain_matrix=strain_matrix,
+                                                                   stress_matrix=stress_matrix)
+        # END-FOR
+
+        return
 
 
 def get_strain_stress_grid_setup(parent, user_define_grid, grid_stat_dict):
@@ -354,9 +414,8 @@ def get_strain_stress_grid_setup(parent, user_define_grid, grid_stat_dict):
     while True:
         ss_dialog = StrainStressGridSetup(parent)
         ss_dialog.set_experimental_data_statistics(grid_stat_dict)
-        ss_dialog.set_user_grids(user_define_grid)
-        # TODO - 20180829 - Implement!
-        # ss_dialog.set_previous_inputs(grid_setup_dict)
+        ss_dialog.set_user_grids_flag(user_define_grid)
+        ss_dialog.set_previous_inputs(grid_setup_dict)
 
         # launch dialog and wait for result
         result = ss_dialog.exec_()
