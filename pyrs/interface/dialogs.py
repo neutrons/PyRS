@@ -102,7 +102,7 @@ class GridAlignmentCheckTableView(QMainWindow):
         # set up all the tables
         self.ui.tableView_gridAlignment.setup()
         self.ui.tableView_gridStatistic.setup()   # TODO - 20180824 - method to set up the table
-        self.ui.tabWidget_alignedParams.setup()   # TODO - 20180824 - method to set up the table
+        self.ui.tableView_alignedParameters.setup()   # TODO - 20180824 - method to set up the table
         self.ui.tableView_matchedGrids.setup()
         self.ui.tableView_partialMatchedGrids.setup()
         self.ui.tableView_mismatchedGrids.setup()

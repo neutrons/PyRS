@@ -45,7 +45,7 @@ def test_main(test_dir):
     ss_window.do_get_grid_alignment_info()   # e33=False, sample_resolution=(0.01, 0.01, 0.01))
 
     # set value
-    # TODO - 20180820 - set up these values
+    # TODO - 20180820 - set up these values - TODO
     lineEdit_youngModulus
     lineEdit_poissonRatio
     lineEdit_d0

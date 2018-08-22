@@ -82,6 +82,22 @@
            </widget>
           </item>
           <item>
+           <spacer name="horizontalSpacer_4">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeType">
+             <enum>QSizePolicy::Preferred</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
            <widget class="QComboBox" name="comboBox_parameterList">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
@@ -97,7 +113,7 @@
              <enum>Qt::Horizontal</enum>
             </property>
             <property name="sizeType">
-             <enum>QSizePolicy::Expanding</enum>
+             <enum>QSizePolicy::Preferred</enum>
             </property>
             <property name="sizeHint" stdset="0">
              <size>
@@ -113,14 +129,91 @@
              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Show specified parameter's values for each direction (e11/e22/e33) on each strain/stress grid.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;p&gt;The first attempt is to find matched grid from experiment.&lt;/p&gt;&lt;p&gt;If there is no matched grid, then an interpolation is made.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
             </property>
             <property name="text">
-             <string>Match &amp;&amp; Interpolate</string>
+             <string>Align</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_3">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="ParamValueGridTable" name="tableView_alignedParameters"/>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="tab_5">
+       <attribute name="title">
+        <string>Alignment Analysis</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout_2">
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_2">
+          <item>
+           <widget class="QLabel" name="label_8">
+            <property name="text">
+             <string>Parameter</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="comboBox_parameterNamesAnalysis"/>
+          </item>
+          <item>
+           <widget class="QComboBox" name="comboBox_ssDirection">
+            <item>
+             <property name="text">
+              <string>e11</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>e22</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>e33</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="pushButton_loadParameter">
+            <property name="text">
+             <string>Load</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="pushButton_mapParamValueToFinalGrids">
+            <property name="text">
+             <string>Map</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="pushButton_export2D">
+            <property name="text">
+             <string>Export</string>
             </property>
            </widget>
           </item>
          </layout>
         </item>
         <item>
-         <widget class="ParamValueGridTable" name="tableView"/>
+         <widget class="ParamValueMapAnalysisTable" name="tableView_gridParamAnalysis"/>
         </item>
        </layout>
       </widget>
@@ -294,6 +387,11 @@
   </customwidget>
   <customwidget>
    <class>ParamValueGridTable</class>
+   <extends>QTableView</extends>
+   <header>rstables.h</header>
+  </customwidget>
+  <customwidget>
+   <class>ParamValueMapAnalysisTable</class>
    <extends>QTableView</extends>
    <header>rstables.h</header>
   </customwidget>
