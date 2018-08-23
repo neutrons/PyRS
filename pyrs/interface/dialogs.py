@@ -10,6 +10,7 @@ from pyrs.utilities import checkdatatypes
 from ui import ui_newsessiondialog
 from ui import ui_strainstressgridsetup
 import ui.ui_gridsalignmentview
+import ui.ui_sliceexportdialog
 
 
 class CreateNewSessionDialog(QDialog):
@@ -82,6 +83,42 @@ class CreateNewSessionDialog(QDialog):
         return
 
 
+class ExportGridSliceSetupDialog(QDialog):
+    """
+    Set up slicing (coordinate) direction and value
+    Example: Y = 0 +/- 0.01
+    """
+    def __init__(self, parent):
+        """
+        initialization
+        :param parent:
+        """
+        super(ExportGridSliceSetupDialog, self).__init__(parent)
+
+        # setup ui
+        self.ui = ui.ui_sliceexportdialog.Ui_Dialog()
+        self.ui.setupUi(self)
+
+        # set default value
+        self.ui.lineEdit_resolution.setText('0.001')
+
+        return
+
+    def get_slicing_setup(self):
+        """ get slicing set up
+        Note: integer slicing direction: x <--> 0, y <--> 1, z <--> 2
+        :return: 3-tuple: direction (int), value (float), resolution (float)
+        """
+        slice_dir = self.ui.comboBox_coordDir.currentIndex()
+
+        try:
+            slice_value = float(self.ui.lineEdit_value.text())
+            resolution = float(self.ui.lineEdit_resolution.text())
+        except ValueError as value_err:
+            raise RuntimeError('Unable to parse position to slice at')
+
+        return slice_dir, slice_value, resolution
+
 # TODO - 20180814 - Clean up
 class GridAlignmentCheckTablesView(QMainWindow):
     """ A set of tables in order to check grid alignment in order to set up the final grids
@@ -95,6 +132,9 @@ class GridAlignmentCheckTablesView(QMainWindow):
         # define my parent
         self._parent = parent
         self._core = parent.core
+
+        # state
+        self._is_analysis_table_raw = True   # analysis table has raw experiment grids
 
         self.ui = ui.ui_gridsalignmentview.Ui_MainWindow()
         self.ui.setupUi(self)
@@ -113,6 +153,7 @@ class GridAlignmentCheckTablesView(QMainWindow):
         self.ui.tableView_matchedGrids.setup()
         self.ui.tableView_partialMatchedGrids.setup()
         self.ui.tableView_mismatchedGrids.setup()
+        self.ui.tableView_gridParamAnalysis.setup()
 
         return
 
@@ -121,6 +162,24 @@ class GridAlignmentCheckTablesView(QMainWindow):
         export a plane (2D) in the 3D grid system
         :return:
         """
+        setup_tuple = get_grid_slicing_export_setup(self)
+        if setup_tuple is None:
+            return
+        else:
+            slice_dir, slice_pos, slice_resolution = setup_tuple
+
+        file_name = gui_helper.browse_file(self, caption='Export a slice of the grids',
+                                           default_dir=self._core.working_dir,
+                                           file_filter='HDF (*.hdf5)',
+                                           save_file=True)
+
+        # save file
+        param_name = str(self.ui.comboBox_parameterNamesAnalysis.currentText())
+        ss_dir = str(self.ui.comboBox_ssDirection.currentText())
+        self._core.strain_stress_calculator.export_2d_slice(param_name, self._is_analysis_table_raw, ss_dir, slice_dir,
+                                                            slice_pos, slice_resolution, file_name)
+
+        return
 
     def do_load_mapped_values(self):
         """
@@ -147,6 +206,7 @@ class GridAlignmentCheckTablesView(QMainWindow):
         """
         # get parameter name and direction
         param_name = str(self.ui.comboBox_parameterNamesAnalysis.currentText())
+        print ('[DB...BAT] parameter index : {}'.format(self.ui.comboBox_parameterNamesAnalysis.currentIndex()))
         ss_dir = str(self.ui.comboBox_ssDirection.currentText())
 
         # get value: returned list spec can be found in both rctables and strain stress calculator
@@ -229,9 +289,12 @@ class GridAlignmentCheckTablesView(QMainWindow):
         checkdatatypes.check_list('Peak parameter names', peak_param_names)
 
         self.ui.comboBox_parameterList.clear()
+        self.ui.comboBox_parameterNamesAnalysis.clear()
         peak_param_names.sort()
         for p_name in peak_param_names:
             self.ui.comboBox_parameterList.addItem(p_name)
+            self.ui.comboBox_parameterNamesAnalysis.addItem(p_name)
+        # END-FOR
 
         return
 
@@ -336,6 +399,10 @@ class StrainStressGridSetup(QDialog):
         :param grid_setup_dict:
         :return:
         """
+        # doing nothing
+        if grid_setup_dict is None:
+            return
+
         checkdatatypes.check_dict('Grid setup', grid_setup_dict)
 
         for param_name in ['Min', 'Max', 'Resolution']:
@@ -460,6 +527,36 @@ class StrainStressTableView(QMainWindow):
         # END-FOR
 
         return
+
+
+def get_grid_slicing_export_setup(parent):
+    """
+    for exporting a slice on grid. get the setup such that on which axis which value to be sliced at and exported
+    :param parent:
+    :return:
+    """
+    # value to return
+    return_value = None
+
+    while True:
+        # init
+        slice_setup_dialog = ExportGridSliceSetupDialog(parent)
+
+        # launch
+        result = slice_setup_dialog.exec_()
+
+        # process result
+        if result:
+            try:
+                return_value = slice_setup_dialog.get_slicing_setup()
+                break
+            except RuntimeError as run_err:
+                gui_helper.pop_message(parent, str(run_err), message_type='error')
+        else:
+            break
+    # END-WHILE
+
+    return return_value
 
 
 def get_strain_stress_grid_setup(parent, user_define_grid, grid_stat_dict):

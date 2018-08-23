@@ -191,7 +191,8 @@ def pop_message(parent, message, detailed_message=None, message_type='error'):
 
     # check types
     checkdatatypes.check_string_variable('(Main) message to show', message)
-    checkdatatypes.check_string_variable('(Detailed) message to show', detailed_message)
+    if detailed_message is not None:
+        checkdatatypes.check_string_variable('(Detailed) message to show', detailed_message)
 
     # create a QMessageBox
     msg_box = QMessageBox()
@@ -206,7 +207,8 @@ def pop_message(parent, message, detailed_message=None, message_type='error'):
 
     # set text
     msg_box.setText(message)
-    msg_box.setDetailedText(detailed_message)  # another button
+    if detailed_message is not None:
+        msg_box.setDetailedText(detailed_message)  # another button
     msg_box.setWindowTitle('PyRS Message')
 
     # box

@@ -179,20 +179,36 @@ class StrainStressCalculationWindow(QMainWindow):
         if ret_value is None:
             return
 
-        grid_array, mapping_array = self._core.strain_stress_calculator.align_grids(direction=direction,
-                                                                                    user_defined=user_define,
-                                                                                    grids_dimension_dict=ret_value)
+        self.align_user_grids(direction, user_define_flag=user_define,
+                              grids_setup_dict=ret_value, show_aligned_grid=True)
+
+        return
+
+    def align_user_grids(self, direction, user_define_flag, grids_setup_dict, show_aligned_grid=True):
+        """
+
+        :param direction:
+        :param user_define_flag:
+        :param grids_setup_dict:
+        :param show_aligned_grid:
+        :return:
+        """
+        grid_array, mapping_array = \
+            self._core.strain_stress_calculator.align_grids(direction=direction, user_defined=user_define_flag,
+                                                            grids_dimension_dict=grids_setup_dict)
 
         # show the align grids report???
-        self.do_show_aligned_grid()
-        self._grid_alignment_table_view.set_aligned_grids_info(grid_array, mapping_array)
-        self._grid_alignment_table_view.set_peak_parameter_names(
-            self._core.strain_stress_calculator.get_peak_parameter_names())
+        if show_aligned_grid:
+            self.do_show_aligned_grid()
+            self._grid_alignment_table_view.set_aligned_grids_info(grid_array, mapping_array)
+            self._grid_alignment_table_view.set_peak_parameter_names(
+                self._core.strain_stress_calculator.get_peak_parameter_names())
+        # END-IF (show aligned grid)
 
         # allow to calculate strain and stress
         self.ui.pushButton_calUnconstrainedStress.setEnabled(True)
 
-        return
+        return self._grid_alignment_table_view
 
     def do_browse_e11_file(self):
         """ browse LD raw file
@@ -341,6 +357,9 @@ class StrainStressCalculationWindow(QMainWindow):
             self.ui.comboBox_sampleLogNameY.addItem(log_name)
             self.ui.comboBox_sampleLogNameZ.addItem(log_name)
         # END-FOR
+
+        # convert the peak centers to dspacing
+        self._core.strain_stress_calculator.convert_peaks_positions()
 
         return
 

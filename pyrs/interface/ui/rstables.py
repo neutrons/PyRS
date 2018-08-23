@@ -449,7 +449,7 @@ class ParamValueMapAnalysisTable(NTableWidget.NTableWidget):
 
         for i_grid, grid_pos in enumerate(grid_positions):
             grid_i = raw_grid_value_dict[grid_pos]
-            self.append_row([None, grid_pos[0], grid_pos[1], grid_pos[2],
+            self.append_row([grid_i['scan-index'], grid_pos[0], grid_pos[1], grid_pos[2],
                              grid_i['value'], grid_i['dir']])
         # END-FOR
 

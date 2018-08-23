@@ -44,11 +44,32 @@ def test_main(test_dir):
     ss_window.ui.comboBox_sampleLogNameZ.setCurrentIndex(0)
     ss_window.do_get_grid_alignment_info()   # e33=False, sample_resolution=(0.01, 0.01, 0.01))
 
+    # set the uer alignment
+    setup_dict = {'Max': {'Y': None, 'X': 140.0, 'Z': None},
+                  'Resolution': {'Y': None, 'X': None, 'Z': None},
+                  'Min': {'Y': None, 'X': -140.0, 'Z': None}}
+
+    grid_info_window = ss_window.align_user_grids(direction='e22', user_define_flag=False, grids_setup_dict=setup_dict,
+                                                  show_aligned_grid=True)
+
+    # work on grid information window
+    grid_info_window.ui.comboBox_parameterNamesAnalysis.setCurrentIndex(2)  # set to center_d
+    grid_info_window.do_load_params_raw_grid()
+    grid_info_window.ui.tabWidget_alignedParams.setCurrentIndex(2)
+
+    ss_window.core.strain_stress_calculator.export_2d_slice('center_d', True, 'e11', 1,
+                                                            slice_pos=0.0, slice_resolution=0.001,
+                                                            file_name='/tmp/pyrs_test_ss/test.hdf5')
+
+    #
+    # # pop out the window for grid check
+    # ss_window.do_show_aligned_grid()
+
     # set value
-    # TODO - 20180820 - set up these values - TODO
-    lineEdit_youngModulus
-    lineEdit_poissonRatio
-    lineEdit_d0
+    # TODO - 20180820 - set up these values - TODO -- Not there yet
+    # lineEdit_youngModulus
+    # lineEdit_poissonRatio
+    # lineEdit_d0
 
     # align grid
     # set to align to E22 by comboBox_alignmentCriteria  

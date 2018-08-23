@@ -170,10 +170,10 @@ class StrainStressCalculator(object):
             self._source_file_dict[dir_i] = None
 
         # transformed data set
-        self._dir_grid_pos_scan_index_dict = dict()
+        self._dir_grid_pos_scan_index_dict = dict()   # [e11/e22/e33][grid pos][scan log index]
         for dir_i in self._direction_list:
             self._dir_grid_pos_scan_index_dict[dir_i] = None  # (value) a dictionary: key = sample position,
-                                                      # value = scan log index
+                                                              # value = scan log index
 
         # flag whether the measured sample points can be aligned. otherwise, more complicated algorithm is required
         # including searching and interpolation
@@ -246,7 +246,8 @@ class StrainStressCalculator(object):
 
         return grids
 
-    def _generate_grids(self, grids_dimension_dict):
+    @staticmethod
+    def _generate_grids(grids_dimension_dict):
         """
         generate a new strain/stress grid from user-specified dimension
         :param grids_dimension_dict:
@@ -728,14 +729,14 @@ class StrainStressCalculator(object):
         """
         for i_dir, ss_dir in enumerate(self._direction_list):
             # create the vector
-            num_pts = len(self._sample_positions_dict[ss_dir])
+            num_pts = len(self._peak_param_dict[ss_dir]['centre'])
             self._peak_param_dict[ss_dir]['center_d'] = numpy.ndarray(shape=(num_pts,), dtype='float')
 
             # convert peak center from 2theta to d
             for scan_log_index in range(num_pts):
                 peak_i_2theta = self._peak_param_dict[ss_dir]['centre'][scan_log_index]
                 lambda_i = self._sample_log_dict[ss_dir]['Wavelength'][scan_log_index]
-                peak_i_d = lambda_i * 0.5 / math.sin(peak_i_2theta * 0.5)  # self.convert_unit_to_d(peak_i_2theta)
+                peak_i_d = lambda_i * 0.5 / math.sin(peak_i_2theta * 0.5 * math.pi / 180.)
                 self._peak_param_dict[ss_dir]['center_d'][scan_log_index] = peak_i_d
             # END-FOR
         # END-FOR
@@ -878,6 +879,91 @@ class StrainStressCalculator(object):
 
         return
 
+    def export_2d_slice(self, param_name, is_grid_raw, ss_direction, slice_dir, slice_pos, slice_resolution, file_name):
+        """
+        export a 2D slice from
+        :param param_name:
+        :param is_grid_raw:
+        :param ss_direction:
+        :param slice_dir:
+        :param slice_pos:
+        :param slice_resolution:
+        :param file_name:
+        :return:
+        """
+        print (param_name, is_grid_raw, ss_direction, slice_dir, slice_pos, slice_resolution, file_name)
+        # check inputs
+        pyrs.utilities.checkdatatypes.check_bool_variable('Flag to show whether the grids are raw experimental ones',
+                                                          is_grid_raw)
+
+        # convert the girds and parameter values to a shape=(n, 4) array
+        if is_grid_raw:
+            param_grid_array = self.convert_raw_grid_value_to_matrix(param_name, ss_direction)
+        else:
+            param_grid_array = self.convert_user_grid_value_to_matrix(param_name, ss_direction)
+
+        # slice the (n, 4) array at 1 direction
+        sliced_grid_array = self.slice_md_data(param_grid_array, slice_dir, slice_pos, slice_resolution)
+
+        # export result to hdf5
+        scandataio.export_md_array_hdf5(sliced_grid_array, [slice_dir], file_name)
+
+        return
+
+    def convert_raw_grid_value_to_matrix(self, param_name, ss_direction):
+        """
+        convert the grid position and specified parameter value to a (n, 4) 2D array
+        :param param_name:
+        :param ss_direction:
+        :return:
+        """
+        # check inputs
+        pyrs.utilities.checkdatatypes.check_string_variable('Strain/stress direction', ss_direction,
+                                                            self._direction_list)
+        pyrs.utilities.checkdatatypes.check_string_variable('Parameter name', param_name,
+                                                            allowed_values=self._peak_param_dict[ss_direction].keys())
+
+        num_grids = len(self._dir_grid_pos_scan_index_dict[ss_direction])
+
+        # create the 2D array
+        param_grid_array = numpy.ndarray(shape=(num_grids, 4), dtype='float')
+        grids_list = sorted(self._dir_grid_pos_scan_index_dict[ss_direction].keys())
+        for i_grid, grid_pos in enumerate(grids_list):
+            # position of grid on sample
+            for i_coord in range(3):
+                param_grid_array[i_grid][i_coord] = grid_pos[i_coord]
+            # parameter value
+            scan_log_index = self._dir_grid_pos_scan_index_dict[ss_direction][grid_pos]
+            param_value = self._peak_param_dict[ss_direction][param_name][scan_log_index]
+            param_grid_array[i_grid][3] = param_value
+        # END-FOR
+
+        return param_grid_array
+
+    @staticmethod
+    def slice_md_data(param_grid_array, slice_dir, slice_pos, slice_resolution):
+        """ slice multi-dimensional data from a (n x m) matrix
+        :param param_grid_array:
+        :param slice_dir:
+        :param slice_pos:
+        :param slice_resolution:
+        :return:
+        """
+        pyrs.utilities.checkdatatypes.check_numpy_arrays('Parameter value on grids', [param_grid_array], 2, False)
+        pyrs.utilities.checkdatatypes.check_int_variable('Slicing direction', slice_dir, (0, 3))
+        pyrs.utilities.checkdatatypes.check_float_variable('Slicing position', slice_pos, (None, None))
+        pyrs.utilities.checkdatatypes.check_float_variable('Slicing resolution', slice_resolution, (0, None))
+
+        min_value = slice_pos - slice_resolution
+        max_value = slice_pos + slice_resolution
+
+        print ('[DB...INFO Before slicing: size = {}'.format(param_grid_array.shape[0]))
+        slice_array = param_grid_array[min_value <= param_grid_array[:, slice_dir]]
+        slice_array = slice_array[slice_array[:, slice_dir] <= max_value]
+        print ('[DB...INFO After  slicing: size = {}'.format(slice_array.shape[0]))
+
+        return slice_array
+
     def generate_xyz_scan_log_dict(self, direction, pos_x, pos_y, pos_z):
         """
         Retrieve XYZ position
@@ -984,21 +1070,22 @@ class StrainStressCalculator(object):
         :param param_name:
         :return:
         """
-        # TODO - 20180822 - Finish it! - TODO
         # check input
         pyrs.utilities.checkdatatypes.check_string_variable('Strain/stress direction', ss_direction,
                                                             self._direction_list)
-        pyrs.utilities.checkdatatypes.check_string_variable('Parameter name', param_name)
+        pyrs.utilities.checkdatatypes.check_string_variable('Parameter name', param_name,
+                                                            allowed_values=self._peak_param_dict[ss_direction].keys())
 
-        # get the
-        return_list = list()
-        for whatever in []:
-            grid_val_dict = {'scan-index': None, 'pos': None, 'value': None, 'dir': ss_direction}
-
-            return_list.append(grid_val_dict)
+        grid_param_dict = dict()
+        # check parameter name
+        for grid_pos in self._dir_grid_pos_scan_index_dict[ss_direction].keys():
+            scan_log_index = self._dir_grid_pos_scan_index_dict[ss_direction][grid_pos]
+            param_value = self._peak_param_dict[ss_direction][param_name][scan_log_index]
+            grid_val_dict = {'scan-index': scan_log_index, 'value': param_value, 'dir': ss_direction}
+            grid_param_dict[grid_pos] = grid_val_dict
         # END-FOR
 
-        return return_list
+        return grid_param_dict
 
     def get_user_grid_param_values(self, ss_direction, param_name):
         """ Get the mapped value to user defined grid

@@ -1,0 +1,474 @@
+try:
+    from PyQt5.QtCore import pyqtSignal
+    from PyQt5.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
+    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+    from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
+except ImportError:
+    from PyQt4.QtGui import QWidget, QSizePolicy, QVBoxLayout
+    from PyQt4.QtCore import pyqtSignal
+    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+    from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
+
+import numpy as np
+from matplotlib.figure import Figure
+import matplotlib.image
+
+
+class Mpl2DGraph(QWidget):
+    """ A combined graphics view including matplotlib canvas and
+    a navigation tool bar
+
+    Note: Merged with HFIR_Powder_Reduction.MplFigureCAnvas
+    """
+    def __init__(self, parent):
+        """ Initialization
+        """
+        # Initialize parent
+        super(Mpl2DGraph, self).__init__(parent)
+
+        # set up canvas
+        self._myCanvas = Qt4Mpl2DCanvas(self)
+
+        # set up layout
+        self._vBox = QVBoxLayout(self)
+        self._vBox.addWidget(self._myCanvas)
+
+        return
+
+    @property
+    def canvas(self):
+        """
+        access to canvas
+        :return:
+        """
+        return self._myCanvas
+
+    def move_indicator(self, line_id, dx, dy):
+        """
+        Move the indicator line in horizontal
+        :param line_id:
+        :param dx:
+        :return:
+        """
+        # Shift value
+        self._myIndicatorsManager.shift(line_id, dx=dx, dy=dy)
+
+        # apply to plot on canvas
+        if self._myIndicatorsManager.get_line_type(line_id) < 2:
+            # horizontal or vertical
+            canvas_line_index = self._myIndicatorsManager.get_canvas_line_index(line_id)
+            vec_x, vec_y = self._myIndicatorsManager.get_data(line_id)
+            self._myCanvas.updateLine(ikey=canvas_line_index, vecx=vec_x, vecy=vec_y)
+        else:
+            # 2-way
+            canvas_line_index_h, canvas_line_index_v = self._myIndicatorsManager.get_canvas_line_index(line_id)
+            h_vec_set, v_vec_set = self._myIndicatorsManager.get_2way_data(line_id)
+
+            self._myCanvas.updateLine(ikey=canvas_line_index_h, vecx=h_vec_set[0], vecy=h_vec_set[1])
+            self._myCanvas.updateLine(ikey=canvas_line_index_v, vecx=v_vec_set[0], vecy=v_vec_set[1])
+
+        return
+
+    def remove_indicator(self, indicator_key):
+        """ Remove indicator line
+        :param indicator_key:
+        :return:
+        """
+        #
+        plot_id = self._myIndicatorsManager.get_canvas_line_index(indicator_key)
+        self._myCanvas.remove_plot_1d(plot_id)
+        self._myIndicatorsManager.delete(indicator_key)
+
+        return
+
+    def set_indicator_position(self, line_id, pos_x, pos_y):
+        """ Set the indicator to new position
+        :param line_id: indicator ID
+        :param pos_x:
+        :param pos_y:
+        :return:
+        """
+        # Set value
+        self._myIndicatorsManager.set_position(line_id, pos_x, pos_y)
+
+        # apply to plot on canvas
+        if self._myIndicatorsManager.get_line_type(line_id) < 2:
+            # horizontal or vertical
+            canvas_line_index = self._myIndicatorsManager.get_canvas_line_index(line_id)
+            vec_x, vec_y = self._myIndicatorsManager.get_data(line_id)
+            self._myCanvas.updateLine(ikey=canvas_line_index, vecx=vec_x, vecy=vec_y)
+        else:
+            # 2-way
+            canvas_line_index_h, canvas_line_index_v = self._myIndicatorsManager.get_canvas_line_index(line_id)
+            h_vec_set, v_vec_set = self._myIndicatorsManager.get_2way_data(line_id)
+
+            self._myCanvas.updateLine(ikey=canvas_line_index_h, vecx=h_vec_set[0], vecy=h_vec_set[1])
+            self._myCanvas.updateLine(ikey=canvas_line_index_v, vecx=v_vec_set[0], vecy=v_vec_set[1])
+
+        return
+
+    def update_indicator(self, i_key, color):
+        """
+        Update indicator with new color
+        :param i_key:
+        :param vec_x:
+        :param vec_y:
+        :param color:
+        :return:
+        """
+        if self._myIndicatorsManager.get_line_type(i_key) < 2:
+            # horizontal or vertical
+            canvas_line_index = self._myIndicatorsManager.get_canvas_line_index(i_key)
+            self._myCanvas.updateLine(ikey=canvas_line_index, vecx=None, vecy=None, linecolor=color)
+        else:
+            # 2-way
+            canvas_line_index_h, canvas_line_index_v = self._myIndicatorsManager.get_canvas_line_index(i_key)
+            # h_vec_set, v_vec_set = self._myIndicatorsManager.get_2way_data(i_key)
+
+            self._myCanvas.updateLine(ikey=canvas_line_index_h, vecx=None, vecy=None, linecolor=color)
+            self._myCanvas.updateLine(ikey=canvas_line_index_v, vecx=None, vecy=None, linecolor=color)
+
+        return
+
+
+class Qt4Mpl2DCanvas(FigureCanvas):
+    """  A customized Qt widget for matplotlib figure.
+    It can be used to replace GraphicsView of QtGui
+    """
+    def __init__(self, parent):
+        """  Initialization
+        """
+        # Instantiating matplotlib Figure
+        self.fig = Figure()
+        self.fig.patch.set_facecolor('white')
+
+        # initialization
+        super(Qt4Mpl2DCanvas, self).__init__(self.fig)
+
+        # set up axis/subplot (111) only for 2D
+        self.axes = self.fig.add_subplot(111, polar=False)  # return: matplotlib.axes.AxesSubplot
+
+        # plot management
+        self._scatterPlot = None
+        self._imagePlot = None
+
+        # Initialize parent class and set parent
+        FigureCanvas.__init__(self, self.fig)
+        self.setParent(parent)
+
+        # Set size policy to be able to expanding and resizable with frame
+        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding,QSizePolicy.Expanding)
+        FigureCanvas.updateGeometry(self)
+
+        # Variables to manage all lines/subplot
+        self._lineDict = {}
+        self._lineIndex = 0
+
+        # legend and color bar
+        self._colorBar = None
+        self._isLegendOn = False
+        self._legendFontSize = 8
+
+        return
+
+    def add_contour_plot(self, vec_x, vec_y, matrix_z):
+        """ add a contour plot
+        Example: reduced data: vec_x: d-values, vec_y: run numbers, matrix_z, matrix for intensities
+        :param vec_x: a list of a vector for X axis
+        :param vec_y: a list of a vector for Y axis
+        :param matrix_z:
+        :return:
+        """
+        # check input
+        # TODO - labor
+        assert isinstance(vec_x, list) or isinstance(vec_x, np.ndarray), 'blabla'
+        assert isinstance(vec_y, list) or isinstance(vec_y, np.ndarray), 'blabla'
+        assert isinstance(matrix_z, np.ndarray), 'blabla'
+
+        # create mesh grid
+        grid_x, grid_y = np.meshgrid(vec_x, vec_y)
+        #
+        # print '[DB...BAT] Grid X and Grid Y size: ', grid_x.shape, grid_y.shape
+
+        # check size
+        assert grid_x.shape == matrix_z.shape, 'Size of X (%d) and Y (%d) must match size of Z (%s).' \
+                                               '' % (len(vec_x), len(vec_y), matrix_z.shape)
+
+        # # Release the current image
+        # self.axes.hold(False)
+
+        # Do plot: resolution on Z axis (color bar is set to 100)
+        self.axes.clear()
+        contour_plot = self.axes.contourf(grid_x, grid_y, matrix_z, 100)
+
+        labels = [item.get_text() for item in self.axes.get_yticklabels()]
+        print '[DB...BAT] Number of Y labels = ', len(labels), ', Number of Y = ', len(vec_y)
+
+        # TODO/ISSUE/NOW: how to make this part more flexible
+        if len(labels) == 2*len(vec_y) - 1:
+            new_labels = [''] * len(labels)
+            for i in range(len(vec_y)):
+                new_labels[i*2] = '%d' % int(vec_y[i])
+            self.axes.set_yticklabels(new_labels)
+        # END-IF
+
+        # explicitly set aspect ratio of the image
+        self.axes.set_aspect('auto')
+
+        # Set color bar.  plt.colorbar() does not work!
+        if self._colorBar is None:
+            # set color map type
+            contour_plot.set_cmap('spectral')
+            self._colorBar = self.fig.colorbar(contour_plot)
+        else:
+            self._colorBar.update_bruteforce(contour_plot)
+
+        # Flush...
+        self._flush()
+
+    def add_image_plot(self, array2d, xmin, xmax, ymin, ymax, yticklabels=None):
+        """
+
+        @param array2d:
+        @param xmin:
+        @param xmax:
+        @param ymin:
+        @param ymax:
+        @param holdprev:
+        @param yticklabels: list of string for y ticks
+        @return:
+        """
+        # check
+        assert isinstance(array2d, np.ndarray), 'blabla'
+        assert len(array2d.shape) == 2, 'blabla'
+
+        # show image
+        self._imagePlot = self.axes.imshow(array2d, extent=[xmin, xmax, ymin, ymax], interpolation='none')
+
+        print (self._imagePlot, type(self._imagePlot))
+
+        # set y ticks as an option:
+        if yticklabels is not None:
+            # it will always label the first N ticks even image is zoomed in
+            print ("[FIXME]: The way to set up the Y-axis ticks is wrong!")
+            self.axes.set_yticklabels(yticklabels)
+
+        # explicitly set aspect ratio of the image
+        self.axes.set_aspect('auto')
+
+        # set up color bar
+        # # Set color bar.  plt.colorbar() does not work!
+        # if self._colorBar is None:
+        #     # set color map type
+        #     imgplot.set_cmap('spectral')
+        #     self._colorBar = self.fig.colorbar(imgplot)
+        # else:
+        #     self._colorBar.update_bruteforce(imgplot)
+
+        # Flush...
+        self._flush()
+
+        return
+
+    def add_image_file(self, imagefilename):
+        """ Add an image by file
+        """
+        #import matplotlib.image as mpimg
+
+        # set aspect to auto mode
+        self.axes.set_aspect('auto')
+
+        img = matplotlib.image.imread(str(imagefilename))
+        # lum_img = img[:,:,0]
+        # FUTURE : refactor for image size, interpolation and origin
+        imgplot = self.axes.imshow(img, extent=[0, 1000, 800, 0], interpolation='none', origin='lower')
+
+        # Set color bar.  plt.colorbar() does not work!
+        if self._colorBar is None:
+            # set color map type
+            imgplot.set_cmap('spectral')
+            self._colorBar = self.fig.colorbar(imgplot)
+        else:
+            self._colorBar.update_bruteforce(imgplot)
+
+        self._flush()
+
+        return
+
+    def add_scatter_plot(self, array2d):
+        """
+        add scatter plot
+        @param array2d:
+        @return:
+        """
+        # check!
+        # TODO - 20180801 - Make it work
+        assert isinstance(array2d, np.ndarray), 'blabla'
+        if array2d.shape[1] < 3:
+            raise RuntimeError('blabla3')
+
+        if False:
+            array2d = np.ndarray(shape=(100, 3), dtype='float')
+            array2d[0][0] = 0
+            array2d[0][1] = 0
+            array2d[0][2] = 1
+
+            import random
+            for index in range(1, 98):
+                x = random.randint(1, 255)
+                y = random.randint(1, 255)
+                z = random.randint(1, 20000)
+                array2d[index][0] = float(x)
+                array2d[index][1] = float(y)
+                array2d[index][2] = float(z)
+
+            array2d[99][0] = 255
+            array2d[99][1] = 255
+            array2d[99][2] = 1
+
+        self._scatterPlot = self.axes.scatter(array2d[:, 0], array2d[:, 1], s=80, c=array2d[:, 2],
+                                              marker='s')
+
+        return
+
+    def clear_canvas(self):
+        """ Clear data including lines and image from canvas
+        """
+        # clear the image for next operation
+        # self.axes.hold(False)
+
+        # clear image
+        self.axes.cla()
+        # Try to clear the color bar
+        if len(self.fig.axes) > 1:
+            self.fig.delaxes(self.fig.axes[1])
+            self._colorBar = None
+            # This clears the space claimed by color bar but destroys sub_plot too.
+            self.fig.clear()
+            # Re-create subplot
+            self.axes = self.fig.add_subplot(111)
+            self.fig.subplots_adjust(bottom=0.15)
+
+        # flush/commit
+        self._flush()
+
+        return
+
+    def decrease_legend_font_size(self):
+        """
+        reset the legend with the new font size
+        Returns:
+
+        """
+        # minimum legend font size is 2! return if it already uses the smallest font size.
+        if self._legendFontSize <= 2:
+            return
+
+        self._legendFontSize -= 1
+        self._setup_legend(font_size=self._legendFontSize)
+
+        self.draw()
+
+        return
+
+    def getLastPlotIndexKey(self):
+        """ Get the index/key of the last added line
+        """
+        return self._lineIndex-1
+
+    def getPlot(self):
+        """ reture figure's axes to expose the matplotlib figure to PyQt client
+        """
+        return self.axes
+
+    def getXLimit(self):
+        """ Get limit of Y-axis
+        """
+        return self.axes.get_xlim()
+
+    def getYLimit(self):
+        """ Get limit of Y-axis
+        """
+        return self.axes.get_ylim()
+
+    def has_plot(self, plot_type):
+        if plot_type == 'image' and self._imagePlot is not None:
+            return True
+
+        return False
+
+    @property
+    def is_legend_on(self):
+        """
+        check whether the legend is shown or hide
+        Returns:
+        boolean
+        """
+        return self._isLegendOn
+
+    def setXYLimit(self, xmin, xmax, ymin, ymax):
+        """
+        """
+        # for X
+        xlims = self.axes.get_xlim()
+        xlims = list(xlims)
+        if xmin is not None:
+            xlims[0] = xmin
+        if xmax is not None:
+            xlims[1] = xmax
+        self.axes.set_xlim(xlims)
+
+        # for Y
+        ylims = self.axes.get_ylim()
+        ylims = list(ylims)
+        if ymin is not None:
+            ylims[0] = ymin
+        if ymax is not None:
+            ylims[1] = ymax
+        self.axes.set_ylim(ylims)
+
+        # try draw
+        self.draw()
+
+        return
+
+    def set_title(self, title, color):
+        """
+        set the tile to an axis
+        :param title:
+        :param color
+        :return:
+        """
+        # check input
+        assert isinstance(title, str), 'Title must be a string but not a {0}.'.format(type(title))
+        assert isinstance(color, str), 'Color must be a string but not a {0}.'.format(type(color))
+
+        print '[DB...BAT] Set {0} in color {1} as the figure\'s title.'.format(title, color)
+        self.setWindowTitle(title)
+
+        self.draw()
+
+        return
+
+    def update_image(self, array2d):
+        """
+
+        @return:
+        """
+
+        self._imagePlot.set_data(array2d)
+
+        self._flush()
+
+        return
+
+    def _flush(self):
+        """ A dirty hack to flush the image
+        """
+        w, h = self.get_width_height()
+        self.resize(w+1, h)
+        self.resize(w, h)
+
+        return
+
+# END-OF-CLASS (MplGraphicsView)

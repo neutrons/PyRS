@@ -282,6 +282,36 @@ class DiffractionDataFile(object):
         """
 
         return
+# END-DEF-CLASS (DiffractionDataFile)
+
+
+def export_md_array_hdf5(md_array, sliced_dir_list, file_name):
+    """
+    export 2D data from
+    :param md_array:
+    :param sliced_dir_list: None or integer last
+    :param file_name:
+    :return:
+    """
+    checkdatatypes.check_numpy_arrays('2D numpy array to export', [md_array], 2, False)
+    checkdatatypes.check_file_name(file_name, check_exist=False, check_writable=True)
+
+    if sliced_dir_list is not None:
+        # delete selected columns: axis=1
+        checkdatatypes.check_list('Sliced directions', sliced_dir_list)
+        try:
+            md_array = numpy.delete(md_array, sliced_dir_list, 1)  # axis = 1
+        except ValueError as val_err:
+            raise RuntimeError('Unable to delete column {} of input numpy 2D array due to {}'
+                               ''.format(sliced_dir_list, val_err))
+    # END-IF
+
+    # write out
+    out_h5_file = h5py.File(file_name, 'w')
+    out_h5_file.create_dataset('Sliced-{}'.format(sliced_dir_list), data=md_array)
+    out_h5_file.close()
+
+    return
 
 
 def get_temp_directory():
