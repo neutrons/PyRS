@@ -211,6 +211,16 @@ class GridAlignmentTable(NTableWidget.NTableWidget):
 
         return
 
+    def set_grids_values(self, grids_value_list):
+        """
+
+        :param grids_value_list:
+        :return:
+        """
+        checkdatatypes.check_list('Parameter value on grids', grids_value_list)
+
+        grids_value_list.sort()
+
     def setup(self):
         """
         Init setup
@@ -364,7 +374,102 @@ class ParamValueGridTable(NTableWidget.NTableWidget):
         self.init_setup(self.TableSetupList)
 
         return
+
+    def set_user_grid_parameter_values(self, user_grid_value_dict):
+        """ set the parameter values on user defined grid
+        Note: each grid's value is given by a dict with keys (2) value (3) dir (4) scan-index
+        :param user_grid_value_dict: key = position, value is described as note
+        :return:
+        """
+        checkdatatypes.check_dict('Parameter values on user defined grid', user_grid_value_dict)
+
+        grid_positions = user_grid_value_dict.keys()
+        grid_positions.sort()
+
+        for i_grid, grid_pos in enumerate(grid_positions):
+            grid_i = user_grid_value_dict[grid_pos]
+            self.add_matched_grid(grid_pos[0], grid_pos[1], grid_pos[2], grid_i['e11'], grid_i['e22'], grid_i['e33'])
+        # END-FOR
+
+        return
+
 # END-CLASS-DEF
+
+
+class ParamValueMapAnalysisTable(NTableWidget.NTableWidget):
+    """
+    Table for parameter mapping on grids
+    """
+    TableSetupList = [('Scan Index', 'int'),   # main direction scan log index]
+                      ('x', 'float'),
+                      ('y', 'float'),
+                      ('z', 'float'),
+                      ('Parameter', 'float'),  # parameter value
+                      ('Direction', 'str')     # e11, e22 or e33
+                      ]
+
+    def __init__(self, parent):
+        """ initialization
+        :param parent:
+        """
+        super(ParamValueMapAnalysisTable, self).__init__(parent)
+
+        return
+
+    def set_user_grid_parameter_values(self, user_grid_value_dict):
+        """ set the parameter values on user defined grid
+        Note: each grid's value is given by a dict with keys (2) value (3) dir (4) scan-index
+        :param user_grid_value_dict: key = position, value is described as note
+        :return:
+        """
+        checkdatatypes.check_dict('Parameter values on user defined grid', user_grid_value_dict)
+
+        grid_positions = user_grid_value_dict.keys()
+        grid_positions.sort()
+
+        for i_grid, grid_pos in enumerate(grid_positions):
+            grid_i = user_grid_value_dict[grid_pos]
+            self.append_row([None, grid_pos[0], grid_pos[1], grid_pos[2],
+                             grid_i['value'], grid_i['dir']])
+        # END-FOR
+
+        return
+
+    def set_raw_grid_parameter_values(self, raw_grid_value_dict):
+        """
+        set the parameter values on raw defined grid
+        Note: each grid's value is given by a dict with keys (2) value (3) dir (4) scan-index
+        :param raw_grid_value_dict: key = position, value is described as above note
+        :return:
+        """
+        checkdatatypes.check_dict('Parameter values on raw experimental grid', raw_grid_value_dict)
+
+        grid_positions = raw_grid_value_dict.keys()
+        grid_positions.sort()
+
+        for i_grid, grid_pos in enumerate(grid_positions):
+            grid_i = raw_grid_value_dict[grid_pos]
+            self.append_row([None, grid_pos[0], grid_pos[1], grid_pos[2],
+                             grid_i['value'], grid_i['dir']])
+        # END-FOR
+
+    def reset_table(self):
+        """
+        reset table
+        :return:
+        """
+        self.remove_all_rows()
+
+        return
+
+    def setup(self):
+        """
+        Init setup
+        :return:
+        """
+        self.init_setup(self.TableSetupList)
+
+# END-DEF-CLASS
 
 
 class PartialMatchedGrids(NTableWidget.NTableWidget):
@@ -377,12 +482,21 @@ class PartialMatchedGrids(NTableWidget.NTableWidget):
                       ('z', 'float'),
                       ('Direction', 'str'),  # other direction
                       ('Scan Index', 'int')]
-    def __init__(self, parent):
-        """
 
+    def __init__(self, parent):
+        """ initialization
         :param parent:
         """
         super(PartialMatchedGrids, self).__init__(parent)
+
+        return
+
+    def setup(self):
+        """
+        Init setup
+        :return:
+        """
+        self.init_setup(self.TableSetupList)
 
         return
 

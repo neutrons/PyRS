@@ -83,14 +83,18 @@ class CreateNewSessionDialog(QDialog):
 
 
 # TODO - 20180814 - Clean up
-class GridAlignmentCheckTableView(QMainWindow):
+class GridAlignmentCheckTablesView(QMainWindow):
     """ A set of tables in order to check grid alignment in order to set up the final grids
     """
     def __init__(self, parent):
         """ Initialization
         :param parent:
         """
-        super(GridAlignmentCheckTableView, self).__init__(parent)
+        super(GridAlignmentCheckTablesView, self).__init__(parent)
+
+        # define my parent
+        self._parent = parent
+        self._core = parent.core
 
         self.ui = ui.ui_gridsalignmentview.Ui_MainWindow()
         self.ui.setupUi(self)
@@ -98,6 +102,9 @@ class GridAlignmentCheckTableView(QMainWindow):
         # define events handlers
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.pushButton_showParameterValue.clicked.connect(self.do_show_parameter)
+        self.ui.pushButton_loadParameter.clicked.connect(self.do_load_params_raw_grid)
+        self.ui.pushButton_mapParamValueToFinalGrids.clicked.connect(self.do_load_mapped_values)
+        self.ui.pushButton_export2D.clicked.connect(self.do_export_2d)
 
         # set up all the tables
         self.ui.tableView_gridAlignment.setup()
@@ -109,18 +116,70 @@ class GridAlignmentCheckTableView(QMainWindow):
 
         return
 
+    def do_export_2d(self):
+        """
+        export a plane (2D) in the 3D grid system
+        :return:
+        """
+
+    def do_load_mapped_values(self):
+        """
+        show the mapped values of a parameter to user defined grids on a certain direction
+        :return:
+        """
+        # get parameter name and direction
+        param_name = str(self.ui.comboBox_parameterNamesAnalysis.currentText())
+        ss_dir = str(self.ui.comboBox_ssDirection.currentText())
+
+        # get value: returned list spec can be found in both rctables and strain stress calculator
+        raw_grid_param_values = self._core.strain_stress_calculator.get_user_grid_param_values(ss_dir, param_name)
+
+        # set value
+        self.ui.tableView_gridParamAnalysis.reset_table()
+        self.ui.tableView_gridParamAnalysis.set_user_grid_parameter_values(raw_grid_param_values)
+
+        return
+
+    def do_load_params_raw_grid(self):
+        """
+        load parameter values on raw grid
+        :return:
+        """
+        # get parameter name and direction
+        param_name = str(self.ui.comboBox_parameterNamesAnalysis.currentText())
+        ss_dir = str(self.ui.comboBox_ssDirection.currentText())
+
+        # get value: returned list spec can be found in both rctables and strain stress calculator
+        raw_grid_param_values = self._core.strain_stress_calculator.get_raw_grid_param_values(ss_dir, param_name)
+
+        # set value
+        self.ui.tableView_gridParamAnalysis.reset_table()
+        self.ui.tableView_gridParamAnalysis.set_raw_grid_parameter_values(raw_grid_param_values)
+
+        return
+
     def do_quit(self):
         """ close the window
         :return:
         """
         self.close()
 
+        return
+
     def do_show_parameter(self):
         """
         show the selected parameter's values on the grids, native or interpolated.
         :return:
         """
-        # TODO - 20180824 - Implement
+        # TODO - 20180824 - Implement (to be continued)
+        param_name = str(self.ui.comboBox_parameterList.currentText())
+
+        user_grid_value_list = self._core.strain_stress_calculator.get_user_grid_param_values(ss_direction=None,
+                                                                                              param_name=param_name)
+
+        # reset the table and add all the grids' value
+        self.ui.tableView_gridAlignment.remove_all_rows()
+        self.ui.tableView_gridAlignment.set_grids_values(user_grid_value_list)
 
         return
 

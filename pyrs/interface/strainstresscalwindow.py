@@ -120,6 +120,14 @@ class StrainStressCalculationWindow(QMainWindow):
 
         return
 
+    @property
+    def core(self):
+        """
+        provide the reference to controller/core
+        :return:
+        """
+        return self._core
+
     def do_get_grid_alignment_info(self):
         """
         align the loaded data for XYZ
@@ -519,7 +527,7 @@ class StrainStressCalculationWindow(QMainWindow):
         :return:
         """
         if self._grid_alignment_table_view is None:
-            self._grid_alignment_table_view = dialogs.GridAlignmentCheckTableView(self)
+            self._grid_alignment_table_view = dialogs.GridAlignmentCheckTablesView(self)
 
         # show table
         self._grid_alignment_table_view.show()

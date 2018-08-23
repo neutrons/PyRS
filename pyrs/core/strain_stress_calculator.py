@@ -978,6 +978,51 @@ class StrainStressCalculator(object):
 
         return log_names
 
+    def get_raw_grid_param_values(self, ss_direction, param_name):
+        """ Get the parameter's value on raw experimental grid
+        :param ss_direction:
+        :param param_name:
+        :return:
+        """
+        # TODO - 20180822 - Finish it! - TODO
+        # check input
+        pyrs.utilities.checkdatatypes.check_string_variable('Strain/stress direction', ss_direction,
+                                                            self._direction_list)
+        pyrs.utilities.checkdatatypes.check_string_variable('Parameter name', param_name)
+
+        # get the
+        return_list = list()
+        for whatever in []:
+            grid_val_dict = {'scan-index': None, 'pos': None, 'value': None, 'dir': ss_direction}
+
+            return_list.append(grid_val_dict)
+        # END-FOR
+
+        return return_list
+
+    def get_user_grid_param_values(self, ss_direction, param_name):
+        """ Get the mapped value to user defined grid
+        :param ss_direction:
+        :param param_name:
+        :return:
+        """
+        # TODO - 20180822 - Finish it! - TODO
+        # check input
+        pyrs.utilities.checkdatatypes.check_string_variable('Strain/stress direction', ss_direction,
+                                                            self._direction_list)
+        pyrs.utilities.checkdatatypes.check_string_variable('Parameter name', param_name)
+
+        # get the
+        return_list = list()
+        for whatever in []:
+            grid_val_dict[grid_pos] = {'scan-index': None, 'value': None, 'dir': ss_direction}
+            grid_val_dict[grid_pos] = {'scan-index': None, 'e11': None, 'e22': None, 'e33': None}
+
+            return_list.append(grid_val_dict)
+        # END-FOR
+
+        return return_list
+
     # TODO - 20180820 - Write a single unit test to find out how good or bad this algorithm is
     @staticmethod
     def interpolate3d(exp_grid_pos_vector, param_value_vector, target_position):
