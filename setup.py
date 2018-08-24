@@ -7,6 +7,7 @@ import versioneer  # https://github.com/warner/python-versioneer
 from setuptools import setup, find_packages
 
 if sys.argv[-1] == 'pyuic':
+    # convert the UI in designer (for the application)
     indir = 'designer'
     outdir = 'pyrs/interface/ui'
     files = os.listdir(indir)
@@ -33,8 +34,29 @@ if sys.argv[-1] == 'pyuic':
         done += 1
     if not done:
         print("Did not convert any '.ui' files")
-    sys.exit(0)
 
+    # convert the UI in test/widgettest (for the application)
+    indir = 'tests/widgets'
+    outdir = 'pyrs/interface/ui'  # all UI shall be in the same directory with widgets module to avoid importing issue
+    files = os.listdir(indir)
+    files = [os.path.join('designer', item) for item in files]
+    files = [item for item in files if item.endswith('.ui')]
+
+    done = 0
+    for inname in files:
+        base_inname = os.path.basename(inname)
+        outname = 'uitest_' + base_inname.replace('.ui', '.py')
+        outname = os.path.join(outdir, outname)
+        if os.path.exists(outname):
+            if os.stat(inname).st_mtime < os.stat(outname).st_mtime:
+                continue
+        print("Converting '%s' to '%s'" % (inname, outname))
+        command = "pyuic%d %s -o %s"  % (pyui_ver, inname, outname)
+        os.system(command)
+        done += 1
+    if not done:
+        print("Did not convert any '.ui' files")
+    sys.exit(0)
 
 ###################################################################
 
