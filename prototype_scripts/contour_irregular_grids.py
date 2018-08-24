@@ -21,10 +21,13 @@ def import_h5_array(file_name):
 
     return x, y, z
 
+
 if True:
     x, y, z = import_h5_array('/tmp/pyrs_test_ss/test.hdf5')
     print x.min(), x.max()
     print y.min(), y.max()
+    print z.min(), z.max(), z.mean()
+
 else:
     np.random.seed(19680801)
     npts = 200
@@ -58,11 +61,28 @@ zi = interpolator(Xi, Yi)
 #from scipy.interpolate import griddata
 #zi = griddata((x, y), z, (xi[None,:], yi[:,None]), method='linear')
 
+# TESTME TODO ..... VZ: this is useless because color bar reflects the contour plot but cannot determine the contour plot!
+# set color bar with a fixed range
+if False:
+    min_z = 0
+    max_z = 0
+    v = np.linspace(-.1, 2.0, 15, endpoint=True)  # (min_z, max_z, num_levels)
+    x = plt.colorbar(ticks=v)
+    print x
+else:
+    v = np.linspace(-.1, 2.0, 15, endpoint=True)  # (min_z, max_z, num_levels)
+# END-TODO
 
-ax1.contour(xi, yi, zi, 14, linewidths=0.5, colors='k')
+
+# contour
+level = 14
+levels = [-1.5, -1, -0.5, 0, 0.5, 1]   # Level cannot solve the problem at all!
+# FIXME - try this: https://stackoverflow.com/questions/21952100/setting-the-limits-on-a-colorbar-in-matplotlib !
+ax1.contour(xi, yi, zi, levels, linewidths=0.5, colors='k')
 cntr1 = ax1.contourf(xi, yi, zi, 14, cmap="RdBu_r")
-
-fig.colorbar(cntr1, ax=ax1)
+# color bar
+fig.colorbar(cntr1, ax=ax1)  #, ticks=v)
+# scatterings
 ax1.plot(x, y, 'ko', ms=3)
 ax1.axis((-200, 200, 0, 80))
 # ax1.set_title('grid and contour (%d points, %d grid points)' %
@@ -75,7 +95,8 @@ ax1.axis((-200, 200, 0, 80))
 # Directly supply the unordered, irregularly spaced coordinates
 # to tricontour.
 
-ax2.tricontour(x, y, z, 14, linewidths=0.5, colors='k')
+level2 = 128  # 14 standard
+ax2.tricontour(x, y, z, level2, linewidths=0.5, colors='k')
 cntr2 = ax2.tricontourf(x, y, z, 14, cmap="RdBu_r")
 
 fig.colorbar(cntr2, ax=ax2)

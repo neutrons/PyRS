@@ -940,6 +940,37 @@ class StrainStressCalculator(object):
 
         return param_grid_array
 
+    def convert_user_grid_value_to_matrix(self, param_name, ss_direction):
+        """
+        convert user-defined grid value to matrix
+        :param param_name:
+        :param ss_direction:
+        :return:
+        """
+        # check inputs
+        pyrs.utilities.checkdatatypes.check_string_variable('Strain/stress direction', ss_direction,
+                                                            self._direction_list)
+        pyrs.utilities.checkdatatypes.check_string_variable('Parameter name', param_name,
+                                                            allowed_values=self._peak_param_dict[ss_direction].keys())
+
+        # TODO - 20180823 - the non-existing data structure is to be corrected later with method to create user grids
+        num_grids = len(self._user_dir_grid_pos[ss_direction])
+
+        # create the 2D array
+        param_grid_array = numpy.ndarray(shape=(num_grids, 4), dtype='float')
+        grids_list = sorted(self._user_dir_grid_pos[ss_direction].keys())
+        for i_grid, grid_pos in enumerate(grids_list):
+            # position of grid on sample
+            for i_coord in range(3):
+                param_grid_array[i_grid][i_coord] = grid_pos[i_coord]
+            # parameter value
+            scan_log_index = self._user_dir_grid_pos[ss_direction][grid_pos]
+            param_value = self._user_dir_grid_pos
+            param_grid_array[i_grid][3] = param_value
+        # END-FOR
+
+        return param_grid_array
+
     @staticmethod
     def slice_md_data(param_grid_array, slice_dir, slice_pos, slice_resolution):
         """ slice multi-dimensional data from a (n x m) matrix
