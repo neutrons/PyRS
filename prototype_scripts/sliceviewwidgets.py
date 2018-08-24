@@ -147,6 +147,7 @@ class Qt4Mpl2DCanvas(FigureCanvas):
 
         # set up axis/subplot (111) only for 2D
         self.axes = self.fig.add_subplot(111, polar=False)  # return: matplotlib.axes.AxesSubplot
+        self.axes.set_aspect('auto')
 
         # plot management
         self._scatterPlot = None
@@ -157,7 +158,7 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         self.setParent(parent)
 
         # Set size policy to be able to expanding and resizable with frame
-        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding,QSizePolicy.Expanding)
+        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
 
         # Variables to manage all lines/subplot
@@ -179,6 +180,8 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         :param matrix_z:
         :return:
         """
+        import time
+
         # check input
         # TODO - labor
         assert isinstance(vec_x, list) or isinstance(vec_x, np.ndarray), 'blabla'
@@ -198,8 +201,18 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         # self.axes.hold(False)
 
         # Do plot: resolution on Z axis (color bar is set to 100)
+        time_s = time.time()
+        print (time_s)
+
         self.axes.clear()
-        contour_plot = self.axes.contourf(grid_x, grid_y, matrix_z, 100)
+        if False:
+            contour_plot = self.axes.contourf(grid_x, grid_y, matrix_z, 100)
+        else:
+            contour_plot = self.axes.contourf(vec_x, vec_y, matrix_z, 50, cmap="RdBu_r")
+
+        time_f = time.time()
+        print (time_f)
+        print (time_s - time_f)
 
         labels = [item.get_text() for item in self.axes.get_yticklabels()]
         print '[DB...BAT] Number of Y labels = ', len(labels), ', Number of Y = ', len(vec_y)
@@ -224,6 +237,14 @@ class Qt4Mpl2DCanvas(FigureCanvas):
             self._colorBar.update_bruteforce(contour_plot)
 
         # Flush...
+        self._flush()
+
+        return
+
+    def add_scatter(self, x, y):
+        # TODO - 20180824 - shall be an option
+        self.axes.plot(x, y, 'ko', ms=3)
+
         self._flush()
 
     def add_image_plot(self, array2d, xmin, xmax, ymin, ymax, yticklabels=None):
@@ -471,4 +492,160 @@ class Qt4Mpl2DCanvas(FigureCanvas):
 
         return
 
+
+class Mpl1DGraph(QWidget):
+    """
+    Simple matplotlib 1D plot
+    """
+    def __init__(self, parent):
+        """Initialization
+        :param parent:ns
+        """
+        # Initialize parent
+        super(Mpl1DGraph, self).__init__(parent)
+
+        # set up other variables
+        # key = line ID, value = row, col, bool (is main axes???)
+        self._lineSubplotMap = dict()
+
+        # records for all the lines that are plot on the canvas
+        # key = [row, col][line key], value = label, x-min, x-max, y-min and y-max
+        self._myMainPlotDict = dict()
+        self._myMainPlotDict[0, 0] = dict()  # init
+        self._statMainPlotDict = dict()
+        self._statMainPlotDict[0, 0] = None
+
+        # auto line's maker+color list
+        self._myLineMarkerColorList = []
+        self._myLineMarkerColorIndex = 0
+
+        # set up canvas
+        row_size = 1
+        col_size = 1
+        self._myCanvas = Qt4MplCanvasMultiFigure(self, row_size, col_size)
+
+        # state of operation
+        self._isZoomed = False
+        # X and Y limit with home button
+        self._homeXYLimit = None
+
+        # set up layout
+        self._vBox = QVBoxLayout(self)
+        self._vBox.addWidget(self._myCanvas)
+
+        return
 # END-OF-CLASS (MplGraphicsView)
+
+
+class Qt4MplCanvasMultiFigure(FigureCanvas):
+    """  A customized Qt widget for matplotlib figure.
+    It can be used to replace GraphicsView of QtGui
+    """
+    def __init__(self, parent, row_size=None, col_size=None, rotate=False):
+        """Initialization
+        :param parent:
+        :param row_size:
+        :param col_size:
+        """
+        # Instantiating matplotlib Figure. It is a requirement to initialize a figure canvas
+        self.fig = Figure()
+        self.fig.patch.set_facecolor('white')
+
+        # Initialize parent class and set parent
+        super(Qt4MplCanvasMultiFigure, self).__init__(self.fig)
+        self.setParent(parent)
+
+        # Variables to manage all lines/subplot:  key = integer line ID, value = reference to line
+        # default to 1 subplot at (0, 0)
+        self._mainLineDict = dict()
+        self._mainLineDict[0, 0] = dict()
+
+        # right axes
+        self._rightLineDict = dict()
+
+        # line index: single index for both main and right plot
+        self._lineIndex = 0
+
+        # legend and color bar
+        self._legendStatusDict = dict()
+        self._legendRightStatusDict = dict()
+        self._legendFontSize = 8
+
+        # data structure for sub plots
+        self._numSubPlots = 0
+        self.axes_main = dict()  # keys are 2-tuple, starting from (0, 0)
+        self.axes_right = dict()
+
+        # the subplots are not set up in the initialization
+        self.set_subplots(row_size=1, col_size=1, rotate=True)
+
+        # Set size policy to be able to expanding and resizable with frame
+        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding)
+        FigureCanvas.updateGeometry(self)
+
+        # prototype ...
+        import numpy
+        from matplotlib import transforms, pyplot
+
+        vec_x = numpy.arange(0, -10, -0.1)
+        vec_y = numpy.sin(vec_x * -1)  # * numpy.pi / 180.)
+
+        # first of all, the base transformation of the data points is needed
+        # base = pyplot.gca().transData
+        if rotate:
+            base = self.axes_main[0, 0].transData
+            rot = transforms.Affine2D().rotate_deg(270)
+            self.axes_main[0, 0].plot(vec_x, vec_y, 'r--', transform=rot + base)
+        else:
+            self.axes_main[0, 0].plot(vec_x, vec_y, 'r--')
+
+        #
+        # print data
+        # print vec_x
+        # print vec_y
+        #
+        #
+        #
+        # # define transformed line
+        # # line = pyplot.plot(data, 'r--', transform= rot + base)
+        # # line = pyplot.plot(vec_x, vec_y)
+        # line = pyplot.plot(vec_x, vec_y, 'r--', transform=rot + base)
+        # # or alternatively, use:
+        # # line.set_transform(rot + base)
+
+        pyplot.show()
+
+        return
+
+    def set_subplots(self, row_size, col_size, rotate):
+        """
+        set subplots
+        :param row_size:
+        :param col_size:
+        :return:
+        """
+        # check input
+        assert isinstance(row_size, int), 'Row size {0} must be an integer but not a {1}.' \
+                                          ''.format(row_size, type(row_size))
+        assert isinstance(col_size, int), 'Column size {0} must be an integer but not a {1}.' \
+                                          ''.format(col_size, type(col_size))
+
+        if row_size < 1:
+            raise RuntimeError('Row size {0} must be larger than 0.'.format(row_size))
+        if col_size < 1:
+            raise RuntimeError('Column size {0} must be larger than 0.'.format(row_size))
+
+        for row_index in range(row_size):
+            for col_index in range(col_size):
+                sub_plot_index = row_index * col_size + col_index + 1
+                subplot_ref = self.fig.add_subplot(row_size, col_size, sub_plot_index)
+                self.axes_main[row_index, col_index] = subplot_ref
+                if rotate:
+                    aspect_num = 2
+                else:
+                    aspect_num = 0.5
+                self.axes_main[row_index, col_index].set_aspect(aspect=aspect_num)
+                self._mainLineDict[row_index, col_index] = dict()
+                self._legendStatusDict[row_index, col_index] = False
+            # END-FOR
+        # END-FOR

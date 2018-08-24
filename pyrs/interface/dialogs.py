@@ -118,6 +118,8 @@ class ExportGridSliceSetupDialog(QDialog):
             raise RuntimeError('Unable to parse position to slice at')
 
         return slice_dir, slice_value, resolution
+# END-DEF-CLASS
+
 
 # TODO - 20180814 - Clean up
 class GridAlignmentCheckTablesView(QMainWindow):

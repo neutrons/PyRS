@@ -1,15 +1,17 @@
 try:
-    from PyQt5.QtWidgets import QDialog, QMainWindow, QApplication
+    from PyQt5.QtWidgets import QDialog, QMainWindow, QApplication, QVBoxLayout
     from PyQt5.QtCore import pyqtSignal
+    from PyQt5 import QtGui
 except ImportError:
     from PyQt4.QtGui import QDialog, QMainWindow, QApplication
     from PyQt4.QtCore import pyqtSignal
 
 import sys
-import ui_sliceviewer
+import ui_test_slice_view
 import h5py
 import numpy as np
 import matplotlib.tri as tri
+from slice_view_widget import SliceViewWidget
 
 
 class SliceViewer(QMainWindow):
@@ -24,8 +26,14 @@ class SliceViewer(QMainWindow):
         super(SliceViewer, self).__init__(parent)
 
         # set up UI
-        self.ui = ui_sliceviewer.Ui_MainWindow()
+        self.ui = ui_test_slice_view.Ui_MainWindow()
         self.ui.setupUi(self)
+
+        # tweak
+        # _layout = QVBoxLayout()
+        # _layout.addWidget(SliceViewWidget(self))
+        # self.ui.widget_sliceView.setLayout(_layout)
+        # self.ui.widget_sliceView.addWidget(SliceViewWidget)
 
         return
 
@@ -46,7 +54,12 @@ class SliceViewer(QMainWindow):
         Xi, Yi = np.meshgrid(xi, yi)
         zi = interpolator(Xi, Yi)
 
-        self.ui.graphicsView_2DSlice.canvas.add_contour_plot(xi, yi, zi)
+        self.ui.widget.canvas.add_contour_plot(xi, yi, zi)
+        self.ui.widget.canvas.add_scatter(vec_x, vec_y)
+        self.ui.widget.canvas._flush()
+
+        # plot vertically
+        self.ui.widget.vertical_canvas
 
 # END-CLASS
 
@@ -87,7 +100,7 @@ if __name__ == '__main__':
     main_window = SliceViewer(None)  # .FourCircleMainWindow()
     main_window.show()
 
-    # Import data
+    # mport data
     x, y, z = import_h5_array('/tmp/pyrs_test_ss/test.hdf5')
     print x.min(), x.max()
     print y.min(), y.max()
