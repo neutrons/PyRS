@@ -1,11 +1,11 @@
 try:
     from PyQt5.QtCore import pyqtSignal
-    from PyQt5 import QtCore, QtGui, QtWidgets
-    from PyQt5.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
+    from PyQt5 import QtCore, QtGui
+    from PyQt5.QtWidgets import QWidget, QSizePolicy, QVBoxLayout, QGridLayout
     from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
 except ImportError:
-    from PyQt4.QtGui import QWidget, QSizePolicy, QVBoxLayout
+    from PyQt4.QtGui import QWidget, QSizePolicy, QVBoxLayout, QGridLayout
     from PyQt4.QtCore import pyqtSignal
     from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
@@ -26,18 +26,18 @@ class SliceViewWidget(QWidget):
         super(SliceViewWidget, self).__init__(Form)
 
         # self.sample=[Layer(thickness=np.inf),Layer(thickness=np.inf)]
-        self.setLayout(QtWidgets.QGridLayout())
+        self.setLayout(QGridLayout())
         function_options=['NSLD_REAL','NSLD_IMAGINARY','MSLD_RHO','MSLD_THETA','MSLD_PHI','ROUGHNESS']
         # self.combo = QtWidgets.QComboBox(self)
         # for f in function_options:
         #     self.combo.addItem(f)
         self.function = 'NSLD_REAL'
-        self.paintwidget=QtWidgets.QWidget(self)
+        self.paintwidget=QWidget(self)
         self.paintwidget.setMinimumSize(800, 600)
         # self.layout().addWidget(self.paintwidget)
         self.layout().addWidget(self.paintwidget, 0, 0, 1, 1)
-        self.canvas = sliceviewwidgets.Qt4Mpl2DCanvas(self.paintwidget)  #  QtWidgets.QGraphicsView()   #  PlotCanvas(self.sample, self.function,self.paintwidget)
-        ssizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.canvas = sliceviewwidgets.Qt4Mpl2DCanvas(self.paintwidget)  #  QGraphicsView()   #  PlotCanvas(self.sample, self.function,self.paintwidget)
+        ssizePolicy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         ssizePolicy.setHorizontalStretch(1)
         ssizePolicy.setVerticalStretch(1)
         ssizePolicy.setHeightForWidth(self.paintwidget.sizePolicy().hasHeightForWidth())
@@ -45,11 +45,11 @@ class SliceViewWidget(QWidget):
         self.paintwidget.setObjectName("graphicsVerticalView")
 
         # vertical slice
-        self.vertical_widget = QtWidgets.QWidget(self)
+        self.vertical_widget = QWidget(self)
         self.vertical_widget.setMinimumSize(200, 600)
         self.layout().addWidget(self.vertical_widget, 0, 1, 1, 1)
         self.vertical_canvas = sliceviewwidgets.Qt4MplCanvasMultiFigure(self.vertical_widget, rotate=1)
-        vsizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding)
+        vsizePolicy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
         vsizePolicy.setHorizontalStretch(0)
         vsizePolicy.setVerticalStretch(1)
         vsizePolicy.setHeightForWidth(False)
@@ -59,11 +59,11 @@ class SliceViewWidget(QWidget):
         self.vertical_widget.setObjectName("graphicsVerticalView")
 
         # horizontal slice
-        self.horizontal_widget = QtWidgets.QWidget(self)
+        self.horizontal_widget = QWidget(self)
         self.horizontal_widget.setMinimumSize(800, 150)
         self.layout().addWidget(self.horizontal_widget, 1, 0, 1, 1)
         self.horizontal_canvas = sliceviewwidgets.Qt4MplCanvasMultiFigure(self.horizontal_widget)
-        hsizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.MinimumExpanding)
+        hsizePolicy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
         hsizePolicy.setHorizontalStretch(1)
         hsizePolicy.setVerticalStretch(0)
         hsizePolicy.setHeightForWidth(True)
