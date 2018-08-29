@@ -22,6 +22,7 @@ def import_h5_array(file_name):
     return x, y, z
 
 
+
 if True:
     x, y, z = import_h5_array('/tmp/pyrs_test_ss/test.hdf5')
     print x.min(), x.max()

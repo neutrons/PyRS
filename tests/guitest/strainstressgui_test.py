@@ -61,36 +61,24 @@ def test_main(test_dir):
                                                             slice_pos=0.0, slice_resolution=0.001,
                                                             file_name='/tmp/pyrs_test_ss/test.hdf5')
 
-    #
-    # # pop out the window for grid check
-    # ss_window.do_show_aligned_grid()
+    # pop out the window for grid check
+    ss_window.do_show_aligned_grid()
+
+    # try to export the aligned the grids
+    grid_info_window.ui.tabWidget_alignedParams.setCurrentIndex(1)
+    ss_window.core.strain_stress_calculator.export_aligned_2d_slice('center_d', True, 'e11', 1,
+                                                                    slice_pos=0.0, slice_resolution=0.001,
+                                                                    file_name='/tmp/pyrs_test_ss/test_aligned.hdf5')
 
     # set value
-    # TODO - 20180820 - set up these values - TODO -- Not there yet
-    # lineEdit_youngModulus
-    # lineEdit_poissonRatio
-    # lineEdit_d0
+    ss_window.ui.lineEdit_youngModulus.setText('3.0')
+    ss_window.ui.lineEdit_poissonRatio.setText('0.5')
+    ss_window.ui.lineEdit_d0.setText('1.22')
 
-    # align grid
-    # set to align to E22 by comboBox_alignmentCriteria  
-    # ... 
-
-    # constrained stress/strain
-
-    # # plane strain and save
-    # ss_window.calcualte_plane_strain()
-    # ss_window.save_present_project('test_strain_stress_plane_stress.h5')
-
-    # # plain stress and save
-    # ss_window.calcualte_plane_stress()
-    # ss_window.save_present_project('test_strain_stress.h5')
-
-    # # unconstrained stress/strain
-    # ss_window.align_loaded_data(e33=True, sample_resolution=(0.01, 0.01, 0.01))
-
-    # # calculate and save project
-    # ss_window.calcualte_unconstrained_stress()
-    # ss_window.save_present_project('test_strain_stress.h5')
+    # calculate unconstrained strain and stress
+    ss_window.do_calculate_strain_stress()
+    ss_window.save_present_project('test_strain_stress_plane_stress.h5')
+    ss_window.plot_strain_stress_slice(param='epsilon', index=[0, 0], dir=1, position=0.0)
 
     return ss_window
 

@@ -476,6 +476,39 @@ class StrainStressCalculationWindow(QMainWindow):
             self.ui.pushButton_browse_e33ScanFile.setEnabled(True)
         return
 
+    # TODO - NEW - 20180828 - Develop UI for this! - TODO
+    def do_plot_slice_view(self):
+        """
+        plot a slice view for selected parameter selected
+        :return:
+        """
+        if self.ui.radioButton_plotPeakParam.isChecked():
+            peak_param_name = str(self.ui.comboBox_plotParameterName.currentText())
+            slice_dir = str(self.ui.comboBox_sliceDirection.currentText())
+            slice_pos = str(self.ui.lineEdit_slicePosition.text())
+            self.plot_peak_param_slice(peak_param_name, slice_dir, slice_pos)
+        elif self.ui.radioButton_plotStrainStress.isChecked():
+            param_index = self.ui.comboBox_plotStrainStress.currentIndex()
+            if param_index == 0:
+                param = 'epsilon'
+            else:
+                param = 'nu'
+            slice_index = gui_helper.parse_tuples(self.ui.lineEdit_ssElementIndex, 2)
+            self.
+
+    def plot_strain_stress_slice(self, param='epsilon', index=[0, 0], dir=1, position=0.0):
+        """
+        plot a strain and stress slice
+        :param param:
+        :param index:
+        :param dir:
+        :param position:
+        :return:
+        """
+
+
+        return
+
     def save_stress_strain(self, file_type=None):
         """
         save the calculated strain/stress file
