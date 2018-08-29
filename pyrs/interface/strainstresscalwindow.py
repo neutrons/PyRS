@@ -81,7 +81,7 @@ class StrainStressCalculationWindow(QMainWindow):
         # self.lineEdit_outputFileName..connect(self.)
         # self.lineEdit_exportFileName..connect(self.)
         # self.plainTextEdit_info..connect(self.)
-        # self.graphicsView_sliceView..connect(self.)
+        self.ui.graphicsView_sliceView
         # self.lineEdit_sliceStartValue..connect(self.)
         # self.lineEdit_sliceEndValue..connect(self.)
         # self.horizontalSlider_slicer..connect(self.)
@@ -494,7 +494,9 @@ class StrainStressCalculationWindow(QMainWindow):
             else:
                 param = 'nu'
             slice_index = gui_helper.parse_tuples(self.ui.lineEdit_ssElementIndex, 2)
-            self.
+            self.plot_strain_stress_slice()
+
+        return
 
     def plot_strain_stress_slice(self, param='epsilon', index=[0, 0], dir=1, position=0.0):
         """

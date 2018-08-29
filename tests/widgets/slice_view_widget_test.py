@@ -7,11 +7,11 @@ except ImportError:
     from PyQt4.QtCore import pyqtSignal
 
 import sys
-import ui_test_slice_view
+from pyrs.interface.ui import uitest_test_slice_view
 import h5py
 import numpy as np
 import matplotlib.tri as tri
-from slice_view_widget import SliceViewWidget
+from pyrs.interface.ui.slice_view_widget import SliceViewWidget
 
 
 class SliceViewer(QMainWindow):
@@ -26,7 +26,7 @@ class SliceViewer(QMainWindow):
         super(SliceViewer, self).__init__(parent)
 
         # set up UI
-        self.ui = ui_test_slice_view.Ui_MainWindow()
+        self.ui = uitest_test_slice_view.Ui_MainWindow()
         self.ui.setupUi(self)
 
         # tweak

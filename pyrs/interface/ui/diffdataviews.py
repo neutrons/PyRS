@@ -3,6 +3,7 @@ from mplgraphicsview2d import MplGraphicsView2D
 from mplgraphicsviewpolar import MplGraphicsPolarView
 import numpy as np
 import mplgraphicsviewpolar
+import slice_view_widget
 
 
 class Diffraction2DPlot(MplGraphicsPolarView):
@@ -237,7 +238,7 @@ class PeakFitSetupView(MplGraphicsView1D):
         return
 
 
-class SampleSliceView(MplGraphicsView2D):
+class SampleSliceView(slice_view_widget.SliceViewWidget):
     """
     2D contour view for sliced sample
     """

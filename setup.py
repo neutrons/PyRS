@@ -39,7 +39,7 @@ if sys.argv[-1] == 'pyuic':
     indir = 'tests/widgets'
     outdir = 'pyrs/interface/ui'  # all UI shall be in the same directory with widgets module to avoid importing issue
     files = os.listdir(indir)
-    files = [os.path.join('designer', item) for item in files]
+    files = [os.path.join(indir, item) for item in files]
     files = [item for item in files if item.endswith('.ui')]
 
     done = 0

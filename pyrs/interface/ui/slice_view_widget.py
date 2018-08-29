@@ -16,8 +16,8 @@ import sliceviewwidgets
 
 class SliceViewWidget(QWidget):
     """
-
     """
+    # TODO - 20180830 - Doc!
     def __init__(self, Form):
         """Initialization
         :param parent:ns
@@ -75,6 +75,10 @@ class SliceViewWidget(QWidget):
         # connect the events
         self.canvas.mpl_connect('button_press_event', self.on_mouse_press_event)
         self.canvas.mpl_connect('button_release_event', self.on_mouse_release_event)
+        self.canvas.mpl_connect('motion_notify_event', self.on_mouse_move)
+
+        # indicator
+        self._indicator = IndicatorManager()
 
         return
 
@@ -86,26 +90,58 @@ class SliceViewWidget(QWidget):
         return
 
     def on_mouse_press_event(self, event):
-        """
-
+        """ Handling when mouse button is pressed
+        Designed feature:
+        1. as left button is pressed, the 2-way indicator shall be moved to the mouse position
+        2. sliced 1D plot shall be updated
         :param event:
         :return:
         """
-        print 'Pressed {} at x = {}, y = {}'.format(event.button, event.xdata, event.ydata)
+        print ('[DB...BAT] Pressed {} at x = {}, y = {}'.format(event.button, event.xdata, event.ydata))
 
-        vec_x = np.array([-150, 150])
-        vec_y = np.array([event.ydata, event.ydata])
+        # get current position
+        pos_x = event.xdata
+        pos_y = event.ydata
 
-        self.canvas.axes.plot(vec_x, vec_y)  # , color='white')
+        if event.button == 1 and pos_x is not None and pos_y is not None:
+            # left button
+            x_min = -150
+            x_max = 150
+            y_min = 0
+            y_max = 70
+            self._indicator.add_2way_indicator(pos_x, x_min, x_max, pos_y, y_min, y_max, 'white')
+
+            vec_x = np.array([x_min, x_max])
+            vec_y = np.array([pos_y, pos_y])
+            self.canvas.axes.plot(vec_x, vec_y, color='white')
+
+            vec_y = np.array([y_min, y_max])
+            vec_x = np.array([pos_x, pos_x])
+            self.canvas.axes.plot(vec_x, vec_y, color='white')
+
+        else:
+            # other buttons: do nothing
+            pass
+
+        #
+
         self.canvas._flush()
 
     def on_mouse_release_event(self, event):
-        """
-
+        """ Handling when mouse button is released
         :param event:
         :return:
         """
         print 'Released {} at x = {}, y = {}'.format(event.button, event.xdata, event.ydata)
+
+        return
+
+    def on_mouse_move(self, event):
+        """
+
+        :param event:
+        :return:
+        """
 
 
     # NOTE: 1 = left, 3 = right.. xdata, ydata are coordiate with vec_x and vec_y
