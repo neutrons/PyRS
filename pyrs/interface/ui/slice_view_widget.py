@@ -109,15 +109,7 @@ class SliceViewWidget(QWidget):
             x_max = 150
             y_min = 0
             y_max = 70
-            self._indicator.add_2way_indicator(pos_x, x_min, x_max, pos_y, y_min, y_max, 'white')
-
-            vec_x = np.array([x_min, x_max])
-            vec_y = np.array([pos_y, pos_y])
-            self.canvas.axes.plot(vec_x, vec_y, color='white')
-
-            vec_y = np.array([y_min, y_max])
-            vec_x = np.array([pos_x, pos_x])
-            self.canvas.axes.plot(vec_x, vec_y, color='white')
+            self._indicator.plot_2way_indicator(self.canvas, pos_x, pos_y)
 
         else:
             # other buttons: do nothing
@@ -157,9 +149,12 @@ class IndicatorManager(object):
     """
     def __init__(self):
         """
-
         :return:
         """
+        # current indicator indexes
+        self._horizontal_indicator = None
+        self._vertical_indicator = None
+
         # Auto color index
         self._colorIndex = 0
         # Auto line ID
@@ -171,76 +166,114 @@ class IndicatorManager(object):
 
         return
 
-    def add_2way_indicator(self, x, x_min, x_max, y, y_min, y_max, color):
+    def _set_2way_indicators(self, horizontal_id, vertical_id):
         """
-
-        :param x:
-        :param x_min:
-        :param x_max:
-        :param y:
-        :param y_min:
-        :param y_max:
-        :param color:
+        add a 2-way indicator to manager
+        :param horizontal_id:
+        :param vertical_id:
         :return:
         """
-        # Set up indicator ID
-        this_id = str(self._autoLineID)
-        self._autoLineID += 1
+        self._horizontal_indicator = horizontal_id
+        self._vertical_indicator = vertical_id
 
-        # Set up vectors
-        vec_x_horizontal = np.array([x_min, x_max])
-        vec_y_horizontal = np.array([y, y])
+        return
 
-        vec_x_vertical = np.array([x, x])
-        vec_y_vertical = np.array([y_min, y_max])
-
-        #
-        self._lineManager[this_id] = [vec_x_horizontal, vec_y_horizontal, vec_x_vertical, vec_y_vertical, color]
-        self._indicatorTypeDict[this_id] = 2
-
-        return this_id
-
-    def add_horizontal_indicator(self, y, x_min, x_max, color):
+    # TODO - 20180831 - Doc and check
+    def plot_2way_indicator(self, canvas, x_pos, y_pos):
         """
-        Add a horizontal indicator moving vertically
-        :param y:
-        :param x_min:
-        :param x_max:
-        :param color:
+
+        :param canvas:
+        :param x_pos:
+        :param y_pos:
         :return:
         """
-        # Get ID
-        this_id = str(self._autoLineID)
-        self._autoLineID += 1
-
-        #
+        x_min, x_max = canvas.getXLimit()
+        y_min, y_max = canvas.getYLimit()
         vec_x = np.array([x_min, x_max])
-        vec_y = np.array([y, y])
+        vec_y = np.array([y_pos, y_pos])
 
-        #
-        self._lineManager[this_id] = [vec_x, vec_y, color]
-        self._indicatorTypeDict[this_id] = 0
+        if self._horizontal_indicator is None:
+            self._horizontal_indicator = canvas.axes.plot(vec_x, vec_y, color='white')[0]
+        else:
+            self._horizontal_indicator.set_ydata(vec_y)
 
-        return this_id
+        print (type(self._horizontal_indicator), self._horizontal_indicator)
 
-    def add_vertical_indicator(self, x, y_min, y_max, color):
-        """
-        Add a vertical indicator to data structure moving horizontally
-        :return: indicator ID as an integer
-        """
-        # Get ID
-        this_id = self._autoLineID
-        self._autoLineID += 1
-
-        # form vec x and vec y
-        vec_x = np.array([x, x])
         vec_y = np.array([y_min, y_max])
+        vec_x = np.array([x_pos, x_pos])
+        canvas.axes.plot(vec_x, vec_y, color='white')
 
-        #
-        self._lineManager[this_id] = [vec_x, vec_y, color]
-        self._indicatorTypeDict[this_id] = 1
+        return
 
-        return this_id
+    # def add_2way_indicator(self, x, x_min, x_max, y, y_min, y_max, color):
+    #     """ add a 2-way indicator and store
+    #     :param x:
+    #     :param x_min:
+    #     :param x_max:
+    #     :param y:
+    #     :param y_min:
+    #     :param y_max:
+    #     :param color:
+    #     :return:
+    #     """
+    #     # Set up indicator ID
+    #     this_id = str(self._autoLineID)
+    #     self._autoLineID += 1
+    #
+    #     # Set up vectors
+    #     vec_x_horizontal = np.array([x_min, x_max])
+    #     vec_y_horizontal = np.array([y, y])
+    #
+    #     vec_x_vertical = np.array([x, x])
+    #     vec_y_vertical = np.array([y_min, y_max])
+    #
+    #     #
+    #     self._lineManager[this_id] = [vec_x_horizontal, vec_y_horizontal, vec_x_vertical, vec_y_vertical, color]
+    #     self._indicatorTypeDict[this_id] = 2
+    #
+    #     return this_id
+    #
+    # def add_horizontal_indicator(self, y, x_min, x_max, color):
+    #     """
+    #     Add a horizontal indicator moving vertically
+    #     :param y:
+    #     :param x_min:
+    #     :param x_max:
+    #     :param color:
+    #     :return:
+    #     """
+    #     # Get ID
+    #     this_id = str(self._autoLineID)
+    #     self._autoLineID += 1
+    #
+    #     #
+    #     vec_x = np.array([x_min, x_max])
+    #     vec_y = np.array([y, y])
+    #
+    #     #
+    #     self._lineManager[this_id] = [vec_x, vec_y, color]
+    #     self._indicatorTypeDict[this_id] = 0
+    #
+    #     return this_id
+    #
+    # def add_vertical_indicator(self, x, y_min, y_max, color):
+    #     """
+    #     Add a vertical indicator to data structure moving horizontally
+    #     :return: indicator ID as an integer
+    #     """
+    #     # Get ID
+    #     this_id = self._autoLineID
+    #     self._autoLineID += 1
+    #
+    #     # form vec x and vec y
+    #     vec_x = np.array([x, x])
+    #     vec_y = np.array([y_min, y_max])
+    #
+    #     #
+    #     self._lineManager[this_id] = [vec_x, vec_y, color]
+    #     self._indicatorTypeDict[this_id] = 1
+    #
+    #     return this_id
 
     def delete(self, indicator_id):
         """

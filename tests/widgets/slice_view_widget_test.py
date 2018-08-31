@@ -101,7 +101,7 @@ if __name__ == '__main__':
     main_window.show()
 
     # mport data
-    x, y, z = import_h5_array('/tmp/pyrs_test_ss/test.hdf5')
+    x, y, z = import_h5_array('./tests/testdata/sliced_peak_positions.hdf5')
     print x.min(), x.max()
     print y.min(), y.max()
     print z.min(), z.max(), z.mean()
