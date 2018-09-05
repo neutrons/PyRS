@@ -38,28 +38,43 @@ class SliceViewer(QMainWindow):
         return
 
     def plot_contour(self, vec_x, vec_y, vec_z):
-
-        # Create grid values first.
+        """
+        plot contour from vec X, vec Y
+        :param vec_x:
+        :param vec_y:
+        :param vec_z:
+        :return:
+        """
         contour_resolution = 1000
-        ngridx = contour_resolution
-        ngridy = contour_resolution
 
-        xi = np.linspace(vec_x.min(), vec_x.max(), ngridx)
-        yi = np.linspace(vec_y.min(), vec_y.max(), ngridy)
+        self.ui.widget.plot_contour(vec_x, vec_y, vec_z, contour_resolution, False)
+        self.ui.widget.plot_scatter(vec_x, vec_y, flush=True)
 
-        # Perform linear interpolation of the data (x,y)
-        # on a grid defined by (xi,yi)
-        triang = tri.Triangulation(x, y)
-        interpolator = tri.LinearTriInterpolator(triang, z)
-        Xi, Yi = np.meshgrid(xi, yi)
-        zi = interpolator(Xi, Yi)
-
-        self.ui.widget.canvas.add_contour_plot(xi, yi, zi)
-        self.ui.widget.canvas.add_scatter(vec_x, vec_y)
-        self.ui.widget.canvas._flush()
-
-        # plot vertically
-        self.ui.widget.vertical_canvas
+        #
+        # # Create grid values first.
+        # contour_resolution = 1000
+        # ngridx = contour_resolution
+        # ngridy = contour_resolution
+        #
+        # xi = np.linspace(vec_x.min(), vec_x.max(), ngridx)
+        # yi = np.linspace(vec_y.min(), vec_y.max(), ngridy)
+        #
+        # # Perform linear interpolation of the data (x,y)
+        # # on a grid defined by (xi,yi)
+        # triang = tri.Triangulation(x, y)
+        # interpolator = tri.LinearTriInterpolator(triang, z)
+        # Xi, Yi = np.meshgrid(xi, yi)
+        # zi = interpolator(Xi, Yi)
+        #
+        # self.ui.widget.plot_contour(xi, yi, zi, flush=False)
+        # self.ui.widget.plot_scatter(vec_x, vec_y, flush=True)
+        #
+        # # self.ui.widget.main_canvas.add_contour_plot(xi, yi, zi)
+        # # self.ui.widget.main_canvas.add_scatter(vec_x, vec_y)
+        # # self.ui.widget.main_canvas._flush()
+        #
+        # # plot vertically
+        # self.ui.widget.vertical_canvas
 
 # END-CLASS
 

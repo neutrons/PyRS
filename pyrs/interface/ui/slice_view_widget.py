@@ -12,6 +12,7 @@ except ImportError:
 
 import numpy as np
 import sliceviewwidgets
+import matplotlib.tri as tri
 
 
 class SliceViewWidget(QWidget):
@@ -25,18 +26,13 @@ class SliceViewWidget(QWidget):
         # Initialize parent
         super(SliceViewWidget, self).__init__(Form)
 
-        # self.sample=[Layer(thickness=np.inf),Layer(thickness=np.inf)]
+        # set up the UI
+        # main 2D graphics view
         self.setLayout(QGridLayout())
-        function_options=['NSLD_REAL','NSLD_IMAGINARY','MSLD_RHO','MSLD_THETA','MSLD_PHI','ROUGHNESS']
-        # self.combo = QtWidgets.QComboBox(self)
-        # for f in function_options:
-        #     self.combo.addItem(f)
-        self.function = 'NSLD_REAL'
         self.paintwidget=QWidget(self)
         self.paintwidget.setMinimumSize(800, 600)
-        # self.layout().addWidget(self.paintwidget)
         self.layout().addWidget(self.paintwidget, 0, 0, 1, 1)
-        self.canvas = sliceviewwidgets.Qt4Mpl2DCanvas(self.paintwidget)  #  QGraphicsView()   #  PlotCanvas(self.sample, self.function,self.paintwidget)
+        self.main_canvas = sliceviewwidgets.Qt4Mpl2DCanvas(self.paintwidget)
         ssizePolicy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         ssizePolicy.setHorizontalStretch(1)
         ssizePolicy.setVerticalStretch(1)
@@ -52,8 +48,8 @@ class SliceViewWidget(QWidget):
         vsizePolicy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
         vsizePolicy.setHorizontalStretch(0)
         vsizePolicy.setVerticalStretch(1)
-        vsizePolicy.setHeightForWidth(False)
-        vsizePolicy.setWidthForHeight(False)
+        vsizePolicy.setHeightForWidth(True)
+        vsizePolicy.setWidthForHeight(True)
         self.vertical_widget.setSizePolicy(vsizePolicy)
         self.vertical_widget.setSizePolicy(vsizePolicy)
         self.vertical_widget.setObjectName("graphicsVerticalView")
@@ -65,27 +61,36 @@ class SliceViewWidget(QWidget):
         self.horizontal_canvas = sliceviewwidgets.Qt4MplCanvasMultiFigure(self.horizontal_widget)
         hsizePolicy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
         hsizePolicy.setHorizontalStretch(1)
-        hsizePolicy.setVerticalStretch(0)
+        hsizePolicy.setVerticalStretch(1)
         hsizePolicy.setHeightForWidth(True)
-        hsizePolicy.setWidthForHeight(True)
+        hsizePolicy.setWidthForHeight(False)
         self.horizontal_widget.setSizePolicy(hsizePolicy)
         self.horizontal_widget.setSizePolicy(hsizePolicy)
         self.horizontal_widget.setObjectName("graphicsHorizontalView")
 
         # connect the events
-        self.canvas.mpl_connect('button_press_event', self.on_mouse_press_event)
-        self.canvas.mpl_connect('button_release_event', self.on_mouse_release_event)
-        self.canvas.mpl_connect('motion_notify_event', self.on_mouse_move)
+        self.main_canvas.mpl_connect('button_press_event', self.on_mouse_press_event)
+        self.main_canvas.mpl_connect('button_release_event', self.on_mouse_release_event)
+        self.main_canvas.mpl_connect('motion_notify_event', self.on_mouse_move)
 
         # indicator
-        self._indicator = IndicatorManager()
+        self._indicator = IndicatorManager(self.main_canvas)
+
+        # mouse state
+        # NOTE: 0 = Not Pressed, 1 = left, 3 = right
+        self._mouse_pressed = 0
 
         return
 
     def resizeEvent(self, event):
+        """
+        event handling for resizing the canvas
+        :param event:
+        :return:
+        """
         self.horizontal_canvas.setGeometry(self.horizontal_widget.rect())
         self.vertical_canvas.setGeometry(self.vertical_widget.rect())
-        self.canvas.setGeometry(self.paintwidget.rect())
+        self.main_canvas.setGeometry(self.paintwidget.rect())
 
         return
 
@@ -97,46 +102,146 @@ class SliceViewWidget(QWidget):
         :param event:
         :return:
         """
-        print ('[DB...BAT] Pressed {} at x = {}, y = {}'.format(event.button, event.xdata, event.ydata))
-
         # get current position
+        self._mouse_pressed = event.button
         pos_x = event.xdata
         pos_y = event.ydata
 
         if event.button == 1 and pos_x is not None and pos_y is not None:
             # left button
-            x_min = -150
-            x_max = 150
-            y_min = 0
-            y_max = 70
-            self._indicator.plot_2way_indicator(self.canvas, pos_x, pos_y)
+            # plot or update plot 2-way indicator
+            self._indicator.plot_2way_indicator(pos_x, pos_y)
+
+            # update slice view
+            vec_x, vec_z = self.slice_2d_data_horizontal(pos_y)
+            self.horizontal_canvas.update_plot(vec_x, vec_z)
+
+            vec_y, vec_z = self.slice_2d_data_vertical(pos_x)
+            self.vertical_canvas.update_plot(vec_y, vec_z)
 
         else:
             # other buttons: do nothing
             pass
 
-        #
-
-        self.canvas._flush()
+        return
 
     def on_mouse_release_event(self, event):
-        """ Handling when mouse button is released
+        """ Handling when mouse button is released: reset the flag
         :param event:
         :return:
         """
-        print 'Released {} at x = {}, y = {}'.format(event.button, event.xdata, event.ydata)
+        print ('[DB] Released {} at x = {}, y = {}'.format(event.button, event.xdata, event.ydata))
+
+        self._mouse_pressed = 0
 
         return
 
     def on_mouse_move(self, event):
-        """
-
+        """ Handling when mouse is moving
         :param event:
         :return:
         """
+        pos_x = event.xdata
+        pos_y = event.ydata
 
+        if self._mouse_pressed == 1 and pos_x is not None and pos_y is not None:
+            # left button is pressed and moves
+            self._indicator.plot_2way_indicator(pos_x, pos_y)
 
-    # NOTE: 1 = left, 3 = right.. xdata, ydata are coordiate with vec_x and vec_y
+            # update slice view
+            vec_x, vec_z = self.slice_2d_data_horizontal(pos_y)
+            self.horizontal_canvas.update_plot(vec_x, vec_z)
+
+            vec_y, vec_z = self.slice_2d_data_vertical(pos_x)
+            self.vertical_canvas.update_plot(vec_y, vec_z)
+
+        else:
+            # not defined
+            pass
+
+        return
+
+    def plot_contour(self, vec_x, vec_y, vec_z, contour_resolution, flush=True):
+        """ create a 2D contour plot
+        :param vec_x:
+        :param vec_y:
+        :param contour_resolution:
+        :param flush:
+        :return:
+        """
+        # Create grid values first.
+        ngridx = contour_resolution
+        ngridy = contour_resolution
+
+        xi = np.linspace(vec_x.min(), vec_x.max(), ngridx)
+        yi = np.linspace(vec_y.min(), vec_y.max(), ngridy)
+
+        # Perform linear interpolation of the data (x,y)
+        # on a grid defined by (xi,yi)
+        triang = tri.Triangulation(vec_x, vec_y)
+        interpolator = tri.LinearTriInterpolator(triang, vec_z)
+        Xi, Yi = np.meshgrid(xi, yi)
+        zi = interpolator(Xi, Yi)
+
+        # self.main_canvas.plot_contour(xi, yi, zi, flush=False)
+        # self. .plot_scatter(vec_x, vec_y, flush=True)
+
+        self._xi = xi
+        self._yi = yi
+        self._zmatrix = zi
+
+        contour_plot = self.main_canvas.add_contour_plot(xi, yi, zi)
+        print ('[DB...BAT] Contour plot: {} of type {}'.format(contour_plot, type(contour_plot)))
+        # self.ui.widget.main_canvas.add_scatter(vec_x, vec_y)
+        # self.ui.widget.main_canvas._flush()
+
+        if flush:
+            self.main_canvas._flush()
+
+        # self.ui.widget.main_canvas.add_contour_plot(xi, yi, zi)
+        # self.ui.widget.main_canvas.add_scatter(vec_x, vec_y)
+        # self.ui.widget.main_canvas._flush()
+
+        return
+
+    def slice_2d_data_horizontal(self, pos_y):
+        """
+        slice 2D data in horizontal direction resulting in vec X and vec Z with interpolation close to the grid
+        :param pos_y:
+        :return:
+        """
+        y_index = np.searchsorted(self._yi, pos_y)
+        vec_z = self._zmatrix[y_index, :]
+
+        return self._xi, vec_z
+
+    def slice_2d_data_vertical(self, pos_x):
+        """
+
+        :param pos_x:
+        :return:
+        """
+        x_index = np.searchsorted(self._xi, pos_x)
+        vec_z = self._zmatrix[:, x_index]
+
+        return self._yi, vec_z
+
+    def plot_scatter(self, vec_x, vec_y, flush=True):
+        """
+        plot scattering
+        :param vec_x:
+        :param vec_y:
+        :param flush:
+        :return:
+        """
+        self.main_canvas.add_scatter(vec_x, vec_y)
+
+        if flush:
+            self.main_canvas._flush()
+
+        return
+
+# END-CLASS-DEF
 
 
 class IndicatorManager(object):
@@ -147,10 +252,14 @@ class IndicatorManager(object):
     - 1: vertical. moving along X-direction. [x, x], [y_min, y_max];
     - 2: 2-way. moving in any direction. [x_min, x_max], [y, y], [x, x], [y_min, y_max].
     """
-    def __init__(self):
+    def __init__(self, canvas):
         """
+        :param canvas:
         :return:
         """
+        #
+        self._canvas = canvas
+
         # current indicator indexes
         self._horizontal_indicator = None
         self._vertical_indicator = None
@@ -166,114 +275,37 @@ class IndicatorManager(object):
 
         return
 
-    def _set_2way_indicators(self, horizontal_id, vertical_id):
-        """
-        add a 2-way indicator to manager
-        :param horizontal_id:
-        :param vertical_id:
-        :return:
-        """
-        self._horizontal_indicator = horizontal_id
-        self._vertical_indicator = vertical_id
-
-        return
-
     # TODO - 20180831 - Doc and check
-    def plot_2way_indicator(self, canvas, x_pos, y_pos):
-        """
-
+    def plot_2way_indicator(self, x_pos, y_pos):
+        """ plot or update a 2-way indicator
         :param canvas:
         :param x_pos:
         :param y_pos:
         :return:
         """
-        x_min, x_max = canvas.getXLimit()
-        y_min, y_max = canvas.getYLimit()
+        x_min, x_max = self._canvas.getXLimit()
+        y_min, y_max = self._canvas.getYLimit()
+
+        # horizontal
         vec_x = np.array([x_min, x_max])
         vec_y = np.array([y_pos, y_pos])
-
         if self._horizontal_indicator is None:
-            self._horizontal_indicator = canvas.axes.plot(vec_x, vec_y, color='white')[0]
+            self._horizontal_indicator = self._canvas.axes.plot(vec_x, vec_y, color='white')[0]
         else:
             self._horizontal_indicator.set_ydata(vec_y)
 
-        print (type(self._horizontal_indicator), self._horizontal_indicator)
-
+        # vertical
         vec_y = np.array([y_min, y_max])
         vec_x = np.array([x_pos, x_pos])
-        canvas.axes.plot(vec_x, vec_y, color='white')
+        if self._vertical_indicator is None:
+            self._vertical_indicator = self._canvas.axes.plot(vec_x, vec_y, color='white')[0]
+        else:
+            self._vertical_indicator.set_xdata(vec_x)
+
+        # flush
+        self._canvas._flush()
 
         return
-
-    # def add_2way_indicator(self, x, x_min, x_max, y, y_min, y_max, color):
-    #     """ add a 2-way indicator and store
-    #     :param x:
-    #     :param x_min:
-    #     :param x_max:
-    #     :param y:
-    #     :param y_min:
-    #     :param y_max:
-    #     :param color:
-    #     :return:
-    #     """
-    #     # Set up indicator ID
-    #     this_id = str(self._autoLineID)
-    #     self._autoLineID += 1
-    #
-    #     # Set up vectors
-    #     vec_x_horizontal = np.array([x_min, x_max])
-    #     vec_y_horizontal = np.array([y, y])
-    #
-    #     vec_x_vertical = np.array([x, x])
-    #     vec_y_vertical = np.array([y_min, y_max])
-    #
-    #     #
-    #     self._lineManager[this_id] = [vec_x_horizontal, vec_y_horizontal, vec_x_vertical, vec_y_vertical, color]
-    #     self._indicatorTypeDict[this_id] = 2
-    #
-    #     return this_id
-    #
-    # def add_horizontal_indicator(self, y, x_min, x_max, color):
-    #     """
-    #     Add a horizontal indicator moving vertically
-    #     :param y:
-    #     :param x_min:
-    #     :param x_max:
-    #     :param color:
-    #     :return:
-    #     """
-    #     # Get ID
-    #     this_id = str(self._autoLineID)
-    #     self._autoLineID += 1
-    #
-    #     #
-    #     vec_x = np.array([x_min, x_max])
-    #     vec_y = np.array([y, y])
-    #
-    #     #
-    #     self._lineManager[this_id] = [vec_x, vec_y, color]
-    #     self._indicatorTypeDict[this_id] = 0
-    #
-    #     return this_id
-    #
-    # def add_vertical_indicator(self, x, y_min, y_max, color):
-    #     """
-    #     Add a vertical indicator to data structure moving horizontally
-    #     :return: indicator ID as an integer
-    #     """
-    #     # Get ID
-    #     this_id = self._autoLineID
-    #     self._autoLineID += 1
-    #
-    #     # form vec x and vec y
-    #     vec_x = np.array([x, x])
-    #     vec_y = np.array([y_min, y_max])
-    #
-    #     #
-    #     self._lineManager[this_id] = [vec_x, vec_y, color]
-    #     self._indicatorTypeDict[this_id] = 1
-    #
-    #     return this_id
 
     def delete(self, indicator_id):
         """

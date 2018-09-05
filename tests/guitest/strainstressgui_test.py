@@ -66,9 +66,9 @@ def test_main(test_dir):
 
     # try to export the aligned the grids
     grid_info_window.ui.tabWidget_alignedParams.setCurrentIndex(1)
-    ss_window.core.strain_stress_calculator.export_aligned_2d_slice('center_d', True, 'e11', 1,
-                                                                    slice_pos=0.0, slice_resolution=0.001,
-                                                                    file_name='/tmp/pyrs_test_ss/test_aligned.hdf5')
+    ss_window.core.strain_stress_calculator.export_2d_slice('center_d', False, 'e11', 1,
+                                                            slice_pos=0.0, slice_resolution=0.001,
+                                                            file_name='/tmp/pyrs_test_ss/test_aligned.hdf5')
 
     # set value
     ss_window.ui.lineEdit_youngModulus.setText('3.0')

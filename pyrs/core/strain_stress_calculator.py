@@ -310,10 +310,13 @@ class StrainStressCalculator(object):
         return grids_vec
 
     def align_grids(self, direction, user_defined, grids_dimension_dict):
-        """ align grids for the final result
+        """ Align the input grids against the output strain/stress output.
+        From the user specified output grid set up (ranges and solutions),
+        1. the output grid in 3D array will be created.
+        2. a mapping from the existing experiment grid to output grid (for scan logs) will be generated
         :param direction:
         :param user_defined:
-        :param grids_dimension_dict:
+        :param grids_dimension_dict: user specified output grid dimensions
         :return: 2-tuple: (1) grids (vector of position: (n, 3) array) (2) scan log map (vector of scan logs: (n, 2)
                                                                            or (n, 3) int array)
         """
@@ -404,8 +407,7 @@ class StrainStressCalculator(object):
 
     # TESTME - 20180818 - Implemented Just
     def align_peak_parameter_on_grids(self, grids_vector, parameter, scan_log_map_vector):
-        """
-        align the parameter's values on a given grid
+        """ align the parameter's values on a given grid
         [3D interpolation]
         1. regular grid interpolation CANNOT be used.
            (https://docs.scipy.org/doc/scipy-0.16.1/reference/generated/scipy.interpolate.RegularGridInterpolator.html)
@@ -430,7 +432,7 @@ class StrainStressCalculator(object):
         param_vector = numpy.ndarray(shape=(num_grids, num_ss_dir), dtype=float)
 
         for i_grid in range(num_grids):
-            grid_pos = grids_vector[i_grid]
+            # grid_pos = grids_vector[i_grid]
 
             for i_dir, ss_dir in enumerate(self._direction_list):
                 # check whether for direction e??, there is a matched experimental grid
@@ -447,6 +449,8 @@ class StrainStressCalculator(object):
                 param_vector[i_grid, i_dir] = param_value
             # END-FOR
         # END-FOR
+
+        self._aligned_param_dict[parameter] = param_vector
 
         return param_vector
 
@@ -881,7 +885,7 @@ class StrainStressCalculator(object):
 
     def export_2d_slice(self, param_name, is_grid_raw, ss_direction, slice_dir, slice_pos, slice_resolution, file_name):
         """
-        export a 2D slice from
+        export a 2D slice from either raw grids from experiments or grids aligned
         :param param_name:
         :param is_grid_raw:
         :param ss_direction:
@@ -954,18 +958,18 @@ class StrainStressCalculator(object):
                                                             allowed_values=self._peak_param_dict[ss_direction].keys())
 
         # TODO - 20180823 - the non-existing data structure is to be corrected later with method to create user grids
-        num_grids = len(self._user_dir_grid_pos[ss_direction])
+        num_grids = len(self._grid_array[ss_direction])
 
         # create the 2D array
         param_grid_array = numpy.ndarray(shape=(num_grids, 4), dtype='float')
-        grids_list = sorted(self._user_dir_grid_pos[ss_direction].keys())
+        grids_list = sorted(self._grid_array[ss_direction].keys())
         for i_grid, grid_pos in enumerate(grids_list):
             # position of grid on sample
             for i_coord in range(3):
                 param_grid_array[i_grid][i_coord] = grid_pos[i_coord]
             # parameter value
-            scan_log_index = self._user_dir_grid_pos[ss_direction][grid_pos]
-            param_value = self._user_dir_grid_pos
+            scan_log_index = self._grid_array[ss_direction][grid_pos]
+            param_value = self._grid_array
             param_grid_array[i_grid][3] = param_value
         # END-FOR
 

@@ -121,7 +121,6 @@ class ExportGridSliceSetupDialog(QDialog):
 # END-DEF-CLASS
 
 
-# TODO - 20180814 - Clean up
 class GridAlignmentCheckTablesView(QMainWindow):
     """ A set of tables in order to check grid alignment in order to set up the final grids
     """
@@ -150,8 +149,8 @@ class GridAlignmentCheckTablesView(QMainWindow):
 
         # set up all the tables
         self.ui.tableView_gridAlignment.setup()
-        self.ui.tableView_gridStatistic.setup()   # TODO - 20180824 - method to set up the table
-        self.ui.tableView_alignedParameters.setup()   # TODO - 20180824 - method to set up the table
+        self.ui.tableView_gridStatistic.setup()
+        self.ui.tableView_alignedParameters.setup()
         self.ui.tableView_matchedGrids.setup()
         self.ui.tableView_partialMatchedGrids.setup()
         self.ui.tableView_mismatchedGrids.setup()
@@ -233,7 +232,7 @@ class GridAlignmentCheckTablesView(QMainWindow):
         show the selected parameter's values on the grids, native or interpolated.
         :return:
         """
-        # TODO - 20180824 - Implement (to be continued)
+        # TESTME - 20180824 - Implement (to be continued)
         param_name = str(self.ui.comboBox_parameterList.currentText())
 
         user_grid_value_list = self._core.strain_stress_calculator.get_user_grid_param_values(ss_direction=None,
@@ -246,11 +245,15 @@ class GridAlignmentCheckTablesView(QMainWindow):
         return
 
     def reset_tables(self):
-        """
-
+        """ reset all the tables
         :return:
         """
-        # TODO - 20180824 - Implement
+        self.ui.tableView_gridAlignment.remove_all_rows()
+        self.ui.tableView_gridParamAnalysis.remove_all_rows()
+        self.ui.tableView_alignedParameters.remove_all_rows()
+        self.ui.tableView_matchedGrids.remove_all_rows()
+        self.ui.tableView_mismatchedGrids.remove_all_rows()
+        self.ui.tableView_partialMatchedGrids.remove_all_rows()
 
         return
 

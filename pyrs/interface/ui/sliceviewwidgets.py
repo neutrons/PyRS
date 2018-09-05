@@ -183,7 +183,7 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         import time
 
         # check input
-        # TODO - labor
+        # TODO - 20180901 - labor
         assert isinstance(vec_x, list) or isinstance(vec_x, np.ndarray), 'blabla'
         assert isinstance(vec_y, list) or isinstance(vec_y, np.ndarray), 'blabla'
         assert isinstance(matrix_z, np.ndarray), 'blabla'
@@ -239,7 +239,7 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         # Flush...
         self._flush()
 
-        return
+        return contour_plot
 
     def add_scatter(self, x, y):
         # TODO - 20180824 - shall be an option
@@ -533,7 +533,10 @@ class Mpl1DGraph(QWidget):
         self._vBox = QVBoxLayout(self)
         self._vBox.addWidget(self._myCanvas)
 
+        # instance to line
+
         return
+
 # END-OF-CLASS (MplGraphicsView)
 
 
@@ -583,21 +586,27 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
 
+        self._is_rotated = rotate
+
         # prototype ...
         import numpy
         from matplotlib import transforms, pyplot
 
-        vec_x = numpy.arange(0, -10, -0.1)
-        vec_y = numpy.sin(vec_x * -1)  # * numpy.pi / 180.)
+        vec_x = numpy.arange(0, 150, 1)
+        vec_y = numpy.sin(vec_x)  # * numpy.pi / 180.)
 
         # first of all, the base transformation of the data points is needed
         # base = pyplot.gca().transData
         if rotate:
             base = self.axes_main[0, 0].transData
             rot = transforms.Affine2D().rotate_deg(270)
-            self.axes_main[0, 0].plot(vec_x, vec_y, 'r--', transform=rot + base)
+            # output = self.axes_main[0, 0].plot(vec_x, vec_y, 'r--', transform=rot + base)
+            output = self.axes_main[0, 0].plot(vec_y, vec_x)
         else:
-            self.axes_main[0, 0].plot(vec_x, vec_y, 'r--')
+            output = self.axes_main[0, 0].plot(vec_x, vec_y, 'r--')
+        self.axes_main[0, 0].set_aspect('auto')
+
+        self._curr_plot = output[0]
 
         #
         # print data
@@ -613,7 +622,32 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         # # or alternatively, use:
         # # line.set_transform(rot + base)
 
-        pyplot.show()
+        # pyplot.show()
+
+        return
+
+    def update_plot(self, vec_x, vec_y):
+        """
+
+        :param vec_x:
+        :param vec_y:
+        :return:
+        """
+        if self._is_rotated:
+            self._curr_plot.set_xdata(vec_y)
+            self._curr_plot.set_ydata(vec_x)
+            self.axes_main[0, 0].set_ylim((vec_x.min(), vec_x.max()))
+            self.axes_main[0, 0].set_xlim((vec_y.min(), vec_y.max()))
+        else:
+            # self.axes_main[0, 0].plot(vec_x, vec_y)
+            # print vec_y.min(), vec_y.max()
+            self._curr_plot.set_xdata(vec_x)
+            self._curr_plot.set_ydata(vec_y)
+
+            self.axes_main[0, 0].set_ylim((vec_y.min(), vec_y.max()))
+        self.axes_main[0, 0].set_aspect('auto')
+
+        self.draw()
 
         return
 

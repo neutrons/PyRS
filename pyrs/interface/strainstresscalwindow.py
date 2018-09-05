@@ -185,17 +185,23 @@ class StrainStressCalculationWindow(QMainWindow):
         return
 
     def align_user_grids(self, direction, user_define_flag, grids_setup_dict, show_aligned_grid=True):
-        """
-
+        """ align the current grid to
         :param direction:
         :param user_define_flag:
         :param grids_setup_dict:
         :param show_aligned_grid:
         :return:
         """
+        # create user specified grids and align the experiment grids in e11/e22/e33 to user-specified grid
         grid_array, mapping_array = \
             self._core.strain_stress_calculator.align_grids(direction=direction, user_defined=user_define_flag,
                                                             grids_dimension_dict=grids_setup_dict)
+
+        # convert (map or interpolate) peak positions from experiments to output
+        center_d_vector = \
+            self._core.strain_stress_calculator.align_peak_parameter_on_grids(grids_vector=grid_array,
+                                                                              parameter='center_d',
+                                                                              scan_log_map_vector=mapping_array)
 
         # show the align grids report???
         if show_aligned_grid:
@@ -203,6 +209,7 @@ class StrainStressCalculationWindow(QMainWindow):
             self._grid_alignment_table_view.set_aligned_grids_info(grid_array, mapping_array)
             self._grid_alignment_table_view.set_peak_parameter_names(
                 self._core.strain_stress_calculator.get_peak_parameter_names())
+            self._grid_alignment_table_view.set_aligned_parameter_value('center_d', center_d_vector)
         # END-IF (show aligned grid)
 
         # allow to calculate strain and stress
