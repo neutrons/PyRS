@@ -52,33 +52,44 @@ def test_main(test_dir):
     grid_info_window = ss_window.align_user_grids(direction='e22', user_define_flag=False, grids_setup_dict=setup_dict,
                                                   show_aligned_grid=True)
 
-    # work on grid information window
+    # work on grid (alignment) window
+    # go to tab-2 (raw and aligned peak parameter value)
     grid_info_window.ui.comboBox_parameterNamesAnalysis.setCurrentIndex(2)  # set to center_d
     grid_info_window.do_load_params_raw_grid()
+    # show plot on raw grids and then mapped to output grids
     grid_info_window.ui.tabWidget_alignedParams.setCurrentIndex(2)
+    # set to d_center
+    grid_info_window.ui.comboBox_parameterNamesAnalysis.setCurrentIndex(2)
+    assert str(grid_info_window.ui.comboBox_parameterNamesAnalysis.currentText()) == 'center_d',\
+        'Shall be center_d but not {}'.format(str(grid_info_window.ui.comboBox_parameterNamesAnalysis.currentText()))
+    # load raw, plot, map and plot
+    grid_info_window.do_load_params_raw_grid()
+    grid_info_window.do_load_params_raw_grid()
+    grid_info_window.do_load_mapped_values()
+    grid_info_window.do_load_params_raw_grid()
 
     ss_window.core.strain_stress_calculator.export_2d_slice('center_d', True, 'e11', 1,
                                                             slice_pos=0.0, slice_resolution=0.001,
                                                             file_name='/tmp/pyrs_test_ss/test.hdf5')
 
     # pop out the window for grid check
-    ss_window.do_show_aligned_grid()
-
-    # try to export the aligned the grids
-    grid_info_window.ui.tabWidget_alignedParams.setCurrentIndex(1)
-    ss_window.core.strain_stress_calculator.export_2d_slice('center_d', False, 'e11', 1,
-                                                            slice_pos=0.0, slice_resolution=0.001,
-                                                            file_name='/tmp/pyrs_test_ss/test_aligned.hdf5')
-
-    # set value
-    ss_window.ui.lineEdit_youngModulus.setText('3.0')
-    ss_window.ui.lineEdit_poissonRatio.setText('0.5')
-    ss_window.ui.lineEdit_d0.setText('1.22')
-
-    # calculate unconstrained strain and stress
-    ss_window.do_calculate_strain_stress()
-    ss_window.save_present_project('test_strain_stress_plane_stress.h5')
-    ss_window.plot_strain_stress_slice(param='epsilon', index=[0, 0], dir=1, position=0.0)
+    # ss_window.do_show_aligned_grid()
+    #
+    # # try to export the aligned the grids
+    # grid_info_window.ui.tabWidget_alignedParams.setCurrentIndex(1)
+    # ss_window.core.strain_stress_calculator.export_2d_slice('center_d', False, 'e11', 1,
+    #                                                         slice_pos=0.0, slice_resolution=0.001,
+    #                                                         file_name='/tmp/pyrs_test_ss/test_aligned.hdf5')
+    #
+    # # set value
+    # ss_window.ui.lineEdit_youngModulus.setText('3.0')
+    # ss_window.ui.lineEdit_poissonRatio.setText('0.5')
+    # ss_window.ui.lineEdit_d0.setText('1.22')
+    #
+    # # calculate unconstrained strain and stress
+    # ss_window.do_calculate_strain_stress()
+    # ss_window.save_present_project('test_strain_stress_plane_stress.h5')
+    # ss_window.plot_strain_stress_slice(param='epsilon', index=[0, 0], dir=1, position=0.0)
 
     return ss_window
 

@@ -505,6 +505,43 @@ class StrainStressCalculationWindow(QMainWindow):
 
         return
 
+    # TODO TODO - 20180905 - NEXT BIG STEP
+    def plot_peak_param_slice(self, param_name, ss_direction, is_raw_grid):
+        """
+
+        :param param_name:
+        :param ss_direction:
+        :param is_raw_grid:
+        :return:
+        """
+        # 1. get data.. refer to the data that table gets
+        # ...
+
+        # 2. set up slicer
+        self.ui.comboBox_sliceDirection
+        self.ui.horizontalSlider_slicer3D
+        self.ui.lineEdit_sliceStartValue
+        self.ui.lineEdit_sliceEndValue
+
+        # 3. get read slice
+        self.ui.comboBox_sliceDirection
+        self.ui.horizontalSlider_slicer3D
+
+        # 4. slice data
+        # vec_x, ...
+
+        # 5. plot
+        self.ui.graphicsView_sliceView.plot_contour(vec_x, vec_y, vec_z, contour_resolution=1, flush=True)
+        self.ui.graphicsView_sliceView.plot_scatter(vec_x, vec_y, flush=True)
+
+        # 6. store the 3D data
+
+        # 7. self.ui.horizontalSlider_slicer3D: event handling
+
+
+        return
+
+
     def plot_strain_stress_slice(self, param='epsilon', index=[0, 0], dir=1, position=0.0):
         """
         plot a strain and stress slice

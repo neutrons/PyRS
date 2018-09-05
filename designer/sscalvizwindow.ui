@@ -448,7 +448,7 @@
           </widget>
          </item>
          <item>
-          <widget class="QSlider" name="horizontalSlider_slicer">
+          <widget class="QSlider" name="horizontalSlider_slicer3D">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
            </property>

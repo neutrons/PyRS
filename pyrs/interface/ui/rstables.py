@@ -416,22 +416,21 @@ class ParamValueMapAnalysisTable(NTableWidget.NTableWidget):
 
         return
 
-    def set_user_grid_parameter_values(self, user_grid_value_dict):
+    def set_user_grid_parameter_values(self, grid_vec, mapped_param_value_array, direction):
         """ set the parameter values on user defined grid
         Note: each grid's value is given by a dict with keys (2) value (3) dir (4) scan-index
-        :param user_grid_value_dict: key = position, value is described as note
+        :param grid_vec:
+        :param mapped_param_value_array: key = position, value is described as note
+        :param direction:
         :return:
         """
-        checkdatatypes.check_dict('Parameter values on user defined grid', user_grid_value_dict)
+        checkdatatypes.check_numpy_arrays('Grid position vector', [grid_vec], 2, False)
+        checkdatatypes.check_numpy_arrays('Parameter value mapped onto grid', mapped_param_value_array, 1, False)
+        assert grid_vec.shape[0] == mapped_param_value_array.shape[0], 'Number of grids shall be same'
 
-        grid_positions = user_grid_value_dict.keys()
-        grid_positions.sort()
-
-        for i_grid, grid_pos in enumerate(grid_positions):
-            grid_i = user_grid_value_dict[grid_pos]
-            self.append_row([None, grid_pos[0], grid_pos[1], grid_pos[2],
-                             grid_i['value'], grid_i['dir']])
-        # END-FOR
+        for i_grid in range(grid_vec.shape[0]):
+            self.append_row([None, grid_vec[i_grid][0], grid_vec[i_grid][1], grid_vec[i_grid][2],
+                             mapped_param_value_array[i_grid], direction])
 
         return
 

@@ -26,6 +26,12 @@ class SliceViewWidget(QWidget):
         # Initialize parent
         super(SliceViewWidget, self).__init__(Form)
 
+        # set up the status
+        self._is_setup = False
+        self._xi = None
+        self._yi = None
+        self._zmatrix = None
+
         # set up the UI
         # main 2D graphics view
         self.setLayout(QGridLayout())
@@ -190,6 +196,8 @@ class SliceViewWidget(QWidget):
         self._yi = yi
         self._zmatrix = zi
 
+        self._is_setup = True
+
         contour_plot = self.main_canvas.add_contour_plot(xi, yi, zi)
         print ('[DB...BAT] Contour plot: {} of type {}'.format(contour_plot, type(contour_plot)))
         # self.ui.widget.main_canvas.add_scatter(vec_x, vec_y)
@@ -210,6 +218,9 @@ class SliceViewWidget(QWidget):
         :param pos_y:
         :return:
         """
+        if self._is_setup is False:
+            raise RuntimeError('Not set up yet')
+
         y_index = np.searchsorted(self._yi, pos_y)
         vec_z = self._zmatrix[y_index, :]
 

@@ -140,12 +140,19 @@ class GridAlignmentCheckTablesView(QMainWindow):
         self.ui = ui.ui_gridsalignmentview.Ui_MainWindow()
         self.ui.setupUi(self)
 
+        # init widgets
+        self.ui.pushButton_showParameterSSGrid.setEnabled(False)
+
         # define events handlers
         self.ui.actionQuit.triggered.connect(self.do_quit)
-        self.ui.pushButton_showParameterValue.clicked.connect(self.do_show_parameter)
-        self.ui.pushButton_loadParameter.clicked.connect(self.do_load_params_raw_grid)
-        self.ui.pushButton_mapParamValueToFinalGrids.clicked.connect(self.do_load_mapped_values)
+        self.ui.pushButton_showParameterRawGrid.clicked.connect(self.do_load_params_raw_grid)
+        self.ui.pushButton_showParameterSSGrid.clicked.connect(self.do_load_mapped_values)
+        self.ui.pushButton_plot2D.clicked.connect(self.do_plot_parameter)
         self.ui.pushButton_export2D.clicked.connect(self.do_export_2d)
+
+        # combo box event handling and mutex
+        self.ui.comboBox_parameterList.currentIndexChanged.connect(self.do_show_parameter)
+        self._mutex_param_name_list = False
 
         # set up all the tables
         self.ui.tableView_gridAlignment.setup()
@@ -192,11 +199,19 @@ class GridAlignmentCheckTablesView(QMainWindow):
         ss_dir = str(self.ui.comboBox_ssDirection.currentText())
 
         # get value: returned list spec can be found in both rctables and strain stress calculator
-        raw_grid_param_values = self._core.strain_stress_calculator.get_user_grid_param_values(ss_dir, param_name)
+        aligned_grid_param_values = self._core.strain_stress_calculator.get_user_grid_param_values(ss_dir, param_name)
+        output_grid_vec = self._core.strain_stress_calculator.get_strain_stress_grid()
 
         # set value
         self.ui.tableView_gridParamAnalysis.reset_table()
-        self.ui.tableView_gridParamAnalysis.set_user_grid_parameter_values(raw_grid_param_values)
+
+        # print ('[DB...BAT] Parameter {} @ {} on raw grid:\n{}'.format(param_name, ss_dir, aligned_grid_param_values))
+        self.ui.tableView_gridParamAnalysis.set_user_grid_parameter_values(output_grid_vec, aligned_grid_param_values,
+                                                                           ss_dir)
+
+        # disable 'load raw' and enable 'map output'
+        self.ui.pushButton_showParameterRawGrid.setEnabled(True)
+        self.ui.pushButton_showParameterSSGrid.setEnabled(False)
 
         return
 
@@ -217,6 +232,27 @@ class GridAlignmentCheckTablesView(QMainWindow):
         self.ui.tableView_gridParamAnalysis.reset_table()
         self.ui.tableView_gridParamAnalysis.set_raw_grid_parameter_values(raw_grid_param_values)
 
+        # disable 'load raw' and enable 'map output'
+        self.ui.pushButton_showParameterRawGrid.setEnabled(False)
+        self.ui.pushButton_showParameterSSGrid.setEnabled(True)
+
+        return
+
+    def do_plot_parameter(self):
+        """
+
+        :return:
+        """
+        param_name = str(self.ui.comboBox_parameterNamesAnalysis.currentText())
+        ss_dir = str(self.ui.comboBox_ssDirection.currentText())
+
+        if self.ui.pushButton_showParameterRawGrid.isEnabled():
+            plot_raw = True
+        else:
+            plot_raw = False
+
+        self._parent.plot_peak_param_slice(param_name=param_name, ss_direction=ss_dir, is_raw_grid=plot_raw)
+
         return
 
     def do_quit(self):
@@ -228,15 +264,18 @@ class GridAlignmentCheckTablesView(QMainWindow):
         return
 
     def do_show_parameter(self):
-        """
-        show the selected parameter's values on the grids, native or interpolated.
+        """ show the selected parameter's values on output grids (view only tab)
         :return:
         """
-        # TESTME - 20180824 - Implement (to be continued)
+        if self._mutex_param_name_list:
+            return
+
         param_name = str(self.ui.comboBox_parameterList.currentText())
 
-        user_grid_value_list = self._core.strain_stress_calculator.get_user_grid_param_values(ss_direction=None,
-                                                                                              param_name=param_name)
+        for ss_dir in self._core.strain_stress_calculator.get_strain_stress_direction():
+            user_grid_value_vec = \
+                self._core.strain_stress_calculator.get_user_grid_param_values(ss_direction=ss_dir,
+                                                                               param_name=param_name)
 
         # reset the table and add all the grids' value
         self.ui.tableView_gridAlignment.remove_all_rows()
@@ -286,6 +325,24 @@ class GridAlignmentCheckTablesView(QMainWindow):
 
         return
 
+    def set_aligned_parameter_value(self, param_name, param_value_vector):
+        """
+        set the aligned parameter values to Table...
+        :param param_name:
+        :param param_value_vector:
+        :return:
+        """
+        print ('[DB...BAT] Set {}  Value vector shape = {}'.format(param_name, param_value_vector.shape))
+
+        for i_row in range(param_value_vector.shape[0]):
+            row_items = [1, 2, 3]
+            for i_ss_dir in range(param_value_vector.shape[1]):
+                row_items.append(param_value_vector[i_row, i_ss_dir])
+            self.ui.tableView_alignedParameters.append_row(row_items)
+        # END-FOR
+
+        return
+
     def set_peak_parameter_names(self, peak_param_names):
         """ set the peak parameter names to combo box for user to specify
         :param peak_param_names:
@@ -293,6 +350,10 @@ class GridAlignmentCheckTablesView(QMainWindow):
         """
         checkdatatypes.check_list('Peak parameter names', peak_param_names)
 
+        # lock
+        self._mutex_param_name_list = True
+
+        # write
         self.ui.comboBox_parameterList.clear()
         self.ui.comboBox_parameterNamesAnalysis.clear()
         peak_param_names.sort()
@@ -300,6 +361,9 @@ class GridAlignmentCheckTablesView(QMainWindow):
             self.ui.comboBox_parameterList.addItem(p_name)
             self.ui.comboBox_parameterNamesAnalysis.addItem(p_name)
         # END-FOR
+
+        # unlock
+        self._mutex_param_name_list = False
 
         return
 

@@ -173,7 +173,10 @@ class StrainStressCalculator(object):
         self._dir_grid_pos_scan_index_dict = dict()   # [e11/e22/e33][grid pos][scan log index]
         for dir_i in self._direction_list:
             self._dir_grid_pos_scan_index_dict[dir_i] = None  # (value) a dictionary: key = sample position,
-                                                              # value = scan log index
+            #                                                   value = scan log index
+
+        # mapped/interpolated parameters
+        self._aligned_param_dict = dict()   # [param name][output-grid index, ss-direction-index] = value
 
         # flag whether the measured sample points can be aligned. otherwise, more complicated algorithm is required
         # including searching and interpolation
@@ -184,7 +187,7 @@ class StrainStressCalculator(object):
         for dir_i in self._direction_list:
             self._sample_positions_dict[dir_i] = None  # each shall be None or a LIST of 3-tuples
         self._grid_statistics_dict = None
-        self._grid_array = None  # array (of vector) for grids used by strain/stress calculation
+        self._grid_output_array = None  # array (of vector) for grids used by strain/stress calculation
 
         # status
         self._is_saved = False
@@ -201,7 +204,6 @@ class StrainStressCalculator(object):
 
         # grid matching/alignment
         self._match11_dict = None  # [dir: e22/e33][e11 scan log index] = e22/33 scan log index: matched to grid e11
-
 
         return
 
@@ -325,17 +327,17 @@ class StrainStressCalculator(object):
             raise RuntimeError('It is not allowed to have both direction {} and user_defined {}'
                                .format(direction, user_defined))
         elif user_defined:
-            self._grid_array = self._generate_grids(grids_dimension_dict)
+            self._grid_output_array = self._generate_grids(grids_dimension_dict)
         elif direction is not None:
-            self._grid_array = self._copy_grids(direction, grids_dimension_dict)
+            self._grid_output_array = self._copy_grids(direction, grids_dimension_dict)
         else:
             raise RuntimeError('Either direction or user-defined must be specified.')
 
         num_ss_dir = len(self._direction_list)
-        num_grids = self._grid_array.shape[0]
+        num_grids = self._grid_output_array.shape[0]
         mapping_vector = numpy.ndarray(shape=(num_grids, num_ss_dir), dtype=int)
         for i_grid in range(num_grids):
-            ss_grid_i = self._grid_array[i_grid]
+            ss_grid_i = self._grid_output_array[i_grid]
             for i_dir, ss_dir in enumerate(self._direction_list):
                 # get the sorted positions
                 sorted_pos_list_i = self._sample_positions_dict[ss_dir]
@@ -362,7 +364,7 @@ class StrainStressCalculator(object):
             # END-FOR
         # END-FOR
 
-        return self._grid_array, mapping_vector
+        return self._grid_output_array, mapping_vector
 
     def align_matched_grids(self, resolution=0.001):
         """
@@ -958,18 +960,18 @@ class StrainStressCalculator(object):
                                                             allowed_values=self._peak_param_dict[ss_direction].keys())
 
         # TODO - 20180823 - the non-existing data structure is to be corrected later with method to create user grids
-        num_grids = len(self._grid_array[ss_direction])
+        num_grids = len(self._grid_output_array[ss_direction])
 
         # create the 2D array
         param_grid_array = numpy.ndarray(shape=(num_grids, 4), dtype='float')
-        grids_list = sorted(self._grid_array[ss_direction].keys())
+        grids_list = sorted(self._grid_output_array[ss_direction].keys())
         for i_grid, grid_pos in enumerate(grids_list):
             # position of grid on sample
             for i_coord in range(3):
                 param_grid_array[i_grid][i_coord] = grid_pos[i_coord]
             # parameter value
-            scan_log_index = self._grid_array[ss_direction][grid_pos]
-            param_value = self._grid_array
+            scan_log_index = self._grid_output_array[ss_direction][grid_pos]
+            param_value = self._grid_output_array
             param_grid_array[i_grid][3] = param_value
         # END-FOR
 
@@ -1099,11 +1101,25 @@ class StrainStressCalculator(object):
 
         return log_names
 
+    def get_strain_stress_direction(self):
+        """
+        get the direction for strain and stress calculation
+        :return: either [e11, e22] or [e11, e22, e33]
+        """
+        return self._direction_list[:]
+
+    def get_strain_stress_grid(self):
+        """
+        get the vector for strain and stress grid
+        :return:
+        """
+        return self._grid_output_array
+
     def get_raw_grid_param_values(self, ss_direction, param_name):
         """ Get the parameter's value on raw experimental grid
         :param ss_direction:
         :param param_name:
-        :return:
+        :return: dict: [grid position] = value
         """
         # check input
         pyrs.utilities.checkdatatypes.check_string_variable('Strain/stress direction', ss_direction,
@@ -1126,24 +1142,31 @@ class StrainStressCalculator(object):
         """ Get the mapped value to user defined grid
         :param ss_direction:
         :param param_name:
-        :return:
+        :return: vector
         """
-        # TODO - 20180822 - Finish it! - TODO
         # check input
         pyrs.utilities.checkdatatypes.check_string_variable('Strain/stress direction', ss_direction,
                                                             self._direction_list)
-        pyrs.utilities.checkdatatypes.check_string_variable('Parameter name', param_name)
+        pyrs.utilities.checkdatatypes.check_string_variable('Parameter name', param_name,
+                                                            allowed_values=self._peak_param_dict[ss_direction].keys())
 
         # get the
-        return_list = list()
-        for whatever in []:
-            grid_val_dict[grid_pos] = {'scan-index': None, 'value': None, 'dir': ss_direction}
-            grid_val_dict[grid_pos] = {'scan-index': None, 'e11': None, 'e22': None, 'e33': None}
+        if param_name not in self._aligned_param_dict:
+            raise RuntimeError('Parameter {} is not aligned to output/strain/stress grid yet. Available incude {}'
+                               .format(param_name, self._aligned_param_dict.keys()))
 
-            return_list.append(grid_val_dict)
-        # END-FOR
+        ss_dir_index = self._direction_list.index(ss_direction)
 
-        return return_list
+        param_value_array = self._aligned_param_dict[param_name][:, ss_dir_index]
+
+        # for whatever in []:
+        #     grid_val_dict[grid_pos] = {'scan-index': None, 'value': None, 'dir': ss_direction}
+        #     grid_val_dict[grid_pos] = {'scan-index': None, 'e11': None, 'e22': None, 'e33': None}
+        #
+        #     return_list.append(grid_val_dict)
+        # # END-FOR
+
+        return param_value_array
 
     # TODO - 20180820 - Write a single unit test to find out how good or bad this algorithm is
     @staticmethod
