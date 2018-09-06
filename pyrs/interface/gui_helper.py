@@ -177,6 +177,29 @@ def get_boolean_from_dialog(window_title, message):
     return return_value
 
 
+def parse_tuples(tuple_str, data_type, size=None):
+    """
+
+    :param tuple_str:
+    :param data_type:
+    :param size:
+    :return:
+    """
+    # TODO - 20180906 - Refine!
+    items = tuple_str.strip().split(',')
+
+    if size is not None:
+        assert len(items) == size, '{} vs {}'.format(items, size)
+
+    ret_list = list()
+    for item in items:
+        item = item.strip()
+        item = data_type(item)
+        ret_list.append(item)
+
+    return ret_list
+
+
 def pop_message(parent, message, detailed_message=None, message_type='error'):
     """ pop up a message with specified message type such as error, warning, info...
     :param parent:

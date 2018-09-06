@@ -82,12 +82,14 @@ def test_main(test_dir):
     #                                                         file_name='/tmp/pyrs_test_ss/test_aligned.hdf5')
     #
     # # set value
-    # ss_window.ui.lineEdit_youngModulus.setText('3.0')
-    # ss_window.ui.lineEdit_poissonRatio.setText('0.5')
-    # ss_window.ui.lineEdit_d0.setText('1.22')
-    #
-    # # calculate unconstrained strain and stress
-    # ss_window.do_calculate_strain_stress()
+    ss_window.ui.lineEdit_youngModulus.setText('3.0')
+    ss_window.ui.lineEdit_poissonRatio.setText('1.5')
+    ss_window.ui.lineEdit_d0.setText('1.170')
+    ss_window.ui.radioButton_uniformD0.setChecked(True)
+
+    # calculate unconstrained strain and stress
+    ss_window.do_calculate_strain_stress()
+    ss_window.do_show_strain_stress_table()
     # ss_window.save_present_project('test_strain_stress_plane_stress.h5')
     # ss_window.plot_strain_stress_slice(param='epsilon', index=[0, 0], dir=1, position=0.0)
 

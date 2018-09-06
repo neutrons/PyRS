@@ -9,6 +9,7 @@ import gui_helper
 from pyrs.utilities import checkdatatypes
 from ui import ui_newsessiondialog
 from ui import ui_strainstressgridsetup
+from ui import ui_strainstressview
 import ui.ui_gridsalignmentview
 import ui.ui_sliceexportdialog
 
@@ -246,10 +247,11 @@ class GridAlignmentCheckTablesView(QMainWindow):
         param_name = str(self.ui.comboBox_parameterNamesAnalysis.currentText())
         ss_dir = str(self.ui.comboBox_ssDirection.currentText())
 
+        # if shift to raw is disabled, then it means that it is in RAW state
         if self.ui.pushButton_showParameterRawGrid.isEnabled():
-            plot_raw = True
-        else:
             plot_raw = False
+        else:
+            plot_raw = True
 
         self._parent.plot_peak_param_slice(param_name=param_name, ss_direction=ss_dir, is_raw_grid=plot_raw)
 
@@ -556,6 +558,13 @@ class StrainStressTableView(QMainWindow):
         """
         super(StrainStressTableView, self).__init__(parent)
 
+        # set up UI
+        self.ui = ui_strainstressview.Ui_MainWindow()
+        self.ui.setupUi(self)
+
+        # init widgets
+        self.ui.tableView_strainStressTable.setup()
+
         return
 
     def do_quit(self):
@@ -572,27 +581,31 @@ class StrainStressTableView(QMainWindow):
         reset the main strain/stress value table
         :return:
         """
-        self.ui.tableView_gridAlignment.remove_all_rows()
+        self.ui.tableView_strainStressTable.remove_all_rows()
 
         return
 
-    def set_strain_stress_values(self, strain_stress_value_dict):
+    def set_strain_stress_values(self, grid_vector, strain_vector, stress_vector):
         """ set strain and stress values.  Each row shall be a sample grid
         :param strain_stress_value_dict: key = grid position (vector) value = dict [strain, stress]
         :return:
         """
-        grids = sorted(strain_stress_value_dict.keys())
-        for i_grid in range(len(grids)):
+        # TODO - 20180905 - check input
+        #
+
+        num_grids = grid_vector.shape[0]
+
+        for i_grid in range(num_grids):
             # get grid, strain and stress
-            grid_vec = grids[i_grid]
-            ss_dict = strain_stress_value_dict[grid_vec]
-            strain_matrix = ss_dict['strain']
-            stress_matrix = ss_dict['stress']
+            grid_vec = grid_vector[i_grid]
+            strain_matrix = strain_vector[i_grid]
+            stress_matrix = stress_vector[i_grid]
 
             # get the elements needed
-            self.ui.tableView_gridAlignment.add_grid_strain_stress(grid_pos=grid_vec,
-                                                                   strain_matrix=strain_matrix,
-                                                                   stress_matrix=stress_matrix)
+
+            self.ui.tableView_strainStressTable.add_grid_strain_stress(grid_pos=grid_vec,
+                                                                       strain_matrix=strain_matrix,
+                                                                       stress_matrix=stress_matrix)
         # END-FOR
 
         return

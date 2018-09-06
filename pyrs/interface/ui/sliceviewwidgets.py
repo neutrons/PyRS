@@ -202,7 +202,7 @@ class Qt4Mpl2DCanvas(FigureCanvas):
 
         # Do plot: resolution on Z axis (color bar is set to 100)
         time_s = time.time()
-        print (time_s)
+        print ('[DB...BAT] Starting time (float) = {}'.format(time_s))
 
         self.axes.clear()
         if False:
@@ -211,8 +211,8 @@ class Qt4Mpl2DCanvas(FigureCanvas):
             contour_plot = self.axes.contourf(vec_x, vec_y, matrix_z, 50, cmap="RdBu_r")
 
         time_f = time.time()
-        print (time_f)
-        print (time_s - time_f)
+        print ('[DB...BAT] Stopping time (float) = {}.  Used {} second for plotting'.format(time_f,
+                                                                                            time_f - time_s))
 
         labels = [item.get_text() for item in self.axes.get_yticklabels()]
         print '[DB...BAT] Number of Y labels = ', len(labels), ', Number of Y = ', len(vec_y)

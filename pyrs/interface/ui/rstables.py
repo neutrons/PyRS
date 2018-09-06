@@ -677,10 +677,10 @@ class StrainStressValueTable(NTableWidget.NTableWidget):
         """
         self.init_setup(self.TableSetupList)
 
-        for index, element_name in ['e11', 'e22', 'e33']:
+        for index, element_name in enumerate(['epsilon[11]', 'epsilon[22]', 'epsilon[33]']):
             self._col_index_strain_dict['e11'] = 3 + index
 
-        for index, element_name in ['s11', 's22', 's33']:
+        for index, element_name in enumerate(['nu11', 'nu22', 'nu33']):
             self._col_index_strain_dict['s11'] = 6 + index
 
         return

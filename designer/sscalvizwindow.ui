@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1345</width>
-    <height>993</height>
+    <height>984</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -406,6 +406,16 @@
             </size>
            </property>
           </spacer>
+         </item>
+         <item>
+          <widget class="QPushButton" name="pushButton_plotSliceView">
+           <property name="toolTip">
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Plot selected data in slice view&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           </property>
+           <property name="text">
+            <string>Plot</string>
+           </property>
+          </widget>
          </item>
         </layout>
        </item>

@@ -773,11 +773,18 @@ class StrainStressCalculator(object):
 
         return max_distance
 
-    def execute(self, ss_grid_vec, peak_pos_d_vec):
+    def execute(self):
         """
         calculate strain/stress on the final output grids
         :return:
         """
+        # get from the class variable
+        ss_grid_vec = self._grid_output_array
+        if 'center_d' not in self._aligned_param_dict:
+            raise RuntimeError('center_d is not aligned to output grids')
+        else:
+            peak_pos_d_vec = self._aligned_param_dict['center_d']
+
         # check inputs
         pyrs.utilities.checkdatatypes.check_numpy_arrays('Strain/stress grids vector', [ss_grid_vec, peak_pos_d_vec],
                                                          dimension=2, check_same_shape=False)
@@ -790,9 +797,10 @@ class StrainStressCalculator(object):
         for i_grid, grid in enumerate(ss_grid_vec):
             # construct the peak position matrix
             peak_matrix = numpy.zeros(shape=(3, 3), dtype='float')
-            peak_fit_failed = False
-            for mindex, dir_i in enumerate(self._direction_list):
-                peak_matrix[mindex, mindex] = peak_pos_d_vec[i_grid][mindex]
+            # peak_fit_failed = False
+            for m_index, dir_i in enumerate(self._direction_list):
+                # matrix index m_index is the same as direction index
+                peak_matrix[m_index, m_index] = peak_pos_d_vec[i_grid][m_index]
             # END-FOR
 
             ss_calculator = StrainStress(peak_pos_matrix=peak_matrix,
@@ -804,6 +812,9 @@ class StrainStressCalculator(object):
             strain_matrix_vec[i_grid] = ss_calculator.get_strain()
             stress_matrix_vec[i_grid] = ss_calculator.get_strain()
         # END-FOR
+
+        self._strain_matrix_vec = strain_matrix_vec
+        self._stress_matrix_vec = stress_matrix_vec
 
         return strain_matrix_vec, stress_matrix_vec
 
@@ -1114,6 +1125,13 @@ class StrainStressCalculator(object):
         :return:
         """
         return self._grid_output_array
+
+    def get_strain_stress_values(self):
+        """
+
+        :return:
+        """
+        return self._grid_output_array, self._strain_matrix_vec, self._stress_matrix_vec
 
     def get_raw_grid_param_values(self, ss_direction, param_name):
         """ Get the parameter's value on raw experimental grid

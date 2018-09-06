@@ -167,7 +167,8 @@ class SliceViewWidget(QWidget):
 
         return
 
-    def plot_contour(self, vec_x, vec_y, vec_z, contour_resolution, flush=True):
+    # TODO - 20180906 - Clean!
+    def plot_contour(self, vec_x, vec_y, vec_z, contour_resolution, contour_resolution_y=None, flush=True):
         """ create a 2D contour plot
         :param vec_x:
         :param vec_y:
@@ -175,16 +176,29 @@ class SliceViewWidget(QWidget):
         :param flush:
         :return:
         """
+        # check for vec x and vec y for non-contour case
+        if vec_x.min() == vec_x.max() or vec_y.min() == vec_y.max():
+            # TODO - 20180906 - Propagate this situation
+            return False
+
         # Create grid values first.
         ngridx = contour_resolution
-        ngridy = contour_resolution
+        if contour_resolution_y is None:
+            ngridy = contour_resolution
+        else:
+            ngridy = contour_resolution_y
 
         xi = np.linspace(vec_x.min(), vec_x.max(), ngridx)
         yi = np.linspace(vec_y.min(), vec_y.max(), ngridy)
 
         # Perform linear interpolation of the data (x,y)
         # on a grid defined by (xi,yi)
-        triang = tri.Triangulation(vec_x, vec_y)
+        try:
+            triang = tri.Triangulation(vec_x, vec_y)
+        except RuntimeError as run_err:
+            print ('[ERROR] vec X: {}'.format(vec_x))
+            print (vec_y)
+            raise run_err
         interpolator = tri.LinearTriInterpolator(triang, vec_z)
         Xi, Yi = np.meshgrid(xi, yi)
         zi = interpolator(Xi, Yi)
@@ -197,7 +211,6 @@ class SliceViewWidget(QWidget):
         self._zmatrix = zi
 
         self._is_setup = True
-
         contour_plot = self.main_canvas.add_contour_plot(xi, yi, zi)
         print ('[DB...BAT] Contour plot: {} of type {}'.format(contour_plot, type(contour_plot)))
         # self.ui.widget.main_canvas.add_scatter(vec_x, vec_y)

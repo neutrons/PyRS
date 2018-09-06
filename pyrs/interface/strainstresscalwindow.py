@@ -53,6 +53,8 @@ class StrainStressCalculationWindow(QMainWindow):
         self.ui.pushButton_showAlignGridTable.clicked.connect(self.do_show_aligned_grid)
         self.ui.pushButton_alignGrids.clicked.connect(self.do_align_grids)
 
+        self.ui.pushButton_plotSliceView.clicked.connect(self.do_plot_sliced_3d)
+
         # strain/stress save and export
         self.ui.pushButton_saveStressStrain.clicked.connect(self.save_stress_strain)
         self.ui.pushButton_exportSpecialType.clicked.connect(self.do_export_stress_strain)
@@ -65,25 +67,13 @@ class StrainStressCalculationWindow(QMainWindow):
         self.ui.radioButton_d0Grid.toggled.connect(self.evt_change_d0_type)
 
         # combo boxes handling
-        self.ui.comboBox_plotParameterName.currentIndexChanged.connect(self.do_plot_sliced_3d)
+        # self.ui.comboBox_plotParameterName.currentIndexChanged.connect(self.do_plot_sliced_3d)
+        self.ui.comboBox_type.currentIndexChanged.connect(self.do_change_plot_type)
 
         # menu
         self.ui.actionNew_Session.triggered.connect(self.do_new_session)
         self.ui.actionQuit.triggered.connect(self.do_quit)
-        # TODO - 20180814 - actionPlot_Grids_3D
 
-        # self.lineEdit_tdScanFile..connect(self.)
-        # self.lineEdit_ndScanFile..connect(self.)
-        # self.lineEdit_rdScanFile..connect(self.)
-        #
-        # self.lineEdit_reducedFile..connect(self.)
-        #
-        # self.lineEdit_outputFileName..connect(self.)
-        # self.lineEdit_exportFileName..connect(self.)
-        # self.plainTextEdit_info..connect(self.)
-        self.ui.graphicsView_sliceView
-        # self.lineEdit_sliceStartValue..connect(self.)
-        # self.lineEdit_sliceEndValue..connect(self.)
         self.ui.horizontalSlider_slicer3D.valueChanged.connect(self.do_slice_3d_data)
 
         # current data/states
@@ -131,6 +121,25 @@ class StrainStressCalculationWindow(QMainWindow):
         :return:
         """
         return self._core
+
+    def do_change_plot_type(self):
+        """
+        set the parameters to change according to plot type
+        :return:
+        """
+        # clear original ones
+        self.ui.comboBox_plotParameterName.clear()
+
+        if self.ui.comboBox_type.currentIndex() == 0:
+            # peak parameters
+            # TODO - 20180906 - Need to support other peak parameters
+            self.ui.comboBox_plotParameterName.addItem('center_d')
+        else:
+            # strain/stress matrix elements
+            for item_name in ['1, 1', '2, 2', '3, 3', '1, 2', '1, 3', '2, 3']:
+                self.ui.comboBox_plotParameterName.addItem(item_name)
+
+        return
 
     def do_get_grid_alignment_info(self):
         """
@@ -499,29 +508,27 @@ class StrainStressCalculationWindow(QMainWindow):
             self.ui.pushButton_browse_e33ScanFile.setEnabled(True)
         return
 
-    # TODO - NEW - 20180828 - Develop UI for this! - TODO
-    def do_plot_slice_view(self):
+    def do_plot_sliced_3d(self):
         """
-        plot a slice view for selected parameter selected
+        slice loaded 3D stress/strain and plot
         :return:
         """
-        if self.ui.radioButton_plotPeakParam.isChecked():
+        plot_type_index = str(self.ui.comboBox_type.currentIndex())
+
+        if plot_type_index == 0:
+            # peak parameters
             peak_param_name = str(self.ui.comboBox_plotParameterName.currentText())
-            slice_dir = str(self.ui.comboBox_sliceDirection.currentText())
-            slice_pos = str(self.ui.lineEdit_slicePosition.text())
-            self.plot_peak_param_slice(peak_param_name, slice_dir, slice_pos)
-        elif self.ui.radioButton_plotStrainStress.isChecked():
-            param_index = self.ui.comboBox_plotStrainStress.currentIndex()
-            if param_index == 0:
-                param = 'epsilon'
-            else:
-                param = 'nu'
-            slice_index = gui_helper.parse_tuples(self.ui.lineEdit_ssElementIndex, 2)
-            self.plot_strain_stress_slice()
+            ss_dir = str(self.ui.comboBox_paramDirection.currentText())
+            self.plot_peak_param_slice(param_name=peak_param_name, ss_direction=ss_dir,
+                                       is_raw_grid=False)
+        else:
+            # strain or stress
+            matrix_index_str = str(self.ui.comboBox_plotParameterName.currentText())
+            slice_index = gui_helper.parse_tuples(matrix_index_str, int, 2)
+            self.plot_strain_stress_slice(plot_type_index == 1, matrix_index=slice_index)
 
         return
 
-    # TESTME - 20180905 - NEXT BIG STEP
     def plot_peak_param_slice(self, param_name, ss_direction, is_raw_grid):
         """ plot specified peak parameter's value on 3D grid in slice view
         :param param_name:
@@ -532,7 +539,7 @@ class StrainStressCalculationWindow(QMainWindow):
         # check inputs
         checkdatatypes.check_string_variable('(Peak) parameter name', param_name)
         checkdatatypes.check_string_variable('Strain/stress direction (e11/e22/e33)', ss_direction,
-                                             self._core.strain_stress_calculator.get_strain_stress_direction)
+                                             self._core.strain_stress_calculator.get_strain_stress_direction())
         checkdatatypes.check_bool_variable('Flag for raw experiment grid', is_raw_grid)
 
         if is_raw_grid:
@@ -540,7 +547,8 @@ class StrainStressCalculationWindow(QMainWindow):
             # get value
             grid_param_dict = self._core.strain_stress_calculator.get_raw_grid_param_values(ss_direction, param_name)
             # convert to a 2D array (grid position vector) and a 1D array (parameter value)
-            self._slice_view_grid_vec, self._slice_view_param_vec = self._convert_grid_dict_to_vectors(grid_param_dict)
+            self._slice_view_grid_vec, self._slice_view_param_vec = self._convert_grid_dict_to_vectors(ss_direction,
+                                                                                                       grid_param_dict)
         else:
             # mapped/interpolated parameter value on output strain/stress grid
             self._slice_view_grid_vec = self._core.strain_stress_calculator.get_strain_stress_grid()
@@ -549,9 +557,9 @@ class StrainStressCalculationWindow(QMainWindow):
         # END-IF-ELSE
 
         # set up slier slider
-        self.ui.comboBox_sliceDirection.setCurrentIndex(0)  # as X
-        min_value = numpy.min(self._slice_view_grid_vec[:, 0])
-        max_value = numpy.max(self._slice_view_grid_vec[:, 0])
+        slice_dir = self.ui.comboBox_sliceDirection.currentIndex()  # as X
+        min_value = numpy.min(self._slice_view_grid_vec[:, slice_dir])
+        max_value = numpy.max(self._slice_view_grid_vec[:, slice_dir])
 
         self.ui.lineEdit_sliceStartValue.setText('{}'.format(min_value))
         self.ui.lineEdit_sliceEndValue.setText('{}'.format(max_value))
@@ -564,9 +572,14 @@ class StrainStressCalculationWindow(QMainWindow):
 
         # slice the data
         vec_x, vec_y, vec_z = self._slice_value_on_grid(0, 99)
+        print vec_x
 
-        # 5. plot
-        self.ui.graphicsView_sliceView.plot_contour(vec_x, vec_y, vec_z, contour_resolution=1, flush=True)
+        # plot
+        RESOLUTION = 1  # TODO - 20180905 - Need to be configurable
+        self.ui.graphicsView_sliceView.plot_contour(vec_x, vec_y, vec_z,
+                                                    contour_resolution=(vec_x.max() - vec_x.min())/RESOLUTION,
+                                                    contour_resolution_y=(vec_y.max() - vec_y.min())/RESOLUTION,
+                                                    flush=True)
         self.ui.graphicsView_sliceView.plot_scatter(vec_x, vec_y, flush=True)
 
         # 6. store the 3D data
@@ -575,6 +588,26 @@ class StrainStressCalculationWindow(QMainWindow):
 
 
         return
+
+    def _convert_grid_dict_to_vectors(self, ss_direction, grid_param_value_dict):
+        """
+
+        :param grid_param_value_dict:
+        :return:
+        """
+        grid_list = list()
+        value_list = list()
+        for grid_pos in grid_param_value_dict:
+            grid_list.append(grid_pos)
+            value_list.append(grid_param_value_dict[grid_pos]['value'])
+            assert grid_param_value_dict[grid_pos]['dir'] == ss_direction, 'Direction not matching'
+
+        grid_vec = numpy.array(grid_list)
+        print grid_vec.shape
+        value_vec = numpy.array(value_list)
+        print value_vec.shape
+
+        return grid_vec, value_vec
 
     def _slice_value_on_grid(self, slider_min, slider_max):
         """ slice current parameter value on grid along a selected direction (x, y or z)
@@ -611,16 +644,52 @@ class StrainStressCalculationWindow(QMainWindow):
 
         return vec_x, vec_y, sliced_value_vec
 
-    def plot_strain_stress_slice(self, param='epsilon', index=[0, 0], dir=1, position=0.0):
-        """
-        plot a strain and stress slice
-        :param param:
-        :param index:
-        :param dir:
-        :param position:
-        :return:
+    def plot_strain_stress_slice(self, is_strain, matrix_index):
         """
 
+        :param is_strain:
+        :param matrix_index:
+        :return:
+        """
+        # get data and set to class variable
+        self._slice_view_grid_vec, strain_vec, stress_vec = \
+            self._core.strain_stress_calculator.get_strain_stress_values()
+        if is_strain:
+            slice_view_param_vec = strain_vec
+        else:
+            slice_view_param_vec = stress_vec
+
+        # convert
+        index_i, index_j = matrix_index
+        self._slice_view_param_vec = numpy.ndarray(shape=(slice_view_param_vec.shape[0],), dtype='float')
+        for i_grid in range(slice_view_param_vec.shape[0]):
+            self._slice_view_param_vec[i_grid] = slice_view_param_vec[i_grid][index_i, index_j]
+
+        # set up slier slider
+        slice_dir = self.ui.comboBox_sliceDirection.currentIndex()  # as X
+        min_value = numpy.min(self._slice_view_grid_vec[:, slice_dir])
+        max_value = numpy.max(self._slice_view_grid_vec[:, slice_dir])
+
+        self.ui.lineEdit_sliceStartValue.setText('{}'.format(min_value))
+        self.ui.lineEdit_sliceEndValue.setText('{}'.format(max_value))
+        self.ui.lineEdit_sliceStartValue.setEnabled(False)
+        self.ui.lineEdit_sliceEndValue.setEnabled(False)
+
+        self.ui.horizontalSlider_slicer3D.setRange(0, 99)
+        self.ui.horizontalSlider_slicer3D.setTickInterval(1)
+        self.ui.horizontalSlider_slicer3D.setTickPosition(0)
+
+        # slice the data
+        vec_x, vec_y, vec_z = self._slice_value_on_grid(0, 99)
+        print vec_x
+
+        # plot
+        RESOLUTION = 1  # TODO - 20180905 - Need to be configurable
+        self.ui.graphicsView_sliceView.plot_contour(vec_x, vec_y, vec_z,
+                                                    contour_resolution=(vec_x.max() - vec_x.min())/RESOLUTION,
+                                                    contour_resolution_y=(vec_y.max() - vec_y.min())/RESOLUTION,
+                                                    flush=True)
+        self.ui.graphicsView_sliceView.plot_scatter(vec_x, vec_y, flush=True)
 
         return
 
@@ -716,7 +785,8 @@ class StrainStressCalculationWindow(QMainWindow):
             self._strain_stress_table_view.reset_table()
 
         # get value and setup
-        self._strain_stress_table_view.set_strain_stress_values(self._core.get_strain_stress_values())
+        grid_array, strain_vec, stress_vec = self._core.strain_stress_calculator.get_strain_stress_values()
+        self._strain_stress_table_view.set_strain_stress_values(grid_array, strain_vec, stress_vec)
 
         self._strain_stress_table_view.show()
 
@@ -762,16 +832,6 @@ class StrainStressCalculationWindow(QMainWindow):
         self._new_session_dialog.show()
 
         return
-
-    def do_plot_sliced_3d(self):
-        """
-        slice loaded 3D stress/strain and plot
-        :return:
-        """
-        slice_direction = str(self.ui.comboBox_sliceDirection.currentText()).lower()
-        plot_term = str(self.ui.comboBox_plotParameterName.currentText())
-
-        # TODO - 20180813 - To be continued
 
     def set_items_to_plot(self):
         """
