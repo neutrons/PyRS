@@ -663,7 +663,8 @@ class StrainStressCalculationWindow(QMainWindow):
         index_i, index_j = matrix_index
         self._slice_view_param_vec = numpy.ndarray(shape=(slice_view_param_vec.shape[0],), dtype='float')
         for i_grid in range(slice_view_param_vec.shape[0]):
-            self._slice_view_param_vec[i_grid] = slice_view_param_vec[i_grid][index_i, index_j]
+            # convert the user-perspective index (from 1) to numpy-convention index (from 1)
+            self._slice_view_param_vec[i_grid] = slice_view_param_vec[i_grid][index_i-1, index_j-1]
 
         # set up slier slider
         slice_dir = self.ui.comboBox_sliceDirection.currentIndex()  # as X
