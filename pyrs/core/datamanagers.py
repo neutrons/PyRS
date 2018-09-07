@@ -12,7 +12,7 @@ class ScanDataHolder(object):
         """
 
         :param file_name:
-        :param diff_data_dict:
+        :param diff_data_dict: dict (key: int/scan log index; value: tuple: vec_2theta, vec_intensity
         :param sample_log_dict:
         """
         # check
@@ -40,7 +40,7 @@ class ScanDataHolder(object):
             checkdatatypes.check_string_variable('Sample log name', log_name)
             log_value_vec = sample_log_dict[log_name]
             checkdatatypes.check_numpy_arrays('Sample log {0} value vector'.format(log_name),
-                                               log_value_vec, 1, False)
+                                              log_value_vec, 1, False)
             if len(log_value_vec) != len(self._scan_log_indexes):
                 raise RuntimeError('Number of log values of {0} {1} is not equal to number of scan logs {2}'
                                    ''.format(log_name, len(log_value_vec), len(self._scan_log_indexes)))
@@ -280,7 +280,7 @@ class RawDataManager(object):
     def get_data_set(self, data_key_set, scan_index):
         """
         get data set of a single diffraction pattern
-        :param data_ref_id:
+        :param data_key_set:
         :param scan_index:
         :return:
         """
@@ -309,7 +309,7 @@ class RawDataManager(object):
         :param can_plot: True for log that can be plotted (no object type); Otherwise, all sample logs
         :return: list of strings
         """
-        # TODO/FIXME/DOC/CHECK
+        # data key set can be a tuple for multiple sample rotations (pole figure)
         if isinstance(data_key_set, tuple):
             data_key, sub_key = data_key_set
         else:

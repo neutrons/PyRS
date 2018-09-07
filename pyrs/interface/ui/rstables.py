@@ -102,6 +102,404 @@ class FitResultTable(NTableWidget.NTableWidget):
         return
 
 
+class GridsStatisticsTable(NTableWidget.NTableWidget):
+    """ Table for grid statistics
+    """
+    TableSetupList = [('Item', 'str'),   # include min x, max x, num x, avg resolution x, ... (for y) .. (for z)... # data points
+                      ('e11', 'float'),
+                      ('e22', 'float'),
+                      ('e33', 'float')]
+
+    def __init__(self, parent):
+        """
+        initialization
+        :param parent:
+        """
+        super(GridsStatisticsTable, self).__init__(parent)
+
+        self._indexItemName = 0
+        self._indexDirDict = dict()
+        for i_dir, dir_name in enumerate(['e11', 'e22', 'e33']):
+            self._indexDirDict[dir_name] = i_dir + 1
+
+        return
+
+    def set_statistics(self, stat_dict, row_item_list):
+        """
+
+        :param stat_dict:
+        :param row_item_list: list of item names for each row in order to maitain the order
+        :return:
+        """
+        checkdatatypes.check_dict('Statistic dictionary', stat_dict)
+        checkdatatypes.check_list('Row item names', row_item_list)
+
+        # add rows to fill the table
+        num_diff = len(row_item_list) - self.rowCount()
+        if num_diff > 0:
+            for i_row in range(num_diff):
+                self.append_row(['', 0., 0., 0.])
+
+        # fill the table
+        for i_row, item_name in enumerate(row_item_list):
+            self.update_cell_value(i_row, self._indexItemName, item_name)
+            for dir_i in stat_dict.keys():
+                self.update_cell_value(i_row, self._indexDirDict[dir_i], stat_dict[dir_i][item_name])
+            # END-FOR (dir)
+        # END-FOR (row)
+
+        return
+
+    def setup(self):
+        """
+        Init setup
+        :return:
+        """
+        self.init_setup(self.TableSetupList)
+
+        return
+
+
+class GridAlignmentTable(NTableWidget.NTableWidget):
+    """ Table to show how the grids from e11/e22/e33 are aligned
+    The grids shown in the table are those for final strain/stress calculation.
+    So they are not necessary same as any from e11/e22/e33
+    """
+    TableSetupList = [('x', 'float'),
+                      ('y', 'float'),
+                      ('z', 'float'),
+                      ('e11', 'int'),  # scan log index of e11 direction data, -1 for not found
+                      ('e22', 'int'),
+                      ('e33', 'int')]
+
+    def __init__(self, parent):
+        """ Initialization
+        :param parent:
+        """
+        super(GridAlignmentTable, self).__init__(parent)
+
+        # indexes
+        self._index_x = 0
+        self._index_y = 1
+        self._index_z = 2
+
+        self._index_dir_dict = dict()
+        for i_dir, dir_name in enumerate(['e11', 'e22', 'e33']):
+            self._index_dir_dict[dir_name] = i_dir + 3
+
+        return
+
+    def add_grid(self, grid_pos_x, grid_pos_y, grid_pos_z, scan_index_e11, scan_index_e22, scan_index_e33):
+        """
+        add to grid
+        :param grid_pos_x:
+        :param grid_pos_y:
+        :param grid_pos_z:
+        :param scan_index_e11:
+        :param scan_index_e22:
+        :param scan_index_e33:
+        :return:
+        """
+        if scan_index_e11 < 0:
+            scan_index_e11 = None
+        if scan_index_e22 < 0:
+            scan_index_e22 = None
+        if scan_index_e33 < 0:
+            scan_index_e33 = None
+
+        self.append_row([grid_pos_x, grid_pos_y, grid_pos_z, scan_index_e11, scan_index_e22, scan_index_e33])
+
+        return
+
+    def set_grids_values(self, grids_value_list):
+        """
+
+        :param grids_value_list:
+        :return:
+        """
+        checkdatatypes.check_list('Parameter value on grids', grids_value_list)
+
+        grids_value_list.sort()
+
+    def setup(self):
+        """
+        Init setup
+        :return:
+        """
+        self.init_setup(self.TableSetupList)
+
+        return
+
+
+class MatchedGridsTable(NTableWidget.NTableWidget):
+    """ Table for matched grids, i.e., across e11/e22 (plane stress/strain) or e11/e22/e33 (unconstrained)
+    """
+    TableSetupList = [('x', 'float'),
+                      ('y', 'float'),
+                      ('z', 'float'),
+                      ('e11', 'int'),  # scan log index of e11 direction data
+                      ('e22', 'int'),
+                      ('e33', 'int')]
+
+    def __init__(self, parent):
+        """ initialization
+        :param parent:
+        """
+        super(MatchedGridsTable, self).__init__(parent)
+
+        return
+
+    def add_matched_grid(self, grid_pos_x, grid_pos_y, grid_pos_z, scan_index_e11, scan_index_e22, scan_index_e33):
+        """
+        add an all-direction matched grid
+        :param grid_pos_x:
+        :param grid_pos_y:
+        :param grid_pos_z:
+        :param scan_index_e11:
+        :param scan_index_e22:
+        :param scan_index_e33:
+        :return:
+        """
+        checkdatatypes.check_int_variable('Scan log index for e11', scan_index_e11, (1, None))
+        checkdatatypes.check_int_variable('Scan log index for e22', scan_index_e22, (1, None))
+        if scan_index_e33 is not None:
+            checkdatatypes.check_int_variable('Scan log index for e33', scan_index_e33, (1, None))
+
+        self.append_row([grid_pos_x, grid_pos_y, grid_pos_z, scan_index_e11, scan_index_e22, scan_index_e33])
+
+        return
+
+    def setup(self):
+        """
+        Init setup
+        :return:
+        """
+        self.init_setup(self.TableSetupList)
+
+        return
+
+
+class MismatchedGridsTable(NTableWidget.NTableWidget):
+    """ Table for completed misaligned/mismatched grids
+    """
+    TableSetupList = [('Direction', 'str'),
+                      ('Scan Index', 'int'),
+                      ('x', 'float'),
+                      ('y', 'float'),
+                      ('z', 'float')]
+
+    def __init__(self, parent):
+        """
+        initialization
+        :param parent:
+        """
+        super(MismatchedGridsTable, self).__init__(parent)
+
+        return
+
+    def add_mismatched_grid(self, direction, scan_index, grid_pos_x, grid_pos_y, grid_pos_z):
+        """
+        add a line for mismatched grid
+        :param direction:
+        :param scan_index:
+        :param grid_pos_x:
+        :param grid_pos_y:
+        :param grid_pos_z:
+        :return:
+        """
+        if direction not in ['e11', 'e22', 'e33']:
+            raise RuntimeError('blabla')
+
+        checkdatatypes.check_int_variable('Scan log index for {}'.format(direction), scan_index, (1, None))
+
+        self.append_row([direction, scan_index, grid_pos_x, grid_pos_y, grid_pos_z])
+
+        return
+
+    def setup(self):
+        """
+        Init setup
+        :return:
+        """
+        self.init_setup(self.TableSetupList)
+
+        return
+# END-CLASS
+
+
+class ParamValueGridTable(NTableWidget.NTableWidget):
+    """
+    Parameter values on strain/stress grids
+    """
+    TableSetupList = [('x', 'float'),
+                      ('y', 'float'),
+                      ('z', 'float'),
+                      ('e11', 'float'),  # scan log index of e11 direction data
+                      ('e22', 'float'),
+                      ('e33', 'float')]
+
+    def __init__(self, parent):
+        """ initialization
+        :param parent:
+        """
+        super(ParamValueGridTable, self).__init__(parent)
+
+        return
+
+    def add_matched_grid(self, grid_pos_x, grid_pos_y, grid_pos_z, param_value_11, param_value_22, param_value_33):
+        """
+        add an all-direction matched grid
+        :param grid_pos_x:
+        :param grid_pos_y:
+        :param grid_pos_z:
+        :param param_value_11:
+        :param param_value_22:
+        :param param_value_33:
+        :return:
+        """
+        checkdatatypes.check_float_variable('Parameter value for e11', param_value_11, (None, None))
+        checkdatatypes.check_float_variable('Parameter value for e22', param_value_22, (None, None))
+        if param_value_33 is not None:
+            checkdatatypes.check_float_variable('Parameter value for e33', param_value_33, (None, None))
+
+        self.append_row([grid_pos_x, grid_pos_y, grid_pos_z, param_value_11, param_value_22, param_value_33])
+
+        return
+
+    def setup(self):
+        """
+        Init setup
+        :return:
+        """
+        self.init_setup(self.TableSetupList)
+
+        return
+
+    def set_user_grid_parameter_values(self, user_grid_value_dict):
+        """ set the parameter values on user defined grid
+        Note: each grid's value is given by a dict with keys (2) value (3) dir (4) scan-index
+        :param user_grid_value_dict: key = position, value is described as note
+        :return:
+        """
+        checkdatatypes.check_dict('Parameter values on user defined grid', user_grid_value_dict)
+
+        grid_positions = user_grid_value_dict.keys()
+        grid_positions.sort()
+
+        for i_grid, grid_pos in enumerate(grid_positions):
+            grid_i = user_grid_value_dict[grid_pos]
+            self.add_matched_grid(grid_pos[0], grid_pos[1], grid_pos[2], grid_i['e11'], grid_i['e22'], grid_i['e33'])
+        # END-FOR
+
+        return
+
+# END-CLASS-DEF
+
+
+class ParamValueMapAnalysisTable(NTableWidget.NTableWidget):
+    """
+    Table for parameter mapping on grids
+    """
+    TableSetupList = [('Scan Index', 'int'),   # main direction scan log index]
+                      ('x', 'float'),
+                      ('y', 'float'),
+                      ('z', 'float'),
+                      ('Parameter', 'float'),  # parameter value
+                      ('Direction', 'str')     # e11, e22 or e33
+                      ]
+
+    def __init__(self, parent):
+        """ initialization
+        :param parent:
+        """
+        super(ParamValueMapAnalysisTable, self).__init__(parent)
+
+        return
+
+    def set_user_grid_parameter_values(self, grid_vec, mapped_param_value_array, direction):
+        """ set the parameter values on user defined grid
+        Note: each grid's value is given by a dict with keys (2) value (3) dir (4) scan-index
+        :param grid_vec:
+        :param mapped_param_value_array: key = position, value is described as note
+        :param direction:
+        :return:
+        """
+        checkdatatypes.check_numpy_arrays('Grid position vector', [grid_vec], 2, False)
+        checkdatatypes.check_numpy_arrays('Parameter value mapped onto grid', mapped_param_value_array, 1, False)
+        assert grid_vec.shape[0] == mapped_param_value_array.shape[0], 'Number of grids shall be same'
+
+        for i_grid in range(grid_vec.shape[0]):
+            self.append_row([None, grid_vec[i_grid][0], grid_vec[i_grid][1], grid_vec[i_grid][2],
+                             mapped_param_value_array[i_grid], direction])
+
+        return
+
+    def set_raw_grid_parameter_values(self, raw_grid_value_dict):
+        """
+        set the parameter values on raw defined grid
+        Note: each grid's value is given by a dict with keys (2) value (3) dir (4) scan-index
+        :param raw_grid_value_dict: key = position, value is described as above note
+        :return:
+        """
+        checkdatatypes.check_dict('Parameter values on raw experimental grid', raw_grid_value_dict)
+
+        grid_positions = raw_grid_value_dict.keys()
+        grid_positions.sort()
+
+        for i_grid, grid_pos in enumerate(grid_positions):
+            grid_i = raw_grid_value_dict[grid_pos]
+            self.append_row([grid_i['scan-index'], grid_pos[0], grid_pos[1], grid_pos[2],
+                             grid_i['value'], grid_i['dir']])
+        # END-FOR
+
+    def reset_table(self):
+        """
+        reset table
+        :return:
+        """
+        self.remove_all_rows()
+
+        return
+
+    def setup(self):
+        """
+        Init setup
+        :return:
+        """
+        self.init_setup(self.TableSetupList)
+
+# END-DEF-CLASS
+
+
+class PartialMatchedGrids(NTableWidget.NTableWidget):
+    """ Table for partially matched grids
+    """
+    TableSetupList = [('Direction', 'str'),
+                      ('Scan Index', 'int'),  # main direction scan log index]
+                      ('x', 'float'),
+                      ('y', 'float'),
+                      ('z', 'float'),
+                      ('Direction', 'str'),  # other direction
+                      ('Scan Index', 'int')]
+
+    def __init__(self, parent):
+        """ initialization
+        :param parent:
+        """
+        super(PartialMatchedGrids, self).__init__(parent)
+
+        return
+
+    def setup(self):
+        """
+        Init setup
+        :return:
+        """
+        self.init_setup(self.TableSetupList)
+
+        return
+
+
 class PoleFigureTable(NTableWidget.NTableWidget):
     """
     A table tailored to pole figure
@@ -221,5 +619,68 @@ class PoleFigureTable(NTableWidget.NTableWidget):
         self._col_index_chi = self.TableSetupList.index(('chi', 'float'))
 
         self._col_index_goodness = self.TableSetupList.index(('cost', 'float'))
+
+        return
+# END-DEF-CLASS()
+
+
+class StrainStressValueTable(NTableWidget.NTableWidget):
+    """
+    A table for strain and stress value
+    """
+    TableSetupList = [('x', 'float'),
+                      ('y', 'float'),
+                      ('z', 'float'),
+                      ('e11', 'float'),  # e is short for epsilon as strain
+                      ('e22', 'float'),
+                      ('e33', 'float'),
+                      ('s11', 'float'),  # s is short for sigma as stress
+                      ('s22', 'float'),
+                      ('s33', 'float')]
+
+    def __init__(self, parent):
+        """
+        initialization
+        :param parent:
+        """
+        super(StrainStressValueTable, self).__init__(parent)
+
+        self._col_index_strain_dict = dict()
+        self._col_index_stress_dict = dict()
+
+        return
+
+    def add_grid_strain_stress(self, grid_pos, strain_matrix, stress_matrix):
+        """
+        add a grid with strain and
+        :param grid_pos:
+        :param strain_matrix:
+        :param stress_matrix:
+        :return:
+        """
+        # check inputs
+        checkdatatypes.check_numpy_arrays('Grid position', [grid_pos], dimension=1, check_same_shape=False)
+        checkdatatypes.check_numpy_arrays('Strain and stress matrix', [strain_matrix, stress_matrix],
+                                          dimension=2, check_same_shape=True)
+
+        line_list = list()
+        line_list.extend([pos for pos in grid_pos])
+        line_list.extend([strain_matrix[i, i] for i in range(3)])
+        line_list.extend([stress_matrix[i, i] for i in range(3)])
+
+        self.append_row(line_list)
+
+    def setup(self):
+        """
+        Init setup
+        :return:
+        """
+        self.init_setup(self.TableSetupList)
+
+        for index, element_name in enumerate(['epsilon[11]', 'epsilon[22]', 'epsilon[33]']):
+            self._col_index_strain_dict['e11'] = 3 + index
+
+        for index, element_name in enumerate(['nu11', 'nu22', 'nu33']):
+            self._col_index_strain_dict['s11'] = 6 + index
 
         return

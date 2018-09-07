@@ -187,7 +187,21 @@
       <item row="0" column="1">
        <layout class="QHBoxLayout" name="horizontalLayout_5">
         <item>
-         <widget class="QLineEdit" name="lineEdit_scanNUmbers"/>
+         <widget class="QLineEdit" name="lineEdit_scanNumbers"/>
+        </item>
+        <item>
+         <widget class="QPushButton" name="pushButton_plotPreviousScan">
+          <property name="text">
+           <string>|&lt;</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="pushButton_plotNextScan">
+          <property name="text">
+           <string>|&gt;</string>
+          </property>
+         </widget>
         </item>
         <item>
          <widget class="QLabel" name="label_8">
@@ -422,7 +436,7 @@
      <x>0</x>
      <y>0</y>
      <width>1561</width>
-     <height>25</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -440,8 +454,16 @@
     </property>
     <addaction name="action_launchPlotControl"/>
    </widget>
+   <widget class="QMenu" name="menuTools">
+    <property name="title">
+     <string>Tools</string>
+    </property>
+    <addaction name="actionAdvanced_Peak_Fit_Settings"/>
+    <addaction name="actionQuick_Fit_Result_Check"/>
+   </widget>
    <addaction name="menuFile"/>
    <addaction name="menuPlot"/>
+   <addaction name="menuTools"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionQuit">
@@ -465,6 +487,16 @@
   <action name="actionSave_Fit_Result">
    <property name="text">
     <string>Save Fit Result</string>
+   </property>
+  </action>
+  <action name="actionQuick_Fit_Result_Check">
+   <property name="text">
+    <string>Quick Fit Result Check</string>
+   </property>
+  </action>
+  <action name="actionAdvanced_Peak_Fit_Settings">
+   <property name="text">
+    <string>Advanced Peak Fit Settings</string>
    </property>
   </action>
  </widget>

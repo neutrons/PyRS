@@ -299,7 +299,7 @@ class TextureAnalysisWindow(QMainWindow):
 
         # report fit result... ...
         # add function parameters and detector IDs to UI
-        function_params = self._core.get_fit_parameters((data_key, det_id_list[0]))
+        function_params = self._core.get_peak_fit_parameter_names((data_key, det_id_list[0]))
         self._sample_log_names_mutex = True
         # TODO FIXME : add to X axis too
         curr_index = self.ui.comboBox_yaxisNames.currentIndex()
@@ -365,8 +365,8 @@ class TextureAnalysisWindow(QMainWindow):
 
             try:
                 # get diffraction data
-                diff_data_set = self._core.get_diff_data(data_key=(self._data_key, det_id),
-                                                         scan_log_index=scan_log_index)
+                diff_data_set = self._core.get_diffraction_data(data_key=(self._data_key, det_id),
+                                                                scan_log_index=scan_log_index)
                 self.ui.graphicsView_fitSetup.plot_diff_data(diff_data_set,
                                                              'Detector {0} Scan {1}'
                                                              ''.format(det_id, scan_log_index))
@@ -531,10 +531,24 @@ class TextureAnalysisWindow(QMainWindow):
         :return:
         """
         # get pole figure from core
-        # TODO - 20180720 - maximum cost shall be specified by user
+        max_cost_str = str(self.ui.lineEdit_maxCost.text()).strip()
+        if len(max_cost_str) == 0:
+            # empty.. non given
+            max_cost = 100.
+            self.ui.lineEdit_maxCost.setText('{}'.format(max_cost))
+        else:
+            try:
+                max_cost = float(max_cost_str)
+            except ValueError:
+                max_cost = 100.
+                self.ui.lineEdit_maxCost.setText('{}'.format(max_cost))
+                gui_helper.pop_message(self, '{} is not a recognized float'.format(max_cost_str), message_type='error')
+                return
+        # END-IF-ELSE
+
         vec_alpha, vec_beta, vec_intensity = self._core.get_pole_figure_values(data_key=self._data_key,
                                                                                detector_id_list=None,
-                                                                               max_cost=70.)
+                                                                               max_cost=max_cost)
 
         self.ui.graphicsView_contour.plot_pole_figure(vec_alpha, vec_beta, vec_intensity)
 

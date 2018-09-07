@@ -444,15 +444,7 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         super(Qt4Mpl2DCanvas, self).__init__(self.fig)
 
         # set up axis/subplot (111) only for 2D
-        self.axes = self.fig.add_subplot(111, polar=True)  # return: matplotlib.axes.AxesSubplot
-        print ('[DB......................................BAT] ...............................')
-
-        # ax = fig.add_subplot(polar=True)
-
-
-
-        self.fig.subplots_adjust(bottom=0.15)
-        self.axes2 = None
+        self.axes = self.fig.add_subplot(111, polar=False)  # return: matplotlib.axes.AxesSubplot
 
         # plot management
         self._scatterPlot = None
@@ -474,23 +466,6 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         self._colorBar = None
         self._isLegendOn = False
         self._legendFontSize = 8
-
-        # # TODO/FIXME/TODO/FIXME ----- Prototype!
-        # import matplotlib.pyplot as plt
-        #
-        # plt.ion()
-        # data = np.random.rand(256, 3)
-        #
-        # #    subplot_kw = dict(xlim=(0, 1), ylim=(0, 1), autoscale_on=False)
-        # #   fig, ax = plt.subplots(subplot_kw=subplot_kw)
-        #
-        # self.pts = self.axes.scatter(data[:, 0], data[:, 1], s=80, c=data[:, 2],
-        #                              marker='s')
-        # # print pts
-        # # print dir(pts)
-        # # print type(pts), pts.__class__.__name__
-        #
-        # self.pts.set_offsets(data)
 
         return
 
@@ -671,7 +646,7 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         @return:
         """
         # check!
-        # TODO
+        # TODO - 20180801 - Make it work
         assert isinstance(array2d, np.ndarray), 'blabla'
         if array2d.shape[1] < 3:
             raise RuntimeError('blabla3')

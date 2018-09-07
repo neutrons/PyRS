@@ -112,7 +112,7 @@ def check_float_variable(var_name, variable, value_range):
     :return:
     """
     check_string_variable('var_name', var_name)
-    assert isinstance(variable, float), '{0} {1} must be a float but not a {2}'\
+    assert isinstance(variable, float) or isinstance(variable, int), '{0} {1} must be a float but not a {2}'\
         .format(var_name, variable, type(variable))
 
     if value_range is not None:
@@ -197,13 +197,14 @@ def check_numpy_arrays(var_name, variables, dimension, check_same_shape):
     return
 
 
-def check_string_variable(var_name, variable):
+def check_string_variable(var_name, variable, allowed_values=None):
     """
     check whether an input variable is a float
     :except AssertionError:
     :except ValueError:
     :param var_name:
     :param variable:
+    :param allowed_values: list of strings
     :return:
     """
     assert isinstance(var_name, str), 'Variable name {0} must be a string but not a {1}'\
@@ -211,6 +212,14 @@ def check_string_variable(var_name, variable):
 
     assert isinstance(variable, str), '{0} {1} must be a string but not a {2}'\
         .format(var_name, variable, type(variable))
+
+    if isinstance(allowed_values, list):
+        if variable not in allowed_values:
+            raise ValueError('{} {} is not found in allowed value list {}'
+                             ''.format(var_name, variable, allowed_values))
+    elif allowed_values is not None:
+        raise RuntimeError('Allowed values {} must be given in a list but not a {}'
+                           ''.format(allowed_values, type(allowed_values)))
 
     return
 

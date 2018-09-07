@@ -3,6 +3,7 @@ from mplgraphicsview2d import MplGraphicsView2D
 from mplgraphicsviewpolar import MplGraphicsPolarView
 import numpy as np
 import mplgraphicsviewpolar
+import slice_view_widget
 
 
 class Diffraction2DPlot(MplGraphicsPolarView):
@@ -169,7 +170,21 @@ class PeakFitSetupView(MplGraphicsView1D):
         return
 
     def plot_fit_diff(self, diff_data_set, model_data_set):
-        # TODO
+        """
+        plot the difference between fitted diffraction data (model) and experimental data
+        :param diff_data_set:
+        :param model_data_set:
+        :return:
+        """
+        # check input
+        assert isinstance(diff_data_set, tuple) and len(diff_data_set) >= 2, 'Diffraction data set {} ' \
+                                                                             'must be a 2-tuple but not a {}' \
+                                                                             ''.format(diff_data_set,
+                                                                                       type(diff_data_set))
+        assert isinstance(model_data_set, tuple) and len(model_data_set) >= 2,\
+            'Model data set {} must be a 2-tuple but not a {}'.format(model_data_set, type(model_data_set))
+
+        # remove previous difference curve
         if self._last_fit_diff_reference is not None:
             self.remove_line(row_index=0, col_index=0, line_id=self._last_fit_diff_reference)
             self._last_fit_diff_reference = None
@@ -219,5 +234,19 @@ class PeakFitSetupView(MplGraphicsView1D):
 
         # call to clean lines
         self.clear_all_lines(row_number=0, col_number=0, include_main=True, include_right=False)
+
+        return
+
+
+class SampleSliceView(slice_view_widget.SliceViewWidget):
+    """
+    2D contour view for sliced sample
+    """
+    def __init__(self, parent):
+        """
+        initialization
+        :param parent:
+        """
+        super(SampleSliceView, self).__init__(parent)
 
         return

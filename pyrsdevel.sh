@@ -6,6 +6,11 @@ if [ $1 ]; then
 else
     CMD=''
 fi
-PYTHONPATH=$PYTHONPATH:/Users/wzz/MantidBuild/debug-stable/bin:/opt/mantidnightly/bin/
+MANTIDLOCALPATH=/home/wzz/Mantid_Project/builds/debug-master/bin/
+MANTIDMACPATH=/Users/wzz/MantidBuild/debug-stable/bin/
+MANTIDSNSDEBUGPATH=/SNS/users/wzz/Mantid_Project/builds/debug/bin/
+MANTIDPATH=$MANTIDMACPATH:$MANTIDLOCALPATH:$MANTIDSNSDEBUGPATH
+PYTHONPATH=$MANTIDPATH:$PYTHONPATH
 echo $PYTHONPATH
+
 PYTHONPATH=build/lib:$PYTHONPATH $CMD build/scripts-2.7/pyrsplot

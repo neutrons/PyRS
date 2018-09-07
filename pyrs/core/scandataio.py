@@ -2,6 +2,7 @@ import os
 from pyrs.utilities import checkdatatypes
 import h5py
 import numpy
+from shutil import copyfile
 from mantid.simpleapi import SaveNexusProcessed
 from mantid.api import AnalysisDataService
 
@@ -14,6 +15,42 @@ class DiffractionDataFile(object):
         """
         initialization
         """
+        return
+
+    # TESTME - Recently implemented
+    @staticmethod
+    def export_peak_fit(src_rs_file_name, target_rs_file_name, peak_fit_dict):
+        """
+        export peak fitting result to a RS (residual stress) intermediate file
+        :param src_rs_file_name:
+        :param target_rs_file_name:
+        :param peak_fit_dict:
+        :return:
+        """
+        # check
+        checkdatatypes.check_file_name(src_rs_file_name, check_exist=True)
+        checkdatatypes.check_file_name(target_rs_file_name, check_writable=True, check_exist=False)
+
+        # copy the file?
+        if src_rs_file_name != target_rs_file_name:
+            copyfile(src_rs_file_name, target_rs_file_name)
+
+        # open file
+        target_file = h5py.File(target_rs_file_name, 'r+')
+        diff_entry = target_file['Diffraction Data']
+        for scan_log_key in diff_entry.keys():
+            scan_log_index = int(scan_log_key.split()[1])
+            fit_info_i = peak_fit_dict[scan_log_index]
+            # add an entry
+            diff_entry[scan_log_key].create_group('peak_fit')
+            for key in fit_info_i:
+                print ('[db...bat] fit info: {}'.format(fit_info_i))
+                diff_entry[scan_log_key]['peak_fit'][key] = fit_info_i[key]
+            # END-FOR
+        # END-FOR
+
+        target_file.close()
+
         return
 
     @staticmethod
@@ -60,9 +97,37 @@ class DiffractionDataFile(object):
     @staticmethod
     def load_rs_file(file_name):
         """ parse h5 file
+        Note: peak_fit data are in sample log dictionary
         :param file_name:
-        :return:
+        :return: 2-tuple as diff_data_dict, sample_logs
         """
+        def add_peak_fit_parameters(sample_log_dict, h5_group, log_index, total_scans):
+            """
+            add peak fitted parameters value to sample log dictionary
+            :param sample_log_dict:
+            :param h5_group:
+            :param log_index:
+            :param total_scans
+            :return:
+            """
+            # need it?
+            need_init = False
+            if 'peak_fit' not in sample_log_dict:
+                sample_log_dict['peak_fit'] = dict()
+                need_init = True
+
+            for par_name in h5_group.keys():
+                # get value
+                par_value = h5_group[par_name].value
+                # init sample logs vector if needed
+                if need_init:
+                    sample_log_dict['peak_fit'][par_name] = numpy.ndarray(shape=(total_scans,), dtype=par_value.dtype)
+                # set value
+                sample_log_dict['peak_fit'][par_name][log_index] = par_value
+            # END-FOR
+
+            return
+
         checkdatatypes.check_file_name(file_name, check_exist=True)
 
         # access sub tree
@@ -72,18 +137,24 @@ class DiffractionDataFile(object):
         diff_data_group = scan_h5['Diffraction Data']
 
         # loop through the Logs
-        num_logs = len(diff_data_group)
+        num_scan_logs = len(diff_data_group)
         sample_logs = dict()
         diff_data_dict = dict()
 
-        for log_index in range(num_logs):
-            log_name_i = 'Log {0}'.format(log_index)
+        for scan_log_index in range(num_scan_logs):
+            log_name_i = 'Log {0}'.format(scan_log_index)
             h5_log_i = diff_data_group[log_name_i]
 
             vec_2theta = None
             vec_y = None
 
             for item_name in h5_log_i.keys():
+                # special peak fit
+                if item_name == 'peak_fit':
+                    add_peak_fit_parameters(sample_logs, h5_log_i[item_name], scan_log_index, total_scans=num_scan_logs)
+                    continue
+
+                # get value
                 item_i = h5_log_i[item_name].value
 
                 if isinstance(item_i, numpy.ndarray):
@@ -103,37 +174,36 @@ class DiffractionDataFile(object):
                         # create entry as ndarray if it does not exist
                         if isinstance(item_i, str):
                             # string can only be object type
-                            sample_logs[item_name_str] = numpy.ndarray(shape=(num_logs,), dtype=object)
+                            sample_logs[item_name_str] = numpy.ndarray(shape=(num_scan_logs,), dtype=object)
                         else:
                             # raw type
-                            sample_logs[item_name_str] = numpy.ndarray(shape=(num_logs,), dtype=item_i.dtype)
+                            sample_logs[item_name_str] = numpy.ndarray(shape=(num_scan_logs,), dtype=item_i.dtype)
 
                     # add the log
-                    sample_logs[item_name_str][log_index] = h5_log_i[item_name].value
+                    sample_logs[item_name_str][scan_log_index] = h5_log_i[item_name].value
                 # END-IF
             # END-FOR
 
             # record 2theta-intensity
             if vec_2theta is None or vec_y is None:
                 raise RuntimeError('Log {0} does not have either Corrected 2theta or Corrected Intensity'
-                                   ''.format(log_index))
+                                   ''.format(scan_log_index))
             else:
-                diff_data_dict[log_index] = vec_2theta, vec_y
+                diff_data_dict[scan_log_index] = vec_2theta, vec_y
 
         # END-FOR
 
         return diff_data_dict, sample_logs
 
     def load_rs_file_set(self, file_name_list):
-        """
-
+        """ Load a set of Residual Stress's intermediate data files
         :param file_name_list:
         :return:
         """
-        # TODO - docs
+        # sort file name by order
         file_name_list.sort()
 
-        # prepare
+        # prepare the data structures
         num_logs = len(file_name_list)
         sample_logs_set = dict()
         diff_data_dict_set = dict()
@@ -212,6 +282,36 @@ class DiffractionDataFile(object):
         """
 
         return
+# END-DEF-CLASS (DiffractionDataFile)
+
+
+def export_md_array_hdf5(md_array, sliced_dir_list, file_name):
+    """
+    export 2D data from
+    :param md_array:
+    :param sliced_dir_list: None or integer last
+    :param file_name:
+    :return:
+    """
+    checkdatatypes.check_numpy_arrays('2D numpy array to export', [md_array], 2, False)
+    checkdatatypes.check_file_name(file_name, check_exist=False, check_writable=True)
+
+    if sliced_dir_list is not None:
+        # delete selected columns: axis=1
+        checkdatatypes.check_list('Sliced directions', sliced_dir_list)
+        try:
+            md_array = numpy.delete(md_array, sliced_dir_list, 1)  # axis = 1
+        except ValueError as val_err:
+            raise RuntimeError('Unable to delete column {} of input numpy 2D array due to {}'
+                               ''.format(sliced_dir_list, val_err))
+    # END-IF
+
+    # write out
+    out_h5_file = h5py.File(file_name, 'w')
+    out_h5_file.create_dataset('Sliced-{}'.format(sliced_dir_list), data=md_array)
+    out_h5_file.close()
+
+    return
 
 
 def get_temp_directory():

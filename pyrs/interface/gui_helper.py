@@ -1,13 +1,84 @@
 # a collection of helper methdos for GUI
 import os
+import platform
 from pyrs.utilities import checkdatatypes
 try:
-    from PyQt5.QtWidgets import QDialog, QLineEdit
+    from PyQt5.QtWidgets import QDialog, QLineEdit, QFileDialog, QMessageBox
     is_qt4 = False
 except ImportError:
-    from PyQt4.QtGui import QDialog, QLineEdit
+    from PyQt4.QtGui import QDialog, QLineEdit, QFileDialog, QMessageBox
     from PyQt4 import QtCore
     is_qt4 = True
+
+
+def browse_file(parent, caption, default_dir, file_filter, file_list=False, save_file=False):
+    """ browse a file or files
+    :param parent:
+    :param caption:
+    :param default_dir:
+    :param file_filter:
+    :param file_list:
+    :param save_file:
+    :return: if file_list is False: return string (file name); otherwise, return a list;
+             if user cancels the operation, then return None
+    """
+    # check inputs
+    assert isinstance(parent, object), 'Parent {} must be of some object.'.format(parent)
+    checkdatatypes.check_string_variable('File browsing title/caption', caption)
+    checkdatatypes.check_file_name(default_dir, check_exist=False, is_dir=True)
+    checkdatatypes.check_bool_variable('Flag for browse a list of files to load', file_list)
+    checkdatatypes.check_bool_variable('Flag to select loading or saving file', save_file)
+    if file_filter is None:
+        file_filter = 'All Files (*.*)'
+    else:
+        checkdatatypes.check_string_variable('File filter', file_filter)
+
+    if save_file:
+        # browse file name to save to
+        if platform.system() == 'Darwin':
+            # TODO - 20180721 - Find out the behavior on Mac!
+            file_filter = ''
+        save_set = QFileDialog.getSaveFileName(parent, caption=caption, directory=default_dir,
+                                               filter=file_filter)
+        if isinstance(save_set, tuple):
+            # returned include both file name and filter
+            file_name = str(save_set[0])
+        else:
+            file_name = str(save_set)
+
+    elif file_list:
+        # browse file names to load
+        open_set = QFileDialog.getOpenFileNames(parent, caption, default_dir, file_filter)
+
+        if isinstance(open_set, tuple):
+            # PyQt5
+            file_name_list = open_set[0]
+        else:
+            file_name_list = open_set
+
+        if len(file_name_list) == 0:
+            # use cancel
+            return None
+        else:
+            return file_name_list
+
+    else:
+        # browse single file name
+        open_set = QFileDialog.getOpenFileName(parent, caption, default_dir, file_filter)
+
+        if isinstance(open_set, tuple):
+            # PyQt5
+            file_name = open_set[0]
+        else:
+            file_name = open_set
+
+    # END-IF-ELSE
+
+    # check result for single file whether user cancels operation
+    if len(file_name) == 0:
+        return None
+
+    return file_name
 
 
 def parse_integer(int_str):
@@ -72,11 +143,68 @@ def parse_integers(int_list_string):
     return int_list
 
 
-def pop_message(parent, message, message_type='error'):
+def get_boolean_from_dialog(window_title, message):
+    """
+    pop out a dialog showing a message to user.  User will choose OK or Cancel
+    :param window_title
+    :param message:
+    :return:
+    """
+    def msgbtn(i):
+        # debugging output
+        print "Button pressed is:", i.text()
+
+    message_box = QMessageBox()
+    message_box.setIcon(QMessageBox.Information)
+    message_box.setText(message)
+    if window_title is not None:
+        message_box.setWindowTitle(window_title)
+    message_box.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+    message_box.buttonClicked.connect(msgbtn)
+
+    # get the message executed
+    return_value = message_box.exec_()
+
+    # identify output
+    if return_value == 4194304:
+        return_value = True
+    elif return_value == 1024:
+        return_value = False
+    else:
+        raise RuntimeError('Return value {} of type {} is not recognized.'
+                           ''.format(return_value, type(return_value)))
+
+    return return_value
+
+
+def parse_tuples(tuple_str, data_type, size=None):
     """
 
+    :param tuple_str:
+    :param data_type:
+    :param size:
+    :return:
+    """
+    # TODO - 20180906 - Refine!
+    items = tuple_str.strip().split(',')
+
+    if size is not None:
+        assert len(items) == size, '{} vs {}'.format(items, size)
+
+    ret_list = list()
+    for item in items:
+        item = item.strip()
+        item = data_type(item)
+        ret_list.append(item)
+
+    return ret_list
+
+
+def pop_message(parent, message, detailed_message=None, message_type='error'):
+    """ pop up a message with specified message type such as error, warning, info...
     :param parent:
     :param message:
+    :param detailed_message: detailed message optionally shown to user
     :param message_type: str as ['error', 'warning', 'info'] but NOT case sensitive
     :return:
     """
@@ -84,9 +212,31 @@ def pop_message(parent, message, message_type='error'):
     if message_type not in ['error', 'warning', 'info']:
         raise TypeError('Message type {0} is not supported.'.format(message_type))
 
-    # TODO finish it!
-    print ('[POP] {0}'.format(message))
+    # check types
+    checkdatatypes.check_string_variable('(Main) message to show', message)
+    if detailed_message is not None:
+        checkdatatypes.check_string_variable('(Detailed) message to show', detailed_message)
+
+    # create a QMessageBox
+    msg_box = QMessageBox()
+
+    # set information type
+    if message_type == 'info':
+        msg_box.setIcon(QMessageBox.Information)
+    elif message_type == 'error':
+        msg_box.setIcon(QMessageBox.Critical)
+    elif message_type == 'warning':
+        msg_box.setIcon(QMessageBox.Warning)
+
+    # set text
+    msg_box.setText(message)
+    if detailed_message is not None:
+        msg_box.setDetailedText(detailed_message)  # another button
+    msg_box.setWindowTitle('PyRS Message')
+
+    # box
+    msg_box.setStandardButtons(QMessageBox.Ok)
+
+    ret_val = msg_box.exec_()
 
     return
-
-
