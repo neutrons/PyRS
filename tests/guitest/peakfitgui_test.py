@@ -21,21 +21,22 @@ def test_main():
 
     fit_window.show()
 
-    fit_window.ui.lineEdit_expFileName.setText('tests/testdata/BD_Data_Log.hdf5')
-    fit_window.ui.comboBox_peakType.setCurrentIndex(1)
+    # 3 candidate files
+    # tests/testdata/16-1_TD.cor_Log.hdf5
+    # tests/testdata/16-1_ND.cor_Log.hdf5
+    # tests/testdata/16-1_LD.cor_Log.hdf5
+    fit_window.ui.lineEdit_expFileName.setText('tests/testdata/16-1_TD.cor_Log.hdf5')
+    fit_window.ui.comboBox_peakType.setCurrentIndex(2)
     fit_window.do_load_scans()
     if False:
-        fit_window.ui.lineEdit_scanNUmbers.setText('4')
-        fit_window.do_plot_diff_data()
         fit_window.do_plot_meta_data()
-        fit_window.do_fit_peaks()
-        out_file_name = 'BD_Data_Log_fitresult.hdf5'
-        fit_window.save_fit_result(out_file_name)
 
     if True:
         fit_window.do_fit_peaks()
+        fit_window.ui.lineEdit_scanNumbers.setText('0')
+        fit_window.do_plot_diff_data()
         fit_window.save_data_for_mantid(None, 'peaks.nxs')
-        out_file_name = 'BD_Data_Log_fitresult.hdf5'
+        out_file_name = '16-1_TD.cor_Log.fit.hdf5'
         fit_window.save_fit_result(out_file_name)
 
     return fit_window

@@ -175,9 +175,17 @@ class DiffractionDataFile(object):
                         if isinstance(item_i, str):
                             # string can only be object type
                             sample_logs[item_name_str] = numpy.ndarray(shape=(num_scan_logs,), dtype=object)
+                        elif isinstance(item_i, unicode):
+                            # unicode
+                            sample_logs[item_name_str] = numpy.ndarray(shape=(num_scan_logs,), dtype=object)
                         else:
                             # raw type
-                            sample_logs[item_name_str] = numpy.ndarray(shape=(num_scan_logs,), dtype=item_i.dtype)
+                            try:
+                                sample_logs[item_name_str] = numpy.ndarray(shape=(num_scan_logs,), dtype=item_i.dtype)
+                            except AttributeError as att_err:
+                                err_msg = 'Item {} with value {} is a unicode object and cannot be converted to ' \
+                                          'ndarray due to \n{}'.format(item_name_str, item_i, att_err)
+                                raise AttributeError(err_msg)
 
                     # add the log
                     sample_logs[item_name_str][scan_log_index] = h5_log_i[item_name].value

@@ -53,7 +53,9 @@ class StrainStressCalculationWindow(QMainWindow):
         self.ui.pushButton_showAlignGridTable.clicked.connect(self.do_show_aligned_grid)
         self.ui.pushButton_alignGrids.clicked.connect(self.do_align_grids)
 
-        self.ui.pushButton_plotSliceView.clicked.connect(self.do_plot_sliced_3d)
+        # TODO - 20180907 - Make the rest work
+        self.ui.comboBox_plotParameterName.currentIndexChanged.connect(self.do_plot_sliced_3d)
+        self.ui.comboBox_paramDirection.currentIndexChanged
 
         # strain/stress save and export
         self.ui.pushButton_saveStressStrain.clicked.connect(self.save_stress_strain)
@@ -111,6 +113,9 @@ class StrainStressCalculationWindow(QMainWindow):
         self.ui.comboBox_alignmentCriteria.addItem('E33')
         self.ui.comboBox_alignmentCriteria.addItem('User specified Grid')
         self.ui.comboBox_alignmentCriteria.addItem('Finest Grid (Auto)')
+
+        # radio buttons
+        self.ui.radioButton_uniformD0.setChecked(True)
 
         return
 
