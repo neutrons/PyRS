@@ -82,9 +82,9 @@ def test_main(test_dir):
     #                                                         file_name='/tmp/pyrs_test_ss/test_aligned.hdf5')
     #
     # # set value
-    ss_window.ui.lineEdit_youngModulus.setText('3.0')
-    ss_window.ui.lineEdit_poissonRatio.setText('1.5')
-    ss_window.ui.lineEdit_d0.setText('1.170')
+    ss_window.ui.lineEdit_youngModulus.setText('207.')  # GPA
+    ss_window.ui.lineEdit_poissonRatio.setText('0.3')   
+    ss_window.ui.lineEdit_d0.setText('1.1698')
     ss_window.ui.radioButton_uniformD0.setChecked(True)
 
     # calculate unconstrained strain and stress
