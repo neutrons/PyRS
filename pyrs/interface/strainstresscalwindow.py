@@ -176,9 +176,10 @@ class StrainStressCalculationWindow(QMainWindow):
                                                                pos_z_sample_names=pos_z_sample_names)
 
         try:
-            self._core.strain_stress_calculator.check_grids_alignment(pos_x=(pos_x_log_name, pos_x_log_name2),
-                                                                      pos_y=(pos_y_log_name, pos_y_log_name2),
-                                                                      pos_z=(pos_z_log_name, pos_z_log_name2))
+            # TODO - 20180910 - position X, Y, Z shall be already set
+            self._core.strain_stress_calculator.check_grids_alignment(pos_x=pos_x_log_name,
+                                                                      pos_y=pos_y_log_name,
+                                                                      pos_z=pos_z_log_name)
         except RuntimeError as run_err:
             print ('Measuring points are not aligned: {}'.format(run_err))
             self._core.strain_stress_calculator.align_matched_grids(resolution=0.001)

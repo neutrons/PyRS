@@ -622,6 +622,7 @@ class StrainStressCalculator(object):
         pyrs.utilities.checkdatatypes.check_sequence('Sample log names for grid position X',
                                                      pos_z_sample_names, str)
 
+        # TODO - 20180910 - Set up the X, Y, Z position sample log name for every direction
         # go through all the data to check
         for dir_i in self._direction_list:
             print ('[{}]\n'.format(dir_i))
@@ -633,9 +634,11 @@ class StrainStressCalculator(object):
                 if pos_z_name in self._sample_log_dict[dir_i]:
                     print '{}: size = {}'.format(pos_z_name, self._sample_log_dict[dir_i][pos_z_name].shape)
 
-        raise NotImplementedError('Debug Stop!')
+        # END-FOR
 
+        # .... .... NOT completed yet
 
+        return
 
     def check_grids_alignment(self, pos_x, pos_y, pos_z, resolution=0.001):
         """
@@ -646,6 +649,10 @@ class StrainStressCalculator(object):
         :param resolution:
         :return:
         """
+        # TODO - 20180910 - position X, Y, Z shall be already set from method set_grid_log_names
+
+        # TODO - 20180910 - check whether position X, Y, Z shall be already set
+
         # check inputs
         pyrs.utilities.checkdatatypes.check_string_variable('Sample log name for X position', pos_x)
         pyrs.utilities.checkdatatypes.check_string_variable('Sample log name for Y position', pos_y)
