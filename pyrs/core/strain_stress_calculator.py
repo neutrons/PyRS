@@ -162,7 +162,7 @@ class StrainStressCalculator(object):
         for dir_i in self._direction_list:
             self._data_set_dict[dir_i] = None
             self._peak_param_dict[dir_i] = None   # [dir][parameter name][scan log index]
-            self._sample_log_dict[dir_i] = None
+            self._sample_log_dict[dir_i] = None   # [dir][log name][scan log index] = value
 
         # source files
         self._source_file_dict = dict()
@@ -608,6 +608,35 @@ class StrainStressCalculator(object):
 
         return i_middle
 
+    def set_grid_log_names(self, pos_x_sample_names, pos_y_sample_names, pos_z_sample_names):
+        """ set sample log names for grids
+        :param pos_x_sample_names:
+        :param pos_y_sample_names:
+        :param pos_z_sample_names:
+        :return:
+        """
+        pyrs.utilities.checkdatatypes.check_sequence('Sample log names for grid position X',
+                                                     pos_x_sample_names, str)
+        pyrs.utilities.checkdatatypes.check_sequence('Sample log names for grid position X',
+                                                     pos_y_sample_names, str)
+        pyrs.utilities.checkdatatypes.check_sequence('Sample log names for grid position X',
+                                                     pos_z_sample_names, str)
+
+        # go through all the data to check
+        for dir_i in self._direction_list:
+            print ('[{}]\n'.format(dir_i))
+            for pos_x_name in pos_x_sample_names:
+                print '{}: size = {}'.format(pos_x_name, self._sample_log_dict[dir_i][pos_x_name].shape)
+            for pos_y_name in pos_y_sample_names:
+                print '{}: size = {}'.format(pos_y_name, self._sample_log_dict[dir_i][pos_y_name].shape)
+            for pos_z_name in pos_z_sample_names:
+                if pos_z_name in self._sample_log_dict[dir_i]:
+                    print '{}: size = {}'.format(pos_z_name, self._sample_log_dict[dir_i][pos_z_name].shape)
+
+        raise NotImplementedError('Debug Stop!')
+
+
+
     def check_grids_alignment(self, pos_x, pos_y, pos_z, resolution=0.001):
         """
         Align the data points among e11, e22 and/or e33 with sample log positions
@@ -1039,7 +1068,14 @@ class StrainStressCalculator(object):
         for scan_log_index in sorted(data_set.keys()):
             x_i = self._sample_log_dict[direction][pos_x][scan_log_index]
             y_i = self._sample_log_dict[direction][pos_y][scan_log_index]
-            z_i = self._sample_log_dict[direction][pos_z][scan_log_index]
+            try:
+                z_i = self._sample_log_dict[direction][pos_z][scan_log_index]
+            except KeyError as key_err:
+                err_msg = 'Direction {} Scan log index {}: Z-position sample log {} is not found.' \
+                          'Available logs include {}\nFYI: {}' \
+                          ''.format(direction, scan_log_index, pos_z, self._sample_log_dict[direction].keys(),
+                                    key_err)
+                raise KeyError(err_msg)
             xyz_log_index_dict[(x_i, y_i, z_i)] = scan_log_index
         # END-FOR
 

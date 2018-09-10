@@ -197,6 +197,29 @@ def check_numpy_arrays(var_name, variables, dimension, check_same_shape):
     return
 
 
+def check_sequence(var_name, variable, allowed_type=None):
+    """ check whether the input is of type tuple or list
+    :param var_name:
+    :param variable:
+    :param allowed_type: allowed type such as str, float, int.
+    :return:
+    """
+    check_string_variable('Variable name', var_name)
+
+    assert isinstance(variable, list) or isinstance(variable, tuple),\
+        '{} {} must be a list or tuple but not a {}'.format(var_name, variable, type(variable))
+
+    # skip if no type check is specified
+    if allowed_type is None:
+        return
+
+    for i_var, var_i in enumerate(variable):
+        assert isinstance(var_i, allowed_type), '{}-th variable {} must be a {} but not a {}' \
+                                                ''.format(i_var, var_i, allowed_type, type(var_i))
+
+    return
+
+
 def check_string_variable(var_name, variable, allowed_values=None):
     """
     check whether an input variable is a float

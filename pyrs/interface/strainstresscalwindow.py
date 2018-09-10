@@ -153,13 +153,32 @@ class StrainStressCalculationWindow(QMainWindow):
         """
         # get user specified sample log names
         pos_x_log_name = str(self.ui.comboBox_sampleLogNameX.currentText())
+        pos_x_sample_names = [pos_x_log_name]
+        pos_x_log_name2 = str(self.ui.comboBox_sampleLogNameX_option2.currentText())
+        if len(pos_x_log_name2.strip()) > 0:
+            pos_x_sample_names.append(pos_x_log_name)
+
         pos_y_log_name = str(self.ui.comboBox_sampleLogNameY.currentText())
+        pos_y_sample_names = [pos_y_log_name]
+        pos_y_log_name2 = str(self.ui.comboBox_sampleLogNameY_option2.currentText())
+        if len(pos_y_log_name2.strip()) > 0:
+            pos_y_sample_names.append(pos_y_log_name2)
+
         pos_z_log_name = str(self.ui.comboBox_sampleLogNameZ.currentText())
+        pos_z_sample_names = [pos_z_log_name]
+        pos_z_log_name2 = str(self.ui.comboBox_sampleLogNameZ_option2.currentText())
+        if len(pos_z_log_name2.strip()) > 0:
+            pos_z_sample_names.append(pos_z_log_name2)
+
+        # Check the grid position sample log from each input scan log in each direction
+        self._core.strain_stress_calculator.set_grid_log_names(pos_x_sample_names=pos_x_sample_names,
+                                                               pos_y_sample_names=pos_y_sample_names,
+                                                               pos_z_sample_names=pos_z_sample_names)
 
         try:
-            self._core.strain_stress_calculator.check_grids_alignment(pos_x=pos_x_log_name,
-                                                                      pos_y=pos_y_log_name,
-                                                                      pos_z=pos_z_log_name)
+            self._core.strain_stress_calculator.check_grids_alignment(pos_x=(pos_x_log_name, pos_x_log_name2),
+                                                                      pos_y=(pos_y_log_name, pos_y_log_name2),
+                                                                      pos_z=(pos_z_log_name, pos_z_log_name2))
         except RuntimeError as run_err:
             print ('Measuring points are not aligned: {}'.format(run_err))
             self._core.strain_stress_calculator.align_matched_grids(resolution=0.001)
@@ -375,12 +394,22 @@ class StrainStressCalculationWindow(QMainWindow):
         self.ui.comboBox_sampleLogNameY.clear()
         self.ui.comboBox_sampleLogNameZ.clear()
 
+        # 2nd option sample log
+        for combo_box in [self.ui.comboBox_sampleLogNameX_option2,
+                          self.ui.comboBox_sampleLogNameY_option2,
+                          self.ui.comboBox_sampleLogNameZ_option2]:
+            combo_box.clear()
+            combo_box.addItem('')
+
         common_sample_logs = list(common_sample_logs)
         common_sample_logs.sort()
         for log_name in common_sample_logs:
             self.ui.comboBox_sampleLogNameX.addItem(log_name)
             self.ui.comboBox_sampleLogNameY.addItem(log_name)
             self.ui.comboBox_sampleLogNameZ.addItem(log_name)
+            self.ui.comboBox_sampleLogNameX_option2.addItem(log_name)
+            self.ui.comboBox_sampleLogNameY_option2.addItem(log_name)
+            self.ui.comboBox_sampleLogNameZ_option2.addItem(log_name)
         # END-FOR
 
         # convert the peak centers to dspacing

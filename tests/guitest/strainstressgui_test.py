@@ -30,18 +30,20 @@ def test_main(test_dir):
     ss_window.create_new_session('test_strain_stress', False, False)
 
     # load files
-    ss_window.ui.lineEdit_e11ScanFile.setText('tests/temp/LD_Data_Log.hdf5')
-    ss_window.ui.lineEdit_e22ScanFile.setText('tests/temp/BD_Data_Log.hdf5')
-    ss_window.ui.lineEdit_e33ScanFile.setText('tests/temp/ND_Data_Log.hdf5')
+    ss_window.ui.lineEdit_e11ScanFile.setText('tests/temp/16-1_LD.cor_Log.gaussian.hdf5')
+    ss_window.ui.lineEdit_e22ScanFile.setText('tests/temp/16-1_ND.cor_Log.gaussian.hdf5')
+    ss_window.ui.lineEdit_e33ScanFile.setText('tests/temp/16-1_TD.cor_Log.gaussian.hdf5')
     ss_window.do_load_strain_files()
 
     # pre-grid-alignment
-    ss_window.ui.comboBox_sampleLogNameX.insertItem(0, 'vx')
+    ss_window.ui.comboBox_sampleLogNameX.insertItem(0, 'sx')
     ss_window.ui.comboBox_sampleLogNameX.setCurrentIndex(0)
-    ss_window.ui.comboBox_sampleLogNameY.insertItem(0, 'vy')
+    ss_window.ui.comboBox_sampleLogNameY.insertItem(0, 'sy')
     ss_window.ui.comboBox_sampleLogNameY.setCurrentIndex(0)
-    ss_window.ui.comboBox_sampleLogNameZ.insertItem(0, 'vz')
+    ss_window.ui.comboBox_sampleLogNameZ.insertItem(0, 'sz')
     ss_window.ui.comboBox_sampleLogNameZ.setCurrentIndex(0)
+    ss_window.ui.comboBox_sampleLogNameZ_option2.insertItem(0, 'szs')
+    ss_window.ui.comboBox_sampleLogNameZ_option2.setCurrentIndex(0)
     ss_window.do_get_grid_alignment_info()   # e33=False, sample_resolution=(0.01, 0.01, 0.01))
 
     # set the uer alignment
