@@ -565,6 +565,9 @@ class StrainStressTableView(QMainWindow):
         # init widgets
         self.ui.tableView_strainStressTable.setup()
 
+        # define event handling
+        self.ui.pushButton_close.clicked.connect(self.do_quit)
+
         return
 
     def do_quit(self):

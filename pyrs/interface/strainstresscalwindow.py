@@ -53,10 +53,6 @@ class StrainStressCalculationWindow(QMainWindow):
         self.ui.pushButton_showAlignGridTable.clicked.connect(self.do_show_aligned_grid)
         self.ui.pushButton_alignGrids.clicked.connect(self.do_align_grids)
 
-        # TODO - 20180907 - Make the rest work
-        self.ui.comboBox_plotParameterName.currentIndexChanged.connect(self.do_plot_sliced_3d)
-        self.ui.comboBox_paramDirection.currentIndexChanged
-
         # strain/stress save and export
         self.ui.pushButton_saveStressStrain.clicked.connect(self.save_stress_strain)
         self.ui.pushButton_exportSpecialType.clicked.connect(self.do_export_stress_strain)
@@ -69,8 +65,10 @@ class StrainStressCalculationWindow(QMainWindow):
         self.ui.radioButton_d0Grid.toggled.connect(self.evt_change_d0_type)
 
         # combo boxes handling
-        # self.ui.comboBox_plotParameterName.currentIndexChanged.connect(self.do_plot_sliced_3d)
         self.ui.comboBox_type.currentIndexChanged.connect(self.do_change_plot_type)
+        self.ui.comboBox_plotParameterName.currentIndexChanged.connect(self.do_plot_sliced_3d)
+        self.ui.comboBox_paramDirection.currentIndexChanged.connect(self.do_plot_sliced_3d)
+        self.ui.comboBox_sliceDirection.currentIndexChanged.connect(self.do_plot_sliced_3d)
 
         # menu
         self.ui.actionNew_Session.triggered.connect(self.do_new_session)
@@ -90,6 +88,7 @@ class StrainStressCalculationWindow(QMainWindow):
         # mutex
         self._load_file_radio_mutex = False
         self._d0_type_mutex = False
+        self._do_not_plot = False  # Flag to control the event handlers to load and plot peak parameter/strain/stress
 
         return
 
@@ -132,6 +131,9 @@ class StrainStressCalculationWindow(QMainWindow):
         set the parameters to change according to plot type
         :return:
         """
+        # set up the no-plot flag
+        self._do_not_plot = True
+
         # clear original ones
         self.ui.comboBox_plotParameterName.clear()
 
@@ -141,8 +143,14 @@ class StrainStressCalculationWindow(QMainWindow):
             self.ui.comboBox_plotParameterName.addItem('center_d')
         else:
             # strain/stress matrix elements
-            for item_name in ['1, 1', '2, 2', '3, 3', '1, 2', '1, 3', '2, 3']:
+            for item_name in ['1, 1', '2, 2', '3, 3']:
                 self.ui.comboBox_plotParameterName.addItem(item_name)
+
+        # release the flag/lock
+        self._do_not_plot = False
+
+        # manually plot 3D slice for strain/stress/peak parameter
+        self.do_plot_sliced_3d()
 
         return
 
@@ -176,10 +184,7 @@ class StrainStressCalculationWindow(QMainWindow):
                                                                pos_z_sample_names=pos_z_sample_names)
 
         try:
-            # TODO - 20180910 - position X, Y, Z shall be already set
-            self._core.strain_stress_calculator.check_grids_alignment(pos_x=pos_x_log_name,
-                                                                      pos_y=pos_y_log_name,
-                                                                      pos_z=pos_z_log_name)
+            self._core.strain_stress_calculator.check_grids_alignment()
         except RuntimeError as run_err:
             print ('Measuring points are not aligned: {}'.format(run_err))
             self._core.strain_stress_calculator.align_matched_grids(resolution=0.001)
@@ -548,6 +553,10 @@ class StrainStressCalculationWindow(QMainWindow):
         slice loaded 3D stress/strain and plot
         :return:
         """
+        # return if it is required not to plot
+        if self._do_not_plot:
+            return
+
         plot_type_index = str(self.ui.comboBox_type.currentIndex())
 
         if plot_type_index == 0:
@@ -602,6 +611,9 @@ class StrainStressCalculationWindow(QMainWindow):
         self.ui.lineEdit_sliceEndValue.setEnabled(False)
 
         self.ui.horizontalSlider_slicer3D.setRange(0, 99)
+        # TODO - 20180911 - is it possible to set non-...?
+        self._slider_min = 0
+        self._slider_max = 99
         self.ui.horizontalSlider_slicer3D.setTickInterval(1)
         self.ui.horizontalSlider_slicer3D.setTickPosition(0)
 

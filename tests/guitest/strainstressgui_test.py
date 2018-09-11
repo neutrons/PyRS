@@ -194,9 +194,12 @@ if __name__ == '__main__':
     test_dir = '/tmp/pyrs_test_ss'
     if os.path.exists(test_dir) is False:
         os.mkdir(test_dir)
-    if False:
+    case = 0
+    if case == 0:
+        # full 3D grid
         test_window = test_main(test_dir=test_dir)
-    elif True:
+    elif case == 1:
+        # simplified 2D grid
         test_window = test_main_2d(test_dir=test_dir)
     else:
         raise NotImplementedError('No test main')

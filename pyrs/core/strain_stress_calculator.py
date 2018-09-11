@@ -172,7 +172,7 @@ class StrainStressCalculator(object):
         # transformed data set
         self._dir_grid_pos_scan_index_dict = dict()   # [e11/e22/e33][grid pos][scan log index]
         for dir_i in self._direction_list:
-            self._dir_grid_pos_scan_index_dict[dir_i] = None  # (value) a dictionary: key = sample position,
+            self._dir_grid_pos_scan_index_dict[dir_i] = None  # (value) a dictionary: key = sample position (tuple),
             #                                                   value = scan log index
 
         # mapped/interpolated parameters
@@ -183,9 +183,13 @@ class StrainStressCalculator(object):
         self._sample_points_aligned = False
 
         # list of sample positions for each data set for grids
-        self._sample_positions_dict = dict()
+        self._grid_pos_x_name_dict = dict()  # dict[e11/e22/e33] = 'sx'
+        self._grid_pos_y_name_dict = dict()
+        self._grid_pos_z_name_dict = dict()
+
+        self._sample_positions_dict = dict()    # dict[e11/e22/e33][i] = grid_i(x, y, z)  # shape=(n, 3) sorted
         for dir_i in self._direction_list:
-            self._sample_positions_dict[dir_i] = None  # each shall be None or a LIST of 3-tuples
+            self._sample_positions_dict[dir_i] = None
         self._grid_statistics_dict = None
         self._grid_output_array = None  # array (of vector) for grids used by strain/stress calculation
 
@@ -340,15 +344,15 @@ class StrainStressCalculator(object):
             ss_grid_i = self._grid_output_array[i_grid]
             for i_dir, ss_dir in enumerate(self._direction_list):
                 # get the sorted positions
-                sorted_pos_list_i = self._sample_positions_dict[ss_dir]
+                sorted_grid_pos_vector = self._sample_positions_dict[ss_dir]
                 if ss_dir == direction:
-                    index_i = self.binary_search(sorted_positions=sorted_pos_list_i, xyz=ss_grid_i,
+                    index_i = self.binary_search(sorted_positions=sorted_grid_pos_vector, xyz=ss_grid_i,
                                                  resolution=1.E-10)
                     if index_i is None:
                         raise NotImplementedError('Impossible')
 
                 else:
-                    index_i = self.binary_search(sorted_positions=sorted_pos_list_i, xyz=ss_grid_i,
+                    index_i = self.binary_search(sorted_positions=sorted_grid_pos_vector, xyz=ss_grid_i,
                                                  resolution=0.001)
 
                 # END-IF-ELSE
@@ -357,8 +361,8 @@ class StrainStressCalculator(object):
                 if index_i is None:
                     scan_log_index_i = -1
                 else:
-                    exact_pos = sorted_pos_list_i[index_i]
-                    scan_log_index_i = self._dir_grid_pos_scan_index_dict[ss_dir][exact_pos]
+                    exact_pos = sorted_grid_pos_vector[index_i]
+                    scan_log_index_i = self._dir_grid_pos_scan_index_dict[ss_dir][tuple(exact_pos)]
 
                 mapping_vector[i_grid, i_dir] = scan_log_index_i
             # END-FOR
@@ -390,10 +394,10 @@ class StrainStressCalculator(object):
                 sorted_pos_list_i = self._sample_positions_dict[dir_i]
                 index_i = self.binary_search(sorted_pos_list_i, pos_11_i, resolution)
                 if index_i is None:
-                    print ('[DB...BAT] E11 Pt {} @ {} no match at direction {}'.format(ipt_e11, pos_11_i, dir_i))
+                    message += '[DB...BAT] E11 Pt {} @ {} no match at direction {}\n'.format(ipt_e11, pos_11_i, dir_i)
                 else:
-                    print ('[DB...BAT] E11 Pt {} @ {} finds {} @ index = {} @ {}'
-                           ''.format(ipt_e11, pos_11_i, dir_i, index_i, sorted_pos_list_i[index_i]))
+                    message += '[DB...BAT] E11 Pt {} @ {} finds {} @ index = {} @ {}\n' \
+                               ''.format(ipt_e11, pos_11_i, dir_i, index_i, sorted_pos_list_i[index_i])
                 if index_i is not None:
                     self._match11_dict[dir_i][ipt_e11] = index_i
                     other_dir_matched_dict[dir_i].add(index_i)
@@ -407,7 +411,6 @@ class StrainStressCalculator(object):
 
         return
 
-    # TESTME - 20180818 - Implemented Just
     def align_peak_parameter_on_grids(self, grids_vector, parameter, scan_log_map_vector):
         """ align the parameter's values on a given grid
         [3D interpolation]
@@ -446,7 +449,7 @@ class StrainStressCalculator(object):
                     param_value = self._peak_param_dict[ss_dir][parameter][scan_log_index_i]
                 else:
                     param_value = self.interpolate3d(self._sample_positions_dict[ss_dir],
-                                                     self._peak_param_dict[ss_dir][parameter], grids_vector)
+                                                     self._peak_param_dict[ss_dir][parameter], grids_vector[i_grid])
                 # END-IF-ELSE
                 param_vector[i_grid, i_dir] = param_value
             # END-FOR
@@ -458,10 +461,10 @@ class StrainStressCalculator(object):
 
     @staticmethod
     def binary_search(sorted_positions, xyz, resolution):
-        """
-
+        """ do binary search in a sorted 2D numpy array
         :param sorted_positions:
         :param xyz:
+        :param resolution: resolution of distance to grid such that can be treated as a single number
         :return:
         """
         def search_neighborhood(sorted_list, start_index, stop_index, list_index, tuple_index, value_range):
@@ -506,7 +509,12 @@ class StrainStressCalculator(object):
         assert resolution > 0, 'resolution > 0 required'
 
         i_start = 0
-        i_stop = len(sorted_positions) - 1
+        if isinstance(sorted_positions, list):
+            i_stop = len(sorted_positions) - 1
+        elif isinstance(sorted_positions, numpy.ndarray):
+            i_stop = sorted_positions.shape[0] - 1
+        else:
+            raise RuntimeError('Sorted position of type {} is not supported.'.format(type(sorted_positions)))
 
         matched_x_not_found = True
         matched_y_not_found = False
@@ -622,54 +630,56 @@ class StrainStressCalculator(object):
         pyrs.utilities.checkdatatypes.check_sequence('Sample log names for grid position X',
                                                      pos_z_sample_names, str)
 
-        # TODO - 20180910 - Set up the X, Y, Z position sample log name for every direction
+        # Set up the X, Y, Z position sample log name for every direction
         # go through all the data to check
         for dir_i in self._direction_list:
-            print ('[{}]\n'.format(dir_i))
             for pos_x_name in pos_x_sample_names:
-                print '{}: size = {}'.format(pos_x_name, self._sample_log_dict[dir_i][pos_x_name].shape)
+                if pos_x_name in self._sample_log_dict[dir_i]:
+                    self._grid_pos_x_name_dict[dir_i] = pos_x_name
+                    print '{}: size = {}'.format(pos_x_name, self._sample_log_dict[dir_i][pos_x_name].shape)
+                    break
             for pos_y_name in pos_y_sample_names:
-                print '{}: size = {}'.format(pos_y_name, self._sample_log_dict[dir_i][pos_y_name].shape)
+                if pos_y_name in self._sample_log_dict[dir_i]:
+                    self._grid_pos_y_name_dict[dir_i] = pos_y_name
+                    print '{}: size = {}'.format(pos_y_name, self._sample_log_dict[dir_i][pos_y_name].shape)
+                    break
             for pos_z_name in pos_z_sample_names:
                 if pos_z_name in self._sample_log_dict[dir_i]:
+                    self._grid_pos_z_name_dict[dir_i] = pos_z_name
                     print '{}: size = {}'.format(pos_z_name, self._sample_log_dict[dir_i][pos_z_name].shape)
-
+                    break
         # END-FOR
-
-        # .... .... NOT completed yet
 
         return
 
-    def check_grids_alignment(self, pos_x, pos_y, pos_z, resolution=0.001):
-        """
-        Align the data points among e11, e22 and/or e33 with sample log positions
-        :param pos_x: sample log name for x position
-        :param pos_y: sample log name for y position
-        :param pos_z: sample log name for z position
+    def check_grids_alignment(self, resolution=0.001):
+        """ Align the data points among e11, e22 and/or e33 with sample log positions
         :param resolution:
         :return:
         """
-        # TODO - 20180910 - position X, Y, Z shall be already set from method set_grid_log_names
-
-        # TODO - 20180910 - check whether position X, Y, Z shall be already set
-
-        # check inputs
-        pyrs.utilities.checkdatatypes.check_string_variable('Sample log name for X position', pos_x)
-        pyrs.utilities.checkdatatypes.check_string_variable('Sample log name for Y position', pos_y)
-        pyrs.utilities.checkdatatypes.check_string_variable('Sample log name for Z position', pos_z)
-        if pos_x == pos_y or pos_y == pos_z or pos_x == pos_z:
-            raise RuntimeError('Position X ({}) Y ({}) and Z ({}) have duplicate sample log names.'
-                               ''.format(pos_x, pos_y, pos_z))
-
-        # create the dictionaries, vectors and etc for checking how matching the grids are
+        # (1) Check whether position X, Y, Z shall be already set and
+        # (2) Generate grid mapping scan log dictionary
         for dir_i in self._direction_list:
+            try:
+                pos_x = self._grid_pos_x_name_dict[dir_i]
+                pos_y = self._grid_pos_y_name_dict[dir_i]
+                pos_z = self._grid_pos_z_name_dict[dir_i]
+            except KeyError as key_err:
+                raise RuntimeError('Grid position dictionary has not been set up for direction {}: {}'
+                                   ''.format(dir_i, key_err))
+            if pos_x == pos_y or pos_y == pos_z or pos_x == pos_z:
+                raise RuntimeError('Position X ({}) Y ({}) and Z ({}) have duplicate sample log names.'
+                                   ''.format(pos_x, pos_y, pos_z))
+
+            # create the dictionaries, vectors and etc for checking how matching the grids are
             self._dir_grid_pos_scan_index_dict[dir_i] = self.generate_xyz_scan_log_dict(dir_i, pos_x, pos_y, pos_z)
         # END-FOR
 
         # align: create a list of sorted tuples and compare among different data sets whether they
         # do match or not
         for dir_i in self._direction_list:
-            self._sample_positions_dict[dir_i] = sorted(self._dir_grid_pos_scan_index_dict[dir_i].keys())  # list
+            # each entry shall be a sorted numpy array (but not list as before)
+            self._sample_positions_dict[dir_i] = numpy.array(sorted(self._dir_grid_pos_scan_index_dict[dir_i].keys()))
 
         self._set_grid_statistics()
 
@@ -682,13 +692,13 @@ class StrainStressCalculator(object):
             dir_i = self._direction_list[i_dir_i]
             for i_dir_j in range(i_dir_i, num_dir):
                 dir_j = self._direction_list[i_dir_j]
-                if len(self._sample_positions_dict[dir_i]) != len(self._sample_positions_dict[dir_j]):
+                if self._sample_positions_dict[dir_i].shape[0] != self._sample_positions_dict[dir_j].shape[0]:
                     raise RuntimeError('It is not considered that the number of data points among different '
                                        'direction are different.  Need to use uneven alignment algorithm.')
         # END-FOR
 
         # check whether all the data points matched with each other within resolution
-        num_sample_points = len(self._sample_positions_dict[self._direction_list[0]])
+        num_sample_points = self._sample_positions_dict[self._direction_list[0]].shape[0]
         for ipt in range(num_sample_points):
             max_distance = self.calculate_max_distance(ipt)
             if max_distance > resolution:
@@ -792,7 +802,7 @@ class StrainStressCalculator(object):
         :return:
         """
         pyrs.utilities.checkdatatypes.check_int_variable('Sample point index', sample_point_index,
-                                                         (0, len(self._sample_positions_dict['e11'])))
+                                                         (0, self._sample_positions_dict['e11'].shape[0]))
 
         num_dir = len(self._direction_list)
         max_distance = -1

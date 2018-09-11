@@ -12,6 +12,7 @@ except ImportError:
 import numpy as np
 from matplotlib.figure import Figure
 import matplotlib.image
+import time
 
 
 class Mpl2DGraph(QWidget):
@@ -180,8 +181,6 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         :param matrix_z:
         :return:
         """
-        import time
-
         # check input
         # TODO - 20180901 - labor
         assert isinstance(vec_x, list) or isinstance(vec_x, np.ndarray), 'blabla'
@@ -226,7 +225,7 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         # END-IF
 
         # explicitly set aspect ratio of the image
-        self.axes.set_aspect('auto')
+        self.axes.set_aspect('equal')
 
         # Set color bar.  plt.colorbar() does not work!
         if self._colorBar is None:

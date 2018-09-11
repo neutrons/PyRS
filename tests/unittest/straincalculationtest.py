@@ -78,7 +78,7 @@ def test_strain_calculation():
 
     # check and align measurement points around
     try:
-        rs_core.strain_stress_calculator.check_grids_alignment(pos_x='vx', pos_y='vy', pos_z='vz')
+        rs_core.strain_stress_calculator.check_grids_alignment()
     except RuntimeError as run_err:
         print ('Measuring points are not aligned: {}'.format(run_err))
     rs_core.strain_stress_calculator.align_matched_grids(resolution=0.001)
@@ -133,7 +133,7 @@ def test_strain_stress_user_defined_grid():
 
     # check and align measurement points around
     try:
-        rs_core.strain_stress_calculator.check_grids_alignment(pos_x='vx', pos_y='vy', pos_z='vz')
+        rs_core.strain_stress_calculator.check_grids_alignment()
     except RuntimeError as run_err:
         print ('Measuring points are not aligned: {}'.format(run_err))
     rs_core.strain_stress_calculator.align_matched_grids(resolution=0.001)
@@ -188,7 +188,7 @@ def test_plane_strain():
 
     # check and align measurement points around
     try:
-        rs_core.strain_stress_calculator.check_grids_alignment(pos_x='vx', pos_y='vy', pos_z='vz')
+        rs_core.strain_stress_calculator.check_grids_alignment()
     except RuntimeError as run_err:
         print ('Measuring points are not aligned: {}'.format(run_err))
     rs_core.strain_stress_calculator.align_matched_grids(resolution=0.001)
@@ -239,7 +239,7 @@ def test_plane_stress():
 
     # check and align measurement points around
     try:
-        rs_core.strain_stress_calculator.check_grids_alignment(pos_x='vx', pos_y='vy', pos_z='vz')
+        rs_core.strain_stress_calculator.check_grids_alignment()
     except RuntimeError as run_err:
         print ('Measuring points are not aligned: {}'.format(run_err))
     rs_core.strain_stress_calculator.align_matched_grids(resolution=0.001)
