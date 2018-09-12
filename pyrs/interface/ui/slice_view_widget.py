@@ -232,7 +232,8 @@ class SliceViewWidget(QWidget):
         :return:
         """
         if self._is_setup is False:
-            raise RuntimeError('Not set up yet')
+            print ('[Warning] 2D slice view is not set up yet')
+            return
 
         y_index = np.searchsorted(self._yi, pos_y)
         vec_z = self._zmatrix[y_index, :]

@@ -557,8 +557,7 @@ class StrainStressCalculationWindow(QMainWindow):
         if self._do_not_plot:
             return
 
-        plot_type_index = str(self.ui.comboBox_type.currentIndex())
-
+        plot_type_index = self.ui.comboBox_type.currentIndex()
         if plot_type_index == 0:
             # peak parameters
             peak_param_name = str(self.ui.comboBox_plotParameterName.currentText())
