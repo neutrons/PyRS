@@ -141,6 +141,9 @@ class StrainStressCalculationWindow(QMainWindow):
             # peak parameters
             # TODO - 20180906 - Need to support other peak parameters
             self.ui.comboBox_plotParameterName.addItem('center_d')
+            self.ui.comboBox_paramDirection.clear()
+            for dir_i in self._core.strain_stress_calculator.get_strain_stress_direction():
+                self.ui.comboBox_paramDirection.addItem(dir_i)
         else:
             # strain/stress matrix elements
             for item_name in ['1, 1', '2, 2', '3, 3']:
@@ -740,15 +743,29 @@ class StrainStressCalculationWindow(QMainWindow):
 
         return
 
-    def save_stress_strain(self, file_type=None):
+    def save_stress_strain(self):
         """
         save the calculated strain/stress file
         :return:
         """
-        if file_type is None:
-            file_type = str(self.ui.comboBox_saveFileType.currentText())
+        file_name = str(self.ui.lineEdit_outputFileName.text()).strip()
+        if file_name == '':
+            # file name is not defined
+            file_name = gui_helper.browse_file(self, 'Save Strain and Stress', self._core.working_dir,
+                                               file_list=False, save_file=True, file_filter='CSV (*.csv)')
+            if file_name == '' or file_name is None:
+                return
+            else:
+                self.ui.lineEdit_outputFileName.setText(file_name)
+        # END-IF
 
-        raise NotImplementedError('TO BE CONTINUED')
+        try:
+            self._core.strain_stress_calculator.save_strain_stress(file_name)
+        except RuntimeError as run_err:
+            gui_helper.pop_message(self, message_type='error', message='Unable to save strain and stress',
+                                   detailed_message=str(run_err))
+
+        return
 
     def create_new_session(self, session_name, is_plane_strain, is_plane_stress):
         """ create a new strain/stress calculation session

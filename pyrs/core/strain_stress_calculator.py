@@ -148,6 +148,11 @@ class StrainStressCalculator(object):
             raise RuntimeError('An experiment cannot be both plane stress and plane stress')
 
         # class variable
+        # vector of strain and stress matrix
+        self._strain_matrix_vec = None  # strain_matrix_vec
+        self._stress_matrix_vec = None  # stress_matrix_vec
+
+        # session and strain/stress type
         self._session = session_name
         self._is_plane_strain = plane_strain
         self._is_plane_stress = plane_stress
@@ -856,7 +861,7 @@ class StrainStressCalculator(object):
                                          is_plane_stress=self._is_plane_stress)
 
             strain_matrix_vec[i_grid] = ss_calculator.get_strain()
-            stress_matrix_vec[i_grid] = ss_calculator.get_strain()
+            stress_matrix_vec[i_grid] = ss_calculator.get_stress()
         # END-FOR
 
         self._strain_matrix_vec = strain_matrix_vec
@@ -1356,6 +1361,38 @@ class StrainStressCalculator(object):
         """
         # TODO - 2018 - NEXT
         raise NotImplementedError('ASAP')
+
+    def save_strain_stress(self, file_name):
+        """
+
+        :param file_name:
+        :return:
+        """
+        if self._strain_matrix_vec is None or self._stress_matrix_vec is None:
+            raise RuntimeError('Strain and stress have not been calculated.')
+
+        print (type(self._grid_output_array))
+        print (type(self._strain_matrix_vec))
+        print (type(self._stress_matrix_vec))
+
+        print ()
+        print ()
+        print (self._stress_matrix_vec.shape)
+
+        csv_buffer = ''
+        if self._grid_output_array.shape[0] != self._strain_matrix_vec.shape[0]:
+            raise RuntimeError('Number of (output) grids is different from number of strain/stress matrix.')
+
+        csv_buffer += '# {:8s}{:10s}{:10s}{:10s}{:10s}{:10s}{:10s}{:10s}{:10s}' \
+                      ''.format('X', 'Y', 'Z', 'e11', 'e22', 'e33', 's11', 's22', 's33')
+        for i_grid in range(self._grid_output_array.shape[0]):
+            continue
+            
+        csv_file = open(file_name, 'w')
+        csv_file.write(csv_buffer)
+        csv_file.close()
+
+        return
 
     def set_d0(self, d0):
         """
