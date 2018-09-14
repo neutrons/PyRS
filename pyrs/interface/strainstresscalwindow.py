@@ -199,11 +199,15 @@ class StrainStressCalculationWindow(QMainWindow):
         try:
             self._core.strain_stress_calculator.check_grids_alignment()
         except RuntimeError as run_err:
-            print ('Measuring points are not aligned: {}'.format(run_err))
-            self._core.strain_stress_calculator.align_matched_grids(resolution=0.001)
+            if str(run_err).lower().count('duplicate'):
+                gui_helper.pop_message(self, message=str(run_err), message_type='error')
+                return
+            else:
+                print ('Measuring points are not aligned: {}'.format(run_err))
+                self._core.strain_stress_calculator.align_matched_grids(resolution=0.001)
 
         self.ui.pushButton_alignGrids.setEnabled(True)
-        # self.ui.groupBox_calculator.setEnabled(True)
+        self.ui.groupBox_calculator.setEnabled(True)
 
         return
 
@@ -287,7 +291,7 @@ class StrainStressCalculationWindow(QMainWindow):
                                               save_file=False)
         if ld_file_name is not None:
             self.ui.lineEdit_e11ScanFile.setText(ld_file_name)
-            self._default_dir = os.path.dirname(ld_file_name)
+            self._default_dir = str(os.path.dirname(ld_file_name))
 
         return
 
@@ -305,8 +309,7 @@ class StrainStressCalculationWindow(QMainWindow):
                                               save_file=False)
         if nd_file_name is not None:
             self.ui.lineEdit_e22ScanFile.setText(nd_file_name)
-            self._default_dir = os.path.dirname(nd_file_name)
-
+            self._default_dir = str(os.path.dirname(nd_file_name))
 
         return
 
@@ -324,7 +327,7 @@ class StrainStressCalculationWindow(QMainWindow):
                                               save_file=False)
         if td_file_name is not None:
             self.ui.lineEdit_e33ScanFile.setText(td_file_name)
-            self._default_dir = os.path.dirname(td_file_name)
+            self._default_dir = str(os.path.dirname(td_file_name))
 
         return
 
@@ -471,7 +474,7 @@ class StrainStressCalculationWindow(QMainWindow):
         add_values(e22_box_list, sample_logs_e22)
 
         # e33
-        if sample_logs_e33 is not None:
+        if sample_logs_e33 is None:
             sample_logs_e33 = ['']  # 1 item as empty
 
         e33_box_list = [self.ui.comboBox_sampleLogNameX_E33,
@@ -595,6 +598,9 @@ class StrainStressCalculationWindow(QMainWindow):
 
         self._core.new_strain_stress_session(session_name, is_plane_stress=is_plane_stress,
                                              is_plane_strain=is_plane_strain)
+        print ('[DB...BAT] is plane strain: {}, is plan stress: {}, is unconstrained: {}'
+               .format(is_plane_strain, is_plane_stress, self._core.strain_stress_calculator.is_unconstrained_strain_stress))
+
         # set the class variable
         self._session_name = session_name
 
