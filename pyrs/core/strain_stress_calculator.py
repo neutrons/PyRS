@@ -1255,7 +1255,10 @@ class StrainStressCalculator(object):
             ''.format(target_position, type(target_position))
 
         # grid_x, grid_y, grid_z = (grid_x, grid_y, grid_z)
-        interp_value = griddata(exp_grid_pos_vector, param_value_vector, target_position, method='nearest')
+        target_position_input = numpy.array([target_position])
+        print (param_value_vector.shape)
+        print (target_position_input.shape)
+        interp_value = griddata(exp_grid_pos_vector, param_value_vector, target_position_input, method='nearest')
 
         return interp_value
 
