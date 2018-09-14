@@ -24,6 +24,9 @@ class StrainStressCalculationWindow(QMainWindow):
         """
         super(StrainStressCalculationWindow, self).__init__(parent)
 
+        # class variables for calculation (not GUI)
+        self._default_dir = None
+
         # class variables
         self._core = None
 
@@ -116,6 +119,9 @@ class StrainStressCalculationWindow(QMainWindow):
         # radio buttons
         self.ui.radioButton_uniformD0.setChecked(True)
 
+        # push button
+        self.ui.pushButton_loadFile.setEnabled(False)
+
         return
 
     @property
@@ -162,29 +168,33 @@ class StrainStressCalculationWindow(QMainWindow):
         align the loaded data for XYZ
         :return:
         """
+        pos_x_sample_name_dict = dict()
+        pos_y_sample_name_dict = dict()
+        pos_z_sample_name_dict = dict()
+
         # get user specified sample log names
-        pos_x_log_name = str(self.ui.comboBox_sampleLogNameX.currentText())
-        pos_x_sample_names = [pos_x_log_name]
-        pos_x_log_name2 = str(self.ui.comboBox_sampleLogNameX_option2.currentText())
-        if len(pos_x_log_name2.strip()) > 0:
-            pos_x_sample_names.append(pos_x_log_name)
+        # X:
+        pos_x_sample_name_dict['e11'] = str(self.ui.comboBox_sampleLogNameX_E11.currentText())
+        pos_x_sample_name_dict['e22'] = str(self.ui.comboBox_sampleLogNameX_E22.currentText())
+        if 'e33' in self._core.strain_stress_calculator.get_strain_stress_direction():
+            pos_x_sample_name_dict['e33'] = str(self.ui.comboBox_sampleLogNameX_E33.currentText())
 
-        pos_y_log_name = str(self.ui.comboBox_sampleLogNameY.currentText())
-        pos_y_sample_names = [pos_y_log_name]
-        pos_y_log_name2 = str(self.ui.comboBox_sampleLogNameY_option2.currentText())
-        if len(pos_y_log_name2.strip()) > 0:
-            pos_y_sample_names.append(pos_y_log_name2)
+        # Y:
+        pos_y_sample_name_dict['e11'] = str(self.ui.comboBox_sampleLogNameY_E11.currentText())
+        pos_y_sample_name_dict['e22'] = str(self.ui.comboBox_sampleLogNameY_E22.currentText())
+        if 'e33' in self._core.strain_stress_calculator.get_strain_stress_direction():
+            pos_y_sample_name_dict['e33'] = str(self.ui.comboBox_sampleLogNameY_E33.currentText())
 
-        pos_z_log_name = str(self.ui.comboBox_sampleLogNameZ.currentText())
-        pos_z_sample_names = [pos_z_log_name]
-        pos_z_log_name2 = str(self.ui.comboBox_sampleLogNameZ_option2.currentText())
-        if len(pos_z_log_name2.strip()) > 0:
-            pos_z_sample_names.append(pos_z_log_name2)
+        # Z:
+        pos_z_sample_name_dict['e11'] = str(self.ui.comboBox_sampleLogNameZ_E11.currentText())
+        pos_z_sample_name_dict['e22'] = str(self.ui.comboBox_sampleLogNameZ_E22.currentText())
+        if 'e33' in self._core.strain_stress_calculator.get_strain_stress_direction():
+            pos_z_sample_name_dict['e33'] = str(self.ui.comboBox_sampleLogNameZ_E33.currentText())
 
         # Check the grid position sample log from each input scan log in each direction
-        self._core.strain_stress_calculator.set_grid_log_names(pos_x_sample_names=pos_x_sample_names,
-                                                               pos_y_sample_names=pos_y_sample_names,
-                                                               pos_z_sample_names=pos_z_sample_names)
+        self._core.strain_stress_calculator.set_grid_log_names(pos_x_sample_names=pos_x_sample_name_dict,
+                                                               pos_y_sample_names=pos_y_sample_name_dict,
+                                                               pos_z_sample_names=pos_z_sample_name_dict)
 
         try:
             self._core.strain_stress_calculator.check_grids_alignment()
@@ -267,13 +277,17 @@ class StrainStressCalculationWindow(QMainWindow):
         """ browse LD raw file
         :return:
         """
+        if self._default_dir is None:
+            self._default_dir = self._core.working_dir
+
         ld_file_name = gui_helper.browse_file(self, caption='Load LD (raw) File',
-                                              default_dir=self._core.working_dir,
-                                              file_filter='Data File (*.dat)',
+                                              default_dir=self._default_dir,
+                                              file_filter='HDF File (*.hdf5);;Data File (*.dat)',
                                               file_list=False,
                                               save_file=False)
         if ld_file_name is not None:
             self.ui.lineEdit_e11ScanFile.setText(ld_file_name)
+            self._default_dir = os.path.dirname(ld_file_name)
 
         return
 
@@ -281,13 +295,18 @@ class StrainStressCalculationWindow(QMainWindow):
         """ browse ND raw file
         :return:
         """
+        if self._default_dir is None:
+            self._default_dir = self._core.working_dir
+
         nd_file_name = gui_helper.browse_file(self, caption='Load ND (raw) File',
-                                              default_dir=self._core.working_dir,
-                                              file_filter='Data File (*.dat)',
+                                              default_dir=self._default_dir,
+                                              file_filter='HDF File (*.hdf5);;Data File (*.dat)',
                                               file_list=False,
                                               save_file=False)
         if nd_file_name is not None:
             self.ui.lineEdit_e22ScanFile.setText(nd_file_name)
+            self._default_dir = os.path.dirname(nd_file_name)
+
 
         return
 
@@ -295,13 +314,17 @@ class StrainStressCalculationWindow(QMainWindow):
         """ browse TD raw file
         :return:
         """
+        if self._default_dir is None:
+            self._default_dir = self._core.working_dir
+
         td_file_name = gui_helper.browse_file(self, caption='Load TD (raw) File',
-                                              default_dir=self._core.working_dir,
-                                              file_filter='Data File (*.dat)',
+                                              default_dir=self._default_dir,
+                                              file_filter='HDF File (*.hdf5);;Data File (*.dat)',
                                               file_list=False,
                                               save_file=False)
         if td_file_name is not None:
             self.ui.lineEdit_e33ScanFile.setText(td_file_name)
+            self._default_dir = os.path.dirname(td_file_name)
 
         return
 
@@ -353,6 +376,11 @@ class StrainStressCalculationWindow(QMainWindow):
         # call the core to calculate strain
         self._core.strain_stress_calculator.execute()
 
+        # set message
+        import datetime
+        self.ui.plainTextEdit_info.appendPlainText('Strain/stress calculation is finished at {}'
+                                                   ''.format(datetime.datetime.now()))
+
         return
 
     def do_load_strain_files(self):
@@ -378,14 +406,13 @@ class StrainStressCalculationWindow(QMainWindow):
             self.load_raw_file(e22_file_name, 'e22')
             sample_logs_e22 = self._core.strain_stress_calculator.get_sample_logs_names('e22', to_set=True)
 
-            common_sample_logs = sample_logs_e11 & sample_logs_e22
-
             if self._core.strain_stress_calculator.is_unconstrained_strain_stress:
                 e33_file_name = str(self.ui.lineEdit_e33ScanFile.text())
                 self.load_raw_file(e33_file_name, 'e33')
                 sample_logs_e33 = self._core.strain_stress_calculator.get_sample_logs_names('e33', to_set=True)
+            else:
+                sample_logs_e33 = None
 
-                common_sample_logs = sample_logs_e33 & common_sample_logs
         else:
             # load saved files
             # TODO - 2018 - Next - Need an example for such file!
@@ -399,30 +426,58 @@ class StrainStressCalculationWindow(QMainWindow):
         self.ui.pushButton_calUnconstrainedStress.setEnabled(False)
 
         # set up the combo box for 3 directions
-        self.ui.comboBox_sampleLogNameX.clear()
-        self.ui.comboBox_sampleLogNameY.clear()
-        self.ui.comboBox_sampleLogNameZ.clear()
-
-        # 2nd option sample log
-        for combo_box in [self.ui.comboBox_sampleLogNameX_option2,
-                          self.ui.comboBox_sampleLogNameY_option2,
-                          self.ui.comboBox_sampleLogNameZ_option2]:
-            combo_box.clear()
-            combo_box.addItem('')
-
-        common_sample_logs = list(common_sample_logs)
-        common_sample_logs.sort()
-        for log_name in common_sample_logs:
-            self.ui.comboBox_sampleLogNameX.addItem(log_name)
-            self.ui.comboBox_sampleLogNameY.addItem(log_name)
-            self.ui.comboBox_sampleLogNameZ.addItem(log_name)
-            self.ui.comboBox_sampleLogNameX_option2.addItem(log_name)
-            self.ui.comboBox_sampleLogNameY_option2.addItem(log_name)
-            self.ui.comboBox_sampleLogNameZ_option2.addItem(log_name)
-        # END-FOR
+        self._setup_sample_logs_combo_box(sample_logs_e11, sample_logs_e22, sample_logs_e33)
 
         # convert the peak centers to dspacing
         self._core.strain_stress_calculator.convert_peaks_positions()
+
+        # show information
+        self.ui.plainTextEdit_info.setPlainText('File Loaded')
+
+        return
+
+    def _setup_sample_logs_combo_box(self, sample_logs_e11, sample_logs_e22, sample_logs_e33):
+        """ set up the sample log combo box
+        :param sample_logs_e11:
+        :param sample_logs_e22:
+        :param sample_logs_e33:
+        :return:
+        """
+        def add_values(box_list, sample_log_list):
+            """
+
+            :param box_list:
+            :param sample_log_list:
+            :return:
+            """
+            for box in box_list:
+                box.clear()
+            for log_name_i in sorted(sample_log_list):
+                for box in box_list:
+                    box.addItem(log_name_i)
+
+            return
+
+        # e11
+        e11_box_list = [self.ui.comboBox_sampleLogNameX_E11,
+                        self.ui.comboBox_sampleLogNameY_E11,
+                        self.ui.comboBox_sampleLogNameZ_E11]
+        add_values(e11_box_list, sample_logs_e11)
+
+        # e22
+        e22_box_list = [self.ui.comboBox_sampleLogNameX_E22,
+                        self.ui.comboBox_sampleLogNameY_E22,
+                        self.ui.comboBox_sampleLogNameZ_E22]
+        add_values(e22_box_list, sample_logs_e22)
+
+        # e33
+        if sample_logs_e33 is not None:
+            sample_logs_e33 = ['']  # 1 item as empty
+
+        e33_box_list = [self.ui.comboBox_sampleLogNameX_E33,
+                        self.ui.comboBox_sampleLogNameY_E33,
+                        self.ui.comboBox_sampleLogNameZ_E33]
+        add_values(e33_box_list, sample_logs_e33)
 
         return
 
@@ -531,7 +586,10 @@ class StrainStressCalculationWindow(QMainWindow):
         :param is_plane_strain:
         :return:
         """
-        checkdatatypes.check_string_variable('Strain/stress session name', session_name)
+        if isinstance(session_name, unicode):
+            session_name = str(session_name)
+        else:
+            checkdatatypes.check_string_variable('Strain/stress session name', session_name)
         checkdatatypes.check_bool_variable('Flag for being plane strain', is_plane_strain)
         checkdatatypes.check_bool_variable('Flag for being plane stress', is_plane_stress)
 
@@ -549,6 +607,13 @@ class StrainStressCalculationWindow(QMainWindow):
         else:
             self.ui.lineEdit_e33ScanFile.setEnabled(True)
             self.ui.pushButton_browse_e33ScanFile.setEnabled(True)
+
+        # enable load button
+        self.ui.pushButton_loadFile.setEnabled(True)
+
+        # set title
+        self.setWindowTitle(session_name)
+
         return
 
     def do_plot_sliced_3d(self):
@@ -842,11 +907,10 @@ class StrainStressCalculationWindow(QMainWindow):
         show the calculated strain and stress values
         :return:
         """
-        # TODO - 20180813 - Implement the table view
         if self._strain_stress_table_view is None:
             self._strain_stress_table_view = dialogs.StrainStressTableView(self)
         else:
-            self._strain_stress_table_view.reset_table()
+            self._strain_stress_table_view.reset_main_table()
 
         # get value and setup
         grid_array, strain_vec, stress_vec = self._core.strain_stress_calculator.get_strain_stress_values()

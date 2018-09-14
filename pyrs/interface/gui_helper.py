@@ -32,6 +32,7 @@ def browse_file(parent, caption, default_dir, file_filter, file_list=False, save
         file_filter = 'All Files (*.*)'
     else:
         checkdatatypes.check_string_variable('File filter', file_filter)
+        file_filter = '{};;All Files (*.*)'.format(file_filter)
 
     if save_file:
         # browse file name to save to

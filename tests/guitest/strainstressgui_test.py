@@ -113,14 +113,27 @@ def test_main(test_dir):
     ss_window.do_load_strain_files()
 
     # pre-grid-alignment
-    ss_window.ui.comboBox_sampleLogNameX.insertItem(0, 'sx')
-    ss_window.ui.comboBox_sampleLogNameX.setCurrentIndex(0)
-    ss_window.ui.comboBox_sampleLogNameY.insertItem(0, 'sy')
-    ss_window.ui.comboBox_sampleLogNameY.setCurrentIndex(0)
-    ss_window.ui.comboBox_sampleLogNameZ.insertItem(0, 'sz')
-    ss_window.ui.comboBox_sampleLogNameZ.setCurrentIndex(0)
-    ss_window.ui.comboBox_sampleLogNameZ_option2.insertItem(0, 'szs')
-    ss_window.ui.comboBox_sampleLogNameZ_option2.setCurrentIndex(0)
+    ss_window.ui.comboBox_sampleLogNameX_E11.insertItem(0, 'sx')
+    ss_window.ui.comboBox_sampleLogNameX_E11.setCurrentIndex(0)
+    ss_window.ui.comboBox_sampleLogNameX_E22.insertItem(0, 'sx')
+    ss_window.ui.comboBox_sampleLogNameX_E22.setCurrentIndex(0)
+    ss_window.ui.comboBox_sampleLogNameX_E33.insertItem(0, 'sx')
+    ss_window.ui.comboBox_sampleLogNameX_E33.setCurrentIndex(0)
+
+    ss_window.ui.comboBox_sampleLogNameY_E11.insertItem(0, 'sy')
+    ss_window.ui.comboBox_sampleLogNameY_E11.setCurrentIndex(0)
+    ss_window.ui.comboBox_sampleLogNameY_E22.insertItem(0, 'sy')
+    ss_window.ui.comboBox_sampleLogNameY_E22.setCurrentIndex(0)
+    ss_window.ui.comboBox_sampleLogNameY_E33.insertItem(0, 'sy')
+    ss_window.ui.comboBox_sampleLogNameY_E33.setCurrentIndex(0)
+
+    ss_window.ui.comboBox_sampleLogNameZ_E11.insertItem(0, 'szs')
+    ss_window.ui.comboBox_sampleLogNameZ_E11.setCurrentIndex(0)
+    ss_window.ui.comboBox_sampleLogNameZ_E22.insertItem(0, 'szs')
+    ss_window.ui.comboBox_sampleLogNameZ_E22.setCurrentIndex(0)
+    ss_window.ui.comboBox_sampleLogNameZ_E33.insertItem(0, 'sz')
+    ss_window.ui.comboBox_sampleLogNameZ_E33.setCurrentIndex(0)
+
     ss_window.do_get_grid_alignment_info()   # e33=False, sample_resolution=(0.01, 0.01, 0.01))
 
     # set the uer alignment

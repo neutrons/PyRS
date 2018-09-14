@@ -628,31 +628,16 @@ class StrainStressCalculator(object):
         :param pos_z_sample_names:
         :return:
         """
-        pyrs.utilities.checkdatatypes.check_sequence('Sample log names for grid position X',
-                                                     pos_x_sample_names, str)
-        pyrs.utilities.checkdatatypes.check_sequence('Sample log names for grid position X',
-                                                     pos_y_sample_names, str)
-        pyrs.utilities.checkdatatypes.check_sequence('Sample log names for grid position X',
-                                                     pos_z_sample_names, str)
+        pyrs.utilities.checkdatatypes.check_dict('Sample log names for grid position X', pos_x_sample_names)
+        pyrs.utilities.checkdatatypes.check_dict('Sample log names for grid position X', pos_y_sample_names)
+        pyrs.utilities.checkdatatypes.check_dict('Sample log names for grid position X', pos_z_sample_names)
 
         # Set up the X, Y, Z position sample log name for every direction
         # go through all the data to check
         for dir_i in self._direction_list:
-            for pos_x_name in pos_x_sample_names:
-                if pos_x_name in self._sample_log_dict[dir_i]:
-                    self._grid_pos_x_name_dict[dir_i] = pos_x_name
-                    print '{}: size = {}'.format(pos_x_name, self._sample_log_dict[dir_i][pos_x_name].shape)
-                    break
-            for pos_y_name in pos_y_sample_names:
-                if pos_y_name in self._sample_log_dict[dir_i]:
-                    self._grid_pos_y_name_dict[dir_i] = pos_y_name
-                    print '{}: size = {}'.format(pos_y_name, self._sample_log_dict[dir_i][pos_y_name].shape)
-                    break
-            for pos_z_name in pos_z_sample_names:
-                if pos_z_name in self._sample_log_dict[dir_i]:
-                    self._grid_pos_z_name_dict[dir_i] = pos_z_name
-                    print '{}: size = {}'.format(pos_z_name, self._sample_log_dict[dir_i][pos_z_name].shape)
-                    break
+            self._grid_pos_x_name_dict[dir_i] = pos_x_sample_names[dir_i]
+            self._grid_pos_y_name_dict[dir_i] = pos_y_sample_names[dir_i]
+            self._grid_pos_z_name_dict[dir_i] = pos_z_sample_names[dir_i]
         # END-FOR
 
         return
@@ -1093,9 +1078,9 @@ class StrainStressCalculator(object):
             try:
                 z_i = self._sample_log_dict[direction][pos_z][scan_log_index]
             except KeyError as key_err:
-                err_msg = 'Direction {} Scan log index {}: Z-position sample log {} is not found.' \
-                          'Available logs include {}\nFYI: {}' \
-                          ''.format(direction, scan_log_index, pos_z, self._sample_log_dict[direction].keys(),
+                err_msg = 'Direction {} Scan log index {}: Z-position sample log {} is not found. ' \
+                          'Available logs include {}\nFYI (Error Message): {}' \
+                          ''.format(direction, scan_log_index, pos_z, sorted(self._sample_log_dict[direction].keys()),
                                     key_err)
                 raise KeyError(err_msg)
             xyz_log_index_dict[(x_i, y_i, z_i)] = scan_log_index
@@ -1387,7 +1372,7 @@ class StrainStressCalculator(object):
                       ''.format('X', 'Y', 'Z', 'e11', 'e22', 'e33', 's11', 's22', 's33')
         for i_grid in range(self._grid_output_array.shape[0]):
             continue
-            
+
         csv_file = open(file_name, 'w')
         csv_file.write(csv_buffer)
         csv_file.close()

@@ -29,7 +29,7 @@ class CreateNewSessionDialog(QDialog):
         self.ui = ui_newsessiondialog.Ui_Dialog()
         self.ui.setupUi(self)
 
-        self.ui.buttonBox.accepted.connect(self.do_quit)
+        self.ui.buttonBox.accepted.connect(self.do_new_session)
         self.ui.buttonBox.rejected.connect(self.do_quit)
 
         # connect the signal
@@ -272,16 +272,17 @@ class GridAlignmentCheckTablesView(QMainWindow):
         if self._mutex_param_name_list:
             return
 
-        param_name = str(self.ui.comboBox_parameterList.currentText())
+        # reset the table and add all the grids' value
+        self.ui.tableView_gridAlignment.remove_all_rows()
 
+        param_name = str(self.ui.comboBox_parameterList.currentText())
         for ss_dir in self._core.strain_stress_calculator.get_strain_stress_direction():
             user_grid_value_vec = \
                 self._core.strain_stress_calculator.get_user_grid_param_values(ss_direction=ss_dir,
                                                                                param_name=param_name)
-
-        # reset the table and add all the grids' value
-        self.ui.tableView_gridAlignment.remove_all_rows()
-        self.ui.tableView_gridAlignment.set_grids_values(user_grid_value_list)
+            self.ui.tableView_gridAlignment.set_grids_values(self._core.strain_stress_calculator.get_strain_stress_grid(),
+                                                             {'e11': user_grid_value_vec})
+            break
 
         return
 
