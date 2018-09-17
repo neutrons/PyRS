@@ -33,7 +33,7 @@ class CreateNewSessionDialog(QDialog):
         self.ui.buttonBox.rejected.connect(self.do_quit)
 
         # connect the signal
-        self.NewSessionSignal.connect(parent.new_strain_stress_session)
+        self.NewSessionSignal.connect(parent.create_new_session)
 
         # init widgets
         self.ui.comboBox_strainStressType.clear()

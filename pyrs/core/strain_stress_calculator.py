@@ -133,8 +133,10 @@ class StrainStressCalculator(object):
     class to manage strain stress calculation
     """
     # vx, vy, vz, Delta Weld, Delta Thickness, Delta Length, Cuboid: provided by HB2B team
-    allowed_grid_position_sample_names = ['vx', 'vy', 'vz', 'delta weld', 'delta thickness', 'delta length']
-    allowed_grid_position_sample_names_wild = ['cuboid*']
+    allowed_grid_position_sample_names = ['vx', 'vy', 'vz', 'delta weld', 'delta thickness', 'delta length',
+                                          'sx', 'sy']
+    allowed_grid_position_sample_names_wild = ['cuboid*', 'sz*']
+    # FIXME - sx, sy, sz* are for testing data only!
 
     def __init__(self, session_name, plane_stress=False, plane_strain=False):
         """
@@ -1272,6 +1274,8 @@ class StrainStressCalculator(object):
         :param log_name:
         :return:
         """
+        print ('[DB...BAT] Log name: {} ... Comparing {}'
+               ''.format(log_name, StrainStressCalculator.allowed_grid_position_sample_names))
         log_name = log_name.lower()
         if log_name in StrainStressCalculator.allowed_grid_position_sample_names:
             return True
@@ -1367,6 +1371,19 @@ class StrainStressCalculator(object):
 
         # record data file name
         self._source_file_dict[direction] = file_name
+
+        return
+
+    def rename(self, new_session_name):
+        """
+        rename session name
+        :param new_session_name:
+        :return:
+        """
+        pyrs.utilities.checkdatatypes.check_string_variable('New strain/stress calculator session name',
+                                                            new_session_name)
+
+        self._session = new_session_name
 
         return
 

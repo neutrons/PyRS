@@ -94,11 +94,10 @@ def test_main(test_dir):
     test main
     """
     # set up window and link to call
-    ss_window = strainstresscalwindow.StrainStressCalculationWindow(None)
     pyrs_core = pyrscore.PyRsCore()
     pyrs_core.working_dir = test_dir
 
-    ss_window.setup_window(pyrs_core)
+    ss_window = strainstresscalwindow.StrainStressCalculationWindow(None, pyrs_core)
 
     # show the window
     ss_window.show()
@@ -301,7 +300,7 @@ def main(argv):
 
 if __name__ == '__main__':
     # Main application
-    print ('Test Peak Fit GUI')
+    print ('Test Strain/Stress GUI')
     app = main(sys.argv)
 
     # this must be here!

@@ -17,18 +17,22 @@ class StrainStressCalculationWindow(QMainWindow):
     """
     GUI window to calculate strain and stress with simple visualization
     """
-    def __init__(self, parent):
+    def __init__(self, parent, pyrs_core):
         """
         initialization
         :param parent:
+        :param pyrs_core:
         """
         super(StrainStressCalculationWindow, self).__init__(parent)
 
+        # check
+        assert isinstance(pyrs_core, pyrs.core.pyrscore.PyRsCore), 'PyRS core {0} of type {1} must be a PyRsCore ' \
+                                                                   'instance.'.format(pyrs_core, type(pyrs_core))
+
+        self._core = pyrs_core
+
         # class variables for calculation (not GUI)
         self._default_dir = None
-
-        # class variables
-        self._core = None
 
         # child dialogs and windows
         self._d0_grid_dialog = None
@@ -82,7 +86,6 @@ class StrainStressCalculationWindow(QMainWindow):
         self.ui.horizontalSlider_slicer3D.valueChanged.connect(self.do_slice_3d_data)
 
         # current data/states
-        self._core = None
         self._curr_data_key = None
         self._session_name = None
 
@@ -121,6 +124,11 @@ class StrainStressCalculationWindow(QMainWindow):
         self.ui.comboBox_alignmentCriteria.addItem('E33')
         self.ui.comboBox_alignmentCriteria.addItem('User specified Grid')
         self.ui.comboBox_alignmentCriteria.addItem('Finest Grid (Auto)')
+
+        self.ui.comboBox_typeStrainStress.clear()
+        self.ui.comboBox_typeStrainStress.addItem('Unconstrained Strain/Stress')
+        self.ui.comboBox_typeStrainStress.addItem('Plane Strain')
+        self.ui.comboBox_typeStrainStress.addItem('Plane Stress')
 
         # radio buttons
         self.ui.radioButton_uniformD0.setChecked(True)
@@ -407,16 +415,25 @@ class StrainStressCalculationWindow(QMainWindow):
 
         if self.ui.radioButton_loadRaw.isChecked():
             # load raw files
-            e11_file_name = str(self.ui.lineEdit_e11ScanFile.text())
+            e11_file_name = str(self.ui.lineEdit_e11ScanFile.text()).strip()
+            if e11_file_name == '':
+                gui_helper.pop_message(self, 'E11 file is not given', message_type='error')
+                return
             self.load_raw_file(e11_file_name, 'e11')
             sample_logs_e11 = self._core.strain_stress_calculator.get_sample_logs_names('e11', to_set=True)
 
-            e22_file_name = str(self.ui.lineEdit_e22ScanFile.text())
+            e22_file_name = str(self.ui.lineEdit_e22ScanFile.text()).strip()
+            if e22_file_name == '':
+                gui_helper.pop_message(self, 'E22 file is not given', message_type='error')
+                return
             self.load_raw_file(e22_file_name, 'e22')
             sample_logs_e22 = self._core.strain_stress_calculator.get_sample_logs_names('e22', to_set=True)
 
             if self._core.strain_stress_calculator.is_unconstrained_strain_stress:
-                e33_file_name = str(self.ui.lineEdit_e33ScanFile.text())
+                e33_file_name = str(self.ui.lineEdit_e33ScanFile.text()).strip()
+                if e33_file_name == '':
+                    gui_helper.pop_message(self, 'E33 file is not given', message_type='error')
+                    return
                 self.load_raw_file(e33_file_name, 'e33')
                 sample_logs_e33 = self._core.strain_stress_calculator.get_sample_logs_names('e33', to_set=True)
             else:
@@ -445,8 +462,11 @@ class StrainStressCalculationWindow(QMainWindow):
                           self.ui.lineEdit_e33ScanFile]:
             info_str += '{}\n'.format(text_edit.text())
             # set text color
-            text_edit.setColor('green')
+            text_edit.setStyleSheet("color: rgb(0, 255, 0);")
         self.ui.plainTextEdit_info.setPlainText(info_str)
+
+        # disable load
+        self.ui.pushButton_loadFile.setEnabled(False)
 
         return
 
@@ -484,7 +504,8 @@ class StrainStressCalculationWindow(QMainWindow):
         e22_box_list = [self.ui.comboBox_sampleLogNameX_E22,
                         self.ui.comboBox_sampleLogNameY_E22,
                         self.ui.comboBox_sampleLogNameZ_E22]
-        add_values(e22_box_list, sample_logs_e22)
+        add_values(e22_box_list, sample_logs_e22,
+                   self._core.strain_stress_calculator.is_allowed_grid_position_sample_log)
 
         # e33
         if sample_logs_e33 is None:
@@ -493,7 +514,8 @@ class StrainStressCalculationWindow(QMainWindow):
         e33_box_list = [self.ui.comboBox_sampleLogNameX_E33,
                         self.ui.comboBox_sampleLogNameY_E33,
                         self.ui.comboBox_sampleLogNameZ_E33]
-        add_values(e33_box_list, sample_logs_e33)
+        add_values(e33_box_list, sample_logs_e33,
+                   self._core.strain_stress_calculator.is_allowed_grid_position_sample_log)
 
         return
 
@@ -595,11 +617,31 @@ class StrainStressCalculationWindow(QMainWindow):
 
         return
 
-    def new_strain_stress_session(self, session_name, is_plane_strain, is_plane_stress):
+    # def create_new_session(self, session_name, is_plane_strain, is_plane_stress):
+    #     """ create a new strain/stress calculation session
+    #     :param session_name:
+    #     :param is_plane_strain:
+    #     :return:
+    #     """
+    #     # check input
+    #     checkdatatypes.check_string_variable('Strain/stress calculating session name', session_name)
+    #     checkdatatypes.check_bool_variable('Flag to be plane strain', is_plane_strain)
+    #     checkdatatypes.check_bool_variable('Flag to be plane stress', is_plane_stress)
+    #
+    #     self._core.new_strain_stress_session(session_name,
+    #                                          is_plane_strain=is_plane_strain,
+    #                                          is_plane_stress=is_plane_stress)
+    #
+    #     self.setWindowTitle(session_name)
+    #
+    #     return
+
+    def create_new_session(self, session_name, is_plane_strain, is_plane_stress):
         """
         create a new session
         :param session_name:
         :param is_plane_strain:
+        :param is_plane_stress:
         :return:
         """
         if isinstance(session_name, unicode):
@@ -611,11 +653,21 @@ class StrainStressCalculationWindow(QMainWindow):
 
         self._core.new_strain_stress_session(session_name, is_plane_stress=is_plane_stress,
                                              is_plane_strain=is_plane_strain)
-        print ('[DB...BAT] is plane strain: {}, is plan stress: {}, is unconstrained: {}'
-               .format(is_plane_strain, is_plane_stress, self._core.strain_stress_calculator.is_unconstrained_strain_stress))
 
         # set the class variable
         self._session_name = session_name
+
+        # set information
+        if is_plane_stress:
+            index = 2
+        elif is_plane_strain:
+            index = 1
+        else:
+            index = 0
+        if self.ui.comboBox_typeStrainStress.currentIndex() != index:
+            self.ui.comboBox_typeStrainStress.setCurrentIndex(index)
+        self.ui.label_currStrainStressType.setText(self.ui.comboBox_typeStrainStress.currentText())
+        self.ui.label_currStrainStressType.setStyleSheet("color: rgb(255, 0, 0);")
 
         # disable calculation group before align the measuring data points
         self.ui.groupBox_calculator.setEnabled(False)
@@ -856,26 +908,6 @@ class StrainStressCalculationWindow(QMainWindow):
 
         return
 
-    def create_new_session(self, session_name, is_plane_strain, is_plane_stress):
-        """ create a new strain/stress calculation session
-        :param session_name:
-        :param is_plane_strain:
-        :param is_plane_stress:
-        :return:
-        """
-        # check input
-        checkdatatypes.check_string_variable('Strain/stress calculating session name', session_name)
-        checkdatatypes.check_bool_variable('Flag to be plane strain', is_plane_strain)
-        checkdatatypes.check_bool_variable('Flag to be plane stress', is_plane_stress)
-
-        self._core.new_strain_stress_session(session_name,
-                                             is_plane_strain=is_plane_strain,
-                                             is_plane_stress=is_plane_stress)
-
-        self.setWindowTitle(session_name)
-
-        return
-
     def do_export_stress_strain(self):
         """
         export the stress/strain to some other format for future analysis
@@ -898,7 +930,21 @@ class StrainStressCalculationWindow(QMainWindow):
         reset the strain and stress type
         :return:
         """
-        self._core.reset_strain_stress(str(self.ui.comboBox_typeStressStrain.currentText()))
+        type_index = self.ui.comboBox_typeStrainStress.currentIndex()
+        is_plane_strain = False
+        is_plane_stress = False
+        if type_index == 1:
+            is_plane_strain = True
+        elif type_index == 2:
+            is_plane_stress = True
+
+        self._core.reset_strain_stress(is_plane_strain, is_plane_stress)
+
+        # set the UI
+        if is_plane_stress or is_plane_strain:
+            self.ui.lineEdit_e33ScanFile.setEnabled(False)
+        else:
+            self.ui.lineEdit_e33ScanFile.setEnabled(True)
 
         return
 
@@ -1007,19 +1053,6 @@ class StrainStressCalculationWindow(QMainWindow):
         self.ui.comboBox_plotParameterName.clear()
         for item in items:
             self.ui.comboBox_plotParameterName.addItem(item)
-
-        return
-
-    def setup_window(self, pyrs_core):
-        """ set up the texture analysis window
-        :param pyrs_core:
-        :return:
-        """
-        # check
-        assert isinstance(pyrs_core, pyrs.core.pyrscore.PyRsCore), 'PyRS core {0} of type {1} must be a PyRsCore ' \
-                                                                   'instance.'.format(pyrs_core, type(pyrs_core))
-
-        self._core = pyrs_core
 
         return
 
