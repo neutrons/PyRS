@@ -56,6 +56,8 @@ class StrainStressCalculationWindow(QMainWindow):
         self.ui.pushButton_showAlignGridTable.clicked.connect(self.do_show_aligned_grid)
         self.ui.pushButton_alignGrids.clicked.connect(self.do_align_grids)
 
+        self.ui.pushButton_resetStrainStressType.clicked.connect(self.do_reset_strain_stress)
+
         # strain/stress save and export
         self.ui.pushButton_saveStressStrain.clicked.connect(self.save_stress_strain)
         self.ui.pushButton_exportSpecialType.clicked.connect(self.do_export_stress_strain)
@@ -92,6 +94,10 @@ class StrainStressCalculationWindow(QMainWindow):
         self._load_file_radio_mutex = False
         self._d0_type_mutex = False
         self._do_not_plot = False  # Flag to control the event handlers to load and plot peak parameter/strain/stress
+
+        # create a default new session
+        self.create_new_session(session_name='new strain/stress session', is_plane_strain=False,
+                                is_plane_stress=False)
 
         return
 
@@ -424,9 +430,8 @@ class StrainStressCalculationWindow(QMainWindow):
             raise RuntimeError('Not Implemented')
         # END-IF
 
-        # disable calculation until the alignment is finished
-        self.ui.pushButton_alignGrids.setEnabled(False)
-        self.ui.pushButton_calUnconstrainedStress.setEnabled(False)
+        # enable alignment options
+        self.ui.pushButton_alignGrids.setEnabled(True)
 
         # set up the combo box for 3 directions
         self._setup_sample_logs_combo_box(sample_logs_e11, sample_logs_e22, sample_logs_e33)
@@ -435,7 +440,13 @@ class StrainStressCalculationWindow(QMainWindow):
         self._core.strain_stress_calculator.convert_peaks_positions()
 
         # show information
-        self.ui.plainTextEdit_info.setPlainText('File Loaded')
+        info_str = 'Reduced files for strain/stress calculation session {} are loaded:\n'
+        for text_edit in [self.ui.lineEdit_e11ScanFile, self.ui.lineEdit_e22ScanFile,
+                          self.ui.lineEdit_e33ScanFile]:
+            info_str += '{}\n'.format(text_edit.text())
+            # set text color
+            text_edit.setColor('green')
+        self.ui.plainTextEdit_info.setPlainText(info_str)
 
         return
 
@@ -446,9 +457,8 @@ class StrainStressCalculationWindow(QMainWindow):
         :param sample_logs_e33:
         :return:
         """
-        def add_values(box_list, sample_log_list):
-            """
-
+        def add_values(box_list, sample_log_list, func_is_allowed):
+            """ add values to the boxes
             :param box_list:
             :param sample_log_list:
             :return:
@@ -456,6 +466,8 @@ class StrainStressCalculationWindow(QMainWindow):
             for box in box_list:
                 box.clear()
             for log_name_i in sorted(sample_log_list):
+                if func_is_allowed(log_name_i) is False:
+                    continue
                 for box in box_list:
                     box.addItem(log_name_i)
 
@@ -465,7 +477,8 @@ class StrainStressCalculationWindow(QMainWindow):
         e11_box_list = [self.ui.comboBox_sampleLogNameX_E11,
                         self.ui.comboBox_sampleLogNameY_E11,
                         self.ui.comboBox_sampleLogNameZ_E11]
-        add_values(e11_box_list, sample_logs_e11)
+        add_values(e11_box_list, sample_logs_e11,
+                   self._core.strain_stress_calculator.is_allowed_grid_position_sample_log)
 
         # e22
         e22_box_list = [self.ui.comboBox_sampleLogNameX_E22,
@@ -616,6 +629,11 @@ class StrainStressCalculationWindow(QMainWindow):
 
         # enable load button
         self.ui.pushButton_loadFile.setEnabled(True)
+
+        # disable calculation until the alignment is finished
+        self.ui.pushButton_alignGrids.setEnabled(False)
+        self.ui.pushButton_calUnconstrainedStress.setEnabled(False)
+        # disable loading if not
 
         # set title
         self.setWindowTitle(session_name)
@@ -872,6 +890,15 @@ class StrainStressCalculationWindow(QMainWindow):
         :return:
         """
         self.close()
+
+        return
+
+    def do_reset_strain_stress(self):
+        """
+        reset the strain and stress type
+        :return:
+        """
+        self._core.reset_strain_stress(str(self.ui.comboBox_typeStressStrain.currentText()))
 
         return
 

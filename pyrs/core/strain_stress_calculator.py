@@ -132,6 +132,10 @@ class StrainStressCalculator(object):
     """
     class to manage strain stress calculation
     """
+    # vx, vy, vz, Delta Weld, Delta Thickness, Delta Length, Cuboid: provided by HB2B team
+    allowed_grid_position_sample_names = ['vx', 'vy', 'vz', 'delta weld', 'delta thickness', 'delta length']
+    allowed_grid_position_sample_names_wild = ['cuboid*']
+
     def __init__(self, session_name, plane_stress=False, plane_strain=False):
         """
         initialization
@@ -1261,6 +1265,31 @@ class StrainStressCalculator(object):
         interp_value = griddata(exp_grid_pos_vector, param_value_vector, target_position_input, method='nearest')
 
         return interp_value
+
+    @staticmethod
+    def is_allowed_grid_position_sample_log(log_name):
+        """ check whether the input are allowed sample grid position's log name in file
+        :param log_name:
+        :return:
+        """
+        log_name = log_name.lower()
+        if log_name in StrainStressCalculator.allowed_grid_position_sample_names:
+            return True
+
+        for wild_name in StrainStressCalculator.allowed_grid_position_sample_names_wild:
+            if wild_name.endswith('*'):
+                wild_name = wild_name.split('*')[0]
+                if log_name.startswith(wild_name):
+                    return True
+            elif wild_name.startswith('*'):
+                wild_name = wild_name.split('*')[1]
+                if log_name.endswith(wild_name):
+                    return True
+            else:
+                raise RuntimeError('Case {} not supported'.format(wild_name))
+        # END-FOR
+
+        return False
 
     @property
     def is_sample_positions_aligned(self):
