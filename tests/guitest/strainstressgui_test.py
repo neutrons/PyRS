@@ -159,9 +159,10 @@ def test_main(test_dir):
     grid_info_window.do_load_mapped_values()
     grid_info_window.do_load_params_raw_grid()
 
+    base_dir = os.path.expanduser('~/temp/pyrs_test_ss')
     ss_window.core.strain_stress_calculator.export_2d_slice('center_d', True, 'e11', 1,
                                                             slice_pos=0.0, slice_resolution=0.001,
-                                                            file_name='/tmp/pyrs_test_ss/test.hdf5')
+                                                            file_name=os.path.join(base_dir, 'test.hdf5'))
 
     # pop out the window for grid check
     # ss_window.do_show_aligned_grid()
