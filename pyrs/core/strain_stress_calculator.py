@@ -278,7 +278,7 @@ class StrainStressCalculator(object):
         num_grids = 1
         for dir_i in ['X', 'Y', 'Z']:
             min_i = grids_dimension_dict['Min'][dir_i]
-            max_i = grids_dimension_dict['Min'][dir_i]
+            max_i = grids_dimension_dict['Max'][dir_i]
             if min_i == max_i:
                 num_pt_i = 1
             elif min_i < max_i:
@@ -296,6 +296,8 @@ class StrainStressCalculator(object):
             num_grids *= num_pt_i
             size_dict[dir_i] = num_pt_i
         # END-FOR
+
+        print ('[DB...BAT] Size: {}'.format(size_dict))
 
         # define grids vector
         grids_vec = numpy.ndarray(shape=(num_grids, 3), dtype='float')
@@ -767,7 +769,6 @@ class StrainStressCalculator(object):
 
         return numpy.sqrt(numpy.sum(vec_pos_1 ** 2 + vec_pos_2 ** 2))
 
-    # TESTME - 20180817 - Finish it - Just Implemented
     def convert_peaks_positions(self):
         """ convert all peaks' positions in d-space.
         Note: this must be called after check_grids() is called
@@ -845,11 +846,15 @@ class StrainStressCalculator(object):
                 peak_matrix[m_index, m_index] = peak_pos_d_vec[i_grid][m_index]
             # END-FOR
 
-            ss_calculator = StrainStress(peak_pos_matrix=peak_matrix,
-                                         d0=self._d0, young_modulus=self._young_e,
-                                         poisson_ratio=self._poisson_nu,
-                                         is_plane_train=self._is_plane_strain,
-                                         is_plane_stress=self._is_plane_stress)
+            try:
+                ss_calculator = StrainStress(peak_pos_matrix=peak_matrix,
+                                             d0=self._d0, young_modulus=self._young_e,
+                                             poisson_ratio=self._poisson_nu,
+                                             is_plane_train=self._is_plane_strain,
+                                             is_plane_stress=self._is_plane_stress)
+            except ZeroDivisionError as err:
+                err_msg = 'Strain/stress calculation parameter set up error causing zero division: {}'.format(err)
+                raise RuntimeError(err_msg)
 
             strain_matrix_vec[i_grid] = ss_calculator.get_strain()
             stress_matrix_vec[i_grid] = ss_calculator.get_stress()
@@ -1245,11 +1250,11 @@ class StrainStressCalculator(object):
         :return: 
         """
         # check inputs
-        print ('[DB...BAT] Experimental grid position vector: type = {}'.format(type(exp_grid_pos_vector)))
-        print ('[DB...BAT] Experimental grid position vector: {}'.format(exp_grid_pos_vector))
-        print ('[DB...BAT] Experimental grid position vector: shape = {}'.format(exp_grid_pos_vector.shape))
-        print ('[DB...BAT] Parameter value vector: {}'.format(exp_grid_pos_vector))
-        print ('[DB...BAT] Parameter value shape: {}'.format(exp_grid_pos_vector.shape))
+        # print ('[DB...BAT] Experimental grid position vector: type = {}'.format(type(exp_grid_pos_vector)))
+        # print ('[DB...BAT] Experimental grid position vector: {}'.format(exp_grid_pos_vector))
+        # print ('[DB...BAT] Experimental grid position vector: shape = {}'.format(exp_grid_pos_vector.shape))
+        # print ('[DB...BAT] Parameter value vector: {}'.format(exp_grid_pos_vector))
+        # print ('[DB...BAT] Parameter value shape: {}'.format(exp_grid_pos_vector.shape))
 
         num_exp_grids = exp_grid_pos_vector.shape[0]
         if num_exp_grids != len(param_value_vector):
@@ -1363,6 +1368,9 @@ class StrainStressCalculator(object):
         if 'peak_fit' not in sample_logs:
             raise RuntimeError('File {} does not have fitted peak parameters value for strain/stress '
                                'calculation'.format(file_name))
+        if sample_logs['peak_fit'] is None:
+            raise RuntimeError('File {} has empty "peak fit" in sample logs.'
+                               ''.format(file_name))
 
         # assign data file to files
         self._data_set_dict[direction] = diff_data_dict

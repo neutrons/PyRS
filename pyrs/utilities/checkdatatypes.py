@@ -238,8 +238,13 @@ def check_string_variable(var_name, variable, allowed_values=None):
 
     if isinstance(allowed_values, list):
         if variable not in allowed_values:
-            raise ValueError('{} {} is not found in allowed value list {}'
-                             ''.format(var_name, variable, allowed_values))
+            if len(variable) == 0:
+                err_msg = '{} (as an EMPTY STRING) is not found in allowed value list {}' \
+                          ''.format(var_name, variable, allowed_values)
+            else:
+                err_msg = '{} {} is not found in allowed value list {}' \
+                          ''.format(var_name, variable, allowed_values)
+            raise ValueError(err_msg)
     elif allowed_values is not None:
         raise RuntimeError('Allowed values {} must be given in a list but not a {}'
                            ''.format(allowed_values, type(allowed_values)))

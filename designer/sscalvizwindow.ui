@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1345</width>
-    <height>984</height>
+    <width>1383</width>
+    <height>1006</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -26,25 +26,6 @@
       <layout class="QGridLayout" name="gridLayout_4">
        <item row="5" column="1">
         <widget class="QLineEdit" name="lineEdit_d0"/>
-       </item>
-       <item row="5" column="4">
-        <widget class="QPushButton" name="pushButton_calUnconstrainedStress">
-         <property name="maximumSize">
-          <size>
-           <width>200</width>
-           <height>200</height>
-          </size>
-         </property>
-         <property name="font">
-          <font>
-           <weight>75</weight>
-           <bold>true</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>Calculate Strain/Stress</string>
-         </property>
-        </widget>
        </item>
        <item row="6" column="2">
         <widget class="QRadioButton" name="radioButton_d0Grid">
@@ -119,16 +100,6 @@
          </property>
         </spacer>
        </item>
-       <item row="6" column="4">
-        <widget class="QPushButton" name="pushButton_launchSSTable">
-         <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Show strain stress in a table&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
-         <property name="text">
-          <string>Show Strain/Stress</string>
-         </property>
-        </widget>
-       </item>
        <item row="8" column="0">
         <widget class="QLabel" name="label_7">
          <property name="text">
@@ -168,20 +139,6 @@
        <item row="8" column="1" colspan="3">
         <widget class="QLineEdit" name="lineEdit_outputFileName"/>
        </item>
-       <item row="2" column="4">
-        <widget class="QPushButton" name="pushButton_alignGrids">
-         <property name="text">
-          <string>Align Grids</string>
-         </property>
-        </widget>
-       </item>
-       <item row="3" column="4">
-        <widget class="QComboBox" name="comboBox_alignmentCriteria">
-         <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Calculate strain/stress along the specified direction.&lt;/p&gt;&lt;p&gt;1. If the grids of e11, e22 and e33 do not match, grids will be aligned to e11, e22 or e33 as specified.&lt;/p&gt;&lt;p&gt;2. Automatically the finest grid among them or user defined grids.&lt;/p&gt;&lt;p&gt;3. User can specify a grid by 3D range and resolution&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
-        </widget>
-       </item>
        <item row="2" column="0">
         <widget class="QLabel" name="label_5">
          <property name="maximumSize">
@@ -207,6 +164,35 @@
        </item>
        <item row="3" column="1">
         <widget class="QLineEdit" name="lineEdit_poissonRatio"/>
+       </item>
+       <item row="2" column="4">
+        <widget class="QPushButton" name="pushButton_calUnconstrainedStress">
+         <property name="maximumSize">
+          <size>
+           <width>200</width>
+           <height>200</height>
+          </size>
+         </property>
+         <property name="font">
+          <font>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>Calculate Strain/Stress</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="4">
+        <widget class="QPushButton" name="pushButton_launchSSTable">
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Show strain stress in a table&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+         <property name="text">
+          <string>Show Strain/Stress</string>
+         </property>
+        </widget>
        </item>
       </layout>
      </widget>
@@ -281,6 +267,13 @@
           </spacer>
          </item>
         </layout>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_sliceInformation">
+         <property name="text">
+          <string>[slice information]</string>
+         </property>
+        </widget>
        </item>
        <item>
         <widget class="SampleSliceView" name="graphicsView_sliceView">
@@ -533,11 +526,28 @@
     <item row="2" column="0">
      <widget class="QGroupBox" name="groupBox_4">
       <property name="title">
-       <string>Align Measuring Points on Sample</string>
+       <string>Align Measuring Grids on Sample</string>
       </property>
       <layout class="QGridLayout" name="gridLayout_8">
        <item row="0" column="0">
         <layout class="QGridLayout" name="gridLayout_7">
+         <item row="2" column="5">
+          <widget class="QPushButton" name="pushButton_alignGrids">
+           <property name="text">
+            <string>Align Grids</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="3">
+          <widget class="QComboBox" name="comboBox_sampleLogNameY_E33">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
          <item row="0" column="2">
           <widget class="QLabel" name="label_12">
            <property name="text">
@@ -564,16 +574,6 @@
            </property>
           </widget>
          </item>
-         <item row="3" column="5">
-          <widget class="QPushButton" name="pushButton_showAlignGridTable">
-           <property name="toolTip">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Show report (in table) for alignment&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-           </property>
-           <property name="text">
-            <string>Alignment Report</string>
-           </property>
-          </widget>
-         </item>
          <item row="1" column="5">
           <widget class="QPushButton" name="pushButton_preAlignSampleLogXYZ">
            <property name="minimumSize">
@@ -589,7 +589,7 @@
             </size>
            </property>
            <property name="text">
-            <string>Pre-Align</string>
+            <string>Check Alignment</string>
            </property>
           </widget>
          </item>
@@ -746,8 +746,8 @@
            </property>
           </widget>
          </item>
-         <item row="2" column="3">
-          <widget class="QComboBox" name="comboBox_sampleLogNameY_E33">
+         <item row="3" column="3">
+          <widget class="QComboBox" name="comboBox_sampleLogNameZ_E33">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -756,13 +756,20 @@
            </property>
           </widget>
          </item>
-         <item row="3" column="3">
-          <widget class="QComboBox" name="comboBox_sampleLogNameZ_E33">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
+         <item row="3" column="5">
+          <widget class="QComboBox" name="comboBox_alignmentCriteria">
+           <property name="toolTip">
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Calculate strain/stress along the specified direction.&lt;/p&gt;&lt;p&gt;1. If the grids of e11, e22 and e33 do not match, grids will be aligned to e11, e22 or e33 as specified.&lt;/p&gt;&lt;p&gt;2. Automatically the finest grid among them or user defined grids.&lt;/p&gt;&lt;p&gt;3. User can specify a grid by 3D range and resolution&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="5">
+          <widget class="QPushButton" name="pushButton_showAlignGridTable">
+           <property name="toolTip">
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Show report (in table) for alignment&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           </property>
+           <property name="text">
+            <string>Alignment Report</string>
            </property>
           </widget>
          </item>
@@ -778,7 +785,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1345</width>
+     <width>1383</width>
      <height>25</height>
     </rect>
    </property>

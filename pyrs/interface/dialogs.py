@@ -253,6 +253,8 @@ class GridAlignmentCheckTablesView(QMainWindow):
         else:
             plot_raw = True
 
+        # need to change the plot type
+        self._parent.do_change_plot_type()
         self._parent.plot_peak_param_slice(param_name=param_name, ss_direction=ss_dir, is_raw_grid=plot_raw)
 
         return
@@ -285,6 +287,10 @@ class GridAlignmentCheckTablesView(QMainWindow):
             break
 
         return
+
+    def show_tab(self, tab_index):
+        # TODO - 20180922 - DOC
+        self.ui.tabWidget_alignedParams.setCurrentIndex(tab_index)
 
     def reset_tables(self):
         """ reset all the tables
@@ -328,17 +334,17 @@ class GridAlignmentCheckTablesView(QMainWindow):
 
         return
 
-    def set_aligned_parameter_value(self, param_name, param_value_vector):
+    def set_aligned_parameter_value(self, grid_array, param_value_vector):
         """
         set the aligned parameter values to Table...
-        :param param_name:
+        :param grid_array:
         :param param_value_vector:
         :return:
         """
-        print ('[DB...BAT] Set {}  Value vector shape = {}'.format(param_name, param_value_vector.shape))
-
         for i_row in range(param_value_vector.shape[0]):
-            row_items = [1, 2, 3]
+            row_items = list()
+            for item_i in range(3):
+                row_items.append(grid_array[i_row, item_i])
             for i_ss_dir in range(param_value_vector.shape[1]):
                 row_items.append(param_value_vector[i_row, i_ss_dir])
             self.ui.tableView_alignedParameters.append_row(row_items)
@@ -645,13 +651,16 @@ def get_grid_slicing_export_setup(parent):
     return return_value
 
 
-def get_strain_stress_grid_setup(parent, user_define_grid, grid_stat_dict):
+# TODO - 20180918 - Need documentation
+def get_strain_stress_grid_setup(parent, user_define_grid, grid_stat_dict, grid_setup_dict):
     """
 
     :return:
     """
+    if grid_setup_dict is not None:
+        checkdatatypes.check_dict('Grid setup parameters', grid_setup_dict)
+
     # set up dialog
-    grid_setup_dict = None
 
     while True:
         ss_dialog = StrainStressGridSetup(parent)
