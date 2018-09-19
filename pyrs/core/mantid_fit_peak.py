@@ -137,6 +137,8 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
                      FindBackgroundSigma=1,
                      HighBackground=False,
                      ConstrainPeakPositions=False,
+                     PeakParameterNames='FWHM',
+                     PeakParameterValues='1.0',
                      RawPeakParameters=False,
                      OutputPeakParametersWorkspace=r_param_table_name,
                      FittedPeaksWorkspace=r_model_ws_name,
