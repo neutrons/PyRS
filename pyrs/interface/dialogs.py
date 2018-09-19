@@ -342,12 +342,35 @@ class GridAlignmentCheckTablesView(QMainWindow):
         :return:
         """
         for i_row in range(param_value_vector.shape[0]):
-            row_items = list()
-            for item_i in range(3):
-                row_items.append(grid_array[i_row, item_i])
-            for i_ss_dir in range(param_value_vector.shape[1]):
-                row_items.append(param_value_vector[i_row, i_ss_dir])
-            self.ui.tableView_alignedParameters.append_row(row_items)
+            grid_pos_x, grid_pos_y, grid_pos_z = grid_array[i_row]
+            param_value_11 = param_value_vector[i_row, 0]
+            param_value_22 = param_value_vector[i_row, 1]
+            if param_value_vector.shape[1] == 3:
+                param_value_33 = param_value_vector[i_row, 2]
+            else:
+                param_value_33 = None
+            self.ui.tableView_alignedParameters.add_matched_grid(grid_pos_x, grid_pos_y, grid_pos_z,
+                                                                 param_value_11, param_value_22, param_value_33)
+        # END-FOR
+
+        return
+
+    def set_grid_statistics_table(self, stat_dict):
+        """ Set the (raw) grid statistics for user to refere
+        :param stat_dict:
+        :return:
+        """
+        for grid_dir in ['X', 'Y', 'Z']:
+            for item_name in ['min', 'max',  'num_indv_values']:
+                combo_name = '{} {}'.format(grid_dir, item_name)
+                row_items = [combo_name]
+                for ss_dir in ['e11', 'e22', 'e33']:
+                    try:
+                        item_value = stat_dict[item_name][ss_dir][grid_dir]
+                    except KeyError:
+                        item_value = None
+                    row_items.append(item_value)
+                self.ui.tableView_gridStatistic.append_row(row_items)
         # END-FOR
 
         return

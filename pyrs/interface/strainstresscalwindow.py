@@ -282,6 +282,13 @@ class StrainStressCalculationWindow(QMainWindow):
 
         self.ui.pushButton_alignGrids.setEnabled(True)
 
+        stat_dict = self._core.strain_stress_calculator.get_grids_information()
+        self._grid_alignment_table_view.set_grid_statistics_table(stat_dict)
+        # print ('[DB...BAT] Grid statistics: {}'.format(stat_dict))
+        """
+         {'max': {'e11': {'Y': 29.658988000000001, 'X': 152.31347, 'Z': 49.519986000000003}, 'e22': {'Y': 29.658988000000001, 'X': 152.31347, 'Z': 49.519986000000003}}, 'num_indv_values': {'e11': {'Y': 38, 'X': 14, 'Z': 6}, 'e22': {'Y': 37, 'X': 13, 'Z': 5}}, 'min': {'e11': {'Y': 18.105157999999999, 'X': -143.655483, 'Z': 17.602565999999999}, 'e22': {'Y': 18.105157999999999, 'X': -143.655483, 'Z': 17.602565999999999}}}
+        """
+
         return
 
     def do_align_grids(self):
