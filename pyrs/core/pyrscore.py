@@ -565,6 +565,30 @@ class PyRsCore(object):
 
         return
 
+    def reset_strain_stress(self, is_plane_strain, is_plane_stress):
+        """ reset the strain and stress calculation due to change of type
+        :param new_type:
+        :return:
+        """
+        # rename the old one
+        if self._curr_ss_session not in self._ss_calculator_dict:
+            print ('[WARNING] Current strain/stress session does not exist.')
+            return
+
+        # rename the current strain stress name
+        saved_ss_name = self._curr_ss_session + '_{}_{}'.format(is_plane_strain, is_plane_stress)
+        self._ss_calculator_dict[self._curr_ss_session].rename(saved_ss_name)
+        prev_calculator = self._ss_calculator_dict[self._curr_ss_session]
+        self._ss_calculator_dict[saved_ss_name] = prev_calculator
+
+        # reset new strain/stress calculator
+        new_ss_calculator = strain_stress_calculator.StrainStressCalculator(self._curr_ss_session, is_plane_strain,
+                                                                            is_plane_stress)
+
+        self._ss_calculator_dict[self._curr_ss_session] = new_ss_calculator
+
+        return
+
     def save_nexus(self, data_key, file_name):
         """
         save data in a MatrixWorkspace to Mantid processed NeXus file

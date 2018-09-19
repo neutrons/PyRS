@@ -119,11 +119,14 @@ class SliceViewWidget(QWidget):
             self._indicator.plot_2way_indicator(pos_x, pos_y)
 
             # update slice view
-            vec_x, vec_z = self.slice_2d_data_horizontal(pos_y)
-            self.horizontal_canvas.update_plot(vec_x, vec_z)
+            ret_value = self.slice_2d_data_horizontal(pos_y)
+            if ret_value is not None:
+                vec_x, vec_z = ret_value
+                self.horizontal_canvas.update_plot(vec_x, vec_z)
 
-            vec_y, vec_z = self.slice_2d_data_vertical(pos_x)
-            self.vertical_canvas.update_plot(vec_y, vec_z)
+                # slice data vertically
+                vec_y, vec_z = self.slice_2d_data_vertical(pos_x)
+                self.vertical_canvas.update_plot(vec_y, vec_z)
 
         else:
             # other buttons: do nothing
@@ -232,7 +235,8 @@ class SliceViewWidget(QWidget):
         :return:
         """
         if self._is_setup is False:
-            raise RuntimeError('Not set up yet')
+            print ('[Warning] 2D slice view is not set up yet')
+            return None
 
         y_index = np.searchsorted(self._yi, pos_y)
         vec_z = self._zmatrix[y_index, :]

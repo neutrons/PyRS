@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1345</width>
-    <height>984</height>
+    <width>1383</width>
+    <height>1006</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -15,140 +15,7 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout_6">
-    <item row="0" column="0">
-     <widget class="QGroupBox" name="groupBox">
-      <property name="title">
-       <string>Import Data Files</string>
-      </property>
-      <layout class="QGridLayout" name="gridLayout_3">
-       <item row="0" column="1">
-        <widget class="QGroupBox" name="groupBox_importRawFiles">
-         <property name="title">
-          <string/>
-         </property>
-         <layout class="QGridLayout" name="gridLayout_2">
-          <item row="0" column="0">
-           <widget class="QLabel" name="label">
-            <property name="text">
-             <string>e11 Scan</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="1">
-           <widget class="QLineEdit" name="lineEdit_e11ScanFile"/>
-          </item>
-          <item row="0" column="2">
-           <widget class="QPushButton" name="pushButton_browse_e11ScanFile">
-            <property name="text">
-             <string>Browse</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="0">
-           <widget class="QLabel" name="label_2">
-            <property name="text">
-             <string>e22 Scan</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1">
-           <widget class="QLineEdit" name="lineEdit_e22ScanFile"/>
-          </item>
-          <item row="1" column="2">
-           <widget class="QPushButton" name="pushButton_browse_e22ScanFile">
-            <property name="text">
-             <string>Browse</string>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="0">
-           <widget class="QLabel" name="label_3">
-            <property name="text">
-             <string>e33 Scan</string>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="1">
-           <widget class="QLineEdit" name="lineEdit_e33ScanFile"/>
-          </item>
-          <item row="2" column="2">
-           <widget class="QPushButton" name="pushButton_browse_e33ScanFile">
-            <property name="text">
-             <string>Browse</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-       </item>
-       <item row="1" column="1">
-        <widget class="QGroupBox" name="groupBox_importReducedFile">
-         <property name="title">
-          <string/>
-         </property>
-         <layout class="QGridLayout" name="gridLayout">
-          <item row="0" column="0">
-           <widget class="QLabel" name="label_4">
-            <property name="text">
-             <string>Stress</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="1">
-           <widget class="QLineEdit" name="lineEdit_reducedFile"/>
-          </item>
-          <item row="0" column="2">
-           <widget class="QPushButton" name="pushButton_browseReducedFile">
-            <property name="text">
-             <string>Browse</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-       </item>
-       <item row="0" column="0">
-        <widget class="QRadioButton" name="radioButton_loadRaw">
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="1">
-        <layout class="QHBoxLayout" name="horizontalLayout">
-         <item>
-          <spacer name="horizontalSpacer">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item>
-          <widget class="QPushButton" name="pushButton_loadFile">
-           <property name="text">
-            <string>Load</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item row="1" column="0">
-        <widget class="QRadioButton" name="radioButton_loadReduced">
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
-    </item>
-    <item row="2" column="0">
+    <item row="3" column="0">
      <widget class="QGroupBox" name="groupBox_calculator">
       <property name="toolTip">
        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Containing widgets related to stress/strain calculation setup&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -159,19 +26,6 @@
       <layout class="QGridLayout" name="gridLayout_4">
        <item row="5" column="1">
         <widget class="QLineEdit" name="lineEdit_d0"/>
-       </item>
-       <item row="5" column="4">
-        <widget class="QPushButton" name="pushButton_calUnconstrainedStress">
-         <property name="maximumSize">
-          <size>
-           <width>200</width>
-           <height>200</height>
-          </size>
-         </property>
-         <property name="text">
-          <string>Calculate Strain/Stress</string>
-         </property>
-        </widget>
        </item>
        <item row="6" column="2">
         <widget class="QRadioButton" name="radioButton_d0Grid">
@@ -246,16 +100,6 @@
          </property>
         </spacer>
        </item>
-       <item row="6" column="4">
-        <widget class="QPushButton" name="pushButton_launchSSTable">
-         <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Show strain stress in a table&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
-         <property name="text">
-          <string>Show Strain/Stress</string>
-         </property>
-        </widget>
-       </item>
        <item row="8" column="0">
         <widget class="QLabel" name="label_7">
          <property name="text">
@@ -295,20 +139,6 @@
        <item row="8" column="1" colspan="3">
         <widget class="QLineEdit" name="lineEdit_outputFileName"/>
        </item>
-       <item row="2" column="4">
-        <widget class="QPushButton" name="pushButton_alignGrids">
-         <property name="text">
-          <string>Align Grids</string>
-         </property>
-        </widget>
-       </item>
-       <item row="3" column="4">
-        <widget class="QComboBox" name="comboBox_alignmentCriteria">
-         <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Calculate strain/stress along the specified direction.&lt;/p&gt;&lt;p&gt;1. If the grids of e11, e22 and e33 do not match, grids will be aligned to e11, e22 or e33 as specified.&lt;/p&gt;&lt;p&gt;2. Automatically the finest grid among them or user defined grids.&lt;/p&gt;&lt;p&gt;3. User can specify a grid by 3D range and resolution&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
-        </widget>
-       </item>
        <item row="2" column="0">
         <widget class="QLabel" name="label_5">
          <property name="maximumSize">
@@ -335,10 +165,39 @@
        <item row="3" column="1">
         <widget class="QLineEdit" name="lineEdit_poissonRatio"/>
        </item>
+       <item row="2" column="4">
+        <widget class="QPushButton" name="pushButton_calUnconstrainedStress">
+         <property name="maximumSize">
+          <size>
+           <width>200</width>
+           <height>200</height>
+          </size>
+         </property>
+         <property name="font">
+          <font>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>Calculate Strain/Stress</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="4">
+        <widget class="QPushButton" name="pushButton_launchSSTable">
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Show strain stress in a table&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+         <property name="text">
+          <string>Show Strain/Stress</string>
+         </property>
+        </widget>
+       </item>
       </layout>
      </widget>
     </item>
-    <item row="0" column="1" rowspan="3">
+    <item row="0" column="1" rowspan="4">
      <widget class="QGroupBox" name="groupBox_3">
       <property name="title">
        <string>Viz</string>
@@ -407,17 +266,14 @@
            </property>
           </spacer>
          </item>
-         <item>
-          <widget class="QPushButton" name="pushButton_plotSliceView">
-           <property name="toolTip">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Plot selected data in slice view&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-           </property>
-           <property name="text">
-            <string>Plot</string>
-           </property>
-          </widget>
-         </item>
         </layout>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_sliceInformation">
+         <property name="text">
+          <string>[slice information]</string>
+         </property>
+        </widget>
        </item>
        <item>
         <widget class="SampleSliceView" name="graphicsView_sliceView">
@@ -495,15 +351,230 @@
       </layout>
      </widget>
     </item>
-    <item row="1" column="0">
+    <item row="0" column="0">
+     <widget class="QGroupBox" name="groupBox">
+      <property name="title">
+       <string>Import Data Files and Configuration</string>
+      </property>
+      <layout class="QGridLayout" name="gridLayout_3">
+       <item row="0" column="0">
+        <widget class="QRadioButton" name="radioButton_loadRaw">
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QGroupBox" name="groupBox_importRawFiles">
+         <property name="title">
+          <string/>
+         </property>
+         <layout class="QGridLayout" name="gridLayout_2">
+          <item row="0" column="0">
+           <widget class="QLabel" name="label">
+            <property name="text">
+             <string>e11 Scan</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QLineEdit" name="lineEdit_e11ScanFile"/>
+          </item>
+          <item row="0" column="2">
+           <widget class="QPushButton" name="pushButton_browse_e11ScanFile">
+            <property name="text">
+             <string>Browse</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="label_2">
+            <property name="text">
+             <string>e22 Scan</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QLineEdit" name="lineEdit_e22ScanFile"/>
+          </item>
+          <item row="1" column="2">
+           <widget class="QPushButton" name="pushButton_browse_e22ScanFile">
+            <property name="text">
+             <string>Browse</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="label_3">
+            <property name="text">
+             <string>e33 Scan</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QLineEdit" name="lineEdit_e33ScanFile"/>
+          </item>
+          <item row="2" column="2">
+           <widget class="QPushButton" name="pushButton_browse_e33ScanFile">
+            <property name="text">
+             <string>Browse</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QRadioButton" name="radioButton_loadReduced">
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QGroupBox" name="groupBox_importReducedFile">
+         <property name="title">
+          <string/>
+         </property>
+         <layout class="QGridLayout" name="gridLayout">
+          <item row="0" column="0">
+           <widget class="QLabel" name="label_4">
+            <property name="text">
+             <string>Stress</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QLineEdit" name="lineEdit_reducedFile"/>
+          </item>
+          <item row="0" column="2">
+           <widget class="QPushButton" name="pushButton_browseReducedFile">
+            <property name="text">
+             <string>Browse</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <layout class="QGridLayout" name="gridLayout_5">
+         <item row="0" column="3">
+          <widget class="QPushButton" name="pushButton_loadFile">
+           <property name="toolTip">
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Button to load the reduced HB2B data with peak fitting result.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;p&gt;It is disabled if the strain stress session is not set up.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           </property>
+           <property name="text">
+            <string>Load</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="3">
+          <widget class="QPushButton" name="pushButton_resetStrainStressType">
+           <property name="text">
+            <string>Reset</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="2">
+          <widget class="QComboBox" name="comboBox_typeStrainStress"/>
+         </item>
+         <item row="1" column="0">
+          <spacer name="horizontalSpacer_6">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item row="1" column="1">
+          <widget class="QLabel" name="label_currStrainStressType">
+           <property name="minimumSize">
+            <size>
+             <width>80</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="0">
+          <spacer name="horizontalSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item row="2" column="0">
      <widget class="QGroupBox" name="groupBox_4">
       <property name="title">
-       <string>Align Measuring Points on Sample</string>
+       <string>Align Measuring Grids on Sample</string>
       </property>
       <layout class="QGridLayout" name="gridLayout_8">
        <item row="0" column="0">
         <layout class="QGridLayout" name="gridLayout_7">
-         <item row="0" column="3">
+         <item row="2" column="5">
+          <widget class="QPushButton" name="pushButton_alignGrids">
+           <property name="text">
+            <string>Align Grids</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="3">
+          <widget class="QComboBox" name="comboBox_sampleLogNameY_E33">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="2">
+          <widget class="QLabel" name="label_12">
+           <property name="text">
+            <string>E22</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="label_8">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>60</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>Y</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="5">
           <widget class="QPushButton" name="pushButton_preAlignSampleLogXYZ">
            <property name="minimumSize">
             <size>
@@ -518,12 +589,18 @@
             </size>
            </property>
            <property name="text">
-            <string>Pre-Align</string>
+            <string>Check Alignment</string>
            </property>
           </widget>
          </item>
-         <item row="2" column="0">
+         <item row="3" column="0">
           <widget class="QLabel" name="label_9">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
            <property name="maximumSize">
             <size>
              <width>60</width>
@@ -535,17 +612,23 @@
            </property>
           </widget>
          </item>
-         <item row="0" column="0">
+         <item row="1" column="0">
           <widget class="QLabel" name="label_6">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
            <property name="minimumSize">
             <size>
-             <width>140</width>
+             <width>60</width>
              <height>0</height>
             </size>
            </property>
            <property name="maximumSize">
             <size>
-             <width>140</width>
+             <width>60</width>
              <height>16777215</height>
             </size>
            </property>
@@ -554,21 +637,8 @@
            </property>
           </widget>
          </item>
-         <item row="1" column="0">
-          <widget class="QLabel" name="label_8">
-           <property name="maximumSize">
-            <size>
-             <width>60</width>
-             <height>16777215</height>
-            </size>
-           </property>
-           <property name="text">
-            <string>Y</string>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="1">
-          <widget class="QComboBox" name="comboBox_sampleLogNameX">
+         <item row="1" column="1">
+          <widget class="QComboBox" name="comboBox_sampleLogNameX_E11">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -580,8 +650,8 @@
            </property>
           </widget>
          </item>
-         <item row="1" column="1">
-          <widget class="QComboBox" name="comboBox_sampleLogNameY">
+         <item row="2" column="1">
+          <widget class="QComboBox" name="comboBox_sampleLogNameY_E11">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -593,8 +663,8 @@
            </property>
           </widget>
          </item>
-         <item row="2" column="1">
-          <widget class="QComboBox" name="comboBox_sampleLogNameZ">
+         <item row="3" column="1">
+          <widget class="QComboBox" name="comboBox_sampleLogNameZ_E11">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -606,7 +676,7 @@
            </property>
           </widget>
          </item>
-         <item row="0" column="2">
+         <item row="1" column="4">
           <spacer name="horizontalSpacer_3">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
@@ -622,7 +692,78 @@
            </property>
           </spacer>
          </item>
-         <item row="2" column="3">
+         <item row="1" column="2">
+          <widget class="QComboBox" name="comboBox_sampleLogNameX_E22">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="2">
+          <widget class="QComboBox" name="comboBox_sampleLogNameY_E22">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="2">
+          <widget class="QComboBox" name="comboBox_sampleLogNameZ_E22">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QLabel" name="label_11">
+           <property name="text">
+            <string>E11</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="3">
+          <widget class="QComboBox" name="comboBox_sampleLogNameX_E33">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="3">
+          <widget class="QLabel" name="label_13">
+           <property name="text">
+            <string>E33</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="3">
+          <widget class="QComboBox" name="comboBox_sampleLogNameZ_E33">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="5">
+          <widget class="QComboBox" name="comboBox_alignmentCriteria">
+           <property name="toolTip">
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Calculate strain/stress along the specified direction.&lt;/p&gt;&lt;p&gt;1. If the grids of e11, e22 and e33 do not match, grids will be aligned to e11, e22 or e33 as specified.&lt;/p&gt;&lt;p&gt;2. Automatically the finest grid among them or user defined grids.&lt;/p&gt;&lt;p&gt;3. User can specify a grid by 3D range and resolution&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="5">
           <widget class="QPushButton" name="pushButton_showAlignGridTable">
            <property name="toolTip">
             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Show report (in table) for alignment&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -644,7 +785,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1345</width>
+     <width>1383</width>
      <height>25</height>
     </rect>
    </property>

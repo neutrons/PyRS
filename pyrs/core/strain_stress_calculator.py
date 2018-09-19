@@ -132,6 +132,12 @@ class StrainStressCalculator(object):
     """
     class to manage strain stress calculation
     """
+    # vx, vy, vz, Delta Weld, Delta Thickness, Delta Length, Cuboid: provided by HB2B team
+    allowed_grid_position_sample_names = ['vx', 'vy', 'vz', 'delta weld', 'delta thickness', 'delta length',
+                                          'sx', 'sy']
+    allowed_grid_position_sample_names_wild = ['cuboid*', 'sz*']
+    # FIXME - sx, sy, sz* are for testing data only!
+
     def __init__(self, session_name, plane_stress=False, plane_strain=False):
         """
         initialization
@@ -148,6 +154,11 @@ class StrainStressCalculator(object):
             raise RuntimeError('An experiment cannot be both plane stress and plane stress')
 
         # class variable
+        # vector of strain and stress matrix
+        self._strain_matrix_vec = None  # strain_matrix_vec
+        self._stress_matrix_vec = None  # stress_matrix_vec
+
+        # session and strain/stress type
         self._session = session_name
         self._is_plane_strain = plane_strain
         self._is_plane_stress = plane_stress
@@ -162,7 +173,7 @@ class StrainStressCalculator(object):
         for dir_i in self._direction_list:
             self._data_set_dict[dir_i] = None
             self._peak_param_dict[dir_i] = None   # [dir][parameter name][scan log index]
-            self._sample_log_dict[dir_i] = None
+            self._sample_log_dict[dir_i] = None   # [dir][log name][scan log index] = value
 
         # source files
         self._source_file_dict = dict()
@@ -172,7 +183,7 @@ class StrainStressCalculator(object):
         # transformed data set
         self._dir_grid_pos_scan_index_dict = dict()   # [e11/e22/e33][grid pos][scan log index]
         for dir_i in self._direction_list:
-            self._dir_grid_pos_scan_index_dict[dir_i] = None  # (value) a dictionary: key = sample position,
+            self._dir_grid_pos_scan_index_dict[dir_i] = None  # (value) a dictionary: key = sample position (tuple),
             #                                                   value = scan log index
 
         # mapped/interpolated parameters
@@ -183,9 +194,13 @@ class StrainStressCalculator(object):
         self._sample_points_aligned = False
 
         # list of sample positions for each data set for grids
-        self._sample_positions_dict = dict()
+        self._grid_pos_x_name_dict = dict()  # dict[e11/e22/e33] = 'sx'
+        self._grid_pos_y_name_dict = dict()
+        self._grid_pos_z_name_dict = dict()
+
+        self._sample_positions_dict = dict()    # dict[e11/e22/e33][i] = grid_i(x, y, z)  # shape=(n, 3) sorted
         for dir_i in self._direction_list:
-            self._sample_positions_dict[dir_i] = None  # each shall be None or a LIST of 3-tuples
+            self._sample_positions_dict[dir_i] = None
         self._grid_statistics_dict = None
         self._grid_output_array = None  # array (of vector) for grids used by strain/stress calculation
 
@@ -263,7 +278,7 @@ class StrainStressCalculator(object):
         num_grids = 1
         for dir_i in ['X', 'Y', 'Z']:
             min_i = grids_dimension_dict['Min'][dir_i]
-            max_i = grids_dimension_dict['Min'][dir_i]
+            max_i = grids_dimension_dict['Max'][dir_i]
             if min_i == max_i:
                 num_pt_i = 1
             elif min_i < max_i:
@@ -281,6 +296,8 @@ class StrainStressCalculator(object):
             num_grids *= num_pt_i
             size_dict[dir_i] = num_pt_i
         # END-FOR
+
+        print ('[DB...BAT] Size: {}'.format(size_dict))
 
         # define grids vector
         grids_vec = numpy.ndarray(shape=(num_grids, 3), dtype='float')
@@ -340,15 +357,15 @@ class StrainStressCalculator(object):
             ss_grid_i = self._grid_output_array[i_grid]
             for i_dir, ss_dir in enumerate(self._direction_list):
                 # get the sorted positions
-                sorted_pos_list_i = self._sample_positions_dict[ss_dir]
+                sorted_grid_pos_vector = self._sample_positions_dict[ss_dir]
                 if ss_dir == direction:
-                    index_i = self.binary_search(sorted_positions=sorted_pos_list_i, xyz=ss_grid_i,
+                    index_i = self.binary_search(sorted_positions=sorted_grid_pos_vector, xyz=ss_grid_i,
                                                  resolution=1.E-10)
                     if index_i is None:
                         raise NotImplementedError('Impossible')
 
                 else:
-                    index_i = self.binary_search(sorted_positions=sorted_pos_list_i, xyz=ss_grid_i,
+                    index_i = self.binary_search(sorted_positions=sorted_grid_pos_vector, xyz=ss_grid_i,
                                                  resolution=0.001)
 
                 # END-IF-ELSE
@@ -357,8 +374,8 @@ class StrainStressCalculator(object):
                 if index_i is None:
                     scan_log_index_i = -1
                 else:
-                    exact_pos = sorted_pos_list_i[index_i]
-                    scan_log_index_i = self._dir_grid_pos_scan_index_dict[ss_dir][exact_pos]
+                    exact_pos = sorted_grid_pos_vector[index_i]
+                    scan_log_index_i = self._dir_grid_pos_scan_index_dict[ss_dir][tuple(exact_pos)]
 
                 mapping_vector[i_grid, i_dir] = scan_log_index_i
             # END-FOR
@@ -390,10 +407,10 @@ class StrainStressCalculator(object):
                 sorted_pos_list_i = self._sample_positions_dict[dir_i]
                 index_i = self.binary_search(sorted_pos_list_i, pos_11_i, resolution)
                 if index_i is None:
-                    print ('[DB...BAT] E11 Pt {} @ {} no match at direction {}'.format(ipt_e11, pos_11_i, dir_i))
+                    message += '[DB...BAT] E11 Pt {} @ {} no match at direction {}\n'.format(ipt_e11, pos_11_i, dir_i)
                 else:
-                    print ('[DB...BAT] E11 Pt {} @ {} finds {} @ index = {} @ {}'
-                           ''.format(ipt_e11, pos_11_i, dir_i, index_i, sorted_pos_list_i[index_i]))
+                    message += '[DB...BAT] E11 Pt {} @ {} finds {} @ index = {} @ {}\n' \
+                               ''.format(ipt_e11, pos_11_i, dir_i, index_i, sorted_pos_list_i[index_i])
                 if index_i is not None:
                     self._match11_dict[dir_i][ipt_e11] = index_i
                     other_dir_matched_dict[dir_i].add(index_i)
@@ -407,7 +424,6 @@ class StrainStressCalculator(object):
 
         return
 
-    # TESTME - 20180818 - Implemented Just
     def align_peak_parameter_on_grids(self, grids_vector, parameter, scan_log_map_vector):
         """ align the parameter's values on a given grid
         [3D interpolation]
@@ -446,7 +462,7 @@ class StrainStressCalculator(object):
                     param_value = self._peak_param_dict[ss_dir][parameter][scan_log_index_i]
                 else:
                     param_value = self.interpolate3d(self._sample_positions_dict[ss_dir],
-                                                     self._peak_param_dict[ss_dir][parameter], grids_vector)
+                                                     self._peak_param_dict[ss_dir][parameter], grids_vector[i_grid])
                 # END-IF-ELSE
                 param_vector[i_grid, i_dir] = param_value
             # END-FOR
@@ -458,10 +474,10 @@ class StrainStressCalculator(object):
 
     @staticmethod
     def binary_search(sorted_positions, xyz, resolution):
-        """
-
+        """ do binary search in a sorted 2D numpy array
         :param sorted_positions:
         :param xyz:
+        :param resolution: resolution of distance to grid such that can be treated as a single number
         :return:
         """
         def search_neighborhood(sorted_list, start_index, stop_index, list_index, tuple_index, value_range):
@@ -506,7 +522,12 @@ class StrainStressCalculator(object):
         assert resolution > 0, 'resolution > 0 required'
 
         i_start = 0
-        i_stop = len(sorted_positions) - 1
+        if isinstance(sorted_positions, list):
+            i_stop = len(sorted_positions) - 1
+        elif isinstance(sorted_positions, numpy.ndarray):
+            i_stop = sorted_positions.shape[0] - 1
+        else:
+            raise RuntimeError('Sorted position of type {} is not supported.'.format(type(sorted_positions)))
 
         matched_x_not_found = True
         matched_y_not_found = False
@@ -608,32 +629,55 @@ class StrainStressCalculator(object):
 
         return i_middle
 
-    def check_grids_alignment(self, pos_x, pos_y, pos_z, resolution=0.001):
+    def set_grid_log_names(self, pos_x_sample_names, pos_y_sample_names, pos_z_sample_names):
+        """ set sample log names for grids
+        :param pos_x_sample_names:
+        :param pos_y_sample_names:
+        :param pos_z_sample_names:
+        :return:
         """
-        Align the data points among e11, e22 and/or e33 with sample log positions
-        :param pos_x: sample log name for x position
-        :param pos_y: sample log name for y position
-        :param pos_z: sample log name for z position
+        pyrs.utilities.checkdatatypes.check_dict('Sample log names for grid position X', pos_x_sample_names)
+        pyrs.utilities.checkdatatypes.check_dict('Sample log names for grid position X', pos_y_sample_names)
+        pyrs.utilities.checkdatatypes.check_dict('Sample log names for grid position X', pos_z_sample_names)
+
+        # Set up the X, Y, Z position sample log name for every direction
+        # go through all the data to check
+        for dir_i in self._direction_list:
+            self._grid_pos_x_name_dict[dir_i] = pos_x_sample_names[dir_i]
+            self._grid_pos_y_name_dict[dir_i] = pos_y_sample_names[dir_i]
+            self._grid_pos_z_name_dict[dir_i] = pos_z_sample_names[dir_i]
+        # END-FOR
+
+        return
+
+    def check_grids_alignment(self, resolution=0.001):
+        """ Align the data points among e11, e22 and/or e33 with sample log positions
         :param resolution:
         :return:
         """
-        # check inputs
-        pyrs.utilities.checkdatatypes.check_string_variable('Sample log name for X position', pos_x)
-        pyrs.utilities.checkdatatypes.check_string_variable('Sample log name for Y position', pos_y)
-        pyrs.utilities.checkdatatypes.check_string_variable('Sample log name for Z position', pos_z)
-        if pos_x == pos_y or pos_y == pos_z or pos_x == pos_z:
-            raise RuntimeError('Position X ({}) Y ({}) and Z ({}) have duplicate sample log names.'
-                               ''.format(pos_x, pos_y, pos_z))
-
-        # create the dictionaries, vectors and etc for checking how matching the grids are
+        # (1) Check whether position X, Y, Z shall be already set and
+        # (2) Generate grid mapping scan log dictionary
         for dir_i in self._direction_list:
+            try:
+                pos_x = self._grid_pos_x_name_dict[dir_i]
+                pos_y = self._grid_pos_y_name_dict[dir_i]
+                pos_z = self._grid_pos_z_name_dict[dir_i]
+            except KeyError as key_err:
+                raise RuntimeError('Grid position dictionary has not been set up for direction {}: {}'
+                                   ''.format(dir_i, key_err))
+            if pos_x == pos_y or pos_y == pos_z or pos_x == pos_z:
+                raise RuntimeError('Position X ({}) Y ({}) and Z ({}) have duplicate sample log names.'
+                                   ''.format(pos_x, pos_y, pos_z))
+
+            # create the dictionaries, vectors and etc for checking how matching the grids are
             self._dir_grid_pos_scan_index_dict[dir_i] = self.generate_xyz_scan_log_dict(dir_i, pos_x, pos_y, pos_z)
         # END-FOR
 
         # align: create a list of sorted tuples and compare among different data sets whether they
         # do match or not
         for dir_i in self._direction_list:
-            self._sample_positions_dict[dir_i] = sorted(self._dir_grid_pos_scan_index_dict[dir_i].keys())  # list
+            # each entry shall be a sorted numpy array (but not list as before)
+            self._sample_positions_dict[dir_i] = numpy.array(sorted(self._dir_grid_pos_scan_index_dict[dir_i].keys()))
 
         self._set_grid_statistics()
 
@@ -646,13 +690,13 @@ class StrainStressCalculator(object):
             dir_i = self._direction_list[i_dir_i]
             for i_dir_j in range(i_dir_i, num_dir):
                 dir_j = self._direction_list[i_dir_j]
-                if len(self._sample_positions_dict[dir_i]) != len(self._sample_positions_dict[dir_j]):
+                if self._sample_positions_dict[dir_i].shape[0] != self._sample_positions_dict[dir_j].shape[0]:
                     raise RuntimeError('It is not considered that the number of data points among different '
                                        'direction are different.  Need to use uneven alignment algorithm.')
         # END-FOR
 
         # check whether all the data points matched with each other within resolution
-        num_sample_points = len(self._sample_positions_dict[self._direction_list[0]])
+        num_sample_points = self._sample_positions_dict[self._direction_list[0]].shape[0]
         for ipt in range(num_sample_points):
             max_distance = self.calculate_max_distance(ipt)
             if max_distance > resolution:
@@ -725,7 +769,6 @@ class StrainStressCalculator(object):
 
         return numpy.sqrt(numpy.sum(vec_pos_1 ** 2 + vec_pos_2 ** 2))
 
-    # TESTME - 20180817 - Finish it - Just Implemented
     def convert_peaks_positions(self):
         """ convert all peaks' positions in d-space.
         Note: this must be called after check_grids() is called
@@ -756,7 +799,7 @@ class StrainStressCalculator(object):
         :return:
         """
         pyrs.utilities.checkdatatypes.check_int_variable('Sample point index', sample_point_index,
-                                                         (0, len(self._sample_positions_dict['e11'])))
+                                                         (0, self._sample_positions_dict['e11'].shape[0]))
 
         num_dir = len(self._direction_list)
         max_distance = -1
@@ -803,14 +846,18 @@ class StrainStressCalculator(object):
                 peak_matrix[m_index, m_index] = peak_pos_d_vec[i_grid][m_index]
             # END-FOR
 
-            ss_calculator = StrainStress(peak_pos_matrix=peak_matrix,
-                                         d0=self._d0, young_modulus=self._young_e,
-                                         poisson_ratio=self._poisson_nu,
-                                         is_plane_train=self._is_plane_strain,
-                                         is_plane_stress=self._is_plane_stress)
+            try:
+                ss_calculator = StrainStress(peak_pos_matrix=peak_matrix,
+                                             d0=self._d0, young_modulus=self._young_e,
+                                             poisson_ratio=self._poisson_nu,
+                                             is_plane_train=self._is_plane_strain,
+                                             is_plane_stress=self._is_plane_stress)
+            except ZeroDivisionError as err:
+                err_msg = 'Strain/stress calculation parameter set up error causing zero division: {}'.format(err)
+                raise RuntimeError(err_msg)
 
             strain_matrix_vec[i_grid] = ss_calculator.get_strain()
-            stress_matrix_vec[i_grid] = ss_calculator.get_strain()
+            stress_matrix_vec[i_grid] = ss_calculator.get_stress()
         # END-FOR
 
         self._strain_matrix_vec = strain_matrix_vec
@@ -1039,7 +1086,14 @@ class StrainStressCalculator(object):
         for scan_log_index in sorted(data_set.keys()):
             x_i = self._sample_log_dict[direction][pos_x][scan_log_index]
             y_i = self._sample_log_dict[direction][pos_y][scan_log_index]
-            z_i = self._sample_log_dict[direction][pos_z][scan_log_index]
+            try:
+                z_i = self._sample_log_dict[direction][pos_z][scan_log_index]
+            except KeyError as key_err:
+                err_msg = 'Direction {} Scan log index {}: Z-position sample log {} is not found. ' \
+                          'Available logs include {}\nFYI (Error Message): {}' \
+                          ''.format(direction, scan_log_index, pos_z, sorted(self._sample_log_dict[direction].keys()),
+                                    key_err)
+                raise KeyError(err_msg)
             xyz_log_index_dict[(x_i, y_i, z_i)] = scan_log_index
         # END-FOR
 
@@ -1196,11 +1250,11 @@ class StrainStressCalculator(object):
         :return: 
         """
         # check inputs
-        print ('[DB...BAT] Experimental grid position vector: type = {}'.format(type(exp_grid_pos_vector)))
-        print ('[DB...BAT] Experimental grid position vector: {}'.format(exp_grid_pos_vector))
-        print ('[DB...BAT] Experimental grid position vector: shape = {}'.format(exp_grid_pos_vector.shape))
-        print ('[DB...BAT] Parameter value vector: {}'.format(exp_grid_pos_vector))
-        print ('[DB...BAT] Parameter value shape: {}'.format(exp_grid_pos_vector.shape))
+        # print ('[DB...BAT] Experimental grid position vector: type = {}'.format(type(exp_grid_pos_vector)))
+        # print ('[DB...BAT] Experimental grid position vector: {}'.format(exp_grid_pos_vector))
+        # print ('[DB...BAT] Experimental grid position vector: shape = {}'.format(exp_grid_pos_vector.shape))
+        # print ('[DB...BAT] Parameter value vector: {}'.format(exp_grid_pos_vector))
+        # print ('[DB...BAT] Parameter value shape: {}'.format(exp_grid_pos_vector.shape))
 
         num_exp_grids = exp_grid_pos_vector.shape[0]
         if num_exp_grids != len(param_value_vector):
@@ -1212,9 +1266,39 @@ class StrainStressCalculator(object):
             ''.format(target_position, type(target_position))
 
         # grid_x, grid_y, grid_z = (grid_x, grid_y, grid_z)
-        interp_value = griddata(exp_grid_pos_vector, param_value_vector, target_position, method='nearest')
+        target_position_input = numpy.array([target_position])
+        print (param_value_vector.shape)
+        print (target_position_input.shape)
+        interp_value = griddata(exp_grid_pos_vector, param_value_vector, target_position_input, method='nearest')
 
         return interp_value
+
+    @staticmethod
+    def is_allowed_grid_position_sample_log(log_name):
+        """ check whether the input are allowed sample grid position's log name in file
+        :param log_name:
+        :return:
+        """
+        print ('[DB...BAT] Log name: {} ... Comparing {}'
+               ''.format(log_name, StrainStressCalculator.allowed_grid_position_sample_names))
+        log_name = log_name.lower()
+        if log_name in StrainStressCalculator.allowed_grid_position_sample_names:
+            return True
+
+        for wild_name in StrainStressCalculator.allowed_grid_position_sample_names_wild:
+            if wild_name.endswith('*'):
+                wild_name = wild_name.split('*')[0]
+                if log_name.startswith(wild_name):
+                    return True
+            elif wild_name.startswith('*'):
+                wild_name = wild_name.split('*')[1]
+                if log_name.endswith(wild_name):
+                    return True
+            else:
+                raise RuntimeError('Case {} not supported'.format(wild_name))
+        # END-FOR
+
+        return False
 
     @property
     def is_sample_positions_aligned(self):
@@ -1284,6 +1368,9 @@ class StrainStressCalculator(object):
         if 'peak_fit' not in sample_logs:
             raise RuntimeError('File {} does not have fitted peak parameters value for strain/stress '
                                'calculation'.format(file_name))
+        if sample_logs['peak_fit'] is None:
+            raise RuntimeError('File {} has empty "peak fit" in sample logs.'
+                               ''.format(file_name))
 
         # assign data file to files
         self._data_set_dict[direction] = diff_data_dict
@@ -1295,6 +1382,19 @@ class StrainStressCalculator(object):
 
         return
 
+    def rename(self, new_session_name):
+        """
+        rename session name
+        :param new_session_name:
+        :return:
+        """
+        pyrs.utilities.checkdatatypes.check_string_variable('New strain/stress calculator session name',
+                                                            new_session_name)
+
+        self._session = new_session_name
+
+        return
+
     def save_session(self, save_file_name):
         """
         save the complete session in order to open later
@@ -1303,6 +1403,38 @@ class StrainStressCalculator(object):
         """
         # TODO - 2018 - NEXT
         raise NotImplementedError('ASAP')
+
+    def save_strain_stress(self, file_name):
+        """
+
+        :param file_name:
+        :return:
+        """
+        if self._strain_matrix_vec is None or self._stress_matrix_vec is None:
+            raise RuntimeError('Strain and stress have not been calculated.')
+
+        print (type(self._grid_output_array))
+        print (type(self._strain_matrix_vec))
+        print (type(self._stress_matrix_vec))
+
+        print ()
+        print ()
+        print (self._stress_matrix_vec.shape)
+
+        csv_buffer = ''
+        if self._grid_output_array.shape[0] != self._strain_matrix_vec.shape[0]:
+            raise RuntimeError('Number of (output) grids is different from number of strain/stress matrix.')
+
+        csv_buffer += '# {:8s}{:10s}{:10s}{:10s}{:10s}{:10s}{:10s}{:10s}{:10s}' \
+                      ''.format('X', 'Y', 'Z', 'e11', 'e22', 'e33', 's11', 's22', 's33')
+        for i_grid in range(self._grid_output_array.shape[0]):
+            continue
+
+        csv_file = open(file_name, 'w')
+        csv_file.write(csv_buffer)
+        csv_file.close()
+
+        return
 
     def set_d0(self, d0):
         """

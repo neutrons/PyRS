@@ -29,11 +29,11 @@ class CreateNewSessionDialog(QDialog):
         self.ui = ui_newsessiondialog.Ui_Dialog()
         self.ui.setupUi(self)
 
-        self.ui.buttonBox.accepted.connect(self.do_quit)
+        self.ui.buttonBox.accepted.connect(self.do_new_session)
         self.ui.buttonBox.rejected.connect(self.do_quit)
 
         # connect the signal
-        self.NewSessionSignal.connect(parent.new_strain_stress_session)
+        self.NewSessionSignal.connect(parent.create_new_session)
 
         # init widgets
         self.ui.comboBox_strainStressType.clear()
@@ -253,6 +253,8 @@ class GridAlignmentCheckTablesView(QMainWindow):
         else:
             plot_raw = True
 
+        # need to change the plot type
+        self._parent.do_change_plot_type()
         self._parent.plot_peak_param_slice(param_name=param_name, ss_direction=ss_dir, is_raw_grid=plot_raw)
 
         return
@@ -272,18 +274,23 @@ class GridAlignmentCheckTablesView(QMainWindow):
         if self._mutex_param_name_list:
             return
 
-        param_name = str(self.ui.comboBox_parameterList.currentText())
+        # reset the table and add all the grids' value
+        self.ui.tableView_gridAlignment.remove_all_rows()
 
+        param_name = str(self.ui.comboBox_parameterList.currentText())
         for ss_dir in self._core.strain_stress_calculator.get_strain_stress_direction():
             user_grid_value_vec = \
                 self._core.strain_stress_calculator.get_user_grid_param_values(ss_direction=ss_dir,
                                                                                param_name=param_name)
-
-        # reset the table and add all the grids' value
-        self.ui.tableView_gridAlignment.remove_all_rows()
-        self.ui.tableView_gridAlignment.set_grids_values(user_grid_value_list)
+            self.ui.tableView_gridAlignment.set_grids_values(self._core.strain_stress_calculator.get_strain_stress_grid(),
+                                                             {'e11': user_grid_value_vec})
+            break
 
         return
+
+    def show_tab(self, tab_index):
+        # TODO - 20180922 - DOC
+        self.ui.tabWidget_alignedParams.setCurrentIndex(tab_index)
 
     def reset_tables(self):
         """ reset all the tables
@@ -327,20 +334,43 @@ class GridAlignmentCheckTablesView(QMainWindow):
 
         return
 
-    def set_aligned_parameter_value(self, param_name, param_value_vector):
+    def set_aligned_parameter_value(self, grid_array, param_value_vector):
         """
         set the aligned parameter values to Table...
-        :param param_name:
+        :param grid_array:
         :param param_value_vector:
         :return:
         """
-        print ('[DB...BAT] Set {}  Value vector shape = {}'.format(param_name, param_value_vector.shape))
-
         for i_row in range(param_value_vector.shape[0]):
-            row_items = [1, 2, 3]
-            for i_ss_dir in range(param_value_vector.shape[1]):
-                row_items.append(param_value_vector[i_row, i_ss_dir])
-            self.ui.tableView_alignedParameters.append_row(row_items)
+            grid_pos_x, grid_pos_y, grid_pos_z = grid_array[i_row]
+            param_value_11 = param_value_vector[i_row, 0]
+            param_value_22 = param_value_vector[i_row, 1]
+            if param_value_vector.shape[1] == 3:
+                param_value_33 = param_value_vector[i_row, 2]
+            else:
+                param_value_33 = None
+            self.ui.tableView_alignedParameters.add_matched_grid(grid_pos_x, grid_pos_y, grid_pos_z,
+                                                                 param_value_11, param_value_22, param_value_33)
+        # END-FOR
+
+        return
+
+    def set_grid_statistics_table(self, stat_dict):
+        """ Set the (raw) grid statistics for user to refere
+        :param stat_dict:
+        :return:
+        """
+        for grid_dir in ['X', 'Y', 'Z']:
+            for item_name in ['min', 'max',  'num_indv_values']:
+                combo_name = '{} {}'.format(grid_dir, item_name)
+                row_items = [combo_name]
+                for ss_dir in ['e11', 'e22', 'e33']:
+                    try:
+                        item_value = stat_dict[item_name][ss_dir][grid_dir]
+                    except KeyError:
+                        item_value = None
+                    row_items.append(item_value)
+                self.ui.tableView_gridStatistic.append_row(row_items)
         # END-FOR
 
         return
@@ -565,6 +595,9 @@ class StrainStressTableView(QMainWindow):
         # init widgets
         self.ui.tableView_strainStressTable.setup()
 
+        # define event handling
+        self.ui.pushButton_close.clicked.connect(self.do_quit)
+
         return
 
     def do_quit(self):
@@ -641,13 +674,16 @@ def get_grid_slicing_export_setup(parent):
     return return_value
 
 
-def get_strain_stress_grid_setup(parent, user_define_grid, grid_stat_dict):
+# TODO - 20180918 - Need documentation
+def get_strain_stress_grid_setup(parent, user_define_grid, grid_stat_dict, grid_setup_dict):
     """
 
     :return:
     """
+    if grid_setup_dict is not None:
+        checkdatatypes.check_dict('Grid setup parameters', grid_setup_dict)
+
     # set up dialog
-    grid_setup_dict = None
 
     while True:
         ss_dialog = StrainStressGridSetup(parent)

@@ -66,8 +66,7 @@ class PyRSLauncher(QMainWindow):
         :return:
         """
         if self.strain_stress_window is None:
-            self.strain_stress_window = strainstresscalwindow.StrainStressCalculationWindow(self)
-            self.strain_stress_window.setup_window(self._reduction_core)
+            self.strain_stress_window = strainstresscalwindow.StrainStressCalculationWindow(self, self._reduction_core)
 
         # launch
         self.strain_stress_window.show()

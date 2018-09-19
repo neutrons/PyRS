@@ -211,15 +211,22 @@ class GridAlignmentTable(NTableWidget.NTableWidget):
 
         return
 
-    def set_grids_values(self, grids_value_list):
+    def set_grids_values(self, grid_vector, grids_value_vec_dict):
         """
 
         :param grids_value_list:
         :return:
         """
-        checkdatatypes.check_list('Parameter value on grids', grids_value_list)
+        e11_values = grids_value_vec_dict['e11']
 
-        grids_value_list.sort()
+        if grid_vector.shape[0] != e11_values.shape[0]:
+            raise RuntimeError('Grid vector size is not equal to parameter value size')
+
+        for i_grid in range(grid_vector.shape[0]):
+            grid_pos = grid_vector[i_grid]
+            param_value = grids_value_vec_dict['e11'][i_grid]
+            self.append_row([grid_pos[0], grid_pos[1], grid_pos[2], param_value, None, None])
+        return
 
     def setup(self):
         """
