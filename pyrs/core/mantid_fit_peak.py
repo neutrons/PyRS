@@ -127,6 +127,12 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         r_positions_ws_name = 'fitted_peak_positions_{0}'.format(self._reference_id)
         r_param_table_name = 'param_m_{0}'.format(self._reference_id)
         r_model_ws_name = 'model_full_{0}'.format(self._reference_id)
+
+        # FIXME - shall we use a dictionary to set up somewhere else?
+        width_dict = {'Gaussian': ('Sigma', 0.36),
+                      'PseudoVoigt': ('FWHM', 1.0),
+                      'Voigt': ('LorentzFWHM, GaussianFWHM', '0.1, 0.7')}
+
         r = FitPeaks(InputWorkspace=self._workspace_name,
                      OutputWorkspace=r_positions_ws_name,
                      PeakCentersWorkspace=self._center_of_mass_ws_name,
@@ -137,8 +143,8 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
                      FindBackgroundSigma=1,
                      HighBackground=False,
                      ConstrainPeakPositions=False,
-                     PeakParameterNames='FWHM',
-                     PeakParameterValues='1.0',
+                     PeakParameterNames=width_dict[peak_function_name][0],
+                     PeakParameterValues=width_dict[peak_function_name][1],
                      RawPeakParameters=False,
                      OutputPeakParametersWorkspace=r_param_table_name,
                      FittedPeaksWorkspace=r_model_ws_name,
