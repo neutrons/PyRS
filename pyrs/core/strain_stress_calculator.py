@@ -138,6 +138,14 @@ class StrainStressCalculator(object):
     allowed_grid_position_sample_names_wild = ['cuboid*', 'sz*']
     # FIXME - sx, sy, sz* are for testing data only!
 
+    # TODO - 20180922 - Improvements
+    # 1. add an integer flag for processing status
+    #    0: initial state
+    #    1: all file loaded
+    #    2: alignment preparation data structure ready
+    #    3: grid alignment is set up
+    #    4: strain and stress are calculated
+
     def __init__(self, session_name, plane_stress=False, plane_strain=False):
         """
         initialization
@@ -153,12 +161,20 @@ class StrainStressCalculator(object):
         if plane_stress and plane_strain:
             raise RuntimeError('An experiment cannot be both plane stress and plane stress')
 
+        # strain/stress workflow tracker
+        #    0: initial state
+        #    1: all file loaded
+        #    2: alignment preparation data structure ready
+        #    3: grid alignment is set up
+        #    4: strain and stress are calculated
+        self._workflow_tracker = 0
+
         # class variable
         # vector of strain and stress matrix
         self._strain_matrix_vec = None  # strain_matrix_vec
         self._stress_matrix_vec = None  # stress_matrix_vec
 
-        # session and strain/stress type
+        # session and strain/stress type (stage 0 class variables)
         self._session = session_name
         self._is_plane_strain = plane_strain
         self._is_plane_stress = plane_stress
@@ -166,10 +182,10 @@ class StrainStressCalculator(object):
         if self._is_plane_strain or self._is_plane_stress:
             self._direction_list.pop(2)
 
-        # data sets, sample logs and peak parameters required
-        self._data_set_dict = dict()
-        self._peak_param_dict = dict()
-        self._sample_log_dict = dict()
+        # data sets, sample logs and peak parameters required (stage 1 class variables)
+        self._data_set_dict = dict()    # [dir][scan log index] = vector
+        self._peak_param_dict = dict()  # [dir][scan (peak) parameter name][scan log index] =
+        self._sample_log_dict = dict()  #
         for dir_i in self._direction_list:
             self._data_set_dict[dir_i] = None
             self._peak_param_dict[dir_i] = None   # [dir][parameter name][scan log index]
@@ -219,6 +235,41 @@ class StrainStressCalculator(object):
 
         # grid matching/alignment
         self._match11_dict = None  # [dir: e22/e33][e11 scan log index] = e22/33 scan log index: matched to grid e11
+
+        return
+
+    def _set_workflow_state(self, at_init=False, data_loaded=False, alignment_setup=False, calculated=False):
+        """ Set the strain/stress calculation workflow state
+        # strain/stress workflow tracker
+        #    0: initial state
+        #    1: all file loaded
+        #    2: alignment preparation data structure ready
+        #    3: grid alignment is set up
+        #    4: strain and stress are calculated
+        self._workflow_tracker = 0
+        :param at_init:
+        :param data_loaded:
+        :param alignment_setup:
+        :param calculated:
+        :return:
+        """
+        # check input
+        sum_bool = int(at_init) + int(data_loaded) + int(alignment_setup) + int(calculated)
+        if sum_bool == 0:
+            raise RuntimeError('None state is selected to be True')
+        elif sum_bool > 1:
+            raise RuntimeError('More than 1 state ({}, {}, {}, {}) are set to True causing '
+                               'ambiguous.'.format(at_init, data_loaded, alignment_setup, calculated))
+
+        # set up
+        if at_init:
+            self._workflow_tracker = 0
+        elif data_loaded:
+            self._workflow_tracker = 1
+        elif alignment_setup:
+            self._workflow_tracker = 2
+        else:
+            self._workflow_tracker = 3
 
         return
 
@@ -792,6 +843,25 @@ class StrainStressCalculator(object):
 
         return
 
+    def migrate(self, session_name, plane_stress=False, plane_strain=False):
+        """ migrate current strain/stress calculator to another one with (supposed to be) different
+        type of strain/stress
+        :param session_name:
+        :param plane_stress:
+        :param plane_strain:
+        :return:
+        """
+        new_ss_calculator = StrainStressCalculator(session_name, plane_stress,plane_stress)
+
+        # copy file format: try not to re-load the file
+        new_ss_calculator._peak_param_dict = self._peak_param_dict.copy()
+        new_ss_calculator._sample_log_dict = self._sample_log_dict.copy()
+
+        # copy file name and etc
+        new_ss_calculator._file_dict = self._file_dict.copy()
+
+        return
+
     def calculate_max_distance(self, sample_point_index):
         """
         in the case that all 2 or 3
@@ -864,6 +934,33 @@ class StrainStressCalculator(object):
         self._stress_matrix_vec = stress_matrix_vec
 
         return strain_matrix_vec, stress_matrix_vec
+
+    def execute_workflow(self):
+        """ Execute the strain/stress workflow
+        It is usually called after copying a StrainStressCalculator to a new one as the strain/stress
+        type is changed.
+        :return:
+        """
+        # check whether the files are loaded
+        files_loaded = self._check_file_loaded()
+        if files_loaded is False:
+            return self._workflow_tracker
+
+        # check alignment
+        try:
+            self.check_grids_alignment(resolution=0.001)
+        except RuntimeError:
+            self._set_workflow_state(files_loaded)
+            return self._workflow_tracker
+
+        # calculate strain and stress
+        try:
+            self.execute()
+        except RuntimeError:
+            self._set_workflow_state(alignment_setup=True)
+            return self._workflow_tracker
+
+        return self._workflow_tracker
 
     def execute_old(self):
         """

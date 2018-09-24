@@ -33,6 +33,9 @@ class FitPeaksWindow(QMainWindow):
         self.ui.graphicsView_fitResult.set_subplots(1, 1)
         self.ui.graphicsView_fitSetup.set_subplots(1, 1)
 
+        # init some widgets
+        self.ui.checkBox_autoLoad.setChecked(True)
+
         # set up handling
         self.ui.pushButton_loadHDF.clicked.connect(self.do_load_scans)
         self.ui.pushButton_browseHDF.clicked.connect(self.do_browse_hdf)
@@ -123,6 +126,9 @@ class FitPeaksWindow(QMainWindow):
             # pass
             raise RuntimeError('File {0} does not exist.'.format(hdf_name))
 
+        if self.ui.checkBox_autoLoad.isChecked():
+            self.do_load_scans(from_browse=True)
+
         return
 
     def do_launch_adv_fit(self):
@@ -137,15 +143,19 @@ class FitPeaksWindow(QMainWindow):
 
         return
 
-    def do_load_scans(self):
+    def do_load_scans(self, from_browse=True):
         """
         load scan's reduced files
+        :param from_browse: if True, then file will be read from lineEdit_expFileName.
         :return:
         """
         self._check_core()
 
         # get file
-        rs_file_name = str(self.ui.lineEdit_expFileName.text())
+        if from_browse:
+            rs_file_name = str(self.ui.lineEdit_expFileName.text())
+        else:
+            rs_file_name = self.set_file_from_archive()
 
         # load file
         data_key, message = self._core.load_rs_raw(rs_file_name)
