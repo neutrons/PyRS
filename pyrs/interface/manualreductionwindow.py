@@ -55,7 +55,7 @@ class ManualReductionWindow(QMainWindow):
         (simply) reduce a list of runs in same experiment in a batch
         :return:
         """
-        ... ...
+        # TODO FIXME TODO - 20180925 - From Here ... ...
 
 
     def do_set_ipts_exp(self):

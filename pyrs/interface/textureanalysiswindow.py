@@ -31,6 +31,7 @@ class TextureAnalysisWindow(QMainWindow):
         self._init_widgets()
 
         # set up handling
+        self.ui.pushButton_browseFile.clicked.connect(self.do_browse_load_file)
         self.ui.pushButton_plotPeaks.clicked.connect(self.do_plot_diff_data)
         self.ui.pushButton_fitPeaks.clicked.connect(self.do_fit_peaks)
         self.ui.pushButton_calPoleFigure.clicked.connect(self.do_cal_pole_figure)
@@ -43,7 +44,7 @@ class TextureAnalysisWindow(QMainWindow):
         self.ui.pushButton_clearPF.clicked.connect(self.do_clear_pole_figure_plot)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
-        self.ui.actionOpen_HDF5.triggered.connect(self.do_load_scans_hdf)
+        self.ui.actionOpen_HDF5.triggered.connect(self.do_browse_load_file)
         self.ui.actionSave_as.triggered.connect(self.do_save_as)
 
         self.ui.actionSave_Diffraction_Data_For_Mantid.triggered.connect(self.do_save_workspace)
@@ -159,13 +160,15 @@ class TextureAnalysisWindow(QMainWindow):
 
         return
 
-    def do_load_scans_hdf(self):
+    def do_browse_load_file(self):
         """
-        load scan's reduced files
+        load scan's reduced files and optionally load it!
         :return: a list of tuple (detector ID, file name)
         """
         # check
         self._check_core()
+
+        # TESTME - 20180925 - Make it work!
 
         # browse file
         default_dir = self._get_default_hdf()
@@ -193,7 +196,8 @@ class TextureAnalysisWindow(QMainWindow):
             new_file_list.append((det_id, str(file_name)))
         # END-FOR
 
-        self.load_h5_scans(new_file_list)
+        if self.ui.checkBox_autoLoad.isChecked():
+            self.load_h5_scans(new_file_list)
 
         return
 

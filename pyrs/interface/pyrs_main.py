@@ -62,9 +62,9 @@ class PyRSLauncher(QMainWindow):
             self.peak_fit_window.setup_window(self._reduction_core)
         self.peak_fit_window.show()
 
-        # optionally close the main window
-        if self.ui.checkBox_keepWindowOpen.isChecked() is False:
-            self.close()
+        # # optionally close the main window
+        # if self.ui.checkBox_keepWindowOpen.isChecked() is False:
+        #     self.hide()
 
         return
 
@@ -80,8 +80,8 @@ class PyRSLauncher(QMainWindow):
         self.strain_stress_window.show()
 
         # optionally close the main window
-        if self.ui.checkBox_keepWindowOpen.isChecked() is False:
-            self.close()
+        # if self.ui.checkBox_keepWindowOpen.isChecked() is False:
+        #     self.close()
 
         return
 
@@ -98,8 +98,8 @@ class PyRSLauncher(QMainWindow):
         self.texture_analysis_window.show()
 
         # optionally close the main window
-        if self.ui.checkBox_keepWindowOpen.isChecked() is False:
-            self.close()
+        # if self.ui.checkBox_keepWindowOpen.isChecked() is False:
+        #     self.close()
 
         return
 
