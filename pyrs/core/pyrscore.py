@@ -3,6 +3,7 @@ import datamanagers
 from pyrs.utilities import checkdatatypes
 import mantid_fit_peak
 import strain_stress_calculator
+import reductionengine
 import scandataio
 import polefigurecalculator
 import os
@@ -23,6 +24,7 @@ class PyRsCore(object):
         # declaration of class members
         self._file_io_controller = scandataio.DiffractionDataFile()  # a I/O instance for standard HB2B file
         self._data_manager = datamanagers.RawDataManager()
+        self._reduction_engine = reductionengine.ReductionEngine()
 
         # working environment
         self._working_dir = 'tests/testdata/'
@@ -564,6 +566,14 @@ class PyRsCore(object):
                                ''.format(data_key, self._pole_figure_calculator_dict.keys()))
 
         return
+
+    @property
+    def reduction_engine(self):
+        """
+        get the reference to reduction engine
+        :return:
+        """
+        return self._reduction_engine
 
     def reset_strain_stress(self, is_plane_strain, is_plane_stress):
         """ reset the strain and stress calculation due to change of type
