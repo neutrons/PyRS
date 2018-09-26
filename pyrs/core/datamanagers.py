@@ -37,6 +37,9 @@ class ScanDataHolder(object):
 
         # check sample log dictionary
         for log_name in sample_log_dict:
+            # skip peak fit part
+            if log_name == 'peak_fit':
+                continue
             checkdatatypes.check_string_variable('Sample log name', log_name)
             log_value_vec = sample_log_dict[log_name]
             checkdatatypes.check_numpy_arrays('Sample log {0} value vector'.format(log_name),
@@ -90,6 +93,9 @@ class ScanDataHolder(object):
         if can_plot:
             sample_logs = list()
             for sample_log_name in self._sample_log_dict.keys():
+                # TODO FIXME - 20180930 - skip peak fitting
+                if sample_log_name == 'peak_fit':
+                    continue
                 sample_log_value = self._sample_log_dict[sample_log_name]
                 if sample_log_value.dtype != object:
                     sample_logs.append(sample_log_name)

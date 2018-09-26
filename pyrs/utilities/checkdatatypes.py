@@ -169,9 +169,9 @@ def check_numpy_arrays(var_name, variables, dimension, check_same_shape):
         variables = [variables]
         check_same_shape = False
     else:
-        assert isinstance(variables, list) or isinstance(variables, tuple), 'Numpy arrays {0} must be given by either' \
-                                                                            ' list or tuple but not {1}' \
-                                                                            ''.format(variables, type(variables))
+        assert isinstance(variables, list) or isinstance(variables, tuple),\
+            'Variable {} (shall be an numpy arrays) {} must be given in form of numpy array, ' \
+            'list or tuple but not {}'.format(var_name, variables, type(variables))
 
     for index, variable in enumerate(variables):
         # check whether each variable is a numpy array with desired dimension

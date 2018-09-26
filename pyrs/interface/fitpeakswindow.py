@@ -33,6 +33,7 @@ class FitPeaksWindow(QMainWindow):
         self.ui.graphicsView_fitResult.set_subplots(1, 1)
         self.ui.graphicsView_fitSetup.set_subplots(1, 1)
 
+        self._init_widgets()
         # init some widgets
         self.ui.checkBox_autoLoad.setChecked(True)
 
@@ -94,6 +95,15 @@ class FitPeaksWindow(QMainWindow):
         archive_data = hb2b.get_hb2b_raw_data(ipts_number, exp_number)
 
         return archive_data
+
+    def _init_widgets(self):
+        """
+        initialize the some widgets
+        :return:
+        """
+        self.ui.pushButton_loadHDF.setEnabled(False)
+
+        return
 
     def do_browse_hdf(self):
         """
@@ -177,9 +187,13 @@ class FitPeaksWindow(QMainWindow):
         self.ui.comboBox_xaxisNames.addItem('Log Index')
         for sample_log in sample_log_names:
             self.ui.comboBox_xaxisNames.addItem(sample_log)
+            # TODO - FIXME - 20180930 - maintain a copy of sample logs!
             self.ui.comboBox_yaxisNames.addItem(sample_log)
             self._sample_log_name_set.add(sample_log)
         self._sample_log_names_mutex = False
+
+        # reset the plot
+        self.ui.graphicsView_fitResult.reset_viewer()
 
         # Record data key and next
         self._curr_data_key = data_key
@@ -230,6 +244,7 @@ class FitPeaksWindow(QMainWindow):
         # TODO FIXME : add to X axis too
         curr_index = self.ui.comboBox_yaxisNames.currentIndex()
         # add fitted parameters
+        # TODO - FIXME - 20180930 - reset and build from the copy of fit parameters...
         for param_name in function_params:
             self.ui.comboBox_yaxisNames.addItem(param_name)
             self._function_param_name_set.add(param_name)

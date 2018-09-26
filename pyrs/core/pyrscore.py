@@ -31,6 +31,8 @@ class PyRsCore(object):
 
         # current/default status
         self._curr_data_key = None
+        self._curr_file_name = None
+
         self._last_optimizer = None
 
         # container for optimizers
@@ -507,7 +509,7 @@ class PyRsCore(object):
 
         # set to current key
         self._curr_data_key = data_key
-        self._curr_file_name = h5file  # TODO - Warning
+        self._curr_file_name = h5file
 
         return data_key, message
 
