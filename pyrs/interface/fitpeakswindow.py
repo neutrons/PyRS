@@ -171,7 +171,12 @@ class FitPeaksWindow(QMainWindow):
             rs_file_name = self.set_file_from_archive()
 
         # load file
-        data_key, message = self._core.load_rs_raw(rs_file_name)
+        try:
+            data_key, message = self._core.load_rs_raw(rs_file_name)
+        except RuntimeError as run_err:
+            gui_helper.pop_message(self, 'Unable to load {}'.format(rs_file_name), detailed_message=str(run_err),
+                                   message_type='error')
+            return
 
         # edit information
         self.ui.label_loadedFileInfo.setText(message)
@@ -381,8 +386,8 @@ class FitPeaksWindow(QMainWindow):
         try:
             self.ui.graphicsView_fitSetup.reset_viewer()
             self.plot_diff_data(next_scan_log, True)
-        except ValueError as run_err:
-            self.plot_diff_data(next_scan_log + 1, True)
+        except RuntimeError as run_err:
+            # self.plot_diff_data(next_scan_log - 1, True)
             err_msg = 'Unable to plot next scan {} due to {}'.format(next_scan_log, run_err)
             gui_helper.pop_message(self, err_msg, message_type='error')
         else:
@@ -405,7 +410,8 @@ class FitPeaksWindow(QMainWindow):
         try:
             self.ui.graphicsView_fitSetup.reset_viewer()
             self.plot_diff_data(next_scan_log, True)
-        except ValueError as run_err:
+        except RuntimeError as run_err:
+            # self.plot_diff_data(next_scan_log + 1, True)
             err_msg = 'Unable to plot previous scan {} due to {}'.format(next_scan_log, run_err)
             gui_helper.pop_message(self, err_msg, message_type='error')
         else:

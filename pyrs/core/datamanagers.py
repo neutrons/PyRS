@@ -301,10 +301,13 @@ class RawDataManager(object):
 
         # check input
         self._check_data_key(data_ref_id)
-        if sub_key is None:
-            data_set = self._data_dict[data_ref_id].get_diff_data(scan_index)
-        else:
-            data_set = self._data_dict[data_ref_id][sub_key].get_diff_data(scan_index)
+        try:
+            if sub_key is None:
+                data_set = self._data_dict[data_ref_id].get_diff_data(scan_index)
+            else:
+                data_set = self._data_dict[data_ref_id][sub_key].get_diff_data(scan_index)
+        except ValueError as value_err:
+            raise RuntimeError('Unable to get data from scan log index {} due to {}'.format(scan_index, value_err))
 
         return data_set
 
