@@ -27,7 +27,10 @@ class PyRsCore(object):
         self._reduction_engine = reductionengine.ReductionEngine()
 
         # working environment
-        self._working_dir = 'tests/testdata/'
+        if os.path.exists('tests/testdata/'):
+            self._working_dir = 'tests/testdata/'
+        else:
+            self._working_dir = os.getcwd()
 
         # current/default status
         self._curr_data_key = None
