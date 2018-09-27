@@ -70,6 +70,9 @@ class FitPeaksWindow(QMainWindow):
         self._curr_data_key = None
         self._curr_file_name = None
 
+        # a copy of sample logs
+        self._sample_log_names = list()  # a copy of sample logs' names that are added to combo-box
+
         return
 
     def _check_core(self):
@@ -185,9 +188,11 @@ class FitPeaksWindow(QMainWindow):
         self.ui.comboBox_xaxisNames.clear()
         self.ui.comboBox_yaxisNames.clear()
         self.ui.comboBox_xaxisNames.addItem('Log Index')
+
+        # Maintain a copy of sample logs!
+        self._sample_log_names = sample_log_names[:]
         for sample_log in sample_log_names:
             self.ui.comboBox_xaxisNames.addItem(sample_log)
-            # TODO - FIXME - 20180930 - maintain a copy of sample logs!
             self.ui.comboBox_yaxisNames.addItem(sample_log)
             self._sample_log_name_set.add(sample_log)
         self._sample_log_names_mutex = False
@@ -231,28 +236,49 @@ class FitPeaksWindow(QMainWindow):
         peak_function = str(self.ui.comboBox_peakType.currentText())
         bkgd_function = str(self.ui.comboBox_backgroundType.currentText())
 
-        # TODO .. TEST
         fit_range = self.ui.graphicsView_fitSetup.get_x_limit()
-        print ('Fit range: {0}'.format(fit_range))
+        print ('[INFO] Peak fit range: {0}'.format(fit_range))
 
-        # FIXME It is better to fit all the peaks at the same time!
+        # It is better to fit all the peaks at the same time after testing
         scan_log_index = None
         self._core.fit_peaks(data_key, scan_log_index, peak_function, bkgd_function, fit_range)
 
         function_params = self._core.get_peak_fit_parameter_names(data_key)
         self._sample_log_names_mutex = True
-        # TODO FIXME : add to X axis too
-        curr_index = self.ui.comboBox_yaxisNames.currentIndex()
-        # add fitted parameters
-        # TODO - FIXME - 20180930 - reset and build from the copy of fit parameters...
+        curr_x_index = self.ui.comboBox_xaxisNames.currentIndex()
+        curr_y_index = self.ui.comboBox_yaxisNames.currentIndex()
+        # add fitted parameters by resetting and build from the copy of fit parameters
+        self.ui.comboBox_xaxisNames.clear()
+        self.ui.comboBox_yaxisNames.clear()
+        self.ui.comboBox_xaxisNames.addItem('Log Index')
+        for sample_log_name in self._sample_log_names:
+            self.ui.comboBox_xaxisNames.addItem(sample_log_name)
+            self.ui.comboBox_yaxisNames.addItem(sample_log_name)
         for param_name in function_params:
+            self.ui.comboBox_xaxisNames.addItem(param_name)
             self.ui.comboBox_yaxisNames.addItem(param_name)
             self._function_param_name_set.add(param_name)
         # add observed parameters
+        self.ui.comboBox_xaxisNames.addItem('Center of mass')
         self.ui.comboBox_yaxisNames.addItem('Center of mass')
         # keep current selected item unchanged
-        self.ui.comboBox_yaxisNames.setCurrentIndex(curr_index)
+        size_x = len(self._sample_log_names) + len(self._function_param_name_set) + 2  # log index and center of mass
+        size_y = len(self._sample_log_names) + len(self._function_param_name_set) + 1  # center of mass
+        if curr_x_index < size_x:
+            # keep current set up
+            self.ui.comboBox_xaxisNames.setCurrentIndex(curr_x_index)
+        else:
+            # original one does not exist: reset to first/log index
+            self.ui.comboBox_xaxisNames.setCurrentIndex(0)
+
+        # release the mutex: because re-plot is required anyway
         self._sample_log_names_mutex = False
+
+        # plot Y
+        if curr_y_index >= size_y:
+            # out of boundary: use the last one (usually something about peak)
+            curr_y_index = size_y - 1
+        self.ui.comboBox_yaxisNames.setCurrentIndex(curr_y_index)
 
         # fill up the table
         not_used_vec, center_vec = self._core.get_peak_fit_param_value(data_key, 'centre', max_cost=None)
