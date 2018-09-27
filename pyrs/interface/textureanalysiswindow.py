@@ -191,9 +191,16 @@ class TextureAnalysisWindow(QMainWindow):
 
         # convert the files
         new_file_list = list()
+        # TODO FIXME - 20180930 - count number of files loaded successfully and unsuccessfullly and decided
+        # TODO                    fail or go on!
         for ifile, file_name in enumerate(hdf_name_list):
-            det_id = int(file_name.split('[')[1].split(']')[0])
-            new_file_list.append((det_id, str(file_name)))
+            try:
+                det_id = int(file_name.split('[')[1].split(']')[0])
+            except IndexError as err:
+                # TODO - error message!
+                pass
+            else:
+                new_file_list.append((det_id, str(file_name)))
         # END-FOR
 
         if self.ui.checkBox_autoLoad.isChecked():
