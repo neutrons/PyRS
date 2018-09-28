@@ -74,6 +74,9 @@ class TextureAnalysisWindow(QMainWindow):
         # table
         self.ui.tableView_poleFigureParams.setup()
 
+        # check boxes
+        self.ui.checkBox_autoLoad.setChecked(True)
+
         return
 
     def _check_core(self):
@@ -329,16 +332,24 @@ class TextureAnalysisWindow(QMainWindow):
         intensity_dict = dict()
         for det_id in det_id_list:
             data_key_pair = data_key, det_id
-            chi2_vec = self._core.get_peak_fit_param_value(data_key_pair, 'chi2', max_cost=None)
-            intensity_vec = self._core.get_peak_fit_param_value(data_key_pair, 'intensity', max_cost=None)
+            chi2_vec = self._core.get_peak_fit_param_value(data_key_pair, 'chi2', max_cost=None)[1]
+            intensity_vec = self._core.get_peak_fit_param_value(data_key_pair, 'intensity', max_cost=None)[1]
             chi2_dict[det_id] = chi2_vec
             intensity_dict[det_id] = intensity_vec
         # END-FOR
 
         for row_index in range(self.ui.tableView_poleFigureParams.rowCount()):
             det_id, scan_log_index = self.ui.tableView_poleFigureParams.get_detector_log_index(row_index)
-            self.ui.tableView_poleFigureParams.set_intensity(row_index, intensity_dict[det_id][scan_log_index],
-                                                             chi2_dict[det_id][scan_log_index])
+            try:
+                intensity_i = intensity_dict[det_id][scan_log_index]
+                chi2_i = chi2_dict[det_id][scan_log_index]
+                self.ui.tableView_poleFigureParams.set_intensity(row_index, intensity_i, chi2_i)
+            except IndexError as index_error:
+                print (intensity_dict[det_id])
+                print (chi2_dict[det_id])
+                raise RuntimeError('Unable to get intensity/chi2 of detector {} scan log index {} due to {}'
+                                   ''.format(det_id, scan_log_index, index_error))
+
         # END-FOR
 
         # plot the model and difference

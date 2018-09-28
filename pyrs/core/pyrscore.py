@@ -10,7 +10,7 @@ import os
 import numpy
 
 # Define Constants
-SUPPORTED_PEAK_TYPES = ['Gaussian', 'Voigt', 'PseudoVoigt', 'Lorentzian']
+SUPPORTED_PEAK_TYPES = ['PseudoVoigt', 'Gaussian', 'Voigt']  # 'Lorentzian': No a profile of HB2B
 
 
 class PyRsCore(object):
