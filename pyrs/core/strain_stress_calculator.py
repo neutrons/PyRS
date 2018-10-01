@@ -315,9 +315,8 @@ class StrainStressCalculator(object):
         return grids
 
     @staticmethod
-    def _generate_grids(grids_dimension_dict):
-        """
-        generate a new strain/stress grid from user-specified dimension
+    def _generate_slice_view_grids(grids_dimension_dict):
+        """ Generate a new strain/stress grid from user-specified dimension FOR plotting (NOT FOR calculating)
         :param grids_dimension_dict:
         :return: numpy.ndarray (n, 3)
         """
@@ -379,64 +378,65 @@ class StrainStressCalculator(object):
 
         return grids_vec
 
-    def align_grids(self, direction, user_defined, grids_dimension_dict):
-        """ Align the input grids against the output strain/stress output.
-        From the user specified output grid set up (ranges and solutions),
-        1. the output grid in 3D array will be created.
-        2. a mapping from the existing experiment grid to output grid (for scan logs) will be generated
-        :param direction:
-        :param user_defined:
-        :param grids_dimension_dict: user specified output grid dimensions
-        :return: 2-tuple: (1) grids (vector of position: (n, 3) array) (2) scan log map (vector of scan logs: (n, 2)
-                                                                           or (n, 3) int array)
-        """
-        # get the grids for strain/stress calculation
-        if user_defined and direction is not None:
-            raise RuntimeError('It is not allowed to have both direction {} and user_defined {}'
-                               .format(direction, user_defined))
-        elif user_defined:
-            self._grid_output_array = self._generate_grids(grids_dimension_dict)
-        elif direction is not None:
-            self._grid_output_array = self._copy_grids(direction, grids_dimension_dict)
-        else:
-            raise RuntimeError('Either direction or user-defined must be specified.')
-
-        num_ss_dir = len(self._direction_list)
-        num_grids = self._grid_output_array.shape[0]
-        mapping_vector = numpy.ndarray(shape=(num_grids, num_ss_dir), dtype=int)
-        for i_grid in range(num_grids):
-            ss_grid_i = self._grid_output_array[i_grid]
-            for i_dir, ss_dir in enumerate(self._direction_list):
-                # get the sorted positions
-                sorted_grid_pos_vector = self._sample_positions_dict[ss_dir]
-                if ss_dir == direction:
-                    index_i = self.binary_search(sorted_positions=sorted_grid_pos_vector, xyz=ss_grid_i,
-                                                 resolution=1.E-10)
-                    if index_i is None:
-                        raise NotImplementedError('Impossible')
-
-                else:
-                    index_i = self.binary_search(sorted_positions=sorted_grid_pos_vector, xyz=ss_grid_i,
-                                                 resolution=0.001)
-
-                # END-IF-ELSE
-
-                # convert index in the (e11/e22/e33) grid position list to scan log index
-                if index_i is None:
-                    scan_log_index_i = -1
-                else:
-                    exact_pos = sorted_grid_pos_vector[index_i]
-                    scan_log_index_i = self._dir_grid_pos_scan_index_dict[ss_dir][tuple(exact_pos)]
-
-                mapping_vector[i_grid, i_dir] = scan_log_index_i
-            # END-FOR
-        # END-FOR
-
-        return self._grid_output_array, mapping_vector
+    # TODO FIXME - 20181001 - Temporarily disabled in order to clean up for the new workflow
+    # TODO                    Grid won't be aligned but will be mapped for matched among E11/E22/E33
+    # def align_grids(self, direction, user_defined, grids_dimension_dict):
+    #     """ Align the input grids against the output strain/stress output.
+    #     From the user specified output grid set up (ranges and solutions),
+    #     1. the output grid in 3D array will be created.
+    #     2. a mapping from the existing experiment grid to output grid (for scan logs) will be generated
+    #     :param direction:
+    #     :param user_defined:
+    #     :param grids_dimension_dict: user specified output grid dimensions
+    #     :return: 2-tuple: (1) grids (vector of position: (n, 3) array) (2) scan log map (vector of scan logs: (n, 2)
+    #                                                                        or (n, 3) int array)
+    #     """
+    #     # get the grids for strain/stress calculation
+    #     if user_defined and direction is not None:
+    #         raise RuntimeError('It is not allowed to have both direction {} and user_defined {}'
+    #                            .format(direction, user_defined))
+    #     elif user_defined:
+    #         self._grid_output_array = self._generate_grids(grids_dimension_dict)
+    #     elif direction is not None:
+    #         self._grid_output_array = self._copy_grids(direction, grids_dimension_dict)
+    #     else:
+    #         raise RuntimeError('Either direction or user-defined must be specified.')
+    #
+    #     num_ss_dir = len(self._direction_list)
+    #     num_grids = self._grid_output_array.shape[0]
+    #     mapping_vector = numpy.ndarray(shape=(num_grids, num_ss_dir), dtype=int)
+    #     for i_grid in range(num_grids):
+    #         ss_grid_i = self._grid_output_array[i_grid]
+    #         for i_dir, ss_dir in enumerate(self._direction_list):
+    #             # get the sorted positions
+    #             sorted_grid_pos_vector = self._sample_positions_dict[ss_dir]
+    #             if ss_dir == direction:
+    #                 index_i = self.binary_search(sorted_positions=sorted_grid_pos_vector, xyz=ss_grid_i,
+    #                                              resolution=1.E-10)
+    #                 if index_i is None:
+    #                     raise NotImplementedError('Impossible')
+    #
+    #             else:
+    #                 index_i = self.binary_search(sorted_positions=sorted_grid_pos_vector, xyz=ss_grid_i,
+    #                                              resolution=0.001)
+    #
+    #             # END-IF-ELSE
+    #
+    #             # convert index in the (e11/e22/e33) grid position list to scan log index
+    #             if index_i is None:
+    #                 scan_log_index_i = -1
+    #             else:
+    #                 exact_pos = sorted_grid_pos_vector[index_i]
+    #                 scan_log_index_i = self._dir_grid_pos_scan_index_dict[ss_dir][tuple(exact_pos)]
+    #
+    #             mapping_vector[i_grid, i_dir] = scan_log_index_i
+    #         # END-FOR
+    #     # END-FOR
+    #
+    #     return self._grid_output_array, mapping_vector
 
     def align_matched_grids(self, resolution=0.001):
-        """
-        compare the grids among 3 (or 2) strain directions in order to search matched grids across
+        """ Compare the grids among 3 (or 2) strain directions in order to search matched grids across
         :param resolution:
         :return:
         """
@@ -475,53 +475,55 @@ class StrainStressCalculator(object):
 
         return
 
-    def align_peak_parameter_on_grids(self, grids_vector, parameter, scan_log_map_vector):
-        """ align the parameter's values on a given grid
-        [3D interpolation]
-        1. regular grid interpolation CANNOT be used.
-           (https://docs.scipy.org/doc/scipy-0.16.1/reference/generated/scipy.interpolate.RegularGridInterpolator.html)
-           It requires the grid to be interpolated from, i.e., experimental data, to be on REGULAR grid.
-           It is NOT always TRUE in the experiment.
-        2. imaging map: I don't understand it completely
-           (map_coordinates)
-        :param grids_vector: vector of grids that will have the parameter to be written on
-        :param parameter: string, such as 'center_d'
-        :param scan_log_map_vector: for grid[i], if map[i][1] is integer, than e22 has a grid matched. otherwise,
-                                    an interpolation is required
-        :return: 1D vector.  shape[0] = grids_vector.shape[0]
-        """
-        # check input
-        pyrs.utilities.checkdatatypes.check_string_variable('Parameter name', parameter)
-        pyrs.utilities.checkdatatypes.check_numpy_arrays('Grids vector', [grids_vector], dimension=2,
-                                                         check_same_shape=False)
-
-        # define number of grids
-        num_grids = grids_vector.shape[0]
-        num_ss_dir = len(self._direction_list)
-        param_vector = numpy.ndarray(shape=(num_grids, num_ss_dir), dtype=float)
-
-        for i_grid in range(num_grids):
-            # grid_pos = grids_vector[i_grid]
-
-            for i_dir, ss_dir in enumerate(self._direction_list):
-                # check whether for direction e??, there is a matched experimental grid
-                scan_log_index_i = scan_log_map_vector[i_grid][i_dir]
-                if isinstance(scan_log_index_i, int) and scan_log_index_i >= 0:
-                    # there is a matched experimental grid
-                    # TODO/FIXME: this is only for peak parameter values
-                    # print (self._peak_param_dict[ss_dir].keys())
-                    param_value = self._peak_param_dict[ss_dir][parameter][scan_log_index_i]
-                else:
-                    param_value = self.interpolate3d(self._sample_positions_dict[ss_dir],
-                                                     self._peak_param_dict[ss_dir][parameter], grids_vector[i_grid])
-                # END-IF-ELSE
-                param_vector[i_grid, i_dir] = param_value
-            # END-FOR
-        # END-FOR
-
-        self._aligned_param_dict[parameter] = param_vector
-
-        return param_vector
+    # TODO FIXME - 20181001 - Temporarily disabled in order to clean up for the new workflow
+    # TODO                    This method may be modified to calculate slice view plot from certain parameters
+    # def align_peak_parameter_on_grids(self, grids_vector, parameter, scan_log_map_vector):
+    #     """ align the parameter's values on a given grid
+    #     [3D interpolation]
+    #     1. regular grid interpolation CANNOT be used.
+    #        (https://docs.scipy.org/doc/scipy-0.16.1/reference/generated/scipy.interpolate.RegularGridInterpolator.html)
+    #        It requires the grid to be interpolated from, i.e., experimental data, to be on REGULAR grid.
+    #        It is NOT always TRUE in the experiment.
+    #     2. imaging map: I don't understand it completely
+    #        (map_coordinates)
+    #     :param grids_vector: vector of grids that will have the parameter to be written on
+    #     :param parameter: string, such as 'center_d'
+    #     :param scan_log_map_vector: for grid[i], if map[i][1] is integer, than e22 has a grid matched. otherwise,
+    #                                 an interpolation is required
+    #     :return: 1D vector.  shape[0] = grids_vector.shape[0]
+    #     """
+    #     # check input
+    #     pyrs.utilities.checkdatatypes.check_string_variable('Parameter name', parameter)
+    #     pyrs.utilities.checkdatatypes.check_numpy_arrays('Grids vector', [grids_vector], dimension=2,
+    #                                                      check_same_shape=False)
+    #
+    #     # define number of grids
+    #     num_grids = grids_vector.shape[0]
+    #     num_ss_dir = len(self._direction_list)
+    #     param_vector = numpy.ndarray(shape=(num_grids, num_ss_dir), dtype=float)
+    #
+    #     for i_grid in range(num_grids):
+    #         # grid_pos = grids_vector[i_grid]
+    #
+    #         for i_dir, ss_dir in enumerate(self._direction_list):
+    #             # check whether for direction e??, there is a matched experimental grid
+    #             scan_log_index_i = scan_log_map_vector[i_grid][i_dir]
+    #             if isinstance(scan_log_index_i, int) and scan_log_index_i >= 0:
+    #                 # there is a matched experimental grid
+    #                 # TODO/FIXME: this is only for peak parameter values
+    #                 # print (self._peak_param_dict[ss_dir].keys())
+    #                 param_value = self._peak_param_dict[ss_dir][parameter][scan_log_index_i]
+    #             else:
+    #                 param_value = self.interpolate3d(self._sample_positions_dict[ss_dir],
+    #                                                  self._peak_param_dict[ss_dir][parameter], grids_vector[i_grid])
+    #             # END-IF-ELSE
+    #             param_vector[i_grid, i_dir] = param_value
+    #         # END-FOR
+    #     # END-FOR
+    #
+    #     self._aligned_param_dict[parameter] = param_vector
+    #
+    #     return param_vector
 
     @staticmethod
     def binary_search(sorted_positions, xyz, resolution):
@@ -735,6 +737,7 @@ class StrainStressCalculator(object):
         # set flag
         self._sample_points_aligned = False
 
+        # TODO FIXME - 20181001 - Make an individual method for ....
         # check whether the sample position numbers are different
         num_dir = len(self._direction_list)
         for i_dir_i in range(num_dir):
@@ -746,6 +749,7 @@ class StrainStressCalculator(object):
                                        'direction are different.  Need to use uneven alignment algorithm.')
         # END-FOR
 
+        # TODO FIXME - 20181001 - Make an individual method for ....
         # check whether all the data points matched with each other within resolution
         num_sample_points = self._sample_positions_dict[self._direction_list[0]].shape[0]
         for ipt in range(num_sample_points):
@@ -758,6 +762,7 @@ class StrainStressCalculator(object):
                 raise RuntimeError(err_msg)
         # END-FOR
 
+        # TODO FIXME - 20181001 - Make an individual method for ....
         self._sample_points_aligned = True
 
         return

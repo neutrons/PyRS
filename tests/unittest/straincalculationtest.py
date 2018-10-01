@@ -72,25 +72,31 @@ def test_strain_calculation():
     rs_core .strain_stress_calculator.convert_peaks_positions()
 
     # check and align measurement points around
-    try:
-        rs_core.strain_stress_calculator.check_grids_alignment()
-    except RuntimeError as run_err:
+    # TODO FIXME - 20181001 - Make an individual method for ....  ---> New workflow!
+    if True:
+        # TODO FIXME - 20181001 - This is a new suite of methods to analyze the sample grids
+        # ... ...
+        # ... ...
+        rs_core.strain_stress_calculator.check_grids_alignment()  # rename method
         print ('Measuring points are not aligned: {}'.format(run_err))
-    rs_core.strain_stress_calculator.align_matched_grids(resolution=0.001)
+        rs_core.strain_stress_calculator.align_matched_grids(resolution=0.001)
+        info1 = rs_core.strain_stress_calculator.check_whatever_1()
+        info2 = rs_core.strain_stress_calculator.check_whatever_2()
 
     # calculate unconstrained strain and stress
     strain_vec, stress_vec = rs_core.strain_stress_calculator.execute()
+
+    # save
+    rs_core.strain_stress_calculator.save_strain_stress('tests/temp/ss1.dat')
 
     # generate strain/stress grids
     grid_dict = {'Min': {'X': -130, 'Y': None, 'Z': 9.},
                  'Max': {'X': 130., 'Y': None, 'Z': None},
                  'NotUsed': {}}
-
     grids, maps = rs_core.strain_stress_calculator.generate_grids('e22', user_defined=False, grids_dimension_dict=grid_dict)
 
+    # convert to image of slice view...
     rs_core.strain_stress_calculator.export_strain_2d(grids)
-
-    rs_core.strain_stress_calculator.save_strain_stress('tests/temp/ss1.dat')
 
     # export
     #  rs_core.export_to_paraview(data_key, 'strain', '/tmp/stain_para.dat')
