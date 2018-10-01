@@ -8,6 +8,7 @@ from pyrs.utilities import hb2b_utilities
 import os
 import gui_helper
 import numpy
+from pyrs.utilities import checkdatatypes
 
 
 class ManualReductionWindow(QMainWindow):
@@ -33,10 +34,44 @@ class ManualReductionWindow(QMainWindow):
         # set up the event handling
         self.ui.pushButton_setIPTSNumber.clicked.connect(self.do_set_ipts_exp)
         self.ui.pushButton_browseOutputDir.clicked.connect(self.do_browse_output_dir)
-        self.ui.pushButton_setCalibrationFile.clicked.connect(self.do_browse_set_caliration_file)
+        self.ui.pushButton_setCalibrationFile.clicked.connect(self.do_browse_calibration_file)
 
         self.ui.pushButton_batchReduction.clicked.connect(self.do_reduce_batch_runs)
         self.ui.pushButton_chopReduce.clicked.connect(self.do_chop_reduce_run)
+
+        # radio button operation
+        self.ui.radioButton_chopByTime.toggled.connect(self.event_change_slice_type)
+        self.ui.radioButton_chopByLogValue.toggled.connect(self.event_change_slice_type)
+        self.ui.radioButton_chopAdvanced.toggled.connect(self.event_change_slice_type)
+
+        # init widgets
+        self._init_widgets_setup()
+
+        return
+
+    def _init_widgets_setup(self):
+        """
+        init setup widgets
+        :return:
+        """
+        self.ui.radioButton_chopByLogValue.setChecked(True)
+
+    def do_browse_calibration_file(self):
+        """ Browse and set up calibration file
+        :return:
+        """
+        calibration_file = gui_helper.browse_file(self, caption='Choose and set up the calibration file',
+                                                  default_dir=self._core.working_dir, file_filter='hdf5 (*hdf)',
+                                                  file_list=False, save_file=False)
+        if calibration_file is None or calibration_file == '':
+            # operation canceled
+            return
+
+        # set to the browser
+        self.ui.lineEdit_calibratonFile.setText(calibration_file)
+
+        # set to core
+        self._core.reduction_engine.set_calibration_file(calibration_file)
 
         return
 
@@ -52,6 +87,87 @@ class ManualReductionWindow(QMainWindow):
             self._core.reduction_engine.set_output_dir(output_dir)
 
         return
+
+    def do_chop_reduce_run(self):
+        """
+        chop and reduce the selected run
+        :return:
+        """
+        if self.ui.radioButton_chopByTime.isChecked():
+            # set up slicers by time
+            self.set_slicers_by_time()
+        elif self.ui.radioButton_chopByLogValue.isChecked():
+            # set up slicers by sample log value
+            self.set_slicers_by_sample_log_value()
+        else:
+            # set from the table
+            self.set_slicers_manually()
+        # END-IF-ELSE
+
+        try:
+            data_key = self._core.reduction_engine.chop_data()
+        except RuntimeError as run_err:
+            gui_helper.pop_message(self, message='Unable to slice data', detailed_message=str(run_err),
+                                   message_type='error')
+            return
+
+        try:
+            self._core.reduction_engine.reduced_chopped_data(data_key)
+        except RuntimeError as run_err:
+            gui_helper.pop_message(self, message='Failed to reduce sliced data', detailed_message=str(run_err),
+                                   message_type='error')
+            return
+
+        # fill the run numbers to plot selection
+        self._setup_plot_selection(append_mode=False, item_list=self._core.reduction_engine.get_chopped_names())
+
+        # plot
+        self._plot_data()
+
+        return
+
+    def _setup_plot_runs(self, append_mode, run_number_list, is_chopped):
+        """
+
+        :param append_mode:
+        :param run_number_list:
+        :return:
+        """
+        comboBox_runs
+
+    def _setup_plot_selection(self, append_mode, item_list):
+        """
+        set up the combobox to select items to plot
+        :param append_mode:
+        :param item_list:
+        :return:
+        """
+        checkdatatypes.check_bool_variable('Flag for appending the items to current combo-box or from start',
+                                           append_mode)
+        checkdatatypes.check_list('Combo-box item list', item_list)
+
+        # turn on mutex lock
+        self._plot_selection_mutex = True
+        if append_mode is False:
+            self.ui.comboBox_sampleLogNames.clear()
+        for item in item_list:
+            self.ui.comboBox_sampleLogNames.addItem(item)
+        if append_mode is False:
+            self.ui.comboBox_sampleLogNames.setCurrentIndex(0)
+        self.._plot_selection_mutex = False
+
+        return
+
+    def _plot_data(self):
+        """
+
+        :return:
+        """
+        if
+
+        self.ui.comboBox_plotSelection
+
+        self.ui.graphicsView_1DPlot.plot_
 
     def do_reduce_batch_runs(self):
         """
@@ -91,6 +207,29 @@ class ManualReductionWindow(QMainWindow):
             self._core.reduction_engine.set_ipts_exp_number(ipts_number, exp_number)
         except RuntimeError:
             gui_helper.pop_message(self, 'IPTS number shall be set to an integer.', message_type='error')
+
+        return
+
+    def event_change_slice_type(self):
+        """ Handle the event as the event slicing type is changed
+        :return:
+        """
+        disable_time_slice = True
+        disable_value_slice = True
+        disable_adv_slice = True
+
+        # find out which group shall be enabled
+        if self.ui.radioButton_chopByTime.isChecked():
+            disable_time_slice = False
+        elif self.ui.radioButton_chopByLogValue.isChecked():
+            disable_value_slice = False
+        else:
+            disable_adv_slice = False
+
+        # enable/disable group
+        self.ui.groupBox_sliceByTime.setEnabled(not disable_time_slice)
+        self.ui.groupBox_sliceByLogValue.setEnabled(not disable_value_slice)
+        self.ui.groupBox_advancedSetup.setEnabled(not disable_adv_slice)
 
         return
 

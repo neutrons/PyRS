@@ -582,7 +582,9 @@ class PyRsCore(object):
 
     def reset_strain_stress(self, is_plane_strain, is_plane_stress):
         """ reset the strain and stress calculation due to change of type
-        :param new_type:
+
+        :param is_plane_strain:
+        :param is_plane_stress:
         :return:
         """
         # rename the old one
