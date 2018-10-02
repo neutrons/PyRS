@@ -78,7 +78,6 @@ def test_strain_calculation():
         # ... ...
         # ... ...
         rs_core.strain_stress_calculator.check_grids_alignment()  # rename method
-        print ('Measuring points are not aligned: {}'.format(run_err))
         rs_core.strain_stress_calculator.align_matched_grids(resolution=0.001)
         info1 = rs_core.strain_stress_calculator.check_whatever_1()
         info2 = rs_core.strain_stress_calculator.check_whatever_2()

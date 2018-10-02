@@ -706,7 +706,7 @@ class StrainStressCalculator(object):
     def check_grids_alignment(self, resolution=0.001):
         """ Align the data points among e11, e22 and/or e33 with sample log positions
         :param resolution:
-        :return:
+        :return: 2-tuple: boolean (perfectly matched), mismatched information
         """
         # (1) Check whether position X, Y, Z shall be already set and
         # (2) Generate grid mapping scan log dictionary
@@ -737,35 +737,35 @@ class StrainStressCalculator(object):
         # set flag
         self._sample_points_aligned = False
 
-        # TODO FIXME - 20181001 - Make an individual method for ....
         # check whether the sample position numbers are different
+        info = ''
         num_dir = len(self._direction_list)
         for i_dir_i in range(num_dir):
             dir_i = self._direction_list[i_dir_i]
             for i_dir_j in range(i_dir_i, num_dir):
                 dir_j = self._direction_list[i_dir_j]
                 if self._sample_positions_dict[dir_i].shape[0] != self._sample_positions_dict[dir_j].shape[0]:
-                    raise RuntimeError('It is not considered that the number of data points among different '
-                                       'direction are different.  Need to use uneven alignment algorithm.')
+                    info = 'The number of grid points among different direction are different.'
+                    break
+
         # END-FOR
 
-        # TODO FIXME - 20181001 - Make an individual method for ....
         # check whether all the data points matched with each other within resolution
-        num_sample_points = self._sample_positions_dict[self._direction_list[0]].shape[0]
-        for ipt in range(num_sample_points):
-            max_distance = self.calculate_max_distance(ipt)
-            if max_distance > resolution:
-                err_msg = '{}-th (of total {}) sample position point: '.format(ipt, num_sample_points)
-                for dir_i in self._direction_list:
-                    err_msg += '{} @ {}; '.format(dir_i, self._sample_positions_dict[dir_i][ipt])
-                err_msg += ' with maximum distance {} over specified resolution {}'.format(max_distance, resolution)
-                raise RuntimeError(err_msg)
-        # END-FOR
+        if info == '':
+            num_sample_points = self._sample_positions_dict[self._direction_list[0]].shape[0]
+            for ipt in range(num_sample_points):
+                max_distance = self.calculate_max_distance(ipt)
+                if max_distance > resolution:
+                    err_msg = '{}-th (of total {}) sample position point: '.format(ipt, num_sample_points)
+                    for dir_i in self._direction_list:
+                        err_msg += '{} @ {}; '.format(dir_i, self._sample_positions_dict[dir_i][ipt])
+                    err_msg += ' with maximum distance {} over specified resolution {}'.format(max_distance, resolution)
+                    info = err_msg
+                    break
+            # END-FOR
+        # END-IF
 
-        # TODO FIXME - 20181001 - Make an individual method for ....
-        self._sample_points_aligned = True
-
-        return
+        return info == '', info
 
     # TestMe (new) - 20180815 - Tested and convert to a method to store the result for table output (***)
     def _set_grid_statistics(self):
