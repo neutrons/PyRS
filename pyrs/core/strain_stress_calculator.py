@@ -219,6 +219,7 @@ class StrainStressCalculator(object):
             self._sample_positions_dict[dir_i] = None
         self._grid_statistics_dict = None
         self._grid_output_array = None  # array (of vector) for grids used by strain/stress calculation
+        self._matched_grid_scans_list = None   # list[i] = {'e11': scan log index, 'e22': scan log index, ....
 
         # status
         self._is_saved = False
@@ -435,11 +436,14 @@ class StrainStressCalculator(object):
     #
     #     return self._grid_output_array, mapping_vector
 
-    def align_matched_grids(self, resolution=0.001):
+    def located_matched_grids(self, resolution=0.001):
         """ Compare the grids among 3 (or 2) strain directions in order to search matched grids across
         :param resolution:
         :return:
         """
+        # define a data structure for completely matched grids among all directions
+        self._matched_grid_scans_list = list()   # list[i] = {'e11': scan log index, 'e22': scan log index, ....
+
         num_e11_pts = len(self._sample_positions_dict['e11'])
         self._match11_dict = {'e22': [None] * num_e11_pts,
                               'e33': [None] * num_e11_pts}
@@ -454,9 +458,19 @@ class StrainStressCalculator(object):
         message = ''
         for ipt_e11 in range(num_e11_pts):
             pos_11_i = self._sample_positions_dict['e11'][ipt_e11]
+            match_grid_dict = {'e11': self._dir_grid_pos_scan_index_dict['e11'][tuple(pos_11_i)]}
+            both_matched = True
             for dir_i in other_dir_list:
                 sorted_pos_list_i = self._sample_positions_dict[dir_i]
                 index_i = self.binary_search(sorted_pos_list_i, pos_11_i, resolution)
+                if index_i is None:
+                    both_matched = False
+                elif both_matched:
+                    pos_dir_i = sorted_pos_list_i[index_i]
+                    match_grid_dict[dir_i] = self._dir_grid_pos_scan_index_dict[dir_i][tuple(pos_dir_i)]
+                # END-IF-ELSE
+
+                # message
                 if index_i is None:
                     message += '[DB...BAT] E11 Pt {} @ {} no match at direction {}\n'.format(ipt_e11, pos_11_i, dir_i)
                 else:
@@ -465,12 +479,20 @@ class StrainStressCalculator(object):
                 if index_i is not None:
                     self._match11_dict[dir_i][ipt_e11] = index_i
                     other_dir_matched_dict[dir_i].add(index_i)
+                # END-FOR
             # END-FOR
+
+            # store
+            if both_matched:
+                self._matched_grid_scans_list.append(match_grid_dict)
+            # END-IF
         # END-FOR
 
-        for dir_i in other_dir_list:
-            unmatched_counts_i = len(self._sample_positions_dict[dir_i]) - len(other_dir_matched_dict[dir_i])
-            print ('[INFO] Numbers of grids at direction {} unmatched to E11: {}'
+        print ('[INFO] Matched Grids Points (For Strain/Stress Calculation): {}'
+               ''.format(len(self._matched_grid_scans_list)))
+        for dir_i in self._direction_list:
+            unmatched_counts_i = len(self._sample_positions_dict[dir_i]) - len(self._matched_grid_scans_list)
+            print ('[INFO] Numbers of grids at direction {} not matched with other directions: {}'
                    ''.format(dir_i, unmatched_counts_i))
 
         return
@@ -896,31 +918,22 @@ class StrainStressCalculator(object):
         calculate strain/stress on the final output grids
         :return:
         """
-        # get from the class variable
-        ss_grid_vec = self._grid_output_array
-        if 'center_d' not in self._aligned_param_dict:
-            raise RuntimeError('center_d is not aligned to output grids')
-        else:
-            peak_pos_d_vec = self._aligned_param_dict['center_d']
-
-        # check inputs
-        pyrs.utilities.checkdatatypes.check_numpy_arrays('Strain/stress grids vector', [ss_grid_vec, peak_pos_d_vec],
-                                                         dimension=2, check_same_shape=False)
-
-        # create inputs
-        num_grids = ss_grid_vec.shape[0]
+        # prepare the data structure
+        num_grids = len(self._matched_grid_scans_list)
         strain_matrix_vec = numpy.ndarray(shape=(num_grids, 3, 3), dtype='float')
         stress_matrix_vec = numpy.ndarray(shape=(num_grids, 3, 3), dtype='float')
 
-        for i_grid, grid in enumerate(ss_grid_vec):
-            # construct the peak position matrix
+        # loop over all the matched grids
+        for grid_index, dir_scan_dict in enumerate(self._matched_grid_scans_list):
+            # create peak matrix (3X3)
             peak_matrix = numpy.zeros(shape=(3, 3), dtype='float')
-            # peak_fit_failed = False
-            for m_index, dir_i in enumerate(self._direction_list):
-                # matrix index m_index is the same as direction index
-                peak_matrix[m_index, m_index] = peak_pos_d_vec[i_grid][m_index]
+            for dir_index, dir_name in enumerate(self._direction_list):
+                scan_log_index = dir_scan_dict[dir_name]
+                peak_d_pos = self._peak_param_dict[dir_name]['center_d'][scan_log_index]
+                peak_matrix[dir_index, dir_index] = peak_d_pos
             # END-FOR
 
+            # calculate strain/stress
             try:
                 ss_calculator = StrainStress(peak_pos_matrix=peak_matrix,
                                              d0=self._d0, young_modulus=self._young_e,
@@ -931,10 +944,11 @@ class StrainStressCalculator(object):
                 err_msg = 'Strain/stress calculation parameter set up error causing zero division: {}'.format(err)
                 raise RuntimeError(err_msg)
 
-            strain_matrix_vec[i_grid] = ss_calculator.get_strain()
-            stress_matrix_vec[i_grid] = ss_calculator.get_stress()
+            strain_matrix_vec[grid_index] = ss_calculator.get_strain()
+            stress_matrix_vec[grid_index] = ss_calculator.get_stress()
         # END-FOR
 
+        # set to the class variable
         self._strain_matrix_vec = strain_matrix_vec
         self._stress_matrix_vec = stress_matrix_vec
 
@@ -1515,18 +1529,7 @@ class StrainStressCalculator(object):
         if self._strain_matrix_vec is None or self._stress_matrix_vec is None:
             raise RuntimeError('Strain and stress have not been calculated.')
 
-        print (type(self._grid_output_array))
-        print (type(self._strain_matrix_vec))
-        print (type(self._stress_matrix_vec))
-
-        print ()
-        print ()
-        print (self._stress_matrix_vec.shape)
-
         csv_buffer = ''
-        if self._grid_output_array.shape[0] != self._strain_matrix_vec.shape[0]:
-            raise RuntimeError('Number of (output) grids is different from number of strain/stress matrix.')
-
         csv_buffer += '# {:8s}{:10s}{:10s}{:10s}{:10s}{:10s}{:10s}{:10s}{:10s}' \
                       ''.format('X', 'Y', 'Z', 'e11', 'e22', 'e33', 's11', 's22', 's33')
         for i_grid in range(self._grid_output_array.shape[0]):

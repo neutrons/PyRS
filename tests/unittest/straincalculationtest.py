@@ -76,11 +76,15 @@ def test_strain_calculation():
     if True:
         # TODO FIXME - 20181001 - This is a new suite of methods to analyze the sample grids
         # ... ...
-        # ... ...
+        # set the name of the sample log for grid positions
+        pos_x_sample_names = {'e11': 'vx', 'e22': 'vx', 'e33': 'vx'}
+        pos_y_sample_names = {'e11': 'vy', 'e22': 'vy', 'e33': 'vy'}
+        pos_z_sample_names = {'e11': 'vz', 'e22': 'vz', 'e33': 'vz'}
+        rs_core.strain_stress_calculator.set_grid_log_names(pos_x_sample_names, pos_y_sample_names, pos_z_sample_names)
+
         rs_core.strain_stress_calculator.check_grids_alignment()  # rename method
-        rs_core.strain_stress_calculator.align_matched_grids(resolution=0.001)
-        info1 = rs_core.strain_stress_calculator.check_whatever_1()
-        info2 = rs_core.strain_stress_calculator.check_whatever_2()
+        rs_core.strain_stress_calculator.located_matched_grids(resolution=0.001)
+    # END-Align-Grid
 
     # calculate unconstrained strain and stress
     strain_vec, stress_vec = rs_core.strain_stress_calculator.execute()
@@ -181,7 +185,7 @@ def test_strain_stress_user_defined_grid():
         rs_core.strain_stress_calculator.check_grids_alignment()
     except RuntimeError as run_err:
         print ('Measuring points are not aligned: {}'.format(run_err))
-    rs_core.strain_stress_calculator.align_matched_grids(resolution=0.001)
+    rs_core.strain_stress_calculator.located_matched_grids(resolution=0.001)
 
     # convert peak positions to d-spacing
     rs_core .strain_stress_calculator.convert_peaks_positions()
@@ -236,7 +240,7 @@ def test_plane_strain():
         rs_core.strain_stress_calculator.check_grids_alignment()
     except RuntimeError as run_err:
         print ('Measuring points are not aligned: {}'.format(run_err))
-    rs_core.strain_stress_calculator.align_matched_grids(resolution=0.001)
+    rs_core.strain_stress_calculator.located_matched_grids(resolution=0.001)
 
     # convert peak positions to d-spacing
     rs_core .strain_stress_calculator.convert_peaks_positions()
@@ -287,7 +291,7 @@ def test_plane_stress():
         rs_core.strain_stress_calculator.check_grids_alignment()
     except RuntimeError as run_err:
         print ('Measuring points are not aligned: {}'.format(run_err))
-    rs_core.strain_stress_calculator.align_matched_grids(resolution=0.001)
+    rs_core.strain_stress_calculator.located_matched_grids(resolution=0.001)
 
     # convert peak positions to d-spacing
     rs_core .strain_stress_calculator.convert_peaks_positions()

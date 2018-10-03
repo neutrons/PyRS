@@ -278,7 +278,7 @@ class StrainStressCalculationWindow(QMainWindow):
                 return
             else:
                 print ('Measuring points are not aligned: {}'.format(run_err))
-                self._core.strain_stress_calculator.align_matched_grids(resolution=0.001)
+                self._core.strain_stress_calculator.located_matched_grids(resolution=0.001)
 
         self.ui.pushButton_alignGrids.setEnabled(True)
 
