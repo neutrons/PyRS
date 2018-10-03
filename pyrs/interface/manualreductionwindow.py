@@ -27,6 +27,11 @@ class ManualReductionWindow(QMainWindow):
         self._currIPTSNumber = None
         self._currExpNumber = None
 
+        # mutexes
+        self._plot_run_numbers_mutex = False
+        self._plot_sliced_mutex = False
+        self._plot_selection_mutex = False
+
         # set up UI
         self.ui = ui.ui_manualreductionwindow.Ui_MainWindow()
         self.ui.setupUi(self)
@@ -43,6 +48,9 @@ class ManualReductionWindow(QMainWindow):
         self.ui.radioButton_chopByTime.toggled.connect(self.event_change_slice_type)
         self.ui.radioButton_chopByLogValue.toggled.connect(self.event_change_slice_type)
         self.ui.radioButton_chopAdvanced.toggled.connect(self.event_change_slice_type)
+
+        # event handling for combobox
+        self.ui.comboBox_runs.currentIndexChanged.connect(self.event_new_run_to_plot)
 
         # init widgets
         self._init_widgets_setup()
@@ -126,14 +134,37 @@ class ManualReductionWindow(QMainWindow):
 
         return
 
-    def _setup_plot_runs(self, append_mode, run_number_list, is_chopped):
+    def _setup_plot_sliced_runs(self, run_number, sliced_):
         """
 
+        :return:
+        """
+
+    def _setup_plot_runs(self, append_mode, run_number_list):
+        """ set the runs (or sliced runs to plot)
         :param append_mode:
         :param run_number_list:
         :return:
         """
-        comboBox_runs
+        checkdatatypes.check_list('Run numbers', run_number_list)
+
+        # non-append mode
+        self._plot_run_numbers_mutex = True
+        if not append_mode:
+            self.ui.comboBox_runs.clear()
+
+        # add run numbers
+        for run_number in run_number_list:
+            self.ui.comboBox_runs.addItem('{}'.format(run_number))
+
+        # open
+        self._plot_run_numbers_mutex = False
+
+        # if append-mode, then set to first run
+        if append_mode:
+            self.ui.comboBox_runs.setCurrentIndex(0)
+
+        return
 
     def _setup_plot_selection(self, append_mode, item_list):
         """
@@ -154,7 +185,7 @@ class ManualReductionWindow(QMainWindow):
             self.ui.comboBox_sampleLogNames.addItem(item)
         if append_mode is False:
             self.ui.comboBox_sampleLogNames.setCurrentIndex(0)
-        self.._plot_selection_mutex = False
+        self._plot_selection_mutex = False
 
         return
 
@@ -232,6 +263,34 @@ class ManualReductionWindow(QMainWindow):
         self.ui.groupBox_advancedSetup.setEnabled(not disable_adv_slice)
 
         return
+
+    def event_new_run_to_plot(self):
+        """ User selects a different run number to plot
+        :return:
+        """
+        curr_run_number = int(str(self.ui.comboBox_runs.currentText()))
+        is_chopped = self._core.reduction_engine.is_chopped_run(curr_run_number)
+
+        # set the sliced box
+        self._plot_sliced_mutex = True
+        self.ui.comboBox_slicedRuns.clear()
+        if is_chopped:
+            sliced_segment_list = self._core.reduction_engine.get_chopped_names(curr_run_number)
+            for segment in sorted(sliced_segment_list):
+                self.ui.comboBox_slicedRuns.addItem('{}'.format(segment))
+        else:
+            pass
+
+        # set the plot options
+        self._plot_selection_mutex = True
+        if is_chopped:
+            ...
+        else:
+            ...
+
+        self._plot_sliced_mutex = False
+
+
 
     def setup_window(self, pyrs_core):
         """
