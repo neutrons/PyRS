@@ -19,10 +19,7 @@ except AttributeError:
     def _fromUtf8(s):
         return s
 
-import gui.GuiUtility as GuiUtility
 import ui.ui_eventslicersetupwindow
-import LoadMTSLogWindow
-import QuickChopDialog
 
 OUT_PICKER = 0
 IN_PICKER = 1
@@ -55,12 +52,12 @@ class EventSlicerSetupWindow(QMainWindow):
         self._init_widgets_setup()
 
         # Defining widget handling methods
-        self.ui.pushButton_loadRunSampleLog.clicked.connect(self.do_load_run)
+        # self.ui.pushButton_loadRunSampleLog.clicked.connect(self.do_load_run)
         self.ui.pushButton_prevLog.clicked.connect(self.do_load_prev_log)
         self.ui.pushButton_nextLog.clicked.connect(self.do_load_next_log)
-        self.ui.pushButton_readLogFile.clicked.connect(self.do_scan_log_file)
-        self.ui.pushButton_loadMTSLog.clicked.connect(self.do_load_mts_log)
-        self.ui.comboBox_blockList.currentIndexChanged.connect(self.do_load_mts_log)
+        # self.ui.pushButton_readLogFile.clicked.connect(self.do_scan_log_file)
+        # self.ui.pushButton_loadMTSLog.clicked.connect(self.do_load_mts_log)
+        # self.ui.comboBox_blockList.currentIndexChanged.connect(self.do_load_mts_log)
         self.ui.comboBox_logFrameUnit.currentIndexChanged.connect(self.evt_re_plot_mts_log)
 
         self.ui.checkBox_hideSingleValueLog.stateChanged.connect(self.load_log_names)
@@ -204,7 +201,7 @@ class EventSlicerSetupWindow(QMainWindow):
         # Initial setup
         if init_run is not None:
             assert isinstance(init_run, int)
-            self.ui.lineEdit_runNumber.setText('%d' % init_run)
+            # self.ui.lineEdit_runNumber.setText('%d' % init_run)
             self._iptsNumber = ipts_number
         else:
             self._iptsNumber = None
@@ -257,7 +254,7 @@ class EventSlicerSetupWindow(QMainWindow):
         self.ui.graphicsView_main.set_parent_window(self)
 
         # ipts-run selection tree
-        self.ui.treeView_iptsRun.set_main_window(self)
+        # self.ui.treeView_iptsRun.set_main_window(self)
         # about plotting
         self.ui.checkBox_autoResize.setChecked(True)
         # options to create slicing segments

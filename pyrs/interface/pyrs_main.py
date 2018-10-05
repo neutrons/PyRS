@@ -115,9 +115,9 @@ class PyRSLauncher(QMainWindow):
         # show
         self.manual_reduction_window.show()
 
-        # optionally close the main window
-        if self.ui.checkBox_keepWindowOpen.isChecked() is False:
-            self.close()
+        # # optionally close the main window
+        # if self.ui.checkBox_keepWindowOpen.isChecked() is False:
+        #     self.close()
 
         return
 

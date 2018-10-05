@@ -44,6 +44,8 @@ class ManualReductionWindow(QMainWindow):
         self.ui.pushButton_batchReduction.clicked.connect(self.do_reduce_batch_runs)
         self.ui.pushButton_chopReduce.clicked.connect(self.do_chop_reduce_run)
 
+        self.ui.pushButton_launchAdvSetupWindow.clicked.connect(self.do_launch_slice_setup)
+
         # radio button operation
         self.ui.radioButton_chopByTime.toggled.connect(self.event_change_slice_type)
         self.ui.radioButton_chopByLogValue.toggled.connect(self.event_change_slice_type)
@@ -134,6 +136,13 @@ class ManualReductionWindow(QMainWindow):
 
         return
 
+    def do_launch_slice_setup(self):
+        # TODO - 20181009 - Need to refine
+        import slicersetupwindow
+        self._slice_setup_window = slicersetupwindow.EventSlicerSetupWindow(self)
+        self._slice_setup_window.show()
+        return
+
     def _setup_plot_sliced_runs(self, run_number, sliced_):
         """
 
@@ -194,11 +203,14 @@ class ManualReductionWindow(QMainWindow):
 
         :return:
         """
-        if
+        print ('[WARNING] Not Implemented')
+        # TODO - 20181006 - Implement ASAP
 
-        self.ui.comboBox_plotSelection
+        # self.ui.comboBox_plotSelection
+        #
+        # self.ui.graphicsView_1DPlot.plot_
 
-        self.ui.graphicsView_1DPlot.plot_
+        return
 
     def do_reduce_batch_runs(self):
         """
@@ -282,11 +294,14 @@ class ManualReductionWindow(QMainWindow):
             pass
 
         # set the plot options
+        # TODO - 20181008 - ASAP
         self._plot_selection_mutex = True
         if is_chopped:
-            ...
+            # set up with chopped data
+            pass
         else:
-            ...
+            # set up with non-chopped data
+            pass
 
         self._plot_sliced_mutex = False
 
