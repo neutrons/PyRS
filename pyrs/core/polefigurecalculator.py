@@ -249,6 +249,8 @@ class PoleFigureCalculator(object):
                 # rotate Q from instrument coordinate to sample coordinate
                 two_theta_i = peak_info_dict[scan_index]['2theta']
                 omega_i = peak_info_dict[scan_index]['omega']
+		if omega_i < 0.:
+			omega_i += 90.
                 chi_i = peak_info_dict[scan_index]['chi']
                 phi_i = peak_info_dict[scan_index]['phi']
                 alpha, beta = self.rotate_project_q(two_theta_i, omega_i, chi_i, phi_i)
@@ -407,11 +409,11 @@ class PoleFigureCalculator(object):
         # print ('Rotation about Z-axis with {0}:\n{1}'.format(-two_theta * 0.5, nice(rotation_matrix)))
 
         if self._use_matmul:
-            vec_q1 = numpy.matmul(rotation_matrix, numpy.array([0., 1., 0.]))
-            vec_q2 = numpy.matmul(rotation_matrix, numpy.array([1., 0., 0.]))
+            vec_q1 = numpy.matmul(rotation_matrix.transpose(), numpy.array([0., 1., 0.]))
+            vec_q2 = numpy.matmul(rotation_matrix.transpose(), numpy.array([1., 0., 0.]))
         else:
-            vec_q1 = matrix_mul_vector(rotation_matrix, numpy.array([0., 1., 0.]))
-            vec_q2 = matrix_mul_vector(rotation_matrix, numpy.array([1., 0., 0.]))
+            vec_q1 = matrix_mul_vector(rotation_matrix.transpose(), numpy.array([0., 1., 0.]))
+            vec_q2 = matrix_mul_vector(rotation_matrix.transpose(), numpy.array([1., 0., 0.]))
         # print ('[DB...BAT] vec(Q) shape: {0}'.format(vec_q1.shape))
         # print ('Vec(q)_1: {0}'.format(vec_q1))
         # print ('Vec(q)_2: {0}'.format(vec_q2))
@@ -428,15 +430,16 @@ class PoleFigureCalculator(object):
                                        cal_rotation_matrix_y(chi, True, self._use_matmul))
             temp_matrix = numpy.matmul(temp_matrix, cal_rotation_matrix_z(-omega, True, self._use_matmul))
 
-            vec_q_prime1 = numpy.matmul(temp_matrix, numpy.array([0., 1., 0.]))
-            vec_q_prime2 = numpy.matmul(temp_matrix, numpy.array([1., 0., 0.]))
+            vec_q_prime1 = numpy.matmul(temp_matrix.transpose(), numpy.array([0., 1., 0.]))
+            vec_q_prime2 = numpy.matmul(temp_matrix.transpose(), numpy.array([1., 0., 0.]))
         else:
             temp_matrix = matrix_mul_matrix(cal_rotation_matrix_x(phi + 90, True, self._use_matmul),
                                             cal_rotation_matrix_y(chi, True, self._use_matmul))
+
             temp_matrix = matrix_mul_matrix(temp_matrix, cal_rotation_matrix_z(-omega, True, self._use_matmul))
 
-            vec_q_prime1 = matrix_mul_vector(temp_matrix, numpy.array([0., 1., 0.]))
-            vec_q_prime2 = matrix_mul_vector(temp_matrix, numpy.array([1., 0., 0.]))
+            vec_q_prime1 = matrix_mul_vector(temp_matrix.transpose(), numpy.array([0., 1., 0.]))
+            vec_q_prime2 = matrix_mul_vector(temp_matrix.transpose(), numpy.array([1., 0., 0.]))
         # END-IF-ELSE
 
         # print ('Production 2: A x B x C\n{0}'.format(nice(temp_matrix)))
@@ -445,20 +448,24 @@ class PoleFigureCalculator(object):
         # print ('[DB...BAT] vec(Q\') shape: {0}'.format(vec_q1.shape))
 
         # calculate projection to alpha and beta
-        if len(vec_q_prime1.shape) == 2 and vec_q_prime1[0, 2] >= 0 or \
-                len(vec_q_prime1.shape) == 1 and vec_q_prime1[2] >= 0:
-            beta = 360 - math.acos(numpy.dot(vec_q_prime1, vec_q1.transpose())) * 180. / numpy.pi
+        if vec_q_prime1[2] >= 0:
+		beta  =  math.acos(numpy.dot( vec_q_prime1, vec_q1.transpose() )) * 180. / numpy.pi - 90
         else:
-            beta = math.acos(numpy.dot(vec_q_prime1, vec_q1.transpose())) * 180. / numpy.pi
+        	beta  = 270. - math.acos(numpy.dot( vec_q_prime1, vec_q1.transpose() )) * 180. / numpy.pi
 
         alpha = math.acos(numpy.dot(vec_q_prime2, vec_q2.transpose())) * 180. / numpy.pi
 
-        if beta <= 90:
-            beta = 360 + (beta - 90)
-        else:
-            beta -= 90.
+        if beta <= 0.:
+            beta = 360 + (beta)
 
         # print ('[INFO] Alpha = {0}\tBeta = {1}'.format(alpha, beta))
+    	print ('2theta = {0}\nomega = {1}\nchi = {2}\nphi = {3}'
+           ''.format(two_theta, omega, chi, phi))
+
+    	print vec_q_prime1
+    	print vec_q_prime2
+	print vec_q1
+    	print vec_q2
 
         return alpha, beta
 
