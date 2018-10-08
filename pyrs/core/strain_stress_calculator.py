@@ -185,7 +185,7 @@ class StrainStressCalculator(object):
         # data sets, sample logs and peak parameters required (stage 1 class variables)
         self._data_set_dict = dict()    # [dir][scan log index] = vector
         self._peak_param_dict = dict()  # [dir][scan (peak) parameter name][scan log index] =
-        self._sample_log_dict = dict()  #
+        self._sample_log_dict = dict()  # [dir][log name][scan log index] = value
         for dir_i in self._direction_list:
             self._data_set_dict[dir_i] = None
             self._peak_param_dict[dir_i] = None   # [dir][parameter name][scan log index]
@@ -922,6 +922,7 @@ class StrainStressCalculator(object):
         num_grids = len(self._matched_grid_scans_list)
         strain_matrix_vec = numpy.ndarray(shape=(num_grids, 3, 3), dtype='float')
         stress_matrix_vec = numpy.ndarray(shape=(num_grids, 3, 3), dtype='float')
+        self._grid_output_array = numpy.ndarray(shape=(num_grids, 3), dtype='float')
 
         # loop over all the matched grids
         for grid_index, dir_scan_dict in enumerate(self._matched_grid_scans_list):
@@ -946,6 +947,13 @@ class StrainStressCalculator(object):
 
             strain_matrix_vec[grid_index] = ss_calculator.get_strain()
             stress_matrix_vec[grid_index] = ss_calculator.get_stress()
+
+            # set up the grid positions
+            grid_x = self._sample_log_dict['e11'][self._grid_pos_x_name_dict['e11']][dir_scan_dict['e11']]
+            grid_y = self._sample_log_dict['e11'][self._grid_pos_y_name_dict['e11']][dir_scan_dict['e11']]
+            grid_z = self._sample_log_dict['e11'][self._grid_pos_z_name_dict['e11']][dir_scan_dict['e11']]
+
+            self._grid_output_array[grid_index] = numpy.array((grid_x, grid_y, grid_z))
         # END-FOR
 
         # set to the class variable
@@ -1289,16 +1297,8 @@ class StrainStressCalculator(object):
         """
         return self._direction_list[:]
 
-    def get_strain_stress_grid(self):
-        """
-        get the vector for strain and stress grid
-        :return:
-        """
-        return self._grid_output_array
-
     def get_strain_stress_values(self):
-        """
-
+        """ get the corresponding grid output (matched grids), strain and stress list
         :return:
         """
         return self._grid_output_array, self._strain_matrix_vec, self._stress_matrix_vec
@@ -1532,9 +1532,26 @@ class StrainStressCalculator(object):
         csv_buffer = ''
         csv_buffer += '# {:8s}{:10s}{:10s}{:10s}{:10s}{:10s}{:10s}{:10s}{:10s}' \
                       ''.format('X', 'Y', 'Z', 'e11', 'e22', 'e33', 's11', 's22', 's33')
-        for i_grid in range(self._grid_output_array.shape[0]):
-            continue
 
+        num_strain_stress_grid = self._strain_matrix_vec.shape[0]
+        for i_grid in range(num_strain_stress_grid):
+            # append a line for i-th grid
+            line_i = ''
+
+            # positions
+            for dir_i in range(3):
+                line_i += '{:10s}'.format('{:.5f}'.format(self._grid_output_array[i_grid][dir_i]))
+
+            # write strain
+            for ii in range(3):
+                line_i += '{:10s}'.format('{:.5f}'.format(self._strain_matrix_vec[i_grid][ii, ii]))
+
+            # write stress
+            for ii in range(3):
+                line_i += '{:10s}'.format('{:.5f}'.format(self._stress_matrix_vec[i_grid][ii, ii]))
+
+            line_i += '\n'
+        # END-FOR
         csv_file = open(file_name, 'w')
         csv_file.write(csv_buffer)
         csv_file.close()

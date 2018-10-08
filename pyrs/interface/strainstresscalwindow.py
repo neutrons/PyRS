@@ -819,6 +819,8 @@ class StrainStressCalculationWindow(QMainWindow):
                                              self._core.strain_stress_calculator.get_strain_stress_direction())
         checkdatatypes.check_bool_variable('Flag for raw experiment grid', is_raw_grid)
 
+        # TODO - FIXME - It is not correct anymore for
+        raise RuntimeError('Time to refactor/rewrite!')
         if is_raw_grid:
             # parameter value on raw grids
             # get value
