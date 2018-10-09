@@ -6,6 +6,8 @@
 ########################################################################
 import os
 import numpy
+import ManualSlicerSetupDialog
+
 try:
     from PyQt5 import QtCore as QtCore
     from PyQt5.QtWidgets import QMainWindow, QButtonGroup, QFileDialog
@@ -20,6 +22,8 @@ except AttributeError:
         return s
 
 import ui.ui_eventslicersetupwindow
+import gui_helper
+from pyrs.utilities import checkdatatypes
 
 OUT_PICKER = 0
 IN_PICKER = 1
@@ -31,8 +35,8 @@ class EventSlicerSetupWindow(QMainWindow):
     """ Class for general-puposed plot window
     """
     # class
-    def __init__(self, parent=None, ipts_number=None, init_run=None):
-        """ Init
+    def __init__(self, parent=None):
+        """ Initialization
         """
         # call base
         QMainWindow.__init__(self)
@@ -52,12 +56,8 @@ class EventSlicerSetupWindow(QMainWindow):
         self._init_widgets_setup()
 
         # Defining widget handling methods
-        # self.ui.pushButton_loadRunSampleLog.clicked.connect(self.do_load_run)
         self.ui.pushButton_prevLog.clicked.connect(self.do_load_prev_log)
         self.ui.pushButton_nextLog.clicked.connect(self.do_load_next_log)
-        # self.ui.pushButton_readLogFile.clicked.connect(self.do_scan_log_file)
-        # self.ui.pushButton_loadMTSLog.clicked.connect(self.do_load_mts_log)
-        # self.ui.comboBox_blockList.currentIndexChanged.connect(self.do_load_mts_log)
         self.ui.comboBox_logFrameUnit.currentIndexChanged.connect(self.evt_re_plot_mts_log)
 
         self.ui.checkBox_hideSingleValueLog.stateChanged.connect(self.load_log_names)
@@ -69,31 +69,13 @@ class EventSlicerSetupWindow(QMainWindow):
         self.ui.pushButton_slicer.clicked.connect(self.do_chop)
         self.ui.pushButton_viewReduced.clicked.connect(self.do_view_reduced_data)
 
-        # Further operation
-        # self.ui.pushButton_highlight.clicked.connect()
-        # #              self.do_highlight_selected)
-
         # automatic slicer setup
         self.ui.pushButton_setupAutoSlicer.clicked.connect(self.do_setup_uniform_slicer)
         self.ui.checkBox_showSlicer.stateChanged.connect(self.evt_show_slicer)
 
         # manual slicer picker
-        # self.ui.pushButton_addPicker.clicked.connect()
-        # #              self.do_picker_add)
-        # self.ui.pushButton_abortPicker.clicked.connect()
-        # #              self.do_picker_abort)
-        # self.ui.pushButton_setPicker.clicked.connect()
-        # #              self.do_picker_set)
-        # self.ui.pushButton_selectPicker.clicked.connect()
-        # #              self.do_enter_select_picker_mode)
         self.ui.pushButton_showManualSlicerTable.clicked.connect(self.do_show_manual_slicer_table)
         self.ui.pushButton_loadSlicerFile.clicked.connect(self.do_import_slicer_file)
-
-        # Slicer table
-        # self.ui.pushButton_selectAll.clicked.connect()
-        # #              self.do_select_time_segments)
-        # self.ui.pushButton_deselectAll.clicked.connect()
-        # #              self.do_deselect_time_segments)
 
         # Canvas
         self.ui.pushButton_doPlotSample.clicked.connect(self.evt_plot_sample_log)
@@ -110,101 +92,11 @@ class EventSlicerSetupWindow(QMainWindow):
         # menu actions
         self.ui.actionExit.triggered.connect(self.evt_quit_no_save)
 
-        # # self.connect(self.ui.pushButton_saveTimeSegs, QtCore.SIGNAL('clicked()'),
-        # #              self.do_save_time_segments)
-        # self.connect(self.ui.pushButton_loadRunSampleLog, QtCore.SIGNAL('clicked()'),
-        #              self.do_load_run)
-        # self.connect(self.ui.pushButton_prevLog, QtCore.SIGNAL('clicked()'),
-        #              self.do_load_prev_log)
-        # self.connect(self.ui.pushButton_nextLog, QtCore.SIGNAL('clicked()'),
-        #              self.do_load_next_log)
-        # self.connect(self.ui.pushButton_readLogFile, QtCore.SIGNAL('clicked()'),
-        #              self.do_scan_log_file)
-        # self.connect(self.ui.pushButton_loadMTSLog, QtCore.SIGNAL('clicked()'),
-        #              self.do_load_mts_log)
-        # self.connect(self.ui.comboBox_blockList, QtCore.SIGNAL('indexChanged(int)'),
-        #              self.do_load_mts_log)
-        # self.connect(self.ui.comboBox_logFrameUnit, QtCore.SIGNAL('indexChanged(int)'),
-        #              self.evt_re_plot_mts_log)
-        #
-        # self.connect(self.ui.checkBox_hideSingleValueLog, QtCore.SIGNAL('stateChanged(int)'),
-        #              self.load_log_names)
-        #
-        # # chopping setup
-        # self.connect(self.ui.radioButton_timeSlicer, QtCore.SIGNAL('toggled (bool)'),
-        #              self.evt_switch_slicer_method)
-        # self.connect(self.ui.radioButton_logValueSlicer, QtCore.SIGNAL('toggled (bool)'),
-        #              self.evt_switch_slicer_method)
-        # self.connect(self.ui.radioButton_manualSlicer, QtCore.SIGNAL('toggled (bool)'),
-        #              self.evt_switch_slicer_method)
-        # self.connect(self.ui.pushButton_slicer, QtCore.SIGNAL('clicked()'),
-        #              self.do_chop)
-        # self.connect(self.ui.pushButton_viewReduced, QtCore.SIGNAL('clicked()'),
-        #              self.do_view_reduced_data)
-        #
-        # # Further operation
-        # # self.connect(self.ui.pushButton_highlight, QtCore.SIGNAL('clicked()'),
-        # #              self.do_highlight_selected)
-        #
-        # # automatic slicer setup
-        # self.connect(self.ui.pushButton_setupAutoSlicer, QtCore.SIGNAL('clicked()'),
-        #              self.do_setup_uniform_slicer)
-        # self.connect(self.ui.checkBox_showSlicer, QtCore.SIGNAL('stateChanged(int)'),
-        #              self.evt_show_slicer)
-        #
-        # # manual slicer picker
-        # # self.connect(self.ui.pushButton_addPicker, QtCore.SIGNAL('clicked()'),
-        # #              self.do_picker_add)
-        # # self.connect(self.ui.pushButton_abortPicker, QtCore.SIGNAL('clicked()'),
-        # #              self.do_picker_abort)
-        # # self.connect(self.ui.pushButton_setPicker, QtCore.SIGNAL('clicked()'),
-        # #              self.do_picker_set)
-        # # self.connect(self.ui.pushButton_selectPicker, QtCore.SIGNAL('clicked()'),
-        # #              self.do_enter_select_picker_mode)
-        # self.connect(self.ui.pushButton_showManualSlicerTable, QtCore.SIGNAL('clicked()'),
-        #              self.do_show_manual_slicer_table)
-        # self.connect(self.ui.pushButton_loadSlicerFile, QtCore.SIGNAL('clicked()'),
-        #              self.do_import_slicer_file)
-        #
-        # # Slicer table
-        # # self.connect(self.ui.pushButton_selectAll, QtCore.SIGNAL('clicked()'),
-        # #              self.do_select_time_segments)
-        # # self.connect(self.ui.pushButton_deselectAll, QtCore.SIGNAL('clicked()'),
-        # #              self.do_deselect_time_segments)
-        #
-        # # Canvas
-        # self.connect(self.ui.pushButton_doPlotSample, QtCore.SIGNAL('clicked()'),
-        #              self.evt_plot_sample_log)
-        # self.connect(self.ui.pushButton_resizeCanvas, QtCore.SIGNAL('clicked()'),
-        #              self.do_resize_canvas)
-        # self.connect(self.ui.comboBox_logNames, QtCore.SIGNAL('currentIndexChanged(int)'),
-        #              self.evt_plot_sample_log)
-        #
-        # self.connect(self.ui.radioButton_useTimeResolution, QtCore.SIGNAL('toggled(bool)'),
-        #              self.evt_change_resolution_type)
-        #
-        # self.connect(self.ui.pushButton_prevPartialLog, QtCore.SIGNAL('clicked()'),
-        #              self.do_load_prev_log_frame)
-        # self.connect(self.ui.pushButton_nextPartialLog, QtCore.SIGNAL('clicked()'),
-        #              self.do_load_next_log_frame)
-        #
-        # # menu actions
-        # self.connect(self.ui.actionExit, QtCore.SIGNAL('triggered()'),
-        #              self.evt_quit_no_save)
-
-        # # Event handling for pickers
+        # Event handling for pickers
         self._mtsFileLoaderWindow = None
 
         # child windows
         self._quickChopDialog = None
-
-        # Initial setup
-        if init_run is not None:
-            assert isinstance(init_run, int)
-            # self.ui.lineEdit_runNumber.setText('%d' % init_run)
-            self._iptsNumber = ipts_number
-        else:
-            self._iptsNumber = None
 
         # Class variables
         self._logNameList = list()
@@ -386,37 +278,43 @@ class EventSlicerSetupWindow(QMainWindow):
         Save a certain number of time segment from table tableWidget_segments
         :return:
         """
+        if self._currRunNumber is None:
+            gui_helper.pop_message(self, 'Run number has not been set', message_type='error')
+            return
+
         # get the run and raw file
         raw_file_name = None
         try:
-            run_number = int(self.ui.lineEdit_runNumber.text())
+            run_number = self._currRunNumber
             status, info_tup = self.get_controller().get_run_info(run_number)
             if status:
                 raw_file_name = info_tup[0]
         except ValueError as val_error:
             raise RuntimeError('Unable to find out run number due to {0}'.format(val_error))
 
-        # pop up the dialog
-        self._quickChopDialog = QuickChopDialog.QuickChopDialog(self, self._currRunNumber, raw_file_name)
-        result = self._quickChopDialog.exec_()
-
-        # quit if user cancels the operation
-        if result == 0:
-            # cancel operation
-            return
-        else:
-            # get information from the dialog box
-            output_to_archive = self._quickChopDialog.output_to_archive
-            if output_to_archive:
-                output_dir = None
-            else:
-                output_dir = self._quickChopDialog.output_directory
-
-            to_save_nexus = self._quickChopDialog.save_to_nexus
-            to_reduce_gsas = self._quickChopDialog.reduce_data
-        # END-IF-ELSE
+        # get the output directory and mode
+        # self._quickChopDialog = QuickChopDialog.QuickChopDialog(self, self._currRunNumber, raw_file_name)
+        # result = self._quickChopDialog.exec_()
+        #
+        # # quit if user cancels the operation
+        # if result == 0:
+        #     # cancel operation
+        #     return
+        # else:
+        #     # get information from the dialog box
+        #     output_to_archive = self._quickChopDialog.output_to_archive
+        #     if output_to_archive:
+        #         output_dir = None
+        #     else:
+        #         output_dir = self._quickChopDialog.output_directory
+        #
+        #     to_save_nexus = self._quickChopDialog.save_to_nexus
+        #     to_reduce_gsas = self._quickChopDialog.reduce_data
+        # # END-IF-ELSE
 
         # get chop manager
+        checkdatatypes.check_string_variable('Event slicing key', self._currSlicerKey)
+
         assert isinstance(self._currSlicerKey, str), 'Slicer key %s must be a string but not %s.' \
                                                      '' % (str(self._currSlicerKey), type(self._currSlicerKey))
         status, message = self.get_controller().slice_data(run_number, self._currSlicerKey,
@@ -426,9 +324,9 @@ class EventSlicerSetupWindow(QMainWindow):
                                                            output_dir=output_dir,
                                                            export_log_type='loadframe')
         if status:
-            GuiUtility.pop_dialog_information(self, message)
+            gui_helper.pop_message(self, message, message_type='information')
         else:
-            GuiUtility.pop_dialog_error(self, message)
+            gui_helper.pop_message(self, message, message_type='error')
 
         return
 
@@ -451,38 +349,13 @@ class EventSlicerSetupWindow(QMainWindow):
             ref_run, run_start, slicer_list = reb_obj
         else:
             err_msg = str(ret_obj)
-            GuiUtility.pop_dialog_error(self, err_msg)
+            gui_helper.pop_message(self, err_msg, message_type='error')
             return
-
-        # parse file
-        # if True:
-        #     # TODO/FIXME/NOWNOW - This method should be generalized with other slicer file parser
-        #     #                    chop_utility via controller
-        #     slicer_file = open(slicer_file_name, 'r')
-        #     raw_lines = slicer_file.readlines()
-        #     slicer_file.close()
-        #
-        #     slicer_list = list()
-        #     for line in raw_lines:
-        #         # print '[DB...BAT] Line: {0}'.format(line)
-        #         line = line.strip()
-        #         if len(line) == 0 or line[0] == '#':
-        #             continue
-        #
-        #         terms = line.split()
-        #         # print '[DB...BAT] Line split to {0}'.format(terms)
-        #         if len(terms) < 3:
-        #             continue
-        #         start_time = float(terms[0])
-        #         stop_time = float(terms[1])
-        #         target_ws = str(terms[2])
-        #         slicer_list.append((start_time, stop_time, target_ws))
-        #         # END-FOR
-        # # END-IF
 
         # check
         if len(slicer_list) == 0:
-            GuiUtility.pop_dialog_error(self, 'There is no valid slicers in file {0}'.format(slicer_file_name))
+            gui_helper.pop_message(self, 'There is no valid slicers in file {0}'.format(slicer_file_name),
+                                   message_type='error')
             return
         else:
             # sort
@@ -506,45 +379,6 @@ class EventSlicerSetupWindow(QMainWindow):
                 self.ui.graphicsView_main.add_picker(start_time - run_start_s)
             self.ui.graphicsView_main.add_picker(stop_time - run_start_s)
             prev_stop_time = stop_time
-
-        return
-
-    def do_load_mts_log(self):
-        """ Load MTS log file
-
-        :return:
-        """
-        # get file and match
-        mts_log_file = str(self.ui.lineEdit_logFileName.text())
-        assert mts_log_file in self._mtsLogFormat, 'MTS log format has not key for log file %s. Current keys are' \
-                                                   '%s.' % (mts_log_file, str(self._mtsLogFormat.keys()))
-
-        # block ID and set up average step size
-        block_index = int(self.ui.comboBox_blockList.currentText())
-
-        # get this dictionary
-        mts_log_dict = self._mtsLogFormat[mts_log_file]
-
-        print '[DB...BAT] mts log dict: ', mts_log_dict
-
-        duration = mts_log_dict['duration'][block_index][1] - mts_log_dict['duration'][block_index][0]
-        num_points = mts_log_dict['data'][block_index][1] - mts_log_dict['data'][block_index][0]
-        self._averagePointsPerSecond = int(num_points / duration)
-        assert self._averagePointsPerSecond > 1, 'Number of data points per seconds %d must be large than 0.' \
-                                                 '' % self._averagePointsPerSecond
-
-        # get delta points
-        delta_points = self.get_data_size_to_load()
-
-        # set up start and stop
-        self._currentStartPoint = 0
-        self._currentStopPoint = self._currentStartPoint + delta_points
-        self._blockIndex = block_index
-
-        # load
-        self.load_plot_mts_log(reset_canvas=True)
-
-        self._currLogType = 'mts'
 
         return
 
@@ -614,9 +448,9 @@ class EventSlicerSetupWindow(QMainWindow):
         :return:
         """
         # Get run number
-        run_number = GuiUtility.parse_integer(self.ui.lineEdit_runNumber)
+        run_number = self._currRunNumber
         if run_number is None:
-            GuiUtility.pop_dialog_error(self, 'Unable to load run as value is not specified.')
+            gui_helper.pop_message(self, 'Unable to load run as value is not specified.', message_type='error')
             return
 
         # Get sample logs
@@ -633,8 +467,8 @@ class EventSlicerSetupWindow(QMainWindow):
             self.ui.label_runInformation.setText(run_info_str)
 
         except NotImplementedError as err:
-            GuiUtility.pop_dialog_error(self,
-                                        'Unable to load sample logs from run %d due to %s.' % (run_number, str(err)))
+            gui_helper.pop_message(self, 'Unable to load sample logs from run %d due to %s.' % (run_number, str(err)),
+                                   message_type='error')
             return
         finally:
             # self.ui.graphicsView_main.remove_slicers()
@@ -721,8 +555,6 @@ class EventSlicerSetupWindow(QMainWindow):
 
         :return:
         """
-        import ManualSlicerSetupDialog
-
         if self._manualSlicerDialog is None:
             self._manualSlicerDialog = ManualSlicerSetupDialog.ManualSlicerSetupTableDialog(self)
             self._manualSlicerDialog.setWindowTitle('New!')
@@ -739,13 +571,8 @@ class EventSlicerSetupWindow(QMainWindow):
         launch the window to view reduced data
         :return:
         """
-        import ReducedDataView
-
         # launch reduced-data-view window
-        view_window = self._myParent.do_launch_reduced_data_viewer()
-        assert isinstance(view_window, ReducedDataView.GeneralPurposedDataViewWindow),\
-            'The view window ({0}) is not a proper ReducedDataView.GeneralPurposedDataViewWindow instance.' \
-            ''.format(view_window.__class__.__name__)
+        view_window = self._myParent
 
         # get chopped and reduced workspaces from controller
         try:
@@ -766,17 +593,7 @@ class EventSlicerSetupWindow(QMainWindow):
         except RuntimeError as run_err:
             error_msg = 'Unable to get chopped and reduced workspaces. for run {0} with slicer {1} due to {2}.' \
                         ''.format(self._currRunNumber, self._currSlicerKey, run_err)
-            GuiUtility.pop_dialog_error(self, error_msg)
-
-        return
-
-    def do_scan_log_file(self):
-        """
-        Purpose: read MTS log file by launching an MTS log file parsing window
-        :return:
-        """
-        self._mtsFileLoaderWindow = LoadMTSLogWindow.LoadMTSLogFileWindow(self)
-        self._mtsFileLoaderWindow.show()
+            gui_helper.pop_message(self, error_msg, message_type='error')
 
         return
 
@@ -797,9 +614,9 @@ class EventSlicerSetupWindow(QMainWindow):
         :return:
         """
         # read the values
-        start_time = GuiUtility.parse_float(self.ui.lineEdit_slicerStartTime)
-        stop_time = GuiUtility.parse_float(self.ui.lineEdit_slicerStopTime)
-        step = GuiUtility.parse_float(self.ui.lineEdit_slicerLogValueStep)
+        start_time = gui_helper.parse_float(self.ui.lineEdit_slicerStartTime)
+        stop_time = gui_helper.parse_float(self.ui.lineEdit_slicerStopTime)
+        step = gui_helper.parse_float(self.ui.lineEdit_slicerLogValueStep)
 
         # choice
         if self.ui.radioButton_timeSlicer.isChecked():
@@ -814,8 +631,8 @@ class EventSlicerSetupWindow(QMainWindow):
                 self._currSlicerKey = ret_obj
                 message = 'Time slicer: from %s to %s with step %f.' % (str(start_time), str(stop_time), step)
             else:
-                GuiUtility.pop_dialog_error(self, 'Failed to generate data slicer by time due to %s.'
-                                                  '' % str(ret_obj))
+                gui_helper.pop_message(self, 'Failed to generate data slicer by time due to {}.'.format(ret_obj),
+                                       message_type='error')
                 return
 
         elif self.ui.radioButton_logValueSlicer.isChecked():
@@ -823,9 +640,9 @@ class EventSlicerSetupWindow(QMainWindow):
             log_name = str(self.ui.comboBox_logNames.currentText())
             # log name might be with information
             log_name = log_name.split('(')[0].strip()
-            min_log_value = GuiUtility.parse_float(self.ui.lineEdit_minSlicerLogValue)
-            max_log_value = GuiUtility.parse_float(self.ui.lineEdit_maxSlicerLogValue)
-            log_value_step = GuiUtility.parse_float(self.ui.lineEdit_slicerLogValueStep)
+            min_log_value = gui_helper.parse_float(self.ui.lineEdit_minSlicerLogValue)
+            max_log_value = gui_helper.parse_float(self.ui.lineEdit_maxSlicerLogValue)
+            log_value_step = gui_helper.parse_float(self.ui.lineEdit_slicerLogValueStep)
             value_change_direction = str(self.ui.comboBox_logChangeDirection.currentText())
 
             try:
@@ -837,12 +654,15 @@ class EventSlicerSetupWindow(QMainWindow):
                 if status:
                     self._currSlicerKey = ret_obj
                 else:
-                    GuiUtility.pop_dialog_error(self, 'Failed to generate data slicer from sample log due to %s.'
-                                                      '' % ret_obj)
+                    gui_helper.pop_message(self, 'Failed to generate data slicer from sample log due to {}.'
+                                                 ''.format(ret_obj),
+                                           message_type='error')
+                    return
+                # END-IF-ELSE
             except RuntimeError as run_err:
                 # run time error
-                GuiUtility.pop_dialog_error(self, 'Unable to generate data slicer from sample log due to %s.'
-                                                  '' % str(run_err))
+                gui_helper.pop_message(self, 'Unable to generate data slicer from sample log due to {}.'
+                                             ''.format(run_err))
                 return
 
             message = 'Log {0} slicer: from {1} to {2} with step {3}.'.format(log_name,
@@ -960,7 +780,7 @@ class EventSlicerSetupWindow(QMainWindow):
             if status:
                 slicer_time_vec, slicer_ws_vec = ret_obj
             else:
-                GuiUtility.pop_dialog_error(self, str(ret_obj))
+                gui_helper.pop_dialog_error(self, str(ret_obj))
                 return
             self.ui.graphicsView_main.show_slicers(slicer_time_vec, slicer_ws_vec)
 
@@ -994,7 +814,8 @@ class EventSlicerSetupWindow(QMainWindow):
         if status:
             self._currSlicerKey = ret_obj
         else:
-            GuiUtility.pop_dialog_error(self, 'Failed to generate arbitrary data slicer due to {0}.'.format(ret_obj))
+            gui_helper.pop_message(self, 'Failed to generate arbitrary data slicer due to {0}.'.format(ret_obj),
+                                   message_type='error')
 
         return
 
@@ -1180,11 +1001,12 @@ class EventSlicerSetupWindow(QMainWindow):
         use_time_res = self.ui.radioButton_useTimeResolution.isChecked()
         use_num_res = self.ui.radioButton_useMaxPointResolution.isChecked()
         if use_time_res:
-            resolution = GuiUtility.parse_float(self.ui.lineEdit_timeResolution)
+            resolution = gui_helper.parse_float(self.ui.lineEdit_timeResolution)
         elif use_num_res:
-            resolution = GuiUtility.parse_float(self.ui.lineEdit_resolutionMaxPoints)
+            resolution = gui_helper.parse_float(self.ui.lineEdit_resolutionMaxPoints)
         else:
-            GuiUtility.pop_dialog_error(self, 'Either time or number resolution should be selected.')
+            gui_helper.pop_message(self, 'Either time or number resolution should be selected.',
+                                   message_type='error')
             return
 
         # get the sample log data
@@ -1198,8 +1020,8 @@ class EventSlicerSetupWindow(QMainWindow):
         # END-IF
 
         # get range of the data
-        new_min_x = GuiUtility.parse_float(self.ui.lineEdit_minX)
-        new_max_x = GuiUtility.parse_float(self.ui.lineEdit_maxX)
+        new_min_x = gui_helper.parse_float(self.ui.lineEdit_minX)
+        new_max_x = gui_helper.parse_float(self.ui.lineEdit_maxX)
 
         # adjust the resolution
         plot_x, plot_y = self.process_data(vec_x, vec_y, use_num_res, use_time_res, resolution,
@@ -1281,48 +1103,14 @@ class EventSlicerSetupWindow(QMainWindow):
 
         return
 
-    def setup(self):
+    def set_experiment(self, ipts_number, run_number):
         """ Set up from parent main window: think of what to set up
         :return:
         """
-        # TODO/FIXME/NOW - How to make this work?
-        # 1. controller
-        # 2. IPTS number
-        # 3. Refer to command CHOP
+        checkdatatypes.check_int_variable('IPTS number', ipts_number, (0, None))
+        checkdatatypes.check_int_variable('Run nmber', run_number, (0, None))
 
-        # ipts_run_dict = self._myParent.get_archived_runs()
-        #
-        # # Set to tree
-        # for ipts in ipts_run_dict.keys():
-        #     run_list = ipts_run_dict[ipts]
-        #     self.ui.treeView_iptsRun.add_ipts_runs(ipts, run_list)
-
-        return
-
-    # Add slots for
-    @QtCore.pyqtSlot(int)
-    def signal_scanned_mts_log(self, val):
-        """
-        Handle signal from MTS log file window to notify that scanning MTS log file is finished.
-        :param val:
-        :return:
-        """
-        # check signal
-        if val != 1:
-            raise RuntimeError('Expecting signal value to be 1 but not %d.' % val)
-
-        assert self._mtsFileLoaderWindow is not None, 'MTS file loader window is None, i.e.,' \
-                                                      'it has not been launched.'
-
-        # get data from window
-        mts_log_file_name = self._mtsFileLoaderWindow.get_log_file()
-        mts_log_format = self._mtsFileLoaderWindow.get_log_format()
-        self._mtsLogFormat[mts_log_file_name] = mts_log_format
-
-        # set up the GUI
-        self.ui.lineEdit_logFileName.setText(mts_log_file_name)
-        self.ui.comboBox_blockList.clear()
-        for block_index in mts_log_format['block'].keys():
-            self.ui.comboBox_blockList.addItems(str(block_index))
+        self._currIPTS = ipts_number
+        self._currRunNumber = run_number
 
         return

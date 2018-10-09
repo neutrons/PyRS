@@ -156,13 +156,13 @@ class GridAlignmentCheckTablesView(QMainWindow):
         self._mutex_param_name_list = False
 
         # set up all the tables
-        self.ui.tableView_gridAlignment.setup()
-        self.ui.tableView_gridStatistic.setup()
-        self.ui.tableView_alignedParameters.setup()
-        self.ui.tableView_matchedGrids.setup()
-        self.ui.tableView_partialMatchedGrids.setup()
-        self.ui.tableView_mismatchedGrids.setup()
-        self.ui.tableView_gridParamAnalysis.setup()
+        self.ui.tableView_gridAlignment.set_experiment()
+        self.ui.tableView_gridStatistic.set_experiment()
+        self.ui.tableView_alignedParameters.set_experiment()
+        self.ui.tableView_matchedGrids.set_experiment()
+        self.ui.tableView_partialMatchedGrids.set_experiment()
+        self.ui.tableView_mismatchedGrids.set_experiment()
+        self.ui.tableView_gridParamAnalysis.set_experiment()
 
         return
 
@@ -593,7 +593,7 @@ class StrainStressTableView(QMainWindow):
         self.ui.setupUi(self)
 
         # init widgets
-        self.ui.tableView_strainStressTable.setup()
+        self.ui.tableView_strainStressTable.set_experiment()
 
         # define event handling
         self.ui.pushButton_close.clicked.connect(self.do_quit)

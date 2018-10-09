@@ -9,12 +9,12 @@ except ImportError:
     from PyQt4.QtGui import QMenu, QAction, QCursor
     
     
-import mplgraphicsview
+import mplgraphicsview1d
 
 COLOR_LIST = ['red', 'green', 'black', 'cyan', 'magenta', 'yellow']
 
 
-class LogGraphicsView(mplgraphicsview.MplGraphicsView):
+class LogGraphicsView(mplgraphicsview1d.MplGraphicsView1D):
     """
     Class ... extends ...
     for specific needs of the graphics view for interactive plotting of sample log,
@@ -32,7 +32,7 @@ class LogGraphicsView(mplgraphicsview.MplGraphicsView):
         :return:
         """
         # Base class constructor
-        mplgraphicsview.MplGraphicsView.__init__(self, parent)
+        super(LogGraphicsView, self).__init__(parent)
 
         # parent window (logical parent)
         self._myParent = None

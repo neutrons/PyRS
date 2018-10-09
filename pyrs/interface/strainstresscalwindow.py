@@ -13,6 +13,9 @@ import ui.ui_sscalvizwindow
 import dialogs
 import datetime
 
+# setup of constants
+SLICE_VIEW_RESOLUTION = 0.0001
+
 
 class StrainStressCalculationWindow(QMainWindow):
     """
@@ -929,9 +932,8 @@ class StrainStressCalculationWindow(QMainWindow):
 
         self.ui.label_sliceInformation.setText(info)
 
-        RESOLUTION = 0.0001
-        slice_min = slice_pos - 0.5 * RESOLUTION
-        slice_max = slice_pos + 0.5 * RESOLUTION
+        slice_min = slice_pos - 0.5 * SLICE_VIEW_RESOLUTION
+        slice_max = slice_pos + 0.5 * SLICE_VIEW_RESOLUTION
 
         range_index_larger = self._slice_view_grid_vec[:, grid_dir] > slice_min
         sub_grid_vec = self._slice_view_grid_vec[range_index_larger]
@@ -940,8 +942,6 @@ class StrainStressCalculationWindow(QMainWindow):
 
         sliced_grid_vec = sub_grid_vec[range_index_smaller]
         sliced_value_vec = sub_value_vec[range_index_smaller]
-
-        print ('[DB...BAT] Grid Matrix: {}; Value Matrix: {}'.format(sliced_grid_vec.shape, sliced_value_vec.shape))
 
         # TODO FIXME - 20180905 -
 

@@ -54,7 +54,7 @@ class FitPeaksWindow(QMainWindow):
         # TODO - 20180805 - Implement : pushButton_plotLogs, comboBox_detectorID
 
         # others
-        self.ui.tableView_fitSummary.setup()
+        self.ui.tableView_fitSummary.set_experiment()
 
         self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
         self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)

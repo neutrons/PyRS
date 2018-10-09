@@ -21,6 +21,16 @@ def test_main():
 
     manual_reduction_window.show()
 
+    # set up IPTS and run number
+    manual_reduction_window.ui.comboBox_iptsNumber.setText('12345')
+    manual_reduction_window.ui.comboBox_calibration.setText('test/whatever.hdf5')
+
+    # test the strip view
+    slice_setup_window = manual_reduction_window.do_launch_slice_setup()
+    assert slice_setup_window.get_nexus_name() == 'whatever', 'NeXus file name is not set up right'
+    slice_setup_window.set_nexus_file('RELF')
+    slice_setup_window.plot_sample_log(log_name='blabla')
+
     return manual_reduction_window
 
 
@@ -32,6 +42,7 @@ def main(argv):
     else:
         _app = QApplication(sys.argv)
     return _app
+
 
 if __name__ == '__main__':
     # Main application

@@ -610,7 +610,6 @@ class StrainStressCalculator(object):
         i_middle = None
         while matched_x_not_found:
             i_middle = (i_start + i_stop) / 2
-            # print ('\t\t[DB...BAT] start = {}, middle = {}, stop = {}'.format(i_start, i_middle, i_stop))
             if abs(xyz[0] - sorted_positions[i_middle][0]) < resolution:
                 # equal continue to find y to match
                 matched_x_not_found = False
@@ -632,15 +631,12 @@ class StrainStressCalculator(object):
 
         if matched_x_not_found:
             # not founded matched X
-            print ('\t[DB...BAT] No matched X found')
             return None
         else:
-            # print ('\t[DB...BAT] Matched X (1 of many) index'.format(i_middle))
             pass
 
         # locate the range of X within tolerance/resolution for searching with Y
         i_start, i_stop = search_neighborhood(sorted_positions, 0, len(sorted_positions)-1, i_middle, 0, resolution)
-        # print ('\t[DB...BAT] New search range for Y: {}, {}'.format(i_start, i_stop))
         orig_start = i_start
         orig_stop = i_stop
         i_middle = None
@@ -667,15 +663,12 @@ class StrainStressCalculator(object):
 
         if matched_y_not_found:
             # not found match Y
-            print ('\t[DB...BAT] No matched X found')
             return None
         else:
-            # print ('\t[DB...BAT] Matched Y (1 of many) index'.format(i_middle))
             pass
 
         # locate the range of Y within tolerance/resolution for searching with X
         i_start, i_stop = search_neighborhood(sorted_positions, orig_start, orig_stop, i_middle, 1, resolution)
-        # print ('\t[DB...BAT] New search range for Z, {}, {}'.format(i_start, i_stop))
 
         orig_start = i_start
         orig_stop = i_stop
@@ -698,9 +691,6 @@ class StrainStressCalculator(object):
             elif i_start < orig_start or i_stop > orig_stop:
                 raise NotImplementedError('It could not happen!')
         # END-WHILE
-
-        if i_middle is None:
-            print ('\t[DB...BAT] No matched Z found')
 
         return i_middle
 
@@ -813,8 +803,6 @@ class StrainStressCalculator(object):
                 self._grid_statistics_dict['min'][dir_i][coord_name] = min_i
                 self._grid_statistics_dict['max'][dir_i][coord_name] = max_i
                 self._grid_statistics_dict['num_indv_values'][dir_i][coord_name] = num_individual_i
-                print ('[DB...BAT] Direction {}: Coordinate {}, Min = {}, Max = {}, Number of individual = {}'
-                       .format(dir_i, i_coord, min_i, max_i, num_individual_i))
             # END-FOR
         # END-FOR
 
@@ -989,84 +977,6 @@ class StrainStressCalculator(object):
 
         return self._workflow_tracker
 
-    def execute_old(self):
-        """
-        calculate the strain and stress for all grids by using E11 as a standard
-        taken out because the workflow is changed!
-        :return:
-        """
-        # it is assumed that the grids that have been aligned
-        # TODO - 20180810 - add some flags to check grid alignment
-
-        # using E11 as the standard grid set
-        for ipt_e11 in range(len(self._sample_positions_dict['e11'])):
-            # get matched grids from other
-            print ipt_e11
-            ipt_e22 = self._match11_dict['e22'][ipt_e11]
-            if not (self._is_plane_strain or self._is_plane_stress):
-                ipt_e33 = self._match11_dict['e33'][ipt_e11]
-            else:
-                ipt_e33 = True
-
-            if ipt_e22 is None:
-                print ('{}-th grid on e11 @ {} has no matched grid on e22... Find a way to interpolate'
-                       ''.format(ipt_e11, self._sample_positions_dict['e11'][ipt_e11]))
-            if ipt_e33 is None:
-                print ('{}-th grid on e11 @ {} has no matched grid on e33.. Find a way to interpolate'
-                       ''.format(ipt_e11, self._sample_positions_dict['e11'][ipt_e11]))
-            if ipt_e22 is None or ipt_e33 is None:
-                continue
-
-            # convert to sample log index
-            scan_log_index_dict = dict()
-
-            grid_pos_e11 = self._sample_positions_dict['e11'][ipt_e11]
-            scan_log_index_dict['e11'] = self._dir_grid_pos_scan_index_dict['e11'][grid_pos_e11]
-
-            grid_pos_e22 = self._sample_positions_dict['e22'][ipt_e22]
-            scan_log_index_dict['e22'] = self._dir_grid_pos_scan_index_dict['e22'][grid_pos_e22]
-
-            debug_out = 'e11: scan-index = {} @ {}, e22: scan-index = {} @ {}, ' \
-                        ''.format(scan_log_index_dict['e11'], grid_pos_e11,
-                                  scan_log_index_dict['e22'], grid_pos_e22)
-            if isinstance(ipt_e33, int):
-                pos_e33 = self._sample_positions_dict['e33'][ipt_e33]
-                scan_log_index_dict['e33'] = self._dir_grid_pos_scan_index_dict['e33'][pos_e33]
-                debug_out += 'e33: scan-index = {} @ {}, ' \
-                             ''.format(scan_log_index_dict['e33'], pos_e33)
-            print (debug_out)
-
-            # calculate peak positions in d-spacing
-            peak_matrix = numpy.zeros(shape=(3, 3), dtype='float')
-            peak_fit_failed = False
-            for mindex, dir_i in enumerate(self._direction_list):
-                peak_i_2theta = self._peak_param_dict[dir_i]['centre'][scan_log_index_dict[dir_i]]
-                lambda_i = self._sample_log_dict[dir_i]['Wavelength'][scan_log_index_dict[dir_i]]
-
-                print ('[DB...BAT] Direction: {}. Log index = {}; Peak center (2theta): {}  degree, wavelength: {}'
-                       ''.format(dir_i, scan_log_index_dict[dir_i], peak_i_2theta, lambda_i))
-                if abs(peak_i_2theta) < 1:
-                    peak_fit_failed = True
-                    continue
-                peak_i_d = lambda_i * 0.5 / math.sin(peak_i_2theta * 0.5)   # self.convert_unit_to_d(peak_i_2theta)
-                peak_matrix[mindex, mindex] = peak_i_d
-            # END-FOR
-
-            if peak_fit_failed:
-                continue
-
-            ss_calculator = StrainStress(peak_pos_matrix=peak_matrix,
-                                         d0=self._d0, young_modulus=self._young_e,
-                                         poisson_ratio=self._poisson_nu,
-                                         is_plane_train=self._is_plane_strain,
-                                         is_plane_stress=self._is_plane_stress)
-            # ss_calculator.get_strain()
-            # ss_calculator.get_stress()
-
-        # END-FOR
-
-        return
-
     def export_2d_slice(self, param_name, is_grid_raw, ss_direction, slice_dir, slice_pos, slice_resolution, file_name):
         """
         export a 2D slice from either raw grids from experiments or grids aligned
@@ -1176,10 +1086,8 @@ class StrainStressCalculator(object):
         min_value = slice_pos - slice_resolution
         max_value = slice_pos + slice_resolution
 
-        print ('[DB...INFO Before slicing: size = {}'.format(param_grid_array.shape[0]))
         slice_array = param_grid_array[min_value <= param_grid_array[:, slice_dir]]
         slice_array = slice_array[slice_array[:, slice_dir] <= max_value]
-        print ('[DB...INFO After  slicing: size = {}'.format(slice_array.shape[0]))
 
         return slice_array
 
@@ -1202,10 +1110,6 @@ class StrainStressCalculator(object):
 
         # retrieve data set
         data_set = self._data_set_dict[direction]
-
-        # print ('DB...BAT] Data set: type = {}.... keys = {}'.format(type(data_set), data_set.keys()))
-
-        print ('[DB...BAT] sample log keys: {}'.format(self._sample_log_dict[direction].keys()))
 
         for scan_log_index in sorted(data_set.keys()):
             x_i = self._sample_log_dict[direction][pos_x][scan_log_index]

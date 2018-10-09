@@ -82,6 +82,28 @@ def browse_file(parent, caption, default_dir, file_filter, file_list=False, save
     return file_name
 
 
+def parse_float(float_str):
+    """
+    parse flaots from a string or a LineEdit
+    :param float_str:
+    :return:
+    """
+    if isinstance(float_str, QLineEdit):
+        float_str = str(float_str.text())
+    elif is_qt4 and isinstance(float_str, QtCore.QString):
+        # There is no QString in PyQt5
+        float_str = str(float_str)
+    else:
+        checkdatatypes.check_string_variable('Integer string', float_str)
+
+    try:
+        float_value = float(float_str)
+    except ValueError as value_error:
+        raise RuntimeError('Unable to parse {0} to integer due to {1}'.format(float_str, value_error))
+
+    return float_value
+
+
 def parse_integer(int_str):
     """
     parse integer from a string or a LineEdit
