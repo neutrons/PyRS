@@ -1400,6 +1400,10 @@ class StrainStressCalculator(object):
         # record data file name
         self._source_file_dict[direction] = file_name
 
+        # check whether all files are loaded
+        # TODO - 20181010 - check whether all the raw files (e11/e22/e33) are ready for next!
+        self.check_raw_files_ready()
+
         return
 
     def rename(self, new_session_name):

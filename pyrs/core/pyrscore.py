@@ -46,8 +46,9 @@ class PyRsCore(object):
         self._last_pole_figure_calculator = None
 
         # strain and stress calculator
-        self._ss_calculator_dict = dict()   # dictionary: key = session name, value = strain-stress-calculator
+        self._ss_calculator_dict = dict()   # [session name][strain/stress type: 1/2/3] = ss calculator
         self._curr_ss_session = None
+        self._curr_ss_type = None
 
         return
 
@@ -67,10 +68,14 @@ class PyRsCore(object):
         :param is_plane_strain:
         :return:
         """
+        ss_type = self._get_strain_stress_type_key(is_plane_strain, is_plane_stress)
         new_ss_calculator = strain_stress_calculator.StrainStressCalculator(session_name, is_plane_strain,
                                                                             is_plane_stress)
-        self._ss_calculator_dict[session_name] = new_ss_calculator
+
+        self._ss_calculator_dict[session_name] = dict()
+        self._ss_calculator_dict[session_name][ss_type] = new_ss_calculator
         self._curr_ss_session = session_name
+        self._curr_ss_type = ss_type
 
         return
 
@@ -107,7 +112,7 @@ class PyRsCore(object):
         if self._curr_ss_session is None:
             return None
 
-        return self._ss_calculator_dict[self._curr_ss_session]
+        return self._ss_calculator_dict[self._curr_ss_session][self._curr_ss_type]
 
     @property
     def working_dir(self):
@@ -344,6 +349,21 @@ class PyRsCore(object):
                                ''.format(data_key, type(data_key), self._optimizer_dict.keys()))
 
         return optimizer
+
+    @staticmethod
+    def _get_strain_stress_type_key(is_plane_strain, is_plane_stress):
+        """
+        blabla
+        :param is_plane_strain:
+        :param is_plane_stress:
+        :return: 1: regular unconstrained, 2: plane strain, 3: plane stress
+        """
+        if is_plane_strain:
+            return 2
+        elif is_plane_stress:
+            return 3
+
+        return 1
 
     def get_detector_ids(self, data_key):
         """
@@ -587,24 +607,30 @@ class PyRsCore(object):
         :param is_plane_stress:
         :return:
         """
-        # rename the old one
-        if self._curr_ss_session not in self._ss_calculator_dict:
+        if self._curr_ss_session is None:
+            raise RuntimeError('Current session is not named.')
+        elif self._curr_ss_session not in self._ss_calculator_dict:
             print ('[WARNING] Current strain/stress session does not exist.')
             return
 
+        ss_type_index = self._get_strain_stress_type_key(is_plane_strain, is_plane_stress)
+        if ss_type_index == self._curr_ss_type:
+            raise RuntimeError('Same strain/stress type.. .blabla')
+
         # rename the current strain stress name
-        saved_ss_name = self._curr_ss_session + '_{}_{}'.format(is_plane_strain, is_plane_stress)
-        self._ss_calculator_dict[self._curr_ss_session].rename(saved_ss_name)
-        prev_calculator = self._ss_calculator_dict[self._curr_ss_session]
-        self._ss_calculator_dict[saved_ss_name] = prev_calculator
+        # saved_ss_name = self._curr_ss_session + '_{}_{}'.format(is_plane_strain, is_plane_stress)
+        # self._ss_calculator_dict[self._curr_ss_session].rename(saved_ss_name)
+        # prev_calculator = self._ss_calculator_dict[self._curr_ss_session]
+        # self._ss_calculator_dict[saved_ss_name] = prev_calculator
 
         # reset new strain/stress calculator
         new_ss_calculator = strain_stress_calculator.StrainStressCalculator(self._curr_ss_session, is_plane_strain,
                                                                             is_plane_stress)
 
-        self._ss_calculator_dict[self._curr_ss_session] = new_ss_calculator
+        self._ss_calculator_dict[self._curr_ss_session][ss_type_index] = new_ss_calculator
+        self._curr_ss_type = ss_type_index
 
-        return
+        return self._curr_ss_session
 
     def save_nexus(self, data_key, file_name):
         """
