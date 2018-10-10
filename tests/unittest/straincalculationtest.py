@@ -143,11 +143,12 @@ def test_copy_from_unconstrained_to_plane():
     # create a plane strain/stress calculator
     ss_calculator = rs_core.strain_stress_calculator
 
-    ss_calculator.migrate('new plane strain', plane_strain=True, plane_stress=False)
+    new_ss_calculator = ss_calculator.migrate(plane_strain=True, plane_stress=False)
 
     # re check
-    ss_calculator.check_grids_alignment()
-    ss_calculator.execute()
+    new_ss_calculator.check_grids_alignment()
+    new_ss_calculator.located_matched_grids(resolution=0.001)
+    new_ss_calculator.execute()
 
     return
 
@@ -313,7 +314,10 @@ def test_plane_stress():
 if __name__ == '__main__':
     """ main
     """
-    test_strain_calculation()
-    test_strain_stress_user_defined_grid()
-    test_plane_strain()
-    test_plane_stress()
+    if False:
+        test_strain_calculation()
+    if True:
+        test_copy_from_unconstrained_to_plane()
+    if False:
+        test_plane_strain()
+        test_plane_stress()

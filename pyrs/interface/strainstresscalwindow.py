@@ -89,8 +89,8 @@ class StrainStressCalculationWindow(QMainWindow):
         self.ui.comboBox_paramDirection.currentIndexChanged.connect(self.do_plot_sliced_3d)
         self.ui.comboBox_sliceDirection.currentIndexChanged.connect(self.do_plot_sliced_3d)
         self.ui.comboBox_sampleLogNameX_E11.currentIndexChanged.connect(self.evt_sync_grid_x_name)
-        self.ui.comboBox_sampleLogNameY_E11.currentIndexChanged.connect(self.evt_synch_grid_y_name)
-        self.ui.comboBox_sampleLogNameZ_E11.currentIndexChanged.connect(self.evt_synch_grid_z_name)
+        self.ui.comboBox_sampleLogNameY_E11.currentIndexChanged.connect(self.evt_sync_grid_y_name)
+        self.ui.comboBox_sampleLogNameZ_E11.currentIndexChanged.connect(self.evt_sync_grid_z_name)
 
         # menu
         self.ui.actionNew_Session.triggered.connect(self.do_new_session)
@@ -110,20 +110,21 @@ class StrainStressCalculationWindow(QMainWindow):
         self._load_file_radio_mutex = False
         self._d0_type_mutex = False
         self._auto_plot_mutex = False  # Flag to control the event handler to load and plot peak parameter/strain/stress
-        self._sync_grid_x_mutex = False  # Flag to control the event ...
-        self._sync_grid_y_mutex = False
-        self._sync_grid_z_mutex = False
+        self._sync_grid_xyz_name_mutex = False  # Flag to control the event ...
+        self._strain_stress_type_mutex = False
 
         # create a default new session
-        session_name = str(self.ui.lineEdit_sessionName)
-        self.create_new_session(session_name= session_name, is_plane_strain=False,
+        session_name = str(self.ui.lineEdit_sessionName.text())
+        self.create_new_session(session_name=session_name, is_plane_strain=False,
                                 is_plane_stress=False)
 
         return
 
     def evt_sync_grid_x_name(self):
-        # TODO - 20180918 - Doc!
-        if self._sync_grid_x_mutex:
+        """ Synchronize the combo boxes for sample log X-direction for all E11/E22/E33
+        :return:
+        """
+        if self._sync_grid_xyz_name_mutex:
             return
 
         # Note: using this algorithm because it is easier for coding
@@ -135,9 +136,11 @@ class StrainStressCalculationWindow(QMainWindow):
 
         return
 
-    def evt_synch_grid_y_name(self):
-        # TODO - 20180918 - Doc!
-        if self._sync_grid_x_mutex:
+    def evt_sync_grid_y_name(self):
+        """ Synchronize the combo boxes for sample log Y-direction for all E11/E22/E33
+        :return:
+        """
+        if self._sync_grid_xyz_name_mutex:
             return
 
         # Note: using this algorithm because it is easier for coding
@@ -147,9 +150,11 @@ class StrainStressCalculationWindow(QMainWindow):
 
         return
 
-    def evt_synch_grid_z_name(self):
-        # TODO - 20180918 - Doc!
-        if self._sync_grid_x_mutex:
+    def evt_sync_grid_z_name(self):
+        """ Synchronize the combo boxes for sample log Z-direction for all E11/E22/E33
+        :return:
+        """
+        if self._sync_grid_xyz_name_mutex:
             return
 
         # Note: using this algorithm because it is easier for coding
@@ -240,18 +245,9 @@ class StrainStressCalculationWindow(QMainWindow):
 
         return
 
-    def set_to_slice_peaks(self):
-        """
-        for external to call
-        :return:
-        """
-        self.ui.comboBox_type.setCurrentIndex(0)
-
-        return
-
     def do_get_grid_alignment_info(self):
         """
-        align the loaded data for XYZ
+        align the grids among all the loaded data for different direction
         :return:
         """
         pos_x_sample_name_dict = dict()
@@ -297,10 +293,10 @@ class StrainStressCalculationWindow(QMainWindow):
 
         stat_dict = self._core.strain_stress_calculator.get_grids_information()
         self._grid_alignment_table_view.set_grid_statistics_table(stat_dict)
-        # print ('[DB...BAT] Grid statistics: {}'.format(stat_dict))
-        """
-         {'max': {'e11': {'Y': 29.658988000000001, 'X': 152.31347, 'Z': 49.519986000000003}, 'e22': {'Y': 29.658988000000001, 'X': 152.31347, 'Z': 49.519986000000003}}, 'num_indv_values': {'e11': {'Y': 38, 'X': 14, 'Z': 6}, 'e22': {'Y': 37, 'X': 13, 'Z': 5}}, 'min': {'e11': {'Y': 18.105157999999999, 'X': -143.655483, 'Z': 17.602565999999999}, 'e22': {'Y': 18.105157999999999, 'X': -143.655483, 'Z': 17.602565999999999}}}
-        """
+
+        # end of process: enable strain/stress calculation button and alignment result button
+        self.ui.pushButton_showAlignGridTable.setEnabled(True)
+        self.show_message(str(self._core.strain_stress_calculator))
 
         return
 
@@ -390,7 +386,7 @@ class StrainStressCalculationWindow(QMainWindow):
                                               save_file=False)
         if ld_file_name is not None:
             self.ui.lineEdit_e11ScanFile.setText(ld_file_name)
-            self._default_dir = str(os.path.dirname(ld_file_name))
+            self._default_dir = os.path.dirname(str(ld_file_name))
 
         return
 
@@ -497,6 +493,8 @@ class StrainStressCalculationWindow(QMainWindow):
         load strain/stress file from either raw files or previously saved file
         :return:
         """
+        print ('[DB...BAT] RAW files are to be loaded.')
+
         # current session is not canceled: ask user whether it is OK to delete and start a new one
         if self._curr_data_key is not None:
             continue_load = gui_helper.get_user_permit(caption='Current session shall be closed '
@@ -523,16 +521,9 @@ class StrainStressCalculationWindow(QMainWindow):
 
             # load raw file
             self.load_raw_file(e11_file_name, 'e11')
-            sample_logs_e11 = self._core.strain_stress_calculator.get_sample_logs_names('e11', to_set=True)
-
             self.load_raw_file(e22_file_name, 'e22')
-            sample_logs_e22 = self._core.strain_stress_calculator.get_sample_logs_names('e22', to_set=True)
-
             if e33_file_name is not None:
                 self.load_raw_file(e33_file_name, 'e33')
-                sample_logs_e33 = self._core.strain_stress_calculator.get_sample_logs_names('e33', to_set=True)
-            else:
-                sample_logs_e33 = None
 
         else:
             # load saved files
@@ -541,10 +532,6 @@ class StrainStressCalculationWindow(QMainWindow):
             data_key, message = self._core.load_strain_stress_file(file_name=reduced_file_name)
             raise RuntimeError('Not Implemented')
         # END-IF
-
-        # set up the combo box for 3 directions
-        # TODO - 20181010 - Move this to load_raw_file()
-        self._setup_sample_logs_combo_box(sample_logs_e11, sample_logs_e22, sample_logs_e33)
 
         # convert the peak centers to dspacing
         self._core.strain_stress_calculator.convert_peaks_positions()
@@ -558,13 +545,14 @@ class StrainStressCalculationWindow(QMainWindow):
             self.ui.comboBox_paramDirection.addItem(dir_i)
         self._auto_plot_mutex = False
 
+        # enable alignment group
+        self.ui.groupBox_alignGrids.setEnabled(True)
+        self.ui.groupBox_calculator.setEnabled(False)
         # enable alignment options: force to check grid alignment first
-
-
         self.ui.pushButton_preAlignSampleLogXYZ.setEnabled(True)
+        self.ui.pushButton_showAlignGridTable.setEnabled(False)
         # disable load
-        self.ui.pushButton_alignGrids.setEnabled(False)
-        self.ui.pushButton_loadFile.setEnabled(False)
+        self.ui.groupBox_importData.setEnabled(False)
 
         # show information
         info_str = '[{}]Reduced files for strain/stress calculation session {} are loaded:\n' \
@@ -574,16 +562,16 @@ class StrainStressCalculationWindow(QMainWindow):
             info_str += '{}\n'.format(text_edit.text())
             # set text color
             text_edit.setStyleSheet("color: rgb(0, 255, 0);")
-        self.ui.plainTextEdit_info.insertPlainText(info_str)
+        info_str = '{}\n{}'.format(str(self._core.strain_stress_calculator), info_str)
+
+        self.show_message(info_str)
 
         return
 
-    # TODO - 20181010 - Make it work with single direction e11/e22/e33
-    def _setup_sample_logs_combo_box(self, sample_logs_e11, sample_logs_e22, sample_logs_e33):
+    def _setup_sample_logs_combo_box(self, sample_logs_list, measurement_direction):
         """ set up the sample log combo box
-        :param sample_logs_e11:
-        :param sample_logs_e22:
-        :param sample_logs_e33:
+        :param sample_logs_list:
+        :param measurement_direction:
         :return:
         """
         def add_values(box_list, sample_log_list, func_is_allowed):
@@ -602,32 +590,34 @@ class StrainStressCalculationWindow(QMainWindow):
                     box.addItem(log_name_i)
 
             return
+        # END-DEF-add_values()s
 
-        # e11
-        self._sync_grid_x_mutex = True
-        e11_box_list = [self.ui.comboBox_sampleLogNameX_E11,
-                        self.ui.comboBox_sampleLogNameY_E11,
-                        self.ui.comboBox_sampleLogNameZ_E11]
-        add_values(e11_box_list, sample_logs_e11,
+        # check inputs
+        checkdatatypes.check_list('Sample log names', sample_logs_list)
+        checkdatatypes.check_string_variable('Measurement direction', measurement_direction,
+                                             allowed_values=['e11', 'e22', 'e33'])
+
+        # set up box list
+        if measurement_direction == 'e11':
+            sample_box_list = [self.ui.comboBox_sampleLogNameX_E11,
+                               self.ui.comboBox_sampleLogNameY_E11,
+                               self.ui.comboBox_sampleLogNameZ_E11]
+        elif measurement_direction == 'e22':
+            sample_box_list = [self.ui.comboBox_sampleLogNameX_E22,
+                               self.ui.comboBox_sampleLogNameY_E22,
+                               self.ui.comboBox_sampleLogNameZ_E22]
+        elif measurement_direction == 'e33':
+            sample_box_list = [self.ui.comboBox_sampleLogNameX_E33,
+                               self.ui.comboBox_sampleLogNameY_E33,
+                               self.ui.comboBox_sampleLogNameZ_E33]
+        else:
+            raise RuntimeError('Not possible')
+
+        # set up the box
+        self._sync_grid_xyz_name_mutex = True
+        add_values(sample_box_list, sample_logs_list,
                    self._core.strain_stress_calculator.is_allowed_grid_position_sample_log)
-        self._sync_grid_x_mutex = False
-
-        # e22
-        e22_box_list = [self.ui.comboBox_sampleLogNameX_E22,
-                        self.ui.comboBox_sampleLogNameY_E22,
-                        self.ui.comboBox_sampleLogNameZ_E22]
-        add_values(e22_box_list, sample_logs_e22,
-                   self._core.strain_stress_calculator.is_allowed_grid_position_sample_log)
-
-        # e33
-        if sample_logs_e33 is None:
-            sample_logs_e33 = ['']  # 1 item as empty
-
-        e33_box_list = [self.ui.comboBox_sampleLogNameX_E33,
-                        self.ui.comboBox_sampleLogNameY_E33,
-                        self.ui.comboBox_sampleLogNameZ_E33]
-        add_values(e33_box_list, sample_logs_e33,
-                   self._core.strain_stress_calculator.is_allowed_grid_position_sample_log)
+        self._sync_grid_xyz_name_mutex = False
 
         return
 
@@ -650,9 +640,7 @@ class StrainStressCalculationWindow(QMainWindow):
         load peak information files
         :return:
         """
-        blabla()
-
-        return
+        raise RuntimeError('It is not decided about the peak information file format')
 
     def do_slice_3d_data(self):
         """
@@ -684,10 +672,13 @@ class StrainStressCalculationWindow(QMainWindow):
         :return:
         """
         # get new session's name
-        if isinstance(session_name, unicode):
+        if isinstance(session_name, unicode) or session_name.__class__.__name__.count('QString') == 1:
             session_name = str(session_name).strip()
         else:
             checkdatatypes.check_string_variable('Strain/stress session name', session_name)
+
+        print ('[DB...BAT] New Session {}... Plane Strain {}... Plane Stress {}'
+               ''.format(session_name, is_plane_strain, is_plane_stress))
 
         # check with current session
         if self._session_name is not None and session_name == self._session_name:
@@ -698,7 +689,7 @@ class StrainStressCalculationWindow(QMainWindow):
             return
         elif self._session_name is not None:
             # TODO - FIXME - Auto/Semi-auto/Manual save current session
-            pass
+            print ('[WARNING] Previous session {} is NOT saved'.format(self._session_name))
 
         # check types
         checkdatatypes.check_bool_variable('Flag for being plane strain', is_plane_strain)
@@ -719,7 +710,9 @@ class StrainStressCalculationWindow(QMainWindow):
         else:
             index = 0
         if self.ui.comboBox_typeStrainStress.currentIndex() != index:
+            self._strain_stress_type_mutex = True
             self.ui.comboBox_typeStrainStress.setCurrentIndex(index)
+            self._strain_stress_type_mutex = False
 
         # disable calculation group before align the measuring data points
         self.ui.groupBox_importData.setEnabled(True)
@@ -738,15 +731,17 @@ class StrainStressCalculationWindow(QMainWindow):
             edit.setText('')
 
         # enable load button
+        self.ui.groupBox_importRawFiles.setEnabled(True)
         self.ui.pushButton_loadFile.setEnabled(True)
 
         # disable calculation until the alignment is finished
         self.ui.pushButton_alignGrids.setEnabled(False)
         self.ui.groupBox_calculator.setEnabled(False)
         self.ui.pushButton_calUnconstrainedStress.setEnabled(False)
-        # disable loading if not
+        self.ui.pushButton_showAlignGridTable.setEnabled(False)
 
-        self.show_message(self._core.strain_stress_calculator)
+        # disable loading if not
+        self.show_message(str(self._core.strain_stress_calculator))
 
         # set title
         self.setWindowTitle(session_name)
@@ -827,6 +822,11 @@ class StrainStressCalculationWindow(QMainWindow):
         except RuntimeError as run_error:
             gui_helper.pop_message(self, message='Unable to load reduced HB2B diffraction file {} '
                                                  'due to {}'.format(file_name, run_error))
+
+        # set up the combo box for 3 directions
+        sample_logs_list = self._core.strain_stress_calculator.get_sample_logs_names(direction, to_set=False)
+
+        self._setup_sample_logs_combo_box(sample_logs_list, direction)
 
         return
 
@@ -1104,6 +1104,10 @@ class StrainStressCalculationWindow(QMainWindow):
         reset the strain and stress type
         :return:
         """
+        # check mutex
+        if self._strain_stress_type_mutex:
+            return
+
         type_index = self.ui.comboBox_typeStrainStress.currentIndex()
         is_plane_strain = False
         is_plane_stress = False
@@ -1113,10 +1117,10 @@ class StrainStressCalculationWindow(QMainWindow):
             is_plane_stress = True
 
         try:
-            session_name = self._core.reset_strain_stress(is_plane_strain, is_plane_stress)
+            self._core.reset_strain_stress(is_plane_strain, is_plane_stress)
         except RuntimeError as run_err:
             gui_helper.pop_message(self, 'Failed to reset strain/stress type',
-                                   detailed_message='blabla', message_type='error')
+                                   detailed_message=str(run_err), message_type='error')
             return
 
         # set the UI
@@ -1210,5 +1214,27 @@ class StrainStressCalculationWindow(QMainWindow):
 
         # release the mutex
         self._load_file_radio_mutex = False
+
+        return
+
+    def show_message(self, message):
+        """
+        show message in the plain text edit
+        :param message:
+        :return:
+        """
+        checkdatatypes.check_string_variable('Message to show', message)
+
+        self.ui.plainTextEdit_info.clear()
+        self.ui.plainTextEdit_info.setPlainText(message)
+
+        return
+
+    def set_to_slice_peaks(self):
+        """
+        for external to call
+        :return:
+        """
+        self.ui.comboBox_type.setCurrentIndex(0)
 
         return

@@ -79,7 +79,7 @@ def browse_file(parent, caption, default_dir, file_filter, file_list=False, save
     if len(file_name) == 0:
         return None
 
-    return file_name
+    return str(file_name)
 
 
 def parse_float(float_str):

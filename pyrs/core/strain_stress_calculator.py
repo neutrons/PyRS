@@ -239,6 +239,39 @@ class StrainStressCalculator(object):
 
         return
 
+    def __str__(self):
+        """
+        pretty print for status of the strain calculation setup
+        :return:
+        """
+        custom_str = 'Session Name: {}  '.format(self._session)
+        if self._is_plane_stress:
+            type_name = 'Plane stress'
+        elif self._is_plane_strain:
+            type_name = 'Plane strain'
+        else:
+            type_name = 'Unconstrained strain/stress'
+        custom_str += 'Strain/stress type: {}\n'.format(type_name)
+
+        #    0: initial state
+        #    1: all file loaded
+        #    2: alignment preparation data structure ready
+        #    3: grid alignment is set up
+        #    4: strain and stress are calculated
+        if self._workflow_tracker >= 1:
+            custom_str += '{}\n'.format(self._source_file_dict)
+
+        if self._workflow_tracker >= 3:
+            custom_str += '{}\n'.format('Grid alignment parameter is set up\n')
+
+        if self._workflow_tracker >= 3:
+            custom_str += '{}\n'.format('Grid alignment is checked and mapped\n')
+
+        if self._workflow_tracker >= 4:
+            custom_str += '{}\n'.format('Strain/stress calculation is done.')
+
+        return custom_str
+
     def _set_workflow_state(self, at_init=False, data_loaded=False, alignment_setup=False, calculated=False):
         """ Set the strain/stress calculation workflow state
         # strain/stress workflow tracker
@@ -291,26 +324,26 @@ class StrainStressCalculator(object):
         for i_dir, pos_dir in enumerate(pos_dir_list):
             # get min value for this direction
             min_value_i = grids_dimension_dict['Min'][pos_dir]
-            print ('[DB...BAT] {}/{} = {}'.format(i_dir, pos_dir, min_value_i))
+            # print ('[DB...BAT] {}/{} = {}'.format(i_dir, pos_dir, min_value_i))
             if min_value_i is None:
                 continue
             # filter
             grids = grids[grids[:, i_dir] >= min_value_i]
-            print ('[DB...BAT] After filtering >= {} at {}: Shape = {}'.format(min_value_i, pos_dir, grids.shape))
+            # print ('[DB...BAT] After filtering >= {} at {}: Shape = {}'.format(min_value_i, pos_dir, grids.shape))
         # END-FOR
 
         # maximum
-        for i_dir, pos_dir in enumerate(pos_dir_list):
-            print ('[DB...BAT] {}/{} = {}'.format(i_dir, pos_dir, grids_dimension_dict['Max'][pos_dir]))
+        # for i_dir, pos_dir in enumerate(pos_dir_list):
+        #     print ('[DB...BAT] {}/{} = {}'.format(i_dir, pos_dir, grids_dimension_dict['Max'][pos_dir]))
         for i_dir, pos_dir in enumerate(pos_dir_list):
             # get min value for this direction
             max_value_i = grids_dimension_dict['Max'][pos_dir]
-            print ('[DB...BAT] {}/{} = {}'.format(i_dir, pos_dir, max_value_i))
+            # print ('[DB...BAT] {}/{} = {}'.format(i_dir, pos_dir, max_value_i))
             if max_value_i is None:
                 continue
             # filter
             grids = grids[grids[:, i_dir] <= max_value_i]
-            print ('[DB...BAT] After filtering <= {} at {}: Shape = {}'.format(max_value_i, pos_dir, grids.shape))
+            # print ('[DB...BAT] After filtering <= {} at {}: Shape = {}'.format(max_value_i, pos_dir, grids.shape))
         # END-FOR
 
         return grids
@@ -348,8 +381,6 @@ class StrainStressCalculator(object):
             size_dict[dir_i] = num_pt_i
         # END-FOR
 
-        print ('[DB...BAT] Size: {}'.format(size_dict))
-
         # define grids vector
         grids_vec = numpy.ndarray(shape=(num_grids, 3), dtype='float')
 
@@ -358,9 +389,9 @@ class StrainStressCalculator(object):
         for index_x in range(size_dict['X']):
             x_i = grids_dimension_dict['Min']['X'] + grids_dimension_dict['Resolution']['X'] * float(index_x)
             for index_y in range(size_dict['Y']):
-                print ('[DB...BAT] {} + {} * {}'.format(grids_dimension_dict['Min']['Y'],
-                                                        grids_dimension_dict['Resolution']['Y'],
-                                                        index_y))
+                # print ('[DB...BAT] {} + {} * {}'.format(grids_dimension_dict['Min']['Y'],
+                #                                         grids_dimension_dict['Resolution']['Y'],
+                #                                         index_y))
                 if grids_dimension_dict['Resolution']['Y'] is None:
                     y_i = grids_dimension_dict['Min']['Y']
                 else:
@@ -858,22 +889,24 @@ class StrainStressCalculator(object):
 
         return
 
-    def migrate(self, session_name, plane_stress=False, plane_strain=False):
+    def migrate(self, plane_stress=False, plane_strain=False):
         """ migrate current strain/stress calculator to another one with (supposed to be) different
         type of strain/stress
-        :param session_name:
         :param plane_stress:
         :param plane_strain:
         :return:
         """
-        new_ss_calculator = StrainStressCalculator(session_name, plane_stress,plane_stress)
+        new_ss_calculator = StrainStressCalculator(self._session, plane_strain, plane_stress)
 
         # copy file format: try not to re-load the file
         new_ss_calculator._peak_param_dict = self._peak_param_dict.copy()
         new_ss_calculator._sample_log_dict = self._sample_log_dict.copy()
+        new_ss_calculator._data_set_dict = self._data_set_dict.copy()
 
         # copy file name and etc
-        new_ss_calculator._file_dict = self._file_dict.copy()
+        new_ss_calculator._source_file_dict = self._source_file_dict.copy()
+
+        new_ss_calculator.execute_workflow()
 
         return
 
@@ -957,7 +990,7 @@ class StrainStressCalculator(object):
         :return:
         """
         # check whether the files are loaded
-        files_loaded = self._check_file_loaded()
+        files_loaded = self.check_raw_files_ready()
         if files_loaded is False:
             return self._workflow_tracker
 
@@ -1299,8 +1332,8 @@ class StrainStressCalculator(object):
         :param log_name:
         :return:
         """
-        print ('[DB...BAT] Log name: {} ... Comparing {}'
-               ''.format(log_name, StrainStressCalculator.allowed_grid_position_sample_names))
+        # print ('[DB...BAT] Log name: {} ... Comparing {}'
+        #        ''.format(log_name, StrainStressCalculator.allowed_grid_position_sample_names))
         log_name = log_name.lower()
         if log_name in StrainStressCalculator.allowed_grid_position_sample_names:
             return True
@@ -1405,6 +1438,27 @@ class StrainStressCalculator(object):
         self.check_raw_files_ready()
 
         return
+
+    def check_raw_files_ready(self):
+        """
+        check whether all the raw files have been loaded
+        :return:
+        """
+        all_loaded = True
+        for dir_i in self._direction_list:
+            if dir_i not in self._data_set_dict:
+                all_loaded = False
+                break
+        # END-FOR
+
+        if all_loaded:
+            self._set_workflow_state(data_loaded=True)
+            raw_file_ready = True
+        else:
+            self._set_workflow_state(at_init=True)
+            raw_file_ready = False
+
+        return raw_file_ready
 
     def rename(self, new_session_name):
         """

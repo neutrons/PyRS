@@ -615,7 +615,8 @@ class PyRsCore(object):
 
         ss_type_index = self._get_strain_stress_type_key(is_plane_strain, is_plane_stress)
         if ss_type_index == self._curr_ss_type:
-            raise RuntimeError('Same strain/stress type.. .blabla')
+            raise RuntimeError('Same strain/stress type (plane strain = {}, plane stress = {}'
+                               ''.format(is_plane_strain, is_plane_stress))
 
         # rename the current strain stress name
         # saved_ss_name = self._curr_ss_session + '_{}_{}'.format(is_plane_strain, is_plane_stress)
@@ -624,8 +625,7 @@ class PyRsCore(object):
         # self._ss_calculator_dict[saved_ss_name] = prev_calculator
 
         # reset new strain/stress calculator
-        new_ss_calculator = strain_stress_calculator.StrainStressCalculator(self._curr_ss_session, is_plane_strain,
-                                                                            is_plane_stress)
+        new_ss_calculator = self.strain_stress_calculator.migrate(is_plane_strain, is_plane_stress)
 
         self._ss_calculator_dict[self._curr_ss_session][ss_type_index] = new_ss_calculator
         self._curr_ss_type = ss_type_index
