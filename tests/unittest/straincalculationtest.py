@@ -195,7 +195,7 @@ def test_strain_stress_user_defined_grid():
     grid_dict = {'Min': {'X': -130, 'Y': 0., 'Z': 9.},
                  'Max': {'X': 130., 'Y': 0., 'Z': 19},
                  'Resolution': {'X': 5.0, 'Y': None, 'Z': 1.0}}
-    grids, maps = rs_core.strain_stress_calculator.align_grids(None, user_defined=True, grids_dimension_dict=grid_dict)
+    grids, maps = rs_core.strain_stress_calculator.generate_grids(None, user_defined=True, grids_dimension_dict=grid_dict)
     center_d_vec = rs_core.strain_stress_calculator.align_peak_parameter_on_grids(grids, 'center_d', maps)
 
     # calculate unconstrained strain and stress
@@ -250,7 +250,7 @@ def test_plane_strain():
     grid_dict = {'Min': {'X': -130, 'Y': 0., 'Z': 9.},
                  'Max': {'X': 130., 'Y': 0., 'Z': 19},
                  'Resolution': {'X': 5.0, 'Y': None, 'Z': 1.0}}
-    grids, maps = rs_core.strain_stress_calculator.align_grids(None, user_defined=True, grids_dimension_dict=grid_dict)
+    grids, maps = rs_core.strain_stress_calculator.generate_grids(None, user_defined=True, grids_dimension_dict=grid_dict)
     center_d_vec = rs_core.strain_stress_calculator.align_peak_parameter_on_grids(grids, 'center_d', maps)
 
     # calculate unconstrained strain and stress
@@ -301,7 +301,7 @@ def test_plane_stress():
     grid_dict = {'Min': {'X': -130, 'Y': 0., 'Z': 9.},
                  'Max': {'X': 130., 'Y': 0., 'Z': 19},
                  'Resolution': {'X': 5.0, 'Y': None, 'Z': 1.0}}
-    grids, maps = rs_core.strain_stress_calculator.align_grids(None, user_defined=True, grids_dimension_dict=grid_dict)
+    grids, maps = rs_core.strain_stress_calculator.generate_grids(None, user_defined=True, grids_dimension_dict=grid_dict)
     center_d_vec = rs_core.strain_stress_calculator.align_peak_parameter_on_grids(grids, 'center_d', maps)
 
     # calculate unconstrained strain and stress

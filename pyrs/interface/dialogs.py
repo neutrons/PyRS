@@ -375,6 +375,30 @@ class GridAlignmentCheckTablesView(QMainWindow):
 
         return
 
+    def set_matched_girds_info(self, matched_grid_scan_list):
+        """ set the list of experimentally matched grids
+        :param matched_grid_scan_list:
+        :return:
+        """
+        # check
+        checkdatatypes.check_list('Experimentally matched grids scans', matched_grid_scan_list)
+
+        # reset
+        self.ui.tableView_matchedGrids.remove_all_rows()
+        for igrid  in range(len(matched_grid_scan_list)):
+            row_items = [igrid, matched_grid_scan_list[igrid]['e11'], matched_grid_scan_list[igrid]['e22']]
+            if 'e33' in matched_grid_scan_list[igrid]:
+                row_items.append(matched_grid_scan_list[igrid]['e22'])
+            else:
+                row_items.append('')
+            # END-IF
+
+            # add a new row
+            self.ui.tableView_matchedGrids.append_row(row_items)
+        # END-FOR
+
+        return
+
     def set_peak_parameter_names(self, peak_param_names):
         """ set the peak parameter names to combo box for user to specify
         :param peak_param_names:
@@ -413,8 +437,10 @@ class StrainStressGridSetup(QDialog):
 
         self.ui = ui_strainstressgridsetup.Ui_Dialog()
         self.ui.setupUi(self)
+        self._init_widgets()
 
         self.ui.buttonBox.accepted.connect(self.do_accept_user_input)
+        self.ui.comboBox_alignmentCriteria.currentIndexChanged.connect(self.do_set_default_values)
 
         self._is_user_specified_grids = False
 
@@ -423,6 +449,20 @@ class StrainStressGridSetup(QDialog):
 
         # flag that user input is OK
         self._is_user_input_acceptable = True
+
+        return
+
+    def _init_widgets(self):
+        """
+        init widgets
+        :return:
+        """
+        self.ui.comboBox_alignmentCriteria.clear()
+        self.ui.comboBox_alignmentCriteria.addItem('User specified Grid')
+        self.ui.comboBox_alignmentCriteria.addItem('E11')
+        self.ui.comboBox_alignmentCriteria.addItem('E22')
+        self.ui.comboBox_alignmentCriteria.addItem('E33')
+        self.ui.comboBox_alignmentCriteria.addItem('Finest Grid (Auto)')
 
         return
 
@@ -445,6 +485,30 @@ class StrainStressGridSetup(QDialog):
 
         # this will be called anyway to close the dialog
         super(StrainStressGridSetup, self).accept()
+
+        return
+
+    def do_set_default_values(self):
+        """
+        set the default values of the grids for output
+        :return:
+        """
+        # TODO - 20181010 - Use E11/E22/E33/User defined options to fill the line edits automatically for user to modify
+
+        grid_template = str(self.ui.comboBox_alignmentCriteria.currentText())
+        print ('[DB...BAT] ... Grid template: {}'.format(grid_template))
+
+        # get the alignment method
+        alignment_method = str(self.ui.comboBox_alignmentCriteria.currentText()).lower()
+
+
+        if alignment_method.count('auto'):
+            direction = self._core.strain_stress_calculator.get_finest_direction()
+        elif alignment_method.count('user'):
+            user_define = True
+        else:
+            direction = alignment_method
+
 
         return
 
@@ -593,7 +657,7 @@ class StrainStressTableView(QMainWindow):
         self.ui.setupUi(self)
 
         # init widgets
-        self.ui.tableView_strainStressTable.set_experiment()
+        self.ui.tableView_strainStressTable.setup()
 
         # define event handling
         self.ui.pushButton_close.clicked.connect(self.do_quit)
@@ -676,8 +740,7 @@ def get_grid_slicing_export_setup(parent):
 
 # TODO - 20180918 - Need documentation
 def get_strain_stress_grid_setup(parent, user_define_grid, grid_stat_dict, grid_setup_dict):
-    """
-
+    """ blabla
     :return:
     """
     if grid_setup_dict is not None:

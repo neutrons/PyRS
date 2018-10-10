@@ -412,60 +412,60 @@ class StrainStressCalculator(object):
 
     # TODO FIXME - 20181001 - Temporarily disabled in order to clean up for the new workflow
     # TODO                    Grid won't be aligned but will be mapped for matched among E11/E22/E33
-    # def align_grids(self, direction, user_defined, grids_dimension_dict):
-    #     """ Align the input grids against the output strain/stress output.
-    #     From the user specified output grid set up (ranges and solutions),
-    #     1. the output grid in 3D array will be created.
-    #     2. a mapping from the existing experiment grid to output grid (for scan logs) will be generated
-    #     :param direction:
-    #     :param user_defined:
-    #     :param grids_dimension_dict: user specified output grid dimensions
-    #     :return: 2-tuple: (1) grids (vector of position: (n, 3) array) (2) scan log map (vector of scan logs: (n, 2)
-    #                                                                        or (n, 3) int array)
-    #     """
-    #     # get the grids for strain/stress calculation
-    #     if user_defined and direction is not None:
-    #         raise RuntimeError('It is not allowed to have both direction {} and user_defined {}'
-    #                            .format(direction, user_defined))
-    #     elif user_defined:
-    #         self._grid_output_array = self._generate_grids(grids_dimension_dict)
-    #     elif direction is not None:
-    #         self._grid_output_array = self._copy_grids(direction, grids_dimension_dict)
-    #     else:
-    #         raise RuntimeError('Either direction or user-defined must be specified.')
-    #
-    #     num_ss_dir = len(self._direction_list)
-    #     num_grids = self._grid_output_array.shape[0]
-    #     mapping_vector = numpy.ndarray(shape=(num_grids, num_ss_dir), dtype=int)
-    #     for i_grid in range(num_grids):
-    #         ss_grid_i = self._grid_output_array[i_grid]
-    #         for i_dir, ss_dir in enumerate(self._direction_list):
-    #             # get the sorted positions
-    #             sorted_grid_pos_vector = self._sample_positions_dict[ss_dir]
-    #             if ss_dir == direction:
-    #                 index_i = self.binary_search(sorted_positions=sorted_grid_pos_vector, xyz=ss_grid_i,
-    #                                              resolution=1.E-10)
-    #                 if index_i is None:
-    #                     raise NotImplementedError('Impossible')
-    #
-    #             else:
-    #                 index_i = self.binary_search(sorted_positions=sorted_grid_pos_vector, xyz=ss_grid_i,
-    #                                              resolution=0.001)
-    #
-    #             # END-IF-ELSE
-    #
-    #             # convert index in the (e11/e22/e33) grid position list to scan log index
-    #             if index_i is None:
-    #                 scan_log_index_i = -1
-    #             else:
-    #                 exact_pos = sorted_grid_pos_vector[index_i]
-    #                 scan_log_index_i = self._dir_grid_pos_scan_index_dict[ss_dir][tuple(exact_pos)]
-    #
-    #             mapping_vector[i_grid, i_dir] = scan_log_index_i
-    #         # END-FOR
-    #     # END-FOR
-    #
-    #     return self._grid_output_array, mapping_vector
+    def generate_grids(self, direction, user_defined, grids_dimension_dict):
+        """ Align the input grids against the output strain/stress output.
+        From the user specified output grid set up (ranges and solutions),
+        1. the output grid in 3D array will be created.
+        2. a mapping from the existing experiment grid to output grid (for scan logs) will be generated
+        :param direction:
+        :param user_defined:
+        :param grids_dimension_dict: user specified output grid dimensions
+        :return: 2-tuple: (1) grids (vector of position: (n, 3) array) (2) scan log map (vector of scan logs: (n, 2)
+                                                                           or (n, 3) int array)
+        """
+        # get the grids for strain/stress calculation
+        if user_defined and direction is not None:
+            raise RuntimeError('It is not allowed to have both direction {} and user_defined {}'
+                               .format(direction, user_defined))
+        elif user_defined:
+            self._grid_output_array = self._generate_grids(grids_dimension_dict)
+        elif direction is not None:
+            self._grid_output_array = self._copy_grids(direction, grids_dimension_dict)
+        else:
+            raise RuntimeError('Either direction or user-defined must be specified.')
+
+        num_ss_dir = len(self._direction_list)
+        num_grids = self._grid_output_array.shape[0]
+        mapping_vector = numpy.ndarray(shape=(num_grids, num_ss_dir), dtype=int)
+        for i_grid in range(num_grids):
+            ss_grid_i = self._grid_output_array[i_grid]
+            for i_dir, ss_dir in enumerate(self._direction_list):
+                # get the sorted positions
+                sorted_grid_pos_vector = self._sample_positions_dict[ss_dir]
+                if ss_dir == direction:
+                    index_i = self.binary_search(sorted_positions=sorted_grid_pos_vector, xyz=ss_grid_i,
+                                                 resolution=1.E-10)
+                    if index_i is None:
+                        raise NotImplementedError('Impossible')
+
+                else:
+                    index_i = self.binary_search(sorted_positions=sorted_grid_pos_vector, xyz=ss_grid_i,
+                                                 resolution=0.001)
+
+                # END-IF-ELSE
+
+                # convert index in the (e11/e22/e33) grid position list to scan log index
+                if index_i is None:
+                    scan_log_index_i = -1
+                else:
+                    exact_pos = sorted_grid_pos_vector[index_i]
+                    scan_log_index_i = self._dir_grid_pos_scan_index_dict[ss_dir][tuple(exact_pos)]
+
+                mapping_vector[i_grid, i_dir] = scan_log_index_i
+            # END-FOR
+        # END-FOR
+
+        return self._grid_output_array, mapping_vector
 
     def located_matched_grids(self, resolution=0.001):
         """ Compare the grids among 3 (or 2) strain directions in order to search matched grids across
@@ -908,7 +908,7 @@ class StrainStressCalculator(object):
 
         new_ss_calculator.execute_workflow()
 
-        return
+        return new_ss_calculator
 
     def calculate_max_distance(self, sample_point_index):
         """
@@ -1159,6 +1159,15 @@ class StrainStressCalculator(object):
         # END-FOR
 
         return xyz_log_index_dict
+
+    def get_experiment_aligned_grids(self):
+        """ Get the aligned grids in the experiment, i.e., grids on the sample measured in all E11/E22/E33 direction
+        :return:
+        """
+        if self._matched_grid_scans_list is None:
+            return None
+
+        return self._matched_grid_scans_list[:]
 
     # TODO - 20180815 - Implement after (***)
     def get_finest_direction(self):

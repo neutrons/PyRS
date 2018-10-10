@@ -43,6 +43,41 @@
        </item>
        <item>
         <layout class="QGridLayout" name="gridLayout_10">
+         <item row="0" column="3">
+          <widget class="QComboBox" name="comboBox_type">
+           <item>
+            <property name="text">
+             <string>Strain</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Stress</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Peak Parameter</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item row="0" column="2">
+          <spacer name="horizontalSpacer_5">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeType">
+            <enum>QSizePolicy::Preferred</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
          <item row="0" column="0">
           <widget class="QPushButton" name="pushButton_alignGrids">
            <property name="toolTip">
@@ -63,43 +98,12 @@
            </property>
           </widget>
          </item>
-         <item row="0" column="1">
-          <widget class="QComboBox" name="comboBox_paramDirection"/>
-         </item>
-         <item row="0" column="3">
-          <widget class="QComboBox" name="comboBox_type">
-           <item>
-            <property name="text">
-             <string>Peak Parameter</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>Strain</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>Stress</string>
-            </property>
-           </item>
+         <item row="0" column="5">
+          <widget class="QComboBox" name="comboBox_paramDirection">
+           <property name="toolTip">
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Only applied to peak parameters to plot. &lt;/p&gt;&lt;p&gt;Strain/stress has already assimilate the E11/E22/E33 in the result.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           </property>
           </widget>
-         </item>
-         <item row="0" column="2">
-          <spacer name="horizontalSpacer_5">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeType">
-            <enum>QSizePolicy::Preferred</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
          </item>
         </layout>
        </item>
@@ -173,13 +177,6 @@
             </size>
            </property>
           </spacer>
-         </item>
-         <item>
-          <widget class="QComboBox" name="comboBox_alignmentCriteria">
-           <property name="toolTip">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Calculate strain/stress along the specified direction.&lt;/p&gt;&lt;p&gt;1. If the grids of e11, e22 and e33 do not match, grids will be aligned to e11, e22 or e33 as specified.&lt;/p&gt;&lt;p&gt;2. Automatically the finest grid among them or user defined grids.&lt;/p&gt;&lt;p&gt;3. User can specify a grid by 3D range and resolution&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-           </property>
-          </widget>
          </item>
         </layout>
        </item>
