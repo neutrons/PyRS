@@ -311,7 +311,9 @@ class GridAlignmentCheckTablesView(QMainWindow):
         :param mapping_array:
         :return:
         """
-        assert grid_array.shape[0] == mapping_array.shape[0], 'blabla'
+        if grid_array.shape[0] != mapping_array.shape[0]:
+            raise RuntimeError('Grids array (shape = {}) and Mapping array (shape = {}) do not match.'
+                               .format(grid_array.shape, mapping_array.shape))
 
         num_rows = grid_array.shape[0]
         num_ss_dir = mapping_array.shape[1]
@@ -450,6 +452,10 @@ class StrainStressGridSetup(QDialog):
         # flag that user input is OK
         self._is_user_input_acceptable = True
 
+        # original dimension statistics
+        self._exp_grid_dimensions = dict()  # ['min']['e11']['X'] = value ... min/max/num_indv_values
+        self._plot_grid_dimensions = dict()  # ['min']['e11']['X'] = value ... min/max/num_indv_values
+
         return
 
     def _init_widgets(self):
@@ -493,22 +499,68 @@ class StrainStressGridSetup(QDialog):
         set the default values of the grids for output
         :return:
         """
-        # TODO - 20181010 - Use E11/E22/E33/User defined options to fill the line edits automatically for user to modify
-
-        grid_template = str(self.ui.comboBox_alignmentCriteria.currentText())
-        print ('[DB...BAT] ... Grid template: {}'.format(grid_template))
-
         # get the alignment method
         alignment_method = str(self.ui.comboBox_alignmentCriteria.currentText()).lower()
 
-
-        if alignment_method.count('auto'):
-            direction = self._core.strain_stress_calculator.get_finest_direction()
-        elif alignment_method.count('user'):
-            user_define = True
+        # set up the dictionary for set up
+        if alignment_method.startswith('e'):
+            # original experiment alignment
+            e_dir = alignment_method
+            # invalid direction
+            if e_dir not in self._exp_grid_dimensions['min']:
+                # e33 does not exist, i.e., plane strain/stress
+                gui_helper.pop_message(self, '{} is not applied.'.format(e_dir), message_type='warning')
+                return
+            for item in self._plot_grid_dimensions.keys():
+                for grid_dir in self._grid_setup_dict[item]:  # X, Y, Z
+                    self._plot_grid_dimensions[item][grid_dir] = self._exp_grid_dimensions[item][e_dir][grid_dir]
+                # END-FOR
+            # END-FOR
         else:
-            direction = alignment_method
+            # user defined.. using the finest as the default values
+            for item in self._plot_grid_dimensions.keys():
+                for grid_dir in self._plot_grid_dimensions[item].keys():  # X, Y, Z
+                    values = list()
+                    for e_dir in self._exp_grid_dimensions[item].keys():  # e11/e22/e33
+                        print (item, e_dir, grid_dir)
+                        print (self._exp_grid_dimensions.keys())
+                        print (self._exp_grid_dimensions['min'].keys())
+                        values.append(self._exp_grid_dimensions[item][e_dir][grid_dir])
+                    # END-FOR
+                    if item != 'min':
+                        # min value and resolution
+                        self._plot_grid_dimensions[item][grid_dir] = int(max(values) + 0.5)
+                    else:
+                        # "max" value
+                        self._plot_grid_dimensions[item][grid_dir] = int(min(values))
+                    # END-IF
+                # END-FOR (X, Y, Z)
+            # END-FOR (min, max indv)
+        # END-IF-ELSE
 
+        # set up the default values
+        self._set_default_user_input(self._plot_grid_dimensions)
+
+        return
+
+    def _set_default_user_input(self, grid_setup_dict):
+        """
+        set the default values
+        :param grid_setup_dict:
+        :return:
+        """
+        checkdatatypes.check_dict('Grid (for plot) dimension default values', grid_setup_dict)
+
+        convert_dict = {'Min': 'min', 'Max': 'max', 'Resolution': 'num_indv_values'}
+
+        for param_name in ['Min', 'Max', 'Resolution']:
+            item_name = convert_dict[param_name]
+            for coord_i in ['X', 'Y', 'Z']:
+                line_edit_name = 'lineEdit_grid{}{}'.format(param_name, coord_i)
+                line_edit = getattr(self.ui, line_edit_name)
+                line_edit.setText('{}'.format(grid_setup_dict[item_name][coord_i]))
+            # END-FOR (coord_i)
+        # END-FOR (param_name)
 
         return
 
@@ -606,7 +658,15 @@ class StrainStressGridSetup(QDialog):
         :param stat_dict:
         :return:
         """
+        # print ('[DB...BAT] stat dict: {}'.format(stat_dict))
+
         checkdatatypes.check_dict('Grids statistics', stat_dict)
+
+        # set up
+        self._exp_grid_dimensions = stat_dict
+        for item in stat_dict:
+            self._plot_grid_dimensions[item] = {'X': None, 'Y': None, 'Z': None}
+        # END-FOR
 
         # set up the minimum values, maximum values and number of individual values
         for dir_i in stat_dict['min'].keys():
@@ -635,6 +695,9 @@ class StrainStressGridSetup(QDialog):
                 line_edit.setText('{}'.format(stat_dict['num_indv_values'][dir_i][coord_i]))
             # END-FOR
         # END-FOR
+
+        # set up the default values
+        self.do_set_default_values()
 
         return
 
