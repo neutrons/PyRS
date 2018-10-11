@@ -208,6 +208,13 @@ def parse_tuples(tuple_str, data_type, size=None):
     :param size:
     :return:
     """
+    # check type ...
+
+    # doc...
+
+    # strip parenthesis
+    tuple_str = tuple_str.replace('(', '').replace(')', '')
+
     # TODO - 20180906 - Refine!
     items = tuple_str.strip().split(',')
 
