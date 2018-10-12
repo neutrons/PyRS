@@ -255,7 +255,7 @@ class GridAlignmentCheckTablesView(QMainWindow):
 
         # need to change the plot type
         self._parent.do_change_plot_type()
-        self._parent.plot_peak_param_slice(param_name=param_name, ss_direction=ss_dir, is_raw_grid=plot_raw)
+        self._parent._set_peak_parameter_to_plot(param_name=param_name, ss_direction=ss_dir, is_raw_grid=plot_raw)
 
         return
 

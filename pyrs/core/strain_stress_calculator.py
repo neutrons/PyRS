@@ -410,8 +410,6 @@ class StrainStressCalculator(object):
 
         return grids_vec
 
-    # TODO FIXME - 20181001 - Temporarily disabled in order to clean up for the new workflow
-    # TODO                    Grid won't be aligned but will be mapped for matched among E11/E22/E33
     def generate_grids(self, grids_dimension_dict):
         """ Align the input grids against the output strain/stress output.
         From the user specified output grid set up (ranges and solutions),
@@ -424,7 +422,16 @@ class StrainStressCalculator(object):
         # get the grids for strain/stress calculation
         self._grid_output_array = self._generate_slice_view_grids(grids_dimension_dict)
 
-        return self._grid_output_array
+        # generate linear dimension arrays
+        grid_linear_dim_arrays = [None] * 3
+        for index, coord_i in enumerate(['X', 'Y', 'Z']):
+            min_i = grids_dimension_dict['Min'][coord_i]
+            max_i = grids_dimension_dict['Max'][coord_i]
+            step_i = (max_i - min_i) / grids_dimension_dict['Resolution'][coord_i]
+            grid_linear_dim_arrays[index] = numpy.arange(min_i, max_i, step_i)
+        # END-FOR
+
+        return grid_linear_dim_arrays
 
     def located_matched_grids(self, resolution=0.001):
         """ Compare the grids among 3 (or 2) strain directions in order to search matched grids across
