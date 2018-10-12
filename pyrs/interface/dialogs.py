@@ -512,7 +512,7 @@ class StrainStressGridSetup(QDialog):
                 gui_helper.pop_message(self, '{} is not applied.'.format(e_dir), message_type='warning')
                 return
             for item in self._plot_grid_dimensions.keys():
-                for grid_dir in self._grid_setup_dict[item]:  # X, Y, Z
+                for grid_dir in self._plot_grid_dimensions[item]:  # X, Y, Z
                     self._plot_grid_dimensions[item][grid_dir] = self._exp_grid_dimensions[item][e_dir][grid_dir]
                 # END-FOR
             # END-FOR

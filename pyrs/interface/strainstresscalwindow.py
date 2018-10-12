@@ -114,7 +114,7 @@ class StrainStressCalculationWindow(QMainWindow):
         self.create_new_session(session_name=session_name, is_plane_strain=False,
                                 is_plane_stress=False)
         # set up everything correct
-        self.do_change_plot_type(do_plot=False)
+        self.ui.comboBox_type.setCurrentIndex(2)
 
         return
 
@@ -228,6 +228,7 @@ class StrainStressCalculationWindow(QMainWindow):
             self.ui.comboBox_plotParameterName.clear()
             self.ui.comboBox_paramDirection.clear()
             # strain/stress matrix elements
+            self.ui.comboBox_plotParameterName.addItem('')
             for item_name in ['', '(1, 1)', '(2, 2)', '(3, 3)']:
                 self.ui.comboBox_plotParameterName.addItem(item_name)
 
@@ -242,10 +243,6 @@ class StrainStressCalculationWindow(QMainWindow):
 
         # release the flag/lock
         self._auto_plot_mutex = False
-
-        # manually plot 3D slice for strain/stress/peak parameter
-        if do_plot:
-            self.do_plot_sliced_3d()
 
         return
 
@@ -352,12 +349,11 @@ class StrainStressCalculationWindow(QMainWindow):
 
         slice_direction_index = self.ui.comboBox_sliceDirection.currentIndex()
 
-        self.ui.label_sliderMin.setText('{.3f}'.format(self._grid_linear_arrays[slice_direction_index][0]))
-        self.ui.label_sliderMax.setText('{.3f}'.format(self._grid_linear_arrays[slice_direction_index][-1]))
+        self.ui.label_sliderMin.setText('{:.3f}'.format(self._grid_linear_arrays[slice_direction_index][0]))
+        self.ui.label_sliderMax.setText('{:.3f}'.format(self._grid_linear_arrays[slice_direction_index][-1]))
 
-        print ('[DB...BAT] Set slider to (0, {})'.format(self._steps_number))
         self.ui.horizontalSlider_slicer3D.setMinimum(0)
-        self.ui.horizontalSlider_slicer3D.setMaximum(self._grid_linear_arrays[slice_direction_index].shape[0])
+        self.ui.horizontalSlider_slicer3D.setMaximum(self._grid_linear_arrays[slice_direction_index].shape[0]-1)
         # self.ui.horizontalSlider_slicer3D.setRange(0, self._steps_number)
         self.ui.horizontalSlider_slicer3D.setTickInterval(1)
         self.ui.horizontalSlider_slicer3D.setTickPosition(0)  # set to the left end
@@ -372,7 +368,7 @@ class StrainStressCalculationWindow(QMainWindow):
 
         slider_pos = self.ui.horizontalSlider_slicer3D.value()
         slider_value = self._grid_linear_arrays[slice_direction_index][slider_pos]
-        self.ui.label_sliderValue.setText('{.3f}'.format(slider_value))
+        self.ui.label_sliderValue.setText('{:.3f}'.format(slider_value))
 
         return slider_value
 
@@ -621,54 +617,61 @@ class StrainStressCalculationWindow(QMainWindow):
         slice the already loaded 3D data
         :return:
         """
-        vec_x, vec_y, vec_z, info = self._slice_values_on_grid(self._slider_min, self._slider_max)
-        if len(vec_x) == 0 or len(vec_y) == 0:
-            new_info = self.ui.label_sliceInformation.text() + '  No Data... No New Plot'
-            self.ui.label_sliceInformation.setText(new_info)
-            return
-
-        if FYI:
-
-            # do slice along output grids
-
-            # convert
-            index_i, index_j = matrix_index
-            self._slice_view_param_vec = numpy.ndarray(shape=(slice_view_param_vec.shape[0],), dtype='float')
-            for i_grid in range(slice_view_param_vec.shape[0]):
-                # convert the user-perspective index (from 1) to numpy-convention index (from 1)
-                self._slice_view_param_vec[i_grid] = slice_view_param_vec[i_grid][index_i - 1, index_j - 1]
-
-            # set up slier slider
-            slice_dir = self.ui.comboBox_sliceDirection.currentIndex()  # as X
-            min_value = numpy.min(self._slice_view_grid_matrix[:, slice_dir])
-            max_value = numpy.max(self._slice_view_grid_matrix[:, slice_dir])
-
-            self.ui.lineEdit_sliceStartValue.setText('{}'.format(min_value))
-            self.ui.lineEdit_sliceEndValue.setText('{}'.format(max_value))
-            self.ui.lineEdit_sliceStartValue.setEnabled(False)
-            self.ui.lineEdit_sliceEndValue.setEnabled(False)
-
-            # slice the data
-            self.do_slice_3d_plot_contour()
-            vec_x, vec_y, vec_z, info = self._slice_values_on_grid(0, 99)
-
-            # plot
-            RESOLUTION = 1  # TODO - 20180905 - Need to be configurable
-            self.ui.graphicsView_sliceView.plot_contour(vec_x, vec_y, vec_z,
-                                                        contour_resolution=(vec_x.max() - vec_x.min()) / RESOLUTION,
-                                                        contour_resolution_y=(vec_y.max() - vec_y.min()) / RESOLUTION,
-                                                        flush=True)
-            self.ui.graphicsView_sliceView.plot_scatter(vec_x, vec_y, flush=True)
-            self.ui.graphicsView_sliceView.setWindowTitle(info)
+        slider_value = self._get_slider_value()
+        slider_direction_index = int(str(self.ui.comboBox_sliceDirection.currentIndex()))
+        self.ui.label_sliderValue.setText('{:.3f}'.format(slider_value))
+        vec_x, vec_y, vec_z, info = self._slice_values_on_grid(slider_value, slider_direction_index)
 
 
-        RESOLUTION = 1  # TODO - 20180905 - Need to be configurable
-        self.ui.graphicsView_sliceView.plot_contour(vec_x, vec_y, vec_z,
-                                                    contour_resolution=(vec_x.max() - vec_x.min())/RESOLUTION,
-                                                    contour_resolution_y=(vec_y.max() - vec_y.min())/RESOLUTION,
-                                                    flush=True)
-        self.ui.graphicsView_sliceView.plot_scatter(vec_x, vec_y, flush=True)
-        self.ui.graphicsView_sliceView.main_canvas.set_title(info, 'red')
+        #
+        # vec_x, vec_y, vec_z, info = self._slice_values_on_grid(self._slider_min, self._slider_max)
+        # if len(vec_x) == 0 or len(vec_y) == 0:
+        #     new_info = self.ui.label_sliceInformation.text() + '  No Data... No New Plot'
+        #     self.ui.label_sliceInformation.setText(new_info)
+        #     return
+        #
+        # if FYI:
+        #
+        #     # do slice along output grids
+        #
+        #     # convert
+        #     index_i, index_j = matrix_index
+        #     self._slice_view_param_vec = numpy.ndarray(shape=(slice_view_param_vec.shape[0],), dtype='float')
+        #     for i_grid in range(slice_view_param_vec.shape[0]):
+        #         # convert the user-perspective index (from 1) to numpy-convention index (from 1)
+        #         self._slice_view_param_vec[i_grid] = slice_view_param_vec[i_grid][index_i - 1, index_j - 1]
+        #
+        #     # set up slier slider
+        #     slice_dir = self.ui.comboBox_sliceDirection.currentIndex()  # as X
+        #     min_value = numpy.min(self._slice_view_grid_matrix[:, slice_dir])
+        #     max_value = numpy.max(self._slice_view_grid_matrix[:, slice_dir])
+        #
+        #     self.ui.lineEdit_sliceStartValue.setText('{}'.format(min_value))
+        #     self.ui.lineEdit_sliceEndValue.setText('{}'.format(max_value))
+        #     self.ui.lineEdit_sliceStartValue.setEnabled(False)
+        #     self.ui.lineEdit_sliceEndValue.setEnabled(False)
+        #
+        #     # slice the data
+        #     self.do_slice_3d_plot_contour()
+        #     vec_x, vec_y, vec_z, info = self._slice_values_on_grid(0, 99)
+        #
+        #     # plot
+        #     RESOLUTION = 1  # TODO - 20180905 - Need to be configurable
+        #     self.ui.graphicsView_sliceView.plot_contour(vec_x, vec_y, vec_z,
+        #                                                 contour_resolution=(vec_x.max() - vec_x.min()) / RESOLUTION,
+        #                                                 contour_resolution_y=(vec_y.max() - vec_y.min()) / RESOLUTION,
+        #                                                 flush=True)
+        #     self.ui.graphicsView_sliceView.plot_scatter(vec_x, vec_y, flush=True)
+        #     self.ui.graphicsView_sliceView.setWindowTitle(info)
+        #
+        #
+        # RESOLUTION = 1  # TODO - 20180905 - Need to be configurable
+        # self.ui.graphicsView_sliceView.plot_contour(vec_x, vec_y, vec_z,
+        #                                             contour_resolution=(vec_x.max() - vec_x.min())/RESOLUTION,
+        #                                             contour_resolution_y=(vec_y.max() - vec_y.min())/RESOLUTION,
+        #                                             flush=True)
+        # self.ui.graphicsView_sliceView.plot_scatter(vec_x, vec_y, flush=True)
+        # self.ui.graphicsView_sliceView.main_canvas.set_title(info, 'red')
 
         return
 
@@ -778,7 +781,7 @@ class StrainStressCalculationWindow(QMainWindow):
         can_set = self._setup_slice_slider()
 
         if can_set:
-            self.do_plot_sliced_3d()
+            self.do_slice_3d_plot_contour()
 
         return
 
@@ -878,7 +881,7 @@ class StrainStressCalculationWindow(QMainWindow):
             else:
                 is_strain = False  # then it is stress
             # plot
-            self._set_strain_stress_to_plot(is_strain, strain_stress_index, grid_coordinate_dir_index)
+            self._set_strain_stress_to_plot(is_strain, strain_stress_index)
 
         else:
             # peak parameters
@@ -972,75 +975,81 @@ class StrainStressCalculationWindow(QMainWindow):
 
         return
 
-    def _slice_values_on_grid(self):
+    def _slice_values_on_grid(self, slice_value, slice_direction):
         """ Slice current parameter value on grid along a selected direction (x, y or z)
         Algorithm: slice 3D and then do 3D-interpolation
         :param param_vector: vector of the parameter value to project on the sliced 3D grids
         :return:
         """
-        # TODO - 20181010 - Interpolate or slice 3D grid?
+        print ('[DB....BAT] Generate grid at the plane normal to Axis = {} @ value = {}'
+               ''.format(slice_value, slice_direction))
 
-        # check input
-        checkdatatypes.check_numpy_arrays('(Class variable) Grid for slice view', [self._slice_view_param_vec],
-                                          dimension=2, check_same_shape=False)
 
-        # select the direction and value
-        grid_dir = self.ui.comboBox_sliceDirection.currentIndex()   # 0: x, 1: y, 2: z
-        slider_value = self._get_slider_value()
-        info = 'slider value = {}'.format(slider_value)
+        # # TODO - 20181010 - Interpolate or slice 3D grid?
+        #
+        # # check input
+        # checkdatatypes.check_numpy_arrays('(Class variable) Grid for slice view', [self._slice_view_param_vec],
+        #                                   dimension=2, check_same_shape=False)
+        #
+        # # select the direction and value
+        # grid_dir = self.ui.comboBox_sliceDirection.currentIndex()   # 0: x, 1: y, 2: z
+        # slider_value = self._get_slider_value()
+        # info = 'slider value = {}'.format(slider_value)
+        #
+        # # slice: find the nearest X value
+        # slice_along_vec = self._slice_view_grid_matrix[:, grid_dir]
+        # index_left = numpy.searchsorted(slice_along_vec, slider_value)
+        # if index_left == 0:
+        #     # out of left boundary
+        #     slice_pos = slice_along_vec[0]
+        #     slice_index = 0
+        # elif index_left == len(slice_along_vec):
+        #     # out of right boundary
+        #     slice_pos = slice_along_vec[-1]
+        #     slice_index = len(slice_along_vec) - 1
+        # else:
+        #     # in the middle.. find one
+        #     index_right = index_left
+        #     index_left -= 1
+        #     if slider_value - slice_along_vec[index_left] < slice_along_vec[index_right] - slider_value:
+        #         slice_pos = slice_along_vec[index_left]
+        #         slice_index = index_left
+        #     else:
+        #         slice_pos = slice_along_vec[index_right]
+        #         slice_index = index_right
+        # # END-IF
+        #
+        # info += '; Approximated to {} (index = {})'.format(slice_pos, slice_index)
+        #
+        # self.ui.label_sliceInformation.setText(info)
+        #
+        # slice_min = slice_pos - 0.5 * SLICE_VIEW_RESOLUTION
+        # slice_max = slice_pos + 0.5 * SLICE_VIEW_RESOLUTION
+        #
+        # slice_2d_grid =
+        #
+        # range_index_larger = self._slice_view_grid_matrix[:, grid_dir] > slice_min
+        # sub_grid_vec = self._slice_view_grid_matrix[range_index_larger]
+        # sub_value_vec = self._slice_view_param_vec[range_index_larger]
+        # range_index_smaller = sub_grid_vec[:, grid_dir] < slice_max
+        #
+        # sliced_grid_vec = sub_grid_vec[range_index_smaller]
+        # sliced_value_vec = sub_value_vec[range_index_smaller]
+        #
+        # # TODO FIXME - 20180905 -
+        #
+        # # remove the column sliced on
+        # sliced_grid_vec = numpy.delete(sliced_grid_vec, grid_dir, 1)  # a column for axis=1
+        # vec_x = sliced_grid_vec[:, 0]
+        # vec_y = sliced_grid_vec[:, 1]
+        #
+        # # info
+        # grid_dir_str = str(self.ui.comboBox_sliceDirection.currentText())
+        # info = '{} [{}] = {} ({}, {})'.format(grid_dir_str, grid_dir, slice_pos, slice_min, slider_max)
+        #
+        # return vec_x, vec_y, sliced_value_vec, info
 
-        # slice: find the nearest X value
-        slice_along_vec = self._slice_view_grid_matrix[:, grid_dir]
-        index_left = numpy.searchsorted(slice_along_vec, slider_value)
-        if index_left == 0:
-            # out of left boundary
-            slice_pos = slice_along_vec[0]
-            slice_index = 0
-        elif index_left == len(slice_along_vec):
-            # out of right boundary
-            slice_pos = slice_along_vec[-1]
-            slice_index = len(slice_along_vec) - 1
-        else:
-            # in the middle.. find one
-            index_right = index_left
-            index_left -= 1
-            if slider_value - slice_along_vec[index_left] < slice_along_vec[index_right] - slider_value:
-                slice_pos = slice_along_vec[index_left]
-                slice_index = index_left
-            else:
-                slice_pos = slice_along_vec[index_right]
-                slice_index = index_right
-        # END-IF
-
-        info += '; Approximated to {} (index = {})'.format(slice_pos, slice_index)
-
-        self.ui.label_sliceInformation.setText(info)
-
-        slice_min = slice_pos - 0.5 * SLICE_VIEW_RESOLUTION
-        slice_max = slice_pos + 0.5 * SLICE_VIEW_RESOLUTION
-
-        slice_2d_grid =
-
-        range_index_larger = self._slice_view_grid_matrix[:, grid_dir] > slice_min
-        sub_grid_vec = self._slice_view_grid_matrix[range_index_larger]
-        sub_value_vec = self._slice_view_param_vec[range_index_larger]
-        range_index_smaller = sub_grid_vec[:, grid_dir] < slice_max
-
-        sliced_grid_vec = sub_grid_vec[range_index_smaller]
-        sliced_value_vec = sub_value_vec[range_index_smaller]
-
-        # TODO FIXME - 20180905 -
-
-        # remove the column sliced on
-        sliced_grid_vec = numpy.delete(sliced_grid_vec, grid_dir, 1)  # a column for axis=1
-        vec_x = sliced_grid_vec[:, 0]
-        vec_y = sliced_grid_vec[:, 1]
-
-        # info
-        grid_dir_str = str(self.ui.comboBox_sliceDirection.currentText())
-        info = '{} [{}] = {} ({}, {})'.format(grid_dir_str, grid_dir, slice_pos, slice_min, slider_max)
-
-        return vec_x, vec_y, sliced_value_vec, info
+        return None, None, None, None
 
     def set_strain_stress_to_plot(self, is_strain):
         """
@@ -1065,7 +1074,6 @@ class StrainStressCalculationWindow(QMainWindow):
         """ set the strain or stress to 3D data to plot
         :param is_strain:
         :param matrix_index:
-        :param coordinate: integer for coordinate (0: x, 1: y, 2: z)
         :return:
         """
         # TODO - 20181011 - Completely rewrite this method!
@@ -1091,6 +1099,11 @@ class StrainStressCalculationWindow(QMainWindow):
                                    message_type='error')
             return False
         else:
+            # form the output
+            self._slice_view_param_vec = numpy.ndarray(shape=(slice_view_param_vec.shape[0],), dtype='float')
+            for index in range(slice_view_param_vec.shape[0]):
+                print ('[DB...DET...SOON: {}'.format(slice_view_param_vec[index][matrix_index]))
+                self._slice_view_param_vec[index] = slice_view_param_vec[index][matrix_index]
 
         return True
 
