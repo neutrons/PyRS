@@ -72,7 +72,7 @@ class TextureAnalysisWindow(QMainWindow):
         self.ui.graphicsView_fitSetup.set_subplots(1, 1)
 
         # table
-        self.ui.tableView_poleFigureParams.set_experiment()
+        self.ui.tableView_poleFigureParams.setup()
 
         # check boxes
         self.ui.checkBox_autoLoad.setChecked(True)
