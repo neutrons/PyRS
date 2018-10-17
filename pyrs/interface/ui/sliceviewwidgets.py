@@ -195,9 +195,11 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         # print '[DB...BAT] Grid X and Grid Y size: ', grid_x.shape, grid_y.shape
 
         # check size
-        assert grid_x.shape == matrix_z.shape, 'Size of X (%d) and Y (%d) must match size of Z (%s).' \
-                                               '' % (len(vec_x), len(vec_y), matrix_z.shape)
+        matrix_z = matrix_z.transpose()
 
+        assert grid_x.shape == matrix_z.shape, 'Size of X ({}) and Y ({}) (X-Y mesh size {}) must match size of ' \
+                                               'matrix Z ({}).'.format(vec_x.shape, vec_y.shape,
+                                                                       grid_x.shape, matrix_z.shape)
         # # Release the current image
         # self.axes.hold(False)
 
@@ -476,10 +478,14 @@ class Qt4Mpl2DCanvas(FigureCanvas):
 
         print '[DB...BAT] Set {0} in color {1} as the figure\'s title.'.format(title, color)
         self.setWindowTitle(title)
+        self.fig.set_label(title)
 
         self.draw()
 
         return
+
+    def set_xlabel(self, x_label):
+        self.axes.set_xlabel(x_label)
 
     def update_image(self, array2d):
         """

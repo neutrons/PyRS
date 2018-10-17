@@ -218,7 +218,7 @@ class StrainStressCalculator(object):
         for dir_i in self._direction_list:
             self._sample_positions_dict[dir_i] = None
         self._grid_statistics_dict = None
-        self._grid_output_array = None  # array (of vector) for grids used by strain/stress calculation
+        self._matched_grid_vector = None  # array (of vector) for grids used by strain/stress calculation
         self._matched_grid_scans_list = None   # list[i] = {'e11': scan log index, 'e22': scan log index, ....
 
         # status
@@ -420,7 +420,7 @@ class StrainStressCalculator(object):
                                                                            or (n, 3) int array)
         """
         # get the grids for strain/stress calculation
-        self._grid_output_array = self._generate_slice_view_grids(grids_dimension_dict)
+        # self._matched_grid_vector = self._generate_slice_view_grids(grids_dimension_dict)
 
         # generate linear dimension arrays
         grid_linear_dim_arrays = [None] * 3
@@ -907,9 +907,10 @@ class StrainStressCalculator(object):
         """
         # prepare the data structure
         num_grids = len(self._matched_grid_scans_list)
+        print ('Number of grids: {}'.format(num_grids))
         strain_matrix_vec = numpy.ndarray(shape=(num_grids, 3, 3), dtype='float')
         stress_matrix_vec = numpy.ndarray(shape=(num_grids, 3, 3), dtype='float')
-        self._grid_output_array = numpy.ndarray(shape=(num_grids, 3), dtype='float')
+        self._matched_grid_vector = numpy.ndarray(shape=(num_grids, 3), dtype='float')
 
         # loop over all the matched grids
         for grid_index, dir_scan_dict in enumerate(self._matched_grid_scans_list):
@@ -940,12 +941,14 @@ class StrainStressCalculator(object):
             grid_y = self._sample_log_dict['e11'][self._grid_pos_y_name_dict['e11']][dir_scan_dict['e11']]
             grid_z = self._sample_log_dict['e11'][self._grid_pos_z_name_dict['e11']][dir_scan_dict['e11']]
 
-            self._grid_output_array[grid_index] = numpy.array((grid_x, grid_y, grid_z))
+            self._matched_grid_vector[grid_index] = numpy.array((grid_x, grid_y, grid_z))
         # END-FOR
 
         # set to the class variable
         self._strain_matrix_vec = strain_matrix_vec
         self._stress_matrix_vec = stress_matrix_vec
+
+        print ('[DB..BAT] Strain/Stress calculated: \n{}\n{}'.format(strain_matrix_vec, stress_matrix_vec))
 
         return strain_matrix_vec, stress_matrix_vec
 
@@ -1051,18 +1054,18 @@ class StrainStressCalculator(object):
                                                             allowed_values=self._peak_param_dict[ss_direction].keys())
 
         # TODO - 20180823 - the non-existing data structure is to be corrected later with method to create user grids
-        num_grids = len(self._grid_output_array[ss_direction])
+        num_grids = len(self._matched_grid_vector[ss_direction])
 
         # create the 2D array
         param_grid_array = numpy.ndarray(shape=(num_grids, 4), dtype='float')
-        grids_list = sorted(self._grid_output_array[ss_direction].keys())
+        grids_list = sorted(self._matched_grid_vector[ss_direction].keys())
         for i_grid, grid_pos in enumerate(grids_list):
             # position of grid on sample
             for i_coord in range(3):
                 param_grid_array[i_grid][i_coord] = grid_pos[i_coord]
             # parameter value
-            scan_log_index = self._grid_output_array[ss_direction][grid_pos]
-            param_value = self._grid_output_array
+            scan_log_index = self._matched_grid_vector[ss_direction][grid_pos]
+            param_value = self._matched_grid_vector
             param_grid_array[i_grid][3] = param_value
         # END-FOR
 
@@ -1213,7 +1216,7 @@ class StrainStressCalculator(object):
         """ get the corresponding grid output (matched grids), strain and stress list
         :return: vector of matrix (3x3)
         """
-        return self._grid_output_array, self._strain_matrix_vec, self._stress_matrix_vec
+        return self._matched_grid_vector, self._strain_matrix_vec, self._stress_matrix_vec
 
     def get_raw_grid_param_values(self, ss_direction, param_name):
         """ Get the parameter's value on raw experimental grid
@@ -1270,11 +1273,11 @@ class StrainStressCalculator(object):
 
     # TODO - 20180820 - Write a single unit test to find out how good or bad this algorithm is
     @staticmethod
-    def interpolate3d(exp_grid_pos_vector, param_value_vector, target_position):
+    def interpolate3d(exp_grid_pos_vector, param_value_vector, target_position_vector):
         """ interpolate a value in a 3D system
         :param exp_grid_pos_vector: 
         :param param_value_vector: 
-        :param target_position: 
+        :param target_position_vector:
         :return: 
         """
         # check inputs
@@ -1289,14 +1292,15 @@ class StrainStressCalculator(object):
             raise RuntimeError('Experimental grid positions have different number to parameter value vector '
                                '({} vs {})'.format(num_exp_grids, len(param_value_vector)))
 
-        assert isinstance(target_position, numpy.ndarray) and target_position.shape == (3,),\
-            'Target position must be a (3, 0) ndarray but not {} of type {}' \
-            ''.format(target_position, type(target_position))
+        assert isinstance(target_position_vector, numpy.ndarray) and target_position_vector.shape[1] == 3,\
+            'Target position must be a (N, 3) ndarray but not {} of type {}' \
+            ''.format(target_position_vector, type(target_position_vector))
 
         # grid_x, grid_y, grid_z = (grid_x, grid_y, grid_z)
-        target_position_input = numpy.array([target_position])
-        print (param_value_vector.shape)
-        print (target_position_input.shape)
+        target_position_input = target_position_vector
+        # print (exp_grid_pos_vector.shape)
+        # print (param_value_vector.shape)
+        # print (target_position_input.shape)
         interp_value = griddata(exp_grid_pos_vector, param_value_vector, target_position_input, method='nearest')
 
         return interp_value
@@ -1477,7 +1481,7 @@ class StrainStressCalculator(object):
 
             # positions
             for dir_i in range(3):
-                line_i += '{:10s}'.format('{:.5f}'.format(self._grid_output_array[i_grid][dir_i]))
+                line_i += '{:10s}'.format('{:.5f}'.format(self._matched_grid_vector[i_grid][dir_i]))
 
             # write strain
             for ii in range(3):

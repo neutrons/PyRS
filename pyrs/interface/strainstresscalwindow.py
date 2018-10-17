@@ -97,9 +97,9 @@ class StrainStressCalculationWindow(QMainWindow):
         self._session_name = None
 
         # 3D data to slice and grids information
-        self._slice_view_grid_matrix = None
-        self._slice_view_param_vec = None
-        self._grid_linear_arrays = None   # [0/1/2] = np.arange(min, max, step)  0 for X, 1 for Y, 2 for Z
+        self._slice_view_exp_grid_vec = None
+        self._slice_view_exp_value_vec = None
+        self._grid_linear_arrays = [None] * 3   # [0/1/2] = np.arange(min, max, step)  0 for X, 1 for Y, 2 for Z
         self._grid_viz_setup_dict = None
 
         # mutex
@@ -367,7 +367,11 @@ class StrainStressCalculationWindow(QMainWindow):
         slice_direction_index = self.ui.comboBox_sliceDirection.currentIndex()
 
         slider_pos = self.ui.horizontalSlider_slicer3D.value()
-        slider_value = self._grid_linear_arrays[slice_direction_index][slider_pos]
+        try:
+            slider_value = self._grid_linear_arrays[slice_direction_index][slider_pos]
+        except TypeError as run_err:
+            raise RuntimeError('Unable to get slider value {} from Grid array {} due to {}'
+                               '.'.format(slider_pos, self._grid_linear_arrays, run_err))
         self.ui.label_sliderValue.setText('{:.3f}'.format(slider_value))
 
         return slider_value
@@ -617,10 +621,18 @@ class StrainStressCalculationWindow(QMainWindow):
         slice the already loaded 3D data
         :return:
         """
-        slider_value = self._get_slider_value()
-        slider_direction_index = int(str(self.ui.comboBox_sliceDirection.currentIndex()))
+        try:
+            slider_value = self._get_slider_value()
+        except RuntimeError as run_err:
+            gui_helper.pop_message(self, message='Check Grid Setup', detailed_message=str(run_err),
+                                   message_type='error')
+            return
+        slider_direction_index = int(str(self.ui.comboBox_sliceDirection.currentIndex()))  # 0, 1, 2
         self.ui.label_sliderValue.setText('{:.3f}'.format(slider_value))
-        vec_x, vec_y, vec_z, info = self._slice_values_on_grid(slider_value, slider_direction_index)
+        vec_x, vec_y, matrix_z, info, dir_tuple = self._slice_values_on_grid(slider_value, slider_direction_index)
+
+        print ('INFO: {}'.format(info))
+        self.ui.graphicsView_sliceView.plot_contour_raw(vec_x, vec_y, matrix_z, info, dir_tuple)
 
 
         #
@@ -854,8 +866,7 @@ class StrainStressCalculationWindow(QMainWindow):
         return
 
     def do_setup_plot_data(self):
-        """
-
+        """ Set the data for slice view/plot
         :return:
         """
         # return if it is required not to plot
@@ -867,12 +878,15 @@ class StrainStressCalculationWindow(QMainWindow):
             return
 
         plot_type_str = str(self.ui.comboBox_type.currentText())
-        grid_coordinate_dir_index = self.ui.comboBox_sliceDirection.currentIndex()   # X, Y, Z
+        # grid_coordinate_dir_index = self.ui.comboBox_sliceDirection.currentIndex()   # X, Y, Z
         if plot_type_str.startswith('St'):
             # strain or stress
             if True:  # a cheat but fast implementation
-                strain_stress_index = self.ui.comboBox_plotParameterName.currentIndex()
-                strain_stress_index = strain_stress_index, strain_stress_index
+                strain_stress_index_str = str(self.ui.comboBox_plotParameterName.currentText()).strip()
+                if strain_stress_index_str == 0:
+                    return
+                strain_stress_index = gui_helper.parse_tuples(strain_stress_index_str, int, 2)
+
             else:
                 matrix_index_str = str(self.ui.comboBox_plotParameterName.currentText())
                 strain_stress_index = gui_helper.parse_tuples(matrix_index_str, int, 2)
@@ -981,94 +995,59 @@ class StrainStressCalculationWindow(QMainWindow):
         :param param_vector: vector of the parameter value to project on the sliced 3D grids
         :return:
         """
-        print ('[DB....BAT] Generate grid at the plane normal to Axis = {} @ value = {}'
-               ''.format(slice_value, slice_direction))
+        checkdatatypes.check_int_variable('Slice direction index', slice_direction, (0, 3))
 
+        info = ('[DB....BAT] Generate grid at the plane normal to Axis = {} @ value = {}'
+                ''.format(slice_direction, slice_value))
+        print (info)
 
-        # # TODO - 20181010 - Interpolate or slice 3D grid?
-        #
-        # # check input
-        # checkdatatypes.check_numpy_arrays('(Class variable) Grid for slice view', [self._slice_view_param_vec],
-        #                                   dimension=2, check_same_shape=False)
-        #
-        # # select the direction and value
-        # grid_dir = self.ui.comboBox_sliceDirection.currentIndex()   # 0: x, 1: y, 2: z
-        # slider_value = self._get_slider_value()
-        # info = 'slider value = {}'.format(slider_value)
-        #
-        # # slice: find the nearest X value
-        # slice_along_vec = self._slice_view_grid_matrix[:, grid_dir]
-        # index_left = numpy.searchsorted(slice_along_vec, slider_value)
-        # if index_left == 0:
-        #     # out of left boundary
-        #     slice_pos = slice_along_vec[0]
-        #     slice_index = 0
-        # elif index_left == len(slice_along_vec):
-        #     # out of right boundary
-        #     slice_pos = slice_along_vec[-1]
-        #     slice_index = len(slice_along_vec) - 1
-        # else:
-        #     # in the middle.. find one
-        #     index_right = index_left
-        #     index_left -= 1
-        #     if slider_value - slice_along_vec[index_left] < slice_along_vec[index_right] - slider_value:
-        #         slice_pos = slice_along_vec[index_left]
-        #         slice_index = index_left
-        #     else:
-        #         slice_pos = slice_along_vec[index_right]
-        #         slice_index = index_right
-        # # END-IF
-        #
-        # info += '; Approximated to {} (index = {})'.format(slice_pos, slice_index)
-        #
-        # self.ui.label_sliceInformation.setText(info)
-        #
-        # slice_min = slice_pos - 0.5 * SLICE_VIEW_RESOLUTION
-        # slice_max = slice_pos + 0.5 * SLICE_VIEW_RESOLUTION
-        #
-        # slice_2d_grid =
-        #
-        # range_index_larger = self._slice_view_grid_matrix[:, grid_dir] > slice_min
-        # sub_grid_vec = self._slice_view_grid_matrix[range_index_larger]
-        # sub_value_vec = self._slice_view_param_vec[range_index_larger]
-        # range_index_smaller = sub_grid_vec[:, grid_dir] < slice_max
-        #
-        # sliced_grid_vec = sub_grid_vec[range_index_smaller]
-        # sliced_value_vec = sub_value_vec[range_index_smaller]
-        #
-        # # TODO FIXME - 20180905 -
-        #
-        # # remove the column sliced on
-        # sliced_grid_vec = numpy.delete(sliced_grid_vec, grid_dir, 1)  # a column for axis=1
-        # vec_x = sliced_grid_vec[:, 0]
-        # vec_y = sliced_grid_vec[:, 1]
-        #
-        # # info
-        # grid_dir_str = str(self.ui.comboBox_sliceDirection.currentText())
-        # info = '{} [{}] = {} ({}, {})'.format(grid_dir_str, grid_dir, slice_pos, slice_min, slider_max)
-        #
-        # return vec_x, vec_y, sliced_value_vec, info
+        # construct 3D values
+        dir_index_set = sorted(list(set(range(3)) - {slice_direction}))
+        vec_row_tick = self._grid_linear_arrays[dir_index_set[0]]
+        vec_col_tick = self._grid_linear_arrays[dir_index_set[1]]
+        matrix = numpy.ndarray(shape=(vec_row_tick.shape[0], vec_col_tick.shape[0], 3), dtype='float')
 
-        return None, None, None, None
+        dir_x = dir_index_set[0]
+        dir_y = dir_index_set[1]
 
-    def set_strain_stress_to_plot(self, is_strain):
-        """
+        for i_col in range(vec_row_tick.shape[0]):
+            matrix[i_col, :, dir_x] = vec_row_tick[i_col]
+            matrix[i_col, :, slice_direction] = slice_value
+            matrix[i_col, :, dir_y] = vec_col_tick
 
-        :return:
-        """
-        # get data and set to class variable
-        self._slice_view_grid_matrix, strain_vec, stress_vec = \
-            self._core.strain_stress_calculator.get_strain_stress_values()
-        if is_strain:
-            self._slice_view_param_vec = strain_vec
-        else:
-            self._slice_view_param_vec = stress_vec
+        value_matrix_2d = numpy.ndarray(shape=(vec_row_tick.shape[0], vec_col_tick.shape[0]), dtype='float')
 
-        # 2. read the slice direction as X/Y/Z
+        grid_pos_vec = numpy.ndarray(shape=(vec_row_tick.shape[0] * vec_col_tick.shape[0], 3), dtype='float')
+        index = 0
+        for i_col in range(vec_row_tick.shape[0]):
+            for i_row in range(vec_col_tick.shape[0]):
+                grid_pos = matrix[i_col][i_row]
+                grid_pos_vec[index] = grid_pos
+                index += 1
+                # self._core.strain_stress_calculator.interpolate3d(self._slice_view_exp_grid_vec,
+                #                                                   self._slice_view_exp_value_vec,
+                #                                                   grid_pos)
+        # END-FOR
 
-        # 3. check dimension of the grid (for output) .... general to all ... even from setup grid! following (pushButton_alignGrids)
-        #    Yes! this shall be set in a general method called slice_output_grid()... which is used by everything!
+        value_vec = self._core.strain_stress_calculator.interpolate3d(self._slice_view_exp_grid_vec,
+                                                          self._slice_view_exp_value_vec,
+                                                          grid_pos_vec)
+        # print (value_vec)
+        # print (value_vec.shape)
 
+        index = 0
+        for i_col in range(vec_row_tick.shape[0]):
+            for i_row in range(vec_col_tick.shape[0]):
+                value_matrix_2d[i_col, i_row] = value_vec[index]
+                index += 1
+        # END-FOR
+
+        dir_str_dict = {0: 'X', 1: 'Y', 2: 'Z'}
+        dir_str = dir_str_dict[slice_direction]
+        info = self._slice_view_label + ': @ {} = {}'.format(dir_str, slice_value)
+        dir_tuple = dir_str_dict[dir_x], dir_str_dict[dir_y]
+
+        return vec_row_tick, vec_col_tick, value_matrix_2d, info, dir_tuple
 
     def _set_strain_stress_to_plot(self, is_strain, matrix_index):
         """ set the strain or stress to 3D data to plot
@@ -1076,36 +1055,27 @@ class StrainStressCalculationWindow(QMainWindow):
         :param matrix_index:
         :return:
         """
-        # TODO - 20181011 - Completely rewrite this method!
-
-        # 1. read slice coordinate
-        # 2. determine the sliced coordinates
-        # 3. do 3D interpolation from stored vector!
-
         checkdatatypes.check_bool_variable('Flag showing it a strain', is_strain)
 
+        # print ('[DB...BAT] Matrix index = {} of type {}'.format(matrix_index, type(matrix_index)))
+
         # get data and set to class variable
-        self._slice_view_grid_matrix, strain_vec, stress_vec = \
+        self._slice_view_exp_grid_vec, strain_vec, stress_vec = \
             self._core.strain_stress_calculator.get_strain_stress_values()
+
         if is_strain:
             slice_view_param_vec = strain_vec
+            label = 'Strain '
         else:
             slice_view_param_vec = stress_vec
+            label = 'Stress '
 
-        if slice_view_param_vec is None:
-            gui_helper.pop_message(self, 'Unable to set strain/stress. Strain/stress is None',
-                                   detailed_message='Strain/stress might not be calculated or there '
-                                                    'might be error during calculation',
-                                   message_type='error')
-            return False
-        else:
-            # form the output
-            self._slice_view_param_vec = numpy.ndarray(shape=(slice_view_param_vec.shape[0],), dtype='float')
-            for index in range(slice_view_param_vec.shape[0]):
-                print ('[DB...DET...SOON: {}'.format(slice_view_param_vec[index][matrix_index]))
-                self._slice_view_param_vec[index] = slice_view_param_vec[index][matrix_index]
+        # get the matrix element out: need to convert to (1, 2, 3) to (0, 1, 2)
+        self._slice_view_exp_value_vec = slice_view_param_vec[:, matrix_index[0]-1, matrix_index[1]-1]
+        label += '({}, {}) '.format(matrix_index[0], matrix_index[1])
+        self._slice_view_label = label
 
-        return True
+        return
 
     def save_stress_strain(self):
         """
@@ -1291,19 +1261,19 @@ class StrainStressCalculationWindow(QMainWindow):
             # get value
             grid_param_dict = self._core.strain_stress_calculator.get_raw_grid_param_values(ss_direction, param_name)
             # convert to a 2D array (grid position vector) and a 1D array (parameter value)
-            self._slice_view_grid_matrix, self._slice_view_param_vec = self._convert_grid_dict_to_vectors(ss_direction,
-                                                                                                          grid_param_dict)
+            self._slice_view_exp_grid_vec, self._slice_view_exp_value_vec = self._convert_grid_dict_to_vectors(ss_direction,
+                                                                                                               grid_param_dict)
         else:
             # mapped/interpolated parameter value on output strain/stress grid
-            self._slice_view_grid_matrix = self._core.strain_stress_calculator.get_strain_stress_grid()
-            self._slice_view_param_vec = self._core.strain_stress_calculator.get_user_grid_param_values(ss_direction,
-                                                                                                        param_name)
+            self._slice_view_exp_grid_vec = self._core.strain_stress_calculator.get_strain_stress_grid()
+            self._slice_view_exp_value_vec = self._core.strain_stress_calculator.get_user_grid_param_values(ss_direction,
+                                                                                                            param_name)
         # END-IF-ELSE
 
         # set up slier slider
         slice_dir = self.ui.comboBox_sliceDirection.currentIndex()  # as X
-        min_value = numpy.min(self._slice_view_grid_matrix[:, slice_dir])
-        max_value = numpy.max(self._slice_view_grid_matrix[:, slice_dir])
+        min_value = numpy.min(self._slice_view_exp_grid_vec[:, slice_dir])
+        max_value = numpy.max(self._slice_view_exp_grid_vec[:, slice_dir])
 
         self.ui.lineEdit_sliceStartValue.setText('{}'.format(min_value))
         self.ui.lineEdit_sliceEndValue.setText('{}'.format(max_value))
@@ -1319,10 +1289,10 @@ class StrainStressCalculationWindow(QMainWindow):
 
         # plot
         RESOLUTION = 1  # TODO - 20180905 - Need to be configurable
-        self.ui.graphicsView_sliceView.plot_contour(vec_x, vec_y, vec_z,
-                                                    contour_resolution=(vec_x.max() - vec_x.min())/RESOLUTION,
-                                                    contour_resolution_y=(vec_y.max() - vec_y.min())/RESOLUTION,
-                                                    flush=True)
+        self.ui.graphicsView_sliceView.plot_contour_interpolate(vec_x, vec_y, vec_z,
+                                                                contour_resolution=(vec_x.max() - vec_x.min())/RESOLUTION,
+                                                                contour_resolution_y=(vec_y.max() - vec_y.min())/RESOLUTION,
+                                                                flush=True)
         self.ui.graphicsView_sliceView.plot_scatter(vec_x, vec_y, flush=True)
 
         # 6. store the 3D data
