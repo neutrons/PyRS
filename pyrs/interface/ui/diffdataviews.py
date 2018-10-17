@@ -64,8 +64,7 @@ class GeneralDiffDataView(MplGraphicsView1D):
     generalized diffraction view
     """
     def __init__(self, parent):
-        """
-        blabla
+        """ Initialization
         :param parent:
         """
         super(GeneralDiffDataView, self).__init__(parent)

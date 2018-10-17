@@ -447,7 +447,7 @@ class StrainStressGridSetup(QDialog):
         self._is_user_specified_grids = False
 
         # for return
-        self._grid_setup_dict = dict()
+        self._grid_setup_dict = dict()   # [Min/Max/'Resolution'][X/Y/Z] = value
 
         # flag that user input is OK
         self._is_user_input_acceptable = True
@@ -803,8 +803,8 @@ def get_grid_slicing_export_setup(parent):
 
 # TODO - 20180918 - Need documentation
 def get_strain_stress_grid_setup(parent, user_define_grid, grid_stat_dict, grid_setup_dict):
-    """ blabla
-    :return:
+    """ Get how the sample grids is set up from a Dialog to which user specifies
+    :return: dictionary of the set up criteria ([Min/Max/'Resolution'][X/Y/Z] = value)
     """
     if grid_setup_dict is not None:
         checkdatatypes.check_dict('Grid setup parameters', grid_setup_dict)

@@ -182,10 +182,12 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         :return:
         """
         # check input
-        # TODO - 20180901 - labor
-        assert isinstance(vec_x, list) or isinstance(vec_x, np.ndarray), 'blabla'
-        assert isinstance(vec_y, list) or isinstance(vec_y, np.ndarray), 'blabla'
-        assert isinstance(matrix_z, np.ndarray), 'blabla'
+        assert isinstance(vec_x, list) or isinstance(vec_x, np.ndarray),\
+            'Vector X {} must be either a list or a ndarray but not a {}'.format(vec_x, type(vec_x))
+        assert isinstance(vec_y, list) or isinstance(vec_y, np.ndarray),\
+            'Vector Y {} must be either a list or a ndarray but not a {}'.format(vec_y, type(vec_y))
+        assert isinstance(matrix_z, np.ndarray),\
+            'Vector Z {} must be a ndarray but not a {}'.format(matrix_z, type(matrix_z))
 
         # create mesh grid
         grid_x, grid_y = np.meshgrid(vec_x, vec_y)
@@ -201,7 +203,7 @@ class Qt4Mpl2DCanvas(FigureCanvas):
 
         # Do plot: resolution on Z axis (color bar is set to 100)
         time_s = time.time()
-        print ('[DB...BAT] Starting time (float) = {}'.format(time_s))
+        print ('[DB...BAT] Contour Plot Starting time (float) = {}'.format(time_s))
 
         self.axes.clear()
         if False:
@@ -235,12 +237,18 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         else:
             self._colorBar.update_bruteforce(contour_plot)
 
-        # Flush...
+        # apply the change
         self._flush()
 
         return contour_plot
 
     def add_scatter(self, x, y):
+        """
+        Add scatter plot to canvas
+        :param x:
+        :param y:
+        :return:
+        """
         # TODO - 20180824 - shall be an option
         self.axes.plot(x, y, 'ko', ms=3)
 
@@ -259,8 +267,10 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         @return:
         """
         # check
-        assert isinstance(array2d, np.ndarray), 'blabla'
-        assert len(array2d.shape) == 2, 'blabla'
+        assert isinstance(array2d, np.ndarray), '2D array {} must be a ndarray but not a {}' \
+                                                ''.format(array2d, type(array2d))
+        assert len(array2d.shape) == 2, 'Image {} must be given as a 2D array but not of shape {}' \
+                                        ''.format(array2d, array2d.shape)
 
         # show image
         self._imagePlot = self.axes.imshow(array2d, extent=[xmin, xmax, ymin, ymax], interpolation='none')
@@ -321,9 +331,10 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         @param array2d:
         @return:
         """
+        # TODO FIXME - add_scatter()...  This method is not used! ...
         # check!
         # TODO - 20180801 - Make it work
-        assert isinstance(array2d, np.ndarray), 'blabla'
+        assert isinstance(array2d, np.ndarray), ''
         if array2d.shape[1] < 3:
             raise RuntimeError('blabla3')
 
