@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1561</width>
-    <height>1024</height>
+    <height>1106</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -115,6 +115,9 @@
          <string>More options</string>
         </property>
        </widget>
+      </item>
+      <item row="1" column="6">
+       <widget class="QComboBox" name="comboBox_2dPlotChoice"/>
       </item>
      </layout>
     </item>
@@ -398,6 +401,16 @@
           </property>
          </widget>
         </item>
+        <item>
+         <widget class="QCheckBox" name="checkBox_autoFit">
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If specified as True, then after the file is loaded, all the peaks will be fit with default peak profile and background function automatically.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="text">
+           <string>Auto Fit</string>
+          </property>
+         </widget>
+        </item>
        </layout>
       </item>
      </layout>
@@ -431,7 +444,7 @@
      <x>0</x>
      <y>0</y>
      <width>1561</width>
-     <height>22</height>
+     <height>25</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

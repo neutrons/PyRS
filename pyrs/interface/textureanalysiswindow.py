@@ -122,7 +122,13 @@ class TextureAnalysisWindow(QMainWindow):
         :return:
         """
         det_id_list = None
-        self._core.calculate_pole_figure(data_key=self._data_key, detector_id_list=det_id_list)
+        try:
+            self._core.calculate_pole_figure(data_key=self._data_key, detector_id_list=det_id_list)
+        except RuntimeError as run_err:
+            gui_helper.pop_message(self, message='Failed to calculate pole figure',
+                                   detailed_message='{}'.format(run_err),
+                                   message_type='error')
+            return
 
         # get result out and show in table
         num_rows = self.ui.tableView_poleFigureParams.rowCount()
@@ -131,6 +137,9 @@ class TextureAnalysisWindow(QMainWindow):
             alpha, beta = self._core.get_pole_figure_value(self._data_key, det_id, log_index)
             # print ('[DB...BAT] row {0}:  alpha = {1}, beta = {2}'.format(row_number, alpha, beta))
             self.ui.tableView_poleFigureParams.set_pole_figure_projection(row_number, alpha, beta)
+
+        # plot pole figure
+        self.do_plot_pole_figure()
 
         return
 

@@ -432,6 +432,10 @@ class PoleFigureCalculator(object):
 
             vec_q_prime1 = numpy.matmul(temp_matrix.transpose(), numpy.array([0., 1., 0.]))
             vec_q_prime2 = numpy.matmul(temp_matrix.transpose(), numpy.array([1., 0., 0.]))
+
+            # convert from matrix (1, 3) to ndarray (3,)
+            vec_q_prime1 = numpy.asarray(vec_q_prime1[0])[0]
+            vec_q_prime2 = numpy.asarray(vec_q_prime2[0])[0]
         else:
             temp_matrix = matrix_mul_matrix(cal_rotation_matrix_x(phi + 90, True, self._use_matmul),
                                             cal_rotation_matrix_y(chi, True, self._use_matmul))
@@ -449,9 +453,9 @@ class PoleFigureCalculator(object):
 
         # calculate projection to alpha and beta
         if vec_q_prime1[2] >= 0:
-		beta  =  math.acos(numpy.dot( vec_q_prime1, vec_q1.transpose() )) * 180. / numpy.pi - 90
+            beta = math.acos(numpy.dot(vec_q_prime1, vec_q1.transpose())) * 180. / numpy.pi - 90
         else:
-        	beta  = 270. - math.acos(numpy.dot( vec_q_prime1, vec_q1.transpose() )) * 180. / numpy.pi
+            beta = 270. - math.acos(numpy.dot( vec_q_prime1, vec_q1.transpose())) * 180. / numpy.pi
 
         alpha = math.acos(numpy.dot(vec_q_prime2, vec_q2.transpose())) * 180. / numpy.pi
 
@@ -459,13 +463,12 @@ class PoleFigureCalculator(object):
             beta = 360 + (beta)
 
         # print ('[INFO] Alpha = {0}\tBeta = {1}'.format(alpha, beta))
-    	print ('2theta = {0}\nomega = {1}\nchi = {2}\nphi = {3}'
-           ''.format(two_theta, omega, chi, phi))
-
-    	print vec_q_prime1
-    	print vec_q_prime2
-	print vec_q1
-    	print vec_q2
+        # print ('2theta = {0}\nomega = {1}\nchi = {2}\nphi = {3}'.format(two_theta, omega, chi, phi))
+        # print vec_q_prime1
+        # print vec_q_prime2
+        # print vec_q1
+        # print vec_q2
+        # print ('[DB...BAT] Print out debug information 3955e')
 
         return alpha, beta
 

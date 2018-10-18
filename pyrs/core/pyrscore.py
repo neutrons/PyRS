@@ -165,8 +165,12 @@ class PyRsCore(object):
             # get intensity and log value
             log_values = self.data_center.get_scan_index_logs_values((data_key, det_id), log_names)
 
-            optimizer = self._get_optimizer((data_key, det_id))
-            peak_intensities = optimizer.get_peak_intensities()
+            try:
+                optimizer = self._get_optimizer((data_key, det_id))
+                peak_intensities = optimizer.get_peak_intensities()
+            except AttributeError as att:
+                raise RuntimeError('Unable to get peak intensities. Check whether peaks have been fit.  FYI: {}'
+                                   ''.format(att))
             fit_info_dict = optimizer.get_peak_fit_parameters()
 
             # add value to pole figure calculate
@@ -344,6 +348,7 @@ class PyRsCore(object):
             optimizer = self._optimizer_dict[data_key]
             print ('Return optimizer in dictionary: {0}'.format(optimizer))
         else:
+            # data key exist but optimizer does not: could be not been fitted yet
             raise RuntimeError('Unable to find optimizer related to data with reference ID {0} of type {1}.'
                                'Current keys are {2}.'
                                ''.format(data_key, type(data_key), self._optimizer_dict.keys()))
