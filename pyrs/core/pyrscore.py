@@ -212,8 +212,8 @@ class PyRsCore(object):
             vec_beta_i = sub_array[:, 1]
             vec_intensity_i = sub_array[:, 2]
 
-            print ('# data points = {0}'.format(len(sub_array)))
-            print ('alpha: {0}'.format(vec_alpha_i))
+            print ('Det {} # data points = {}'.format(det_id, len(sub_array)))
+            # print ('alpha: {0}'.format(vec_alpha_i))
 
             if vec_alpha is None:
                 vec_alpha = vec_alpha_i

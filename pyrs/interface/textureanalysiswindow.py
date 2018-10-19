@@ -583,6 +583,10 @@ class TextureAnalysisWindow(QMainWindow):
 
         self.ui.graphicsView_contour.plot_pole_figure(vec_alpha, vec_beta, vec_intensity)
 
+
+
+
+
         return
 
     def do_quit(self):
