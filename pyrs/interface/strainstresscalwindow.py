@@ -538,6 +538,7 @@ class StrainStressCalculationWindow(QMainWindow):
                 return
         # END-IF (need to save)
 
+        load_success = True
         if self.ui.radioButton_loadRaw.isChecked():
             # load raw files
             # check raw file name
@@ -547,18 +548,25 @@ class StrainStressCalculationWindow(QMainWindow):
                 e33_file_name = str(self.ui.lineEdit_e33ScanFile.text()).strip()
             else:
                 e33_file_name = None
+            # check whether they are different
             for dir_ss, file_name in [('E11', e11_file_name), ('E22', e22_file_name),
                                       ('E33', e33_file_name)]:
                 if file_name == '':
                     gui_helper.pop_message(self, '{} file is not given'.format(dir_ss), message_type='error')
                     return
             # END-FOR
+            if e11_file_name == e22_file_name or e22_file_name == e33_file_name or e11_file_name == e33_file_name:
+                gui_helper.pop_message(self, 'E11/E22/E33 have duplicates.',
+                                       detailed_message='E11/E22/E33 file names: {}, {} and {}'
+                                                        ''.format(e11_file_name, e22_file_name, e33_file_name),
+                                       message_type='error')
+                return
 
             # load raw file
-            self.load_raw_file(e11_file_name, 'e11')
-            self.load_raw_file(e22_file_name, 'e22')
+            load_success = self.load_raw_file(e11_file_name, 'e11') and load_success
+            load_success = self.load_raw_file(e22_file_name, 'e22') and load_success
             if e33_file_name is not None:
-                self.load_raw_file(e33_file_name, 'e33')
+                load_success = self.load_raw_file(e33_file_name, 'e33') and load_success
 
         else:
             # load saved files
@@ -567,6 +575,10 @@ class StrainStressCalculationWindow(QMainWindow):
             data_key, message = self._core.load_strain_stress_file(file_name=reduced_file_name)
             raise RuntimeError('Not Implemented')
         # END-IF
+
+        if not load_success:
+            gui_helper.pop_message(self, message='Not all files are loaded correctly', message_type='info')
+            return
 
         # convert the peak centers to dspacing
         self._core.strain_stress_calculator.convert_peaks_positions()
@@ -807,20 +819,21 @@ class StrainStressCalculationWindow(QMainWindow):
         load stress/strain raw file with peak fit information
         :param file_name:
         :param direction:
-        :return:
+        :return: boolean to indicate whether loading is successful or not
         """
         try:
             self._core.strain_stress_calculator.load_reduced_file(file_name=file_name, direction=direction)
         except RuntimeError as run_error:
             gui_helper.pop_message(self, message='Unable to load reduced HB2B diffraction file {} '
                                                  'due to {}'.format(file_name, run_error))
+            return False
 
         # set up the combo box for 3 directions
         sample_logs_list = self._core.strain_stress_calculator.get_sample_logs_names(direction, to_set=False)
 
         self._setup_sample_logs_combo_box(sample_logs_list, direction)
 
-        return
+        return True
 
     def do_setup_plot_data(self):
         """ Set the data for slice view/plot
@@ -1182,12 +1195,16 @@ class StrainStressCalculationWindow(QMainWindow):
         # set the UI
         if is_plane_stress or is_plane_strain:
             self.ui.lineEdit_e33ScanFile.setEnabled(False)
+            self.ui.groupBox_calculator.setEnabled(False)
             self.ui.pushButton_browse_e33ScanFile.setEnabled(False)
             self.ui.comboBox_sampleLogNameX_E33.setEnabled(False)
             self.ui.comboBox_sampleLogNameY_E33.setEnabled(False)
             self.ui.comboBox_sampleLogNameZ_E33.setEnabled(False)
         else:
             self.ui.lineEdit_e33ScanFile.setEnabled(True)
+            self.ui.groupBox_importData.setEnabled(True)
+            self.ui.groupBox_alignGrids.setEnabled(False)
+            self.ui.groupBox_calculator.setEnabled(False)
             self.ui.pushButton_browse_e33ScanFile.setEnabled(True)
             self.ui.comboBox_sampleLogNameX_E33.setEnabled(True)
             self.ui.comboBox_sampleLogNameY_E33.setEnabled(True)

@@ -1380,11 +1380,6 @@ class StrainStressCalculator(object):
         :param file_name:
         :return:
         """
-        # check whether it has been loaded
-        if file_name in self._source_file_dict.values():
-            raise RuntimeError('File {} of direction {} has already been loaded. FYI: {}'
-                               ''.format(file_name, direction, self._source_file_dict))
-
         # check input
         pyrs.utilities.checkdatatypes.check_string_variable('Strain/Stress Direction', direction,
                                                             ['e11', 'e22', 'e33'])
