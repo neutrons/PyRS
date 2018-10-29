@@ -642,57 +642,6 @@ class StrainStressCalculationWindow(QMainWindow):
         print ('INFO: {}'.format(info))
         self.ui.graphicsView_sliceView.plot_contour_raw(vec_x, vec_y, matrix_z, info, dir_tuple)
 
-
-        #
-        # vec_x, vec_y, vec_z, info = self._slice_values_on_grid(self._slider_min, self._slider_max)
-        # if len(vec_x) == 0 or len(vec_y) == 0:
-        #     new_info = self.ui.label_sliceInformation.text() + '  No Data... No New Plot'
-        #     self.ui.label_sliceInformation.setText(new_info)
-        #     return
-        #
-        # if FYI:
-        #
-        #     # do slice along output grids
-        #
-        #     # convert
-        #     index_i, index_j = matrix_index
-        #     self._slice_view_param_vec = numpy.ndarray(shape=(slice_view_param_vec.shape[0],), dtype='float')
-        #     for i_grid in range(slice_view_param_vec.shape[0]):
-        #         # convert the user-perspective index (from 1) to numpy-convention index (from 1)
-        #         self._slice_view_param_vec[i_grid] = slice_view_param_vec[i_grid][index_i - 1, index_j - 1]
-        #
-        #     # set up slier slider
-        #     slice_dir = self.ui.comboBox_sliceDirection.currentIndex()  # as X
-        #     min_value = numpy.min(self._slice_view_grid_matrix[:, slice_dir])
-        #     max_value = numpy.max(self._slice_view_grid_matrix[:, slice_dir])
-        #
-        #     self.ui.lineEdit_sliceStartValue.setText('{}'.format(min_value))
-        #     self.ui.lineEdit_sliceEndValue.setText('{}'.format(max_value))
-        #     self.ui.lineEdit_sliceStartValue.setEnabled(False)
-        #     self.ui.lineEdit_sliceEndValue.setEnabled(False)
-        #
-        #     # slice the data
-        #     self.do_slice_3d_plot_contour()
-        #     vec_x, vec_y, vec_z, info = self._slice_values_on_grid(0, 99)
-        #
-        #     # plot
-        #     RESOLUTION = 1  # TODO - 20180905 - Need to be configurable
-        #     self.ui.graphicsView_sliceView.plot_contour(vec_x, vec_y, vec_z,
-        #                                                 contour_resolution=(vec_x.max() - vec_x.min()) / RESOLUTION,
-        #                                                 contour_resolution_y=(vec_y.max() - vec_y.min()) / RESOLUTION,
-        #                                                 flush=True)
-        #     self.ui.graphicsView_sliceView.plot_scatter(vec_x, vec_y, flush=True)
-        #     self.ui.graphicsView_sliceView.setWindowTitle(info)
-        #
-        #
-        # RESOLUTION = 1  # TODO - 20180905 - Need to be configurable
-        # self.ui.graphicsView_sliceView.plot_contour(vec_x, vec_y, vec_z,
-        #                                             contour_resolution=(vec_x.max() - vec_x.min())/RESOLUTION,
-        #                                             contour_resolution_y=(vec_y.max() - vec_y.min())/RESOLUTION,
-        #                                             flush=True)
-        # self.ui.graphicsView_sliceView.plot_scatter(vec_x, vec_y, flush=True)
-        # self.ui.graphicsView_sliceView.main_canvas.set_title(info, 'red')
-
         return
 
     def create_new_session(self, session_name, is_plane_strain, is_plane_stress):

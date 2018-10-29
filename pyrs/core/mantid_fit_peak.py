@@ -157,10 +157,11 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
                ''.format(start, stop, fit_range[0], fit_range[1]))
 
         # Save all the workspaces automatically for further review
-        if True:
+        if False:
+            # debug mode is disabled
             # find the directory for file
             dir_name = scandataio.get_temp_directory()
-            print ('[INFO] Mantid fit debugging data files will be written to {0}'.format(dir_name))
+            print ('[DEBUG-INFO] Mantid fit debugging data files will be written to {0}'.format(dir_name))
 
             # workspace for data
             base_name = self._reference_id.replace('.', '_') + '_' + peak_function_name

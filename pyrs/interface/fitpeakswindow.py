@@ -227,7 +227,6 @@ class FitPeaksWindow(QMainWindow):
         self.do_plot_diff_data(plot_model=False)
 
         # auto fit
-
         if self.ui.checkBox_autoFit.isChecked():
             # auto fit: no need to plot anymore
             self.do_fit_peaks()

@@ -76,6 +76,7 @@ class TextureAnalysisWindow(QMainWindow):
 
         # check boxes
         self.ui.checkBox_autoLoad.setChecked(True)
+        self.ui.checkBox_autoFit.setChecked(True)
 
         return
 
@@ -215,6 +216,7 @@ class TextureAnalysisWindow(QMainWindow):
                 new_file_list.append((det_id, str(file_name)))
         # END-FOR
 
+        # auto load
         if self.ui.checkBox_autoLoad.isChecked():
             self.load_h5_scans(new_file_list)
 
@@ -229,9 +231,6 @@ class TextureAnalysisWindow(QMainWindow):
         # load file: the data key usually is based on the first file's name
         data_key, message = self._core.load_rs_raw_set(rs_file_set)
         self._data_key = data_key
-
-        print ('[DB...BAT] Loaded data keys: {0}  with sub keys: {1}'.format(self._data_key,
-                                                                             self._core.get_detector_ids(data_key)))
 
         # edit information
         message = str(message)
@@ -293,6 +292,11 @@ class TextureAnalysisWindow(QMainWindow):
         # plot the first index
         self.ui.lineEdit_scanNumbers.setText('0')
         self.do_plot_diff_data()
+
+        # auto fit
+        if self.ui.checkBox_autoFit.isChecked():
+            # auto fit: no need to plot anymore
+            self.do_fit_peaks()
 
         return
 
