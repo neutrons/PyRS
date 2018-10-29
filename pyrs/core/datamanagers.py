@@ -37,6 +37,9 @@ class ScanDataHolder(object):
 
         # check sample log dictionary
         for log_name in sample_log_dict:
+            # skip peak fit part
+            if log_name == 'peak_fit':
+                continue
             checkdatatypes.check_string_variable('Sample log name', log_name)
             log_value_vec = sample_log_dict[log_name]
             checkdatatypes.check_numpy_arrays('Sample log {0} value vector'.format(log_name),
@@ -90,6 +93,9 @@ class ScanDataHolder(object):
         if can_plot:
             sample_logs = list()
             for sample_log_name in self._sample_log_dict.keys():
+                # TODO FIXME - 20180930 - skip peak fitting
+                if sample_log_name == 'peak_fit':
+                    continue
                 sample_log_value = self._sample_log_dict[sample_log_name]
                 if sample_log_value.dtype != object:
                     sample_logs.append(sample_log_name)
@@ -295,10 +301,13 @@ class RawDataManager(object):
 
         # check input
         self._check_data_key(data_ref_id)
-        if sub_key is None:
-            data_set = self._data_dict[data_ref_id].get_diff_data(scan_index)
-        else:
-            data_set = self._data_dict[data_ref_id][sub_key].get_diff_data(scan_index)
+        try:
+            if sub_key is None:
+                data_set = self._data_dict[data_ref_id].get_diff_data(scan_index)
+            else:
+                data_set = self._data_dict[data_ref_id][sub_key].get_diff_data(scan_index)
+        except ValueError as value_err:
+            raise RuntimeError('Unable to get data from scan log index {} due to {}'.format(scan_index, value_err))
 
         return data_set
 

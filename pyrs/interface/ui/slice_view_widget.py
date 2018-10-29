@@ -170,8 +170,16 @@ class SliceViewWidget(QWidget):
 
         return
 
+    def plot_contour_raw(self, vec_x, vec_y, matrix_z, info, dir_tuple):
+
+
+        contour_plot = self.main_canvas.add_contour_plot(vec_x, vec_y, matrix_z)
+
+        self.main_canvas.set_title(info, 'red')
+        self.main_canvas.set_xlabel(dir_tuple[0])
+
     # TODO - 20180906 - Clean!
-    def plot_contour(self, vec_x, vec_y, vec_z, contour_resolution, contour_resolution_y=None, flush=True):
+    def plot_contour_interpolate(self, vec_x, vec_y, vec_z, contour_resolution, contour_resolution_y=None, flush=True):
         """ create a 2D contour plot
         :param vec_x:
         :param vec_y:

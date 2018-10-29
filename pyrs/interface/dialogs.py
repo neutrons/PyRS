@@ -255,7 +255,7 @@ class GridAlignmentCheckTablesView(QMainWindow):
 
         # need to change the plot type
         self._parent.do_change_plot_type()
-        self._parent.plot_peak_param_slice(param_name=param_name, ss_direction=ss_dir, is_raw_grid=plot_raw)
+        self._parent._set_peak_parameter_to_plot(param_name=param_name, ss_direction=ss_dir, is_raw_grid=plot_raw)
 
         return
 
@@ -311,7 +311,9 @@ class GridAlignmentCheckTablesView(QMainWindow):
         :param mapping_array:
         :return:
         """
-        assert grid_array.shape[0] == mapping_array.shape[0], 'blabla'
+        if grid_array.shape[0] != mapping_array.shape[0]:
+            raise RuntimeError('Grids array (shape = {}) and Mapping array (shape = {}) do not match.'
+                               .format(grid_array.shape, mapping_array.shape))
 
         num_rows = grid_array.shape[0]
         num_ss_dir = mapping_array.shape[1]
@@ -375,6 +377,30 @@ class GridAlignmentCheckTablesView(QMainWindow):
 
         return
 
+    def set_matched_girds_info(self, matched_grid_scan_list):
+        """ set the list of experimentally matched grids
+        :param matched_grid_scan_list:
+        :return:
+        """
+        # check
+        checkdatatypes.check_list('Experimentally matched grids scans', matched_grid_scan_list)
+
+        # reset
+        self.ui.tableView_matchedGrids.remove_all_rows()
+        for igrid  in range(len(matched_grid_scan_list)):
+            row_items = [igrid, matched_grid_scan_list[igrid]['e11'], matched_grid_scan_list[igrid]['e22']]
+            if 'e33' in matched_grid_scan_list[igrid]:
+                row_items.append(matched_grid_scan_list[igrid]['e22'])
+            else:
+                row_items.append('')
+            # END-IF
+
+            # add a new row
+            self.ui.tableView_matchedGrids.append_row(row_items)
+        # END-FOR
+
+        return
+
     def set_peak_parameter_names(self, peak_param_names):
         """ set the peak parameter names to combo box for user to specify
         :param peak_param_names:
@@ -413,16 +439,36 @@ class StrainStressGridSetup(QDialog):
 
         self.ui = ui_strainstressgridsetup.Ui_Dialog()
         self.ui.setupUi(self)
+        self._init_widgets()
 
         self.ui.buttonBox.accepted.connect(self.do_accept_user_input)
+        self.ui.comboBox_alignmentCriteria.currentIndexChanged.connect(self.do_set_default_values)
 
         self._is_user_specified_grids = False
 
         # for return
-        self._grid_setup_dict = dict()
+        self._grid_setup_dict = dict()   # [Min/Max/'Resolution'][X/Y/Z] = value
 
         # flag that user input is OK
         self._is_user_input_acceptable = True
+
+        # original dimension statistics
+        self._exp_grid_dimensions = dict()  # ['min']['e11']['X'] = value ... min/max/num_indv_values
+        self._plot_grid_dimensions = dict()  # ['min']['e11']['X'] = value ... min/max/num_indv_values
+
+        return
+
+    def _init_widgets(self):
+        """
+        init widgets
+        :return:
+        """
+        self.ui.comboBox_alignmentCriteria.clear()
+        self.ui.comboBox_alignmentCriteria.addItem('User specified Grid')
+        self.ui.comboBox_alignmentCriteria.addItem('E11')
+        self.ui.comboBox_alignmentCriteria.addItem('E22')
+        self.ui.comboBox_alignmentCriteria.addItem('E33')
+        self.ui.comboBox_alignmentCriteria.addItem('Finest Grid (Auto)')
 
         return
 
@@ -445,6 +491,76 @@ class StrainStressGridSetup(QDialog):
 
         # this will be called anyway to close the dialog
         super(StrainStressGridSetup, self).accept()
+
+        return
+
+    def do_set_default_values(self):
+        """
+        set the default values of the grids for output
+        :return:
+        """
+        # get the alignment method
+        alignment_method = str(self.ui.comboBox_alignmentCriteria.currentText()).lower()
+
+        # set up the dictionary for set up
+        if alignment_method.startswith('e'):
+            # original experiment alignment
+            e_dir = alignment_method
+            # invalid direction
+            if e_dir not in self._exp_grid_dimensions['min']:
+                # e33 does not exist, i.e., plane strain/stress
+                gui_helper.pop_message(self, '{} is not applied.'.format(e_dir), message_type='warning')
+                return
+            for item in self._plot_grid_dimensions.keys():
+                for grid_dir in self._plot_grid_dimensions[item]:  # X, Y, Z
+                    self._plot_grid_dimensions[item][grid_dir] = self._exp_grid_dimensions[item][e_dir][grid_dir]
+                # END-FOR
+            # END-FOR
+        else:
+            # user defined.. using the finest as the default values
+            for item in self._plot_grid_dimensions.keys():
+                for grid_dir in self._plot_grid_dimensions[item].keys():  # X, Y, Z
+                    values = list()
+                    for e_dir in self._exp_grid_dimensions[item].keys():  # e11/e22/e33
+                        print (item, e_dir, grid_dir)
+                        print (self._exp_grid_dimensions.keys())
+                        print (self._exp_grid_dimensions['min'].keys())
+                        values.append(self._exp_grid_dimensions[item][e_dir][grid_dir])
+                    # END-FOR
+                    if item != 'min':
+                        # min value and resolution
+                        self._plot_grid_dimensions[item][grid_dir] = int(max(values) + 0.5)
+                    else:
+                        # "max" value
+                        self._plot_grid_dimensions[item][grid_dir] = int(min(values))
+                    # END-IF
+                # END-FOR (X, Y, Z)
+            # END-FOR (min, max indv)
+        # END-IF-ELSE
+
+        # set up the default values
+        self._set_default_user_input(self._plot_grid_dimensions)
+
+        return
+
+    def _set_default_user_input(self, grid_setup_dict):
+        """
+        set the default values
+        :param grid_setup_dict:
+        :return:
+        """
+        checkdatatypes.check_dict('Grid (for plot) dimension default values', grid_setup_dict)
+
+        convert_dict = {'Min': 'min', 'Max': 'max', 'Resolution': 'num_indv_values'}
+
+        for param_name in ['Min', 'Max', 'Resolution']:
+            item_name = convert_dict[param_name]
+            for coord_i in ['X', 'Y', 'Z']:
+                line_edit_name = 'lineEdit_grid{}{}'.format(param_name, coord_i)
+                line_edit = getattr(self.ui, line_edit_name)
+                line_edit.setText('{}'.format(grid_setup_dict[item_name][coord_i]))
+            # END-FOR (coord_i)
+        # END-FOR (param_name)
 
         return
 
@@ -542,7 +658,15 @@ class StrainStressGridSetup(QDialog):
         :param stat_dict:
         :return:
         """
+        # print ('[DB...BAT] stat dict: {}'.format(stat_dict))
+
         checkdatatypes.check_dict('Grids statistics', stat_dict)
+
+        # set up
+        self._exp_grid_dimensions = stat_dict
+        for item in stat_dict:
+            self._plot_grid_dimensions[item] = {'X': None, 'Y': None, 'Z': None}
+        # END-FOR
 
         # set up the minimum values, maximum values and number of individual values
         for dir_i in stat_dict['min'].keys():
@@ -571,6 +695,9 @@ class StrainStressGridSetup(QDialog):
                 line_edit.setText('{}'.format(stat_dict['num_indv_values'][dir_i][coord_i]))
             # END-FOR
         # END-FOR
+
+        # set up the default values
+        self.do_set_default_values()
 
         return
 
@@ -676,9 +803,8 @@ def get_grid_slicing_export_setup(parent):
 
 # TODO - 20180918 - Need documentation
 def get_strain_stress_grid_setup(parent, user_define_grid, grid_stat_dict, grid_setup_dict):
-    """
-
-    :return:
+    """ Get how the sample grids is set up from a Dialog to which user specifies
+    :return: dictionary of the set up criteria ([Min/Max/'Resolution'][X/Y/Z] = value)
     """
     if grid_setup_dict is not None:
         checkdatatypes.check_dict('Grid setup parameters', grid_setup_dict)

@@ -138,6 +138,14 @@ class StrainStressCalculator(object):
     allowed_grid_position_sample_names_wild = ['cuboid*', 'sz*']
     # FIXME - sx, sy, sz* are for testing data only!
 
+    # TODO - 20180922 - Improvements
+    # 1. add an integer flag for processing status
+    #    0: initial state
+    #    1: all file loaded
+    #    2: alignment preparation data structure ready
+    #    3: grid alignment is set up
+    #    4: strain and stress are calculated
+
     def __init__(self, session_name, plane_stress=False, plane_strain=False):
         """
         initialization
@@ -153,12 +161,20 @@ class StrainStressCalculator(object):
         if plane_stress and plane_strain:
             raise RuntimeError('An experiment cannot be both plane stress and plane stress')
 
+        # strain/stress workflow tracker
+        #    0: initial state
+        #    1: all file loaded
+        #    2: alignment preparation data structure ready
+        #    3: grid alignment is set up
+        #    4: strain and stress are calculated
+        self._workflow_tracker = 0
+
         # class variable
         # vector of strain and stress matrix
         self._strain_matrix_vec = None  # strain_matrix_vec
         self._stress_matrix_vec = None  # stress_matrix_vec
 
-        # session and strain/stress type
+        # session and strain/stress type (stage 0 class variables)
         self._session = session_name
         self._is_plane_strain = plane_strain
         self._is_plane_stress = plane_stress
@@ -166,10 +182,10 @@ class StrainStressCalculator(object):
         if self._is_plane_strain or self._is_plane_stress:
             self._direction_list.pop(2)
 
-        # data sets, sample logs and peak parameters required
-        self._data_set_dict = dict()
-        self._peak_param_dict = dict()
-        self._sample_log_dict = dict()
+        # data sets, sample logs and peak parameters required (stage 1 class variables)
+        self._data_set_dict = dict()    # [dir][scan log index] = vector
+        self._peak_param_dict = dict()  # [dir][scan (peak) parameter name][scan log index] =
+        self._sample_log_dict = dict()  # [dir][log name][scan log index] = value
         for dir_i in self._direction_list:
             self._data_set_dict[dir_i] = None
             self._peak_param_dict[dir_i] = None   # [dir][parameter name][scan log index]
@@ -202,7 +218,8 @@ class StrainStressCalculator(object):
         for dir_i in self._direction_list:
             self._sample_positions_dict[dir_i] = None
         self._grid_statistics_dict = None
-        self._grid_output_array = None  # array (of vector) for grids used by strain/stress calculation
+        self._matched_grid_vector = None  # array (of vector) for grids used by strain/stress calculation
+        self._matched_grid_scans_list = None   # list[i] = {'e11': scan log index, 'e22': scan log index, ....
 
         # status
         self._is_saved = False
@@ -219,6 +236,74 @@ class StrainStressCalculator(object):
 
         # grid matching/alignment
         self._match11_dict = None  # [dir: e22/e33][e11 scan log index] = e22/33 scan log index: matched to grid e11
+
+        return
+
+    def __str__(self):
+        """
+        pretty print for status of the strain calculation setup
+        :return:
+        """
+        custom_str = 'Session Name: {}  '.format(self._session)
+        if self._is_plane_stress:
+            type_name = 'Plane stress'
+        elif self._is_plane_strain:
+            type_name = 'Plane strain'
+        else:
+            type_name = 'Unconstrained strain/stress'
+        custom_str += 'Strain/stress type: {}\n'.format(type_name)
+
+        #    0: initial state
+        #    1: all file loaded
+        #    2: alignment preparation data structure ready
+        #    3: grid alignment is set up
+        #    4: strain and stress are calculated
+        if self._workflow_tracker >= 1:
+            custom_str += '{}\n'.format(self._source_file_dict)
+
+        if self._workflow_tracker >= 3:
+            custom_str += '{}\n'.format('Grid alignment parameter is set up\n')
+
+        if self._workflow_tracker >= 3:
+            custom_str += '{}\n'.format('Grid alignment is checked and mapped\n')
+
+        if self._workflow_tracker >= 4:
+            custom_str += '{}\n'.format('Strain/stress calculation is done.')
+
+        return custom_str
+
+    def _set_workflow_state(self, at_init=False, data_loaded=False, alignment_setup=False, calculated=False):
+        """ Set the strain/stress calculation workflow state
+        # strain/stress workflow tracker
+        #    0: initial state
+        #    1: all file loaded
+        #    2: alignment preparation data structure ready
+        #    3: grid alignment is set up
+        #    4: strain and stress are calculated
+        self._workflow_tracker = 0
+        :param at_init:
+        :param data_loaded:
+        :param alignment_setup:
+        :param calculated:
+        :return:
+        """
+        # check input
+        sum_bool = int(at_init) + int(data_loaded) + int(alignment_setup) + int(calculated)
+        if sum_bool == 0:
+            raise RuntimeError('None state is selected to be True')
+        elif sum_bool > 1:
+            raise RuntimeError('More than 1 state ({}, {}, {}, {}) are set to True causing '
+                               'ambiguous.'.format(at_init, data_loaded, alignment_setup, calculated))
+
+        # set up
+        if at_init:
+            self._workflow_tracker = 0
+        elif data_loaded:
+            self._workflow_tracker = 1
+        elif alignment_setup:
+            self._workflow_tracker = 2
+        else:
+            self._workflow_tracker = 3
 
         return
 
@@ -239,34 +324,33 @@ class StrainStressCalculator(object):
         for i_dir, pos_dir in enumerate(pos_dir_list):
             # get min value for this direction
             min_value_i = grids_dimension_dict['Min'][pos_dir]
-            print ('[DB...BAT] {}/{} = {}'.format(i_dir, pos_dir, min_value_i))
+            # print ('[DB...BAT] {}/{} = {}'.format(i_dir, pos_dir, min_value_i))
             if min_value_i is None:
                 continue
             # filter
             grids = grids[grids[:, i_dir] >= min_value_i]
-            print ('[DB...BAT] After filtering >= {} at {}: Shape = {}'.format(min_value_i, pos_dir, grids.shape))
+            # print ('[DB...BAT] After filtering >= {} at {}: Shape = {}'.format(min_value_i, pos_dir, grids.shape))
         # END-FOR
 
         # maximum
-        for i_dir, pos_dir in enumerate(pos_dir_list):
-            print ('[DB...BAT] {}/{} = {}'.format(i_dir, pos_dir, grids_dimension_dict['Max'][pos_dir]))
+        # for i_dir, pos_dir in enumerate(pos_dir_list):
+        #     print ('[DB...BAT] {}/{} = {}'.format(i_dir, pos_dir, grids_dimension_dict['Max'][pos_dir]))
         for i_dir, pos_dir in enumerate(pos_dir_list):
             # get min value for this direction
             max_value_i = grids_dimension_dict['Max'][pos_dir]
-            print ('[DB...BAT] {}/{} = {}'.format(i_dir, pos_dir, max_value_i))
+            # print ('[DB...BAT] {}/{} = {}'.format(i_dir, pos_dir, max_value_i))
             if max_value_i is None:
                 continue
             # filter
             grids = grids[grids[:, i_dir] <= max_value_i]
-            print ('[DB...BAT] After filtering <= {} at {}: Shape = {}'.format(max_value_i, pos_dir, grids.shape))
+            # print ('[DB...BAT] After filtering <= {} at {}: Shape = {}'.format(max_value_i, pos_dir, grids.shape))
         # END-FOR
 
         return grids
 
     @staticmethod
-    def _generate_grids(grids_dimension_dict):
-        """
-        generate a new strain/stress grid from user-specified dimension
+    def _generate_slice_view_grids(grids_dimension_dict):
+        """ Generate a new strain/stress grid from user-specified dimension FOR plotting (NOT FOR calculating)
         :param grids_dimension_dict:
         :return: numpy.ndarray (n, 3)
         """
@@ -297,8 +381,6 @@ class StrainStressCalculator(object):
             size_dict[dir_i] = num_pt_i
         # END-FOR
 
-        print ('[DB...BAT] Size: {}'.format(size_dict))
-
         # define grids vector
         grids_vec = numpy.ndarray(shape=(num_grids, 3), dtype='float')
 
@@ -307,9 +389,9 @@ class StrainStressCalculator(object):
         for index_x in range(size_dict['X']):
             x_i = grids_dimension_dict['Min']['X'] + grids_dimension_dict['Resolution']['X'] * float(index_x)
             for index_y in range(size_dict['Y']):
-                print ('[DB...BAT] {} + {} * {}'.format(grids_dimension_dict['Min']['Y'],
-                                                        grids_dimension_dict['Resolution']['Y'],
-                                                        index_y))
+                # print ('[DB...BAT] {} + {} * {}'.format(grids_dimension_dict['Min']['Y'],
+                #                                         grids_dimension_dict['Resolution']['Y'],
+                #                                         index_y))
                 if grids_dimension_dict['Resolution']['Y'] is None:
                     y_i = grids_dimension_dict['Min']['Y']
                 else:
@@ -328,67 +410,37 @@ class StrainStressCalculator(object):
 
         return grids_vec
 
-    def align_grids(self, direction, user_defined, grids_dimension_dict):
+    def generate_grids(self, grids_dimension_dict):
         """ Align the input grids against the output strain/stress output.
         From the user specified output grid set up (ranges and solutions),
         1. the output grid in 3D array will be created.
         2. a mapping from the existing experiment grid to output grid (for scan logs) will be generated
-        :param direction:
-        :param user_defined:
         :param grids_dimension_dict: user specified output grid dimensions
         :return: 2-tuple: (1) grids (vector of position: (n, 3) array) (2) scan log map (vector of scan logs: (n, 2)
                                                                            or (n, 3) int array)
         """
         # get the grids for strain/stress calculation
-        if user_defined and direction is not None:
-            raise RuntimeError('It is not allowed to have both direction {} and user_defined {}'
-                               .format(direction, user_defined))
-        elif user_defined:
-            self._grid_output_array = self._generate_grids(grids_dimension_dict)
-        elif direction is not None:
-            self._grid_output_array = self._copy_grids(direction, grids_dimension_dict)
-        else:
-            raise RuntimeError('Either direction or user-defined must be specified.')
+        # self._matched_grid_vector = self._generate_slice_view_grids(grids_dimension_dict)
 
-        num_ss_dir = len(self._direction_list)
-        num_grids = self._grid_output_array.shape[0]
-        mapping_vector = numpy.ndarray(shape=(num_grids, num_ss_dir), dtype=int)
-        for i_grid in range(num_grids):
-            ss_grid_i = self._grid_output_array[i_grid]
-            for i_dir, ss_dir in enumerate(self._direction_list):
-                # get the sorted positions
-                sorted_grid_pos_vector = self._sample_positions_dict[ss_dir]
-                if ss_dir == direction:
-                    index_i = self.binary_search(sorted_positions=sorted_grid_pos_vector, xyz=ss_grid_i,
-                                                 resolution=1.E-10)
-                    if index_i is None:
-                        raise NotImplementedError('Impossible')
-
-                else:
-                    index_i = self.binary_search(sorted_positions=sorted_grid_pos_vector, xyz=ss_grid_i,
-                                                 resolution=0.001)
-
-                # END-IF-ELSE
-
-                # convert index in the (e11/e22/e33) grid position list to scan log index
-                if index_i is None:
-                    scan_log_index_i = -1
-                else:
-                    exact_pos = sorted_grid_pos_vector[index_i]
-                    scan_log_index_i = self._dir_grid_pos_scan_index_dict[ss_dir][tuple(exact_pos)]
-
-                mapping_vector[i_grid, i_dir] = scan_log_index_i
-            # END-FOR
+        # generate linear dimension arrays
+        grid_linear_dim_arrays = [None] * 3
+        for index, coord_i in enumerate(['X', 'Y', 'Z']):
+            min_i = grids_dimension_dict['Min'][coord_i]
+            max_i = grids_dimension_dict['Max'][coord_i]
+            step_i = (max_i - min_i) / grids_dimension_dict['Resolution'][coord_i]
+            grid_linear_dim_arrays[index] = numpy.arange(min_i, max_i, step_i)
         # END-FOR
 
-        return self._grid_output_array, mapping_vector
+        return grid_linear_dim_arrays
 
-    def align_matched_grids(self, resolution=0.001):
-        """
-        compare the grids among 3 (or 2) strain directions in order to search matched grids across
+    def located_matched_grids(self, resolution=0.001):
+        """ Compare the grids among 3 (or 2) strain directions in order to search matched grids across
         :param resolution:
         :return:
         """
+        # define a data structure for completely matched grids among all directions
+        self._matched_grid_scans_list = list()   # list[i] = {'e11': scan log index, 'e22': scan log index, ....
+
         num_e11_pts = len(self._sample_positions_dict['e11'])
         self._match11_dict = {'e22': [None] * num_e11_pts,
                               'e33': [None] * num_e11_pts}
@@ -403,9 +455,19 @@ class StrainStressCalculator(object):
         message = ''
         for ipt_e11 in range(num_e11_pts):
             pos_11_i = self._sample_positions_dict['e11'][ipt_e11]
+            match_grid_dict = {'e11': self._dir_grid_pos_scan_index_dict['e11'][tuple(pos_11_i)]}
+            both_matched = True
             for dir_i in other_dir_list:
                 sorted_pos_list_i = self._sample_positions_dict[dir_i]
                 index_i = self.binary_search(sorted_pos_list_i, pos_11_i, resolution)
+                if index_i is None:
+                    both_matched = False
+                elif both_matched:
+                    pos_dir_i = sorted_pos_list_i[index_i]
+                    match_grid_dict[dir_i] = self._dir_grid_pos_scan_index_dict[dir_i][tuple(pos_dir_i)]
+                # END-IF-ELSE
+
+                # message
                 if index_i is None:
                     message += '[DB...BAT] E11 Pt {} @ {} no match at direction {}\n'.format(ipt_e11, pos_11_i, dir_i)
                 else:
@@ -414,63 +476,73 @@ class StrainStressCalculator(object):
                 if index_i is not None:
                     self._match11_dict[dir_i][ipt_e11] = index_i
                     other_dir_matched_dict[dir_i].add(index_i)
+                # END-FOR
             # END-FOR
+
+            # store
+            if both_matched:
+                self._matched_grid_scans_list.append(match_grid_dict)
+            # END-IF
         # END-FOR
 
-        for dir_i in other_dir_list:
-            unmatched_counts_i = len(self._sample_positions_dict[dir_i]) - len(other_dir_matched_dict[dir_i])
-            print ('[INFO] Numbers of grids at direction {} unmatched to E11: {}'
+        print ('[INFO] Matched Grids Points (For Strain/Stress Calculation): {}'
+               ''.format(len(self._matched_grid_scans_list)))
+        for dir_i in self._direction_list:
+            unmatched_counts_i = len(self._sample_positions_dict[dir_i]) - len(self._matched_grid_scans_list)
+            print ('[INFO] Numbers of grids at direction {} not matched with other directions: {}'
                    ''.format(dir_i, unmatched_counts_i))
 
         return
 
-    def align_peak_parameter_on_grids(self, grids_vector, parameter, scan_log_map_vector):
-        """ align the parameter's values on a given grid
-        [3D interpolation]
-        1. regular grid interpolation CANNOT be used.
-           (https://docs.scipy.org/doc/scipy-0.16.1/reference/generated/scipy.interpolate.RegularGridInterpolator.html)
-           It requires the grid to be interpolated from, i.e., experimental data, to be on REGULAR grid.
-           It is NOT always TRUE in the experiment.
-        2. imaging map: I don't understand it completely
-           (map_coordinates)
-        :param grids_vector: vector of grids that will have the parameter to be written on
-        :param parameter: string, such as 'center_d'
-        :param scan_log_map_vector: for grid[i], if map[i][1] is integer, than e22 has a grid matched. otherwise,
-                                    an interpolation is required
-        :return: 1D vector.  shape[0] = grids_vector.shape[0]
-        """
-        # check input
-        pyrs.utilities.checkdatatypes.check_string_variable('Parameter name', parameter)
-        pyrs.utilities.checkdatatypes.check_numpy_arrays('Grids vector', [grids_vector], dimension=2,
-                                                         check_same_shape=False)
-
-        # define number of grids
-        num_grids = grids_vector.shape[0]
-        num_ss_dir = len(self._direction_list)
-        param_vector = numpy.ndarray(shape=(num_grids, num_ss_dir), dtype=float)
-
-        for i_grid in range(num_grids):
-            # grid_pos = grids_vector[i_grid]
-
-            for i_dir, ss_dir in enumerate(self._direction_list):
-                # check whether for direction e??, there is a matched experimental grid
-                scan_log_index_i = scan_log_map_vector[i_grid][i_dir]
-                if isinstance(scan_log_index_i, int) and scan_log_index_i >= 0:
-                    # there is a matched experimental grid
-                    # TODO/FIXME: this is only for peak parameter values
-                    # print (self._peak_param_dict[ss_dir].keys())
-                    param_value = self._peak_param_dict[ss_dir][parameter][scan_log_index_i]
-                else:
-                    param_value = self.interpolate3d(self._sample_positions_dict[ss_dir],
-                                                     self._peak_param_dict[ss_dir][parameter], grids_vector[i_grid])
-                # END-IF-ELSE
-                param_vector[i_grid, i_dir] = param_value
-            # END-FOR
-        # END-FOR
-
-        self._aligned_param_dict[parameter] = param_vector
-
-        return param_vector
+    # TODO FIXME - 20181001 - Temporarily disabled in order to clean up for the new workflow
+    # TODO                    This method may be modified to calculate slice view plot from certain parameters
+    # def align_peak_parameter_on_grids(self, grids_vector, parameter, scan_log_map_vector):
+    #     """ align the parameter's values on a given grid
+    #     [3D interpolation]
+    #     1. regular grid interpolation CANNOT be used.
+    #        (https://docs.scipy.org/doc/scipy-0.16.1/reference/generated/scipy.interpolate.RegularGridInterpolator.html)
+    #        It requires the grid to be interpolated from, i.e., experimental data, to be on REGULAR grid.
+    #        It is NOT always TRUE in the experiment.
+    #     2. imaging map: I don't understand it completely
+    #        (map_coordinates)
+    #     :param grids_vector: vector of grids that will have the parameter to be written on
+    #     :param parameter: string, such as 'center_d'
+    #     :param scan_log_map_vector: for grid[i], if map[i][1] is integer, than e22 has a grid matched. otherwise,
+    #                                 an interpolation is required
+    #     :return: 1D vector.  shape[0] = grids_vector.shape[0]
+    #     """
+    #     # check input
+    #     pyrs.utilities.checkdatatypes.check_string_variable('Parameter name', parameter)
+    #     pyrs.utilities.checkdatatypes.check_numpy_arrays('Grids vector', [grids_vector], dimension=2,
+    #                                                      check_same_shape=False)
+    #
+    #     # define number of grids
+    #     num_grids = grids_vector.shape[0]
+    #     num_ss_dir = len(self._direction_list)
+    #     param_vector = numpy.ndarray(shape=(num_grids, num_ss_dir), dtype=float)
+    #
+    #     for i_grid in range(num_grids):
+    #         # grid_pos = grids_vector[i_grid]
+    #
+    #         for i_dir, ss_dir in enumerate(self._direction_list):
+    #             # check whether for direction e??, there is a matched experimental grid
+    #             scan_log_index_i = scan_log_map_vector[i_grid][i_dir]
+    #             if isinstance(scan_log_index_i, int) and scan_log_index_i >= 0:
+    #                 # there is a matched experimental grid
+    #                 # TODO/FIXME: this is only for peak parameter values
+    #                 # print (self._peak_param_dict[ss_dir].keys())
+    #                 param_value = self._peak_param_dict[ss_dir][parameter][scan_log_index_i]
+    #             else:
+    #                 param_value = self.interpolate3d(self._sample_positions_dict[ss_dir],
+    #                                                  self._peak_param_dict[ss_dir][parameter], grids_vector[i_grid])
+    #             # END-IF-ELSE
+    #             param_vector[i_grid, i_dir] = param_value
+    #         # END-FOR
+    #     # END-FOR
+    #
+    #     self._aligned_param_dict[parameter] = param_vector
+    #
+    #     return param_vector
 
     @staticmethod
     def binary_search(sorted_positions, xyz, resolution):
@@ -535,7 +607,6 @@ class StrainStressCalculator(object):
         i_middle = None
         while matched_x_not_found:
             i_middle = (i_start + i_stop) / 2
-            # print ('\t\t[DB...BAT] start = {}, middle = {}, stop = {}'.format(i_start, i_middle, i_stop))
             if abs(xyz[0] - sorted_positions[i_middle][0]) < resolution:
                 # equal continue to find y to match
                 matched_x_not_found = False
@@ -557,15 +628,12 @@ class StrainStressCalculator(object):
 
         if matched_x_not_found:
             # not founded matched X
-            print ('\t[DB...BAT] No matched X found')
             return None
         else:
-            # print ('\t[DB...BAT] Matched X (1 of many) index'.format(i_middle))
             pass
 
         # locate the range of X within tolerance/resolution for searching with Y
         i_start, i_stop = search_neighborhood(sorted_positions, 0, len(sorted_positions)-1, i_middle, 0, resolution)
-        # print ('\t[DB...BAT] New search range for Y: {}, {}'.format(i_start, i_stop))
         orig_start = i_start
         orig_stop = i_stop
         i_middle = None
@@ -592,15 +660,12 @@ class StrainStressCalculator(object):
 
         if matched_y_not_found:
             # not found match Y
-            print ('\t[DB...BAT] No matched X found')
             return None
         else:
-            # print ('\t[DB...BAT] Matched Y (1 of many) index'.format(i_middle))
             pass
 
         # locate the range of Y within tolerance/resolution for searching with X
         i_start, i_stop = search_neighborhood(sorted_positions, orig_start, orig_stop, i_middle, 1, resolution)
-        # print ('\t[DB...BAT] New search range for Z, {}, {}'.format(i_start, i_stop))
 
         orig_start = i_start
         orig_stop = i_stop
@@ -623,9 +688,6 @@ class StrainStressCalculator(object):
             elif i_start < orig_start or i_stop > orig_stop:
                 raise NotImplementedError('It could not happen!')
         # END-WHILE
-
-        if i_middle is None:
-            print ('\t[DB...BAT] No matched Z found')
 
         return i_middle
 
@@ -653,7 +715,7 @@ class StrainStressCalculator(object):
     def check_grids_alignment(self, resolution=0.001):
         """ Align the data points among e11, e22 and/or e33 with sample log positions
         :param resolution:
-        :return:
+        :return: 2-tuple: boolean (perfectly matched), mismatched information
         """
         # (1) Check whether position X, Y, Z shall be already set and
         # (2) Generate grid mapping scan log dictionary
@@ -685,31 +747,34 @@ class StrainStressCalculator(object):
         self._sample_points_aligned = False
 
         # check whether the sample position numbers are different
+        info = ''
         num_dir = len(self._direction_list)
         for i_dir_i in range(num_dir):
             dir_i = self._direction_list[i_dir_i]
             for i_dir_j in range(i_dir_i, num_dir):
                 dir_j = self._direction_list[i_dir_j]
                 if self._sample_positions_dict[dir_i].shape[0] != self._sample_positions_dict[dir_j].shape[0]:
-                    raise RuntimeError('It is not considered that the number of data points among different '
-                                       'direction are different.  Need to use uneven alignment algorithm.')
+                    info = 'The number of grid points among different direction are different.'
+                    break
+
         # END-FOR
 
         # check whether all the data points matched with each other within resolution
-        num_sample_points = self._sample_positions_dict[self._direction_list[0]].shape[0]
-        for ipt in range(num_sample_points):
-            max_distance = self.calculate_max_distance(ipt)
-            if max_distance > resolution:
-                err_msg = '{}-th (of total {}) sample position point: '.format(ipt, num_sample_points)
-                for dir_i in self._direction_list:
-                    err_msg += '{} @ {}; '.format(dir_i, self._sample_positions_dict[dir_i][ipt])
-                err_msg += ' with maximum distance {} over specified resolution {}'.format(max_distance, resolution)
-                raise RuntimeError(err_msg)
-        # END-FOR
+        if info == '':
+            num_sample_points = self._sample_positions_dict[self._direction_list[0]].shape[0]
+            for ipt in range(num_sample_points):
+                max_distance = self.calculate_max_distance(ipt)
+                if max_distance > resolution:
+                    err_msg = '{}-th (of total {}) sample position point: '.format(ipt, num_sample_points)
+                    for dir_i in self._direction_list:
+                        err_msg += '{} @ {}; '.format(dir_i, self._sample_positions_dict[dir_i][ipt])
+                    err_msg += ' with maximum distance {} over specified resolution {}'.format(max_distance, resolution)
+                    info = err_msg
+                    break
+            # END-FOR
+        # END-IF
 
-        self._sample_points_aligned = True
-
-        return
+        return info == '', info
 
     # TestMe (new) - 20180815 - Tested and convert to a method to store the result for table output (***)
     def _set_grid_statistics(self):
@@ -735,8 +800,6 @@ class StrainStressCalculator(object):
                 self._grid_statistics_dict['min'][dir_i][coord_name] = min_i
                 self._grid_statistics_dict['max'][dir_i][coord_name] = max_i
                 self._grid_statistics_dict['num_indv_values'][dir_i][coord_name] = num_individual_i
-                print ('[DB...BAT] Direction {}: Coordinate {}, Min = {}, Max = {}, Number of individual = {}'
-                       .format(dir_i, i_coord, min_i, max_i, num_individual_i))
             # END-FOR
         # END-FOR
 
@@ -792,6 +855,27 @@ class StrainStressCalculator(object):
 
         return
 
+    def migrate(self, plane_stress=False, plane_strain=False):
+        """ migrate current strain/stress calculator to another one with (supposed to be) different
+        type of strain/stress
+        :param plane_stress:
+        :param plane_strain:
+        :return:
+        """
+        new_ss_calculator = StrainStressCalculator(self._session, plane_strain, plane_stress)
+
+        # copy file format: try not to re-load the file
+        new_ss_calculator._peak_param_dict = self._peak_param_dict.copy()
+        new_ss_calculator._sample_log_dict = self._sample_log_dict.copy()
+        new_ss_calculator._data_set_dict = self._data_set_dict.copy()
+
+        # copy file name and etc
+        new_ss_calculator._source_file_dict = self._source_file_dict.copy()
+
+        new_ss_calculator.execute_workflow()
+
+        return new_ss_calculator
+
     def calculate_max_distance(self, sample_point_index):
         """
         in the case that all 2 or 3
@@ -821,31 +905,24 @@ class StrainStressCalculator(object):
         calculate strain/stress on the final output grids
         :return:
         """
-        # get from the class variable
-        ss_grid_vec = self._grid_output_array
-        if 'center_d' not in self._aligned_param_dict:
-            raise RuntimeError('center_d is not aligned to output grids')
-        else:
-            peak_pos_d_vec = self._aligned_param_dict['center_d']
-
-        # check inputs
-        pyrs.utilities.checkdatatypes.check_numpy_arrays('Strain/stress grids vector', [ss_grid_vec, peak_pos_d_vec],
-                                                         dimension=2, check_same_shape=False)
-
-        # create inputs
-        num_grids = ss_grid_vec.shape[0]
+        # prepare the data structure
+        num_grids = len(self._matched_grid_scans_list)
+        print ('Number of grids: {}'.format(num_grids))
         strain_matrix_vec = numpy.ndarray(shape=(num_grids, 3, 3), dtype='float')
         stress_matrix_vec = numpy.ndarray(shape=(num_grids, 3, 3), dtype='float')
+        self._matched_grid_vector = numpy.ndarray(shape=(num_grids, 3), dtype='float')
 
-        for i_grid, grid in enumerate(ss_grid_vec):
-            # construct the peak position matrix
+        # loop over all the matched grids
+        for grid_index, dir_scan_dict in enumerate(self._matched_grid_scans_list):
+            # create peak matrix (3X3)
             peak_matrix = numpy.zeros(shape=(3, 3), dtype='float')
-            # peak_fit_failed = False
-            for m_index, dir_i in enumerate(self._direction_list):
-                # matrix index m_index is the same as direction index
-                peak_matrix[m_index, m_index] = peak_pos_d_vec[i_grid][m_index]
+            for dir_index, dir_name in enumerate(self._direction_list):
+                scan_log_index = dir_scan_dict[dir_name]
+                peak_d_pos = self._peak_param_dict[dir_name]['center_d'][scan_log_index]
+                peak_matrix[dir_index, dir_index] = peak_d_pos
             # END-FOR
 
+            # calculate strain/stress
             try:
                 ss_calculator = StrainStress(peak_pos_matrix=peak_matrix,
                                              d0=self._d0, young_modulus=self._young_e,
@@ -856,92 +933,51 @@ class StrainStressCalculator(object):
                 err_msg = 'Strain/stress calculation parameter set up error causing zero division: {}'.format(err)
                 raise RuntimeError(err_msg)
 
-            strain_matrix_vec[i_grid] = ss_calculator.get_strain()
-            stress_matrix_vec[i_grid] = ss_calculator.get_stress()
+            strain_matrix_vec[grid_index] = ss_calculator.get_strain()
+            stress_matrix_vec[grid_index] = ss_calculator.get_stress()
+
+            # set up the grid positions
+            grid_x = self._sample_log_dict['e11'][self._grid_pos_x_name_dict['e11']][dir_scan_dict['e11']]
+            grid_y = self._sample_log_dict['e11'][self._grid_pos_y_name_dict['e11']][dir_scan_dict['e11']]
+            grid_z = self._sample_log_dict['e11'][self._grid_pos_z_name_dict['e11']][dir_scan_dict['e11']]
+
+            self._matched_grid_vector[grid_index] = numpy.array((grid_x, grid_y, grid_z))
         # END-FOR
 
+        # set to the class variable
         self._strain_matrix_vec = strain_matrix_vec
         self._stress_matrix_vec = stress_matrix_vec
 
+        print ('[DB..BAT] Strain/Stress calculated: \n{}\n{}'.format(strain_matrix_vec, stress_matrix_vec))
+
         return strain_matrix_vec, stress_matrix_vec
 
-    def execute_old(self):
-        """
-        calculate the strain and stress for all grids by using E11 as a standard
-        taken out because the workflow is changed!
+    def execute_workflow(self):
+        """ Execute the strain/stress workflow
+        It is usually called after copying a StrainStressCalculator to a new one as the strain/stress
+        type is changed.
         :return:
         """
-        # it is assumed that the grids that have been aligned
-        # TODO - 20180810 - add some flags to check grid alignment
+        # check whether the files are loaded
+        files_loaded = self.check_raw_files_ready()
+        if files_loaded is False:
+            return self._workflow_tracker
 
-        # using E11 as the standard grid set
-        for ipt_e11 in range(len(self._sample_positions_dict['e11'])):
-            # get matched grids from other
-            print ipt_e11
-            ipt_e22 = self._match11_dict['e22'][ipt_e11]
-            if not (self._is_plane_strain or self._is_plane_stress):
-                ipt_e33 = self._match11_dict['e33'][ipt_e11]
-            else:
-                ipt_e33 = True
+        # check alignment
+        try:
+            self.check_grids_alignment(resolution=0.001)
+        except RuntimeError:
+            self._set_workflow_state(files_loaded)
+            return self._workflow_tracker
 
-            if ipt_e22 is None:
-                print ('{}-th grid on e11 @ {} has no matched grid on e22... Find a way to interpolate'
-                       ''.format(ipt_e11, self._sample_positions_dict['e11'][ipt_e11]))
-            if ipt_e33 is None:
-                print ('{}-th grid on e11 @ {} has no matched grid on e33.. Find a way to interpolate'
-                       ''.format(ipt_e11, self._sample_positions_dict['e11'][ipt_e11]))
-            if ipt_e22 is None or ipt_e33 is None:
-                continue
+        # calculate strain and stress
+        try:
+            self.execute()
+        except RuntimeError:
+            self._set_workflow_state(alignment_setup=True)
+            return self._workflow_tracker
 
-            # convert to sample log index
-            scan_log_index_dict = dict()
-
-            grid_pos_e11 = self._sample_positions_dict['e11'][ipt_e11]
-            scan_log_index_dict['e11'] = self._dir_grid_pos_scan_index_dict['e11'][grid_pos_e11]
-
-            grid_pos_e22 = self._sample_positions_dict['e22'][ipt_e22]
-            scan_log_index_dict['e22'] = self._dir_grid_pos_scan_index_dict['e22'][grid_pos_e22]
-
-            debug_out = 'e11: scan-index = {} @ {}, e22: scan-index = {} @ {}, ' \
-                        ''.format(scan_log_index_dict['e11'], grid_pos_e11,
-                                  scan_log_index_dict['e22'], grid_pos_e22)
-            if isinstance(ipt_e33, int):
-                pos_e33 = self._sample_positions_dict['e33'][ipt_e33]
-                scan_log_index_dict['e33'] = self._dir_grid_pos_scan_index_dict['e33'][pos_e33]
-                debug_out += 'e33: scan-index = {} @ {}, ' \
-                             ''.format(scan_log_index_dict['e33'], pos_e33)
-            print (debug_out)
-
-            # calculate peak positions in d-spacing
-            peak_matrix = numpy.zeros(shape=(3, 3), dtype='float')
-            peak_fit_failed = False
-            for mindex, dir_i in enumerate(self._direction_list):
-                peak_i_2theta = self._peak_param_dict[dir_i]['centre'][scan_log_index_dict[dir_i]]
-                lambda_i = self._sample_log_dict[dir_i]['Wavelength'][scan_log_index_dict[dir_i]]
-
-                print ('[DB...BAT] Direction: {}. Log index = {}; Peak center (2theta): {}  degree, wavelength: {}'
-                       ''.format(dir_i, scan_log_index_dict[dir_i], peak_i_2theta, lambda_i))
-                if abs(peak_i_2theta) < 1:
-                    peak_fit_failed = True
-                    continue
-                peak_i_d = lambda_i * 0.5 / math.sin(peak_i_2theta * 0.5)   # self.convert_unit_to_d(peak_i_2theta)
-                peak_matrix[mindex, mindex] = peak_i_d
-            # END-FOR
-
-            if peak_fit_failed:
-                continue
-
-            ss_calculator = StrainStress(peak_pos_matrix=peak_matrix,
-                                         d0=self._d0, young_modulus=self._young_e,
-                                         poisson_ratio=self._poisson_nu,
-                                         is_plane_train=self._is_plane_strain,
-                                         is_plane_stress=self._is_plane_stress)
-            # ss_calculator.get_strain()
-            # ss_calculator.get_stress()
-
-        # END-FOR
-
-        return
+        return self._workflow_tracker
 
     def export_2d_slice(self, param_name, is_grid_raw, ss_direction, slice_dir, slice_pos, slice_resolution, file_name):
         """
@@ -1018,18 +1054,18 @@ class StrainStressCalculator(object):
                                                             allowed_values=self._peak_param_dict[ss_direction].keys())
 
         # TODO - 20180823 - the non-existing data structure is to be corrected later with method to create user grids
-        num_grids = len(self._grid_output_array[ss_direction])
+        num_grids = len(self._matched_grid_vector[ss_direction])
 
         # create the 2D array
         param_grid_array = numpy.ndarray(shape=(num_grids, 4), dtype='float')
-        grids_list = sorted(self._grid_output_array[ss_direction].keys())
+        grids_list = sorted(self._matched_grid_vector[ss_direction].keys())
         for i_grid, grid_pos in enumerate(grids_list):
             # position of grid on sample
             for i_coord in range(3):
                 param_grid_array[i_grid][i_coord] = grid_pos[i_coord]
             # parameter value
-            scan_log_index = self._grid_output_array[ss_direction][grid_pos]
-            param_value = self._grid_output_array
+            scan_log_index = self._matched_grid_vector[ss_direction][grid_pos]
+            param_value = self._matched_grid_vector
             param_grid_array[i_grid][3] = param_value
         # END-FOR
 
@@ -1052,10 +1088,8 @@ class StrainStressCalculator(object):
         min_value = slice_pos - slice_resolution
         max_value = slice_pos + slice_resolution
 
-        print ('[DB...INFO Before slicing: size = {}'.format(param_grid_array.shape[0]))
         slice_array = param_grid_array[min_value <= param_grid_array[:, slice_dir]]
         slice_array = slice_array[slice_array[:, slice_dir] <= max_value]
-        print ('[DB...INFO After  slicing: size = {}'.format(slice_array.shape[0]))
 
         return slice_array
 
@@ -1079,10 +1113,6 @@ class StrainStressCalculator(object):
         # retrieve data set
         data_set = self._data_set_dict[direction]
 
-        # print ('DB...BAT] Data set: type = {}.... keys = {}'.format(type(data_set), data_set.keys()))
-
-        print ('[DB...BAT] sample log keys: {}'.format(self._sample_log_dict[direction].keys()))
-
         for scan_log_index in sorted(data_set.keys()):
             x_i = self._sample_log_dict[direction][pos_x][scan_log_index]
             y_i = self._sample_log_dict[direction][pos_y][scan_log_index]
@@ -1098,6 +1128,15 @@ class StrainStressCalculator(object):
         # END-FOR
 
         return xyz_log_index_dict
+
+    def get_experiment_aligned_grids(self):
+        """ Get the aligned grids in the experiment, i.e., grids on the sample measured in all E11/E22/E33 direction
+        :return:
+        """
+        if self._matched_grid_scans_list is None:
+            return None
+
+        return self._matched_grid_scans_list[:]
 
     # TODO - 20180815 - Implement after (***)
     def get_finest_direction(self):
@@ -1173,19 +1212,11 @@ class StrainStressCalculator(object):
         """
         return self._direction_list[:]
 
-    def get_strain_stress_grid(self):
-        """
-        get the vector for strain and stress grid
-        :return:
-        """
-        return self._grid_output_array
-
     def get_strain_stress_values(self):
+        """ get the corresponding grid output (matched grids), strain and stress list
+        :return: vector of matrix (3x3)
         """
-
-        :return:
-        """
-        return self._grid_output_array, self._strain_matrix_vec, self._stress_matrix_vec
+        return self._matched_grid_vector, self._strain_matrix_vec, self._stress_matrix_vec
 
     def get_raw_grid_param_values(self, ss_direction, param_name):
         """ Get the parameter's value on raw experimental grid
@@ -1242,11 +1273,11 @@ class StrainStressCalculator(object):
 
     # TODO - 20180820 - Write a single unit test to find out how good or bad this algorithm is
     @staticmethod
-    def interpolate3d(exp_grid_pos_vector, param_value_vector, target_position):
+    def interpolate3d(exp_grid_pos_vector, param_value_vector, target_position_vector):
         """ interpolate a value in a 3D system
         :param exp_grid_pos_vector: 
         :param param_value_vector: 
-        :param target_position: 
+        :param target_position_vector:
         :return: 
         """
         # check inputs
@@ -1261,14 +1292,15 @@ class StrainStressCalculator(object):
             raise RuntimeError('Experimental grid positions have different number to parameter value vector '
                                '({} vs {})'.format(num_exp_grids, len(param_value_vector)))
 
-        assert isinstance(target_position, numpy.ndarray) and target_position.shape == (3,),\
-            'Target position must be a (3, 0) ndarray but not {} of type {}' \
-            ''.format(target_position, type(target_position))
+        assert isinstance(target_position_vector, numpy.ndarray) and target_position_vector.shape[1] == 3,\
+            'Target position must be a (N, 3) ndarray but not {} of type {}' \
+            ''.format(target_position_vector, type(target_position_vector))
 
         # grid_x, grid_y, grid_z = (grid_x, grid_y, grid_z)
-        target_position_input = numpy.array([target_position])
-        print (param_value_vector.shape)
-        print (target_position_input.shape)
+        target_position_input = target_position_vector
+        # print (exp_grid_pos_vector.shape)
+        # print (param_value_vector.shape)
+        # print (target_position_input.shape)
         interp_value = griddata(exp_grid_pos_vector, param_value_vector, target_position_input, method='nearest')
 
         return interp_value
@@ -1279,8 +1311,8 @@ class StrainStressCalculator(object):
         :param log_name:
         :return:
         """
-        print ('[DB...BAT] Log name: {} ... Comparing {}'
-               ''.format(log_name, StrainStressCalculator.allowed_grid_position_sample_names))
+        # print ('[DB...BAT] Log name: {} ... Comparing {}'
+        #        ''.format(log_name, StrainStressCalculator.allowed_grid_position_sample_names))
         log_name = log_name.lower()
         if log_name in StrainStressCalculator.allowed_grid_position_sample_names:
             return True
@@ -1348,11 +1380,6 @@ class StrainStressCalculator(object):
         :param file_name:
         :return:
         """
-        # check whether it has been loaded
-        if file_name in self._source_file_dict.values():
-            raise RuntimeError('File {} of direction {} has already been loaded. FYI: {}'
-                               ''.format(file_name, direction, self._source_file_dict))
-
         # check input
         pyrs.utilities.checkdatatypes.check_string_variable('Strain/Stress Direction', direction,
                                                             ['e11', 'e22', 'e33'])
@@ -1380,7 +1407,32 @@ class StrainStressCalculator(object):
         # record data file name
         self._source_file_dict[direction] = file_name
 
+        # check whether all files are loaded
+        # TODO - 20181010 - check whether all the raw files (e11/e22/e33) are ready for next!
+        self.check_raw_files_ready()
+
         return
+
+    def check_raw_files_ready(self):
+        """
+        check whether all the raw files have been loaded
+        :return:
+        """
+        all_loaded = True
+        for dir_i in self._direction_list:
+            if dir_i not in self._data_set_dict:
+                all_loaded = False
+                break
+        # END-FOR
+
+        if all_loaded:
+            self._set_workflow_state(data_loaded=True)
+            raw_file_ready = True
+        else:
+            self._set_workflow_state(at_init=True)
+            raw_file_ready = False
+
+        return raw_file_ready
 
     def rename(self, new_session_name):
         """
@@ -1413,23 +1465,29 @@ class StrainStressCalculator(object):
         if self._strain_matrix_vec is None or self._stress_matrix_vec is None:
             raise RuntimeError('Strain and stress have not been calculated.')
 
-        print (type(self._grid_output_array))
-        print (type(self._strain_matrix_vec))
-        print (type(self._stress_matrix_vec))
-
-        print ()
-        print ()
-        print (self._stress_matrix_vec.shape)
-
         csv_buffer = ''
-        if self._grid_output_array.shape[0] != self._strain_matrix_vec.shape[0]:
-            raise RuntimeError('Number of (output) grids is different from number of strain/stress matrix.')
-
         csv_buffer += '# {:8s}{:10s}{:10s}{:10s}{:10s}{:10s}{:10s}{:10s}{:10s}' \
                       ''.format('X', 'Y', 'Z', 'e11', 'e22', 'e33', 's11', 's22', 's33')
-        for i_grid in range(self._grid_output_array.shape[0]):
-            continue
 
+        num_strain_stress_grid = self._strain_matrix_vec.shape[0]
+        for i_grid in range(num_strain_stress_grid):
+            # append a line for i-th grid
+            line_i = ''
+
+            # positions
+            for dir_i in range(3):
+                line_i += '{:10s}'.format('{:.5f}'.format(self._matched_grid_vector[i_grid][dir_i]))
+
+            # write strain
+            for ii in range(3):
+                line_i += '{:10s}'.format('{:.5f}'.format(self._strain_matrix_vec[i_grid][ii, ii]))
+
+            # write stress
+            for ii in range(3):
+                line_i += '{:10s}'.format('{:.5f}'.format(self._stress_matrix_vec[i_grid][ii, ii]))
+
+            line_i += '\n'
+        # END-FOR
         csv_file = open(file_name, 'w')
         csv_file.write(csv_buffer)
         csv_file.close()

@@ -186,7 +186,17 @@
           </property>
           <item>
            <property name="text">
+            <string>PseudoVoigt</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
             <string>Gaussian</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Voigit</string>
            </property>
           </item>
          </widget>
@@ -400,7 +410,7 @@
            <enum>Qt::Horizontal</enum>
           </property>
           <property name="sizeType">
-           <enum>QSizePolicy::Preferred</enum>
+           <enum>QSizePolicy::MinimumExpanding</enum>
           </property>
           <property name="sizeHint" stdset="0">
            <size>
@@ -411,9 +421,12 @@
          </spacer>
         </item>
         <item>
-         <widget class="QPushButton" name="pushButton_3">
+         <widget class="QPushButton" name="pushButton_rereduceData">
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Pop out a separate window &amp;quot;Texture-Reduction-Setup&amp;quot;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
           <property name="text">
-           <string>Set Exp.</string>
+           <string>Load</string>
           </property>
          </widget>
         </item>
@@ -424,7 +437,7 @@
         <item>
          <widget class="QLabel" name="label_3">
           <property name="text">
-           <string>Scan Numbers</string>
+           <string>Exp Data File</string>
           </property>
          </widget>
         </item>
@@ -432,12 +445,26 @@
          <widget class="QLineEdit" name="lineEdit_scanNumbers2Reduce"/>
         </item>
         <item>
-         <widget class="QPushButton" name="pushButton_rereduceData">
+         <widget class="QPushButton" name="pushButton_browseFile">
+          <property name="text">
+           <string>Browse</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="checkBox_autoLoad">
           <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Pop out a separate window &amp;quot;Texture-Reduction-Setup&amp;quot;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If checked, then the file will be loaded along with browsing the file&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
           <property name="text">
-           <string>Re-Reduce</string>
+           <string>Auto Load</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="checkBox_autoFit">
+          <property name="text">
+           <string>Auto Fit</string>
           </property>
          </widget>
         </item>
@@ -456,7 +483,7 @@
      <x>0</x>
      <y>0</y>
      <width>1695</width>
-     <height>22</height>
+     <height>25</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

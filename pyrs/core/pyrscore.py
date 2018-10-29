@@ -3,13 +3,14 @@ import datamanagers
 from pyrs.utilities import checkdatatypes
 import mantid_fit_peak
 import strain_stress_calculator
+import reductionengine
 import scandataio
 import polefigurecalculator
 import os
 import numpy
 
 # Define Constants
-SUPPORTED_PEAK_TYPES = ['Gaussian', 'Voigt', 'PseudoVoigt', 'Lorentzian']
+SUPPORTED_PEAK_TYPES = ['PseudoVoigt', 'Gaussian', 'Voigt']  # 'Lorentzian': No a profile of HB2B
 
 
 class PyRsCore(object):
@@ -23,12 +24,18 @@ class PyRsCore(object):
         # declaration of class members
         self._file_io_controller = scandataio.DiffractionDataFile()  # a I/O instance for standard HB2B file
         self._data_manager = datamanagers.RawDataManager()
+        self._reduction_engine = reductionengine.ReductionEngine()
 
         # working environment
-        self._working_dir = 'tests/testdata/'
+        if os.path.exists('tests/testdata/'):
+            self._working_dir = 'tests/testdata/'
+        else:
+            self._working_dir = os.getcwd()
 
         # current/default status
         self._curr_data_key = None
+        self._curr_file_name = None
+
         self._last_optimizer = None
 
         # container for optimizers
@@ -39,8 +46,9 @@ class PyRsCore(object):
         self._last_pole_figure_calculator = None
 
         # strain and stress calculator
-        self._ss_calculator_dict = dict()   # dictionary: key = session name, value = strain-stress-calculator
+        self._ss_calculator_dict = dict()   # [session name][strain/stress type: 1/2/3] = ss calculator
         self._curr_ss_session = None
+        self._curr_ss_type = None
 
         return
 
@@ -60,10 +68,14 @@ class PyRsCore(object):
         :param is_plane_strain:
         :return:
         """
+        ss_type = self._get_strain_stress_type_key(is_plane_strain, is_plane_stress)
         new_ss_calculator = strain_stress_calculator.StrainStressCalculator(session_name, is_plane_strain,
                                                                             is_plane_stress)
-        self._ss_calculator_dict[session_name] = new_ss_calculator
+
+        self._ss_calculator_dict[session_name] = dict()
+        self._ss_calculator_dict[session_name][ss_type] = new_ss_calculator
         self._curr_ss_session = session_name
+        self._curr_ss_type = ss_type
 
         return
 
@@ -100,7 +112,7 @@ class PyRsCore(object):
         if self._curr_ss_session is None:
             return None
 
-        return self._ss_calculator_dict[self._curr_ss_session]
+        return self._ss_calculator_dict[self._curr_ss_session][self._curr_ss_type]
 
     @property
     def working_dir(self):
@@ -153,8 +165,12 @@ class PyRsCore(object):
             # get intensity and log value
             log_values = self.data_center.get_scan_index_logs_values((data_key, det_id), log_names)
 
-            optimizer = self._get_optimizer((data_key, det_id))
-            peak_intensities = optimizer.get_peak_intensities()
+            try:
+                optimizer = self._get_optimizer((data_key, det_id))
+                peak_intensities = optimizer.get_peak_intensities()
+            except AttributeError as att:
+                raise RuntimeError('Unable to get peak intensities. Check whether peaks have been fit.  FYI: {}'
+                                   ''.format(att))
             fit_info_dict = optimizer.get_peak_fit_parameters()
 
             # add value to pole figure calculate
@@ -196,8 +212,8 @@ class PyRsCore(object):
             vec_beta_i = sub_array[:, 1]
             vec_intensity_i = sub_array[:, 2]
 
-            print ('# data points = {0}'.format(len(sub_array)))
-            print ('alpha: {0}'.format(vec_alpha_i))
+            print ('Det {} # data points = {}'.format(det_id, len(sub_array)))
+            # print ('alpha: {0}'.format(vec_alpha_i))
 
             if vec_alpha is None:
                 vec_alpha = vec_alpha_i
@@ -332,11 +348,27 @@ class PyRsCore(object):
             optimizer = self._optimizer_dict[data_key]
             print ('Return optimizer in dictionary: {0}'.format(optimizer))
         else:
+            # data key exist but optimizer does not: could be not been fitted yet
             raise RuntimeError('Unable to find optimizer related to data with reference ID {0} of type {1}.'
                                'Current keys are {2}.'
                                ''.format(data_key, type(data_key), self._optimizer_dict.keys()))
 
         return optimizer
+
+    @staticmethod
+    def _get_strain_stress_type_key(is_plane_strain, is_plane_stress):
+        """
+        blabla
+        :param is_plane_strain:
+        :param is_plane_stress:
+        :return: 1: regular unconstrained, 2: plane strain, 3: plane stress
+        """
+        if is_plane_strain:
+            return 2
+        elif is_plane_stress:
+            return 3
+
+        return 1
 
     def get_detector_ids(self, data_key):
         """
@@ -505,7 +537,7 @@ class PyRsCore(object):
 
         # set to current key
         self._curr_data_key = data_key
-        self._curr_file_name = h5file  # TODO - Warning
+        self._curr_file_name = h5file
 
         return data_key, message
 
@@ -565,29 +597,45 @@ class PyRsCore(object):
 
         return
 
-    def reset_strain_stress(self, is_plane_strain, is_plane_stress):
-        """ reset the strain and stress calculation due to change of type
-        :param new_type:
+    @property
+    def reduction_engine(self):
+        """
+        get the reference to reduction engine
         :return:
         """
-        # rename the old one
-        if self._curr_ss_session not in self._ss_calculator_dict:
+        return self._reduction_engine
+
+    def reset_strain_stress(self, is_plane_strain, is_plane_stress):
+        """ reset the strain and stress calculation due to change of type
+
+        :param is_plane_strain:
+        :param is_plane_stress:
+        :return:
+        """
+        if self._curr_ss_session is None:
+            raise RuntimeError('Current session is not named.')
+        elif self._curr_ss_session not in self._ss_calculator_dict:
             print ('[WARNING] Current strain/stress session does not exist.')
             return
 
+        ss_type_index = self._get_strain_stress_type_key(is_plane_strain, is_plane_stress)
+        if ss_type_index == self._curr_ss_type:
+            raise RuntimeError('Same strain/stress type (plane strain = {}, plane stress = {}'
+                               ''.format(is_plane_strain, is_plane_stress))
+
         # rename the current strain stress name
-        saved_ss_name = self._curr_ss_session + '_{}_{}'.format(is_plane_strain, is_plane_stress)
-        self._ss_calculator_dict[self._curr_ss_session].rename(saved_ss_name)
-        prev_calculator = self._ss_calculator_dict[self._curr_ss_session]
-        self._ss_calculator_dict[saved_ss_name] = prev_calculator
+        # saved_ss_name = self._curr_ss_session + '_{}_{}'.format(is_plane_strain, is_plane_stress)
+        # self._ss_calculator_dict[self._curr_ss_session].rename(saved_ss_name)
+        # prev_calculator = self._ss_calculator_dict[self._curr_ss_session]
+        # self._ss_calculator_dict[saved_ss_name] = prev_calculator
 
         # reset new strain/stress calculator
-        new_ss_calculator = strain_stress_calculator.StrainStressCalculator(self._curr_ss_session, is_plane_strain,
-                                                                            is_plane_stress)
+        new_ss_calculator = self.strain_stress_calculator.migrate(is_plane_strain, is_plane_stress)
 
-        self._ss_calculator_dict[self._curr_ss_session] = new_ss_calculator
+        self._ss_calculator_dict[self._curr_ss_session][ss_type_index] = new_ss_calculator
+        self._curr_ss_type = ss_type_index
 
-        return
+        return self._curr_ss_session
 
     def save_nexus(self, data_key, file_name):
         """

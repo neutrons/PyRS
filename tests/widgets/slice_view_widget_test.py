@@ -47,7 +47,7 @@ class SliceViewer(QMainWindow):
         """
         contour_resolution = 1000
 
-        self.ui.widget.plot_contour(vec_x, vec_y, vec_z, contour_resolution, False)
+        self.ui.widget.plot_contour_interpolate(vec_x, vec_y, vec_z, contour_resolution, False)
         self.ui.widget.plot_scatter(vec_x, vec_y, flush=True)
 
         #

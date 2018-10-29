@@ -141,63 +141,68 @@ class DiffractionDataFile(object):
         sample_logs = dict()
         diff_data_dict = dict()
 
-        for scan_log_index in range(num_scan_logs):
-            log_name_i = 'Log {0}'.format(scan_log_index)
-            h5_log_i = diff_data_group[log_name_i]
+        try:
+            for scan_log_index in range(num_scan_logs):
+                log_name_i = 'Log {0}'.format(scan_log_index)
+                h5_log_i = diff_data_group[log_name_i]
 
-            vec_2theta = None
-            vec_y = None
+                vec_2theta = None
+                vec_y = None
 
-            for item_name in h5_log_i.keys():
-                # special peak fit
-                if item_name == 'peak_fit':
-                    add_peak_fit_parameters(sample_logs, h5_log_i[item_name], scan_log_index, total_scans=num_scan_logs)
-                    continue
+                for item_name in h5_log_i.keys():
+                    # special peak fit
+                    if item_name == 'peak_fit':
+                        add_peak_fit_parameters(sample_logs, h5_log_i[item_name], scan_log_index,
+                                                total_scans=num_scan_logs)
+                        continue
 
-                # get value
-                item_i = h5_log_i[item_name].value
+                    # get value
+                    item_i = h5_log_i[item_name].value
 
-                if isinstance(item_i, numpy.ndarray):
-                    if item_name == 'Corrected 2theta':
-                        # corrected 2theta
-                        if not (len(item_i.shape) == 1 or h5_log_i[item_name].value.shape[1] == 1):
-                            raise RuntimeError('Unable to support a non-1D corrected 2theta entry')
-                        vec_2theta = h5_log_i[item_name].value.flatten('F')
-                    elif item_name == 'Corrected Intensity':
-                        if not (len(item_i.shape) == 1 or h5_log_i[item_name].value.shape[1] == 1):
-                            raise RuntimeError('Unable to support a non-1D corrected intensity entry')
-                        vec_y = h5_log_i[item_name].value.flatten('F')
+                    if isinstance(item_i, numpy.ndarray):
+                        if item_name == 'Corrected 2theta':
+                            # corrected 2theta
+                            if not (len(item_i.shape) == 1 or h5_log_i[item_name].value.shape[1] == 1):
+                                raise RuntimeError('Unable to support a non-1D corrected 2theta entry')
+                            vec_2theta = h5_log_i[item_name].value.flatten('F')
+                        elif item_name == 'Corrected Intensity':
+                            if not (len(item_i.shape) == 1 or h5_log_i[item_name].value.shape[1] == 1):
+                                raise RuntimeError('Unable to support a non-1D corrected intensity entry')
+                            vec_y = h5_log_i[item_name].value.flatten('F')
+                    else:
+                        # 1 dimensional (single data point)
+                        item_name_str = str(item_name)
+                        if item_name_str not in sample_logs:
+                            # create entry as ndarray if it does not exist
+                            if isinstance(item_i, str):
+                                # string can only be object type
+                                sample_logs[item_name_str] = numpy.ndarray(shape=(num_scan_logs,), dtype=object)
+                            elif isinstance(item_i, unicode):
+                                # unicode
+                                sample_logs[item_name_str] = numpy.ndarray(shape=(num_scan_logs,), dtype=object)
+                            else:
+                                # raw type
+                                try:
+                                    sample_logs[item_name_str] = numpy.ndarray(shape=(num_scan_logs,),
+                                                                               dtype=item_i.dtype)
+                                except AttributeError as att_err:
+                                    err_msg = 'Item {} with value {} is a unicode object and cannot be converted to ' \
+                                              'ndarray due to \n{}'.format(item_name_str, item_i, att_err)
+                                    raise AttributeError(err_msg)
+
+                        # add the log
+                        sample_logs[item_name_str][scan_log_index] = h5_log_i[item_name].value
+                        # END-IF
+                # END-FOR
+
+                # record 2theta-intensity
+                if vec_2theta is None or vec_y is None:
+                    raise RuntimeError('Log {0} does not have either Corrected 2theta or Corrected Intensity'
+                                       ''.format(scan_log_index))
                 else:
-                    # 1 dimensional (single data point)
-                    item_name_str = str(item_name)
-                    if item_name_str not in sample_logs:
-                        # create entry as ndarray if it does not exist
-                        if isinstance(item_i, str):
-                            # string can only be object type
-                            sample_logs[item_name_str] = numpy.ndarray(shape=(num_scan_logs,), dtype=object)
-                        elif isinstance(item_i, unicode):
-                            # unicode
-                            sample_logs[item_name_str] = numpy.ndarray(shape=(num_scan_logs,), dtype=object)
-                        else:
-                            # raw type
-                            try:
-                                sample_logs[item_name_str] = numpy.ndarray(shape=(num_scan_logs,), dtype=item_i.dtype)
-                            except AttributeError as att_err:
-                                err_msg = 'Item {} with value {} is a unicode object and cannot be converted to ' \
-                                          'ndarray due to \n{}'.format(item_name_str, item_i, att_err)
-                                raise AttributeError(err_msg)
-
-                    # add the log
-                    sample_logs[item_name_str][scan_log_index] = h5_log_i[item_name].value
-                # END-IF
-            # END-FOR
-
-            # record 2theta-intensity
-            if vec_2theta is None or vec_y is None:
-                raise RuntimeError('Log {0} does not have either Corrected 2theta or Corrected Intensity'
-                                   ''.format(scan_log_index))
-            else:
-                diff_data_dict[scan_log_index] = vec_2theta, vec_y
+                    diff_data_dict[scan_log_index] = vec_2theta, vec_y
+        except KeyError as key_error:
+            raise RuntimeError('Failed to load {} due to {}'.format(file_name, key_error))
 
         # END-FOR
 

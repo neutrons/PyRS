@@ -102,6 +102,11 @@ class Qt4MplPolarCanvas(FigureCanvas):
 
         return
 
+    def plot_polar_xy(self, vec_theta, vec_r):
+        self.axes.plot(vec_theta, vec_r, 'ko', ms=3)
+
+
+
     def plot_contour(self, vec_theta, vec_r, vec_values, max_r, r_resolution, theta_resolution):
         """
         plot contour
@@ -121,13 +126,14 @@ class Qt4MplPolarCanvas(FigureCanvas):
             raise RuntimeError('Input vector of theta ({}), r ({}) and values ({}) are of different '
                                'sizes.'.format(vec_theta.shape, vec_r.shape, vec_values.shape))
         check_float('Maximum R', max_r, 0, None)
-        check_float('R resolution', r_resolution, 0, 2.0)
+        check_float('R resolution', r_resolution, 0, None)
         check_float('Theta resolution', theta_resolution, 0, 90.)
 
         # create the mesh grid for contour plot
-        # create 1D arrays for theta and r
-        azimuths = np.radians(np.linspace(0, 360+theta_resolution, 360/theta_resolution+1))  # degree
-        zeniths = np.arange(0, max_r+r_resolution, r_resolution)  # radius
+        # create 1D arrays for theta and r: beta/2
+        azimuths = np.radians(np.linspace(-theta_resolution/2., 360+theta_resolution/2., 360/theta_resolution+1))  # degree
+        # Chris change to non-linear spacing from alpha:  zeniths = np.arange(0, max_r+r_resolution, r_resolution)  # radius
+        zeniths = np.tan(np.pi / 360. * np.arange(-r_resolution/2., max_r+r_resolution, r_resolution))  # radius
 
         # convert to meshgrid
         mesh_r, mesh_theta = np.meshgrid(zeniths, azimuths)

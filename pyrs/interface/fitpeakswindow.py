@@ -33,6 +33,10 @@ class FitPeaksWindow(QMainWindow):
         self.ui.graphicsView_fitResult.set_subplots(1, 1)
         self.ui.graphicsView_fitSetup.set_subplots(1, 1)
 
+        self._init_widgets()
+        # init some widgets
+        self.ui.checkBox_autoLoad.setChecked(True)
+
         # set up handling
         self.ui.pushButton_loadHDF.clicked.connect(self.do_load_scans)
         self.ui.pushButton_browseHDF.clicked.connect(self.do_browse_hdf)
@@ -54,6 +58,7 @@ class FitPeaksWindow(QMainWindow):
 
         self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
         self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
+        self.ui.comboBox_2dPlotChoice.currentIndexChanged.connect(self.do_plot_2d_data)
 
         # tracker for sample log names and peak parameter names
         self._sample_log_name_set = set()
@@ -65,6 +70,9 @@ class FitPeaksWindow(QMainWindow):
         # current/last loaded data
         self._curr_data_key = None
         self._curr_file_name = None
+
+        # a copy of sample logs
+        self._sample_log_names = list()  # a copy of sample logs' names that are added to combo-box
 
         return
 
@@ -91,6 +99,22 @@ class FitPeaksWindow(QMainWindow):
         archive_data = hb2b.get_hb2b_raw_data(ipts_number, exp_number)
 
         return archive_data
+
+    def _init_widgets(self):
+        """
+        initialize the some widgets
+        :return:
+        """
+        self.ui.pushButton_loadHDF.setEnabled(False)
+        self.ui.checkBox_autoFit.setChecked(True)
+        self.ui.checkBox_autoLoad.setChecked(True)
+
+        # combo boxes
+        self.ui.comboBox_2dPlotChoice.clear()
+        self.ui.comboBox_2dPlotChoice.addItem('Raw Data')
+        self.ui.comboBox_2dPlotChoice.addItem('Fitted')
+
+        return
 
     def do_browse_hdf(self):
         """
@@ -123,6 +147,9 @@ class FitPeaksWindow(QMainWindow):
             # pass
             raise RuntimeError('File {0} does not exist.'.format(hdf_name))
 
+        if self.ui.checkBox_autoLoad.isChecked():
+            self.do_load_scans(from_browse=True)
+
         return
 
     def do_launch_adv_fit(self):
@@ -137,18 +164,27 @@ class FitPeaksWindow(QMainWindow):
 
         return
 
-    def do_load_scans(self):
+    def do_load_scans(self, from_browse=True):
         """
         load scan's reduced files
+        :param from_browse: if True, then file will be read from lineEdit_expFileName.
         :return:
         """
         self._check_core()
 
         # get file
-        rs_file_name = str(self.ui.lineEdit_expFileName.text())
+        if from_browse:
+            rs_file_name = str(self.ui.lineEdit_expFileName.text())
+        else:
+            rs_file_name = self.set_file_from_archive()
 
         # load file
-        data_key, message = self._core.load_rs_raw(rs_file_name)
+        try:
+            data_key, message = self._core.load_rs_raw(rs_file_name)
+        except RuntimeError as run_err:
+            gui_helper.pop_message(self, 'Unable to load {}'.format(rs_file_name), detailed_message=str(run_err),
+                                   message_type='error')
+            return
 
         # edit information
         self.ui.label_loadedFileInfo.setText(message)
@@ -165,11 +201,17 @@ class FitPeaksWindow(QMainWindow):
         self.ui.comboBox_xaxisNames.clear()
         self.ui.comboBox_yaxisNames.clear()
         self.ui.comboBox_xaxisNames.addItem('Log Index')
+
+        # Maintain a copy of sample logs!
+        self._sample_log_names = sample_log_names[:]
         for sample_log in sample_log_names:
             self.ui.comboBox_xaxisNames.addItem(sample_log)
             self.ui.comboBox_yaxisNames.addItem(sample_log)
             self._sample_log_name_set.add(sample_log)
         self._sample_log_names_mutex = False
+
+        # reset the plot
+        self.ui.graphicsView_fitResult.reset_viewer()
 
         # Record data key and next
         self._curr_data_key = data_key
@@ -180,9 +222,14 @@ class FitPeaksWindow(QMainWindow):
             self.ui.tableView_fitSummary.remove_all_rows()
         self.ui.tableView_fitSummary.init_exp(self._core.data_center.get_scan_range(data_key))
 
-        # plot the first index
+        # plot first peak for default peak range
         self.ui.lineEdit_scanNumbers.setText('0')
-        self.do_plot_diff_data()
+        self.do_plot_diff_data(plot_model=False)
+
+        # auto fit
+        if self.ui.checkBox_autoFit.isChecked():
+            # auto fit: no need to plot anymore
+            self.do_fit_peaks()
 
         # plot the contour
         # FIXME/TODO/ASAP3 self.ui.graphicsView_contourView.plot_contour(self._core.data_center.get_data_2d(data_key))
@@ -207,27 +254,49 @@ class FitPeaksWindow(QMainWindow):
         peak_function = str(self.ui.comboBox_peakType.currentText())
         bkgd_function = str(self.ui.comboBox_backgroundType.currentText())
 
-        # TODO .. TEST
         fit_range = self.ui.graphicsView_fitSetup.get_x_limit()
-        print ('Fit range: {0}'.format(fit_range))
+        print ('[INFO] Peak fit range: {0}'.format(fit_range))
 
-        # FIXME It is better to fit all the peaks at the same time!
+        # It is better to fit all the peaks at the same time after testing
         scan_log_index = None
         self._core.fit_peaks(data_key, scan_log_index, peak_function, bkgd_function, fit_range)
 
         function_params = self._core.get_peak_fit_parameter_names(data_key)
         self._sample_log_names_mutex = True
-        # TODO FIXME : add to X axis too
-        curr_index = self.ui.comboBox_yaxisNames.currentIndex()
-        # add fitted parameters
+        curr_x_index = self.ui.comboBox_xaxisNames.currentIndex()
+        curr_y_index = self.ui.comboBox_yaxisNames.currentIndex()
+        # add fitted parameters by resetting and build from the copy of fit parameters
+        self.ui.comboBox_xaxisNames.clear()
+        self.ui.comboBox_yaxisNames.clear()
+        self.ui.comboBox_xaxisNames.addItem('Log Index')
+        for sample_log_name in self._sample_log_names:
+            self.ui.comboBox_xaxisNames.addItem(sample_log_name)
+            self.ui.comboBox_yaxisNames.addItem(sample_log_name)
         for param_name in function_params:
+            self.ui.comboBox_xaxisNames.addItem(param_name)
             self.ui.comboBox_yaxisNames.addItem(param_name)
             self._function_param_name_set.add(param_name)
         # add observed parameters
+        self.ui.comboBox_xaxisNames.addItem('Center of mass')
         self.ui.comboBox_yaxisNames.addItem('Center of mass')
         # keep current selected item unchanged
-        self.ui.comboBox_yaxisNames.setCurrentIndex(curr_index)
+        size_x = len(self._sample_log_names) + len(self._function_param_name_set) + 2  # log index and center of mass
+        size_y = len(self._sample_log_names) + len(self._function_param_name_set) + 1  # center of mass
+        if curr_x_index < size_x:
+            # keep current set up
+            self.ui.comboBox_xaxisNames.setCurrentIndex(curr_x_index)
+        else:
+            # original one does not exist: reset to first/log index
+            self.ui.comboBox_xaxisNames.setCurrentIndex(0)
+
+        # release the mutex: because re-plot is required anyway
         self._sample_log_names_mutex = False
+
+        # plot Y
+        if curr_y_index >= size_y:
+            # out of boundary: use the last one (usually something about peak)
+            curr_y_index = size_y - 1
+        self.ui.comboBox_yaxisNames.setCurrentIndex(curr_y_index)
 
         # fill up the table
         not_used_vec, center_vec = self._core.get_peak_fit_param_value(data_key, 'centre', max_cost=None)
@@ -285,7 +354,14 @@ class FitPeaksWindow(QMainWindow):
 
         return
 
-    def do_plot_diff_data(self):
+    def do_plot_2d_data(self):
+        """
+
+        :return:
+        """
+        return
+
+    def do_plot_diff_data(self, plot_model=True):
         """
         plot diffraction data
         :return:
@@ -302,7 +378,7 @@ class FitPeaksWindow(QMainWindow):
 
         # get data and plot
         err_msg = ''
-        plot_model = len(scan_log_index_list) == 1
+        plot_model = len(scan_log_index_list) == 1 and plot_model
         for scan_log_index in scan_log_index_list:
             try:
                 self.plot_diff_data(scan_log_index, plot_model)
@@ -321,17 +397,21 @@ class FitPeaksWindow(QMainWindow):
         :return:
         """
         scan_log_index_list = gui_helper.parse_integers(str(self.ui.lineEdit_scanNumbers.text()))
+        last_log_index = int(self.ui.label_logIndexMax.text())
         if len(scan_log_index_list) == 0:
             gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
         elif len(scan_log_index_list) > 1:
             gui_helper.pop_message(self, 'There are too many scans for "next"', 'error')
+        elif scan_log_index_list[0] == last_log_index:
+            # last log index: no operation
+            return
 
         next_scan_log = scan_log_index_list[0] + 1
         try:
             self.ui.graphicsView_fitSetup.reset_viewer()
             self.plot_diff_data(next_scan_log, True)
-        except ValueError as run_err:
-            self.plot_diff_data(next_scan_log + 1, True)
+        except RuntimeError as run_err:
+            # self.plot_diff_data(next_scan_log - 1, True)
             err_msg = 'Unable to plot next scan {} due to {}'.format(next_scan_log, run_err)
             gui_helper.pop_message(self, err_msg, message_type='error')
         else:
@@ -349,16 +429,20 @@ class FitPeaksWindow(QMainWindow):
             gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
         elif len(scan_log_index_list) > 1:
             gui_helper.pop_message(self, 'There are too many scans for "next"', 'error')
+        elif scan_log_index_list[0] == 0:
+            # first one: no operation
+            return
 
-        next_scan_log = scan_log_index_list[0] - 1
+        prev_scan_log_index = scan_log_index_list[0] - 1
         try:
             self.ui.graphicsView_fitSetup.reset_viewer()
-            self.plot_diff_data(next_scan_log, True)
-        except ValueError as run_err:
-            err_msg = 'Unable to plot previous scan {} due to {}'.format(next_scan_log, run_err)
+            self.plot_diff_data(prev_scan_log_index, True)
+        except RuntimeError as run_err:
+            # self.plot_diff_data(next_scan_log + 1, True)
+            err_msg = 'Unable to plot previous scan {} due to {}'.format(prev_scan_log_index, run_err)
             gui_helper.pop_message(self, err_msg, message_type='error')
         else:
-            self.ui.lineEdit_scanNumbers.setText('{}'.format(next_scan_log))
+            self.ui.lineEdit_scanNumbers.setText('{}'.format(prev_scan_log_index))
         return
 
     def do_plot_meta_data(self):

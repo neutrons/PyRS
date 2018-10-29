@@ -35,12 +35,20 @@ class Diffraction2DPlot(MplGraphicsPolarView):
         # self._myCanvas.axes.clear()
 
         # project vector to XY plane, i.e., convert alpha (phi) azimuthal angle to r
-        vec_r = np.sin(vec_alpha * np.pi / 180.)
-        vec_intensity = np.log(vec_intensity+1.)
+        vec_r = np.tan(vec_alpha * np.pi / 360.)  # tan(alpha/2)
+        vec_intensity = vec_intensity
 
         #     def plot_contour(self, vec_theta, vec_r, vec_values, max_r, r_resolution, theta_resolution):
-        self._myCanvas.plot_contour(vec_theta=vec_beta, vec_r=vec_r, vec_values=vec_intensity, max_r=1.,
-                                    r_resolution=0.05, theta_resolution=3.)
+        # if True:
+        #     # debug: BAD Move: the canvas is in polar coordinate style
+        #     self._myCanvas.plot_polar_xy(vec_beta, vec_r)
+        # else:
+        # plot contour
+        # TODO - make the grid of r converted from linear grid on alpha
+        self._myCanvas.plot_contour(vec_theta=vec_beta, vec_r=vec_r, vec_values=vec_intensity, max_r=90.,
+                                    r_resolution=5., theta_resolution=5.)
+
+        # TODO - convert (vec_r, vec_beta) to X, Y and do a scattering in another
 
         self.show()
 
@@ -64,8 +72,7 @@ class GeneralDiffDataView(MplGraphicsView1D):
     generalized diffraction view
     """
     def __init__(self, parent):
-        """
-        blabla
+        """ Initialization
         :param parent:
         """
         super(GeneralDiffDataView, self).__init__(parent)

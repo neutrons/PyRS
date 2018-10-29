@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1561</width>
-    <height>1024</height>
+    <height>1106</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -116,6 +116,9 @@
         </property>
        </widget>
       </item>
+      <item row="1" column="6">
+       <widget class="QComboBox" name="comboBox_2dPlotChoice"/>
+      </item>
      </layout>
     </item>
     <item row="2" column="0">
@@ -143,22 +146,17 @@
           </property>
           <item>
            <property name="text">
+            <string>PseudoVoigt</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
             <string>Gaussian</string>
            </property>
           </item>
           <item>
            <property name="text">
             <string>Voigt</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>PseudoVoigt</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Lorentzian</string>
            </property>
           </item>
          </widget>
@@ -353,12 +351,9 @@
          <widget class="QLineEdit" name="lineEdit_expNumber"/>
         </item>
         <item>
-         <spacer name="horizontalSpacer">
+         <spacer name="horizontalSpacer_7">
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
-          </property>
-          <property name="sizeType">
-           <enum>QSizePolicy::Preferred</enum>
           </property>
           <property name="sizeHint" stdset="0">
            <size>
@@ -369,9 +364,9 @@
          </spacer>
         </item>
         <item>
-         <widget class="QPushButton" name="pushButton_3">
+         <widget class="QPushButton" name="pushButton_loadHDF">
           <property name="text">
-           <string>Set Exp.</string>
+           <string>Load</string>
           </property>
          </widget>
         </item>
@@ -397,9 +392,22 @@
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="pushButton_loadHDF">
+         <widget class="QCheckBox" name="checkBox_autoLoad">
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If chcked, file will be loaded automatically with Browsing the file&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
           <property name="text">
-           <string>Load HDF</string>
+           <string>Auto Load</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="checkBox_autoFit">
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If specified as True, then after the file is loaded, all the peaks will be fit with default peak profile and background function automatically.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="text">
+           <string>Auto Fit</string>
           </property>
          </widget>
         </item>
@@ -436,7 +444,7 @@
      <x>0</x>
      <y>0</y>
      <width>1561</width>
-     <height>22</height>
+     <height>25</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

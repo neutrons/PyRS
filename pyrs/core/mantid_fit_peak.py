@@ -133,6 +133,7 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
                       'PseudoVoigt': ('FWHM', 1.0),
                       'Voigt': ('LorentzFWHM, GaussianFWHM', '0.1, 0.7')}
 
+        # TODO - 20180930 - Issue #30: get a list of mixing parameter
         r = FitPeaks(InputWorkspace=self._workspace_name,
                      OutputWorkspace=r_positions_ws_name,
                      PeakCentersWorkspace=self._center_of_mass_ws_name,
@@ -150,14 +151,17 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
                      FittedPeaksWorkspace=r_model_ws_name,
                      FitPeakWindowWorkspace=peak_window_ws_name)
 
+        # TODO - 20180930 - Issue #30: add new column to OutputPeakParametersWorkspace for 'mixing'
+
         print ('Fit peaks parameters: range {0} - {1}.  Fit window boundary: {2} - {3}'
                ''.format(start, stop, fit_range[0], fit_range[1]))
 
         # Save all the workspaces automatically for further review
-        if True:
+        if False:
+            # debug mode is disabled
             # find the directory for file
             dir_name = scandataio.get_temp_directory()
-            print ('[INFO] Mantid fit debugging data files will be written to {0}'.format(dir_name))
+            print ('[DEBUG-INFO] Mantid fit debugging data files will be written to {0}'.format(dir_name))
 
             # workspace for data
             base_name = self._reference_id.replace('.', '_') + '_' + peak_function_name

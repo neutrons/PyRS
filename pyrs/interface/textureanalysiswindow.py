@@ -31,6 +31,7 @@ class TextureAnalysisWindow(QMainWindow):
         self._init_widgets()
 
         # set up handling
+        self.ui.pushButton_browseFile.clicked.connect(self.do_browse_load_file)
         self.ui.pushButton_plotPeaks.clicked.connect(self.do_plot_diff_data)
         self.ui.pushButton_fitPeaks.clicked.connect(self.do_fit_peaks)
         self.ui.pushButton_calPoleFigure.clicked.connect(self.do_cal_pole_figure)
@@ -43,7 +44,7 @@ class TextureAnalysisWindow(QMainWindow):
         self.ui.pushButton_clearPF.clicked.connect(self.do_clear_pole_figure_plot)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
-        self.ui.actionOpen_HDF5.triggered.connect(self.do_load_scans_hdf)
+        self.ui.actionOpen_HDF5.triggered.connect(self.do_browse_load_file)
         self.ui.actionSave_as.triggered.connect(self.do_save_as)
 
         self.ui.actionSave_Diffraction_Data_For_Mantid.triggered.connect(self.do_save_workspace)
@@ -72,6 +73,10 @@ class TextureAnalysisWindow(QMainWindow):
 
         # table
         self.ui.tableView_poleFigureParams.setup()
+
+        # check boxes
+        self.ui.checkBox_autoLoad.setChecked(True)
+        self.ui.checkBox_autoFit.setChecked(True)
 
         return
 
@@ -118,7 +123,13 @@ class TextureAnalysisWindow(QMainWindow):
         :return:
         """
         det_id_list = None
-        self._core.calculate_pole_figure(data_key=self._data_key, detector_id_list=det_id_list)
+        try:
+            self._core.calculate_pole_figure(data_key=self._data_key, detector_id_list=det_id_list)
+        except RuntimeError as run_err:
+            gui_helper.pop_message(self, message='Failed to calculate pole figure',
+                                   detailed_message='{}'.format(run_err),
+                                   message_type='error')
+            return
 
         # get result out and show in table
         num_rows = self.ui.tableView_poleFigureParams.rowCount()
@@ -127,6 +138,9 @@ class TextureAnalysisWindow(QMainWindow):
             alpha, beta = self._core.get_pole_figure_value(self._data_key, det_id, log_index)
             # print ('[DB...BAT] row {0}:  alpha = {1}, beta = {2}'.format(row_number, alpha, beta))
             self.ui.tableView_poleFigureParams.set_pole_figure_projection(row_number, alpha, beta)
+
+        # plot pole figure
+        self.do_plot_pole_figure()
 
         return
 
@@ -159,13 +173,15 @@ class TextureAnalysisWindow(QMainWindow):
 
         return
 
-    def do_load_scans_hdf(self):
+    def do_browse_load_file(self):
         """
-        load scan's reduced files
+        load scan's reduced files and optionally load it!
         :return: a list of tuple (detector ID, file name)
         """
         # check
         self._check_core()
+
+        # TESTME - 20180925 - Make it work!
 
         # browse file
         default_dir = self._get_default_hdf()
@@ -188,12 +204,21 @@ class TextureAnalysisWindow(QMainWindow):
 
         # convert the files
         new_file_list = list()
+        # TODO FIXME - 20180930 - count number of files loaded successfully and unsuccessfullly and decided
+        # TODO                    fail or go on!
         for ifile, file_name in enumerate(hdf_name_list):
-            det_id = int(file_name.split('[')[1].split(']')[0])
-            new_file_list.append((det_id, str(file_name)))
+            try:
+                det_id = int(file_name.split('[')[1].split(']')[0])
+            except IndexError as err:
+                # TODO - error message!
+                pass
+            else:
+                new_file_list.append((det_id, str(file_name)))
         # END-FOR
 
-        self.load_h5_scans(new_file_list)
+        # auto load
+        if self.ui.checkBox_autoLoad.isChecked():
+            self.load_h5_scans(new_file_list)
 
         return
 
@@ -206,9 +231,6 @@ class TextureAnalysisWindow(QMainWindow):
         # load file: the data key usually is based on the first file's name
         data_key, message = self._core.load_rs_raw_set(rs_file_set)
         self._data_key = data_key
-
-        print ('[DB...BAT] Loaded data keys: {0}  with sub keys: {1}'.format(self._data_key,
-                                                                             self._core.get_detector_ids(data_key)))
 
         # edit information
         message = str(message)
@@ -271,6 +293,11 @@ class TextureAnalysisWindow(QMainWindow):
         self.ui.lineEdit_scanNumbers.setText('0')
         self.do_plot_diff_data()
 
+        # auto fit
+        if self.ui.checkBox_autoFit.isChecked():
+            # auto fit: no need to plot anymore
+            self.do_fit_peaks()
+
         return
 
     def do_fit_peaks(self):
@@ -318,16 +345,24 @@ class TextureAnalysisWindow(QMainWindow):
         intensity_dict = dict()
         for det_id in det_id_list:
             data_key_pair = data_key, det_id
-            chi2_vec = self._core.get_peak_fit_param_value(data_key_pair, 'chi2', max_cost=None)
-            intensity_vec = self._core.get_peak_fit_param_value(data_key_pair, 'intensity', max_cost=None)
+            chi2_vec = self._core.get_peak_fit_param_value(data_key_pair, 'chi2', max_cost=None)[1]
+            intensity_vec = self._core.get_peak_fit_param_value(data_key_pair, 'intensity', max_cost=None)[1]
             chi2_dict[det_id] = chi2_vec
             intensity_dict[det_id] = intensity_vec
         # END-FOR
 
         for row_index in range(self.ui.tableView_poleFigureParams.rowCount()):
             det_id, scan_log_index = self.ui.tableView_poleFigureParams.get_detector_log_index(row_index)
-            self.ui.tableView_poleFigureParams.set_intensity(row_index, intensity_dict[det_id][scan_log_index],
-                                                             chi2_dict[det_id][scan_log_index])
+            try:
+                intensity_i = intensity_dict[det_id][scan_log_index]
+                chi2_i = chi2_dict[det_id][scan_log_index]
+                self.ui.tableView_poleFigureParams.set_intensity(row_index, intensity_i, chi2_i)
+            except IndexError as index_error:
+                print (intensity_dict[det_id])
+                print (chi2_dict[det_id])
+                raise RuntimeError('Unable to get intensity/chi2 of detector {} scan log index {} due to {}'
+                                   ''.format(det_id, scan_log_index, index_error))
+
         # END-FOR
 
         # plot the model and difference
@@ -551,6 +586,10 @@ class TextureAnalysisWindow(QMainWindow):
                                                                                max_cost=max_cost)
 
         self.ui.graphicsView_contour.plot_pole_figure(vec_alpha, vec_beta, vec_intensity)
+
+
+
+
 
         return
 

@@ -7,6 +7,7 @@ from pyrs.core import pyrscore
 import fitpeakswindow
 import textureanalysiswindow
 import strainstresscalwindow
+import manualreductionwindow
 
 
 class PyRSLauncher(QMainWindow):
@@ -27,6 +28,7 @@ class PyRSLauncher(QMainWindow):
         self.ui.setupUi(self)
 
         # define
+        self.ui.pushButton_manualReduction.clicked.connect(self.do_reduce_manually)
         self.ui.pushButton_fitPeaks.clicked.connect(self.do_launch_fit_peak_window)
         self.ui.pushButton_launchTextureAnalysis.clicked.connect(self.do_launch_texture_window)
         self.ui.pushButton_launchStrainStressCalculation.clicked.connect(self.do_launch_strain_stress_window)
@@ -37,6 +39,8 @@ class PyRSLauncher(QMainWindow):
         self.peak_fit_window = None
         self.texture_analysis_window = None
         self.strain_stress_window = None
+        self.manual_reduction_window = None
+        self.instrument_calibration_window = None
 
         return
     
@@ -58,6 +62,10 @@ class PyRSLauncher(QMainWindow):
             self.peak_fit_window.setup_window(self._reduction_core)
         self.peak_fit_window.show()
 
+        # # optionally close the main window
+        # if self.ui.checkBox_keepWindowOpen.isChecked() is False:
+        #     self.hide()
+
         return
 
     def do_launch_strain_stress_window(self):
@@ -70,6 +78,10 @@ class PyRSLauncher(QMainWindow):
 
         # launch
         self.strain_stress_window.show()
+
+        # optionally close the main window
+        # if self.ui.checkBox_keepWindowOpen.isChecked() is False:
+        #     self.close()
 
         return
 
@@ -85,6 +97,28 @@ class PyRSLauncher(QMainWindow):
         # show
         self.texture_analysis_window.show()
 
+        # optionally close the main window
+        # if self.ui.checkBox_keepWindowOpen.isChecked() is False:
+        #     self.close()
+
+        return
+
+    def do_reduce_manually(self):
+        """
+        launch manual data reduction window
+        :return:
+        """
+        if self.manual_reduction_window is None:
+            self.manual_reduction_window = manualreductionwindow.ManualReductionWindow(self)
+            self.manual_reduction_window.setup_window(self._reduction_core)
+
+        # show
+        self.manual_reduction_window.show()
+
+        # # optionally close the main window
+        # if self.ui.checkBox_keepWindowOpen.isChecked() is False:
+        #     self.close()
+
         return
 
     def do_quit(self):
@@ -92,12 +126,21 @@ class PyRSLauncher(QMainWindow):
         close window
         :return:
         """
-        # close child windows
+        # close all 5 child windows
         if self.peak_fit_window is not None:
             self.peak_fit_window.close()
 
         if self.texture_analysis_window is not None:
             self.texture_analysis_window.close()
+
+        if self.strain_stress_window is not None:
+            self.strain_stress_window.close()
+
+        if self.manual_reduction_window is not None:
+            self.manual_reduction_window.close()
+
+        if self.instrument_calibration_window is not None:
+            self.instrument_calibration_window.close()
 
         self.close()
 
