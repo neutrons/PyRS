@@ -87,6 +87,23 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
 
         return
 
+    def calculate_peak_position_d(self, wave_length_vec):
+        """
+        :return:
+        """
+        centre_vec = self.get_fitted_params(param_name='centre')
+        self._peak_center_d_vec = np.ndarray(centre_vec.shape, centre_vec.dtype)
+
+        num_pt = len(centre_vec)
+        for scan_log_index in range(num_pt):
+            peak_i_2theta = centre_vec[scan_log_index]
+            lambda_i = wave_length_vec[scan_log_index]
+            peak_i_d = lambda_i * 0.5 / math.sin(peak_i_2theta * 0.5 * math.pi / 180.)
+            self._peak_center_d_vec[scan_log_index] = peak_i_d
+        # END-FOR
+
+        return
+
     def fit_peaks(self, peak_function_name, background_function_name, fit_range, scan_index=None):
         """
         fit peaks
@@ -229,6 +246,7 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         :return: dictionary of dictionary. level 0: key as scan index, value as dictionary
                                            level 1: key as parameter name such as height, cost, and etc
         """
+        # TODO - 20181101 - Need to expand this method such that all fitted parameters will be added to output
         # get value
         scan_index_vector = self.get_scan_indexes()
         cost_vector = self.get_fitted_params(param_name='chi2')
@@ -319,7 +337,10 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         get all the function parameters' names
         :return:
         """
-        return self._fitted_function_param_table.getColumnNames()
+        fitted_param_names = self._fitted_function_param_table.getColumnNames()
+        fitted_param_names.append('center_d')
+
+        return fitted_param_names
 
     def get_number_scans(self):
         """
@@ -345,6 +366,8 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
             col_index = col_names.index(param_name)
             for row_index in range(self._fitted_function_param_table.rowCount()):
                 param_vec[row_index] = self._fitted_function_param_table.cell(row_index, col_index)
+        elif param_name == 'center_d':
+            param_vec = self._peak_center_d_vec
         else:
             err_msg = 'Function parameter {0} does not exist. Supported parameters are {1}' \
                       ''.format(param_name, col_names)
@@ -366,7 +389,7 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
 
         # get all the column names
         col_names = self._fitted_function_param_table.getColumnNames()
-        if not ('chi2' in col_names and param_name in col_names):
+        if not ('chi2' in col_names and (param_name in col_names or param_name == 'center_d')):
             err_msg = 'Function parameter {0} does not exist. Supported parameters are {1}' \
                       ''.format(param_name, col_names)
             # raise RuntimeError()
@@ -378,7 +401,9 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
 
         # get chi2 first
         chi2_col_index = col_names.index('chi2')
-        if not is_chi2:
+        if param_name == 'center_d':
+            param_col_index = 'center_d'
+        elif not is_chi2:
             param_col_index = col_names.index(param_name)
         else:
             param_col_index = chi2_col_index
@@ -392,6 +417,8 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
 
             if is_chi2:
                 value_i = chi2
+            elif param_col_index == 'center_d':
+                value_i = self._peak_center_d_vec[row_index]
             else:
                 value_i = self._fitted_function_param_table.cell(row_index, param_col_index)
 

@@ -343,6 +343,8 @@ class RawDataManager(object):
         """
         self._check_data_key(data_key)
 
+        print ('[DB...BAT] Data key: {} is of type {}'.format(data_key, type(data_key)))
+
         # return log values in 2 style
         if isinstance(data_key, tuple):
             # with sub keys

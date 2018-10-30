@@ -323,6 +323,14 @@ class PyRsCore(object):
         # fit peaks
         peak_optimizer.fit_peaks(peak_type, background_type, fit_range, None)
 
+        # convert peak center to d-spacing
+        if sub_key is None:
+            wave_length_vec = self.data_center.get_sample_log_values(data_key, sample_log_name='Wavelength')
+        else:
+            # texture analysis case
+            wave_length_vec = self.data_center.get_sample_log_values((data_key, sub_key), sample_log_name='Wavelength')
+        peak_optimizer.calculate_peak_position_d(wave_length_vec=wave_length_vec)
+
         self._last_optimizer = peak_optimizer
         self._optimizer_dict[data_key_set] = self._last_optimizer
 
@@ -559,20 +567,14 @@ class PyRsCore(object):
 
         return data_key, message
 
-    # TODO - 20180803 - check and doc
     def save_peak_fit_result(self, data_key, src_rs_file_name, target_rs_file_name):
-        """
-
+        """ Save peak fit result to file with original data
         :param data_key:
         :param src_rs_file_name:
         :param target_rs_file_name:
         :return:
         """
         peak_fit_dict = self.get_peak_fit_params_in_dict(data_key)
-
-        # peak_fit_dict = self.get_peak_fit_parameter_names(data_key)
-        print ('[DB...BAT] peak fit diction for {}: {}'.format(data_key, peak_fit_dict))
-
         self._file_io_controller.export_peak_fit(src_rs_file_name, target_rs_file_name,
                                                  peak_fit_dict)
 

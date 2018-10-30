@@ -44,7 +44,7 @@ class DiffractionDataFile(object):
             # add an entry
             diff_entry[scan_log_key].create_group('peak_fit')
             for key in fit_info_i:
-                print ('[db...bat] fit info: {}'.format(fit_info_i))
+                # print ('[db...bat] fit info: {}'.format(fit_info_i))
                 diff_entry[scan_log_key]['peak_fit'][key] = fit_info_i[key]
             # END-FOR
         # END-FOR

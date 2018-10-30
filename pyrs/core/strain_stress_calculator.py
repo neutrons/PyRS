@@ -841,6 +841,12 @@ class StrainStressCalculator(object):
         """
         for i_dir, ss_dir in enumerate(self._direction_list):
             # create the vector
+            if 'center_d' in self._peak_param_dict[ss_dir]:
+                print ('[DB...BAT] Peak center in d is pre-calculated')
+                continue
+            # else:
+            #     print ('[DB...BAT] {}'.format(self._peak_param_dict[ss_dir].keys()))
+
             num_pts = len(self._peak_param_dict[ss_dir]['centre'])
             self._peak_param_dict[ss_dir]['center_d'] = numpy.ndarray(shape=(num_pts,), dtype='float')
 

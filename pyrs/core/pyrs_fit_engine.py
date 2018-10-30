@@ -22,6 +22,7 @@ class RsPeakFitEngine(object):
 
         # for fitted result
         self._peak_center_vec = None  # 2D vector for observed center of mass and highest data point
+        self._peak_center_d_vec = None  # 1D vector for calculated center in d-spacing
 
         return
 

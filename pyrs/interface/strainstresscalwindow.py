@@ -580,7 +580,7 @@ class StrainStressCalculationWindow(QMainWindow):
             gui_helper.pop_message(self, message='Not all files are loaded correctly', message_type='info')
             return
 
-        # convert the peak centers to dspacing
+        # convert the peak centers to d-spacing
         self._core.strain_stress_calculator.convert_peaks_positions()
 
         # set up the peak parameter list in the right-panel
