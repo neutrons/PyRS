@@ -1028,8 +1028,14 @@ class StrainStressCalculationWindow(QMainWindow):
         """
         # check inputs
         checkdatatypes.check_string_variable('(Peak) parameter name', param_name)
-        checkdatatypes.check_string_variable('Strain/stress direction (e11/e22/e33)', ss_direction,
-                                             self._core.strain_stress_calculator.get_strain_stress_direction())
+        try:
+            checkdatatypes.check_string_variable('Strain/stress direction (e11/e22/e33)', ss_direction,
+                                                  self._core.strain_stress_calculator.get_strain_stress_direction())
+        except ValueError as value_error:
+            gui_helper.pop_message(self, message='Unable to plot @ {}'.format(ss_direction),
+                                   detailed_message='{}'.format(value_error),
+                                   message_type='error')
+            return
         checkdatatypes.check_bool_variable('Flag for raw experiment grid', is_raw_grid)
 
         print ('[DB...ASAP] Try to plot {} @ direction {}'.format(param_name, ss_direction))
