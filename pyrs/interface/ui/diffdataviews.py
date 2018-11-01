@@ -106,9 +106,11 @@ class GeneralDiffDataView(MplGraphicsView1D):
             if x_label != self.get_label_x():
                 self.reset_viewer()
 
-        # plot data in a scattering plot
+        # plot data in a scattering plot with auto re-scale
         ref_id = self.add_plot(vec_x, vec_y, line_style='', marker='.',
                                color='red', x_label=x_label, y_label=y_label)
+        # TODO - 20181101 - Enable after auto_scale is fixed: self.auto_rescale()
+
         self._line_reference_list.append(ref_id)
         self._last_line_reference = ref_id
         self._current_x_axis_name = x_label

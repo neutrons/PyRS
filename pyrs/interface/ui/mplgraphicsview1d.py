@@ -284,6 +284,7 @@ class MplGraphicsView1D(QWidget):
         :param upper_y_boundary:
         :return:
         """
+        # TODO FIXME - 20181101 - This is a broken method.  Fix it!
         if row_index is not None and col_index is not None:
             # check
             assert isinstance(row_index, int), 'row index {0} must be an integer but not a {1}' \
@@ -305,6 +306,7 @@ class MplGraphicsView1D(QWidget):
             max_y_list = list()
 
             # get line IDs
+            #
             subplot_line_indexes = self._myCanvas.get_line_keys(row_index, col_index)
 
             for line_key in subplot_line_indexes:
