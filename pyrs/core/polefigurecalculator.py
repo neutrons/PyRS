@@ -213,10 +213,6 @@ class PoleFigureCalculator(object):
         self._peak_info_dict[det_id] = log_dict
         self._peak_fit_info_dict[det_id] = peak_fit_info_dict
 
-        # for scan_log_index in peak_fit_info_dict:
-        #     print peak_fit_info_dict[scan_log_index].keys()
-        #     print peak_fit_info_dict[scan_log_index]['cost']
-
         return
 
     def calculate_pole_figure(self, det_id_list):
@@ -249,8 +245,8 @@ class PoleFigureCalculator(object):
                 # rotate Q from instrument coordinate to sample coordinate
                 two_theta_i = peak_info_dict[scan_index]['2theta']
                 omega_i = peak_info_dict[scan_index]['omega']
-		if omega_i < 0.:
-			omega_i += 90.
+                if omega_i < 0.:
+                    omega_i += 90.
                 chi_i = peak_info_dict[scan_index]['chi']
                 phi_i = peak_info_dict[scan_index]['phi']
                 alpha, beta = self.rotate_project_q(two_theta_i, omega_i, chi_i, phi_i)

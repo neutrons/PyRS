@@ -20,9 +20,6 @@ class PyRSLauncher(QMainWindow):
         """
         super(PyRSLauncher, self).__init__(None)
 
-        # core
-        self._reduction_core = pyrscore.PyRsCore()
-
         # set up main UI widgets
         self.ui = ui_pyrsmain.Ui_MainWindow()
         self.ui.setupUi(self)
@@ -57,9 +54,13 @@ class PyRSLauncher(QMainWindow):
         launch peak fit window
         :return:
         """
+        # core
+        fit_peak_core = pyrscore.PyRsCore()
+
+        # set up interface object
         if self.peak_fit_window is None:
             self.peak_fit_window = fitpeakswindow.FitPeaksWindow(self)
-            self.peak_fit_window.setup_window(self._reduction_core)
+            self.peak_fit_window.setup_window(fit_peak_core)
         self.peak_fit_window.show()
 
         # # optionally close the main window
@@ -73,8 +74,11 @@ class PyRSLauncher(QMainWindow):
         launch the strain/stress calculation and visualization window
         :return:
         """
+        # core
+        ss_core = pyrscore.PyRsCore()
+
         if self.strain_stress_window is None:
-            self.strain_stress_window = strainstresscalwindow.StrainStressCalculationWindow(self, self._reduction_core)
+            self.strain_stress_window = strainstresscalwindow.StrainStressCalculationWindow(self, ss_core)
 
         # launch
         self.strain_stress_window.show()
@@ -90,9 +94,12 @@ class PyRSLauncher(QMainWindow):
         launch texture analysis home
         :return:
         """
+        # core
+        texture_core = pyrscore.PyRsCore()
+
         if self.texture_analysis_window is None:
             self.texture_analysis_window = textureanalysiswindow.TextureAnalysisWindow(self)
-            self.texture_analysis_window.setup_window(self._reduction_core)
+            self.texture_analysis_window.setup_window(texture_core)
 
         # show
         self.texture_analysis_window.show()
@@ -108,9 +115,12 @@ class PyRSLauncher(QMainWindow):
         launch manual data reduction window
         :return:
         """
+        # core
+        reduction_core = pyrscore.PyRsCore()
+
         if self.manual_reduction_window is None:
             self.manual_reduction_window = manualreductionwindow.ManualReductionWindow(self)
-            self.manual_reduction_window.setup_window(self._reduction_core)
+            self.manual_reduction_window.setup_window(reduction_core)
 
         # show
         self.manual_reduction_window.show()

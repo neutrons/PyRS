@@ -44,6 +44,7 @@ class FitPeaksWindow(QMainWindow):
         self.ui.pushButton_plotPreviousScan.clicked.connect(self.do_plot_prev_scan)
         self.ui.pushButton_plotNextScan.clicked.connect(self.do_plot_next_scan)
         self.ui.pushButton_fitPeaks.clicked.connect(self.do_fit_peaks)
+        self.ui.pushButton_saveFitResult.clicked.connect(self.do_save_fit)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.actionSave_As.triggered.connect(self.do_save_as)
@@ -113,6 +114,9 @@ class FitPeaksWindow(QMainWindow):
         self.ui.comboBox_2dPlotChoice.clear()
         self.ui.comboBox_2dPlotChoice.addItem('Raw Data')
         self.ui.comboBox_2dPlotChoice.addItem('Fitted')
+
+        # check boxes
+        self.ui.checkBox_autoSaveFitResult.setChecked(True)
 
         return
 
@@ -488,6 +492,26 @@ class FitPeaksWindow(QMainWindow):
                                                save_file=True)
 
         self.save_fit_result(out_file_name)
+
+        return
+
+    def do_save_fit(self):
+        """
+        save fit result
+        :return:
+        """
+        file_name = gui_helper.browse_file(self, 'Select file to save fit result', default_dir=self._core.working_dir,
+                                           file_filter='HDF (*.hdf5);;CSV (*.csv)', file_list=False,
+                                           save_file=True)
+
+        if file_name.lower().endswith('hdf5') or file_name.lower().endswith('hdf') or file_name.lower().endswith('h5'):
+            self.save_fit_result(out_file_name=file_name)
+        elif file_name.lower().endswith('csv') or file_name.endswith('dat'):
+            self.export_fit_result(file_name)
+        else:
+            gui_helper.pop_message(self, message='Input file {} has an unsupported posfix.'.format(file_name),
+                                   detailed_message='Supported are hdf5, h5, hdf, csv and dat',
+                                   message_type='error')
 
         return
 
