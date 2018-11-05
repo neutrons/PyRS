@@ -45,8 +45,9 @@ class Diffraction2DPlot(MplGraphicsPolarView):
         # else:
         # plot contour
         # TODO - make the grid of r converted from linear grid on alpha
+        init_value = np.nan   # np.nan
         self._myCanvas.plot_contour(vec_theta=vec_beta, vec_r=vec_r, vec_values=vec_intensity, max_r=90.,
-                                    r_resolution=5., theta_resolution=5., init_value=np.nan)
+                                    r_resolution=5., theta_resolution=5., init_value=init_value)
 
         # TODO - convert (vec_r, vec_beta) to X, Y and do a scattering in another
 

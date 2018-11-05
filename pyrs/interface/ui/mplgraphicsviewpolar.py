@@ -191,7 +191,10 @@ class Qt4MplPolarCanvas(FigureCanvas):
             # END-IF-ELSE
 
             # set value
-            mesh_values[index_theta, index_r] += value_i
+            if np.isnan(mesh_values[index_theta, index_r]):
+                mesh_values[index_theta, index_r] = value_i
+            else:
+                mesh_values[index_theta, index_r] += value_i
         # END-FOR
 
         # plot
