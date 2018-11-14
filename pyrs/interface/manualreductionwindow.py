@@ -218,12 +218,17 @@ class ManualReductionWindow(QMainWindow):
         :return:
         """
         # get run numbers
-        run_number_list = gui_helper.parse_integers(str(self.ui.lineEdit_runNumbersList.text()))
+        # TODO - 20181113 - Entry point ... set up mock data
+        try:
+            run_number_list = gui_helper.parse_integers(str(self.ui.lineEdit_runNumbersList.text()))
+        except RuntimeError as run_err:
+            gui_helper.pop_message(blabla)
+            return
 
         error_msg = ''
         for run_number in run_number_list:
             try:
-                self._core.reduction_engine.reduce_run(self._currIPTSNumber, self._expNumber, run_number)
+                self._core.reduction_engine.reduce_rs_run(self._currIPTSNumber, self._expNumber, run_number)
             except RuntimeError as run_err:
                 error_msg += 'Failed to reduce run {} due to {}\n'.format(run_number, run_err)
         # END-FOR

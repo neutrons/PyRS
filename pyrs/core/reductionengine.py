@@ -46,3 +46,8 @@ class ReductionEngine(object):
             self._archive_file_manager.add_nexus(ipts_number, exp_number, run_number, nexus_file)
 
         return
+
+
+    def reduce_rs_run(self._currIPTSNumber, self._expNumber, run_number):
+        # blabla
+        # TODO - 20181113 - From here!
