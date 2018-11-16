@@ -2,6 +2,21 @@
 import checkdatatypes
 
 
+class CalibrationManager(object):
+    """
+    A class to handle all the calibration files
+    """
+    def __init__(self):
+        """
+        initialization
+        """
+        return
+
+
+
+# END-DEF-CLASS (CalibrationManager)
+
+
 def get_hb2b_raw_data(ipts_number, exp_number):
     """
     get the archived HB2B raw data

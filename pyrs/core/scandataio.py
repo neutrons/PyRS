@@ -348,6 +348,16 @@ def get_temp_directory():
     return temp_dir
 
 
+def save_hb2b_reduced_data(scan_index_dict, file_name):
+    """
+    save HB2B reduced data
+    :param scan_index_dict: dict[scan index] = ws_name (for sample logs), data set (vec 2theta, vec y, vec e)
+    :param file_name:
+    :return:
+    """
+    raise NotImplemented('Time to implement!')
+
+
 def save_mantid_nexus(workspace_name, file_name, title=''):
     """
     save workspace to NeXus for Mantid to import

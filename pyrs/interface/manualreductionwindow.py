@@ -228,7 +228,8 @@ class ManualReductionWindow(QMainWindow):
         error_msg = ''
         for run_number in run_number_list:
             try:
-                self._core.reduction_engine.reduce_rs_run(self._currIPTSNumber, self._expNumber, run_number)
+                reduced_data_dict = self._core.reduction_engine.reduce_rs_run(self._currIPTSNumber,
+                                                                              self._expNumber, run_number)
             except RuntimeError as run_err:
                 error_msg += 'Failed to reduce run {} due to {}\n'.format(run_number, run_err)
         # END-FOR
