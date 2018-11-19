@@ -56,6 +56,31 @@ class Diffraction2DPlot(MplGraphicsPolarView):
         return
 
 
+class DetectorView(MplGraphicsView2D):
+    """
+    Detector view
+    """
+    def __init__(self, parent):
+        """
+        init
+        :param parent:
+        """
+        super(DetectorView, self).__init__(parent)
+
+        return
+
+    def plot_detector_view(self, raw_counts):
+        """
+        :param raw_counts: 1D array
+        :return:
+        """
+        # TODO - 20181117 - Make it real!
+
+        self._myCanvas.add_image_file('tests/testdata/Lab6_45-00130_Rotated.tif')
+
+        return
+
+
 class DiffContourView(MplGraphicsView2D):
     """
     Diffraction contour viewer

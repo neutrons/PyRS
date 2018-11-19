@@ -1,7 +1,7 @@
 try:
-    from PyQt5.QtWidgets import QMainWindow, QFileDialog
+    from PyQt5.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout
 except ImportError:
-    from PyQt4.QtGui import QMainWindow, QFileDialog
+    from PyQt4.QtGui import QMainWindow, QFileDialog, QVBoxLayout
 import ui.ui_manualreductionwindow
 from pyrs.core.pyrscore import PyRsCore
 from pyrs.utilities import hb2b_utilities
@@ -35,6 +35,7 @@ class ManualReductionWindow(QMainWindow):
         # set up UI
         self.ui = ui.ui_manualreductionwindow.Ui_MainWindow()
         self.ui.setupUi(self)
+        self._promote_widgets()
 
         # set up the event handling
         self.ui.pushButton_setIPTSNumber.clicked.connect(self.do_set_ipts_exp)
@@ -57,6 +58,9 @@ class ManualReductionWindow(QMainWindow):
         # init widgets
         self._init_widgets_setup()
 
+        # mutexes
+        self._mutexPlotRuns = False
+
         return
 
     def _init_widgets_setup(self):
@@ -65,6 +69,23 @@ class ManualReductionWindow(QMainWindow):
         :return:
         """
         self.ui.radioButton_chopByLogValue.setChecked(True)
+
+        return
+
+    def _promote_widgets(self):
+        """
+        promote widgets
+        :return:
+        """
+        from ui.diffdataviews import DetectorView
+        # 2D detector view
+        curr_layout = QVBoxLayout()
+        self.ui.frame_detectorView.setLayout(curr_layout)
+        self.ui.graphicsView_detectorView = DetectorView(self)
+        curr_layout.addWidget(self.ui.graphicsView_detectorView)
+
+        return
+
 
     def do_browse_calibration_file(self):
         """ Browse and set up calibration file
@@ -225,6 +246,25 @@ class ManualReductionWindow(QMainWindow):
             gui_helper.pop_message(blabla)
             return
 
+        # TODO - 20181116 - Clean this method!  Using multiple threading to update message
+        # form a message
+        message = 'Reducing: \n'
+        for run_number in run_number_list:
+            message += 'IPTS-{} Run-{}: {}\n'.format(self._currIPTSNumber, run_number,
+                                                     '/HFIR/HB2B/IPTS-{}/nexus/HB2B_{}.nxs.h5'
+                                                     ''.format(self._currIPTSNumber, run_number))
+        # END-FOR
+        self.ui.plainTextEdit_message.setPlainText(message)
+
+        # set for the plotting: set mutex
+        self._mutexPlotRuns = True
+        self.ui.comboBox_runs.clear()
+        for run_number in run_number_list:
+            self.ui.comboBox_runs.addItem('{}'.format(run_number))
+        self._mutexPlotRuns = False
+
+        return
+
         error_msg = ''
         for run_number in run_number_list:
             try:
@@ -286,7 +326,13 @@ class ManualReductionWindow(QMainWindow):
         """ User selects a different run number to plot
         :return:
         """
+        if self._mutexPlotRuns:
+            return
+
         curr_run_number = int(str(self.ui.comboBox_runs.currentText()))
+        if not self._core.reduction_engine.has_run_reduced(curr_run_number):
+            return
+
         is_chopped = self._core.reduction_engine.is_chopped_run(curr_run_number)
 
         # set the sliced box
@@ -310,8 +356,6 @@ class ManualReductionWindow(QMainWindow):
             pass
 
         self._plot_sliced_mutex = False
-
-
 
     def setup_window(self, pyrs_core):
         """
