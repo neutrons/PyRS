@@ -1,7 +1,7 @@
 try:
-    from PyQt5.QtWidgets import QMainWindow, QFileDialog
+    from PyQt5.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout
 except ImportError:
-    from PyQt4.QtGui import QMainWindow, QFileDialog
+    from PyQt4.QtGui import QMainWindow, QFileDialog, QVBoxLayout
 import ui.ui_peakfitwindow
 import pyrs.utilities.hb2b_utilities as hb2bhb2b
 import advpeakfitdialog
@@ -31,7 +31,8 @@ class FitPeaksWindow(QMainWindow):
         self.ui = ui.ui_peakfitwindow.Ui_MainWindow()
         self.ui.setupUi(self)
         self.ui.graphicsView_fitResult.set_subplots(1, 1)
-        self.ui.graphicsView_fitSetup.set_subplots(1, 1)
+        # self.ui.graphicsView_fitSetup.set_subplots(1, 1)
+        self._promote_widgets()
 
         self._init_widgets()
         # init some widgets
@@ -55,6 +56,7 @@ class FitPeaksWindow(QMainWindow):
         # TODO - 20180805 - Implement : pushButton_plotLogs, comboBox_detectorID
 
         # others
+        # TODO - 20181124 - Make this table's column flexible!
         self.ui.tableView_fitSummary.setup()
 
         self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
@@ -74,6 +76,26 @@ class FitPeaksWindow(QMainWindow):
 
         # a copy of sample logs
         self._sample_log_names = list()  # a copy of sample logs' names that are added to combo-box
+
+        # TODO - 20181124 - New GUI parameters (After FitPeaks)
+        # checkBox_showFitError
+        # checkBox_showFitValue
+
+        return
+
+    def _promote_widgets(self):
+        """
+
+        :return:
+        """
+        from ui.mplgraphicsview1d import MplGraphicsView1D
+
+        # 2D detector view
+        curr_layout = QVBoxLayout()
+        self.ui.frame_PeakView.setLayout(curr_layout)
+        self.ui.graphicsView_fitSetup = MplGraphicsView1D(self, row_size=2, col_size=1,
+                                                          tool_bar=True, is_normal=False)
+        curr_layout.addWidget(self.ui.graphicsView_fitSetup)
 
         return
 

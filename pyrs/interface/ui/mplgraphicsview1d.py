@@ -59,7 +59,7 @@ class MplGraphicsView1D(QWidget):
     1. specific for 1-D data
     2.
     """
-    def __init__(self, parent, row_size=None, col_size=None, tool_bar=True):
+    def __init__(self, parent, row_size=None, col_size=None, tool_bar=True, is_normal=True):
         """Initialization
         :param parent:
         :param row_size: number of figures per column, i.e., number of rows
@@ -91,9 +91,13 @@ class MplGraphicsView1D(QWidget):
         self.setAutoLineMarkerColorCombo()
 
         # set up canvas
-        self._myCanvas = Qt4MplCanvasMultiFigure(self, row_size, col_size)
-        if row_size is not None and col_size is not None:
-            self.set_subplots(row_size, col_size)
+        if is_normal:
+            self._myCanvas = Qt4MplCanvasMultiFigure(self, row_size, col_size)
+
+            # if row_size is not None and col_size is not None:
+            #     self.set_subplots(row_size, col_size)
+        else:
+            self._myCanvas = QtMplCanvas2VerticalFigure(self)
 
         if tool_bar:
             self._myToolBar = MyNavigationToolbar(self, self._myCanvas)
@@ -667,6 +671,89 @@ class MplGraphicsView1D(QWidget):
         return
 
 
+class QtMplCanvas2VerticalFigure(FigureCanvas):
+    """
+
+    """
+    def __init__(self, parent):
+            """
+
+            :param parent:
+            """
+            import matplotlib.gridspec as gridspec
+
+            # TODO - 20181124 - Make split diffraction view work!
+            # TODO            - It can be an option to create new MplGraphics1D class as a special widget!
+
+            # Instantiating matplotlib Figure. It is a requirement to initialize a figure canvas
+            print ('One...1')
+            self.fig = Figure()
+            print ('Two...2')
+            self.fig.patch.set_facecolor('white')
+
+            # Initialize parent class and set parent
+            print ('Three...3')
+            super(QtMplCanvas2VerticalFigure, self).__init__(self.fig)
+            print ('Four...4')
+            self.setParent(parent)
+
+            # Add sub plots
+            print ('Five...5')
+            # fig = plt.figure(figsize=(4.8, 6))
+
+            ax1 = self.fig.add_axes([0.15, 0.35, 0.8, 0.55])
+            # xticklabels=[], ylim=(None, 1e7))
+            ax2 = self.fig.add_axes([0.15, 0.1, 0.8, 0.20])
+            # ylim=(None, 2e3))
+
+            #
+            # fig3 = plt.figure(constrained_layout=True)
+            # gs = fig3.add_gridspec(3, 3)
+            # f3_ax1 = fig3.add_subplot(gs[0, :])
+            # f3_ax1.set_title('gs[0, :]')
+            # f3_ax2 = fig3.add_subplot(gs[1, :-1])
+            # f3_ax2.set_title('gs[1, :-1]')
+            # f3_ax3 = fig3.add_subplot(gs[1:, -1])
+            # f3_ax3.set_title('gs[1:, -1]')
+            # f3_ax4 = fig3.add_subplot(gs[-1, 0])
+            # f3_ax4.set_title('gs[-1, 0]')
+            # f3_ax5 = fig3.add_subplot(gs[-1, -2])
+            # f3_ax5.set_title('gs[-1, -2]')
+            #
+            #
+            # self.fig.subplots(1, 2, gridspec_kw={'width_ratios': [3, 1]})
+            #
+            #
+            # f = plt.figure()
+            #
+            # gs = gridspec.GridSpec(1, 2, width_ratios=[2, 1])
+
+            # f, (a0, a1) = plt.subplots(1, 2, gridspec_kw={'width_ratios': [3, 1]})
+            # a0.plot(x, y)
+            # a1.plot(y, x)
+            #
+            # f.tight_layout()
+            #
+            # # ..
+            #
+            # if row_size < 1:
+            #     raise RuntimeError('Row size {0} must be larger than 0.'.format(row_size))
+            # if col_size < 1:
+            #     raise RuntimeError('Column size {0} must be larger than 0.'.format(row_size))
+            #
+            # for row_index in range(row_size):
+            #     for col_index in range(col_size):
+            #         sub_plot_index = row_index * col_size + col_index + 1
+            #         subplot_ref = self.fig.add_subplot(row_size, col_size, sub_plot_index)
+            #         self.axes_main[row_index, col_index] = subplot_ref
+            #         self._mainLineDict[row_index, col_index] = dict()
+            #         self._legendStatusDict[row_index, col_index] = False
+            #         # END-FOR
+            # # END-FOR
+
+            return
+
+
 class Qt4MplCanvasMultiFigure(FigureCanvas):
     """  A customized Qt widget for matplotlib figure.
     It can be used to replace GraphicsView of QtGui
@@ -706,7 +793,8 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         self.axes_main = dict()  # keys are 2-tuple, starting from (0, 0)
         self.axes_right = dict()
 
-        # the subplots are not set up in the initialization
+        # the subplots are not set up in the initialization:
+        self._is_initialized = False
         if row_size is not None and col_size is not None:
             self.set_subplots(row_size, col_size)
 
@@ -751,6 +839,11 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
                 self._legendStatusDict[row_index, col_index] = False
             # END-FOR
         # END-FOR
+
+        self._is_initialized = True
+        self.fig.tight_layout()
+
+        return
 
     @property
     def is_legend_on(self):
