@@ -31,25 +31,32 @@ def check_dict(var_name, dict_var):
     return
 
 
-def check_file_name(file_name, check_exist=True, check_writable=False, is_dir=False):
+def check_file_name(file_name, check_exist=True, check_writable=False, is_dir=False, description=''):
     """
     check whether an input file name is a string and whether it is a file or a file can be written to
     :param file_name:
     :param check_exist:
     :param check_writable:
     :param is_dir:
+    :param description: a description for file name
     :return:
     """
     assert isinstance(file_name, str), 'Input file name {0}  must be a string but not a {1}.' \
                                        ''.format(file_name, type(file_name))
+    assert isinstance(description, str), 'Input file description {} must be a string but not a {}' \
+                                  ''.format(description, type(description))
+
+    # set note
+    if len(description) == 0:
+        description = 'File'
 
     if check_exist and os.path.exists(file_name) is False:
-        raise RuntimeError('File {0} does not exist.'.format(file_name))
+        raise RuntimeError('{} {} does not exist.'.format(description, file_name))
 
     if check_writable:
         if os.path.exists(file_name) and os.access(file_name, os.W_OK) is False:
             # file exists but cannot be  overwritten
-            raise RuntimeError('File {0} exists but is not writable.'.format(file_name))
+            raise RuntimeError('{} {} exists but is not writable.'.format(description, file_name))
         elif os.path.exists(file_name) is False:
             # file does not exist and the directory is not writable
             dir_name = os.path.dirname(file_name)
@@ -57,8 +64,8 @@ def check_file_name(file_name, check_exist=True, check_writable=False, is_dir=Fa
                 # current working dir
                 dir_name = os.getcwd()
             if os.access(dir_name, os.W_OK) is False:
-                raise RuntimeError('File {0} does not exist but directory {1} is not writable.'
-                                   ''.format(file_name, dir_name))
+                raise RuntimeError('{} {} does not exist but directory {} is not writable.'
+                                   ''.format(description, file_name, dir_name))
         # END-IF-ELIF
     # END-IF
 

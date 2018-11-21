@@ -5,6 +5,7 @@ from pyrs.utilities import hb2b_utilities
 from mantid.simpleapi import FilterEvents, LoadEventNexus, LoadInstrument, GenerateEventsFilter
 from mantid.api import AnalysisDataService as ADS
 from pyrs.utilities import file_utilities
+from pyrs.core import scandataio
 
 
 def retrieve_workspace(ws_name, must_be_event=True):
@@ -167,6 +168,61 @@ class ReductionEngine(object):
 
         return
 
+    def reduce_rs_nexus(self, nexus_name, auto_mapping_check, output_dir, do_calibration,
+                        allow_calibration_unavailable):
+        """ reduce an HB2B nexus file
+        :param nexus_name:
+        :param auto_mapping_check:
+        :param output_dir:
+        :param do_calibration: flag to calibrate the detector
+        :param allow_calibration_unavailable: if True and do_calibration is True, then when calibration file cannot
+                be found, reduction will be continued with a warning.  Otherwise, an exception will be thrown
+        :return:
+        """
+        # load data with check
+        event_ws_name = self._load_event_nexus(nexus_name)
+
+        # is it a mapping run?
+        if auto_mapping_check:
+            is_mapping_run = self._check_mapping_run(event_ws_name)
+        else:
+            is_mapping_run = False
+
+        # slice data
+        if is_mapping_run:
+            event_ws_list = self._slice_mapping_scan(event_ws_name)
+        else:
+            event_ws_list = [event_ws_name]
+
+        # reduce
+        reduced_data_dict = dict()
+        err_msg = ''
+        for ws_name in event_ws_list:
+            try:
+                if do_calibration:
+                    calibration_dict = self.calibration_manager.get_calibration(data_file=nexus_name)
+                    if calibration_dict is None and not allow_calibration_unavailable:
+                        raise RuntimeError('Unable to locate calibration file for {}'.format(nexus_name))
+                    elif calibration_dict is None and allow_calibration_unavailable:
+                        err_msg + 'Unable to find calibration for {}\n'.format(nexus_name)
+                    corr_data = self._convert_to_2theta(ws_name, calibration_dict)
+                else:
+                    corr_data = self._convert_to_2theta(ws_name, None)
+            except RuntimeError as run_err:
+                err_msg += 'Failed to convert {} to 2theta space due to {}\n'.format(ws_name, run_err)
+            else:
+                reduced_data_dict[ws_name, corr_data] = corr_data
+        # END-FOR
+
+        # set to the class variable
+        self._curr_reduced_data = reduced_data_dict
+
+        # save file
+        out_file_name = os.path.join(os.path.basename(nexus_name).split('.')[0], '.hdf5')
+        self.save_reduced_data(reduced_data_dict, out_file_name)
+
+        return
+
     def reduce_rs_run(self, ipts_number, run_number, is_mapping, do_calibration):
         """ reduce an HB2B run
         :param ipts_number:
@@ -219,8 +275,6 @@ class ReductionEngine(object):
         :param file_name:
         :return:
         """
-        import scandataio
-
         checkdatatypes.check_file_name(file_name, check_exist=False, check_writable=True,
                                        is_dir=False)
         checkdatatypes.check_dict('Reduced data dictionary', reduced_data_dict)
