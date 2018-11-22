@@ -74,6 +74,39 @@ class MplFitPlottingWidget(QWidget):
 
         return
 
+    def evt_toolbar_home(self):
+        """
+        Handle event triggered by 'home' button in tool bar is pressed
+        :return:
+        """
+        # TODO - 20181125 - Implement!
+        # No NavigrationToolbar2.evt_toolbar_home()
+
+        # self._myCanvas.set_x_y_home()
+
+        return
+
+    def evt_view_updated(self):
+        """ Handling the event when a 'draw()' is called from tool bar
+        :return:
+        """
+        return
+
+    def evt_zoom_released(self):
+        """
+        Handle event triggered by zoom is released
+        :return:
+        """
+
+        return
+
+    def get_x_limit(self):
+        """
+        get X limit
+        :return:
+        """
+        return self._myCanvas.get_curr_x_range()
+
     def plot_data(self, data_set, color=None, line_label=''):
         """ plot experimental data
         :param data_set:
@@ -84,7 +117,7 @@ class MplFitPlottingWidget(QWidget):
         if color is None:
             color = self._get_next_color()
 
-        data_line_id = self._myCanvas.add_plot_upper_axis(data_set, color, line_label)
+        data_line_id = self._myCanvas.add_plot_upper_axis(data_set, line_color=color, label=line_label)
         self._data_line_list.append(data_line_id)
 
         return
@@ -105,7 +138,7 @@ class MplFitPlottingWidget(QWidget):
         # plot and set
         data_line_id = self._myCanvas.add_plot_upper_axis(data_set, label=data_label,
                                                           line_color='black', line_marker='+',
-                                                          marker_size=4, line_style='...', line_width=1)
+                                                          marker_size=4, line_style='--', line_width=1)
         self._data_line_list.append(data_line_id)
 
         model_line_id = self._myCanvas.add_plot_upper_axis(model_set, label=model_label,
@@ -116,7 +149,6 @@ class MplFitPlottingWidget(QWidget):
         diff_line_id = self._myCanvas.add_plot_lower_axis(residual_set)
         self._residual_line = diff_line_id
 
-
         return
 
     def reset_color(self):
@@ -126,6 +158,7 @@ class MplFitPlottingWidget(QWidget):
         """
         self._curr_color_index = 0
 
+        return
 
     def set_x_label(self, new_x_label):
         """
@@ -213,6 +246,8 @@ class QtMplFitCanvas(FigureCanvas):
         vec_x = data_set[0]
         vec_y = data_set[1]
 
+        print ('[DB...BAT] Plot residual:\n{}\n{}'.format(vec_x, vec_y))
+
         plot_info = self._residual_subplot.plot(vec_x, vec_y, label=None, color='green',
                                                 marker=None, markersize=None,
                                                 linestyle='-', linewidth=2)
@@ -277,15 +312,32 @@ class QtMplFitCanvas(FigureCanvas):
 
         return line_id
 
+    def get_curr_x_range(self, is_residual=False):
+        """
+        get X range
+        :param is_residual: flag whether the returned value is for residual/lower plot
+        :return:
+        """
+        if is_residual:
+            x_lim = self._residual_subplot.get_xlim()
+        else:
+            x_lim = self._data_subplot.get_xlim()
+
+        return x_lim
+
     def remove_data_lines(self, line_index_list=None):
         """
         remove data line by line index
         :param line_index_list:
         :return:
         """
+        # default for all lines
+        if line_index_list is None:
+            line_index_list = self._data_plot_dict.keys()
+
         for line_index in line_index_list:
             line_handler = self._data_plot_dict[line_index]
-            self._data_subplot.remove(line_handler)
+            self._data_subplot.lines.remove(line_handler)
             del self._data_plot_dict[line_index]
         # END-FOR
 
@@ -301,7 +353,7 @@ class QtMplFitCanvas(FigureCanvas):
             return
 
         line_handler = self._residual_dict.values()[0]
-        self._residual_subplot.remove(line_handler)
+        self._residual_subplot.lines.remove(line_handler)
         self._residual_dict = dict()
 
         return

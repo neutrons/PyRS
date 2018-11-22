@@ -4,6 +4,7 @@ from mplgraphicsviewpolar import MplGraphicsPolarView
 import numpy as np
 import mplgraphicsviewpolar
 import slice_view_widget
+from mplfitplottingwidget import MplFitPlottingWidget
 
 
 class Diffraction2DPlot(MplGraphicsPolarView):
@@ -92,6 +93,15 @@ class DiffContourView(MplGraphicsView2D):
         """
         super(DiffContourView, self).__init__(parent)
 
+        return
+
+    def plot_data_set(self, data_set):
+        """
+
+        :param data_set:
+        :return:
+        """
+
 
 class GeneralDiffDataView(MplGraphicsView1D):
     """
@@ -153,12 +163,12 @@ class GeneralDiffDataView(MplGraphicsView1D):
         self._line_reference_list = list()
 
         # call to clean lines
-        self.clear_all_lines(row_number=0, col_number=0, include_right=False)
+        self.clear_all_lines()
 
         return
 
 
-class PeakFitSetupView(MplGraphicsView1D):
+class PeakFitSetupView(MplFitPlottingWidget):
     """
     Matplotlib graphics view to set up peak fitting
     """
@@ -179,10 +189,6 @@ class PeakFitSetupView(MplGraphicsView1D):
         self._auto_color = True
 
         return
-
-    def _next_color(self):
-        # TODO Implement ASAP
-        return 'blue'
 
     def plot_diff_data(self, diff_data_set, data_reference):
         """
@@ -268,7 +274,7 @@ class PeakFitSetupView(MplGraphicsView1D):
         self._diff_reference_list = list()
 
         # call to clean lines
-        self.clear_all_lines(row_number=0, col_number=0, include_main=True, include_right=False)
+        self.clear_canvas()
 
         return
 

@@ -376,7 +376,7 @@ class MplGraphicsView1D(QWidget):
                 self._myMainPlotDict[row_index, col_index].clear()
                 # self._statMainPlotDict ???
 
-            if include_right and (row_index, col_index) in self._myCanvas:
+            if include_right and (row_index, col_index) in self._myRightPlotDict:
                 # right axis if it does exist. the caller shall check. no worry to raise exception
                 self._myCanvas.clear_subplot_lines(row_index, col_index, False)
                 self._myRightPlotDict[row_index, col_index].clear()
@@ -1649,7 +1649,7 @@ class MyNavigationToolbar(NavigationToolbar2):
         return
 
     def zoom(self, *args):
-        """
+        """ Override zoom method from NavigationToolbar2
         Turn on/off zoom (zoom button)
         :param args:
         :return:
@@ -1666,19 +1666,32 @@ class MyNavigationToolbar(NavigationToolbar2):
         return
 
     def release_zoom(self, event):
-        """
-        override zoom released method
-        Parameters
-        ----------
-        event
-
-        Returns
-        -------
-
+        """ Override zoom release (mouse released from zooming) method
+        :param event:
+        :return:
         """
         self.canvas_zoom_released.emit()
 
         NavigationToolbar2.release_zoom(self, event)
+
+        # TODO - 20181125 - Continue from here
+        # need to find out which figure is released...
+        # event.x, event.y, event.xdata and event.ydata are values defined within axis
+        event_triggered_axis = event.inaxes
+        if event_triggered_axis is None:
+            # do it in a nasty way
+            print ('Axis related found as None')
+        else:
+            # best way is to use Bbox to determine the axis that get zoom
+            axis_pos = event.inaxes.get_position()
+            print (dir(axis_pos))
+            print (type(axis_pos))
+            print (axis_pos.x0, axis_pos.x1, axis_pos.y0, axis_pos.y1)
+            print (axis_pos.xmin, axis_pos.xmax, axis_pos.ymin, axis_pos.ymax)
+
+            # NOTE: both y0 and ymin can be used to determine the axis!  FIXME
+
+        # use the zoomed value to determine the other axis
 
         return
 

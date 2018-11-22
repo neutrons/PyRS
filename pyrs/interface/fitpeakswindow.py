@@ -31,7 +31,6 @@ class FitPeaksWindow(QMainWindow):
         self.ui = ui.ui_peakfitwindow.Ui_MainWindow()
         self.ui.setupUi(self)
         self.ui.graphicsView_fitResult.set_subplots(1, 1)
-        # self.ui.graphicsView_fitSetup.set_subplots(1, 1)
         self._promote_widgets()
 
         self._init_widgets()
@@ -88,14 +87,14 @@ class FitPeaksWindow(QMainWindow):
 
         :return:
         """
-        from ui.mplgraphicsview1d import MplGraphicsView1D
+        from ui.diffdataviews import PeakFitSetupView
 
         # 2D detector view
         curr_layout = QVBoxLayout()
         self.ui.frame_PeakView.setLayout(curr_layout)
-        self.ui.graphicsView_fitSetup = MplGraphicsView1D(self, row_size=2, col_size=1,
-                                                          tool_bar=True, is_normal=False)
-        curr_layout.addWidget(self.ui.graphicsView_fitSetup)
+        self._ui_graphicsView_fitSetup = PeakFitSetupView(self)
+
+        curr_layout.addWidget(self._ui_graphicsView_fitSetup)
 
         return
 
@@ -280,7 +279,7 @@ class FitPeaksWindow(QMainWindow):
         peak_function = str(self.ui.comboBox_peakType.currentText())
         bkgd_function = str(self.ui.comboBox_backgroundType.currentText())
 
-        fit_range = self.ui.graphicsView_fitSetup.get_x_limit()
+        fit_range = self._ui_graphicsView_fitSetup.get_x_limit()
         print ('[INFO] Peak fit range: {0}'.format(fit_range))
 
         # It is better to fit all the peaks at the same time after testing
@@ -368,11 +367,11 @@ class FitPeaksWindow(QMainWindow):
         scan_log_indexes = self._core.get_peak_fit_scan_log_indexes(self._curr_data_key)
         for sample_log_index in scan_log_indexes:
             # reset the canvas
-            self.ui.graphicsView_fitSetup.reset_viewer()
+            self._ui_graphicsView_fitSetup.reset_viewer()
             # plot
             self.plot_diff_data(sample_log_index, True)
             png_name_i = os.path.join(target_dir, '{}_fit.png'.format(sample_log_index))
-            self.ui.graphicsView_fitSetup.canvas().save_figure(png_name_i)
+            self._ui_graphicsView_fitSetup.canvas().save_figure(png_name_i)
         # END-FOR
 
         # TODO - 20180809 - Pop the following command
@@ -400,7 +399,7 @@ class FitPeaksWindow(QMainWindow):
         # possibly clean the previous
         # keep_prev = self.ui.checkBox_keepPrevPlot.isChecked()
         # if keep_prev is False:
-        self.ui.graphicsView_fitSetup.reset_viewer()
+        self._ui_graphicsView_fitSetup.reset_viewer()
 
         # get data and plot
         err_msg = ''
@@ -434,7 +433,7 @@ class FitPeaksWindow(QMainWindow):
 
         next_scan_log = scan_log_index_list[0] + 1
         try:
-            self.ui.graphicsView_fitSetup.reset_viewer()
+            self._ui_graphicsView_fitSetup.reset_viewer()
             self.plot_diff_data(next_scan_log, True)
         except RuntimeError as run_err:
             # self.plot_diff_data(next_scan_log - 1, True)
@@ -461,7 +460,7 @@ class FitPeaksWindow(QMainWindow):
 
         prev_scan_log_index = scan_log_index_list[0] - 1
         try:
-            self.ui.graphicsView_fitSetup.reset_viewer()
+            self._ui_graphicsView_fitSetup.reset_viewer()
             self.plot_diff_data(prev_scan_log_index, True)
         except RuntimeError as run_err:
             # self.plot_diff_data(next_scan_log + 1, True)
@@ -640,17 +639,26 @@ class FitPeaksWindow(QMainWindow):
         """
         # get experimental data and plot
         diff_data_set = self._core.get_diffraction_data(data_key=None, scan_log_index=scan_log_index)
-        self.ui.graphicsView_fitSetup.plot_diff_data(diff_data_set, 'Scan {0}'.format(scan_log_index))
+        data_set_label = 'Scan {0}'.format(scan_log_index)
 
-        # plot model optionally
         if plot_model:
             model_data_set = self._core.get_modeled_data(data_key=None, scan_log_index=scan_log_index)
-            if model_data_set is not None:
-                # existing model
-                self.ui.graphicsView_fitSetup.plot_model(model_data_set)
-                self.ui.graphicsView_fitSetup.plot_fit_diff(diff_data_set, model_data_set)
-            # END-IF
-        # END-IF
+        else:
+            model_data_set = None
+
+        # plot
+        if model_data_set is None:
+            # data only (no model or not chosen to)
+            self._ui_graphicsView_fitSetup.plot_data(data_set=diff_data_set, color=None,
+                                                     line_label=data_set_label)
+        else:
+            # plot with model
+            residual_y_vec = diff_data_set[1] - model_data_set[1]
+            residual_data_set = [diff_data_set[0], residual_y_vec]
+            self._ui_graphicsView_fitSetup.plot_data_model(data_set=diff_data_set, data_label=data_set_label,
+                                                           model_set=model_data_set, model_label='',
+                                                           residual_set=residual_data_set)
+        # END-IF-ELSE
 
         return
 
