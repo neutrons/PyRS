@@ -14,6 +14,7 @@ except (ImportError, RuntimeError) as err:
     from PyQt4.QtCore import pyqtSignal
     from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
+import matplotlib
 from matplotlib.figure import Figure
 
 MplLineStyles = ['-', '--', '-.', ':', 'None', ' ', '']
@@ -434,12 +435,12 @@ class MplGraphicsView1D(QWidget):
 
         return
 
-    def evt_zoom_released(self):
+    def evt_zoom_released(self, event):
         """
-        event for zoom is release
-        Returns
-        -------
-
+        Handling the event that is triggered by zoom-button in tool bar is released and a customized signal
+        is thus emit.
+        :param event: event instance
+        :return:
         """
         # record home XY limit if it is never zoomed
         if self._isZoomed is False:
@@ -1562,7 +1563,7 @@ class MyNavigationToolbar(NavigationToolbar2):
     home_button_pressed = pyqtSignal()
 
     # This defines a signal called 'canvas_zoom_released'
-    canvas_zoom_released = pyqtSignal()
+    canvas_zoom_released = pyqtSignal(matplotlib.backend_bases.MouseEvent)
 
     def __init__(self, parent, canvas):
         """ Initialization
@@ -1670,28 +1671,11 @@ class MyNavigationToolbar(NavigationToolbar2):
         :param event:
         :return:
         """
-        self.canvas_zoom_released.emit()
-
         NavigationToolbar2.release_zoom(self, event)
 
-        # TODO - 20181125 - Continue from here
-        # need to find out which figure is released...
-        # event.x, event.y, event.xdata and event.ydata are values defined within axis
-        event_triggered_axis = event.inaxes
-        if event_triggered_axis is None:
-            # do it in a nasty way
-            print ('Axis related found as None')
-        else:
-            # best way is to use Bbox to determine the axis that get zoom
-            axis_pos = event.inaxes.get_position()
-            print (dir(axis_pos))
-            print (type(axis_pos))
-            print (axis_pos.x0, axis_pos.x1, axis_pos.y0, axis_pos.y1)
-            print (axis_pos.xmin, axis_pos.xmax, axis_pos.ymin, axis_pos.ymax)
+        print (type(event))
 
-            # NOTE: both y0 and ymin can be used to determine the axis!  FIXME
-
-        # use the zoomed value to determine the other axis
+        self.canvas_zoom_released.emit(event)
 
         return
 

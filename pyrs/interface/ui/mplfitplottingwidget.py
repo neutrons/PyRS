@@ -90,13 +90,52 @@ class MplFitPlottingWidget(QWidget):
         """ Handling the event when a 'draw()' is called from tool bar
         :return:
         """
+
         return
 
-    def evt_zoom_released(self):
+    def evt_zoom_released(self, event):
         """
-        Handle event triggered by zoom is released
+        Handling the event that is triggered by zoom-button in tool bar is released and a customized signal
+        is thus emit.
+        Note: 1. axis_pos = event.inaxes.get_position()
+                 (axis_pos.x0, axis_pos.x1, axis_pos.y0, axis_pos.y1)
+                 (axis_pos.xmin, axis_pos.xmax, axis_pos.ymin, axis_pos.ymax) are the same!
+              2. zooming on y won't be synchronized!
+
+        :param event:
         :return:
         """
+        event_triggered_axis = event.inaxes
+        if event_triggered_axis is None:
+            # do it in a nasty way
+            upper_x_range = self._myCanvas.get_curr_x_range(False)
+            lower_x_range = self._myCanvas.get_curr_x_range(True)
+            if lower_x_range[1] - lower_x_range[0] > upper_x_range[1] - upper_x_range[0]:
+                # upper is in a smaller range, set lower's xrange
+                # upper_y_range = self._myCanvas.get_curr_y_range(False)
+                self._myCanvas.set_x_range(upper_x_range[0], upper_x_range[1], is_residual=True)
+                # self._myCanvas.set_y_range(upper_y_range[0], upper_y_range[1], is_residual=True)
+            else:
+                # lower is in a smaller range, set upper's xrange
+                # lower_y_range = self._myCanvas.get_curr_y_range(True)
+                self._myCanvas.set_x_range(lower_x_range[0], lower_x_range[1], is_residual=False)
+                # self._myCanvas.set_y_range(lower_y_range[0], lower_y_range[1], is_residual=False)
+        else:
+            # a more elegant way to determine
+            axis_pos = event.inaxes.get_position()
+            if axis_pos.y0 < 0.348:
+                # make sure to avoid round error and the event is from lower subplot: set to upper subplots
+                lower_x_range = self._myCanvas.get_curr_x_range(True)
+                # lower_y_range = self._myCanvas.get_curr_y_range(True)
+                self._myCanvas.set_x_range(lower_x_range[0], lower_x_range[1], is_residual=False)
+                # self._myCanvas.set_y_range(lower_y_range[0], lower_y_range[1], is_residual=False)
+            else:
+                # signal from upper subplot: set lower subplot
+                upper_x_range = self._myCanvas.get_curr_x_range(False)
+                # upper_y_range = self._myCanvas.get_curr_y_range(False)
+                self._myCanvas.set_x_range(upper_x_range[0], upper_x_range[1], is_residual=True)
+                # self._myCanvas.set_y_range(upper_y_range[0], upper_y_range[1], is_residual=True)
+        # END-IF-ELSE
 
         return
 
@@ -325,6 +364,19 @@ class QtMplFitCanvas(FigureCanvas):
 
         return x_lim
 
+    def get_curr_y_range(self, is_residual=False):
+        """
+        get Y range
+        :param is_residual: flag whether the returned value is for residual/lower plot
+        :return:
+        """
+        if is_residual:
+            y_lim = self._residual_subplot.get_ylim()
+        else:
+            y_lim = self._data_subplot.get_ylim()
+
+        return y_lim
+
     def remove_data_lines(self, line_index_list=None):
         """
         remove data line by line index
@@ -367,3 +419,42 @@ class QtMplFitCanvas(FigureCanvas):
         self.remove_residual_line()
 
         return
+
+    def set_x_range(self, x_min, x_max, is_residual):
+        """
+        set X range .. x limit to either upper subplot or lower subplot
+        :param x_min:
+        :param x_max:
+        :param is_residual:
+        :return:
+        """
+        if x_min >= x_max:
+            raise RuntimeError('Set wrong range to X... min = {} >= max = {}'.format(x_min, x_max))
+
+        if is_residual:
+            self._residual_subplot.set_xlim([x_min, x_max])
+        else:
+            self._data_subplot.set_xlim([x_min, x_max])
+        # END-IF
+
+        return
+
+    def set_y_range(self, y_min, y_max, is_residual):
+        """
+        set Y range .. x limit to either upper subplot or lower subplot
+        :param y_min:
+        :param y_max:
+        :param is_residual:
+        :return:
+        """
+        if y_min >= y_max:
+            raise RuntimeError('Set wrong range to Y... min = {} >= max = {}'.format(y_min, y_max))
+
+        if is_residual:
+            self._residual_subplot.set_ylim([y_min, y_max])
+        else:
+            self._data_subplot.set_ylim([y_min, y_max])
+        # END-IF
+
+        return
+

@@ -37,6 +37,7 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         # fitting result (Mantid specific)
         self._fitted_peak_position_ws = None  # fitted peak position workspace
         self._fitted_function_param_table = None  # fitted function parameters table workspace
+        self._fitted_function_error_table = None  # fitted function parameters' fitting error table workspace
         self._model_matrix_ws = None  # MatrixWorkspace of the model from fitted function parameters
 
         return
@@ -143,6 +144,7 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         # no pre-determined peak center: use center of mass
         r_positions_ws_name = 'fitted_peak_positions_{0}'.format(self._reference_id)
         r_param_table_name = 'param_m_{0}'.format(self._reference_id)
+        r_error_table_name = 'param_e_{0}'.format(self._reference_id)
         r_model_ws_name = 'model_full_{0}'.format(self._reference_id)
 
         # FIXME - shall we use a dictionary to set up somewhere else?
@@ -163,12 +165,14 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
                      ConstrainPeakPositions=False,
                      PeakParameterNames=width_dict[peak_function_name][0],
                      PeakParameterValues=width_dict[peak_function_name][1],
-                     RawPeakParameters=False,
+                     RawPeakParameters=True,
                      OutputPeakParametersWorkspace=r_param_table_name,
+                     OutputParameterFitErrorsWorkspace=r_error_table_name,
                      FittedPeaksWorkspace=r_model_ws_name,
                      FitPeakWindowWorkspace=peak_window_ws_name)
 
         # TODO - 20180930 - Issue #30: add new column to OutputPeakParametersWorkspace for 'mixing'
+        # TODO            - ASAP: OUTPUT is changed to raw parameters... shall be
 
         print ('Fit peaks parameters: range {0} - {1}.  Fit window boundary: {2} - {3}'
                ''.format(start, stop, fit_range[0], fit_range[1]))
@@ -199,6 +203,7 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         # process output
         self._fitted_peak_position_ws = AnalysisDataService.retrieve(r_positions_ws_name)
         self._fitted_function_param_table = AnalysisDataService.retrieve(r_param_table_name)
+        self._fitted_function_error_table = AnalysisDataService.retrieve(r_error_table_name)
         self._model_matrix_ws = AnalysisDataService.retrieve(r_model_ws_name)
 
         return
@@ -368,6 +373,34 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
                 param_vec[row_index] = self._fitted_function_param_table.cell(row_index, col_index)
         elif param_name == 'center_d':
             param_vec = self._peak_center_d_vec
+        else:
+            err_msg = 'Function parameter {0} does not exist. Supported parameters are {1}' \
+                      ''.format(param_name, col_names)
+            # raise RuntimeError()
+            raise KeyError(err_msg)
+
+        return param_vec
+
+    def get_fitted_params_error(self, param_name):
+        """
+        get the value of a specified parameters's fitted error of whole scan
+        Note: from FitPeaks's output workspace         "OutputParameterFitErrorsWorkspace"
+        :param param_name:
+        :return:
+        """
+        # check
+        checkdatatypes.check_string_variable('Function parameter', param_name)
+
+        # init parameters
+        param_vec = np.ndarray(shape=(self._fitted_function_error_table.rowCount()), dtype='float')
+
+        col_names = self._fitted_function_error_table.getColumnNames()
+        if param_name in col_names:
+            col_index = col_names.index(param_name)
+            for row_index in range(self._fitted_function_error_table.rowCount()):
+                param_vec[row_index] = self._fitted_function_error_table.cell(row_index, col_index)
+        elif param_name == 'center_d':
+            param_vec = self._peak_center_d_error_vec
         else:
             err_msg = 'Function parameter {0} does not exist. Supported parameters are {1}' \
                       ''.format(param_name, col_names)
