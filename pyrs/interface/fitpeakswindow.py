@@ -52,11 +52,7 @@ class FitPeaksWindow(QMainWindow):
         self.ui.actionAdvanced_Peak_Fit_Settings.triggered.connect(self.do_launch_adv_fit)
         self.ui.actionQuick_Fit_Result_Check.triggered.connect(self.do_make_movie)
 
-        # TODO - 20180805 - Implement : pushButton_plotLogs, comboBox_detectorID
-
-        # others
-        # TODO - 20181124 - Make this table's column flexible!
-        self.ui.tableView_fitSummary.setup()
+        # TODO - 20180805 - Implement : pushButton_plotLogs, comboBox_detectorI
 
         self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
         self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
@@ -79,6 +75,9 @@ class FitPeaksWindow(QMainWindow):
         # TODO - 20181124 - New GUI parameters (After FitPeaks)
         # checkBox_showFitError
         # checkBox_showFitValue
+        # others
+        # TODO - 20181124 - Make this table's column flexible!
+        self.ui.tableView_fitSummary.setup()
 
         return
 

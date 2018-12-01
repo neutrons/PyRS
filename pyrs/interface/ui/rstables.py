@@ -7,6 +7,8 @@ class FitResultTable(NTableWidget.NTableWidget):
     """
     A table tailored to peak fit result
     """
+    # TODO - The setup of this table shall be flexible to the peak type
+    #        considering base/advanced peak parameter for fitted value, uncertainties or both A+/-E
     TableSetupList = [('Index', 'int'),
                       ('Center', 'float'),
                       ('Height', 'float'),
