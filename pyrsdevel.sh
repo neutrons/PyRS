@@ -6,7 +6,7 @@ if [ $1 ]; then
 else
     CMD=''
 fi
-MANTIDLOCALPATH=/home/wzz/Mantid_Project/builds/debug-master/bin/
+MANTIDLOCALPATH=/home/wzz/Mantid_Project/builds/debug/bin/
 MANTIDMACPATH=/Users/wzz/MantidBuild/debug-stable/bin/
 MANTIDSNSDEBUGPATH=/SNS/users/wzz/Mantid_Project/builds/debug/bin/
 MANTIDPATH=$MANTIDMACPATH:$MANTIDLOCALPATH:$MANTIDSNSDEBUGPATH
