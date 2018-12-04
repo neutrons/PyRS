@@ -270,6 +270,7 @@ class PoleFigureCalculator(object):
         exported the calculated pole figure
         :param detector_id_list: list of detector IDs to write the pole figure file
         :param file_name:
+        :param file_type: ASCII or MTEX (.jul)
         :param file_header: for MTEX format
         :return:
         """
@@ -291,7 +292,7 @@ class PoleFigureCalculator(object):
             # export pole figure arrays as ascii column file
             export_arrays_to_ascii(self._pole_figure_dict, detector_id_list, file_name)
         elif file_type.lower() == 'mtex':
-            # export to mtex format
+            # export to MTEX format
             export_to_mtex(self._pole_figure_dict, detector_id_list, file_name, header=file_header)
 
         return
@@ -549,6 +550,14 @@ def export_to_mtex(pole_figure_array_dict, detector_id_list, file_name, header):
 
     # initialize output string
     mtex = ''
+
+    # MTEX HEAD
+    """
+    MTEX file format
+L 1 |NRSF2
+L 2 |alpha beta intensity
+    """
+    # TODO - 20181204 - Implement head #36 - ASAP(3)
 
     # header
     mtex += '{0}\n'.format(header)

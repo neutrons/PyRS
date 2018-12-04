@@ -60,7 +60,7 @@ class ReductionEngine(object):
 
         LoadInstrument(Workspace=event_ws_name, InstrumentName='HB2B', RewriteSpectraMap=True)
 
-        # TODO - 20181114 - From here!
+        # TODO - 20181204 - Refer to "WANDPowderReduction" - ASAP(0)
 
         return vec_2theta, vec_y, vec_e
 

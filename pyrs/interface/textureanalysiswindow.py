@@ -498,7 +498,9 @@ class TextureAnalysisWindow(QMainWindow):
         if platform.system() == 'Darwin':
             file_filter = ''
         else:
-            file_filter = 'MTEX (*.mtex);;ASCII (*.dat);;All Files (*.*)'
+            file_filter = 'MTEX (*.jul);;ASCII (*.dat);;All Files (*.*)'
+
+        # TODO - 20181204 - Replace getSaveFileName by a self-extended method to be fine with both Qt4 and Qt5 ASAP(1)
         file_info = QFileDialog.getSaveFileName(self, directory=self._core.working_dir,
                                                 caption='Save Pole Figure To ASCII File',
                                                 filter=file_filter)
@@ -515,18 +517,10 @@ class TextureAnalysisWindow(QMainWindow):
         if len(file_name) == 0:
             return
 
-        # reconstruct name if required
-        # TODO - 20180711 - use filter to determine the file type and default posfix
-        # file_type_list = list()
-        # if file_filter == 'MTEX (*.mtex)':
-        #     file_type_list.append(('mtex', 'mtex'))
-        # elif file_filter == 'ASCII (*.dat)':
-        #     file_type_list.append('ascii')
-        #
-
+        # export 2 file types
         dir_name = os.path.dirname(file_name)
         base_name = os.path.basename(file_name).split('.')[0]
-        for file_type, posfix in [('ascii', 'dat'), ('mtex', 'mtex')]:
+        for file_type, posfix in [('ascii', 'dat'), ('mtex', 'jul')]:
             file_name_i = os.path.join(dir_name, '{0}.{1}'.format(base_name, posfix))
             self._core.save_pole_figure(self._data_key, detectors=None, file_name=file_name_i,
                                         file_type=file_type)
