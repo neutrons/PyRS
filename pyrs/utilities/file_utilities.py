@@ -4,6 +4,55 @@ import platform
 import time
 import checkdatatypes
 import h5py
+import hb2b_setup
+
+
+class ResidualStressCalibrationFile(object):
+    """
+    a dedicated file import/export
+    """
+    def __init__(self, cal_file_name=None, read_only=False):
+        """
+        initialization.
+        :param cal_file_name: calibration.  If false, then in the writing out mode
+        :param read_only: if True, then read only. Otherwise, read/write mode
+        """
+        # check
+        checkdatatypes.check_bool_variable('Calibration file read only mode', read_only)
+        if cal_file_name:
+            # read or read/write mode
+            checkdatatypes.check_file_name(cal_file_name, check_exist=True, check_writable=not read_only,
+                                           is_dir=False, description='HB2B calibration file')
+            self._cal_file_name = True
+            if read_only:
+                self._file_mode = 'r'
+            else:
+                self._file_mode = 'r+'
+
+            self._import_h5_calibration(self._cal_file_name)
+        else:
+            # write mode
+            self._cal_file_name = None
+            self._file_mode = 'w'
+        # END-IF-ELSE
+
+        return
+
+    def retrieve_calibration_date(self):
+        """ get the starting date of the calibration shall be applied
+        :return:
+        """
+        if self._cal_file_name is None:
+            raise RuntimeError('blabla')
+
+        # TODO - 20181203 - NOW!
+
+        # get the date from the calibration file inside?
+
+        return ''
+
+
+# END-CLASS
 
 
 def check_creation_date(file_name):
@@ -38,6 +87,20 @@ def check_creation_date(file_name):
     return file_create_time_str
 
 
+def is_calibration_dir(cal_sub_dir_name):
+    """
+    check whether the directory name is an allowed calibration directory name for HB2B
+    :param cal_sub_dir_name:
+    :return:
+    """
+    checkdatatypes.check_file_name(cal_sub_dir_name, check_exist=True, check_writable=False,
+                                   is_dir=True, description='Directory for calibration files')
+
+    dir_base_name = os.path.basename(cal_sub_dir_name)
+    return dir_base_name in hb2b_setup
+
+
+
 def scan_calibration_in_archive():
     """
     search the archive (/HFIR/HB2B/shared/CALIBRATION/) to create a table,
@@ -51,13 +114,14 @@ def scan_calibration_in_archive():
     wavelength_dir_names = os.listdir(calib_root_dir)
     for wavelength_dir in wavelength_dir_names:
         # skip non-relevant directories
+        wavelength_dir = os.path.join(calib_root_dir, wavelength_dir)
         if not is_calibration_dir(wavelength_dir):
             continue
 
         calib_info_table[wavelength_dir] = dict()
-        cal_file_names = os.listdir(os.path.join(calib_root_dir, wavelength_dir))
+        cal_file_names = os.listdir(wavelength_dir)
         for cal_file_name in cal_file_names:
-            calib_date = retrieve_calibration_date(cal_file_name)
+            calib_date = ResidualStressCalibrationFile(cal_file_name).retrieve_calibration_date()
             calib_info_table[wavelength_dir][calib_date] = cal_file_name
         # END-FOR
     # END-FOR

@@ -4,6 +4,7 @@ import checkdatatypes
 import file_utilities
 
 
+
 class CalibrationManager(object):
     """
     A class to handle all the calibration files
