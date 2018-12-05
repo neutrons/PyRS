@@ -323,30 +323,48 @@ class FitPeaksWindow(QMainWindow):
         self.ui.comboBox_yaxisNames.setCurrentIndex(curr_y_index)
 
         # fill up the table
+        self._set_fit_result_table(peak_function, data_key)
+
+        # plot the model and difference
+        if scan_log_index is None:
+            scan_log_index = 0
+            # FIXME This case is not likely to occur
+        # FIXME - TODO - self.do_plot_diff_data()
+
+        return
+
+    def _set_fit_result_table(self, peak_function, data_key):
+        """
+
+        :param peak_function:
+        :param data_key:
+        :return:
+        """
+        table_param_names = ['Center', 'Intensity', 'FWHM', 'Height']
+        if peak_function == 'PseudoVoigt':
+            # TODO - 20181210 - shall extending 'mixing' as a special case
+            pass
+        # param_names.extend(['A0', 'A1'])
+
+        self.ui.tableView_fitSummary.reset_table(table_param_names)
+
+        # get value
         not_used_vec, center_vec = self._core.get_peak_fit_param_value(data_key, 'centre', max_cost=None)
         not_used_vec, height_vec = self._core.get_peak_fit_param_value(data_key, 'height', max_cost=None)
         not_used_vec, fwhm_vec = self._core.get_peak_fit_param_value(data_key, 'width', max_cost=None)
         not_used_vec, chi2_vec = self._core.get_peak_fit_param_value(data_key, 'chi2', max_cost=None)
         not_used_vec, intensity_vec = self._core.get_peak_fit_param_value(data_key, 'intensity', max_cost=None)
         com_vec = self._core.get_peak_center_of_mass(data_key)
-
-        for row_index in range(len(center_vec)):
-            self.ui.tableView_fitSummary.set_peak_params(row_index,
-                                                         center_vec[row_index],
-                                                         height_vec[row_index],
-                                                         fwhm_vec[row_index],
-                                                         intensity_vec[row_index],
-                                                         chi2_vec[row_index],
-                                                         peak_function)
-            self.ui.tableView_fitSummary.set_peak_center_of_mass(row_index, com_vec[row_index])
-
-        # plot the model and difference
-        if scan_log_index is None:
-            scan_log_index = 0
-            # FIXME This case is not likely to occur
-        self.do_plot_diff_data()
-
-        return
+        #
+        # for row_index in range(len(center_vec)):
+        #     self.ui.tableView_fitSummary.set_peak_params(row_index,
+        #                                                  center_vec[row_index],
+        #                                                  height_vec[row_index],
+        #                                                  fwhm_vec[row_index],
+        #                                                  intensity_vec[row_index],
+        #                                                  chi2_vec[row_index],
+        #                                                  peak_function)
+        #     self.ui.tableView_fitSummary.set_peak_center_of_mass(row_index, com_vec[row_index])
 
     def do_make_movie(self):
         """

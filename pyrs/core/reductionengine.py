@@ -4,7 +4,7 @@ from pyrs.utilities import checkdatatypes
 from pyrs.utilities import hb2b_utilities
 
 from mantid.simpleapi import FilterEvents, LoadEventNexus, LoadInstrument, GenerateEventsFilter
-from mantid.simpeapi import ConvertSpectrumAxis, ResampleX, Transpose
+from mantid.simpleapi import ConvertSpectrumAxis, ResampleX, Transpose
 from mantid.api import AnalysisDataService as ADS
 from pyrs.utilities import file_utilities
 from pyrs.core import scandataio

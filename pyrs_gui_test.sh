@@ -2,7 +2,7 @@
 python setup.py pyuic
 python setup.py build
 echo "Not used /home/wzz/Mantid_Project/builds/debug-master/bin/"
-MANTIDLOCALPATH=/home/wzz/Mantid_Project/mantid2-debug/bin/
+MANTIDLOCALPATH=/home/wzz/Mantid_Project/debug/bin/
 MANTIDMACPATH=/Users/wzz/MantidBuild/debug/bin/
 MANTIDSNSDEBUGPATH=/SNS/users/wzz/Mantid_Project/builds/debug/bin/
 MANTIDPATH=$MANTIDMACPATH:$MANTIDLOCALPATH:$MANTIDSNSDEBUGPATH

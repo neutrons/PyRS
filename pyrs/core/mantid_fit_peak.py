@@ -92,7 +92,7 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         """
         :return:
         """
-        centre_vec = self.get_fitted_params(param_name='centre')
+        centre_vec = self.get_fitted_params(param_name='PeakCentre')
         self._peak_center_d_vec = np.ndarray(centre_vec.shape, centre_vec.dtype)
 
         num_pt = len(centre_vec)
@@ -165,7 +165,7 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
                      ConstrainPeakPositions=False,
                      PeakParameterNames=width_dict[peak_function_name][0],
                      PeakParameterValues=width_dict[peak_function_name][1],
-                     RawPeakParameters=True,
+                     RawPeakParameters=False,
                      OutputPeakParametersWorkspace=r_param_table_name,
                      OutputParameterFitErrorsWorkspace=r_error_table_name,
                      FittedPeaksWorkspace=r_model_ws_name,

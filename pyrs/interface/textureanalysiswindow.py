@@ -69,7 +69,6 @@ class TextureAnalysisWindow(QMainWindow):
         """
         # plots/graphics view
         self.ui.graphicsView_fitResult.set_subplots(1, 1)
-        self.ui.graphicsView_fitSetup.set_subplots(1, 1)
 
         # table
         self.ui.tableView_poleFigureParams.setup()

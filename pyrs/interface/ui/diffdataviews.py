@@ -202,8 +202,10 @@ class PeakFitSetupView(MplFitPlottingWidget):
         vec_y = diff_data_set[1]
 
         # plot data
-        ref_id = self.add_plot(vec_x, vec_y, color=self._next_color(), x_label='$2\\theta (degree)$', marker=None,
-                               show_legend=True, y_label=data_reference)
+        # ref_id = self.add_plot(vec_x, vec_y, color=self._next_color(), x_label='$2\\theta (degree)$', marker=None,
+        #                        show_legend=True, y_label=data_reference)
+
+        ref_id = self.plot_data(data_set=(vec_x, vec_y), color=self._get_next_color(), line_label=data_reference)
 
         self._diff_reference_list.append(ref_id)
         self._last_diff_reference = ref_id
