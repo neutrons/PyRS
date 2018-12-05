@@ -82,6 +82,23 @@ def browse_file(parent, caption, default_dir, file_filter, file_list=False, save
     return str(file_name)
 
 
+def get_save_file_name(parent, dir_name, caption, file_filter):
+    # TODO - 20181204 - Replace getSaveFileName by a self-extended method to be fine with both Qt4 and Qt5 ASAP(1)
+    file_info = QFileDialog.getSaveFileName(parent, directory=dir_name,
+                                            caption=caption,
+                                            filter=file_filter)
+
+    if isinstance(file_info, tuple):
+        file_name = str(file_info[0])
+        file_filter = file_info[1]
+        print ('[DB...Save Pole Figure] File name: {0}, Filter = {1}'.format(file_name, file_filter))
+    else:
+        file_name = str(file_info)
+        file_filter = None
+
+    return file_name, file_filter
+
+
 def parse_float(float_str):
     """
     parse flaots from a string or a LineEdit

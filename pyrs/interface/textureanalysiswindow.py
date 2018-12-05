@@ -500,18 +500,9 @@ class TextureAnalysisWindow(QMainWindow):
         else:
             file_filter = 'MTEX (*.jul);;ASCII (*.dat);;All Files (*.*)'
 
-        # TODO - 20181204 - Replace getSaveFileName by a self-extended method to be fine with both Qt4 and Qt5 ASAP(1)
-        file_info = QFileDialog.getSaveFileName(self, directory=self._core.working_dir,
-                                                caption='Save Pole Figure To ASCII File',
-                                                filter=file_filter)
-
-        if isinstance(file_info, tuple):
-            file_name = str(file_info[0])
-            file_filter = file_info[1]
-            print ('[DB...Save Pole Figure] File name: {0}, Filter = {1}'.format(file_name, file_filter))
-        else:
-            file_name = str(file_info)
-            file_filter = None
+        file_name = gui_helper.browse_file(self, caption='Save Pole Figure To ASCII File',
+                                           default_dir=self._core.working_dir, file_filter=file_filter,
+                                           file_list=False, save_file=True)
 
         # return/quit if action is cancelled
         if len(file_name) == 0:

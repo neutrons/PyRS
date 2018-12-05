@@ -2,10 +2,37 @@
 import os
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities import hb2b_utilities
+
 from mantid.simpleapi import FilterEvents, LoadEventNexus, LoadInstrument, GenerateEventsFilter
+from mantid.simpeapi import ConvertSpectrumAxis, ResampleX, Transpose
 from mantid.api import AnalysisDataService as ADS
 from pyrs.utilities import file_utilities
 from pyrs.core import scandataio
+
+
+def get_log_value(workspace, log_name):
+    """
+    get log value
+    :param workspace:
+    :param log_name:
+    :return:
+    """
+    # TODO - 20181204 - Implement!
+
+    return blabla
+
+
+def set_log_value(workspace, log_name, log_value):
+    """
+    set a value to a workspace's sample logs
+    :param workspace:
+    :param log_name:
+    :param log_value:
+    :return:
+    """
+    # TODO - 20181204 - Implement!
+
+    return
 
 
 def retrieve_workspace(ws_name, must_be_event=True):
@@ -34,6 +61,13 @@ class ReductionEngine(object):
         """
         self._curr_reduced_data = None   # dict[ws name]  = vec_2theta, vec_y, vec_e
 
+        # calibration manager
+        self._calibration_manager = hb2b_utilities.CalibrationManager()
+
+        # number of bins
+        self._num_bins = 1000
+        self._2theta_resolution = 0.1
+
         return
 
     def _convert_to_2theta(self, event_ws_name, raw_nexus_file_name):
@@ -47,7 +81,7 @@ class ReductionEngine(object):
         if raw_nexus_file_name is not None:
             run_date = file_utilities.check_creation_date(raw_nexus_file_name)
             try:
-                cal_ref_id = self.calibration_manager.check_load_calibration(exp_date=run_date)
+                cal_ref_id = self._calibration_manager.check_load_calibration(exp_date=run_date)
             except RuntimeError as run_err:
                 err_msg = 'Unable to locate calibration file for run {} due to {}\n'.format(run_date, run_err)
                 cal_ref_id = None
@@ -60,7 +94,15 @@ class ReductionEngine(object):
 
         LoadInstrument(Workspace=event_ws_name, InstrumentName='HB2B', RewriteSpectraMap=True)
 
+        ConvertSpectrumAxis(InputWorkspace=event_ws_name, Target='Theta', OutputWorkspace=event_ws_name,
+                            EnableLogging=False)
+        Transpose(InputWorkspace=event_ws_name, OutputWorkspace=event_ws_name, EnableLogging=False)
+
+        ResampleX(InputWorkspace=event_ws_name, OutputWorkspace=event_ws_name, XMin=twotheta_min, XMax=twotheta_min,
+                  NumberBins=num_bins, EnableLogging=False)
+
         # TODO - 20181204 - Refer to "WANDPowderReduction" - ASAP(0)
+
 
         return vec_2theta, vec_y, vec_e
 
@@ -101,6 +143,28 @@ class ReductionEngine(object):
         LoadEventNexus(Filename=nexus_file_name, OutputWorkspace=ws_name, LoadLogs=True)
 
         return ws_name
+
+    @staticmethod
+    def _set_geometry_calibration(ws_name, calibration_dict):
+        """
+        set the calibrated geometry parameter to workspace such that
+        :param ws_name:
+        :param calibration_dict:
+        :return:
+        """
+        workspace = retrieve_workspace(ws_name)
+
+        # set 2theta 0
+        two_theta = get_log_value(workspace, 'twotheta')
+        two_theta += calibration_dict['2theta_0']
+        set_log_value(workspace, 'twotheta', two_theta)
+
+        # shift parameters
+        set_log_value(workspace, 'shiftx', calibration_dict['shiftx'])
+        set_log_value(workspace, 'shifty', calibration_dict['shifty'])
+
+        # spin...
+        # TODO - 20181204 - Refer to IDF for the rest of parameters
 
     @staticmethod
     def _slice_mapping_scan(ws_name):
@@ -297,5 +361,17 @@ class ReductionEngine(object):
         # END-IF-ELSE
 
         scandataio.save_hb2b_reduced_data(scan_index_dict, file_name)
+
+        return
+
+    def set_2theta_resolution(self, delta_two_theta):
+        """
+        set 2theta resolution
+        :param delta_two_theta: 2theta resolution
+        :return:
+        """
+        checkdatatypes.check_float_variable('2-theta resolution', delta_two_theta, (1.E-10, 10.))
+
+        self._2theta_resolution = delta_two_theta
 
         return
