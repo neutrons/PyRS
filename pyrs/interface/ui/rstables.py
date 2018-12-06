@@ -66,14 +66,15 @@ class FitResultTable(NTableWidget.NTableWidget):
         Init setup
         :return:
         """
-        # TODO - 20181205 - ASAP (0) - Replacing reset_column - Review commented out!
-
         # create table columns dynamically
-        # table_setup_list = [('Index', 'int')]
-        # for param_name in peak_param_names:
-        #     table_setup_list.append((param_name, 'float'))
-        # table_setup_list.append(('C.O.M', 'float'))
-        # table_setup_list.append(('Profile', 'string'))
+        table_setup_list = [('Index', 'int')]
+        for param_name in peak_param_names:
+            table_setup_list.append((param_name, 'float'))
+        table_setup_list.append(('C.O.M', 'float'))
+        table_setup_list.append(('Profile', 'string'))
+
+        self._column_names = [item[0] for item in table_setup_list]
+
         #
         # total_columns = len(table_setup_list)
         # self._colIndexIndex = 0
@@ -83,20 +84,15 @@ class FitResultTable(NTableWidget.NTableWidget):
         # self.init_setup(self.TableSetupList)
         #
         # # Set up column width
-        # self.setColumnWidth(0, 60)
-        # self.setColumnWidth(1, 80)
-        # self.setColumnWidth(2, 80)
-        # self.setColumnWidth(3, 80)
-        #
-        # # Set up the column index for start, stop and select
-        # self._colIndexIndex = self.TableSetupList.index(('Index', 'int'))
-        # self._colIndexCenter = self.TableSetupList.index(('Center', 'float'))
-        # self._colIndexHeight = self.TableSetupList.index(('Height', 'float'))
-        # self._colIndexWidth = self.TableSetupList.index(('FWHM', 'float'))
-        # self._colIndexIntensity = self.TableSetupList.index(('Intensity', 'float'))
-        # self._colIndexChi2 = self.TableSetupList.index(('Chi^2', 'float'))
-        # self._colIndexCoM = self.TableSetupList.index(('C.O.M', 'float'))
-        # self._colIndexProfile = self.TableSetupList.index(('Profile', 'string'))
+        self.setColumnWidth(0, 60)
+        for col_index in range(1, len(self._column_names)-1):
+            self.setColumnWidth(col_index, 80)
+        self.setColumnWidth(len(self._column_names)-1, 120)
+
+        # Set up the column index for start, stop and select
+        self._colIndexIndex = self.TableSetupList.index(('Index', 'int'))
+        self._colIndexCoM = self.TableSetupList.index(('C.O.M', 'float'))
+        self._colIndexProfile = self.TableSetupList.index(('Profile', 'string'))
 
         return
 

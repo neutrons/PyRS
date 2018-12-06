@@ -340,7 +340,7 @@ class FitPeaksWindow(QMainWindow):
         :param data_key:
         :return:
         """
-        table_param_names = ['Center', 'Intensity', 'FWHM', 'Height']
+        table_param_names = ['Center', 'Intensity', 'FWHM', 'Height', 'Chi2']
         if peak_function == 'PseudoVoigt':
             # TODO - 20181210 - shall extending 'mixing' as a special case
             pass
@@ -356,15 +356,20 @@ class FitPeaksWindow(QMainWindow):
         not_used_vec, intensity_vec = self._core.get_peak_fit_param_value(data_key, 'intensity', max_cost=None)
         com_vec = self._core.get_peak_center_of_mass(data_key)
         #
-        # for row_index in range(len(center_vec)):
-        #     self.ui.tableView_fitSummary.set_peak_params(row_index,
-        #                                                  center_vec[row_index],
-        #                                                  height_vec[row_index],
-        #                                                  fwhm_vec[row_index],
-        #                                                  intensity_vec[row_index],
-        #                                                  chi2_vec[row_index],
-        #                                                  peak_function)
-        #     self.ui.tableView_fitSummary.set_peak_center_of_mass(row_index, com_vec[row_index])
+        for row_index in range(len(center_vec)):
+            self.ui.tableView_fitSummary.set_fit_summary(row_index, scan_index, param_dict, peak_name, com_vec)
+
+            # self.ui.tableView_fitSummary.set_peak_params(row_index,
+            #                                              center_vec[row_index],
+            #                                              height_vec[row_index],
+            #                                              fwhm_vec[row_index],
+            #                                              intensity_vec[row_index],
+            #                                              chi2_vec[row_index],
+            #                                              peak_function)
+            # self.ui.tableView_fitSummary.set_peak_center_of_mass(row_index, com_vec[row_index])
+        # END-FOR (rows)
+
+        return
 
     def do_make_movie(self):
         """
