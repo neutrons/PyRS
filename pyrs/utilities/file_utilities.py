@@ -7,6 +7,26 @@ import h5py
 import hb2b_setup
 
 
+class ResidualStressInstrumentCalibration(object):
+    """
+    A class to handle and save intrument geometry calibration information
+    """
+    def __init__(self):
+        """
+        initialize
+        """
+        self.shift_x = 0.
+        self.shift_y = 0.
+        self.two_theta0 = 0.
+        self.r_shift = 0.
+        self.tilt_x = 0.   # in X-Z plane
+        self.tilt_y = 0.   # along Y axis (vertical)
+        self.spin_z = 0.   # rotation from center
+
+        # Need data from client to finish this
+        self.calibrated_wave_length = {'Si001': 1.00}
+
+
 class ResidualStressCalibrationFile(object):
     """
     a dedicated file import/export
@@ -17,13 +37,18 @@ class ResidualStressCalibrationFile(object):
         :param cal_file_name: calibration.  If false, then in the writing out mode
         :param read_only: if True, then read only. Otherwise, read/write mode
         """
+        # init some parameters
+        self._h5_file = None  # HDF5 handler
+        self._geometry_calibration = ResidualStressInstrumentCalibration()
+        self._calibration_date = ''
+
         # check
         checkdatatypes.check_bool_variable('Calibration file read only mode', read_only)
         if cal_file_name:
             # read or read/write mode
             checkdatatypes.check_file_name(cal_file_name, check_exist=True, check_writable=not read_only,
                                            is_dir=False, description='HB2B calibration file')
-            self._cal_file_name = True
+            self._cal_file_name = cal_file_name
             if read_only:
                 self._file_mode = 'r'
             else:
@@ -38,18 +63,45 @@ class ResidualStressCalibrationFile(object):
 
         return
 
+    def _import_h5_calibration(self, h5_name):
+        """
+        import calibration file in HDF5 format
+        :param h5_name:
+        :return:
+        """
+        self._h5_file = h5py.File(h5_name, self._file_mode)
+
+        return
+
+    def close_file(self):
+        """
+        close h5 file
+        :return:
+        """
+        if self._h5_file:
+            self._h5_file.close()
+
+        return
+
     def retrieve_calibration_date(self):
         """ get the starting date of the calibration shall be applied
         :return:
         """
-        if self._cal_file_name is None:
-            raise RuntimeError('blabla')
+        if not self._h5_file:
+            raise RuntimeError('No calibration file (*.h5) has been specified and thus imported in '
+                               'constructor')
 
-        # TODO - 20181203 - NOW!
+        # get the calibrated geometry parameters
+        calib_param_entry = self._h5_file['calibration']
+
+        # TODO - 20181210 - Need a prototype file to continue
+        self._geometry_calibration.two_theta0 = calib_param_entry['2theta0'].values[0]
+        self._geometry_calibration.shift_x = blabla
+        # blabla
 
         # get the date from the calibration file inside?
 
-        return ''
+        return
 
 
 # END-CLASS
