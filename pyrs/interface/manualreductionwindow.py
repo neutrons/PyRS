@@ -55,6 +55,16 @@ class ManualReductionWindow(QMainWindow):
         # event handling for combobox
         self.ui.comboBox_runs.currentIndexChanged.connect(self.event_new_run_to_plot)
 
+        # TODO - ASAP - Use these 2 buttons to enable/disable write access to configuration
+        # actionEdit_Calibrations
+        # actionFix_Calibrations
+
+        # TODO - ASAP - Load Instrument
+        # actionLoad_Instrument
+
+        # menu operation
+        self.ui.actionLoad_Image.triggered.connect(self.event_load_image)
+
         # init widgets
         self._init_widgets_setup()
 
@@ -303,6 +313,8 @@ class ManualReductionWindow(QMainWindow):
         """ Handle the event as the event slicing type is changed
         :return:
         """
+        # TODO - ASAP - Clean
+        # TODO - ASAP - Set default radio button
         disable_time_slice = True
         disable_value_slice = True
         disable_adv_slice = True
@@ -316,9 +328,36 @@ class ManualReductionWindow(QMainWindow):
             disable_adv_slice = False
 
         # enable/disable group
-        self.ui.groupBox_sliceByTime.setEnabled(not disable_time_slice)
-        self.ui.groupBox_sliceByLogValue.setEnabled(not disable_value_slice)
-        self.ui.groupBox_advancedSetup.setEnabled(not disable_adv_slice)
+        # FIXME TODO - ASAP - use setTabEnabled(index, false)
+        # self.ui.groupBox_sliceByTime.setEnabled(not disable_time_slice)
+        # self.ui.groupBox_sliceByLogValue.setEnabled(not disable_value_slice)
+        # self.ui.groupBox_advancedSetup.setEnabled(not disable_adv_slice)
+
+        return
+
+    def event_load_image(self):
+        """
+        Load image binary file (as HFIR SPICE binary standard)
+        :return:
+        """
+        bin_file = gui_helper.browse_file(self, caption='Select a SPICE Image Binary File',
+                                          default_dir=self._core.working_dir,
+                                          file_filter='Binary (*.bin)', file_list=False, save_file=False)
+
+        # return if user cancels operation
+        if bin_file == '':
+            return
+
+        print ('[DB...BAT] Select {} to load: ... '.format(bin_file))
+
+        # TODO - ASAP - Move the following to correct place
+        import mantid
+
+        # bin_file_name = '/home/wzz/Projects/PyRS/tests/testdata/LaB6_10kev_35deg-00004_Rotated.bin'
+
+        ws_name = 'testws'
+
+        LoadSpiceXML2DDet(Filename=bin_file_name, OutputWorkspace=ws_name, LoadInstrument=False)
 
         return
 
