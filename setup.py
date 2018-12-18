@@ -15,6 +15,7 @@ if sys.argv[-1] == 'pyuic':
     files = [item for item in files if item.endswith('.ui')]
 
     try:
+        import qtconsole.inprocess
         import PyQt5
         pyui_ver = 5
     except ImportError:
