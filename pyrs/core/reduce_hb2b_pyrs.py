@@ -177,3 +177,18 @@ def test_main():
     test main to verify algorithm
     :return:
     """
+
+    start_x = 0.149853515625
+    step_x = -0.00029296875
+    start_y = 0.149853515625
+    step_y = -0.00029296875
+
+    LoadSpiceXML2DDet(Filename='/SNS/users/wzz/Projects/HB2B/Mantid/IDFTest/LaB6_10kev_35deg-00004_Rotated.bin',
+                      OutputWorkspace='hb2b',
+                      DetectorGeometry='0,0',
+                      LoadInstrument=False)
+    LoadInstrument(Workspace='hb2b',
+                   Filename='../../prototypes/calibration/HB2B_Definition_v4.xml'
+                   InstrumentName='HB2B', RewriteSpectraMap='True')
+   
+    # TODO - NIGHT - Refer to .../prototypes/calibration/intrument_geometry_benchmark.py
