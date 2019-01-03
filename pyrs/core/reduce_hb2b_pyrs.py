@@ -20,6 +20,10 @@ class BuildHB2B(object):
         # set Y as different from each row
         start_y_pos = -(num_rows * 0.5 - 0.5) * pixel_size_y
         start_x_pos = (num_columns * 0.5 - 0.5) * pixel_size_x
+
+        print ('Start X Position: ', start_x_pos)
+        print ('Start Y Position: ', start_y_pos)
+
         for row_index in range(num_rows):
             self._raw_hb2b[row_index, :, 1] = start_y_pos + float(row_index) * pixel_size_y
         # set X as different from each column
@@ -27,6 +31,8 @@ class BuildHB2B(object):
             self._raw_hb2b[:, col_index, 0] = start_x_pos - float(col_index) * pixel_size_x
         # set Z: zero at origin
         self._raw_hb2b[:, :, 2] = 0.
+
+        print ('HB2B[0, 0] = {}'.format(self._raw_hb2b[0, 0]))
 
         # define the real HB2B
         self._hb2b = None
@@ -52,28 +58,30 @@ class BuildHB2B(object):
         # shift center
         self._hb2b[:, :, 0] += center_shift_x
         self._hb2b[:, :, 1] += center_shift_y
+        print ('HB2B Lower Left: {}'.format(self._hb2b[0, 0]))
 
         # get rotation matrix at origin (for flip, spin and vertical)
         rot_x_flip = rot_x_flip * np.pi / 180.
         rot_y_flip = rot_y_flip * np.pi / 180.
         rot_z_spin = rot_z_spin * np.pi / 180.
         calib_matrix = self.build_rotation_matrix(rot_x_flip, rot_y_flip, rot_z_spin)
+        print ('Rotation matrix: {}'.format(calib_matrix))
 
         # and rotate at origin
         self._hb2b = self.rotate_instrument(self._hb2b, calib_matrix)
 
         # push to +Z at length of detector arm
-        self._hb2b += arm_length
+        self._hb2b[:, :, 2] += arm_length
 
         # rotate 2theta
         two_theta_rad = two_theta * np.pi / 180.
-        two_theta_matrix = self.build_rotation_matrix_y(two_theta_rad)
+        two_theta_matrix = self._cal_rotation_matrix_y(two_theta_rad)
         self._hb2b = self.rotate_instrument(self._hb2b, two_theta_matrix)
 
         return self._hb2b
 
     @staticmethod
-    def build_rotation_matrix_x(angle_rad):
+    def _cal_rotation_matrix_x(angle_rad):
         """
         build rotation matrix around X-axis
         :param angle_rad:
@@ -87,7 +95,7 @@ class BuildHB2B(object):
         return rotate_matrix
 
     @staticmethod
-    def build_rotation_matrix_y(angle_rad):
+    def _cal_rotation_matrix_y(angle_rad):
         """
         build rotation matrix around Y-axis
         :param angle_rad:
@@ -101,7 +109,7 @@ class BuildHB2B(object):
         return rotate_matrix
 
     @staticmethod
-    def build_rotation_matrix_z(angle_rad):
+    def _cal_rotation_matrix_z(angle_rad):
         """
         build rotation matrix around Z-axis
         :param angle_rad:
@@ -122,7 +130,7 @@ class BuildHB2B(object):
         :param rot_z_rad: rotation about Z-axis in rad (spin)
         :return:
         """
-        rotation_matrix = self.build_rotation_matrix_x(rot_x_rad) * self.build_rotation_matrix_y(rot_y_rad) * self.build_rotation_matrix_z(rot_z_rad)
+        rotation_matrix = self._cal_rotation_matrix_x(rot_x_rad) * self._cal_rotation_matrix_y(rot_y_rad) * self._cal_rotation_matrix_z(rot_z_rad)
 
         return rotation_matrix
 
@@ -190,6 +198,15 @@ def test_main():
                                                      center_shift_x=0., center_shift_y=0.,
                                                      rot_x_flip=0., rot_y_flip=0., rot_z_spin=0.)
 
+        # TODO - NIGHT - From here!
+        # calibrated detector mounting: flip 15 degree and spin 5 degree; rotate to 2theta=85
+        CloneWorkspace(InputWorkspace='hb2b', OutputWorkspace='mountcal')
+        # AddSampleLog(Workspace='mountcal', LogName='calspin', LogText='5.0', LogType='Number Series', LogUnit='degree', NumberType='Double')
+        AddSampleLog(Workspace='mountcal', LogName='calflip', LogText='15.0', LogType='Number Series', LogUnit='degree',
+                     NumberType='Double')
+        AddSampleLog(Workspace='mountcal', LogName='2theta', LogText='90.0', LogType='Number Series', LogUnit='degree',
+                     NumberType='Double')
+
         LoadInstrument(Workspace='hb2b',
                        Filename=os.path.join(root, 'prototypes/calibration/HB2B_Definition_v4.xml'),
                        InstrumentName='HB2B', RewriteSpectraMap='True')
@@ -197,12 +214,12 @@ def test_main():
 
         # test 5 spots: (0, 0), (0, 1023), (1023, 0), (1023, 1023), (512, 512)
         for index_i, index_j in [(0, 0), (0, 1023), (1023, 0), (1023, 1023), (512, 512)]:
-            print (pixel_matrix[index_i, index_j])
-            print (workspace.getDetector(index_i*1024 + index_j).getPos())
+            print ('PyRS:   ', pixel_matrix[index_i, index_j])
+            print ('Mantid: ', workspace.getDetector(index_i + index_j*1024).getPos())   # column major
             pos_python = pixel_matrix[index_i, index_j]
             pos_mantid = workspace.getDetector(index_i*1024 + index_j).getPos()
             for i in range(3):
-                print ('{}:  {}   -   {}    =   {}'
+                print ('dir {}:  {}   -   {}    =   {}'
                        ''.format(i, pos_python[i], pos_mantid[i], pos_python[i] - pos_mantid[i]))
             # END-FOR
         # END-FOR
@@ -222,7 +239,7 @@ def test_main():
         root = os.path.join(os.path.expanduser('~'), 'Projects/PyRS/')
     else:
         root = os.path.join(os.path.expanduser('~'), 'Projects/PyRS/')
-    LoadSpiceXML2DDet(Filename=os.path.join(root, 'tests/data/LaB6_10kev_35deg-00004_Rotated.bin'),
+    LoadSpiceXML2DDet(Filename=os.path.join(root, 'tests/testdata/LaB6_10kev_35deg-00004_Rotated.bin'),
                       OutputWorkspace='hb2b',
                       DetectorGeometry='0,0',
                       LoadInstrument=False)
@@ -239,5 +256,5 @@ def test_main():
 
     # TODO - NIGHT - Refer to .../prototypes/calibration/intrument_geometry_benchmark.py
 
-if __name__ == '_main__':
+if __name__ == '__main__':
     test_main()
