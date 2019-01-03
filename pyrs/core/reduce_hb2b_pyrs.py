@@ -177,18 +177,67 @@ def test_main():
     test main to verify algorithm
     :return:
     """
+    from mantid.simpleapi import LoadSpiceXML2DDet, LoadInstrument
+    from mantid.api import AnalysisDataService as ADS
+    import os
 
-    start_x = 0.149853515625
-    step_x = -0.00029296875
-    start_y = 0.149853515625
-    step_y = -0.00029296875
+    def test_with_mantid(arm_length, two_theta, center_shift_x, center_shift_y,
+                         rot_x_flip, rot_y_flip, rot_z_spin):
+        """
+        :return:
+        """
+        pixel_matrix = hb2b_builder.build_instrument(arm_length=0.95, two_theta=0.,
+                                                     center_shift_x=0., center_shift_y=0.,
+                                                     rot_x_flip=0., rot_y_flip=0., rot_z_spin=0.)
 
-    LoadSpiceXML2DDet(Filename='/SNS/users/wzz/Projects/HB2B/Mantid/IDFTest/LaB6_10kev_35deg-00004_Rotated.bin',
+        LoadInstrument(Workspace='hb2b',
+                       Filename=os.path.join(root, 'prototypes/calibration/HB2B_Definition_v4.xml'),
+                       InstrumentName='HB2B', RewriteSpectraMap='True')
+        workspace = ADS.retrieve('hb2b')
+
+        # test 5 spots: (0, 0), (0, 1023), (1023, 0), (1023, 1023), (512, 512)
+        for index_i, index_j in [(0, 0), (0, 1023), (1023, 0), (1023, 1023), (512, 512)]:
+            print (pixel_matrix[index_i, index_j])
+            print (workspace.getDetector(index_i*1024 + index_j).getPos())
+            pos_python = pixel_matrix[index_i, index_j]
+            pos_mantid = workspace.getDetector(index_i*1024 + index_j).getPos()
+            for i in range(3):
+                print ('{}:  {}   -   {}    =   {}'
+                       ''.format(i, pos_python[i], pos_mantid[i], pos_python[i] - pos_mantid[i]))
+            # END-FOR
+        # END-FOR
+
+        return
+
+    # build instrument
+    num_rows = 1024
+    num_columns = 1024
+    pixel_size_x = 0.00029296875
+    pixel_size_y = 0.00029296875
+    hb2b_builder = BuildHB2B(num_rows, num_columns, pixel_size_x, pixel_size_y)
+
+    # load data to Mantid
+    root = os.getcwd()
+    if root.startswith('/home/'):
+        root = os.path.join(os.path.expanduser('~'), 'Projects/PyRS/')
+    else:
+        root = os.path.join(os.path.expanduser('~'), 'Projects/PyRS/')
+    LoadSpiceXML2DDet(Filename=os.path.join(root, 'tests/data/LaB6_10kev_35deg-00004_Rotated.bin'),
                       OutputWorkspace='hb2b',
                       DetectorGeometry='0,0',
                       LoadInstrument=False)
-    LoadInstrument(Workspace='hb2b',
-                   Filename='../../prototypes/calibration/HB2B_Definition_v4.xml'
-                   InstrumentName='HB2B', RewriteSpectraMap='True')
-   
+
+    # small angle
+    test_with_mantid(arm_length=0.95, two_theta=0., center_shift_x=0., center_shift_y=0.,
+                     rot_x_flip=0., rot_y_flip=0., rot_z_spin=0.)
+
+    # some shift
+
+
+    # some
+
+
     # TODO - NIGHT - Refer to .../prototypes/calibration/intrument_geometry_benchmark.py
+
+if __name__ == '_main__':
+    test_main()
