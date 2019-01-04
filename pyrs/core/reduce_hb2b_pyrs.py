@@ -185,26 +185,55 @@ def test_main():
     test main to verify algorithm
     :return:
     """
-    from mantid.simpleapi import LoadSpiceXML2DDet, LoadInstrument
+    from mantid.simpleapi import LoadSpiceXML2DDet, LoadInstrument, AddSampleLog
     from mantid.api import AnalysisDataService as ADS
     import os
 
-    def test_with_mantid(arm_length, two_theta, center_shift_x, center_shift_y,
-                         rot_x_flip, rot_y_flip, rot_z_spin):
+    def test_with_mantid(arm_length=0.95, two_theta=0., center_shift_x=0., center_shift_y=0.,
+                         rot_x_flip=0., rot_y_flip=0., rot_z_spin=0.):
         """
+        :param arm_length: full arm length: engineered = 0.95 m
+        :param two_theta: in degree
         :return:
         """
-        pixel_matrix = hb2b_builder.build_instrument(arm_length=0.95, two_theta=0.,
-                                                     center_shift_x=0., center_shift_y=0.,
-                                                     rot_x_flip=0., rot_y_flip=0., rot_z_spin=0.)
+        pixel_matrix = hb2b_builder.build_instrument(arm_length=arm_length, two_theta=two_theta,
+                                                     center_shift_x=center_shift_x., center_shift_y=center_shift_y,
+                                                     rot_x_flip=rot_x_flip, rot_y_flip=rot_y_flip., rot_z_spin=0.)
 
-        # TODO - NIGHT - From here!
-        # calibrated detector mounting: flip 15 degree and spin 5 degree; rotate to 2theta=85
-        CloneWorkspace(InputWorkspace='hb2b', OutputWorkspace='mountcal')
-        # AddSampleLog(Workspace='mountcal', LogName='calspin', LogText='5.0', LogType='Number Series', LogUnit='degree', NumberType='Double')
-        AddSampleLog(Workspace='mountcal', LogName='calflip', LogText='15.0', LogType='Number Series', LogUnit='degree',
+        # set up sample logs
+        # cal::arm
+        AddSampleLog(Workspace='hb2b', LogName='cal::arm', LogText='{}'.format(arm_length-0.95),
+                     LogType='Number Series', LogUnit='meter',
                      NumberType='Double')
-        AddSampleLog(Workspace='mountcal', LogName='2theta', LogText='90.0', LogType='Number Series', LogUnit='degree',
+        #
+        # cal::2theta
+        AddSampleLog(Workspace='hb2b', LogName='cal::2theta', LogText='{}'.format(-two_theta),
+                     LogType='Number Series', LogUnit='degree',
+                     NumberType='Double')
+        #
+        # cal::deltax
+        AddSampleLog(Workspace='hb2b', LogName='cal::deltax', LogText='{}'.format(center_shift_x),
+                     LogType='Number Series', LogUnit='meter',
+                     NumberType='Double')
+        #
+        # cal::deltay
+        AddSampleLog(Workspace='hb2b', LogName='cal::deltay', LogText='{}'.format(center_shift_y),
+                     LogType='Number Series', LogUnit='meter',
+                     NumberType='Double')
+
+        # cal::roty
+        AddSampleLog(Workspace='hb2b', LogName='cal::roty', LogText='{}'.format(-two_theta - rot_y_flip),
+                     LogType='Number Series', LogUnit='degree',
+                     NumberType='Double')
+
+        # cal::flip
+        AddSampleLog(Workspace='hb2b', LogName='cal::flip', LogText='{}'.format(rot_x_flip),
+                     LogType='Number Series', LogUnit='degree',
+                     NumberType='Double')
+
+        # cal::spin
+        AddSampleLog(Workspace='hb2b', LogName='cal::spin', LogText='{}'.format(rot_z_spin),
+                     LogType='Number Series', LogUnit='degree',
                      NumberType='Double')
 
         LoadInstrument(Workspace='hb2b',
@@ -249,7 +278,12 @@ def test_main():
                      rot_x_flip=0., rot_y_flip=0., rot_z_spin=0.)
 
     # some shift
+    test_with_mantid(arm_length=0.95, two_theta=0., center_shift_x=0.2, center_shift_y=0.3,
+                     rot_x_flip=0., rot_y_flip=0., rot_z_spin=0.)
 
+    # some rotation about 2theta
+    test_with_mantid(arm_length=0.95, two_theta=85., center_shift_x=0., center_shift_y=0.,
+                     rot_x_flip=0., rot_y_flip=0., rot_z_spin=0.)
 
     # some
 
