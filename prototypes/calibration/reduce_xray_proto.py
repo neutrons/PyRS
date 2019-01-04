@@ -73,7 +73,6 @@ def test_rotate_2theta(idf_name):
     
 
 
-
 # Set up
 # data file
 pyrs_root = '/home/wzz/Projects/PyRS/'
