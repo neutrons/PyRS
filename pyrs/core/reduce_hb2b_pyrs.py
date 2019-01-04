@@ -21,8 +21,8 @@ class BuildHB2B(object):
         start_y_pos = -(num_rows * 0.5 - 0.5) * pixel_size_y
         start_x_pos = (num_columns * 0.5 - 0.5) * pixel_size_x
 
-        print ('Start X Position: ', start_x_pos)
-        print ('Start Y Position: ', start_y_pos)
+        # print ('Start X Position: ', start_x_pos)
+        # print ('Start Y Position: ', start_y_pos)
 
         for row_index in range(num_rows):
             self._raw_hb2b[row_index, :, 1] = start_y_pos + float(row_index) * pixel_size_y
@@ -32,7 +32,7 @@ class BuildHB2B(object):
         # set Z: zero at origin
         self._raw_hb2b[:, :, 2] = 0.
 
-        print ('HB2B[0, 0] = {}'.format(self._raw_hb2b[0, 0]))
+        # print ('HB2B[0, 0] = {}'.format(self._raw_hb2b[0, 0]))
 
         # define the real HB2B
         self._hb2b = None
@@ -44,7 +44,7 @@ class BuildHB2B(object):
         """
         build an instrument
         :param arm_length: distance from detector "center" (intercept axis) to origin
-        :param two_theta: 2theta position of the detector panel
+        :param two_theta: 2theta position of the detector panel.  It shall be negative to sample log value
         :param center_shift_x:
         :param center_shift_y:
         :param rot_x_flip:
@@ -193,12 +193,12 @@ def test_main():
                          rot_x_flip=0., rot_y_flip=0., rot_z_spin=0.):
         """
         :param arm_length: full arm length: engineered = 0.95 m
-        :param two_theta: in degree
+        :param two_theta: 2theta in sample log (instrument definition). It is opposite direction to Mantid coordinate
         :return:
         """
-        pixel_matrix = hb2b_builder.build_instrument(arm_length=arm_length, two_theta=two_theta,
-                                                     center_shift_x=center_shift_x., center_shift_y=center_shift_y,
-                                                     rot_x_flip=rot_x_flip, rot_y_flip=rot_y_flip., rot_z_spin=0.)
+        pixel_matrix = hb2b_builder.build_instrument(arm_length=arm_length, two_theta=-two_theta,
+                                                     center_shift_x=center_shift_x, center_shift_y=center_shift_y,
+                                                     rot_x_flip=rot_x_flip, rot_y_flip=rot_y_flip, rot_z_spin=0.)
 
         # set up sample logs
         # cal::arm
@@ -246,10 +246,11 @@ def test_main():
             print ('PyRS:   ', pixel_matrix[index_i, index_j])
             print ('Mantid: ', workspace.getDetector(index_i + index_j*1024).getPos())   # column major
             pos_python = pixel_matrix[index_i, index_j]
-            pos_mantid = workspace.getDetector(index_i*1024 + index_j).getPos()
+            pos_mantid = workspace.getDetector(index_i + 1024 * index_j).getPos()
             for i in range(3):
-                print ('dir {}:  {}   -   {}    =   {}'
-                       ''.format(i, pos_python[i], pos_mantid[i], pos_python[i] - pos_mantid[i]))
+                print ('dir {}:  {:10f}   -   {:10f}    =   {:10f}'
+                       ''.format(i, float(pos_python[i]), float(pos_mantid[i]),
+                                 float(pos_python[i] - pos_mantid[i])))
             # END-FOR
         # END-FOR
 
@@ -274,20 +275,21 @@ def test_main():
                       LoadInstrument=False)
 
     # small angle
+    print ('\n\nJust small angle')
     test_with_mantid(arm_length=0.95, two_theta=0., center_shift_x=0., center_shift_y=0.,
                      rot_x_flip=0., rot_y_flip=0., rot_z_spin=0.)
 
     # some shift
+    print ('\n\nShift X and Shift Y')
     test_with_mantid(arm_length=0.95, two_theta=0., center_shift_x=0.2, center_shift_y=0.3,
                      rot_x_flip=0., rot_y_flip=0., rot_z_spin=0.)
 
     # some rotation about 2theta
+    print ('\n\n2Theta = 85.')
     test_with_mantid(arm_length=0.95, two_theta=85., center_shift_x=0., center_shift_y=0.,
                      rot_x_flip=0., rot_y_flip=0., rot_z_spin=0.)
 
     # some
-
-
     # TODO - NIGHT - Refer to .../prototypes/calibration/intrument_geometry_benchmark.py
 
 if __name__ == '__main__':
