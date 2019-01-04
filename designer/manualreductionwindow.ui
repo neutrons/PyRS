@@ -324,7 +324,7 @@
       <item>
        <widget class="QTabWidget" name="tabWidget_2">
         <property name="currentIndex">
-         <number>1</number>
+         <number>0</number>
         </property>
         <widget class="QWidget" name="tab_4">
          <attribute name="title">
@@ -810,8 +810,15 @@
     <addaction name="actionEdit_Calibrations"/>
     <addaction name="actionFix_Calibrations"/>
    </widget>
+   <widget class="QMenu" name="menuData_Reduction">
+    <property name="title">
+     <string>Data Reduction</string>
+    </property>
+    <addaction name="actionLoad_Instrument"/>
+   </widget>
    <addaction name="menuQuit"/>
    <addaction name="menuEdit"/>
+   <addaction name="menuData_Reduction"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionQuit">
@@ -832,6 +839,11 @@
   <action name="actionFix_Calibrations">
    <property name="text">
     <string>Fix Calibrations</string>
+   </property>
+  </action>
+  <action name="actionLoad_Instrument">
+   <property name="text">
+    <string>Load Instrument</string>
    </property>
   </action>
  </widget>
