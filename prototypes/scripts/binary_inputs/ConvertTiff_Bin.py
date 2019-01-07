@@ -7,7 +7,12 @@ from matplotlib import pyplot as plt
 
 import glob
 
+PLOT = False
+
 for name in glob.glob('*_Rotated.tif'):
+    print ('Working on {}'.format(name))
+
+    # read data
     Data = mping.imread(name)
     x_size = Data.shape[0]/2
     y_size = Data.shape[1]/2
@@ -17,8 +22,9 @@ for name in glob.glob('*_Rotated.tif'):
     Data[0, 0] = 60000
     Data[0, 1] = 50000
     Data[0, 2] = 40000
-    plt.imshow(Data, cmap='nipy_spectral')
-    plt.show()
+    if PLOT:
+        plt.imshow(Data, cmap='nipy_spectral')
+        plt.show()
 
     # insert
     Data = Data.reshape((x_size * y_size, ))
@@ -29,7 +35,7 @@ for name in glob.glob('*_Rotated.tif'):
     print (Data.shape)
 
     # write
-    file_name = name.replace('tif','dat')
+    file_name = name.replace('tif','bin')
     Data.astype('uint32').tofile(file_name)
     
 
@@ -45,5 +51,3 @@ for name in glob.glob('*_Rotated.tif'):
     # print (ImageDataSet[10000])
     # # I need pure counts: np.save(name.replace('tif','.dat'), array)
     # np.save(name.replace('tif','dat'), ImageDataSet)
-
-    break
