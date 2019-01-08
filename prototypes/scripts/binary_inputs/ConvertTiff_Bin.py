@@ -9,45 +9,55 @@ import glob
 
 PLOT = False
 
-for name in glob.glob('*_Rotated.tif'):
-    print ('Working on {}'.format(name))
 
-    # read data
-    Data = mping.imread(name)
-    x_size = Data.shape[0]/2
-    y_size = Data.shape[1]/2
-    Data=Data.reshape(Data.shape[0]/2,2, Data.shape[1]/2, 2).sum(1).sum(-1)
-    print (Data.shape)
-    print (np.max(Data))
-    Data[0, 0] = 60000
-    Data[0, 1] = 50000
-    Data[0, 2] = 40000
-    if PLOT:
-        plt.imshow(Data, cmap='nipy_spectral')
-        plt.show()
+def convert_to_spice_binary(option='1k'):
+    """
+    convert to SPICE binary file
+    :param option:
+    :return:
+    """
+    for name in glob.glob('*_Rotated.tif'):
+        # read data
+        image_data = mping.imread(name)
+        print ('Working on {} of shape {} with value in range ({}, {})'.format(name, image_data.shape,
+                                                                               np.min(image_data), np.max(image_data)))
 
-    # insert
-    Data = Data.reshape((x_size * y_size, ))
-    print (Data.shape)
-    Data = np.insert(Data, 0, y_size)
-    print (Data.shape)
-    Data = np.insert(Data, 0, x_size)
-    print (Data.shape)
+        # optionally convert the data 1K from 2K
+        if option.count('1k'):
+            x_size = image_data.shape[0]/2
+            y_size = image_data.shape[1]/2
+            image_data = image_data.reshape(image_data.shape[0]/2, 2, image_data.shape[1]/2, 2).sum(1).sum(-1)
+        elif option.count('raw') or option.count('2k'):
+            x_size = image_data.shape[0]
+            y_size = image_data.shape[1]
+        else:
+            raise RuntimeError('Option {} is not supported.'.format(option))
 
-    # write
-    file_name = name.replace('tif','bin')
-    Data.astype('uint32').tofile(file_name)
-    
+        # mask
+        if option.count('mask'):
+            image_data[0, 0] = 60000
+            image_data[0, 1] = 50000
+            image_data[0, 2] = 40000
 
-    # ImageDataSet = np.array( Data )
-    # ImageDataSet = ImageDataSet.reshape(Data.shape[0]*Data.shape[1])
+        if PLOT:
+            plt.imshow(image_data, cmap='nipy_spectral')
+            plt.show()
 
-    # print (type(Data))
-    # print (Data.shape)
-    # print (ImageDataSet.shape)
-    # array = np.concatenate((np.arange(len(ImageDataSet)), ImageDataSet)).reshape(2,len(ImageDataSet)).T
-    # print (array.shape)
-    # print (array[10000])
-    # print (ImageDataSet[10000])
-    # # I need pure counts: np.save(name.replace('tif','.dat'), array)
-    # np.save(name.replace('tif','dat'), ImageDataSet)
+        # insert data size for
+        image_data = image_data.reshape((x_size * y_size, ))
+        image_data = np.insert(image_data, 0, y_size)
+        image_data = np.insert(image_data, 0, x_size)
+
+        # write to binary
+        file_name = name.replace('.tif',  '_{}.bin'.format(option))
+        image_data.astype('uint32').tofile(file_name)
+    # END-FOR
+
+    return
+
+
+if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        print ('{} option\noption: (1) 1k  (2) raw  (3) mask_1k  (4) mask_raw'.format(sys.argv[0]))
+    else:
+        convert_to_spice_binary(sys.argv[1])
