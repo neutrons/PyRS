@@ -172,8 +172,14 @@ class BuildHB2B(object):
         twotheta_matrix = np.arccos(diff_angle_cos_matrix) * 180 / np.pi
 
         # histogram
-        vecx = twotheta_matrix.flatten()
+        vecx = twotheta_matrix.transpose().flatten()
         vecy = counts_matrix.flatten()
+
+        for i in range(10):
+            print ('PyRS {}: x = {}, y = {}'.format(i, vecx[i], vecy[i]))
+        for i in range(10010, 10020):
+            print ('PyRS {}: x = {}, y = {}'.format(i, vecx[i], vecy[i]))
+
         hist, bin_edges = np.histogram(vecx, bins=num_bins, weights=vecy)
 
         return bin_edges, hist
