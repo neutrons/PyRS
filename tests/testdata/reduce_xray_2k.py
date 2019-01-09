@@ -15,6 +15,7 @@ io.use_plugin('freeimage')
 Data = np.array(ImageData, dtype=np.int32)
 print (Data.shape, type(Data), Data.min(), Data.max())
 Data.astype(np.uint32)
+Data = Data.transpose()
 
 # No merge
 DataR = Data

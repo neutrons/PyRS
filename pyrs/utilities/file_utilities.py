@@ -249,7 +249,7 @@ def import_calibration_info_file(cal_info_file):
     return cal_info_table
 
 
-def load_mantid_mask(pixel_number, mantid_mask_xml):
+def load_mantid_mask(pixel_number, mantid_mask_xml, is_mask):
     """ Load Mantid mask file in XML format
     Assumption: PixelID (detector ID) starts from 0 and there is NO gap
     :param mantid_mask_xml:
@@ -277,11 +277,14 @@ def load_mantid_mask(pixel_number, mantid_mask_xml):
 
     # parse
     masked_det_pair_list = det_id_line.split('>')[1].split('<')[0].strip().split(',')
-    print ('[DB...BAT] Masked detectors range: {}'.format(masked_det_pair_list))
+    # print ('[DB...BAT] Masked detectors range: {}'.format(masked_det_pair_list))
 
     # create vector with 1 (for not masking)
-    masking_array = np.zeros((pixel_number, 0), 'float')
-    masking_array += 1.
+    masking_array = np.zeros((pixel_number,), 'float')
+    if is_mask:
+        # is given string are mask then default is not masked
+        masking_array += 1.
+    # is ROI default = 0
 
     masked_specs = 0
     for masked_det_pair in masked_det_pair_list:
@@ -293,8 +296,11 @@ def load_mantid_mask(pixel_number, mantid_mask_xml):
         if end_detid >= pixel_number:
             raise RuntimeError('Detector ID {} is out of range of given detector size {}'
                                ''.format(end_detid, pixel_number))
-        # mask
-        masking_array[start_detid:end_detid+1] = 0.
+        # mask or ROI
+        if is_mask:
+            masking_array[start_detid:end_detid+1] = 0.
+        else:
+            masking_array[start_detid:end_detid+1] = 1.
         # stat
         masked_specs += end_detid - start_detid + 1
     # END-FOR
