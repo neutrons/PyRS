@@ -65,7 +65,7 @@ class BuildHB2B(object):
         rot_y_flip = rot_y_flip * np.pi / 180.
         rot_z_spin = rot_z_spin * np.pi / 180.
         calib_matrix = self.build_rotation_matrix(rot_x_flip, rot_y_flip, rot_z_spin)
-        print ('Rotation matrix: {}'.format(calib_matrix))
+        print ('Rotation matrix:\n{}'.format(calib_matrix))
 
         # and rotate at origin
         self._hb2b = self.rotate_instrument(self._hb2b, calib_matrix)
@@ -130,7 +130,15 @@ class BuildHB2B(object):
         :param rot_z_rad: rotation about Z-axis in rad (spin)
         :return:
         """
-        rotation_matrix = self._cal_rotation_matrix_x(rot_x_rad) * self._cal_rotation_matrix_y(rot_y_rad) * self._cal_rotation_matrix_z(rot_z_rad)
+        rot_x_matrix = self._cal_rotation_matrix_x(rot_x_rad)
+        rot_y_matrix = self._cal_rotation_matrix_y(rot_y_rad)
+        rot_z_matrix = self._cal_rotation_matrix_z(rot_z_rad)
+
+        print (rot_x_matrix)
+        print (rot_y_matrix)
+        print (rot_z_matrix)
+
+        rotation_matrix =  rot_x_matrix * rot_y_matrix * rot_z_matrix
 
         return rotation_matrix
 

@@ -57,11 +57,13 @@ def load_instrument(hb2b_builder, arm_length, two_theta=0., center_shift_x=0., c
                      NumberType='Double')
         #
         # cal::deltay
+        print ('Shift Y = {}'.format(center_shift_y))
         AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::deltay', LogText='{}'.format(center_shift_y),
                      LogType='Number Series', LogUnit='meter',
                      NumberType='Double')
 
         # cal::roty
+        print ('Rotation Y = {}'.format(rot_y_flip))
         AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::roty', LogText='{}'.format(-two_theta - rot_y_flip),
                      LogType='Number Series', LogUnit='degree',
                      NumberType='Double')
@@ -72,10 +74,12 @@ def load_instrument(hb2b_builder, arm_length, two_theta=0., center_shift_x=0., c
                      NumberType='Double')
 
         # cal::spin
+        print ('Rotation Z = {}'.format(rot_z_spin))
         AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::spin', LogText='{}'.format(rot_z_spin),
                      LogType='Number Series', LogUnit='degree',
                      NumberType='Double')
 
+        print ('Load instrument file : {}'.format(idf_name))
         LoadInstrument(Workspace=raw_data_ws_name,
                        Filename=idf_name,
                        InstrumentName='HB2B', RewriteSpectraMap='True')
@@ -93,8 +97,10 @@ def load_instrument(hb2b_builder, arm_length, two_theta=0., center_shift_x=0., c
             # print ('PyRS:   ', pixel_matrix[index_i, index_j])
             # print ('Mantid: ', workspace.getDetector(index_i + index_j * 1024).getPos())  # column major
             pos_python = pixel_matrix[index_i, index_j]
-            pos_mantid = workspace.getDetector(index_i + pixel_number * index_j).getPos()
-            print ('({}, {}):   {:10s}   -   {:10s}    =   {:10s}'.format(index_i, index_j, 'PyRS', 'Mantid', 'Diff'))
+            index1d = index_i + pixel_number * index_j
+            pos_mantid = workspace.getDetector(index1d).getPos()
+            print ('({}, {} / {}):   {:10s}   -   {:10s}    =   {:10s}'
+                   ''.format(index_i, index_j, index1d, 'PyRS', 'Mantid', 'Diff'))
             for i in range(3):
                 print ('dir {}:  {:10f}   -   {:10f}    =   {:10f}'
                        ''.format(i, float(pos_python[i]), float(pos_mantid[i]),
@@ -254,7 +260,7 @@ def main(argv):
     """
     # init setup
     image_file = 'tests/testdata/LaB6_10kev_35deg-00004_Rotated.tif'
-    two_theta = 35.
+    two_theta = 0.  # it is 35 degree... using 0 for debugging
 
     # load masks
     temp_list = ['Chi_0_Mask.xml', 'Chi_10_Mask.xml',
@@ -262,21 +268,22 @@ def main(argv):
     mask_xml_list = [os.path.join('tests/testdata/masks', xml_name) for xml_name in temp_list]
 
     # Now it is the setup for real reduction
-    pixel_length = 2048
+    pixel_length = 1024
 
     # Load raw data
     hb2b_ws_name, hb2b_count_vec = load_data_from_tif(image_file, pixel_length)
 
     # Masking
     masking_list = list()   # tuple: mask array and mask workspace
-    for mask_xml in mask_xml_list:
-        if 'Chi_0' in mask_xml:
-            is_mask = True
-            print ('mask {} with is_mask = True'.format(mask_xml))
-        else:
-            is_mask = False
-        mask_array, mask_ws_name = create_mask(mask_xml, pixel_length**2, is_mask)
-        masking_list.append((mask_array, mask_ws_name))
+    if pixel_length == 2048:
+        for mask_xml in mask_xml_list:
+            if 'Chi_0' in mask_xml:
+                is_mask = True
+                print ('mask {} with is_mask = True'.format(mask_xml))
+            else:
+                is_mask = False
+            mask_array, mask_ws_name = create_mask(mask_xml, pixel_length ** 2, is_mask)
+            masking_list.append((mask_array, mask_ws_name))
 
     # create instrument
     if pixel_length == 2048:
@@ -291,6 +298,7 @@ def main(argv):
         pixel_size_x = 0.00020*2
         pixel_size_y = 0.00020*2
         idf_name = 'Xray_HB2B_1K.xml'
+        idf_name = 'XRay_Definition_1K.xml'
     else:
         raise RuntimeError('Wrong setup')
 
@@ -300,8 +308,8 @@ def main(argv):
     # load instrument
     arm_length = 0.416
     # calibration
-    rot_x_flip = 0.2  # 0.01
-    rot_y_flip = 0.  # with trouble -0.142
+    rot_x_flip = 0.  # 0.01
+    rot_y_flip = 30.  # with trouble -0.142
     rot_z_spin = 0.  # 0.98  # still no good
 
     center_shift_x = 0.  #0.001
