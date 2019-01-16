@@ -3,8 +3,8 @@ import numpy as np
 import numpy
 
 
-class BuildHB2B(object):
-    """ A class to build HB2B instrument
+class PyHB2BReduction(object):
+    """ A class to reduce HB2B data in pure Python and numpy
     """
     def __init__(self, num_rows, num_columns, pixel_size_x, pixel_size_y):
         """
@@ -275,7 +275,7 @@ def test_main():
     num_columns = 1024
     pixel_size_x = 0.00029296875
     pixel_size_y = 0.00029296875
-    hb2b_builder = BuildHB2B(num_rows, num_columns, pixel_size_x, pixel_size_y)
+    hb2b_builder = PyHB2BReduction(num_rows, num_columns, pixel_size_x, pixel_size_y)
 
     # load data to Mantid
     root = os.getcwd()

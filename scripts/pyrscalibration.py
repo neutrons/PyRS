@@ -302,7 +302,7 @@ def main(argv):
     else:
         raise RuntimeError('Wrong setup')
 
-    hb2b_builder = reduce_hb2b_pyrs.BuildHB2B(num_rows, num_columns, pixel_size_x, pixel_size_y)
+    hb2b_builder = reduce_hb2b_pyrs.PyHB2BReduction(num_rows, num_columns, pixel_size_x, pixel_size_y)
     idf_name = os.path.join('tests/testdata/', idf_name)
 
     # load instrument

@@ -204,11 +204,12 @@ def check_numpy_arrays(var_name, variables, dimension, check_same_shape):
     return
 
 
-def check_sequence(var_name, variable, allowed_type=None):
+def check_sequence(var_name, variable, allowed_type=None, size=None):
     """ check whether the input is of type tuple or list
     :param var_name:
     :param variable:
     :param allowed_type: allowed type such as str, float, int.
+    :param size: allowed size. None, list of integers or an integer
     :return:
     """
     check_string_variable('Variable name', var_name)
@@ -216,13 +217,25 @@ def check_sequence(var_name, variable, allowed_type=None):
     assert isinstance(variable, list) or isinstance(variable, tuple),\
         '{} {} must be a list or tuple but not a {}'.format(var_name, variable, type(variable))
 
-    # skip if no type check is specified
-    if allowed_type is None:
-        return
+    # check size
+    if size is not None:
+        if isinstance(size, list):
+            pass
+        elif isinstance(size, int):
+            size = [size]
+        else:
+            raise RuntimeError('check_sequence cannot accept size ({}) of type {}'
+                               ''.format(size, type(size)))
+        if len(variable) not in size:
+            raise RuntimeError('Variable {} ({})has {} items not allowed by required {}'
+                               ''.format(var_name, variable, len(variable), size))
 
-    for i_var, var_i in enumerate(variable):
-        assert isinstance(var_i, allowed_type), '{}-th variable {} must be a {} but not a {}' \
-                                                ''.format(i_var, var_i, allowed_type, type(var_i))
+    # skip if no type check is specified
+    if allowed_type is not None:
+        for i_var, var_i in enumerate(variable):
+            assert isinstance(var_i, allowed_type), '{}-th variable {} must be a {} but not a {}' \
+                                                    ''.format(i_var, var_i, allowed_type, type(var_i))
+    # END-IF
 
     return
 

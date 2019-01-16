@@ -140,7 +140,7 @@ def test_with_mantid():
 
         idf_name = os.path.join(test_data_dir, 'Xray_HB2B_1K.xml')
 
-        hb2b_builder = reduce_hb2b_pyrs.BuildHB2B(num_rows, num_columns, pixel_size_x, pixel_size_y)
+        hb2b_builder = reduce_hb2b_pyrs.PyHB2BReduction(num_rows, num_columns, pixel_size_x, pixel_size_y)
 
     else:
         raise NotImplementedError('No instrument configuration given!')
@@ -259,7 +259,7 @@ def test_main():
         rot_y_flip = 0.
         rot_z_spin = 0.
 
-        hb2b_builder = reduce_hb2b_pyrs.BuildHB2B(num_rows, num_columns, pixel_size_x, pixel_size_y)
+        hb2b_builder = reduce_hb2b_pyrs.PyHB2BReduction(num_rows, num_columns, pixel_size_x, pixel_size_y)
         pixel_matrix = hb2b_builder.build_instrument(arm_length=arm_length, two_theta=-two_theta,
                                                      center_shift_x=center_shift_x, center_shift_y=center_shift_y,
                                                      rot_x_flip=rot_x_flip, rot_y_flip=rot_y_flip, rot_z_spin=0.)
