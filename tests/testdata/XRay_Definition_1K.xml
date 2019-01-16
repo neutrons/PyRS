@@ -17,16 +17,15 @@
     <location name="bank1">
       <parameter name="r-position">
 	      <value val='0.0'/>
-	      <!--logfile eq="1.0*value+0.950" id="cal::arm"/-->
       </parameter>
       <parameter name="t-position">
-        <logfile eq="value+0.0" id="cal:2theta"/>
+        <value val="0.0"/>
       </parameter>
       <parameter name="p-position">
         <value val="0.0"/>
       </parameter>
       <parameter name="roty">
-        <logfile val="0.0"/>
+        <logfile eq="value-85.0" id="cal::2theta"/>
       </parameter>
     </location>
   </component>
