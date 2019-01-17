@@ -1,7 +1,8 @@
 <?xml version='1.0' encoding='ASCII'?>
 <instrument xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.mantidproject.org/IDF/1.0" last-modified="2017-02-18 10:35:21.877396" name="HB3A" valid-from="2017-02-12 10:35:21" valid-to="2017-04-24 23:59:59" xsi:schemaLocation="http://www.mantidproject.org/IDF/1.0 http://schema.mantidproject.org/IDF/1.0/IDFSchema.xsd">
   <!--Created by Wenduo Zhou-->
-  <!--Modified from HB2B v4 For XRay Beamline -->
+  <!--Modified from HB2B v4 For XRay Beamline-->
+  <!--Corrected on Jan 17, 2010-->
   <!--SOURCE-->
   <component type="moderator">
     <location z="-2.678898"/>
@@ -25,7 +26,8 @@
         <value val="0.0"/>
       </parameter>
       <parameter name="roty">
-        <logfile eq="value-85.0" id="cal::2theta"/>
+	<!-- roty works as 2theta with experiment -->
+        <logfile eq="value+0.0" id="cal::2theta"/>
       </parameter>
     </location>
   </component>
@@ -53,7 +55,7 @@
 		  </location>
 	  </component>
   </type>
-  <type is="rectangular_detector" name="panel" type="pixel" xpixels="1024" xstart="0.2048" xstep="-0.0004000" ypixels="1024" ystart="-0.2048" ystep="0.0004000">
+  <type is="rectangular_detector" name="panel" type="pixel" xpixels="1024" xstart="0.2046" xstep="-0.0004000" ypixels="1024" ystart="-0.2046" ystep="0.0004000">
  </type>
   <type is="detector" name="pixel">
     <cuboid id="pixel-shape">

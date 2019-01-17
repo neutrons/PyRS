@@ -3,6 +3,10 @@ import numpy as np
 import numpy
 
 
+# TODO FIXME - NIGHT - This shall be a constant value in PyHB2BReduction class object
+DEFAULT_ARM_LENGTH = 0.416
+
+
 class PyHB2BReduction(object):
     """ A class to reduce HB2B data in pure Python and numpy
     """
@@ -134,11 +138,13 @@ class PyHB2BReduction(object):
         rot_y_matrix = self._cal_rotation_matrix_y(rot_y_rad)
         rot_z_matrix = self._cal_rotation_matrix_z(rot_z_rad)
 
+        print ('[DB...BAT] Rotation Matrix: X = {}, Y = {}, Z = {}'
+               ''.format(rot_x_rad, rot_y_rad, rot_z_rad))
         print (rot_x_matrix)
         print (rot_y_matrix)
         print (rot_z_matrix)
 
-        rotation_matrix =  rot_x_matrix * rot_y_matrix * rot_z_matrix
+        rotation_matrix = rot_x_matrix * rot_y_matrix * rot_z_matrix
 
         return rotation_matrix
 
@@ -212,11 +218,12 @@ def test_main():
         """
         pixel_matrix = hb2b_builder.build_instrument(arm_length=arm_length, two_theta=-two_theta,
                                                      center_shift_x=center_shift_x, center_shift_y=center_shift_y,
-                                                     rot_x_flip=rot_x_flip, rot_y_flip=rot_y_flip, rot_z_spin=0.)
+                                                     rot_x_flip=rot_x_flip, rot_y_flip=rot_y_flip,
+                                                     rot_z_spin=rot_z_spin)
 
         # set up sample logs
         # cal::arm
-        AddSampleLog(Workspace='hb2b', LogName='cal::arm', LogText='{}'.format(arm_length-0.95),
+        AddSampleLog(Workspace='hb2b', LogName='cal::arm', LogText='{}'.format(arm_length-DEFAULT_ARM_LENGTH),
                      LogType='Number Series', LogUnit='meter',
                      NumberType='Double')
         #
