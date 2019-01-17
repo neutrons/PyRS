@@ -210,16 +210,16 @@ def main(argv):
     idf_name = os.path.join('tests/testdata/', idf_name)
 
     # load instrument
-    arm_length = 0.416 + (-0.12)
-    two_theta = -60.
+    arm_length = 0.416 # + (-0.12)
+    two_theta =   -60.
  
     # calibration
-    rot_x_flip = 0.5
-    rot_y_flip = -30.
-    rot_z_spin = 1.0 #0.5
+    rot_x_flip = 10. 
+    rot_y_flip =  -30.
+    rot_z_spin = -4. #1.0 #0.5
 
-    center_shift_x = 0.  # 0.02
-    center_shift_y = 0. #-3.00 #-0.03
+    center_shift_x = 1.0 # 1.0
+    center_shift_y =  -3.00 #-0.03
 
     hb2b_pixel_matrix = load_instrument(hb2b_builder, arm_length, two_theta,
                                         center_shift_x, center_shift_y,

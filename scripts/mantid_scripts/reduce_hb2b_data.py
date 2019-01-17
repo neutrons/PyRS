@@ -24,6 +24,7 @@ def test_main():
 
     # set up data file and IDF
     if True:
+        # Test 1024
         test_file_name = os.path.join(test_data_dir, 'LaB6_10kev_35deg-00004_Rotated.bin')
         two_theta = 35.
 
