@@ -2,6 +2,9 @@ import sys
 from pyrs.core import reductionengine
 from pyrs.utilities import checkdatatypes
 
+# TODO - NIGHT  - Data reduction script!
+# TODO - FUTURE - Compatible for auto reduction
+
 
 def main(argv):
     """

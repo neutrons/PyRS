@@ -19,4 +19,6 @@ echo $PYTHONPATH
 # PYTHONPATH=build/lib:$PYTHONPATH $CMD build/scripts-2.7/peakfitgui_test.py
 # PYTHONPATH=build/lib:$PYTHONPATH $CMD build/scripts-2.7/polefigurecal_test.py
 # PYTHONPATH=build/lib:$PYTHONPATH $CMD build/scripts-2.7/straincalculationtest.py
-PYTHONPATH=build/lib:$PYTHONPATH $CMD build/scripts-2.7/test_reduced_hb2b.py 
+
+# PYTHONPATH=build/lib:$PYTHONPATH $CMD build/scripts-2.7/test_reduced_hb2b.py 
+PYTHONPATH=build/lib:$PYTHONPATH $CMD build/scripts-2.7/verify_instrument_builders.py

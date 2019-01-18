@@ -132,7 +132,8 @@ if __name__ == "__main__":
                     'tests/guitest/texturegui_test.py',
                     'tests/guitest/manualreduction_test.py',
                     'tests/guitest/strainstressgui_test.py',
-                    'tests/unittest/test_reduced_hb2b.py']
+                    'tests/unittest/test_reduced_hb2b.py',
+                    'tests/unittest/verify_instrument_builders.py']
     scripts.extend(test_scripts)
 
     setup(

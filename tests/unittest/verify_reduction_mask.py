@@ -6,9 +6,15 @@ from pyrs.core import reduce_hb2b_pyrs
 import os
 import matplotlib.pyplot as plt
 from mantid.simpleapi import LoadSpiceXML2DDet, Transpose, AddSampleLog, LoadInstrument, ConvertSpectrumAxis, ResampleX
-from mantid.simpleapi import CreateWorkspace, ConvertToPointData
+from mantid.simpleapi import CreateWorkspace, ConvertToPointData, SaveNexusProcessed, Multiply
 from mantid.api import AnalysisDataService as mtd
+from pyrs.utilities import file_utilities
 import time
+
+
+# TODO - NIGHT - Continue to verify the cases for all masks!
+# TODO         - Wait for hdf5/numpy binary mask files
+
 
 XRAY_ARM_LENGTH = 0.416
 
@@ -164,6 +170,18 @@ def load_data_from_tif(raw_tiff_name, pixel_size=2048, rotate=True):
     return data_ws_name, counts_vec
 
 
+def load_data_from_tif_ver2():
+    """
+    In [2]: import matplotlib.image
+    In [3]: import matplotlib.image
+    In [4]: matplotlib.image.imread
+    :return:
+    """
+    # TODO - NIGHT - Implement TIFF reader by using matplotlib
+    # TODO - TEST  - Compare this with skimage and PIL
+
+    raise NotImplementedError('ASAP')
+
 def load_data_from_bin(bin_file_name):
     """
     """
@@ -177,7 +195,8 @@ def load_data_from_bin(bin_file_name):
     return ws_name, count_vec
 
 
-def reduce_to_2theta(hb2b_builder, pixel_matrix, hb2b_data_ws_name, counts_vec, num_bins=1000):
+def reduce_to_2theta(hb2b_builder, pixel_matrix, hb2b_data_ws_name, counts_vec, mask_vec, mask_ws_name,
+                     num_bins=1000):
     """
     reduce to 2theta unit
     :param hb2b_builder:
@@ -191,15 +210,30 @@ def reduce_to_2theta(hb2b_builder, pixel_matrix, hb2b_data_ws_name, counts_vec, 
     # counts_vec = pyrs_raw_ws.readY(0)
 
     # reduce by pure-Python
+    # mask the input detector counts
+    if mask_vec is not None:
+        counts_vec.astype('float64')
+        mask_vec.astype('float64')  # mask vector shall be float64 already!
+        masked_count_vec = mask_vec * counts_vec
+        counts_vec = masked_count_vec
+    # END-IF
+
+    # reduce by pure-Python
     time_pyrs_start = time.time()
     pyrs_reduced_name = '{}_pyrs_reduced'.format(hb2b_data_ws_name)
     bin_edgets, histogram = hb2b_builder.reduce_to_2theta_histogram(pixel_matrix, counts_vec, num_bins)
+
     time_pyrs_mid = time.time()
+
     CreateWorkspace(DataX=bin_edgets, DataY=histogram, UnitX='degrees', OutputWorkspace=pyrs_reduced_name)
     ConvertToPointData(InputWorkspace=pyrs_reduced_name, OutputWorkspace=pyrs_reduced_name)
+
     time_pyrs_post = time.time()
     print ('PyRS Pure Python Reduction: Reduction Time = {}, Mantid post process time = {}'
            ''.format(time_pyrs_mid - time_pyrs_start, time_pyrs_post - time_pyrs_mid))
+
+    SaveNexusProcessed(InputWorkspace=pyrs_reduced_name, Filename='{}.nxs'.format(pyrs_reduced_name),
+                       Title='PyRS reduced: {}'.format(hb2b_data_ws_name))
 
     # Mantid
     if True:
@@ -207,16 +241,15 @@ def reduce_to_2theta(hb2b_builder, pixel_matrix, hb2b_data_ws_name, counts_vec, 
         two_theta_ws_name = '{}_2theta'.format(hb2b_data_ws_name)
         mantid_reduced_name = '{}_mtd_reduced'.format(hb2b_data_ws_name)
 
-        # For testing output
-        # ConvertSpectrumAxis(InputWorkspace=hb2b_data_ws_name,
-        #                     OutputWorkspace=two_theta_ws_name, Target='Theta',
-        #                     OrderAxis=True)
-        # Transpose(InputWorkspace=two_theta_ws_name, OutputWorkspace=two_theta_ws_name)
-        # two_theta_ws = mtd[two_theta_ws_name]
-        # for i in range(10):
-        #     print ('{}: x = {}, y = {}'.format(i, two_theta_ws.readX(0)[i], two_theta_ws.readY(0)[i]))
-        # for i in range(10010, 10020):
-        #     print ('{}: x = {}, y = {}'.format(i, two_theta_ws.readX(0)[i], two_theta_ws.readY(0)[i]))
+        # Mask
+        if mask_ws_name:
+            # Multiply by masking workspace
+            masked_ws_name = '{}_masked'.format(hb2b_data_ws_name)
+            Multiply(LHSWorkspace=hb2b_data_ws_name, RHSWorkspace=mask_ws_name,
+                     OutputWorkspace=masked_ws_name, ClearRHSWorkspace=False)
+            hb2b_data_ws_name = masked_ws_name
+            SaveNexusProcessed(InputWorkspace=hb2b_data_ws_name, Filename='{}_raw.nxs'.format(hb2b_data_ws_name))
+        # END-IF
 
         ConvertSpectrumAxis(InputWorkspace=hb2b_data_ws_name, OutputWorkspace=two_theta_ws_name, Target='Theta')
         Transpose(InputWorkspace=two_theta_ws_name, OutputWorkspace=two_theta_ws_name)
@@ -224,117 +257,36 @@ def reduce_to_2theta(hb2b_builder, pixel_matrix, hb2b_data_ws_name, counts_vec, 
                   NumberBins=num_bins, PreserveEvents=False)
         mantid_ws = mtd[mantid_reduced_name]
 
+        SaveNexusProcessed(InputWorkspace=mantid_reduced_name, Filename='{}.nxs'.format(mantid_reduced_name),
+                           Title='Mantid reduced: {}'.format(hb2b_data_ws_name))
+
         plt.plot(mantid_ws.readX(0), mantid_ws.readY(0), color='blue', label='Mantid')
 
         diff_y_vec = histogram - mantid_ws.readY(0)
         print ('Min/Max Diff = {} , {}'.format(min(diff_y_vec), max(diff_y_vec)))
     # END-IF
 
-    pyrs_ws = mtd[pyrs_reduced_name]
-    plt.plot(pyrs_ws.readX(0), histogram, color='red', label='Pure Python')
+    plt.plot(bin_edgets[:-1], histogram, color='red', label='Pure Python')
+
     plt.show()
 
     return
 
 
-def test_main():
+def create_mask(mantid_mask_xml, pixel_number, is_mask):
     """
-    test main
+    create Mask vector and workspace
+    :param mantid_mask_xml:
+    :param pixel_number: total pixel number
     :return:
     """
-    raise NotImplementedError('Not used!  Replaced by test_with_mantid')
-    rs_core = pyrscore.PyRsCore()
+    masking_array = file_utilities.load_mantid_mask(pixel_number, mantid_mask_xml, is_mask)
 
-    # Determine PyRS root
-    pyrs_root_dir = os.path.abspath('.')
-    test_data_dir = os.path.join(pyrs_root_dir, 'tests/testdata/')
-    assert os.path.exists(test_data_dir), 'Test data directory {} does not exist'.format(test_data_dir)
+    mask_ws_name = os.path.basename(mantid_mask_xml).split('.')[0]
 
-    # Instrument factor
-    row_col_size = 1024
-    wavelength_kv = 1.E5  # kev
-    wavelength = 1.296  # A
+    CreateWorkspace(DataX=[0], DataY=masking_array, NSpec=pixel_number, OutputWorkspace=mask_ws_name)
 
-    Beam_Center_X = 0.000805
-    Beam_Center_Y = -0.006026
-
-    # set up data file and IDF
-    if True:
-        test_file_name = os.path.join(test_data_dir, 'LaB6_10kev_35deg-00004_Rotated.bin')
-        two_theta = 35.
-
-    if False:
-        test_file_name = os.path.join(test_data_dir, 'LaB6_10kev_0deg-00000_Rotated.bin')
-        two_theta = 0.
-
-    hb2b_file_name = os.path.join(pyrs_root_dir, test_file_name)
-    # instrument geometry
-    idf_name = os.path.join(test_data_dir, 'XRay_Definition_1K.xml')
-
-    # Load data
-    raw_data_ws_name = os.path.basename(hb2b_file_name).split('.')[0]
-    LoadSpiceXML2DDet(Filename=hb2b_file_name, OutputWorkspace=raw_data_ws_name, DetectorGeometry='0,0',
-                      LoadInstrument=False)
-    Transpose(InputWorkspace=raw_data_ws_name, OutputWorkspace=raw_data_ws_name)
-    raw_data_ws = mtd[raw_data_ws_name]
-
-    # if False:
-    #     # old Mantid based type
-    #     # Set up instrument geometry parameter
-    #     load_instrument(raw_data_ws_name, idf_name, two_theta, cal_shift_x, cal_shift_y)
-    #     reduced_ws_name = convert_to_2theta(raw_data_ws_name)
-
-    xray_1k = True
-    xray_2k = False
-    hb2b_1k = False
-    num_bins = 1000
-
-    if xray_1k:
-        # numpy array based script
-        # build instrument
-        num_rows = 1024
-        num_columns = 1024
-        pixel_size_x = 0.00029296875
-        pixel_size_y = 0.00029296875
-        arm_length = 0.416
-
-        center_shift_x = 0.000805
-        center_shift_y = -0.006026
-        rot_x_flip = 0.
-        rot_y_flip = 0.
-        rot_z_spin = 0.
-
-        hb2b_builder = reduce_hb2b_pyrs.PyHB2BReduction(num_rows, num_columns, pixel_size_x, pixel_size_y)
-        pixel_matrix = hb2b_builder.build_instrument(arm_length=arm_length, two_theta=-two_theta,
-                                                     center_shift_x=center_shift_x, center_shift_y=center_shift_y,
-                                                     rot_x_flip=rot_x_flip, rot_y_flip=rot_y_flip, rot_z_spin=0.)
-        bin_edgets, histograms = hb2b_builder.reduce_to_2theta_histogram(pixel_matrix, raw_data_ws.readY(0), num_bins)
-
-    elif xray_2k:
-        raise NotImplementedError('No there yet!')
-
-    else:
-        raise RuntimeError('Nothing to test with!')
-    # END-IF
-
-    # plot
-    vec_x = bin_edgets[:-1]
-    vec_y = histograms
-    plt.plot(vec_x, vec_y)
-
-    # reduced_ws = mtd[reduced_ws_name]
-    # vec_x = reduced_ws.readX(0)
-    # vec_y = reduced_ws.readY(0)
-    # plt.plot(vec_x, vec_y)
-    #
-    # non_norm_ws = mtd[raw_data_ws_name]
-    # vec_x_nn = non_norm_ws.readX(0)
-    # vec_y_nn = non_norm_ws.readY(0) / 1000.
-    # plt.plot(vec_x_nn, vec_y_nn)
-
-    plt.show()
-
-    return
+    return masking_array, mask_ws_name
 
 
 def main(argv):
@@ -344,8 +296,12 @@ def main(argv):
     """
     import random
 
+    # load masks
+    temp_list = ['Chi_0_Mask.xml', 'Chi_10_Mask.xml',
+                 'Chi_20_Mask.xml', 'Chi_30_Mask.xml', 'NegZ_Mask.xml']
+    mask_xml_list = [os.path.join('tests/testdata/masks', xml_name) for xml_name in temp_list]
+
     # Init setup for instrument geometry
-    pixel_length = 1024
     pixel_length = 2048
 
     # Determine PyRS root and load data
@@ -353,19 +309,8 @@ def main(argv):
     test_data_dir = os.path.join(pyrs_root_dir, 'tests/testdata/')
     assert os.path.exists(test_data_dir), 'Test data directory {} does not exist'.format(test_data_dir)
 
-    # set up data file and IDF
-    if pixel_length == 1024:
-        test_file_name = os.path.join(test_data_dir, 'LaB6_10kev_35deg-00004_Rotated.bin')
-        two_theta = 35.
-        hb2b_ws_name, hb2b_count_vec = load_data_from_bin(test_file_name)
-
-        num_rows = 2048/2
-        num_columns = 2048/2
-        pixel_size_x = 0.00020*2
-        pixel_size_y = 0.00020*2
-        idf_name = 'XRay_Definition_1K.xml'
-
-    elif pixel_length == 2048:
+    # Load data file and set up IDF
+    if pixel_length == 2048:
         test_file_name = os.path.join(test_data_dir, 'LaB6_10kev_35deg-00004_Rotated.tif')
         two_theta = 35.
         hb2b_ws_name, hb2b_count_vec = load_data_from_tif(test_file_name, pixel_length)
@@ -377,87 +322,53 @@ def main(argv):
         idf_name = 'XRay_Definition_2K.xml'
 
     else:
-        raise NotImplementedError('No test file given!')
+        raise NotImplementedError('Masking only support 2048 x 2048 case (not {})'.format(pixel_length))
+
+    # Masking
+    masking_list = list()   # tuple: mask array and mask workspace
+    if pixel_length == 2048:
+        for mask_xml in mask_xml_list:
+            if 'Chi_0' in mask_xml:
+                is_mask = True
+                print ('mask {} with is_mask = True'.format(mask_xml))
+            else:
+                is_mask = False
+            mask_array, mask_ws_name = create_mask(mask_xml, pixel_length ** 2, is_mask)
+            masking_list.append((mask_array, mask_ws_name))
+    else:
+        raise NotImplementedError('Masking only support 2048 x 2048 case (not {})'.format(pixel_length))
 
     # create HB2B-builder (python)
     hb2b_builder = reduce_hb2b_pyrs.PyHB2BReduction(num_rows, num_columns, pixel_size_x, pixel_size_y)
     # set up IDF (Mantid)
     idf_name = os.path.join('tests/testdata/', idf_name)
 
-    # load instrument
-    for iter in range(1):
+    # Build and load instrument
+    random.seed(1)
+    arm_length = 0.416 + (random.random() - 0.5) * 2.0
 
-        arm_length = 0.416 + (random.random() - 0.5) * 2.0
-        # two_theta = -80 + (random.random() - 0.5) * 20.
+    # calibration
+    rot_x_flip = 2.0 * (random.random() - 0.5) * 2.0
+    rot_y_flip = 2.0 * (random.random() - 0.5) * 2.0
+    rot_z_spin = 2.0 * (random.random() - 0.5) * 2.0
 
-        # calibration
-        rot_x_flip = 2.0 * (random.random() - 0.5) * 2.0
-        rot_y_flip = 2.0 * (random.random() - 0.5) * 2.0
-        rot_z_spin = 2.0 * (random.random() - 0.5) * 2.0
+    center_shift_x = 1.E-3 * (random.random() - 0.5) * 2.0
+    center_shift_y = 1.E-3 * (random.random() - 0.5) * 2.0
 
-        center_shift_x = 1.0 * (random.random() - 0.5) * 2.0
-        center_shift_y = 1.0 * (random.random() - 0.5) * 2.0
+    hb2b_pixel_matrix = load_instrument(hb2b_builder, arm_length, two_theta,
+                                        center_shift_x, center_shift_y,
+                                        rot_x_flip, rot_y_flip, rot_z_spin,
+                                        hb2b_ws_name, idf_name, pixel_length)
 
-        hb2b_pixel_matrix = load_instrument(hb2b_builder, arm_length, two_theta,
-                                            center_shift_x, center_shift_y,
-                                            rot_x_flip, rot_y_flip, rot_z_spin,
-                                            hb2b_ws_name, idf_name, pixel_length)
+    for mask_index in [0]:
+        mask_array, mask_ws_name = masking_list[mask_index]
+        reduce_to_2theta(hb2b_builder, hb2b_pixel_matrix, hb2b_ws_name, hb2b_count_vec,
+                         mask_array, mask_ws_name, num_bins=2500)
 
         # reduce data
-        reduce_to_2theta(hb2b_builder, hb2b_pixel_matrix, hb2b_ws_name, hb2b_count_vec)
+        reduce_to_2theta(hb2b_builder, hb2b_pixel_matrix, hb2b_ws_name, hb2b_count_vec,
+                         mask_array, mask_ws_name, num_bins=2500)
     # END-FOR
-
-    # # Load data
-    # if True:
-    #     # load data from SPICE binary
-    #     raw_data_ws_name = os.path.basename(test_file_name).split('.')[0]
-    #     LoadSpiceXML2DDet(Filename=test_file_name, OutputWorkspace=raw_data_ws_name, DetectorGeometry='0,0',
-    #                       LoadInstrument=False)
-    #     # get data Y (counts) for PyRS reduction
-    #     pyrs_raw_name = '{}_pyrs'.format(raw_data_ws_name)
-    #     Transpose(InputWorkspace=raw_data_ws_name, OutputWorkspace=pyrs_raw_name)
-    # else:
-    #     raise NotImplementedError('Next: Load data from image file')
-    #
-    # # Instrument factor
-    # wavelength_kv = 1.E5  # kev
-    # wavelength = 1.296  # A
-    #
-    # Beam_Center_X = 0.000805
-    # Beam_Center_Y = -0.006026
-    #
-    # xray_1k = True
-    # xray_2k = False
-    # hb2b_1k = False
-    #
-    # num_bins = 1000
-    #
-    # if xray_1k:
-    #     # numpy array based script
-    #     # build instrument
-    #     num_rows = 1024
-    #     num_columns = 1024
-    #     pixel_size_x = 0.00040
-    #     pixel_size_y = 0.00040
-    #     arm_length = 0.416
-    #
-    #     rot_x_flip = 0.
-    #     rot_y_flip = 0.
-    #     rot_z_spin = 0.
-    #
-    #     idf_name = os.path.join(test_data_dir, 'Xray_HB2B_1K.xml')
-    #
-    #     hb2b_builder = reduce_hb2b_pyrs.PyHB2BReduction(num_rows, num_columns, pixel_size_x, pixel_size_y)
-    #
-    # else:
-    #     raise NotImplementedError('No instrument configuration given!')
-    #
-    # # Load instrument and convert to 2Theta
-    # hb2b_pixel = build_instrument(hb2b_builder, arm_length, two_theta, Beam_Center_X, Beam_Center_Y,
-    #                               rot_x_flip, rot_y_flip, rot_z_spin, raw_data_ws_name, idf_name=idf_name)
-    #
-    # # reduce data
-    # reduce_to_2theta(hb2b_builder, hb2b_pixel, raw_data_ws_name, pyrs_raw_name)
 
     return
 

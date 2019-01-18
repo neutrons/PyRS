@@ -106,11 +106,15 @@ def load_instrument(hb2b_builder, arm_length, two_theta=0., center_shift_x=0., c
             pos_mantid = workspace.getDetector(index1d).getPos()
             print ('({}, {} / {}):   {:10s}   -   {:10s}    =   {:10s}'
                    ''.format(index_i, index_j, index1d, 'PyRS', 'Mantid', 'Diff'))
+            diff_sq = 0.
             for i in range(3):
+                diff_sq += (float(pos_python[i] - pos_mantid[i]))**2
                 print ('dir {}:  {:10f}   -   {:10f}    =   {:10f}'
                        ''.format(i, float(pos_python[i]), float(pos_mantid[i]),
                                  float(pos_python[i] - pos_mantid[i])))
             # END-FOR
+            if diff_sq > 1.E-6:
+                raise RuntimeError('Mantid PyRS mismatch!')
         # END-FOR
     # END-IF
 
@@ -179,11 +183,14 @@ def main(argv):
     :param argv:
     :return:
     """
+    import random
+
     # Init setup for instrument geometry
     pixel_length = 1024
+    pixel_length = 2048
 
     # Data
-    if False:
+    if pixel_length == 2048:
         image_file = 'tests/testdata/LaB6_10kev_35deg-00004_Rotated.tif'
         hb2b_ws_name, hb2b_count_vec = load_data_from_tif(image_file, pixel_length)
     else:
@@ -196,7 +203,7 @@ def main(argv):
         num_columns = 2048
         pixel_size_x = 0.00020
         pixel_size_y = 0.00020
-        idf_name = 'Xray_HB2B_2K.xml'
+        idf_name = 'XRay_Definition_2K.xml'
     elif pixel_length == 1024:
         num_rows = 2048/2
         num_columns = 2048/2
@@ -210,21 +217,24 @@ def main(argv):
     idf_name = os.path.join('tests/testdata/', idf_name)
 
     # load instrument
-    arm_length = 0.416 # + (-0.12)
-    two_theta =   -60.
- 
-    # calibration
-    rot_x_flip = 10. 
-    rot_y_flip =  -30.
-    rot_z_spin = -4. #1.0 #0.5
+    for iter in range(10):
 
-    center_shift_x = 1.0 # 1.0
-    center_shift_y =  -3.00 #-0.03
+        arm_length = 0.416 + (random.random() - 0.5) * 2.0
+        two_theta = -80 + (random.random() - 0.5) * 20.
 
-    hb2b_pixel_matrix = load_instrument(hb2b_builder, arm_length, two_theta,
-                                        center_shift_x, center_shift_y,
-                                        rot_x_flip, rot_y_flip, rot_z_spin,
-                                        hb2b_ws_name, idf_name, pixel_length)
+        # calibration
+        rot_x_flip = 2.0 * (random.random() - 0.5) * 2.0
+        rot_y_flip = 2.0 * (random.random() - 0.5) * 2.0
+        rot_z_spin = 2.0 * (random.random() - 0.5) * 2.0
+
+        center_shift_x = 1.0 * (random.random() - 0.5) * 2.0
+        center_shift_y = 1.0 * (random.random() - 0.5) * 2.0
+
+        hb2b_pixel_matrix = load_instrument(hb2b_builder, arm_length, two_theta,
+                                            center_shift_x, center_shift_y,
+                                            rot_x_flip, rot_y_flip, rot_z_spin,
+                                            hb2b_ws_name, idf_name, pixel_length)
+    # END-FOR
 
 
 if __name__ == '__main__':
