@@ -320,8 +320,6 @@ def main(argv):
                                         rot_x_flip, rot_y_flip, rot_z_spin,
                                         hb2b_ws_name, idf_name, pixel_length)
 
-    raise
-
     for mask_index in [0]:
         mask_array, mask_ws_name = masking_list[mask_index]
         reduce_to_2theta(hb2b_builder, hb2b_pixel_matrix, hb2b_ws_name, hb2b_count_vec,
