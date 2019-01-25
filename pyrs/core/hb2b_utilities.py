@@ -5,47 +5,6 @@ import file_utilities
 
 
 
-class CalibrationManager(object):
-    """
-    A class to handle all the calibration files
-    calibration shall be related to date (run cycle), wave length and etc
-    """
-    def __init__(self,  calib_lookup_table_file=None):
-        """
-        initialization for calibration manager
-        :param calib_lookup_table_file: calibration table file to in order not to scan the disk and save time
-        """
-        self._cal_dict = dict()  # dict[wavelength, date] = param_dict
-                                 # param_dict[motor position] = calibrated value
-
-        return
-
-    def get_calibration(self, ipts_number, run_number):
-        """ get calibration in memory
-        :param ipts_number:
-        :param run_number:
-        :return:
-        """
-        return
-
-    def locate_calibration_file(self, ipts_number, run_number):
-        """
-
-        :param ipts_number:
-        :param run_number:
-        :return:
-        """
-        return
-
-    def show_calibration_table(self):
-        """
-
-        :return:
-        """
-
-
-# END-DEF-CLASS (CalibrationManager)
-
 
 def get_hb2b_raw_data(ipts_number, exp_number):
     """
@@ -63,3 +22,45 @@ def get_hb2b_raw_data(ipts_number, exp_number):
     checkdatatypes.check_file_name(raw_exp_file_name, check_exist=True, check_writable=False, is_dir=False)
 
     return raw_exp_file_name
+
+
+def is_calibration_dir(cal_sub_dir_name):
+    """
+    check whether the directory name is an allowed calibration directory name for HB2B
+    :param cal_sub_dir_name:
+    :return:
+    """
+    checkdatatypes.check_file_name(cal_sub_dir_name, check_exist=True, check_writable=False,
+                                   is_dir=True, description='Directory for calibration files')
+
+    dir_base_name = os.path.basename(cal_sub_dir_name)
+    return dir_base_name in hb2b_setup
+
+
+def scan_calibration_in_archive():
+    """
+    search the archive (/HFIR/HB2B/shared/CALIBRATION/) to create a table,
+    which can be used to write the calibration information file
+    :return:
+    """
+    calib_info_table = dict()
+
+    calib_root_dir = '/HFIR/HB2B/CALIBRATION/'
+
+    wavelength_dir_names = os.listdir(calib_root_dir)
+    for wavelength_dir in wavelength_dir_names:
+        # skip non-relevant directories
+        wavelength_dir = os.path.join(calib_root_dir, wavelength_dir)
+        if not is_calibration_dir(wavelength_dir):
+            continue
+
+        calib_info_table[wavelength_dir] = dict()
+        cal_file_names = os.listdir(wavelength_dir)
+        for cal_file_name in cal_file_names:
+            calib_date = ResidualStressCalibrationFile(cal_file_name).retrieve_calibration_date()
+            calib_info_table[wavelength_dir][calib_date] = cal_file_name
+        # END-FOR
+    # END-FOR
+
+    return calib_info_table
+
