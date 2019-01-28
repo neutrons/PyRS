@@ -1,4 +1,5 @@
 # Zoo of methods to work with masks including Mantid and PyRS special
+from pyrs.utilities import checkdatatypes
 
 
 def load_mantid_mask(pixel_number, mantid_mask_xml, is_mask):
@@ -61,3 +62,25 @@ def load_mantid_mask(pixel_number, mantid_mask_xml, is_mask):
            ''.format(masked_specs, sum(masking_array)))
 
     return masking_array
+
+
+def load_pyrs_mask(mask_h5):
+    """ Load an HDF5 mask file
+    :param mask_h5:
+    :return:
+    """
+    # TODO - SOON - Find out a good format of HDF5 for mask
+
+    return
+
+
+def save_mantid_mask(mask_vec,  h5_name):
+    """
+
+    :param mask_vec:
+    :param h5_name:
+    :return:
+    """
+    # TODO - SOON - Find out a good format of HDF5 for mask
+
+    return
