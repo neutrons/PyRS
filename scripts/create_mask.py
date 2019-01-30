@@ -16,6 +16,7 @@
 #   2. create_mask --mask=mask_1.h5  --mask=mask2.xml  --operation='and'  --output=upper.h5  --show=1
 #
 import sys
+from math import sqrt
 from pyrs.utilities import checkdatatypes
 from pyrs.core import mask_util
 import os
@@ -30,7 +31,7 @@ class MaskProcessApp(object):
         """ Initialization as number of pixel
         :param num_pixels:
         """
-        checkdatatypes.check_int_variable('Detector pixel number', num_pixels, (1024**2, 2048**2))
+        checkdatatypes.check_int_variable('Detector pixel number', num_pixels, (1024**2, 2048**2+1))
 
         self._num_pixels = num_pixels
         self._mask_array_dict = dict()
@@ -103,7 +104,7 @@ class MaskProcessApp(object):
         # import file
         if roi_file_name.lower().endswith('.xml'):
             # XML  file name
-            roi_vec = mask_util.load_mantid_mask(roi_file_name, self._num_pixels, is_mask=False)
+            roi_vec = mask_util.load_mantid_mask(self._num_pixels, roi_file_name, is_mask=False)
         elif roi_file_name.lower().endswith('.h5') or roi_file_name.lower().ends('.hdf5'):
             roi_vec = mask_util.load_pyrs_mask(roi_file_name)
         else:
@@ -184,13 +185,19 @@ class MaskProcessApp(object):
         :return:
         """
         mask_vec = self._mask_array_dict[mask_id]
+        num_pixels = mask_vec.shape[0]
 
-        num_masked = mask_vec.shape[0] - mask_vec.sum()
-        print ('{}: Pixel number = {}, Number of masked pixels = {}'.format(mask_id, mask_vec.shape[0],
-                                                                            num_masked))
+        num_masked = num_pixels - mask_vec.sum()
+        print ('{}: Pixel number = {}, Number of masked pixels = {}: {}% are Masked.'
+               ''.format(mask_id, mask_vec.shape[0], num_masked, num_masked * 100. / num_pixels))
 
-        vec_x = numpy.arange(0, mask_vec.shape[0])
-        plt.plot(vec_x, mask_vec, label=mask_id)
+        # convert to 2D
+        linear_size = int(sqrt(num_pixels))
+        mask_2d_vec = mask_vec.reshape((linear_size, linear_size))
+        plt.imshow(mask_2d_vec)
+
+        # vec_x = numpy.arange(0, mask_vec.shape[0])
+        # plt.plot(vec_x, mask_vec, label=mask_id)
         plt.show()
 
         return num_masked
@@ -212,12 +219,13 @@ def main(argv):
     if result is None:
         sys.exit(1)
     else:
-        roi_file_list, mask_file_list, two_theta, operation, note, out_file = result
+        roi_file_list, mask_file_list, operation, two_theta, note, out_file = result
 
     # operation
     mask_processor = MaskProcessApp(num_pixels)
 
     # import files
+    print ('[DB...BAT] ROI files (flag2): {}'.format(roi_file_list))
     for roi_file in roi_file_list:
         mask_processor.import_roi_file(roi_file)
     for mask_file in mask_file_list:
@@ -236,6 +244,8 @@ def main(argv):
         if note is None:
             note = 'Converted to PyRS mask/roi from {}'.format(mask_id)
         mask_processor.export_mask(mask_id, out_file, note)   # all masks
+
+        mask_processor.show_mask(mask_id)
 
     elif operation == 'reverse':
         mask_id_list = mask_processor.get_mask_ids()
@@ -319,6 +329,8 @@ def parse_input_arguments(argv):
 
     if is_help:
         return None
+
+    print ('[DB...BAT] ROI files: {}'.format(roi_file_list))
 
     return roi_file_list, mask_file_list, operation, two_theta, note, out_file_name
 

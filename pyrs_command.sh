@@ -37,8 +37,8 @@ fi
 echo "User option: $1"
 
 if [ "$1" = "1" ] || [ "$1" = "mask" ] ; then
-	echo "Process masks/ROIs"
-        PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/create_mask.py $CMDS
+    echo "Process masks/ROIs"
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/create_mask.py $CMDS
 fi
 
 if [ "$1" = "2" ] || [ "$1" = "reduce" ]  ; then
@@ -46,8 +46,11 @@ if [ "$1" = "2" ] || [ "$1" = "reduce" ]  ; then
         # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH build/scripts-2.7/idl_chop_test.py
 fi
 
-if [ "$1" = "3" ] || [ "$1" = "all" ] ; then
-	echo "Not defined"
-        # PYTHONPATH=build/lib:$PYTHONPATH build/scripts-2.7/idl_view_test.py
+if [ "$1" = "3" ] || [ "$1" = "masktest" ] ; then
+	echo "Testing Mask"
+	TestArgs="--roi=tests/testdata/masks/Chi_0_Mask.xml --output=Chi_0.hdf5 --operation=reverse --2theta=35."
+	PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/create_mask.py $TestArgs
+	# --roi=tests/testdata/masks/Chi_0_Mask.xml --output=tests/testdata/masks/Chi_0.hdf5
+
 fi
 
