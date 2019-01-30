@@ -1,9 +1,106 @@
+#!/usr/bin/python
 import sys
+import os
 from pyrs.core import reductionengine
 from pyrs.utilities import checkdatatypes
+from pyrs.core import calibration_file_io
+from pyrs.core import mask_util
 
-# TODO - NIGHT  - Data reduction script!
-# TODO - FUTURE - Compatible for auto reduction
+
+class ReductionApp(object):
+    """
+    Data reduction application
+    """
+    def __init__(self):
+        """
+        initialization
+        """
+        self._use_mantid_engine = False
+        self._reduction_engine = reductionengine.HB2BReductionManager()
+
+        return
+
+    def set_geometry_configuration(self, configuration_file):
+        """
+
+        :param configuration_file:
+        :return:
+        """
+        if configuration_file.lower().endswith('.h5'):
+            geometry_config = calibration_file_io.import_calibration_info_file(configuration_file)
+            two_theta = arm_length = None
+        else:
+            returns = calibration_file_io.import_calibration_ascii_file(configuration_file)
+            two_theta, arm_length, geometry_config = returns
+
+        return two_theta, arm_length, geometry_config
+
+    @property
+    def use_mantid_engine(self):
+        """
+
+        :return:
+        """
+        return self._use_mantid_engine
+
+    @use_mantid_engine.setter
+    def use_mantid_engine(self, value):
+        """ set flag to use mantid reduction engine (True) or PyRS reduction engine (False)
+        :param value:
+        :return:
+        """
+        checkdatatypes.check_bool_variable('Flag to use Mantid as reduction engine', value)
+
+        self._use_mantid_engine = value
+
+        return
+
+    def reduce(self, data_file, output, insturment_file, calibration_file, mask_file=None):
+        """ Reduce data
+        :param data_file:
+        :param output:
+        :param insturment_file:
+        :param calibration_file:
+        :param mask_file:
+        :return:
+        """
+        checkdatatypes.check_file_name(data_file, True, False, False, description='Input source data file')
+        checkdatatypes.check_string_variable('Output file/directory', output)
+
+        if os.path.exists(output) and os.path.isdir(output):
+            # user specifies a directory
+            base_name = os.path.basename(data_file).split('.')[0]
+            output_file_name = os.path.join(output, '{}.h5'.format(base_name))
+            if output_file_name == data_file:
+                raise RuntimeError('Default output file name is exactly as same as input file name {}'
+                                   ''.format(data_file))
+        else:
+            output_file_name = output
+        checkdatatypes.check_file_name(output_file_name, False, True, False, 'Output reduced hdf5 file')
+
+        # mask file
+        if mask_file is not None:
+            mask_vec, two_theta, note = mask_util.load_pyrs_mask(mask_file)
+        else:
+            mask_vec = None
+
+        # load data
+        data_id = self._reduction_engine.load_data(data_file, target_dimension=2048,
+                                                   load_to_workspace=self._use_mantid_engine)
+
+        # load instrument
+        self._reduction_engine.load_instrument_setup(insturment_file)
+        self._reduction_engine.load_calibration(calibration_file)
+
+        # reduce
+        self._reduction_engine.reduce_to_2theta(data_id, output_file_name, self._use_mantid_engine, mask_vec)
+
+
+        reduction_engine.reduce_rs_nexus(source_data_file, auto_mapping_check=True, output_dir=output_dir,
+                                         do_calibration=True,
+                                         allow_calibration_unavailable=True)
+
+        return
 
 
 def main(argv):
@@ -12,22 +109,66 @@ def main(argv):
     :param argv:
     :return:
     """
-    if len(argv) != 3:
-        print('Auto-reducing HB2B: {} [NeXus File Name] [Target Directory]'.format(argv[0]))
+    if len(argv) < 3:
+        print ('Auto-reducing HB2B: {} [NeXus File Name] [Target Directory] [--instrument=xray_setup.txt]'
+               '[--calibration=xray_calib.txt] [--mask=mask.h5] [--engine=engine]'.format(argv[0]))
+        print ('--instrument:   instrument configuration file (arm, pixel number and size')
+        print ('--calibration:  instrument geometry calibration file')
+        print ('--mask:         masking file (PyRS hdf5 format)')
+        print ('--engine:       mantid or pyrs.  default is pyrs')
         sys.exit(-1)
 
     # parse input & check
-    nexus_name = argv[1]
+    source_data_file = argv[1]
     output_dir = argv[2]
-    checkdatatypes.check_file_name(nexus_name, True, False, False, description='NeXus file name')
-    checkdatatypes.check_file_name(output_dir, True, True, True, description='Auto reduction output')
+
+    # parse the other options
+    inputs_option_dict = parse_inputs(argv[3:])
 
     # call for reduction
-    reduction_engine = reductionengine.ReductionEngine()
-    reduction_engine.reduce_rs_nexus(nexus_name, auto_mapping_check=True, output_dir=output_dir, do_calibration=True,
-                                     allow_calibration_unavailable=True)
+    reducer = ReductionApp()
+
+    if inputs_option_dict['engine'] == 'mantid':
+        reducer.use_mantid_engine = True
+    else:
+        reducer.use_mantid_engine = False
+
+    reducer.reduce(data_file=source_data_file, output=output_dir,
+                   insturment_file=inputs_option_dict['instrument'],
+                   calibration_file=inputs_option_dict['calibration'],
+                   mask_file=inputs_option_dict['mask'])
+
+    reducer.plot_reduced_data()
 
     return
+
+
+def parse_inputs(arg_list):
+    """
+    parse input argument
+    :param arg_list:
+    :return:
+    """
+    arg_options = {'instrument': None,
+                   'calibration': None,
+                   'mask': None}
+
+    for arg_i in arg_list:
+        terms = arg_i.split('=')
+        arg_name_i = terms[0].strip().lower()
+        arg_value_i = terms[1].strip()
+
+        if arg_name_i == '--instrument':
+            arg_options['instrument'] = arg_value_i
+        elif arg_name_i == '--calibration':
+            arg_options['calibration'] = arg_value_i
+        elif arg_name_i == '--mask':
+            arg_options['mask'] = arg_value_i
+        else:
+            raise RuntimeError('Argument {} is not recognized and not supported.'.format(arg_name_i))
+    # END-FOR
+
+    return arg_options
 
 
 if __name__ == '__main__':

@@ -1,4 +1,5 @@
 # Zoo of methods to work with raw data input and output of processed data
+raise NotImplementedError('This module may not be used at all')
 
 
 def load_data_from_tif(raw_tiff_name, pixel_size=2048, rotate=True):
@@ -42,30 +43,6 @@ def load_data_from_tif(raw_tiff_name, pixel_size=2048, rotate=True):
                     OutputWorkspace=data_ws_name, VerticalAxisUnit='SpectraNumber')
 
     return data_ws_name, counts_vec
-
-
-def load_data_from_tif_ver2():
-    """ Use matplotlib import TIFF
-    :return:
-    """
-    # TODO - NIGHT - Implement version 2 as the main TIFF reader for test on analysis cluster
-    data = matplotlib.image.imread(tiff_name)
-    data.astype(np.int32)
-
-    return
-
-
-def load_data_from_bin(bin_file_name):
-    """
-    """
-    ws_name = os.path.basename(bin_file_name).split('.')[0]
-    LoadSpiceXML2DDet(Filename=bin_file_name, OutputWorkspace=ws_name, LoadInstrument=False)
-
-    # get vector of counts
-    counts_ws = Transpose(InputWorkspace=ws_name, OutputWorkspace='temp')
-    count_vec = counts_ws.readY(0)
-
-    return ws_name, count_vec
 
 
 def save_mantid_nexus(workspace_name, file_name, title=''):

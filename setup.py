@@ -123,7 +123,7 @@ if __name__ == "__main__":
     """
     main
     """
-    scripts = ['scripts/pyrsplot', 'scripts/pyrscalibration.py']
+    scripts = ['scripts/pyrsplot', 'scripts/pyrscalibration.py', 'scripts/create_mask.py']
     test_scripts = ['tests/unittest/pyrs_core_test.py',
                     'tests/unittest/utilities_test.py',
                     'tests/unittest/polefigurecal_test.py',
@@ -133,7 +133,7 @@ if __name__ == "__main__":
                     'tests/guitest/manualreduction_test.py',
                     'tests/guitest/strainstressgui_test.py',
                     'tests/unittest/test_reduced_hb2b.py',
-                    'tests/unittest/verify_instrument_builders.py']
+                    'tests/unittest/instrument_geometry_test.py']
     scripts.extend(test_scripts)
 
     setup(

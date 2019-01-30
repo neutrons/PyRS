@@ -1,11 +1,15 @@
 # Reduction engine including slicing
 import os
 import numpy as np
+import matplotlib.image
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities import hb2b_utilities
 from pyrs.utilities import file_utilities
+from pyrs.core import calibration_file_io
 from pyrs.core import scandataio
-from mantid.simpleapi import CreateWorkspace
+from pyrs.core import reduce_hb2b_mtd
+from pyrs.core import reduce_hb2b_pyrs
+from mantid.simpleapi import CreateWorkspace, LoadSpiceXML2DDet, Transpose, LoadEventNexus, CovertToMatrix
 
 
 class HB2BReductionManager(object):
@@ -22,47 +26,115 @@ class HB2BReductionManager(object):
         # calibration manager
         self._calibration_manager = hb2b_utilities.CalibrationManager()
 
+        # workspace name or array vector
+        self._data_dict = dict()
+
         # number of bins
-        self._num_bins = 1000
+        self._num_bins = 2500
+
+        # instrument setup (for non NeXus input)
+        self._instrument = None
+        # calibration
+        self._geometry_calibration = None
 
         return
 
-    def load_data(self, data_file_name, target_dimension=None):
+    @staticmethod
+    def _generate_ws_name(file_name, is_nexus):
+        ws_name = os.path.basename(file_name).split('.')[0]
+        if is_nexus:
+            # flag to show that there is no need to load instrument again
+            ws_name = '{}__nexus'.format(ws_name)
+
+        return ws_name
+
+    def load_data(self, data_file_name, target_dimension=None, load_to_workspace=True):
         """
         Load data set and
         - determine the instrument size (for PyHB2BReduction and initialize the right one if not created)
         :param data_file_name:
-        :return:
+        :param target_dimension: if TIFF, target dimension will be used to bin the data
+        :param load_to_workspace: if TIFF, option to create a workspace
+        :return: data ID to look up
         """
+        # check inputs
+        checkdatatypes.check_file_name(data_file_name, True, False, False, 'Data file to load')
+
+        # check file type
         file_type = data_file_name.split('.')[-1].lower()
 
+        # load
         if file_type == 'tif' or file_type == 'tiff':
-            self._load_tif_image(data_file_name, target_dimension)
+            # TIFF
+            data_id = self._load_tif_image(data_file_name, target_dimension, rotate=True, load_to_workspace=load_to_workspace)
 
-        return
+        elif file_type == 'bin':
+            # SPICE binary
+            data_id = self._load_spice_binary(data_file_name)
 
-    def _load_tif_image(self, raw_tiff_name, pixel_size, rotate):
+        elif file_type == '.h5' or file_type == '.nxs':
+            # Event NeXus
+            data_id = self._load_nexus(data_file_name)
+
+        else:
+            # not supported
+            raise RuntimeError('File type {} from input {} is not supported.'.format(file_type, data_file_name))
+
+        return data_id
+
+    def _load_nexus(self, nxs_file_name):
+        """
+        Load NeXus file
+        :param nxs_file_name:
+        :return:
+        """
+        out_ws_name = self._generate_ws_name(nxs_file_name)
+        LoadEventNexus(Filename=nxs_file_name, OutputWorkspace=out_ws_name)
+
+        # get vector of counts
+        CovertToMatrix(InputWorkspace=out_ws_name, OutputWorkspace='_temp')
+        count_ws = Transpose(InputWorkspace='_temp', OutputWorkspace='_temp')
+        count_vec = count_ws.readY(0)
+
+        self._data_dict[out_ws_name] = [out_ws_name, count_vec]
+
+        return out_ws_name
+
+    def _load_spice_binary(self, bin_file_name):
+        """ Load SPICE binary
+        :param bin_file_name:
+        :return:
+        """
+        ws_name = self._generate_ws_name(bin_file_name)
+        LoadSpiceXML2DDet(Filename=bin_file_name, OutputWorkspace=ws_name, LoadInstrument=False)
+
+        # get vector of counts
+        counts_ws = Transpose(InputWorkspace=ws_name, OutputWorkspace='_temp')
+        count_vec = counts_ws.readY(0)
+
+        self._data_dict[ws_name] = [ws_name, count_vec]
+
+        return ws_name
+
+    def _load_tif_image(self, raw_tiff_name, pixel_size, rotate, load_to_workspace):
         """
         Load data from TIFF
         It is same as pyrscalibration.load_data_from_tiff
+        Create numpy 2D array with integer 32
         :param raw_tiff_name:
-        :param pixel_size
+        :param pixel_size: linear pixel size (N) image is N x N
         :param rotate:
         :return:
         """
-        from skimage import io, exposure, img_as_uint, img_as_float
-        from PIL import Image
-
-        ImageData = Image.open(raw_tiff_name)
-        # im = img_as_uint(np.array(ImageData))
-        io.use_plugin('freeimage')
-        image_2d_data = np.array(ImageData, dtype=np.int32)
-        print (image_2d_data.shape, type(image_2d_data), image_2d_data.min(), image_2d_data.max())
-        # image_2d_data.astype(np.uint32)
-        image_2d_data.astype(np.float64)
+        # Load data from TIFF
+        image_2d_data = matplotlib.image.imread(raw_tiff_name)
+        image_2d_data.astype(np.int32)  # to an N x N data
         if rotate:
             image_2d_data = image_2d_data.transpose()
 
+        if image_2d_data.shape[0] != 2048:
+            raise RuntimeError('Current algorithm can only handle 2048 x 2048 TIFF but not of size {}'
+                               ''.format(image_2d_data.shape))
         # Merge data if required
         if pixel_size == 1024:
             counts_vec = image_2d_data[::2, ::2] + image_2d_data[::2, 1::2] + image_2d_data[1::2, ::2] + image_2d_data[
@@ -75,14 +147,88 @@ class HB2BReductionManager(object):
             pixel_type = '2K'
 
         counts_vec = counts_vec.reshape((pixel_size * pixel_size,))
-        print (counts_vec.min())
+        data_id = self._generate_ws_name(raw_tiff_name, is_nexus=False)
+        self._data_dict[data_id] = [None, counts_vec]
 
-        data_ws_name = os.path.basename(raw_tiff_name).split('.')[0] + '_{}'.format(pixel_type)
-        CreateWorkspace(DataX=np.zeros((pixel_size ** 2,)), DataY=counts_vec, DataE=np.sqrt(counts_vec),
-                        NSpec=pixel_size ** 2,
-                        OutputWorkspace=data_ws_name, VerticalAxisUnit='SpectraNumber')
+        if load_to_workspace:
+            data_ws_name = '{}_{}'.format(data_id, pixel_type)
+            CreateWorkspace(DataX=np.zeros((pixel_size ** 2,)), DataY=counts_vec, DataE=np.sqrt(counts_vec),
+                            NSpec=pixel_size ** 2,
+                            OutputWorkspace=data_ws_name, VerticalAxisUnit='SpectraNumber')
+            self._data_dict[data_id][0] = data_ws_name
 
-        return data_ws_name, counts_vec
+        return data_id
+
+    def load_calibration(self, calibration_file):
+        """
+        Load calibration file
+        :param calibration_file:
+        :return:
+        """
+        self._geometry_calibration = calibration_file_io.import_calibration_ascii_file(calibration_file)
+
+        return
+
+    def load_instrument_setup(self, instrument_setup_file):
+        """
+        Load ASCII instrument set up file
+        :param instrument_setup_file:
+        :return:
+        """
+        self._instrument = calibration_file_io.import_instrument_setup(instrument_setup_file)
+
+        return
+
+    def reduced_to_2theta(self, data_id, output_name, use_mantid_engine, mask_vector):
+        """
+        Reduce import data (workspace or vector) to 2-theta ~ I
+        :param data_id:
+        :param output_name:
+        :param use_mantid_engine:
+        :param mask_vector:
+        :return:
+        """
+        # check input
+        checkdatatypes.check_string_variable('Data ID', data_id)
+        if data_id not in self._data_dict:
+            raise RuntimeError('Data ID {} does not exist in loaded data dictionary. '
+                               'Current keys: {}'.format(data_id, self._data_dict.keys()))
+        checkdatatypes.check_file_name(output_name, False, True, False, 'Output reduced file')
+
+        if use_mantid_engine:
+            # init mantid reducer and add workspace in ADS
+            data_ws_name = self._data_dict[data_id][0]
+            mantid_reducer = reduce_hb2b_mtd.MantidHB2BReduction()
+            mantid_reducer.set_workspace(data_ws_name)
+
+            # build instrument
+            mantid_reducer.set_calibration(self._geometry_calibration)
+            mantid_reducer.set_instrument(self._mantid_idf)
+            mantid_reducer.load_instrument()
+
+            # reduce data
+            mantid_reducer.set_2theta_resolution(self._num_bins)
+            if mask_vector:
+                mantid_reducer.mask_detectors(mask_vector)
+            mantid_reducer.convert_to_2theta()
+
+        else:
+            # pyrs solution: calculate instrument geometry on the fly
+            python_reducer = reduce_hb2b_pyrs.PyHB2BReduction(num_rows=self._instrument.detector_rows,
+                                                              num_columns=self._instrument.detector_columns,
+                                                              pixel_size_x=self._instrument.pixel_size_x,
+                                                              pixel_size_y=self._instrument.pixel_size_y,
+                                                              arm_length=self._instrument.arm_length)
+
+            detector_matrix = python_reducer.build_instrument(two_theta, center_shift_x='',
+                                                              center_shift_y='', rot_x_flip='',
+                                                              rot_y_flip='', rot_z_spin='')
+
+            python_reducer.reduce_to_2theta_histogram(detector_matrix, counts_matrix=counts_vec,
+                                                      self._num_bins)
+        # END-IF
+
+        return
 
 
 def get_log_value(workspace, log_name):

@@ -1,5 +1,19 @@
 # Zoo of methods to work with masks including Mantid and PyRS special
+import numpy as np
+import h5py
 from pyrs.utilities import checkdatatypes
+
+"""
+Note:
+
+- Mask vector
+1. numpy 1D array
+2. mask_vec[i] = 1  : ROI
+3. mask_vec[i] = 0  : Mask
+4. mask_vec * data_vec:   masking
+5. mask_vec2 + mask_vec2: OR  (AND for ROI)
+6. mask_vec1 * mask_vec2: AND
+"""
 
 
 def load_mantid_mask(pixel_number, mantid_mask_xml, is_mask):
@@ -67,20 +81,60 @@ def load_mantid_mask(pixel_number, mantid_mask_xml, is_mask):
 def load_pyrs_mask(mask_h5):
     """ Load an HDF5 mask file
     :param mask_h5:
-    :return:
+    :return: 3-tuple (mask vector, two theta, user note)
     """
-    # TODO - SOON - Find out a good format of HDF5 for mask
+    checkdatatypes.check_file_name(mask_h5, True, False, False, 'PyRS mask file (hdf5) to load')
 
-    return
+    # open
+    mask_file = h5py.File(mask_h5, 'r')
+
+    # check
+    if 'mask' not in mask_file:
+        raise RuntimeError('{} does not have entry "mask"'.format(mask_h5))
+
+    # get mask array
+    mask_entry = mask_h5['mask']
+    mask_vec = mask_h5.value
+
+    if '2theta' in mask_entry.attrs:
+        two_theta = mask_entry['2theta']
+    else:
+        two_theta = None   # not 2theta-dependant mask/ROI
+
+    if 'note' in mask_entry.attrs:
+        note = mask_entry['note']
+    else:
+        note = None
+
+    return mask_vec, two_theta, note
 
 
-def save_mantid_mask(mask_vec,  h5_name):
+def save_mantid_mask(mask_vec,  h5_name, two_theta, note):
     """
-
+    Save a mask vector to
     :param mask_vec:
     :param h5_name:
+    :param two_theta:
+    :param note:
     :return:
     """
-    # TODO - SOON - Find out a good format of HDF5 for mask
+    checkdatatypes.check_numpy_arrays('Mask vector', [mask_vec], dimension=1, check_same_shape=False)
+    checkdatatypes.check_file_name(h5_name, False, True, False, 'PyRS masking file to export to')
+    if two_theta is not None:
+        checkdatatypes.check_float_variable('2-theta', two_theta, (-360., 360))
+    if note is not None:
+        checkdatatypes.check_string_variable('Mask note', note, None)
+
+    # create file
+    mask_file = h5py.File(h5_name, 'w')
+    # add data set
+    mask_data_set = mask_file.create_dataset('mask', data=mask_vec)
+    # add attributes
+    if two_theta:
+        mask_data_set.attrs['2theta'] = two_theta
+    if note:
+        mask_data_set.attrs['note'] = note
+    # close file
+    mask_file.close()
 
     return
