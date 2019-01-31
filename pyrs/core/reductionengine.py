@@ -9,7 +9,7 @@ from pyrs.core import calibration_file_io
 from pyrs.core import scandataio
 from pyrs.core import reduce_hb2b_mtd
 from pyrs.core import reduce_hb2b_pyrs
-from mantid.simpleapi import CreateWorkspace, LoadSpiceXML2DDet, Transpose, LoadEventNexus, CovertToMatrix
+from mantid.simpleapi import CreateWorkspace, LoadSpiceXML2DDet, Transpose, LoadEventNexus, ConvertToMatrixWorkspace
 
 
 class HB2BReductionManager(object):
@@ -159,6 +159,10 @@ class HB2BReductionManager(object):
 
         return data_id
 
+    def get_counts(self, data_id):
+
+        return self._data_dict[data_id][1]
+
     def load_calibration(self, calibration_file):
         """
         Load calibration file
@@ -225,7 +229,7 @@ class HB2BReductionManager(object):
                                                               rot_y_flip='', rot_z_spin='')
 
             python_reducer.reduce_to_2theta_histogram(detector_matrix, counts_matrix=counts_vec,
-                                                      self._num_bins)
+                                                      num_bins=self._num_bins)
         # END-IF
 
         return

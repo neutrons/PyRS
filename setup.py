@@ -123,7 +123,10 @@ if __name__ == "__main__":
     """
     main
     """
-    scripts = ['scripts/pyrsplot', 'scripts/pyrscalibration.py', 'scripts/create_mask.py']
+    scripts = ['scripts/pyrsplot',
+               'scripts/pyrscalibration.py',
+               'scripts/reduce_HB2B.py',
+               'scripts/create_mask.py']
     test_scripts = ['tests/unittest/pyrs_core_test.py',
                     'tests/unittest/utilities_test.py',
                     'tests/unittest/polefigurecal_test.py',

@@ -4,7 +4,6 @@ import platform
 import time
 from pyrs.utilities import checkdatatypes
 import h5py
-import hb2b_setup
 import numpy as np
 
 

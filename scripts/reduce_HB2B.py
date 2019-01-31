@@ -5,6 +5,7 @@ from pyrs.core import reductionengine
 from pyrs.utilities import checkdatatypes
 from pyrs.core import calibration_file_io
 from pyrs.core import mask_util
+from matplotlib import pyplot as plt
 
 
 class ReductionApp(object):
@@ -52,6 +53,27 @@ class ReductionApp(object):
         checkdatatypes.check_bool_variable('Flag to use Mantid as reduction engine', value)
 
         self._use_mantid_engine = value
+
+        return
+
+    def load_raw_data(self, data_file):
+
+        # load data
+        data_id = self._reduction_engine.load_data(data_file, target_dimension=2048,
+                                                   load_to_workspace=False)
+
+        counts_vec = self._reduction_engine.get_counts(data_id)
+        print ('Counts vec:', counts_vec)
+        print ('Counts shape:', counts_vec.shape)
+
+        return counts_vec
+
+    def mask_detectors(self, mask_file):
+
+        return
+
+    def plot_detector_counts(self):
+
 
         return
 
@@ -116,6 +138,7 @@ def main(argv):
         print ('--calibration:  instrument geometry calibration file')
         print ('--mask:         masking file (PyRS hdf5 format)')
         print ('--engine:       mantid or pyrs.  default is pyrs')
+        print ('--viewraw:      viewing raw data with an option to mask (NO reduction)')
         sys.exit(-1)
 
     # parse input & check
@@ -133,12 +156,20 @@ def main(argv):
     else:
         reducer.use_mantid_engine = False
 
-    reducer.reduce(data_file=source_data_file, output=output_dir,
-                   insturment_file=inputs_option_dict['instrument'],
-                   calibration_file=inputs_option_dict['calibration'],
-                   mask_file=inputs_option_dict['mask'])
-
-    reducer.plot_reduced_data()
+    if inputs_option_dict['no reduction']:
+        counts_vec = reducer.load_raw_data(data_file=source_data_file)
+        if inputs_option_dict['mask']:
+            reducer.mask_detectors(mask_file=inputs_option_dict['mask'])
+        counts_matrix = counts_vec.reshape((2048, 2048))
+        plt.imshow(counts_matrix)
+        plt.show()
+    else:
+        reducer.reduce(data_file=source_data_file, output=output_dir,
+                       insturment_file=inputs_option_dict['instrument'],
+                       calibration_file=inputs_option_dict['calibration'],
+                       mask_file=inputs_option_dict['mask'])
+        reducer.plot_reduced_data()
+    # END-IF-ELSE
 
     return
 
@@ -151,7 +182,8 @@ def parse_inputs(arg_list):
     """
     arg_options = {'instrument': None,
                    'calibration': None,
-                   'mask': None}
+                   'mask': None,
+                   'engine': 'pyrs'}
 
     for arg_i in arg_list:
         terms = arg_i.split('=')
@@ -164,6 +196,8 @@ def parse_inputs(arg_list):
             arg_options['calibration'] = arg_value_i
         elif arg_name_i == '--mask':
             arg_options['mask'] = arg_value_i
+        elif arg_name_i == '--viewraw':
+            arg_options['no reduction'] = bool(int(arg_value_i))
         else:
             raise RuntimeError('Argument {} is not recognized and not supported.'.format(arg_name_i))
     # END-FOR

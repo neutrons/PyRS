@@ -87,7 +87,7 @@ class MaskProcessApp(object):
         :param mantid_mask_xml:
         :return:
         """
-        mask_vec = mask_util.load_mantid_mask(mantid_mask_xml, self._num_pixels, is_mask=True)
+        mask_vec = mask_util.load_mantid_mask(self._num_pixels, mantid_mask_xml, is_mask=True)
         mask_id = self._generate_id(mantid_mask_xml, is_roi=False)
         self._mask_array_dict[mask_id] = mask_vec
 
@@ -125,7 +125,7 @@ class MaskProcessApp(object):
         """
         src_bit_array = self._mask_array_dict[mask_id]
 
-        if src_bit_array.startswith('roi'):
+        if mask_id.startswith('roi'):
             new_flag = 'mask'
         else:
             new_flag = 'roi'
@@ -253,19 +253,25 @@ def main(argv):
             print ('Reverse mask operation can only take 1 file a time')
 
         mask_id = mask_id_list[0]
-        mask_processor.reverse(mask_id)
+        new_mask_id = mask_processor.reverse(mask_id)
         if note is None:
             note = 'Convert mask/ROI to ROI/mask for {}'.format(mask_id)
-        mask_processor.export_mask(mask_id, out_file, note)
+        mask_processor.export_mask(new_mask_id, out_file, note)
+
+        # show result
+        mask_processor.show_mask(new_mask_id)
 
     elif operation == 'and' or operation == 'or':
         if len(mask_id_list) < 2:
             print ('[ERROR] Unable to do binary operation to a single mask/ROI')
 
-        temp_mask_id = mask_processor.operate_mask_binary(mask_id_list[0], mask_id_list[1], operation)
+        binary_mask_id = mask_processor.operate_mask_binary(mask_id_list[0], mask_id_list[1], operation)
         for i in range(2, len(mask_id_list)):
-            temp_mask_id = mask_processor.operate_mask_binary(temp_mask_id, mask_id_list[i], operation)
-        mask_processor.export_mask(temp_mask_id, out_file, note)
+            binary_mask_id = mask_processor.operate_mask_binary(binary_mask_id, mask_id_list[i], operation)
+        mask_processor.export_mask(binary_mask_id, out_file, note)
+
+        # show result
+        mask_processor.show_mask(binary_mask_id)
 
     else:
         print ('[ERROR] Operation {} is not supported'.format(operation))
