@@ -24,7 +24,7 @@ class PyRsCore(object):
         # declaration of class members
         self._file_io_controller = scandataio.DiffractionDataFile()  # a I/O instance for standard HB2B file
         self._data_manager = datamanagers.RawDataManager()
-        self._reduction_engine = reductionengine.ReductionEngine()
+        self._reduction_engine = reductionengine.HB2BReductionManager()
 
         # working environment
         if os.path.exists('tests/testdata/'):

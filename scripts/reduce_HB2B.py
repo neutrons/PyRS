@@ -68,9 +68,15 @@ class ReductionApp(object):
 
         return counts_vec
 
-    def mask_detectors(self, mask_file):
+    def mask_detectors(self, counts_vec, mask_file):
 
-        return
+        mask_vec, two_theta, note = mask_util.load_pyrs_mask(mask_file)
+        if counts_vec.shape != mask_vec.shape:
+            raise RuntimeError('Counts vector and mask vector has different shpae')
+
+        masked_counts_vec = counts_vec * mask_vec
+
+        return masked_counts_vec
 
     def plot_detector_counts(self):
 
@@ -159,7 +165,7 @@ def main(argv):
     if inputs_option_dict['no reduction']:
         counts_vec = reducer.load_raw_data(data_file=source_data_file)
         if inputs_option_dict['mask']:
-            reducer.mask_detectors(mask_file=inputs_option_dict['mask'])
+            counts_vec = reducer.mask_detectors(counts_vec, mask_file=inputs_option_dict['mask'])
         counts_matrix = counts_vec.reshape((2048, 2048))
         plt.imshow(counts_matrix)
         plt.show()

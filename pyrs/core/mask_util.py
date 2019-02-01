@@ -93,8 +93,8 @@ def load_pyrs_mask(mask_h5):
         raise RuntimeError('{} does not have entry "mask"'.format(mask_h5))
 
     # get mask array
-    mask_entry = mask_h5['mask']
-    mask_vec = mask_h5.value
+    mask_entry = mask_file['mask']
+    mask_vec = mask_entry
 
     if '2theta' in mask_entry.attrs:
         two_theta = mask_entry['2theta']

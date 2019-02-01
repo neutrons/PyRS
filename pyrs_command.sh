@@ -51,6 +51,11 @@ if [ "$1" = "3" ] || [ "$1" = "masktest" ] ; then
 	TestArgs="--roi=tests/testdata/masks/Chi_0_Mask.xml --output=Chi_0.hdf5 --operation=reverse --2theta=35."
 	PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/create_mask.py $TestArgs
 	# --roi=tests/testdata/masks/Chi_0_Mask.xml --output=tests/testdata/masks/Chi_0.hdf5
+fi
 
+if [ "$1" = "4" ] || [ "$1" = "reducetest" ] ; then
+    echo "Testing Reduction"
+    TestArgs=" ./tests/testdata/LaB6_10kev_35deg-00004_Rotated.tif ./tests/temp/ --mask=tests/testdata/masks/Chi_10.hdf5 --viewraw=1"
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/reduce_HB2B.py $TestArgs
 fi
 

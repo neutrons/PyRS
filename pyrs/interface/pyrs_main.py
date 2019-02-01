@@ -93,6 +93,7 @@ class PyRSLauncher(QMainWindow):
         self.ui.pushButton_launchTextureAnalysis.clicked.connect(self.do_launch_texture_window)
         self.ui.pushButton_launchStrainStressCalculation.clicked.connect(self.do_launch_strain_stress_window)
         self.ui.pushButton_launchDebugger.clicked.connect(self.do_launch_debugger)
+        self.ui.pushButton_calibration.clicked.connect(self.do_launch_calibration)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
 
@@ -102,6 +103,7 @@ class PyRSLauncher(QMainWindow):
         self.strain_stress_window = None
         self.manual_reduction_window = None
         self.instrument_calibration_window = None
+        self.calibration_window = None
         self.debugger = None   # IPython window
 
         return
@@ -113,6 +115,20 @@ class PyRSLauncher(QMainWindow):
         :return:
         """
         return self._reduction_core
+
+    def do_launch_calibration(self):
+        """
+
+        :return:
+        """
+        import calibrationwindow
+        # core
+        pyrs_core = pyrscore.PyRsCore()
+
+        # set up interface object
+        if self.calibration_window is None:
+            self.calibration_window = calibrationwindow.InstrumentCalibrationWindow(self, pyrs_core)
+        self.calibration_window.show()
 
     def do_launch_debugger(self):
         """
