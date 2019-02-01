@@ -97,12 +97,13 @@ def load_pyrs_mask(mask_h5):
     mask_vec = mask_entry
 
     if '2theta' in mask_entry.attrs:
-        two_theta = mask_entry['2theta']
+        two_theta = mask_entry.attrs['2theta']   # numpy.float64
+        # print ('2theta = {} of type {}'.format(two_theta, type(two_theta)))
     else:
         two_theta = None   # not 2theta-dependant mask/ROI
 
     if 'note' in mask_entry.attrs:
-        note = mask_entry['note']
+        note = mask_entry.attrs['note']
     else:
         note = None
 
@@ -131,7 +132,7 @@ def save_mantid_mask(mask_vec,  h5_name, two_theta, note):
     mask_data_set = mask_file.create_dataset('mask', data=mask_vec)
     # add attributes
     if two_theta:
-        mask_data_set.attrs['2theta'] = two_theta
+        mask_data_set.attrs['2theta'] = two_theta  # '{}'.format(two_theta)
     if note:
         mask_data_set.attrs['note'] = note
     # close file

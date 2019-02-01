@@ -143,7 +143,7 @@
     <item row="10" column="0">
      <widget class="QPushButton" name="pushButton_calibration">
       <property name="text">
-       <string>Instrument Calibration</string>
+       <string>Instrument Geometry Calibration</string>
       </property>
      </widget>
     </item>

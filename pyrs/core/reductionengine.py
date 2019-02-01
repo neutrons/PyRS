@@ -3,8 +3,6 @@ import os
 import numpy as np
 import matplotlib.image
 from pyrs.utilities import checkdatatypes
-from pyrs.utilities import hb2b_utilities
-from pyrs.utilities import file_utilities
 from pyrs.core import calibration_file_io
 from pyrs.core import scandataio
 from pyrs.core import reduce_hb2b_mtd
@@ -24,7 +22,7 @@ class HB2BReductionManager(object):
         """ initialization
         """
         # calibration manager
-        self._calibration_manager = hb2b_utilities.CalibrationManager()
+        self._calibration_manager = calibration_file_io.CalibrationManager()
 
         # workspace name or array vector
         self._data_dict = dict()
@@ -92,7 +90,7 @@ class HB2BReductionManager(object):
         LoadEventNexus(Filename=nxs_file_name, OutputWorkspace=out_ws_name)
 
         # get vector of counts
-        CovertToMatrix(InputWorkspace=out_ws_name, OutputWorkspace='_temp')
+        CovertToMatrixWorkspace(InputWorkspace=out_ws_name, OutputWorkspace='_temp')
         count_ws = Transpose(InputWorkspace='_temp', OutputWorkspace='_temp')
         count_vec = count_ws.readY(0)
 

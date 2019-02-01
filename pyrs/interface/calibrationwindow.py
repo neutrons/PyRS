@@ -42,4 +42,27 @@ class InstrumentCalibrationWindow(QMainWindow):
         self.ui = ui.ui_calibrationwindow.Ui_MainWindow()
         self.ui.setupUi(self)
 
+        # TODO - NIGHT - Define link to methods
+        self.ui.pushButton_decreaseCenterX.clicked.connect(self.decrease_value)
+
         return
+
+    def _promote_widgets(self):
+
+        # frame_detector2DView
+        # frame_multiplePlotsView
+        # frame_reducedDataView
+
+        # TODO - NIGHT - Implement UI to promote widgets - NIGHT
+
+        # TODO - NIGHT - In UI, better name shall be given to widgets - NIGHT
+
+
+        return
+
+    def decrease_value(self):
+
+        sender = self.sender()
+
+        print ('[DB...BAT] Sender:  {}'.format(self.sender()))
+        print ('[DB...BAT] Methods: \n'.format(dir(sender)))
