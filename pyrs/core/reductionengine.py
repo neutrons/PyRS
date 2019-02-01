@@ -105,7 +105,7 @@ class HB2BReductionManager(object):
         :param bin_file_name:
         :return:
         """
-        ws_name = self._generate_ws_name(bin_file_name)
+        ws_name = self._generate_ws_name(bin_file_name, is_nexus=False)
         LoadSpiceXML2DDet(Filename=bin_file_name, OutputWorkspace=ws_name, LoadInstrument=False)
 
         # get vector of counts

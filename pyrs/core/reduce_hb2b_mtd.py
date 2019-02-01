@@ -1,6 +1,10 @@
+import os
 from mantid.simpleapi import FilterEvents, LoadEventNexus, LoadInstrument, GenerateEventsFilter
-from mantid.simpleapi import ConvertSpectrumAxis, ResampleX, Transpose
+from mantid.simpleapi import ConvertSpectrumAxis, ResampleX, Transpose, AddSampleLog
 from mantid.api import AnalysisDataService as ADS
+from pyrs.utilities import checkdatatypes
+from pyrs.utilities import file_util
+from pyrs.core.calibration_file_io import ResidualStressInstrumentCalibration
 
 
 class MantidHB2BReduction(object):
@@ -12,6 +16,14 @@ class MantidHB2BReduction(object):
         """
         self._curr_reduced_data = None   # dict[ws name]  = vec_2theta, vec_y, vec_e
 
+        # data workspace to reduce
+        self._data_ws_name = None
+
+        # instrument file
+        self._mantid_idf = None
+
+        # calibration: an instance of ResidualStressInstrumentCalibration
+        self._instrument_calibration = None
 
         self._2theta_resolution = 0.1
 
@@ -26,7 +38,7 @@ class MantidHB2BReduction(object):
         """
         # locate calibration file
         if raw_nexus_file_name is not None:
-            run_date = file_utilities.check_creation_date(raw_nexus_file_name)
+            run_date = file_util.check_creation_date(raw_nexus_file_name)
             try:
                 cal_ref_id = self._calibration_manager.check_load_calibration(exp_date=run_date)
             except RuntimeError as run_err:
@@ -179,6 +191,55 @@ class MantidHB2BReduction(object):
 
         return
 
+    def load_instrument(self):
+        """
+        Load instrument with calibration to
+        :return:
+        """
+        if self._data_ws_name is None or ADS.doesExists(self._data_ws_name) is False:
+            raise RuntimeError('Reduction HB2B (Mantid) has no workspace set to reduce')
+
+        # set up sample logs
+        # cal::arm
+        AddSampleLog(Workspace=self._data_ws_name, LogName='cal::arm', LogText='{}'.format(arm_length-DEFAULT_ARM_LENGTH),
+                     LogType='Number Series', LogUnit='meter',
+                     NumberType='Double')
+        #
+        # cal::2theta
+        AddSampleLog(Workspace=self._data_ws_name, LogName='cal::2theta', LogText='{}'.format(-two_theta),
+                     LogType='Number Series', LogUnit='degree',
+                     NumberType='Double')
+        #
+        # cal::deltax
+        AddSampleLog(Workspace=self._data_ws_name, LogName='cal::deltax', LogText='{}'.format(center_shift_x),
+                     LogType='Number Series', LogUnit='meter',
+                     NumberType='Double')
+        #
+        # cal::deltay
+        AddSampleLog(Workspace=self._data_ws_name, LogName='cal::deltay', LogText='{}'.format(center_shift_y),
+                     LogType='Number Series', LogUnit='meter',
+                     NumberType='Double')
+
+        # cal::roty
+        AddSampleLog(Workspace=self._data_ws_name, LogName='cal::roty', LogText='{}'.format(-two_theta - rot_y_flip),
+                     LogType='Number Series', LogUnit='degree',
+                     NumberType='Double')
+
+        # cal::flip
+        AddSampleLog(Workspace=self._data_ws_name, LogName='cal::flip', LogText='{}'.format(rot_x_flip),
+                     LogType='Number Series', LogUnit='degree',
+                     NumberType='Double')
+
+        # cal::spin
+        AddSampleLog(Workspace=self._data_ws_name, LogName='cal::spin', LogText='{}'.format(rot_z_spin),
+                     LogType='Number Series', LogUnit='degree',
+                     NumberType='Double')
+
+        LoadInstrument(Workspace=self._data_ws_name,
+                       Filename=os.path.join(root, 'prototypes/calibration/HB2B_Definition_v4.xml'),
+                       InstrumentName='HB2B', RewriteSpectraMap='True')
+
+
     def reduce_rs_nexus(self, nexus_name, auto_mapping_check, output_dir, do_calibration,
                         allow_calibration_unavailable):
         """ reduce an HB2B nexus file
@@ -310,6 +371,48 @@ class MantidHB2BReduction(object):
         scandataio.save_hb2b_reduced_data(scan_index_dict, file_name)
 
         return
+
+    def set_calibration(self, calibration):
+        """
+        Set the instrument calibration
+        :param calibration:
+        :return:
+        """
+        assert isinstance(calibration, ResidualStressInstrumentCalibration),\
+            'Instrument-calibration instance {} must be of ResidualStressInstrumentCalibration, but not an instance ' \
+            'of type {}'.format(calibration, type(calibration))
+
+        self._instrument_calibration = calibration
+
+        return
+
+    def set_instrument(self, idf_name):
+        """
+        set Mantid's IDF file
+        :param idf_name:
+        :return:
+        """
+        checkdatatypes.check_file_name(idf_name, True, False, False, 'Mantid IDF for HB2B')
+
+        self._mantid_idf = idf_name
+
+        return
+
+    def set_workspace(self, ws_name):
+        """
+        set the workspace that is ready for reduction to 2theta
+        :param ws_name:
+        :return:
+        """
+        checkdatatypes.check_string_variable('Workspace name', ws_name)
+
+        if ADS.doesExists(ws_name):
+            self._data_ws_name = ws_name
+        else:
+            raise RuntimeError('Workspace {} does not exist in ADS'.format(ws_name))
+
+        return
+
 
     def set_2theta_resolution(self, delta_two_theta):
         """

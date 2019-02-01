@@ -1,6 +1,8 @@
 # Zoo of methods to work with file properties
 import time
 import os
+import checkdatatypes
+import platform
 
 
 def check_creation_date(file_name):

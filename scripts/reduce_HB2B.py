@@ -183,7 +183,8 @@ def parse_inputs(arg_list):
     arg_options = {'instrument': None,
                    'calibration': None,
                    'mask': None,
-                   'engine': 'pyrs'}
+                   'engine': 'pyrs',
+                   'no reduction': False}
 
     for arg_i in arg_list:
         terms = arg_i.split('=')

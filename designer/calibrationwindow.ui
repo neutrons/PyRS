@@ -6,24 +6,14 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1038</width>
-    <height>745</height>
+    <width>1582</width>
+    <height>1089</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QGraphicsView" name="graphicsView">
-    <property name="geometry">
-     <rect>
-      <x>510</x>
-      <y>30</y>
-      <width>501</width>
-      <height>471</height>
-     </rect>
-    </property>
-   </widget>
    <widget class="QPushButton" name="pushButton_3">
     <property name="geometry">
      <rect>
@@ -119,50 +109,11 @@
      <string>Calibraton Setup</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox">
-    <property name="geometry">
-     <rect>
-      <x>20</x>
-      <y>240</y>
-      <width>141</width>
-      <height>22</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Beam Center X</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_2">
-    <property name="geometry">
-     <rect>
-      <x>20</x>
-      <y>320</y>
-      <width>141</width>
-      <height>22</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Wavelength</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_3">
-    <property name="geometry">
-     <rect>
-      <x>20</x>
-      <y>280</y>
-      <width>141</width>
-      <height>22</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Beam Center Y</string>
-    </property>
-   </widget>
    <widget class="QTableView" name="tableView">
     <property name="geometry">
      <rect>
-      <x>40</x>
-      <y>530</y>
+      <x>20</x>
+      <y>740</y>
       <width>451</width>
       <height>131</height>
      </rect>
@@ -171,110 +122,11 @@
      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Coordinated of Selected data points&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
     </property>
    </widget>
-   <widget class="QLineEdit" name="lineEdit_4">
-    <property name="geometry">
-     <rect>
-      <x>180</x>
-      <y>240</y>
-      <width>113</width>
-      <height>27</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QLineEdit" name="lineEdit_5">
-    <property name="geometry">
-     <rect>
-      <x>180</x>
-      <y>280</y>
-      <width>113</width>
-      <height>27</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QLineEdit" name="lineEdit_6">
-    <property name="geometry">
-     <rect>
-      <x>180</x>
-      <y>320</y>
-      <width>113</width>
-      <height>27</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_4">
-    <property name="geometry">
-     <rect>
-      <x>20</x>
-      <y>370</y>
-      <width>141</width>
-      <height>22</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Distance</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_5">
-    <property name="geometry">
-     <rect>
-      <x>20</x>
-      <y>410</y>
-      <width>141</width>
-      <height>22</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Tilt angle</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_6">
-    <property name="geometry">
-     <rect>
-      <x>20</x>
-      <y>450</y>
-      <width>141</width>
-      <height>22</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Tilt rotation</string>
-    </property>
-   </widget>
-   <widget class="QLineEdit" name="lineEdit_7">
-    <property name="geometry">
-     <rect>
-      <x>180</x>
-      <y>370</y>
-      <width>113</width>
-      <height>27</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QLineEdit" name="lineEdit_8">
-    <property name="geometry">
-     <rect>
-      <x>180</x>
-      <y>410</y>
-      <width>113</width>
-      <height>27</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QLineEdit" name="lineEdit_9">
-    <property name="geometry">
-     <rect>
-      <x>180</x>
-      <y>450</y>
-      <width>113</width>
-      <height>27</height>
-     </rect>
-    </property>
-   </widget>
    <widget class="QLabel" name="label_7">
     <property name="geometry">
      <rect>
-      <x>40</x>
-      <y>500</y>
+      <x>30</x>
+      <y>700</y>
       <width>171</width>
       <height>17</height>
      </rect>
@@ -286,8 +138,8 @@
    <widget class="QPushButton" name="pushButton_4">
     <property name="geometry">
      <rect>
-      <x>370</x>
-      <y>450</y>
+      <x>670</x>
+      <y>680</y>
       <width>99</width>
       <height>27</height>
      </rect>
@@ -296,14 +148,266 @@
      <string>Calibrate</string>
     </property>
    </widget>
+   <widget class="QWidget" name="gridLayoutWidget">
+    <property name="geometry">
+     <rect>
+      <x>170</x>
+      <y>210</y>
+      <width>611</width>
+      <height>381</height>
+     </rect>
+    </property>
+    <layout class="QGridLayout" name="gridLayout">
+     <item row="5" column="0">
+      <widget class="QCheckBox" name="checkBox_6">
+       <property name="text">
+        <string>Swing angle (rotatoin Y)</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QPushButton" name="pushButton">
+       <property name="text">
+        <string>&lt;&lt;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="0">
+      <widget class="QCheckBox" name="checkBox_2">
+       <property name="text">
+        <string>Wavelength</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="2">
+      <widget class="QLineEdit" name="lineEdit_4"/>
+     </item>
+     <item row="6" column="1">
+      <widget class="QPushButton" name="pushButton_9">
+       <property name="text">
+        <string>&lt;&lt;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="4">
+      <widget class="QLineEdit" name="lineEdit_12"/>
+     </item>
+     <item row="1" column="0">
+      <widget class="QCheckBox" name="checkBox">
+       <property name="text">
+        <string>Beam Center X</string>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="0">
+      <widget class="QCheckBox" name="checkBox_7">
+       <property name="text">
+        <string>Spin angle (rotatoin Z)</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="3">
+      <widget class="QPushButton" name="pushButton_13">
+       <property name="text">
+        <string>&gt;&gt;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="3">
+      <widget class="QPushButton" name="pushButton_11">
+       <property name="text">
+        <string>&gt;&gt;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="3">
+      <widget class="QPushButton" name="pushButton_2">
+       <property name="text">
+        <string>&gt;&gt;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="2">
+      <widget class="QLineEdit" name="lineEdit_8"/>
+     </item>
+     <item row="4" column="1">
+      <widget class="QPushButton" name="pushButton_7">
+       <property name="text">
+        <string>&lt;&lt;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QPushButton" name="pushButton_6">
+       <property name="text">
+        <string>&lt;&lt;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="3">
+      <widget class="QPushButton" name="pushButton_16">
+       <property name="text">
+        <string>&gt;&gt;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="2">
+      <widget class="QLineEdit" name="lineEdit_5"/>
+     </item>
+     <item row="4" column="4">
+      <widget class="QLineEdit" name="lineEdit_13"/>
+     </item>
+     <item row="3" column="3">
+      <widget class="QPushButton" name="pushButton_12">
+       <property name="text">
+        <string>&gt;&gt;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="0">
+      <widget class="QCheckBox" name="checkBox_4">
+       <property name="text">
+        <string>Arm Length</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QCheckBox" name="checkBox_3">
+       <property name="text">
+        <string>Beam Center Y</string>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="4">
+      <widget class="QLineEdit" name="lineEdit_17"/>
+     </item>
+     <item row="1" column="4">
+      <widget class="QLineEdit" name="lineEdit_11"/>
+     </item>
+     <item row="2" column="1">
+      <widget class="QPushButton" name="pushButton_5">
+       <property name="text">
+        <string>&lt;&lt;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="3">
+      <widget class="QPushButton" name="pushButton_14">
+       <property name="text">
+        <string>&gt;&gt;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="4">
+      <widget class="QLineEdit" name="lineEdit_16"/>
+     </item>
+     <item row="5" column="1">
+      <widget class="QPushButton" name="pushButton_8">
+       <property name="text">
+        <string>&lt;&lt;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="2">
+      <widget class="QLineEdit" name="lineEdit_10"/>
+     </item>
+     <item row="7" column="2">
+      <widget class="QLineEdit" name="lineEdit_9"/>
+     </item>
+     <item row="4" column="0">
+      <widget class="QCheckBox" name="checkBox_5">
+       <property name="text">
+        <string>Tilt angle (rotation X)</string>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="1">
+      <widget class="QPushButton" name="pushButton_10">
+       <property name="text">
+        <string>&lt;&lt;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="4">
+      <widget class="QLineEdit" name="lineEdit_14"/>
+     </item>
+     <item row="6" column="3">
+      <widget class="QPushButton" name="pushButton_15">
+       <property name="text">
+        <string>&gt;&gt;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="2">
+      <widget class="QLineEdit" name="lineEdit_6"/>
+     </item>
+     <item row="4" column="2">
+      <widget class="QLineEdit" name="lineEdit_7"/>
+     </item>
+     <item row="5" column="4">
+      <widget class="QLineEdit" name="lineEdit_15"/>
+     </item>
+     <item row="0" column="2">
+      <widget class="QLabel" name="label_4">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>Calibraton Value</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="4">
+      <widget class="QLabel" name="label_5">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>Resolution</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+   <widget class="QFrame" name="frame">
+    <property name="geometry">
+     <rect>
+      <x>840</x>
+      <y>60</y>
+      <width>691</width>
+      <height>911</height>
+     </rect>
+    </property>
+    <property name="sizePolicy">
+     <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+      <horstretch>0</horstretch>
+      <verstretch>0</verstretch>
+     </sizepolicy>
+    </property>
+    <property name="toolTip">
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Reduced data view to show&lt;/p&gt;&lt;p&gt;(a) single reduced view&lt;/p&gt;&lt;p&gt;(b) multiple masked view&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    </property>
+    <property name="frameShape">
+     <enum>QFrame::StyledPanel</enum>
+    </property>
+    <property name="frameShadow">
+     <enum>QFrame::Raised</enum>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1038</width>
-     <height>25</height>
+     <width>1582</width>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
