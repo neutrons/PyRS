@@ -43,7 +43,7 @@ def import_calibration_ascii_file(geometry_file_name):
     cal::shiftx = 0.
     cal::shifty = 0.1
     :param geometry_file_name:
-    :return: 2theta, arm length, calibration instance
+    :return: calibration instance
     """
     checkdatatypes.check_file_name(geometry_file_name, True, False, False, 'Geometry configuration file in ASCII')
 

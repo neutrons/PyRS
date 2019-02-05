@@ -8,6 +8,12 @@ from pyrs.core import mask_util
 from matplotlib import pyplot as plt
 
 
+# TODO - TONIGHT - 1. implement 2theta option
+# TODO - TONIGHT - 2. add test case for .bin file
+# TODO - TONIGHT - 3. synchronize calibration parameter names among XML, .cal (ascii) and .cal.h5 (hdf5) AND doc!
+# TODO - TONIGHT - 4. add test data file of X-ray instrument
+
+
 class ReductionApp(object):
     """
     Data reduction application
@@ -83,11 +89,11 @@ class ReductionApp(object):
 
         return
 
-    def reduce(self, data_file, output, insturment_file, calibration_file, mask_file=None):
+    def reduce(self, data_file, output, instrument_file, calibration_file, mask_file=None):
         """ Reduce data
         :param data_file:
         :param output:
-        :param insturment_file:
+        :param instrument_file:
         :param calibration_file:
         :param mask_file:
         :return:
@@ -117,16 +123,21 @@ class ReductionApp(object):
                                                    load_to_workspace=self._use_mantid_engine)
 
         # load instrument
-        self._reduction_engine.load_instrument_setup(insturment_file)
-        self._reduction_engine.load_calibration(calibration_file)
+        if instrument_file.lower().endswith('.xml'):
+            # Mantid IDF file: use mantid engine
+            self._reduction_engine.set_mantid_idf(instrument_file)
+            use_mantid = True
+        else:
+            self._reduction_engine.load_instrument_setup(instrument_file)
+            use_mantid = False
+        if calibration_file:
+            self._reduction_engine.load_calibration(calibration_file)
 
         # reduce
-        self._reduction_engine.reduce_to_2theta(data_id, output_file_name, self._use_mantid_engine, mask_vec)
-
-
-        reduction_engine.reduce_rs_nexus(source_data_file, auto_mapping_check=True, output_dir=output_dir,
-                                         do_calibration=True,
-                                         allow_calibration_unavailable=True)
+        self._reduction_engine.reduce_to_2theta(data_id=data_id,
+                                                output_name=output_file_name,
+                                                use_mantid_engine=use_mantid,
+                                                mask_vector=mask_vec)
 
         return
 
@@ -170,8 +181,18 @@ def main(argv):
         plt.imshow(counts_matrix)
         plt.show()
     else:
+        # check
+        if inputs_option_dict['instrument'] is None and not source_data_file.endswith('.nxs.h5'):
+            print ('For non Event NeXus file {}, instrument definition must be given!'
+                   .format(source_data_file))
+            sys.exit(-1)
+        elif inputs_option_dict['instrument'].lower().endswith('.xml'):
+            reducer.use_mantid_engine = True
+        else:
+            reducer.set_geometry_configuration(inputs_option_dict['instrument'])
+
         reducer.reduce(data_file=source_data_file, output=output_dir,
-                       insturment_file=inputs_option_dict['instrument'],
+                       instrument_file=inputs_option_dict['instrument'],
                        calibration_file=inputs_option_dict['calibration'],
                        mask_file=inputs_option_dict['mask'])
         reducer.plot_reduced_data()
@@ -205,6 +226,8 @@ def parse_inputs(arg_list):
             arg_options['mask'] = arg_value_i
         elif arg_name_i == '--viewraw':
             arg_options['no reduction'] = bool(int(arg_value_i))
+        elif arg_name_i == '--2theta':
+            arg_options['2theta'] = float(arg_value_i)
         else:
             raise RuntimeError('Argument {} is not recognized and not supported.'.format(arg_name_i))
     # END-FOR

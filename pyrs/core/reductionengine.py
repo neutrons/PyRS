@@ -156,6 +156,8 @@ class HB2BReductionManager(object):
                             OutputWorkspace=data_ws_name, VerticalAxisUnit='SpectraNumber')
             self._data_dict[data_id][0] = data_ws_name
 
+        print ('[DB...BAT] Loaded TIF and return DataID = {}'.format(data_id))
+
         return data_id
 
     def get_counts(self, data_id):
@@ -182,7 +184,7 @@ class HB2BReductionManager(object):
 
         return
 
-    def reduced_to_2theta(self, data_id, output_name, use_mantid_engine, mask_vector):
+    def reduce_to_2theta(self, data_id, output_name, use_mantid_engine, mask_vector, two_theta=35.):
         """
         Reduce import data (workspace or vector) to 2-theta ~ I
         :param data_id:
@@ -201,14 +203,21 @@ class HB2BReductionManager(object):
         if use_mantid_engine:
             # init mantid reducer and add workspace in ADS
             data_ws_name = self._data_dict[data_id][0]
+            print ('[DB...BAT] Data Dict: {}'.format(self._data_dict[data_id]))
             mantid_reducer = reduce_hb2b_mtd.MantidHB2BReduction()
             mantid_reducer.set_workspace(data_ws_name)
 
             # build instrument
-            mantid_reducer.load_instrument(self._mantid_idf, self._geometry_calibration)
+            mantid_reducer.load_instrument(two_theta, self._mantid_idf, self._geometry_calibration)
 
             # reduce data
             mantid_reducer.convert_to_2theta(data_ws_name, mask=mask_vector)
+
+            """
+            reduction_engine.reduce_rs_nexus(source_data_file, auto_mapping_check=True, output_dir=output_dir,
+                                       do_calibration=True,
+                                       allow_calibration_unavailable=True)
+            """
 
         else:
             # pyrs solution: calculate instrument geometry on the fly
