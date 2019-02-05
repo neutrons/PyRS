@@ -99,6 +99,43 @@ def get_save_file_name(parent, dir_name, caption, file_filter):
     return file_name, file_filter
 
 
+def parse_line_edit(line_edit, data_type, throw_if_blank=False, edit_name=None):
+    """
+    Parse a LineEdit
+    :param line_edit:
+    :param data_type:
+    :param throw_if_blank:
+    :param edit_name: name of LineEdit for better error message
+    :return:
+    """
+    assert isinstance(line_edit, QLineEdit), 'Method parse_line_edit expects 0-th input {} to be a ' \
+                                             'QLineEdit instance but not a {}' \
+                                             ''.format(line_edit, type(line_edit))
+    assert isinstance(data_type, type), 'Method parse_line_edit expects 1-st input {} to be a type ' \
+                                        'but not a {}'.format(data_type, type(data_type))
+    checkdatatypes.check_bool_variable('Method parse_line_edit expects 2nd input "throw"', throw_if_blank)
+
+    # parse
+    input_str = str(line_edit.text()).strip()
+
+    if input_str == '':
+        # empty string
+        if throw_if_blank:
+            raise RuntimeError('Input line edit {} is empty'.format(edit_name))
+        else:
+            return_value = None
+
+    else:
+        try:
+            return_value = data_type(input_str)
+        except ValueError as value_error:
+            raise RuntimeError('Unable to parse LineEdit {} (given value = {}) to '
+                               '{} due to {}'.format(edit_name, input_str, data_type, value_error))
+    # END-IF-ELSE
+
+    return return_value
+
+
 def parse_float(float_str):
     """
     parse flaots from a string or a LineEdit

@@ -32,6 +32,7 @@ class HB2BReductionManager(object):
 
         # instrument setup (for non NeXus input)
         self._instrument = None
+        self._mantid_idf = None
         # calibration
         self._geometry_calibration = None
 
@@ -204,15 +205,10 @@ class HB2BReductionManager(object):
             mantid_reducer.set_workspace(data_ws_name)
 
             # build instrument
-            mantid_reducer.set_calibration(self._geometry_calibration)
-            mantid_reducer.set_instrument(self._mantid_idf)
-            mantid_reducer.load_instrument()
+            mantid_reducer.load_instrument(self._mantid_idf, self._geometry_calibration)
 
             # reduce data
-            mantid_reducer.set_2theta_resolution(self._num_bins)
-            if mask_vector:
-                mantid_reducer.mask_detectors(mask_vector)
-            mantid_reducer.convert_to_2theta()
+            mantid_reducer.convert_to_2theta(data_ws_name, mask=mask_vector)
 
         else:
             # pyrs solution: calculate instrument geometry on the fly
@@ -232,10 +228,24 @@ class HB2BReductionManager(object):
 
         return
 
+    def set_mantid_idf(self, idf_name):
+        """
+        set the IDF file to reduction engine
+        :param idf_name:
+        :return:
+        """
+        checkdatatypes.check_file_name(idf_name, True, False, False, 'Mantid IDF file')
+        if not idf_name.lower().endswith('.xml'):
+            raise RuntimeError('Mantid IDF {} must end with .xml'.format(idf_name))
+
+        self._mantid_idf = idf_name
+
+        return
+
 
 def get_log_value(workspace, log_name):
     """
-    get log value
+    get log value from workspace
     :param workspace:
     :param log_name:
     :return:

@@ -21,6 +21,33 @@
        <string>Set up geometry calibration Files</string>
       </property>
       <layout class="QGridLayout" name="gridLayout_3">
+       <item row="3" column="4">
+        <widget class="QPushButton" name="pushButton_loadMask">
+         <property name="text">
+          <string>Load</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="3">
+        <widget class="QLineEdit" name="lineEdit_iptsNumber">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="3">
+        <widget class="QLineEdit" name="lineEdit_runNumber">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+        </widget>
+       </item>
        <item row="0" column="0">
         <widget class="QLabel" name="label">
          <property name="text">
@@ -28,20 +55,10 @@
          </property>
         </widget>
        </item>
-       <item row="3" column="0">
-        <widget class="QLabel" name="label_3">
+       <item row="2" column="4">
+        <widget class="QPushButton" name="pushButton_loadRawData">
          <property name="text">
-          <string>Masks</string>
-         </property>
-        </widget>
-       </item>
-       <item row="3" column="3">
-        <widget class="QLineEdit" name="lineEdit_3">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
+          <string>Load</string>
          </property>
         </widget>
        </item>
@@ -52,8 +69,8 @@
          </property>
         </widget>
        </item>
-       <item row="2" column="3">
-        <widget class="QLineEdit" name="lineEdit_2">
+       <item row="3" column="3">
+        <widget class="QLineEdit" name="lineEdit_maskFile">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
            <horstretch>0</horstretch>
@@ -62,29 +79,25 @@
          </property>
         </widget>
        </item>
-       <item row="0" column="3">
-        <widget class="QLineEdit" name="lineEdit">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
+       <item row="3" column="0">
+        <widget class="QLabel" name="label_3">
+         <property name="text">
+          <string>Masks</string>
          </property>
         </widget>
        </item>
-       <item row="2" column="4">
-        <widget class="QPushButton" name="pushButton_3">
-         <property name="text">
-          <string>Load</string>
+       <item row="2" column="5">
+        <spacer name="horizontalSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
          </property>
-        </widget>
-       </item>
-       <item row="3" column="4">
-        <widget class="QPushButton" name="pushButton_17">
-         <property name="text">
-          <string>Load</string>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
          </property>
-        </widget>
+        </spacer>
        </item>
       </layout>
      </widget>
@@ -204,14 +217,14 @@
        <item row="0" column="1">
         <layout class="QGridLayout" name="gridLayout">
          <item row="5" column="0">
-          <widget class="QCheckBox" name="checkBox_6">
+          <widget class="QCheckBox" name="checkBox_refineRotationY">
            <property name="text">
             <string>Swing angle (rotatoin Y)</string>
            </property>
           </widget>
          </item>
          <item row="2" column="3">
-          <widget class="QPushButton" name="pushButton_11">
+          <widget class="QPushButton" name="pushButton_increaseCenterY">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -230,7 +243,7 @@
           </widget>
          </item>
          <item row="4" column="2">
-          <widget class="QLineEdit" name="lineEdit_7">
+          <widget class="QLineEdit" name="lineEdit_rotationX">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -240,7 +253,7 @@
           </widget>
          </item>
          <item row="6" column="2">
-          <widget class="QLineEdit" name="lineEdit_10">
+          <widget class="QLineEdit" name="lineEdit_rotationZ">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -269,7 +282,7 @@
           </widget>
          </item>
          <item row="5" column="2">
-          <widget class="QLineEdit" name="lineEdit_8">
+          <widget class="QLineEdit" name="lineEdit_rotationY">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -279,21 +292,21 @@
           </widget>
          </item>
          <item row="7" column="0">
-          <widget class="QCheckBox" name="checkBox_2">
+          <widget class="QCheckBox" name="checkBox_refineWavelength">
            <property name="text">
             <string>Wavelength</string>
            </property>
           </widget>
          </item>
          <item row="3" column="0">
-          <widget class="QCheckBox" name="checkBox_4">
+          <widget class="QCheckBox" name="checkBox_refineCenterZ">
            <property name="text">
             <string>Arm Length</string>
            </property>
           </widget>
          </item>
          <item row="3" column="1">
-          <widget class="QPushButton" name="pushButton_6">
+          <widget class="QPushButton" name="pushButton_decreaseCenterZ">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -312,7 +325,7 @@
           </widget>
          </item>
          <item row="7" column="1">
-          <widget class="QPushButton" name="pushButton_10">
+          <widget class="QPushButton" name="pushButton_decreaseWavelength">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -331,7 +344,7 @@
           </widget>
          </item>
          <item row="4" column="3">
-          <widget class="QPushButton" name="pushButton_13">
+          <widget class="QPushButton" name="pushButton_increaseRotationX">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -372,7 +385,7 @@
           </widget>
          </item>
          <item row="2" column="2">
-          <widget class="QLineEdit" name="lineEdit_5">
+          <widget class="QLineEdit" name="lineEdit_centerY">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -382,7 +395,7 @@
           </widget>
          </item>
          <item row="7" column="4">
-          <widget class="QLineEdit" name="lineEdit_17">
+          <widget class="QLineEdit" name="pushButton_increaseWavelength">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -392,7 +405,7 @@
           </widget>
          </item>
          <item row="5" column="4">
-          <widget class="QLineEdit" name="lineEdit_15">
+          <widget class="QLineEdit" name="pushButton_increaseRotationY">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -402,7 +415,7 @@
           </widget>
          </item>
          <item row="5" column="1">
-          <widget class="QPushButton" name="pushButton_8">
+          <widget class="QPushButton" name="pushButton_decreaseRotationY">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -421,7 +434,7 @@
           </widget>
          </item>
          <item row="2" column="1">
-          <widget class="QPushButton" name="pushButton_5">
+          <widget class="QPushButton" name="pushButton_decreaseCenterY">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -440,7 +453,7 @@
           </widget>
          </item>
          <item row="6" column="4">
-          <widget class="QLineEdit" name="lineEdit_16">
+          <widget class="QLineEdit" name="pushButton_increaseRotationZ">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -518,21 +531,21 @@
           </widget>
          </item>
          <item row="10" column="4">
-          <widget class="QPushButton" name="pushButton_18">
+          <widget class="QPushButton" name="pushButton_saveGeomCalFile">
            <property name="text">
             <string>Save</string>
            </property>
           </widget>
          </item>
          <item row="4" column="0">
-          <widget class="QCheckBox" name="checkBox_5">
+          <widget class="QCheckBox" name="checkBox_refineRotationX">
            <property name="text">
             <string>Tilt angle (rotation X)</string>
            </property>
           </widget>
          </item>
          <item row="1" column="3">
-          <widget class="QPushButton" name="pushButton_2">
+          <widget class="QPushButton" name="pushButton_increaseCenterX">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -551,7 +564,7 @@
           </widget>
          </item>
          <item row="3" column="2">
-          <widget class="QLineEdit" name="lineEdit_6">
+          <widget class="QLineEdit" name="lineEdit_centerZ">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -561,7 +574,7 @@
           </widget>
          </item>
          <item row="4" column="1">
-          <widget class="QPushButton" name="pushButton_7">
+          <widget class="QPushButton" name="pushButton_decreaseRotationX">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -580,14 +593,14 @@
           </widget>
          </item>
          <item row="2" column="0">
-          <widget class="QCheckBox" name="checkBox_3">
+          <widget class="QCheckBox" name="checkBox_refineCenterY">
            <property name="text">
             <string>Beam Center Y</string>
            </property>
           </widget>
          </item>
          <item row="10" column="2">
-          <widget class="QPushButton" name="pushButton_19">
+          <widget class="QPushButton" name="pushButton_loadGeomCalFile">
            <property name="text">
             <string>Load</string>
            </property>
@@ -623,21 +636,21 @@
           </widget>
          </item>
          <item row="6" column="0">
-          <widget class="QCheckBox" name="checkBox_7">
+          <widget class="QCheckBox" name="checkBox_refineRotationZ">
            <property name="text">
             <string>Spin angle (rotatoin Z)</string>
            </property>
           </widget>
          </item>
          <item row="1" column="0">
-          <widget class="QCheckBox" name="checkBox">
+          <widget class="QCheckBox" name="checkBox_refineCenterX">
            <property name="text">
             <string>Beam Center X</string>
            </property>
           </widget>
          </item>
          <item row="7" column="2">
-          <widget class="QLineEdit" name="lineEdit_9">
+          <widget class="QLineEdit" name="lineEdit_wavelength">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -647,7 +660,7 @@
           </widget>
          </item>
          <item row="1" column="2">
-          <widget class="QLineEdit" name="lineEdit_4">
+          <widget class="QLineEdit" name="lineEdit_centerX">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -657,7 +670,7 @@
           </widget>
          </item>
          <item row="6" column="1">
-          <widget class="QPushButton" name="pushButton_9">
+          <widget class="QPushButton" name="pushButton_decreaseRotationZ">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -676,7 +689,7 @@
           </widget>
          </item>
          <item row="3" column="3">
-          <widget class="QPushButton" name="pushButton_12">
+          <widget class="QPushButton" name="pushButton_increaseCenterZ">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -695,21 +708,21 @@
           </widget>
          </item>
          <item row="8" column="2">
-          <widget class="QCheckBox" name="checkBox_8">
+          <widget class="QCheckBox" name="checkBox_reducedRealtime">
            <property name="text">
             <string>Realtime Reduce</string>
            </property>
           </widget>
          </item>
          <item row="8" column="4">
-          <widget class="QPushButton" name="pushButton_20">
+          <widget class="QPushButton" name="pushButton_reduce">
            <property name="text">
             <string>Reduce</string>
            </property>
           </widget>
          </item>
          <item row="9" column="4">
-          <widget class="QPushButton" name="pushButton_4">
+          <widget class="QPushButton" name="pushButton_calibrateGeometry">
            <property name="text">
             <string>Calibrate</string>
            </property>
@@ -728,7 +741,7 @@
      <x>0</x>
      <y>0</y>
      <width>1390</width>
-     <height>25</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

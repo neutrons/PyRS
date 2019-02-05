@@ -29,10 +29,42 @@ class MantidHB2BReduction(object):
 
         return
 
-    def _convert_to_2theta(self, event_ws_name, raw_nexus_file_name):
+    def convert_to_2theta(self, matrix_ws_name, mask=None):
+        """
+        Convert a workspace with instrument loaded to 2theta with optional mask
+        :param matrix_ws_name:
+        :param mask:
+        :return:
+        """
+        raw_data_ws = ADS.retrieve(matrix_ws_name)
+
+        # convert to 2theta - counts
+        ConvertSpectrumAxis(InputWorkspace=matrix_ws_name, Target='Theta', OutputWorkspace=matrix_ws_name,
+                            EnableLogging=False)
+
+        # convert from N-spectra-single element to 1-spectrum-N-element
+        raw_data_ws = Transpose(InputWorkspace=matrix_ws_name, OutputWorkspace=matrix_ws_name, EnableLogging=False)
+
+        # mask if required
+        if mask:
+            checkdatatypes.check_numpy_arrays('Mask vector', [mask, raw_data_ws.readY(0)], 1, True)
+            masked_vec = raw_data_ws.readY(0)
+            #  TODO - DAYTIME - prototype how to mask
+            masked_vec *= mask
+
+        # rebin
+        ResampleX(InputWorkspace=raw_data_ws, OutputWorkspace=matrix_ws_name, XMin=twotheta_min, XMax=twotheta_min,
+                  NumberBins=self._num_bins, EnableLogging=False)
+
+        # TODO - 20181204 - Refer to "WANDPowderReduction" - ASAP(0)
+
+
+        return vec_2theta, vec_y, vec_e
+
+    def _reduced_to_2theta(self, matrix_ws_name):
         """
         convert to 2theta data set from event workspace
-        :param event_ws_name:
+        :param matrix_ws_name:
         :param raw_nexus_file_name:
         :return: 3-tuple: vec 2theta, vec Y and vec E
         """
@@ -49,15 +81,15 @@ class MantidHB2BReduction(object):
 
         # load instrument
         if cal_ref_id is not None:
-            self._set_geometry_calibration(event_ws_name, self.calibration_manager.get_geometry_calibration(cal_ref_id))
+            self._set_geometry_calibration(matrix_ws_name, self.calibration_manager.get_geometry_calibration(cal_ref_id))
 
-        LoadInstrument(Workspace=event_ws_name, InstrumentName='HB2B', RewriteSpectraMap=True)
+        LoadInstrument(Workspace=matrix_ws_name, InstrumentName='HB2B', RewriteSpectraMap=True)
 
-        ConvertSpectrumAxis(InputWorkspace=event_ws_name, Target='Theta', OutputWorkspace=event_ws_name,
+        ConvertSpectrumAxis(InputWorkspace=matrix_ws_name, Target='Theta', OutputWorkspace=matrix_ws_name,
                             EnableLogging=False)
-        Transpose(InputWorkspace=event_ws_name, OutputWorkspace=event_ws_name, EnableLogging=False)
+        Transpose(InputWorkspace=matrix_ws_name, OutputWorkspace=matrix_ws_name, EnableLogging=False)
 
-        ResampleX(InputWorkspace=event_ws_name, OutputWorkspace=event_ws_name, XMin=twotheta_min, XMax=twotheta_min,
+        ResampleX(InputWorkspace=matrix_ws_name, OutputWorkspace=matrix_ws_name, XMin=twotheta_min, XMax=twotheta_min,
                   NumberBins=num_bins, EnableLogging=False)
 
         # TODO - 20181204 - Refer to "WANDPowderReduction" - ASAP(0)
@@ -191,7 +223,7 @@ class MantidHB2BReduction(object):
 
         return
 
-    def load_instrument(self):
+    def load_instrument(self, two_theta_value, idf_name, calibration):
         """
         Load instrument with calibration to
         :return:
@@ -199,45 +231,67 @@ class MantidHB2BReduction(object):
         if self._data_ws_name is None or ADS.doesExists(self._data_ws_name) is False:
             raise RuntimeError('Reduction HB2B (Mantid) has no workspace set to reduce')
 
+        # check idf & calibration & 2theta
+        checkdatatypes.check_file_name(idf_name, True, False, False, 'Mantid IDF for HB2B')
+
+        # set 2theta value if the workspace does not contain it
+        if two_theta_value:
+            checkdatatypes.check_float_variable('Two theta value', two_theta_value, (-181., 181))
+            AddSampleLog(Workspace=self._data_ws_name, LogName='2theta',
+                         LogText='{}'.format(two_theta_value),  # arm_length-DEFAULT_ARM_LENGTH),
+                         LogType='Number Series', LogUnit='meter',
+                         NumberType='Double')
+
         # set up sample logs
         # cal::arm
-        AddSampleLog(Workspace=self._data_ws_name, LogName='cal::arm', LogText='{}'.format(arm_length-DEFAULT_ARM_LENGTH),
+        AddSampleLog(Workspace=self._data_ws_name, LogName='cal::arm',
+                     LogText='{}'.format(calibration.center_shift_z),  # arm_length-DEFAULT_ARM_LENGTH),
                      LogType='Number Series', LogUnit='meter',
                      NumberType='Double')
-        #
-        # cal::2theta
-        AddSampleLog(Workspace=self._data_ws_name, LogName='cal::2theta', LogText='{}'.format(-two_theta),
-                     LogType='Number Series', LogUnit='degree',
-                     NumberType='Double')
-        #
+
         # cal::deltax
-        AddSampleLog(Workspace=self._data_ws_name, LogName='cal::deltax', LogText='{}'.format(center_shift_x),
+        AddSampleLog(Workspace=self._data_ws_name, LogName='cal::deltax',
+                     LogText='{}'.format(calibration.center_shift_x),
                      LogType='Number Series', LogUnit='meter',
                      NumberType='Double')
         #
         # cal::deltay
-        AddSampleLog(Workspace=self._data_ws_name, LogName='cal::deltay', LogText='{}'.format(center_shift_y),
+        AddSampleLog(Workspace=self._data_ws_name, LogName='cal::deltay',
+                     LogText='{}'.format(calibration.center_shift_y),
                      LogType='Number Series', LogUnit='meter',
                      NumberType='Double')
 
         # cal::roty
-        AddSampleLog(Workspace=self._data_ws_name, LogName='cal::roty', LogText='{}'.format(-two_theta - rot_y_flip),
+        AddSampleLog(Workspace=self._data_ws_name, LogName='cal::roty',
+                     LogText='{}'.format(calibration.rotation_y),
                      LogType='Number Series', LogUnit='degree',
                      NumberType='Double')
 
         # cal::flip
-        AddSampleLog(Workspace=self._data_ws_name, LogName='cal::flip', LogText='{}'.format(rot_x_flip),
+        AddSampleLog(Workspace=self._data_ws_name, LogName='cal::flip',
+                     LogText='{}'.format(calibration.rotation_x),
                      LogType='Number Series', LogUnit='degree',
                      NumberType='Double')
 
         # cal::spin
-        AddSampleLog(Workspace=self._data_ws_name, LogName='cal::spin', LogText='{}'.format(rot_z_spin),
+        AddSampleLog(Workspace=self._data_ws_name, LogName='cal::spin',
+                     LogText='{}'.format(calibration.rotation_z),
                      LogType='Number Series', LogUnit='degree',
                      NumberType='Double')
 
+        # load instrument
         LoadInstrument(Workspace=self._data_ws_name,
-                       Filename=os.path.join(root, 'prototypes/calibration/HB2B_Definition_v4.xml'),
+                       Filename=idf_name,
                        InstrumentName='HB2B', RewriteSpectraMap='True')
+
+        return
+
+    def mask_detectors(self, mask_vector):
+        """
+        Mask detectors
+        :param mask_vector:
+        :return:
+        """
 
 
     def reduce_rs_nexus(self, nexus_name, auto_mapping_check, output_dir, do_calibration,
@@ -277,9 +331,9 @@ class MantidHB2BReduction(object):
                         raise RuntimeError('Unable to locate calibration file for {}'.format(nexus_name))
                     elif calibration_dict is None and allow_calibration_unavailable:
                         err_msg + 'Unable to find calibration for {}\n'.format(nexus_name)
-                    corr_data = self._convert_to_2theta(ws_name, calibration_dict)
+                    corr_data = self._reduced_to_2theta(ws_name, calibration_dict)
                 else:
-                    corr_data = self._convert_to_2theta(ws_name, None)
+                    corr_data = self._reduced_to_2theta(ws_name, None)
             except RuntimeError as run_err:
                 err_msg += 'Failed to convert {} to 2theta space due to {}\n'.format(ws_name, run_err)
             else:
@@ -326,9 +380,9 @@ class MantidHB2BReduction(object):
         for ws_name in event_ws_list:
             try:
                 if do_calibration:
-                    corr_data = self._convert_to_2theta(ws_name, nxs_file_name)
+                    corr_data = self._reduced_to_2theta(ws_name, nxs_file_name)
                 else:
-                    corr_data = self._convert_to_2theta(ws_name, None)
+                    corr_data = self._reduced_to_2theta(ws_name, None)
             except RuntimeError as run_err:
                 err_msg += 'Failed to convert {} to 2theta space due to {}\n'.format(ws_name, run_err)
             else:
@@ -383,18 +437,6 @@ class MantidHB2BReduction(object):
             'of type {}'.format(calibration, type(calibration))
 
         self._instrument_calibration = calibration
-
-        return
-
-    def set_instrument(self, idf_name):
-        """
-        set Mantid's IDF file
-        :param idf_name:
-        :return:
-        """
-        checkdatatypes.check_file_name(idf_name, True, False, False, 'Mantid IDF for HB2B')
-
-        self._mantid_idf = idf_name
 
         return
 
