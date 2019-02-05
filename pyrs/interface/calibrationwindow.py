@@ -1,8 +1,8 @@
+import pyrs.interface.pyrs_main
 try:
     from PyQt5.QtWidgets import QMainWindow, QFileDialog
 except ImportError:
     from PyQt4.QtGui import QMainWindow, QFileDialog
-import ui.ui_sscalvizwindow
 from pyrs.utilities import checkdatatypes
 import pyrs.core.pyrscore
 import os
@@ -47,28 +47,55 @@ class InstrumentCalibrationWindow(QMainWindow):
         self.ui.pushButton_reduce.clicked.connect(self.do_reduce_data)
        
         self.ui.pushButton_calibrateGeometry.clicked.connect(self.do_calibrate_geometry)
-        # TODO - NIGHT - Define link to methods
+
+        # TODO - NIGHT - 1. merge do_decrease_value and do_decrease_value_center_x to do_decrease_value
+        # TODO - NIGHT - 2. implement do_increase_value & _increase_button_dict
+        # TODO - NIGHT - 3. full implementation on _decrease_button_dict
+        # TODO - NIGHT - 4. give all the widgets proper names
+        # TODO - NIGHT - 5. frame_multiplePlotsView -> multiplePlotsView -> 7 figure + navigation bar
+
+        self._decrease_button_dict = dict()
+        self._decrease_button_dict[self.ui.pushButton_decreaseCenterY] = (self.ui.lineEdit_centerY,
+                                                                          self.ui.lineEdit_resolutionCenterX)
+
         self.ui.pushButton_decreaseCenterX.clicked.connect(self.do_decrease_value_center_x)
-        self.ui.pushButton_decreaseCenterY.clicked.connect(self.do_decrease_value_center_y)
-        self.ui.pushButton_decreaseCenterZ.clicked.connect(self.do_decrease_value_center_z)
-
-        self.ui.pushButton_increaseCenterX.clicked.connect(self.do_increase_value_center_x)
-        self.ui.pushButton_increaseCenterY.clicked.connect(self.do_increase_value_center_y)
-        self.ui.pushButton_increaseCenterZ.clicked.connect(self.do_increase_value_center_z)
-
-        self.ui.pushButton_decreaseRotationX.clicked.connect(self.do_decrease_value_rotation_x)
-        self.ui.pushButton_decreaseRotationY.clicked.connect(self.do_decrease_value_rotation_y)
-        self.ui.pushButton_decreaseRotationZ.clicked.connect(self.do_decrease_value_rotation_z)
-
-        self.ui.pushButton_increaseRotationX.clicked.connect(self.do_increase_value_rotation_x)
-        self.ui.pushButton_increaseRotationY.clicked.connect(self.do_increase_value_rotation_y)
-        self.ui.pushButton_increaseRotationZ.clicked.connect(self.do_increase_value_rotation_z)
-
-        self.ui.pushButton_decreaseWavelength.clicked.connect(self.do_increase_value_wavelength)
-        self.ui.pushButton_increaseWavelength.clicked.connect(self.do_decrease_value_wavelength)
+        self.ui.pushButton_decreaseCenterY.clicked.connect(self.do_decrease_value)  # do_decrease_value_center_y)
+        # self.ui.pushButton_decreaseCenterZ.clicked.connect(self.do_decrease_value_center_z)
+        #
+        # self.ui.pushButton_increaseCenterX.clicked.connect(self.do_increase_value_center_x)
+        # self.ui.pushButton_increaseCenterY.clicked.connect(self.do_increase_value_center_y)
+        # self.ui.pushButton_increaseCenterZ.clicked.connect(self.do_increase_value_center_z)
+        #
+        # self.ui.pushButton_decreaseRotationX.clicked.connect(self.do_decrease_value_rotation_x)
+        # self.ui.pushButton_decreaseRotationY.clicked.connect(self.do_decrease_value_rotation_y)
+        # self.ui.pushButton_decreaseRotationZ.clicked.connect(self.do_decrease_value_rotation_z)
+        #
+        # self.ui.pushButton_increaseRotationX.clicked.connect(self.do_increase_value_rotation_x)
+        # self.ui.pushButton_increaseRotationY.clicked.connect(self.do_increase_value_rotation_y)
+        # self.ui.pushButton_increaseRotationZ.clicked.connect(self.do_increase_value_rotation_z)
+        #
+        # self.ui.pushButton_decreaseWavelength.clicked.connect(self.do_increase_value_wavelength)
+        # self.ui.pushButton_increaseWavelength.clicked.connect(self.do_decrease_value_wavelength)
 
 
         # UI widgets
+
+    def do_decrease_value(self):
+        sender = self.sender()
+
+        print ('[DB...BAT] Sender:  {}'.format(self.sender()))
+
+        print ('Sender in dict: {}'.format(sender in self._decrease_button_dict))
+
+        value_edit, resolution_edit = self._decrease_button_dict[sender]
+
+        value_edit.setText('blabla')
+
+
+
+    def do_calibrate_geometry(self):
+
+        return
 
     def do_load_raw(self):
 
@@ -108,7 +135,7 @@ class InstrumentCalibrationWindow(QMainWindow):
 
         return
 
-    def do_reduce_data)
+    def do_reduce_data(self):
 
         lineEdit_rotationX
         lineEdit_centerX
@@ -120,12 +147,7 @@ class InstrumentCalibrationWindow(QMainWindow):
         pushButton_loadGeomCalFile
 
 
-
-
-
-
-
-    def decrease_value_center_x(self):
+    def do_decrease_value_center_x(self):
         """
         decrease center X value according to current one and resolution
         :return:
@@ -199,12 +221,3 @@ class InstrumentCalibrationWindow(QMainWindow):
 
 
         return
-
-    def decrease_value(self):
-
-        sender = self.sender()
-
-        print ('[DB...BAT] Sender:  {}'.format(self.sender()))
-        print ('[DB...BAT] Methods: \n'.format(dir(sender)))
-
-
