@@ -1,8 +1,8 @@
 import pyrs.interface.pyrs_main
 try:
-    from PyQt5.QtWidgets import QMainWindow, QFileDialog
+    from PyQt5.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout
 except ImportError:
-    from PyQt4.QtGui import QMainWindow, QFileDialog
+    from PyQt4.QtGui import QMainWindow, QFileDialog, QVBoxLayout
 from pyrs.utilities import checkdatatypes
 import pyrs.core.pyrscore
 import os
@@ -54,44 +54,162 @@ class InstrumentCalibrationWindow(QMainWindow):
         # TODO - NIGHT - 4. give all the widgets proper names
         # TODO - NIGHT - 5. frame_multiplePlotsView -> multiplePlotsView -> 7 figure + navigation bar
 
+        # decrease button associated line edits dictionary
         self._decrease_button_dict = dict()
-        self._decrease_button_dict[self.ui.pushButton_decreaseCenterY] = (self.ui.lineEdit_centerY,
+        self._decrease_button_dict[self.ui.pushButton_decreaseCenterX] = (self.ui.lineEdit_centerX,
                                                                           self.ui.lineEdit_resolutionCenterX)
+        self._decrease_button_dict[self.ui.pushButton_decreaseCenterY] = (self.ui.lineEdit_centerY,
+                                                                          self.ui.lineEdit_resolutionCenterY)
+        self._decrease_button_dict[self.ui.pushButton_decreaseCenterZ] = (self.ui.lineEdit_centerZ,
+                                                                          self.ui.lineEdit_resolutionCenterZ)
+        self._decrease_button_dict[self.ui.pushButton_decreaseRotationX] = (self.ui.lineEdit_rotationX,
+                                                                            self.ui.lineEdit_resolutionRotationX)
+        self._decrease_button_dict[self.ui.pushButton_decreaseRotationY] = (self.ui.lineEdit_rotationY,
+                                                                            self.ui.lineEdit_resolutionRotationY)
+        self._decrease_button_dict[self.ui.pushButton_decreaseRotationZ] = (self.ui.lineEdit_rotationZ,
+                                                                            self.ui.lineEdit_resolutionRotationZ)
+        self._decrease_button_dict[self.ui.pushButton_decreaseWavelength] = (self.ui.lineEdit_wavelength,
+                                                                             self.ui.lineEdit_resolutionWavelength)
 
-        self.ui.pushButton_decreaseCenterX.clicked.connect(self.do_decrease_value_center_x)
-        self.ui.pushButton_decreaseCenterY.clicked.connect(self.do_decrease_value)  # do_decrease_value_center_y)
-        # self.ui.pushButton_decreaseCenterZ.clicked.connect(self.do_decrease_value_center_z)
-        #
-        # self.ui.pushButton_increaseCenterX.clicked.connect(self.do_increase_value_center_x)
-        # self.ui.pushButton_increaseCenterY.clicked.connect(self.do_increase_value_center_y)
-        # self.ui.pushButton_increaseCenterZ.clicked.connect(self.do_increase_value_center_z)
-        #
-        # self.ui.pushButton_decreaseRotationX.clicked.connect(self.do_decrease_value_rotation_x)
-        # self.ui.pushButton_decreaseRotationY.clicked.connect(self.do_decrease_value_rotation_y)
-        # self.ui.pushButton_decreaseRotationZ.clicked.connect(self.do_decrease_value_rotation_z)
-        #
-        # self.ui.pushButton_increaseRotationX.clicked.connect(self.do_increase_value_rotation_x)
-        # self.ui.pushButton_increaseRotationY.clicked.connect(self.do_increase_value_rotation_y)
-        # self.ui.pushButton_increaseRotationZ.clicked.connect(self.do_increase_value_rotation_z)
-        #
-        # self.ui.pushButton_decreaseWavelength.clicked.connect(self.do_increase_value_wavelength)
-        # self.ui.pushButton_increaseWavelength.clicked.connect(self.do_decrease_value_wavelength)
+        # increase button associated line edits dictionary
+        self._increase_button_dict = dict()
+        self._increase_button_dict[self.ui.pushButton_increaseCenterX] = (self.ui.lineEdit_centerX,
+                                                                          self.ui.lineEdit_resolutionCenterX)
+        self._increase_button_dict[self.ui.pushButton_increaseCenterY] = (self.ui.lineEdit_centerY,
+                                                                          self.ui.lineEdit_resolutionCenterY)
+        self._increase_button_dict[self.ui.pushButton_increaseCenterZ] = (self.ui.lineEdit_centerZ,
+                                                                          self.ui.lineEdit_resolutionCenterZ)
+        self._increase_button_dict[self.ui.pushButton_increaseRotationX] = (self.ui.lineEdit_rotationX,
+                                                                            self.ui.lineEdit_resolutionRotationX)
+        self._increase_button_dict[self.ui.pushButton_increaseRotationY] = (self.ui.lineEdit_rotationY,
+                                                                            self.ui.lineEdit_resolutionRotationY)
+        self._increase_button_dict[self.ui.pushButton_increaseRotationZ] = (self.ui.lineEdit_rotationZ,
+                                                                            self.ui.lineEdit_resolutionRotationZ)
+        self._increase_button_dict[self.ui.pushButton_increaseWavelength] = (self.ui.lineEdit_wavelength,
+                                                                             self.ui.lineEdit_resolutionWavelength)
 
 
-        # UI widgets
+        # define event handing methods
+        self.ui.pushButton_decreaseCenterX.clicked.connect(self.do_decrease_value)
+        self.ui.pushButton_decreaseCenterY.clicked.connect(self.do_decrease_value)
+        self.ui.pushButton_decreaseCenterZ.clicked.connect(self.do_decrease_value)
+
+        self.ui.pushButton_increaseCenterX.clicked.connect(self.do_increase_value)
+        self.ui.pushButton_increaseCenterY.clicked.connect(self.do_increase_value)
+        self.ui.pushButton_increaseCenterZ.clicked.connect(self.do_increase_value)
+
+        self.ui.pushButton_decreaseRotationX.clicked.connect(self.do_increase_value)
+        self.ui.pushButton_decreaseRotationY.clicked.connect(self.do_increase_value)
+        self.ui.pushButton_decreaseRotationZ.clicked.connect(self.do_increase_value)
+
+        self.ui.pushButton_increaseRotationX.clicked.connect(self.do_increase_value_rotation_x)
+        self.ui.pushButton_increaseRotationY.clicked.connect(self.do_increase_value_rotation_y)
+        self.ui.pushButton_increaseRotationZ.clicked.connect(self.do_increase_value_rotation_z)
+
+        self.ui.pushButton_decreaseWavelength.clicked.connect(self.do_dncrease_value)
+        self.ui.pushButton_increaseWavelength.clicked.connect(self.do_increase_value)
+
+        return
+
+    def _promote_widgets(self):
+        """ Define promoted widgets on the pre-defined QFrame instance
+        :return:
+        """
+        # detector view
+        temp_layout = QVBoxLayout()
+        self.ui.frame_detector2DView.setLayout(temp_layout)
+        self.ui.graphicsView_detectorView = DetectorView(self)
+        temp_layout.addWidget(self.ui.graphicsView_detectorView)
+
+        # calibration view
+        temp_layout = QVBoxLayout()
+        self.ui.frame_multiplePlotsView.setLayout(temp_layout)
+        self.ui.graphicsView_calibration = GeometryCalibrationView(self)
+        temp_layout.addWidget(self.ui.graphicsView_calibration)
+
+        # reduced view
+        temp_layout = QVBoxLayout
+        self.ui.frame_reducedDataView.setLayout(temp_layout)
+        self.ui.graphicsView_reducedDataView = ReducedDataView(self)
+        temp_layout.addWidget(self.ui.graphicsView_reducedDataView)
+
+        return
 
     def do_decrease_value(self):
+        """
+        Decrease the value in the associated QLineEdit from QPushButton event taking account of the
+        associated resolution value in QLineEdit
+        :return:
+        """
+        # get sender of the event
         sender = self.sender()
 
-        print ('[DB...BAT] Sender:  {}'.format(self.sender()))
+        if sender not in self._decrease_button_dict:
+            raise RuntimeError('Sender of decrease value message (registered as {}) is not in _decrease_button_dict'
+                               ''.format(sender))
+        else:
+            value_edit, resolution_edit = self._decrease_button_dict[sender]
 
-        print ('Sender in dict: {}'.format(sender in self._decrease_button_dict))
+        # get current value
+        curr_value = gui_helper.parse_line_edit(value_edit, float, throw_if_blank=False)
+        if curr_value is None:
+            curr_value = 0.
+            value_edit.setText('{}'.format(curr_value))
+        # resolution
+        resolution = gui_helper.parse_line_edit(resolution_edit, float,
+                                                throw_if_blank=False,
+                                                edit_name='Resolution')
+        if resolution is None:
+            curr_value = 0.001
+            resolution_edit.setText('{}'.format(curr_value))
 
-        value_edit, resolution_edit = self._decrease_button_dict[sender]
+        # get next value
+        next_value = curr_value - resolution
+        value_edit.setText('{}'.format(next_value))
 
-        value_edit.setText('blabla')
+        # reduction?
+        if self.ui.checkBox_reducedRealtime.isChecked():
+            self.do_reduce_data()
 
+        return
 
+    def do_increase_value(self):
+        """
+        Decrease the value in the associated QLineEdit from QPushButton event taking account of the
+        associated resolution value in QLineEdit
+        :return:
+        """
+        # get sender of the event
+        sender = self.sender()
+
+        if sender not in self._increase_button_dict:
+            raise RuntimeError('Sender of decrease value message (registered as {}) is not in _decrease_button_dict'
+                               ''.format(sender))
+        else:
+            value_edit, resolution_edit = self._increase_button_dict[sender]
+
+        # get current value
+        curr_value = gui_helper.parse_line_edit(value_edit, float, throw_if_blank=False)
+        if curr_value is None:
+            curr_value = 0.
+            value_edit.setText('{}'.format(curr_value))
+        # resolution
+        resolution = gui_helper.parse_line_edit(resolution_edit, float,
+                                                throw_if_blank=False,
+                                                edit_name='Resolution')
+        if resolution is None:
+            curr_value = 0.001
+            resolution_edit.setText('{}'.format(curr_value))
+
+        # get next value
+        next_value = curr_value + resolution
+        value_edit.setText('{}'.format(next_value))
+
+        # reduction?
+        if self.ui.checkBox_reducedRealtime.isChecked():
+            self.do_reduce_data()
+
+        return
 
     def do_calibrate_geometry(self):
 
@@ -137,7 +255,6 @@ class InstrumentCalibrationWindow(QMainWindow):
 
     def do_reduce_data(self):
 
-        lineEdit_rotationX
         lineEdit_centerX
 
 
@@ -147,28 +264,6 @@ class InstrumentCalibrationWindow(QMainWindow):
         pushButton_loadGeomCalFile
 
 
-    def do_decrease_value_center_x(self):
-        """
-        decrease center X value according to current one and resolution
-        :return:
-        """
-        curr_value = gui_helper.parse_line_edit(self.ui.lineEdit_centerX, float, throw_if_blank=False)
-        if curr_value is None:
-            curr_value = 0.
-            self.ui.lineEdit_centerX.setText('{}'.format(curr_value))
-
-        resolution = gui_helper.parse_line_edit(self.ui.lineEdit_resolutionCenterX, float,
-                                                throw_if_blank=False,
-                                                edit_name='Resolution center X')
-        if resolution is None:
-            curr_value = 0.001
-            self.ui.lineEdit_resolutionCenterX.setText('{}'.format(curr_value))
-
-        next_value = curr_value + resolution
-
-        self.ui.lineEdit_centerX.setText('{}'.format(next_value))
-
-        return
 
     def refine_instrument_geometry(self):
         """
