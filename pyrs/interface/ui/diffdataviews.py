@@ -1,6 +1,7 @@
 from mplgraphicsview1d import MplGraphicsView1D
 from mplgraphicsview2d import MplGraphicsView2D
 from mplgraphicsviewpolar import MplGraphicsPolarView
+from mplgraphicsview import MplGraphicsView
 import numpy as np
 import mplgraphicsviewpolar
 import slice_view_widget
@@ -66,7 +67,8 @@ class DetectorView(MplGraphicsView2D):
         init
         :param parent:
         """
-        super(DetectorView, self).__init__(parent)
+        MplGraphicsView2D.__init__(self, parent)
+        # super(, self).__init__(parent)
 
         return
 
@@ -293,3 +295,14 @@ class SampleSliceView(slice_view_widget.SliceViewWidget):
         super(SampleSliceView, self).__init__(parent)
 
         return
+
+
+class GeomCalibrationView(MplGraphicsView1D):
+    """
+    """
+    def __init__(self, parent):
+        MplGraphicsView1D.__init__(self, parent, row_size=3, col_size=1, tool_bar=True)
+        return
+
+    # TODO - TONIGHT 3 - Add simple vertical indicator to this class
+    # TODO - TONIGHT 4 - Add global control including X/Y range, clear, home, 

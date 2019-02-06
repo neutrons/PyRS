@@ -368,15 +368,35 @@ class MplGraphicsView(QWidget):
 
     Note: Merged with HFIR_Powder_Reduction.MplFigureCanvas
     """
-    def __init__(self, parent):
+    def __init__(self, parent, plot_name_list=None):
         """ Initialization
         """
         # Initialize parent
         QWidget.__init__(self, parent)
 
         # set up canvas
-        self._myCanvas = Qt4MplCanvas(self)
-        self._myToolBar = MyNavigationToolbar(self, self._myCanvas)
+        if plot_name_list is None:
+            plot_name_list = [0]
+        else:
+            if not (isinstance(plot_name_list, list) and len(plot_name_list) > 0):
+                raise RuntimeError('Plot names {} if given must be in a list but not a {}'
+                                   ''.format(plot_name_list, type(plot_name_list)))
+        # END-IF-ELSE
+
+        # add canvas
+        self._plot_dict = dict()
+        self._plot_names = plot_name_list[:]   # keep a record of the original order
+        for plot_name in plot_name_list:
+            canvas_i = Qt4MplCanvas(self)
+            self._plot_dict[plot_name] = canvas_i
+        # add tool bar: associated to first plot
+        self._myToolBar = MyNavigationToolbar(self, self._plot_dict[self._plot_names[0]])  # self._myCanvas
+
+        # keep default to 1 plot
+        if len(self._plot_names) == 1:
+            self._myCanvas = self._plot_dict[self._plot_names[0]]
+        else:
+            self._myCanvas = None   # forbid to use _myCanvas in a multi-plot case
 
         # state of operation
         self._isZoomed = False
@@ -385,7 +405,8 @@ class MplGraphicsView(QWidget):
 
         # set up layout
         self._vBox = QVBoxLayout(self)
-        self._vBox.addWidget(self._myCanvas)
+        for plot_name in self._plot_names:
+            self._vBox.addWidget(self._plot_dict[plot_name])
         self._vBox.addWidget(self._myToolBar)
 
         # auto line's maker+color list

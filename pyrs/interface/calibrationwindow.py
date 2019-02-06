@@ -7,11 +7,8 @@ from pyrs.utilities import checkdatatypes
 import pyrs.core.pyrscore
 import os
 import gui_helper
-import numpy
-import platform
 import ui.ui_calibrationwindow
-import dialogs
-import datetime
+from ui import diffdataviews
 
 # setup of constants
 SLICE_VIEW_RESOLUTION = 0.0001
@@ -41,18 +38,15 @@ class InstrumentCalibrationWindow(QMainWindow):
         # set up UI
         self.ui = ui.ui_calibrationwindow.Ui_MainWindow()
         self.ui.setupUi(self)
+        self._promote_widgets()
 
         self.ui.pushButton_loadRawData.clicked.connect(self.do_load_raw)
+        # TODO - TONIGHT2 - self.ui.pushButton_loadGeomCalFile : shall parse value and set up lineEdits
+
         self.ui.pushButton_loadMask.clicked.connect(self.do_load_mask)
         self.ui.pushButton_reduce.clicked.connect(self.do_reduce_data)
        
         self.ui.pushButton_calibrateGeometry.clicked.connect(self.do_calibrate_geometry)
-
-        # TODO - NIGHT - 1. merge do_decrease_value and do_decrease_value_center_x to do_decrease_value
-        # TODO - NIGHT - 2. implement do_increase_value & _increase_button_dict
-        # TODO - NIGHT - 3. full implementation on _decrease_button_dict
-        # TODO - NIGHT - 4. give all the widgets proper names
-        # TODO - NIGHT - 5. frame_multiplePlotsView -> multiplePlotsView -> 7 figure + navigation bar
 
         # decrease button associated line edits dictionary
         self._decrease_button_dict = dict()
@@ -88,7 +82,6 @@ class InstrumentCalibrationWindow(QMainWindow):
         self._increase_button_dict[self.ui.pushButton_increaseWavelength] = (self.ui.lineEdit_wavelength,
                                                                              self.ui.lineEdit_resolutionWavelength)
 
-
         # define event handing methods
         self.ui.pushButton_decreaseCenterX.clicked.connect(self.do_decrease_value)
         self.ui.pushButton_decreaseCenterY.clicked.connect(self.do_decrease_value)
@@ -98,15 +91,15 @@ class InstrumentCalibrationWindow(QMainWindow):
         self.ui.pushButton_increaseCenterY.clicked.connect(self.do_increase_value)
         self.ui.pushButton_increaseCenterZ.clicked.connect(self.do_increase_value)
 
-        self.ui.pushButton_decreaseRotationX.clicked.connect(self.do_increase_value)
-        self.ui.pushButton_decreaseRotationY.clicked.connect(self.do_increase_value)
-        self.ui.pushButton_decreaseRotationZ.clicked.connect(self.do_increase_value)
+        self.ui.pushButton_decreaseRotationX.clicked.connect(self.do_decrease_value)
+        self.ui.pushButton_decreaseRotationY.clicked.connect(self.do_decrease_value)
+        self.ui.pushButton_decreaseRotationZ.clicked.connect(self.do_decrease_value)
 
-        self.ui.pushButton_increaseRotationX.clicked.connect(self.do_increase_value_rotation_x)
-        self.ui.pushButton_increaseRotationY.clicked.connect(self.do_increase_value_rotation_y)
-        self.ui.pushButton_increaseRotationZ.clicked.connect(self.do_increase_value_rotation_z)
+        self.ui.pushButton_increaseRotationX.clicked.connect(self.do_increase_value)
+        self.ui.pushButton_increaseRotationY.clicked.connect(self.do_increase_value)
+        self.ui.pushButton_increaseRotationZ.clicked.connect(self.do_increase_value)
 
-        self.ui.pushButton_decreaseWavelength.clicked.connect(self.do_dncrease_value)
+        self.ui.pushButton_decreaseWavelength.clicked.connect(self.do_decrease_value)
         self.ui.pushButton_increaseWavelength.clicked.connect(self.do_increase_value)
 
         return
@@ -118,19 +111,19 @@ class InstrumentCalibrationWindow(QMainWindow):
         # detector view
         temp_layout = QVBoxLayout()
         self.ui.frame_detector2DView.setLayout(temp_layout)
-        self.ui.graphicsView_detectorView = DetectorView(self)
+        self.ui.graphicsView_detectorView = diffdataviews.DetectorView(self)
         temp_layout.addWidget(self.ui.graphicsView_detectorView)
 
         # calibration view
         temp_layout = QVBoxLayout()
         self.ui.frame_multiplePlotsView.setLayout(temp_layout)
-        self.ui.graphicsView_calibration = GeometryCalibrationView(self)
+        self.ui.graphicsView_calibration = diffdataviews.GeomCalibrationView(self)
         temp_layout.addWidget(self.ui.graphicsView_calibration)
 
         # reduced view
-        temp_layout = QVBoxLayout
+        temp_layout = QVBoxLayout()
         self.ui.frame_reducedDataView.setLayout(temp_layout)
-        self.ui.graphicsView_reducedDataView = ReducedDataView(self)
+        self.ui.graphicsView_reducedDataView = diffdataviews.GeneralDiffDataView(self)
         temp_layout.addWidget(self.ui.graphicsView_reducedDataView)
 
         return
@@ -151,17 +144,28 @@ class InstrumentCalibrationWindow(QMainWindow):
             value_edit, resolution_edit = self._decrease_button_dict[sender]
 
         # get current value
-        curr_value = gui_helper.parse_line_edit(value_edit, float, throw_if_blank=False)
+        try:
+            curr_value = gui_helper.parse_line_edit(value_edit, float, throw_if_blank=False)
+        except RuntimeError as run_err:
+            gui_helper.pop_message(self, '{}'.format(run_err))
+            curr_value = None
+        # default
         if curr_value is None:
             curr_value = 0.
             value_edit.setText('{}'.format(curr_value))
+
         # resolution
-        resolution = gui_helper.parse_line_edit(resolution_edit, float,
-                                                throw_if_blank=False,
-                                                edit_name='Resolution')
+        try:
+            resolution = gui_helper.parse_line_edit(resolution_edit, float,
+                                                    throw_if_blank=False,
+                                                    edit_name='Resolution')
+        except RuntimeError as run_err:
+            gui_helper.pop_message(self, '{}'.format(run_err))
+            resolution = None
+
         if resolution is None:
-            curr_value = 0.001
-            resolution_edit.setText('{}'.format(curr_value))
+            resolution = 0.001
+            resolution_edit.setText('{}'.format(resolution))
 
         # get next value
         next_value = curr_value - resolution
@@ -189,17 +193,27 @@ class InstrumentCalibrationWindow(QMainWindow):
             value_edit, resolution_edit = self._increase_button_dict[sender]
 
         # get current value
-        curr_value = gui_helper.parse_line_edit(value_edit, float, throw_if_blank=False)
+        try:
+            curr_value = gui_helper.parse_line_edit(value_edit, float, throw_if_blank=False)
+        except RuntimeError as run_err:
+            gui_helper.pop_message(self, '{}'.format(run_err))
+            curr_value = None
+        # default
         if curr_value is None:
             curr_value = 0.
             value_edit.setText('{}'.format(curr_value))
         # resolution
-        resolution = gui_helper.parse_line_edit(resolution_edit, float,
-                                                throw_if_blank=False,
-                                                edit_name='Resolution')
+        try:
+            resolution = gui_helper.parse_line_edit(resolution_edit, float,
+                                                    throw_if_blank=False,
+                                                    edit_name='Resolution')
+        except RuntimeError as run_err:
+            gui_helper.pop_message(self, '{}'.format(run_err))
+            resolution = None
+
         if resolution is None:
-            curr_value = 0.001
-            resolution_edit.setText('{}'.format(curr_value))
+            resolution = 0.001
+            resolution_edit.setText('{}'.format(resolution))
 
         # get next value
         next_value = curr_value + resolution
@@ -254,14 +268,16 @@ class InstrumentCalibrationWindow(QMainWindow):
         return
 
     def do_reduce_data(self):
+        """
+
+        :return:
+        """
+        # TODO - TONIGHT - Implement Reduction
+
+        # check: raw data file, instrument file, calibration value,
 
         lineEdit_centerX
 
-
-
-
-
-        pushButton_loadGeomCalFile
 
 
 
@@ -301,18 +317,5 @@ class InstrumentCalibrationWindow(QMainWindow):
 
         # refine
         self._controller.calibration_engine.calibrate_instrument(param_refine_flags)
-
-        return
-
-    def _promote_widgets(self):
-
-        # frame_detector2DView
-        # frame_multiplePlotsView
-        # frame_reducedDataView, comboBox_unit
-
-        # TODO - NIGHT - Implement UI to promote widgets - NIGHT
-
-        # TODO - NIGHT - In UI, better name shall be given to widgets - NIGHT
-
 
         return
