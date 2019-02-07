@@ -231,17 +231,17 @@ class InstrumentCalibrationWindow(QMainWindow):
 
     def do_load_raw(self):
 
-        ipts_number = gui_helper.parse_line_edit()
-        run_number = gui_helper.parse_line_edit()
+        ipts_number = gui_helper.parse_line_edit(self.ui.lineEdit_iptsNumber, int, False, 'IPTS  number', None)
+        run_number = gui_helper.parse_line_edit(self.ui.lineEdit_runNumber, int, False, 'Run number', None)
 
         if ipts_number is None or run_number is None:
             # load data file directory
             raw_file_name = gui_helper.get_open()
         else:
-            raw_file_name = self._controller.archive_manager.get_nexus(ipts_number, run_number)
+            raw_file_name = self.core.archive_manager.get_nexus(ipts_number, run_number)
 
         # load
-        self._controller.reduction_manager.load_data(raw_file_name)
+        self._core.reduction_manager.load_data(raw_file_name)
 
         return
 
@@ -272,14 +272,32 @@ class InstrumentCalibrationWindow(QMainWindow):
 
         :return:
         """
-        # TODO - TONIGHT - Implement Reduction
+        try:
+            cal_shift_x = gui_helper.parse_line_edit(self.ui.lineEdit_centerX, float, False, 'Center X', default=0.)
+            cal_shift_y = gui_helper.parse_line_edit(self.ui.lineEdit_centerY, float, False, 'Center Y', default=0.)
+            cal_shift_z = gui_helper.parse_line_edit(self.ui.lineEdit_centerZ, float, False, 'Center Z', default=0.)
+            cal_rot_x = gui_helper.parse_line_edit(self.ui.ineEdit_rotationX, float, False, 'Rotation X', default=0.)
+            cal_rot_y = gui_helper.parse_line_edit(self.ui.ineEdit_rotationY, float, False, 'Rotation Y', default=0.)
+            cal_rot_z = gui_helper.parse_line_edit(self.ui.ineEdit_rotationZ, float, False, 'Rotation Z', default=0.)
+            cal_wave_length = gui_helper.parse_line_edit(self.ui.ineEdit_wavelength, float, False, 'Rotation Z',
+                                                         default=0.)
+        except RuntimeError as run_err:
+            gui_helper.pop_message(self, 'Unable to parse calibration value', str(run_err), 'error')
+            return
 
-        # check: raw data file, instrument file, calibration value,
+        # get data file
+        try:
+            two_theta = gui_helper.parse_line_edit(self.ui.lineEdit_2theta, float, True, 'Two theta', default=None)
+        except RuntimeError as run_err:
+            gui_helper.pop_message(self, '2-theta error', str(run_err), 'error')
+            return
 
-        lineEdit_centerX
+        # load instrument
+        self._core.reduction_manager.load_instrument(two_theta, cal_shift_x, cal_shift_y, cal_shift_z,
+                                                     cal_rot_x, cal_rot_y, cal_rot_z,
+                                                     cal_wave_length)
 
-
-
+        return
 
     def refine_instrument_geometry(self):
         """

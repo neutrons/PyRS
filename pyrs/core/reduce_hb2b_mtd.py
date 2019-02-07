@@ -230,13 +230,33 @@ class MantidHB2BReduction(object):
         """
         if self._data_ws_name is None or ADS.doesExists(self._data_ws_name) is False:
             raise RuntimeError('Reduction HB2B (Mantid) has no workspace set to reduce')
+        else:
+            data_ws = ADS.retrieve(self._data_ws_name)
 
         # check idf & calibration & 2theta
         checkdatatypes.check_file_name(idf_name, True, False, False, 'Mantid IDF for HB2B')
 
         # set 2theta value if the workspace does not contain it
         if two_theta_value:
+            # if 2theta is not None: must be a float
             checkdatatypes.check_float_variable('Two theta value', two_theta_value, (-181., 181))
+
+        # check whether it is necessary to set 2theta
+        try:
+            two_theta_property = data_ws.run().getProperty('2theta')
+            if two_theta_value:
+                add_2theta = True
+            else:
+                add_2theta = True
+        except KeyError as key_err:
+            # 2theta does not exist
+            if two_theta_value:
+                add_2theta = True
+            else:
+                raise RuntimeError('2theta must be given for workspace without 2theta log')
+        # END-IF-TRY
+
+        if add_2theta:
             AddSampleLog(Workspace=self._data_ws_name, LogName='2theta',
                          LogText='{}'.format(two_theta_value),  # arm_length-DEFAULT_ARM_LENGTH),
                          LogType='Number Series', LogUnit='meter',

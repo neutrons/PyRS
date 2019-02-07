@@ -184,13 +184,14 @@ class HB2BReductionManager(object):
 
         return
 
-    def reduce_to_2theta(self, data_id, output_name, use_mantid_engine, mask_vector, two_theta=35.):
+    def reduce_to_2theta(self, data_id, output_name, use_mantid_engine, mask_vector, two_theta):
         """
         Reduce import data (workspace or vector) to 2-theta ~ I
         :param data_id:
         :param output_name:
         :param use_mantid_engine:
         :param mask_vector:
+        :param two_theta: 2theta value
         :return:
         """
         # check input

@@ -8,9 +8,10 @@ from pyrs.core import mask_util
 from matplotlib import pyplot as plt
 
 
-# TODO - TONIGHT - 1. implement 2theta option
-# TODO - TONIGHT - 2. add test case for .bin file
+# 1. implement 2theta option
+# 2. add test case for .bin file
 # TODO - TONIGHT - 3. synchronize calibration parameter names among XML, .cal (ascii) and .cal.h5 (hdf5) AND doc!
+# 3-1: synchronize calibration parameter names among XML,
 # TODO - TONIGHT - 4. add test data file of X-ray instrument
 
 
@@ -89,11 +90,12 @@ class ReductionApp(object):
 
         return
 
-    def reduce(self, data_file, output, instrument_file, calibration_file, mask_file=None):
+    def reduce(self, data_file, output, instrument_file, two_theta, calibration_file, mask_file=None):
         """ Reduce data
         :param data_file:
         :param output:
         :param instrument_file:
+        :param two_theta
         :param calibration_file:
         :param mask_file:
         :return:
@@ -114,7 +116,7 @@ class ReductionApp(object):
 
         # mask file
         if mask_file is not None:
-            mask_vec, two_theta, note = mask_util.load_pyrs_mask(mask_file)
+            mask_vec, mask_2theta, note = mask_util.load_pyrs_mask(mask_file)
         else:
             mask_vec = None
 
@@ -135,6 +137,7 @@ class ReductionApp(object):
 
         # reduce
         self._reduction_engine.reduce_to_2theta(data_id=data_id,
+                                                two_theta=two_theta,
                                                 output_name=output_file_name,
                                                 use_mantid_engine=use_mantid,
                                                 mask_vector=mask_vec)
@@ -152,6 +155,7 @@ def main(argv):
         print ('Auto-reducing HB2B: {} [NeXus File Name] [Target Directory] [--instrument=xray_setup.txt]'
                '[--calibration=xray_calib.txt] [--mask=mask.h5] [--engine=engine]'.format(argv[0]))
         print ('--instrument:   instrument configuration file (arm, pixel number and size')
+        print ('--2theta:       2theta value if input is not an EventNeXus file')
         print ('--calibration:  instrument geometry calibration file')
         print ('--mask:         masking file (PyRS hdf5 format)')
         print ('--engine:       mantid or pyrs.  default is pyrs')
@@ -193,6 +197,7 @@ def main(argv):
 
         reducer.reduce(data_file=source_data_file, output=output_dir,
                        instrument_file=inputs_option_dict['instrument'],
+                       two_theta=inputs_option_dict['2theta'],
                        calibration_file=inputs_option_dict['calibration'],
                        mask_file=inputs_option_dict['mask'])
         reducer.plot_reduced_data()

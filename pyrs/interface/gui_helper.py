@@ -99,13 +99,14 @@ def get_save_file_name(parent, dir_name, caption, file_filter):
     return file_name, file_filter
 
 
-def parse_line_edit(line_edit, data_type, throw_if_blank=False, edit_name=None):
+def parse_line_edit(line_edit, data_type, throw_if_blank=False, edit_name=None, default=None):
     """
     Parse a LineEdit
     :param line_edit:
     :param data_type:
     :param throw_if_blank:
     :param edit_name: name of LineEdit for better error message
+    :param default: default value of the returned value
     :return:
     """
     assert isinstance(line_edit, QLineEdit), 'Method parse_line_edit expects 0-th input {} to be a ' \
@@ -122,6 +123,8 @@ def parse_line_edit(line_edit, data_type, throw_if_blank=False, edit_name=None):
         # empty string
         if throw_if_blank:
             raise RuntimeError('Input line edit {} is empty'.format(edit_name))
+        elif default:
+            return_value = default
         else:
             return_value = None
 

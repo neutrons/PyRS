@@ -27,7 +27,7 @@
       </parameter>
       <parameter name="roty">
 	<!-- roty works as 2theta with experiment -->
-        <logfile eq="value+0.0" id="cal::2theta"/>
+        <logfile eq="value+0.0" id="2theta"/>
       </parameter>
     </location>
   </component>
