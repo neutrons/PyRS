@@ -94,7 +94,7 @@ def load_pyrs_mask(mask_h5):
 
     # get mask array
     mask_entry = mask_file['mask']
-    mask_vec = mask_entry
+    mask_vec = mask_entry[()]
 
     if '2theta' in mask_entry.attrs:
         two_theta = mask_entry.attrs['2theta']   # numpy.float64

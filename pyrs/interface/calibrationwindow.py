@@ -234,6 +234,7 @@ class InstrumentCalibrationWindow(QMainWindow):
         ipts_number = gui_helper.parse_line_edit(self.ui.lineEdit_iptsNumber, int, False, 'IPTS  number', None)
         run_number = gui_helper.parse_line_edit(self.ui.lineEdit_runNumber, int, False, 'Run number', None)
 
+        # TODO - TONIGHT 5 - Make it work!
         if ipts_number is None or run_number is None:
             # load data file directory
             raw_file_name = gui_helper.get_open()
@@ -248,6 +249,9 @@ class InstrumentCalibrationWindow(QMainWindow):
     def do_load_mask(self):
         """
         """
+
+        # TODO - TONIGHT 6 - Make it work!
+
         curr_mask_file = gui_helper.parse_line_edit(self.ui.lineEdit_maskFile, str, False, 'Masking file')
 
         if curr_mask_file is None:
@@ -276,10 +280,10 @@ class InstrumentCalibrationWindow(QMainWindow):
             cal_shift_x = gui_helper.parse_line_edit(self.ui.lineEdit_centerX, float, False, 'Center X', default=0.)
             cal_shift_y = gui_helper.parse_line_edit(self.ui.lineEdit_centerY, float, False, 'Center Y', default=0.)
             cal_shift_z = gui_helper.parse_line_edit(self.ui.lineEdit_centerZ, float, False, 'Center Z', default=0.)
-            cal_rot_x = gui_helper.parse_line_edit(self.ui.ineEdit_rotationX, float, False, 'Rotation X', default=0.)
-            cal_rot_y = gui_helper.parse_line_edit(self.ui.ineEdit_rotationY, float, False, 'Rotation Y', default=0.)
-            cal_rot_z = gui_helper.parse_line_edit(self.ui.ineEdit_rotationZ, float, False, 'Rotation Z', default=0.)
-            cal_wave_length = gui_helper.parse_line_edit(self.ui.ineEdit_wavelength, float, False, 'Rotation Z',
+            cal_rot_x = gui_helper.parse_line_edit(self.ui.lineEdit_rotationX, float, False, 'Rotation X', default=0.)
+            cal_rot_y = gui_helper.parse_line_edit(self.ui.lineEdit_rotationY, float, False, 'Rotation Y', default=0.)
+            cal_rot_z = gui_helper.parse_line_edit(self.ui.lineEdit_rotationZ, float, False, 'Rotation Z', default=0.)
+            cal_wave_length = gui_helper.parse_line_edit(self.ui.lineEdit_wavelength, float, False, 'Rotation Z',
                                                          default=0.)
         except RuntimeError as run_err:
             gui_helper.pop_message(self, 'Unable to parse calibration value', str(run_err), 'error')

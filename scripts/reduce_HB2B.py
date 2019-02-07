@@ -38,6 +38,7 @@ class ReductionApp(object):
             geometry_config = calibration_file_io.import_calibration_info_file(configuration_file)
             two_theta = arm_length = None
         else:
+            # TODO - TONIGHT 4.1 - Implement import instrument_setup and the worflow is wrong !
             returns = calibration_file_io.import_calibration_ascii_file(configuration_file)
             two_theta, arm_length, geometry_config = returns
 

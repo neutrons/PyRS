@@ -305,4 +305,4 @@ class GeomCalibrationView(MplGraphicsView1D):
         return
 
     # TODO - TONIGHT 3 - Add simple vertical indicator to this class
-    # TODO - TONIGHT 4 - Add global control including X/Y range, clear, home, 
+    # TODO - TONIGHT 4 - Add global control including X/Y range, clear, home,

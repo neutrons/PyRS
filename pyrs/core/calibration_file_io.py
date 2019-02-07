@@ -66,17 +66,17 @@ def import_calibration_ascii_file(geometry_file_name):
         config_value = float(terms[1].strip())
 
         if config_name == 'cal::shift_x':
-            calibration_setup.shift_x = config_value
+            calibration_setup.center_shift_x = config_value
         elif config_name == 'cal::shift_y':
-            calibration_setup.shift_y = config_value
+            calibration_setup.center_shift_y = config_value
         elif config_name == 'cal::arm':
             calibration_setup.arm_calibration = config_value
         elif config_name == 'cal::rot_x':
-            calibration_setup.tilt_x = config_value
+            calibration_setup.rotation_x = config_value
         elif config_name == 'cal::rot_y':
-            calibration_setup.rotation_y = config_value
+            calibration_setup.rotation_x = config_value
         elif config_name == 'cal::rot_z':
-            calibration_setup.spin_z = config_value
+            calibration_setup.rotation_z = config_value
         else:
             raise RuntimeError('Instrument geometry setup item {} is not recognized and supported.'.format(config_name))
 
@@ -184,12 +184,13 @@ class ResidualStressInstrumentCalibration(object):
         """
         initialize
         """
-        self.shift_x = 0.
-        self.shift_y = 0.
+        self.center_shift_x = 0.
+        self.center_shift_y = 0.
+        self.center_shift_z = 0.   # center shift Z
 
-        self.tilt_x = 0.   # in X-Z plane
+        self.rotation_x = 0.   # in X-Z plane
         self.rotation_y = 0.   # along Y axis (vertical)
-        self.spin_z = 0.   # rotation from center
+        self.rotation_z = 0.   # rotation from center
 
         # Need data from client to finish this
         self.calibrated_wave_length = {'Si001': 1.00}
@@ -266,7 +267,7 @@ class ResidualStressCalibrationFile(object):
 
         # TODO - 20181210 - Need a prototype file to continue
         self._geometry_calibration.two_theta0 = calib_param_entry['2theta0'].values[0]
-        self._geometry_calibration.shift_x = blabla
+        self._geometry_calibration.center_shift_x = blabla
         # blabla
 
         # get the date from the calibration file inside?

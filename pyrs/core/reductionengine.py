@@ -34,7 +34,7 @@ class HB2BReductionManager(object):
         self._instrument = None
         self._mantid_idf = None
         # calibration
-        self._geometry_calibration = None
+        self._geometry_calibration = calibration_file_io.ResidualStressInstrumentCalibration()
 
         return
 

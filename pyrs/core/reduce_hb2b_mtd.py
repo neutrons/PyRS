@@ -46,11 +46,18 @@ class MantidHB2BReduction(object):
         raw_data_ws = Transpose(InputWorkspace=matrix_ws_name, OutputWorkspace=matrix_ws_name, EnableLogging=False)
 
         # mask if required
-        if mask:
+        if mask is not None:
             checkdatatypes.check_numpy_arrays('Mask vector', [mask, raw_data_ws.readY(0)], 1, True)
-            masked_vec = raw_data_ws.readY(0)
+            masked_vec = raw_data_ws.dataY(0)
             #  TODO - DAYTIME - prototype how to mask
             masked_vec *= mask
+
+        # TODO - TONIGHT 1 - Need twotheta_min and twothat_max to input
+        twotheta_min = 15
+        twotheta_max = 45
+        self._num_bins = 2500
+
+        # TODO - TONIGHT 2 - Sort out why it is broken
 
         # rebin
         ResampleX(InputWorkspace=raw_data_ws, OutputWorkspace=matrix_ws_name, XMin=twotheta_min, XMax=twotheta_min,
@@ -228,10 +235,15 @@ class MantidHB2BReduction(object):
         Load instrument with calibration to
         :return:
         """
-        if self._data_ws_name is None or ADS.doesExists(self._data_ws_name) is False:
+        import calibration_file_io
+
+        if self._data_ws_name is None or ADS.doesExist(self._data_ws_name) is False:
             raise RuntimeError('Reduction HB2B (Mantid) has no workspace set to reduce')
         else:
             data_ws = ADS.retrieve(self._data_ws_name)
+
+        # check calibration
+        assert isinstance(calibration, calibration_file_io.ResidualStressInstrumentCalibration), 'blabla'
 
         # check idf & calibration & 2theta
         checkdatatypes.check_file_name(idf_name, True, False, False, 'Mantid IDF for HB2B')
@@ -248,7 +260,7 @@ class MantidHB2BReduction(object):
                 add_2theta = True
             else:
                 add_2theta = True
-        except KeyError as key_err:
+        except RuntimeError:
             # 2theta does not exist
             if two_theta_value:
                 add_2theta = True
@@ -468,7 +480,7 @@ class MantidHB2BReduction(object):
         """
         checkdatatypes.check_string_variable('Workspace name', ws_name)
 
-        if ADS.doesExists(ws_name):
+        if ADS.doesExist(ws_name):
             self._data_ws_name = ws_name
         else:
             raise RuntimeError('Workspace {} does not exist in ADS'.format(ws_name))
