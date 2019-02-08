@@ -25,24 +25,23 @@ class ReductionApp(object):
         """
         self._use_mantid_engine = False
         self._reduction_engine = reductionengine.HB2BReductionManager()
+        self._instrument = None
 
         return
 
-    def set_geometry_configuration(self, configuration_file):
-        """
-
+    @staticmethod
+    def import_calibration_file(configuration_file):
+        """ set up the geometry configuration file
         :param configuration_file:
         :return:
         """
         if configuration_file.lower().endswith('.h5'):
             geometry_config = calibration_file_io.import_calibration_info_file(configuration_file)
-            two_theta = arm_length = None
         else:
-            # TODO - TONIGHT 4.1 - Implement import instrument_setup and the worflow is wrong !
             returns = calibration_file_io.import_calibration_ascii_file(configuration_file)
-            two_theta, arm_length, geometry_config = returns
+            geometry_config = returns
 
-        return two_theta, arm_length, geometry_config
+        return geometry_config
 
     @property
     def use_mantid_engine(self):
@@ -130,11 +129,17 @@ class ReductionApp(object):
             # Mantid IDF file: use mantid engine
             self._reduction_engine.set_mantid_idf(instrument_file)
             use_mantid = True
-        else:
-            self._reduction_engine.load_instrument_setup(instrument_file)
+        elif instrument_file.lower().endsiwth('.txt'):
+            # plain text instrument setup
+            instrument = calibration_file_io.import_instrument_setup(instrument_file)
+            self._reduction_engine.set_instrument(instrument)
             use_mantid = False
+        else:
+            raise NotImplementedError('Impossible')
+
         if calibration_file:
-            self._reduction_engine.load_calibration(calibration_file)
+            geom_calibration = self.import_calibration_file(calibration_file)
+            self._reduction_engine.set_geometry_calibration(geom_calibration)
 
         # reduce
         self._reduction_engine.reduce_to_2theta(data_id=data_id,
@@ -188,12 +193,15 @@ def main(argv):
     else:
         # check
         if inputs_option_dict['instrument'] is None and not source_data_file.endswith('.nxs.h5'):
+            # instrument setup file must be specified
             print ('For non Event NeXus file {}, instrument definition must be given!'
                    .format(source_data_file))
             sys.exit(-1)
         elif inputs_option_dict['instrument'].lower().endswith('.xml'):
+            # mantid instrument file
             reducer.use_mantid_engine = True
         else:
+            # set the instrument configuration
             reducer.set_geometry_configuration(inputs_option_dict['instrument'])
 
         reducer.reduce(data_file=source_data_file, output=output_dir,

@@ -272,6 +272,23 @@ def check_string_variable(var_name, variable, allowed_values=None):
     return
 
 
+def check_type(var_name, variable, var_type):
+    """ Check a variable against an arbitrary type
+    :param var_name:
+    :param variable:
+    :param var_type:
+    :return:
+    """
+    check_string_variable('Variable name', var_name)
+    assert isinstance(var_type, type), 'Variable-type {} must be an instance of type but not {}' \
+                                       ''.format(var_type, type(var_type))
+
+    assert isinstance(variable, var_type), '{} {} must be of type {} but not a {}' \
+                                           ''.format(var_name, variable, var_type, type(variable))
+
+    return
+
+
 def check_tuple(var_name, variable, tuple_size=None):
     """
     check whether a variable is a tuple.  As an option, the tuple size can be checked too.

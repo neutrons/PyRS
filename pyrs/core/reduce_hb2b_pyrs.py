@@ -2,23 +2,10 @@
 import numpy as np
 import numpy
 import calibration_file_io
+from pyrs.utilities import checkdatatypes
 
 # TODO FIXME - NIGHT - This shall be a constant value in PyHB2BReduction class object
 DEFAULT_ARM_LENGTH = 0.416
-
-
-def check_type(var_name, variable, var_type):
-    """
-
-    :param var_name:
-    :param variable:
-    :param var_type:
-    :return:
-    """
-    assert isinstance(variable, var_type), '{} {} must be of type {} but not a {}' \
-                                           ''.format(var_name, variable, var_type, type(variable))
-
-    return
 
 
 class PyHB2BReduction(object):
@@ -30,7 +17,7 @@ class PyHB2BReduction(object):
         :param instrument
         """
         # check input
-        check_type(instrument, calibration_file_io.InstrumentSetup)
+        checkdatatypes.check_type(instrument, calibration_file_io.InstrumentSetup)
 
         num_rows = instrument.detector_rows
         num_columns =instrument.detector_columns

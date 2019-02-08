@@ -164,23 +164,15 @@ class HB2BReductionManager(object):
 
         return self._data_dict[data_id][1]
 
-    def load_calibration(self, calibration_file):
+    def set_geometry_calibration(self, geometry_calibration):
         """
         Load calibration file
-        :param calibration_file:
+        :param geometry_calibration:
         :return:
         """
-        self._geometry_calibration = calibration_file_io.import_calibration_ascii_file(calibration_file)
-
-        return
-
-    def load_instrument_setup(self, instrument_setup_file):
-        """
-        Load ASCII instrument set up file
-        :param instrument_setup_file:
-        :return:
-        """
-        self._instrument = calibration_file_io.import_instrument_setup(instrument_setup_file)
+        checkdatatypes.check_type('Geometry calibration', geometry_calibration,
+                                  calibration_file_io.ResidualStressInstrumentCalibration)
+        self._geometry_calibration = geometry_calibration
 
         return
 
@@ -245,6 +237,17 @@ class HB2BReductionManager(object):
             raise RuntimeError('Mantid IDF {} must end with .xml'.format(idf_name))
 
         self._mantid_idf = idf_name
+
+        return
+
+    def set_instrument(self, instrument):
+        """
+        set the instrument configuration
+        :param instrument:
+        :return:
+        """
+        checkdatatypes.check_type('Instrument setup', instrument, calibration_file_io.InstrumentSetup)
+        self._instrument = instrument
 
         return
 
