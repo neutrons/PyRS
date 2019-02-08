@@ -25,18 +25,26 @@ class MantidHB2BReduction(object):
         # calibration: an instance of ResidualStressInstrumentCalibration
         self._instrument_calibration = None
 
+        # TODO - FUTURE - Need to find out which one, resolution or number of bins, is more essential
         self._2theta_resolution = 0.1
+        self._num_bins = 2500
 
         return
 
-    def convert_to_2theta(self, matrix_ws_name, mask=None):
-        """
-        Convert a workspace with instrument loaded to 2theta with optional mask
+    def convert_to_2theta(self, matrix_ws_name, two_theta_min=None, two_theta_max=None, two_theta_resolution=None,
+                          mask=None):
+        """ Convert to to 2theta from raw workspace with instrument already loaded
         :param matrix_ws_name:
+        :param two_theta_min:
+        :param two_theta_max:
+        :param two_theta_resolution:
         :param mask:
         :return:
         """
-        raw_data_ws = ADS.retrieve(matrix_ws_name)
+        # check input
+        checkdatatypes.check_string_variable('Input raw data workspace name', matrix_ws_name)
+        if not ADS.doesExist(matrix_ws_name):
+            raise RuntimeError('Raw data workspace {} does not exist in Mantid ADS.'.format(matrix_ws_name))
 
         # convert to 2theta - counts
         ConvertSpectrumAxis(InputWorkspace=matrix_ws_name, Target='Theta', OutputWorkspace=matrix_ws_name,
@@ -47,21 +55,31 @@ class MantidHB2BReduction(object):
 
         # mask if required
         if mask is not None:
+            # TODO - TEST - verify!
             checkdatatypes.check_numpy_arrays('Mask vector', [mask, raw_data_ws.readY(0)], 1, True)
             masked_vec = raw_data_ws.dataY(0)
-            #  TODO - DAYTIME - prototype how to mask
             masked_vec *= mask
 
-        # TODO - TONIGHT 1 - Need twotheta_min and twothat_max to input
-        twotheta_min = 15
-        twotheta_max = 45
-        self._num_bins = 2500
-
-        # TODO - TONIGHT 2 - Sort out why it is broken
+        # set up resolutin and number of bins for re-sampling/binning
+        if two_theta_min is None:
+            two_theta_min = raw_data_ws.readX(0)[0]
+        else:
+            checkdatatypes.check_float_variable('Mininum 2theta for binning', two_theta_min, (-180, 180))
+        if two_theta_max is None:
+            two_theta_max = raw_data_ws.readX(0)[-1]
+        else:
+            checkdatatypes.check_float_variable('Maximum 2theta for binning', two_theta_max, (-180, 180))
+        if two_theta_min >= two_theta_max:
+            raise RuntimeError('2theta range ({}, {}) is not acceptable.'.format(two_theta_min, two_theta_max))
+        if two_theta_max is not None:
+            checkdatatypes.check_float_variable('2theta resolution', two_theta_resolution, (0.0001, 10))
+            num_bins = int((two_theta_max - two_theta_min) / two_theta_resolution)
+        else:
+            num_bins = self._num_bins
 
         # rebin
-        ResampleX(InputWorkspace=raw_data_ws, OutputWorkspace=matrix_ws_name, XMin=twotheta_min, XMax=twotheta_min,
-                  NumberBins=self._num_bins, EnableLogging=False)
+        ResampleX(InputWorkspace=raw_data_ws, OutputWorkspace=matrix_ws_name, XMin=two_theta_min, XMax=two_theta_max,
+                  NumberBins=num_bins, EnableLogging=False)
 
         # TODO - 20181204 - Refer to "WANDPowderReduction" - ASAP(0)
 

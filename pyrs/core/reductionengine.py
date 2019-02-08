@@ -184,7 +184,8 @@ class HB2BReductionManager(object):
 
         return
 
-    def reduce_to_2theta(self, data_id, output_name, use_mantid_engine, mask_vector, two_theta):
+    def reduce_to_2theta(self, data_id, output_name, use_mantid_engine, mask_vector, two_theta,
+                         min_2theta=None, max_2theta=None, resolution_2theta=None):
         """
         Reduce import data (workspace or vector) to 2-theta ~ I
         :param data_id:
@@ -192,6 +193,9 @@ class HB2BReductionManager(object):
         :param use_mantid_engine:
         :param mask_vector:
         :param two_theta: 2theta value
+        :param min_2theta: None or user specified
+        :param max_2theta: None or user specified
+        :param resolution_2theta: None or user specified
         :return:
         """
         # check input
@@ -204,7 +208,6 @@ class HB2BReductionManager(object):
         if use_mantid_engine:
             # init mantid reducer and add workspace in ADS
             data_ws_name = self._data_dict[data_id][0]
-            print ('[DB...BAT] Data Dict: {}'.format(self._data_dict[data_id]))
             mantid_reducer = reduce_hb2b_mtd.MantidHB2BReduction()
             mantid_reducer.set_workspace(data_ws_name)
 
@@ -212,21 +215,14 @@ class HB2BReductionManager(object):
             mantid_reducer.load_instrument(two_theta, self._mantid_idf, self._geometry_calibration)
 
             # reduce data
-            mantid_reducer.convert_to_2theta(data_ws_name, mask=mask_vector)
-
-            """
-            reduction_engine.reduce_rs_nexus(source_data_file, auto_mapping_check=True, output_dir=output_dir,
-                                       do_calibration=True,
-                                       allow_calibration_unavailable=True)
-            """
+            mantid_reducer.convert_to_2theta(data_ws_name, mask=mask_vector,
+                                             two_theta_min=min_2theta, two_theta_max=max_2theta,
+                                             two_theta_resolution=resolution_2theta)
 
         else:
             # pyrs solution: calculate instrument geometry on the fly
-            python_reducer = reduce_hb2b_pyrs.PyHB2BReduction(num_rows=self._instrument.detector_rows,
-                                                              num_columns=self._instrument.detector_columns,
-                                                              pixel_size_x=self._instrument.pixel_size_x,
-                                                              pixel_size_y=self._instrument.pixel_size_y,
-                                                              arm_length=self._instrument.arm_length)
+            python_reducer = reduce_hb2b_pyrs.PyHB2BReduction(self._instrument)
+
 
             detector_matrix = python_reducer.build_instrument(two_theta, center_shift_x='',
                                                               center_shift_y='', rot_x_flip='',

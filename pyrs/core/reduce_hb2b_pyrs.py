@@ -1,23 +1,43 @@
 # This is a prototype reduction engine for HB2B living independently from Mantid
 import numpy as np
 import numpy
-
+import calibration_file_io
 
 # TODO FIXME - NIGHT - This shall be a constant value in PyHB2BReduction class object
 DEFAULT_ARM_LENGTH = 0.416
 
 
+def check_type(var_name, variable, var_type):
+    """
+
+    :param var_name:
+    :param variable:
+    :param var_type:
+    :return:
+    """
+    assert isinstance(variable, var_type), '{} {} must be of type {} but not a {}' \
+                                           ''.format(var_name, variable, var_type, type(variable))
+
+    return
+
+
 class PyHB2BReduction(object):
     """ A class to reduce HB2B data in pure Python and numpy
     """
-    def __init__(self, num_rows, num_columns, pixel_size_x, pixel_size_y):
+    def __init__(self, instrument):
         """
         initialize the instrument
-        :param num_rows:
-        :param num_columns:
-        :param pixel_size_x:
-        :param pixel_size_y:
+        :param instrument
         """
+        # check input
+        check_type(instrument, calibration_file_io.InstrumentSetup)
+
+        num_rows = instrument.detector_rows
+        num_columns =instrument.detector_columns
+        pixel_size_x = instrument.pixel_size_x
+        pixel_size_y = instrument.pixel_size_y
+        self._arm_length = instrument.arm_length
+
         # instrument is a N x M matrix, each element has
         self._raw_hb2b = np.ndarray(shape=(num_rows, num_columns, 3), dtype='float')
 
@@ -43,11 +63,10 @@ class PyHB2BReduction(object):
 
         return
 
-    def build_instrument(self, arm_length, two_theta, center_shift_x, center_shift_y,
+    def build_instrument(self, two_theta, center_shift_x, center_shift_y,
                          rot_x_flip, rot_y_flip, rot_z_spin):
         """
         build an instrument
-        :param arm_length: distance from detector "center" (intercept axis) to origin
         :param two_theta: 2theta position of the detector panel.  It shall be negative to sample log value
         :param center_shift_x:
         :param center_shift_y:
@@ -75,7 +94,7 @@ class PyHB2BReduction(object):
         self._hb2b = self.rotate_instrument(self._hb2b, calib_matrix)
 
         # push to +Z at length of detector arm
-        self._hb2b[:, :, 2] += arm_length
+        self._hb2b[:, :, 2] += self._arm_length
 
         # rotate 2theta
         two_theta_rad = two_theta * np.pi / 180.
