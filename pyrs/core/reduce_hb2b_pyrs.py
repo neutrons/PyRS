@@ -17,10 +17,10 @@ class PyHB2BReduction(object):
         :param instrument
         """
         # check input
-        checkdatatypes.check_type(instrument, calibration_file_io.InstrumentSetup)
+        checkdatatypes.check_type('Instrument setup', instrument, calibration_file_io.InstrumentSetup)
 
         num_rows = instrument.detector_rows
-        num_columns =instrument.detector_columns
+        num_columns = instrument.detector_columns
         pixel_size_x = instrument.pixel_size_x
         pixel_size_y = instrument.pixel_size_y
         self._arm_length = instrument.arm_length
@@ -50,7 +50,7 @@ class PyHB2BReduction(object):
 
         return
 
-    def build_instrument(self, two_theta, center_shift_x, center_shift_y,
+    def build_instrument(self, two_theta, arm_length_shift, center_shift_x, center_shift_y,
                          rot_x_flip, rot_y_flip, rot_z_spin):
         """
         build an instrument
@@ -81,12 +81,43 @@ class PyHB2BReduction(object):
         self._hb2b = self.rotate_instrument(self._hb2b, calib_matrix)
 
         # push to +Z at length of detector arm
-        self._hb2b[:, :, 2] += self._arm_length
+        self._hb2b[:, :, 2] += self._arm_length + arm_length_shift
 
         # rotate 2theta
         two_theta_rad = two_theta * np.pi / 180.
         two_theta_matrix = self._cal_rotation_matrix_y(two_theta_rad)
         self._hb2b = self.rotate_instrument(self._hb2b, two_theta_matrix)
+
+        print ('Rotation 2theta matrix:\n{}'.format(two_theta_matrix))
+
+        # TODO - FIXME - AFTER TEST - Delete
+        # compare position
+        # test 5 spots (corner and center): (0, 0), (0, 1023), (1023, 0), (1023, 1023), (512, 512)
+        pixel_number = self._hb2b.shape[0]
+        print ('HB2B instrument shape = '.format(self._hb2b.shape))
+        pixel_locations = [(0, 0),
+                           (0, pixel_number - 1),
+                           (pixel_number - 1, 0),
+                           (pixel_number - 1, pixel_number - 1),
+                           (pixel_number / 2, pixel_number / 2)]
+        for index_i, index_j in pixel_locations:
+            # print ('PyRS:   ', pixel_matrix[index_i, index_j])
+            # print ('Mantid: ', workspace.getDetector(index_i + index_j * 1024).getPos())  # column major
+            pos_python = self._hb2b[index_i, index_j]
+            index1d = index_i + pixel_number * index_j
+            # pos_mantid = workspace.getDetector(index1d).getPos()
+            print ('({}, {} / {}):   {:10s} '
+                   ''.format(index_i, index_j, index1d, 'PyRS'))
+            diff_sq = 0.
+            for i in range(3):
+                # diff_sq += (float(pos_python[i] - pos_mantid[i]))**2
+                print ('dir {}:  {:10f}'
+                       ''.format(i, float(pos_python[i])))  # float(pos_mantid[i])))
+            # END-FOR
+            if diff_sq > 1.E-6:
+                raise RuntimeError('Mantid PyRS mismatch!')
+        # END-FOR
+        # END-TEST-OUTPUT
 
         return self._hb2b
 
@@ -193,14 +224,27 @@ class PyHB2BReduction(object):
 
         # histogram
         vecx = twotheta_matrix.transpose().flatten()
-        vecy = counts_matrix.flatten()
+        vecy = counts_matrix.flatten()   # in fact vec Y is flattern alraedy!
+        print ('[DB...BAT] counts matrix: shape = {}'.format(counts_matrix.shape))
+        # vecy = counts_matrix.transpose().flatten()   # a try!
 
         for i in range(10):
             print ('PyRS {}: x = {}, y = {}'.format(i, vecx[i], vecy[i]))
         for i in range(10010, 10020):
             print ('PyRS {}: x = {}, y = {}'.format(i, vecx[i], vecy[i]))
+        for i in range(3000000, 3000020):
+            print ('PyRS {}: x = {}, y = {}'.format(i, vecx[i], vecy[i]))
+
+        print (vecx.shape, vecx.sum(), vecx.dtype)
+        print (vecy.shape, vecy.sum(), vecy.dtype)
+        print (num_bins)
+
+        # TODO - NIGHT 3 - This is the reason why histogram does not work!!!!
+        vecy = vecy.astype('int32')
 
         hist, bin_edges = np.histogram(vecx, bins=num_bins, weights=vecy)
+        for i in range(1000, 1020):
+            print (bin_edges[i], hist[i])
 
         return bin_edges, hist
 # END-CLASS

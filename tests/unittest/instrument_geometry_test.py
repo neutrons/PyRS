@@ -13,7 +13,7 @@ from mantid.api import AnalysisDataService as mtd
 XRAY_ARM_LENGTH = 0.416
 
 
-def load_instrument(hb2b_builder, arm_length, two_theta=0., center_shift_x=0., center_shift_y=0.,
+def load_instrument(hb2b_builder, arm_length_shift, two_theta=0., center_shift_x=0., center_shift_y=0.,
                     rot_x_flip=0., rot_y_flip=0., rot_z_spin=0., raw_data_ws_name=None, idf_name=None,
                     pixel_number=None):
     """ Load instrument to raw data file
@@ -30,9 +30,16 @@ def load_instrument(hb2b_builder, arm_length, two_theta=0., center_shift_x=0., c
     :param pixel_number: linear pixel size (row number and column number)
     :return: pixel matrix
     """
-    pixel_matrix = hb2b_builder.build_instrument(arm_length=arm_length, two_theta=-two_theta,
-                                                 center_shift_x=center_shift_x, center_shift_y=center_shift_y,
-                                                 rot_x_flip=rot_x_flip, rot_y_flip=rot_y_flip, rot_z_spin=rot_z_spin)
+    # pixel_matrix = hb2b_builder.build_instrument(arm_length=arm_length, two_theta=-two_theta,
+    #                                              center_shift_x=center_shift_x, center_shift_y=center_shift_y,
+    #                                              rot_x_flip=rot_x_flip, rot_y_flip=rot_y_flip, rot_z_spin=rot_z_spin)
+    pixel_matrix = hb2b_builder.build_instrument(two_theta=-two_theta,
+                                                 arm_length_shift=arm_length_shift,
+                                                 center_shift_x=center_shift_x,
+                                                 center_shift_y=center_shift_y,
+                                                 rot_x_flip=rot_x_flip,
+                                                 rot_y_flip=rot_y_flip,
+                                                 rot_z_spin=rot_z_spin)
 
     if True:
         # using Mantid
@@ -43,14 +50,14 @@ def load_instrument(hb2b_builder, arm_length, two_theta=0., center_shift_x=0., c
 
         # set up sample logs
         # cal::arm
-        print ('Arm length correction  = {}'.format(arm_length - XRAY_ARM_LENGTH))
-        AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::arm', LogText='{}'.format(arm_length - XRAY_ARM_LENGTH),
+        print ('Arm length correction  = {}'.format(arm_length_shift))
+        AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::arm', LogText='{}'.format(arm_length_shift),
                      LogType='Number Series', LogUnit='meter',
                      NumberType='Double')
         #
         # cal::2theta
         print ('HB2B 2-theta = {}    (opposite to Mantid 2theta)'.format(two_theta))
-        AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::2theta', LogText='{}'.format(-two_theta),
+        AddSampleLog(Workspace=raw_data_ws_name, LogName='2theta', LogText='{}'.format(-two_theta),
                      LogType='Number Series', LogUnit='degree',
                      NumberType='Double')
         #
@@ -213,24 +220,45 @@ def main(argv):
     else:
         raise RuntimeError('Wrong setup')
 
-    hb2b_builder = reduce_hb2b_pyrs.PyHB2BReduction(num_rows, num_columns, pixel_size_x, pixel_size_y)
+    from pyrs.core import calibration_file_io
+    xray_instrument = calibration_file_io.InstrumentSetup()
+    xray_instrument.detector_rows = num_rows
+    xray_instrument.detector_columns = num_columns
+    xray_instrument.pixel_size_x = pixel_size_x
+    xray_instrument.pixel_size_y = pixel_size_y
+    xray_instrument.arm_length = 0.416
+    # num_rows, num_columns, pixel_size_x, pixel_size_y
+    hb2b_builder = reduce_hb2b_pyrs.PyHB2BReduction(xray_instrument)
     idf_name = os.path.join('tests/testdata/', idf_name)
 
     # load instrument
-    for iter in range(10):
+    for iter in range(1):
 
-        arm_length = 0.416 + (random.random() - 0.5) * 2.0
-        two_theta = -80 + (random.random() - 0.5) * 20.
+        if False:
+            arm_length_shift = (random.random() - 0.5) * 2.0  # 0.416 + (random.random() - 0.5) * 2.0
+            two_theta = 35. + (random.random() - 0.5) * 20.
 
-        # calibration
-        rot_x_flip = 2.0 * (random.random() - 0.5) * 2.0
-        rot_y_flip = 2.0 * (random.random() - 0.5) * 2.0
-        rot_z_spin = 2.0 * (random.random() - 0.5) * 2.0
+            # calibration
+            rot_x_flip = 2.0 * (random.random() - 0.5) * 2.0
+            rot_y_flip = 2.0 * (random.random() - 0.5) * 2.0
+            rot_z_spin = 2.0 * (random.random() - 0.5) * 2.0
 
-        center_shift_x = 1.0 * (random.random() - 0.5) * 2.0
-        center_shift_y = 1.0 * (random.random() - 0.5) * 2.0
+            center_shift_x = 1.0 * (random.random() - 0.5) * 2.0
+            center_shift_y = 1.0 * (random.random() - 0.5) * 2.0
+        else:
+            arm_length_shift = 0.  # arm length shift
+            two_theta = 35.
 
-        hb2b_pixel_matrix = load_instrument(hb2b_builder, arm_length, two_theta,
+            # calibration
+            rot_x_flip = 0.  # 2.0 * (random.random() - 0.5) * 2.0
+            rot_y_flip = 0.  # 2.0 * (random.random() - 0.5) * 2.0
+            rot_z_spin = 0.  # 2.0 * (random.random() - 0.5) * 2.0
+
+            center_shift_x = 0.  # 1.0 * (random.random() - 0.5) * 2.0
+            center_shift_y = 0.  # 1.0 * (random.random() - 0.5) * 2.0
+        # END
+
+        hb2b_pixel_matrix = load_instrument(hb2b_builder, arm_length_shift, two_theta,
                                             center_shift_x, center_shift_y,
                                             rot_x_flip, rot_y_flip, rot_z_spin,
                                             hb2b_ws_name, idf_name, pixel_length)

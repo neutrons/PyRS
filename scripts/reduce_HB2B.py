@@ -129,7 +129,7 @@ class ReductionApp(object):
             # Mantid IDF file: use mantid engine
             self._reduction_engine.set_mantid_idf(instrument_file)
             use_mantid = True
-        elif instrument_file.lower().endsiwth('.txt'):
+        elif instrument_file.lower().endswith('.txt'):
             # plain text instrument setup
             instrument = calibration_file_io.import_instrument_setup(instrument_file)
             self._reduction_engine.set_instrument(instrument)
@@ -149,6 +149,14 @@ class ReductionApp(object):
                                                 mask_vector=mask_vec)
 
         return
+
+    def plot_reduced_data(self):
+
+        vec_x, vec_y = self._reduction_engine.get_reduced_data()
+
+        # TODO - TONIGHT 3 - shift half bin of X to point data
+        plt.plot(vec_x[:-1], vec_y)
+        plt.show()
 
 
 def main(argv):
@@ -197,12 +205,11 @@ def main(argv):
             print ('For non Event NeXus file {}, instrument definition must be given!'
                    .format(source_data_file))
             sys.exit(-1)
-        elif inputs_option_dict['instrument'].lower().endswith('.xml'):
-            # mantid instrument file
-            reducer.use_mantid_engine = True
-        else:
-            # set the instrument configuration
-            reducer.set_geometry_configuration(inputs_option_dict['instrument'])
+        # elif inputs_option_dict['instrument'].lower().endswith('.xml'):
+        #     # mantid instrument file
+        #     reducer.use_mantid_engine = True
+        # else:
+        #     # set the instrument configuration
 
         reducer.reduce(data_file=source_data_file, output=output_dir,
                        instrument_file=inputs_option_dict['instrument'],

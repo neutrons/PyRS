@@ -25,7 +25,7 @@ class HB2BReductionManager(object):
         self._calibration_manager = calibration_file_io.CalibrationManager()
 
         # workspace name or array vector
-        self._data_dict = dict()
+        self._data_dict = dict()   # ID = workspace, counts vector
 
         # number of bins
         self._num_bins = 2500
@@ -215,16 +215,27 @@ class HB2BReductionManager(object):
             # pyrs solution: calculate instrument geometry on the fly
             python_reducer = reduce_hb2b_pyrs.PyHB2BReduction(self._instrument)
 
+            # TODO - TONIGHT 1 - shall convert all the shifts to a class instance: ResidualStressInstrumentCalibration
+            detector_matrix = python_reducer.build_instrument(two_theta, arm_length_shift=0., center_shift_x=0.,
+                                                              center_shift_y=0., rot_x_flip=0.,
+                                                              rot_y_flip=0., rot_z_spin=0.)
 
-            detector_matrix = python_reducer.build_instrument(two_theta, center_shift_x='',
-                                                              center_shift_y='', rot_x_flip='',
-                                                              rot_y_flip='', rot_z_spin='')
-
-            python_reducer.reduce_to_2theta_histogram(detector_matrix, counts_matrix=counts_vec,
-                                                      num_bins=self._num_bins)
+            bin_edges, hist = python_reducer.reduce_to_2theta_histogram(detector_matrix,
+                                                                        counts_matrix=self._data_dict[data_id][1],
+                                                                        num_bins=self._num_bins)
+            self._curr_vec_x = bin_edges
+            self._curr_vec_y = hist
+            print ('[DB...BAT] vec X shape = {}, vec Y shape = {}'.format(bin_edges.shape,
+                                                                          hist.shape))
+            for i in range(1000, 1020):
+                print (bin_edges[i], hist[i])
         # END-IF
 
         return
+
+    # TODO - TONIGHT 2 - Better Code Q
+    def get_reduced_data(self, data_id=None):
+        return self._curr_vec_x, self._curr_vec_y
 
     def set_mantid_idf(self, idf_name):
         """

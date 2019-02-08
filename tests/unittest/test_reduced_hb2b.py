@@ -30,7 +30,7 @@ def load_instrument(hb2b_builder, arm_length, two_theta=0., center_shift_x=0., c
     :param pixel_number: linear pixel size (row number and column number)
     :return: pixel matrix
     """
-    pixel_matrix = hb2b_builder.build_instrument(arm_length=arm_length, two_theta=-two_theta,
+    pixel_matrix = hb2b_builder.build_instrument(arm_length_shift=arm_length, two_theta=-two_theta,
                                                  center_shift_x=center_shift_x, center_shift_y=center_shift_y,
                                                  rot_x_flip=rot_x_flip, rot_y_flip=rot_y_flip, rot_z_spin=rot_z_spin)
 
@@ -43,14 +43,14 @@ def load_instrument(hb2b_builder, arm_length, two_theta=0., center_shift_x=0., c
 
         # set up sample logs
         # cal::arm
-        print ('Arm length correction  = {}'.format(arm_length - XRAY_ARM_LENGTH))
-        AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::arm', LogText='{}'.format(arm_length - XRAY_ARM_LENGTH),
+        print ('Arm length correction  = {}'.format(arm_length))
+        AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::arm', LogText='{}'.format(arm_length),
                      LogType='Number Series', LogUnit='meter',
                      NumberType='Double')
         #
         # cal::2theta
         print ('HB2B 2-theta = {}    (opposite to Mantid 2theta)'.format(two_theta))
-        AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::2theta', LogText='{}'.format(-two_theta),
+        AddSampleLog(Workspace=raw_data_ws_name, LogName='2theta', LogText='{}'.format(-two_theta),
                      LogType='Number Series', LogUnit='degree',
                      NumberType='Double')
         #
@@ -177,7 +177,7 @@ def load_data_from_bin(bin_file_name):
     return ws_name, count_vec
 
 
-def reduce_to_2theta(hb2b_builder, pixel_matrix, hb2b_data_ws_name, counts_vec, num_bins=1000):
+def reduce_to_2theta(hb2b_builder, pixel_matrix, hb2b_data_ws_name, counts_vec, num_bins=2500):
     """
     reduce to 2theta unit
     :param hb2b_builder:
@@ -194,6 +194,10 @@ def reduce_to_2theta(hb2b_builder, pixel_matrix, hb2b_data_ws_name, counts_vec, 
     time_pyrs_start = time.time()
     pyrs_reduced_name = '{}_pyrs_reduced'.format(hb2b_data_ws_name)
     bin_edgets, histogram = hb2b_builder.reduce_to_2theta_histogram(pixel_matrix, counts_vec, num_bins)
+
+    for i in range(1000, 1020):
+        print (bin_edgets[i], histogram[i])
+
     time_pyrs_mid = time.time()
     CreateWorkspace(DataX=bin_edgets, DataY=histogram, UnitX='degrees', OutputWorkspace=pyrs_reduced_name)
     ConvertToPointData(InputWorkspace=pyrs_reduced_name, OutputWorkspace=pyrs_reduced_name)
@@ -380,23 +384,46 @@ def main(argv):
         raise NotImplementedError('No test file given!')
 
     # create HB2B-builder (python)
-    hb2b_builder = reduce_hb2b_pyrs.PyHB2BReduction(num_rows, num_columns, pixel_size_x, pixel_size_y)
+    # hb2b_builder = reduce_hb2b_pyrs.PyHB2BReduction(num_rows, num_columns, pixel_size_x, pixel_size_y)
+    from pyrs.core import calibration_file_io
+    xray_instrument = calibration_file_io.InstrumentSetup()
+    xray_instrument.detector_rows = num_rows
+    xray_instrument.detector_columns = num_columns
+    xray_instrument.pixel_size_x = pixel_size_x
+    xray_instrument.pixel_size_y = pixel_size_y
+    xray_instrument.arm_length = 0.416
+    # num_rows, num_columns, pixel_size_x, pixel_size_y
+    hb2b_builder = reduce_hb2b_pyrs.PyHB2BReduction(xray_instrument)
     # set up IDF (Mantid)
     idf_name = os.path.join('tests/testdata/', idf_name)
 
     # load instrument
+    print ('2THETA = {}'.format(two_theta))
     for iter in range(1):
 
-        arm_length = 0.416 + (random.random() - 0.5) * 2.0
-        # two_theta = -80 + (random.random() - 0.5) * 20.
+        if False:
+            arm_length = 0.416 + (random.random() - 0.5) * 2.0
+            # two_theta = -80 + (random.random() - 0.5) * 20.
 
-        # calibration
-        rot_x_flip = 2.0 * (random.random() - 0.5) * 2.0
-        rot_y_flip = 2.0 * (random.random() - 0.5) * 2.0
-        rot_z_spin = 2.0 * (random.random() - 0.5) * 2.0
+            # calibration
+            rot_x_flip = 2.0 * (random.random() - 0.5) * 2.0
+            rot_y_flip = 2.0 * (random.random() - 0.5) * 2.0
+            rot_z_spin = 2.0 * (random.random() - 0.5) * 2.0
 
-        center_shift_x = 1.0 * (random.random() - 0.5) * 2.0
-        center_shift_y = 1.0 * (random.random() - 0.5) * 2.0
+            center_shift_x = 1.0 * (random.random() - 0.5) * 2.0
+            center_shift_y = 1.0 * (random.random() - 0.5) * 2.0
+        else:
+            arm_length = 0.  #0.416 + (random.random() - 0.5) * 2.0
+            # two_theta = -80 + (random.random() - 0.5) * 20.
+
+            # calibration
+            rot_x_flip = 0.  # 2.0 * (random.random() - 0.5) * 2.0
+            rot_y_flip = 0.  # 2.0 * (random.random() - 0.5) * 2.0
+            rot_z_spin = 0.  # 2.0 * (random.random() - 0.5) * 2.0
+
+            center_shift_x = 0.  # 1.0 * (random.random() - 0.5) * 2.0
+            center_shift_y = 0.  # 1.0 * (random.random() - 0.5) * 2.0
+        # END
 
         hb2b_pixel_matrix = load_instrument(hb2b_builder, arm_length, two_theta,
                                             center_shift_x, center_shift_y,
