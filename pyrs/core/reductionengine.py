@@ -65,7 +65,8 @@ class HB2BReductionManager(object):
         # load
         if file_type == 'tif' or file_type == 'tiff':
             # TIFF
-            data_id = self._load_tif_image(data_file_name, target_dimension, rotate=True, load_to_workspace=load_to_workspace)
+            data_id = self._load_tif_image(data_file_name, target_dimension, rotate=True,
+                                           load_to_workspace=load_to_workspace)
 
         elif file_type == 'bin':
             # SPICE binary
@@ -207,9 +208,13 @@ class HB2BReductionManager(object):
             mantid_reducer.load_instrument(two_theta, self._mantid_idf, self._geometry_calibration)
 
             # reduce data
-            mantid_reducer.convert_to_2theta(data_ws_name, mask=mask_vector,
+            r = mantid_reducer.convert_to_2theta(data_ws_name, mask=mask_vector,
                                              two_theta_min=min_2theta, two_theta_max=max_2theta,
                                              two_theta_resolution=resolution_2theta)
+
+            # TODO - TONIGHT - Convert to histogram in an elegant approach
+            self._curr_vec_x = r[0]  #[:-1]
+            self._curr_vec_y = r[1]
 
         else:
             # pyrs solution: calculate instrument geometry on the fly
@@ -222,13 +227,14 @@ class HB2BReductionManager(object):
 
             bin_edges, hist = python_reducer.reduce_to_2theta_histogram(detector_matrix,
                                                                         counts_matrix=self._data_dict[data_id][1],
+                                                                        mask=mask_vector,
                                                                         num_bins=self._num_bins)
             self._curr_vec_x = bin_edges
             self._curr_vec_y = hist
             print ('[DB...BAT] vec X shape = {}, vec Y shape = {}'.format(bin_edges.shape,
                                                                           hist.shape))
-            for i in range(1000, 1020):
-                print (bin_edges[i], hist[i])
+            # for i in range(1000, 1020):
+            #     print (bin_edges[i], hist[i])
         # END-IF
 
         return

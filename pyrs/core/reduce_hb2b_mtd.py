@@ -71,7 +71,7 @@ class MantidHB2BReduction(object):
             checkdatatypes.check_float_variable('Maximum 2theta for binning', two_theta_max, (-180, 180))
         if two_theta_min >= two_theta_max:
             raise RuntimeError('2theta range ({}, {}) is not acceptable.'.format(two_theta_min, two_theta_max))
-        if two_theta_max is not None:
+        if two_theta_resolution is not None:
             checkdatatypes.check_float_variable('2theta resolution', two_theta_resolution, (0.0001, 10))
             num_bins = int((two_theta_max - two_theta_min) / two_theta_resolution)
         else:
@@ -80,9 +80,10 @@ class MantidHB2BReduction(object):
         # rebin
         ResampleX(InputWorkspace=raw_data_ws, OutputWorkspace=matrix_ws_name, XMin=two_theta_min, XMax=two_theta_max,
                   NumberBins=num_bins, EnableLogging=False)
-
-        # TODO - 20181204 - Refer to "WANDPowderReduction" - ASAP(0)
-
+        reduced_ws = ADS.retrieve(matrix_ws_name)
+        vec_2theta = reduced_ws.readX(0)
+        vec_y = reduced_ws.readY(0)
+        vec_e = reduced_ws.readE(0)
 
         return vec_2theta, vec_y, vec_e
 

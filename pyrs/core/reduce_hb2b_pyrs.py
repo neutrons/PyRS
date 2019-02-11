@@ -203,10 +203,11 @@ class PyHB2BReduction(object):
         return rotate_det
 
     @staticmethod
-    def reduce_to_2theta_histogram(det_pos_matrix, counts_matrix, num_bins):
+    def reduce_to_2theta_histogram(det_pos_matrix, counts_matrix, mask, num_bins):
         """ convert the inputs (detector matrix and counts to 2theta histogram)
         :param det_pos_matrix:
         :param counts_matrix:
+        :param mask: vector of masks
         :param num_bins:
         :return: 2-tuple (bin edges, counts in histogram)
         """
@@ -225,26 +226,30 @@ class PyHB2BReduction(object):
         # histogram
         vecx = twotheta_matrix.transpose().flatten()
         vecy = counts_matrix.flatten()   # in fact vec Y is flattern alraedy!
-        print ('[DB...BAT] counts matrix: shape = {}'.format(counts_matrix.shape))
+        vecy = vecy.astype('float64')  # change to integer 32
+
+        print ('[DB...BAT] counts matrix: shape = {}, type = {}'.format(counts_matrix.shape, counts_matrix.dtype))
+        if mask is not None:
+            print ('[DB...BAT] mask vector; shape = {}, type = {}'.format(mask.shape, mask.dtype))
+            checkdatatypes.check_numpy_arrays('Counts vector and mask vector', [counts_matrix, mask], 1, True)
+            vecy *= mask
+
         # vecy = counts_matrix.transpose().flatten()   # a try!
 
-        for i in range(10):
-            print ('PyRS {}: x = {}, y = {}'.format(i, vecx[i], vecy[i]))
-        for i in range(10010, 10020):
-            print ('PyRS {}: x = {}, y = {}'.format(i, vecx[i], vecy[i]))
-        for i in range(3000000, 3000020):
-            print ('PyRS {}: x = {}, y = {}'.format(i, vecx[i], vecy[i]))
-
-        print (vecx.shape, vecx.sum(), vecx.dtype)
-        print (vecy.shape, vecy.sum(), vecy.dtype)
-        print (num_bins)
-
-        # TODO - NIGHT 3 - This is the reason why histogram does not work!!!!
-        vecy = vecy.astype('int32')
+        # for i in range(10):
+        #     print ('PyRS {}: x = {}, y = {}'.format(i, vecx[i], vecy[i]))
+        # for i in range(10010, 10020):
+        #     print ('PyRS {}: x = {}, y = {}'.format(i, vecx[i], vecy[i]))
+        # for i in range(3000000, 3000020):
+        #     print ('PyRS {}: x = {}, y = {}'.format(i, vecx[i], vecy[i]))
+        #
+        # print (vecx.shape, vecx.sum(), vecx.dtype)
+        # print (vecy.shape, vecy.sum(), vecy.dtype)
+        # print (num_bins)
 
         hist, bin_edges = np.histogram(vecx, bins=num_bins, weights=vecy)
-        for i in range(1000, 1020):
-            print (bin_edges[i], hist[i])
+        # for i in range(1000, 1020):
+        #     print (bin_edges[i], hist[i])
 
         return bin_edges, hist
 # END-CLASS

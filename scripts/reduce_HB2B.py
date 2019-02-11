@@ -120,20 +120,26 @@ class ReductionApp(object):
         else:
             mask_vec = None
 
+        # get engine first
+        if instrument_file.lower().endswith('.xml'):
+            use_mantid = True
+        elif instrument_file.lower().endswith('.txt'):
+            use_mantid = False
+        else:
+            raise NotImplementedError('Impossible')
+
         # load data
         data_id = self._reduction_engine.load_data(data_file, target_dimension=2048,
-                                                   load_to_workspace=self._use_mantid_engine)
+                                                   load_to_workspace=use_mantid)
 
         # load instrument
         if instrument_file.lower().endswith('.xml'):
             # Mantid IDF file: use mantid engine
             self._reduction_engine.set_mantid_idf(instrument_file)
-            use_mantid = True
         elif instrument_file.lower().endswith('.txt'):
             # plain text instrument setup
             instrument = calibration_file_io.import_instrument_setup(instrument_file)
             self._reduction_engine.set_instrument(instrument)
-            use_mantid = False
         else:
             raise NotImplementedError('Impossible')
 
@@ -154,8 +160,12 @@ class ReductionApp(object):
 
         vec_x, vec_y = self._reduction_engine.get_reduced_data()
 
-        # TODO - TONIGHT 3 - shift half bin of X to point data
-        plt.plot(vec_x[:-1], vec_y)
+        if vec_x.shape[0] > vec_y.shape[0]:
+            print ('Shape: vec x = {}, vec y = {}'.format(vec_x.shape, vec_y.shape))
+            # TODO - TONIGHT 3 - shift half bin of X to point data
+            plt.plot(vec_x[:-1], vec_y)
+        else:
+            plt.plot(vec_x, vec_y)
         plt.show()
 
 
