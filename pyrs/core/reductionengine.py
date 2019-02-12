@@ -165,6 +165,12 @@ class HB2BReductionManager(object):
 
         return self._data_dict[data_id][1]
 
+    def get_raw_data(self, data_id, is_workspace):
+        if is_workspace:
+            return self._data_dict[data_id][0]
+
+        return self._data_dict[data_id][1]
+
     def set_geometry_calibration(self, geometry_calibration):
         """
         Load calibration file

@@ -60,7 +60,7 @@ class PyHB2BReduction(object):
         :param rot_x_flip:
         :param rot_y_flip:
         :param rot_z_spin:
-        :return:
+        :return: 2D numpy array
         """
         # make a copy
         self._hb2b = self._raw_hb2b.copy()

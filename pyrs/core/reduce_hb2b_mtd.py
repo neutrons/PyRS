@@ -249,6 +249,9 @@ class MantidHB2BReduction(object):
 
         return
 
+    def get_workspace(self):
+        return ADS.retrieve(self._data_ws_name)
+
     def load_instrument(self, two_theta_value, idf_name, calibration):
         """
         Load instrument with calibration to
