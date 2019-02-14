@@ -13,6 +13,8 @@ try:
 except ImportError:
     from PyQt4.QtGui import QApplication
 
+import random
+
 # default testing directory is ..../PyRS/
 print (os.getcwd())
 # therefore it is not too hard to locate testing data
@@ -38,6 +40,16 @@ def compare_geometry_test(calibrated, pixel_number=2048):
     rot_x_flip = 0.
     rot_y_flip = 0.
     rot_z_spin = 0.
+
+    if calibrated:
+        center_shift_x = 1.0 * (random.random() - 0.5) * 2.0
+        center_shift_y = 1.0 * (random.random() - 0.5) * 2.0
+        arm_length_shift = (random.random() - 0.5) * 2.0  # 0.416 + (random.random() - 0.5) * 2.0
+        # calibration
+        rot_x_flip = 2.0 * (random.random() - 0.5) * 2.0
+        rot_y_flip = 2.0 * (random.random() - 0.5) * 2.0
+        rot_z_spin = 2.0 * (random.random() - 0.5) * 2.0
+    # END-IF: arbitrary calibration
 
     test_calibration = calibration_file_io.ResidualStressInstrumentCalibration()
     test_calibration.center_shift_x = center_shift_x
@@ -105,6 +117,8 @@ if __name__ == '__main__':
         option = int(sys.argv[1])
         if option == 1:
             compare_geometry_test(False)
+        elif option == 2:
+            compare_geometry_test(True)
         else:
             raise NotImplementedError('ASAP')
 

@@ -42,8 +42,8 @@ if [ "$1" = "1" ] || [ "$1" = "mask" ] ; then
 fi
 
 if [ "$1" = "2" ] || [ "$1" = "reduce" ]  ; then
-	echo "Reduce data"
-    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/reduce_HB2B.py $CMDS
+        echo "Reduce data"
+        PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/reduce_HB2B.py $CMDS
 fi
 
 if [ "$1" = "3" ] || [ "$1" = "masktest" ] ; then

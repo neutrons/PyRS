@@ -26,4 +26,4 @@ echo $PYTHONPATH
 # PYTHONPATH=build/lib:$PYTHONPATH $CMD build/scripts-2.7/instrument_geometry_test.py
 # PYTHONPATH=build/lib:$PYTHONPATH $CMD build/scripts-2.7/test_reduced_hb2b.py 
 
-PYTHONPATH=build/lib:$PYTHONPATH $CMD build/scripts-2.7/compare_reduction_engines_test.py 1
+PYTHONPATH=build/lib:$PYTHONPATH $CMD build/scripts-2.7/compare_reduction_engines_test.py 2
