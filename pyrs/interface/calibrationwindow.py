@@ -35,6 +35,8 @@ class InstrumentCalibrationWindow(QMainWindow):
         # class variables for calculation (not GUI)
         self._default_dir = None
 
+        self._number_rois = 0
+
         # set up UI
         self.ui = ui.ui_calibrationwindow.Ui_MainWindow()
         self.ui.setupUi(self)
@@ -254,20 +256,24 @@ class InstrumentCalibrationWindow(QMainWindow):
 
         curr_mask_file = gui_helper.parse_line_edit(self.ui.lineEdit_maskFile, str, False, 'Masking file')
 
-        if curr_mask_file is None:
-            default_dir = self._controller.working_dir
-        else:
-            default_dir = os.path.basename(curr_mask_file)
+        # TODO - TONIGHT 1 - Implement: no _controller
+        # if curr_mask_file is None:
+        #     default_dir = self._controller.working_dir
+        # else:
+        #     default_dir = os.path.basename(curr_mask_file)
+        default_dir = os.getcwd()
 
-        curr_mask_file = gui_helper.get_open()
+        curr_mask_file = QFileDialog.getOpenFileName(self, 'Maks file name', default_dir, 'All Files(*.*)')
 
+        self.ui.plainTextEdit_maskList.appendPlainText('{}\n'.format(curr_mask_file))
+        self._number_rois += 1
+        self.ui.graphicsView_calibration.set_number_rois(self._number_rois)
 
-        #
-        mask_id_names = self._controller.mask_manager.load_calibration_mask(curr_mask_file)
-
-        self.ui.comboBox_masks.clear()
-        for mask_name in mask_id_names:
-            self.ui.comboBox_masks.addItem(mask_name)
+        # TODO - TONIGHT 1 - error: no _controller
+        # mask_id_names = self._controller.mask_manager.load_calibration_mask(curr_mask_file)
+        # self.ui.comboBox_masks.clear()
+        # for mask_name in mask_id_names:
+        #     self.ui.comboBox_masks.addItem(mask_name)
 
         return
 

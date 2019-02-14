@@ -619,6 +619,7 @@ class MplGraphicsView1D(QWidget):
         self.clear_all_lines(include_right=False)
 
         # set the subplots
+        print ('[DB...BAT] Set subplot: {}, {}'.format(row_size, col_size))
         self._myCanvas.set_subplots(row_size, col_size)
 
         # reset PlotDict: make the right-axis open.
@@ -755,7 +756,10 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         # END-FOR
 
         self._is_initialized = True
-        self.fig.tight_layout()
+        try:
+            self.fig.tight_layout()
+        except RuntimeError:
+            pass
 
         return
 

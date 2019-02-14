@@ -301,8 +301,11 @@ class GeomCalibrationView(MplGraphicsView1D):
     """
     """
     def __init__(self, parent):
-        MplGraphicsView1D.__init__(self, parent, row_size=3, col_size=1, tool_bar=True)
+        MplGraphicsView1D.__init__(self, parent, row_size=1, col_size=1, tool_bar=True)
         return
+
+    def set_number_rois(self, num_rois):
+        self.set_subplots(num_rois, 1)
 
     # TODO - TONIGHT 3 - Add simple vertical indicator to this class
     # TODO - TONIGHT 4 - Add global control including X/Y range, clear, home,
