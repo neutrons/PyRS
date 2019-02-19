@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.image
 from pyrs.utilities import checkdatatypes
 from pyrs.core import calibration_file_io
+from pyrs.core import mask_util
 from pyrs.core import scandataio
 from pyrs.core import reduce_hb2b_mtd
 from pyrs.core import reduce_hb2b_pyrs
@@ -36,6 +37,19 @@ class HB2BReductionManager(object):
         # calibration
         self._geometry_calibration = calibration_file_io.ResidualStressInstrumentCalibration()
 
+        # record
+        self._last_loaded_data_id = None
+
+        # masks
+        self._loaded_mask_files = list()
+        self._loaded_mask_dict = dict()
+
+        # reduced data
+        self._curr_vec_x = None
+        self._curr_vec_y = None
+
+        self._reduce_data_dict = dict()   # D[data ID][mask ID] = vec_x, vec_y
+
         return
 
     @staticmethod
@@ -46,6 +60,14 @@ class HB2BReductionManager(object):
             ws_name = '{}__nexus'.format(ws_name)
 
         return ws_name
+
+    @property
+    def current_data_id(self):
+        """
+        current or last loaded data ID
+        :return:
+        """
+        return self._last_loaded_data_id
 
     def load_data(self, data_file_name, target_dimension=None, load_to_workspace=True):
         """
@@ -80,7 +102,24 @@ class HB2BReductionManager(object):
             # not supported
             raise RuntimeError('File type {} from input {} is not supported.'.format(file_type, data_file_name))
 
+        self._last_loaded_data_id = data_id
+
         return data_id
+
+    def load_mask_file(self, mask_file_name):
+        """ Load mask file
+        :param mask_file_name:
+        :return:
+        """
+        mask_vec, two_theta, note = mask_util.load_pyrs_mask(mask_file_name)
+
+        # register the masks
+        self._loaded_mask_files.append(mask_file_name)
+
+        mask_id = os.path.basename(mask_file_name).split('.')[0] + '_{}'.format(hash(mask_file_name))
+        self._loaded_mask_dict[mask_id] = mask_vec, two_theta, mask_file_name
+
+        return two_theta, note, mask_id
 
     def _load_nexus(self, nxs_file_name):
         """
@@ -162,10 +201,40 @@ class HB2BReductionManager(object):
         return data_id
 
     def get_counts(self, data_id):
-
+        """
+        Get the array as detector counts
+        :param data_id:
+        :return:
+        """
+        if data_id not in self._data_dict:
+            raise RuntimeError('Data key {} does not exist in loaded data dictionary (keys are {})'
+                               ''.format(data_id, self._data_dict.keys()))
         return self._data_dict[data_id][1]
 
+    def get_loaded_mask_files(self):
+        """
+        Get the list of file names (full path) that have been loaded
+        :return:
+        """
+        return self._loaded_mask_files[:]
+
+    def get_mask_ids(self):
+        """
+        get IDs for loaded masks
+        :return:
+        """
+        return sorted(self._loaded_mask_dict.keys())
+
+    def get_mask_vector(self, mask_id):
+        return self._loaded_mask_dict[mask_id][0]
+
     def get_raw_data(self, data_id, is_workspace):
+        """
+        Get the raw data
+        :param data_id:
+        :param is_workspace: True, workspace; False: vector
+        :return:
+        """
         if is_workspace:
             return self._data_dict[data_id][0]
 
@@ -183,14 +252,14 @@ class HB2BReductionManager(object):
 
         return
 
-    def reduce_to_2theta(self, data_id, output_name, use_mantid_engine, mask_vector, two_theta,
+    def reduce_to_2theta(self, data_id, output_name, use_mantid_engine, mask, two_theta,
                          min_2theta=None, max_2theta=None, resolution_2theta=None):
         """
         Reduce import data (workspace or vector) to 2-theta ~ I
         :param data_id:
         :param output_name:
         :param use_mantid_engine:
-        :param mask_vector:
+        :param mask: mask ID or mask vector
         :param two_theta: 2theta value
         :param min_2theta: None or user specified
         :param max_2theta: None or user specified
@@ -204,6 +273,18 @@ class HB2BReductionManager(object):
                                'Current keys: {}'.format(data_id, self._data_dict.keys()))
         checkdatatypes.check_file_name(output_name, False, True, False, 'Output reduced file')
 
+        # about mask
+        if mask is None:
+            mask_vec = None
+            mask_id = None
+        elif isinstance(mask, str):
+            # mask ID
+            mask_vec = self.get_mask_vector(mask)
+            mask_id = mask
+        else:
+            mask_vec = mask
+            mask_id = hash('{}'.format(mask_vec.min())) + hash('{}'.format(mask_vec.max())) + hash('{}'.format(mask_vec.mean()))
+
         if use_mantid_engine:
             # init mantid reducer and add workspace in ADS
             data_ws_name = self._data_dict[data_id][0]
@@ -214,12 +295,11 @@ class HB2BReductionManager(object):
             mantid_reducer.load_instrument(two_theta, self._mantid_idf, self._geometry_calibration)
 
             # reduce data
-            r = mantid_reducer.convert_to_2theta(data_ws_name, mask=mask_vector,
-                                             two_theta_min=min_2theta, two_theta_max=max_2theta,
-                                             two_theta_resolution=resolution_2theta)
+            r = mantid_reducer.reduce_to_2theta(data_ws_name, mask=mask_vec,
+                                                two_theta_min=min_2theta, two_theta_max=max_2theta,
+                                                two_theta_resolution=resolution_2theta)
 
-            # TODO - TONIGHT - Convert to histogram in an elegant approach
-            self._curr_vec_x = r[0]  #[:-1]
+            self._curr_vec_x = r[0]
             self._curr_vec_y = r[1]
 
         else:
@@ -233,21 +313,32 @@ class HB2BReductionManager(object):
 
             bin_edges, hist = python_reducer.reduce_to_2theta_histogram(detector_matrix,
                                                                         counts_matrix=self._data_dict[data_id][1],
-                                                                        mask=mask_vector,
+                                                                        mask=mask_vec,
                                                                         num_bins=self._num_bins)
             self._curr_vec_x = bin_edges
             self._curr_vec_y = hist
             print ('[DB...BAT] vec X shape = {}, vec Y shape = {}'.format(bin_edges.shape,
                                                                           hist.shape))
-            # for i in range(1000, 1020):
-            #     print (bin_edges[i], hist[i])
         # END-IF
+
+        # record
+        self._reduce_data_dict[data_id][mask_id] = self._curr_vec_x, self._curr_vec_y
 
         return
 
     # TODO - TONIGHT 2 - Better Code Q
-    def get_reduced_data(self, data_id=None):
-        return self._curr_vec_x, self._curr_vec_y
+    def get_reduced_data(self, data_id=None, mask_id=None):
+        """
+        Get the reduce data
+        :param data_id:
+        :param mask_id:  ID of mask
+        :return:
+        """
+        if data_id is None:
+            return self._curr_vec_x, self._curr_vec_y
+
+        # TODO - TONIGHT 2 - ASAP
+        return self._reduced_data_dict[data_id][mask_id]
 
     def set_mantid_idf(self, idf_name):
         """

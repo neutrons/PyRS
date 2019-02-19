@@ -34,6 +34,7 @@ class InstrumentCalibrationWindow(QMainWindow):
 
         # class variables for calculation (not GUI)
         self._default_dir = None
+        self._curr_data_id = None
 
         self._number_rois = 0
 
@@ -103,6 +104,10 @@ class InstrumentCalibrationWindow(QMainWindow):
 
         self.ui.pushButton_decreaseWavelength.clicked.connect(self.do_decrease_value)
         self.ui.pushButton_increaseWavelength.clicked.connect(self.do_increase_value)
+
+        # Figure's subplot vs mask
+        self._subplot_mask_dict = dict()
+        self._mask_subplot_dict = dict()
 
         return
 
@@ -228,58 +233,96 @@ class InstrumentCalibrationWindow(QMainWindow):
         return
 
     def do_calibrate_geometry(self):
+        # TODO - TONIGHT 2 - Implement
 
         return
 
     def do_load_raw(self):
-
+        """
+        Load raw data (TIFF, NeXus HDF5, SPICE .bin)
+        :return:
+        """
+        # try: IPTS and run (regular way)
         ipts_number = gui_helper.parse_line_edit(self.ui.lineEdit_iptsNumber, int, False, 'IPTS  number', None)
         run_number = gui_helper.parse_line_edit(self.ui.lineEdit_runNumber, int, False, 'Run number', None)
 
-        # TODO - TONIGHT 5 - Make it work!
         if ipts_number is None or run_number is None:
             # load data file directory
-            raw_file_name = gui_helper.get_open()
+            raw_file_name = QFileDialog.getOpenFileName(self, 'Get experiment data', os.getcwd())
         else:
+            # from archive
             raw_file_name = self.core.archive_manager.get_nexus(ipts_number, run_number)
 
         # load
-        self._core.reduction_manager.load_data(raw_file_name)
+        self.load_data_file(raw_file_name)
+
+        return
+
+    def load_data_file(self, file_name):
+        """
+        Load data fle
+        :param file_name:
+        :return:
+        """
+        # load
+        try:
+            self._curr_data_id = self._core.reduction_engine.load_data(file_name)
+        except RuntimeError as run_err:
+            gui_helper.pop_message(self, message_type='error', message='Unable to load data {}'.format(file_name),
+                                   detailed_message='{}'.format(run_err))
 
         return
 
     def do_load_mask(self):
+        """ Load mask file
         """
-        """
-
-        # TODO - TONIGHT 6 - Make it work!
-
+        # get the current mask file
         curr_mask_file = gui_helper.parse_line_edit(self.ui.lineEdit_maskFile, str, False, 'Masking file')
 
-        # TODO - TONIGHT 1 - Implement: no _controller
-        # if curr_mask_file is None:
-        #     default_dir = self._controller.working_dir
-        # else:
-        #     default_dir = os.path.basename(curr_mask_file)
-        default_dir = os.getcwd()
+        # whether it has been loaded
+        if curr_mask_file in self._core.reduction_engine.get_loaded_mask_files():
+            gui_helper.pop_message(self, message='Mask {} has been loaded', message_type='info',
+                                   detailed_message='If need to load a new mask, clear the file name in editor')
+            return
 
-        curr_mask_file = QFileDialog.getOpenFileName(self, 'Maks file name', default_dir, 'All Files(*.*)')
+        # get mask
+        if not os.path.exists(curr_mask_file):
+            # need to load
+            if curr_mask_file == '':
+                default_dir = os.getcwd()
+            else:
+                default_dir = os.path.basename(curr_mask_file)
 
-        self.ui.plainTextEdit_maskList.appendPlainText('{}\n'.format(curr_mask_file))
+            curr_mask_file = QFileDialog.getOpenFileName(self, 'Maks file name', default_dir, 'All Files(*.*)')
+            if isinstance(curr_mask_file, tuple):
+                raise NotImplementedError('Case of tuple of getOpenFileName')
+            if curr_mask_file == '':
+                return
+            else:
+                # set file names
+                self.ui.lineEdit_maskFile.setText('{}'.format(curr_mask_file))
+                self.ui.plainTextEdit_maskList.appendPlainText('{}\n'.format(curr_mask_file))
+        # END-IF
+
+        # load mask
+        try:
+            two_theta, note, mask_id = self._core.reduction_engine.load_mask_file(curr_mask_file)
+        except RuntimeError as run_err:
+            gui_helper.pop_message(self, message='Unable to load {}'.format(curr_mask_file),
+                                   message_type='error',
+                                   detailed_message='{}'.format(run_err))
+            return
+
+        # update UI
         self._number_rois += 1
         self.ui.graphicsView_calibration.set_number_rois(self._number_rois)
-
-        # TODO - TONIGHT 1 - error: no _controller
-        # mask_id_names = self._controller.mask_manager.load_calibration_mask(curr_mask_file)
-        # self.ui.comboBox_masks.clear()
-        # for mask_name in mask_id_names:
-        #     self.ui.comboBox_masks.addItem(mask_name)
+        self._subplot_mask_dict[self._number_rois - 1] = mask_id
+        self._mask_subplot_dict[mask_id] = self._number_rois - 1
 
         return
 
     def do_reduce_data(self):
-        """
-
+        """ reduce data
         :return:
         """
         try:
@@ -306,6 +349,17 @@ class InstrumentCalibrationWindow(QMainWindow):
         self._core.reduction_manager.load_instrument(two_theta, cal_shift_x, cal_shift_y, cal_shift_z,
                                                      cal_rot_x, cal_rot_y, cal_rot_z,
                                                      cal_wave_length)
+
+        # reduce masks
+        for mask_id in self._core.reduction_engine.get_mask_ids():
+            mask_vec = self._core.reduction_engine.get_mask_vector(mask_id)
+            self._core.reduction_engine.reduce_to_2theta(data_id=self._curr_data_id,
+                                                         output_name=None,
+                                                         use_mantid_engine=False,
+                                                         mask_vec=mask_vec,
+                                                         two_theta=two_theta)
+            vec_x, vec_y = self._core.reduction_engine.get_reduced_data()
+            self.ui.graphicsView_calibration.plot_data(vec_x, vec_y, self._mask_subplot_dict[mask_id])
 
         return
 

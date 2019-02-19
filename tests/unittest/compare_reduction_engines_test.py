@@ -7,13 +7,14 @@ from pyrs.core import reduce_hb2b_mtd
 from pyrs.core import reduce_hb2b_pyrs
 from pyrs.core import calibration_file_io
 from pyrs.core import reductionengine
-
+from pyrs.core import mask_util
+import numpy
 try:
     from PyQt5.QtWidgets import QApplication
 except ImportError:
     from PyQt4.QtGui import QApplication
-
 import random
+from matplotlib import pyplot as plt
 
 # default testing directory is ..../PyRS/
 print (os.getcwd())
@@ -21,12 +22,15 @@ print (os.getcwd())
 test_data = 'tests/testdata/LaB6_10kev_35deg-00004_Rotated.tif'
 xray_2k_instrument_file = 'tests/testdata/xray_data/XRay_Definition_2K.txt'
 xray_idf_name = 'tests/testdata/XRay_Definition_2K.xml'
+test_mask = 'tests/testdata/masks/Chi_10_Mask.xml'
 print ('Data file {0} exists? : {1}'.format(test_data, os.path.exists(test_data)))
 
 
-def compare_geometry_test(calibrated, pixel_number=2048):
+def create_instrument(calibrated, pixel_number):
     """
-    Compare the geometry
+    Create instruments: PyRS and Mantid
+    :param calibrated:
+    :param pixel_number:
     :return:
     """
     # instrument
@@ -65,16 +69,27 @@ def compare_geometry_test(calibrated, pixel_number=2048):
 
     # load instrument
     pyrs_reducer = reduce_hb2b_pyrs.PyHB2BReduction(instrument)
-    pixel_matrix = pyrs_reducer.build_instrument(two_theta, arm_length_shift, center_shift_x, center_shift_y,
-                                                 rot_x_flip, rot_y_flip, rot_z_spin)
+    pyrs_reducer.build_instrument(two_theta, arm_length_shift, center_shift_x, center_shift_y,
+                                  rot_x_flip, rot_y_flip, rot_z_spin)
 
     mantid_reducer = reduce_hb2b_mtd.MantidHB2BReduction()
     data_ws_name = engine.get_raw_data(test_data_id, is_workspace=True)
     mantid_reducer.set_workspace(data_ws_name)
     mantid_reducer.load_instrument(two_theta, xray_idf_name, test_calibration)
 
+    return engine, pyrs_reducer, mantid_reducer
+
+
+def compare_geometry_test(calibrated, pixel_number=2048):
+    """
+    Compare the geometry
+    :return:
+    """
+    engine, pyrs_reducer, mantid_reducer = create_instrument(calibrated, pixel_number)
+
     # compare
     workspace = mantid_reducer.get_workspace()
+    pixel_matrix = pyrs_reducer.get_pixel_matrix()
 
     # test 5 spots (corner and center): (0, 0), (0, 1023), (1023, 0), (1023, 1023), (512, 512)
     pixel_locations = [(0, 0),
@@ -85,8 +100,6 @@ def compare_geometry_test(calibrated, pixel_number=2048):
 
     is_same = True
     for index_i, index_j in pixel_locations:
-        # print ('PyRS:   ', pixel_matrix[index_i, index_j])
-        # print ('Mantid: ', workspace.getDetector(index_i + index_j * 1024).getPos())  # column major
         pos_python = pixel_matrix[index_i, index_j]
         index1d = index_i + pixel_number * index_j
         pos_mantid = workspace.getDetector(index1d).getPos()
@@ -103,22 +116,141 @@ def compare_geometry_test(calibrated, pixel_number=2048):
             is_same = False
     # END-FOR
 
-    assert is_same, 'Instrument geometry does not match!'
+    assert is_same, 'Instrument geometries from 2 engines do not match!'
 
-    return is_same
+    return engine, pyrs_reducer, mantid_reducer
+
+
+def compare_convert_2theta(calibrated, pixel_number=2048):
+    """
+    compare the 2 reduction engines' output to 2theta
+    :param calibrated:
+    :param pixel_number:
+    :return:
+    """
+    engine, pyrs_reducer, mantid_reducer = compare_geometry_test(calibrated, pixel_number)
+
+    # compare 2theta
+    pixel_matrix = pyrs_reducer.get_pixel_matrix()
+    pyrs_2theta_vec = pyrs_reducer.convert_to_2theta(pixel_matrix).flatten()  # 1D vector
+
+    raw_ws_name = mantid_reducer.get_workspace().name()
+    mantid_2theta_vec = mantid_reducer.convert_from_raw_to_2theta(raw_ws_name).readX(0)
+
+    # compare shape
+    assert pyrs_2theta_vec.shape == mantid_2theta_vec.shape, 'Shapes ({} vs {}) shall be same' \
+                                                             ''.format(pyrs_2theta_vec.shape, mantid_2theta_vec.shape)
+
+    diff = numpy.sqrt(numpy.sum((pyrs_2theta_vec - mantid_2theta_vec) ** 2))
+    for i in range(30):
+        print ('[DB...TEST...CHECK] {}   -   {}    =    {}'.format(pyrs_2theta_vec[i], mantid_2theta_vec[i],
+                                                                   pyrs_2theta_vec[i] - mantid_2theta_vec[i]))
+
+    assert diff < 1., 'Difference too big!'
+
+    return pyrs_reducer, mantid_reducer
+
+
+def compare_reduced_no_mask(calibrated, pixel_number=2048):
+    """
+    Compare reduced data without mask
+    :param calibrated:
+    :param pixel_number:
+    :return:
+    """
+    engine, pyrs_reducer, mantid_reducer = compare_geometry_test(calibrated, pixel_number)
+
+    curr_id = engine.current_data_id
+    pyrs_vec_x, pyrs_vec_y = pyrs_reducer.reduce_to_2theta_histogram(det_pos_matrix=None,
+                                                                     counts_matrix=engine.get_counts(curr_id),
+                                                                     mask=None)
+
+    data_ws = mantid_reducer.get_workspace()
+    mantid_vec_x, mantid_vec_y = mantid_reducer.reduce_to_2theta(data_ws.name(), two_theta_min=pyrs_vec_x[0],
+                                                                 two_theta_max=pyrs_vec_x[-1],
+                                                                 two_theta_resolution=pyrs_vec_x.shape[0],
+                                                                 mask=None)
+
+    diff_x = numpy.sqrt(numpy.sum((pyrs_vec_x - mantid_vec_x)**2))
+    diff_y = numpy.sqrt(numpy.sum((pyrs_vec_y - mantid_vec_y)**2))
+
+    print ('Diff[X]  =  {},  Diff[Y]  =  {}'.format(diff_x, diff_y))
+    plt.plot(pyrs_vec_x, pyrs_vec_y, color='blue', xlabel='PyRS')
+    plt.plot(mantid_vec_x, mantid_vec_y, color='red', xlable='Mantid')
+    plt.show()
+
+    return
+
+
+def compare_reduced_masked(calibrated, pixel_number=2048):
+    """
+    Compare reduced data without mask
+    :param calibrated:
+    :param pixel_number:
+    :return:
+    """
+    engine, pyrs_reducer, mantid_reducer = compare_geometry_test(calibrated, pixel_number)
+
+    # load mask
+    # mask file
+    mask_vec, mask_2theta, note = mask_util.load_pyrs_mask(test_mask)
+
+    # reduce data
+    curr_id = engine.current_data_id
+    pyrs_vec_x, pyrs_vec_y = pyrs_reducer.reduce_to_2theta_histogram(det_pos_matrix=None,
+                                                                     counts_matrix=engine.get_counts(curr_id),
+                                                                     mask=mask_vec,
+                                                                     num_bins=2500)
+
+    data_ws = mantid_reducer.get_workspace()
+    resolution = (pyrs_vec_x[-1] - pyrs_vec_x[0]) / (2500 - 1)
+    mantid_vec_x, mantid_vec_y = mantid_reducer.reduce_to_2theta(data_ws.name(), two_theta_min=pyrs_vec_x[0],
+                                                                 two_theta_max=pyrs_vec_x[-1],
+                                                                 two_theta_resolution=resolution,
+                                                                 mask=mask_vec)
+
+    diff_x = numpy.sqrt(numpy.sum((pyrs_vec_x - mantid_vec_x)**2))
+    diff_y = numpy.sqrt(numpy.sum((pyrs_vec_y - mantid_vec_y)**2))
+
+    print ('Diff[X]  =  {},  Diff[Y]  =  {}'.format(diff_x, diff_y))
+    plt.plot(pyrs_vec_x, pyrs_vec_y, color='blue', xlabel='PyRS')
+    plt.plot(mantid_vec_x, mantid_vec_y, color='red', xlable='Mantid')
+    plt.show()
+
+    return
 
 
 if __name__ == '__main__':
     """ main
     """
     if len(sys.argv) == 1:
-        print ('{} [Test Options: 1 = geometry (basic), 2 = geometry (arbitrary calibration)')
+        print ('{} [Test Options]\n'
+               '\t\t1 = geometry (basic)\n'
+               '\t\t2 = geometry (arbitrary calibration)\n'
+               '\t\t3 = converting to 2theta (basic)\n'
+               '\t\t4 = converting to 2theta (arbitrary calibration)\n'
+               '\t\t5 = reducing to 2theta-intensity (basic)\n'
+               '\t\t6 = reducing to 2theta-intensity (arbitrary calibration)\n'
+               '\t\t7 = reducing to 2theta-intensity with mask (basic)\n'
+               '\t\t8 = reducing to 2theta-intensity with mask (arbitrary calibration)'.format(sys.argv[0]))
     else:
         option = int(sys.argv[1])
         if option == 1:
             compare_geometry_test(False)
         elif option == 2:
             compare_geometry_test(True)
+        elif option == 3:
+            compare_convert_2theta(False)
+        elif option == 4:
+            compare_convert_2theta(True)
+        elif option == 5:
+            compare_reduced_no_mask(False)
+        elif option == 6:
+            compare_reduced_masked(True)
+        elif option == 7:
+            compare_reduced_masked(False)
+        elif option == 8:
+            compare_reduced_no_mask(True)
         else:
             raise NotImplementedError('ASAP')
 

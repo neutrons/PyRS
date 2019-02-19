@@ -185,6 +185,13 @@ class PyHB2BReduction(object):
 
         return rotation_matrix
 
+    def get_pixel_matrix(self):
+        """
+        return the pixel matrix of the instrument built
+        :return:
+        """
+        return self._hb2b
+
     @staticmethod
     def rotate_instrument(detector_matrix, rotation_matrix):
         """
@@ -203,13 +210,11 @@ class PyHB2BReduction(object):
         return rotate_det
 
     @staticmethod
-    def reduce_to_2theta_histogram(det_pos_matrix, counts_matrix, mask, num_bins):
-        """ convert the inputs (detector matrix and counts to 2theta histogram)
+    def convert_to_2theta(det_pos_matrix):
+        """
+        convert the pixel position matrix to 2theta
         :param det_pos_matrix:
-        :param counts_matrix:
-        :param mask: vector of masks
-        :param num_bins:
-        :return: 2-tuple (bin edges, counts in histogram)
+        :return:
         """
         # convert detector position matrix to 2theta
         # normalize the detector position 2D array
@@ -223,8 +228,30 @@ class PyHB2BReduction(object):
         diff_angle_cos_matrix = det_pos_matrix[:, :, 0] * k_in_vec[0] + det_pos_matrix[:, :, 1] * k_in_vec[1] + det_pos_matrix[:, :, 2] * k_in_vec[2]
         twotheta_matrix = np.arccos(diff_angle_cos_matrix) * 180 / np.pi
 
+        return twotheta_matrix
+
+    def reduce_to_2theta_histogram(self, det_pos_matrix, counts_matrix, mask, num_bins, x_range=None,
+                                   is_point_data=True):
+        """ convert the inputs (detector matrix and counts to 2theta histogram)
+        :param det_pos_matrix:
+        :param counts_matrix:
+        :param mask: vector of masks
+        :param num_bins:
+        :param x_range: range of X value
+        :return: 2-tuple (bin edges, counts in histogram)
+        """
+        if det_pos_matrix is None:
+            det_pos_matrix = self._hb2b
+        two_theta_matrix = self.convert_to_2theta(det_pos_matrix)
+
+        # check inputs
+        if x_range:
+            checkdatatypes.check_tuple('X range', xrange, 2)
+            if x_range[0] >= x_range[1]:
+                raise RuntimeError('X range {} is not allowed'.format(x_range))
+
         # histogram
-        vecx = twotheta_matrix.transpose().flatten()
+        vecx = two_theta_matrix.transpose().flatten()
         vecy = counts_matrix.flatten()   # in fact vec Y is flattern alraedy!
         vecy = vecy.astype('float64')  # change to integer 32
 
@@ -234,22 +261,14 @@ class PyHB2BReduction(object):
             checkdatatypes.check_numpy_arrays('Counts vector and mask vector', [counts_matrix, mask], 1, True)
             vecy *= mask
 
-        # vecy = counts_matrix.transpose().flatten()   # a try!
+        # this is histogram data
+        hist, bin_edges = np.histogram(vecx, bins=num_bins, range=x_range, weights=vecy)
 
-        # for i in range(10):
-        #     print ('PyRS {}: x = {}, y = {}'.format(i, vecx[i], vecy[i]))
-        # for i in range(10010, 10020):
-        #     print ('PyRS {}: x = {}, y = {}'.format(i, vecx[i], vecy[i]))
-        # for i in range(3000000, 3000020):
-        #     print ('PyRS {}: x = {}, y = {}'.format(i, vecx[i], vecy[i]))
-        #
-        # print (vecx.shape, vecx.sum(), vecx.dtype)
-        # print (vecy.shape, vecy.sum(), vecy.dtype)
-        # print (num_bins)
-
-        hist, bin_edges = np.histogram(vecx, bins=num_bins, weights=vecy)
-        # for i in range(1000, 1020):
-        #     print (bin_edges[i], hist[i])
+        # convert to point data
+        if is_point_data:
+            delta_bin = bin_edges[1] - bin_edges[0]
+            bin_edges += delta_bin * 0.5
+            bin_edges = bin_edges[:-1]
 
         return bin_edges, hist
 # END-CLASS

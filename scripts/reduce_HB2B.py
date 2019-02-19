@@ -152,7 +152,7 @@ class ReductionApp(object):
                                                 two_theta=two_theta,
                                                 output_name=output_file_name,
                                                 use_mantid_engine=use_mantid,
-                                                mask_vector=mask_vec)
+                                                mask=mask_vec)
 
         return
 

@@ -4,6 +4,7 @@ from mantid.simpleapi import ConvertSpectrumAxis, ResampleX, Transpose, AddSampl
 from mantid.api import AnalysisDataService as ADS
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities import file_util
+import calibration_file_io
 from pyrs.core.calibration_file_io import ResidualStressInstrumentCalibration
 
 
@@ -31,15 +32,12 @@ class MantidHB2BReduction(object):
 
         return
 
-    def convert_to_2theta(self, matrix_ws_name, two_theta_min=None, two_theta_max=None, two_theta_resolution=None,
-                          mask=None):
-        """ Convert to to 2theta from raw workspace with instrument already loaded
-        :param matrix_ws_name:
-        :param two_theta_min:
-        :param two_theta_max:
-        :param two_theta_resolution:
-        :param mask:
-        :return:
+    @staticmethod
+    def convert_from_raw_to_2theta(matrix_ws_name):
+        """
+        Convert from raw to workspace with unit X as
+        :param matrix_ws_name: name of input workspace
+        :return: workspace in unit 2theta and transposed to 1-spectrum workspace (handler)
         """
         # check input
         checkdatatypes.check_string_variable('Input raw data workspace name', matrix_ws_name)
@@ -53,9 +51,23 @@ class MantidHB2BReduction(object):
         # convert from N-spectra-single element to 1-spectrum-N-element
         raw_data_ws = Transpose(InputWorkspace=matrix_ws_name, OutputWorkspace=matrix_ws_name, EnableLogging=False)
 
+        return raw_data_ws
+
+    def reduce_to_2theta(self, matrix_ws_name, two_theta_min=None, two_theta_max=None, two_theta_resolution=None,
+                         mask=None):
+        """ Reduce the raw matrix workspace, with instrument already loaded, to 2theta
+        :param matrix_ws_name:
+        :param two_theta_min:
+        :param two_theta_max:
+        :param two_theta_resolution:
+        :param mask:
+        :return:
+        """
+        # convert
+        raw_data_ws = self.convert_from_raw_to_2theta(matrix_ws_name)
+
         # mask if required
         if mask is not None:
-            # TODO - TEST - verify!
             checkdatatypes.check_numpy_arrays('Mask vector', [mask, raw_data_ws.readY(0)], 1, True)
             masked_vec = raw_data_ws.dataY(0)
             masked_vec *= mask
@@ -250,6 +262,12 @@ class MantidHB2BReduction(object):
         return
 
     def get_workspace(self):
+        """
+        Get the handler to the workspace
+        :return:
+        """
+        checkdatatypes.check_string_variable('Data worksapce name', self._data_ws_name)
+
         return ADS.retrieve(self._data_ws_name)
 
     def load_instrument(self, two_theta_value, idf_name, calibration):
@@ -257,8 +275,6 @@ class MantidHB2BReduction(object):
         Load instrument with calibration to
         :return:
         """
-        import calibration_file_io
-
         if self._data_ws_name is None or ADS.doesExist(self._data_ws_name) is False:
             raise RuntimeError('Reduction HB2B (Mantid) has no workspace set to reduce')
         else:
