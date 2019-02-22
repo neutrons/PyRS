@@ -488,10 +488,10 @@ class MplGraphicsView1D(QWidget):
         :return:
         """
         # remove line
-        self._myCanvas.remove_plot_1d(row_index, col_index, line_id, apply_change=True)
+        is_on_main = self._myCanvas.remove_plot_1d(row_index, col_index, line_id, apply_change=True)
 
         # remove the records
-        self._update_plot_line_information(row_index, col_index, line_id=line_id, remove_line=True)
+        self._update_plot_line_information(row_index, col_index, line_id=line_id, is_main=is_on_main, remove_line=True)
 
         # if line_id in self._statMainPlotDict:
         #     del self._statMainPlotDict[line_id]
@@ -1258,15 +1258,20 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
 
         if plot_key in self._mainLineDict[row_index, col_index]:
             # plot key is on main axis
+            if (row_index, col_index) not in self.axes_main:
+                raise RuntimeError('Main axes do not contain ({}, {}).  Available axes are {}'
+                                   ''.format(row_index, col_index, self.axes_main.keys()))
+            if plot_key not in self._mainLineDict[(row_index, col_index)]:
+                raise RuntimeError('Plot key {} does not exist in main line dict.  Available plot keys are '
+                                   '{}'.format(plot_key, self._mainLineDict.keys()))
             try:
-                self.axes_main[row_index, col_index].lines.remove(self._mainLineDict[plot_key])
+                self.axes_main[row_index, col_index].lines.remove(self._mainLineDict[(row_index, col_index)][plot_key])
             except ValueError as r_error:
-                error_message = 'Unable to remove to 1D line %s (ID=%d) due to %s.' % (str(self._mainLineDict[plot_key]),
-                                                                                       plot_key, str(r_error))
+                error_message = 'Unable to remove to 1D line {} (ID={}) due to {}' \
+                                ''.format(self._mainLineDict[(row_index, col_index)][plot_key], plot_key, str(r_error))
                 raise RuntimeError(error_message)
             # remove the plot key from dictionary
-            del self._mainLineDict[plot_key][row_index, col_index]
-
+            del self._mainLineDict[(row_index, col_index)][plot_key]
             is_on_main = True
 
         elif (row_index, col_index) in self._rightLineDict and plot_key in self._rightLineDict[row_index, col_index]:
@@ -1278,7 +1283,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
                                 ''.format(self._rightLineDict[plot_key], plot_key, str(r_error))
                 raise RuntimeError(error_message)
 
-            del self._rightLineDict[plot_key][row_index, col_index]
+            del self._rightLineDict[row_index, col_index][plot_key]
 
             is_on_main = False
         else:
@@ -1291,7 +1296,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         if apply_change:
             self.draw()
 
-        return
+        return is_on_main
 
     def show_legend(self, row_number, col_number, is_main=True, is_right=True):
         """ show the legend if the legend is not None

@@ -20,6 +20,16 @@ def test_main():
 
     geom_cal_window.show()
 
+    # set up the testing data
+    geom_cal_window.load_data_file('tests/testdata/LaB6_10kev_35deg-00004_Rotated.tif')
+    geom_cal_window.ui.lineEdit_2theta.setText('35.')
+    geom_cal_window.ui.lineEdit_maskFile.setText('tests/testdata/masks/Chi_0.hdf5')
+    geom_cal_window.do_load_mask()
+    geom_cal_window.ui.lineEdit_maskFile.setText('tests/testdata/masks/Chi_10.hdf5')
+    geom_cal_window.do_load_mask()
+    geom_cal_window.ui.lineEdit_instrument.setText('tests/testdata/xray_data/XRay_Definition_2K.txt')
+    geom_cal_window.do_load_instrument_file()
+
     # # 3 candidate files
     # # tests/testdata/16-1_TD.cor_Log.hdf5
     # # tests/testdata/16-1_ND.cor_Log.hdf5

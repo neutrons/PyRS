@@ -106,6 +106,14 @@ class HB2BReductionManager(object):
 
         return data_id
 
+    # TODO - TONIGHT 4 - Better!
+    def load_instrument_file(self, instrument_file_name):
+
+        instrument = calibration_file_io.import_instrument_setup(instrument_file_name)
+        self.set_instrument(instrument)
+
+        return
+
     def load_mask_file(self, mask_file_name):
         """ Load mask file
         :param mask_file_name:
@@ -271,7 +279,8 @@ class HB2BReductionManager(object):
         if data_id not in self._data_dict:
             raise RuntimeError('Data ID {} does not exist in loaded data dictionary. '
                                'Current keys: {}'.format(data_id, self._data_dict.keys()))
-        checkdatatypes.check_file_name(output_name, False, True, False, 'Output reduced file')
+        if output_name:
+            checkdatatypes.check_file_name(output_name, False, True, False, 'Output reduced file')
 
         # about mask
         if mask is None:
@@ -306,12 +315,15 @@ class HB2BReductionManager(object):
             # pyrs solution: calculate instrument geometry on the fly
             python_reducer = reduce_hb2b_pyrs.PyHB2BReduction(self._instrument)
 
-            # TODO - TONIGHT 1 - shall convert all the shifts to a class instance: ResidualStressInstrumentCalibration
-            detector_matrix = python_reducer.build_instrument(two_theta, arm_length_shift=0., center_shift_x=0.,
-                                                              center_shift_y=0., rot_x_flip=0.,
-                                                              rot_y_flip=0., rot_z_spin=0.)
+            pixel_matrix = python_reducer.build_instrument(two_theta,
+                                                           arm_length_shift=self._geometry_calibration.center_shift_z,
+                                                           center_shift_x=self._geometry_calibration.center_shift_x,
+                                                           center_shift_y=self._geometry_calibration.center_shift_y,
+                                                           rot_x_flip=self._geometry_calibration.rotation_x,
+                                                           rot_y_flip=self._geometry_calibration.rotation_y,
+                                                           rot_z_spin=self._geometry_calibration.rotation_z)
 
-            bin_edges, hist = python_reducer.reduce_to_2theta_histogram(detector_matrix,
+            bin_edges, hist = python_reducer.reduce_to_2theta_histogram(pixel_matrix,
                                                                         counts_matrix=self._data_dict[data_id][1],
                                                                         mask=mask_vec,
                                                                         num_bins=self._num_bins)
@@ -322,6 +334,8 @@ class HB2BReductionManager(object):
         # END-IF
 
         # record
+        if data_id not in self._reduce_data_dict:
+            self._reduce_data_dict[data_id] = dict()
         self._reduce_data_dict[data_id][mask_id] = self._curr_vec_x, self._curr_vec_y
 
         return

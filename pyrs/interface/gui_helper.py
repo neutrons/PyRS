@@ -123,7 +123,7 @@ def parse_line_edit(line_edit, data_type, throw_if_blank=False, edit_name=None, 
         # empty string
         if throw_if_blank:
             raise RuntimeError('Input line edit {} is empty'.format(edit_name))
-        elif default:
+        elif default is not None:
             return_value = default
         else:
             return_value = None

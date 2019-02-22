@@ -33,10 +33,11 @@ class MantidHB2BReduction(object):
         return
 
     @staticmethod
-    def convert_from_raw_to_2theta(matrix_ws_name):
+    def convert_from_raw_to_2theta(matrix_ws_name, test_mode=False):
         """
         Convert from raw to workspace with unit X as
         :param matrix_ws_name: name of input workspace
+        :param test_mode: test mode.... cannot give out correct result
         :return: workspace in unit 2theta and transposed to 1-spectrum workspace (handler)
         """
         # check input
@@ -46,7 +47,7 @@ class MantidHB2BReduction(object):
 
         # convert to 2theta - counts
         ConvertSpectrumAxis(InputWorkspace=matrix_ws_name, Target='Theta', OutputWorkspace=matrix_ws_name,
-                            EnableLogging=False)
+                            EnableLogging=False, OrderAxis=not test_mode)
 
         # convert from N-spectra-single element to 1-spectrum-N-element
         raw_data_ws = Transpose(InputWorkspace=matrix_ws_name, OutputWorkspace=matrix_ws_name, EnableLogging=False)
@@ -282,6 +283,7 @@ class MantidHB2BReduction(object):
 
         # check calibration
         assert isinstance(calibration, calibration_file_io.ResidualStressInstrumentCalibration), 'blabla'
+        print ('[DB...BAT] Input calibration: {}'.format(calibration))
 
         # check idf & calibration & 2theta
         checkdatatypes.check_file_name(idf_name, True, False, False, 'Mantid IDF for HB2B')

@@ -50,6 +50,7 @@ class PyHB2BReduction(object):
 
         return
 
+    # TODO - TONIGHT - More checks!
     def build_instrument(self, two_theta, arm_length_shift, center_shift_x, center_shift_y,
                          rot_x_flip, rot_y_flip, rot_z_spin):
         """
@@ -62,6 +63,8 @@ class PyHB2BReduction(object):
         :param rot_z_spin:
         :return: 2D numpy array
         """
+        checkdatatypes.check_float_variable('Center-shift-X', center_shift_x, (None, None))
+
         # make a copy
         self._hb2b = self._raw_hb2b.copy()
 

@@ -297,11 +297,27 @@ class SampleSliceView(slice_view_widget.SliceViewWidget):
         return
 
 
+# TODO - TONIGHT 4 - Change to 1 Figure with N patterns
+# TODO - cont.     - Keep ratio comparable!
 class GeomCalibrationView(MplGraphicsView1D):
     """
     """
+    LineColor = ['black', 'red', 'blue', 'orange', 'grey']
     def __init__(self, parent):
         MplGraphicsView1D.__init__(self, parent, row_size=1, col_size=1, tool_bar=True)
+
+        self._mask_line_dict = dict()
+
+        return
+
+    def plot_data(self, vec_x, vec_y, mask_id):
+
+        line_id = self.add_plot(vec_x, vec_y, row_index=0, col_index=0, color=self.LineColor[mask_id], x_label='2theta',
+                                label='Mask {}'.format(mask_id), show_legend=True)
+        if mask_id in self._mask_line_dict:
+            self.remove_line(0, 0, self._mask_line_dict[mask_id])
+        self._mask_line_dict[mask_id] = line_id
+
         return
 
     def set_number_rois(self, num_rois):

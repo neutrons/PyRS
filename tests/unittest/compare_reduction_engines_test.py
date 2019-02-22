@@ -132,21 +132,23 @@ def compare_convert_2theta(calibrated, pixel_number=2048):
 
     # compare 2theta
     pixel_matrix = pyrs_reducer.get_pixel_matrix()
-    pyrs_2theta_vec = pyrs_reducer.convert_to_2theta(pixel_matrix).flatten()  # 1D vector
+    pyrs_2theta_vec = pyrs_reducer.convert_to_2theta(pixel_matrix)
+    print ('Shape: {}'.format(pyrs_2theta_vec.shape))
+    pyrs_2theta_vec = pyrs_2theta_vec.transpose().flatten()  # 1D vector
 
     raw_ws_name = mantid_reducer.get_workspace().name()
-    mantid_2theta_vec = mantid_reducer.convert_from_raw_to_2theta(raw_ws_name).readX(0)
+    mantid_2theta_vec = mantid_reducer.convert_from_raw_to_2theta(raw_ws_name, test_mode=True).readX(0)
 
     # compare shape
     assert pyrs_2theta_vec.shape == mantid_2theta_vec.shape, 'Shapes ({} vs {}) shall be same' \
                                                              ''.format(pyrs_2theta_vec.shape, mantid_2theta_vec.shape)
 
-    diff = numpy.sqrt(numpy.sum((pyrs_2theta_vec - mantid_2theta_vec) ** 2))
+    diff = numpy.sqrt(numpy.sum((pyrs_2theta_vec - mantid_2theta_vec) ** 2))  # / pyrs_2theta_vec.shape[0]
     for i in range(30):
         print ('[DB...TEST...CHECK] {}   -   {}    =    {}'.format(pyrs_2theta_vec[i], mantid_2theta_vec[i],
                                                                    pyrs_2theta_vec[i] - mantid_2theta_vec[i]))
 
-    assert diff < 1., 'Difference too big!'
+    assert diff < 1., 'Difference {} is too big!'.format(diff)
 
     return pyrs_reducer, mantid_reducer
 
@@ -163,13 +165,17 @@ def compare_reduced_no_mask(calibrated, pixel_number=2048):
     curr_id = engine.current_data_id
     pyrs_vec_x, pyrs_vec_y = pyrs_reducer.reduce_to_2theta_histogram(det_pos_matrix=None,
                                                                      counts_matrix=engine.get_counts(curr_id),
-                                                                     mask=None)
+                                                                     mask=None,
+                                                                     num_bins=2500)
 
     data_ws = mantid_reducer.get_workspace()
-    mantid_vec_x, mantid_vec_y = mantid_reducer.reduce_to_2theta(data_ws.name(), two_theta_min=pyrs_vec_x[0],
+    resolution = (pyrs_vec_x[-1] - pyrs_vec_x[0]) / 2500
+    reduced_data = mantid_reducer.reduce_to_2theta(data_ws.name(), two_theta_min=pyrs_vec_x[0],
                                                                  two_theta_max=pyrs_vec_x[-1],
-                                                                 two_theta_resolution=pyrs_vec_x.shape[0],
+                                                                 two_theta_resolution=resolution,
                                                                  mask=None)
+    mantid_vec_x = reduced_data[0]
+    mantid_vec_y = reduced_data[1]
 
     diff_x = numpy.sqrt(numpy.sum((pyrs_vec_x - mantid_vec_x)**2))
     diff_y = numpy.sqrt(numpy.sum((pyrs_vec_y - mantid_vec_y)**2))

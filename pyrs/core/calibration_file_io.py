@@ -197,6 +197,13 @@ class ResidualStressInstrumentCalibration(object):
 
         return
 
+    def __str__(self):
+        nice = '[Calibration]\nShift:    {},  {},  {}\nRotation: {}, {}, {}' \
+               ''.format(self.center_shift_x, self.center_shift_y, self.center_shift_z,
+                         self.rotation_x, self.rotation_y, self.rotation_z)
+
+        return nice
+
 
 class ResidualStressCalibrationFile(object):
     """
