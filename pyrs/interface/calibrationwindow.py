@@ -105,6 +105,9 @@ class InstrumentCalibrationWindow(QMainWindow):
         self.ui.pushButton_decreaseWavelength.clicked.connect(self.do_decrease_value)
         self.ui.pushButton_increaseWavelength.clicked.connect(self.do_increase_value)
 
+        # TODO - TODAY 1 - Add widgets: frame_calibrationViewControl: checkBox + Fit
+        # TODO - TODAY 1 - define pushButton_showPeaks, pushButton_hidePeaks
+
         # Figure's subplot vs mask
         self._subplot_mask_dict = dict()
         self._mask_subplot_dict = dict()   # mask number to plot number

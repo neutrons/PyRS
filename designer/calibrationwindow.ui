@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1390</width>
-    <height>923</height>
+    <width>1657</width>
+    <height>1120</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -18,7 +18,7 @@
     <item row="0" column="1" rowspan="3">
      <widget class="QTabWidget" name="tabWidget">
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
@@ -58,6 +58,16 @@
         <string>Calibration View</string>
        </attribute>
        <layout class="QGridLayout" name="gridLayout_7">
+        <item row="1" column="0">
+         <widget class="QFrame" name="frame_calibrationViewControl">
+          <property name="frameShape">
+           <enum>QFrame::StyledPanel</enum>
+          </property>
+          <property name="frameShadow">
+           <enum>QFrame::Raised</enum>
+          </property>
+         </widget>
+        </item>
         <item row="0" column="0">
          <widget class="QFrame" name="frame_multiplePlotsView">
           <property name="sizePolicy">
@@ -73,6 +83,37 @@
            <enum>QFrame::Raised</enum>
           </property>
          </widget>
+        </item>
+        <item row="2" column="0">
+         <layout class="QHBoxLayout" name="horizontalLayout">
+          <item>
+           <spacer name="horizontalSpacer_2">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QPushButton" name="pushButton_fitPeaks">
+            <property name="text">
+             <string>Fit Peaks</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="pushButton_showPeaks">
+            <property name="text">
+             <string>Show Peaks</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
        </layout>
       </widget>
@@ -111,7 +152,7 @@
     <item row="1" column="0">
      <widget class="QPlainTextEdit" name="plainTextEdit_maskList">
       <property name="sizePolicy">
-       <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
         <horstretch>0</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
@@ -662,10 +703,17 @@
        <string>Set up geometry calibration Files</string>
       </property>
       <layout class="QGridLayout" name="gridLayout_3">
+       <item row="5" column="0">
+        <widget class="QLabel" name="label_3">
+         <property name="text">
+          <string>Masks</string>
+         </property>
+        </widget>
+       </item>
        <item row="0" column="3">
         <widget class="QLineEdit" name="lineEdit_iptsNumber">
          <property name="sizePolicy">
-          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
            <horstretch>0</horstretch>
            <verstretch>0</verstretch>
           </sizepolicy>
@@ -680,12 +728,22 @@
         </widget>
        </item>
        <item row="3" column="3">
-        <widget class="QLineEdit" name="lineEdit_2theta"/>
+        <widget class="QLineEdit" name="lineEdit_2theta">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+        </widget>
        </item>
        <item row="2" column="5">
         <spacer name="horizontalSpacer">
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::Preferred</enum>
          </property>
          <property name="sizeHint" stdset="0">
           <size>
@@ -733,7 +791,7 @@
        <item row="5" column="3">
         <widget class="QLineEdit" name="lineEdit_maskFile">
          <property name="sizePolicy">
-          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
            <horstretch>0</horstretch>
            <verstretch>0</verstretch>
           </sizepolicy>
@@ -743,22 +801,22 @@
        <item row="2" column="3">
         <widget class="QLineEdit" name="lineEdit_runNumber">
          <property name="sizePolicy">
-          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
            <horstretch>0</horstretch>
            <verstretch>0</verstretch>
           </sizepolicy>
          </property>
         </widget>
        </item>
-       <item row="5" column="0">
-        <widget class="QLabel" name="label_3">
-         <property name="text">
-          <string>Masks</string>
+       <item row="4" column="3">
+        <widget class="QLineEdit" name="lineEdit_instrument">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
          </property>
         </widget>
-       </item>
-       <item row="4" column="3">
-        <widget class="QLineEdit" name="lineEdit_instrument"/>
        </item>
        <item row="2" column="4">
         <widget class="QPushButton" name="pushButton_loadRawData">
@@ -782,15 +840,29 @@
         </widget>
        </item>
        <item row="6" column="3">
-        <widget class="QLineEdit" name="lineEdit_numBins"/>
+        <widget class="QLineEdit" name="lineEdit_numBins">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+        </widget>
        </item>
-       <item row="6" column="5">
-        <widget class="QLineEdit" name="lineEdit_xRange"/>
-       </item>
-       <item row="6" column="4">
+       <item row="7" column="0">
         <widget class="QLabel" name="label_8">
          <property name="text">
           <string>X Range</string>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="3">
+        <widget class="QLineEdit" name="lineEdit_xRange">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
          </property>
         </widget>
        </item>
@@ -804,7 +876,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1390</width>
+     <width>1657</width>
      <height>25</height>
     </rect>
    </property>

@@ -31,6 +31,7 @@ else
     CMD=
     echo "Options: (1) mask (2) reduce (3) mask test (4) reduction test (5) reduction test on 1024x1024"
     echo "(8) Peak processing UI test"
+    echo "(9) Prototype: calibraton"
     echo "Options: Test all commands: \"all\""
 fi
 
@@ -68,5 +69,10 @@ if [ "$1" = "5" ] || [ "$1" = "reduce1024" ] ; then
     echo "Testing Reduction: 1024 x 1024"
     TestArgs=" ./tests/testdata/LaB6_10kev_35deg-00004_Rotated.bin ./tests/temp/ --mask=tests/testdata/masks/Chi_0.hdf5 --viewraw=0 --instrument=tests/testdata/XRay_Definition_1K.xml --2theta=35."
     PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/reduce_HB2B.py $TestArgs
+fi
+
+if [ "$1" = "9" ] || [ "$1" = "prototype" ] ; then
+    echo "Process masks/ROIs"
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./tests/Quick_Calibration_v2.py
 fi
 

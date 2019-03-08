@@ -22,7 +22,7 @@ print (os.getcwd())
 test_data = 'tests/testdata/LaB6_10kev_35deg-00004_Rotated.tif'
 xray_2k_instrument_file = 'tests/testdata/xray_data/XRay_Definition_2K.txt'
 xray_idf_name = 'tests/testdata/XRay_Definition_2K.xml'
-test_mask = 'tests/testdata/masks/Chi_10_Mask.xml'
+test_mask = 'tests/testdata/masks/Chi_10.hdf5'
 print ('Data file {0} exists? : {1}'.format(test_data, os.path.exists(test_data)))
 
 
@@ -171,23 +171,25 @@ def compare_reduced_no_mask(calibrated, pixel_number=2048):
     data_ws = mantid_reducer.get_workspace()
     resolution = (pyrs_vec_x[-1] - pyrs_vec_x[0]) / 2500
     reduced_data = mantid_reducer.reduce_to_2theta(data_ws.name(), two_theta_min=pyrs_vec_x[0],
-                                                                 two_theta_max=pyrs_vec_x[-1],
-                                                                 two_theta_resolution=resolution,
-                                                                 mask=None)
+                                                   two_theta_max=pyrs_vec_x[-1],
+                                                   two_theta_resolution=resolution,
+                                                   mask=None)
     mantid_vec_x = reduced_data[0]
     mantid_vec_y = reduced_data[1]
 
-    diff_x = numpy.sqrt(numpy.sum((pyrs_vec_x - mantid_vec_x)**2))
-    diff_y = numpy.sqrt(numpy.sum((pyrs_vec_y - mantid_vec_y)**2))
+    diff_x = numpy.sqrt(numpy.sum((pyrs_vec_x - mantid_vec_x)**2))/mantid_vec_x.shape[0]
+    diff_y = numpy.sqrt(numpy.sum((pyrs_vec_y - mantid_vec_y)**2))/mantid_vec_y.shape[0]
 
     print ('Diff[X]  =  {},  Diff[Y]  =  {}'.format(diff_x, diff_y))
-    plt.plot(pyrs_vec_x, pyrs_vec_y, color='blue', xlabel='PyRS')
-    plt.plot(mantid_vec_x, mantid_vec_y, color='red', xlable='Mantid')
+    plt.plot(pyrs_vec_x, pyrs_vec_y, color='blue', label='PyRS')
+    plt.plot(mantid_vec_x, mantid_vec_y, color='red', label='Mantid')
+    plt.legend()
     plt.show()
 
     return
 
 
+# TODO - TONIGHT 0 - Need to compare 7 masks
 def compare_reduced_masked(calibrated, pixel_number=2048):
     """
     Compare reduced data without mask
@@ -197,8 +199,8 @@ def compare_reduced_masked(calibrated, pixel_number=2048):
     """
     engine, pyrs_reducer, mantid_reducer = compare_geometry_test(calibrated, pixel_number)
 
-    # load mask
-    # mask file
+    # load mask: mask file
+    print ('Load masking file: {}'.format(test_mask))
     mask_vec, mask_2theta, note = mask_util.load_pyrs_mask(test_mask)
 
     # reduce data
@@ -244,7 +246,7 @@ if __name__ == '__main__':
         if option == 1:
             compare_geometry_test(False)
         elif option == 2:
-            compare_geometry_test(True)
+            compare_geometry_test(True)  # with calibration deviation
         elif option == 3:
             compare_convert_2theta(False)
         elif option == 4:
