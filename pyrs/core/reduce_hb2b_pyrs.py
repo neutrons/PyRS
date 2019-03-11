@@ -8,6 +8,27 @@ from pyrs.utilities import checkdatatypes
 DEFAULT_ARM_LENGTH = 0.416
 
 
+# TODO - TONIGHT 0 0 - Implement this first and let it live with self._hb2b in PyHB2BReduciton
+class ResidualStressInstrument(object):
+    """
+    This is a class to define HB2B instrument geometry and related calculation
+    """
+    def __init__(self, instrument_setup):
+        """
+        initialization
+        :param instrument_setup:
+        """
+        checkdatatypes.check_type('Instrument setup', instrument_setup, calibration_file_io.InstrumentSetup)
+
+        balbla
+
+    def _blabla(self):
+        return
+
+    def blabla(self):
+        return
+
+
 class PyHB2BReduction(object):
     """ A class to reduce HB2B data in pure Python and numpy
     """
@@ -46,7 +67,7 @@ class PyHB2BReduction(object):
         # print ('HB2B[0, 0] = {}'.format(self._raw_hb2b[0, 0]))
 
         # define the real HB2B
-        self._hb2b = None
+        self._hb2b = None   #  TODO - TONIGHT 0 - Replace this one with class ResidualStressInstrument
 
         return
 
@@ -275,120 +296,3 @@ class PyHB2BReduction(object):
 
         return bin_edges, hist
 # END-CLASS
-
-
-def test_main():
-    """
-    test main to verify algorithm
-    :return:
-    """
-    from mantid.simpleapi import LoadSpiceXML2DDet, LoadInstrument, AddSampleLog
-    from mantid.api import AnalysisDataService as ADS
-    import os
-
-    def test_with_mantid(arm_length=0.95, two_theta=0., center_shift_x=0., center_shift_y=0.,
-                         rot_x_flip=0., rot_y_flip=0., rot_z_spin=0.):
-        """
-        :param arm_length: full arm length: engineered = 0.95 m
-        :param two_theta: 2theta in sample log (instrument definition). It is opposite direction to Mantid coordinate
-        :return:
-        """
-        pixel_matrix = hb2b_builder.build_instrument(arm_length=arm_length, two_theta=-two_theta,
-                                                     center_shift_x=center_shift_x, center_shift_y=center_shift_y,
-                                                     rot_x_flip=rot_x_flip, rot_y_flip=rot_y_flip,
-                                                     rot_z_spin=rot_z_spin)
-
-        # set up sample logs
-        # cal::arm
-        AddSampleLog(Workspace='hb2b', LogName='cal::arm', LogText='{}'.format(arm_length-DEFAULT_ARM_LENGTH),
-                     LogType='Number Series', LogUnit='meter',
-                     NumberType='Double')
-        #
-        # cal::2theta
-        AddSampleLog(Workspace='hb2b', LogName='cal::2theta', LogText='{}'.format(-two_theta),
-                     LogType='Number Series', LogUnit='degree',
-                     NumberType='Double')
-        #
-        # cal::deltax
-        AddSampleLog(Workspace='hb2b', LogName='cal::deltax', LogText='{}'.format(center_shift_x),
-                     LogType='Number Series', LogUnit='meter',
-                     NumberType='Double')
-        #
-        # cal::deltay
-        AddSampleLog(Workspace='hb2b', LogName='cal::deltay', LogText='{}'.format(center_shift_y),
-                     LogType='Number Series', LogUnit='meter',
-                     NumberType='Double')
-
-        # cal::roty
-        AddSampleLog(Workspace='hb2b', LogName='cal::roty', LogText='{}'.format(-two_theta - rot_y_flip),
-                     LogType='Number Series', LogUnit='degree',
-                     NumberType='Double')
-
-        # cal::flip
-        AddSampleLog(Workspace='hb2b', LogName='cal::flip', LogText='{}'.format(rot_x_flip),
-                     LogType='Number Series', LogUnit='degree',
-                     NumberType='Double')
-
-        # cal::spin
-        AddSampleLog(Workspace='hb2b', LogName='cal::spin', LogText='{}'.format(rot_z_spin),
-                     LogType='Number Series', LogUnit='degree',
-                     NumberType='Double')
-
-        LoadInstrument(Workspace='hb2b',
-                       Filename=os.path.join(root, 'prototypes/calibration/HB2B_Definition_v4.xml'),
-                       InstrumentName='HB2B', RewriteSpectraMap='True')
-        workspace = ADS.retrieve('hb2b')
-
-        # test 5 spots: (0, 0), (0, 1023), (1023, 0), (1023, 1023), (512, 512)
-        for index_i, index_j in [(0, 0), (0, 1023), (1023, 0), (1023, 1023), (512, 512)]:
-            print ('PyRS:   ', pixel_matrix[index_i, index_j])
-            print ('Mantid: ', workspace.getDetector(index_i + index_j*1024).getPos())   # column major
-            pos_python = pixel_matrix[index_i, index_j]
-            pos_mantid = workspace.getDetector(index_i + 1024 * index_j).getPos()
-            for i in range(3):
-                print ('dir {}:  {:10f}   -   {:10f}    =   {:10f}'
-                       ''.format(i, float(pos_python[i]), float(pos_mantid[i]),
-                                 float(pos_python[i] - pos_mantid[i])))
-            # END-FOR
-        # END-FOR
-
-        return
-
-    # build instrument
-    num_rows = 1024
-    num_columns = 1024
-    pixel_size_x = 0.00029296875
-    pixel_size_y = 0.00029296875
-    hb2b_builder = PyHB2BReduction(num_rows, num_columns, pixel_size_x, pixel_size_y)
-
-    # load data to Mantid
-    root = os.getcwd()
-    if root.startswith('/home/'):
-        root = os.path.join(os.path.expanduser('~'), 'Projects/PyRS/')
-    else:
-        root = os.path.join(os.path.expanduser('~'), 'Projects/PyRS/')
-    LoadSpiceXML2DDet(Filename=os.path.join(root, 'tests/testdata/LaB6_10kev_35deg-00004_Rotated.bin'),
-                      OutputWorkspace='hb2b',
-                      DetectorGeometry='0,0',
-                      LoadInstrument=False)
-
-    # small angle
-    print ('\n\nJust small angle')
-    test_with_mantid(arm_length=0.95, two_theta=0., center_shift_x=0., center_shift_y=0.,
-                     rot_x_flip=0., rot_y_flip=0., rot_z_spin=0.)
-
-    # some shift
-    print ('\n\nShift X and Shift Y')
-    test_with_mantid(arm_length=0.95, two_theta=0., center_shift_x=0.2, center_shift_y=0.3,
-                     rot_x_flip=0., rot_y_flip=0., rot_z_spin=0.)
-
-    # some rotation about 2theta
-    print ('\n\n2Theta = 85.')
-    test_with_mantid(arm_length=0.95, two_theta=85., center_shift_x=0., center_shift_y=0.,
-                     rot_x_flip=0., rot_y_flip=0., rot_z_spin=0.)
-
-    # some
-    # TODO - NIGHT - Refer to .../prototypes/calibration/intrument_geometry_benchmark.py
-
-if __name__ == '__main__':
-    test_main()

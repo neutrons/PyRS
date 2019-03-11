@@ -1,8 +1,8 @@
 import pyrs.interface.pyrs_main
 try:
-    from PyQt5.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout
+    from PyQt5.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout, QHBoxLayout, QPushButton
 except ImportError:
-    from PyQt4.QtGui import QMainWindow, QFileDialog, QVBoxLayout
+    from PyQt4.QtGui import QMainWindow, QFileDialog, QVBoxLayout, QHBoxLayout, QPushButton
 from pyrs.utilities import checkdatatypes
 import pyrs.core.pyrscore
 import os
@@ -37,6 +37,7 @@ class InstrumentCalibrationWindow(QMainWindow):
         self._curr_data_id = None
 
         self._number_rois = 0
+        self._peaks_shown = False
 
         # set up UI
         self.ui = ui.ui_calibrationwindow.Ui_MainWindow()
@@ -52,6 +53,44 @@ class InstrumentCalibrationWindow(QMainWindow):
         self.ui.pushButton_calibrateGeometry.clicked.connect(self.do_calibrate_geometry)
 
         # decrease button associated line edits dictionary
+        self._link_widgets()
+
+        # define event handing methods
+        self.ui.pushButton_decreaseCenterX.clicked.connect(self.do_decrease_value)
+        self.ui.pushButton_decreaseCenterY.clicked.connect(self.do_decrease_value)
+        self.ui.pushButton_decreaseCenterZ.clicked.connect(self.do_decrease_value)
+
+        self.ui.pushButton_increaseCenterX.clicked.connect(self.do_increase_value)
+        self.ui.pushButton_increaseCenterY.clicked.connect(self.do_increase_value)
+        self.ui.pushButton_increaseCenterZ.clicked.connect(self.do_increase_value)
+
+        self.ui.pushButton_decreaseRotationX.clicked.connect(self.do_decrease_value)
+        self.ui.pushButton_decreaseRotationY.clicked.connect(self.do_decrease_value)
+        self.ui.pushButton_decreaseRotationZ.clicked.connect(self.do_decrease_value)
+
+        self.ui.pushButton_increaseRotationX.clicked.connect(self.do_increase_value)
+        self.ui.pushButton_increaseRotationY.clicked.connect(self.do_increase_value)
+        self.ui.pushButton_increaseRotationZ.clicked.connect(self.do_increase_value)
+
+        self.ui.pushButton_decreaseWavelength.clicked.connect(self.do_decrease_value)
+        self.ui.pushButton_increaseWavelength.clicked.connect(self.do_increase_value)
+
+        # TODO - TODAY 1 - Add widgets: frame_calibrationViewControl: checkBox + Fit
+
+        self.ui.pushButton_showPeaks.clicked.connect(self.do_show_hide_peaks)
+        self.ui.pushButton_fitPeaks.clicked.connect(self.do_fit_peaks)
+
+        # Figure's subplot vs mask
+        self._subplot_mask_dict = dict()
+        self._mask_subplot_dict = dict()   # mask number to plot number
+
+        return
+
+    def _link_widgets(self):
+        """
+        Link related widgets by using dictionary
+        :return:
+        """
         self._decrease_button_dict = dict()
         self._decrease_button_dict[self.ui.pushButton_decreaseCenterX] = (self.ui.lineEdit_centerX,
                                                                           self.ui.lineEdit_resolutionCenterX)
@@ -85,33 +124,6 @@ class InstrumentCalibrationWindow(QMainWindow):
         self._increase_button_dict[self.ui.pushButton_increaseWavelength] = (self.ui.lineEdit_wavelength,
                                                                              self.ui.lineEdit_resolutionWavelength)
 
-        # define event handing methods
-        self.ui.pushButton_decreaseCenterX.clicked.connect(self.do_decrease_value)
-        self.ui.pushButton_decreaseCenterY.clicked.connect(self.do_decrease_value)
-        self.ui.pushButton_decreaseCenterZ.clicked.connect(self.do_decrease_value)
-
-        self.ui.pushButton_increaseCenterX.clicked.connect(self.do_increase_value)
-        self.ui.pushButton_increaseCenterY.clicked.connect(self.do_increase_value)
-        self.ui.pushButton_increaseCenterZ.clicked.connect(self.do_increase_value)
-
-        self.ui.pushButton_decreaseRotationX.clicked.connect(self.do_decrease_value)
-        self.ui.pushButton_decreaseRotationY.clicked.connect(self.do_decrease_value)
-        self.ui.pushButton_decreaseRotationZ.clicked.connect(self.do_decrease_value)
-
-        self.ui.pushButton_increaseRotationX.clicked.connect(self.do_increase_value)
-        self.ui.pushButton_increaseRotationY.clicked.connect(self.do_increase_value)
-        self.ui.pushButton_increaseRotationZ.clicked.connect(self.do_increase_value)
-
-        self.ui.pushButton_decreaseWavelength.clicked.connect(self.do_decrease_value)
-        self.ui.pushButton_increaseWavelength.clicked.connect(self.do_increase_value)
-
-        # TODO - TODAY 1 - Add widgets: frame_calibrationViewControl: checkBox + Fit
-        # TODO - TODAY 1 - define pushButton_showPeaks, pushButton_hidePeaks
-
-        # Figure's subplot vs mask
-        self._subplot_mask_dict = dict()
-        self._mask_subplot_dict = dict()   # mask number to plot number
-
         return
 
     def _promote_widgets(self):
@@ -135,6 +147,13 @@ class InstrumentCalibrationWindow(QMainWindow):
         self.ui.frame_reducedDataView.setLayout(temp_layout)
         self.ui.graphicsView_reducedDataView = diffdataviews.GeneralDiffDataView(self)
         temp_layout.addWidget(self.ui.graphicsView_reducedDataView)
+
+        # the control box
+        temp_layout = QHBoxLayout()
+        self.ui.frame_calibrationViewControl.setLayout(temp_layout)
+        self.ui.pushButton_fitPeaks = QPushButton(self)
+        self.ui.pushButton_fitPeaks.setText('Fit Peaks')
+        temp_layout.addWidget(self.ui.pushButton_fitPeaks)
 
         return
 
@@ -187,6 +206,13 @@ class InstrumentCalibrationWindow(QMainWindow):
 
         return
 
+    def do_fit_peaks(self):
+        """
+        Fit peaks for all the masked workspaces
+        :return:
+        """
+        # TODO - TONIGHT 0 - Implement!
+
     def do_increase_value(self):
         """
         Decrease the value in the associated QLineEdit from QPushButton event taking account of the
@@ -236,6 +262,10 @@ class InstrumentCalibrationWindow(QMainWindow):
         return
 
     def do_calibrate_geometry(self):
+        """
+        Calibrate instrument geometry by running
+        :return:
+        """
         # TODO - TONIGHT 2 - Implement
 
         return
@@ -395,6 +425,20 @@ class InstrumentCalibrationWindow(QMainWindow):
             """
             vec_x, vec_y = self._core.reduction_engine.get_reduced_data()
             self.ui.graphicsView_calibration.plot_data(vec_x, vec_y, self._mask_subplot_dict[mask_id])
+
+        return
+
+    def do_show_hide_peaks(self):
+        """
+        Show or hide peaks
+        :return:
+        """
+        if self._peaks_shown:
+            self.hide_fitted_peaks()
+            self._peaks_shown = False
+        else:
+            self.show_fitted_peaks()
+            self._peaks_shown = True
 
         return
 

@@ -26,9 +26,8 @@ test_mask = 'tests/testdata/masks/Chi_10.hdf5'
 print ('Data file {0} exists? : {1}'.format(test_data, os.path.exists(test_data)))
 
 
-def create_instrument(calibrated, pixel_number):
-    """
-    Create instruments: PyRS and Mantid
+def create_instrument_load_data(calibrated, pixel_number):
+    """ Create instruments: PyRS and Mantid and load data
     :param calibrated:
     :param pixel_number:
     :return:
@@ -80,12 +79,13 @@ def create_instrument(calibrated, pixel_number):
     return engine, pyrs_reducer, mantid_reducer
 
 
+# step 1: geometry must be correct!
 def compare_geometry_test(calibrated, pixel_number=2048):
     """
     Compare the geometry
     :return:
     """
-    engine, pyrs_reducer, mantid_reducer = create_instrument(calibrated, pixel_number)
+    engine, pyrs_reducer, mantid_reducer = create_instrument_load_data(calibrated, pixel_number)
 
     # compare
     workspace = mantid_reducer.get_workspace()
@@ -100,7 +100,7 @@ def compare_geometry_test(calibrated, pixel_number=2048):
 
     is_same = True
     for index_i, index_j in pixel_locations:
-        pos_python = pixel_matrix[index_i, index_j]
+        pos_python = pixel_matrix[index_i, index_j]   # TODO - TONIGHT 0 - PyRS-reduction shall use 1D array too!
         index1d = index_i + pixel_number * index_j
         pos_mantid = workspace.getDetector(index1d).getPos()
         print ('({}, {} / {}):   {:10s}   -   {:10s}    =   {:10s}'
@@ -117,6 +117,8 @@ def compare_geometry_test(calibrated, pixel_number=2048):
     # END-FOR
 
     assert is_same, 'Instrument geometries from 2 engines do not match!'
+
+    # TODO - TONIGHT 1 - Keep the original 2D array for speed test against new 1D array
 
     return engine, pyrs_reducer, mantid_reducer
 

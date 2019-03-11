@@ -2,7 +2,7 @@ import os
 from pyrs.utilities import checkdatatypes
 import numpy
 import h5py
-import numpy
+import math
 from shutil import copyfile
 from mantid.simpleapi import SaveNexusProcessed
 from mantid.api import AnalysisDataService
@@ -16,6 +16,10 @@ class DiffractionDataFile(object):
         """
         initialization
         """
+        self._two_theta = None, None  # 2theta value, unit
+        self._counts = None  # shall be 1D array, column major from lower left corner
+        self._det_shape = None, None   # shall be N X M pixels on detector (N = row, M = columns)
+
         return
 
     # TESTME - Recently implemented
@@ -289,44 +293,73 @@ class DiffractionDataFile(object):
         return diff_data_dict_set, sample_logs_set
 
     def save_rs_file(self, file_name):
-        """
-
+        """ Save raw detector counts to HB2B/RS standard HDF5 file
         :param file_name:
         :return:
         """
+        checkdatatypes.check_file_name(file_name, False, True, False, 'Raw data file to save')
+
+        # check
+        if self._counts is None or self._two_theta[0] is None:
+            raise RuntimeError('Data has not been set up right')
+
+        rs_h5 = h5py.File(file_name, 'w')
+        raw_counts_group = rs_h5.create_group('raw')
+        # counts
+        raw_counts_group.create_dataset('counts', data=self._counts)
+
+        # dimension
+        instrument = rs_h5.create_group('instrument')
+        instrument.create_dataset('shape', data=numpy.array(self._det_shape))
+        # 2theta
+        instrument['2theta'] = self._two_theta[0]
+        instrument['2theta unit'] = self._two_theta[1]
+
+        # close
+        instrument.close()
 
         return
+
+    def set_2theta(self, two_theta, unit='degree'):
+        """
+        Set 2 theta value
+        :param two_theta:
+        :param unit: degree or radius
+        :return:
+        """
+        checkdatatypes.check_string_variable('2theta unit', unit, ['degree', 'radius'])
+
+        if unit == 'degree':
+            two_theta_range = (-180., 180)
+        else:
+            two_theta_range = (-math.pi, math.pi)
+        checkdatatypes.check_float_variable('2theta', two_theta, two_theta_range)
+
+        self._two_theta = two_theta, unit
+
+        return
+
+    def set_counts(self, counts_array, detector_shape):
+        """
+        set counts with detector shape
+        :param counts_array:
+        :param detector_shape:
+        :return:
+        """
+        checkdatatypes.check_tuple('Detector shape', detector_shape, 2)
+        num_pixels = detector_shape[0] * detector_shape[1]
+
+        checkdatatypes.check_numpy_arrays('Detector counts', [counts_array], 1, False)
+        if counts_array.shape[0] != num_pixels:
+            raise RuntimeError('Detector counts array has shape {}.  It does not match '
+                               'input detector shape {}'.format(counts_array, detector_shape))
+
+        self._counts = counts_array
+        self._det_shape = detector_shape
+
+        return
+
 # END-DEF-CLASS (DiffractionDataFile)
-
-
-def export_md_array_hdf5(md_array, sliced_dir_list, file_name):
-    """
-    export 2D data from
-    :param md_array:
-    :param sliced_dir_list: None or integer last
-    :param file_name:
-    :return:
-    """
-    checkdatatypes.check_numpy_arrays('2D numpy array to export', [md_array], 2, False)
-    checkdatatypes.check_file_name(file_name, check_exist=False, check_writable=True)
-
-    if sliced_dir_list is not None:
-        # delete selected columns: axis=1
-        checkdatatypes.check_list('Sliced directions', sliced_dir_list)
-        try:
-            md_array = numpy.delete(md_array, sliced_dir_list, 1)  # axis = 1
-        except ValueError as val_err:
-            raise RuntimeError('Unable to delete column {} of input numpy 2D array due to {}'
-                               ''.format(sliced_dir_list, val_err))
-    # END-IF
-
-    # write out
-    out_h5_file = h5py.File(file_name, 'w')
-    out_h5_file.create_dataset('Sliced-{}'.format(sliced_dir_list), data=md_array)
-    out_h5_file.close()
-
-    return
-
 
 
 # TODO - This shall be a method in DiffractionDataFile
