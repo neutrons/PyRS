@@ -4,6 +4,8 @@ from pyrs.utilities import file_util
 from pyrs.core import mantid_helper
 from pyrs.utilities import rs_scan_io
 
+# TODO - TONIGHT 0 - Make it work!
+# TODO - TONIGHT 0 - Add it to script pysr_command
 # This is a simple script to convert
 #  (1) SPICE .bin
 #  (2) Rotated TIFF from XRay
