@@ -105,7 +105,7 @@ class MaskProcessApp(object):
         if roi_file_name.lower().endswith('.xml'):
             # XML  file name
             roi_vec = mask_util.load_mantid_mask(self._num_pixels, roi_file_name, is_mask=False)
-        elif roi_file_name.lower().endswith('.h5') or roi_file_name.lower().ends('.hdf5'):
+        elif roi_file_name.lower().endswith('.h5') or roi_file_name.lower().endswith('.hdf5'):
             roi_vec = mask_util.load_pyrs_mask(roi_file_name)
         else:
             raise RuntimeError('ROI file of type {} is not recognized and supported'
@@ -208,6 +208,10 @@ def main(argv):
     :param argv:
     :return:
     """
+    if len(argv) == 1:
+        print ('Generate masks (HDF5)\n> {} --help'.format(argv[0]))
+        sys.exit(-1)
+
     # set up default init value
     num_pixels = 2048**2
 
@@ -295,7 +299,6 @@ def parse_input_arguments(argv):
     :param argv:
     :return: None (if nothing to parse) or 5-tuple as ROI files, Mask files, Operation, 2theta, Note, Output
     """
-
     # init outputs
     roi_file_list = list()
     mask_file_list = list()

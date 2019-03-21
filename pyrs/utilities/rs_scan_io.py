@@ -1,8 +1,8 @@
 import os
 from pyrs.utilities import checkdatatypes
-import numpy
 import h5py
 import math
+import numpy
 from shutil import copyfile
 from mantid.simpleapi import SaveNexusProcessed
 from mantid.api import AnalysisDataService
@@ -98,6 +98,46 @@ class DiffractionDataFile(object):
         :return:
         """
         return
+
+    @staticmethod
+    def load_raw_measurement_data(file_name):
+        """
+        Load raw data measured
+        :param file_name:
+        :return:
+        """
+        checkdatatypes.check_file_name(file_name, check_exist=True)
+
+        # access sub tree
+        scan_h5 = h5py.File(file_name)
+        if 'raw' not in scan_h5.keys() or 'instrument' not in scan_h5.keys():
+            # TODO - TONIGHT 1 - better error message
+            raise RuntimeError(scan_h5.keys())
+
+        # get diffraction data/counts
+        diff_data_group = scan_h5['raw']
+
+        # loop through the Logs
+        counts = diff_data_group['counts'].value
+
+        # instrument
+        instrument_group = scan_h5['instrument']
+        two_theta = instrument_group['2theta'].value
+
+        print (counts)
+        print (type(counts))
+
+        print (two_theta)
+        print (type(two_theta))
+
+        """
+        [0 0 0 ..., 0 0 0]
+        <type 'numpy.ndarray'>
+        35.0
+        <type 'numpy.float64'>
+        """
+
+        return counts, two_theta
 
     @staticmethod
     def load_rs_file(file_name):
@@ -316,7 +356,7 @@ class DiffractionDataFile(object):
         instrument['2theta unit'] = self._two_theta[1]
 
         # close
-        instrument.close()
+        rs_h5.close()
 
         return
 

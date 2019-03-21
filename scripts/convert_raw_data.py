@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import h5py
 import sys
 from pyrs.utilities import file_util
@@ -17,15 +18,16 @@ def parse_xray_tiff(tiff_file_name):
     """
     Parse XRay TIFF (image) data into memory
     :param tiff_file_name:
-    :return: (1) 1D array (column major, from lower left corner) (2) (num_row, num_cols)
+    :return: (1) 1D array (column major, from lower left qcorner) (2) (num_row, num_cols)
     """
     # is it rotated?
     if tiff_file_name.lower().count('rotate') == 0:
         # raw file
         counts_matrix = file_util.import_raw_tiff(tiff_file_name)
+        # consider: load_data_from_tif(raw_tiff_name=tiff_file_name, pixel_size=2048, rotate=False)
     else:
         # rotated
-        counts_matrix = file_util.import_rotated_tiff(tiff_file_name)
+        counts_matrix = file_util.load_data_from_tif(raw_tiff_name=tiff_file_name, pixel_size=2048, rotate=True)
 
     counts_array = counts_matrix.flatten()
 
@@ -57,8 +59,7 @@ def save_to_h5(counts_array, detector_shape, two_theta, out_h5_name):
     try:
         writer = rs_scan_io.DiffractionDataFile()
         writer.set_2theta(two_theta)
-        writer.set_counts(counts_array)
-        writer.set_instrument_shape(detector_shape)
+        writer.set_counts(counts_array, detector_shape)
         writer.save_rs_file(out_h5_name)
     except RuntimeError as run_err:
         print ('[ERROR] Failed to save to HDF5: {}'.format(run_err))
@@ -96,3 +97,7 @@ def main(argv):
         sys.exit(-1)
 
     return
+
+
+if __name__ == '__main__':
+    main(sys.argv)

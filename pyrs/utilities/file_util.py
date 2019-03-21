@@ -1,12 +1,12 @@
 # Zoo of methods to work with file properties
 import time
 import os
+import h5py
 import checkdatatypes
 import platform
 
 
 # Zoo of methods to work with raw data input and output of processed data
-
 
 
 def export_md_array_hdf5(md_array, sliced_dir_list, file_name):
@@ -38,7 +38,6 @@ def export_md_array_hdf5(md_array, sliced_dir_list, file_name):
     return
 
 
-
 def load_data_from_tif(raw_tiff_name, pixel_size=2048, rotate=True):
     """
     Load data from TIFF
@@ -62,7 +61,8 @@ def load_data_from_tif(raw_tiff_name, pixel_size=2048, rotate=True):
     if rotate:
         image_2d_data = image_2d_data.transpose()
 
-    # Merge data if required
+    # TODO - TONIGHT 1 - Better to split the part below to other methods
+    # Merge/compress data if required
     if pixel_size == 1024:
         counts_vec = image_2d_data[::2, ::2] + image_2d_data[::2, 1::2] + image_2d_data[1::2, ::2] + image_2d_data[1::2, 1::2]
         pixel_type = '1K'
@@ -75,11 +75,14 @@ def load_data_from_tif(raw_tiff_name, pixel_size=2048, rotate=True):
     counts_vec = counts_vec.reshape((pixel_size * pixel_size,))
     print (counts_vec.min())
 
-    data_ws_name = os.path.basename(raw_tiff_name).split('.')[0] + '_{}'.format(pixel_type)
-    CreateWorkspace(DataX=np.zeros((pixel_size**2,)), DataY=counts_vec, DataE=np.sqrt(counts_vec), NSpec=pixel_size**2,
-                    OutputWorkspace=data_ws_name, VerticalAxisUnit='SpectraNumber')
+    if False:
+        data_ws_name = os.path.basename(raw_tiff_name).split('.')[0] + '_{}'.format(pixel_type)
+        CreateWorkspace(DataX=np.zeros((pixel_size**2,)), DataY=counts_vec, DataE=np.sqrt(counts_vec), NSpec=pixel_size**2,
+                        OutputWorkspace=data_ws_name, VerticalAxisUnit='SpectraNumber')
 
-    return data_ws_name, counts_vec
+    #return data_ws_name, counts_vec
+
+    return image_2d_data
 
 
 def save_mantid_nexus(workspace_name, file_name, title=''):

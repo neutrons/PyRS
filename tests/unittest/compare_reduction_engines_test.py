@@ -19,7 +19,8 @@ from matplotlib import pyplot as plt
 # default testing directory is ..../PyRS/
 print (os.getcwd())
 # therefore it is not too hard to locate testing data
-test_data = 'tests/testdata/LaB6_10kev_35deg-00004_Rotated.tif'
+# test_data = 'tests/testdata/LaB6_10kev_35deg-00004_Rotated.tif'
+test_data = 'tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5'
 xray_2k_instrument_file = 'tests/testdata/xray_data/XRay_Definition_2K.txt'
 xray_idf_name = 'tests/testdata/XRay_Definition_2K.xml'
 test_mask = 'tests/testdata/masks/Chi_10.hdf5'

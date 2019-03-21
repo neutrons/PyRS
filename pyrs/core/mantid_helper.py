@@ -1,7 +1,6 @@
 from mantid.api import AnalysisDataService as mtd
-from mantid.simpleapi import LoadSpiceDetXML, Transpose
+from mantid.simpleapi import LoadSpiceXML2DDet, Transpose
 from pyrs.utilities import checkdatatypes
-
 
 
 def get_data_y(ws_name, transpose):

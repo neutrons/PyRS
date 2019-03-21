@@ -45,10 +45,8 @@ echo "User option: $1"
 
 
 if [ "$1" = "1" ] || [ "$1" = "mask" ] ; then
-	echo "Testing Mask"
-	TestArgs="--roi=tests/testdata/masks/Chi_0_Mask.xml --output=Chi_0.hdf5 --operation=reverse --2theta=35."
-	PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/create_mask.py $TestArgs
-	# --roi=tests/testdata/masks/Chi_0_Mask.xml --output=tests/testdata/masks/Chi_0.hdf5
+    echo "Testing Geometry"
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 1
 fi
 
 if [ "$1" = "2" ] || [ "$1" = "reduce" ] ; then
@@ -72,6 +70,7 @@ fi
 
 
 if [ "$1" = "99" ] || [ "$1" = "unknown" ] ; then
+    TestArgs="--roi=tests/testdata/masks/Chi_0_Mask.xml --output=Chi_0.hdf5 --operation=reverse --2theta=35."
     TestArgs1=" ./tests/testdata/LaB6_10kev_35deg-00004_Rotated.tif ./tests/temp/ --mask=tests/testdata/masks/Chi_0.hdf5 --viewraw=1"
 
     # Mantid reduction engine
