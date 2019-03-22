@@ -153,6 +153,7 @@ class HB2BReductionManager(object):
 
         return out_ws_name
 
+    # TODO - TONIGHT 0 - Clean
     def _load_pyrs_h5(self, pyrs_h5_name, create_workspace):
         """
         blabla
@@ -169,7 +170,9 @@ class HB2BReductionManager(object):
             vec_x = np.zeros(count_vec.shape)
             CreateWorkspace(DataX=vec_x, DataY=count_vec, DataE=np.sqrt(count_vec), NSpec=1,
                             OutputWorkspace=data_id)
-            raw = Transpose(data_id)
+            raw = Transpose(data_id, OutputWorkspace=data_id)
+
+        self._data_dict[data_id] = [data_id, count_vec]
 
         return data_id
 

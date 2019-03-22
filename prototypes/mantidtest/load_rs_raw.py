@@ -73,10 +73,11 @@ def load_pyrs_mask(mask_h5):
         
 
 file_name = 'tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5'
-mask_name = 'tests/testdata/masks/Chi_10.hdf5'
+mask_name = 'tests/testdata/masks/Chi_Neg30.hdf5'
 
 # Load raw and create workspace
 count_vec, two_theta = load_raw_measurement_data(file_name)
+count_vec = count_vec.astype('float64')
 
 # Load mask
 mask_vec, mask_two_theta, note = load_pyrs_mask(mask_name)
@@ -123,5 +124,5 @@ LoadInstrument('raw', Filename='tests/testdata/XRay_Definition_2K.xml', RewriteS
 # [Plan 2] create workspace for mask
 mask_ws = CreateWorkspace(DataX=vec_x, DataY=mask_vec, NSpec=1)
 mask_ws = Transpose(mask_ws)
-raw_masked_ws = raw * mask_ws
+# raw_masked_ws = raw * mask_ws
 
