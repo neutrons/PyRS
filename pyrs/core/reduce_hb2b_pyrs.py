@@ -209,11 +209,18 @@ class PyHB2BReduction(object):
 
         return rotation_matrix
 
-    def get_pixel_matrix(self):
+    # TODO - TONIGHT 0 - Migrate this method to ResidualStressInstrument
+    def get_pixel_matrix(self, dimension=1):
         """
         return the pixel matrix of the instrument built
         :return:
         """
+        print ('[DB...BAY] Detector Pixel Shape: {}'.format(self._hb2b.shape))
+
+        if dimension == 1:
+            a, a, b = self._hb2b.shape
+            return self._hb2b.reshape((a*a, b))
+
         return self._hb2b
 
     @staticmethod
