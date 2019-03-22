@@ -5,7 +5,6 @@ import matplotlib.image
 from pyrs.utilities import checkdatatypes
 from pyrs.core import calibration_file_io
 from pyrs.core import mask_util
-from pyrs.core import scandataio
 from pyrs.core import reduce_hb2b_mtd
 from pyrs.core import reduce_hb2b_pyrs
 from mantid.simpleapi import CreateWorkspace, LoadSpiceXML2DDet, Transpose, LoadEventNexus, ConvertToMatrixWorkspace
@@ -82,7 +81,10 @@ class HB2BReductionManager(object):
         checkdatatypes.check_file_name(data_file_name, True, False, False, 'Data file to load')
 
         # check file type
-        file_type = data_file_name.split('.')[-1].lower()
+        if data_file_name.endswith('.nxs.h5'):
+            file_type = 'nxs.h5'
+        else:
+            file_type = data_file_name.split('.')[-1].lower()
 
         # load
         if file_type == 'tif' or file_type == 'tiff':
@@ -94,7 +96,11 @@ class HB2BReductionManager(object):
             # SPICE binary
             data_id = self._load_spice_binary(data_file_name)
 
-        elif file_type == '.h5' or file_type == '.nxs':
+        elif file_type == 'hdf5' or file_type == 'h5':
+            # PyRS HDF5
+            data_id = self._load_pyrs_h5(data_file_name, True)
+
+        elif file_type == 'nxs.h5' or file_type == 'nxs':
             # Event NeXus
             data_id = self._load_nexus(data_file_name)
 
@@ -146,6 +152,26 @@ class HB2BReductionManager(object):
         self._data_dict[out_ws_name] = [out_ws_name, count_vec]
 
         return out_ws_name
+
+    def _load_pyrs_h5(self, pyrs_h5_name, create_workspace):
+        """
+        blabla
+        :param pyrs_h5_name:
+        :return:
+        """
+        data_id = 'blabla'
+        from pyrs.utilities import rs_scan_io
+
+        diff_file = rs_scan_io.DiffractionDataFile()
+        count_vec, two_theta = diff_file.load_raw_measurement_data(pyrs_h5_name)
+
+        if create_workspace:
+            vec_x = np.zeros(count_vec.shape)
+            CreateWorkspace(DataX=vec_x, DataY=count_vec, DataE=np.sqrt(count_vec), NSpec=1,
+                            OutputWorkspace=data_id)
+            raw = Transpose(data_id)
+
+        return data_id
 
     def _load_spice_binary(self, bin_file_name):
         """ Load SPICE binary

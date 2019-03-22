@@ -243,7 +243,12 @@ if __name__ == '__main__':
                '\t\t5 = reducing to 2theta-intensity (basic)\n'
                '\t\t6 = reducing to 2theta-intensity (arbitrary calibration)\n'
                '\t\t7 = reducing to 2theta-intensity with mask (basic)\n'
-               '\t\t8 = reducing to 2theta-intensity with mask (arbitrary calibration)'.format(sys.argv[0]))
+               '\t\t8 = reducing to 2theta-intensity with mask (arbitrary calibration)'.format(sys.argv[0]),
+               '\t\t10 = counts on detector ID (raw)\n'
+               '\t\t11 = counts on detector ID (ROI =   0 degree)\n',
+               '\t\t12 = counts on detector ID (ROI =  10 degree)\n',
+               '\t\t13 = counts on detector ID (ROI = -10 degree)\n',
+               )
     else:
         option = int(sys.argv[1])
         if option == 1:

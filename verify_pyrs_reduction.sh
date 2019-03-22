@@ -30,46 +30,73 @@ if [ $1 ]; then
 else
     CMD=
     echo "Verify PyRS and Mantid Reduction. Options:"
-    echo "(1) mask (test)"
-    echo "(2) reduction (test)"
-    echo "(3) reduction (with ROI on 0 degree)"
-    echo "(4) reduction (with ROI on +10 degree)"
-
-    echo "(5) reduction test on 1024x1024"
-    echo "(8) Peak processing UI test"
-    echo "(9) Prototype: calibraton"
+    echo "(1) [compare] geometry"
+    echo "(2) [compare] 2theta"
+    echo "(3) [compare] counts"
+    echo "(4) [compare] reduction-all (without masking)"
+    echo "(5) [compare] reduction-0   (with ROI on 0 degree)"
+    echo "(6) [compare] reduction-10  (with ROI on +10 degree)"
+    echo "(7) [compare] reduction-20  (with ROI on +20 degree)"
+    echo "(104) reduce-pyrs-all"
+    echo "(105) reduce-pyrs-0degree"
+    echo "(106) reduce-pyrs-10degree"
+    # echo "(5) reduction test on 1024x1024"
+    # echo "(8) Peak processing UI test"
+    # echo "(9) Prototype: calibraton"
     echo "Options: Test all commands: \"all\""
 fi
 
 echo "User option: $1"
 
 
-if [ "$1" = "1" ] || [ "$1" = "mask" ] ; then
-    echo "Testing Geometry"
+if [ "$1" = "1" ] || [ "$1" = "geometry" ] ; then
+    echo "Comparing instrument geometry"
     PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 1
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 2
 fi
 
-if [ "$1" = "2" ] || [ "$1" = "reduce" ] ; then
-    echo "Testing Reduction without masking"
-    TestArgs2=" ./tests/testdata/LaB6_10kev_35deg-00004_Rotated.tif ./tests/temp/ --viewraw=1  --instrument=tests/testdata/XRay_Definition_2K.xml --2theta=-35."
-    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/reduce_HB2B.py $TestArgs2
+if [ "$1" = "2" ] || [ "$1" = "2theta" ] ; then
+    echo "Comparing converted 2theta from geometry"
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 3
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 4
 fi
 
 
-if [ "$1" = "3" ] || [ "$1" = "reduce_roi0degree" ] ; then
+if [ "$1" = "3" ] || [ "$1" = "counts" ] ; then
     echo "Testing Reduction with ROI around solid angle 0 degree"
-    TestArgs3=" ./tests/testdata/LaB6_10kev_35deg-00004_Rotated.tif ./tests/temp/ --viewraw=1 --mask=tests/testdata/masks/Chi_0.hdf5 --instrument=tests/testdata/XRay_Definition_2K.xml --2theta=-35."
-    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/reduce_HB2B.py $TestArgs3
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 10
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 11
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 12
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 13
 fi
 
-if [ "$1" = "4" ] || [ "$1" = "reduce_roi10degree" ] ; then
+if [ "$1" = "104" ] || [ "$1" = "reduce-pyrs-all" ] ; then
     echo "Testing Reduction with ROI around solid angle +35 degree"
-    TestArgs3=" ./tests/testdata/LaB6_10kev_35deg-00004_Rotated.tif ./tests/temp/ --viewraw=1 --mask=tests/testdata/masks/Chi_10.hdf5 --instrument=tests/testdata/XRay_Definition_2K.xml --2theta=-35."
-    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/reduce_HB2B.py $TestArgs3
+    TestArgsMantid=" ./tests/testdata/LaB6_10kev_35deg-00004_Rotated.h5 ./tests/temp/ --viewraw=1  --instrument=tests/testdata/XRay_Definition_2K.xml --2theta=35."
+    TestArgsPyRS=" ./tests/testdata/LaB6_10kev_35deg-00004_Rotated.h5 ./tests/temp/ --viewraw=1  --instrument=tests/testdata/XRay_Definition_2K.txt --2theta=35."
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/reduce_HB2B.py $TestArgsPyRS
+fi
+
+if [ "$1" = "105" ] || [ "$1" = "reduce-pyrs-0degree" ] ; then
+    echo "Testing Reduction with ROI around solid angle +35 degree"
+    TestArgsMantid=" ./tests/testdata/LaB6_10kev_35deg-00004_Rotated.h5 ./tests/temp/ --viewraw=1 --mask=tests/testdata/masks/Chi_0.hdf5 --instrument=tests/testdata/XRay_Definition_2K.xml --2theta=35."
+    TestArgsPyRS=" ./tests/testdata/LaB6_10kev_35deg-00004_Rotated.h5 ./tests/temp/ --viewraw=1 --mask=tests/testdata/masks/Chi_0.hdf5 --instrument=tests/testdata/XRay_Definition_2K.txt --2theta=35."
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/reduce_HB2B.py $TestArgsPyRS
+fi
+
+if [ "$1" = "106" ] || [ "$1" = "reduce-pyrs-10degree" ] ; then
+    echo "Testing Reduction with ROI around solid angle +35 degree"
+    TestArgsMantid=" ./tests/testdata/LaB6_10kev_35deg-00004_Rotated.h5 ./tests/temp/ --viewraw=1 --mask=tests/testdata/masks/Chi_10.hdf5 --instrument=tests/testdata/XRay_Definition_2K.xml --2theta=35."
+    TestArgsPyRS=" ./tests/testdata/LaB6_10kev_35deg-00004_Rotated.h5 ./tests/temp/ --viewraw=1 --mask=tests/testdata/masks/Chi_10.hdf5 --instrument=tests/testdata/XRay_Definition_2K.txt --2theta=35."
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/reduce_HB2B.py $TestArgsPyRS
 fi
 
 
 if [ "$1" = "99" ] || [ "$1" = "unknown" ] ; then
+    TestArgs3=" ./tests/testdata/LaB6_10kev_35deg-00004_Rotated.tif ./tests/temp/ --viewraw=1 --mask=tests/testdata/masks/Chi_0.hdf5 --instrument=tests/testdata/XRay_Definition_2K.xml --2theta=-35."
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/reduce_HB2B.py $TestArgs3
+    TestArgs2=" ./tests/testdata/LaB6_10kev_35deg-00004_Rotated.tif ./tests/temp/ --viewraw=1  --instrument=tests/testdata/XRay_Definition_2K.xml --2theta=-35."
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/reduce_HB2B.py $TestArgs2
     TestArgs="--roi=tests/testdata/masks/Chi_0_Mask.xml --output=Chi_0.hdf5 --operation=reverse --2theta=35."
     TestArgs1=" ./tests/testdata/LaB6_10kev_35deg-00004_Rotated.tif ./tests/temp/ --mask=tests/testdata/masks/Chi_0.hdf5 --viewraw=1"
 

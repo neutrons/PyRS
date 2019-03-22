@@ -2,7 +2,6 @@
 python setup.py pyuic
 python setup.py build
 
-echo 
 MANTIDLOCALPATH=/home/wzz/Mantid_Project/debug/bin/
 MANTIDMACPATH=/Users/wzz/MantidBuild/debug/bin/
 MANTIDSNSDEBUGPATH=/SNS/users/wzz/Mantid_Project/builds/debug/bin/
@@ -18,10 +17,9 @@ if [ $1 ]; then
     CMDS=''
     for file in "$@"
     do
-      echo $file
       if [ $file = $1 ] ; 
       then
-	  echo "Ignore "
+	  echo "Ignore Item: "
 	  echo $file
       else
           CMDS="$CMDS $file"

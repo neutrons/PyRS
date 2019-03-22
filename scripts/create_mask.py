@@ -106,7 +106,7 @@ class MaskProcessApp(object):
             # XML  file name
             roi_vec = mask_util.load_mantid_mask(self._num_pixels, roi_file_name, is_mask=False)
         elif roi_file_name.lower().endswith('.h5') or roi_file_name.lower().endswith('.hdf5'):
-            roi_vec = mask_util.load_pyrs_mask(roi_file_name)
+            roi_vec, two_theta, user_note = mask_util.load_pyrs_mask(roi_file_name)
         else:
             raise RuntimeError('ROI file of type {} is not recognized and supported'
                                ''.format(roi_file_name.split('.')[-1]))
@@ -149,7 +149,9 @@ class MaskProcessApp(object):
         checkdatatypes.check_string_variable('Mask operation', operation, ['and', 'or'])
 
         mask_vec_1 = self._mask_array_dict[mask_id1]
+        print ('[INFO] {}: Dimension = {}'.format(mask_id1, mask_vec_1.shape))
         mask_vec_2 = self._mask_array_dict[mask_id2]
+        print ('[INFO] {}: Dimension = {}'.format(mask_id2, mask_vec_2.shape))
 
         # AND operation
         if operation == 'and':
