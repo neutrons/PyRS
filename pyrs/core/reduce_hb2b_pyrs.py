@@ -219,7 +219,8 @@ class PyHB2BReduction(object):
 
         if dimension == 1:
             a, a, b = self._hb2b.shape
-            return self._hb2b.reshape((a*a, b))
+            transposed = numpy.transpose(self._hb2b, (1, 0, 2))
+            return transposed.reshape((a*a, b))
 
         return self._hb2b
 
