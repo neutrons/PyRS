@@ -184,13 +184,13 @@ class ResidualStressInstrumentCalibration(object):
         """
         initialize
         """
-        self.center_shift_x = 0.
-        self.center_shift_y = 0.
-        self.center_shift_z = 0.   # center shift Z
+        self._center_shift_x = 0.
+        self._center_shift_y = 0.
+        self._center_shift_z = 0.   # center shift Z along detector arm
 
-        self.rotation_x = 0.   # in X-Z plane
-        self.rotation_y = 0.   # along Y axis (vertical)
-        self.rotation_z = 0.   # rotation from center
+        self._rotation_x = 0.   # in X-Z plane
+        self._rotation_y = 0.   # along Y axis (vertical)
+        self._rotation_z = 0.   # rotation from center
 
         # Need data from client to finish this
         self.calibrated_wave_length = {'Si001': 1.00}
@@ -203,6 +203,60 @@ class ResidualStressInstrumentCalibration(object):
                          self.rotation_x, self.rotation_y, self.rotation_z)
 
         return nice
+    
+    @property
+    def center_shift_x(self):
+        return self._center_shift_x
+
+    @center_shift_x.setter
+    def center_shift_x(self, value):
+        checkdatatypes.check_float_variable('Center shift along X direction', value, (None, None))
+        self._center_shift_x = value
+
+    @property
+    def center_shift_y(self):
+        return self._center_shift_y
+
+    @center_shift_y.setter
+    def center_shift_y(self, value):
+        checkdatatypes.check_float_variable('Center shift along Y direction', value, (None, None))
+        self._center_shift_y = value
+
+    @property
+    def center_shift_z(self):
+        return self._center_shift_z
+
+    @center_shift_z.setter
+    def center_shift_z(self, value):
+        checkdatatypes.check_float_variable('Center shift along Z direction', value, (None, None))
+        self._center_shift_z = value
+
+    @property
+    def rotation_x(self):
+        return self._rotation_x
+
+    @rotation_x.setter
+    def rotation_x(self, value):
+        checkdatatypes.check_float_variable('Rotation along X direction', value, (-360, 360))
+        self._rotation_x = value
+
+    @property
+    def rotation_y(self):
+        return self._rotation_y
+
+    @rotation_y.setter
+    def rotation_y(self, value):
+        checkdatatypes.check_float_variable('Rotation along Y direction', value, (-360, 360))
+        self._rotation_y = value
+
+    @property
+    def rotation_z(self):
+        return self._rotation_z
+
+    @rotation_z.setter
+    def rotation_z(self, value):
+        checkdatatypes.check_float_variable('Rotation along Z direction', value, (-360, 360))
+        self._rotation_z = value
 
 
 class ResidualStressCalibrationFile(object):
