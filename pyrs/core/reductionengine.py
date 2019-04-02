@@ -7,6 +7,7 @@ from pyrs.core import calibration_file_io
 from pyrs.core import mask_util
 from pyrs.core import reduce_hb2b_mtd
 from pyrs.core import reduce_hb2b_pyrs
+from pyrs.utilities import rs_scan_io
 from mantid.simpleapi import CreateWorkspace, LoadSpiceXML2DDet, Transpose, LoadEventNexus, ConvertToMatrixWorkspace
 
 
@@ -114,7 +115,11 @@ class HB2BReductionManager(object):
 
     # TODO - TONIGHT 4 - Better!
     def load_instrument_file(self, instrument_file_name):
-
+        """
+        Load instrument (setup) file
+        :param instrument_file_name:
+        :return:
+        """
         instrument = calibration_file_io.import_instrument_setup(instrument_file_name)
         self.set_instrument(instrument)
 
@@ -153,24 +158,28 @@ class HB2BReductionManager(object):
 
         return out_ws_name
 
-    # TODO - TONIGHT 0 - Clean
     def _load_pyrs_h5(self, pyrs_h5_name, create_workspace):
-        """
-        blabla
+        """ Load Reduced PyRS file in HDF5 format
         :param pyrs_h5_name:
         :return:
         """
-        data_id = 'blabla'
-        from pyrs.utilities import rs_scan_io
+        # check input
+        checkdatatypes.check_string_variable('PyRS reduced file (.hdf5)', pyrs_h5_name)
+        checkdatatypes.check_file_name(pyrs_h5_name, True, False, False, 'PyRS reduced file (.hdf5)')
 
+        # using base name (without postfix) with hashed directory as ID (unique)
+        data_id = os.path.basename(pyrs_h5_name).split('.h')[0] + '_{}'.format(hash(os.path.dirname(pyrs_h5_name)))
+
+        # load file
         diff_file = rs_scan_io.DiffractionDataFile()
         count_vec, two_theta = diff_file.load_raw_measurement_data(pyrs_h5_name)
 
+        # create workspace for counts as an option
         if create_workspace:
             vec_x = np.zeros(count_vec.shape)
             CreateWorkspace(DataX=vec_x, DataY=count_vec, DataE=np.sqrt(count_vec), NSpec=1,
                             OutputWorkspace=data_id)
-            raw = Transpose(data_id, OutputWorkspace=data_id)
+            Transpose(data_id, OutputWorkspace=data_id)
 
         self._data_dict[data_id] = [data_id, count_vec]
 
@@ -369,7 +378,6 @@ class HB2BReductionManager(object):
 
         return
 
-    # TODO - TONIGHT 2 - Better Code Q
     def get_reduced_data(self, data_id=None, mask_id=None):
         """
         Get the reduce data
@@ -377,10 +385,11 @@ class HB2BReductionManager(object):
         :param mask_id:  ID of mask
         :return:
         """
+        # default (no data ID) is the currently reduced 2theta pattern
         if data_id is None:
             return self._curr_vec_x, self._curr_vec_y
 
-        # TODO - TONIGHT 2 - ASAP
+        # TODO - TONIGHT 0 - ASAP: How to store previously reduced data (different masks as use cases)
         return self._reduced_data_dict[data_id][mask_id]
 
     def set_mantid_idf(self, idf_name):

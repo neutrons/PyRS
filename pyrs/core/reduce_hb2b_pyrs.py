@@ -209,9 +209,38 @@ class ResidualStressInstrument(object):
 
         return rotate_matrix
 
+    def get_pixel_matrix(self):
+        """
+        return the 2D matrix of pixels' coordination
+        :return: 3D array (2D of 1-D array) (N x M x 3)
+        """
+        if self._pixel_matrix is None:
+            raise RuntimeError('Instrument has not been built yet')
 
+        return self._pixel_matrix
 
+    def get_pixel_array(self):
+        """
+        return the 1D array of pixels' coordination in the order of pixel IDs
+        :return: 2D array ((N x M) x 3)
+        """
+        if self._pixel_matrix is None:
+            raise RuntimeError('Instrument has not been built yet')
 
+        num_x, num_y, num_z = self._pixel_matrix.shape
+        if num_z != 3:
+            raise RuntimeError('Pixel matrix shall have (x, y, 3) shape but not {}'
+                               ''.format(self._pixel_matrix.shape))
+
+        # TODO - TODAY - Need to find out whether transpose is required from testing
+        if True:
+            pixel_pos_matrix = self._pixel_matrix.transpose((1, 0, 2))
+        else:
+            pixel_pos_matrix = self._pixel_matrix
+
+        pixel_pos_array = pixel_pos_matrix.reshape((num_x * num_y), 3)
+
+        return pixel_pos_array
 
 
 class PyHB2BReduction(object):
@@ -226,12 +255,12 @@ class PyHB2BReduction(object):
 
         return
 
-    # TODO - TONIGHT - More checks!
     def build_instrument(self, two_theta, arm_length_shift, center_shift_x, center_shift_y,
                          rot_x_flip, rot_y_flip, rot_z_spin):
         """
         build an instrument
         :param two_theta: 2theta position of the detector panel.  It shall be negative to sample log value
+        :param arm_length_shift: shift along Z-direction (arm length)
         :param center_shift_x:
         :param center_shift_y:
         :param rot_x_flip:
@@ -239,26 +268,31 @@ class PyHB2BReduction(object):
         :param rot_z_spin:
         :return: 2D numpy array
         """
+        calibration = calibration_file_io.ResidualStressInstrumentCalibration()
+        calibration.center_shift_z = arm_length_shift
+        calibration.center_shift_x = center_shift_x
+        calibration.center_shift_y = center_shift_y
+        calibration.rotation_x = rot_x_flip
+        calibration.rotation_y = rot_y_flip
+        calibration.rotation_z = rot_z_spin
 
+        self._instrument.build_instrument(two_theta, instrument_calibration=calibration)
 
+        return
 
-
-
-    # TODO - TONIGHT 0 - Migrate this method to ResidualStressInstrument
-    def get_pixel_matrix(self, dimension=1):
+    # TODO - TODAY - TEST: Migrate this method to ResidualStressInstrument
+    def get_pixel_positions(self, is_matrix=False):
         """
         return the pixel matrix of the instrument built
+        :param is_matrix: flag to output pixels in matrix. Otherwise, 1D array in order of pixel IDs
         :return:
         """
-        print ('[DB...BAY] Detector Pixel Shape: {}'.format(self._hb2b.shape))
+        if is_matrix:
+            pixel_array = self._instrument.get_pixel_matrix()
+        else:
+            pixel_array = self._instrument.get_pixel_array()
 
-        if dimension == 1:
-            a, a, b = self._hb2b.shape
-            transposed = numpy.transpose(self._hb2b, (1, 0, 2))
-            return transposed.reshape((a*a, b))
-
-        return self._hb2b
-
+        return pixel_array
 
     @staticmethod
     def convert_to_2theta(det_pos_matrix):

@@ -91,8 +91,7 @@ def compare_geometry_test(calibrated, pixel_number=2048):
 
     # compare
     workspace = mantid_reducer.get_workspace()
-    pixel_matrix = pyrs_reducer.get_pixel_matrix(dimension=2)
-    pixel_array = pyrs_reducer.get_pixel_matrix(dimension=1)
+    pixel_array = pyrs_reducer.get_pixel_positions(is_matrix=False)
 
     # test 5 spots (corner and center): (0, 0), (0, 1023), (1023, 0), (1023, 1023), (512, 512)
     pixel_locations = [(0, 0),
@@ -104,14 +103,12 @@ def compare_geometry_test(calibrated, pixel_number=2048):
     is_same = True
     for index_i, index_j in pixel_locations:
         index1d = index_i + pixel_number * index_j
-        # pos_python = pixel_matrix[index_i, index_j]   # TODO - TONIGHT 0 - PyRS-reduction shall use 1D array too!
         pos_python = pixel_array[index1d]
         pos_mantid = workspace.getDetector(index1d).getPos()
         print ('({}, {}) / {}:   {:10s}   -   {:10s}    =   {:10s}'
                ''.format(index_i, index_j, index1d, 'PyRS', 'Mantid', 'Diff'))
         diff_sq = 0.
         for i in range(3):
-            print (pos_python)
             diff_sq += (float(pos_python[i] - pos_mantid[i])) ** 2
             print ('dir {}:  {:10f}   -   {:10f}    =   {:10f}'
                    ''.format(i, float(pos_python[i]), float(pos_mantid[i]),
@@ -138,7 +135,7 @@ def compare_convert_2theta(calibrated, pixel_number=2048):
     engine, pyrs_reducer, mantid_reducer = compare_geometry_test(calibrated, pixel_number)
 
     # compare 2theta
-    pixel_matrix = pyrs_reducer.get_pixel_matrix()
+    pixel_matrix = pyrs_reducer.get_pixel_positions()
     pyrs_2theta_vec = pyrs_reducer.convert_to_2theta(pixel_matrix)
     print ('Shape: {}'.format(pyrs_2theta_vec.shape))
     pyrs_2theta_vec = pyrs_2theta_vec.transpose().flatten()  # 1D vector

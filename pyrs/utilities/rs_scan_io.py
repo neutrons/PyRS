@@ -111,8 +111,8 @@ class DiffractionDataFile(object):
         # access sub tree
         scan_h5 = h5py.File(file_name)
         if 'raw' not in scan_h5.keys() or 'instrument' not in scan_h5.keys():
-            # TODO - TONIGHT 1 - better error message
-            raise RuntimeError(scan_h5.keys())
+            raise RuntimeError('PyRS reduced file {} must have both raw and instrument entries.'
+                               'FYI current entries are {}'.format(file_name, scan_h5.keys()))
 
         # get diffraction data/counts
         diff_data_group = scan_h5['raw']
@@ -124,6 +124,7 @@ class DiffractionDataFile(object):
         instrument_group = scan_h5['instrument']
         two_theta = instrument_group['2theta'].value
 
+        # TODO - FIXME - TODAY 0 - Remove after testing is finished
         print (counts)
         print (type(counts))
 

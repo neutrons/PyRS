@@ -114,7 +114,6 @@ def save_mantid_nexus(workspace_name, file_name, title=''):
     return
 
 
-
 def check_creation_date(file_name):
     """
     check the create date (year, month, date) for a file
@@ -166,7 +165,6 @@ def get_temp_directory():
     temp_dir = os.path.expanduser('~')
 
     return temp_dir
-
 
 
 # testing
