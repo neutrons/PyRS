@@ -53,6 +53,10 @@ def create_instrument_load_data(calibrated, pixel_number):
         rot_x_flip = 2.0 * (random.random() - 0.5) * 2.0
         rot_y_flip = 2.0 * (random.random() - 0.5) * 2.0
         rot_z_spin = 2.0 * (random.random() - 0.5) * 2.0
+        print ('[(Random) Calibration Setup]\n    Shift Linear (X, Y, Z) = {}, {}, {}\n    Shift Rotation '
+               '(X, Y, Z) = {}, {}, {}'
+               ''.format(center_shift_x, center_shift_y, arm_length_shift, rot_x_flip, rot_y_flip,
+                         rot_z_spin))
     # END-IF: arbitrary calibration
 
     test_calibration = calibration_file_io.ResidualStressInstrumentCalibration()
@@ -81,7 +85,6 @@ def create_instrument_load_data(calibrated, pixel_number):
 
 
 # step 1: geometry must be correct!
-# TODO - TODAY 0 - Use 1D pixel array instead of 2D array
 def compare_geometry_test(calibrated, pixel_number=2048):
     """
     Compare the geometry
@@ -90,7 +93,19 @@ def compare_geometry_test(calibrated, pixel_number=2048):
     engine, pyrs_reducer, mantid_reducer = create_instrument_load_data(calibrated, pixel_number)
 
     # compare
+
+    # construct the mantid pixel array
     workspace = mantid_reducer.get_workspace()
+    num_pixels = workspace.getNumberHistograms()
+    mantid_pixel_array = numpy.ndarray((num_pixels, 3))
+    import time
+    time0 = time.time()
+    for iws in range(num_pixels):
+        mantid_pixel_array[iws] = numpy.array(workspace.getDetector(iws).getPos())
+    # END-FOR
+    timef = time.time()
+    print ('Construct pixel position array: time = {}'.format(timef - time0))
+
     pixel_array = pyrs_reducer.get_pixel_positions(is_matrix=False)
 
     # test 5 spots (corner and center): (0, 0), (0, 1023), (1023, 0), (1023, 1023), (512, 512)
@@ -117,6 +132,14 @@ def compare_geometry_test(calibrated, pixel_number=2048):
         if diff_sq > 1.E-6:
             is_same = False
     # END-FOR
+
+    # check the different of all the pixels
+    diff_vec = numpy.sqrt(((pixel_array - mantid_pixel_array) ** 2).sum(1))
+    print ('[DB...BAT] diff vec: shape = {}'.format(diff_vec.shape()))
+    print (diff_vec.min(), diff_vec.max())
+    print (numpy.argmin(diff_vec), numpy.argmax(diff_vec))
+    print (numpy.average(diff_vec))
+    print ('...................................................................')
 
     assert is_same, 'Instrument geometries from 2 engines do not match!'
 
