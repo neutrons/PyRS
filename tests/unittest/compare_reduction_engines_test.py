@@ -135,7 +135,7 @@ def compare_geometry_test(calibrated, pixel_number=2048):
 
     # check the different of all the pixels
     diff_vec = numpy.sqrt(((pixel_array - mantid_pixel_array) ** 2).sum(1))
-    print ('[DB...BAT] diff vec: shape = {}'.format(diff_vec.shape()))
+    print ('[DB...BAT] diff vec: shape = {}'.format(diff_vec.shape))
     print (diff_vec.min(), diff_vec.max())
     print (numpy.argmin(diff_vec), numpy.argmax(diff_vec))
     print (numpy.average(diff_vec))
