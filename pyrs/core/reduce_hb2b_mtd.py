@@ -46,6 +46,14 @@ class MantidHB2BReduction(object):
             raise RuntimeError('Raw data workspace {} does not exist in Mantid ADS.'.format(matrix_ws_name))
 
         # convert to 2theta - counts
+        # TODO - FIXME - TODAY 0 ASAP - What happened??
+        """
+        ValueError: Invalid value for property InputWorkspace (MatrixWorkspace) "LaB6_10kev_35deg-00004_Rotated_TIF_-2148134566219821012": A workspace with axis being Spectra Number is required here.
+        """
+        matrix_ws = ADS.retrieve(matrix_ws_name)
+        print ('[DB...BAT] Raw workspace: number of histograms = {}, Unit = {}'
+               ''.format(matrix_ws.getNumberHistograms(), matrix_ws.getAxis(0).getUnit().unitID()))
+
         ConvertSpectrumAxis(InputWorkspace=matrix_ws_name, Target='Theta', OutputWorkspace=matrix_ws_name,
                             EnableLogging=False, OrderAxis=not test_mode)
 

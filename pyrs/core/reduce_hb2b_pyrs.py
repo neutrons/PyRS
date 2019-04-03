@@ -280,7 +280,6 @@ class PyHB2BReduction(object):
 
         return
 
-    # TODO - TODAY - TEST: Migrate this method to ResidualStressInstrument
     def get_pixel_positions(self, is_matrix=False):
         """
         return the pixel matrix of the instrument built
@@ -295,25 +294,47 @@ class PyHB2BReduction(object):
         return pixel_array
 
     @staticmethod
-    def convert_to_2theta(det_pos_matrix):
+    def convert_to_2theta(des_pos_array):
         """
         convert the pixel position matrix to 2theta
-        :param det_pos_matrix:
+        :param des_pos_array: it could be an N x M x 3 array or an (N x M) x 3 array (input/output)
         :return:
         """
-        # convert detector position matrix to 2theta
-        # normalize the detector position 2D array
-        det_pos_norm_matrix = np.sqrt(det_pos_matrix[:, :, 0] ** 2 + det_pos_matrix[:, :, 1] ** 2 + det_pos_matrix[:, :, 2] ** 2)
-        # normalize pixel position for diffraction angle
-        for i_dir in range(3):
-            det_pos_matrix[:, :, i_dir] /= det_pos_norm_matrix
-
-        # convert to  2theta in degree
         k_in_vec = [0, 0, 1]
-        diff_angle_cos_matrix = det_pos_matrix[:, :, 0] * k_in_vec[0] + det_pos_matrix[:, :, 1] * k_in_vec[1] + det_pos_matrix[:, :, 2] * k_in_vec[2]
-        twotheta_matrix = np.arccos(diff_angle_cos_matrix) * 180 / np.pi
 
-        return twotheta_matrix
+        if len(des_pos_array.shape) == 3:
+            # N x M x 3 array
+            # convert detector position matrix to 2theta
+            # normalize the detector position 2D array
+            det_pos_norm_matrix = np.sqrt(des_pos_array[:, :, 0] ** 2 + des_pos_array[:, :, 1] ** 2 + des_pos_array[:, :, 2] ** 2)
+            # normalize pixel position for diffraction angle
+            for i_dir in range(3):
+                des_pos_array[:, :, i_dir] /= det_pos_norm_matrix
+
+            # convert to  2theta in degree
+            diff_angle_cos_matrix = des_pos_array[:, :, 0] * k_in_vec[0] + des_pos_array[:, :, 1] * k_in_vec[1] + \
+                                    des_pos_array[:, :, 2] * k_in_vec[2]
+            twotheta_matrix = np.arccos(diff_angle_cos_matrix) * 180 / np.pi
+
+            return_value = twotheta_matrix
+        else:
+            # (N x M) x 3 array
+            # convert detector positions array to 2theta array
+            # normalize the detector position 2D array
+            det_pos_norm_array = np.sqrt(des_pos_array[:, 0] ** 2 + des_pos_array[:, 1] ** 2 + des_pos_array[:, 2] ** 2)
+            # normalize pixel position for diffraction angle
+            for i_dir in range(3):
+                des_pos_array[:, i_dir] /= det_pos_norm_array
+
+            # convert to  2theta in degree
+            diff_angle_cos_array = des_pos_array[:, 0] * k_in_vec[0] + des_pos_array[:, 1] * k_in_vec[1] + \
+                                   des_pos_array[:, 2] * k_in_vec[2]
+            twotheta_array = np.arccos(diff_angle_cos_array) * 180 / np.pi
+
+            return_value = twotheta_array
+        # END-IF-ELSE
+
+        return return_value
 
     def reduce_to_2theta_histogram(self, det_pos_matrix, counts_matrix, mask, num_bins, x_range=None,
                                    is_point_data=True):

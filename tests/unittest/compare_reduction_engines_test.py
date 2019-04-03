@@ -135,7 +135,8 @@ def compare_convert_2theta(calibrated, pixel_number=2048):
     engine, pyrs_reducer, mantid_reducer = compare_geometry_test(calibrated, pixel_number)
 
     # compare 2theta
-    pixel_matrix = pyrs_reducer.get_pixel_positions()
+    pixel_matrix = pyrs_reducer.get_pixel_positions(is_matrix=False)
+    print ('Pixel matrix shape = {}'.format(pixel_matrix.shape))
     pyrs_2theta_vec = pyrs_reducer.convert_to_2theta(pixel_matrix)
     print ('Shape: {}'.format(pyrs_2theta_vec.shape))
     pyrs_2theta_vec = pyrs_2theta_vec.transpose().flatten()  # 1D vector
@@ -252,6 +253,7 @@ if __name__ == '__main__':
                )
     else:
         option = int(sys.argv[1])
+        print ('Testing option: {}'.format(option))
         if option == 1:
             compare_geometry_test(False)
         elif option == 2:
