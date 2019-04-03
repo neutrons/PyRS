@@ -177,9 +177,10 @@ class HB2BReductionManager(object):
         # create workspace for counts as an option
         if create_workspace:
             vec_x = np.zeros(count_vec.shape)
-            CreateWorkspace(DataX=vec_x, DataY=count_vec, DataE=np.sqrt(count_vec), NSpec=1,
-                            OutputWorkspace=data_id)
-            Transpose(data_id, OutputWorkspace=data_id)
+            ws = CreateWorkspace(DataX=vec_x, DataY=count_vec, DataE=np.sqrt(count_vec), NSpec=vec_x.shape[0],
+                            OutputWorkspace=data_id, UnitX='SpectraNumber')
+            # ws = Transpose(data_id, OutputWorkspace=data_id)
+            print ('[DB.......BAT......LOOK] Unit of workspace = {}'.format(ws.getAxis(0).getUnit().unitID()))
 
         self._data_dict[data_id] = [data_id, count_vec]
 

@@ -148,10 +148,13 @@ def compare_convert_2theta(calibrated, pixel_number=2048):
     assert pyrs_2theta_vec.shape == mantid_2theta_vec.shape, 'Shapes ({} vs {}) shall be same' \
                                                              ''.format(pyrs_2theta_vec.shape, mantid_2theta_vec.shape)
 
-    diff = numpy.sqrt(numpy.sum((pyrs_2theta_vec - mantid_2theta_vec) ** 2))  # / pyrs_2theta_vec.shape[0]
-    for i in range(30):
-        print ('[DB...TEST...CHECK] {}   -   {}    =    {}'.format(pyrs_2theta_vec[i], mantid_2theta_vec[i],
-                                                                   pyrs_2theta_vec[i] - mantid_2theta_vec[i]))
+    diff = numpy.sqrt(numpy.sum(((pyrs_2theta_vec - mantid_2theta_vec) ** 2)))  # / pyrs_2theta_vec.shape[0]
+
+    any_pixel = 30000
+    for i in range(any_pixel, any_pixel + 30):
+        print ('[DB...TEST...VISUAL... CHECK] {}   -   {}    =    {}'
+               ''.format(pyrs_2theta_vec[i], mantid_2theta_vec[i], pyrs_2theta_vec[i] - mantid_2theta_vec[i]))
+    print ('[TEST RESULT] For {} pixels, DIFF = {}'.format(pyrs_2theta_vec.shape, diff))
 
     assert diff < 1., 'Difference {} is too big!'.format(diff)
 
