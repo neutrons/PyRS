@@ -4,8 +4,6 @@ import numpy
 import calibration_file_io
 from pyrs.utilities import checkdatatypes
 
-# TODO FIXME - NIGHT - This shall be a constant value in PyHB2BReduction class object
-DEFAULT_ARM_LENGTH = 0.416
 
 
 class ResidualStressInstrument(object):

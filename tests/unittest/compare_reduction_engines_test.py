@@ -8,6 +8,7 @@ from pyrs.core import reduce_hb2b_pyrs
 from pyrs.core import calibration_file_io
 from pyrs.core import reductionengine
 from pyrs.core import mask_util
+import time
 import numpy
 try:
     from PyQt5.QtWidgets import QApplication
@@ -21,8 +22,12 @@ print (os.getcwd())
 # therefore it is not too hard to locate testing data
 # test_data = 'tests/testdata/LaB6_10kev_35deg-00004_Rotated.tif'
 test_data = 'tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5'
-xray_2k_instrument_file = 'tests/testdata/xray_data/XRay_Definition_2K.txt'
-xray_idf_name = 'tests/testdata/XRay_Definition_2K.xml'
+if True:
+    xray_2k_instrument_file = 'tests/testdata/xray_data/XRay_Definition_2K.txt'
+    xray_idf_name = 'tests/testdata/XRay_Definition_2K.xml'
+if False:
+    xray_2k_instrument_file = 'tests/testdata/xray_data/XRay_Definition_2K_Mod.txt'
+    xray_idf_name = 'tests/testdata/XRay_Definition_2K_Mod.xml'
 test_mask = 'tests/testdata/masks/Chi_10.hdf5'
 print ('Data file {0} exists? : {1}'.format(test_data, os.path.exists(test_data)))
 
@@ -46,13 +51,14 @@ def create_instrument_load_data(calibrated, pixel_number):
     rot_z_spin = 0.
 
     if calibrated:
-        center_shift_x = 1.0 * (random.random() - 0.5) * 2.0
-        center_shift_y = 1.0 * (random.random() - 0.5) * 2.0
-        arm_length_shift = (random.random() - 0.5) * 2.0  # 0.416 + (random.random() - 0.5) * 2.0
-        # calibration
-        rot_x_flip = 2.0 * (random.random() - 0.5) * 2.0
-        rot_y_flip = 2.0 * (random.random() - 0.5) * 2.0
-        rot_z_spin = 2.0 * (random.random() - 0.5) * 2.0
+        # Note: README/TODO-ING: ONLY shift Y
+        center_shift_x = int(1000. * (random.random() - 0.5) * 2.0) / 1000.
+        center_shift_y = int(1000. * (random.random() - 0.5) * 2.0) / 1000.
+        arm_length_shift = int(1000. * (random.random() - 0.5) * 2.0) / 1000.  # 0.416 + (random.random() - 0.5) * 2.0
+        # calibration  FIXME - Disable rotation calibration to find out the source of difference:  10-17 vs 10-7
+        rot_x_flip = int(1000. * 2.0 * (random.random() - 0.5) * 5.0) / 1000.
+        rot_y_flip = int(1000. * 2.0 * (random.random() - 0.5) * 5.0) / 1000.
+        rot_z_spin = int(1000. * 2.0 * (random.random() - 0.5) * 5.0) / 1000.
         print ('[(Random) Calibration Setup]\n    Shift Linear (X, Y, Z) = {}, {}, {}\n    Shift Rotation '
                '(X, Y, Z) = {}, {}, {}'
                ''.format(center_shift_x, center_shift_y, arm_length_shift, rot_x_flip, rot_y_flip,
@@ -98,7 +104,6 @@ def compare_geometry_test(calibrated, pixel_number=2048):
     workspace = mantid_reducer.get_workspace()
     num_pixels = workspace.getNumberHistograms()
     mantid_pixel_array = numpy.ndarray((num_pixels, 3))
-    import time
     time0 = time.time()
     for iws in range(num_pixels):
         mantid_pixel_array[iws] = numpy.array(workspace.getDetector(iws).getPos())
