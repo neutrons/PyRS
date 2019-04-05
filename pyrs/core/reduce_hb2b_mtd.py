@@ -1,6 +1,6 @@
 import os
 from mantid.simpleapi import FilterEvents, LoadEventNexus, LoadInstrument, GenerateEventsFilter
-from mantid.simpleapi import ConvertSpectrumAxis, ResampleX, Transpose, AddSampleLog
+from mantid.simpleapi import ConvertSpectrumAxis, ResampleX, Transpose, AddSampleLog, GeneratePythonScript
 from mantid.api import AnalysisDataService as ADS
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities import file_util
@@ -46,10 +46,6 @@ class MantidHB2BReduction(object):
             raise RuntimeError('Raw data workspace {} does not exist in Mantid ADS.'.format(matrix_ws_name))
 
         # convert to 2theta - counts
-        # TODO - FIXME - TODAY 0 ASAP - What happened??
-        """
-        ValueError: Invalid value for property InputWorkspace (MatrixWorkspace) "LaB6_10kev_35deg-00004_Rotated_TIF_-2148134566219821012": A workspace with axis being Spectra Number is required here.
-        """
         matrix_ws = ADS.retrieve(matrix_ws_name)
         print ('[DB...BAT] Raw workspace: number of histograms = {}, Unit = {}'
                ''.format(matrix_ws.getNumberHistograms(), matrix_ws.getAxis(0).getUnit().unitID()))
@@ -59,6 +55,9 @@ class MantidHB2BReduction(object):
 
         # convert from N-spectra-single element to 1-spectrum-N-element
         raw_data_ws = Transpose(InputWorkspace=matrix_ws_name, OutputWorkspace=matrix_ws_name, EnableLogging=False)
+        print ('[DB.....BAT.....PROBLEM] Raw workspace {}: num histograms = {}, sum(Y) = {}\nY: {}'
+               ''.format(matrix_ws_name, raw_data_ws.getNumberHistograms(), raw_data_ws.readY(0).sum(),
+                         raw_data_ws.readY(0)))
 
         return raw_data_ws
 
@@ -72,14 +71,15 @@ class MantidHB2BReduction(object):
         :param mask:
         :return:
         """
-        # convert
-        raw_data_ws = self.convert_from_raw_to_2theta(matrix_ws_name)
+        # convert with Axis ordered
+        raw_data_ws = self.convert_from_raw_to_2theta(matrix_ws_name, test_mode=False)  # order Axis
 
         # mask if required
         if mask is not None:
             checkdatatypes.check_numpy_arrays('Mask vector', [mask, raw_data_ws.readY(0)], 1, True)
             masked_vec = raw_data_ws.dataY(0)
             masked_vec *= mask
+        # END-IF(mask)
 
         # set up resolutin and number of bins for re-sampling/binning
         if two_theta_min is None:
@@ -105,6 +105,14 @@ class MantidHB2BReduction(object):
         vec_2theta = reduced_ws.readX(0)
         vec_y = reduced_ws.readY(0)
         vec_e = reduced_ws.readE(0)
+
+        # do some study on the workspace dimension
+        print ('[DB...BAT] 2theta range: {}, {}; 2theta-size = {}, Y-size = {}'
+               ''.format(vec_2theta[0], vec_2theta[-1], len(vec_2theta), len(vec_y)))
+        print ('[DB...BAT] Y: {}'.format(vec_y))
+
+        GeneratePythonScript(InputWorkspace=reduced_ws, Filename='reduce_mantid.py')
+        file_util.save_mantid_nexus(workspace_name=matrix_ws_name, file_name='debugmantid.nxs')
 
         return vec_2theta, vec_y, vec_e
 

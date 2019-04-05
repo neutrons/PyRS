@@ -4,6 +4,8 @@ import os
 import h5py
 import checkdatatypes
 import platform
+from mantid.api import AnalysisDataService
+from mantid.simpleapi import AnalysisDataService
 
 
 # Zoo of methods to work with raw data input and output of processed data

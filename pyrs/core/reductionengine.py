@@ -178,7 +178,7 @@ class HB2BReductionManager(object):
         if create_workspace:
             vec_x = np.zeros(count_vec.shape)
             ws = CreateWorkspace(DataX=vec_x, DataY=count_vec, DataE=np.sqrt(count_vec), NSpec=vec_x.shape[0],
-                            OutputWorkspace=data_id, UnitX='SpectraNumber')
+                                 OutputWorkspace=data_id, UnitX='SpectraNumber')
             # ws = Transpose(data_id, OutputWorkspace=data_id)
             print ('[DB.......BAT......LOOK] Unit of workspace = {}'.format(ws.getAxis(0).getUnit().unitID()))
 
@@ -363,7 +363,7 @@ class HB2BReductionManager(object):
                                                            rot_z_spin=self._geometry_calibration.rotation_z)
 
             bin_edges, hist = python_reducer.reduce_to_2theta_histogram(pixel_matrix,
-                                                                        counts_matrix=self._data_dict[data_id][1],
+                                                                        counts_array=self._data_dict[data_id][1],
                                                                         mask=mask_vec,
                                                                         num_bins=self._num_bins)
             self._curr_vec_x = bin_edges

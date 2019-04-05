@@ -291,6 +291,7 @@ class PyHB2BReduction(object):
 
         return pixel_array
 
+    # TODO - TONIGHT 0 (big monitor) - consider to move this method to instrument
     @staticmethod
     def convert_to_2theta(des_pos_array):
         """
@@ -334,39 +335,51 @@ class PyHB2BReduction(object):
 
         return return_value
 
-    def reduce_to_2theta_histogram(self, det_pos_matrix, counts_matrix, mask, num_bins, x_range=None,
+    def reduce_to_2theta_histogram(self, counts_array, mask, num_bins, x_range=None,
                                    is_point_data=True):
         """ convert the inputs (detector matrix and counts to 2theta histogram)
-        :param det_pos_matrix:
-        :param counts_matrix:
+        :param counts_array:
         :param mask: vector of masks
         :param num_bins:
         :param x_range: range of X value
         :return: 2-tuple (bin edges, counts in histogram)
         """
-        if det_pos_matrix is None:
-            det_pos_matrix = self._hb2b
-        two_theta_matrix = self.convert_to_2theta(det_pos_matrix)
+        # get vector of X: 2theta
+        pixel_array = self._instrument.get_pixel_array()
+        two_theta_array = self.convert_to_2theta(pixel_array)
+
+        # check with counts
+        assert isinstance(two_theta_array, numpy.ndarray), 'blabla'
+        if two_theta_array.shape != counts_array.shape:
+            raise RuntimeError('Counts (array) has a different ... blabla')
+
+        # convert count type
+        vec_counts = counts_array.astype('float64')
 
         # check inputs
         if x_range:
-            checkdatatypes.check_tuple('X range', xrange, 2)
+            checkdatatypes.check_tuple('X range', x_range, 2)
             if x_range[0] >= x_range[1]:
                 raise RuntimeError('X range {} is not allowed'.format(x_range))
 
         # histogram
-        vecx = two_theta_matrix.transpose().flatten()
-        vecy = counts_matrix.flatten()   # in fact vec Y is flattern alraedy!
-        vecy = vecy.astype('float64')  # change to integer 32
+        #
+        # vecx = two_theta_matrix.transpose().flatten()
+        # vecy = counts_array.flatten()   # in fact vec Y is flattern alraedy!
+        # vecy = vecy.astype('float64')  # change to integer 32
 
-        print ('[DB...BAT] counts matrix: shape = {}, type = {}'.format(counts_matrix.shape, counts_matrix.dtype))
+        print ('[DB...BAT] counts matrix: shape = {}, type = {}'.format(counts_array.shape, counts_array.dtype))
         if mask is not None:
             print ('[DB...BAT] mask vector; shape = {}, type = {}'.format(mask.shape, mask.dtype))
-            checkdatatypes.check_numpy_arrays('Counts vector and mask vector', [counts_matrix, mask], 1, True)
-            vecy *= mask
+            checkdatatypes.check_numpy_arrays('Counts vector and mask vector', [counts_array, mask], 1, True)
+            vec_counts *= mask
 
         # this is histogram data
-        hist, bin_edges = np.histogram(vecx, bins=num_bins, range=x_range, weights=vecy)
+        hist, bin_edges = np.histogram(two_theta_array, bins=num_bins, range=x_range, weights=vec_counts)
+
+        bin_size_vec = (bin_edges[1:] - bin_edges[:-1])
+        print ('[DB...BAT] Histograms Bins: X = [{}, {}]'.format(bin_edges[0], bin_edges[-1]))
+        print ('[DB...BAT] Bin size = {}, Std = {}'.format(numpy.average(bin_size_vec), numpy.std(bin_size_vec)))
 
         # convert to point data
         if is_point_data:
