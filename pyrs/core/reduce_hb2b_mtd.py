@@ -111,8 +111,8 @@ class MantidHB2BReduction(object):
                ''.format(vec_2theta[0], vec_2theta[-1], len(vec_2theta), len(vec_y)))
         print ('[DB...BAT] Y: {}'.format(vec_y))
 
-        GeneratePythonScript(InputWorkspace=reduced_ws, Filename='reduce_mantid.py')
-        file_util.save_mantid_nexus(workspace_name=matrix_ws_name, file_name='debugmantid.nxs')
+        # GeneratePythonScript(InputWorkspace=reduced_ws, Filename='reduce_mantid.py')
+        # file_util.save_mantid_nexus(workspace_name=matrix_ws_name, file_name='debugmantid.nxs')
 
         return vec_2theta, vec_y, vec_e
 
