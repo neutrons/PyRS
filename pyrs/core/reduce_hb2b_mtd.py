@@ -1,4 +1,5 @@
 import os
+import numpy
 from mantid.simpleapi import FilterEvents, LoadEventNexus, LoadInstrument, GenerateEventsFilter
 from mantid.simpleapi import ConvertSpectrumAxis, ResampleX, Transpose, AddSampleLog, GeneratePythonScript
 from mantid.api import AnalysisDataService as ADS
@@ -6,6 +7,48 @@ from pyrs.utilities import checkdatatypes
 from pyrs.utilities import file_util
 import calibration_file_io
 from pyrs.core.calibration_file_io import ResidualStressInstrumentCalibration
+
+
+# TODO - TODAY TEST against numpy histogram first with smaller data set
+def histogram_data(raw_vec_x, raw_vec_y, target_vec_2theta):
+    """
+    histogram again a set of point data
+    :param raw_vec_x:
+    :param raw_vec_y:
+    :param target_vec_2theta:
+    :return:
+    """
+    raw_index = 0
+    raw_size = raw_vec_x.shape[0]
+
+    # compare the first entry
+    if raw_vec_x[0] < target_vec_2theta[0]:
+        # target range is smaller. need to throw away first several raw bins
+        raw_index = numpy.searchsorted(raw_vec_x, [target_vec_2theta[0]])[0]
+        target_index = 0
+    elif raw_vec_x[0] > target_vec_2theta[0]:
+        raw_index = 0
+        target_index = numpy.searchsorted(target_vec_2theta, [raw_vec_x[0]])[0]
+    else:
+        # equal.. not very likely
+        raw_index = 0
+        target_index = 0
+
+    target_size = target_vec_2theta.shape[0] - 1
+
+    target_vec_y = numpy.zeros(shape=(target_size,), dtype='float')
+
+    for bin_i in range(target_index, target_size):
+        #
+        # x_i = target_vec_2theta[bin_i]
+        x_f = target_vec_2theta[bin_i+1]
+        while raw_vec_x[raw_index] < x_f and raw_index < raw_size:
+            target_vec_y[bin_i] += raw_vec_y[raw_index]
+            raw_index += 1
+        # END-WHILE
+    # END-FOR
+
+    return target_vec_2theta, target_vec_y, numpy.sqrt(target_vec_y)
 
 
 class MantidHB2BReduction(object):
@@ -62,7 +105,7 @@ class MantidHB2BReduction(object):
         return raw_data_ws
 
     def reduce_to_2theta(self, matrix_ws_name, two_theta_min=None, two_theta_max=None, two_theta_resolution=None,
-                         mask=None):
+                         mask=None, target_vec_2theta=None):
         """ Reduce the raw matrix workspace, with instrument already loaded, to 2theta
         :param matrix_ws_name:
         :param two_theta_min:
@@ -99,12 +142,17 @@ class MantidHB2BReduction(object):
             num_bins = self._num_bins
 
         # rebin
-        ResampleX(InputWorkspace=raw_data_ws, OutputWorkspace=matrix_ws_name, XMin=two_theta_min, XMax=two_theta_max,
-                  NumberBins=num_bins, EnableLogging=False)
-        reduced_ws = ADS.retrieve(matrix_ws_name)
-        vec_2theta = reduced_ws.readX(0)
-        vec_y = reduced_ws.readY(0)
-        vec_e = reduced_ws.readE(0)
+        if False:
+            ResampleX(InputWorkspace=raw_data_ws, OutputWorkspace=matrix_ws_name, XMin=two_theta_min,
+                      XMax=two_theta_max,
+                      NumberBins=num_bins, EnableLogging=False)
+            reduced_ws = ADS.retrieve(matrix_ws_name)
+            vec_2theta = reduced_ws.readX(0)
+            vec_y = reduced_ws.readY(0)
+            vec_e = reduced_ws.readE(0)
+        else:
+            assert target_vec_2theta is not None, 'In this case, target vector X shall be obtained from '
+            vec_2theta, vec_y, vec_e = histogram_data(raw_data_ws.readX(0), raw_data_ws.readY(0), target_vec_2theta)
 
         # do some study on the workspace dimension
         print ('[DB...BAT] 2theta range: {}, {}; 2theta-size = {}, Y-size = {}'
