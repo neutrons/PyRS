@@ -9,10 +9,10 @@ import calibration_file_io
 from pyrs.core.calibration_file_io import ResidualStressInstrumentCalibration
 
 
-# TODO - TODAY TEST against numpy histogram first with smaller data set
 def histogram_data(raw_vec_x, raw_vec_y, target_vec_2theta):
     """
-    histogram again a set of point data
+    histogram again a set of point data (this is a backup solution)
+    it yields exactly the same result as numpy.histogram() except it does not work with unordered vector X
     :param raw_vec_x:
     :param raw_vec_y:
     :param target_vec_2theta:
@@ -150,9 +150,17 @@ class MantidHB2BReduction(object):
             vec_2theta = reduced_ws.readX(0)
             vec_y = reduced_ws.readY(0)
             vec_e = reduced_ws.readE(0)
-        else:
+        elif False:
+            # proved that histogram_data == numpy.histogram
             assert target_vec_2theta is not None, 'In this case, target vector X shall be obtained from '
             vec_2theta, vec_y, vec_e = histogram_data(raw_data_ws.readX(0), raw_data_ws.readY(0), target_vec_2theta)
+        else:
+            # use numpy histogram
+            raw_2theta = raw_data_ws.readX(0)
+            raw_counts = raw_data_ws.readY(0)
+            vec_y, vec_2theta = numpy.histogram(raw_2theta, bins=num_bins, range=(two_theta_min, two_theta_max),
+                                                weights=raw_counts)
+            vec_e = numpy.sqrt(vec_y)
 
         # do some study on the workspace dimension
         print ('[DB...BAT] 2theta range: {}, {}; 2theta-size = {}, Y-size = {}'
