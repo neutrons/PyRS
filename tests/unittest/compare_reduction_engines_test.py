@@ -31,6 +31,7 @@ if False:
 # test_mask = 'tests/testdata/masks/Chi_10.hdf5'
 Mask_File = {0: 'tests/testdata/masks/Chi_0.hdf5',
              10: 'tests/testdata/masks/Chi_10.hdf5',
+             20: 'tests/testdata/masks/Chi_20.hdf5',
              -10: 'tests/testdata/masks/Chi_Neg10.hdf5'}
 print ('Data file {0} exists? : {1}'.format(test_data, os.path.exists(test_data)))
 
@@ -238,42 +239,55 @@ def compare_reduced_no_mask(calibrated, pixel_number=2048):
     return
 
 
-# TODO - TONIGHT 0 - Need to compare 7 masks
+# TODO - WORKING ON NOW -
 def compare_reduced_masked(angle, calibrated, pixel_number=2048):
     """
     Compare reduced data without mask
+    :param angle: solid angle (integer)
     :param calibrated:
     :param pixel_number:
     :return:
     """
+    # create geometry/instrument
     engine, pyrs_reducer, mantid_reducer = compare_geometry_test(calibrated, pixel_number, False)
 
+    # load mask
     test_mask = Mask_File[angle]
 
     # load mask: mask file
     print ('Load masking file: {}'.format(test_mask))
     mask_vec, mask_2theta, note = mask_util.load_pyrs_mask(test_mask)
+    print ('Mask file {}: 2theta = {}'.format(test_mask, mask_2theta))
 
     # reduce data
+    min_2theta = 8.
+    max_2theta = 64.
+
+    # reduce PyRS (pure python)
     curr_id = engine.current_data_id
-    pyrs_vec_x, pyrs_vec_y = pyrs_reducer.reduce_to_2theta_histogram(det_pos_matrix=None,
-                                                                     counts_array=engine.get_counts(curr_id),
-                                                                     mask=mask_vec,
-                                                                     num_bins=2500)
+    pyrs_returns = pyrs_reducer.reduce_to_2theta_histogram(counts_array=engine.get_counts(curr_id),
+                                                           mask=mask_vec, x_range=(min_2theta, max_2theta),
+                                                           num_bins=2500)
+    pyrs_vec_x, pyrs_vec_y = pyrs_returns
 
+    # reduce by Mantid
     data_ws = mantid_reducer.get_workspace()
-    resolution = (pyrs_vec_x[-1] - pyrs_vec_x[0]) / (2500 - 1)
-    mantid_vec_x, mantid_vec_y = mantid_reducer.reduce_to_2theta(data_ws.name(), two_theta_min=pyrs_vec_x[0],
-                                                                 two_theta_max=pyrs_vec_x[-1],
-                                                                 num_2theta_bins=resolution,
-                                                                 mask=mask_vec)
+    reduced_data = mantid_reducer.reduce_to_2theta(data_ws.name(),
+                                                   two_theta_min=min_2theta,
+                                                   two_theta_max=max_2theta,
+                                                   num_2theta_bins=2500,
+                                                   mask=mask_vec)
+    mantid_vec_x = reduced_data[0]
+    mantid_vec_y = reduced_data[1]
 
-    diff_x = numpy.sqrt(numpy.sum((pyrs_vec_x - mantid_vec_x)**2))
-    diff_y = numpy.sqrt(numpy.sum((pyrs_vec_y - mantid_vec_y)**2))
+    # compare result
+    diff_x = numpy.sqrt(numpy.sum((pyrs_vec_x - mantid_vec_x)**2))/mantid_vec_x.shape[0]
+    diff_y = numpy.sqrt(numpy.sum((pyrs_vec_y - mantid_vec_y)**2))/mantid_vec_y.shape[0]
 
     print ('Diff[X]  =  {},  Diff[Y]  =  {}'.format(diff_x, diff_y))
-    plt.plot(pyrs_vec_x, pyrs_vec_y, color='blue', xlabel='PyRS')
-    plt.plot(mantid_vec_x, mantid_vec_y, color='red', xlable='Mantid')
+    plt.plot(pyrs_vec_x[:-1], pyrs_vec_y, color='blue', label='PyRS')
+    plt.plot(mantid_vec_x[:-1], mantid_vec_y, color='red', label='Mantid')
+    plt.legend()
     plt.show()
 
     return
@@ -316,6 +330,14 @@ if __name__ == '__main__':
             compare_reduced_masked(angle=0, calibrated=False, pixel_number=2048)
         elif option == 8:
             compare_reduced_masked(angle=0, calibrated=True, pixel_number=2048)
+        elif option == 9:
+            compare_reduced_masked(angle=10, calibrated=False, pixel_number=2048)
+        elif option == 10:
+            compare_reduced_masked(angle=10, calibrated=True, pixel_number=2048)
+        elif option == 11:
+            compare_reduced_masked(angle=20, calibrated=False, pixel_number=2048)
+        elif option == 12:
+            compare_reduced_masked(angle=20, calibrated=True, pixel_number=2048)
         else:
             raise NotImplementedError('ASAP')
 

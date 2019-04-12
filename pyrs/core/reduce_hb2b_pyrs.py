@@ -347,32 +347,36 @@ class PyHB2BReduction(object):
         # get vector of X: 2theta
         pixel_array = self._instrument.get_pixel_array()
         two_theta_array = self.convert_to_2theta(pixel_array)
+        assert isinstance(two_theta_array, numpy.ndarray), 'blabla'
 
         # check with counts
-        assert isinstance(two_theta_array, numpy.ndarray), 'blabla'
         if two_theta_array.shape != counts_array.shape:
             raise RuntimeError('Counts (array) has a different ... blabla')
 
         # convert count type
         vec_counts = counts_array.astype('float64')
+        print ('[INFO] PyRS.Instrument: 2theta range: {}, {}'.format(two_theta_array.min(),
+                                                                     two_theta_array.max()))
 
-        # check inputs
+        # check inputs of x range
         if x_range:
             checkdatatypes.check_tuple('X range', x_range, 2)
             if x_range[0] >= x_range[1]:
                 raise RuntimeError('X range {} is not allowed'.format(x_range))
 
-        # histogram
-        #
-        # vecx = two_theta_matrix.transpose().flatten()
-        # vecy = counts_array.flatten()   # in fact vec Y is flattern alraedy!
-        # vecy = vecy.astype('float64')  # change to integer 32
-
-        print ('[DB...BAT] counts matrix: shape = {}, type = {}'.format(counts_array.shape, counts_array.dtype))
+        # apply mask
+        raw_counts = vec_counts.sum()
         if mask is not None:
-            print ('[DB...BAT] mask vector; shape = {}, type = {}'.format(mask.shape, mask.dtype))
             checkdatatypes.check_numpy_arrays('Counts vector and mask vector', [counts_array, mask], 1, True)
             vec_counts *= mask
+            masked_counts = vec_counts.sum()
+            num_masked = mask.shape[0] - mask.sum()
+        else:
+            masked_counts = raw_counts
+            num_masked = 0
+        # END-IF-ELSE
+        print ('[INFO] Raw counts = {}, # Masked Pixels = {}, Counts in ROI = {}'
+               ''.format(raw_counts, num_masked, masked_counts))
 
         # this is histogram data
         hist, bin_edges = np.histogram(two_theta_array, bins=num_bins, range=x_range, weights=vec_counts)
