@@ -28,7 +28,10 @@ if True:
 if False:
     xray_2k_instrument_file = 'tests/testdata/xray_data/XRay_Definition_2K_Mod.txt'
     xray_idf_name = 'tests/testdata/XRay_Definition_2K_Mod.xml'
-test_mask = 'tests/testdata/masks/Chi_10.hdf5'
+# test_mask = 'tests/testdata/masks/Chi_10.hdf5'
+Mask_File = {0: 'tests/testdata/masks/Chi_0.hdf5',
+             10: 'tests/testdata/masks/Chi_10.hdf5',
+             -10: 'tests/testdata/masks/Chi_Neg10.hdf5'}
 print ('Data file {0} exists? : {1}'.format(test_data, os.path.exists(test_data)))
 
 
@@ -117,39 +120,40 @@ def compare_geometry_test(calibrated, pixel_number=2048, check_all_pixels=False)
         print ('Construct pixel position array: time = {}'.format(timef - time0))
         # check the different of all the pixels
         diff_vec = numpy.sqrt(((pixel_array - mantid_pixel_array) ** 2).sum(1))
-        print ('[DB...BAT] diff vec: shape = {}'.format(diff_vec.shape))
-        print (diff_vec.min(), diff_vec.max())
-        print (numpy.argmin(diff_vec), numpy.argmax(diff_vec))
-        print (numpy.average(diff_vec))
+        print ('Pixels Positions Difference:  Min = {}, Max = {}'.format(diff_vec.min(), diff_vec.max()))
+        print ('Minimum difference @ {}-th Pixel; Maximum difference @ {}-th Pixel'.format(numpy.argmin(diff_vec), numpy.argmax(diff_vec)))
+        print ('Average pixel position difference among all pixels: {}'.format(numpy.average(diff_vec)))
         print ('...................................................................')
+    else:
+        # check corners
+        # test 5 spots (corner and center): (0, 0), (0, 1023), (1023, 0), (1023, 1023), (512, 512)
+        pixel_locations = [(0, 0),
+                           (0, pixel_number - 1),
+                           (pixel_number - 1, 0),
+                           (pixel_number - 1, pixel_number - 1),
+                           (pixel_number / 2, pixel_number / 2)]
+
+        is_same = True
+        for index_i, index_j in pixel_locations:
+            index1d = index_i + pixel_number * index_j
+            pos_python = pixel_array[index1d]
+            pos_mantid = workspace.getDetector(index1d).getPos()
+            print ('({}, {}) / {}:   {:10s}   -   {:10s}    =   {:10s}'
+                   ''.format(index_i, index_j, index1d, 'PyRS', 'Mantid', 'Diff'))
+            diff_sq = 0.
+            for i in range(3):
+                diff_sq += (float(pos_python[i] - pos_mantid[i])) ** 2
+                print ('dir {}:  {:10f}   -   {:10f}    =   {:10f}'
+                       ''.format(i, float(pos_python[i]), float(pos_mantid[i]),
+                                 float(pos_python[i] - pos_mantid[i])))
+            # END-FOR
+            if diff_sq > 1.E-6:
+                is_same = False
+        # END-FOR
+
+        assert is_same, 'Instrument geometries from 2 engines do not match!'
     # END-IF
 
-    # test 5 spots (corner and center): (0, 0), (0, 1023), (1023, 0), (1023, 1023), (512, 512)
-    pixel_locations = [(0, 0),
-                       (0, pixel_number - 1),
-                       (pixel_number - 1, 0),
-                       (pixel_number - 1, pixel_number - 1),
-                       (pixel_number / 2, pixel_number / 2)]
-
-    is_same = True
-    for index_i, index_j in pixel_locations:
-        index1d = index_i + pixel_number * index_j
-        pos_python = pixel_array[index1d]
-        pos_mantid = workspace.getDetector(index1d).getPos()
-        print ('({}, {}) / {}:   {:10s}   -   {:10s}    =   {:10s}'
-               ''.format(index_i, index_j, index1d, 'PyRS', 'Mantid', 'Diff'))
-        diff_sq = 0.
-        for i in range(3):
-            diff_sq += (float(pos_python[i] - pos_mantid[i])) ** 2
-            print ('dir {}:  {:10f}   -   {:10f}    =   {:10f}'
-                   ''.format(i, float(pos_python[i]), float(pos_mantid[i]),
-                             float(pos_python[i] - pos_mantid[i])))
-        # END-FOR
-        if diff_sq > 1.E-6:
-            is_same = False
-    # END-FOR
-
-    assert is_same, 'Instrument geometries from 2 engines do not match!'
 
     return engine, pyrs_reducer, mantid_reducer
 
@@ -208,14 +212,16 @@ def compare_reduced_no_mask(calibrated, pixel_number=2048):
     pyrs_returns = pyrs_reducer.reduce_to_2theta_histogram(counts_array=engine.get_counts(curr_id),
                                                            mask=None, x_range=(min_2theta, max_2theta),
                                                            num_bins=2500)
-    pyrs_vec_x, pyrs_vec_y, raw_vec_2theta, raw_vec_count = pyrs_returns
+    # pyrs_vec_x, pyrs_vec_y, raw_vec_2theta, raw_vec_count = pyrs_returns
+    pyrs_vec_x, pyrs_vec_y = pyrs_returns
+    print ('Debug Output: (pyrs) vec Y: sum = {}\n{}'.format(pyrs_vec_y.sum(), pyrs_vec_y))
 
     # reduce Mantid
     data_ws = mantid_reducer.get_workspace()
     resolution = (pyrs_vec_x[-1] - pyrs_vec_x[0]) / 2500
     reduced_data = mantid_reducer.reduce_to_2theta(data_ws.name(), two_theta_min=min_2theta,
                                                    two_theta_max=max_2theta,
-                                                   num_2theta_bins=resolution,
+                                                   num_2theta_bins=2500,
                                                    mask=None)
     mantid_vec_x = reduced_data[0]
     mantid_vec_y = reduced_data[1]
@@ -233,7 +239,7 @@ def compare_reduced_no_mask(calibrated, pixel_number=2048):
 
 
 # TODO - TONIGHT 0 - Need to compare 7 masks
-def compare_reduced_masked(calibrated, pixel_number=2048):
+def compare_reduced_masked(angle, calibrated, pixel_number=2048):
     """
     Compare reduced data without mask
     :param calibrated:
@@ -241,6 +247,8 @@ def compare_reduced_masked(calibrated, pixel_number=2048):
     :return:
     """
     engine, pyrs_reducer, mantid_reducer = compare_geometry_test(calibrated, pixel_number, False)
+
+    test_mask = Mask_File[angle]
 
     # load mask: mask file
     print ('Load masking file: {}'.format(test_mask))
@@ -303,11 +311,11 @@ if __name__ == '__main__':
         elif option == 5:
             compare_reduced_no_mask(False)
         elif option == 6:
-            compare_reduced_masked(True)
-        elif option == 7:
-            compare_reduced_masked(False)
-        elif option == 8:
             compare_reduced_no_mask(True)
+        elif option == 7:
+            compare_reduced_masked(angle=0, calibrated=False, pixel_number=2048)
+        elif option == 8:
+            compare_reduced_masked(angle=0, calibrated=True, pixel_number=2048)
         else:
             raise NotImplementedError('ASAP')
 

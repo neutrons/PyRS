@@ -50,14 +50,14 @@ echo "User option: $1"
 
 if [ "$1" = "1" ] || [ "$1" = "geometry" ] ; then
     echo "Comparing instrument geometry"
-    # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 1
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 1
     PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 2
 fi
 
 if [ "$1" = "2" ] || [ "$1" = "2theta" ] ; then
     echo "Comparing converted 2theta from geometry"
     PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 3
-    # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 4
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 4
 fi
 
 
@@ -65,9 +65,17 @@ if [ "$1" = "3" ] || [ "$1" = "counts" ] ; then
     echo "With engine changed, no need to compare counts any more"
 fi
 
-if [ "$1" = "4" ] || [ "$1" = "reduce-pyrs-all" ] ; then
+if [ "$1" = "4" ] || [ "$1" = "reduction-all" ] ; then
     echo "Testing Reduction with ROI around solid angle 0 degree"
-    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 5
+    # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 5
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 6
+
+fi
+
+if [ "$1" = "5" ] || [ "$1" = "reduction-0" ] ; then
+    echo "Testing Reduction with ROI around solid angle 0 degree"
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 7
+    # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 6
 
 fi
 

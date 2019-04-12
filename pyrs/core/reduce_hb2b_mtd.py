@@ -159,6 +159,7 @@ class MantidHB2BReduction(object):
             # use numpy histogram
             raw_2theta = raw_data_ws.readX(0)
             raw_counts = raw_data_ws.readY(0)
+            print ('bins = {}'.format(num_bins))
             vec_y, vec_2theta = numpy.histogram(raw_2theta, bins=num_bins, range=(two_theta_min, two_theta_max),
                                                 weights=raw_counts)
             vec_e = numpy.sqrt(vec_y)
