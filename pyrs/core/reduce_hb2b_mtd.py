@@ -104,13 +104,13 @@ class MantidHB2BReduction(object):
 
         return raw_data_ws
 
-    def reduce_to_2theta(self, matrix_ws_name, two_theta_min=None, two_theta_max=None, two_theta_resolution=None,
+    def reduce_to_2theta(self, matrix_ws_name, two_theta_min=None, two_theta_max=None, num_2theta_bins=None,
                          mask=None, target_vec_2theta=None):
         """ Reduce the raw matrix workspace, with instrument already loaded, to 2theta
         :param matrix_ws_name:
         :param two_theta_min:
         :param two_theta_max:
-        :param two_theta_resolution:
+        :param num_2theta_bins:
         :param mask:
         :return:
         """
@@ -135,9 +135,10 @@ class MantidHB2BReduction(object):
             checkdatatypes.check_float_variable('Maximum 2theta for binning', two_theta_max, (-180, 180))
         if two_theta_min >= two_theta_max:
             raise RuntimeError('2theta range ({}, {}) is not acceptable.'.format(two_theta_min, two_theta_max))
-        if two_theta_resolution is not None:
-            checkdatatypes.check_float_variable('2theta resolution', two_theta_resolution, (0.0001, 10))
-            num_bins = int((two_theta_max - two_theta_min) / two_theta_resolution)
+        if num_2theta_bins is not None:
+            # checkdatatypes.check_float_variable('2theta resolution', num_2theta_bins, (0.0001, 10))
+            # num_bins = int((two_theta_max - two_theta_min) / num_2theta_bins)
+            num_bins = num_2theta_bins
         else:
             num_bins = self._num_bins
 

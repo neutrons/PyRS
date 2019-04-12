@@ -345,7 +345,7 @@ class HB2BReductionManager(object):
             # reduce data
             r = mantid_reducer.reduce_to_2theta(data_ws_name, mask=mask_vec,
                                                 two_theta_min=min_2theta, two_theta_max=max_2theta,
-                                                two_theta_resolution=resolution_2theta)
+                                                num_2theta_bins=resolution_2theta)
 
             self._curr_vec_x = r[0]
             self._curr_vec_y = r[1]

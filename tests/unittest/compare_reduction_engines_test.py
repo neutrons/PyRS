@@ -200,17 +200,22 @@ def compare_reduced_no_mask(calibrated, pixel_number=2048):
     # load data and do 5 points geometry test
     engine, pyrs_reducer, mantid_reducer = compare_geometry_test(calibrated, pixel_number, check_all_pixels=False)
 
-    # reduce PyRS
-    curr_id = engine.current_data_id
-    pyrs_vec_x, pyrs_vec_y = pyrs_reducer.reduce_to_2theta_histogram(counts_array=engine.get_counts(curr_id),
-                                                                     mask=None, x_range=(8., 64.),
-                                                                     num_bins=2500)
+    min_2theta = 8.
+    max_2theta = 64.
 
+    # reduce PyRS (pure python)
+    curr_id = engine.current_data_id
+    pyrs_returns = pyrs_reducer.reduce_to_2theta_histogram(counts_array=engine.get_counts(curr_id),
+                                                           mask=None, x_range=(min_2theta, max_2theta),
+                                                           num_bins=2500)
+    pyrs_vec_x, pyrs_vec_y, raw_vec_2theta, raw_vec_count = pyrs_returns
+
+    # reduce Mantid
     data_ws = mantid_reducer.get_workspace()
     resolution = (pyrs_vec_x[-1] - pyrs_vec_x[0]) / 2500
-    reduced_data = mantid_reducer.reduce_to_2theta(data_ws.name(), two_theta_min=pyrs_vec_x[0],
-                                                   two_theta_max=pyrs_vec_x[-1],
-                                                   two_theta_resolution=resolution,
+    reduced_data = mantid_reducer.reduce_to_2theta(data_ws.name(), two_theta_min=min_2theta,
+                                                   two_theta_max=max_2theta,
+                                                   num_2theta_bins=resolution,
                                                    mask=None)
     mantid_vec_x = reduced_data[0]
     mantid_vec_y = reduced_data[1]
@@ -252,7 +257,7 @@ def compare_reduced_masked(calibrated, pixel_number=2048):
     resolution = (pyrs_vec_x[-1] - pyrs_vec_x[0]) / (2500 - 1)
     mantid_vec_x, mantid_vec_y = mantid_reducer.reduce_to_2theta(data_ws.name(), two_theta_min=pyrs_vec_x[0],
                                                                  two_theta_max=pyrs_vec_x[-1],
-                                                                 two_theta_resolution=resolution,
+                                                                 num_2theta_bins=resolution,
                                                                  mask=mask_vec)
 
     diff_x = numpy.sqrt(numpy.sum((pyrs_vec_x - mantid_vec_x)**2))
