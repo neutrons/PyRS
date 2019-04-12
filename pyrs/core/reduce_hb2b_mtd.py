@@ -94,7 +94,7 @@ class MantidHB2BReduction(object):
                ''.format(matrix_ws.getNumberHistograms(), matrix_ws.getAxis(0).getUnit().unitID()))
 
         ConvertSpectrumAxis(InputWorkspace=matrix_ws_name, Target='Theta', OutputWorkspace=matrix_ws_name,
-                            EnableLogging=False, OrderAxis=not test_mode)
+                            EnableLogging=False, OrderAxis=False)
 
         # convert from N-spectra-single element to 1-spectrum-N-element
         raw_data_ws = Transpose(InputWorkspace=matrix_ws_name, OutputWorkspace=matrix_ws_name, EnableLogging=False)

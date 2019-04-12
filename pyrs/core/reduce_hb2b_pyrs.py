@@ -385,7 +385,7 @@ class PyHB2BReduction(object):
         if is_point_data:
             delta_bin = bin_edges[1] - bin_edges[0]
             bin_edges += delta_bin * 0.5
-            bin_edges = bin_edges[:-1]
+            bin_edges = bin_edges
 
         return bin_edges, hist
 # END-CLASS

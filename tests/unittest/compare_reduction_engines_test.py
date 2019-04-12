@@ -168,7 +168,7 @@ def compare_convert_2theta(calibrated, pixel_number=2048):
     print ('Pixel matrix shape = {}'.format(pixel_matrix.shape))
     pyrs_2theta_vec = pyrs_reducer.convert_to_2theta(pixel_matrix)
     print ('Shape: {}'.format(pyrs_2theta_vec.shape))
-    pyrs_2theta_vec = pyrs_2theta_vec.transpose().flatten()  # 1D vector
+    # pyrs_2theta_vec = pyrs_2theta_vec.transpose().flatten()  # 1D vector
 
     raw_ws_name = mantid_reducer.get_workspace().name()
     mantid_2theta_vec = mantid_reducer.convert_from_raw_to_2theta(raw_ws_name, test_mode=True).readX(0)
@@ -219,8 +219,8 @@ def compare_reduced_no_mask(calibrated, pixel_number=2048):
     diff_y = numpy.sqrt(numpy.sum((pyrs_vec_y - mantid_vec_y)**2))/mantid_vec_y.shape[0]
 
     print ('Diff[X]  =  {},  Diff[Y]  =  {}'.format(diff_x, diff_y))
-    plt.plot(pyrs_vec_x, pyrs_vec_y, color='blue', label='PyRS')
-    plt.plot(mantid_vec_x, mantid_vec_y, color='red', label='Mantid')
+    plt.plot(pyrs_vec_x[:-1], pyrs_vec_y, color='blue', label='PyRS')
+    plt.plot(mantid_vec_x[:-1], mantid_vec_y, color='red', label='Mantid')
     plt.legend()
     plt.show()
 
