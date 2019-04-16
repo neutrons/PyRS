@@ -162,7 +162,25 @@ class MantidHB2BReduction(object):
             print ('bins = {}'.format(num_bins))
             vec_y, vec_2theta = numpy.histogram(raw_2theta, bins=num_bins, range=(two_theta_min, two_theta_max),
                                                 weights=raw_counts)
-            vec_e = numpy.sqrt(vec_y)
+
+            # TODO - NEXT - Here is where the detector efficiency (vanadium) and Lorentzian correction step in
+            # blabla .. ...
+
+            # take care of normalization
+            vec_1 = numpy.zeros(raw_counts.shape) + 1
+            vec_weights, v2t = numpy.histogram(raw_2theta, bins=num_bins, range=(two_theta_min, two_theta_max),
+                                               weights=vec_1)
+            # correct all the zero count bins
+            for i, bin_weight_i in enumerate(vec_weights):
+                if bin_weight_i < 1.E-2:  # practically zero
+                    vec_weights[i] = 1.E5
+            # END-FOR
+
+            # normalize by bin weight
+            vec_y = vec_y / vec_weights
+
+            # process the uncertainty
+            vec_e = numpy.sqrt(vec_y)   # FIXME TODO - This is not accurate!
 
         # do some study on the workspace dimension
         print ('[DB...BAT] 2theta range: {}, {}; 2theta-size = {}, Y-size = {}'
