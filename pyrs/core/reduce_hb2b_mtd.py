@@ -71,7 +71,7 @@ class MantidHB2BReduction(object):
 
         # TODO - FUTURE - Need to find out which one, resolution or number of bins, is more essential
         self._2theta_resolution = 0.1
-        self._num_bins = 2500
+        self._num_bins = 1800  # NUM_BINS = [1800, 2500]
 
         return
 

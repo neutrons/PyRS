@@ -66,16 +66,16 @@ if [ "$1" = "3" ] || [ "$1" = "counts" ] ; then
 fi
 
 if [ "$1" = "4" ] || [ "$1" = "reduction-all" ] ; then
-    echo "Testing Reduction with ROI around solid angle 0 degree"
+    echo "Testing Reduction Without ROI/Mask"
     PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 5
-    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 6
+    # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 6
 
 fi
 
 if [ "$1" = "5" ] || [ "$1" = "reduction-0" ] ; then
     echo "Testing Reduction with ROI around solid angle 0 degree"
     PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 7
-    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 8
+    # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 8
 fi
 
 if [ "$1" = "6" ] || [ "$1" = "reduction-10" ] ; then

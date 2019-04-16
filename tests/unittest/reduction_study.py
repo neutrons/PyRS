@@ -32,9 +32,7 @@ if False:
 Mask_File = {0: 'tests/testdata/masks/Chi_0.hdf5',
              10: 'tests/testdata/masks/Chi_10.hdf5',
              20: 'tests/testdata/masks/Chi_20.hdf5',
-             -10: 'tests/testdata/masks/Chi_Neg10.hdf5',
-             30: 'tests/testdata/masks/Chi_30.hdf5',
-             -30: 'tests/testdata/masks/Chi_Neg30.hdf5'}
+             -10: 'tests/testdata/masks/Chi_Neg10.hdf5'}
 print ('Data file {0} exists? : {1}'.format(test_data, os.path.exists(test_data)))
 
 
@@ -88,87 +86,22 @@ def create_instrument_load_data(calibrated, pixel_number):
     pyrs_reducer.build_instrument(two_theta, arm_length_shift, center_shift_x, center_shift_y,
                                   rot_x_flip, rot_y_flip, rot_z_spin)
 
-    mantid_reducer = reduce_hb2b_mtd.MantidHB2BReduction()
-    data_ws_name = engine.get_raw_data(test_data_id, is_workspace=True)
-    mantid_reducer.set_workspace(data_ws_name)
-    mantid_reducer.load_instrument(two_theta, xray_idf_name, test_calibration)
+    # mantid_reducer = reduce_hb2b_mtd.MantidHB2BReduction()
+    # data_ws_name = engine.get_raw_data(test_data_id, is_workspace=True)
+    # mantid_reducer.set_workspace(data_ws_name)
+    # mantid_reducer.load_instrument(two_theta, xray_idf_name, test_calibration)
 
-    return engine, pyrs_reducer, mantid_reducer
+    return engine, pyrs_reducer
 
 
-# step 1: geometry must be correct!
-def compare_geometry_test(calibrated, pixel_number=2048, check_all_pixels=False):
+def convert_to_2theta(calibrated, pixel_number=2048):
     """
-    Compare the geometry
-    :return:
-    """
-    engine, pyrs_reducer, mantid_reducer = create_instrument_load_data(calibrated, pixel_number)
-
-    # compare
-    # pyrs pixels
-    pixel_array = pyrs_reducer.get_pixel_positions(is_matrix=False)
-
-    # mantid workspace
-    workspace = mantid_reducer.get_workspace()
-
-    # check all pixels (optional)
-    if check_all_pixels:
-        num_pixels = workspace.getNumberHistograms()
-        mantid_pixel_array = numpy.ndarray((num_pixels, 3))
-        time0 = time.time()
-        for iws in range(num_pixels):
-            mantid_pixel_array[iws] = numpy.array(workspace.getDetector(iws).getPos())
-        # END-FOR
-        timef = time.time()
-        print ('Construct pixel position array: time = {}'.format(timef - time0))
-        # check the different of all the pixels
-        diff_vec = numpy.sqrt(((pixel_array - mantid_pixel_array) ** 2).sum(1))
-        print ('Pixels Positions Difference:  Min = {}, Max = {}'.format(diff_vec.min(), diff_vec.max()))
-        print ('Minimum difference @ {}-th Pixel; Maximum difference @ {}-th Pixel'.format(numpy.argmin(diff_vec), numpy.argmax(diff_vec)))
-        print ('Average pixel position difference among all pixels: {}'.format(numpy.average(diff_vec)))
-        print ('...................................................................')
-    else:
-        # check corners
-        # test 5 spots (corner and center): (0, 0), (0, 1023), (1023, 0), (1023, 1023), (512, 512)
-        pixel_locations = [(0, 0),
-                           (0, pixel_number - 1),
-                           (pixel_number - 1, 0),
-                           (pixel_number - 1, pixel_number - 1),
-                           (pixel_number / 2, pixel_number / 2)]
-
-        is_same = True
-        for index_i, index_j in pixel_locations:
-            index1d = index_i + pixel_number * index_j
-            pos_python = pixel_array[index1d]
-            pos_mantid = workspace.getDetector(index1d).getPos()
-            print ('({}, {}) / {}:   {:10s}   -   {:10s}    =   {:10s}'
-                   ''.format(index_i, index_j, index1d, 'PyRS', 'Mantid', 'Diff'))
-            diff_sq = 0.
-            for i in range(3):
-                diff_sq += (float(pos_python[i] - pos_mantid[i])) ** 2
-                print ('dir {}:  {:10f}   -   {:10f}    =   {:10f}'
-                       ''.format(i, float(pos_python[i]), float(pos_mantid[i]),
-                                 float(pos_python[i] - pos_mantid[i])))
-            # END-FOR
-            if diff_sq > 1.E-6:
-                is_same = False
-        # END-FOR
-
-        assert is_same, 'Instrument geometries from 2 engines do not match!'
-    # END-IF
-
-
-    return engine, pyrs_reducer, mantid_reducer
-
-
-def compare_convert_2theta(calibrated, pixel_number=2048):
-    """
-    compare the 2 reduction engines' output to 2theta
+    study the 2 reduction engines' output to 2theta
     :param calibrated:
     :param pixel_number:
     :return:
     """
-    engine, pyrs_reducer, mantid_reducer = compare_geometry_test(calibrated, pixel_number, False)
+    engine, pyrs_reducer = create_instrument_load_data(calibrated, pixel_number)
 
     # compare 2theta
     pixel_matrix = pyrs_reducer.get_pixel_positions(is_matrix=False)
@@ -177,24 +110,9 @@ def compare_convert_2theta(calibrated, pixel_number=2048):
     print ('Shape: {}'.format(pyrs_2theta_vec.shape))
     # pyrs_2theta_vec = pyrs_2theta_vec.transpose().flatten()  # 1D vector
 
-    raw_ws_name = mantid_reducer.get_workspace().name()
-    mantid_2theta_vec = mantid_reducer.convert_from_raw_to_2theta(raw_ws_name, test_mode=True).readX(0)
 
-    # compare shape
-    assert pyrs_2theta_vec.shape == mantid_2theta_vec.shape, 'Shapes ({} vs {}) shall be same' \
-                                                             ''.format(pyrs_2theta_vec.shape, mantid_2theta_vec.shape)
 
-    diff = numpy.sqrt(numpy.sum(((pyrs_2theta_vec - mantid_2theta_vec) ** 2)))  # / pyrs_2theta_vec.shape[0]
-
-    any_pixel = 30000
-    for i in range(any_pixel, any_pixel + 30):
-        print ('[DB...TEST...VISUAL... CHECK] {}   -   {}    =    {}'
-               ''.format(pyrs_2theta_vec[i], mantid_2theta_vec[i], pyrs_2theta_vec[i] - mantid_2theta_vec[i]))
-    print ('[TEST RESULT] For {} pixels, DIFF = {}'.format(pyrs_2theta_vec.shape, diff))
-
-    assert diff < 1., 'Difference {} is too big!'.format(diff)
-
-    return pyrs_reducer, mantid_reducer
+    return pyrs_reducer
 
 
 def compare_reduced_no_mask(calibrated, pixel_number=2048):
@@ -207,26 +125,24 @@ def compare_reduced_no_mask(calibrated, pixel_number=2048):
     # load data and do 5 points geometry test
     engine, pyrs_reducer, mantid_reducer = compare_geometry_test(calibrated, pixel_number, check_all_pixels=False)
 
-    min_2theta = 15.0 # 8.
-    max_2theta = 55.0 # 64.
-
-    NUM_BINS = 1800  # 2500
+    min_2theta = 8.
+    max_2theta = 64.
 
     # reduce PyRS (pure python)
     curr_id = engine.current_data_id
     pyrs_returns = pyrs_reducer.reduce_to_2theta_histogram(counts_array=engine.get_counts(curr_id),
                                                            mask=None, x_range=(min_2theta, max_2theta),
-                                                           num_bins=NUM_BINS)
+                                                           num_bins=2500)
     # pyrs_vec_x, pyrs_vec_y, raw_vec_2theta, raw_vec_count = pyrs_returns
     pyrs_vec_x, pyrs_vec_y = pyrs_returns
     print ('Debug Output: (pyrs) vec Y: sum = {}\n{}'.format(pyrs_vec_y.sum(), pyrs_vec_y))
 
     # reduce Mantid
     data_ws = mantid_reducer.get_workspace()
-    resolution = (pyrs_vec_x[-1] - pyrs_vec_x[0]) / NUM_BINS
+    resolution = (pyrs_vec_x[-1] - pyrs_vec_x[0]) / 2500
     reduced_data = mantid_reducer.reduce_to_2theta(data_ws.name(), two_theta_min=min_2theta,
                                                    two_theta_max=max_2theta,
-                                                   num_2theta_bins=NUM_BINS,
+                                                   num_2theta_bins=2500,
                                                    mask=None)
     mantid_vec_x = reduced_data[0]
     mantid_vec_y = reduced_data[1]
@@ -263,17 +179,15 @@ def compare_reduced_masked(angle, calibrated, pixel_number=2048):
     mask_vec, mask_2theta, note = mask_util.load_pyrs_mask(test_mask)
     print ('Mask file {}: 2theta = {}'.format(test_mask, mask_2theta))
 
-    NUM_BINS = 1800
-
     # reduce data
-    min_2theta = 15.
-    max_2theta = 55.
+    min_2theta = 8.
+    max_2theta = 64.
 
     # reduce PyRS (pure python)
     curr_id = engine.current_data_id
     pyrs_returns = pyrs_reducer.reduce_to_2theta_histogram(counts_array=engine.get_counts(curr_id),
                                                            mask=mask_vec, x_range=(min_2theta, max_2theta),
-                                                           num_bins=NUM_BINS)
+                                                           num_bins=2500)
     pyrs_vec_x, pyrs_vec_y = pyrs_returns
 
     # reduce by Mantid
@@ -281,7 +195,7 @@ def compare_reduced_masked(angle, calibrated, pixel_number=2048):
     reduced_data = mantid_reducer.reduce_to_2theta(data_ws.name(),
                                                    two_theta_min=min_2theta,
                                                    two_theta_max=max_2theta,
-                                                   num_2theta_bins=NUM_BINS,
+                                                   num_2theta_bins=2500,
                                                    mask=mask_vec)
     mantid_vec_x = reduced_data[0]
     mantid_vec_y = reduced_data[1]
