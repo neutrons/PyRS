@@ -176,11 +176,14 @@ class MantidHB2BReduction(object):
                     vec_weights[i] = 1.E5
             # END-FOR
 
+            # calculate uncertainties before vec Y is changed
+            # process the uncertainty
+            vec_e = numpy.sqrt(vec_y)
+
             # normalize by bin weight
             vec_y = vec_y / vec_weights
-
-            # process the uncertainty
-            vec_e = numpy.sqrt(vec_y)   # FIXME TODO - This is not accurate!
+            vec_e = vec_e / vec_weights  # for example: 3 measuremnts: n, n , n, then by this e = sqrt(n/3)
+        # END-IF-ELSE
 
         # do some study on the workspace dimension
         print ('[DB...BAT] 2theta range: {}, {}; 2theta-size = {}, Y-size = {}'
