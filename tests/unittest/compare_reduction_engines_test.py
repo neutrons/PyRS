@@ -1,6 +1,5 @@
 #!/usr/bin/python
 # Test to verify that two reduction engines, Mantid and PyRS, will give out identical result
-
 import os
 import sys
 from pyrs.core import reduce_hb2b_mtd
@@ -48,7 +47,7 @@ def create_instrument_load_data(calibrated, pixel_number):
     instrument = calibration_file_io.import_instrument_setup(xray_2k_instrument_file)
 
     # 2theta
-    two_theta = 35.
+    two_theta = -35.
     arm_length_shift = 0.
     center_shift_x = 0.
     center_shift_y = 0.
@@ -106,12 +105,15 @@ def compare_geometry_test(calibrated, pixel_number=2048, check_all_pixels=False)
 
     # compare
     # pyrs pixels
+    print ('About to get pixel positions')
     pixel_array = pyrs_reducer.get_pixel_positions(is_matrix=False)
 
     # mantid workspace
+    print ('About to get workspace')
     workspace = mantid_reducer.get_workspace()
 
     # check all pixels (optional)
+    print ('Check All Pixels... Taking long time')
     if check_all_pixels:
         num_pixels = workspace.getNumberHistograms()
         mantid_pixel_array = numpy.ndarray((num_pixels, 3))
@@ -286,13 +288,26 @@ def compare_reduced_masked(angle, calibrated, pixel_number=2048):
     mantid_vec_x = reduced_data[0]
     mantid_vec_y = reduced_data[1]
 
-    # compare result
-    diff_x = numpy.sqrt(numpy.sum((pyrs_vec_x - mantid_vec_x)**2))/mantid_vec_x.shape[0]
-    diff_y = numpy.sqrt(numpy.sum((pyrs_vec_y - mantid_vec_y)**2))/mantid_vec_y.shape[0]
+    # possible convert
+    if mantid_vec_x.shape[0] == pyrs_vec_x.shape[0] - 1:
+        # partial compare result
+        print ('Mantid ResampleX return: shape = {}, {}'.format(mantid_vec_x.shape,
+                                                                mantid_vec_y.shape))
 
-    print ('Diff[X]  =  {},  Diff[Y]  =  {}'.format(diff_x, diff_y))
-    plt.plot(pyrs_vec_x[:-1], pyrs_vec_y, color='blue', label='PyRS')
-    plt.plot(mantid_vec_x[:-1], mantid_vec_y, color='red', label='Mantid')
+        diff_y = numpy.sqrt(numpy.sum((pyrs_vec_y - mantid_vec_y)**2))/mantid_vec_y.shape[0]
+
+        print ('Diff[X]  =  Not Calculated,  Diff[Y]  =  {}'.format(diff_y))
+        plt.plot(pyrs_vec_x[:-1], pyrs_vec_y, color='blue', label='PyRS')
+        plt.plot(mantid_vec_x, mantid_vec_y, color='red', label='Mantid')
+    else:
+        # compare result
+        diff_x = numpy.sqrt(numpy.sum((pyrs_vec_x - mantid_vec_x) ** 2)) / mantid_vec_x.shape[0]
+        diff_y = numpy.sqrt(numpy.sum((pyrs_vec_y - mantid_vec_y)**2))/mantid_vec_y.shape[0]
+
+        print ('Diff[X]  =  {},  Diff[Y]  =  {}'.format(diff_x, diff_y))
+        plt.plot(pyrs_vec_x[:-1], pyrs_vec_y, color='blue', label='PyRS')
+        plt.plot(mantid_vec_x[:-1], mantid_vec_y, color='red', label='Mantid')
+
     plt.legend()
     plt.show()
 
@@ -344,6 +359,10 @@ if __name__ == '__main__':
             compare_reduced_masked(angle=20, calibrated=False, pixel_number=2048)
         elif option == 12:
             compare_reduced_masked(angle=20, calibrated=True, pixel_number=2048)
+        elif option == 13:
+            compare_reduced_masked(angle=30, calibrated=False, pixel_number=2048)
+        elif option == 14:
+            compare_reduced_masked(angle=30, calibrated=True, pixel_number=2048)
         else:
             raise NotImplementedError('ASAP')
 

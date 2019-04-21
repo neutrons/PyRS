@@ -5,7 +5,7 @@ python setup.py build
 echo 
 MANTIDLOCALPATH=/home/wzz/Mantid_Project/debug/bin/
 MANTIDMACPATH=/Users/wzz/MantidBuild/debug/bin/
-MANTIDSNSDEBUGPATH=/SNS/users/wzz/Mantid_Project/builds/debug/bin/
+# MANTIDSNSDEBUGPATH=/SNS/users/wzz/Mantid_Project/builds/debug/bin/
 MANTIDPATH=$MANTIDMACPATH:$MANTIDLOCALPATH:$MANTIDSNSDEBUGPATH
 PYTHONPATH=$MANTIDPATH:$PYTHONPATH
 echo "PYTHON PATH: "
@@ -36,6 +36,8 @@ else
     echo "(5) [compare] reduction-0   (with ROI on 0 degree)"
     echo "(6) [compare] reduction-10  (with ROI on +10 degree)"
     echo "(7) [compare] reduction-20  (with ROI on +20 degree)"
+    echo "(8) [compare] reduction-30  (with ROI on +30 degree)"
+    echo "(111) [study] reduction study"
     echo "(104) reduce-pyrs-all"
     echo "(105) reduce-pyrs-0degree"
     echo "(106) reduce-pyrs-10degree"
@@ -47,17 +49,21 @@ fi
 
 echo "User option: $1"
 
+if [ "$1" = "111" ] || [ "$1" = "study" ] ; then
+    echo "Comparing instrument geometry"
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./build/scripts-2.7/reduction_study.py
+fi
 
 if [ "$1" = "1" ] || [ "$1" = "geometry" ] ; then
     echo "Comparing instrument geometry"
-    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 1
-    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 2
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./build/scripts-2.7/compare_reduction_engines_test.py 1
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./build/scripts-2.7/compare_reduction_engines_test.py 2
 fi
 
 if [ "$1" = "2" ] || [ "$1" = "2theta" ] ; then
     echo "Comparing converted 2theta from geometry"
     PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 3
-    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 4
+    # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 4
 fi
 
 
@@ -79,13 +85,19 @@ if [ "$1" = "5" ] || [ "$1" = "reduction-0" ] ; then
 fi
 
 if [ "$1" = "6" ] || [ "$1" = "reduction-10" ] ; then
-    echo "Testing Reduction with ROI around solid angle +35 degree"
+    echo "Testing Reduction with ROI around solid angle +10 degree"
     PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 9
 fi
 
 if [ "$1" = "7" ] || [ "$1" = "reduction-20" ] ; then
-    echo "Testing Reduction with ROI around solid angle +35 degree"
-    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 11
+    echo "Testing Reduction with ROI around solid angle +20 degree"
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./build/scripts-2.7/compare_reduction_engines_test.py 11
+fi
+
+
+if [ "$1" = "8" ] || [ "$1" = "reduction-30" ] ; then
+    echo "Testing Reduction with ROI around solid angle +30 degree"
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./build/scripts-2.7/compare_reduction_engines_test.py 13
 fi
 
 if [ "$1" = "105" ] || [ "$1" = "reduce-pyrs-0degree" ] ; then

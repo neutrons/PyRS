@@ -227,7 +227,7 @@ if __name__ == '__main__':
                '\t\t7 = reducing to 2theta-intensity with mask (basic)\n'
                '\t\t8 = reducing to 2theta-intensity with mask (arbitrary calibration)'.format(sys.argv[0]),
                '\t\t10 = counts on detector ID (raw)\n'
-               '\t\t11 = counts on detector ID (ROI =   0 degree)\n',
+               '\t\t11 = counts on detector ID (ROI =   0 degree)\n'
                '\t\t12 = counts on detector ID (ROI =  10 degree)\n',
                '\t\t13 = counts on detector ID (ROI = -10 degree)\n',
                )

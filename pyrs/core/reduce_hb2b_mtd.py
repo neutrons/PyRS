@@ -2,6 +2,7 @@ import os
 import numpy
 from mantid.simpleapi import FilterEvents, LoadEventNexus, LoadInstrument, GenerateEventsFilter
 from mantid.simpleapi import ConvertSpectrumAxis, ResampleX, Transpose, AddSampleLog, GeneratePythonScript
+from mantid.simpleapi import SortXAxis, CreateWorkspace
 from mantid.api import AnalysisDataService as ADS
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities import file_util
@@ -83,6 +84,8 @@ class MantidHB2BReduction(object):
         :param test_mode: test mode.... cannot give out correct result
         :return: workspace in unit 2theta and transposed to 1-spectrum workspace (handler)
         """
+        print ('[DB...BAT] Report: Convert raw to 2theta')
+
         # check input
         checkdatatypes.check_string_variable('Input raw data workspace name', matrix_ws_name)
         if not ADS.doesExist(matrix_ws_name):
@@ -155,6 +158,40 @@ class MantidHB2BReduction(object):
             # proved that histogram_data == numpy.histogram
             assert target_vec_2theta is not None, 'In this case, target vector X shall be obtained from '
             vec_2theta, vec_y, vec_e = histogram_data(raw_data_ws.readX(0), raw_data_ws.readY(0), target_vec_2theta)
+        elif True:
+            # experimenting to use SortXAxis, (modified) ResampleX
+            import time
+            t0 = time.time()
+
+            raw_2theta = raw_data_ws.readX(0)
+            raw_counts = raw_data_ws.readY(0)
+            raw_error = raw_data_ws.readE(0)
+
+            # create a 1-spec workspace
+            CreateWorkspace(DataX=raw_2theta, DataY=raw_counts, DataE=raw_error, NSpec=1, OutputWorkspace='prototype')
+
+            t1 = time.time()
+
+            # Sort X-axis
+            SortXAxis(InputWorkspace='prototype', OutputWorkspace='prot_sorted', Ordering='Ascending',
+                      IgnoreHistogramValidation=True)
+
+            t2 = time.time()
+
+            # Resample
+            binned = ResampleX(InputWorkspace='prot_sorted', OutputWorkspace=matrix_ws_name, XMin=two_theta_min,
+                      XMax=two_theta_max,
+                      NumberBins=num_bins, EnableLogging=False)
+
+            t3 = time.time()
+
+            print ('[STAT] Create workspace: {}\n\tSort: {}\n\tResampleX: {}'
+                   ''.format(t1 - t0, t2 - t0, t3 - t0))
+
+            vec_2theta = binned.readX(0)
+            vec_y = binned.readY(0)
+            vec_e = binned.readY(0)
+
         else:
             # use numpy histogram
             raw_2theta = raw_data_ws.readX(0)
@@ -404,6 +441,7 @@ class MantidHB2BReduction(object):
         # END-IF-TRY
 
         if add_2theta:
+            print ('[INFO] 2theta degree = {}'.format(two_theta_value))
             AddSampleLog(Workspace=self._data_ws_name, LogName='2theta',
                          LogText='{}'.format(two_theta_value),  # arm_length-DEFAULT_ARM_LENGTH),
                          LogType='Number Series', LogUnit='meter',

@@ -266,6 +266,8 @@ class PyHB2BReduction(object):
         :param rot_z_spin:
         :return: 2D numpy array
         """
+        print ('[INFO] Building instrument: 2theta @ {}'.format(two_theta))
+
         calibration = calibration_file_io.ResidualStressInstrumentCalibration()
         calibration.center_shift_z = arm_length_shift
         calibration.center_shift_x = center_shift_x

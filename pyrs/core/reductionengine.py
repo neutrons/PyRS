@@ -299,6 +299,7 @@ class HB2BReductionManager(object):
 
         return
 
+    # TODO - TONIGHT 0 - This script does not work correctly! Refer to compare_reduction_engines_tst
     def reduce_to_2theta(self, data_id, output_name, use_mantid_engine, mask, two_theta,
                          min_2theta=None, max_2theta=None, resolution_2theta=None):
         """
@@ -332,6 +333,11 @@ class HB2BReductionManager(object):
         else:
             mask_vec = mask
             mask_id = hash('{}'.format(mask_vec.min())) + hash('{}'.format(mask_vec.max())) + hash('{}'.format(mask_vec.mean()))
+
+        # process two theta
+        print ('[INFO] User specified 2theta = {} is converted to Mantid 2theta = {}'
+               ''.format(two_theta, -two_theta))
+        two_theta = -two_theta
 
         if use_mantid_engine:
             # init mantid reducer and add workspace in ADS
