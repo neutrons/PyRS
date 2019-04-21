@@ -5,7 +5,6 @@ import calibration_file_io
 from pyrs.utilities import checkdatatypes
 
 
-
 class ResidualStressInstrument(object):
     """
     This is a class to define HB2B instrument geometry and related calculation
@@ -20,8 +19,10 @@ class ResidualStressInstrument(object):
 
         self._init_setup = instrument_setup
 
-        self._raw_pixel_matrix = self._set_uncalibrated_pixels()  # never been used for external client
-        self._pixel_matrix = None  # used by external after build_instrument
+        self._raw_pixel_matrix = self._set_uncalibrated_pixels()  # never been used for external client: len(shape) = 3
+
+        self._pixel_matrix = None  # used by external after build_instrument: matrix for pixel positions
+        self._pixel_2theta_matrix = None  # matrix for pixel's 2theta value
 
         return
 
@@ -45,8 +46,11 @@ class ResidualStressInstrument(object):
     def _set_uncalibrated_pixels(self):
         """
         set up a matrix of pixels instrument on XY plane (Z=0)
-        Note: this is not a useful geometry because arm length is not set
-        :return:
+        Note:
+          1. the pixel matrix is set up such that with a simple reshape to 1D, the order of the pixel ID is ordered
+             from lower left corner, going up and then going right.
+          2. this is not a useful geometry because arm length is not set.
+        :return: numpy.ndarray; shape = (num_rows) x (num_cols) x 3
         """
         assert self._init_setup is not None, 'Initial instrument setup is not set yet'
 
@@ -72,11 +76,18 @@ class ResidualStressInstrument(object):
         # set Z: zero at origin
         pixel_matrix[:, :, 2] = 0.
 
+        # Transpose is required to match instrument pixel ID arrangement:
+        # This is the only pixel positions to be transposed in the instrument setup
+        # Causing Error?  FIXME -
+        pixel_matrix = pixel_matrix.transpose((1, 0, 2))
+
         return pixel_matrix
 
     def build_instrument(self, two_theta, instrument_calibration):
         """
         build instrument considering calibration
+        step 1: rotate instrument according to the calibration
+        step 2: rotate instrument about 2theta
         :param two_theta
         :param instrument_calibration:
         :return:
@@ -92,56 +103,84 @@ class ResidualStressInstrument(object):
         # shift center
         self._pixel_matrix[:, :, 0] += instrument_calibration.center_shift_x
         self._pixel_matrix[:, :, 1] += instrument_calibration.center_shift_y
-        print ('HB2B Lower Left: {}'.format(self._pixel_matrix[0, 0]))
 
         # get rotation matrix at origin (for flip, spin and vertical): all data from calibration value
         rot_x_flip = instrument_calibration.rotation_x * np.pi / 180.
         rot_y_flip = instrument_calibration.rotation_y * np.pi / 180.
         rot_z_spin = instrument_calibration.rotation_z * np.pi / 180.
         calib_matrix = self.generate_rotation_matrix(rot_x_flip, rot_y_flip, rot_z_spin)
-        print ('[DB...BAT] Calibration rotation matrix:\n{}'.format(calib_matrix))
+        # print ('[DB...BAT] Calibration rotation matrix:\n{}'.format(calib_matrix))
         # and rotate at origin
         self._pixel_matrix = self._rotate_detector(self._pixel_matrix, calib_matrix)
 
         # push to +Z at length of detector arm
+        print ('[DEBUG...DELETE LATER] arm length = {}'.format(self._init_setup.arm_length))
         self._pixel_matrix[:, :, 2] += self._init_setup.arm_length + instrument_calibration.center_shift_z
 
         # rotate 2theta
+        print ('[INFO] Build instrument with 2theta = {}'.format(two_theta))
         two_theta_rad = two_theta * np.pi / 180.
-        two_theta_matrix = self._cal_rotation_matrix_y(two_theta_rad)
-        print ('[DB...BAT] 2-theta rotation matrix:\n{}'.format(two_theta_matrix))
-        self._pixel_matrix = self._rotate_detector(self._pixel_matrix, two_theta_matrix)
+        two_theta_rot_matrix = self._cal_rotation_matrix_y(two_theta_rad)
+        # print ('[DB...BAT] 2-theta rotation matrix:\n{}'.format(two_theta_rot_matrix))
+        self._pixel_matrix = self._rotate_detector(self._pixel_matrix, two_theta_rot_matrix)
 
-        # # TODO - FIXME - AFTER TEST - Delete
-        # # compare position
-        # # test 5 spots (corner and center): (0, 0), (0, 1023), (1023, 0), (1023, 1023), (512, 512)
-        # pixel_number = self._pixel_matrix.shape[0]
-        # print ('HB2B instrument shape = '.format(self._pixel_matrix.shape))
-        # pixel_locations = [(0, 0),
-        #                    (0, pixel_number - 1),
-        #                    (pixel_number - 1, 0),
-        #                    (pixel_number - 1, pixel_number - 1),
-        #                    (pixel_number / 2, pixel_number / 2)]
-        # for index_i, index_j in pixel_locations:
-        #     # print ('PyRS:   ', pixel_matrix[index_i, index_j])
-        #     # print ('Mantid: ', workspace.getDetector(index_i + index_j * 1024).getPos())  # column major
-        #     pos_python = self._pixel_matrix[index_i, index_j]
-        #     index1d = index_i + pixel_number * index_j
-        #     # pos_mantid = workspace.getDetector(index1d).getPos()
-        #     print ('({}, {} / {}):   {:10s} '
-        #            ''.format(index_i, index_j, index1d, 'PyRS'))
-        #     diff_sq = 0.
-        #     for i in range(3):
-        #         # diff_sq += (float(pos_python[i] - pos_mantid[i]))**2
-        #         print ('dir {}:  {:10f}'
-        #                ''.format(i, float(pos_python[i])))  # float(pos_mantid[i])))
-        #     # END-FOR
-        #     if diff_sq > 1.E-6:
-        #         raise RuntimeError('Mantid PyRS mismatch!')
-        # # END-FOR
-        # # END-TEST-OUTPUT
+        # get 2theta too
+        self._calculate_pixel_2theta()
 
         return self._pixel_matrix
+
+    def _calculate_pixel_2theta(self):
+        """
+        convert the pixel position matrix to 2theta. Result is recorded to self._pixel_2theta_matrix
+        :return:
+        """
+        # check whether instrument is well built
+        if self._pixel_matrix is None:
+            raise RuntimeError('Instrument has not been built yet. Pixel matrix is missing')
+
+        # define
+        k_in_vec = [0, 0, 1]
+
+        des_pos_array = self._pixel_matrix.copy()
+
+        if len(self._pixel_matrix[:].shape) == 3:
+            # N x M x 3 array
+            # convert detector position matrix to 2theta
+
+            # normalize the detector position 2D array
+            det_pos_norm_matrix = np.sqrt(self._pixel_matrix[:][:, :, 0] ** 2 +
+                                          self._pixel_matrix[:][:, :, 1] ** 2 +
+                                          self._pixel_matrix[:][:, :, 2] ** 2)
+            # normalize pixel position for diffraction angle
+            for i_dir in range(3):
+                des_pos_array[:, :, i_dir] /= det_pos_norm_matrix
+
+            # convert to  2theta in degree
+            diff_angle_cos_matrix = des_pos_array[:, :, 0] * k_in_vec[0] + des_pos_array[:, :, 1] * k_in_vec[1] + \
+                                    des_pos_array[:, :, 2] * k_in_vec[2]
+            twotheta_matrix = np.arccos(diff_angle_cos_matrix) * 180 / np.pi
+
+            return_value = twotheta_matrix
+        else:
+            # (N x M) x 3 array
+            # convert detector positions array to 2theta array
+            # normalize the detector position 2D array
+            det_pos_norm_array = np.sqrt(des_pos_array[:, 0] ** 2 + des_pos_array[:, 1] ** 2 + des_pos_array[:, 2] ** 2)
+            # normalize pixel position for diffraction angle
+            for i_dir in range(3):
+                des_pos_array[:, i_dir] /= det_pos_norm_array
+
+            # convert to  2theta in degree
+            diff_angle_cos_array = des_pos_array[:, 0] * k_in_vec[0] + des_pos_array[:, 1] * k_in_vec[1] + \
+                                   des_pos_array[:, 2] * k_in_vec[2]
+            twotheta_array = np.arccos(diff_angle_cos_array) * 180 / np.pi
+
+            return_value = twotheta_array
+        # END-IF-ELSE
+
+        self._pixel_2theta_matrix = return_value
+
+        return
 
     def generate_rotation_matrix(self, rot_x_rad, rot_y_rad, rot_z_rad):
         """
@@ -154,12 +193,6 @@ class ResidualStressInstrument(object):
         rot_x_matrix = self._cal_rotation_matrix_x(rot_x_rad)
         rot_y_matrix = self._cal_rotation_matrix_y(rot_y_rad)
         rot_z_matrix = self._cal_rotation_matrix_z(rot_z_rad)
-
-        # print ('[DB...BAT] Rotation Matrix: X = {}, Y = {}, Z = {}'
-        #        ''.format(rot_x_rad, rot_y_rad, rot_z_rad))
-        # print (rot_x_matrix)
-        # print (rot_y_matrix)
-        # print (rot_z_matrix)
 
         rotation_matrix = rot_x_matrix * rot_y_matrix * rot_z_matrix
 
@@ -217,6 +250,23 @@ class ResidualStressInstrument(object):
 
         return self._pixel_matrix
 
+    def get_2theta_values(self, dimension):
+        """
+        get the 2theta values for all the pixels
+        :param dimension: 1 for array, 2 for matrix
+        :return:
+        """
+        if self._pixel_2theta_matrix is None:
+            raise RuntimeError('2theta values for all the pixels are not calculated yet. (instrument not built')
+
+        if dimension == 1:
+            m, n = self._pixel_2theta_matrix.shape
+            two_theta_values = self._pixel_2theta_matrix.reshape(shape=(m*n, ))
+        else:
+            two_theta_values = self._pixel_2theta_matrix[:, :]
+
+        return two_theta_values
+
     def get_pixel_array(self):
         """
         return the 1D array of pixels' coordination in the order of pixel IDs
@@ -230,13 +280,8 @@ class ResidualStressInstrument(object):
             raise RuntimeError('Pixel matrix shall have (x, y, 3) shape but not {}'
                                ''.format(self._pixel_matrix.shape))
 
-        # TODO - TODAY - Need to find out whether transpose is required from testing
-        if True:
-            pixel_pos_matrix = self._pixel_matrix.transpose((1, 0, 2))
-        else:
-            pixel_pos_matrix = self._pixel_matrix
-
-        pixel_pos_array = pixel_pos_matrix.reshape((num_x * num_y), 3)
+        # reshape to 1D
+        pixel_pos_array = self._pixel_matrix.reshape((num_x * num_y), 3)
 
         return pixel_pos_array
 
@@ -291,50 +336,6 @@ class PyHB2BReduction(object):
 
         return pixel_array
 
-    # TODO - TONIGHT 0 (big monitor) - consider to move this method to instrument
-    @staticmethod
-    def convert_to_2theta(des_pos_array):
-        """
-        convert the pixel position matrix to 2theta
-        :param des_pos_array: it could be an N x M x 3 array or an (N x M) x 3 array (input/output)
-        :return:
-        """
-        k_in_vec = [0, 0, 1]
-
-        if len(des_pos_array.shape) == 3:
-            # N x M x 3 array
-            # convert detector position matrix to 2theta
-            # normalize the detector position 2D array
-            det_pos_norm_matrix = np.sqrt(des_pos_array[:, :, 0] ** 2 + des_pos_array[:, :, 1] ** 2 + des_pos_array[:, :, 2] ** 2)
-            # normalize pixel position for diffraction angle
-            for i_dir in range(3):
-                des_pos_array[:, :, i_dir] /= det_pos_norm_matrix
-
-            # convert to  2theta in degree
-            diff_angle_cos_matrix = des_pos_array[:, :, 0] * k_in_vec[0] + des_pos_array[:, :, 1] * k_in_vec[1] + \
-                                    des_pos_array[:, :, 2] * k_in_vec[2]
-            twotheta_matrix = np.arccos(diff_angle_cos_matrix) * 180 / np.pi
-
-            return_value = twotheta_matrix
-        else:
-            # (N x M) x 3 array
-            # convert detector positions array to 2theta array
-            # normalize the detector position 2D array
-            det_pos_norm_array = np.sqrt(des_pos_array[:, 0] ** 2 + des_pos_array[:, 1] ** 2 + des_pos_array[:, 2] ** 2)
-            # normalize pixel position for diffraction angle
-            for i_dir in range(3):
-                des_pos_array[:, i_dir] /= det_pos_norm_array
-
-            # convert to  2theta in degree
-            diff_angle_cos_array = des_pos_array[:, 0] * k_in_vec[0] + des_pos_array[:, 1] * k_in_vec[1] + \
-                                   des_pos_array[:, 2] * k_in_vec[2]
-            twotheta_array = np.arccos(diff_angle_cos_array) * 180 / np.pi
-
-            return_value = twotheta_array
-        # END-IF-ELSE
-
-        return return_value
-
     def reduce_to_2theta_histogram(self, counts_array, mask, num_bins, x_range=None,
                                    is_point_data=True):
         """ convert the inputs (detector matrix and counts to 2theta histogram)
@@ -346,8 +347,11 @@ class PyHB2BReduction(object):
         """
         # get vector of X: 2theta
         pixel_array = self._instrument.get_pixel_array()
-        two_theta_array = self.convert_to_2theta(pixel_array)
-        assert isinstance(two_theta_array, numpy.ndarray), 'blabla'
+
+        # ... broken?
+        # two_theta_array = self.convert_to_2theta(pixel_array)
+        two_theta_array = self._instrument.get_2theta_values(dimension=1)
+        checkdatatypes.check_numpy_arrays('Two theta array', [two_theta_array], 1, check_same_shape=False)
 
         # check with counts
         if two_theta_array.shape != counts_array.shape:
