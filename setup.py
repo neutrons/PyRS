@@ -138,6 +138,7 @@ if __name__ == "__main__":
                     'tests/guitest/strainstressgui_test.py',
                     'tests/guitest/calibration_gui_test.py',
                     #'tests/unittest/test_reduced_hb2b.py',
+                    'tests/unittest/reduction_study.py',
                     #'tests/unittest/instrument_geometry_test.py',
                     'tests/unittest/reduction_study.py',
                     'tests/unittest/compare_reduction_engines_test.py']

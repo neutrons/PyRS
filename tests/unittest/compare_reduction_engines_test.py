@@ -127,9 +127,14 @@ def compare_geometry_test(calibrated, pixel_number=2048, check_all_pixels=False)
         diff_vec = numpy.sqrt(((pixel_array - mantid_pixel_array) ** 2).sum(1))
         print ('Pixels Positions Difference:  Min = {}, Max = {}'.format(diff_vec.min(), diff_vec.max()))
         print ('Minimum difference @ {}-th Pixel; Maximum difference @ {}-th Pixel'.format(numpy.argmin(diff_vec), numpy.argmax(diff_vec)))
+
+        average_difference = numpy.average(diff_vec)
         print ('Average pixel position difference among all pixels: {}'.format(numpy.average(diff_vec)))
         print ('...................................................................')
     else:
+        average_difference = 1.E100
+
+    if not check_all_pixels or average_difference > 1.E-10:
         # check corners
         # test 5 spots (corner and center): (0, 0), (0, 1023), (1023, 0), (1023, 1023), (512, 512)
         pixel_locations = [(0, 0),

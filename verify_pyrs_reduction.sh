@@ -56,8 +56,8 @@ fi
 
 if [ "$1" = "1" ] || [ "$1" = "geometry" ] ; then
     echo "Comparing instrument geometry"
-    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./build/scripts-2.7/compare_reduction_engines_test.py 1
-    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./build/scripts-2.7/compare_reduction_engines_test.py 2
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 1
+    # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 2
 fi
 
 if [ "$1" = "2" ] || [ "$1" = "2theta" ] ; then
