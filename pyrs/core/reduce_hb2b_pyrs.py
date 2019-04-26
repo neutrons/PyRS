@@ -339,12 +339,13 @@ class PyHB2BReduction(object):
         return pixel_array
 
     def reduce_to_2theta_histogram(self, counts_array, mask, num_bins, x_range=None,
-                                   is_point_data=True):
+                                   is_point_data=True, use_mantid=False):
         """ convert the inputs (detector matrix and counts to 2theta histogram)
         :param counts_array:
         :param mask: vector of masks
         :param num_bins:
         :param x_range: range of X value
+        :param use_mantid: use Mantid ResampleX to compare numpy histogram
         :return: 2-tuple (bin edges, counts in histogram)
         """
         # get vector of X: 2theta
@@ -385,17 +386,54 @@ class PyHB2BReduction(object):
                ''.format(raw_counts, num_masked, masked_counts))
 
         # this is histogram data
-        hist, bin_edges = np.histogram(two_theta_array, bins=num_bins, range=x_range, weights=vec_counts)
+        use_mantid = True   # TODO FIXME - Turned on for debugging!
+        if not use_mantid:
+            hist, bin_edges = np.histogram(two_theta_array, bins=num_bins, range=x_range, weights=vec_counts)
+            bin_size_vec = (bin_edges[1:] - bin_edges[:-1])
+            print ('[DB...BAT] Histograms Bins: X = [{}, {}]'.format(bin_edges[0], bin_edges[-1]))
+            print ('[DB...BAT] Bin size = {}, Std = {}'.format(numpy.average(bin_size_vec), numpy.std(bin_size_vec)))
 
-        bin_size_vec = (bin_edges[1:] - bin_edges[:-1])
-        print ('[DB...BAT] Histograms Bins: X = [{}, {}]'.format(bin_edges[0], bin_edges[-1]))
-        print ('[DB...BAT] Bin size = {}, Std = {}'.format(numpy.average(bin_size_vec), numpy.std(bin_size_vec)))
+            # convert to point data
+            if is_point_data:
+                delta_bin = bin_edges[1] - bin_edges[0]
+                bin_edges += delta_bin * 0.5
+                bin_edges = bin_edges
 
-        # convert to point data
-        if is_point_data:
-            delta_bin = bin_edges[1] - bin_edges[0]
-            bin_edges += delta_bin * 0.5
-            bin_edges = bin_edges
+        else:
+            from mantid.simpleapi import CreateWorkspace, SortXAxis, ResampleX
+            import time
+            # create a 1-spec workspace
+            t0 = time.time()
+
+            pixel_ids = numpy.arange(two_theta_array.shape[0])
+            CreateWorkspace(DataX=two_theta_array, DataY=vec_counts, DataE=pixel_ids, NSpec=1,
+                            OutputWorkspace='prototype')
+
+            t1 = time.time()
+
+            # Sort X-axis
+            SortXAxis(InputWorkspace='prototype', OutputWorkspace='prot_sorted', Ordering='Ascending',
+                      IgnoreHistogramValidation=True)
+
+            t2 = time.time()
+
+            # Resample
+            binned = ResampleX(InputWorkspace='prot_sorted', OutputWorkspace='mantid_binned',
+                               XMin=x_range[0], XMax=x_range[1],
+                               NumberBins=num_bins, EnableLogging=False)
+
+            t3 = time.time()
+
+            print ('[STAT] Create workspace: {}\n\tSort: {}\n\tResampleX: {}'
+                   ''.format(t1 - t0, t2 - t0, t3 - t0))
+
+            bin_edges = binned.readX(0)
+            hist = binned.readY(0)
+            pixel_ids = binned.readY(0)
+
+            print ('[DB...BAT] Workspace Size: {}, {}, {}'.format(len(bin_edges), len(hist), len(pixel_ids)))
+
+        # END-IF
 
         return bin_edges, hist
 # END-CLASS

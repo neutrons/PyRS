@@ -45,7 +45,7 @@ def create_instrument_load_data(calibrated, pixel_number, use_mantid):
     instrument = calibration_file_io.import_instrument_setup(xray_2k_instrument_file)
 
     # 2theta
-    two_theta = 35.
+    two_theta = -35.  # TODO - TONIGHT 1 - Make this user specified value
     arm_length_shift = 0.
     center_shift_x = 0.
     center_shift_y = 0.
@@ -63,7 +63,8 @@ def create_instrument_load_data(calibrated, pixel_number, use_mantid):
 
     # reduction engine
     engine = reductionengine.HB2BReductionManager()
-    test_data_id = engine.load_data(data_file_name=test_data, target_dimension=pixel_number, load_to_workspace=True)
+    test_data_id = engine.load_data(data_file_name=test_data, target_dimension=pixel_number,
+                                    load_to_workspace=use_mantid)
 
     # load instrument
     pyrs_reducer = reduce_hb2b_pyrs.PyHB2BReduction(instrument)
@@ -105,7 +106,9 @@ def reduce_data(mask_file, calibrated, pixel_number=2048):
     pyrs_vec_x, pyrs_vec_y = pyrs_returns
 
     # plot
-    plt.plot(pyrs_vec_x[:-1], pyrs_vec_y, color='blue', label='PyRS')
+    plt.plot(pyrs_vec_x[:-1], pyrs_vec_y, color='blue', label='PyRS: Mask {} Histogram by {}'
+                                                              ''.format(os.path.basename(mask_file),
+                                                                        'numpy.histogram'))
     plt.legend()
     plt.show()
 

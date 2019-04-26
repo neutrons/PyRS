@@ -99,7 +99,7 @@ class HB2BReductionManager(object):
 
         elif file_type == 'hdf5' or file_type == 'h5':
             # PyRS HDF5
-            data_id = self._load_pyrs_h5(data_file_name, True)
+            data_id = self._load_pyrs_h5(data_file_name, load_to_workspace)
 
         elif file_type == 'nxs.h5' or file_type == 'nxs':
             # Event NeXus
