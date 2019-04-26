@@ -386,7 +386,7 @@ class PyHB2BReduction(object):
                ''.format(raw_counts, num_masked, masked_counts))
 
         # this is histogram data
-        use_mantid = True   # TODO FIXME - Turned on for debugging!
+        use_mantid = False   # TODO FIXME - Turned on for debugging!
         if not use_mantid:
             hist, bin_edges = np.histogram(two_theta_array, bins=num_bins, range=x_range, weights=vec_counts)
             bin_size_vec = (bin_edges[1:] - bin_edges[:-1])
@@ -412,9 +412,10 @@ class PyHB2BReduction(object):
             t1 = time.time()
 
             # Sort X-axis
-            SortXAxis(InputWorkspace='prototype', OutputWorkspace='prot_sorted', Ordering='Ascending',
-                      IgnoreHistogramValidation=True)
-
+            temp_ws = SortXAxis(InputWorkspace='prototype', OutputWorkspace='prot_sorted', Ordering='Ascending',
+                                IgnoreHistogramValidation=True)
+            temp_vec_y = temp_ws.readY(0)
+            print ('[DEBUG] After SortXAxis: Y-range = ({}, {})'.format(temp_vec_y.min(), temp_vec_y.max()))
             t2 = time.time()
 
             # Resample

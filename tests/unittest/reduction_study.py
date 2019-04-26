@@ -57,9 +57,9 @@ def create_instrument_load_data(calibrated, pixel_number, use_mantid):
     test_calibration.center_shift_x = center_shift_x
     test_calibration.center_shift_y = center_shift_y
     test_calibration.center_shift_z = arm_length_shift
-    test_calibration.rotation_x = rot_x_flip
-    test_calibration.rotation_y = rot_y_flip
-    test_calibration.rotation_z = rot_z_spin
+    test_calibration.rotation_x = rot_x_flip  # + 0.001
+    test_calibration.rotation_y = rot_y_flip  # - 0.00321
+    test_calibration.rotation_z = rot_z_spin  # + 0.0022
 
     # reduction engine
     engine = reductionengine.HB2BReductionManager()
@@ -106,13 +106,18 @@ def reduce_data(mask_file, calibrated, pixel_number=2048):
     pyrs_vec_x, pyrs_vec_y = pyrs_returns
 
     # plot
-    if pyrs_vec_x.shape[0] != pyrs_vec_x.shape[0]:
+    if pyrs_vec_x.shape[0] != pyrs_vec_y.shape[0]:
         vec_2theta = pyrs_vec_x[:-1]
     else:
         vec_2theta = pyrs_vec_x
 
+    print ('Y: range = ({}, {})'.format(pyrs_vec_y.min(), pyrs_vec_y.max()))
+    if mask_file:
+        mask = os.path.basename(mask_file)
+    else:
+        mask = '(No Mask)'
     plt.plot(vec_2theta, pyrs_vec_y, color='blue', label='PyRS: Mask {} Histogram by {}'
-                                                         ''.format(os.path.basename(mask_file), 'numpy.histogram'))
+                                                         ''.format(mask, 'numpy.histogram'))
     plt.legend()
     plt.show()
 
