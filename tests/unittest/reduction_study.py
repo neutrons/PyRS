@@ -35,7 +35,7 @@ Mask_File = {0: 'tests/testdata/masks/Chi_0.hdf5',
 print ('Data file {0} exists? : {1}'.format(test_data, os.path.exists(test_data)))
 
 
-def create_instrument_load_data(calibrated, pixel_number):
+def create_instrument_load_data(calibrated, pixel_number, use_mantid):
     """ Create instruments: PyRS and Mantid and load data
     :param calibrated:
     :param pixel_number:
@@ -52,21 +52,6 @@ def create_instrument_load_data(calibrated, pixel_number):
     rot_x_flip = 0.
     rot_y_flip = 0.
     rot_z_spin = 0.
-
-    if calibrated:
-        # Note: README/TODO-ING: ONLY shift Y
-        center_shift_x = int(1000. * (random.random() - 0.5) * 2.0) / 1000.
-        center_shift_y = int(1000. * (random.random() - 0.5) * 2.0) / 1000.
-        arm_length_shift = int(1000. * (random.random() - 0.5) * 2.0) / 1000.  # 0.416 + (random.random() - 0.5) * 2.0
-        # calibration  FIXME - Disable rotation calibration to find out the source of difference:  10-17 vs 10-7
-        rot_x_flip = int(1000. * 2.0 * (random.random() - 0.5) * 5.0) / 1000.
-        rot_y_flip = int(1000. * 2.0 * (random.random() - 0.5) * 5.0) / 1000.
-        rot_z_spin = int(1000. * 2.0 * (random.random() - 0.5) * 5.0) / 1000.
-        print ('[(Random) Calibration Setup]\n    Shift Linear (X, Y, Z) = {}, {}, {}\n    Shift Rotation '
-               '(X, Y, Z) = {}, {}, {}'
-               ''.format(center_shift_x, center_shift_y, arm_length_shift, rot_x_flip, rot_y_flip,
-                         rot_z_spin))
-    # END-IF: arbitrary calibration
 
     test_calibration = calibration_file_io.ResidualStressInstrumentCalibration()
     test_calibration.center_shift_x = center_shift_x
@@ -88,71 +73,24 @@ def create_instrument_load_data(calibrated, pixel_number):
     return engine, pyrs_reducer
 
 
-def convert_to_2theta(calibrated, pixel_number=2048):
-    """
-    study the 2 reduction engines' output to 2theta
-    :param calibrated:
-    :param pixel_number:
-    :return:
-    """
-    engine, pyrs_reducer = create_instrument_load_data(calibrated, pixel_number)
-
-    # compare 2theta
-    pixel_matrix = pyrs_reducer.get_pixel_positions(is_matrix=False)
-    print ('Pixel matrix shape = {}'.format(pixel_matrix.shape))
-    pyrs_2theta_vec = pyrs_reducer.convert_to_2theta(pixel_matrix)
-    print ('Shape: {}'.format(pyrs_2theta_vec.shape))
-    # pyrs_2theta_vec = pyrs_2theta_vec.transpose().flatten()  # 1D vector
-
-    return pyrs_reducer
-
-
-def reduced_no_mask(calibrated, pixel_number=2048):
+def reduce_data(mask_file, calibrated, pixel_number=2048):
     """
     Compare reduced data without mask
-    :param calibrated:
-    :param pixel_number:
-    :return:
-    """
-    # load data and do 5 points geometry test
-    engine, pyrs_reducer = create_instrument_load_data(calibrated, pixel_number)
-
-    min_2theta = 8.
-    max_2theta = 64.
-
-    # reduce PyRS (pure python)
-    curr_id = engine.current_data_id
-    pyrs_returns = pyrs_reducer.reduce_to_2theta_histogram(counts_array=engine.get_counts(curr_id),
-                                                           mask=None, x_range=(min_2theta, max_2theta),
-                                                           num_bins=2500)
-    pyrs_vec_x, pyrs_vec_y = pyrs_returns
-    print ('Debug Output: (pyrs) vec Y: sum = {}\n{}'.format(pyrs_vec_y.sum(), pyrs_vec_y))
-
-    plt.plot(pyrs_vec_x[:-1], pyrs_vec_y, color='blue', label='PyRS')
-    plt.legend()
-    plt.show()
-
-    return
-
-
-def reduce_with_mask(mask_solid_angle, calibrated, pixel_number=2048):
-    """
-    Compare reduced data without mask
-    :param mask_solid_angle: solid angle (integer)
+    :param mask_file: solid angle (integer)
     :param calibrated:
     :param pixel_number:
     :return:
     """
     # create geometry/instrument
-    engine, pyrs_reducer = create_instrument_load_data(calibrated, pixel_number)
-
-    # load mask
-    mask_file = Mask_File[mask_solid_angle]
+    engine, pyrs_reducer = create_instrument_load_data(False, pixel_number, use_mantid=False)
 
     # load mask: mask file
-    print ('Load masking file: {}'.format(mask_file))
-    mask_vec, mask_2theta, note = mask_util.load_pyrs_mask(mask_file)
-    print ('Mask file {}: 2theta = {}'.format(mask_file, mask_2theta))
+    if mask_file is not None:
+        print ('Load masking file: {}'.format(mask_file))
+        mask_vec, mask_2theta, note = mask_util.load_pyrs_mask(mask_file)
+        print ('Mask file {}: 2theta = {}'.format(mask_file, mask_2theta))
+    else:
+        mask_vec = None
 
     # reduce data
     min_2theta = 8.
@@ -174,42 +112,42 @@ def reduce_with_mask(mask_solid_angle, calibrated, pixel_number=2048):
     return
 
 
+def main(argv):
+    """
+    main method
+    :param argv:
+    :return:
+    """
+    if len(argv) < 5:
+        print ('{} [File Name] [2theta] [ROI=NONE/File] [ENGINE=M(antid)/P(yRS)]\n'.format(sys.argv[0]))
+        sys.exit(0)
+
+    # parse input
+    file_name = argv[1]
+    if not os.path.exists(file_name):
+        print ('File {} does not exist.'.format(file_name))
+        sys.exit(-1)
+
+    two_theta = float(argv[2])
+    roi_file = argv[3]
+    if roi_file.lower() == 'none':
+        roi_file = None
+    engine = argv[4][0].lower()
+    if engine != 'm' and engine != 'p':
+        print ('ENGINE must be M or P')
+        sys.exit(0)
+
+    if engine == 'm':
+        # mantid ...
+        ignore
+
+    else:
+        # pyrs
+        reduce_data(roi_file, False, pixel_number=2048)
+
+
 if __name__ == '__main__':
     """ main
     """
-    if len(sys.argv) == 1:
-        print ('{} [Test Options]\n'
-               '\t\t1 = reducing to 2theta-intensity (basic)\n'
-               '\t\t2 = reducing to 2theta-intensity (arbitrary calibration)\n'
-               '\t\t3 = reducing to 2theta-intensity (ROI =   0 degree)\n'
-               '\t\t4 = reducing to 2theta-intensity  (ROI =  10 degree)\n'
-               '\t\t5 = reducing to 2theta-intensity  (ROI = -10 degree)\n'
-               '\t\t6 = reducing to 2theta-intensity  (ROI =  20 degree)\n'
-               '\t\t7 = reducing to 2theta-intensity  (ROI = -20 degree)\n'
-               '\t\t8 = reducing to 2theta-intensity  (ROI =  30 degree)\n'
-               '\t\t9 = reducing to 2theta-intensity  (ROI = -30 degree)\n'.format(sys.argv[0])
-               )
-    else:
-        option = int(sys.argv[1])
-        print ('Testing option: {}'.format(option))
-        if option == 1:
-            reduced_no_mask(False)
-        elif option == 2:
-            reduced_no_mask(True)
-        elif option == 3:
-            reduce_with_mask(mask_solid_angle=0, calibrated=False, pixel_number=2048)
-        elif option == 4:
-            reduce_with_mask(mask_solid_angle=10, calibrated=False, pixel_number=2048)
-        elif option == 5:
-            reduce_with_mask(mask_solid_angle=-10, calibrated=False, pixel_number=2048)
-        elif option == 6:
-            reduce_with_mask(mask_solid_angle=20, calibrated=False, pixel_number=2048)
-        elif option == 7:
-            reduce_with_mask(mask_solid_angle=-20, calibrated=False, pixel_number=2048)
-        elif option == 8:
-            reduce_with_mask(mask_solid_angle=30, calibrated=False, pixel_number=2048)
-        elif option == 9:
-            reduce_with_mask(mask_solid_angle=-30, calibrated=False, pixel_number=2048)
-        else:
-            raise NotImplementedError('ASAP')
-
+    main(sys.argv)
+# TODO - TONIGHT 0 - Make reduction_study.py work!

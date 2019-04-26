@@ -261,7 +261,7 @@ class ResidualStressInstrument(object):
 
         if dimension == 1:
             m, n = self._pixel_2theta_matrix.shape
-            two_theta_values = self._pixel_2theta_matrix.reshape(shape=(m*n, ))
+            two_theta_values = self._pixel_2theta_matrix.reshape((m*n,))
         else:
             two_theta_values = self._pixel_2theta_matrix[:, :]
 
