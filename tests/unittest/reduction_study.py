@@ -106,9 +106,13 @@ def reduce_data(mask_file, calibrated, pixel_number=2048):
     pyrs_vec_x, pyrs_vec_y = pyrs_returns
 
     # plot
-    plt.plot(pyrs_vec_x[:-1], pyrs_vec_y, color='blue', label='PyRS: Mask {} Histogram by {}'
-                                                              ''.format(os.path.basename(mask_file),
-                                                                        'numpy.histogram'))
+    if pyrs_vec_x.shape[0] != pyrs_vec_x.shape[0]:
+        vec_2theta = pyrs_vec_x[:-1]
+    else:
+        vec_2theta = pyrs_vec_x
+
+    plt.plot(vec_2theta, pyrs_vec_y, color='blue', label='PyRS: Mask {} Histogram by {}'
+                                                         ''.format(os.path.basename(mask_file), 'numpy.histogram'))
     plt.legend()
     plt.show()
 
