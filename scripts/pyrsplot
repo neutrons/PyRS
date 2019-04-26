@@ -1,11 +1,12 @@
 #!/usr/bin/python
 # GUI (python) application of PyRS
+import pyrs.interface.pyrs_main
 try:
     from PyQt5.QtWidgets import QApplication
 except ImportError:
     from PyQt4.QtGui import QApplication
 import sys
-import pyrs.interface.pyrs_main
+
 
 
 def main(argv):

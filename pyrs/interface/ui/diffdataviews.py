@@ -1,9 +1,11 @@
 from mplgraphicsview1d import MplGraphicsView1D
 from mplgraphicsview2d import MplGraphicsView2D
 from mplgraphicsviewpolar import MplGraphicsPolarView
+from mplgraphicsview import MplGraphicsView
 import numpy as np
 import mplgraphicsviewpolar
 import slice_view_widget
+from mplfitplottingwidget import MplFitPlottingWidget
 
 
 class Diffraction2DPlot(MplGraphicsPolarView):
@@ -45,12 +47,39 @@ class Diffraction2DPlot(MplGraphicsPolarView):
         # else:
         # plot contour
         # TODO - make the grid of r converted from linear grid on alpha
+        init_value = np.nan   # np.nan
         self._myCanvas.plot_contour(vec_theta=vec_beta, vec_r=vec_r, vec_values=vec_intensity, max_r=90.,
-                                    r_resolution=5., theta_resolution=5.)
+                                    r_resolution=5., theta_resolution=5., init_value=init_value)
 
         # TODO - convert (vec_r, vec_beta) to X, Y and do a scattering in another
 
         self.show()
+
+        return
+
+
+class DetectorView(MplGraphicsView2D):
+    """
+    Detector view
+    """
+    def __init__(self, parent):
+        """
+        init
+        :param parent:
+        """
+        MplGraphicsView2D.__init__(self, parent)
+        # super(, self).__init__(parent)
+
+        return
+
+    def plot_detector_view(self, raw_counts):
+        """
+        :param raw_counts: 1D array
+        :return:
+        """
+        # TODO - 20181117 - Make it real!
+
+        self._myCanvas.add_image_file('tests/testdata/Lab6_45-00130_Rotated.tif')
 
         return
 
@@ -65,6 +94,15 @@ class DiffContourView(MplGraphicsView2D):
         :param parent:
         """
         super(DiffContourView, self).__init__(parent)
+
+        return
+
+    def plot_data_set(self, data_set):
+        """
+
+        :param data_set:
+        :return:
+        """
 
 
 class GeneralDiffDataView(MplGraphicsView1D):
@@ -106,9 +144,11 @@ class GeneralDiffDataView(MplGraphicsView1D):
             if x_label != self.get_label_x():
                 self.reset_viewer()
 
-        # plot data in a scattering plot
+        # plot data in a scattering plot with auto re-scale
         ref_id = self.add_plot(vec_x, vec_y, line_style='', marker='.',
                                color='red', x_label=x_label, y_label=y_label)
+        # TODO - 20181101 - Enable after auto_scale is fixed: self.auto_rescale()
+
         self._line_reference_list.append(ref_id)
         self._last_line_reference = ref_id
         self._current_x_axis_name = x_label
@@ -125,12 +165,12 @@ class GeneralDiffDataView(MplGraphicsView1D):
         self._line_reference_list = list()
 
         # call to clean lines
-        self.clear_all_lines(row_number=0, col_number=0, include_right=False)
+        self.clear_all_lines()
 
         return
 
 
-class PeakFitSetupView(MplGraphicsView1D):
+class PeakFitSetupView(MplFitPlottingWidget):
     """
     Matplotlib graphics view to set up peak fitting
     """
@@ -152,10 +192,6 @@ class PeakFitSetupView(MplGraphicsView1D):
 
         return
 
-    def _next_color(self):
-        # TODO Implement ASAP
-        return 'blue'
-
     def plot_diff_data(self, diff_data_set, data_reference):
         """
         plot a diffraction data
@@ -168,8 +204,10 @@ class PeakFitSetupView(MplGraphicsView1D):
         vec_y = diff_data_set[1]
 
         # plot data
-        ref_id = self.add_plot(vec_x, vec_y, color=self._next_color(), x_label='$2\\theta (degree)$', marker=None,
-                               show_legend=True, y_label=data_reference)
+        # ref_id = self.add_plot(vec_x, vec_y, color=self._next_color(), x_label='$2\\theta (degree)$', marker=None,
+        #                        show_legend=True, y_label=data_reference)
+
+        ref_id = self.plot_data(data_set=(vec_x, vec_y), color=self._get_next_color(), line_label=data_reference)
 
         self._diff_reference_list.append(ref_id)
         self._last_diff_reference = ref_id
@@ -240,7 +278,7 @@ class PeakFitSetupView(MplGraphicsView1D):
         self._diff_reference_list = list()
 
         # call to clean lines
-        self.clear_all_lines(row_number=0, col_number=0, include_main=True, include_right=False)
+        self.clear_canvas()
 
         return
 
@@ -257,3 +295,33 @@ class SampleSliceView(slice_view_widget.SliceViewWidget):
         super(SampleSliceView, self).__init__(parent)
 
         return
+
+
+# TODO - TONIGHT 4 - Change to 1 Figure with N patterns
+# TODO - cont.     - Keep ratio comparable!
+class GeomCalibrationView(MplGraphicsView1D):
+    """
+    """
+    LineColor = ['black', 'red', 'blue', 'orange', 'grey']
+    def __init__(self, parent):
+        MplGraphicsView1D.__init__(self, parent, row_size=1, col_size=1, tool_bar=True)
+
+        self._mask_line_dict = dict()
+
+        return
+
+    def plot_data(self, vec_x, vec_y, mask_id):
+
+        line_id = self.add_plot(vec_x, vec_y, row_index=0, col_index=0, color=self.LineColor[mask_id], x_label='2theta',
+                                label='Mask {}'.format(mask_id), show_legend=True)
+        if mask_id in self._mask_line_dict:
+            self.remove_line(0, 0, self._mask_line_dict[mask_id])
+        self._mask_line_dict[mask_id] = line_id
+
+        return
+
+    def set_number_rois(self, num_rois):
+        self.set_subplots(num_rois, 1)
+
+    # TODO - TONIGHT 3 - Add simple vertical indicator to this class
+    # TODO - TONIGHT 4 - Add global control including X/Y range, clear, home,

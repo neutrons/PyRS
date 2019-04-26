@@ -7,14 +7,16 @@ class FitResultTable(NTableWidget.NTableWidget):
     """
     A table tailored to peak fit result
     """
-    TableSetupList = [('Index', 'int'),
-                      ('Center', 'float'),
-                      ('Height', 'float'),
-                      ('FWHM', 'float'),
-                      ('Intensity', 'float'),
-                      ('Chi^2', 'float'),
-                      ('C.O.M', 'float'),  # center of mass
-                      ('Profile', 'string')]
+    # # TODO - The setup of this table shall be flexible to the peak type
+    # #        considering base/advanced peak parameter for fitted value, uncertainties or both A+/-E
+    # TableSetupList = [('Index', 'int'),
+    #                   ('Center', 'float'),
+    #                   ('Height', 'float'),
+    #                   ('FWHM', 'float'),
+    #                   ('Intensity', 'float'),
+    #                   ('Chi^2', 'float'),
+    #                   ('C.O.M', 'float'),  # center of mass
+    #                   ('Profile', 'string')]
 
     def __init__(self, parent):
         """ Initialization
@@ -44,26 +46,51 @@ class FitResultTable(NTableWidget.NTableWidget):
         for index in index_list:
             self.append_row([index, None, None, None, None, None, None, ''])
 
-    def setup(self):
+        return
+
+    def reset_table(self, peak_param_names):
+        """
+
+        :param peak_param_names:
+        :return:
+        """
+
+
+        self.clear()
+        self.init_setup(table_setup_list)
+
+        return
+
+    def setup(self, peak_param_names):
         """
         Init setup
         :return:
         """
-        self.init_setup(self.TableSetupList)
+        # create table columns dynamically
+        table_setup_list = [('Index', 'int')]
+        for param_name in peak_param_names:
+            table_setup_list.append((param_name, 'float'))
+        table_setup_list.append(('C.O.M', 'float'))
+        table_setup_list.append(('Profile', 'string'))
 
-        # Set up column width
+        self._column_names = [item[0] for item in table_setup_list]
+
+        #
+        # total_columns = len(table_setup_list)
+        # self._colIndexIndex = 0
+        # self._colIndexProfile = total_columns - 1
+        # self._colIndexCoM = total_columns - 2
+        #
+        # self.init_setup(self.TableSetupList)
+        #
+        # # Set up column width
         self.setColumnWidth(0, 60)
-        self.setColumnWidth(1, 80)
-        self.setColumnWidth(2, 80)
-        self.setColumnWidth(3, 80)
+        for col_index in range(1, len(self._column_names)-1):
+            self.setColumnWidth(col_index, 80)
+        self.setColumnWidth(len(self._column_names)-1, 120)
 
         # Set up the column index for start, stop and select
         self._colIndexIndex = self.TableSetupList.index(('Index', 'int'))
-        self._colIndexCenter = self.TableSetupList.index(('Center', 'float'))
-        self._colIndexHeight = self.TableSetupList.index(('Height', 'float'))
-        self._colIndexWidth = self.TableSetupList.index(('FWHM', 'float'))
-        self._colIndexIntensity = self.TableSetupList.index(('Intensity', 'float'))
-        self._colIndexChi2 = self.TableSetupList.index(('Chi^2', 'float'))
         self._colIndexCoM = self.TableSetupList.index(('C.O.M', 'float'))
         self._colIndexProfile = self.TableSetupList.index(('Profile', 'string'))
 

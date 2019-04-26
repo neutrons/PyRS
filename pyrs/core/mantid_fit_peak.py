@@ -37,6 +37,7 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         # fitting result (Mantid specific)
         self._fitted_peak_position_ws = None  # fitted peak position workspace
         self._fitted_function_param_table = None  # fitted function parameters table workspace
+        self._fitted_function_error_table = None  # fitted function parameters' fitting error table workspace
         self._model_matrix_ws = None  # MatrixWorkspace of the model from fitted function parameters
 
         return
@@ -87,6 +88,23 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
 
         return
 
+    def calculate_peak_position_d(self, wave_length_vec):
+        """
+        :return:
+        """
+        centre_vec = self.get_fitted_params(param_name='PeakCentre')
+        self._peak_center_d_vec = np.ndarray(centre_vec.shape, centre_vec.dtype)
+
+        num_pt = len(centre_vec)
+        for scan_log_index in range(num_pt):
+            peak_i_2theta = centre_vec[scan_log_index]
+            lambda_i = wave_length_vec[scan_log_index]
+            peak_i_d = lambda_i * 0.5 / math.sin(peak_i_2theta * 0.5 * math.pi / 180.)
+            self._peak_center_d_vec[scan_log_index] = peak_i_d
+        # END-FOR
+
+        return
+
     def fit_peaks(self, peak_function_name, background_function_name, fit_range, scan_index=None):
         """
         fit peaks
@@ -126,6 +144,7 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         # no pre-determined peak center: use center of mass
         r_positions_ws_name = 'fitted_peak_positions_{0}'.format(self._reference_id)
         r_param_table_name = 'param_m_{0}'.format(self._reference_id)
+        r_error_table_name = 'param_e_{0}'.format(self._reference_id)
         r_model_ws_name = 'model_full_{0}'.format(self._reference_id)
 
         # FIXME - shall we use a dictionary to set up somewhere else?
@@ -148,10 +167,12 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
                      PeakParameterValues=width_dict[peak_function_name][1],
                      RawPeakParameters=False,
                      OutputPeakParametersWorkspace=r_param_table_name,
+                     OutputParameterFitErrorsWorkspace=r_error_table_name,
                      FittedPeaksWorkspace=r_model_ws_name,
                      FitPeakWindowWorkspace=peak_window_ws_name)
 
         # TODO - 20180930 - Issue #30: add new column to OutputPeakParametersWorkspace for 'mixing'
+        # TODO            - ASAP: OUTPUT is changed to raw parameters... shall be
 
         print ('Fit peaks parameters: range {0} - {1}.  Fit window boundary: {2} - {3}'
                ''.format(start, stop, fit_range[0], fit_range[1]))
@@ -182,6 +203,7 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         # process output
         self._fitted_peak_position_ws = AnalysisDataService.retrieve(r_positions_ws_name)
         self._fitted_function_param_table = AnalysisDataService.retrieve(r_param_table_name)
+        self._fitted_function_error_table = AnalysisDataService.retrieve(r_error_table_name)
         self._model_matrix_ws = AnalysisDataService.retrieve(r_model_ws_name)
 
         return
@@ -229,6 +251,7 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         :return: dictionary of dictionary. level 0: key as scan index, value as dictionary
                                            level 1: key as parameter name such as height, cost, and etc
         """
+        # TODO - 20181101 - Need to expand this method such that all fitted parameters will be added to output
         # get value
         scan_index_vector = self.get_scan_indexes()
         cost_vector = self.get_fitted_params(param_name='chi2')
@@ -319,7 +342,10 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         get all the function parameters' names
         :return:
         """
-        return self._fitted_function_param_table.getColumnNames()
+        fitted_param_names = self._fitted_function_param_table.getColumnNames()
+        fitted_param_names.append('center_d')
+
+        return fitted_param_names
 
     def get_number_scans(self):
         """
@@ -345,6 +371,36 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
             col_index = col_names.index(param_name)
             for row_index in range(self._fitted_function_param_table.rowCount()):
                 param_vec[row_index] = self._fitted_function_param_table.cell(row_index, col_index)
+        elif param_name == 'center_d':
+            param_vec = self._peak_center_d_vec
+        else:
+            err_msg = 'Function parameter {0} does not exist. Supported parameters are {1}' \
+                      ''.format(param_name, col_names)
+            # raise RuntimeError()
+            raise KeyError(err_msg)
+
+        return param_vec
+
+    def get_fitted_params_error(self, param_name):
+        """
+        get the value of a specified parameters's fitted error of whole scan
+        Note: from FitPeaks's output workspace         "OutputParameterFitErrorsWorkspace"
+        :param param_name:
+        :return:
+        """
+        # check
+        checkdatatypes.check_string_variable('Function parameter', param_name)
+
+        # init parameters
+        param_vec = np.ndarray(shape=(self._fitted_function_error_table.rowCount()), dtype='float')
+
+        col_names = self._fitted_function_error_table.getColumnNames()
+        if param_name in col_names:
+            col_index = col_names.index(param_name)
+            for row_index in range(self._fitted_function_error_table.rowCount()):
+                param_vec[row_index] = self._fitted_function_error_table.cell(row_index, col_index)
+        elif param_name == 'center_d':
+            param_vec = self._peak_center_d_error_vec
         else:
             err_msg = 'Function parameter {0} does not exist. Supported parameters are {1}' \
                       ''.format(param_name, col_names)
@@ -366,7 +422,7 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
 
         # get all the column names
         col_names = self._fitted_function_param_table.getColumnNames()
-        if not ('chi2' in col_names and param_name in col_names):
+        if not ('chi2' in col_names and (param_name in col_names or param_name == 'center_d')):
             err_msg = 'Function parameter {0} does not exist. Supported parameters are {1}' \
                       ''.format(param_name, col_names)
             # raise RuntimeError()
@@ -378,7 +434,9 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
 
         # get chi2 first
         chi2_col_index = col_names.index('chi2')
-        if not is_chi2:
+        if param_name == 'center_d':
+            param_col_index = 'center_d'
+        elif not is_chi2:
             param_col_index = col_names.index(param_name)
         else:
             param_col_index = chi2_col_index
@@ -392,6 +450,8 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
 
             if is_chi2:
                 value_i = chi2
+            elif param_col_index == 'center_d':
+                value_i = self._peak_center_d_vec[row_index]
             else:
                 value_i = self._fitted_function_param_table.cell(row_index, param_col_index)
 

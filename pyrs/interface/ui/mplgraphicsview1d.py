@@ -14,6 +14,7 @@ except (ImportError, RuntimeError) as err:
     from PyQt4.QtCore import pyqtSignal
     from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
+import matplotlib
 from matplotlib.figure import Figure
 
 MplLineStyles = ['-', '--', '-.', ':', 'None', ' ', '']
@@ -92,8 +93,8 @@ class MplGraphicsView1D(QWidget):
 
         # set up canvas
         self._myCanvas = Qt4MplCanvasMultiFigure(self, row_size, col_size)
-        if row_size is not None and col_size is not None:
-            self.set_subplots(row_size, col_size)
+        # if row_size is not None and col_size is not None:
+        #     self.set_subplots(row_size, col_size)
 
         if tool_bar:
             self._myToolBar = MyNavigationToolbar(self, self._myCanvas)
@@ -242,7 +243,7 @@ class MplGraphicsView1D(QWidget):
         """
         # check whether the input is empty
         if len(vec_y) == 0:
-            print '[WARNING] Input is an empty vector set'
+            print('[WARNING] Input is an empty vector set')
             return False
 
         if is_right:
@@ -284,6 +285,7 @@ class MplGraphicsView1D(QWidget):
         :param upper_y_boundary:
         :return:
         """
+        # TODO FIXME - 20181101 - This is a broken method.  Fix it!
         if row_index is not None and col_index is not None:
             # check
             assert isinstance(row_index, int), 'row index {0} must be an integer but not a {1}' \
@@ -305,6 +307,7 @@ class MplGraphicsView1D(QWidget):
             max_y_list = list()
 
             # get line IDs
+            #
             subplot_line_indexes = self._myCanvas.get_line_keys(row_index, col_index)
 
             for line_key in subplot_line_indexes:
@@ -374,7 +377,7 @@ class MplGraphicsView1D(QWidget):
                 self._myMainPlotDict[row_index, col_index].clear()
                 # self._statMainPlotDict ???
 
-            if include_right and (row_index, col_index) in self._myCanvas:
+            if include_right and (row_index, col_index) in self._myRightPlotDict:
                 # right axis if it does exist. the caller shall check. no worry to raise exception
                 self._myCanvas.clear_subplot_lines(row_index, col_index, False)
                 self._myRightPlotDict[row_index, col_index].clear()
@@ -432,12 +435,12 @@ class MplGraphicsView1D(QWidget):
 
         return
 
-    def evt_zoom_released(self):
+    def evt_zoom_released(self, event):
         """
-        event for zoom is release
-        Returns
-        -------
-
+        Handling the event that is triggered by zoom-button in tool bar is released and a customized signal
+        is thus emit.
+        :param event: event instance
+        :return:
         """
         # record home XY limit if it is never zoomed
         if self._isZoomed is False:
@@ -485,10 +488,10 @@ class MplGraphicsView1D(QWidget):
         :return:
         """
         # remove line
-        self._myCanvas.remove_plot_1d(row_index, col_index, line_id, apply_change=True)
+        is_on_main = self._myCanvas.remove_plot_1d(row_index, col_index, line_id, apply_change=True)
 
         # remove the records
-        self._update_plot_line_information(row_index, col_index, line_id=line_id, remove_line=True)
+        self._update_plot_line_information(row_index, col_index, line_id=line_id, is_main=is_on_main, remove_line=True)
 
         # if line_id in self._statMainPlotDict:
         #     del self._statMainPlotDict[line_id]
@@ -616,6 +619,7 @@ class MplGraphicsView1D(QWidget):
         self.clear_all_lines(include_right=False)
 
         # set the subplots
+        print ('[DB...BAT] Set subplot: {}, {}'.format(row_size, col_size))
         self._myCanvas.set_subplots(row_size, col_size)
 
         # reset PlotDict: make the right-axis open.
@@ -704,7 +708,8 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         self.axes_main = dict()  # keys are 2-tuple, starting from (0, 0)
         self.axes_right = dict()
 
-        # the subplots are not set up in the initialization
+        # the subplots are not set up in the initialization:
+        self._is_initialized = False
         if row_size is not None and col_size is not None:
             self.set_subplots(row_size, col_size)
 
@@ -749,6 +754,14 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
                 self._legendStatusDict[row_index, col_index] = False
             # END-FOR
         # END-FOR
+
+        self._is_initialized = True
+        try:
+            self.fig.tight_layout()
+        except RuntimeError:
+            pass
+
+        return
 
     @property
     def is_legend_on(self):
@@ -799,7 +812,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         :param show_legend:
         :return: line ID (i.e., new key)
         """
-        print '[DB...BAT] Add Main Y-label : {0}; Line-label : {1}'.format(y_label, label)
+        print('[DB...BAT] Add Main Y-label : {0}; Line-label : {1}'.format(y_label, label))
 
         # Check input
         self._check_subplot_index(row_index, col_index, is_main=True)
@@ -881,7 +894,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         :param linewidth:
         :return:
         """
-        print '[DB...BAT] Add Right Y-label : {0}; Line-label : {1}'.format(y_label, label)
+        print('[DB...BAT] Add Right Y-label : {0}; Line-label : {1}'.format(y_label, label))
 
         # check
         try:
@@ -971,8 +984,8 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
                     try:
                         self.axes_main[row_index, col_index].lines.remove(mpl_line)
                     except ValueError as e:
-                        print "[Error] Plot %s is not in axes_main.lines which has %d lines. Error message: %s" % (
-                            str(line_key), len(self.axes_main[row_index, col_index].lines), str(e))
+                        print("[Error] Plot %s is not in axes_main.lines which has %d lines. Error message: %s" % (
+                              str(line_key), len(self.axes_main[row_index, col_index].lines), str(e)))
                 # END-IF-ELSE
 
                 # remove record
@@ -1002,8 +1015,8 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
                     try:
                         self.axes_right[row_index, col_index].lines.remove(mpl_line)
                     except ValueError as e:
-                        print "[Error] Plot %s is not in axes_right.lines which has %d lines. Error message: %s" % (
-                                str(line_key), len(self.axes_main[row_index, col_index].lines), str(e))
+                        print("[Error] Plot %s is not in axes_right.lines which has %d lines. Error message: %s"
+                              "" % (str(line_key), len(self.axes_main[row_index, col_index].lines), str(e)))
                 # END-IF-ELSE
 
                 # remove record
@@ -1223,7 +1236,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         assert isinstance(title, str), 'Title must be a string but not a {0}.'.format(type(title))
         assert isinstance(color, str), 'Color must be a string but not a {0}.'.format(type(color))
 
-        print '[DB...BAT] Set {0} in color {1} as the figure\'s title.'.format(title, color)
+        print('[DB...BAT] Set {0} in color {1} as the figure\'s title.'.format(title, color))
         self.setWindowTitle(title)
 
         self.draw()
@@ -1245,15 +1258,20 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
 
         if plot_key in self._mainLineDict[row_index, col_index]:
             # plot key is on main axis
+            if (row_index, col_index) not in self.axes_main:
+                raise RuntimeError('Main axes do not contain ({}, {}).  Available axes are {}'
+                                   ''.format(row_index, col_index, self.axes_main.keys()))
+            if plot_key not in self._mainLineDict[(row_index, col_index)]:
+                raise RuntimeError('Plot key {} does not exist in main line dict.  Available plot keys are '
+                                   '{}'.format(plot_key, self._mainLineDict.keys()))
             try:
-                self.axes_main[row_index, col_index].lines.remove(self._mainLineDict[plot_key])
+                self.axes_main[row_index, col_index].lines.remove(self._mainLineDict[(row_index, col_index)][plot_key])
             except ValueError as r_error:
-                error_message = 'Unable to remove to 1D line %s (ID=%d) due to %s.' % (str(self._mainLineDict[plot_key]),
-                                                                                       plot_key, str(r_error))
+                error_message = 'Unable to remove to 1D line {} (ID={}) due to {}' \
+                                ''.format(self._mainLineDict[(row_index, col_index)][plot_key], plot_key, str(r_error))
                 raise RuntimeError(error_message)
             # remove the plot key from dictionary
-            del self._mainLineDict[plot_key][row_index, col_index]
-
+            del self._mainLineDict[(row_index, col_index)][plot_key]
             is_on_main = True
 
         elif (row_index, col_index) in self._rightLineDict and plot_key in self._rightLineDict[row_index, col_index]:
@@ -1265,7 +1283,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
                                 ''.format(self._rightLineDict[plot_key], plot_key, str(r_error))
                 raise RuntimeError(error_message)
 
-            del self._rightLineDict[plot_key][row_index, col_index]
+            del self._rightLineDict[row_index, col_index][plot_key]
 
             is_on_main = False
         else:
@@ -1278,7 +1296,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         if apply_change:
             self.draw()
 
-        return
+        return is_on_main
 
     def show_legend(self, row_number, col_number, is_main=True, is_right=True):
         """ show the legend if the legend is not None
@@ -1351,7 +1369,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
 
         # check
         if plot_line is None:
-            print '[ERROR] Line (key = %d) is None. Unable to update' % plot_key
+            print('[ERROR] Line (key = %d) is None. Unable to update' % plot_key)
             return
 
         # TODO/NOW - clean up
@@ -1554,7 +1572,7 @@ class MyNavigationToolbar(NavigationToolbar2):
     home_button_pressed = pyqtSignal()
 
     # This defines a signal called 'canvas_zoom_released'
-    canvas_zoom_released = pyqtSignal()
+    canvas_zoom_released = pyqtSignal(matplotlib.backend_bases.MouseEvent)
 
     def __init__(self, parent, canvas):
         """ Initialization
@@ -1636,12 +1654,12 @@ class MyNavigationToolbar(NavigationToolbar2):
             # into pan mode
             self._myMode = MyNavigationToolbar.NAVIGATION_MODE_PAN
 
-        print 'PANNED'
+        print('PANNED')
 
         return
 
     def zoom(self, *args):
-        """
+        """ Override zoom method from NavigationToolbar2
         Turn on/off zoom (zoom button)
         :param args:
         :return:
@@ -1658,19 +1676,15 @@ class MyNavigationToolbar(NavigationToolbar2):
         return
 
     def release_zoom(self, event):
+        """ Override zoom release (mouse released from zooming) method
+        :param event:
+        :return:
         """
-        override zoom released method
-        Parameters
-        ----------
-        event
-
-        Returns
-        -------
-
-        """
-        self.canvas_zoom_released.emit()
-
         NavigationToolbar2.release_zoom(self, event)
+
+        print (type(event))
+
+        self.canvas_zoom_released.emit(event)
 
         return
 

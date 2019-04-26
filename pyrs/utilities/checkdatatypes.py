@@ -31,25 +31,32 @@ def check_dict(var_name, dict_var):
     return
 
 
-def check_file_name(file_name, check_exist=True, check_writable=False, is_dir=False):
+def check_file_name(file_name, check_exist=True, check_writable=False, is_dir=False, description=''):
     """
     check whether an input file name is a string and whether it is a file or a file can be written to
     :param file_name:
     :param check_exist:
     :param check_writable:
     :param is_dir:
+    :param description: a description for file name
     :return:
     """
     assert isinstance(file_name, str), 'Input file name {0}  must be a string but not a {1}.' \
                                        ''.format(file_name, type(file_name))
+    assert isinstance(description, str), 'Input file description {} must be a string but not a {}' \
+                                  ''.format(description, type(description))
+
+    # set note
+    if len(description) == 0:
+        description = 'File'
 
     if check_exist and os.path.exists(file_name) is False:
-        raise RuntimeError('File {0} does not exist.'.format(file_name))
+        raise RuntimeError('{} {} does not exist.'.format(description, file_name))
 
     if check_writable:
         if os.path.exists(file_name) and os.access(file_name, os.W_OK) is False:
             # file exists but cannot be  overwritten
-            raise RuntimeError('File {0} exists but is not writable.'.format(file_name))
+            raise RuntimeError('{} {} exists but is not writable.'.format(description, file_name))
         elif os.path.exists(file_name) is False:
             # file does not exist and the directory is not writable
             dir_name = os.path.dirname(file_name)
@@ -57,8 +64,8 @@ def check_file_name(file_name, check_exist=True, check_writable=False, is_dir=Fa
                 # current working dir
                 dir_name = os.getcwd()
             if os.access(dir_name, os.W_OK) is False:
-                raise RuntimeError('File {0} does not exist but directory {1} is not writable.'
-                                   ''.format(file_name, dir_name))
+                raise RuntimeError('{} {} does not exist but directory {} is not writable.'
+                                   ''.format(description, file_name, dir_name))
         # END-IF-ELIF
     # END-IF
 
@@ -197,11 +204,12 @@ def check_numpy_arrays(var_name, variables, dimension, check_same_shape):
     return
 
 
-def check_sequence(var_name, variable, allowed_type=None):
+def check_sequence(var_name, variable, allowed_type=None, size=None):
     """ check whether the input is of type tuple or list
     :param var_name:
     :param variable:
     :param allowed_type: allowed type such as str, float, int.
+    :param size: allowed size. None, list of integers or an integer
     :return:
     """
     check_string_variable('Variable name', var_name)
@@ -209,13 +217,25 @@ def check_sequence(var_name, variable, allowed_type=None):
     assert isinstance(variable, list) or isinstance(variable, tuple),\
         '{} {} must be a list or tuple but not a {}'.format(var_name, variable, type(variable))
 
-    # skip if no type check is specified
-    if allowed_type is None:
-        return
+    # check size
+    if size is not None:
+        if isinstance(size, list):
+            pass
+        elif isinstance(size, int):
+            size = [size]
+        else:
+            raise RuntimeError('check_sequence cannot accept size ({}) of type {}'
+                               ''.format(size, type(size)))
+        if len(variable) not in size:
+            raise RuntimeError('Variable {} ({})has {} items not allowed by required {}'
+                               ''.format(var_name, variable, len(variable), size))
 
-    for i_var, var_i in enumerate(variable):
-        assert isinstance(var_i, allowed_type), '{}-th variable {} must be a {} but not a {}' \
-                                                ''.format(i_var, var_i, allowed_type, type(var_i))
+    # skip if no type check is specified
+    if allowed_type is not None:
+        for i_var, var_i in enumerate(variable):
+            assert isinstance(var_i, allowed_type), '{}-th variable {} must be a {} but not a {}' \
+                                                    ''.format(i_var, var_i, allowed_type, type(var_i))
+    # END-IF
 
     return
 
@@ -248,6 +268,23 @@ def check_string_variable(var_name, variable, allowed_values=None):
     elif allowed_values is not None:
         raise RuntimeError('Allowed values {} must be given in a list but not a {}'
                            ''.format(allowed_values, type(allowed_values)))
+
+    return
+
+
+def check_type(var_name, variable, var_type):
+    """ Check a variable against an arbitrary type
+    :param var_name:
+    :param variable:
+    :param var_type:
+    :return:
+    """
+    check_string_variable('Variable name', var_name)
+    assert isinstance(var_type, type), 'Variable-type {} must be an instance of type but not {}' \
+                                       ''.format(var_type, type(var_type))
+
+    assert isinstance(variable, var_type), '{} {} must be of type {} but not a {}' \
+                                           ''.format(var_name, variable, var_type, type(variable))
 
     return
 

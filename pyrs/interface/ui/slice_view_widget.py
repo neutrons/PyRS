@@ -158,11 +158,15 @@ class SliceViewWidget(QWidget):
             self._indicator.plot_2way_indicator(pos_x, pos_y)
 
             # update slice view
-            vec_x, vec_z = self.slice_2d_data_horizontal(pos_y)
-            self.horizontal_canvas.update_plot(vec_x, vec_z)
+            horiz_sliced = self.slice_2d_data_horizontal(pos_y)
+            if horiz_sliced is not None:
+                vec_x, vec_z = self.slice_2d_data_horizontal(pos_y)
+                self.horizontal_canvas.update_plot(vec_x, vec_z)
 
-            vec_y, vec_z = self.slice_2d_data_vertical(pos_x)
-            self.vertical_canvas.update_plot(vec_y, vec_z)
+            vertical_sliced = self.slice_2d_data_vertical(pos_x)
+            if vertical_sliced is not None:
+                vec_y, vec_z = vertical_sliced
+                self.vertical_canvas.update_plot(vec_y, vec_z)
 
         else:
             # not defined
@@ -170,13 +174,30 @@ class SliceViewWidget(QWidget):
 
         return
 
-    def plot_contour_raw(self, vec_x, vec_y, matrix_z, info, dir_tuple):
-
-
+    def plot_contour_raw(self, vec_x, vec_y, matrix_z, info, dir_tuple, flush=True):
+        """
+        plot contour without interpolation
+        :param vec_x:
+        :param vec_y:
+        :param matrix_z:
+        :param info:
+        :param dir_tuple:
+        :return:
+        """
         contour_plot = self.main_canvas.add_contour_plot(vec_x, vec_y, matrix_z)
 
         self.main_canvas.set_title(info, 'red')
         self.main_canvas.set_xlabel(dir_tuple[0])
+
+        self._xi = vec_x
+        self._yi = vec_y
+        self._zmatrix = matrix_z
+        self._is_setup = True
+
+        if flush:
+            self.main_canvas._flush()
+
+        return
 
     # TODO - 20180906 - Clean!
     def plot_contour_interpolate(self, vec_x, vec_y, vec_z, contour_resolution, contour_resolution_y=None, flush=True):
@@ -246,8 +267,12 @@ class SliceViewWidget(QWidget):
             print ('[Warning] 2D slice view is not set up yet')
             return None
 
+        # print ('[DB...BAT] X dim: {}'.format(self._xi.shape))
+        # print ('[DB...BAT] Y dim: {}'.format(self._yi.shape))
+        # print ('[DB...BAT] Z dim: {}'.format(self._zmatrix.shape))
+
         y_index = np.searchsorted(self._yi, pos_y)
-        vec_z = self._zmatrix[y_index, :]
+        vec_z = self._zmatrix[:, y_index]
 
         return self._xi, vec_z
 
@@ -258,7 +283,7 @@ class SliceViewWidget(QWidget):
         :return:
         """
         x_index = np.searchsorted(self._xi, pos_x)
-        vec_z = self._zmatrix[:, x_index]
+        vec_z = self._zmatrix[x_index, :]
 
         return self._yi, vec_z
 

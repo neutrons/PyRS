@@ -1,8 +1,9 @@
 #!/bin/sh
 python setup.py pyuic
 python setup.py build
-MANTIDLOCALPATH=/home/wzz/Mantid_Project/builds/debug-master/bin/
-MANTIDMACPATH=/Users/wzz/MantidBuild/debug-stable/bin/
+echo "Not used /home/wzz/Mantid_Project/builds/debug-master/bin/"
+MANTIDLOCALPATH=/home/wzz/Mantid_Project/debug/bin/
+MANTIDMACPATH=/Users/wzz/MantidBuild/debug/bin/
 MANTIDSNSDEBUGPATH=/SNS/users/wzz/Mantid_Project/builds/debug/bin/
 MANTIDPATH=$MANTIDMACPATH:$MANTIDLOCALPATH:$MANTIDSNSDEBUGPATH
 PYTHONPATH=$MANTIDPATH:$PYTHONPATH
@@ -14,7 +15,7 @@ if [ $1 ]; then
     CMD=$1
 else
     CMD=
-    echo "1: peak fit, 2: texture, 3: strain stress, 4: manual reduction"
+    echo "1: peak fit, 2: texture, 3: strain stress, 4: manual reduction, 5: instrument geometry calibration"
 fi
 
 if [ "$1" = "1" ]
@@ -39,5 +40,11 @@ if [ "$1" = "4" ]
 then 
 	echo "Test maual reduction mdoule"
 	PYTHONPATH=build/lib:$PYTHONPATH build/scripts-2.7/manualreduction_test.py
+fi
+
+if [ "$1" = "5" ]
+then 
+	echo "Test instrument geometry calibration module"
+	PYTHONPATH=build/lib:$PYTHONPATH build/scripts-2.7/calibration_gui_test.py
 fi
 

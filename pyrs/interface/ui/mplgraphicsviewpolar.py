@@ -105,9 +105,7 @@ class Qt4MplPolarCanvas(FigureCanvas):
     def plot_polar_xy(self, vec_theta, vec_r):
         self.axes.plot(vec_theta, vec_r, 'ko', ms=3)
 
-
-
-    def plot_contour(self, vec_theta, vec_r, vec_values, max_r, r_resolution, theta_resolution):
+    def plot_contour(self, vec_theta, vec_r, vec_values, max_r, r_resolution, theta_resolution, init_value=0):
         """
         plot contour
         :param vec_theta: 1D vector
@@ -116,6 +114,7 @@ class Qt4MplPolarCanvas(FigureCanvas):
         :param max_r:
         :param r_resolution:
         :param theta_resolution:
+        :param init_value: init value of the plot to be interpolated
         :return:
         """
         # check inputs
@@ -137,7 +136,10 @@ class Qt4MplPolarCanvas(FigureCanvas):
 
         # convert to meshgrid
         mesh_r, mesh_theta = np.meshgrid(zeniths, azimuths)
-        mesh_values = np.zeros(mesh_r.shape, dtype=float, order='C')
+        # mesh_values = np.zeros(mesh_r.shape, dtype=float, order='C')
+        mesh_values = np.empty(mesh_r.shape)
+        mesh_values[:] = init_value
+        # TODO - remove me: example a = numpy.empty((3, 3)), a[:] = numpy.nan
 
         # set up the data points on mesh grid, i.e., mapping from vector to 2D map
         num_pts = vec_theta.shape[0]
@@ -189,7 +191,10 @@ class Qt4MplPolarCanvas(FigureCanvas):
             # END-IF-ELSE
 
             # set value
-            mesh_values[index_theta, index_r] += value_i
+            if np.isnan(mesh_values[index_theta, index_r]):
+                mesh_values[index_theta, index_r] = value_i
+            else:
+                mesh_values[index_theta, index_r] += value_i
         # END-FOR
 
         # plot

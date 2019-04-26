@@ -1,7 +1,7 @@
 try:
-    from PyQt5.QtWidgets import QMainWindow, QFileDialog
+    from PyQt5.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout
 except ImportError:
-    from PyQt4.QtGui import QMainWindow, QFileDialog
+    from PyQt4.QtGui import QMainWindow, QFileDialog, QVBoxLayout
 import ui.ui_peakfitwindow
 import pyrs.utilities.hb2b_utilities as hb2bhb2b
 import advpeakfitdialog
@@ -31,7 +31,7 @@ class FitPeaksWindow(QMainWindow):
         self.ui = ui.ui_peakfitwindow.Ui_MainWindow()
         self.ui.setupUi(self)
         self.ui.graphicsView_fitResult.set_subplots(1, 1)
-        self.ui.graphicsView_fitSetup.set_subplots(1, 1)
+        self._promote_widgets()
 
         self._init_widgets()
         # init some widgets
@@ -44,6 +44,7 @@ class FitPeaksWindow(QMainWindow):
         self.ui.pushButton_plotPreviousScan.clicked.connect(self.do_plot_prev_scan)
         self.ui.pushButton_plotNextScan.clicked.connect(self.do_plot_next_scan)
         self.ui.pushButton_fitPeaks.clicked.connect(self.do_fit_peaks)
+        self.ui.pushButton_saveFitResult.clicked.connect(self.do_save_fit)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.actionSave_As.triggered.connect(self.do_save_as)
@@ -51,10 +52,7 @@ class FitPeaksWindow(QMainWindow):
         self.ui.actionAdvanced_Peak_Fit_Settings.triggered.connect(self.do_launch_adv_fit)
         self.ui.actionQuick_Fit_Result_Check.triggered.connect(self.do_make_movie)
 
-        # TODO - 20180805 - Implement : pushButton_plotLogs, comboBox_detectorID
-
-        # others
-        self.ui.tableView_fitSummary.setup()
+        # TODO - 20180805 - Implement : pushButton_plotLogs, comboBox_detectorI
 
         self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
         self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
@@ -73,6 +71,29 @@ class FitPeaksWindow(QMainWindow):
 
         # a copy of sample logs
         self._sample_log_names = list()  # a copy of sample logs' names that are added to combo-box
+
+        # TODO - 20181124 - New GUI parameters (After FitPeaks)
+        # checkBox_showFitError
+        # checkBox_showFitValue
+        # others
+        # TODO - 20181124 - Make this table's column flexible!
+        self.ui.tableView_fitSummary.setup()
+
+        return
+
+    def _promote_widgets(self):
+        """
+
+        :return:
+        """
+        from ui.diffdataviews import PeakFitSetupView
+
+        # 2D detector view
+        curr_layout = QVBoxLayout()
+        self.ui.frame_PeakView.setLayout(curr_layout)
+        self._ui_graphicsView_fitSetup = PeakFitSetupView(self)
+
+        curr_layout.addWidget(self._ui_graphicsView_fitSetup)
 
         return
 
@@ -113,6 +134,9 @@ class FitPeaksWindow(QMainWindow):
         self.ui.comboBox_2dPlotChoice.clear()
         self.ui.comboBox_2dPlotChoice.addItem('Raw Data')
         self.ui.comboBox_2dPlotChoice.addItem('Fitted')
+
+        # check boxes
+        self.ui.checkBox_autoSaveFitResult.setChecked(True)
 
         return
 
@@ -254,7 +278,7 @@ class FitPeaksWindow(QMainWindow):
         peak_function = str(self.ui.comboBox_peakType.currentText())
         bkgd_function = str(self.ui.comboBox_backgroundType.currentText())
 
-        fit_range = self.ui.graphicsView_fitSetup.get_x_limit()
+        fit_range = self._ui_graphicsView_fitSetup.get_x_limit()
         print ('[INFO] Peak fit range: {0}'.format(fit_range))
 
         # It is better to fit all the peaks at the same time after testing
@@ -299,28 +323,51 @@ class FitPeaksWindow(QMainWindow):
         self.ui.comboBox_yaxisNames.setCurrentIndex(curr_y_index)
 
         # fill up the table
+        self._set_fit_result_table(peak_function, data_key)
+
+        # plot the model and difference
+        if scan_log_index is None:
+            scan_log_index = 0
+            # FIXME This case is not likely to occur
+        # FIXME - TODO - self.do_plot_diff_data()
+
+        return
+
+    def _set_fit_result_table(self, peak_function, data_key):
+        """
+
+        :param peak_function:
+        :param data_key:
+        :return:
+        """
+        table_param_names = ['Center', 'Intensity', 'FWHM', 'Height', 'Chi2']
+        if peak_function == 'PseudoVoigt':
+            # TODO - 20181210 - shall extending 'mixing' as a special case
+            pass
+        # param_names.extend(['A0', 'A1'])
+
+        self.ui.tableView_fitSummary.reset_table(table_param_names)
+
+        # get value
         not_used_vec, center_vec = self._core.get_peak_fit_param_value(data_key, 'centre', max_cost=None)
         not_used_vec, height_vec = self._core.get_peak_fit_param_value(data_key, 'height', max_cost=None)
         not_used_vec, fwhm_vec = self._core.get_peak_fit_param_value(data_key, 'width', max_cost=None)
         not_used_vec, chi2_vec = self._core.get_peak_fit_param_value(data_key, 'chi2', max_cost=None)
         not_used_vec, intensity_vec = self._core.get_peak_fit_param_value(data_key, 'intensity', max_cost=None)
         com_vec = self._core.get_peak_center_of_mass(data_key)
-
+        #
         for row_index in range(len(center_vec)):
-            self.ui.tableView_fitSummary.set_peak_params(row_index,
-                                                         center_vec[row_index],
-                                                         height_vec[row_index],
-                                                         fwhm_vec[row_index],
-                                                         intensity_vec[row_index],
-                                                         chi2_vec[row_index],
-                                                         peak_function)
-            self.ui.tableView_fitSummary.set_peak_center_of_mass(row_index, com_vec[row_index])
+            self.ui.tableView_fitSummary.set_fit_summary(row_index, scan_index, param_dict, peak_name, com_vec)
 
-        # plot the model and difference
-        if scan_log_index is None:
-            scan_log_index = 0
-            # FIXME This case is not likely to occur
-        self.do_plot_diff_data()
+            # self.ui.tableView_fitSummary.set_peak_params(row_index,
+            #                                              center_vec[row_index],
+            #                                              height_vec[row_index],
+            #                                              fwhm_vec[row_index],
+            #                                              intensity_vec[row_index],
+            #                                              chi2_vec[row_index],
+            #                                              peak_function)
+            # self.ui.tableView_fitSummary.set_peak_center_of_mass(row_index, com_vec[row_index])
+        # END-FOR (rows)
 
         return
 
@@ -342,11 +389,11 @@ class FitPeaksWindow(QMainWindow):
         scan_log_indexes = self._core.get_peak_fit_scan_log_indexes(self._curr_data_key)
         for sample_log_index in scan_log_indexes:
             # reset the canvas
-            self.ui.graphicsView_fitSetup.reset_viewer()
+            self._ui_graphicsView_fitSetup.reset_viewer()
             # plot
             self.plot_diff_data(sample_log_index, True)
             png_name_i = os.path.join(target_dir, '{}_fit.png'.format(sample_log_index))
-            self.ui.graphicsView_fitSetup.canvas().save_figure(png_name_i)
+            self._ui_graphicsView_fitSetup.canvas().save_figure(png_name_i)
         # END-FOR
 
         # TODO - 20180809 - Pop the following command
@@ -374,7 +421,7 @@ class FitPeaksWindow(QMainWindow):
         # possibly clean the previous
         # keep_prev = self.ui.checkBox_keepPrevPlot.isChecked()
         # if keep_prev is False:
-        self.ui.graphicsView_fitSetup.reset_viewer()
+        self._ui_graphicsView_fitSetup.reset_viewer()
 
         # get data and plot
         err_msg = ''
@@ -408,7 +455,7 @@ class FitPeaksWindow(QMainWindow):
 
         next_scan_log = scan_log_index_list[0] + 1
         try:
-            self.ui.graphicsView_fitSetup.reset_viewer()
+            self._ui_graphicsView_fitSetup.reset_viewer()
             self.plot_diff_data(next_scan_log, True)
         except RuntimeError as run_err:
             # self.plot_diff_data(next_scan_log - 1, True)
@@ -435,7 +482,7 @@ class FitPeaksWindow(QMainWindow):
 
         prev_scan_log_index = scan_log_index_list[0] - 1
         try:
-            self.ui.graphicsView_fitSetup.reset_viewer()
+            self._ui_graphicsView_fitSetup.reset_viewer()
             self.plot_diff_data(prev_scan_log_index, True)
         except RuntimeError as run_err:
             # self.plot_diff_data(next_scan_log + 1, True)
@@ -488,6 +535,26 @@ class FitPeaksWindow(QMainWindow):
                                                save_file=True)
 
         self.save_fit_result(out_file_name)
+
+        return
+
+    def do_save_fit(self):
+        """
+        save fit result
+        :return:
+        """
+        file_name = gui_helper.browse_file(self, 'Select file to save fit result', default_dir=self._core.working_dir,
+                                           file_filter='HDF (*.hdf5);;CSV (*.csv)', file_list=False,
+                                           save_file=True)
+
+        if file_name.lower().endswith('hdf5') or file_name.lower().endswith('hdf') or file_name.lower().endswith('h5'):
+            self.save_fit_result(out_file_name=file_name)
+        elif file_name.lower().endswith('csv') or file_name.endswith('dat'):
+            self.export_fit_result(file_name)
+        else:
+            gui_helper.pop_message(self, message='Input file {} has an unsupported posfix.'.format(file_name),
+                                   detailed_message='Supported are hdf5, h5, hdf, csv and dat',
+                                   message_type='error')
 
         return
 
@@ -594,17 +661,26 @@ class FitPeaksWindow(QMainWindow):
         """
         # get experimental data and plot
         diff_data_set = self._core.get_diffraction_data(data_key=None, scan_log_index=scan_log_index)
-        self.ui.graphicsView_fitSetup.plot_diff_data(diff_data_set, 'Scan {0}'.format(scan_log_index))
+        data_set_label = 'Scan {0}'.format(scan_log_index)
 
-        # plot model optionally
         if plot_model:
             model_data_set = self._core.get_modeled_data(data_key=None, scan_log_index=scan_log_index)
-            if model_data_set is not None:
-                # existing model
-                self.ui.graphicsView_fitSetup.plot_model(model_data_set)
-                self.ui.graphicsView_fitSetup.plot_fit_diff(diff_data_set, model_data_set)
-            # END-IF
-        # END-IF
+        else:
+            model_data_set = None
+
+        # plot
+        if model_data_set is None:
+            # data only (no model or not chosen to)
+            self._ui_graphicsView_fitSetup.plot_data(data_set=diff_data_set, color=None,
+                                                     line_label=data_set_label)
+        else:
+            # plot with model
+            residual_y_vec = diff_data_set[1] - model_data_set[1]
+            residual_data_set = [diff_data_set[0], residual_y_vec]
+            self._ui_graphicsView_fitSetup.plot_data_model(data_set=diff_data_set, data_label=data_set_label,
+                                                           model_set=model_data_set, model_label='',
+                                                           residual_set=residual_data_set)
+        # END-IF-ELSE
 
         return
 

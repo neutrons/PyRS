@@ -213,10 +213,6 @@ class PoleFigureCalculator(object):
         self._peak_info_dict[det_id] = log_dict
         self._peak_fit_info_dict[det_id] = peak_fit_info_dict
 
-        # for scan_log_index in peak_fit_info_dict:
-        #     print peak_fit_info_dict[scan_log_index].keys()
-        #     print peak_fit_info_dict[scan_log_index]['cost']
-
         return
 
     def calculate_pole_figure(self, det_id_list):
@@ -249,8 +245,8 @@ class PoleFigureCalculator(object):
                 # rotate Q from instrument coordinate to sample coordinate
                 two_theta_i = peak_info_dict[scan_index]['2theta']
                 omega_i = peak_info_dict[scan_index]['omega']
-		if omega_i < 0.:
-			omega_i += 90.
+                if omega_i < 0.:
+                    omega_i += 90.
                 chi_i = peak_info_dict[scan_index]['chi']
                 phi_i = peak_info_dict[scan_index]['phi']
                 alpha, beta = self.rotate_project_q(two_theta_i, omega_i, chi_i, phi_i)
@@ -258,7 +254,6 @@ class PoleFigureCalculator(object):
                 pole_figure_array[index, 0] = alpha
                 pole_figure_array[index, 1] = beta
                 pole_figure_array[index, 2] = intensity_i
-                print ('[DB...BAT] index: {0} scan {1} alpha = {2}, beta = {3}'.format(index, scan_index, alpha, beta))
                 # END-FOR
             # END-FOR
 
@@ -274,6 +269,7 @@ class PoleFigureCalculator(object):
         exported the calculated pole figure
         :param detector_id_list: list of detector IDs to write the pole figure file
         :param file_name:
+        :param file_type: ASCII or MTEX (.jul)
         :param file_header: for MTEX format
         :return:
         """
@@ -284,7 +280,6 @@ class PoleFigureCalculator(object):
             detector_id_list = self.get_detector_ids()
         else:
             checkdatatypes.check_list('Detector IDs', detector_id_list)
-        print ('[DB...DEL] detector ID list: {}'.format(detector_id_list))
 
         # check inputs
         checkdatatypes.check_file_name(file_name, check_exist=False, check_writable=True)
@@ -295,7 +290,7 @@ class PoleFigureCalculator(object):
             # export pole figure arrays as ascii column file
             export_arrays_to_ascii(self._pole_figure_dict, detector_id_list, file_name)
         elif file_type.lower() == 'mtex':
-            # export to mtex format
+            # export to MTEX format
             export_to_mtex(self._pole_figure_dict, detector_id_list, file_name, header=file_header)
 
         return
@@ -330,7 +325,6 @@ class PoleFigureCalculator(object):
                                    ''.format(param_name, self._peak_fit_info_dict[det_id].keys(),
                                              self._peak_fit_info_dict[det_id][log_index].keys()))
         # END-FOR
-        # print ('[DB...BAT] Param {} Detector {}: {}'.format(param_name, det_id, param_vec))
 
         return param_vec
 
@@ -380,8 +374,8 @@ class PoleFigureCalculator(object):
                 taken_index_list.append(idx)
         # END-IF
 
-        print ('[DB...BAT] detector: {} has total {} peaks; {} are selected due to cost < {}.'
-               ''.format(det_id, len(cost_vec), len(taken_index_list), max_cost))
+        # print ('[DB...BAT] detector: {} has total {} peaks; {} are selected due to cost < {}.'
+        #        ''.format(det_id, len(cost_vec), len(taken_index_list), max_cost))
 
         selected_log_index_vec = numpy.take(log_index_vec, taken_index_list, axis=0)
         selected_pole_figure_vec = numpy.take(pole_figure_vec, taken_index_list, axis=0)
@@ -485,21 +479,6 @@ class PoleFigureCalculator(object):
 # END-OF-CLASS (PoleFigureCalculator)
 
 
-def test_rotate():
-    pf_cal = PoleFigureCalculator()
-    pf_cal._use_matmul = True
-    
-
-    # row 636: same from pyrs-gui-test
-    two_theta   = 82.3940
-    omega       = -48.805
-    chi         = 8.992663
-    phi         = 60.00
-        
-    a, b = pf_cal.rotate_project_q(two_theta, omega, chi, phi)
-    print (a, b)
-
-
 def export_arrays_to_ascii(pole_figure_array_dict, detector_id_list, file_name):
     """
     export a dictionary of arrays to an ASCII file
@@ -512,7 +491,7 @@ def export_arrays_to_ascii(pole_figure_array_dict, detector_id_list, file_name):
     checkdatatypes.check_dict('Pole figure array dictionary', pole_figure_array_dict)
     checkdatatypes.check_list('Detector ID list', detector_id_list)
 
-    print ('[DB...Export Pole Figure Arrays To ASCII:\nKeys: {0}\nValues[0]: {1}'
+    print ('[INFO] Export Pole Figure Arrays To ASCII:\nKeys: {0}\nValues[0]: {1}'
            ''.format(pole_figure_array_dict.keys(), pole_figure_array_dict.values()[0]))
 
     # combine
@@ -539,8 +518,10 @@ def export_arrays_to_ascii(pole_figure_array_dict, detector_id_list, file_name):
 def export_to_mtex(pole_figure_array_dict, detector_id_list, file_name, header):
     """
     export to mtex format, which includes
-    line 1: header
-    line 2 and on: alpha\tbeta\tintensity
+    line 1: NRSF2
+    line 2: alpha beta intensity
+    line 3: (optional header)
+    line 4 and on: alpha\tbeta\tintensity
     :param file_name:
     :param detector_id_list: selected the detector IDs for pole figure
     :param pole_figure_array_dict:
@@ -551,10 +532,11 @@ def export_to_mtex(pole_figure_array_dict, detector_id_list, file_name, header):
     checkdatatypes.check_dict('Pole figure array dictionary', pole_figure_array_dict)
     checkdatatypes.check_list('Detector ID list', detector_id_list)
 
-    # initialize output string
-    mtex = ''
+    # initialize output string: MTEX HEAD
+    mtex = 'NRSF2\n'
+    mtex += 'alpha beta intensity\n'
 
-    # header
+    # user optional header
     mtex += '{0}\n'.format(header)
 
     # writing data
@@ -567,9 +549,6 @@ def export_to_mtex(pole_figure_array_dict, detector_id_list, file_name, header):
                                       'Find out how detector IDs are involved.')
 
         sample_log_index, pole_figure_array = pole_figure_array_dict[pf_key]
-
-        print ('[DB...BAT] PF-key: {}... Array Shape: {}'.format(pf_key, pole_figure_array.shape))
-
         for i_pt in range(pole_figure_array.shape[0]):
             mtex += '{0:5.5f}\t{1:5.5f}\t{2:5.5f}\n' \
                     ''.format(pole_figure_array[i_pt, 0], pole_figure_array[i_pt, 1], pole_figure_array[i_pt, 2])
@@ -600,3 +579,17 @@ def does_numpy_support_matmul():
         return True
 
     return False
+
+
+def test_rotate():
+    pf_cal = PoleFigureCalculator()
+    pf_cal._use_matmul = True
+
+    # row 636: same from pyrs-gui-test
+    two_theta = 82.3940
+    omega = -48.805
+    chi = 8.992663
+    phi = 60.00
+
+    a, b = pf_cal.rotate_project_q(two_theta, omega, chi, phi)
+    print (a, b)

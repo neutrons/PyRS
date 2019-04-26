@@ -1,7 +1,7 @@
 try:
-    from PyQt5.QtWidgets import QMainWindow, QFileDialog
+    from PyQt5.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout
 except ImportError:
-    from PyQt4.QtGui import QMainWindow, QFileDialog
+    from PyQt4.QtGui import QMainWindow, QFileDialog, QVBoxLayout
 import ui.ui_manualreductionwindow
 from pyrs.core.pyrscore import PyRsCore
 from pyrs.utilities import hb2b_utilities
@@ -35,6 +35,7 @@ class ManualReductionWindow(QMainWindow):
         # set up UI
         self.ui = ui.ui_manualreductionwindow.Ui_MainWindow()
         self.ui.setupUi(self)
+        self._promote_widgets()
 
         # set up the event handling
         self.ui.pushButton_setIPTSNumber.clicked.connect(self.do_set_ipts_exp)
@@ -54,8 +55,21 @@ class ManualReductionWindow(QMainWindow):
         # event handling for combobox
         self.ui.comboBox_runs.currentIndexChanged.connect(self.event_new_run_to_plot)
 
+        # TODO - ASAP - Use these 2 buttons to enable/disable write access to configuration
+        # actionEdit_Calibrations
+        # actionFix_Calibrations
+
+        # TODO - ASAP - Load Instrument
+        # actionLoad_Instrument
+
+        # menu operation
+        self.ui.actionLoad_Image.triggered.connect(self.event_load_image)
+
         # init widgets
         self._init_widgets_setup()
+
+        # mutexes
+        self._mutexPlotRuns = False
 
         return
 
@@ -65,6 +79,23 @@ class ManualReductionWindow(QMainWindow):
         :return:
         """
         self.ui.radioButton_chopByLogValue.setChecked(True)
+
+        return
+
+    def _promote_widgets(self):
+        """
+        promote widgets
+        :return:
+        """
+        from ui.diffdataviews import DetectorView
+        # 2D detector view
+        curr_layout = QVBoxLayout()
+        self.ui.frame_detectorView.setLayout(curr_layout)
+        self.ui.graphicsView_detectorView = DetectorView(self)
+        curr_layout.addWidget(self.ui.graphicsView_detectorView)
+
+        return
+
 
     def do_browse_calibration_file(self):
         """ Browse and set up calibration file
@@ -218,12 +249,37 @@ class ManualReductionWindow(QMainWindow):
         :return:
         """
         # get run numbers
-        run_number_list = gui_helper.parse_integers(str(self.ui.lineEdit_runNumbersList.text()))
+        # TODO - 20181113 - Entry point ... set up mock data
+        try:
+            run_number_list = gui_helper.parse_integers(str(self.ui.lineEdit_runNumbersList.text()))
+        except RuntimeError as run_err:
+            gui_helper.pop_message(blabla)
+            return
+
+        # TODO - 20181116 - Clean this method!  Using multiple threading to update message
+        # form a message
+        message = 'Reducing: \n'
+        for run_number in run_number_list:
+            message += 'IPTS-{} Run-{}: {}\n'.format(self._currIPTSNumber, run_number,
+                                                     '/HFIR/HB2B/IPTS-{}/nexus/HB2B_{}.nxs.h5'
+                                                     ''.format(self._currIPTSNumber, run_number))
+        # END-FOR
+        self.ui.plainTextEdit_message.setPlainText(message)
+
+        # set for the plotting: set mutex
+        self._mutexPlotRuns = True
+        self.ui.comboBox_runs.clear()
+        for run_number in run_number_list:
+            self.ui.comboBox_runs.addItem('{}'.format(run_number))
+        self._mutexPlotRuns = False
+
+        return
 
         error_msg = ''
         for run_number in run_number_list:
             try:
-                self._core.reduction_engine.reduce_run(self._currIPTSNumber, self._expNumber, run_number)
+                reduced_data_dict = self._core.reduction_engine.reduce_rs_run(self._currIPTSNumber,
+                                                                              self._expNumber, run_number)
             except RuntimeError as run_err:
                 error_msg += 'Failed to reduce run {} due to {}\n'.format(run_number, run_err)
         # END-FOR
@@ -257,6 +313,8 @@ class ManualReductionWindow(QMainWindow):
         """ Handle the event as the event slicing type is changed
         :return:
         """
+        # TODO - ASAP - Clean
+        # TODO - ASAP - Set default radio button
         disable_time_slice = True
         disable_value_slice = True
         disable_adv_slice = True
@@ -270,9 +328,36 @@ class ManualReductionWindow(QMainWindow):
             disable_adv_slice = False
 
         # enable/disable group
-        self.ui.groupBox_sliceByTime.setEnabled(not disable_time_slice)
-        self.ui.groupBox_sliceByLogValue.setEnabled(not disable_value_slice)
-        self.ui.groupBox_advancedSetup.setEnabled(not disable_adv_slice)
+        # FIXME TODO - ASAP - use setTabEnabled(index, false)
+        # self.ui.groupBox_sliceByTime.setEnabled(not disable_time_slice)
+        # self.ui.groupBox_sliceByLogValue.setEnabled(not disable_value_slice)
+        # self.ui.groupBox_advancedSetup.setEnabled(not disable_adv_slice)
+
+        return
+
+    def event_load_image(self):
+        """
+        Load image binary file (as HFIR SPICE binary standard)
+        :return:
+        """
+        bin_file = gui_helper.browse_file(self, caption='Select a SPICE Image Binary File',
+                                          default_dir=self._core.working_dir,
+                                          file_filter='Binary (*.bin)', file_list=False, save_file=False)
+
+        # return if user cancels operation
+        if bin_file == '':
+            return
+
+        print ('[DB...BAT] Select {} to load: ... '.format(bin_file))
+
+        # TODO - ASAP - Move the following to correct place
+        import mantid
+
+        # bin_file_name = '/home/wzz/Projects/PyRS/tests/testdata/LaB6_10kev_35deg-00004_Rotated.bin'
+
+        ws_name = 'testws'
+
+        LoadSpiceXML2DDet(Filename=bin_file_name, OutputWorkspace=ws_name, LoadInstrument=False)
 
         return
 
@@ -280,7 +365,13 @@ class ManualReductionWindow(QMainWindow):
         """ User selects a different run number to plot
         :return:
         """
+        if self._mutexPlotRuns:
+            return
+
         curr_run_number = int(str(self.ui.comboBox_runs.currentText()))
+        if not self._core.reduction_engine.has_run_reduced(curr_run_number):
+            return
+
         is_chopped = self._core.reduction_engine.is_chopped_run(curr_run_number)
 
         # set the sliced box
@@ -304,8 +395,6 @@ class ManualReductionWindow(QMainWindow):
             pass
 
         self._plot_sliced_mutex = False
-
-
 
     def setup_window(self, pyrs_core):
         """
