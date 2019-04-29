@@ -1,6 +1,6 @@
 # Migrated from /HFIR/HB2B/shared/Quick_Calibration.py
 
-# TODO - NIGHT - Use pure-python reduction to replace Mantid reduction
+# TODO - TODAY 0 - Use pure-python reduction to replace Mantid reduction
 
 import numpy as np
 from scipy.optimize import leastsq

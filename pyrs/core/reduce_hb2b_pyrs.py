@@ -338,14 +338,16 @@ class PyHB2BReduction(object):
 
         return pixel_array
 
+    # TODO - TONIGHT 1 - Doc and clean
+    # TODO - TONIGHT 0 - Normalize by num bins (aka vanadium as old saying)
     def reduce_to_2theta_histogram(self, counts_array, mask, num_bins, x_range=None,
-                                   is_point_data=True, use_mantid=False):
+                                   is_point_data=True, use_mantid_histogram=False):
         """ convert the inputs (detector matrix and counts to 2theta histogram)
         :param counts_array:
         :param mask: vector of masks
         :param num_bins:
         :param x_range: range of X value
-        :param use_mantid: use Mantid ResampleX to compare numpy histogram
+        :param use_mantid_histogram: use Mantid ResampleX to compare numpy histogram
         :return: 2-tuple (bin edges, counts in histogram)
         """
         # get vector of X: 2theta
@@ -386,8 +388,8 @@ class PyHB2BReduction(object):
                ''.format(raw_counts, num_masked, masked_counts))
 
         # this is histogram data
-        use_mantid = False   # TODO FIXME - Turned on for debugging!
-        if not use_mantid:
+        use_mantid_histogram = False   # TODO FIXME - Turned on for debugging!
+        if not use_mantid_histogram:
             hist, bin_edges = np.histogram(two_theta_array, bins=num_bins, range=x_range, weights=vec_counts)
             bin_size_vec = (bin_edges[1:] - bin_edges[:-1])
             print ('[DB...BAT] Histograms Bins: X = [{}, {}]'.format(bin_edges[0], bin_edges[-1]))
@@ -437,4 +439,24 @@ class PyHB2BReduction(object):
         # END-IF
 
         return bin_edges, hist
+
+    # TODO - TONIGHT 0 - w_l = 2d sin (0.5 * two_theta)
+    # TODO - ... ...   - convert to d-spacing
+    # TODO - ... ...   - re-bin (and see the result)
+    def reduce_to_dspacing_histogram(self, counts_array, mask, num_bins, x_range=None,
+                                     export_point_data=True, use_mantid_histogram=False):
+        """
+
+        :param counts_array:
+        :param mask:
+        :param num_bins:
+        :param x_range:
+        :param export_point_data:
+        :param use_mantid_histogram:
+        :return:
+        """
+        # TODO - NOTE - wave length value shall come from instrument!
+
+        return
+
 # END-CLASS
