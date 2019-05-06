@@ -24,6 +24,8 @@ class ResidualStressInstrument(object):
         self._pixel_matrix = None  # used by external after build_instrument: matrix for pixel positions
         self._pixel_2theta_matrix = None  # matrix for pixel's 2theta value
 
+        self._wave_length = None
+
         return
 
     @staticmethod
@@ -274,9 +276,16 @@ class ResidualStressInstrument(object):
         :return:
         """
         two_theta_array = self.get_2theta_values(dimension)
+        print ('[DB...BAT] 2theta range: ({}, {})'
+               ''.format(two_theta_array.min(), two_theta_array.max()))
+        assert isinstance(two_theta_array, numpy.ndarray), 'check'
 
         # convert to d-spacing
-        d_spacing_array = 0.5 * self._wave_length * numpy.sin(0.5 * two_theta_array)
+        d_spacing_array = 0.5 * self._wave_length / numpy.sin(0.5 * two_theta_array * numpy.pi / 180.)
+        assert isinstance(d_spacing_array, numpy.ndarray)
+
+        print ('[DB...BAT] Converted d-spacing range: ({}, {})'
+               ''.format(d_spacing_array.min(), d_spacing_array.max()))
 
         return d_spacing_array
 
@@ -305,12 +314,15 @@ class ResidualStressInstrument(object):
 class PyHB2BReduction(object):
     """ A class to reduce HB2B data in pure Python and numpy
     """
-    def __init__(self, instrument):
+    def __init__(self, instrument, wave_length=None):
         """
         initialize the instrument
         :param instrument
         """
         self._instrument = ResidualStressInstrument(instrument)
+
+        if wave_length is not None:
+            self._instrument.set_wave_length(wave_length)
 
         return
 
@@ -407,7 +419,8 @@ class PyHB2BReduction(object):
         use_mantid_histogram = False   # TODO FIXME - Turned on for debugging!
         if not use_mantid_histogram:
             norm_bins = True
-            bin_edges, hist = self.histogram_by_numpy(two_theta_array, vec_counts, x_range, is_point_data, norm_bins)
+            bin_edges, hist = self.histogram_by_numpy(two_theta_array, vec_counts, x_range,
+                                                      num_bins, is_point_data, norm_bins)
 
         else:
             # this is a branch used for testing against Mantid method
@@ -463,16 +476,10 @@ class PyHB2BReduction(object):
                ''.format(raw_counts, num_masked, masked_counts))
 
         # this is histogram data
-        use_mantid_histogram = False   # TODO FIXME - Turned on for debugging!
-        if not use_mantid_histogram:
-            norm_bins = True
-            is_point_data = False
-            bin_edges, hist = self.histogram_by_numpy(d_space_vec, vec_counts, x_range, is_point_data, norm_bins)
-
-        else:
-            # this is a branch used for testing against Mantid method
-            bin_edges, hist = self.histogram_by_mantid(two_theta_array, vec_counts)
-        # END-IF
+        norm_bins = True
+        is_point_data = True
+        bin_edges, hist = self.histogram_by_numpy(d_space_vec, vec_counts, x_range, num_bins,
+                                                  is_point_data, norm_bins)
 
         return bin_edges, hist
 
@@ -540,10 +547,7 @@ class PyHB2BReduction(object):
         if is_point_data:
             delta_bin = bin_edges[1] - bin_edges[0]
             bin_edges += delta_bin * 0.5
-            bin_edges = bin_edges
-
-
-
+            bin_edges = bin_edges[:-1]
 
         return bin_edges, hist
 
