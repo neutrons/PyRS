@@ -139,6 +139,13 @@ def reduce_data(mask_file, calibrated, pixel_number=2048):
     plt.legend()
     plt.show()
 
+    # another comparison: bin size
+    uneven_bins = vec_dspace[1:] - vec_dspace[:-1]
+    plt.plot(vec_dspace[:-1], uneven_bins, color='blue')
+    even_bins = vec_d[1:] - vec_d[:-1]
+    plt.plot(vec_d[:-1], even_bins, color='red')
+    plt.show()
+
     return
 
 
