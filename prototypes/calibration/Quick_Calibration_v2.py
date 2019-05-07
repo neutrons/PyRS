@@ -215,20 +215,16 @@ def main():
 
         # 2theta
         two_theta = -35.  # TODO - TONIGHT 1 - Make this user specified value
-        arm_length_shift = 0.
-        center_shift_x = 0.
-        center_shift_y = 0.
-        rot_x_flip = 0.
-        rot_y_flip = 0.
-        rot_z_spin = 0.
 
-        test_calibration = calibration_file_io.ResidualStressInstrumentCalibration()
-        test_calibration.center_shift_x = center_shift_x
-        test_calibration.center_shift_y = center_shift_y
-        test_calibration.center_shift_z = arm_length_shift
-        test_calibration.rotation_x = rot_x_flip  # + 0.001
-        test_calibration.rotation_y = rot_y_flip  # - 0.00321
-        test_calibration.rotation_z = rot_z_spin  # + 0.0022
+        calibration = [-2.28691912e-04, 3.42766839e-06, -1.99762398e-03, -5.59805308e-02, -8.32593462e-01, 7.66556036e-04]
+
+        arm_length_shift = calibration[2]
+        center_shift_x = calibration[0]
+        center_shift_y = calibration[1]
+        rot_x_flip = calibration[3]
+        rot_y_flip = calibration[4]
+        rot_z_spin = calibration[5]
+
 
         # reduction engine
         engine = reductionengine.HB2BReductionManager()
@@ -240,6 +236,37 @@ def main():
         pyrs_reducer = reduce_hb2b_pyrs.PyHB2BReduction(instrument, 1.239)
         pyrs_reducer.build_instrument(two_theta, arm_length_shift, center_shift_x, center_shift_y,
                                       rot_x_flip, rot_y_flip, rot_z_spin)
+
+        # reduce data
+        min_2theta = 8.
+        max_2theta = 64.
+        num_bins = 1800
+
+        # reduce PyRS (pure python)
+        curr_id = engine.current_data_id
+        # mask
+        roi_vec_pos, mask_2theta, note = mask_util.load_pyrs_mask(pos_mask_h5)
+        roi_vec_neg, mask_2thetA, notE = mask_util.load_pyrs_mask(neg_mask_h5)
+        pos_2theta, pos_hist = pyrs_reducer.reduce_to_2theta_histogram(counts_array=engine.get_counts(curr_id),
+                                                                       mask=roi_vec_pos, x_range=(min_2theta, max_2theta),
+                                                                       num_bins=num_bins,
+                                                                       is_point_data=True,
+                                                                       use_mantid_histogram=False)
+        neg_2theta, neg_hist = pyrs_reducer.reduce_to_2theta_histogram(counts_array=engine.get_counts(curr_id),
+                                                                       mask=roi_vec_neg, x_range=(min_2theta, max_2theta),
+                                                                       num_bins=num_bins,
+                                                                       is_point_data=True,
+                                                                       use_mantid_histogram=False)
+        plt.plot(pos_2theta, pos_hist, color='red')
+        plt.plot(neg_2theta, neg_hist, color='blue')
+        plt.show()
+        
+        print ('RESULT EXAMINATION IS OVER')
+        return
+    # END-IF-ELSE
+
+    import time
+    t_start = time.time()
 
     # reduction engine
     engine = reductionengine.HB2BReductionManager()
@@ -257,6 +284,11 @@ def main():
     DE_Res = leastsq(MinDifference, np.array(x0), args=(engine, instrument, roi_vec_pos, roi_vec_neg),
                      xtol=1e-15, maxfev=3000, epsfcn=1e-2)
 
+    t_stop = time.time()
+    print ('Total Time: {}'.format(t_stop - t_start))
+    print (DE_Res[0])
+    print (DE_Res[1])
+
     DD = 0.0
     D_Shift = 0
     Center_X = -0.002
@@ -264,7 +296,8 @@ def main():
     Flip = -1
     Spin = 0.0
 
-    DE_Res = leastsq(MinDifference, [-1], xtol=1e-15, maxfev=3000)
+    # DE_Res = leastsq(MinDifference, [-1], xtol=1e-15, maxfev=3000)
 
+    return
 
 main()
