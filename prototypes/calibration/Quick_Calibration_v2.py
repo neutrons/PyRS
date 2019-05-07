@@ -1,16 +1,24 @@
 # Migrated from /HFIR/HB2B/shared/Quick_Calibration.py
-
+print ('Prototype Calibration: Quick_Calibration_v2')
+# Original can be found at .../tests/Quick_Calibration_v2.py
 # TODO - TODAY 0 - Use pure-python reduction to replace Mantid reduction
-
 import numpy as np
 from scipy.optimize import leastsq
 from scipy.optimize import minimize
 from scipy.optimize import basinhopping
 
+from pyrs.core import reduce_hb2b_pyrs
+from pyrs.core import calibration_file_io
+from pyrs.core import reductionengine
+from pyrs.core import mask_util
+from mantid.simpleapi import CreateWorkspace, FitPeaks
+from mantid.api import AnalysisDataService as mtd
+from matplotlib import pyplot as plt
 
 #----------------s-----------------------------------------------------------    
 wavelength = 1.E5 # kev
 wavelength = 1.296  # A
+two_theta = 30.
 
 
 def MinDifference_Chris(x):
@@ -49,11 +57,37 @@ def MinDifference_Chris(x):
 # This is main!!!
 
 
-def MinDifference(x):
+def MinDifference(x, engine, hb2b_setup, positive_roi_vec, negative_roi_vec):
     """ Cost function to align the peaks!
     :param x:
     :return:
     """
+    def convert_to_2theta(two_theta, instrument_setup, roi_vec, geometry_shift, ws_name):
+        # load instrument: as it changes
+        pyrs_reducer = reduce_hb2b_pyrs.PyHB2BReduction(instrument_setup, 1.239)
+        pyrs_reducer.build_instrument(two_theta, geometry_shift.center_shift_z,
+                                      geometry_shift.center_shift_x, geometry_shift.center_shift_y,
+                                      geometry_shift.rotation_x, geometry_shift.rotation_y,
+                                      geometry_shift.rotation_z)
+
+        # reduce data
+        min_2theta = 8.
+        max_2theta = 64.
+        num_bins = 1800
+
+        # reduce PyRS (pure python)
+        curr_id = engine.current_data_id
+        vec_2theta, vec_hist = pyrs_reducer.reduce_to_2theta_histogram(counts_array=engine.get_counts(curr_id),
+                                                                       mask=roi_vec, x_range=(min_2theta, max_2theta),
+                                                                       num_bins=num_bins,
+                                                                       is_point_data=True,
+                                                                       use_mantid_histogram=False)
+
+        CreateWorkspace(DataX=vec_2theta, DataY=vec_hist, DataE=np.sqrt(vec_hist), NSpec=1,
+                        OutputWorkspace=ws_name)
+
+        return vec_2theta, vec_hist
+
     if False:
         WS_p30deg_Rot = test_rotate_2theta(idf_name, WS_p30deg, 'hb2b_rotate_p30deg_Rot', DetDistance=0.0, DetTTH=35.0,
                                            DetTTH_Shift=0.0, Beam_Center_X=-0.002, Beam_Center_Y=-0.007, DetFlit=x[0],
@@ -66,19 +100,37 @@ def MinDifference(x):
         convert_to_2theta(WS_n30deg_Rot, vanadium_N30)
     else:
         # TODO - TONIGHT 0 - From here!
-        ws_positive_roi = convert_to_
+
+        geom_calibration = calibration_file_io.ResidualStressInstrumentCalibration()
+        geom_calibration.center_shift_x = x[0]
+        geom_calibration.center_shift_y = x[1]
+        geom_calibration.center_shift_z = x[2]
+        geom_calibration.rotation_x = x[3]
+        geom_calibration.rotation_y = x[4]
+        geom_calibration.rotation_z = x[5]
+
+        positive_roi = convert_to_2theta(two_theta, hb2b_setup, positive_roi_vec, geom_calibration,
+                                            'positive_roi_ws')
+        negative_roi = convert_to_2theta(two_theta, hb2b_setup, negative_roi_vec, geom_calibration,
+                                            'negative_roi_ws')
+
+        # plt.plot(positive_roi[0], positive_roi[1], color='red')
+        # plt.plot(negative_roi[0], negative_roi[1], color='green')
+        # plt.show()
 
     N30_Fit = 'Fit_N30'
     P30_Fit = 'Fit_P30'
 
-    FitPeaks(InputWorkspace='hb2b_rotate_n30deg_Rot_reduced', OutputWorkspace=N30_Fit, StartWorkspaceIndex=0,
+
+
+    FitPeaks(InputWorkspace='positive_roi_ws', OutputWorkspace=N30_Fit, StartWorkspaceIndex=0,
              StopWorkspaceIndex=0, PeakCenters='17.5,24.5,30.25,35.2,39.4,43.2,53.5',
              FitWindowBoundaryList='16,19,23,26,29,32,33,37,38,41,42,44.5,51.5,55',
              FittedPeaksWorkspace='hb2b_rotate_n30deg_reduced_Output',
              OutputPeakParametersWorkspace='hb2b_rotate_n30deg_reduced_FITS',
              OutputParameterFitErrorsWorkspace='hb2b_rotate_n30deg_reduced_Errors')
 
-    FitPeaks(InputWorkspace='hb2b_rotate_p30deg_Rot_reduced', OutputWorkspace=P30_Fit, StartWorkspaceIndex=0,
+    FitPeaks(InputWorkspace='negative_roi_ws', OutputWorkspace=P30_Fit, StartWorkspaceIndex=0,
              StopWorkspaceIndex=0, PeakCenters='17.5,24.5,30.25,35.2,39.4,43.2,53.5',
              FitWindowBoundaryList='16,19,23,26,29,32,33,37,38,41,42,44.5,51.5,55',
              FittedPeaksWorkspace='hb2b_rotate_p30deg_reduced_Output',
@@ -88,7 +140,7 @@ def MinDifference(x):
     Error3 = (mtd[N30_Fit].extractY()[0] - mtd[P30_Fit].extractY()[0])
 
     print x
-    print  Error3 * Error3
+    print Error3 * Error3
     return (Error3 * Error3) * 1e8
 # This is main!!!
 
@@ -103,9 +155,12 @@ def main():
         # test_file_name = 'LaB6_10kev_35deg-00004.xml'
         # Vanadium = 'Vanadium.xml'
         test_file_name = 'tests/testdata/BNT_7BT_2KNN_6kV_mm-03425-001.xml'
-        pass
+        pos_mask_h5 = None
+        neg_mask_h5 = None
     else:
         test_file_name = 'tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5'
+        pos_mask_h5 = 'tests/testdata/masks/Chi_30.hdf5'
+        neg_mask_h5 = 'tests/testdata/masks/Chi_Neg30.hdf5'
 
     # instrument geometry
     if False:
@@ -155,12 +210,7 @@ def main():
         vanadium_N30 = convert_to_2thetaVanadium(vanadium, num_bins=1900, Mask=n30Mask)
 
     else:
-        from pyrs.core import reduce_hb2b_pyrs
-        from pyrs.core import calibration_file_io
-        from pyrs.core import reductionengine
-        from pyrs.core import mask_util
-
-        # build instrument
+        # build instrument: for FUN
         instrument = calibration_file_io.import_instrument_setup(idf_name)
 
         # 2theta
@@ -191,11 +241,21 @@ def main():
         pyrs_reducer.build_instrument(two_theta, arm_length_shift, center_shift_x, center_shift_y,
                                       rot_x_flip, rot_y_flip, rot_z_spin)
 
+    # reduction engine
+    engine = reductionengine.HB2BReductionManager()
+    test_data_id = engine.load_data(data_file_name=test_file_name, target_dimension=2048,
+                                    load_to_workspace=False)
+    # instrument
+    instrument = calibration_file_io.import_instrument_setup(idf_name)
+    # mask
+    roi_vec_pos, mask_2theta, note = mask_util.load_pyrs_mask(pos_mask_h5)
+    roi_vec_neg, mask_2thetA, notE = mask_util.load_pyrs_mask(neg_mask_h5)
 
     x0 = [0, 0, -0.002, -0.007, -0.922, 0]
-
-    x0 = [-1.]
-    DE_Res = leastsq(MinDifference, x0, xtol=1e-15, maxfev=3000, epsfcn=1e-2)
+    # x0 = [-1.]
+    # engine, hb2b_setup, positive_roi_vec, negative_roi_vec
+    DE_Res = leastsq(MinDifference, np.array(x0), args=(engine, instrument, roi_vec_pos, roi_vec_neg),
+                     xtol=1e-15, maxfev=3000, epsfcn=1e-2)
 
     DD = 0.0
     D_Shift = 0
@@ -207,4 +267,4 @@ def main():
     DE_Res = leastsq(MinDifference, [-1], xtol=1e-15, maxfev=3000)
 
 
-
+main()
