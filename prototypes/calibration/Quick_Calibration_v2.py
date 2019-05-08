@@ -139,8 +139,10 @@ def MinDifference(x, engine, hb2b_setup, positive_roi_vec, negative_roi_vec):
 
     Error3 = (mtd[N30_Fit].extractY()[0] - mtd[P30_Fit].extractY()[0])
 
-    print x
-    print Error3 * Error3
+    print ('Parameters:     {}'.format(x))
+    print ('Fitted Peaks +: {}'.format(mtd[P30_Fit].readY(0))) 
+    print ('Fitted Peaks -: {}'.format(mtd[N30_Fit].readY(0))) 
+    print ('Diff**2       = {}'.format(Error3 * Error3))
     return (Error3 * Error3) * 1e8
 # This is main!!!
 
@@ -209,7 +211,7 @@ def main():
         vanadium_P30 = convert_to_2thetaVanadium(vanadium, num_bins=1900, Mask=p30Mask)
         vanadium_N30 = convert_to_2thetaVanadium(vanadium, num_bins=1900, Mask=n30Mask)
 
-    else:
+    elif False:
         # build instrument: for FUN
         instrument = calibration_file_io.import_instrument_setup(idf_name)
 
@@ -262,41 +264,41 @@ def main():
         plt.show()
         
         print ('RESULT EXAMINATION IS OVER')
-        return
+
+    else:
+        import time
+        t_start = time.time()
+
+        # reduction engine
+        engine = reductionengine.HB2BReductionManager()
+        test_data_id = engine.load_data(data_file_name=test_file_name, target_dimension=2048,
+                                        load_to_workspace=False)
+        # instrument
+        instrument = calibration_file_io.import_instrument_setup(idf_name)
+        # mask
+        roi_vec_pos, mask_2theta, note = mask_util.load_pyrs_mask(pos_mask_h5)
+        roi_vec_neg, mask_2thetA, notE = mask_util.load_pyrs_mask(neg_mask_h5)
+
+        x0 = [0, 0, -0.002, -0.007, -0.922, 0]
+        # x0 = [-1.]
+        # engine, hb2b_setup, positive_roi_vec, negative_roi_vec
+        DE_Res = leastsq(MinDifference, np.array(x0), args=(engine, instrument, roi_vec_pos, roi_vec_neg),
+                         xtol=1e-15, maxfev=3000, epsfcn=1e-2)
+
+        t_stop = time.time()
+        print ('Total Time: {}'.format(t_stop - t_start))
+        print (DE_Res[0])
+        print (DE_Res[1])
+
+        DD = 0.0
+        D_Shift = 0
+        Center_X = -0.002
+        Center_Y = -0.007
+        Flip = -1
+        Spin = 0.0
+
+        # DE_Res = leastsq(MinDifference, [-1], xtol=1e-15, maxfev=3000)
     # END-IF-ELSE
-
-    import time
-    t_start = time.time()
-
-    # reduction engine
-    engine = reductionengine.HB2BReductionManager()
-    test_data_id = engine.load_data(data_file_name=test_file_name, target_dimension=2048,
-                                    load_to_workspace=False)
-    # instrument
-    instrument = calibration_file_io.import_instrument_setup(idf_name)
-    # mask
-    roi_vec_pos, mask_2theta, note = mask_util.load_pyrs_mask(pos_mask_h5)
-    roi_vec_neg, mask_2thetA, notE = mask_util.load_pyrs_mask(neg_mask_h5)
-
-    x0 = [0, 0, -0.002, -0.007, -0.922, 0]
-    # x0 = [-1.]
-    # engine, hb2b_setup, positive_roi_vec, negative_roi_vec
-    DE_Res = leastsq(MinDifference, np.array(x0), args=(engine, instrument, roi_vec_pos, roi_vec_neg),
-                     xtol=1e-15, maxfev=3000, epsfcn=1e-2)
-
-    t_stop = time.time()
-    print ('Total Time: {}'.format(t_stop - t_start))
-    print (DE_Res[0])
-    print (DE_Res[1])
-
-    DD = 0.0
-    D_Shift = 0
-    Center_X = -0.002
-    Center_Y = -0.007
-    Flip = -1
-    Spin = 0.0
-
-    # DE_Res = leastsq(MinDifference, [-1], xtol=1e-15, maxfev=3000)
 
     return
 

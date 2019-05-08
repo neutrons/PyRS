@@ -16,7 +16,7 @@ echo "User option: $1"
 
 if [ "$1" = "111" ] || [ "$1" = "prototype" ] ; then
     echo "Protyping calibration"
-    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./prototypes/calibration/Quick_Calibration_v2.py
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./prototypes/calibration/Quick_Calibration_v3.py
 fi
 
 if [ "$1" = "1" ] ; then
