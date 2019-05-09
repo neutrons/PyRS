@@ -112,7 +112,7 @@ def CostFunction(x, engine, hb2b_setup, two_theta, positive_roi_vec, negative_ro
     # plot
     ax1 = plt.subplot(212)
     ax1.margins(0.05)  # Default margin is 0.05, value 0 means fit
-    ax1.plot(positive_roi[0], positive_roi[1], color='red')
+    ax1.plot(r[0], positive_roi[1], color='red')
     ax1.plot(negative_roi[0], negative_roi[1], color='green')
     ax1.set_title('Cost = {}'.format(residual))
 
