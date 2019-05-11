@@ -199,28 +199,29 @@ def main():
     roi_n20_vec, mask_2thetA, notE = mask_util.load_pyrs_mask(mask_n20_h5)
 
     # Load, mask and reduce data
-    if False:
+    if True:
         # check
         instrument = calibration_file_io.import_instrument_setup(idf_name)
 
         # calibration = [-2.28691912e-04, 3.42766839e-06, -1.99762398e-03, -5.59805308e-02, -8.32593462e-01,
         #                7.66556036e-04]
-        calibration = [0.] * 6
+        # calibration = [0.] * 6
 
         # Result from [0, 0, -0.002, -0.007, -0.922, 0] and +/- 30 degrees
         # calibration = [2.33235126e-05,  -1.85337378e-04, -1.87855142e-03,  -2.20924269e-02,
         #                -1.64058209e+00, 1.41293750e+00]
 
         # From [0...]
-        calibration = [-3.90985615e-05, -2.72036598e-04, 3.91642084e-04, 5.99667751e-03,
-                       -8.15624721e-01, 1.42673120e+00]
+        # calibration = [-3.90985615e-05, -2.72036598e-04, 3.91642084e-04, 5.99667751e-03,
+        #                -8.15624721e-01, 1.42673120e+00]
 
         # From [previous]
-        calibration = [-3.81356557e-05,  -2.70589009e-04, 3.91001832e-04, 5.84042046e-03,
-                       -8.09033785e-01, 1.42465336e+00]
+        # calibration = [-3.81356557e-05,  -2.70589009e-04, 3.91001832e-04, 5.84042046e-03,
+        #                -8.09033785e-01, 1.42465336e+00]
 
         # From [0] with +/- 30 and +/- 10
-        #  -7.86738387e-05   9.18988206e-05  -5.55805387e-05  -1.44470481e-01 -6.45203851e-01   1.33199903e+00
+        calibration = [-7.86738387e-05, 9.18988206e-05, -5.55805387e-05, -1.44470481e-01,
+                       -6.45203851e-01, 1.33199903e+00]
 
         # reduction engine
         engine = reductionengine.HB2BReductionManager()
