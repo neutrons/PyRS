@@ -67,7 +67,7 @@ def create_instrument_load_data(calibrated, pixel_number, use_mantid):
                                     load_to_workspace=use_mantid)
 
     # load instrument
-    pyrs_reducer = reduce_hb2b_pyrs.PyHB2BReduction(instrument)
+    pyrs_reducer = reduce_hb2b_pyrs.PyHB2BReduction(instrument, 1.239)
     pyrs_reducer.build_instrument(two_theta, arm_length_shift, center_shift_x, center_shift_y,
                                   rot_x_flip, rot_y_flip, rot_z_spin)
 
@@ -111,14 +111,39 @@ def reduce_data(mask_file, calibrated, pixel_number=2048):
     else:
         vec_2theta = pyrs_vec_x
 
-    print ('Y: range = ({}, {})'.format(pyrs_vec_y.min(), pyrs_vec_y.max()))
+    # convert to dspacing
+    vec_dspace = 0.5 * 1.239 / numpy.sin(0.5 * vec_2theta * numpy.pi / 180.)
+    vec_dspace = vec_dspace[::-1]
+    vec_y = pyrs_vec_y[::-1]
+
+    print ('DSpacing: range = ({}, {})'.format(vec_dspace.min(), vec_dspace.max()))
     if mask_file:
         mask = os.path.basename(mask_file)
     else:
         mask = '(No Mask)'
-    plt.plot(vec_2theta, pyrs_vec_y, color='blue', label='PyRS: Mask {} Histogram by {}'
-                                                         ''.format(mask, 'numpy.histogram'))
+
+    plt.plot(vec_dspace, vec_y, color='blue', label='from histogram-2theta')
+    # plt.plot(vec_2theta, pyrs_vec_y, color='blue', label='PyRS: Mask {} Histogram by {}'
+    #                                                      ''.format(mask, 'numpy.histogram'))
+    # plt.legend()
+    # plt.show()
+
+    # Reduce to d-spacing
+    min_d, max_d = 0.5, 5.0
+    vec_d, vec_hist = pyrs_reducer.reduce_to_dspacing_histogram(counts_array=engine.get_counts(curr_id),
+                                                                mask=mask_vec, x_range=(min_d, max_d),
+                                                                num_bins=num_bins)
+
+    plt.plot(vec_d, vec_hist, color='red', label='PyRS: Mask {} Histogram by {}'
+                                                  ''.format(mask, 'numpy.histogram'))
     plt.legend()
+    plt.show()
+
+    # another comparison: bin size
+    uneven_bins = vec_dspace[1:] - vec_dspace[:-1]
+    plt.plot(vec_dspace[:-1], uneven_bins, color='blue')
+    even_bins = vec_d[1:] - vec_d[:-1]
+    plt.plot(vec_d[:-1], even_bins, color='red')
     plt.show()
 
     return
@@ -161,5 +186,20 @@ def main(argv):
 if __name__ == '__main__':
     """ main
     """
-    main(sys.argv)
-# TODO - TONIGHT 0 - Make reduction_study.py work!
+    if len(sys.argv) == 2 and sys.argv[1].isdigit():
+        # Test cases
+        test_file_name = 'tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5'
+        test_two_theta = '35.'
+        engine = 'pyrs'
+
+        if int(sys.argv[1]) == 5:
+            roi_name = 'tests/testdata/masks/Chi_30.hdf5'
+        elif int(sys.argv[1]) == 2:
+            roi_name = 'tests/testdata/masks/Chi_0.hdf5'
+        else:
+            roi_name = 'none'
+
+        main([sys.argv[0], test_file_name, test_two_theta, roi_name, engine])
+
+    else:
+        main(sys.argv)
