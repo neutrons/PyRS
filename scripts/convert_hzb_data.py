@@ -1,0 +1,3 @@
+# TODO - TONIGHT 0 - CONTINUE FROM HERE!
+# Convert HZB data to standard transformed-HDF5 format considering all the sample log values and instrument information
+# blabla...

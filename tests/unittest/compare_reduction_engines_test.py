@@ -23,6 +23,10 @@ print (os.getcwd())
 test_data = 'tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5'
 if True:
     xray_2k_instrument_file = 'tests/testdata/xray_data/XRay_Definition_2K.txt'
+    xray_idf_name = 'tests/testdata/xray_data/XRAY_Definition_20190521_1342.xml'
+if False:
+    # Note: Tested Version
+    xray_2k_instrument_file = 'tests/testdata/xray_data/XRay_Definition_2K.txt'
     xray_idf_name = 'tests/testdata/XRay_Definition_2K.xml'
 if False:
     xray_2k_instrument_file = 'tests/testdata/xray_data/XRay_Definition_2K_Mod.txt'
@@ -45,6 +49,7 @@ def create_instrument_load_data(calibrated, pixel_number):
     """
     # instrument
     instrument = calibration_file_io.import_instrument_setup(xray_2k_instrument_file)
+    print ('----------- IDF in Test: {} vs {} ---------------'.format(xray_2k_instrument_file, xray_idf_name))
 
     # 2theta
     two_theta = -35.
@@ -341,7 +346,7 @@ if __name__ == '__main__':
         option = int(sys.argv[1])
         print ('Testing option: {}'.format(option))
         if option == 1:
-            compare_geometry_test(False, pixel_number=2048, check_all_pixels=True)
+            compare_geometry_test(False, pixel_number=2048, check_all_pixels=False)
         elif option == 2:
             compare_geometry_test(True, pixel_number=2048, check_all_pixels=True)  # with calibration deviation
         elif option == 3:
