@@ -41,8 +41,8 @@ XRay_Masks = {0: 'tests/testdata/masks/Chi_0.hdf5',
 test_hbz_data = 'tests/testdata/HBZ_Project.h5'
 hbz_2theta = -90   # Then -35, Then 0.
 hbz_scan_index = whatever
-hbz_instrument_file = 'blabla'
-hbz_idf = 'blabla'
+hbz_instrument_file = 'tests/testdata/hzb/HZB_Definition_20190523_0844.txt'
+hbz_idf = 'tests/testdata/hzb/HZB_Definition_20190523_0844.xml'
 
 
 def create_instrument_load_data(instrument, scan_index, calibrated, pixel_number):
