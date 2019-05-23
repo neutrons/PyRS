@@ -19,8 +19,10 @@ from matplotlib import pyplot as plt
 # default testing directory is ..../PyRS/
 print (os.getcwd())
 # therefore it is not too hard to locate testing data
-# test_data = 'tests/testdata/LaB6_10kev_35deg-00004_Rotated.tif'
-test_data = 'tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5'
+
+# Section for XRay-Mock data
+test_xray_data = 'tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5'
+xray_2theta = -35.
 if True:
     xray_2k_instrument_file = 'tests/testdata/xray_data/XRay_Definition_2K.txt'
     xray_idf_name = 'tests/testdata/xray_data/XRAY_Definition_20190521_1342.xml'
@@ -28,38 +30,46 @@ if False:
     # Note: Tested Version
     xray_2k_instrument_file = 'tests/testdata/xray_data/XRay_Definition_2K.txt'
     xray_idf_name = 'tests/testdata/XRay_Definition_2K.xml'
-if False:
-    xray_2k_instrument_file = 'tests/testdata/xray_data/XRay_Definition_2K_Mod.txt'
-    xray_idf_name = 'tests/testdata/XRay_Definition_2K_Mod.xml'
-# test_mask = 'tests/testdata/masks/Chi_10.hdf5'
-Mask_File = {0: 'tests/testdata/masks/Chi_0.hdf5',
-             10: 'tests/testdata/masks/Chi_10.hdf5',
-             20: 'tests/testdata/masks/Chi_20.hdf5',
-             -10: 'tests/testdata/masks/Chi_Neg10.hdf5',
-             30: 'tests/testdata/masks/Chi_30.hdf5',
-             -30: 'tests/testdata/masks/Chi_Neg30.hdf5'}
-print ('Data file {0} exists? : {1}'.format(test_data, os.path.exists(test_data)))
+XRay_Masks = {0: 'tests/testdata/masks/Chi_0.hdf5',
+              10: 'tests/testdata/masks/Chi_10.hdf5',
+              20: 'tests/testdata/masks/Chi_20.hdf5',
+              -10: 'tests/testdata/masks/Chi_Neg10.hdf5',
+              30: 'tests/testdata/masks/Chi_30.hdf5',
+              -30: 'tests/testdata/masks/Chi_Neg30.hdf5'}
+
+# Section for HBZ (mock) data
+test_hbz_data = 'tests/testdata/HBZ_Project.h5'
+hbz_2theta = whatever
+hbz_scan_index = whatever
+hbz_instrument_file = 'blabla'
+hbz_idf = 'blabla'
 
 
-def create_instrument_load_data(calibrated, pixel_number):
+def create_instrument_load_data(instrument, scan_index, calibrated, pixel_number):
     """ Create instruments: PyRS and Mantid and load data
+    :param instrument: name of instrument
+    :param scan_index: for multiple scan project file
     :param calibrated:
     :param pixel_number:
     :return:
     """
     # instrument
-    instrument = calibration_file_io.import_instrument_setup(xray_2k_instrument_file)
-    print ('----------- IDF in Test: {} vs {} ---------------'.format(xray_2k_instrument_file, xray_idf_name))
+    if instrument == 'XRay-XRayMock':
+        hydra_idf = xray_2k_instrument_file
+        mantid_idf = xray_idf_name
+        two_theta = xray_2theta
+    elif instrument == 'HBZ':
+        hydra_idf = hbz_instrument_file
+        mantid_idf = hbz_idf
+        two_theta = hbz_2theta
+    else:
+        raise RuntimeError('Instrument {} does not have test data and IDF'.format(instrument))
 
-    # 2theta
-    two_theta = -35.
-    arm_length_shift = 0.
-    center_shift_x = 0.
-    center_shift_y = 0.
-    rot_x_flip = 0.
-    rot_y_flip = 0.
-    rot_z_spin = 0.
+    print ('----------- IDF in Test: {} vs {} ---------------'.format(hydra_idf, mantid_idf))
 
+    instrument = calibration_file_io.import_instrument_setup(hydra_idf)
+
+    # instrument geometry calibration
     if calibrated:
         # Note: README/TODO-ING: ONLY shift Y
         center_shift_x = int(1000. * (random.random() - 0.5) * 2.0) / 1000.
@@ -73,6 +83,9 @@ def create_instrument_load_data(calibrated, pixel_number):
                '(X, Y, Z) = {}, {}, {}'
                ''.format(center_shift_x, center_shift_y, arm_length_shift, rot_x_flip, rot_y_flip,
                          rot_z_spin))
+    else:
+        arm_length_shift = center_shift_x = center_shift_y = 0.
+        rot_x_flip = rot_y_flip = rot_z_spin = 0.
     # END-IF: arbitrary calibration
 
     test_calibration = calibration_file_io.ResidualStressInstrumentCalibration()
@@ -85,7 +98,7 @@ def create_instrument_load_data(calibrated, pixel_number):
 
     # reduction engine
     engine = reductionengine.HB2BReductionManager()
-    test_data_id = engine.load_data(data_file_name=test_data, target_dimension=pixel_number, load_to_workspace=True)
+    test_data_id = engine.load_data(data_file_name=test_xray_data, target_dimension=pixel_number, load_to_workspace=True)
 
     # load instrument
     pyrs_reducer = reduce_hb2b_pyrs.PyHB2BReduction(instrument)
@@ -101,12 +114,16 @@ def create_instrument_load_data(calibrated, pixel_number):
 
 
 # step 1: geometry must be correct!
-def compare_geometry_test(calibrated, pixel_number=2048, check_all_pixels=False):
+def compare_geometry_test(calibrated, instrument='XRayMock', pixel_number=2048, check_all_pixels=False):
     """
     Compare the geometry
+    :param calibrated:
+    :param instrument:
+    :param pixel_number:
+    :param check_all_pixels:
     :return:
     """
-    engine, pyrs_reducer, mantid_reducer = create_instrument_load_data(calibrated, pixel_number)
+    engine, pyrs_reducer, mantid_reducer = create_instrument_load_data(instrument, scan_index, calibrated, pixel_number)
 
     # compare
     # pyrs pixels
@@ -168,7 +185,6 @@ def compare_geometry_test(calibrated, pixel_number=2048, check_all_pixels=False)
 
         assert is_same, 'Instrument geometries from 2 engines do not match!'
     # END-IF
-
 
     return engine, pyrs_reducer, mantid_reducer
 
@@ -255,8 +271,7 @@ def compare_reduced_no_mask(calibrated, pixel_number=2048):
     return
 
 
-# TODO - WORKING ON NOW -
-def compare_reduced_masked(angle, calibrated, pixel_number=2048):
+def compare_reduced_masked(angle, calibrated, pixel_number):
     """
     Compare reduced data without mask
     :param angle: solid angle (integer)
@@ -268,7 +283,7 @@ def compare_reduced_masked(angle, calibrated, pixel_number=2048):
     engine, pyrs_reducer, mantid_reducer = compare_geometry_test(calibrated, pixel_number, False)
 
     # load mask
-    test_mask = Mask_File[angle]
+    test_mask = XRay_Masks[angle]
 
     # load mask: mask file
     print ('Load masking file: {}'.format(test_mask))
@@ -341,6 +356,8 @@ if __name__ == '__main__':
                '\t\t11 = counts on detector ID (ROI =   0 degree)\n',
                '\t\t12 = counts on detector ID (ROI =  10 degree)\n',
                '\t\t13 = counts on detector ID (ROI = -10 degree)\n',
+               '\t\t21: geometry basic for HBZ\n',
+               '\t\t22: geometry arbitrary calibration for HBZ\n',
                )
     else:
         option = int(sys.argv[1])
@@ -373,6 +390,13 @@ if __name__ == '__main__':
             compare_reduced_masked(angle=30, calibrated=False, pixel_number=2048)
         elif option == 14:
             compare_reduced_masked(angle=30, calibrated=True, pixel_number=2048)
+        elif option == 21:
+            # HBZ
+            compare_geometry_test(calibrated=False, instrument='HBZ', pixel_number=256, check_all_pixels=True)
+
+        elif option == 22:
+            # HBZ
+            compare_geometry_test(calibrated=True, instrument='HBZ', pixel_number=256, check_all_pixels=True)
         else:
             raise NotImplementedError('ASAP')
 

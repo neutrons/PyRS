@@ -30,13 +30,14 @@ if [ $1 ]; then
 else
     CMD=
     echo "Verify PyRS and Mantid Reduction. Options:"
-    echo "(1) [compare] geometry"
+    echo "(1) [compare] geometry (XRay Mock)"
     echo "(2) [compare] 2theta"
     echo "(4) [compare] reduction-all (without masking)"
     echo "(5) [compare] reduction-0   (with ROI on 0 degree)"
     echo "(6) [compare] reduction-10  (with ROI on +10 degree)"
     echo "(7) [compare] reduction-20  (with ROI on +20 degree)"
     echo "(8) [compare] reduction-30  (with ROI on +30 degree)"
+    echo "(21) [verify] HBZ geometry: aka HBZ-IDF"
     echo "(111) [study] reduction study"
     echo "(104) reduce-pyrs-all"
     echo "(105) reduce-pyrs-0degree"
@@ -48,6 +49,15 @@ else
 fi 
 
 echo "User option: $1"
+
+# Ordered by latest test case
+
+if [ "$1" = "21" ] || [ "$1" = "HBZ-IDF" ] ; then
+    echo "Comparing and verifying instrument geometry for HBZ (IDF and PyRS configuration)"
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 21
+    # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 22
+fi
+
 
 if [ "$1" = "1" ] || [ "$1" = "geometry" ] ; then
     echo "Comparing instrument geometry"
