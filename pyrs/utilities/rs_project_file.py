@@ -58,7 +58,7 @@ class HydraProjectFile(object):
 
         # data
         exp_entry = self._project_h5.create_group('experiment')
-        exp_entry.create_group('scans')
+        exp_entry.create_group('sub-runs')
         exp_entry.create_group('logs')
 
         # instrument
@@ -79,11 +79,11 @@ class HydraProjectFile(object):
         # check
         assert self._project_h5 is not None, 'cannot be None'
         assert self._is_writable, 'must be writable'
-        checkdatatypes.check_int_variable('Scan index', scan_index, (0, None))
+        checkdatatypes.check_int_variable('Sub-run index', scan_index, (0, None))
 
         # create group
-        scan_i_group = self._project_h5['experiment']['scans'].create_group('{}'.format(scan_index))
-        scan_i_group.create_dataset('counts', counts_array)
+        scan_i_group = self._project_h5['experiment']['sub-runs'].create_group('{:04}'.format(scan_index))
+        scan_i_group.create_dataset('counts', data=counts_array)
 
         return
 
@@ -105,7 +105,7 @@ class HydraProjectFile(object):
         assert self._is_writable, 'must be writable'
         checkdatatypes.check_string_variable('Log name', log_name)
 
-        self._project_h5['experiment'].create_dataset(log_name, log_value_array)
+        self._project_h5['experiment']['logs'].create_dataset(log_name, data=log_value_array)
 
         return
 
@@ -140,3 +140,13 @@ class HydraProjectFile(object):
         :return:
         """
         return
+
+
+def test_main():
+    project_h5 = h5py.File(project_file_name, 'r')
+    scan_index = project_h5['experiment']['logs']['Scan Index'][0]
+    assert scan_index == 1
+    print project_h5['experiment'].keys()
+    counts_vec_index001 = project_h5['experiment']['sub-runs']['{:04}'.format(scan_index)]['counts'].value
+    print (counts_vec_index001.max())
+    two_theta_value = project_h5['experiment']['logs']['2Theta'][0]

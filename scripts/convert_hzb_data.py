@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # Convert HZB data to standard transformed-HDF5 format considering all the sample log values and instrument information
 # This may be executed only once and moved out of build
 import numpy
@@ -79,22 +80,25 @@ def main(argv):
     """
     # process inputs ...
     exp_summary_excel = argv[1]
+    exp_data_dir = argv[2]
+    project_file_name = argv[3]
 
     # parse EXCEL spread sheet
     exp_summary_dict, exp_logs_dict = import_hzb_summary(exp_summary_excel)
 
     # start project file
-    project_file = rs_project_file.HydraProjectFile()
+    project_file = rs_project_file.HydraProjectFile(project_file_name, mode='w')
 
     # add sample log data
     for log_name in ['Scan Index', '2Theta', 'Monitor', 'L2']:
-        project_file.add_experiment_infomation(log_name, exp_summary_dict[log_name])
+        project_file.add_experiment_information(log_name, exp_logs_dict[log_name])
     # END-FOR
 
     # parse and add counts
     for scan_index in sorted(exp_summary_dict.keys()):
         tiff_name = exp_summary_dict[scan_index]['Tiff']
-        counts_array = parse_hzb_tiff(os.path.join(data_dir, tiff_name))
+        counts_array = parse_hzb_tiff(os.path.join(exp_data_dir, tiff_name))
+        print (counts_array.min(), counts_array.max(), (numpy.where(counts_array > 0.5)[0]).shape)
         project_file.add_scan_counts(scan_index, counts_array)
     # END-FOR
 
@@ -105,4 +109,7 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    main()
+    main(['Whatever',
+          '/SNS/users/wzz/Projects/HB2B/Quasi_HB2B_Calibration/calibration.xlsx',
+          '/SNS/users/wzz/Projects/HB2B/Quasi_HB2B_Calibration/',
+          'tests/testdata/hzb/hzb_calibration.hdf5'])

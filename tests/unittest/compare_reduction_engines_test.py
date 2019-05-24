@@ -38,17 +38,16 @@ XRay_Masks = {0: 'tests/testdata/masks/Chi_0.hdf5',
               -30: 'tests/testdata/masks/Chi_Neg30.hdf5'}
 
 # Section for HBZ (mock) data
-test_hbz_data = 'tests/testdata/HBZ_Project.h5'
+test_hbz_data = 'tests/testdata/hzb/hzb_calibration.hdf5'
 hbz_2theta = -90   # Then -35, Then 0.
-hbz_scan_index = whatever
+hbz_scan_index = 1
 hbz_instrument_file = 'tests/testdata/hzb/HZB_Definition_20190523_0844.txt'
 hbz_idf = 'tests/testdata/hzb/HZB_Definition_20190523_0844.xml'
 
 
-def create_instrument_load_data(instrument, scan_index, calibrated, pixel_number):
+def create_instrument_load_data(instrument, calibrated, pixel_number):
     """ Create instruments: PyRS and Mantid and load data
     :param instrument: name of instrument
-    :param scan_index: for multiple scan project file
     :param calibrated:
     :param pixel_number:
     :return:
@@ -123,7 +122,7 @@ def compare_geometry_test(calibrated, instrument='XRayMock', pixel_number=2048, 
     :param check_all_pixels:
     :return:
     """
-    engine, pyrs_reducer, mantid_reducer = create_instrument_load_data(instrument, scan_index, calibrated, pixel_number)
+    engine, pyrs_reducer, mantid_reducer = create_instrument_load_data(instrument, calibrated, pixel_number)
 
     # compare
     # pyrs pixels

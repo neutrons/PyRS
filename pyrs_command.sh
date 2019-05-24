@@ -47,6 +47,7 @@ fi
 
 if [ "$1" = "3" ] || [ "$1" = "convert" ] ; then
     echo "Convert binary or image data file to HDF5"
-    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/convert_raw_data.py $CMDS
+    # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/convert_raw_data.py $CMDS
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/convert_hzb_data.py $CMDS
 fi
 

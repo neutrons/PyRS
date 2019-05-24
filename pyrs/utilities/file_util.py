@@ -64,7 +64,7 @@ def load_rgb_tif(rgb_tiff_name, convert_to_1d):
     Load TIFF file in RGB mode and convert to grey scale
     :param rgb_tiff_name:
     :param convert_to_1d: flag to convert the data to 1D from 2D
-    :return:
+    :return: 2D array (in Fortran column major) or (flattened) 1D array
     """
     # check
     checkdatatypes.check_file_name(rgb_tiff_name, True, False, False, '(RBG) Tiff File')
@@ -77,16 +77,16 @@ def load_rgb_tif(rgb_tiff_name, convert_to_1d):
 
     # convert RGB to grey scale
     # In[24]: gray = (0.299 * ra + 0.587 * ga + 0.114 * ba)
-    red_array = np.array(rgb_tuple[1])
-    green_array = np.array(rgb_tuple[2])
-    blue_array = np.array(rgb_tuple[3])
+    red_array = np.array(rgb_tuple[0]).astype('float64')
+    green_array = np.array(rgb_tuple[1]).astype('float64')
+    blue_array = np.array(rgb_tuple[2]).astype('float64')
     gray_array = (0.299 * red_array + 0.587 * green_array + 0.114 * blue_array)
 
-    # TODO FIXME - It is not sure how to orient the pixels.  Need visualization to confirm!
     if convert_to_1d:
-        green_array = green_array.flatten(order='C')
+        gray_array = gray_array.flatten(order='F')
+    print ('{}: Max counts = {}, Mean counts = {}'.format(rgb_tiff_name, gray_array.max(), gray_array.mean()))
 
-    return green_array
+    return gray_array
 
 
 def load_gray_scale_tif(raw_tiff_name, pixel_size=2048, rotate=True):

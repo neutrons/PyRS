@@ -127,7 +127,8 @@ if __name__ == "__main__":
                'scripts/pyrscalibration.py',
                'scripts/reduce_HB2B.py',
                'scripts/create_mask.py',
-               'scripts/convert_raw_data.py']
+               'scripts/convert_raw_data.py',
+               'scripts/convert_hzb_data.py']
     test_scripts = ['tests/unittest/pyrs_core_test.py',
                     'tests/unittest/utilities_test.py',
                     'tests/unittest/polefigurecal_test.py',
