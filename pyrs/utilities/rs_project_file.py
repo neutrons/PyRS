@@ -120,12 +120,25 @@ class HydraProjectFile(object):
 
         return
 
-    def get_scan_counts(self):
+    def get_log_value(self, log_name, sub_run):
+        assert self._project_h5 is not None, 'blabla'
+
+        sub_run_index = sub_run - 1  # FIXME TODO - TONIGHT - correct shall be : sub_run -> sub run index -> log[scan index]
+        log_value = self._project_h5['experiment']['logs'][log_name][sub_run_index]
+
+        return log_value
+
+    def get_scan_counts(self, sub_run):
         """
         get the raw detector counts
         :return:
         """
-        return
+        assert self._project_h5 is not None, 'blabla'
+
+        print ('[DB...BAT] experiment.keys: {}'.format(self._project_h5['experiment'].keys()))
+        counts = self._project_h5['experiment']['sub-runs']['{:04}'.format(sub_run)]['counts'].value
+
+        return counts
 
     def set_geometry(self):
         """

@@ -171,8 +171,14 @@ class HB2BReductionManager(object):
         data_id = os.path.basename(pyrs_h5_name).split('.h')[0] + '_{}'.format(hash(os.path.dirname(pyrs_h5_name)))
 
         # load file
-        diff_file = rs_scan_io.DiffractionDataFile()
-        count_vec, two_theta = diff_file.load_raw_measurement_data(pyrs_h5_name)
+        if pyrs_h5_name.endswith('hdf5'):
+            from pyrs.utilities import rs_project_file
+            diff_file = rs_project_file.HydraProjectFile(pyrs_h5_name, mode='r')
+            count_vec = diff_file.get_scan_counts(sub_run=4)
+            two_theta = diff_file.get_log_value(log_name='2Theta', sub_run=4)
+        else:
+            diff_file = rs_scan_io.DiffractionDataFile()
+            count_vec, two_theta = diff_file.load_raw_measurement_data(pyrs_h5_name)
 
         # create workspace for counts as an option
         if create_workspace:

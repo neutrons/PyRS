@@ -57,10 +57,14 @@ def create_instrument_load_data(instrument, calibrated, pixel_number):
         hydra_idf = xray_2k_instrument_file
         mantid_idf = xray_idf_name
         two_theta = xray_2theta
+        test_data_file = test_xray_data
     elif instrument == 'HBZ':
         hydra_idf = hbz_instrument_file
         mantid_idf = hbz_idf
         two_theta = hbz_2theta
+        test_data_file = test_hbz_data
+        print ('Loaded {} and {} to compare @ 2theta = {} degree'
+               ''.format(hydra_idf, mantid_idf, two_theta))
     else:
         raise RuntimeError('Instrument {} does not have test data and IDF'.format(instrument))
 
@@ -97,7 +101,7 @@ def create_instrument_load_data(instrument, calibrated, pixel_number):
 
     # reduction engine
     engine = reductionengine.HB2BReductionManager()
-    test_data_id = engine.load_data(data_file_name=test_xray_data, target_dimension=pixel_number, load_to_workspace=True)
+    test_data_id = engine.load_data(data_file_name=test_data_file, target_dimension=pixel_number, load_to_workspace=True)
 
     # load instrument
     pyrs_reducer = reduce_hb2b_pyrs.PyHB2BReduction(instrument)
@@ -107,7 +111,7 @@ def create_instrument_load_data(instrument, calibrated, pixel_number):
     mantid_reducer = reduce_hb2b_mtd.MantidHB2BReduction()
     data_ws_name = engine.get_raw_data(test_data_id, is_workspace=True)
     mantid_reducer.set_workspace(data_ws_name)
-    mantid_reducer.load_instrument(two_theta, xray_idf_name, test_calibration)
+    mantid_reducer.load_instrument(two_theta, mantid_idf, test_calibration)
 
     return engine, pyrs_reducer, mantid_reducer
 
@@ -137,10 +141,15 @@ def compare_geometry_test(calibrated, instrument='XRayMock', pixel_number=2048, 
     print ('Check All Pixels... Taking long time')
     if check_all_pixels:
         num_pixels = workspace.getNumberHistograms()
+        print ('Workspace {} has {} pixels'.format(workspace.name(), num_pixels))
         mantid_pixel_array = numpy.ndarray((num_pixels, 3))
         time0 = time.time()
         for iws in range(num_pixels):
-            mantid_pixel_array[iws] = numpy.array(workspace.getDetector(iws).getPos())
+            try:
+                mantid_pixel_array[iws] = numpy.array(workspace.getDetector(iws).getPos())
+            except RuntimeError as run_err:
+                print ('[ERROR] Workspace-index {}: {}'.format(iws, run_err))
+                raise run_err
         # END-FOR
         timef = time.time()
         print ('Construct pixel position array: time = {}'.format(timef - time0))
@@ -391,7 +400,7 @@ if __name__ == '__main__':
             compare_reduced_masked(angle=30, calibrated=True, pixel_number=2048)
         elif option == 21:
             # HBZ: not calibration
-            compare_geometry_test(calibrated=False, instrument='HBZ', pixel_number=256, check_all_pixels=True)
+            compare_geometry_test(calibrated=False, instrument='HBZ', pixel_number=256, check_all_pixels=False)
         elif option == 22:
             # HBZ: calibrated
             compare_geometry_test(calibrated=True, instrument='HBZ', pixel_number=256, check_all_pixels=True)
