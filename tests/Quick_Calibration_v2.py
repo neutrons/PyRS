@@ -124,8 +124,8 @@ def create_instrument(test_data_file, calibrated, pixel_number):
 
     # reduction engine
     engine = reductionengine.HB2BReductionManager()
-    test_data_id = engine.load_data(data_file_name=test_data_file,
-                                    target_dimension=pixel_number, load_to_workspace=True)
+    test_data_id, two_the_tmp = engine.load_data(data_file_name=test_data_file,
+                                                 target_dimension=pixel_number, load_to_workspace=True)
 
     # load instrument
     pyrs_reducer = reduce_hb2b_pyrs.PyHB2BReduction(instrument)

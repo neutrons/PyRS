@@ -30,13 +30,14 @@ if [ $1 ]; then
 else
     CMD=
     echo "Verify PyRS and Mantid Reduction. Options:"
-    echo "(1) [compare] geometry"
+    echo "(1) [compare] geometry (XRay Mock)"
     echo "(2) [compare] 2theta"
     echo "(4) [compare] reduction-all (without masking)"
     echo "(5) [compare] reduction-0   (with ROI on 0 degree)"
     echo "(6) [compare] reduction-10  (with ROI on +10 degree)"
     echo "(7) [compare] reduction-20  (with ROI on +20 degree)"
     echo "(8) [compare] reduction-30  (with ROI on +30 degree)"
+    echo "(21) [verify] HBZ geometry: aka HBZ-IDF"
     echo "(111) [study] reduction study"
     echo "(104) reduce-pyrs-all"
     echo "(105) reduce-pyrs-0degree"
@@ -49,20 +50,19 @@ fi
 
 echo "User option: $1"
 
-if [ "$1" = "111" ] || [ "$1" = "study" ] ; then
-    echo "Reducing (histogram) with solid angle 30 mask"
-    # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./build/scripts-2.7/reduction_study.py tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5 35. tests/testdata/masks/Chi_30.hdf5 pyrs
-    # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./build/scripts-2.7/reduction_study.py tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5 35. tests/testdata/masks/Chi_Neg30.hdf5 pyrs
-    # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./build/scripts-2.7/reduction_study.py tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5 35. tests/testdata/masks/Chi_0.hdf5 pyrs
-    # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./build/scripts-2.7/reduction_study.py tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5 35. tests/testdata/masks/Chi_10.hdf5 pyrs
-    # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./build/scripts-2.7/reduction_study.py tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5 35. tests/testdata/masks/Chi_20.hdf5 pyrs
-    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./build/scripts-2.7/reduction_study.py tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5 35. None pyrs
+# Ordered by latest test case
+
+if [ "$1" = "21" ] || [ "$1" = "HBZ-IDF" ] ; then
+    echo "Comparing and verifying instrument geometry for HBZ (IDF and PyRS configuration)"
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 21
+    # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 22
 fi
+
 
 if [ "$1" = "1" ] || [ "$1" = "geometry" ] ; then
     echo "Comparing instrument geometry"
-    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 1
-    # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 2
+    # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 1
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 2
 fi
 
 if [ "$1" = "2" ] || [ "$1" = "2theta" ] ; then
@@ -103,6 +103,17 @@ fi
 if [ "$1" = "8" ] || [ "$1" = "reduction-30" ] ; then
     echo "Testing Reduction with ROI around solid angle +30 degree"
     PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./build/scripts-2.7/compare_reduction_engines_test.py 13
+fi
+
+
+if [ "$1" = "111" ] || [ "$1" = "study" ] ; then
+    echo "Reducing (histogram) with solid angle 30 mask"
+    # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./build/scripts-2.7/reduction_study.py tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5 35. tests/testdata/masks/Chi_30.hdf5 pyrs
+    # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./build/scripts-2.7/reduction_study.py tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5 35. tests/testdata/masks/Chi_Neg30.hdf5 pyrs
+    # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./build/scripts-2.7/reduction_study.py tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5 35. tests/testdata/masks/Chi_0.hdf5 pyrs
+    # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./build/scripts-2.7/reduction_study.py tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5 35. tests/testdata/masks/Chi_10.hdf5 pyrs
+    # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./build/scripts-2.7/reduction_study.py tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5 35. tests/testdata/masks/Chi_20.hdf5 pyrs
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./build/scripts-2.7/reduction_study.py tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5 35. None pyrs
 fi
 
 if [ "$1" = "105" ] || [ "$1" = "reduce-pyrs-0degree" ] ; then

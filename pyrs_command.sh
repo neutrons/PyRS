@@ -35,6 +35,11 @@ fi
 
 echo "User option: $1"
 
+if [ "$1" = "2t" ] || [ "$1" = "reducetest" ]  ; then
+    echo "Reduce data test (HBZ)"
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/reduce_HB2B.py tests/testdata/hzb/hzb_calibration.hdf5 tests/temp/ --instrument=tests/testdata/hzb/HZB_Definition_20190523_0844.txt --subrun=1
+fi
+
 if [ "$1" = "1" ] || [ "$1" = "mask" ] ; then
     echo "Process masks/ROIs"
     PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/create_mask.py $CMDS
@@ -47,6 +52,6 @@ fi
 
 if [ "$1" = "3" ] || [ "$1" = "convert" ] ; then
     echo "Convert binary or image data file to HDF5"
-    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/convert_raw_data.py $CMDS
+    # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/convert_raw_data.py $CMDS
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/convert_hzb_data.py $CMDS
 fi
-

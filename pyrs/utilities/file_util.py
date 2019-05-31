@@ -6,6 +6,11 @@ import checkdatatypes
 import platform
 from mantid.api import AnalysisDataService
 from mantid.simpleapi import AnalysisDataService
+from skimage import io, exposure, img_as_uint, img_as_float
+from PIL import Image
+import numpy as np
+import pandas as pd
+# from pandas import ExcelFile
 
 
 # Zoo of methods to work with raw data input and output of processed data
@@ -40,7 +45,51 @@ def export_md_array_hdf5(md_array, sliced_dir_list, file_name):
     return
 
 
-def load_data_from_tif(raw_tiff_name, pixel_size=2048, rotate=True):
+def load_excel_file(excel_file):
+    """ Load EXCEL file
+    Note: Excel file is closed after read (99%)
+    :param excel_file: name of Excel file
+    :return: pandas instance (pandas.core.frame.DataFrame)
+    """
+    checkdatatypes.check_file_name(excel_file, True, False, False, 'Excel file')
+
+    # use pandas to load
+    df = pd.read_excel(excel_file)
+
+    return df
+
+
+def load_rgb_tif(rgb_tiff_name, convert_to_1d):
+    """
+    Load TIFF file in RGB mode and convert to grey scale
+    :param rgb_tiff_name:
+    :param convert_to_1d: flag to convert the data to 1D from 2D
+    :return: 2D array (in Fortran column major) or (flattened) 1D array
+    """
+    # check
+    checkdatatypes.check_file_name(rgb_tiff_name, True, False, False, '(RBG) Tiff File')
+
+    # open TIFF
+    image_data = Image.open(rgb_tiff_name)
+    rgb_tuple = image_data.split()
+    if len(rgb_tuple) < 3:
+        raise RuntimeError('{} is not a RGB Tiff file'.format(rgb_tiff_name))
+
+    # convert RGB to grey scale
+    # In[24]: gray = (0.299 * ra + 0.587 * ga + 0.114 * ba)
+    red_array = np.array(rgb_tuple[0]).astype('float64')
+    green_array = np.array(rgb_tuple[1]).astype('float64')
+    blue_array = np.array(rgb_tuple[2]).astype('float64')
+    gray_array = (0.299 * red_array + 0.587 * green_array + 0.114 * blue_array)
+
+    if convert_to_1d:
+        gray_array = gray_array.flatten(order='F')
+    print ('{}: Max counts = {}, Mean counts = {}'.format(rgb_tiff_name, gray_array.max(), gray_array.mean()))
+
+    return gray_array
+
+
+def load_gray_scale_tif(raw_tiff_name, pixel_size=2048, rotate=True):
     """
     Load data from TIFF
     :param raw_tiff_name:
@@ -48,15 +97,21 @@ def load_data_from_tif(raw_tiff_name, pixel_size=2048, rotate=True):
     :param rotate:
     :return:
     """
-    from skimage import io, exposure, img_as_uint, img_as_float
-    from PIL import Image
-    import numpy as np
-    import pylab as plt
-
     ImageData = Image.open(raw_tiff_name)
     # im = img_as_uint(np.array(ImageData))
     io.use_plugin('freeimage')
     image_2d_data = np.array(ImageData, dtype=np.int32)
+
+    # # convert from RGB to gray scale
+    # img.getdata()
+    # r, g, b = img.split()
+    # ra = np.array(r)
+    # ga = np.array(g)
+    # ba = np.array(b)
+    #
+    # gray = (0.299 * ra + 0.587 * ga + 0.114 * ba)
+
+
     print (image_2d_data.shape, type(image_2d_data), image_2d_data.min(), image_2d_data.max())
     # image_2d_data.astype(np.uint32)
     image_2d_data.astype(np.float64)

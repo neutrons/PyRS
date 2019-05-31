@@ -307,8 +307,8 @@ class InstrumentCalibrationWindow(QMainWindow):
         # load
         try:
             # FIXME - NOTE - Target dimension shall be set up by user
-            self._curr_data_id = self._core.reduction_engine.load_data(file_name, target_dimension=2048,
-                                                                       load_to_workspace=False)
+            self._curr_data_id, two_theta = self._core.reduction_engine.load_data(file_name, target_dimension=2048,
+                                                                                  load_to_workspace=False)
         except RuntimeError as run_err:
             gui_helper.pop_message(self, message_type='error', message='Unable to load data {}'.format(file_name),
                                    detailed_message='{}'.format(run_err))

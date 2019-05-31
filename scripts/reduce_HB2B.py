@@ -66,8 +66,8 @@ class ReductionApp(object):
     def load_raw_data(self, data_file):
 
         # load data
-        data_id = self._reduction_engine.load_data(data_file, target_dimension=2048,
-                                                   load_to_workspace=False)
+        data_id, two_theta = self._reduction_engine.load_data(data_file, target_dimension=2048,
+                                                              load_to_workspace=False)
 
         counts_vec = self._reduction_engine.get_counts(data_id)
         print ('Counts vec:', counts_vec)
@@ -90,7 +90,83 @@ class ReductionApp(object):
 
         return
 
-    def reduce(self, data_file, output, instrument_file, two_theta, calibration_file, mask_file=None):
+    def reduce_proj(self, data_file, output, instrument_file, calibration_file, mask_file=None, sub_run=None):
+        """
+        reduce from an HB2B project file
+        :param data_file:
+        :param output:
+        :param instrument_file:
+        :param calibration_file:
+        :param mask_file:
+        :param sub_run:
+        :return:
+        """
+        import shutil
+
+        checkdatatypes.check_file_name(data_file, True, False, False, description='Input source data file')
+        checkdatatypes.check_string_variable('Output file/directory', output)
+
+        # determine output file
+        base_name = os.path.basename(data_file)
+
+        if os.path.samefile(data_file, output):
+            # data file: In/Out mode
+            output_file_name = data_file
+        elif os.path.exists(output) and os.path.isdir(output):
+            # only output directory given
+            output_file_name = os.path.join(output, base_name)
+            if not os.path.exists(output_file_name) or not os.path.samefile(data_file, output_file_name):
+                shutil.copyfile(data_file, output_file_name)
+        else:
+            # given name is supposed to be the target file name
+            output_file_name = output
+            shutil.copyfile(data_file, output_file_name)
+        # END-IF
+
+        checkdatatypes.check_file_name(output_file_name, False, True, False, 'Output reduced hdf5 file')
+
+        # mask file
+        if mask_file is not None:
+            mask_vec, mask_2theta, note = mask_util.load_pyrs_mask(mask_file)
+        else:
+            mask_vec = None
+
+        # get engine first
+        if instrument_file.lower().endswith('.xml'):
+            use_mantid = True
+        elif instrument_file.lower().endswith('.txt'):
+            use_mantid = False
+        else:
+            raise NotImplementedError('Impossible')
+
+        # load data
+        data_id, two_theta = self._reduction_engine.load_data(data_file, sub_run=sub_run, load_to_workspace=use_mantid)
+
+        # load instrument
+        if instrument_file.lower().endswith('.xml'):
+            # Mantid IDF file: use mantid engine
+            self._reduction_engine.set_mantid_idf(instrument_file)
+        elif instrument_file.lower().endswith('.txt'):
+            # plain text instrument setup
+            instrument = calibration_file_io.import_instrument_setup(instrument_file)
+            self._reduction_engine.set_instrument(instrument)
+        else:
+            raise NotImplementedError('Impossible')
+
+        if calibration_file:
+            geom_calibration = self.import_calibration_file(calibration_file)
+            self._reduction_engine.set_geometry_calibration(geom_calibration)
+
+        # reduce
+        self._reduction_engine.reduce_to_2theta(data_id=data_id,
+                                                two_theta=two_theta,
+                                                output_name=output_file_name,
+                                                use_mantid_engine=use_mantid,
+                                                mask=mask_vec)
+
+        return
+
+    def reduce_beta(self, data_file, output, instrument_file, two_theta, calibration_file, mask_file=None):
         """ Reduce data
         :param data_file:
         :param output:
@@ -129,8 +205,9 @@ class ReductionApp(object):
             raise NotImplementedError('Impossible')
 
         # load data
-        data_id = self._reduction_engine.load_data(data_file, target_dimension=2048,
-                                                   load_to_workspace=use_mantid)
+        data_id, two_th_tp = self._reduction_engine.load_data(data_file, target_dimension=2048,
+                                                              load_to_workspace=use_mantid)
+        print ('2theta = {} (from {}) vs {} (from user)'.format(two_th_tp, data_file, two_theta))
 
         # load instrument
         if instrument_file.lower().endswith('.xml'):
@@ -168,6 +245,10 @@ class ReductionApp(object):
             plt.plot(vec_x, vec_y)
         plt.show()
 
+    def save_reduced_data(self, sub_run):
+
+        vec_x, vec_y = self._reduction_engine.get_reduced_data()
+
 
 def main(argv):
     """
@@ -175,6 +256,8 @@ def main(argv):
     :param argv:
     :return:
     """
+    print ('args: ', argv)
+
     if len(argv) < 3:
         print ('Auto-reducing HB2B: {} [NeXus File Name] [Target Directory] [--instrument=xray_setup.txt]'
                '[--calibration=xray_calib.txt] [--mask=mask.h5] [--engine=engine]'.format(argv[0]))
@@ -208,25 +291,30 @@ def main(argv):
         counts_matrix = counts_vec.reshape((2048, 2048))
         plt.imshow(counts_matrix)
         plt.show()
-    else:
-        # check
-        if inputs_option_dict['instrument'] is None and not source_data_file.endswith('.nxs.h5'):
-            # instrument setup file must be specified
-            print ('For non Event NeXus file {}, instrument definition must be given!'
-                   .format(source_data_file))
-            sys.exit(-1)
-        # elif inputs_option_dict['instrument'].lower().endswith('.xml'):
-        #     # mantid instrument file
-        #     reducer.use_mantid_engine = True
-        # else:
-        #     # set the instrument configuration
-
-        reducer.reduce(data_file=source_data_file, output=output_dir,
-                       instrument_file=inputs_option_dict['instrument'],
-                       two_theta=inputs_option_dict['2theta'],
-                       calibration_file=inputs_option_dict['calibration'],
-                       mask_file=inputs_option_dict['mask'])
+    elif inputs_option_dict['instrument'] is None and source_data_file.endswith('.h5'):
+        # previous
+        reducer.reduce_beta(data_file=source_data_file, output=output_dir,
+                            instrument_file=inputs_option_dict['instrument'],
+                            two_theta=inputs_option_dict['2theta'],
+                            calibration_file=inputs_option_dict['calibration'],
+                            mask_file=inputs_option_dict['mask'])
         reducer.plot_reduced_data()
+    elif source_data_file.endswith('.hdf5'):
+        # reduce from HB2B project file
+        reducer.reduce_proj(data_file=source_data_file, output=output_dir,
+                            sub_run=inputs_option_dict['subrun'],
+                            instrument_file=inputs_option_dict['instrument'],
+                            calibration_file=inputs_option_dict['calibration'],
+                            mask_file=inputs_option_dict['mask'])
+        reducer.plot_reduced_data()
+        reducer.save_reduced_data(sub_run=inputs_option_dict['subrun'])
+    elif source_data_file.endswith('.nxs.h5'):
+        # reduce from HB2B nexus file
+        raise NotImplementedError('Not been implemented to reduce from NeXus file')
+    else:
+        print ('For non Event NeXus file {}, instrument definition must be given '
+               'or file format is not supported!'.format(source_data_file))
+        sys.exit(-1)
     # END-IF-ELSE
 
     return
@@ -240,9 +328,12 @@ def parse_inputs(arg_list):
     """
     arg_options = {'instrument': None,
                    'calibration': None,
-                   'mask': None,
+                   'mask': None,    # no masks
                    'engine': 'pyrs',
-                   'no reduction': False}
+                   'no reduction': False,
+                   'subrun': None,  # all sub runs
+                   '2theta': None   # auto 2theta
+                   }
 
     for arg_i in arg_list:
         terms = arg_i.split('=')
@@ -259,6 +350,8 @@ def parse_inputs(arg_list):
             arg_options['no reduction'] = bool(int(arg_value_i))
         elif arg_name_i == '--2theta':
             arg_options['2theta'] = float(arg_value_i)
+        elif arg_name_i == '--subrun':
+            arg_options['subrun'] = int(arg_value_i)
         else:
             raise RuntimeError('Argument {} is not recognized and not supported.'.format(arg_name_i))
     # END-FOR

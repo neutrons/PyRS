@@ -69,14 +69,15 @@ class HB2BReductionManager(object):
         """
         return self._last_loaded_data_id
 
-    def load_data(self, data_file_name, target_dimension=None, load_to_workspace=True):
+    def load_data(self, data_file_name, sub_run=None, target_dimension=None, load_to_workspace=True):
         """
         Load data set and
         - determine the instrument size (for PyHB2BReduction and initialize the right one if not created)
         :param data_file_name:
+        :param sub_run: integer for sun run number
         :param target_dimension: if TIFF, target dimension will be used to bin the data
         :param load_to_workspace: if TIFF, option to create a workspace
-        :return: data ID to look up
+        :return: data ID to look up, 2-theta (None if NOT recorded)
         """
         # check inputs
         checkdatatypes.check_file_name(data_file_name, True, False, False, 'Data file to load')
@@ -88,6 +89,8 @@ class HB2BReductionManager(object):
             file_type = data_file_name.split('.')[-1].lower()
 
         # load
+        two_theta = None
+
         if file_type == 'tif' or file_type == 'tiff':
             # TIFF
             data_id = self._load_tif_image(data_file_name, target_dimension, rotate=True,
@@ -99,7 +102,7 @@ class HB2BReductionManager(object):
 
         elif file_type == 'hdf5' or file_type == 'h5':
             # PyRS HDF5
-            data_id = self._load_pyrs_h5(data_file_name, load_to_workspace)
+            data_id, two_theta = self._load_pyrs_h5(data_file_name, sub_run, load_to_workspace)
 
         elif file_type == 'nxs.h5' or file_type == 'nxs':
             # Event NeXus
@@ -111,7 +114,7 @@ class HB2BReductionManager(object):
 
         self._last_loaded_data_id = data_id
 
-        return data_id
+        return data_id, two_theta
 
     # TODO - TONIGHT 4 - Better!
     def load_instrument_file(self, instrument_file_name):
@@ -158,7 +161,7 @@ class HB2BReductionManager(object):
 
         return out_ws_name
 
-    def _load_pyrs_h5(self, pyrs_h5_name, create_workspace):
+    def _load_pyrs_h5(self, pyrs_h5_name, sub_run, create_workspace):
         """ Load Reduced PyRS file in HDF5 format
         :param pyrs_h5_name:
         :return:
@@ -171,8 +174,15 @@ class HB2BReductionManager(object):
         data_id = os.path.basename(pyrs_h5_name).split('.h')[0] + '_{}'.format(hash(os.path.dirname(pyrs_h5_name)))
 
         # load file
-        diff_file = rs_scan_io.DiffractionDataFile()
-        count_vec, two_theta = diff_file.load_raw_measurement_data(pyrs_h5_name)
+        if pyrs_h5_name.endswith('hdf5'):
+            from pyrs.utilities import rs_project_file
+            diff_file = rs_project_file.HydraProjectFile(pyrs_h5_name, mode='r')
+            count_vec = diff_file.get_scan_counts(sub_run=sub_run)
+            two_theta = diff_file.get_log_value(log_name='2Theta', sub_run=sub_run)
+            diff_file.close()
+        else:
+            diff_file = rs_scan_io.DiffractionDataFile()
+            count_vec, two_theta = diff_file.load_raw_measurement_data(pyrs_h5_name)
 
         # create workspace for counts as an option
         if create_workspace:
@@ -184,7 +194,7 @@ class HB2BReductionManager(object):
 
         self._data_dict[data_id] = [data_id, count_vec]
 
-        return data_id
+        return data_id, two_theta
 
     def _load_spice_binary(self, bin_file_name):
         """ Load SPICE binary
@@ -368,10 +378,11 @@ class HB2BReductionManager(object):
                                                            rot_y_flip=self._geometry_calibration.rotation_y,
                                                            rot_z_spin=self._geometry_calibration.rotation_z)
 
-            bin_edges, hist = python_reducer.reduce_to_2theta_histogram(pixel_matrix,
-                                                                        counts_array=self._data_dict[data_id][1],
+            bin_edges, hist = python_reducer.reduce_to_2theta_histogram(counts_array=self._data_dict[data_id][1],
                                                                         mask=mask_vec,
-                                                                        num_bins=self._num_bins)
+                                                                        num_bins=self._num_bins,
+                                                                        x_range=None, is_point_data=True,
+                                                                        use_mantid_histogram=False)
             self._curr_vec_x = bin_edges
             self._curr_vec_y = hist
             print ('[DB...BAT] vec X shape = {}, vec Y shape = {}'.format(bin_edges.shape,
@@ -385,6 +396,7 @@ class HB2BReductionManager(object):
 
         return
 
+    # TODO - TONIGHT 0 - Need to register reduced data with sub-run
     def get_reduced_data(self, data_id=None, mask_id=None):
         """
         Get the reduce data
