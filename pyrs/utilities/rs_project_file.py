@@ -134,8 +134,8 @@ class HydraProjectFile(object):
         :return:
         """
         assert self._project_h5 is not None, 'blabla'
+        checkdatatypes.check_int_variable('sun run', sub_run, (0, None))
 
-        print ('[DB...BAT] experiment.keys: {}'.format(self._project_h5['experiment'].keys()))
         counts = self._project_h5['experiment']['sub-runs']['{:04}'.format(sub_run)]['counts'].value
 
         return counts

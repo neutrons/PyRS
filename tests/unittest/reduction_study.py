@@ -63,8 +63,8 @@ def create_instrument_load_data(calibrated, pixel_number, use_mantid):
 
     # reduction engine
     engine = reductionengine.HB2BReductionManager()
-    test_data_id = engine.load_data(data_file_name=test_data, target_dimension=pixel_number,
-                                    load_to_workspace=use_mantid)
+    test_data_id, two_theta_tmp = engine.load_data(data_file_name=test_data, target_dimension=pixel_number,
+                                                   load_to_workspace=use_mantid)
 
     # load instrument
     pyrs_reducer = reduce_hb2b_pyrs.PyHB2BReduction(instrument, 1.239)

@@ -66,8 +66,8 @@ class ReductionApp(object):
     def load_raw_data(self, data_file):
 
         # load data
-        data_id = self._reduction_engine.load_data(data_file, target_dimension=2048,
-                                                   load_to_workspace=False)
+        data_id, two_theta = self._reduction_engine.load_data(data_file, target_dimension=2048,
+                                                              load_to_workspace=False)
 
         counts_vec = self._reduction_engine.get_counts(data_id)
         print ('Counts vec:', counts_vec)
@@ -115,7 +115,7 @@ class ReductionApp(object):
         elif os.path.exists(output) and os.path.isdir(output):
             # only output directory given
             output_file_name = os.path.join(output, base_name)
-            if not os.path.samefile(data_file, output_file_name):
+            if not os.path.exists(output_file_name) or not os.path.samefile(data_file, output_file_name):
                 shutil.copyfile(data_file, output_file_name)
         else:
             # given name is supposed to be the target file name
@@ -140,7 +140,7 @@ class ReductionApp(object):
             raise NotImplementedError('Impossible')
 
         # load data
-        data_id = self._reduction_engine.load_data(data_file, load_to_workspace=use_mantid)
+        data_id, two_theta = self._reduction_engine.load_data(data_file, sub_run=sub_run, load_to_workspace=use_mantid)
 
         # load instrument
         if instrument_file.lower().endswith('.xml'):
@@ -165,7 +165,6 @@ class ReductionApp(object):
                                                 mask=mask_vec)
 
         return
-
 
     def reduce_beta(self, data_file, output, instrument_file, two_theta, calibration_file, mask_file=None):
         """ Reduce data
@@ -206,8 +205,9 @@ class ReductionApp(object):
             raise NotImplementedError('Impossible')
 
         # load data
-        data_id = self._reduction_engine.load_data(data_file, target_dimension=2048,
-                                                   load_to_workspace=use_mantid)
+        data_id, two_th_tp = self._reduction_engine.load_data(data_file, target_dimension=2048,
+                                                              load_to_workspace=use_mantid)
+        print ('2theta = {} (from {}) vs {} (from user)'.format(two_th_tp, data_file, two_theta))
 
         # load instrument
         if instrument_file.lower().endswith('.xml'):
@@ -244,6 +244,10 @@ class ReductionApp(object):
         else:
             plt.plot(vec_x, vec_y)
         plt.show()
+
+    def save_reduced_data(self, sub_run):
+
+        vec_x, vec_y = self._reduction_engine.get_reduced_data()
 
 
 def main(argv):
@@ -303,6 +307,7 @@ def main(argv):
                             calibration_file=inputs_option_dict['calibration'],
                             mask_file=inputs_option_dict['mask'])
         reducer.plot_reduced_data()
+        reducer.save_reduced_data(sub_run=inputs_option_dict['subrun'])
     elif source_data_file.endswith('.nxs.h5'):
         # reduce from HB2B nexus file
         raise NotImplementedError('Not been implemented to reduce from NeXus file')

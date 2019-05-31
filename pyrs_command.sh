@@ -37,7 +37,7 @@ echo "User option: $1"
 
 if [ "$1" = "2t" ] || [ "$1" = "reducetest" ]  ; then
     echo "Reduce data test (HBZ)"
-    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/reduce_HB2B.py tests/testdata/hzb/hzb_calibration.hdf5 tests/temp/ --instrument=hzb --subrun=2
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/reduce_HB2B.py tests/testdata/hzb/hzb_calibration.hdf5 tests/temp/ --instrument=tests/testdata/hzb/HZB_Definition_20190523_0844.txt --subrun=1
 fi
 
 if [ "$1" = "1" ] || [ "$1" = "mask" ] ; then
