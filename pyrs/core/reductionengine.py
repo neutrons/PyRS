@@ -310,12 +310,11 @@ class HB2BReductionManager(object):
         return
 
     # TODO - TONIGHT 0 - This script does not work correctly! Refer to compare_reduction_engines_tst
-    def reduce_to_2theta(self, data_id, output_name, use_mantid_engine, mask, two_theta,
+    def reduce_to_2theta(self, data_id, use_mantid_engine, mask, two_theta,
                          min_2theta=None, max_2theta=None, resolution_2theta=None):
         """
         Reduce import data (workspace or vector) to 2-theta ~ I
         :param data_id:
-        :param output_name:
         :param use_mantid_engine:
         :param mask: mask ID or mask vector
         :param two_theta: 2theta value
@@ -329,8 +328,6 @@ class HB2BReductionManager(object):
         if data_id not in self._data_dict:
             raise RuntimeError('Data ID {} does not exist in loaded data dictionary. '
                                'Current keys: {}'.format(data_id, self._data_dict.keys()))
-        if output_name:
-            checkdatatypes.check_file_name(output_name, False, True, False, 'Output reduced file')
 
         # about mask
         if mask is None:
@@ -392,7 +389,19 @@ class HB2BReductionManager(object):
         # record
         if data_id not in self._reduce_data_dict:
             self._reduce_data_dict[data_id] = dict()
+        print ('mask ID: {}'.format(mask_id))
         self._reduce_data_dict[data_id][mask_id] = self._curr_vec_x, self._curr_vec_y
+
+        return
+
+    # TODO - TONIGHT 0 - From here!
+    def save_reduced_diffraction(self, data_id, output_name):
+        checkdatatypes.check_file_name(output_name, False, True, False, 'Output reduced file')
+
+        print ('data id: ', data_id)
+        print ('masks: ', self._reduce_data_dict[data_id].keys())
+        # self._reduce_data_dict[data_id][mask_id] = self._curr_vec_x, self._curr_vec_y
+
 
         return
 
