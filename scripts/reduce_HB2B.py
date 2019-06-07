@@ -159,10 +159,12 @@ class ReductionApp(object):
 
         # reduce
         self._reduction_engine.reduce_to_2theta(data_id=data_id,
+                                                sub_run=None,
                                                 two_theta=two_theta,
-                                                output_name=output_file_name,
                                                 use_mantid_engine=use_mantid,
                                                 mask=mask_vec)
+
+        self._reduction_engine.save_reduced_diffraction(data_id, output_file_name)
 
         return
 
@@ -227,9 +229,10 @@ class ReductionApp(object):
         # reduce
         self._reduction_engine.reduce_to_2theta(data_id=data_id,
                                                 two_theta=two_theta,
-                                                output_name=output_file_name,
                                                 use_mantid_engine=use_mantid,
                                                 mask=mask_vec)
+
+        self._reduction_engine.save_reduced_diffraction(data_id, output_file_name)
 
         return
 
@@ -244,10 +247,6 @@ class ReductionApp(object):
         else:
             plt.plot(vec_x, vec_y)
         plt.show()
-
-    def save_reduced_data(self, sub_run):
-
-        vec_x, vec_y = self._reduction_engine.get_reduced_data()
 
 
 def main(argv):
@@ -307,7 +306,6 @@ def main(argv):
                             calibration_file=inputs_option_dict['calibration'],
                             mask_file=inputs_option_dict['mask'])
         reducer.plot_reduced_data()
-        reducer.save_reduced_data(sub_run=inputs_option_dict['subrun'])
     elif source_data_file.endswith('.nxs.h5'):
         # reduce from HB2B nexus file
         raise NotImplementedError('Not been implemented to reduce from NeXus file')

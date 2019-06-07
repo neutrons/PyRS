@@ -8,6 +8,7 @@ from pyrs.core import mask_util
 from pyrs.core import reduce_hb2b_mtd
 from pyrs.core import reduce_hb2b_pyrs
 from pyrs.utilities import rs_scan_io
+from pyrs.utilities import rs_project_file
 from mantid.simpleapi import CreateWorkspace, LoadSpiceXML2DDet, Transpose, LoadEventNexus, ConvertToMatrixWorkspace
 
 
@@ -48,7 +49,12 @@ class HB2BReductionManager(object):
         self._curr_vec_x = None
         self._curr_vec_y = None
 
+        # raw data and reduced data
+        self._raw_data_dict = dict()  # [Handler][Sub-run][Mask ID] = vec_y, 2theta
         self._reduce_data_dict = dict()   # D[data ID][mask ID] = vec_x, vec_y
+
+        # Outputs
+        self._output_directory = None
 
         return
 
@@ -68,6 +74,25 @@ class HB2BReductionManager(object):
         :return:
         """
         return self._last_loaded_data_id
+
+    def get_diffraction_pattern(self, data_handler, sub_run):
+        try:
+            vec_x, vec_y = self._reduce_data_dict[data_handler][sub_run][None]
+        except KeyError as key_err:
+            vec_x = vec_y = None
+
+        return vec_x, vec_y
+
+    def get_sub_runs(self, exp_handler):
+
+        # TODO - TONIGHT - Doc and check
+        return self._raw_data_dict[exp_handler].keys()
+
+    def get_sub_run_count(self, exp_handler, sub_run):
+        return self._raw_data_dict[exp_handler][sub_run][0]
+
+    def get_sub_run_2theta(self, exp_handler, sub_run):
+        return self._raw_data_dict[exp_handler][sub_run][1]
 
     def load_data(self, data_file_name, sub_run=None, target_dimension=None, load_to_workspace=True):
         """
@@ -115,6 +140,32 @@ class HB2BReductionManager(object):
         self._last_loaded_data_id = data_id
 
         return data_id, two_theta
+
+    def load_hidra_project(self, project_file_name):
+        """
+        load hidra project file
+        :param project_file_name:
+        :return:
+        """
+        # check inputs
+        checkdatatypes.check_file_name(project_file_name, True, False, False, 'Project file to load')
+
+        # PyRS HDF5
+        diff_file = rs_project_file.HydraProjectFile(project_file_name, mode='r')
+
+        # set up the dictionary to contain the data
+        handler = os.path.basename(project_file_name).split('.')[0]
+        self._raw_data_dict[handler] = dict()
+
+        sub_run_list = diff_file.get_sub_runs()
+        for sub_run in sorted(sub_run_list):
+            count_vec = diff_file.get_scan_counts(sub_run=sub_run)
+            two_theta = diff_file.get_log_value(log_name='2Theta', sub_run=sub_run)
+
+            self._raw_data_dict[handler][sub_run] = count_vec, two_theta
+        # END-FOR
+
+        return handler
 
     # TODO - TONIGHT 4 - Better!
     def load_instrument_file(self, instrument_file_name):
@@ -175,10 +226,11 @@ class HB2BReductionManager(object):
 
         # load file
         if pyrs_h5_name.endswith('hdf5'):
-            from pyrs.utilities import rs_project_file
+            # start file and load
             diff_file = rs_project_file.HydraProjectFile(pyrs_h5_name, mode='r')
             count_vec = diff_file.get_scan_counts(sub_run=sub_run)
             two_theta = diff_file.get_log_value(log_name='2Theta', sub_run=sub_run)
+            # close file
             diff_file.close()
         else:
             diff_file = rs_scan_io.DiffractionDataFile()
@@ -310,12 +362,11 @@ class HB2BReductionManager(object):
         return
 
     # TODO - TONIGHT 0 - This script does not work correctly! Refer to compare_reduction_engines_tst
-    def reduce_to_2theta(self, data_id, output_name, use_mantid_engine, mask, two_theta,
+    def reduce_to_2theta(self, data_id, sub_run, use_mantid_engine, mask, two_theta,
                          min_2theta=None, max_2theta=None, resolution_2theta=None):
         """
         Reduce import data (workspace or vector) to 2-theta ~ I
         :param data_id:
-        :param output_name:
         :param use_mantid_engine:
         :param mask: mask ID or mask vector
         :param two_theta: 2theta value
@@ -326,11 +377,15 @@ class HB2BReductionManager(object):
         """
         # check input
         checkdatatypes.check_string_variable('Data ID', data_id)
-        if data_id not in self._data_dict:
-            raise RuntimeError('Data ID {} does not exist in loaded data dictionary. '
-                               'Current keys: {}'.format(data_id, self._data_dict.keys()))
-        if output_name:
-            checkdatatypes.check_file_name(output_name, False, True, False, 'Output reduced file')
+        if sub_run is None:
+            # single run .h5 case
+            if data_id not in self._data_dict:
+                raise RuntimeError('Data ID {} does not exist in loaded data dictionary. '
+                                   'Current keys: {}'.format(data_id, self._data_dict.keys()))
+        else:
+            if data_id not in self._raw_data_dict or sub_run not in self._raw_data_dict[data_id]:
+                raise RuntimeError('Project ID {} Sub-run {} does not exist in raw data dictionary'
+                                   ''.format(data_id, sub_run))
 
         # about mask
         if mask is None:
@@ -377,8 +432,13 @@ class HB2BReductionManager(object):
                                                            rot_x_flip=self._geometry_calibration.rotation_x,
                                                            rot_y_flip=self._geometry_calibration.rotation_y,
                                                            rot_z_spin=self._geometry_calibration.rotation_z)
+            # 2 different cases to access raw data
+            if sub_run is None:
+                counts_vec = self._data_dict[data_id][1]
+            else:
+                counts_vec = self._raw_data_dict[data_id][sub_run][0]
 
-            bin_edges, hist = python_reducer.reduce_to_2theta_histogram(counts_array=self._data_dict[data_id][1],
+            bin_edges, hist = python_reducer.reduce_to_2theta_histogram(counts_array=counts_vec,
                                                                         mask=mask_vec,
                                                                         num_bins=self._num_bins,
                                                                         x_range=None, is_point_data=True,
@@ -392,7 +452,36 @@ class HB2BReductionManager(object):
         # record
         if data_id not in self._reduce_data_dict:
             self._reduce_data_dict[data_id] = dict()
-        self._reduce_data_dict[data_id][mask_id] = self._curr_vec_x, self._curr_vec_y
+        if sub_run is None:
+            # single run mode
+            self._reduce_data_dict[data_id][mask_id] = self._curr_vec_x, self._curr_vec_y
+        else:
+            # project file mode
+            self._reduce_data_dict[data_id][sub_run] = dict()
+            self._reduce_data_dict[data_id][sub_run][mask_id] = self._curr_vec_x, self._curr_vec_y
+
+        return
+
+    def save_project(self, project_id, output_project_file, mask_id=None):
+
+        project_file = rs_project_file.HydraProjectFile(output_project_file, mode='a')
+
+        for sub_run in sorted(self._reduce_data_dict[project_id].keys()):
+            vec_x, vec_y = self._reduce_data_dict[project_id][sub_run][mask_id]
+            project_file.add_diffraction_data(sub_run, vec_x, vec_y, '2theta')
+
+        project_file.close()
+
+        return
+
+    # TODO - TONIGHT 0 - From here!
+    def save_reduced_diffraction(self, data_id, output_name):
+        checkdatatypes.check_file_name(output_name, False, True, False, 'Output reduced file')
+
+        print ('data id: ', data_id)
+        print ('masks: ', self._reduce_data_dict[data_id].keys())
+        # self._reduce_data_dict[data_id][mask_id] = self._curr_vec_x, self._curr_vec_y
+
 
         return
 
@@ -436,6 +525,19 @@ class HB2BReductionManager(object):
 
         return
 
+    def set_output_dir(self, output_dir):
+        """
+        set the directory for output data
+        :param output_dir:
+        :return:
+        """
+        # FIXME - check whether the output dir exist;
+
+        self._output_directory = output_dir
+
+        return
+
+# END-CLASS-DEF
 
 def get_log_value(workspace, log_name):
     """
