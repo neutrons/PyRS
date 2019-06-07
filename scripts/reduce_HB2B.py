@@ -159,6 +159,7 @@ class ReductionApp(object):
 
         # reduce
         self._reduction_engine.reduce_to_2theta(data_id=data_id,
+                                                sub_run=None,
                                                 two_theta=two_theta,
                                                 use_mantid_engine=use_mantid,
                                                 mask=mask_vec)

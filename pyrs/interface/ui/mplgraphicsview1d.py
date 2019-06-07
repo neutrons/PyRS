@@ -1543,10 +1543,12 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
                                            ''.format(col_index, type(col_index))
 
         if is_main and (row_index, col_index) not in self.axes_main:
-            raise RuntimeError('Subplot index {0}, {1} does not exist. Keys are {2}'
+            raise RuntimeError('Subplot index {0}, {1} does not exist. Keys are {2}. '
+                               'Empty keys list indicates a bad init.'
                                ''.format(row_index, col_index, self.axes_main.keys()))
         elif is_main is False and (row_index, col_index) not in self.axes_right:
-            raise RuntimeError('Subplot index {0}, {1} does not exist. Keys are {2}'
+            raise RuntimeError('Subplot index {0}, {1} does not exist. Keys are {2}. '
+                               'Empty key list indicates a bad init'
                                ''.format(row_index, col_index, self.axes_main.keys()))
 
         return

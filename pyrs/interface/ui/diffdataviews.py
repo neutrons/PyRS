@@ -72,6 +72,16 @@ class DetectorView(MplGraphicsView2D):
 
         return
 
+    def plot_counts(self, count_vec):
+
+        linear_size = np.sqrt(count_vec.shape[0])
+
+        image_array = count_vec.reshape((linear_size, linear_size))
+
+        self.add_2d_plot(image_array, 0, linear_size, 0, linear_size, y_tick_label=None, plot_type='image')
+
+        return
+
     def plot_detector_view(self, raw_counts):
         """
         :param raw_counts: 1D array
@@ -113,7 +123,7 @@ class GeneralDiffDataView(MplGraphicsView1D):
         """ Initialization
         :param parent:
         """
-        super(GeneralDiffDataView, self).__init__(parent)
+        super(GeneralDiffDataView, self).__init__(parent, 1, 1)
 
         # management
         self._line_reference_list = list()
@@ -129,6 +139,34 @@ class GeneralDiffDataView(MplGraphicsView1D):
         :return:
         """
         return self._current_x_axis_name
+
+    def plot_diffraction(self, vec_x, vec_y, x_label, y_label, keep_prev=True):
+        """ plot figure in scatter-style
+        :param vec_x:
+        :param vec_y:
+        :param x_label:
+        :param y_label:
+        :return:
+        """
+        # TODO Future: Need to write use cases.  Now it is for demo
+        # It is not allowed to plot 2 plot with different x-axis
+        if self._last_line_reference is not None:
+            if x_label != self.get_label_x():
+                self.reset_viewer()
+
+        if not keep_prev and self._last_line_reference is not None:
+            self.remove_line(0, 0, self._last_line_reference)
+
+        # plot data in a scattering plot with auto re-scale
+        ref_id = self.add_plot(vec_x, vec_y, line_style='-', marker=None,
+                               color='red', x_label=x_label, y_label=y_label)
+        # TODO - 20181101 - Enable after auto_scale is fixed: self.auto_rescale()
+
+        self._line_reference_list.append(ref_id)
+        self._last_line_reference = ref_id
+        self._current_x_axis_name = x_label
+
+        return
 
     def plot_scatter(self, vec_x, vec_y, x_label, y_label):
         """ plot figure in scatter-style

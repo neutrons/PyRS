@@ -75,6 +75,14 @@ class HB2BReductionManager(object):
         """
         return self._last_loaded_data_id
 
+    def get_diffraction_pattern(self, data_handler, sub_run):
+        try:
+            vec_x, vec_y = self._reduce_data_dict[data_handler][sub_run][None]
+        except KeyError as key_err:
+            vec_x = vec_y = None
+
+        return vec_x, vec_y
+
     def get_sub_runs(self, exp_handler):
 
         # TODO - TONIGHT - Doc and check
@@ -354,7 +362,7 @@ class HB2BReductionManager(object):
         return
 
     # TODO - TONIGHT 0 - This script does not work correctly! Refer to compare_reduction_engines_tst
-    def reduce_to_2theta(self, data_id, use_mantid_engine, mask, two_theta,
+    def reduce_to_2theta(self, data_id, sub_run, use_mantid_engine, mask, two_theta,
                          min_2theta=None, max_2theta=None, resolution_2theta=None):
         """
         Reduce import data (workspace or vector) to 2-theta ~ I
@@ -369,9 +377,15 @@ class HB2BReductionManager(object):
         """
         # check input
         checkdatatypes.check_string_variable('Data ID', data_id)
-        if data_id not in self._data_dict:
-            raise RuntimeError('Data ID {} does not exist in loaded data dictionary. '
-                               'Current keys: {}'.format(data_id, self._data_dict.keys()))
+        if sub_run is None:
+            # single run .h5 case
+            if data_id not in self._data_dict:
+                raise RuntimeError('Data ID {} does not exist in loaded data dictionary. '
+                                   'Current keys: {}'.format(data_id, self._data_dict.keys()))
+        else:
+            if data_id not in self._raw_data_dict or sub_run not in self._raw_data_dict[data_id]:
+                raise RuntimeError('Project ID {} Sub-run {} does not exist in raw data dictionary'
+                                   ''.format(data_id, sub_run))
 
         # about mask
         if mask is None:
@@ -418,8 +432,13 @@ class HB2BReductionManager(object):
                                                            rot_x_flip=self._geometry_calibration.rotation_x,
                                                            rot_y_flip=self._geometry_calibration.rotation_y,
                                                            rot_z_spin=self._geometry_calibration.rotation_z)
+            # 2 different cases to access raw data
+            if sub_run is None:
+                counts_vec = self._data_dict[data_id][1]
+            else:
+                counts_vec = self._raw_data_dict[data_id][sub_run][0]
 
-            bin_edges, hist = python_reducer.reduce_to_2theta_histogram(counts_array=self._data_dict[data_id][1],
+            bin_edges, hist = python_reducer.reduce_to_2theta_histogram(counts_array=counts_vec,
                                                                         mask=mask_vec,
                                                                         num_bins=self._num_bins,
                                                                         x_range=None, is_point_data=True,
@@ -433,8 +452,13 @@ class HB2BReductionManager(object):
         # record
         if data_id not in self._reduce_data_dict:
             self._reduce_data_dict[data_id] = dict()
-        print ('mask ID: {}'.format(mask_id))
-        self._reduce_data_dict[data_id][mask_id] = self._curr_vec_x, self._curr_vec_y
+        if sub_run is None:
+            # single run mode
+            self._reduce_data_dict[data_id][mask_id] = self._curr_vec_x, self._curr_vec_y
+        else:
+            # project file mode
+            self._reduce_data_dict[data_id][sub_run] = dict()
+            self._reduce_data_dict[data_id][sub_run][mask_id] = self._curr_vec_x, self._curr_vec_y
 
         return
 

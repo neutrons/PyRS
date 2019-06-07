@@ -4,6 +4,8 @@ except ImportError:
     from PyQt4.QtGui import QMainWindow, QFileDialog, QVBoxLayout
 import ui.ui_manualreductionwindow
 from pyrs.core.pyrscore import PyRsCore
+from pyrs.core import calibration_file_io
+from ui.diffdataviews import DetectorView, GeneralDiffDataView
 from pyrs.utilities import hb2b_utilities
 import os
 import gui_helper
@@ -43,11 +45,13 @@ class ManualReductionWindow(QMainWindow):
         self.ui.pushButton_browseOutputDir.clicked.connect(self.do_browse_output_dir)
         self.ui.pushButton_setCalibrationFile.clicked.connect(self.do_browse_calibration_file)
 
+        self.ui.pushButton_setBrowseIDF.clicked.connect(self.do_browse_set_idf)
+
         self.ui.pushButton_batchReduction.clicked.connect(self.do_reduce_batch_runs)
         self.ui.pushButton_chopReduce.clicked.connect(self.do_chop_reduce_run)
 
         self.ui.pushButton_launchAdvSetupWindow.clicked.connect(self.do_launch_slice_setup)
-        self.ui.pushButton_plotDetView.clicked.connect(self.do_plot_det_view)
+        self.ui.pushButton_plotDetView.clicked.connect(self.do_plot_sub_run)
 
         # radio button operation
         self.ui.radioButton_chopByTime.toggled.connect(self.event_change_slice_type)
@@ -91,7 +95,12 @@ class ManualReductionWindow(QMainWindow):
         promote widgets
         :return:
         """
-        from ui.diffdataviews import DetectorView
+        # 1D diffraction view
+        curr_layout = QVBoxLayout()
+        self.ui.frame_diffractionView.setLayout(curr_layout)
+        self.ui.graphicsView_1DPlot = GeneralDiffDataView(self)
+        curr_layout.addWidget(self.ui.graphicsView_1DPlot)
+
         # 2D detector view
         curr_layout = QVBoxLayout()
         self.ui.frame_detectorView.setLayout(curr_layout)
@@ -116,6 +125,28 @@ class ManualReductionWindow(QMainWindow):
 
         # set to core
         self._core.reduction_engine.set_calibration_file(calibration_file)
+
+        return
+
+    def do_browse_set_idf(self):
+        """
+        Browse (optonally) and set instrument definition file
+        :return:
+        """
+        idf_name = str(self.ui.lineEdit_idfName.text()).strip()
+        if idf_name == '' or not os.path.exists(idf_name):
+            # browse IDF and set
+            idf_name = gui_helper.browse_file(self, 'Instrument definition file', os.getcwd(),
+                                              'Text (*.txt);;XML (*.xml)', False, False)
+            if len(idf_name) == 0:
+                return   # user cancels operation
+            else:
+                self.ui.lineEdit_idfName.setText(idf_name)
+        # END-IF
+
+        # set
+        instrument = calibration_file_io.import_instrument_setup(idf_name)
+        self._core.reduction_engine.set_instrument(instrument)
 
         return
 
@@ -200,17 +231,28 @@ class ManualReductionWindow(QMainWindow):
 
         return
 
-    def do_plot_det_view(self):
+    def do_plot_sub_run(self):
         """ Plot data with 2D view
         :return:
         """
+        # FIXME - Need to separate these 2 plotting method: detector view vs reduced data
+        # plot detector view
         sub_run = int(self.ui.comboBox_sub_runs.currentText())
         count_vec = self._core.reduction_engine.get_sub_run_count(self._project_data_id, sub_run)
         two_theta = self._core.reduction_engine.get_sub_run_2theta(self._project_data_id, sub_run)
 
-        print (two_theta)
-        print (count_vec)
-        print (count_vec.shape)
+        # set information
+        info = 'Sub-run: {}, 2theta = {}, Det size = {}'.format(sub_run, two_theta, count_vec.shape[0])
+        self.ui.lineEdit_detViewInfo.setText(info)
+
+        # plot
+        self.ui.graphicsView_detectorView.plot_counts(count_vec)
+
+        # plot reduced data
+        vec_x, vec_y = self._core.reduction_engine.get_diffraction_pattern(self._project_data_id,
+                                                                           sub_run)
+        if vec_x is not None:
+            self.ui.graphicsView_1DPlot.plot_diffraction(vec_x, vec_y, '2theta', 'intensity', False)
 
         return
 
@@ -303,48 +345,41 @@ class ManualReductionWindow(QMainWindow):
         (simply) reduce a list of runs in same experiment in a batch
         :return:
         """
-        # get run numbers
-        # TODO - 20181113 - Entry point ... set up mock data
-        try:
-            run_number_list = gui_helper.parse_integers(str(self.ui.lineEdit_runNumbersList.text()))
-        except RuntimeError as run_err:
-            gui_helper.pop_message(blabla)
-            return
+        # get (sub) run numbers
+        sub_runs_str = str(self.ui.lineEdit_runNumbersList.text()).strip().lower()
+        if sub_runs_str == 'all':
+            sub_run_list = self._core.reduction_engine.get_sub_runs(self._project_data_id)
+        else:
+            try:
+                sub_run_list = gui_helper.parse_integers(sub_runs_str)
+            except RuntimeError as run_err:
+                gui_helper.pop_message(self, 'Failed to parse integer list',
+                                       '{}'.format(run_err), 'error')
+                return
+        # END-IF-ELSE
 
-        # TODO - 20181116 - Clean this method!  Using multiple threading to update message
         # form a message
-        message = 'Reducing: \n'
-        for run_number in run_number_list:
-            message += 'IPTS-{} Run-{}: {}\n'.format(self._currIPTSNumber, run_number,
-                                                     '/HFIR/HB2B/IPTS-{}/nexus/HB2B_{}.nxs.h5'
-                                                     ''.format(self._currIPTSNumber, run_number))
+        message = 'Reduced.... \n'
+        for sub_run_number in sub_run_list:
+            tth_i = self._core.reduction_engine.get_sub_run_2theta(self._project_data_id, sub_run_number)
+            try:
+                self._core.reduction_engine.reduce_to_2theta(data_id=self._project_data_id,
+                                                             sub_run=sub_run_number,
+                                                             two_theta=tth_i,
+                                                             use_mantid_engine=False,
+                                                             mask=None)
+            except RuntimeError as run_err:
+                message += 'Sub-run: {}... Failed: {}\n'.format(sub_run_number, run_err)
+            else:
+                message += 'Sub-run: {}\n'.format(sub_run_number)
+
+            """ This is for future IPTS/Run system
+            message += 'Sub-run: {}\n'.format(self._currIPTSNumber, run_number,
+                                              '/HFIR/HB2B/IPTS-{}/nexus/HB2B_{}.nxs.h5'
+                                              ''.format(self._currIPTSNumber, run_number))
+            """
         # END-FOR
         self.ui.plainTextEdit_message.setPlainText(message)
-
-        # set for the plotting: set mutex
-        self._mutexPlotRuns = True
-        self.ui.comboBox_runs.clear()
-        for run_number in run_number_list:
-            self.ui.comboBox_runs.addItem('{}'.format(run_number))
-        self._mutexPlotRuns = False
-
-        return
-
-        error_msg = ''
-        for run_number in run_number_list:
-            try:
-                reduced_data_dict = self._core.reduction_engine.reduce_rs_run(self._currIPTSNumber,
-                                                                              self._expNumber, run_number)
-            except RuntimeError as run_err:
-                error_msg += 'Failed to reduce run {} due to {}\n'.format(run_number, run_err)
-        # END-FOR
-
-        # pop out error message if there is any
-        if error_msg != '':
-            error_msg = 'Reducing IPTS-{} Exp-{}:\n{}'.format(self._currIPTSNumber, self._currExpNumber, error_msg)
-            gui_helper.pop_message(self, 'Batch reduction fails (partially or completely)', detailed_message=error_msg,
-                                   message_type='error')
-            return
 
         return
 
