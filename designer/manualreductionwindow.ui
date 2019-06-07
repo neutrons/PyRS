@@ -387,6 +387,13 @@
               </property>
              </widget>
             </item>
+            <item>
+             <widget class="QPushButton" name="pushButton_saveProject">
+              <property name="text">
+               <string>Save</string>
+              </property>
+             </widget>
+            </item>
            </layout>
           </item>
           <item>

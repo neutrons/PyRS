@@ -29,6 +29,8 @@ class ManualReductionWindow(QMainWindow):
         self._currIPTSNumber = None
         self._currExpNumber = None
         self._project_data_id = None
+        self._output_dir = None
+        self._curr_project_name = None   # last loaded project file
 
         # mutexes
         self._plot_run_numbers_mutex = False
@@ -48,6 +50,7 @@ class ManualReductionWindow(QMainWindow):
         self.ui.pushButton_setBrowseIDF.clicked.connect(self.do_browse_set_idf)
 
         self.ui.pushButton_batchReduction.clicked.connect(self.do_reduce_batch_runs)
+        self.ui.pushButton_saveProject.clicked.connect(self.do_save_project)
         self.ui.pushButton_chopReduce.clicked.connect(self.do_chop_reduce_run)
 
         self.ui.pushButton_launchAdvSetupWindow.clicked.connect(self.do_launch_slice_setup)
@@ -160,6 +163,7 @@ class ManualReductionWindow(QMainWindow):
         if output_dir != '':
             self.ui.lineEdit_outputDir.setText(output_dir)
             self._core.reduction_engine.set_output_dir(output_dir)
+            self._output_dir = output_dir
 
         return
 
@@ -227,6 +231,7 @@ class ManualReductionWindow(QMainWindow):
             # populate the sub-runs
             self._set_sub_runs(data_handler)
             self._project_data_id = data_handler
+            self._curr_project_name = project_h5_name
         # END-TRY-EXCEPT
 
         return
@@ -382,6 +387,17 @@ class ManualReductionWindow(QMainWindow):
         self.ui.plainTextEdit_message.setPlainText(message)
 
         return
+
+    def do_save_project(self):
+        """Save project
+        :return:
+        """
+        output_project_name = os.path.join(self._output_dir, os.path.basename(self._curr_project_name))
+        if output_project_name != self._curr_project_name:
+            import shutil
+            shutil.copyfile(self._curr_project_name, output_project_name)
+
+        self._core.reduction_engine.save_project(self._project_data_id, output_project_name)
 
     def do_set_ipts_exp(self):
         """

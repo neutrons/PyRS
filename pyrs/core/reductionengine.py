@@ -462,6 +462,18 @@ class HB2BReductionManager(object):
 
         return
 
+    def save_project(self, project_id, output_project_file, mask_id=None):
+
+        project_file = rs_project_file.HydraProjectFile(output_project_file, mode='a')
+
+        for sub_run in sorted(self._reduce_data_dict[project_id].keys()):
+            vec_x, vec_y = self._reduce_data_dict[project_id][sub_run][mask_id]
+            project_file.add_diffraction_data(sub_run, vec_x, vec_y, '2theta')
+
+        project_file.close()
+
+        return
+
     # TODO - TONIGHT 0 - From here!
     def save_reduced_diffraction(self, data_id, output_name):
         checkdatatypes.check_file_name(output_name, False, True, False, 'Output reduced file')

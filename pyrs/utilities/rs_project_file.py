@@ -40,6 +40,7 @@ class HydraProjectFile(object):
             self._is_writable = True
             self._project_h5 = h5py.File(project_file_name, mode='w')
             self._init_file()
+
         else:
             # append
             checkdatatypes.check_file_name(project_file_name, True, True, False, '(Append-mode) project file')
@@ -87,11 +88,24 @@ class HydraProjectFile(object):
 
         return
 
-    def add_diffraction_data(self, unit):
+    def add_diffraction_data(self, sub_run_index, vec_x, vec_y, unit):
         """ add reduced and corrected diffraction data in specified unit
         :param unit:
         :return:
         """
+        # TODO - TONIGHT 0 - Many checks...
+        checkdatatypes.check_string_variable('Unit', unit, ['2theta', 'd-spacing'])
+
+        if 'reduced data' not in self._project_h5.keys():
+            raise RuntimeError('No reduced data')
+        elif unit not in self._project_h5['reduced data']:
+            raise RuntimeError('{} missing'.format(unit))
+
+        # create group
+        reduced_data = self._project_h5['reduced data'][unit].create_group('{:04}'.format(sub_run_index))
+        reduced_data.create_dataset('x', data=vec_x)
+        reduced_data.create_dataset('y', data=vec_y)
+
         return
 
     def add_experiment_information(self, log_name, log_value_array):
