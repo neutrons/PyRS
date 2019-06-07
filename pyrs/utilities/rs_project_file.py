@@ -140,6 +140,19 @@ class HydraProjectFile(object):
 
         return counts
 
+    def get_sub_runs(self):
+        """
+        get list of the sub runs
+        :return:
+        """
+        sub_runs_str_list = self._project_h5['experiment']['sub-runs']
+
+        sub_run_list = [None] * len(sub_runs_str_list)
+        for index, sub_run_str in enumerate(sub_runs_str_list):
+            sub_run_list[index] = int(sub_run_str)
+
+        return sub_run_list
+
     def set_geometry(self):
         """
         set the instrument geometry information with calibration

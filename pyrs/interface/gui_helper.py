@@ -11,6 +11,26 @@ except ImportError:
     is_qt4 = True
 
 
+def browse_dir(parent, caption, default_dir):
+    """ Browse a directory
+    :param parent:
+    :param caption:
+    :param default_dir:
+    :return: non-empty string for selected directory; empty string for canceled operation
+    """
+    # check inputs
+    assert isinstance(parent, object), 'Parent {} must be of some object.'.format(parent)
+    checkdatatypes.check_string_variable('File browsing title/caption', caption)
+    checkdatatypes.check_file_name(default_dir, check_exist=False, is_dir=True)
+
+    # get directory
+    chosen_dir = QFileDialog.getExistingDirectory(parent, caption, default_dir)
+    print ('[DB...BAT] Chosen dir: {} of type {}'.format(chosen_dir, type(chosen_dir)))
+    chosen_dir = str(chosen_dir).strip()
+
+    return chosen_dir
+
+
 def browse_file(parent, caption, default_dir, file_filter, file_list=False, save_file=False):
     """ browse a file or files
     :param parent:

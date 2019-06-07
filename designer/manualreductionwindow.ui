@@ -711,7 +711,6 @@
             <property name="frameShadow">
              <enum>QFrame::Raised</enum>
             </property>
-            <zorder></zorder>
            </widget>
           </item>
          </layout>
@@ -739,12 +738,12 @@
            </size>
           </property>
           <property name="text">
-           <string>Run Number</string>
+           <string>Sub-Runs</string>
           </property>
          </widget>
         </item>
         <item>
-         <widget class="QComboBox" name="comboBox_runs"/>
+         <widget class="QComboBox" name="comboBox_sub_runs"/>
         </item>
         <item>
          <widget class="QLabel" name="label_12">
@@ -781,6 +780,13 @@
         <item>
          <widget class="QComboBox" name="comboBox_plotSelection"/>
         </item>
+        <item>
+         <widget class="QPushButton" name="pushButton_plotDetView">
+          <property name="text">
+           <string>Plot</string>
+          </property>
+         </widget>
+        </item>
        </layout>
       </item>
      </layout>
@@ -801,6 +807,7 @@
      <string>File</string>
     </property>
     <addaction name="actionLoad_Image"/>
+    <addaction name="actionLoad_Project_File"/>
     <addaction name="actionQuit"/>
    </widget>
    <widget class="QMenu" name="menuEdit">
@@ -844,6 +851,11 @@
   <action name="actionLoad_Instrument">
    <property name="text">
     <string>Load Instrument</string>
+   </property>
+  </action>
+  <action name="actionLoad_Project_File">
+   <property name="text">
+    <string>Load Project File</string>
    </property>
   </action>
  </widget>

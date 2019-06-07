@@ -26,6 +26,7 @@ class ManualReductionWindow(QMainWindow):
         self._core = None
         self._currIPTSNumber = None
         self._currExpNumber = None
+        self._project_data_id = None
 
         # mutexes
         self._plot_run_numbers_mutex = False
@@ -46,6 +47,7 @@ class ManualReductionWindow(QMainWindow):
         self.ui.pushButton_chopReduce.clicked.connect(self.do_chop_reduce_run)
 
         self.ui.pushButton_launchAdvSetupWindow.clicked.connect(self.do_launch_slice_setup)
+        self.ui.pushButton_plotDetView.clicked.connect(self.do_plot_det_view)
 
         # radio button operation
         self.ui.radioButton_chopByTime.toggled.connect(self.event_change_slice_type)
@@ -53,7 +55,7 @@ class ManualReductionWindow(QMainWindow):
         self.ui.radioButton_chopAdvanced.toggled.connect(self.event_change_slice_type)
 
         # event handling for combobox
-        self.ui.comboBox_runs.currentIndexChanged.connect(self.event_new_run_to_plot)
+        # self.ui.comboBox_sub_runs.currentIndexChanged.connect(self.event_new_run_to_plot)
 
         # TODO - ASAP - Use these 2 buttons to enable/disable write access to configuration
         # actionEdit_Calibrations
@@ -64,6 +66,8 @@ class ManualReductionWindow(QMainWindow):
 
         # menu operation
         self.ui.actionLoad_Image.triggered.connect(self.event_load_image)
+        # Load project file (*.h5)
+        self.ui.actionLoad_Project_File.triggered.connect(self.do_load_project_h5)
 
         # init widgets
         self._init_widgets_setup()
@@ -96,7 +100,6 @@ class ManualReductionWindow(QMainWindow):
 
         return
 
-
     def do_browse_calibration_file(self):
         """ Browse and set up calibration file
         :return:
@@ -123,7 +126,7 @@ class ManualReductionWindow(QMainWindow):
         """
         output_dir = gui_helper.browse_dir(self, caption='Output directory for reduced data',
                                            default_dir=os.path.expanduser('~'))
-        if output_dir is not None or output_dir != '':
+        if output_dir != '':
             self.ui.lineEdit_outputDir.setText(output_dir)
             self._core.reduction_engine.set_output_dir(output_dir)
 
@@ -172,6 +175,58 @@ class ManualReductionWindow(QMainWindow):
         import slicersetupwindow
         self._slice_setup_window = slicersetupwindow.EventSlicerSetupWindow(self)
         self._slice_setup_window.show()
+        return
+
+    def do_load_project_h5(self):
+        """ Load project file in HDF5 format
+        :return:
+        """
+        project_h5_name = gui_helper.browse_file(self, 'HIDRA Project File', os.getcwd(),
+                                                 file_filter='*.hdf5;;*.h5', file_list=False,
+                                                 save_file=False)
+
+        try:
+            data_handler = self._core.reduction_engine.load_hidra_project(project_h5_name)
+        except RuntimeError as run_err:
+            gui_helper.pop_message(self, 'Failed to load project file {}: {}'.format(project_h5_name, run_err),
+                                   None, 'error')
+        else:
+            print ('Loaded {} to {}'.format(project_h5_name, data_handler))
+
+            # populate the sub-runs
+            self._set_sub_runs(data_handler)
+            self._project_data_id = data_handler
+        # END-TRY-EXCEPT
+
+        return
+
+    def do_plot_det_view(self):
+        """ Plot data with 2D view
+        :return:
+        """
+        sub_run = int(self.ui.comboBox_sub_runs.currentText())
+        count_vec = self._core.reduction_engine.get_sub_run_count(self._project_data_id, sub_run)
+        two_theta = self._core.reduction_engine.get_sub_run_2theta(self._project_data_id, sub_run)
+
+        print (two_theta)
+        print (count_vec)
+        print (count_vec.shape)
+
+        return
+
+    def _set_sub_runs(self, data_id):
+        """ set the sub runs to comboBox_sub_runs
+        :param data_id:
+        :return:
+        """
+        sub_runs = self._core.reduction_engine.get_sub_runs(data_id)
+
+        self.ui.comboBox_sub_runs.clear()
+        for sub_run in sorted(sub_runs):
+            self.ui.comboBox_sub_runs.addItem('{:04}'.format(sub_run))
+
+        self.ui.comboBox_sub_runs.setCurrentIndex(0)
+
         return
 
     def _setup_plot_sliced_runs(self, run_number, sliced_):

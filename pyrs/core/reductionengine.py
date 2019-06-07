@@ -8,6 +8,7 @@ from pyrs.core import mask_util
 from pyrs.core import reduce_hb2b_mtd
 from pyrs.core import reduce_hb2b_pyrs
 from pyrs.utilities import rs_scan_io
+from pyrs.utilities import rs_project_file
 from mantid.simpleapi import CreateWorkspace, LoadSpiceXML2DDet, Transpose, LoadEventNexus, ConvertToMatrixWorkspace
 
 
@@ -48,7 +49,12 @@ class HB2BReductionManager(object):
         self._curr_vec_x = None
         self._curr_vec_y = None
 
+        # raw data and reduced data
+        self._raw_data_dict = dict()  # [Handler][Sub-run][Mask ID] = vec_y, 2theta
         self._reduce_data_dict = dict()   # D[data ID][mask ID] = vec_x, vec_y
+
+        # Outputs
+        self._output_directory = None
 
         return
 
@@ -68,6 +74,17 @@ class HB2BReductionManager(object):
         :return:
         """
         return self._last_loaded_data_id
+
+    def get_sub_runs(self, exp_handler):
+
+        # TODO - TONIGHT - Doc and check
+        return self._raw_data_dict[exp_handler].keys()
+
+    def get_sub_run_count(self, exp_handler, sub_run):
+        return self._raw_data_dict[exp_handler][sub_run][0]
+
+    def get_sub_run_2theta(self, exp_handler, sub_run):
+        return self._raw_data_dict[exp_handler][sub_run][1]
 
     def load_data(self, data_file_name, sub_run=None, target_dimension=None, load_to_workspace=True):
         """
@@ -115,6 +132,32 @@ class HB2BReductionManager(object):
         self._last_loaded_data_id = data_id
 
         return data_id, two_theta
+
+    def load_hidra_project(self, project_file_name):
+        """
+        load hidra project file
+        :param project_file_name:
+        :return:
+        """
+        # check inputs
+        checkdatatypes.check_file_name(project_file_name, True, False, False, 'Project file to load')
+
+        # PyRS HDF5
+        diff_file = rs_project_file.HydraProjectFile(project_file_name, mode='r')
+
+        # set up the dictionary to contain the data
+        handler = os.path.basename(project_file_name).split('.')[0]
+        self._raw_data_dict[handler] = dict()
+
+        sub_run_list = diff_file.get_sub_runs()
+        for sub_run in sorted(sub_run_list):
+            count_vec = diff_file.get_scan_counts(sub_run=sub_run)
+            two_theta = diff_file.get_log_value(log_name='2Theta', sub_run=sub_run)
+
+            self._raw_data_dict[handler][sub_run] = count_vec, two_theta
+        # END-FOR
+
+        return handler
 
     # TODO - TONIGHT 4 - Better!
     def load_instrument_file(self, instrument_file_name):
@@ -175,10 +218,11 @@ class HB2BReductionManager(object):
 
         # load file
         if pyrs_h5_name.endswith('hdf5'):
-            from pyrs.utilities import rs_project_file
+            # start file and load
             diff_file = rs_project_file.HydraProjectFile(pyrs_h5_name, mode='r')
             count_vec = diff_file.get_scan_counts(sub_run=sub_run)
             two_theta = diff_file.get_log_value(log_name='2Theta', sub_run=sub_run)
+            # close file
             diff_file.close()
         else:
             diff_file = rs_scan_io.DiffractionDataFile()
@@ -445,6 +489,19 @@ class HB2BReductionManager(object):
 
         return
 
+    def set_output_dir(self, output_dir):
+        """
+        set the directory for output data
+        :param output_dir:
+        :return:
+        """
+        # FIXME - check whether the output dir exist;
+
+        self._output_directory = output_dir
+
+        return
+
+# END-CLASS-DEF
 
 def get_log_value(workspace, log_name):
     """
