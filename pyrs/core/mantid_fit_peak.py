@@ -153,23 +153,39 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
                       'Voigt': ('LorentzFWHM, GaussianFWHM', '0.1, 0.7')}
 
         # TODO - 20180930 - Issue #30: get a list of mixing parameter
-        r = FitPeaks(InputWorkspace=self._workspace_name,
-                     OutputWorkspace=r_positions_ws_name,
-                     PeakCentersWorkspace=self._center_of_mass_ws_name,
-                     PeakFunction=peak_function_name,
-                     BackgroundType=background_function_name,
-                     StartWorkspaceIndex=start,
-                     StopWorkspaceIndex=stop,
-                     FindBackgroundSigma=1,
-                     HighBackground=False,
-                     ConstrainPeakPositions=False,
-                     PeakParameterNames=width_dict[peak_function_name][0],
-                     PeakParameterValues=width_dict[peak_function_name][1],
-                     RawPeakParameters=False,
-                     OutputPeakParametersWorkspace=r_param_table_name,
-                     OutputParameterFitErrorsWorkspace=r_error_table_name,
-                     FittedPeaksWorkspace=r_model_ws_name,
-                     FitPeakWindowWorkspace=peak_window_ws_name)
+        # r = FitPeaks(InputWorkspace=self._workspace_name,
+        #              OutputWorkspace=r_positions_ws_name,
+        #              PeakCentersWorkspace=self._center_of_mass_ws_name,
+        #              PeakFunction=peak_function_name,
+        #              BackgroundType=background_function_name,
+        #              StartWorkspaceIndex=start,
+        #              StopWorkspaceIndex=stop,
+        #              FindBackgroundSigma=1,
+        #              HighBackground=False,
+        #              ConstrainPeakPositions=False,
+        #              PeakParameterNames=width_dict[peak_function_name][0],
+        #              PeakParameterValues=width_dict[peak_function_name][1],
+        #              RawPeakParameters=False,
+        #              OutputPeakParametersWorkspace=r_param_table_name,
+        #              OutputParameterFitErrorsWorkspace=r_error_table_name,
+        #              FittedPeaksWorkspace=r_model_ws_name,
+        #              FitPeakWindowWorkspace=peak_window_ws_name)
+
+        FitPeaks(InputWorkspace=self._workspace_name,
+                 OutputWorkspace=r_positions_ws_name,
+                 StartWorkspaceIndex=0, StopWorkspaceIndex=541,
+                 PeakCentersWorkspace=self._center_of_mass_ws_name,
+                 FitPeakWindowWorkspace=peak_window_ws_name,
+                 PeakFunction=peak_function_name,
+                 BackgroundType=background_function_name,
+                 PeakParameterNames='Sigma',
+                 PeakParameterValues='0.36',
+                 Minimizer='Levenberg-MarquardtMD',
+                 HighBackground=False,
+                 ConstrainPeakPositions=False,
+                 FittedPeaksWorkspace=r_model_ws_name,
+                 OutputPeakParametersWorkspace=r_param_table_name,
+                 OutputParameterFitErrorsWorkspace=r_error_table_name)
 
         # TODO - 20180930 - Issue #30: add new column to OutputPeakParametersWorkspace for 'mixing'
         # TODO            - ASAP: OUTPUT is changed to raw parameters... shall be

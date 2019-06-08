@@ -77,7 +77,7 @@ class FitPeaksWindow(QMainWindow):
         # checkBox_showFitValue
         # others
         # TODO - 20181124 - Make this table's column flexible!
-        self.ui.tableView_fitSummary.setup()
+        self.ui.tableView_fitSummary.setup(peak_param_names=list())
 
         return
 
@@ -340,24 +340,39 @@ class FitPeaksWindow(QMainWindow):
         :param data_key:
         :return:
         """
-        table_param_names = ['Center', 'Intensity', 'FWHM', 'Height', 'Chi2']
-        if peak_function == 'PseudoVoigt':
+        if peak_function == 'Gaussian':
+            table_param_names = ['wsindex', 'peakindex', 'Height', 'PeakCentre', 'Sigma', 'A0', 'A1', 'chi2']
+        elif peak_function == 'PseudoVoigt':
             # TODO - 20181210 - shall extending 'mixing' as a special case
-            pass
+            raise RuntimeError('PV will be supported soon after Mantid FitPeaks is fixed')
+        else:
+            # TODO - Next!
+            raise RuntimeError('Peak type {} not supported'.format(peak_function))
         # param_names.extend(['A0', 'A1'])
 
         self.ui.tableView_fitSummary.reset_table(table_param_names)
 
         # get value
-        not_used_vec, center_vec = self._core.get_peak_fit_param_value(data_key, 'centre', max_cost=None)
-        not_used_vec, height_vec = self._core.get_peak_fit_param_value(data_key, 'height', max_cost=None)
-        not_used_vec, fwhm_vec = self._core.get_peak_fit_param_value(data_key, 'width', max_cost=None)
-        not_used_vec, chi2_vec = self._core.get_peak_fit_param_value(data_key, 'chi2', max_cost=None)
-        not_used_vec, intensity_vec = self._core.get_peak_fit_param_value(data_key, 'intensity', max_cost=None)
+        param_dict = dict()
+        for param_name in table_param_names:
+            not_used, param_vec = self._core.get_peak_fit_param_value(data_key, param_name, max_cost=None)
+            param_dict[param_name] = param_vec
         com_vec = self._core.get_peak_center_of_mass(data_key)
+        scan_index_list = [None] * len(com_vec)
+        for row_number in range(len(com_vec)):
+            scan_index_list[row_number] = param_dict['wsindex'][row_number] + 1
+        param_dict['C.O.M'] = com_vec
+        param_dict['Sub-run'] = scan_index_list
+        del param_dict['wsindex']
+
+        # not_used_vec, center_vec = self._core.get_peak_fit_param_value(data_key, 'centre', max_cost=None)
+        # not_used_vec, height_vec = self._core.get_peak_fit_param_value(data_key, 'height', max_cost=None)
+        # not_used_vec, fwhm_vec = self._core.get_peak_fit_param_value(data_key, 'width', max_cost=None)
+        # not_used_vec, chi2_vec = self._core.get_peak_fit_param_value(data_key, 'chi2', max_cost=None)
+        # not_used_vec, intensity_vec = self._core.get_peak_fit_param_value(data_key, 'intensity', max_cost=None)
         #
-        for row_index in range(len(center_vec)):
-            self.ui.tableView_fitSummary.set_fit_summary(row_index, scan_index, param_dict, peak_name, com_vec)
+        for row_index in range(len(com_vec)):
+            self.ui.tableView_fitSummary.set_fit_summary(row_index, param_dict)
 
             # self.ui.tableView_fitSummary.set_peak_params(row_index,
             #                                              center_vec[row_index],

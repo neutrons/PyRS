@@ -181,8 +181,7 @@ class MplFitPlottingWidget(QWidget):
         self._data_line_list.append(data_line_id)
 
         model_line_id = self._myCanvas.add_plot_upper_axis(model_set, label=model_label,
-                                                           line_color='red', line_marker=None,
-                                                           marker_size=None, line_style='-', line_width=1)
+                                                           line_color='red', line_style='-', line_width=1)
         self._model_line = model_line_id
 
         diff_line_id = self._myCanvas.add_plot_lower_axis(residual_set)
@@ -285,10 +284,9 @@ class QtMplFitCanvas(FigureCanvas):
         vec_x = data_set[0]
         vec_y = data_set[1]
 
-        print ('[DB...BAT] Plot residual:\n{}\n{}'.format(vec_x, vec_y))
+        # print ('[DB...BAT] Plot residual:\n{}\n{}'.format(vec_x, vec_y))
 
         plot_info = self._residual_subplot.plot(vec_x, vec_y, label=None, color='green',
-                                                marker=None, markersize=None,
                                                 linestyle='-', linewidth=2)
 
         self._data_subplot.set_aspect('auto')
