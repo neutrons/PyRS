@@ -92,7 +92,11 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         """
         :return:
         """
-        centre_vec = self.get_fitted_params(param_name='PeakCentre')
+        # TODO/FIXME - TONIGHT 0 - Must have a better way than try and guess
+        try:
+            centre_vec = self.get_fitted_params(param_name='PeakCentre')
+        except KeyError:
+            centre_vec = self.get_fitted_params(param_name='centre')
         self._peak_center_d_vec = np.ndarray(centre_vec.shape, centre_vec.dtype)
 
         num_pt = len(centre_vec)
@@ -153,39 +157,39 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
                       'Voigt': ('LorentzFWHM, GaussianFWHM', '0.1, 0.7')}
 
         # TODO - 20180930 - Issue #30: get a list of mixing parameter
-        # r = FitPeaks(InputWorkspace=self._workspace_name,
-        #              OutputWorkspace=r_positions_ws_name,
-        #              PeakCentersWorkspace=self._center_of_mass_ws_name,
-        #              PeakFunction=peak_function_name,
-        #              BackgroundType=background_function_name,
-        #              StartWorkspaceIndex=start,
-        #              StopWorkspaceIndex=stop,
-        #              FindBackgroundSigma=1,
-        #              HighBackground=False,
-        #              ConstrainPeakPositions=False,
-        #              PeakParameterNames=width_dict[peak_function_name][0],
-        #              PeakParameterValues=width_dict[peak_function_name][1],
-        #              RawPeakParameters=False,
-        #              OutputPeakParametersWorkspace=r_param_table_name,
-        #              OutputParameterFitErrorsWorkspace=r_error_table_name,
-        #              FittedPeaksWorkspace=r_model_ws_name,
-        #              FitPeakWindowWorkspace=peak_window_ws_name)
+        r = FitPeaks(InputWorkspace=self._workspace_name,
+                     OutputWorkspace=r_positions_ws_name,
+                     PeakCentersWorkspace=self._center_of_mass_ws_name,
+                     PeakFunction=peak_function_name,
+                     BackgroundType=background_function_name,
+                     StartWorkspaceIndex=start,
+                     StopWorkspaceIndex=stop,
+                     FindBackgroundSigma=1,
+                     HighBackground=False,
+                     ConstrainPeakPositions=False,
+                     PeakParameterNames=width_dict[peak_function_name][0],
+                     PeakParameterValues=width_dict[peak_function_name][1],
+                     RawPeakParameters=False,
+                     OutputPeakParametersWorkspace=r_param_table_name,
+                     # OutputParameterFitErrorsWorkspace=r_error_table_name,  # TODO/FIXME - TONIGHT 0 - To be or not to be!
+                     FittedPeaksWorkspace=r_model_ws_name,
+                     FitPeakWindowWorkspace=peak_window_ws_name)
 
-        FitPeaks(InputWorkspace=self._workspace_name,
-                 OutputWorkspace=r_positions_ws_name,
-                 StartWorkspaceIndex=0, StopWorkspaceIndex=541,
-                 PeakCentersWorkspace=self._center_of_mass_ws_name,
-                 FitPeakWindowWorkspace=peak_window_ws_name,
-                 PeakFunction=peak_function_name,
-                 BackgroundType=background_function_name,
-                 PeakParameterNames='Sigma',
-                 PeakParameterValues='0.36',
-                 Minimizer='Levenberg-MarquardtMD',
-                 HighBackground=False,
-                 ConstrainPeakPositions=False,
-                 FittedPeaksWorkspace=r_model_ws_name,
-                 OutputPeakParametersWorkspace=r_param_table_name,
-                 OutputParameterFitErrorsWorkspace=r_error_table_name)
+        # FitPeaks(InputWorkspace=self._workspace_name,
+        #          OutputWorkspace=r_positions_ws_name,
+        #          StartWorkspaceIndex=0, StopWorkspaceIndex=541,
+        #          PeakCentersWorkspace=self._center_of_mass_ws_name,
+        #          FitPeakWindowWorkspace=peak_window_ws_name,
+        #          PeakFunction=peak_function_name,
+        #          BackgroundType=background_function_name,
+        #          PeakParameterNames='Sigma',
+        #          PeakParameterValues='0.36',
+        #          Minimizer='Levenberg-MarquardtMD',
+        #          HighBackground=False,
+        #          ConstrainPeakPositions=False,
+        #          FittedPeaksWorkspace=r_model_ws_name,
+        #          OutputPeakParametersWorkspace=r_param_table_name,
+        #          OutputParameterFitErrorsWorkspace=r_error_table_name)
 
         # TODO - 20180930 - Issue #30: add new column to OutputPeakParametersWorkspace for 'mixing'
         # TODO            - ASAP: OUTPUT is changed to raw parameters... shall be
@@ -219,7 +223,10 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         # process output
         self._fitted_peak_position_ws = AnalysisDataService.retrieve(r_positions_ws_name)
         self._fitted_function_param_table = AnalysisDataService.retrieve(r_param_table_name)
-        self._fitted_function_error_table = AnalysisDataService.retrieve(r_error_table_name)
+        try:
+            self._fitted_function_error_table = AnalysisDataService.retrieve(r_error_table_name)
+        except KeyError as run_err:
+            pass
         self._model_matrix_ws = AnalysisDataService.retrieve(r_model_ws_name)
 
         return

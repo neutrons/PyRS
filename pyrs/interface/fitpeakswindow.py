@@ -341,7 +341,7 @@ class FitPeaksWindow(QMainWindow):
         :return:
         """
         if peak_function == 'Gaussian':
-            table_param_names = ['wsindex', 'peakindex', 'Height', 'PeakCentre', 'Sigma', 'A0', 'A1', 'chi2']
+            table_param_names = ['wsindex', 'peakindex', 'centre', 'width', 'intensity', 'A0', 'A1', 'chi2']
         elif peak_function == 'PseudoVoigt':
             # TODO - 20181210 - shall extending 'mixing' as a special case
             raise RuntimeError('PV will be supported soon after Mantid FitPeaks is fixed')

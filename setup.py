@@ -20,6 +20,7 @@ if sys.argv[-1] == 'pyuic':
         pyui_ver = 5
     except ImportError:
         pyui_ver = 4
+    pyui_ver = 5
     
     done = 0
     for inname in files:

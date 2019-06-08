@@ -107,8 +107,8 @@ class FitResultTable(NTableWidget.NTableWidget):
 
     def set_fit_summary(self, row_number, param_dict):
 
-        if row_number < self.rowCount():
-            print ('[WARNING] In this case, add a new line is a bad idea')
+        # if row_number < self.rowCount():
+        #     print ('[WARNING] In this case, add a new line is a bad idea')
 
         this_value_list = list()
         for column_item in self._column_names:
@@ -116,8 +116,17 @@ class FitResultTable(NTableWidget.NTableWidget):
                 this_value_list.append(param_dict[column_item][row_number])
             else:
                 this_value_list.append(None)
+        # END-FOR
 
-        self.append_row(row_value_list=this_value_list)
+        if row_number < self.rowCount():
+            for col_num, item_value in enumerate(this_value_list):
+                if item_value is not None:
+                    try:
+                        self.update_cell_value(row_number, col_num, item_value)
+                    except TypeError as type_err:
+                        print ('Cell @ {}, {} of value {} cannot be updated'.format(row_number, col_num, item_value))
+        else:
+            self.append_row(row_value_list=this_value_list)
         #
         # ['Sub-run', 'wsindex', 'peakindex', 'Height', 'PeakCentre', 'Sigma', 'A0', 'A1', 'chi2', 'C.O.M', 'Profile']
         #

@@ -626,18 +626,22 @@ class NTableWidget(QTableWidget):
         cell_item = self.item(row, col)
         cell_widget = self.cellWidget(row, col)
 
-        if cell_item is not None and cell_widget is None:
+        if cell_widget is None:
             # TableWidgetItem
-            assert isinstance(cell_item, QTableWidgetItem)
-            if isinstance(value, float):
-                # apply significant digit dynamically
-                # use 'g' for significant float_str = ('{0:.%dg}' % significant_digits).format(value)
-                float_str = ('{0:.%df}' % number_decimal).format(value)  # decimal
-                cell_item.setText(_fromUtf8(float_str))
-                # cell_item.setText(_fromUtf8('%.7f' % value))
-                # ('{0:.%dg}'%(2)).format(d)
+            if cell_item is None:
+                self.set_value_cell(row, col, value)
+            elif isinstance(cell_item, QTableWidgetItem):
+                if isinstance(value, float):
+                    # apply significant digit dynamically
+                    # use 'g' for significant float_str = ('{0:.%dg}' % significant_digits).format(value)
+                    float_str = ('{0:.%df}' % number_decimal).format(value)  # decimal
+                    cell_item.setText(_fromUtf8(float_str))
+                    # cell_item.setText(_fromUtf8('%.7f' % value))
+                    # ('{0:.%dg}'%(2)).format(d)
+                else:
+                    cell_item.setText(_fromUtf8(str(value)))
             else:
-                cell_item.setText(_fromUtf8(str(value)))
+                raise RuntimeError('Cell widget type error!')
         elif cell_item is None and cell_widget is not None:
             # TableCellWidget
             if isinstance(cell_widget, QCheckBox) is True:
