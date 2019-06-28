@@ -17,6 +17,7 @@ class FitResultTable(NTableWidget.NTableWidget):
     #                   ('Chi^2', 'float'),
     #                   ('C.O.M', 'float'),  # center of mass
     #                   ('Profile', 'string')]
+    TableSetupList = list()
 
     def __init__(self, parent):
         """ Initialization
@@ -31,6 +32,8 @@ class FitResultTable(NTableWidget.NTableWidget):
         self._colIndexCoM = None
         self._colIndexProfile = None
         self._colIndexIntensity = None
+
+        self._column_names = None
 
         return
 
@@ -54,10 +57,11 @@ class FitResultTable(NTableWidget.NTableWidget):
         :param peak_param_names:
         :return:
         """
-
-
         self.clear()
-        self.init_setup(table_setup_list)
+        if peak_param_names is None:
+            self.init_setup(self.TableSetupList)
+        else:
+            self.setup(peak_param_names)
 
         return
 
@@ -67,13 +71,18 @@ class FitResultTable(NTableWidget.NTableWidget):
         :return:
         """
         # create table columns dynamically
-        table_setup_list = [('Index', 'int')]
-        for param_name in peak_param_names:
-            table_setup_list.append((param_name, 'float'))
-        table_setup_list.append(('C.O.M', 'float'))
-        table_setup_list.append(('Profile', 'string'))
+        self.TableSetupList = list()
 
-        self._column_names = [item[0] for item in table_setup_list]
+        self.TableSetupList.append(('Sub-run', 'int'))
+        for param_name in peak_param_names:
+            self.TableSetupList.append((param_name, 'float'))
+        self.TableSetupList.append(('C.O.M', 'float'))
+        self.TableSetupList.append(('Profile', 'string'))
+
+        self._column_names = [item[0] for item in self.TableSetupList]
+
+        # reset table
+        self.init_setup(self.TableSetupList)
 
         #
         # total_columns = len(table_setup_list)
@@ -81,7 +90,7 @@ class FitResultTable(NTableWidget.NTableWidget):
         # self._colIndexProfile = total_columns - 1
         # self._colIndexCoM = total_columns - 2
         #
-        # self.init_setup(self.TableSetupList)
+
         #
         # # Set up column width
         self.setColumnWidth(0, 60)
@@ -90,9 +99,40 @@ class FitResultTable(NTableWidget.NTableWidget):
         self.setColumnWidth(len(self._column_names)-1, 120)
 
         # Set up the column index for start, stop and select
-        self._colIndexIndex = self.TableSetupList.index(('Index', 'int'))
+        self._colIndexIndex = self.TableSetupList.index(('Sub-run', 'int'))
         self._colIndexCoM = self.TableSetupList.index(('C.O.M', 'float'))
         self._colIndexProfile = self.TableSetupList.index(('Profile', 'string'))
+
+        return
+
+    def set_fit_summary(self, row_number, param_dict):
+
+        # if row_number < self.rowCount():
+        #     print ('[WARNING] In this case, add a new line is a bad idea')
+
+        this_value_list = list()
+        for column_item in self._column_names:
+            if column_item in param_dict:
+                this_value_list.append(param_dict[column_item][row_number])
+            else:
+                this_value_list.append(None)
+        # END-FOR
+
+        if row_number < self.rowCount():
+            for col_num, item_value in enumerate(this_value_list):
+                if item_value is not None:
+                    try:
+                        self.update_cell_value(row_number, col_num, item_value)
+                    except TypeError as type_err:
+                        print ('Cell @ {}, {} of value {} cannot be updated'.format(row_number, col_num, item_value))
+        else:
+            self.append_row(row_value_list=this_value_list)
+        #
+        # ['Sub-run', 'wsindex', 'peakindex', 'Height', 'PeakCentre', 'Sigma', 'A0', 'A1', 'chi2', 'C.O.M', 'Profile']
+        #
+        # print (self.rowCount())
+        # print (self._column_names)
+        # print (param_dict.keys())
 
         return
 

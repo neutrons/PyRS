@@ -20,24 +20,24 @@ def test_main():
     manual_reduction_window.setup_window(pyrs_core)
 
     manual_reduction_window.show()
-
-    # set up IPTS and run number
-    manual_reduction_window.ui.lineEdit_iptsNumber.setText('12345')
-    manual_reduction_window.ui.lineEdit_calibratonFile.setText('test/whatever.hdf5')
-
-    # test the strip view
-    if False:
-        slice_setup_window = manual_reduction_window.do_launch_slice_setup()
-        assert slice_setup_window.get_nexus_name() == 'whatever', 'NeXus file name is not set up right'
-        slice_setup_window.set_nexus_file('RELF')
-        slice_setup_window.plot_sample_log(log_name='blabla')
-    # END-IF
-
-    # test batch reduction
-    manual_reduction_window.ui.lineEdit_runNumbersList.setText('98124:98130, 98114')
-    manual_reduction_window.do_reduce_batch_runs()
-
-    manual_reduction_window.ui.graphicsView_detectorView.plot_detector_view('shall be a numpy array')
+    #
+    # # set up IPTS and run number
+    # manual_reduction_window.ui.lineEdit_iptsNumber.setText('12345')
+    # manual_reduction_window.ui.lineEdit_calibratonFile.setText('test/whatever.hdf5')
+    #
+    # # test the strip view
+    # if False:
+    #     slice_setup_window = manual_reduction_window.do_launch_slice_setup()
+    #     assert slice_setup_window.get_nexus_name() == 'whatever', 'NeXus file name is not set up right'
+    #     slice_setup_window.set_nexus_file('RELF')
+    #     slice_setup_window.plot_sample_log(log_name='blabla')
+    # # END-IF
+    #
+    # # test batch reduction
+    # manual_reduction_window.ui.lineEdit_runNumbersList.setText('98124:98130, 98114')
+    # manual_reduction_window.do_reduce_batch_runs()
+    #
+    # manual_reduction_window.ui.graphicsView_detectorView.plot_detector_view('shall be a numpy array')
 
     return manual_reduction_window
 

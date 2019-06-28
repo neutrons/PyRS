@@ -26,7 +26,7 @@ def test_main():
     # tests/testdata/16-1_ND.cor_Log.hdf5
     # tests/testdata/16-1_LD.cor_Log.hdf5
     fit_window.ui.lineEdit_expFileName.setText('tests/testdata/16-1_TD.cor_Log.hdf5')
-    fit_window.ui.comboBox_peakType.setCurrentIndex(2)
+    fit_window.ui.comboBox_peakType.setCurrentIndex(1)
     fit_window.do_load_scans()
     if False:
         fit_window.do_plot_meta_data()
