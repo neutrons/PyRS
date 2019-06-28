@@ -653,7 +653,7 @@
        </layout>
       </item>
       <item>
-       <widget class="LogGraphicsView" name="graphicsView_main"/>
+       <widget class="QFrame" name="graphicsView_main_frame"/>
       </item>
       <item>
        <layout class="QHBoxLayout" name="horizontalLayout_3">
