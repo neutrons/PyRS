@@ -7,11 +7,6 @@ except ImportError:
 
 import gui_helper
 from pyrs.utilities import checkdatatypes
-from ui import ui_newsessiondialog
-from ui import ui_strainstressgridsetup
-from ui import ui_strainstressview
-import ui.ui_gridsalignmentview
-import ui.ui_sliceexportdialog
 
 
 class CreateNewSessionDialog(QDialog):
@@ -140,6 +135,22 @@ class GridAlignmentCheckTablesView(QMainWindow):
 
         self.ui = ui.ui_gridsalignmentview.Ui_MainWindow()
         self.ui.setupUi(self)
+
+        """
+	- tableView_gridAlignment
+
+	- tableView_alignedParameters 
+
+	- tableView_gridParamAnalysis
+
+	- tableView_gridStatistic
+
+	- tabWidget_alignedParams
+
+	- tableView_partialMatchedGrids
+
+	- tabWidget_alignedParams
+        """
 
         # init widgets
         self.ui.pushButton_showParameterSSGrid.setEnabled(False)

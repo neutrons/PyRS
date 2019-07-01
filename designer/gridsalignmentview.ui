@@ -36,7 +36,7 @@
          </widget>
         </item>
         <item row="1" column="0">
-         <widget class="GridAlignmentTable" name="tableView_gridAlignment"/>
+         <widget class="QFrame" name="tableView_gridAlignment_frame"/>
         </item>
        </layout>
       </widget>
@@ -119,7 +119,7 @@
          </layout>
         </item>
         <item>
-         <widget class="ParamValueGridTable" name="tableView_alignedParameters"/>
+         <widget class="QFrame" name="tableView_alignedParameters_frame"/>
         </item>
        </layout>
       </widget>
@@ -199,7 +199,7 @@
          </layout>
         </item>
         <item>
-         <widget class="ParamValueMapAnalysisTable" name="tableView_gridParamAnalysis"/>
+         <widget class="QFrame" name="tableView_gridParamAnalysis_frame"/>
         </item>
        </layout>
       </widget>
@@ -209,7 +209,7 @@
        </attribute>
        <layout class="QGridLayout" name="gridLayout">
         <item row="0" column="0">
-         <widget class="GridsStatisticsTable" name="tableView_gridStatistic"/>
+         <widget class="QFrame" name="tableView_gridStatistic_frame"/>
         </item>
        </layout>
       </widget>
@@ -219,7 +219,7 @@
        </attribute>
        <layout class="QGridLayout" name="gridLayout_2">
         <item row="0" column="0">
-         <widget class="GridsStatisticsTable" name="tableView_matchedGrids"/>
+         <widget class="QFrame" name="tableView_matchedGrids_frame"/>
         </item>
        </layout>
       </widget>
@@ -271,7 +271,7 @@
          </widget>
         </item>
         <item row="3" column="0" colspan="2">
-         <widget class="GridsStatisticsTable" name="tableView_partialMatchedGrids"/>
+         <widget class="QFrame" name="tableView_partialMatchedGrids_frame"/>
         </item>
        </layout>
       </widget>
@@ -323,7 +323,7 @@
          </widget>
         </item>
         <item row="3" column="0" colspan="2">
-         <widget class="MismatchedGridsTable" name="tableView_mismatchedGrids"/>
+         <widget class="QFrame" name="tableView_mismatchedGrids_frame"/>
         </item>
        </layout>
       </widget>

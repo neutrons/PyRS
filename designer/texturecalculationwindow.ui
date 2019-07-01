@@ -342,21 +342,21 @@
      </layout>
     </item>
     <item row="3" column="0">
-     <widget class="PoleFigureTable" name="tableView_poleFigureParams">
+     <widget class="QFrame" name="tableView_poleFigureParams_frame">
       <property name="toolTip">
        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Peak fit result&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
       </property>
      </widget>
     </item>
     <item row="1" column="0">
-     <widget class="PeakFitSetupView" name="graphicsView_fitSetup">
+     <widget class="QFrame" name="graphicsView_fitSetup_frame">
       <property name="toolTip">
        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Single peak fit&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
       </property>
      </widget>
     </item>
     <item row="1" column="2">
-     <widget class="GeneralDiffDataView" name="graphicsView_fitResult">
+     <widget class="QFrame" name="graphicsView_fitResult_frame">
       <property name="toolTip">
        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Single peak fit&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
       </property>
@@ -473,7 +473,7 @@
      </layout>
     </item>
     <item row="3" column="2">
-     <widget class="Diffraction2DPlot" name="graphicsView_contour"/>
+     <widget class="QFrame" name="graphicsView_contour_frame"/>
     </item>
    </layout>
   </widget>

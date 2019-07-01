@@ -16,7 +16,7 @@
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
-     <widget class="StrainStressValueTable" name="tableView_strainStressTable"/>
+     <widget class="QFrame" name="tableView_strainStressTable_frame"/>
     </item>
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout">

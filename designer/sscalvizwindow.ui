@@ -108,7 +108,7 @@
         </layout>
        </item>
        <item>
-        <widget class="SampleSliceView" name="graphicsView_sliceView">
+        <widget class="QFrame" name="graphicsView_sliceView_frame">
          <property name="toolTip">
           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Sliced view in contour plot&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
          </property>
