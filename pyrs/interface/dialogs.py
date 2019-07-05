@@ -156,6 +156,12 @@ class GridAlignmentCheckTablesView(QMainWindow):
         self.ui.tableView_partialMatchedGrids = qt_util.promote_widget(self,
                                                                        self.ui.tableView_partialMatchedGrids_frame,
                                                                        GridsStatisticsTable)
+        self.ui.tableView_matchedGrids = qt_util.promote_widget(self,
+                                                                self.ui.tableView_matchedGrids_frame,
+                                                                GridsStatisticsTable)
+        self.ui.tableView_mismatchedGrids = qt_util.promote_widget(self,
+                                                                   self.ui.tableView_mismatchedGrids,
+                                                                   MismatchedGridsTable)
 
         # init widgets
         self.ui.pushButton_showParameterSSGrid.setEnabled(False)
