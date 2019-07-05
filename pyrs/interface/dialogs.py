@@ -140,11 +140,8 @@ class GridAlignmentCheckTablesView(QMainWindow):
         # state
         self._is_analysis_table_raw = True   # analysis table has raw experiment grids
 
-        # self.ui = ui.ui_gridsalignmentview.Ui_MainWindow()
-        # self.ui.setupUi(self)
-
         # set up UI
-        ui_path = os.path.join(os.path.dirname(__file__), "gridsalignmentview.ui")
+        ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', "gridsalignmentview.ui"))
         self.ui = load_ui(ui_path, baseinstance=self)
 
         # promote widgets
