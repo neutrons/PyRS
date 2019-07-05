@@ -27,8 +27,9 @@ class CreateNewSessionDialog(QDialog):
         """
         super(CreateNewSessionDialog, self).__init__(parent)
 
-        self.ui = ui_newsessiondialog.Ui_Dialog()
-        self.ui.setupUi(self)
+        # Set up UI
+        ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', "newsessiondialog.ui"))
+        self.ui = load_ui(ui_path, baseinstance=self)
 
         self.ui.buttonBox.accepted.connect(self.do_new_session)
         self.ui.buttonBox.rejected.connect(self.do_quit)
@@ -97,9 +98,9 @@ class ExportGridSliceSetupDialog(QDialog):
         """
         super(ExportGridSliceSetupDialog, self).__init__(parent)
 
-        # setup ui
-        self.ui = ui.ui_sliceexportdialog.Ui_Dialog()
-        self.ui.setupUi(self)
+        # Set up UI
+        ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', "sliceexportdialog.ui"))
+        self.ui = load_ui(ui_path, baseinstance=self)
 
         # set default value
         self.ui.lineEdit_resolution.setText('0.001')
@@ -455,8 +456,10 @@ class StrainStressGridSetup(QDialog):
         """
         super(StrainStressGridSetup, self).__init__(parent)
 
-        self.ui = ui_strainstressgridsetup.Ui_Dialog()
-        self.ui.setupUi(self)
+        # Set up UI
+        ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', "strainstressgridsetup.ui"))
+        self.ui = load_ui(ui_path, baseinstance=self)
+        # Init widgets
         self._init_widgets()
 
         self.ui.buttonBox.accepted.connect(self.do_accept_user_input)
@@ -734,11 +737,8 @@ class StrainStressTableView(QMainWindow):
         super(StrainStressTableView, self).__init__(parent)
 
         # set up UI
-        ui_path = os.path.join(os.path.dirname(__file__), "strainstressview.ui")
+        ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', "strainstressview.ui"))
         self.ui = load_ui(ui_path, baseinstance=self)
-
-        # self.ui = ui_strainstressview.Ui_MainWindow()
-        # self.ui.setupUi(self)
 
         # promote
         self.ui.tableView_strainStressTable = qt_util.promote_widget(self, self.ui.tableView_strainStressTable_frame,
