@@ -1,15 +1,17 @@
 try:
     from PyQt5.QtWidgets import QMainWindow, QFileDialog
+    from PyQt5.uic import loadUi as load_ui
 except ImportError:
     from PyQt4.QtGui import QMainWindow, QFileDialog
-import ui.ui_sscalvizwindow
+    from PyQt4.uic import loadUi as load_ui
+from pyrs.interface.ui import qt_util
+from pyrs.interface.ui.diffdataviews import SampleSliceView
 from pyrs.utilities import checkdatatypes
 import pyrs.core.pyrscore
 import os
 import gui_helper
 import numpy
 import platform
-import ui.ui_sscalvizwindow
 import dialogs
 import datetime
 
@@ -45,9 +47,12 @@ class StrainStressCalculationWindow(QMainWindow):
         self._new_session_dialog = None
 
         # set up UI
-        self.ui = ui.ui_sscalvizwindow.Ui_MainWindow()
-        self.ui.setupUi(self)
-        self._init_widgets()
+        ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', 'sscalvizwindow.ui'))
+        self.ui = load_ui(ui_path, baseinstance=self)
+
+        # promote widget
+        self.ui.graphicsView_sliceView = qt_util.promote_widget(self, self.ui.graphicsView_sliceView_frame,
+                                                                SampleSliceView)
 
         # set up event handling
         self.ui.pushButton_newSession.clicked.connect(self.do_new_session)

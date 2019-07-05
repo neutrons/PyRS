@@ -1,13 +1,15 @@
 import pyrs.interface.pyrs_main
 try:
     from PyQt5.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout, QHBoxLayout, QPushButton
+    from PyQt5.uic import loadUi as load_ui
 except ImportError:
     from PyQt4.QtGui import QMainWindow, QFileDialog, QVBoxLayout, QHBoxLayout, QPushButton
+    from PyQt4.uic import loadUi as load_ui
+from pyrs.interface.ui import qt_util
 from pyrs.utilities import checkdatatypes
 import pyrs.core.pyrscore
 import os
 import gui_helper
-import ui.ui_calibrationwindow
 from ui import diffdataviews
 
 # setup of constants
@@ -40,8 +42,9 @@ class InstrumentCalibrationWindow(QMainWindow):
         self._peaks_shown = False
 
         # set up UI
-        self.ui = ui.ui_calibrationwindow.Ui_MainWindow()
-        self.ui.setupUi(self)
+        ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', 'calibrationwindow.ui'))
+        self.ui = load_ui(ui_path, baseinstance=self)
+        # promote widgets
         self._promote_widgets()
 
         self.ui.pushButton_loadRawData.clicked.connect(self.do_load_raw)

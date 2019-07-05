@@ -1,9 +1,13 @@
 try:
     from PyQt5.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout
+    from PyQt5.uic import loadUi as load_ui
 except ImportError:
     from PyQt4.QtGui import QMainWindow, QFileDialog, QVBoxLayout
-import ui.ui_peakfitwindow
-import pyrs.utilities.hb2b_utilities as hb2bhb2b
+    from PyQt4.uic import loadUi as load_ui
+from pyrs.interface.ui import qt_util
+from pyrs.interface.ui.diffdataviews import GeneralDiffDataView, DiffContourView
+from pyrs.interface.ui.rstables import FitResultTable
+# import pyrs.utilities.hb2b_utilities as hb2bhb2b
 import advpeakfitdialog
 import os
 import gui_helper
@@ -28,10 +32,22 @@ class FitPeaksWindow(QMainWindow):
         self._advanced_fit_dialog = None
 
         # set up UI
-        self.ui = ui.ui_peakfitwindow.Ui_MainWindow()
-        self.ui.setupUi(self)
+        # self.ui = ui.ui_peakfitwindow.Ui_MainWindow()
+        # self.ui.setupUi(self)
+
+        # set up UI
+        ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', 'peakfitwindow.ui'))
+        self.ui = load_ui(ui_path, baseinstance=self)
+        # promote
+        self.ui.graphicsView_fitResult = qt_util.promote_widget(self, self.ui.graphicsView_fitResult_frame,
+                                                                GeneralDiffDataView)
         self.ui.graphicsView_fitResult.set_subplots(1, 1)
-        self._promote_widgets()
+        self.ui.graphicsView_contourView = qt_util.promote_widget(self, self.ui.graphicsView_contourView_frame,
+                                                                  DiffContourView)
+        self.ui.tableView_fitSummary = qt_util.promote_widget(self, self.ui.tableView_fitSummary_frame,
+                                                              FitResultTable)
+
+        self._promote_peak_fit_setup()
 
         self._init_widgets()
         # init some widgets
@@ -81,7 +97,7 @@ class FitPeaksWindow(QMainWindow):
 
         return
 
-    def _promote_widgets(self):
+    def _promote_peak_fit_setup(self):
         """
 
         :return:

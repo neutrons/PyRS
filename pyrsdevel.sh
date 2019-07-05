@@ -8,7 +8,8 @@ else
 fi
 MANTIDLOCALPATH=/home/wzz/Mantid_Project/debug/bin/
 MANTIDMACPATH=/Users/wzz/MantidBuild/debug-stable/bin/
-MANTIDSNSDEBUGPATH=/SNS/users/wzz/Mantid_Project/builds/debug/bin/
+# MANTIDSNSDEBUGPATH=/SNS/users/wzz/Mantid_Project/builds/debug/bin/
+MANTIDSNSDEBUGPATH=/opt/Mantid/bin/
 MANTIDPATH=$MANTIDMACPATH:$MANTIDLOCALPATH:$MANTIDSNSDEBUGPATH
 PYTHONPATH=$MANTIDPATH:$PYTHONPATH
 echo $PYTHONPATH

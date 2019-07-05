@@ -2,13 +2,15 @@ try:
     import qtconsole.inprocess
     from PyQt5.QtWidgets import QMainWindow, QSizePolicy, QWidget, QLabel, QMenuBar, QToolBar, QStatusBar, QGridLayout
     from PyQt5 import QtCore
+    from PyQt5.uic import loadUi as load_ui
     is_qt_4 = False
 except ImportError:
     from PyQt4.QtGui import QMainWindow, QSizePolicy, QWidget, QLabel, QMenuBar, QToolBar, QStatusBar, QGridLayout
     from PyQt4 import QtCore
+    from PyQt4.uic import loadUi as load_ui
     is_qt_4 = True
-from ui import ui_pyrsmain as ui_pyrsmain
 from pyrs.core import pyrscore
+import os
 import fitpeakswindow
 import textureanalysiswindow
 import strainstresscalwindow
@@ -83,9 +85,9 @@ class PyRSLauncher(QMainWindow):
         """
         super(PyRSLauncher, self).__init__(None)
 
-        # set up main UI widgets
-        self.ui = ui_pyrsmain.Ui_MainWindow()
-        self.ui.setupUi(self)
+        # set up UI
+        ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', 'pyrsmain.ui'))
+        self.ui = load_ui(ui_path, baseinstance=self)
 
         # define
         self.ui.pushButton_manualReduction.clicked.connect(self.do_reduce_manually)

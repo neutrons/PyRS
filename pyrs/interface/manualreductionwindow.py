@@ -1,12 +1,12 @@
 try:
     from PyQt5.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout
+    from PyQt5.uic import loadUi as load_ui
 except ImportError:
     from PyQt4.QtGui import QMainWindow, QFileDialog, QVBoxLayout
-import ui.ui_manualreductionwindow
+    from PyQt4.uic import loadUi as load_ui
 from pyrs.core.pyrscore import PyRsCore
 from pyrs.core import calibration_file_io
 from ui.diffdataviews import DetectorView, GeneralDiffDataView
-from pyrs.utilities import hb2b_utilities
 import os
 import gui_helper
 import numpy
@@ -38,8 +38,9 @@ class ManualReductionWindow(QMainWindow):
         self._plot_selection_mutex = False
 
         # set up UI
-        self.ui = ui.ui_manualreductionwindow.Ui_MainWindow()
-        self.ui.setupUi(self)
+        ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', 'manualreductionwindow.ui'))
+        self.ui = load_ui(ui_path, baseinstance=self)
+        # promote some widgets
         self._promote_widgets()
 
         # set up the event handling
