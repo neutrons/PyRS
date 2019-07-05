@@ -1,12 +1,18 @@
 try:
     from PyQt5.QtWidgets import QDialog, QMainWindow
     from PyQt5.QtCore import pyqtSignal
+    from PyQt5.uic import loadUi as load_ui
 except ImportError:
     from PyQt4.QtGui import QDialog, QMainWindow
     from PyQt4.QtCore import pyqtSignal
+    from PyQt4.uic import loadUi as load_ui
+from pyrs.interface.ui import ui_util
+from pyrs.interface.ui.rstables import GridAlignmentTable, GridsStatisticsTable, ParamValueGridTable,\
+    ParamValueMapAnalysisTable, MismatchedGridsTable, StrainStressValueTable
 
 import gui_helper
 from pyrs.utilities import checkdatatypes
+import os
 
 
 class CreateNewSessionDialog(QDialog):
@@ -133,24 +139,25 @@ class GridAlignmentCheckTablesView(QMainWindow):
         # state
         self._is_analysis_table_raw = True   # analysis table has raw experiment grids
 
-        self.ui = ui.ui_gridsalignmentview.Ui_MainWindow()
-        self.ui.setupUi(self)
+        # self.ui = ui.ui_gridsalignmentview.Ui_MainWindow()
+        # self.ui.setupUi(self)
 
-        """
-	- tableView_gridAlignment
+        # set up UI
+        ui_path = os.path.join(os.path.dirname(__file__), "gridsalignmentview.ui")
+        self.ui = load_ui(ui_path, baseinstance=self)
 
-	- tableView_alignedParameters 
-
-	- tableView_gridParamAnalysis
-
-	- tableView_gridStatistic
-
-	- tabWidget_alignedParams
-
-	- tableView_partialMatchedGrids
-
-	- tabWidget_alignedParams
-        """
+        # promote widgets
+        self.ui.tableView_gridAlignment = ui_util.promote_widget(self, self.ui.tableView_gridAlignment_frame,
+                                                                 GridAlignmentTable)
+        self.ui.tableView_alignedParameters = ui_util.promote_widget(self, self.ui.tableView_alignedParameters_frame,
+                                                                     ParamValueGridTable)
+        self.ui.tableView_gridParamAnalysis = ui_util.promote_widget(self, self.ui.tableView_gridParamAnalysis_frame,
+                                                                     ParamValueMapAnalysisTable)
+        self.ui.tableView_gridStatistic = ui_util.promote_widget(self, self.ui.tableView_gridStatistic_frame,
+                                                                 GridsStatisticsTable)
+        self.ui.tableView_partialMatchedGrids = ui_util.promote_widget(self,
+                                                                       self.ui.tableView_partialMatchedGrids_frame,
+                                                                       GridsStatisticsTable)
 
         # init widgets
         self.ui.pushButton_showParameterSSGrid.setEnabled(False)
@@ -727,8 +734,15 @@ class StrainStressTableView(QMainWindow):
         super(StrainStressTableView, self).__init__(parent)
 
         # set up UI
-        self.ui = ui_strainstressview.Ui_MainWindow()
-        self.ui.setupUi(self)
+        ui_path = os.path.join(os.path.dirname(__file__), "strainstressview.ui")
+        self.ui = load_ui(ui_path, baseinstance=self)
+
+        # self.ui = ui_strainstressview.Ui_MainWindow()
+        # self.ui.setupUi(self)
+
+        # promote
+        self.ui.tableView_strainStressTable = ui_util.promote_widget(self, self.ui.tableView_strainStressTable_frame,
+                                                                     StrainStressValueTable)
 
         # init widgets
         self.ui.tableView_strainStressTable.setup()

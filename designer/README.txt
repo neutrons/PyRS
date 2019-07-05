@@ -1,11 +1,11 @@
 Promoted Widgets
 ===============
 
-- eventslicersetupwindow.ui
+X eventslicersetupwindow.ui
 
        <widget class="LogGraphicsView" name="graphicsView_main"/>
 
-- gridsalignmentview.ui
+X gridsalignmentview.ui
 
 	- tableView_gridAlignment
          <widget class="GridAlignmentTable" name="tableView_gridAlignment"/>
@@ -39,14 +39,14 @@ Promoted Widgets
 
 	- tabWidget_alignedParams
 
-- ManualSlicerTable.ui
+? ManualSlicerTable.ui
 	
 	- tableWidget_segments
 
        <widget class="DataSlicerSegmentTable" name="tableWidget_segments">
 	
 
-- peakfitplotcontrol.ui
+? peakfitplotcontrol.ui
 
 	- tableView_fitSetup
         <widget class="FitSetupPlotControlTable" name="tableView_fitSetup"/>
@@ -56,7 +56,7 @@ Promoted Widgets
         <widget class="FitResultPlotControlTable" name="tableView_fitResult"/>
 	
 
-- peakfitwindow.ui
+X peakfitwindow.ui
 
 	- graphicsView_fitResult
 
@@ -72,21 +72,21 @@ Promoted Widgets
      <widget class="DiffContourView" name="graphicsView_contourView"/>
 	
 
-- sscalvizwindow.ui
+X sscalvizwindow.ui
 
 	- graphicsView_sliceView
 
         <widget class="SampleSliceView" name="graphicsView_sliceView">
 
 
-- strainstressview.ui
+X strainstressview.ui
 
 	- tableView_strainStressTable
 
      <widget class="StrainStressValueTable" name="tableView_strainStressTable"/>
 	
 
-- texturecalculationwindow.ui
+X texturecalculationwindow.ui
 
 	- graphicsView_fitSetup
 
