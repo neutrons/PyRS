@@ -160,7 +160,7 @@ class GridAlignmentCheckTablesView(QMainWindow):
                                                                 self.ui.tableView_matchedGrids_frame,
                                                                 GridsStatisticsTable)
         self.ui.tableView_mismatchedGrids = qt_util.promote_widget(self,
-                                                                   self.ui.tableView_mismatchedGrids,
+                                                                   self.ui.tableView_mismatchedGrids_frame,
                                                                    MismatchedGridsTable)
 
         # init widgets

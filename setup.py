@@ -10,11 +10,11 @@ if sys.argv[-1] == 'pyuic':
     # copy UI files in designer to builds
     indir = 'designer'
     if os.path.exists('build/lib.linux-x86_64-2.7'):
-        outdir1 = 'build/lib.linux-x86_64-2.7/pyrs/interface/gui'
+        outdir1 = 'build/lib.linux-x86_64-2.7/pyrs/interface/ui'
     else:
         outdir1 = None
     if os.path.exists('build/lib'):
-        outdir2 = 'build/lib/pyrs/interface/gui'
+        outdir2 = 'build/lib/pyrs/interface/ui'
     else:
         outdir2 = None
     files = os.listdir(indir)

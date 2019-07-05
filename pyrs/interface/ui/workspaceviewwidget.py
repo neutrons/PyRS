@@ -18,7 +18,7 @@ except ImportError:
 
 from mplgraphicsview import MplGraphicsView
 import NTableWidget as baseTable
-from pyvdrive.interface.gui.mantidipythonwidget import MantidIPythonWidget
+from pyrs.interface.ui.mantidipythonwidget import MantidIPythonWidget
 
 from mantid.api import AnalysisDataService
 import mantid.simpleapi
