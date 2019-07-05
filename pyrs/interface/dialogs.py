@@ -6,7 +6,7 @@ except ImportError:
     from PyQt4.QtGui import QDialog, QMainWindow
     from PyQt4.QtCore import pyqtSignal
     from PyQt4.uic import loadUi as load_ui
-from pyrs.interface.ui import ui_util
+from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.rstables import GridAlignmentTable, GridsStatisticsTable, ParamValueGridTable,\
     ParamValueMapAnalysisTable, MismatchedGridsTable, StrainStressValueTable
 
@@ -147,15 +147,15 @@ class GridAlignmentCheckTablesView(QMainWindow):
         self.ui = load_ui(ui_path, baseinstance=self)
 
         # promote widgets
-        self.ui.tableView_gridAlignment = ui_util.promote_widget(self, self.ui.tableView_gridAlignment_frame,
+        self.ui.tableView_gridAlignment = qt_util.promote_widget(self, self.ui.tableView_gridAlignment_frame,
                                                                  GridAlignmentTable)
-        self.ui.tableView_alignedParameters = ui_util.promote_widget(self, self.ui.tableView_alignedParameters_frame,
+        self.ui.tableView_alignedParameters = qt_util.promote_widget(self, self.ui.tableView_alignedParameters_frame,
                                                                      ParamValueGridTable)
-        self.ui.tableView_gridParamAnalysis = ui_util.promote_widget(self, self.ui.tableView_gridParamAnalysis_frame,
+        self.ui.tableView_gridParamAnalysis = qt_util.promote_widget(self, self.ui.tableView_gridParamAnalysis_frame,
                                                                      ParamValueMapAnalysisTable)
-        self.ui.tableView_gridStatistic = ui_util.promote_widget(self, self.ui.tableView_gridStatistic_frame,
+        self.ui.tableView_gridStatistic = qt_util.promote_widget(self, self.ui.tableView_gridStatistic_frame,
                                                                  GridsStatisticsTable)
-        self.ui.tableView_partialMatchedGrids = ui_util.promote_widget(self,
+        self.ui.tableView_partialMatchedGrids = qt_util.promote_widget(self,
                                                                        self.ui.tableView_partialMatchedGrids_frame,
                                                                        GridsStatisticsTable)
 
@@ -741,7 +741,7 @@ class StrainStressTableView(QMainWindow):
         # self.ui.setupUi(self)
 
         # promote
-        self.ui.tableView_strainStressTable = ui_util.promote_widget(self, self.ui.tableView_strainStressTable_frame,
+        self.ui.tableView_strainStressTable = qt_util.promote_widget(self, self.ui.tableView_strainStressTable_frame,
                                                                      StrainStressValueTable)
 
         # init widgets

@@ -4,7 +4,7 @@ try:
 except ImportError:
     from PyQt4.QtGui import QMainWindow, QFileDialog
     from PyQt4.uic import loadUi as load_ui
-from pyrs.interface.ui import ui_util
+from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.rstables import PoleFigureTable
 from pyrs.interface.ui.diffdataviews import PeakFitSetupView, GeneralDiffDataView, Diffraction2DPlot
 from pyrs.utilities import checkdatatypes
@@ -37,13 +37,13 @@ class TextureAnalysisWindow(QMainWindow):
         self.ui = load_ui(ui_path, baseinstance=self)
 
         # promote widgets
-        self.ui.graphicsView_fitSetup = ui_util.promote_widget(self, self.ui.graphicsView_fitSetup_frame,
+        self.ui.graphicsView_fitSetup = qt_util.promote_widget(self, self.ui.graphicsView_fitSetup_frame,
                                                                PeakFitSetupView)
-        self.ui.graphicsView_fitResult = ui_util.promote_widget(self, self.ui.graphicsView_fitResult_frame,
+        self.ui.graphicsView_fitResult = qt_util.promote_widget(self, self.ui.graphicsView_fitResult_frame,
                                                                 GeneralDiffDataView)
-        self.ui.graphicsView_contour = ui_util.promote_widget(self, self.ui.graphicsView_contour_frame,
+        self.ui.graphicsView_contour = qt_util.promote_widget(self, self.ui.graphicsView_contour_frame,
                                                               Diffraction2DPlot)
-        self.ui.tableView_poleFigureParams = ui_util.promote_widget(self, self.ui.tableView_poleFigureParams_frame,
+        self.ui.tableView_poleFigureParams = qt_util.promote_widget(self, self.ui.tableView_poleFigureParams_frame,
                                                                     PoleFigureTable)
 
         # init widgets

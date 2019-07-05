@@ -25,7 +25,7 @@ except AttributeError:
 
 import gui_helper
 from pyrs.utilities import checkdatatypes
-from pyrs.interface.ui import ui_util
+from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.eventslicesetupwidgets import LogGraphicsView
 
 OUT_PICKER = 0
@@ -56,7 +56,7 @@ class EventSlicerSetupWindow(QMainWindow):
         self.ui = load_ui(ui_path, baseinstance=self)
 
         # promote
-        self.ui.graphicsView_main = ui_util.promote_widget(self, self.ui.graphicsView_main_frame, LogGraphicsView)
+        self.ui.graphicsView_main = qt_util.promote_widget(self, self.ui.graphicsView_main_frame, LogGraphicsView)
 
         # Set up widgets
         self._init_widgets_setup()

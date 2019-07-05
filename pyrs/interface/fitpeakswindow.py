@@ -4,7 +4,7 @@ try:
 except ImportError:
     from PyQt4.QtGui import QMainWindow, QFileDialog, QVBoxLayout
     from PyQt4.uic import loadUi as load_ui
-from pyrs.interface.ui import ui_util
+from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.diffdataviews import GeneralDiffDataView, DiffContourView
 from pyrs.interface.ui.rstables import FitResultTable
 # import pyrs.utilities.hb2b_utilities as hb2bhb2b
@@ -39,12 +39,12 @@ class FitPeaksWindow(QMainWindow):
         ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', 'peakfitwindow.ui'))
         self.ui = load_ui(ui_path, baseinstance=self)
         # promote
-        self.ui.graphicsView_fitResult = ui_util.promote_widget(self, self.ui.graphicsView_fitResult_frame,
+        self.ui.graphicsView_fitResult = qt_util.promote_widget(self, self.ui.graphicsView_fitResult_frame,
                                                                 GeneralDiffDataView)
         self.ui.graphicsView_fitResult.set_subplots(1, 1)
-        self.ui.graphicsView_contourView = ui_util.promote_widget(self, self.ui.graphicsView_contourView_frame,
+        self.ui.graphicsView_contourView = qt_util.promote_widget(self, self.ui.graphicsView_contourView_frame,
                                                                   DiffContourView)
-        self.ui.tableView_fitSummary = ui_util.promote_widget(self, self.ui.tableView_fitSummary_frame,
+        self.ui.tableView_fitSummary = qt_util.promote_widget(self, self.ui.tableView_fitSummary_frame,
                                                               FitResultTable)
 
         self._promote_peak_fit_setup()

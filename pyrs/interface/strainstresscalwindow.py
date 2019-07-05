@@ -4,7 +4,7 @@ try:
 except ImportError:
     from PyQt4.QtGui import QMainWindow, QFileDialog
     from PyQt4.uic import loadUi as load_ui
-from pyrs.interface.ui import ui_util
+from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.diffdataviews import SampleSliceView
 from pyrs.utilities import checkdatatypes
 import pyrs.core.pyrscore
@@ -51,7 +51,7 @@ class StrainStressCalculationWindow(QMainWindow):
         self.ui = load_ui(ui_path, baseinstance=self)
 
         # promote widget
-        self.ui.graphicsView_sliceView = ui_util.promote_widget(self, self.ui.graphicsView_sliceView_frame,
+        self.ui.graphicsView_sliceView = qt_util.promote_widget(self, self.ui.graphicsView_sliceView_frame,
                                                                 SampleSliceView)
 
         # set up event handling
