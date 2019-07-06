@@ -297,10 +297,12 @@ class FitPeaksWindow(QMainWindow):
         fit_range = self._ui_graphicsView_fitSetup.get_x_limit()
         print ('[INFO] Peak fit range: {0}'.format(fit_range))
 
+        # Fit Peaks!
         # It is better to fit all the peaks at the same time after testing
         scan_log_index = None
         self._core.fit_peaks(data_key, scan_log_index, peak_function, bkgd_function, fit_range)
 
+        # Process fitted peaks
         function_params = self._core.get_peak_fit_parameter_names(data_key)
         self._sample_log_names_mutex = True
         curr_x_index = self.ui.comboBox_xaxisNames.currentIndex()
@@ -357,18 +359,27 @@ class FitPeaksWindow(QMainWindow):
         :return:
         """
         if peak_function == 'Gaussian':
-            table_param_names = ['wsindex', 'peakindex', 'centre', 'width', 'intensity', 'A0', 'A1', 'chi2']
+            # Gaussian
+            table_param_names = ['wsindex', 'peakindex', 'Height', 'PeakCentre', 'Sigma', 'A0', 'A1', 'chi2']
         elif peak_function == 'PseudoVoigt':
-            # TODO - 20181210 - shall extending 'mixing' as a special case
-            raise RuntimeError('PV will be supported soon after Mantid FitPeaks is fixed')
+            # PseudoVoigt: table parameters are parameters from Mantid
+            table_param_names = ['wsindex', 'peakindex', 'Mixing', 'Intensity', 'PeakCentre', 'FWHM',
+                                 'A0', 'A1', 'chi2']
+        elif peak_function == 'Voigt':
+            # TODO - NOW
+            table_param_names = ['wsindex', 'peakindex', 'LorentzAmp', 'LorentzPos', 'LorentzFWHM',
+                                 'GaussianFWHM', 'A0', 'A1', 'chi2']
+            raise RuntimeError('ASAP to fit with Voigt')
         else:
-            # TODO - Next!
-            raise RuntimeError('Peak type {} not supported'.format(peak_function))
-        # param_names.extend(['A0', 'A1'])
+            # other profiles: not supported
+            raise RuntimeError('Peak type {} not supported.  The supported peak functions are'
+                               ' [Gaussian, PseudoVoigt, Voigt]'.format(peak_function))
+        # END-IF-ELSE
 
+        # Reset table
         self.ui.tableView_fitSummary.reset_table(table_param_names)
 
-        # get value
+        # Expand table with extra information including Center of Mass and Sub-Run
         param_dict = dict()
         for param_name in table_param_names:
             not_used, param_vec = self._core.get_peak_fit_param_value(data_key, param_name, max_cost=None)

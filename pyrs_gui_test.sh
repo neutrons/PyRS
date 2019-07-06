@@ -5,7 +5,7 @@ echo "Not used /home/wzz/Mantid_Project/builds/debug-master/bin/"
 MANTIDLOCALPATH=/home/wzz/Mantid_Project/debug/bin/
 MANTIDMACPATH=/Users/wzz/MantidBuild/debug/bin/
 # MANTIDSNSDEBUGPATH=/SNS/users/wzz/Mantid_Project/builds/debug/bin/
-MANTIDSNSDEBUGPATH=/opt/mantid311/bin/
+MANTIDSNSDEBUGPATH=/opt/mantidnightly/bin/  # NIGHTLY for latest Pseudo-voigt
 MANTIDPATH=$MANTIDMACPATH:$MANTIDLOCALPATH
 PYTHONPATH=$MANTIDPATH:$PYTHONPATH
 echo "PYTHON PATH"

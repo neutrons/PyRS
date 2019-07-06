@@ -151,12 +151,12 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         r_error_table_name = 'param_e_{0}'.format(self._reference_id)
         r_model_ws_name = 'model_full_{0}'.format(self._reference_id)
 
-        # FIXME - shall we use a dictionary to set up somewhere else?
+        # TODO - NOW - Requiring good estimation!!! - shall we use a dictionary to set up somewhere else?
         width_dict = {'Gaussian': ('Sigma', 0.36),
                       'PseudoVoigt': ('FWHM', 1.0),
                       'Voigt': ('LorentzFWHM, GaussianFWHM', '0.1, 0.7')}
 
-        # TODO - 20180930 - Issue #30: get a list of mixing parameter
+        # TODO - NOW - Issue #35: PsuedoVoigt is different!
         r = FitPeaks(InputWorkspace=self._workspace_name,
                      OutputWorkspace=r_positions_ws_name,
                      PeakCentersWorkspace=self._center_of_mass_ws_name,
@@ -171,9 +171,16 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
                      PeakParameterValues=width_dict[peak_function_name][1],
                      RawPeakParameters=False,
                      OutputPeakParametersWorkspace=r_param_table_name,
-                     # OutputParameterFitErrorsWorkspace=r_error_table_name,  # TODO/FIXME - TONIGHT 0 - To be or not to be!
+                     OutputParameterFitErrorsWorkspace=r_error_table_name,  # TODO/FIXME - TONIGHT 0 - To be or not to be!
                      FittedPeaksWorkspace=r_model_ws_name,
                      FitPeakWindowWorkspace=peak_window_ws_name)
+
+        """ Example: Absorb the fitting for PsuedoVoigt
+        FitPeaks(InputWorkspace='gaussian', OutputWorkspace='pv', PeakCenters='3.6',
+                 PeakFunction='PseudoVoigt', FitWindowBoundaryList='0,10', PeakParameterNames='Intensity,Mixing,FWHM',
+                 PeakParameterValues='5,0.5,1', FittedPeaksWorkspace='model', OutputPeakParametersWorkspace='params',
+                 OutputParameterFitErrorsWorkspace='error')
+        """
 
         # FitPeaks(InputWorkspace=self._workspace_name,
         #          OutputWorkspace=r_positions_ws_name,
