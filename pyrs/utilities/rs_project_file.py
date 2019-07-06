@@ -73,7 +73,22 @@ class HydraProjectFile(object):
 
         return
 
-    def add_scan_counts(self, scan_index, counts_array):
+    def get_instrument_geometry(self, calibrated):
+        return
+
+    def set_instrument_geometry(self):
+        return
+
+    def set_instrument_calibration(self):
+        return
+
+    def get_wave_length(self):
+        return
+
+    def set_wave_length(self):
+        return
+
+    def add_raw_counts(self, scan_index, counts_array):
         """ add raw detector counts collected in a single scan/Pt
         :return:
         """

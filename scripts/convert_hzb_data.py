@@ -99,7 +99,7 @@ def main(argv):
         tiff_name = exp_summary_dict[scan_index]['Tiff']
         counts_array = parse_hzb_tiff(os.path.join(exp_data_dir, tiff_name))
         print (counts_array.min(), counts_array.max(), (numpy.where(counts_array > 0.5)[0]).shape)
-        project_file.add_scan_counts(scan_index, counts_array)
+        project_file.add_raw_counts(scan_index, counts_array)
     # END-FOR
 
     # save
