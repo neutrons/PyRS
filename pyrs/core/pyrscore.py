@@ -1,10 +1,11 @@
 # This is the core of PyRS serving as the controller of PyRS and hub for all the data
 import datamanagers
 from pyrs.utilities import checkdatatypes
+from pyrs.utilities import rs_scan_io
+from pyrs.utilities import file_util
 import mantid_fit_peak
 import strain_stress_calculator
 import reductionengine
-import scandataio
 import polefigurecalculator
 import os
 import numpy
@@ -22,7 +23,7 @@ class PyRsCore(object):
         initialization
         """
         # declaration of class members
-        self._file_io_controller = scandataio.DiffractionDataFile()  # a I/O instance for standard HB2B file
+        self._file_io_controller = rs_scan_io.DiffractionDataFile()  # a I/O instance for standard HB2B file
         self._data_manager = datamanagers.RawDataManager()
         self._reduction_engine = reductionengine.HB2BReductionManager()
 
@@ -653,7 +654,7 @@ class PyRsCore(object):
         try:
             matrix_name = optimizer.get_data_workspace_name()
             # save
-            scandataio.save_mantid_nexus(matrix_name, file_name)
+            file_util.save_mantid_nexus(matrix_name, file_name)
         except RuntimeError as run_err:
             raise RuntimeError('Unable to write to NeXus because Mantid fit engine is not used.\nError info: {0}'
                                ''.format(run_err))
@@ -664,7 +665,7 @@ class PyRsCore(object):
             dir_name = os.path.dirname(file_name)
             base_name = os.path.basename(file_name)
             file_name = os.path.join(dir_name, base_name.split('.')[0] + '_com.nxs')
-            scandataio.save_mantid_nexus(matrix_name, file_name)
+            file_util.save_mantid_nexus(matrix_name, file_name)
         except RuntimeError as run_err:
             raise RuntimeError('Unable to write COM to NeXus because Mantid fit engine is not used.\nError info: {0}'
                                ''.format(run_err))

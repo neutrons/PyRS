@@ -5,7 +5,6 @@ from mantid.api import AnalysisDataService
 from pyrs.utilities import checkdatatypes
 import pyrs_fit_engine
 import numpy as np
-import scandataio
 import os
 import math
 
@@ -156,6 +155,10 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
                       'PseudoVoigt': ('FWHM', 1.0),
                       'Voigt': ('LorentzFWHM, GaussianFWHM', '0.1, 0.7')}
 
+        print ('[DB...BAT] Peak function: {}'.format(peak_function_name))
+        print ('[DB...BAT] Param names:   {}'.format(width_dict[peak_function_name][0]))
+        print ('[DB...BAT] Param values:  {}'.format(width_dict[peak_function_name][1]))
+
         # TODO - NOW - Issue #35: PsuedoVoigt is different!
         r = FitPeaks(InputWorkspace=self._workspace_name,
                      OutputWorkspace=r_positions_ws_name,
@@ -169,7 +172,7 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
                      ConstrainPeakPositions=False,
                      PeakParameterNames=width_dict[peak_function_name][0],
                      PeakParameterValues=width_dict[peak_function_name][1],
-                     RawPeakParameters=False,
+                     RawPeakParameters=True,
                      OutputPeakParametersWorkspace=r_param_table_name,
                      OutputParameterFitErrorsWorkspace=r_error_table_name,  # TODO/FIXME - TONIGHT 0 - To be or not to be!
                      FittedPeaksWorkspace=r_model_ws_name,
