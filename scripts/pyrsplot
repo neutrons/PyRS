@@ -1,13 +1,16 @@
 #!/usr/bin/python
-# GUI (python) application of PyRS
-import pyrs.interface.pyrs_main
-try:
-    from PyQt5.QtWidgets import QApplication
-except ImportError:
-    from PyQt4.QtGui import QApplication
 import sys
-
-
+from pyrs.interface.ui.mantidipythonwidget import MantidIPythonWidget
+import os
+try:
+    from PyQt5 import QtCore as QtCore
+    from PyQt5.QtWidgets import QDialog, QApplication
+    from PyQt5.uic import loadUi as load_ui
+except ImportError:
+    from PyQt4 import QtCore as QtCore
+    from PyQt4.QtGui import QDialog, QApplication
+    from PyQt4.uic import loadUi as load_ui
+import pyrs.interface.pyrs_main
 
 def main(argv):
     """
