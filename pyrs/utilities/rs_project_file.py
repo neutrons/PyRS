@@ -1,7 +1,8 @@
 # This is rs_scan_io.DiffractionFile's 2.0 version
 import os
-import  h5py
+import h5py
 import checkdatatypes
+from pyrs.core import instrument_geometry
 
 
 class HydraProjectFile(object):
@@ -74,6 +75,11 @@ class HydraProjectFile(object):
         return
 
     def get_instrument_geometry(self, calibrated):
+        """
+        Get instrument geometry parameters
+        :param calibrated:
+        :return: an instance of instrument_geometry.InstrumentSetup
+        """
         return
 
     def set_instrument_geometry(self):
