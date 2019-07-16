@@ -164,7 +164,6 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         print ('[DB...BAT] Param names:   {}'.format(width_dict[peak_function_name][0]))
         print ('[DB...BAT] Param values:  {}'.format(width_dict[peak_function_name][1]))
 
-        # TODO - NOW - Issue #35: PsuedoVoigt is different!
         r = FitPeaks(InputWorkspace=self._workspace_name,
                      OutputWorkspace=r_positions_ws_name,
                      PeakCentersWorkspace=self._center_of_mass_ws_name,
@@ -179,37 +178,15 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
                      PeakParameterValues=width_dict[peak_function_name][1],
                      RawPeakParameters=True,
                      OutputPeakParametersWorkspace=r_param_table_name,
-                     OutputParameterFitErrorsWorkspace=r_error_table_name,  # TODO/FIXME - TONIGHT 0 - To be or not to be!
+                     OutputParameterFitErrorsWorkspace=r_error_table_name,
                      FittedPeaksWorkspace=r_model_ws_name,
                      FitPeakWindowWorkspace=peak_window_ws_name)
 
-        """ Example: Absorb the fitting for PsuedoVoigt
-        FitPeaks(InputWorkspace='gaussian', OutputWorkspace='pv', PeakCenters='3.6',
-                 PeakFunction='PseudoVoigt', FitWindowBoundaryList='0,10', PeakParameterNames='Intensity,Mixing,FWHM',
-                 PeakParameterValues='5,0.5,1', FittedPeaksWorkspace='model', OutputPeakParametersWorkspace='params',
-                 OutputParameterFitErrorsWorkspace='error')
-        """
+        # r is a class containing multiple outputs (workspaces)
+        # print (r,  r.OutputParameterFitErrorsWorkspace.getColumnNames(), r.OutputPeakParametersWorkspace,
+        #        r.FittedPeaksWorkspace)
 
-        # FitPeaks(InputWorkspace=self._workspace_name,
-        #          OutputWorkspace=r_positions_ws_name,
-        #          StartWorkspaceIndex=0, StopWorkspaceIndex=541,
-        #          PeakCentersWorkspace=self._center_of_mass_ws_name,
-        #          FitPeakWindowWorkspace=peak_window_ws_name,
-        #          PeakFunction=peak_function_name,
-        #          BackgroundType=background_function_name,
-        #          PeakParameterNames='Sigma',
-        #          PeakParameterValues='0.36',
-        #          Minimizer='Levenberg-MarquardtMD',
-        #          HighBackground=False,
-        #          ConstrainPeakPositions=False,
-        #          FittedPeaksWorkspace=r_model_ws_name,
-        #          OutputPeakParametersWorkspace=r_param_table_name,
-        #          OutputParameterFitErrorsWorkspace=r_error_table_name)
-
-        # TODO - 20180930 - Issue #30: add new column to OutputPeakParametersWorkspace for 'mixing'
-        # TODO            - ASAP: OUTPUT is changed to raw parameters... shall be
-
-        print ('Fit peaks parameters: range {0} - {1}.  Fit window boundary: {2} - {3}'
+        print ('[DB] Fit peaks parameters: range {0} - {1}.  Fit window boundary: {2} - {3}'
                ''.format(start, stop, fit_range[0], fit_range[1]))
 
         # Save all the workspaces automatically for further review
@@ -238,10 +215,7 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         # process output
         self._fitted_peak_position_ws = AnalysisDataService.retrieve(r_positions_ws_name)
         self._fitted_function_param_table = AnalysisDataService.retrieve(r_param_table_name)
-        try:
-            self._fitted_function_error_table = AnalysisDataService.retrieve(r_error_table_name)
-        except KeyError as run_err:
-            pass
+        self._fitted_function_error_table = AnalysisDataService.retrieve(r_error_table_name)
         self._model_matrix_ws = AnalysisDataService.retrieve(r_model_ws_name)
 
         return
@@ -420,32 +394,32 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         return param_vec
 
     def get_fitted_params_error(self, param_name):
-        """
-        get the value of a specified parameters's fitted error of whole scan
-        Note: from FitPeaks's output workspace         "OutputParameterFitErrorsWorkspace"
+        """ Get the value of a specified parameters's fitted error of whole scan
+        Note: from FitPeaks's output workspace "OutputParameterFitErrorsWorkspace"
         :param param_name:
-        :return:
+        :return: float vector of parameters...
         """
+        # TODO - NOW - Continue (2) from here to sort out how do we demo result to front-end
         # check
         checkdatatypes.check_string_variable('Function parameter', param_name)
 
         # init parameters
-        param_vec = np.ndarray(shape=(self._fitted_function_error_table.rowCount()), dtype='float')
+        error_vec = np.ndarray(shape=(self._fitted_function_error_table.rowCount()), dtype='float')
 
         col_names = self._fitted_function_error_table.getColumnNames()
         if param_name in col_names:
             col_index = col_names.index(param_name)
             for row_index in range(self._fitted_function_error_table.rowCount()):
-                param_vec[row_index] = self._fitted_function_error_table.cell(row_index, col_index)
+                error_vec[row_index] = self._fitted_function_error_table.cell(row_index, col_index)
         elif param_name == 'center_d':
-            param_vec = self._peak_center_d_error_vec
+            error_vec = self._peak_center_d_error_vec
         else:
             err_msg = 'Function parameter {0} does not exist. Supported parameters are {1}' \
                       ''.format(param_name, col_names)
             # raise RuntimeError()
             raise KeyError(err_msg)
 
-        return param_vec
+        return error_vec
 
     def get_good_fitted_params(self, param_name, max_chi2=1.E20):
         """

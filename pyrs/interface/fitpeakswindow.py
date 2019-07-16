@@ -379,11 +379,15 @@ class FitPeaksWindow(QMainWindow):
             scan_index_list[row_number] = param_dict['wsindex'][row_number] + 1
         param_dict['C.O.M'] = com_vec
         param_dict['Sub-run'] = scan_index_list
-        del param_dict['wsindex']
+        # del param_dict['wsindex']
 
         # Convert to effective peak parameters and thus fitting error
         # TODO - Continue from here (1) get a new parameter/effective dictionary  (2) set effective dict to table
-        raise NotImplementedError('To be continued from here!')
+        # TODO - Implement method 'convert_effective_peak_parameters()' !!!
+        print (param_dict.keys())
+        raise NotImplementedError('Continue from here')
+        table_param_names = mantid_fit_peak.convert_effective_peak_parameters()
+
 
         # if peak_function == 'Gaussian':
         #     # Gaussian
@@ -402,9 +406,8 @@ class FitPeaksWindow(QMainWindow):
         # # END-IF-ELSE
 
         # Reset table
+        print (table_param_names)
         self.ui.tableView_fitSummary.reset_table(table_param_names)
-
-
 
         # not_used_vec, center_vec = self._core.get_peak_fit_param_value(data_key, 'centre', max_cost=None)
         # not_used_vec, height_vec = self._core.get_peak_fit_param_value(data_key, 'height', max_cost=None)
@@ -412,6 +415,7 @@ class FitPeaksWindow(QMainWindow):
         # not_used_vec, chi2_vec = self._core.get_peak_fit_param_value(data_key, 'chi2', max_cost=None)
         # not_used_vec, intensity_vec = self._core.get_peak_fit_param_value(data_key, 'intensity', max_cost=None)
         #
+        # add fitted value to peaks
         for row_index in range(len(com_vec)):
             self.ui.tableView_fitSummary.set_fit_summary(row_index, param_dict)
 

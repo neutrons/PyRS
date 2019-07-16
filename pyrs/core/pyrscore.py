@@ -448,7 +448,7 @@ class PyRsCore(object):
         get a specific parameter's fitted value
         :param data_key:
         :param param_name:
-        :param max_cost:
+        :param max_cost: if not None, then filter out the bad (with large cost) fitting
         :return: 1 vector or 2-tuple (vector + vector)
         """
         # check input
@@ -459,6 +459,25 @@ class PyRsCore(object):
             log_index_vec = numpy.arange(len(param_vec))
         else:
             log_index_vec, param_vec = optimizer.get_good_fitted_params(param_name, max_cost)
+
+        return log_index_vec, param_vec
+
+    def get_peak_fit_param_value_error(self, data_key, param_name, max_cost):
+        """ Get a specific peak parameter's fitting error
+        :param data_key:
+        :param param_name:
+        :param max_cost:
+        :return:
+        """
+        # TODO - NOW NOW - Continue from here to modify the method to retrieve fitted data and error
+        # check input
+        optimizer = self._get_optimizer(data_key)
+
+        if max_cost is None:
+            param_vec = optimizer.get_fitted_params(param_name,  inlcuding_error=True)
+            log_index_vec = numpy.arange(len(param_vec))
+        else:
+            log_index_vec, param_error_vec = optimizer.get_good_fitted_params(param_name, max_cost, inlcuding_error=True)
 
         return log_index_vec, param_vec
 
