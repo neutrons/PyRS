@@ -352,33 +352,22 @@ class FitPeaksWindow(QMainWindow):
         return
 
     def _set_fit_result_table(self, peak_function, data_key):
-        """
-
-        :param peak_function:
+        """ Set up the table containing fit result
+        :param peak_function: name of peak function
         :param data_key:
         :return:
         """
-        if peak_function == 'Gaussian':
-            # Gaussian
-            table_param_names = ['wsindex', 'peakindex', 'Height', 'PeakCentre', 'Sigma', 'A0', 'A1', 'chi2']
-        elif peak_function == 'PseudoVoigt':
-            # PseudoVoigt: table parameters are parameters from Mantid
-            table_param_names = ['wsindex', 'peakindex', 'Mixing', 'Intensity', 'PeakCentre', 'FWHM',
-                                 'A0', 'A1', 'chi2']
-        elif peak_function == 'Voigt':
-            # TODO - NOW
-            table_param_names = ['wsindex', 'peakindex', 'LorentzAmp', 'LorentzPos', 'LorentzFWHM',
-                                 'GaussianFWHM', 'A0', 'A1', 'chi2']
-            raise RuntimeError('ASAP to fit with Voigt')
-        else:
-            # other profiles: not supported
-            raise RuntimeError('Peak type {} not supported.  The supported peak functions are'
-                               ' [Gaussian, PseudoVoigt, Voigt]'.format(peak_function))
-        # END-IF-ELSE
+        from pyrs.core import mantid_fit_peak
 
-        # Reset table
-        self.ui.tableView_fitSummary.reset_table(table_param_names)
+        # Get raw peak parameters
+        try:
+            table_param_names = mantid_fit_peak.MANTID_PEAK_PARAMETERS[peak_function]
+        except KeyError as key_err:
+            raise RuntimeError('Peak type {} not supported.  The supported peak functions are {}.  FYI: {}'
+                               ''.format(peak_function, mantid_fit_peak.MANTID_PEAK_PARAMETERS.keys(),
+                                         key_err))
 
+        # Retrieve fitting result to param_dict
         # Expand table with extra information including Center of Mass and Sub-Run
         param_dict = dict()
         for param_name in table_param_names:
@@ -391,6 +380,31 @@ class FitPeaksWindow(QMainWindow):
         param_dict['C.O.M'] = com_vec
         param_dict['Sub-run'] = scan_index_list
         del param_dict['wsindex']
+
+        # Convert to effective peak parameters and thus fitting error
+        # TODO - Continue from here (1) get a new parameter/effective dictionary  (2) set effective dict to table
+        raise NotImplementedError('To be continued from here!')
+
+        # if peak_function == 'Gaussian':
+        #     # Gaussian
+        #     table_param_names = ['wsindex', 'Height', 'PeakCentre', 'Sigma', 'A0', 'A1', 'chi2']
+        # elif peak_function == 'PseudoVoigt':
+        #     # PseudoVoigt: table parameters are parameters from Mantid
+        #     table_param_names = ['wsindex', 'Mixing', 'Intensity', 'PeakCentre', 'FWHM',
+        #                          'A0', 'A1', 'chi2']
+        # elif peak_function == 'Voigt':
+        #     # Voigt
+        #     table_param_names = ['wsindex', 'peakindex', 'LorentzAmp', 'LorentzPos', 'LorentzFWHM',
+        #                          'GaussianFWHM', 'A0', 'A1', 'chi2']
+        # else:
+        #     # other profiles: not supported
+        #     raise RuntimeError
+        # # END-IF-ELSE
+
+        # Reset table
+        self.ui.tableView_fitSummary.reset_table(table_param_names)
+
+
 
         # not_used_vec, center_vec = self._core.get_peak_fit_param_value(data_key, 'centre', max_cost=None)
         # not_used_vec, height_vec = self._core.get_peak_fit_param_value(data_key, 'height', max_cost=None)

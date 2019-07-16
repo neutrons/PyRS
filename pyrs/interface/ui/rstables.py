@@ -37,16 +37,23 @@ class FitResultTable(NTableWidget.NTableWidget):
 
         return
 
-    def init_exp(self, index_list):
+    def init_exp(self, sub_run_number_list):
         """
         init the table for an experiment with a given list of scan indexes
-        :param index_list:
+        :param sub_run_number_list: list of sub runs
         :return:
         """
-        # TODO - Shall create a new module named as pyrs.utilities for utility methods used by both core and interface
-        assert isinstance(index_list, list), 'blabla'
+        checkdatatypes.check_list('Index list', sub_run_number_list)
 
-        for index in index_list:
+        # sort
+        sub_run_number_list.sort()
+
+        # clean the table
+        if self.rowCount() > 0:
+            self.remove_all_rows()
+
+        # append new rows
+        for index in sub_run_number_list:
             self.append_row([index, None, None, None, None, None, None, ''])
 
         return

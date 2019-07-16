@@ -10,6 +10,11 @@ import math
 
 print ('[DEBUG-INFO] Mantid is loaded from : {0}'.format(mantid))
 
+MANTID_PEAK_PARAMETERS = {'Gaussian': ['wsindex', 'Height', 'PeakCentre', 'Sigma', 'A0', 'A1', 'chi2'],
+                          'PseudoVoigt': ['wsindex', 'Mixing', 'Intensity', 'PeakCentre', 'FWHM', 'A0', 'A1', 'chi2'],
+                          'Voigt': ['wsindex', 'LorentzAmp', 'LorentzPos', 'LorentzFWHM',
+                                    'GaussianFWHM', 'A0', 'A1', 'chi2']}
+
 
 class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
     """
