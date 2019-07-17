@@ -37,7 +37,7 @@ class PyRsCore(object):
         self._curr_data_key = None
         self._curr_file_name = None
 
-        self._last_optimizer = None
+        self._last_optimizer = None  # None or RsPeakFitEngine/MantidPeakFitEngine instance
 
         # container for optimizers
         self._optimizer_dict = dict()
@@ -463,23 +463,21 @@ class PyRsCore(object):
         return log_index_vec, param_vec
 
     def get_peak_fit_param_value_error(self, data_key, param_name, max_cost):
-        """ Get a specific peak parameter's fitting error
+        """ Get a specific peak parameter's fitting value with error
         :param data_key:
         :param param_name:
         :param max_cost:
-        :return:
+        :return: 2-tuple: (1) (n, ) for sub runs (2) array as (n, 2) such that [i, 0] is value and [i, 1] is error
         """
-        # TODO - NOW NOW - Continue from here to modify the method to retrieve fitted data and error
         # check input
-        optimizer = self._get_optimizer(data_key)
+        fit_engine = self._get_optimizer(data_key)
 
         if max_cost is None:
-            param_vec = optimizer.get_fitted_params(param_name,  inlcuding_error=True)
-            log_index_vec = numpy.arange(len(param_vec))
+            sub_run_vec, param_error_vec = fit_engine.get_fitted_params(param_name,  inlcuding_error=True)
         else:
-            log_index_vec, param_error_vec = optimizer.get_good_fitted_params(param_name, max_cost, inlcuding_error=True)
+            sub_run_vec, param_error_vec = fit_engine.get_good_fitted_params(param_name, max_cost, inlcuding_error=True)
 
-        return log_index_vec, param_vec
+        return sub_run_vec, param_error_vec
 
     def get_peak_fit_params_in_dict(self, data_key):
         """

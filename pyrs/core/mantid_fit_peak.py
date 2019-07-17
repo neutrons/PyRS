@@ -98,9 +98,9 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         """
         # TODO/FIXME - TONIGHT 0 - Must have a better way than try and guess
         try:
-            centre_vec = self.get_fitted_params(param_name='PeakCentre')
+            centre_vec = self.get_fitted_params(param_name_list='PeakCentre')
         except KeyError:
-            centre_vec = self.get_fitted_params(param_name='centre')
+            centre_vec = self.get_fitted_params(param_name_list='centre')
         self._peak_center_d_vec = np.ndarray(centre_vec.shape, centre_vec.dtype)
 
         num_pt = len(centre_vec)
@@ -266,9 +266,9 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         # TODO - 20181101 - Need to expand this method such that all fitted parameters will be added to output
         # get value
         scan_index_vector = self.get_scan_indexes()
-        cost_vector = self.get_fitted_params(param_name='chi2')
-        height_vector = self.get_fitted_params(param_name='height')
-        width_vector = self.get_fitted_params(param_name='width')
+        cost_vector = self.get_fitted_params(param_name_list='chi2')
+        height_vector = self.get_fitted_params(param_name_list='height')
+        width_vector = self.get_fitted_params(param_name_list='width')
 
         # check
         if len(scan_index_vector) != len(cost_vector) or len(cost_vector) != len(height_vector) \
@@ -295,7 +295,7 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         """
         # get value
         scan_index_vector = self.get_scan_indexes()
-        intensity_vector = self.get_fitted_params(param_name='intensity')
+        intensity_vector = self.get_fitted_params(param_name_list='intensity')
 
         # check
         if len(scan_index_vector) != len(intensity_vector):
@@ -367,114 +367,183 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         data_workspace = self.retrieve_workspace(self._workspace_name, True)
         return data_workspace.getNumberHistograms()
 
-    def get_fitted_params(self, param_name):
-        """ get the value of a fitted parameter
-        :param param_name:
-        :return: a 1-D numpy.ndarray
+    def get_fitted_params(self, param_name_list, including_error, max_chi2=1.E20):
+        """ Get specified parameters' fitted value and optionally error with optionally filtered value
+        :param param_name_list:
+        :param including_error:
+        :param max_chi2: Default is including all.
+        :return: 2-tuple: (1) (n, ) vector for sub run number  (2) (n, 1) or (n, 2) vector for parameter values and
+                 optionally fitting error
         """
         # check
-        checkdatatypes.check_string_variable('Function parameter', param_name)
+        checkdatatypes.check_list('Function parameters', param_name_list)
+        checkdatatypes.check_bool_variable('Flag to output fitting error', including_error)
+        checkdatatypes.check_float_variable('Maximum cost chi^2', max_chi2, (1, None))
 
-        # init parameters
-        param_vec = np.ndarray(shape=(self._fitted_function_param_table.rowCount()), dtype='float')
-
+        # get table information
         col_names = self._fitted_function_param_table.getColumnNames()
-        if param_name in col_names:
-            col_index = col_names.index(param_name)
-            for row_index in range(self._fitted_function_param_table.rowCount()):
-                param_vec[row_index] = self._fitted_function_param_table.cell(row_index, col_index)
-        elif param_name == 'center_d':
-            param_vec = self._peak_center_d_vec
-        else:
-            err_msg = 'Function parameter {0} does not exist. Supported parameters are {1}' \
-                      ''.format(param_name, col_names)
-            # raise RuntimeError()
-            raise KeyError(err_msg)
-
-        return param_vec
-
-    def get_fitted_params_error(self, param_name):
-        """ Get the value of a specified parameters's fitted error of whole scan
-        Note: from FitPeaks's output workspace "OutputParameterFitErrorsWorkspace"
-        :param param_name:
-        :return: float vector of parameters...
-        """
-        # TODO - NOW - Continue (2) from here to sort out how do we demo result to front-end
-        # check
-        checkdatatypes.check_string_variable('Function parameter', param_name)
-
-        # init parameters
-        error_vec = np.ndarray(shape=(self._fitted_function_error_table.rowCount()), dtype='float')
-
-        col_names = self._fitted_function_error_table.getColumnNames()
-        if param_name in col_names:
-            col_index = col_names.index(param_name)
-            for row_index in range(self._fitted_function_error_table.rowCount()):
-                error_vec[row_index] = self._fitted_function_error_table.cell(row_index, col_index)
-        elif param_name == 'center_d':
-            error_vec = self._peak_center_d_error_vec
-        else:
-            err_msg = 'Function parameter {0} does not exist. Supported parameters are {1}' \
-                      ''.format(param_name, col_names)
-            # raise RuntimeError()
-            raise KeyError(err_msg)
-
-        return error_vec
-
-    def get_good_fitted_params(self, param_name, max_chi2=1.E20):
-        """
-        get fitted parameter's value for good fit specified by maximum chi2
-        :param param_name:
-        :param max_chi2:
-        :return: 2-vector of same size
-        """
-        # check
-        checkdatatypes.check_string_variable('Function parameter', param_name)
-        checkdatatypes.check_float_variable('Chi^2', max_chi2, (1., None))
-
-        # get all the column names
-        col_names = self._fitted_function_param_table.getColumnNames()
-        if not ('chi2' in col_names and (param_name in col_names or param_name == 'center_d')):
-            err_msg = 'Function parameter {0} does not exist. Supported parameters are {1}' \
-                      ''.format(param_name, col_names)
-            # raise RuntimeError()
-            raise KeyError(err_msg)
-        elif param_name == 'chi2':
-            is_chi2 = True
-        else:
-            is_chi2 = False
-
-        # get chi2 first
         chi2_col_index = col_names.index('chi2')
-        if param_name == 'center_d':
-            param_col_index = 'center_d'
-        elif not is_chi2:
-            param_col_index = col_names.index(param_name)
+        ws_index_col_index = col_names.index('ws_index')
+
+        # get the rows to survey
+        if max_chi2 > 0.999E20:
+            # all of sub runs / spectra
+            row_index_list = range(self._fitted_function_param_table.rowCount())
         else:
-            param_col_index = chi2_col_index
+            # need to filter: get a list of chi^2 and then filter
+            chi2_vec = np.zeros(shape=(self._fitted_function_param_table.rowCount(),), dtype='float')
+            for row_index in range(self._fitted_function_param_table.rowCount()):
+                chi2_i = self._fitted_function_param_table.cell(row_index, chi2_col_index)
+                chi2_vec[row_index] = chi2_i
 
-        param_list = list()
-        selected_row_index = list()
-        for row_index in range(self._fitted_function_param_table.rowCount()):
-            chi2 = self._fitted_function_param_table.cell(row_index, chi2_col_index)
-            if math.isnan(chi2) or chi2 > max_chi2:
-                continue
+            # filer chi2 against max
+            filtered_indexes = np.where(chi2_vec < max_chi2)
+            row_index_list = list(filtered_indexes)
+        # END-IF-ELSE
 
-            if is_chi2:
-                value_i = chi2
-            elif param_col_index == 'center_d':
-                value_i = self._peak_center_d_vec[row_index]
+        # init parameters
+        num_params = len(param_name_list)
+        if including_error:
+            num_items = 2
+        else:
+            num_items =1
+        param_vec = np.zeros(shape=(len(row_index_list), num_params, num_items), dtype='float')
+        sub_run_vec = np.zeros(shape=(len(row_index_list), ), dtype='int')
+
+        # sub runs
+        for vec_index, row_index in enumerate(row_index_list):
+            # sub run
+            ws_index_i = self._fitted_function_param_table.cell(row_index, ws_index_col_index)
+            sub_run_i = self._ws_index_sub_run_dict[ws_index_i]
+            sub_run_vec[vec_index] = sub_run_i
+        # END-FOR
+
+        # retrieve parameters
+        for param_index, param_name_i in enumerate(param_name_list):
+            # get the parameter column index
+            if param_name_i in col_names:
+                param_i_col_index = col_names.index(param_name_i)
             else:
-                value_i = self._fitted_function_param_table.cell(row_index, param_col_index)
+                param_i_col_index = None
 
-            param_list.append(value_i)
-            selected_row_index.append(row_index)
-        # END-IF
+            # go through all the rows fitting the chi^2 requirement
+            for vec_index, row_index in enumerate(row_index_list):
+                # init error
+                error_i = None
 
-        log_index_vec = np.array(selected_row_index) + 1
-        param_vec = np.array(param_list)
+                if param_i_col_index is not None:
+                    # native parameters
+                    value_i = self._fitted_function_param_table.cell(row_index, param_i_col_index)
+                    if including_error:
+                        error_i = self._fitted_function_error_table.cell(row_index, param_i_col_index)
+                elif param_name_i == 'center_d':
+                    # special center in dSpacing
+                    value_i = self._peak_center_d_vec[row_index]
+                    if including_error:
+                        error_i = self._peak_center_d_error_vec[row_index]
+                elif param_name_i in self._effective_parameters:
+                    # effective parameter
+                    value_i = self.calculate_effective_parameter(param_name_i)
+                    if including_error:
+                        error_i = self.calculate_effective_parameter_error(param_name_i)
+                else:
+                    err_msg = 'Function parameter {0} does not exist. Supported parameters are {1}' \
+                              ''.format(param_name_list, col_names)
+                    # raise RuntimeError()
+                    raise KeyError(err_msg)
+                # END-IF-ELSE
 
-        return log_index_vec, param_vec
+                # set value
+                param_vec[vec_index, param_index, 0] = value_i
+                if including_error:
+                    param_vec[vec_index, param_index, 1] = error_i
+            # END-FOR (each row)
+        # END-FOR (each parameter)
+
+        return sub_run_vec, param_vec
+
+    # def get_fitted_params_error(self, param_name):
+    #     """ Get the value of a specified parameters's fitted error of whole scan
+    #     Note: from FitPeaks's output workspace "OutputParameterFitErrorsWorkspace"
+    #     :param param_name:
+    #     :return: float vector of parameters...
+    #     """
+    #     # TODO - NOW - Continue (2) from here to sort out how do we demo result to front-end
+    #     # check
+    #     checkdatatypes.check_string_variable('Function parameter', param_name)
+    #
+    #     # init parameters
+    #     error_vec = np.ndarray(shape=(self._fitted_function_error_table.rowCount()), dtype='float')
+    #
+    #     col_names = self._fitted_function_error_table.getColumnNames()
+    #     if param_name in col_names:
+    #         col_index = col_names.index(param_name)
+    #         for row_index in range(self._fitted_function_error_table.rowCount()):
+    #             error_vec[row_index] = self._fitted_function_error_table.cell(row_index, col_index)
+    #     elif param_name == 'center_d':
+    #         error_vec = self._peak_center_d_error_vec
+    #     else:
+    #         err_msg = 'Function parameter {0} does not exist. Supported parameters are {1}' \
+    #                   ''.format(param_name, col_names)
+    #         # raise RuntimeError()
+    #         raise KeyError(err_msg)
+    #
+    #     return error_vec
+    #
+    # def get_good_fitted_params(self, param_name, max_chi2=1.E20):
+    #     """
+    #     get fitted parameter's value for good fit specified by maximum chi2
+    #     :param param_name:
+    #     :param max_chi2:
+    #     :return: 2-vector of same size
+    #     """
+    #     # check
+    #     checkdatatypes.check_string_variable('Function parameter', param_name)
+    #     checkdatatypes.check_float_variable('Chi^2', max_chi2, (1., None))
+    #
+    #     # get all the column names
+    #     col_names = self._fitted_function_param_table.getColumnNames()
+    #     if not ('chi2' in col_names and (param_name in col_names or param_name == 'center_d')):
+    #         err_msg = 'Function parameter {0} does not exist. Supported parameters are {1}' \
+    #                   ''.format(param_name, col_names)
+    #         # raise RuntimeError()
+    #         raise KeyError(err_msg)
+    #     elif param_name == 'chi2':
+    #         is_chi2 = True
+    #     else:
+    #         is_chi2 = False
+    #
+    #     # get chi2 first
+    #     chi2_col_index = col_names.index('chi2')
+    #     if param_name == 'center_d':
+    #         param_col_index = 'center_d'
+    #     elif not is_chi2:
+    #         param_col_index = col_names.index(param_name)
+    #     else:
+    #         param_col_index = chi2_col_index
+    #
+    #     param_list = list()
+    #     selected_row_index = list()
+    #     for row_index in range(self._fitted_function_param_table.rowCount()):
+    #         chi2 = self._fitted_function_param_table.cell(row_index, chi2_col_index)
+    #         if math.isnan(chi2) or chi2 > max_chi2:
+    #             continue
+    #
+    #         if is_chi2:
+    #             value_i = chi2
+    #         elif param_col_index == 'center_d':
+    #             value_i = self._peak_center_d_vec[row_index]
+    #         else:
+    #             value_i = self._fitted_function_param_table.cell(row_index, param_col_index)
+    #
+    #         param_list.append(value_i)
+    #         selected_row_index.append(row_index)
+    #     # END-IF
+    #
+    #     log_index_vec = np.array(selected_row_index) + 1
+    #     param_vec = np.array(param_list)
+    #
+    #     return log_index_vec, param_vec
 
     @staticmethod
     def retrieve_workspace(ws_name, throw_if_not_exist):
