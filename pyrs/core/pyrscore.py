@@ -1,10 +1,11 @@
 # This is the core of PyRS serving as the controller of PyRS and hub for all the data
 import datamanagers
 from pyrs.utilities import checkdatatypes
+from pyrs.utilities import rs_scan_io
+from pyrs.utilities import file_util
 import mantid_fit_peak
 import strain_stress_calculator
 import reductionengine
-import scandataio
 import polefigurecalculator
 import os
 import numpy
@@ -22,7 +23,7 @@ class PyRsCore(object):
         initialization
         """
         # declaration of class members
-        self._file_io_controller = scandataio.DiffractionDataFile()  # a I/O instance for standard HB2B file
+        self._file_io_controller = rs_scan_io.DiffractionDataFile()  # a I/O instance for standard HB2B file
         self._data_manager = datamanagers.RawDataManager()
         self._reduction_engine = reductionengine.HB2BReductionManager()
 
@@ -36,7 +37,7 @@ class PyRsCore(object):
         self._curr_data_key = None
         self._curr_file_name = None
 
-        self._last_optimizer = None
+        self._last_optimizer = None  # None or RsPeakFitEngine/MantidPeakFitEngine instance
 
         # container for optimizers
         self._optimizer_dict = dict()
@@ -306,6 +307,7 @@ class PyRsCore(object):
 
         # get data
         diff_data_list = list()
+        # TODO - FUTURE - sun run will be used to replace log_index
         for log_index in scan_index_list:
             diff_data = self._data_manager.get_data_set(data_key_set, log_index)
             diff_data_list.append(diff_data)
@@ -315,7 +317,7 @@ class PyRsCore(object):
             ref_id = '{0}'.format(data_key)
         else:
             ref_id = '{0}_{1}'.format(data_key, sub_key)
-        peak_optimizer = mantid_fit_peak.MantidPeakFitEngine(diff_data_list, ref_id=ref_id)
+        peak_optimizer = mantid_fit_peak.MantidPeakFitEngine(scan_index_list, diff_data_list, ref_id=ref_id)
 
         # observed COM and highest Y value data point
         print ('[DB...BAT] Fit Engine w/ Key: {0}'.format(data_key_set))
@@ -442,25 +444,44 @@ class PyRsCore(object):
 
         return optimizer.get_function_parameter_names()
 
-    def get_peak_fit_param_value(self, data_key, param_name, max_cost):
+    # TODO - TONIGHT NOW - Need to migrate to new get_fitted_params
+    def get_peak_fit_param_value(self, data_key, param_name_list, max_cost):
         """
         get a specific parameter's fitted value
         :param data_key:
         :param param_name:
-        :param max_cost:
+        :param max_cost: if not None, then filter out the bad (with large cost) fitting
         :return: 1 vector or 2-tuple (vector + vector)
         """
         # check input
         optimizer = self._get_optimizer(data_key)
 
         if max_cost is None:
-            param_vec = optimizer.get_fitted_params(param_name)
+            sub_run_vec, param_vec = optimizer.get_fitted_params(param_name_list, False)
             log_index_vec = numpy.arange(len(param_vec))
         else:
             log_index_vec, param_vec = optimizer.get_good_fitted_params(param_name, max_cost)
 
-        return log_index_vec, param_vec
+        return sub_run_vec, param_vec
 
+    def get_peak_fit_param_value_error(self, data_key, param_name, max_cost):
+        """ Get a specific peak parameter's fitting value with error
+        :param data_key:
+        :param param_name:
+        :param max_cost:
+        :return: 2-tuple: (1) (n, ) for sub runs (2) array as (n, 2) such that [i, 0] is value and [i, 1] is error
+        """
+        # check input
+        fit_engine = self._get_optimizer(data_key)
+
+        if max_cost is None:
+            sub_run_vec, param_error_vec = fit_engine.get_fitted_params(param_name,  inlcuding_error=True)
+        else:
+            sub_run_vec, param_error_vec = fit_engine.get_good_fitted_params(param_name, max_cost, inlcuding_error=True)
+
+        return sub_run_vec, param_error_vec
+
+    # TODO FIXME - TONIGHT NOW - This method shall be migrated to newer API to get parameter values
     def get_peak_fit_params_in_dict(self, data_key):
         """
         export the complete set of peak parameters fitted to a dictionary
@@ -487,7 +508,7 @@ class PyRsCore(object):
         # END-FOR
 
         for param_name in param_names:
-            scan_index_vec, param_value = self.get_peak_fit_param_value(data_key, param_name, max_cost=None)
+            scan_index_vec, param_value = self.get_peak_fit_param_value(data_key, [param_name], max_cost=None)
             checkdatatypes.check_numpy_arrays('Parameter values', [param_value], dimension=1, check_same_shape=False)
             # add the values to dictionary
             for si in range(len(scan_index_vec)):
@@ -653,7 +674,7 @@ class PyRsCore(object):
         try:
             matrix_name = optimizer.get_data_workspace_name()
             # save
-            scandataio.save_mantid_nexus(matrix_name, file_name)
+            file_util.save_mantid_nexus(matrix_name, file_name)
         except RuntimeError as run_err:
             raise RuntimeError('Unable to write to NeXus because Mantid fit engine is not used.\nError info: {0}'
                                ''.format(run_err))
@@ -664,7 +685,7 @@ class PyRsCore(object):
             dir_name = os.path.dirname(file_name)
             base_name = os.path.basename(file_name)
             file_name = os.path.join(dir_name, base_name.split('.')[0] + '_com.nxs')
-            scandataio.save_mantid_nexus(matrix_name, file_name)
+            file_util.save_mantid_nexus(matrix_name, file_name)
         except RuntimeError as run_err:
             raise RuntimeError('Unable to write COM to NeXus because Mantid fit engine is not used.\nError info: {0}'
                                ''.format(run_err))

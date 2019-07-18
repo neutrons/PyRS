@@ -37,27 +37,36 @@ class FitResultTable(NTableWidget.NTableWidget):
 
         return
 
-    def init_exp(self, index_list):
+    def init_exp(self, sub_run_number_list):
         """
         init the table for an experiment with a given list of scan indexes
-        :param index_list:
+        :param sub_run_number_list: list of sub runs
         :return:
         """
-        # TODO - Shall create a new module named as pyrs.utilities for utility methods used by both core and interface
-        assert isinstance(index_list, list), 'blabla'
+        checkdatatypes.check_list('Index list', sub_run_number_list)
 
-        for index in index_list:
+        # sort
+        sub_run_number_list.sort()
+
+        # clean the table
+        if self.rowCount() > 0:
+            self.remove_all_rows()
+
+        # append new rows
+        for index in sub_run_number_list:
             self.append_row([index, None, None, None, None, None, None, ''])
 
         return
 
     def reset_table(self, peak_param_names):
-        """
-
+        """ Reset table. Parameters other than peak fitting will be handled by setup()
         :param peak_param_names:
         :return:
         """
+        # Completely clear the previously written table
         self.clear()
+
+        # Add the new column names
         if peak_param_names is None:
             self.init_setup(self.TableSetupList)
         else:
@@ -73,7 +82,7 @@ class FitResultTable(NTableWidget.NTableWidget):
         # create table columns dynamically
         self.TableSetupList = list()
 
-        self.TableSetupList.append(('Sub-run', 'int'))
+        self.TableSetupList.append(('sub-run', 'int'))
         for param_name in peak_param_names:
             self.TableSetupList.append((param_name, 'float'))
         self.TableSetupList.append(('C.O.M', 'float'))
@@ -84,14 +93,6 @@ class FitResultTable(NTableWidget.NTableWidget):
         # reset table
         self.init_setup(self.TableSetupList)
 
-        #
-        # total_columns = len(table_setup_list)
-        # self._colIndexIndex = 0
-        # self._colIndexProfile = total_columns - 1
-        # self._colIndexCoM = total_columns - 2
-        #
-
-        #
         # # Set up column width
         self.setColumnWidth(0, 60)
         for col_index in range(1, len(self._column_names)-1):
@@ -99,21 +100,32 @@ class FitResultTable(NTableWidget.NTableWidget):
         self.setColumnWidth(len(self._column_names)-1, 120)
 
         # Set up the column index for start, stop and select
-        self._colIndexIndex = self.TableSetupList.index(('Sub-run', 'int'))
+        self._colIndexIndex = self.TableSetupList.index(('sub-run', 'int'))
         self._colIndexCoM = self.TableSetupList.index(('C.O.M', 'float'))
         self._colIndexProfile = self.TableSetupList.index(('Profile', 'string'))
 
         return
 
-    def set_fit_summary(self, row_number, param_dict):
-
-        # if row_number < self.rowCount():
-        #     print ('[WARNING] In this case, add a new line is a bad idea')
+    def set_fit_summary(self, row_number, param_dict, write_error=False):
+        """
+        Set the fitting summary
+        :param row_number: row number
+        :param param_dict:
+        :return:
+        """
+        import numpy
 
         this_value_list = list()
         for column_item in self._column_names:
             if column_item in param_dict:
-                this_value_list.append(param_dict[column_item][row_number])
+                value_i = param_dict[column_item][row_number]
+                if isinstance(value_i, numpy.ndarray):
+                    if write_error and value_i.shape[0] > 1:
+                        value_i = value_i[1]
+                    else:
+                        value_i = value_i[0]
+                # END-IF in case of numpy array
+                this_value_list.append(value_i)
             else:
                 this_value_list.append(None)
         # END-FOR
@@ -127,12 +139,6 @@ class FitResultTable(NTableWidget.NTableWidget):
                         print ('Cell @ {}, {} of value {} cannot be updated'.format(row_number, col_num, item_value))
         else:
             self.append_row(row_value_list=this_value_list)
-        #
-        # ['Sub-run', 'wsindex', 'peakindex', 'Height', 'PeakCentre', 'Sigma', 'A0', 'A1', 'chi2', 'C.O.M', 'Profile']
-        #
-        # print (self.rowCount())
-        # print (self._column_names)
-        # print (param_dict.keys())
 
         return
 
