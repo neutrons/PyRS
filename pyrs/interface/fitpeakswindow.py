@@ -7,6 +7,7 @@ except ImportError:
 from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.diffdataviews import GeneralDiffDataView, DiffContourView
 from pyrs.interface.ui.rstables import FitResultTable
+from pyrs.core import pyrs_fit_engine
 # import pyrs.utilities.hb2b_utilities as hb2bhb2b
 import advpeakfitdialog
 import os
@@ -340,8 +341,9 @@ class FitPeaksWindow(QMainWindow):
             curr_y_index = size_y - 1
         self.ui.comboBox_yaxisNames.setCurrentIndex(curr_y_index)
 
-        # fill up the table
-        self._set_fit_result_table(peak_function, data_key)
+        # Show fitting result in Table
+        # TODO - could add an option to show native or effective peak parameters
+        self._show_fit_result_table(peak_function, data_key, is_effective=False)
 
         # plot the model and difference
         if scan_log_index is None:
@@ -351,70 +353,33 @@ class FitPeaksWindow(QMainWindow):
 
         return
 
-    def _set_fit_result_table(self, peak_function, data_key):
+    def _show_fit_result_table(self, peak_function, data_key, is_effective):
         """ Set up the table containing fit result
         :param peak_function: name of peak function
         :param data_key:
+        :param is_effective: Flag for the parameter to be shown as effective (True) or native (False)
         :return:
         """
-        from pyrs.core import mantid_fit_peak
-
         # Get raw peak parameters
-        try:
-            table_param_names = mantid_fit_peak.MANTID_PEAK_PARAMETERS[peak_function]
-        except KeyError as key_err:
-            raise RuntimeError('Peak type {} not supported.  The supported peak functions are {}.  FYI: {}'
-                               ''.format(peak_function, mantid_fit_peak.MANTID_PEAK_PARAMETERS.keys(),
-                                         key_err))
+        peak_param_names = pyrs_fit_engine.RsPeakFitEngine.get_peak_param_names(peak_function, is_effective)
+        # appending chi2
+        peak_param_names.append('chi2')
 
         # Retrieve fitting result to param_dict
         # Expand table with extra information including Center of Mass and Sub-Run
         param_dict = dict()
-        sub_run_vec, params_vec = self._core.get_peak_fit_param_value(data_key, table_param_names, max_cost=None)
-        # for param_name in table_param_names:
-        #     para, param_vec = self._core.get_peak_fit_param_value(data_key, param_name, max_cost=None)
-        #     param_dict[param_name] = param_vec
+        sub_run_vec, params_vec = self._core.get_peak_fit_param_value(data_key, peak_param_names, max_cost=None)
+        for param_index, param_name in enumerate(peak_param_names):
+            param_dict[param_name] = params_vec[param_index]
         com_vec = self._core.get_peak_center_of_mass(data_key)
         # scan_index_list = [None] * len(com_vec)
         # for row_number in range(len(com_vec)):
         #     scan_index_list[row_number] = param_dict['wsindex'][row_number] + 1
         param_dict['C.O.M'] = com_vec
-        param_dict['Sub-run'] = sub_run_vec
-        # del param_dict['wsindex']
+        param_dict['sub-run'] = sub_run_vec
 
-        # Convert to effective peak parameters and thus fitting error
-        # TODO - Continue from here (1) get a new parameter/effective dictionary  (2) set effective dict to table
-        # TODO - Implement method 'convert_effective_peak_parameters()' !!!
-        print (param_dict.keys())
-        raise NotImplementedError('Continue from here')
-        table_param_names = mantid_fit_peak.convert_effective_peak_parameters()
-
-
-        # if peak_function == 'Gaussian':
-        #     # Gaussian
-        #     table_param_names = ['wsindex', 'Height', 'PeakCentre', 'Sigma', 'A0', 'A1', 'chi2']
-        # elif peak_function == 'PseudoVoigt':
-        #     # PseudoVoigt: table parameters are parameters from Mantid
-        #     table_param_names = ['wsindex', 'Mixing', 'Intensity', 'PeakCentre', 'FWHM',
-        #                          'A0', 'A1', 'chi2']
-        # elif peak_function == 'Voigt':
-        #     # Voigt
-        #     table_param_names = ['wsindex', 'peakindex', 'LorentzAmp', 'LorentzPos', 'LorentzFWHM',
-        #                          'GaussianFWHM', 'A0', 'A1', 'chi2']
-        # else:
-        #     # other profiles: not supported
-        #     raise RuntimeError
-        # # END-IF-ELSE
-
-        # Reset table
-        print (table_param_names)
-        self.ui.tableView_fitSummary.reset_table(table_param_names)
-
-        # not_used_vec, center_vec = self._core.get_peak_fit_param_value(data_key, 'centre', max_cost=None)
-        # not_used_vec, height_vec = self._core.get_peak_fit_param_value(data_key, 'height', max_cost=None)
-        # not_used_vec, fwhm_vec = self._core.get_peak_fit_param_value(data_key, 'width', max_cost=None)
-        # not_used_vec, chi2_vec = self._core.get_peak_fit_param_value(data_key, 'chi2', max_cost=None)
-        # not_used_vec, intensity_vec = self._core.get_peak_fit_param_value(data_key, 'intensity', max_cost=None)
+        # Reset columns of table
+        self.ui.tableView_fitSummary.reset_table(peak_param_names)
         #
         # add fitted value to peaks
         for row_index in range(len(com_vec)):
@@ -764,7 +729,8 @@ class FitPeaksWindow(QMainWindow):
         """
         print ('Plan to copy {} to {} and insert fit result'.format(self._curr_file_name,
                                                                     out_file_name))
-        self._core.save_peak_fit_result(self._curr_data_key, self._curr_file_name, out_file_name)
+        # TODO FIXME - TONIGHT NOW - Fit the following method!
+        # FIXME Temporarily disabled: self._core.save_peak_fit_result(self._curr_data_key, self._curr_file_name, out_file_name)
 
         return
 

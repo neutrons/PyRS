@@ -1,6 +1,12 @@
 # This is the virtual base class as the fitting frame
 from pyrs.utilities import checkdatatypes
 
+NATIVE_PEAK_PARAMETERS = {'Gaussian': ['Height', 'PeakCentre', 'Sigma', 'A0', 'A1'],
+                          'PseudoVoigt': ['Mixing', 'Intensity', 'PeakCentre', 'FWHM', 'A0', 'A1'],
+                          'Voigt': ['LorentzAmp', 'LorentzPos', 'LorentzFWHM', 'GaussianFWHM',
+                                    'A0', 'A1']}
+EFFECTIVE_PEAK_PARAMETERS = ['Center', 'Height', 'FWHM', 'A0', 'A1']
+
 
 class RsPeakFitEngine(object):
     """
@@ -70,6 +76,29 @@ class RsPeakFitEngine(object):
         :return:
         """
         raise NotImplementedError('Virtual base class member method get_number_scans()')
+
+    @staticmethod
+    def get_peak_param_names(peak_function, is_effective):
+        """ Get the peak parameter names
+        :param peak_function:
+        :param is_effective:
+        :return:
+        """
+        if is_effective:
+            # Effective parameters
+            param_names = EFFECTIVE_PEAK_PARAMETERS[:]
+            if peak_function == 'PseudoVoigt':
+                param_names.append('Mixing')
+
+        else:
+            # Native parameters
+            try:
+                param_names = NATIVE_PEAK_PARAMETERS[peak_function][:]
+            except KeyError as key_err:
+                raise RuntimeError('Peak type {} not supported.  The supported peak functions are {}.  FYI: {}'
+                                   ''.format(peak_function, NATIVE_PEAK_PARAMETERS.keys(), key_err))
+
+        return param_names
 
     def write_result(self):
         """

@@ -481,6 +481,7 @@ class PyRsCore(object):
 
         return sub_run_vec, param_error_vec
 
+    # TODO FIXME - TONIGHT NOW - This method shall be migrated to newer API to get parameter values
     def get_peak_fit_params_in_dict(self, data_key):
         """
         export the complete set of peak parameters fitted to a dictionary
@@ -507,7 +508,7 @@ class PyRsCore(object):
         # END-FOR
 
         for param_name in param_names:
-            scan_index_vec, param_value = self.get_peak_fit_param_value(data_key, param_name, max_cost=None)
+            scan_index_vec, param_value = self.get_peak_fit_param_value(data_key, [param_name], max_cost=None)
             checkdatatypes.check_numpy_arrays('Parameter values', [param_value], dimension=1, check_same_shape=False)
             # add the values to dictionary
             for si in range(len(scan_index_vec)):

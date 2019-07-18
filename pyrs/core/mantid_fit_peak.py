@@ -8,13 +8,6 @@ import numpy as np
 import os
 import math
 
-print ('[DEBUG-INFO] Mantid is loaded from : {0}'.format(mantid))
-
-MANTID_PEAK_PARAMETERS = {'Gaussian': ['wsindex', 'Height', 'PeakCentre', 'Sigma', 'A0', 'A1', 'chi2'],
-                          'PseudoVoigt': ['wsindex', 'Mixing', 'Intensity', 'PeakCentre', 'FWHM', 'A0', 'A1', 'chi2'],
-                          'Voigt': ['wsindex', 'LorentzAmp', 'LorentzPos', 'LorentzFWHM',
-                                    'GaussianFWHM', 'A0', 'A1', 'chi2']}
-
 
 class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
     """
@@ -106,13 +99,13 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         params_vec = r[1]
 
         # init vector for peak center in d-spacing with error
-        self._peak_center_d_vec = np.ndarray((params_vec.shape[0], 2), params_vec.dtype)
+        self._peak_center_d_vec = np.ndarray((params_vec.shape[1], 2), params_vec.dtype)
 
         for index in range(sub_run_vec.shape[0]):
             # convert to d-spacing: both fitted value and fitting error
             lambda_i = wave_length_vec[index]
             for sub_index in range(2):
-                peak_i_2theta_j = params_vec[index][0][sub_index]
+                peak_i_2theta_j = params_vec[0][index][sub_index]
                 peak_i_d_j = lambda_i * 0.5 / math.sin(peak_i_2theta_j * 0.5 * math.pi / 180.)
                 self._peak_center_d_vec[index][sub_index] = peak_i_d_j
 
@@ -388,8 +381,8 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         :param param_name_list:
         :param including_error:
         :param max_chi2: Default is including all.
-        :return: 2-tuple: (1) (n, ) vector for sub run number  (2) (n, 1) or (n, 2) vector for parameter values and
-                 optionally fitting error
+        :return: 2-tuple: (1) (n, ) vector for sub run number  (2) (p, n, 1) or (p, n, 2) vector for parameter values and
+                 optionally fitting error: p = number of parameters , n = number of sub runs
         """
         # check
         checkdatatypes.check_list('Function parameters', param_name_list)
@@ -423,7 +416,7 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
             num_items = 2
         else:
             num_items =1
-        param_vec = np.zeros(shape=(len(row_index_list), num_params, num_items), dtype='float')
+        param_vec = np.zeros(shape=(num_params, len(row_index_list), num_items), dtype='float')
         sub_run_vec = np.zeros(shape=(len(row_index_list), ), dtype='int')
 
         # sub runs
@@ -470,9 +463,9 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
                 # END-IF-ELSE
 
                 # set value
-                param_vec[vec_index, param_index, 0] = value_i
+                param_vec[param_index, vec_index, 0] = value_i
                 if including_error:
-                    param_vec[vec_index, param_index, 1] = error_i
+                    param_vec[param_index, vec_index, 1] = error_i
             # END-FOR (each row)
         # END-FOR (each parameter)
 
