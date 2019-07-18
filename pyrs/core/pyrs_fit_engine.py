@@ -6,7 +6,7 @@ class RsPeakFitEngine(object):
     """
     virtual peak fit engine
     """
-    def __init__(self, data_set_list, ref_id):
+    def __init__(self, sub_run_list, data_set_list, ref_id):
         """
         initialization
         :param data_set_list:
@@ -14,11 +14,17 @@ class RsPeakFitEngine(object):
         """
         # check
         checkdatatypes.check_list('Data set list', data_set_list)
+        checkdatatypes.check_list('Sun runs', sub_run_list)
         checkdatatypes.check_string_variable('Peak fitting reference ID', ref_id)
+
+        if len(sub_run_list) != len(data_set_list):
+            raise RuntimeError('Sub runs ({}) and data sets ({}) have different sizes'
+                               ''.format(len(sub_run_list), len(data_set_list)))
 
         # for scipy: keep the numpy array will be good enough
         self._data_set = data_set_list
         self._reference_id = ref_id
+        self._sub_run_list = sub_run_list
 
         # for fitted result
         self._peak_center_vec = None  # 2D vector for observed center of mass and highest data point

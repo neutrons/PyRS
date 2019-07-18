@@ -20,18 +20,19 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
     """
     peak fitting engine class for mantid
     """
-    def __init__(self, data_set_list, ref_id):
-        """
-        initialization
+    def __init__(self, sub_run_list, data_set_list, ref_id):
+        """ Initialization to set up the workspace for fitting
+        :param sub_run_list: list of sun runs
         :param data_set_list: list of data set
         :param ref_id: reference ID
         :param
         """
         # call parent
-        super(MantidPeakFitEngine, self).__init__(data_set_list, ref_id)
+        super(MantidPeakFitEngine, self).__init__(sub_run_list, data_set_list, ref_id)
 
         # related to Mantid workspaces
         self._workspace_name = self._get_matrix_name(ref_id)
+        self._ws_index_sub_run_dict = None
         self.generate_matrix_workspace(data_set_list, matrix_ws_name=self._workspace_name)
 
         # some observed properties
@@ -98,17 +99,27 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         """
         # TODO/FIXME - TONIGHT 0 - Must have a better way than try and guess
         try:
-            centre_vec = self.get_fitted_params(param_name_list='PeakCentre')
+            r = self.get_fitted_params(param_name_list=['PeakCentre'], including_error=True)
         except KeyError:
-            centre_vec = self.get_fitted_params(param_name_list='centre')
-        self._peak_center_d_vec = np.ndarray(centre_vec.shape, centre_vec.dtype)
+            r = self.get_fitted_params(param_name_list=['centre'], including_error=True)
+        sub_run_vec = r[0]
+        params_vec = r[1]
 
-        num_pt = len(centre_vec)
-        for scan_log_index in range(num_pt):
-            peak_i_2theta = centre_vec[scan_log_index]
-            lambda_i = wave_length_vec[scan_log_index]
-            peak_i_d = lambda_i * 0.5 / math.sin(peak_i_2theta * 0.5 * math.pi / 180.)
-            self._peak_center_d_vec[scan_log_index] = peak_i_d
+        # init vector for peak center in d-spacing with error
+        self._peak_center_d_vec = np.ndarray((params_vec.shape[0], 2), params_vec.dtype)
+
+        for index in range(sub_run_vec.shape[0]):
+            # convert to d-spacing: both fitted value and fitting error
+            lambda_i = wave_length_vec[index]
+            for sub_index in range(2):
+                peak_i_2theta_j = params_vec[index][0][sub_index]
+                peak_i_d_j = lambda_i * 0.5 / math.sin(peak_i_2theta_j * 0.5 * math.pi / 180.)
+                self._peak_center_d_vec[index][sub_index] = peak_i_d_j
+
+            # peak_i_2theta_std = centre_vec[index][1]
+            # peak_i_d_std = lambda_i * 0.5 / math.sin(peak_i_2theta_std * 0.5 * math.pi / 180.)
+            # self._peak_center_d_vec[index][0] = peak_i_d
+            # self._peak_center_d_vec[index][1] = peak_i_d_std
         # END-FOR
 
         return
@@ -220,8 +231,7 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
 
         return
 
-    @staticmethod
-    def generate_matrix_workspace(data_set_list, matrix_ws_name):
+    def generate_matrix_workspace(self, data_set_list, matrix_ws_name):
         """
         convert data set of all scans to a multiple-spectra Mantid MatrixWorkspace
         :param data_set_list:
@@ -233,14 +243,20 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         checkdatatypes.check_string_variable('MatrixWorkspace name', matrix_ws_name)
 
         # convert input data set to list of vector X and vector Y
+        self._ws_index_sub_run_dict = dict()
         vec_x_list = list()
         vec_y_list = list()
         for index in range(len(data_set_list)):
+            # get data
             diff_data = data_set_list[index]
             vec_x = diff_data[0]
             vec_y = diff_data[1]
+            # append
             vec_x_list.append(vec_x)
             vec_y_list.append(vec_y)
+            # update ws-index to sub run map
+            self._ws_index_sub_run_dict[index] = self._sub_run_list[index]  # maybe redundant
+        # END-FOR
 
         # create MatrixWorkspace
         datax = np.concatenate(vec_x_list, axis=0)
@@ -383,7 +399,7 @@ class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
         # get table information
         col_names = self._fitted_function_param_table.getColumnNames()
         chi2_col_index = col_names.index('chi2')
-        ws_index_col_index = col_names.index('ws_index')
+        ws_index_col_index = col_names.index('wsindex')
 
         # get the rows to survey
         if max_chi2 > 0.999E20:

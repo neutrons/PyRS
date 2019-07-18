@@ -307,6 +307,7 @@ class PyRsCore(object):
 
         # get data
         diff_data_list = list()
+        # TODO - FUTURE - sun run will be used to replace log_index
         for log_index in scan_index_list:
             diff_data = self._data_manager.get_data_set(data_key_set, log_index)
             diff_data_list.append(diff_data)
@@ -316,7 +317,7 @@ class PyRsCore(object):
             ref_id = '{0}'.format(data_key)
         else:
             ref_id = '{0}_{1}'.format(data_key, sub_key)
-        peak_optimizer = mantid_fit_peak.MantidPeakFitEngine(diff_data_list, ref_id=ref_id)
+        peak_optimizer = mantid_fit_peak.MantidPeakFitEngine(scan_index_list, diff_data_list, ref_id=ref_id)
 
         # observed COM and highest Y value data point
         print ('[DB...BAT] Fit Engine w/ Key: {0}'.format(data_key_set))
@@ -443,7 +444,8 @@ class PyRsCore(object):
 
         return optimizer.get_function_parameter_names()
 
-    def get_peak_fit_param_value(self, data_key, param_name, max_cost):
+    # TODO - TONIGHT NOW - Need to migrate to new get_fitted_params
+    def get_peak_fit_param_value(self, data_key, param_name_list, max_cost):
         """
         get a specific parameter's fitted value
         :param data_key:
@@ -455,12 +457,12 @@ class PyRsCore(object):
         optimizer = self._get_optimizer(data_key)
 
         if max_cost is None:
-            param_vec = optimizer.get_fitted_params(param_name)
+            sub_run_vec, param_vec = optimizer.get_fitted_params(param_name_list, False)
             log_index_vec = numpy.arange(len(param_vec))
         else:
             log_index_vec, param_vec = optimizer.get_good_fitted_params(param_name, max_cost)
 
-        return log_index_vec, param_vec
+        return sub_run_vec, param_vec
 
     def get_peak_fit_param_value_error(self, data_key, param_name, max_cost):
         """ Get a specific peak parameter's fitting value with error

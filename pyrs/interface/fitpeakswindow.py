@@ -370,15 +370,16 @@ class FitPeaksWindow(QMainWindow):
         # Retrieve fitting result to param_dict
         # Expand table with extra information including Center of Mass and Sub-Run
         param_dict = dict()
-        for param_name in table_param_names:
-            not_used, param_vec = self._core.get_peak_fit_param_value(data_key, param_name, max_cost=None)
-            param_dict[param_name] = param_vec
+        sub_run_vec, params_vec = self._core.get_peak_fit_param_value(data_key, table_param_names, max_cost=None)
+        # for param_name in table_param_names:
+        #     para, param_vec = self._core.get_peak_fit_param_value(data_key, param_name, max_cost=None)
+        #     param_dict[param_name] = param_vec
         com_vec = self._core.get_peak_center_of_mass(data_key)
-        scan_index_list = [None] * len(com_vec)
-        for row_number in range(len(com_vec)):
-            scan_index_list[row_number] = param_dict['wsindex'][row_number] + 1
+        # scan_index_list = [None] * len(com_vec)
+        # for row_number in range(len(com_vec)):
+        #     scan_index_list[row_number] = param_dict['wsindex'][row_number] + 1
         param_dict['C.O.M'] = com_vec
-        param_dict['Sub-run'] = scan_index_list
+        param_dict['Sub-run'] = sub_run_vec
         # del param_dict['wsindex']
 
         # Convert to effective peak parameters and thus fitting error
