@@ -1,7 +1,6 @@
 import numpy
 import math
 import pyrs.utilities.checkdatatypes
-import scandataio
 from scipy.interpolate import griddata
 
 

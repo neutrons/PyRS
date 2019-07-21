@@ -5,7 +5,7 @@ import h5py
 import checkdatatypes
 import platform
 from mantid.api import AnalysisDataService
-from mantid.simpleapi import AnalysisDataService
+from mantid.simpleapi import AnalysisDataService, SaveNexusProcessed
 from skimage import io, exposure, img_as_uint, img_as_float
 from PIL import Image
 import numpy as np
