@@ -10,18 +10,18 @@ class HydraSetup(object):
     """
     A class to handle anything to do with HB2B (HYDRA) including geometry, wavelength and calibration
     """
-    def __init__(self, detector_setup, wavelength):
+    def __init__(self, l1, detector_setup):
         """ Initialization
+        :param l1: L1 (from source to sample)
         :param detector_setup: (AnglerCameraDetectorGeometry) detector geometry setup
         :param wavelength: (float) wavelength
         """
         # check inputs
         checkdatatypes.check_type('Detector geometry setup', detector_setup, AnglerCameraDetectorGeometry)
-        checkdatatypes.check_float_variable('Monochromator wavelength (A)', wavelength, (1.E-5, None))
 
         # set for original instrument setup defined by engineering
         self._geometry_setup = detector_setup
-        self._wave_length = wavelength
+        self._single_wave_length = None
 
         self._geometry_shift = None
         self._wave_length_shift = 0.
@@ -59,6 +59,18 @@ class HydraSetup(object):
         :return:
         """
         return self._wave_length_shift
+
+    def set_single_wavelength(self, wavelength):
+        """
+        If the instrument has only 1 wave length setup
+        :param wavelength: wave length in unit A
+        :return:
+        """
+        checkdatatypes.check_float_variable('Monochromator wavelength (A)', wavelength, (1.E-5, None))
+
+        self._single_wave_length = wavelength
+
+        return
 
     def set_wavelength_calibration(self, wave_length_shift):
         """
@@ -127,6 +139,27 @@ class AnglerCameraDetectorGeometry(object):
         self._arm_length += geometry_shift.center_shift_z
 
         return
+
+    @property
+    def arm_length(self):
+        """ L2/arm length
+        :return:
+        """
+        return self._arm_length
+
+    @property
+    def detector_size(self):
+        """ Detector size (number of pixels)
+        :return: number of rows, number of columns
+        """
+        return self._detector_rows, self._detector_columns
+
+    @property
+    def pixel_dimension(self):
+        """ Each pixel's linear size at X (across columns) and Y (across rows) direction
+        :return: size along X-axis, size along Y-axis in unit of meter
+        """
+        return self._pixel_size_x, self._pixel_size_y
 
 
 class AnglerCameraDetectorShift(object):
