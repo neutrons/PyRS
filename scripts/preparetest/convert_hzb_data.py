@@ -92,13 +92,15 @@ def generate_hzb_instrument():
     from pyrs.core import instrument_geometry
 
     wavelength = 1.222
+    x = 0.001
+    y = 0.001
     detector = instrument_geometry.AnglerCameraDetectorGeometry(num_rows=256, num_columns=256,
                                                                 pixel_size_x=x,
                                                                 pixel_size_y=y,
                                                                 arm_length=1.,
                                                                 calibrated=False)
 
-    hzb = instrument_geometry.HydraSetup(detector_setup=detector)  # single wave length
+    hzb = instrument_geometry.HydraSetup(l1=1.0, detector_setup=detector)  # single wave length
     hzb.set_single_wavelength(wavelength)
 
     return hzb
@@ -131,10 +133,10 @@ def main():
     # END-FOR
 
     # add sample log data & sub runs
-    for log_name in ['Scan Index', '2Theta', 'Monitor', 'L2']:
+    for log_name in ['sub-run', '2Theta', 'Monitor', 'L2']:
         project_file.add_experiment_information(log_name, exp_logs_dict[log_name])
     # END-FOR
-    project_file.add_experiment_information('sub-run', sub_run_list)
+    # project_file.add_experiment_information('sub-run', sub_run_list)
 
     # add instrument information
     hzb_instrument_setup = generate_hzb_instrument()

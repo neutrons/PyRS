@@ -108,6 +108,8 @@ class HydraProjectFile(object):
         # instrument
         instrument = self._project_h5.create_group('instrument')
         instrument.create_group('calibration')
+        geometry_group = instrument.create_group('geometry setup')
+        geometry_group.create_group('detector')
 
         # reduced data
         reduced_data = self._project_h5.create_group('diffraction')
@@ -138,7 +140,7 @@ class HydraProjectFile(object):
         instrument_group = self._project_h5['instrument']
 
         # write attributes
-        instrument_group.attrs['name'] = instrument_setup.name()
+        instrument_group.attrs['name'] = instrument_setup.name
 
         # get the entry for raw instrument setup
         detector_group = instrument_group['geometry setup']['detector']
@@ -224,7 +226,10 @@ class HydraProjectFile(object):
         assert self._is_writable, 'must be writable'
         checkdatatypes.check_string_variable('Log name', log_name)
 
-        self._project_h5['experiment']['logs'].create_dataset(log_name, data=log_value_array)
+        try:
+            self._project_h5['experiment']['logs'].create_dataset(log_name, data=log_value_array)
+        except RuntimeError as run_err:
+            raise RuntimeError('Unable to add log {} due to {}'.format(log_name, run_err))
 
         return
 

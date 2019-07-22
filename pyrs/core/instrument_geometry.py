@@ -60,6 +60,10 @@ class HydraSetup(object):
         """
         return self._wave_length_shift
 
+    @property
+    def name(self):
+        return 'HB2B'
+
     def set_single_wavelength(self, wavelength):
         """
         If the instrument has only 1 wave length setup
