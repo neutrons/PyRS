@@ -28,7 +28,7 @@ fi
 if [ "$1" = "2" ]
 then 
 	echo "Test converting HZB data"
-        PYTHONPATH=build/lib:$PYTHONPATH scripts/preparetest/convet_hzb_data.py
+        PYTHONPATH=build/lib:$PYTHONPATH scripts/preparetest/convert_hzb_data.py
 fi
 
 if [ "$1" = "3" ]

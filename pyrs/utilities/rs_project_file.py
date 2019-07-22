@@ -15,12 +15,24 @@ class HydraProjectFileMode(Enum):
     READWRITE = 2  # read and write
     OVERWRITE = 3  # new file
 
+
 class DiffractionUnit(Enum):
     """
     Enumerate for diffraction data's unit (2theta or d-spacing)
     """
     TwoTheta = '2theta'
     DSpacing = 'dSpacing'
+
+    @classmethod
+    def unit(cls, unit):
+        """
+        Get the unit in String
+        :return:
+        """
+        if unit == DiffractionUnit.TwoTheta:
+            return '2theta'
+
+        return 'dSpacing'
 
 
 class HydraProjectFile(object):
@@ -63,7 +75,7 @@ class HydraProjectFile(object):
             checkdatatypes.check_file_name(project_file_name, False, True, False, 'Write-only project file')
             self._is_writable = True
             self._project_h5 = h5py.File(project_file_name, mode='w')
-            self._init_file()
+            self._init_project()
 
         elif mode == HydraProjectFileMode.READWRITE:
             # append (read and write)
@@ -80,7 +92,7 @@ class HydraProjectFile(object):
 
         return
 
-    def _init_file(self):
+    def _init_project(self):
         """
         initialize the current opened project file from scratch by opening it
         :return:
@@ -98,9 +110,9 @@ class HydraProjectFile(object):
         instrument.create_group('calibration')
 
         # reduced data
-        reduced_data = self._project_h5.create_group('reduced data')
-        reduced_data.create_group('2theta')
-        reduced_data.create_group('d-spacing')
+        reduced_data = self._project_h5.create_group('diffraction')
+        # reduced_data.create_group('2theta')
+        # reduced_data.create_group('d-spacing')
 
         return
 
@@ -136,7 +148,8 @@ class HydraProjectFile(object):
         detector_group.create_dataset('pixel dimension', numpy.array(instrument_setup.pixel_dimension))
 
         # wave length
-        wavelength_group = 
+        # wavelength_group = 
+        # TODO - NEXT TONIGHT - Implement wave length group
 
         return
 
@@ -276,7 +289,7 @@ class HydraProjectFile(object):
                                           check_same_shape=True)
 
         diff_group = self._create_diffraction_node(sub_run)
-        diff_2t_group = diff_group[DiffractionUnit.TwoTheta]
+        diff_2t_group = diff_group[DiffractionUnit.unit(DiffractionUnit.TwoTheta)]
 
         # set value
         diff_2t_group.create_dataset('2theta', data=two_theta_vector)
@@ -343,8 +356,8 @@ class HydraProjectFile(object):
         else:
             # create new node: parent, child-2theta, child-dspacing
             diff_group = self._project_h5['diffraction'].create_group(sub_run_group_name)
-            diff_group.create_group(DiffractionUnit.TwoTheta)
-            diff_group.create_group(DiffractionUnit.DSpacing)
+            diff_group.create_group(DiffractionUnit.unit(DiffractionUnit.TwoTheta))
+            diff_group.create_group(DiffractionUnit.unit(DiffractionUnit.DSpacing))
 
         return diff_group
 
