@@ -27,13 +27,13 @@ fi
 
 if [ "$1" = "2" ]
 then 
-	echo "Test converting HZB data"
+	echo "Test converting HZB data (for reduction and calibration test)"
         PYTHONPATH=build/lib:$PYTHONPATH scripts/preparetest/convert_hzb_data.py
 fi
 
 if [ "$1" = "3" ]
 then 
-	echo "Doing Nothing"
-	# PYTHONPATH=build/lib:$PYTHONPATH build/scripts-2.7/strainstressgui_test.py
+	echo "Test converting XRay data (for reduction and calibration test)"
+	PYTHONPATH=build/lib:$PYTHONPATH scripts/preparetest/convert_xray_data.py
 fi
 

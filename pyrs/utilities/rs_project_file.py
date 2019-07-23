@@ -146,8 +146,10 @@ class HydraProjectFile(object):
         detector_group = instrument_group['geometry setup']['detector']
         raw_geometry = instrument_setup.get_instrument_geometry(False)
         detector_group.create_dataset('L2', data=numpy.array(raw_geometry.arm_length))
-        detector_group.create_dataset('detector size', numpy.array(instrument_setup.detector_size))
-        detector_group.create_dataset('pixel dimension', numpy.array(instrument_setup.pixel_dimension))
+        detector_group.create_dataset('detector size',
+                                      numpy.array(instrument_setup.get_instrument_geometry(False).detector_size))
+        detector_group.create_dataset('pixel dimension',
+                                      numpy.array(instrument_setup.get_instrument_geometry(False).pixel_dimension))
 
         # wave length
         # wavelength_group = 
