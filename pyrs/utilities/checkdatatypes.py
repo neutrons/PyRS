@@ -165,7 +165,7 @@ def check_numpy_arrays(var_name, variables, dimension, check_same_shape):
     """ check numpy array or numpy arrays
     :param var_name: 
     :param variables: 
-    :param dimension: 
+    :param dimension: None for not checking dimension; Otherwise, a tuple can be compared with numpy.ndarray.shape
     :param check_same_shape:
     :return: 
     """

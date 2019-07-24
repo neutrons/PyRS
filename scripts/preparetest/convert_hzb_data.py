@@ -1,10 +1,22 @@
 #!/usr/bin/python
-# Convert HZB data to standard transformed-HDF5 format considering all the sample log values and instrument information
-# This may be executed only once and moved out of build
-import numpy
+""""
+Convert the old HZB raw data to test
+1. raw counts writing and writing
+2. PyRS reduction
+3. PyRS calibration
+
+Note: most of the methods to parse HZB data are copied from script convert_hzb_data.py
+
+*How to run*
+1. Add PyRS path to python path (refer to pyrsdev.sh)
+2. Run this script
+"""
+from pyrs.utilities import rs_project_file
+import sys
 import os
 from pyrs.utilities import file_util
 from pyrs.utilities import rs_project_file
+import numpy
 
 
 def parse_hzb_tiff(tiff_file_name):
@@ -68,32 +80,49 @@ def import_hzb_summary(summary_excel):
         summary_dict[scan_index_array[item_index]] = scan_i_dict
     # END-FOR
 
-    return summary_dict, {'Scan Index': scan_index_array, '2Theta': two_theta_array,
+    return summary_dict, {'sub-run': scan_index_array, '2Theta': two_theta_array,
                           'Monitor': monitor_array, 'L2': l2_array}
 
 
-def main(argv):
+def generate_hzb_instrument():
     """
-    main for the workflow to create the HDF5
+    Create an instrument setup for HZB
+    :return:
+    """
+    from pyrs.core import instrument_geometry
+
+    wavelength = 1.222
+    arm_length = 1.13268
+    x = 0.001171875
+    y = 0.001171875
+    detector = instrument_geometry.AnglerCameraDetectorGeometry(num_rows=256, num_columns=256,
+                                                                pixel_size_x=x,
+                                                                pixel_size_y=y,
+                                                                arm_length=arm_length,
+                                                                calibrated=False)
+
+    hzb = instrument_geometry.HydraSetup(l1=1.0, detector_setup=detector)  # single wave length
+    hzb.set_single_wavelength(wavelength)
+
+    return hzb
+
+
+def main():
+    """
+    Main method to do the conversion
     :param argv:
     :return:
     """
-    # process inputs ...
-    exp_summary_excel = argv[1]
-    exp_data_dir = argv[2]
-    project_file_name = argv[3]
+    hzb_summary_name = '/SNS/users/wzz/Projects/HB2B/Quasi_HB2B_Calibration/calibration.xlsx'
+    output_file_name = 'tests/testdata/HZB_Raw_Project.hdf'
+    exp_data_dir = '/SNS/users/wzz/Projects/HB2B/Quasi_HB2B_Calibration/'  # raw HZB TIFF exp data directory
 
     # parse EXCEL spread sheet
-    exp_summary_dict, exp_logs_dict = import_hzb_summary(exp_summary_excel)
+    exp_summary_dict, exp_logs_dict = import_hzb_summary(hzb_summary_name)
 
     # start project file
-    project_file = rs_project_file.HydraProjectFile(project_file_name,
+    project_file = rs_project_file.HydraProjectFile(output_file_name,
                                                     mode=rs_project_file.HydraProjectFileMode.OVERWRITE)
-
-    # add sample log data
-    for log_name in ['Scan Index', '2Theta', 'Monitor', 'L2']:
-        project_file.add_experiment_information(log_name, exp_logs_dict[log_name])
-    # END-FOR
 
     # parse and add counts
     sub_run_list = exp_summary_dict.keys()
@@ -104,6 +133,16 @@ def main(argv):
         project_file.add_raw_counts(sub_run_i, counts_array)
     # END-FOR
 
+    # add sample log data & sub runs
+    for log_name in ['sub-run', '2Theta', 'Monitor', 'L2']:
+        project_file.add_experiment_information(log_name, exp_logs_dict[log_name])
+    # END-FOR
+    # project_file.add_experiment_information('sub-run', sub_run_list)
+
+    # add instrument information
+    hzb_instrument_setup = generate_hzb_instrument()
+    project_file.set_instrument_geometry(hzb_instrument_setup)
+
     # save
     project_file.close()
 
@@ -111,7 +150,4 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    main(['Whatever',
-          '/SNS/users/wzz/Projects/HB2B/Quasi_HB2B_Calibration/calibration.xlsx',
-          '/SNS/users/wzz/Projects/HB2B/Quasi_HB2B_Calibration/',
-          'tests/testdata/hzb/hzb_calibration.hdf5'])
+    main()
