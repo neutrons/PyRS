@@ -16,7 +16,7 @@ if [ $1 ]; then
     CMD=$1
 else
     CMD=
-    echo "1: peak fit, 2: texture, 3: strain stress, 4: manual reduction, 5: instrument geometry calibration"
+    echo "1: peak fit, 2: HZB, 3: XRay, 4: manual reduction, 5: instrument geometry calibration"
 fi
 
 if [ "$1" = "1" ]

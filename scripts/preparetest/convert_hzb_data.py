@@ -92,12 +92,13 @@ def generate_hzb_instrument():
     from pyrs.core import instrument_geometry
 
     wavelength = 1.222
-    x = 0.001
-    y = 0.001
+    arm_length = 1.13268
+    x = 0.001171875
+    y = 0.001171875
     detector = instrument_geometry.AnglerCameraDetectorGeometry(num_rows=256, num_columns=256,
                                                                 pixel_size_x=x,
                                                                 pixel_size_y=y,
-                                                                arm_length=1.,
+                                                                arm_length=arm_length,
                                                                 calibrated=False)
 
     hzb = instrument_geometry.HydraSetup(l1=1.0, detector_setup=detector)  # single wave length

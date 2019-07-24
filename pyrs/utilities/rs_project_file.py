@@ -110,6 +110,7 @@ class HydraProjectFile(object):
         instrument.create_group('calibration')
         geometry_group = instrument.create_group('geometry setup')
         geometry_group.create_group('detector')
+        geometry_group.create_group('wave length')
 
         # reduced data
         reduced_data = self._project_h5.create_group('diffraction')
@@ -146,14 +147,14 @@ class HydraProjectFile(object):
         detector_group = instrument_group['geometry setup']['detector']
         raw_geometry = instrument_setup.get_instrument_geometry(False)
         detector_group.create_dataset('L2', data=numpy.array(raw_geometry.arm_length))
-        detector_group.create_dataset('detector size',
-                                      numpy.array(instrument_setup.get_instrument_geometry(False).detector_size))
-        detector_group.create_dataset('pixel dimension',
-                                      numpy.array(instrument_setup.get_instrument_geometry(False).pixel_dimension))
+        det_size = numpy.array(instrument_setup.get_instrument_geometry(False).detector_size)
+        detector_group.create_dataset('detector size', data=det_size)
+        pixel_dimension = list(instrument_setup.get_instrument_geometry(False).pixel_dimension)
+        detector_group.create_dataset('pixel dimension', data=numpy.array(pixel_dimension))
 
         # wave length
-        # wavelength_group = 
-        # TODO - NEXT TONIGHT - Implement wave length group
+        wavelength_group = instrument_group['geometry setup']['wave length']
+        wavelength_group.create_dataset('wavelength', data=numpy.array([instrument_setup.get_wavelength(None, False)]))
 
         return
 

@@ -60,13 +60,13 @@ def generate_xray_instrument():
     """
     from pyrs.core import instrument_geometry
 
-    wavelength = 1.222
-    x = 0.001
-    y = 0.001
+    wavelength = 1.239  # A
+    x = 0.00020  # meter
+    y = 0.00020  # meter
     detector = instrument_geometry.AnglerCameraDetectorGeometry(num_rows=2048, num_columns=2048,
                                                                 pixel_size_x=x,
                                                                 pixel_size_y=y,
-                                                                arm_length=1.,
+                                                                arm_length=0.416,  # meter
                                                                 calibrated=False)
 
     hzb = instrument_geometry.HydraSetup(l1=1.0, detector_setup=detector)  # single wave length

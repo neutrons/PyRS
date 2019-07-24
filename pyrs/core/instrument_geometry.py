@@ -42,16 +42,23 @@ class HydraSetup(object):
 
         return self._geometry_setup
 
-    def get_wavelength(self, calibrated):
+    def get_wavelength(self, wave_length_tag, calibrated):
         """
         Get wave length
+        :param wave_length_tag: user tag (as 111, 222) for wave length. None for single wave length
         :param calibrated:
         :return:
         """
+        w_l = None
+
         if calibrated:
             return self._wave_length_shift + self._wave_length
+        elif wave_length_tag is None:
+            w_l = self._single_wave_length
+        else:
+            w_l = self._engineer_wave_length[wave_length_tag]
 
-        return self._wave_length
+        return w_l
 
     def get_wavelength_shift(self):
         """
