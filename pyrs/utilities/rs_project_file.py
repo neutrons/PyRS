@@ -342,6 +342,21 @@ class HydraProjectFile(object):
 
         return
 
+    def set_information(self, info_dict):
+        """
+        set project information to attributes
+        :param info_dict:
+        :return:
+        """
+        # check and validate
+        checkdatatypes.check_dict('Project file general information', info_dict)
+        self._validate_write_operation()
+
+        for info_name in info_dict:
+            self._project_h5.attrs[info_name] = info_dict[info_name]
+
+        return
+
     def _create_diffraction_node(self, sub_run_number):
         """ Create a node to record diffraction data
         It will check if such node already exists
