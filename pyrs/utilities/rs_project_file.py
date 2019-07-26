@@ -6,6 +6,8 @@ from pyrs.core import instrument_geometry
 from enum import Enum
 import numpy
 
+# TODO - NOW TONIGHT #72 - Use more enumerate and constant for HDF groups' names
+
 
 class HydraProjectFileMode(Enum):
     """
