@@ -14,7 +14,7 @@ def convert_opt_operations(opt_opts):
              (4) dictionary for helping message: key = parameter name, value = short name, long name, document
     """
 
-    checkdatatypes.check_list('Command options', opt_opts)
+    checkdatatypes.check_type('Command options', opt_opts, list)
 
     # split a 4 tuple to 2 3-tuples
     opt_dict = dict()
@@ -95,11 +95,13 @@ def process_arguments(argv_list,  opt_operation_list):
     (2) throwing exception if any mandatory argument is not given
     (3) setting default values to optional arguments
     (4) print out helping message
-    :exception: RuntimeError for (1) wrong opt operation definition or (2)
-    :param :
+    This is the method serving as main entry point for script's main method
+    :param argv_list:
     :param opt_operation_list:
-    :return: argument value dictionary or None (help)
+    :return:  argument value dictionary or None (help)
     """
+    print ('L103: ', opt_operation_list)
+
     # Check inputs
     opt_operate_dict, mandatory_param_list, optional_param_default_dict, info_dict = \
         convert_opt_operations(opt_operation_list)

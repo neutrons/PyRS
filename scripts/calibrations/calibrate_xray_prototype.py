@@ -33,15 +33,15 @@ def main(argv):
     # Optional: bins
 
     # long-name, short-name, target name, type, default value, is mandatory, documen
-    args_def_dict = {'input', 'i', 'inputfile', str, None, True, 'Input HIDRA project file',
-                     'masks', 'm', 'masksfiles', str, None, False, 'Path to an ASCI file containing list of path to'
-                                                                   ' mask files, separated by ":", ", " or "\n"',
-                     'instrument', None, 'instrument', str, None, False, 'Path to instrument file',
-                     'output', 'o', 'outputfile', str, None, True, 'Output calibration in JSON format',
-                     'binsize', 'b', 'binsize', float, 0.01, False, '2theta step'}
+    args_def_dict = [('input', 'i', 'inputfile', str, None, True, 'Input HIDRA project file'),
+                     ('masks', 'm', 'masksfiles', str, None, False,
+                      'Path to an ASCI file containing list of path to mask files, separated by ":", ", " or "\n"'),
+                     ('instrument', None, 'instrument', str, None, False, 'Path to instrument file'),
+                     ('output', 'o', 'outputfile', str, None, True, 'Output calibration in JSON format'),
+                     ('binsize', 'b', 'binsize', float, 0.01, False, '2theta step')]
 
     try:
-        param_dict = script_helper.parse_arguments(argv, args_def_dict)
+        param_dict = script_helper.process_arguments(argv, args_def_dict)
     except RuntimeError as run_err:
         print ('Failed to parse inputs due to {}'.format(run_err))
         return

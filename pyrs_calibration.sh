@@ -2,24 +2,34 @@
 python setup.py pyuic
 python setup.py build
 
-echo
 MANTIDLOCALPATH=/home/wzz/Mantid_Project/debug/bin/
 MANTIDMACPATH=/Users/wzz/MantidBuild/debug/bin/
-MANTIDSNSPATH=/opt/mantidnightly/bin/
-MANTIDPATH=$MANTIDMACPATH:$MANTIDLOCALPATH:$MANTIDSNSPATH
+MANTIDSNSDEBUGPATH=/opt/mantidnightly/bin/  # NIGHTLY for latest Pseudo-voigt
+MANTIDPATH=$MANTIDMACPATH:$MANTIDLOCALPATH:$MANTIDSNSDEBUGPATH
 PYTHONPATH=$MANTIDPATH:$PYTHONPATH
+echo
 
-
-# PYTHONPATH=build/lib:$PYTHONPATH $CMD build/scripts-2.7/pyrscalibration.py
+if [ $1 ]; then
+    CMD=$1
+else
+    CMD=
+    echo "1: Prototype X-ray; 2: Prototype HZB; 3: Prototype Chris (X-ray)"
+fi
 
 echo "User option: $1"
 
-if [ "$1" = "111" ] || [ "$1" = "prototype" ] ; then
+if [ "$1" = "1" ] || ['$1' = 'x']; then
+    echo "NOT DEFINED YET"
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python scripts/calibrations/calibrate_xray_prototype.py
+fi
+
+if [ "$1" = "3" ] || [ "$1" = "chris" ] ; then
     echo "Protyping calibration"
     PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./prototypes/calibration/Quick_Calibration_general.py
 fi
 
-if [ "$1" = "1" ] ; then
+
+if [ "$1" = "2" ] ; then
     echo "NOT DEFINED YET"
     PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH
 fi
