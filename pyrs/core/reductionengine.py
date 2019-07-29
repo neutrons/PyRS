@@ -27,7 +27,8 @@ class HB2BReductionManager(object):
         self._calibration_manager = calibration_file_io.CalibrationManager()
 
         # workspace name or array vector
-        self._data_dict = dict()   # ID = workspace, counts vector
+        self._curr_workspace = None
+        self._workspace_dict = dict()  # ID = workspace, counts vector
 
         # number of bins
         self._num_bins = 2500
@@ -94,54 +95,21 @@ class HB2BReductionManager(object):
     def get_sub_run_2theta(self, exp_handler, sub_run):
         return self._raw_data_dict[exp_handler][sub_run][1]
 
-    def load_data(self, data_file_name, sub_run=None, target_dimension=None, load_to_workspace=True):
+    def init_session(self, session_name):
         """
-        Load data set and
-        - determine the instrument size (for PyHB2BReduction and initialize the right one if not created)
-        :param data_file_name:
-        :param sub_run: integer for sun run number
-        :param target_dimension: if TIFF, target dimension will be used to bin the data
-        :param load_to_workspace: if TIFF, option to create a workspace
-        :return: data ID to look up, 2-theta (None if NOT recorded)
+        Initialize a new session of reduction and thus to store data according to session name
+        :return:
         """
-        # check inputs
-        checkdatatypes.check_file_name(data_file_name, True, False, False, 'Data file to load')
+        # Check inputs
+        checkdatatypes.check_string_variable('Reduction session name', session_name)
+        if session_name == '' or session_name in self._session_dict:
+            raise RuntimeError('Session name {} is either empty or previously used (not unique)'.format(session_name))
 
-        # check file type
-        if data_file_name.endswith('.nxs.h5'):
-            file_type = 'nxs.h5'
-        else:
-            file_type = data_file_name.split('.')[-1].lower()
+        self._curr_workspace = ReductionWorkspace(session_name)
 
-        # load
-        two_theta = None
+        return
 
-        if file_type == 'tif' or file_type == 'tiff':
-            # TIFF
-            data_id = self._load_tif_image(data_file_name, target_dimension, rotate=True,
-                                           load_to_workspace=load_to_workspace)
-
-        elif file_type == 'bin':
-            # SPICE binary
-            data_id = self._load_spice_binary(data_file_name)
-
-        elif file_type == 'hdf5' or file_type == 'h5':
-            # PyRS HDF5
-            data_id, two_theta = self._load_pyrs_h5(data_file_name, sub_run, load_to_workspace)
-
-        elif file_type == 'nxs.h5' or file_type == 'nxs':
-            # Event NeXus
-            data_id = self._load_nexus(data_file_name)
-
-        else:
-            # not supported
-            raise RuntimeError('File type {} from input {} is not supported.'.format(file_type, data_file_name))
-
-        self._last_loaded_data_id = data_id
-
-        return data_id, two_theta
-
-    def load_hidra_project(self, project_file_name):
+    def load_hidra_project(self, project_file_name, load_calibrated_instrument):
         """
         load hidra project file
         :param project_file_name:
@@ -151,31 +119,44 @@ class HB2BReductionManager(object):
         checkdatatypes.check_file_name(project_file_name, True, False, False, 'Project file to load')
 
         # PyRS HDF5
-        diff_file = rs_project_file.HydraProjectFile(project_file_name, mode='r')
+        project_h5_file = rs_project_file.HydraProjectFile(project_file_name, mode='r')
 
-        # set up the dictionary to contain the data
-        handler = os.path.basename(project_file_name).split('.')[0]
-        self._raw_data_dict[handler] = dict()
+        # Check
+        if self._curr_workspace is None:
+            raise RuntimeError('Call init_session to create a ReductionWorkspace')
 
-        sub_run_list = diff_file.get_sub_runs()
+        # Load sample logs
+        sub_run_list = project_h5_file.get_sub_runs()
         for sub_run in sorted(sub_run_list):
-            count_vec = diff_file.get_scan_counts(sub_run=sub_run)
-            two_theta = diff_file.get_log_value(log_name='2Theta', sub_run=sub_run)
-
-            self._raw_data_dict[handler][sub_run] = count_vec, two_theta
+            # count
+            count_vec = project_h5_file.get_scan_counts(sub_run=sub_run)
+            self._curr_workspace.add_sub_run(sub_run, count_vec)
         # END-FOR
 
-        return handler
+        # Get sample logs
+        two_theta_log = project_h5_file.get_log_value(log_name='2Theta')
+        self._curr_workspace.add_log('2Theta', two_theta_log)
 
-    # TODO - TONIGHT 4 - Better!
+        # Instrument
+        instrument_setup = project_h5_file.get_instrument_geometry(load_calibrated_instrument)
+        self._curr_workspace.set_instrument(instrument_setup)
+
+        project_h5_file.close()
+
+        return
+
     def load_instrument_file(self, instrument_file_name):
         """
         Load instrument (setup) file
         :param instrument_file_name:
         :return:
         """
+        # Check
+        if self._curr_workspace is None:
+            raise RuntimeError('Call init_session to create a ReductionWorkspace')
+
         instrument = calibration_file_io.import_instrument_setup(instrument_file_name)
-        self.set_instrument(instrument)
+        self._curr_workspace.set_instrument(instrument)
 
         return
 

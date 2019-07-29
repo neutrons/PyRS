@@ -1,8 +1,9 @@
 # This is the core of PyRS serving as the controller of PyRS and hub for all the data
 import datamanagers
 from pyrs.utilities import checkdatatypes
-from pyrs.utilities import rs_scan_io
+# from pyrs.utilities import rs_scan_io
 from pyrs.utilities import file_util
+from pyrs.utilities import rs_project_file
 import mantid_fit_peak
 import strain_stress_calculator
 import reductionengine
@@ -23,8 +24,7 @@ class PyRsCore(object):
         initialization
         """
         # declaration of class members
-        self._file_io_controller = rs_scan_io.DiffractionDataFile()  # a I/O instance for standard HB2B file
-        self._data_manager = datamanagers.RawDataManager()
+        self._data_manager = datamanagers.HidraWorkspace()
         self._reduction_engine = reductionengine.HB2BReductionManager()
 
         # working environment
@@ -553,6 +553,19 @@ class PyRsCore(object):
 
         return peak_intensities
 
+    def load_hidra_project(self, hidra_h5_name, project_name):
+        """
+        Load a HIDRA project file
+        :param hidra_h5_name: name of HIDRA project file in HDF5 format
+        :param project_name: name of the reduction project specified by user to trace
+        :return:
+        """
+        # Load data
+        self._reduction_engine.init_ession(project_name)
+        self._reduction_engine.load_hidra_project(hidra_h5_name)
+
+        return
+
     def load_rs_raw(self, h5file):
         """
         load HB2B raw h5 file
@@ -561,7 +574,7 @@ class PyRsCore(object):
         """
         diff_data_dict, sample_log_dict = self._file_io_controller.load_rs_file(h5file)
 
-        data_key = self.data_center.add_raw_data(diff_data_dict, sample_log_dict, h5file, replace=True)
+        data_key = self.data_center._load_raw_counts(diff_data_dict, sample_log_dict, h5file, replace=True)
         message = 'Load {0} (Ref ID {1})'.format(h5file, data_key)
 
         # set to current key

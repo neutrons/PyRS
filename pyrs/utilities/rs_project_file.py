@@ -50,7 +50,16 @@ class HydraProjectFile(object):
         - logs
     - instrument
         - calibration
-    -
+    - reduced diffraction data
+        - main
+          - sub-run
+          - ...
+        - mask_A
+          - sub-run
+          - ...
+        - mask_B
+          - sub-run
+          - ...
 
     """
     def __init__(self, project_file_name, mode):

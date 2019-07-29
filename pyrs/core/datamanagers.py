@@ -2,6 +2,7 @@
 import numpy
 import os
 from pyrs.utilities import checkdatatypes
+from pyrs.utilities import rs_project_file
 
 
 class ScanDataHolder(object):
@@ -124,7 +125,7 @@ class ScanDataHolder(object):
         return self._scan_log_indexes[:]
 
 
-class RawDataManager(object):
+class HidraWorkspace(object):
     """
     Raw diffraction data (could be corrected) manager for all loaded and (possibly) processed data
     """
@@ -132,11 +133,137 @@ class RawDataManager(object):
         """
         initialization
         """
-        self._data_dict = dict()  # key = data key, data = data class
-        self._file_ref_dict = dict()  # key = file name, value = data key / reference ID
+        # raw counts
+        self._raw_counts = None  # dict [sub-run] = count vector
+
+        # spectra-sub run mapper
+        self._sub_run_to_spectrum = None  # [sub-run] = spectrum, spectrum: 0 - ... continuous
+        self._spectrum_to_sub_run = None  # [spectrum] = sub-run
+
+        # diffraction
+        self._2theta_vec = None  # ndarray.  shape = (m, ) m = number of 2theta
+        self._diff_data_set = None  # ndarray. shape=(n, m)  n = number of sub-run, m = number of of 2theta
+
+        # instrument
+        self._instrument_setup = None
+
+        # sample logs
+        self._sample_log_dict = dict()  # sample logs
+
+        # self._data_dict = dict()  # key = data key, data = data class
+        # self._file_ref_dict = dict()  # key = file name, value = data key / reference ID
 
         return
 
+    def load_hidra_project(self, hidra_file, load_raw_counts, load_reduced_diffraction):
+        """
+        Load HIDRA project file
+        :param hidra_file: HIDRA project file
+        :param load_raw_counts: Flag to load raw counts
+        :param load_reduced_diffraction: Flag to load reduced diffraction data
+        :return:
+        """
+        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
+
+        # create the spectrum map
+        sub_run_list = hidra_file.get_sub_runs()
+        self._create_subrun_spectrum_map(sub_run_list)
+
+        # load raw detector counts
+        if load_raw_counts:
+            self._load_raw_counts(hidra_file)
+
+        # load reduced diffraction
+        if load_reduced_diffraction:
+            self._load_reduced_diffraction_data(hidra_file)
+
+        # load instrument
+        self._load_instrument(hidra_file)
+
+        # load sample logs
+        self._load_sample_logs(hidra_file)
+
+        return
+
+    def _create_subrun_spectrum_map(self, sub_run_list):
+        """
+        Set up the sub-run/spectrum maps
+        :param sub_run_list:
+        :return:
+        """
+        # this is the only place _sub_run_to_spectrum and _spectrum_to_sub_run that appear at the left of '='
+        # besides the dictionaries are created
+        for spec_id, sub_run in enumerate(sorted(sub_run_list)):
+            self._sub_run_to_spectrum[sub_run] = spec_id
+            self._spectrum_to_sub_run[spec_id] = sub_run
+
+        return
+
+    def _load_raw_counts(self, hidra_file):
+        """ Load raw detector counts from HIDRA file
+        :param hidra_file:
+        :return:
+        """
+        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
+
+        for sub_run_i in sorted(self._sub_run_to_spectrum.keys()):
+            counts_vec_i = hidra_file.get_raw_counts(sub_run_i)
+            spec_i = self._sub_run_to_spectrum[sub_run_i]
+            self._raw_counts[spec_i] = counts_vec_i
+        # END-FOR
+
+        return
+
+    def _load_reduced_diffraction_data(self, hidra_file):
+        """
+        Load reduced diffraction data from HIDRA file
+        :param hidra_file:
+        :return:
+        """
+        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
+
+        # get X value
+        vec_2theta = hidra_file.get_reduced_diff_2theta_vec()
+        self._diff_2theta_vec = vec_2theta[:]
+
+        # initialize data set for reduced diffraction patterns
+        self._diff_data_set = numpy.ndarray(shape=(num_spec, vec_2theta.shape[0]),
+                                            dtype='float')
+
+        # check whether there is diffraction data reduced with mask
+        diff_mask_list = hidra_file.get_reduced_data_masks()
+        for mask_name in diff_mask_list:
+            # init masks
+            self._diff_data_mask_set[mask_name] = numpy.ndarray(shape=self._diff_data_set.shape,
+                                                                dtype=self._diff_data_set.dtype)
+        # END-FOR
+
+        for sub_run_i in sorted(self._sub_run_to_spectrum.keys()):
+            # get spectrum ID
+            spec_i = self._sub_run_to_spectrum[sub_run_i]
+
+            # main
+            diff_main_vec_i = hidra_file.get_reduced_diff_intensity(sub_run_i)
+            self._diff_data_set[spec_i] = diff_main_vec_i
+
+            # masks
+            for mask_name in diff_mask_list:
+                diff_mask_vec_i = hidra_file.get_reduced_diff_intensity(sub_run_i, mask_name)
+                self._diff_data_mask_set[mask_name][spec_i] = diff_main_vec_i
+            # END-FOR (mask)
+        # END-FOR (sub-run)
+
+        return
+
+    def _load_instrument(self,  hidra_file):
+        """
+        Load instrument setup from HIDRA file
+        :param hidra_file:
+        :return:
+        """
+        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
+
+    # TODO - Need to evaluate
     def _check_data_key(self, data_key):
         """
         check whether a data key is valid and exist
@@ -166,7 +293,8 @@ class RawDataManager(object):
 
         return
 
-    def add_raw_data(self, diff_data_dict, sample_log_dict, h5file, replace=True):
+    # TODO - Need to evaluate
+    def _load_raw_counts(self, diff_data_dict, sample_log_dict, h5file, replace=True):
         """
         add a loaded raw data set
         :param diff_data_dict:
