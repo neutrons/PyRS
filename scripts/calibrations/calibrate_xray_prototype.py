@@ -26,6 +26,11 @@ def parse_mask_files(masks_list_file_name):
 
 
 def main(argv):
+    """
+    Main
+    :param argv:
+    :return:
+    """
     #
     # Required: HIDRA
     # Optional: Instrument file
@@ -76,4 +81,5 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    main(sys.argv)
+    argv = ['-h']
+    main(argv)

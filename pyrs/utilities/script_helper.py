@@ -68,14 +68,14 @@ def parse_arguments(argv, opt_operation_list):
         long_name = t7[0]
         short_name = t7[1]
         if short_name is not None:
-            short_list_string += '{}'.format(short_name)
+            short_list_string += '{}:'.format(short_name)
         if long_name is not None:
-            long_list.append('{}=long_name')
+            long_list.append('{}='.format(long_name))
     # END-FOR
 
     # add help
     long_list.append('help')
-    short_list_string += 'h'
+    short_list_string += 'h:'
 
     print ('[DB...BAT] Short name list: {}; Long name list: {}'.format(short_list_string, long_list))
     # Example: "hdi:o:l:g:G:r:R:"
@@ -83,6 +83,10 @@ def parse_arguments(argv, opt_operation_list):
     try:
         opts, args = getopt.getopt(argv, short_list_string, long_list)
     except getopt.GetoptError as get_err:
+        """
+        [DB...BAT] Short name list: i:m:o:b:h:; Long name list: ['input=', 'masks=', 'instrument=', 'output=', 'binsize=', 'help']
+        Failed to parse inputs due to Unable to get-opt from input arguments (['-h']) due to option -h requires argument
+        """
         raise RuntimeError('Unable to get-opt from input arguments ({}) due to {}'
                            ''.format(argv, get_err))
 
@@ -100,14 +104,17 @@ def process_arguments(argv_list,  opt_operation_list):
     :param opt_operation_list:
     :return:  argument value dictionary or None (help)
     """
-    print ('L103: ', opt_operation_list)
-
     # Check inputs
     opt_operate_dict, mandatory_param_list, optional_param_default_dict, info_dict = \
         convert_opt_operations(opt_operation_list)
 
     # Parse inputs to args and opts
-    command_opts = parse_arguments(argv_list, opt_operation_list)
+    command_opts, command_args = parse_arguments(argv_list, opt_operation_list)
+
+    # user does not have any valid inputs
+    if len(command_opts) == 0:
+        print ('Run "{0} -h" or {0} --help" for help'.format(command_args[0]))
+        return None
 
     # Read each input
     arguments_dict = dict()
@@ -123,6 +130,7 @@ def process_arguments(argv_list,  opt_operation_list):
     # END-
 
     # Check helper
+    print ('L129', arguments_dict.keys())
     if arguments_dict['help']:
         print_helper(info_dict)
         return None
