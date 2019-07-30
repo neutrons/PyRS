@@ -12,6 +12,33 @@ from pyrs.utilities import script_helper
 # TODO - NOW TONIGHT #72 - Input arguments definition and processing can be generalized
 
 
+def parse_mask_files(mask_file_name):
+    """
+    Parse mask file names from an ASCII file
+    :param mask_file_name:
+    :return:
+    """
+    if mask_file_name is None:
+        return list()
+
+    ifile = open(mask_file_name, 'r')
+    lines = ifile.readlines()
+    ifile = ifile.close()
+
+    # Parse
+    mask_file_list = list()
+    for raw_line in lines:
+        line = raw_line.strip()
+        # remove , and \t
+        line = line.replace(',', ' ')
+        line = line.replace('\t', ' ')
+        terms = line.split()
+        for file_name in terms:
+            mask_file_list.append(file_name)
+
+    return mask_file_list
+
+
 def parse_mask_files(masks_list_file_name):
     """
     Read an ASCII file containing a list of masks
@@ -81,5 +108,4 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    argv = ['-h']
-    main(argv)
+    main(sys.argv)

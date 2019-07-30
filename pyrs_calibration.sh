@@ -12,15 +12,19 @@ echo
 if [ $1 ]; then
     CMD=$1
 else
-    CMD=
+    CMD=""
     echo "1: Prototype X-ray; 2: Prototype HZB; 3: Prototype Chris (X-ray)"
 fi
 
 echo "User option: $1"
 
-if [ "$1" = "1" ] || ['$1' = 'x']; then
+PYRSPATH=build/lib:build/lib.linux-x86_64-2.7
+
+if [ "$1" = "1" ] || [ "$1" = "x" ] ; then
     echo "NOT DEFINED YET"
-    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python scripts/calibrations/calibrate_xray_prototype.py
+    PYTHONPATH=$PYRSPATH:$PYTHONPATH python scripts/balbla.py $
+    ARGS="-i tests/testdata/Xray.hdf5 -o tests/cal.json --instrument=my.txt"
+    PYTHONPATH=$PYRSPATH:$PYTHONPATH python scripts/calibrations/calibrate_xray_prototype.py $(ARGS)
 fi
 
 if [ "$1" = "3" ] || [ "$1" = "chris" ] ; then
