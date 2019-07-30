@@ -110,6 +110,8 @@ def process_arguments(argv_list,  opt_operation_list):
 
     # Parse inputs to args and opts
     command_opts, command_args = parse_arguments(argv_list, opt_operation_list)
+    print ('L113 command opts', command_opts)
+    print ('L113 command args', command_args)
 
     # user does not have any valid inputs
     if len(command_opts) == 0:
