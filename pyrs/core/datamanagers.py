@@ -134,7 +134,7 @@ class HidraWorkspace(object):
         initialization
         """
         # raw counts
-        self._raw_counts = None  # dict [sub-run] = count vector
+        self._raw_counts = dict()  # dict [sub-run] = count vector
 
         # spectra-sub run mapper
         self._sub_run_to_spectrum = None  # [sub-run] = spectrum, spectrum: 0 - ... continuous
@@ -158,7 +158,7 @@ class HidraWorkspace(object):
     def load_hidra_project(self, hidra_file, load_raw_counts, load_reduced_diffraction):
         """
         Load HIDRA project file
-        :param hidra_file: HIDRA project file
+        :param hidra_file: HIDRA project file instance (not file name)
         :param load_raw_counts: Flag to load raw counts
         :param load_reduced_diffraction: Flag to load reduced diffraction data
         :return:
@@ -192,6 +192,9 @@ class HidraWorkspace(object):
         :return:
         """
         # this is the only place _sub_run_to_spectrum and _spectrum_to_sub_run that appear at the left of '='
+        self._sub_run_to_spectrum = dict()
+        self._spectrum_to_sub_run = dict()
+
         # besides the dictionaries are created
         for spec_id, sub_run in enumerate(sorted(sub_run_list)):
             self._sub_run_to_spectrum[sub_run] = spec_id
@@ -263,6 +266,22 @@ class HidraWorkspace(object):
         """
         checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
 
+        # TODO - TONIGHT NOW - ASAP
+
+        return
+
+    def _load_sample_logs(self, hidra_file):
+        """
+
+        :param hidra_file:
+        :return:
+        """
+        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
+
+        # TODO - TONIGHT NOW - ASAP
+
+        return
+
     # TODO - Need to evaluate
     def _check_data_key(self, data_key):
         """
@@ -294,7 +313,7 @@ class HidraWorkspace(object):
         return
 
     # TODO - Need to evaluate
-    def _load_raw_counts(self, diff_data_dict, sample_log_dict, h5file, replace=True):
+    def _load_raw_counts_old(self, diff_data_dict, sample_log_dict, h5file, replace=True):
         """
         add a loaded raw data set
         :param diff_data_dict:

@@ -22,8 +22,8 @@ PYRSPATH=build/lib:build/lib.linux-x86_64-2.7
 
 if [ "$1" = "1" ] || [ "$1" = "x" ] ; then
     echo "NOT DEFINED YET"
-    PYTHONPATH=$PYRSPATH:$PYTHONPATH python scripts/balbla.py
-    PYTHONPATH=$PYRSPATH:$PYTHONPATH python scripts/calibrations/calibrate_xray_prototype.py -i=tests/testdata/Hidra_XRay_LaB6_10kev_35deg.hdf -o=tests/cal.json --instrument=my.txt
+    PYTHONPATH=$PYRSPATH:$PYTHONPATH python scripts/preparetest/convert_xray_data.py
+    PYTHONPATH=$PYRSPATH:$PYTHONPATH python scripts/calibrations/calibrate_xray_prototype.py -i tests/testdata/Hidra_XRay_LaB6_10kev_35deg.hdf -o tests/cal.json --instrument=my.txt
 fi
 
 if [ "$1" = "3" ] || [ "$1" = "chris" ] ; then

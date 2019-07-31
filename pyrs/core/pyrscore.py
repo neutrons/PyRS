@@ -561,8 +561,8 @@ class PyRsCore(object):
         :return:
         """
         # Load data
-        self._reduction_engine.init_ession(project_name)
-        self._reduction_engine.load_hidra_project(hidra_h5_name)
+        self._reduction_engine.init_session(project_name)
+        self._reduction_engine.load_hidra_project(hidra_h5_name, False)
 
         return
 
@@ -630,6 +630,10 @@ class PyRsCore(object):
         else:
             raise RuntimeError('Data key {0} is not calculated for pole figure.  Current data keys contain {1}'
                                ''.format(data_key, self._pole_figure_calculator_dict.keys()))
+
+        return
+
+    def reduce_diffraction_data(self):
 
         return
 

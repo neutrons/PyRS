@@ -3,13 +3,16 @@ import os
 import numpy as np
 import matplotlib.image
 from pyrs.utilities import checkdatatypes
-from pyrs.core import calibration_file_io
+from pyrs.core import datamanagers
+from pyrs.utilities import calibration_file_io
 from pyrs.core import mask_util
 from pyrs.core import reduce_hb2b_mtd
 from pyrs.core import reduce_hb2b_pyrs
 from pyrs.utilities import rs_scan_io
 from pyrs.utilities import rs_project_file
 from mantid.simpleapi import CreateWorkspace, LoadSpiceXML2DDet, Transpose, LoadEventNexus, ConvertToMatrixWorkspace
+
+# TODO - FIXME - Issue #72 : Clean up
 
 
 class HB2BReductionManager(object):
@@ -23,12 +26,13 @@ class HB2BReductionManager(object):
     def __init__(self):
         """ initialization
         """
-        # calibration manager
-        self._calibration_manager = calibration_file_io.CalibrationManager()
+        # # calibration manager
+        # self._calibration_manager = calibration_file_io.CalibrationManager()
+        # self._geometry_calibration = calibration_file_io.ResidualStressInstrumentCalibration()
 
         # workspace name or array vector
         self._curr_workspace = None
-        self._workspace_dict = dict()  # ID = workspace, counts vector
+        self._session_dict = dict()  # ID = workspace, counts vector
 
         # number of bins
         self._num_bins = 2500
@@ -37,7 +41,6 @@ class HB2BReductionManager(object):
         self._instrument = None
         self._mantid_idf = None
         # calibration
-        self._geometry_calibration = calibration_file_io.ResidualStressInstrumentCalibration()
 
         # record
         self._last_loaded_data_id = None
@@ -46,13 +49,13 @@ class HB2BReductionManager(object):
         self._loaded_mask_files = list()
         self._loaded_mask_dict = dict()
 
-        # reduced data
-        self._curr_vec_x = None
-        self._curr_vec_y = None
+        # # reduced data
+        # self._curr_vec_x = None
+        # self._curr_vec_y = None
 
         # raw data and reduced data
         self._raw_data_dict = dict()  # [Handler][Sub-run][Mask ID] = vec_y, 2theta
-        self._reduce_data_dict = dict()   # D[data ID][mask ID] = vec_x, vec_y
+        self._reduce_data_dict = dict()  # D[data ID][mask ID] = vec_x, vec_y
 
         # Outputs
         self._output_directory = None
@@ -105,7 +108,8 @@ class HB2BReductionManager(object):
         if session_name == '' or session_name in self._session_dict:
             raise RuntimeError('Session name {} is either empty or previously used (not unique)'.format(session_name))
 
-        self._curr_workspace = ReductionWorkspace(session_name)
+        self._curr_workspace = datamanagers.HidraWorkspace()
+        self._session_dict[session_name] = self._curr_workspace
 
         return
 
@@ -118,30 +122,36 @@ class HB2BReductionManager(object):
         # check inputs
         checkdatatypes.check_file_name(project_file_name, True, False, False, 'Project file to load')
 
-        # PyRS HDF5
-        project_h5_file = rs_project_file.HydraProjectFile(project_file_name, mode='r')
-
         # Check
         if self._curr_workspace is None:
             raise RuntimeError('Call init_session to create a ReductionWorkspace')
 
-        # Load sample logs
-        sub_run_list = project_h5_file.get_sub_runs()
-        for sub_run in sorted(sub_run_list):
-            # count
-            count_vec = project_h5_file.get_scan_counts(sub_run=sub_run)
-            self._curr_workspace.add_sub_run(sub_run, count_vec)
-        # END-FOR
+        # PyRS HDF5
+        project_h5_file = rs_project_file.HydraProjectFile(project_file_name,
+                                                           mode=rs_project_file.HydraProjectFileMode.READWRITE)
 
-        # Get sample logs
-        two_theta_log = project_h5_file.get_log_value(log_name='2Theta')
-        self._curr_workspace.add_log('2Theta', two_theta_log)
+        # Load
+        self._curr_workspace.load_hidra_project(project_h5_file,
+                                                load_raw_counts=True,
+                                                load_reduced_diffraction=False)
 
-        # Instrument
-        instrument_setup = project_h5_file.get_instrument_geometry(load_calibrated_instrument)
-        self._curr_workspace.set_instrument(instrument_setup)
-
-        project_h5_file.close()
+        # # Load sample logs
+        # sub_run_list = project_h5_file.get_sub_runs()
+        # for sub_run in sorted(sub_run_list):
+        #     # count
+        #     count_vec = project_h5_file.get_scan_counts(sub_run=sub_run)
+        #     self._curr_workspace.add_sub_run(sub_run, count_vec)
+        # # END-FOR
+        #
+        # # Get sample logs
+        # two_theta_log = project_h5_file.get_log_value(log_name='2Theta')
+        # self._curr_workspace.add_log('2Theta', two_theta_log)
+        #
+        # # Instrument
+        # instrument_setup = project_h5_file.get_instrument_geometry(load_calibrated_instrument)
+        # self._curr_workspace.set_instrument(instrument_setup)
+        #
+        # project_h5_file.close()
 
         return
 
@@ -209,7 +219,7 @@ class HB2BReductionManager(object):
         if pyrs_h5_name.endswith('hdf5'):
             # start file and load
             diff_file = rs_project_file.HydraProjectFile(pyrs_h5_name, mode='r')
-            count_vec = diff_file.get_scan_counts(sub_run=sub_run)
+            count_vec = diff_file.get_raw_counts(sub_run=sub_run)
             two_theta = diff_file.get_log_value(log_name='2Theta', sub_run=sub_run)
             # close file
             diff_file.close()

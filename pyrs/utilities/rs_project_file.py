@@ -9,6 +9,13 @@ import numpy
 # TODO - NOW TONIGHT #72 - Use more enumerate and constant for HDF groups' names
 
 
+# TODO - NOW TONIGHT #72 - Apply HidraConstants to HydraProjectFile
+class HidraConstants:
+    RAW_DATA = 'raw data'
+    REDUCED_DATA = 'reduced diffraction data'
+    SUB_RUNS = 'sub-runs'
+
+
 class HydraProjectFileMode(Enum):
     """
     Enumerate for file access mode
@@ -112,8 +119,8 @@ class HydraProjectFile(object):
         assert self._is_writable, 'must be writable'
 
         # data
-        exp_entry = self._project_h5.create_group('experiment')
-        exp_entry.create_group('sub-runs')
+        exp_entry = self._project_h5.create_group(HidraConstants.RAW_DATA)
+        exp_entry.create_group(HidraConstants.SUB_RUNS)
         exp_entry.create_group('logs')
 
         # instrument
@@ -203,7 +210,7 @@ class HydraProjectFile(object):
         checkdatatypes.check_int_variable('Sub-run index', sub_run_number, (0, None))
 
         # create group
-        scan_i_group = self._project_h5['experiment']['sub-runs'].create_group('{:04}'.format(sub_run_number))
+        scan_i_group = self._project_h5[HidraConstants.RAW_DATA]['sub-runs'].create_group('{:04}'.format(sub_run_number))
         scan_i_group.create_dataset('counts', data=counts_array)
 
         return
@@ -223,7 +230,7 @@ class HydraProjectFile(object):
             raise RuntimeError('{} missing'.format(unit))
 
         # create group
-        reduced_data = self._project_h5['reduced data'][unit].create_group('{:04}'.format(sub_run_index))
+        reduced_data = self._project_h5[HidraConstants.REDUCED_DATA][unit].create_group('{:04}'.format(sub_run_index))
         reduced_data.create_dataset('x', data=vec_x)
         reduced_data.create_dataset('y', data=vec_y)
 
@@ -241,7 +248,7 @@ class HydraProjectFile(object):
         checkdatatypes.check_string_variable('Log name', log_name)
 
         try:
-            self._project_h5['experiment']['logs'].create_dataset(log_name, data=log_value_array)
+            self._project_h5[HidraConstants.RAW_DATA]['logs'].create_dataset(log_name, data=log_value_array)
         except RuntimeError as run_err:
             raise RuntimeError('Unable to add log {} due to {}'.format(log_name, run_err))
 
@@ -266,7 +273,7 @@ class HydraProjectFile(object):
 
         return log_value
 
-    def get_scan_counts(self, sub_run):
+    def get_raw_counts(self, sub_run):
         """
         get the raw detector counts
         :return:
