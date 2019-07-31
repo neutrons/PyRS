@@ -254,3 +254,25 @@ class AnglerCameraDetectorShift(object):
     def rotation_z(self, value):
         checkdatatypes.check_float_variable('Rotation along Z direction', value, (-360, 360))
         self._rotation_z = value
+
+    def to_json(self):
+        """ Convert to a dictionary and convert to Json string
+        :return:
+        """
+        # TODO - TONIGHT #72 - Implement
+        return
+
+    def from_json(self, json_string):
+        """ Convert from a Json string (dicionary) and set to parameters
+        :param json_string:
+        :return:
+        """
+        # TODO - TONIGHT #72 - Implement
+
+        x = {u'age': 30, u'city': u'New York', u'name': u'John'}
+        y = json.loads(x)
+
+        type(y) == dict
+
+        return
+
