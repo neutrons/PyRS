@@ -75,7 +75,7 @@ def parse_arguments(argv, opt_operation_list):
 
     # add help
     long_list.append('help')
-    short_list_string += 'h:'
+    short_list_string += 'h'
 
     print ('[DB...BAT] Short name list: {}; Long name list: {}'.format(short_list_string, long_list))
     # Example: "hdi:o:l:g:G:r:R:"
@@ -108,8 +108,8 @@ def process_arguments(argv_list,  opt_operation_list):
     opt_operate_dict, mandatory_param_list, optional_param_default_dict, info_dict = \
         convert_opt_operations(opt_operation_list)
 
-    # Parse inputs to args and opts
-    command_opts, command_args = parse_arguments(argv_list, opt_operation_list)
+    # Parse inputs to args and opts: script name (argv[0]) MUST NOT be in the arg list sent to parse_commands
+    command_opts, command_args = parse_arguments(argv_list[1:], opt_operation_list)
 
     # user does not have any valid inputs
     if len(command_opts) == 0:
@@ -120,18 +120,20 @@ def process_arguments(argv_list,  opt_operation_list):
     arguments_dict = dict()
     for opt_i, arg_i in command_opts:
         # check supported or not
-        if opt_i not in opt_operate_dict:
-            print ('[WARNING] User input argument {} is not supported'.format(opt_i))
-            continue
-
-        # parse
-        param_name_i, type_i = opt_operate_dict[opt_i]
-        arguments_dict[param_name_i] = type_i(arg_i)
+        if opt_i == '--help' or opt_i == '-h':
+            arguments_dict['help'] = True
+        elif opt_i not in opt_operate_dict:
+            # None supported
+            print ('[WARNING] User input argument {} is not supported. Supported keys are {}'
+                   ''.format(opt_i, opt_operate_dict.keys()))
+        else:
+            # parse
+            param_name_i, type_i = opt_operate_dict[opt_i]
+            arguments_dict[param_name_i] = type_i(arg_i)
     # END-
 
     # Check helper
-    print ('L129', arguments_dict.keys())
-    if arguments_dict['help']:
+    if 'help' in arguments_dict:
         print_helper(info_dict)
         return None
 
@@ -178,3 +180,26 @@ def print_helper(arg_info_dict):
     print (help_str)
 
     return help_str
+
+
+def test_main():
+    """
+    Test main
+    :return:
+    """
+    import sys
+    mock_opt_operations = [('input', 'i', 'inputfile', str, None, True, 'Input HIDRA project file'),
+                           ('masks', 'm', 'masksfiles', str, None, False,
+                            'Path to an ASCI file containing list of path to mask files, '
+                            'separated by ":", ", " or "\n"'),
+                           ('instrument', None, 'instrument', str, None, False, 'Path to instrument file'),
+                           ('output', 'o', 'outputfile', str, None, True, 'Output calibration in JSON format'),
+                           ('binsize', 'b', 'binsize', float, 0.01, False, '2theta step')]
+
+    process_arguments(sys.argv, mock_opt_operations)
+
+    return
+
+
+if __name__ == '__main__':
+    test_main()
