@@ -2,14 +2,8 @@
 # Template to calibrate X-ray data with calibration algorithm 1
 import sys
 import os
-from pyrs.utilities import rs_project_file
 from pyrs.core import pyrscore
 from pyrs.utilities import script_helper
-
-# TODO - NOW TONIGHT #72 - Implement as a formal script
-
-
-# TODO - NOW TONIGHT #72 - Input arguments definition and processing can be generalized
 
 
 def parse_mask_files(mask_file_name):
@@ -39,7 +33,7 @@ def parse_mask_files(mask_file_name):
     return mask_file_list
 
 
-def parse_mask_files(masks_list_file_name):
+def set_mask_files(masks_list_file_name):
     """
     Read an ASCII file containing a list of masks
     :param masks_list_file_name:
@@ -86,7 +80,7 @@ def main(argv):
     calib_controller = pyrscore.PyRsCore()
 
     # Load data
-    project_name = 'calibration'
+    project_name = 'calibration xray'
     calib_controller.load_hidra_project(param_dict['inputfile'], project_name=project_name)
 
     # Reduce data

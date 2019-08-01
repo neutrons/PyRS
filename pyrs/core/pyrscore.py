@@ -24,8 +24,7 @@ class PyRsCore(object):
         initialization
         """
         # declaration of class members
-        self._data_manager = datamanagers.HidraWorkspace()
-        self._reduction_engine = reductionengine.HB2BReductionManager()
+        self._reduction_manager = reductionengine.HB2BReductionManager()
 
         # working environment
         if os.path.exists('tests/testdata/'):
@@ -33,10 +32,8 @@ class PyRsCore(object):
         else:
             self._working_dir = os.getcwd()
 
-        # current/default status
-        self._curr_data_key = None
-        self._curr_file_name = None
-
+        # These are for peak fitting and etc.
+        # TODO - AFTER #72 - Better to refactor!
         self._last_optimizer = None  # None or RsPeakFitEngine/MantidPeakFitEngine instance
 
         # container for optimizers
@@ -561,8 +558,8 @@ class PyRsCore(object):
         :return:
         """
         # Load data
-        self._reduction_engine.init_session(project_name)
-        self._reduction_engine.load_hidra_project(hidra_h5_name, False)
+        self._reduction_manager.init_session(project_name)
+        self._reduction_manager.load_hidra_project(hidra_h5_name, False)
 
         return
 
@@ -633,17 +630,19 @@ class PyRsCore(object):
 
         return
 
-    def reduce_diffraction_data(self):
+    def reduce_diffraction_data(self, session_name, two_theta_step, pyrs_engine):
+
+        self._reduction_manager.reduce_diffraction_data(session_name, two_theta_step, pyrs_engine)
 
         return
 
     @property
-    def reduction_engine(self):
+    def reduction_manager(self):
         """
         get the reference to reduction engine
         :return:
         """
-        return self._reduction_engine
+        return self._reduction_manager
 
     def reset_strain_stress(self, is_plane_strain, is_plane_stress):
         """ reset the strain and stress calculation due to change of type

@@ -3,6 +3,7 @@ Containing classes serving for
 1. instrument geometry
 2. instrument geometry calibration
 """
+import json
 from pyrs.utilities import checkdatatypes
 
 
@@ -254,25 +255,86 @@ class AnglerCameraDetectorShift(object):
     def rotation_z(self, value):
         checkdatatypes.check_float_variable('Rotation along Z direction', value, (-360, 360))
         self._rotation_z = value
+        return
 
-    def to_json(self):
+    def convert_to_dict(self):
+        """
+        Convert instrument geometry calibration to a dictionary
+        :return:
+        """
+        geometry_shift_dict = dict()
+
+        geometry_shift_dict['shift x'] = self._center_shift_x
+        geometry_shift_dict['shift y'] = self._center_shift_y
+        geometry_shift_dict['shift z'] = self._center_shift_z
+        geometry_shift_dict['rotation x'] = self._rotation_x
+        geometry_shift_dict['rotation y'] = self._rotation_y
+        geometry_shift_dict['rotation z'] = self._rotation_z
+
+        return geometry_shift_dict
+
+    def set_from_dict(self, geometry_shift_dict):
+        """ Set geometry shift parameters from a dictionary, which may miss some parameters
+        :param geometry_shift_dict:
+        :return:
+        """
+        checkdatatypes.check_dict('Geometry shift parameters', geometry_shift_dict)
+
+        if 'shift x' in geometry_shift_dict:
+            self._center_shift_x = geometry_shift_dict['shift x']
+        if 'shift y' in geometry_shift_dict:
+            self._center_shift_y = geometry_shift_dict['shift y']
+        if 'shift z' in geometry_shift_dict:
+            self._center_shift_z = geometry_shift_dict['shift z']
+
+        if 'rotation x' in geometry_shift_dict:
+            self._rotation_x = geometry_shift_dict['rotation x']
+        if 'rotation y' in geometry_shift_dict:
+            self._rotation_y = geometry_shift_dict['rotation y']
+        if 'rotation z' in geometry_shift_dict:
+            self._rotation_z = geometry_shift_dict['rotation z']
+
+        return
+
+    def to_json(self, file_name):
         """ Convert to a dictionary and convert to Json string
         :return:
         """
-        # TODO - TONIGHT #72 - Implement
+        checkdatatypes.check_file_name(file_name, False, True, False, 'Json file name to export instrument setup')
+
+        # construct dictionary
+        instrument_dict = self.convert_to_dict()
+
+        # create file
+        jfile = open(file_name, 'w')
+        json.dump(instrument_dict, jfile)
+        jfile.close()
+
         return
 
-    def from_json(self, json_string):
+    def from_json(self, file_name):
         """ Convert from a Json string (dicionary) and set to parameters
-        :param json_string:
+        :param file_name: json file name
         :return:
         """
-        # TODO - TONIGHT #72 - Implement
+        checkdatatypes.check_file_name(file_name, True, False, False, 'Json file name to import instrument setup')
 
-        x = {u'age': 30, u'city': u'New York', u'name': u'John'}
-        y = json.loads(x)
+        # read file
+        json_file = open(file_name, 'r')
+        lines = json_file.readlines()
+        json_string = ''
+        for line in lines:
+            json_string += line.strip()
 
-        type(y) == dict
+        instrument_dict = json.loads(json_string)
+
+        self.set_from_dict(instrument_dict)
 
         return
+
+
+if __name__ == '__main__':
+    # Test main
+    shift = AnglerCameraDetectorShift(0., 0., 0., 0., 0., 0.)
+    shift.to_json('geometry_shift_template.json')
 

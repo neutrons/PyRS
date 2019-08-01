@@ -352,6 +352,23 @@ class HB2BReductionManager(object):
 
         return
 
+    def reduce_diffraction_data(self, session_name, bin_size_2theta, use_pyrs_engine):
+        # TODO - NOW - #72 Continue to work on!
+
+        if session_name is None:
+            workspace = self._curr_workspace
+        else:
+            workspace = self._session_dict[session_name]
+
+        for sub_run in workspace.get_subruns:
+            self.reduce_to_2theta(worksapce, sub_run,
+                                  use_mantid_engine=not use_pyrs_engine,
+                                  mask=None,
+                                  two_theta=True,
+                                  resolution_2theta=bin_size_2theta)
+
+        return
+
     # TODO - TONIGHT 0 - This script does not work correctly! Refer to compare_reduction_engines_tst
     def reduce_to_2theta(self, data_id, sub_run, use_mantid_engine, mask, two_theta,
                          min_2theta=None, max_2theta=None, resolution_2theta=None):
