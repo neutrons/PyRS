@@ -10,10 +10,16 @@ import numpy
 
 
 # TODO - NOW TONIGHT #72 - Apply HidraConstants to HydraProjectFile
-class HidraConstants:
+class HidraConstants(object):
     RAW_DATA = 'raw data'
     REDUCED_DATA = 'reduced diffraction data'
     SUB_RUNS = 'sub-runs'
+    CALIBRATION = 'calibration'
+    SAMPLE_LOGS = 'logs'
+    INSTRUMENT = 'instrument'
+    GEOMETRY_SETUP = 'geometry setup'
+    DETECTOR_PARAMS = 'detector'
+    TWO_THETA = '2Theta'
 
 
 class HydraProjectFileMode(Enum):
@@ -121,29 +127,45 @@ class HydraProjectFile(object):
         # data
         exp_entry = self._project_h5.create_group(HidraConstants.RAW_DATA)
         exp_entry.create_group(HidraConstants.SUB_RUNS)
-        exp_entry.create_group('logs')
+        exp_entry.create_group(HidraConstants.SAMPLE_LOGS)
 
         # instrument
-        instrument = self._project_h5.create_group('instrument')
-        instrument.create_group('calibration')
+        instrument = self._project_h5.create_group(HidraConstants.INSTRUMENT)
+        instrument.create_group(HidraConstants.CALIBRATION)
         geometry_group = instrument.create_group('geometry setup')
         geometry_group.create_group('detector')
         geometry_group.create_group('wave length')
 
         # reduced data
-        reduced_data = self._project_h5.create_group('diffraction')
+        reduced_data = self._project_h5.create_group(HidraConstants.REDUCED_DATA)
         # reduced_data.create_group('2theta')
         # reduced_data.create_group('d-spacing')
 
         return
 
-    def get_instrument_geometry(self, calibrated):
+    def get_instrument_geometry(self):
         """
         Get instrument geometry parameters
-        :param calibrated:
         :return: an instance of instrument_geometry.InstrumentSetup
         """
-        return
+        # Get group
+        geometry_group = self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.GEOMETRY_SETUP]
+        detector_group = geometry_group[HidraConstants.DETECTOR_PARAMS]
+
+        # Get value
+        num_rows, num_cols = detector_group['detector size'].value
+        pixel_size_x, pixel_size_y = detector_group['pixel dimension'].value
+        arm_length = detector_group['L2'].value
+
+        # Initialize
+        instrument_setup = instrument_geometry.AnglerCameraDetectorGeometry(num_rows=num_rows,
+                                                                            num_columns=num_cols,
+                                                                            pixel_size_x=pixel_size_x,
+                                                                            pixel_size_y=pixel_size_y,
+                                                                            arm_length=arm_length,
+                                                                            calibrated=False)
+
+        return instrument_setup
 
     def set_instrument_geometry(self, instrument_setup):
         """
@@ -156,7 +178,7 @@ class HydraProjectFile(object):
         checkdatatypes.check_type('Instrument geometry setup', instrument_setup, instrument_geometry.HydraSetup)
 
         # write value to instrument
-        instrument_group = self._project_h5['instrument']
+        instrument_group = self._project_h5[HidraConstants.INSTRUMENT]
 
         # write attributes
         instrument_group.attrs['name'] = instrument_setup.name
@@ -210,7 +232,8 @@ class HydraProjectFile(object):
         checkdatatypes.check_int_variable('Sub-run index', sub_run_number, (0, None))
 
         # create group
-        scan_i_group = self._project_h5[HidraConstants.RAW_DATA]['sub-runs'].create_group('{:04}'.format(sub_run_number))
+        scan_i_group = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SUB_RUNS].create_group(
+            '{:04}'.format(sub_run_number))
         scan_i_group.create_dataset('counts', data=counts_array)
 
         return
@@ -248,7 +271,8 @@ class HydraProjectFile(object):
         checkdatatypes.check_string_variable('Log name', log_name)
 
         try:
-            self._project_h5[HidraConstants.RAW_DATA]['logs'].create_dataset(log_name, data=log_value_array)
+            self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS].create_dataset(
+                log_name, data=log_value_array)
         except RuntimeError as run_err:
             raise RuntimeError('Unable to add log {} due to {}'.format(log_name, run_err))
 
@@ -265,11 +289,43 @@ class HydraProjectFile(object):
 
         return
 
-    def get_log_value(self, log_name, sub_run):
+    def get_logs(self):
+        """
+        Retrieve all the (sample) logs from Hidra project file
+        :return:
+        """
+        # Get the group
+        logs_group = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS]
+
+        # Get the sub run numbers
+        sub_runs = logs_group[HidraConstants.SUB_RUNS].value
+
+        # Get 2theta and others
+        logs_value_set = dict()
+        for log_name in logs_group.keys():
+            # no sub runs
+            if log_name == HidraConstants.SUB_RUNS:
+                continue
+
+            # get array
+            log_value_vec = logs_group[log_name].value
+            if log_value_vec.shape != sub_runs.shape:
+                raise RuntimeError('Sample log {} does not match sub runs'.format(log_name))
+
+            log_value_dict = dict()
+            for s_index in range(sub_runs.shape[0]):
+                log_value_dict[sub_runs[s_index]] = log_value_vec[s_index]
+            # END-FOR
+
+            logs_value_set[log_name] = log_value_dict
+        # END-FOR
+
+        return logs_value_set
+
+    def get_log_value(self, log_name):
         assert self._project_h5 is not None, 'blabla'
 
-        sub_run_index = sub_run - 1  # FIXME TODO - TONIGHT - correct shall be : sub_run -> sub run index -> log[scan index]
-        log_value = self._project_h5['experiment']['logs'][log_name][sub_run_index]
+        log_value = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS][log_name]
 
         return log_value
 
@@ -281,7 +337,8 @@ class HydraProjectFile(object):
         assert self._project_h5 is not None, 'blabla'
         checkdatatypes.check_int_variable('sun run', sub_run, (0, None))
 
-        counts = self._project_h5['experiment']['sub-runs']['{:04}'.format(sub_run)]['counts'].value
+        sub_run_str = '{:04}'.format(sub_run)
+        counts = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SUB_RUNS][sub_run_str]['counts'].value
 
         return counts
 
@@ -290,7 +347,7 @@ class HydraProjectFile(object):
         get list of the sub runs
         :return:
         """
-        sub_runs_str_list = self._project_h5['experiment']['sub-runs']
+        sub_runs_str_list = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SUB_RUNS]
 
         sub_run_list = [None] * len(sub_runs_str_list)
         for index, sub_run_str in enumerate(sub_runs_str_list):

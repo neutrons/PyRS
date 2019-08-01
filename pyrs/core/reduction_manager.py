@@ -3,7 +3,7 @@ import os
 import numpy as np
 import matplotlib.image
 from pyrs.utilities import checkdatatypes
-from pyrs.core import datamanagers
+from pyrs.core import workspaces
 from pyrs.utilities import calibration_file_io
 from pyrs.core import mask_util
 from pyrs.core import reduce_hb2b_mtd
@@ -108,7 +108,7 @@ class HB2BReductionManager(object):
         if session_name == '' or session_name in self._session_dict:
             raise RuntimeError('Session name {} is either empty or previously used (not unique)'.format(session_name))
 
-        self._curr_workspace = datamanagers.HidraWorkspace()
+        self._curr_workspace = workspaces.HidraWorkspace()
         self._session_dict[session_name] = self._curr_workspace
 
         return
@@ -360,42 +360,28 @@ class HB2BReductionManager(object):
         else:
             workspace = self._session_dict[session_name]
 
-        for sub_run in workspace.get_subruns:
-            self.reduce_to_2theta(worksapce, sub_run,
+        for sub_run in workspace.get_subruns():
+            self.reduce_to_2theta(workspace, sub_run,
                                   use_mantid_engine=not use_pyrs_engine,
                                   mask=None,
-                                  two_theta=True,
                                   resolution_2theta=bin_size_2theta)
 
         return
 
     # TODO - TONIGHT 0 - This script does not work correctly! Refer to compare_reduction_engines_tst
-    def reduce_to_2theta(self, data_id, sub_run, use_mantid_engine, mask, two_theta,
+    def reduce_to_2theta(self, workspace, sub_run, use_mantid_engine, mask,
                          min_2theta=None, max_2theta=None, resolution_2theta=None):
         """
         Reduce import data (workspace or vector) to 2-theta ~ I
-        :param data_id:
+        :param workspace:
         :param use_mantid_engine:
         :param mask: mask ID or mask vector
-        :param two_theta: 2theta value
         :param min_2theta: None or user specified
         :param max_2theta: None or user specified
         :param resolution_2theta: None or user specified
         :return:
         """
-        # check input
-        checkdatatypes.check_string_variable('Data ID', data_id)
-        if sub_run is None:
-            # single run .h5 case
-            if data_id not in self._data_dict:
-                raise RuntimeError('Data ID {} does not exist in loaded data dictionary. '
-                                   'Current keys: {}'.format(data_id, self._data_dict.keys()))
-        else:
-            if data_id not in self._raw_data_dict or sub_run not in self._raw_data_dict[data_id]:
-                raise RuntimeError('Project ID {} Sub-run {} does not exist in raw data dictionary'
-                                   ''.format(data_id, sub_run))
-
-        # about mask
+        # Process mask
         if mask is None:
             mask_vec = None
             mask_id = None
@@ -404,69 +390,50 @@ class HB2BReductionManager(object):
             mask_vec = self.get_mask_vector(mask)
             mask_id = mask
         else:
+            checkdatatypes.check_numpy_arrays('Mask', [mask], dimension=1, check_same_shape=False)
             mask_vec = mask
-            mask_id = hash('{}'.format(mask_vec.min())) + hash('{}'.format(mask_vec.max())) + hash('{}'.format(mask_vec.mean()))
+            mask_id = hash('{}'.format(mask_vec.min())) + hash('{}'.format(mask_vec.max())) + \
+                      hash('{}'.format(mask_vec.mean()))
+        # END-IF-ELSE
+
+        # Get the raw data
+        raw_count_vec = workspace.get_raw_data(sub_run)
 
         # process two theta
+        two_theta = workspace.get_2theta(sub_run)
         print ('[INFO] User specified 2theta = {} is converted to Mantid 2theta = {}'
                ''.format(two_theta, -two_theta))
         two_theta = -two_theta
 
+        # Set up reduction engine and also
         if use_mantid_engine:
-            # init mantid reducer and add workspace in ADS
-            data_ws_name = self._data_dict[data_id][0]
-            mantid_reducer = reduce_hb2b_mtd.MantidHB2BReduction()
-            mantid_reducer.set_workspace(data_ws_name)
-
-            # build instrument
-            mantid_reducer.load_instrument(two_theta, self._mantid_idf, self._geometry_calibration)
-
-            # reduce data
-            r = mantid_reducer.reduce_to_2theta(data_ws_name, mask=mask_vec,
-                                                two_theta_min=min_2theta, two_theta_max=max_2theta,
-                                                num_2theta_bins=resolution_2theta)
-
-            self._curr_vec_x = r[0]
-            self._curr_vec_y = r[1]
-
+            # Mantid reduction engine
+            reduction_engine = reduce_hb2b_mtd.MantidHB2BReduction()
+            data_ws_name = reduction_engine.create_workspace()
+            reduction_engine.set_workspace(data_ws_name)
+            reduction_engine.load_instrument(two_theta, mantid_idf, test_calibration)
         else:
-            # pyrs solution: calculate instrument geometry on the fly
-            python_reducer = reduce_hb2b_pyrs.PyHB2BReduction(self._instrument)
-
-            pixel_matrix = python_reducer.build_instrument(two_theta,
-                                                           arm_length_shift=self._geometry_calibration.center_shift_z,
-                                                           center_shift_x=self._geometry_calibration.center_shift_x,
-                                                           center_shift_y=self._geometry_calibration.center_shift_y,
-                                                           rot_x_flip=self._geometry_calibration.rotation_x,
-                                                           rot_y_flip=self._geometry_calibration.rotation_y,
-                                                           rot_z_spin=self._geometry_calibration.rotation_z)
-            # 2 different cases to access raw data
-            if sub_run is None:
-                counts_vec = self._data_dict[data_id][1]
-            else:
-                counts_vec = self._raw_data_dict[data_id][sub_run][0]
-
-            bin_edges, hist = python_reducer.reduce_to_2theta_histogram(counts_array=counts_vec,
-                                                                        mask=mask_vec,
-                                                                        num_bins=self._num_bins,
-                                                                        x_range=None, is_point_data=True,
-                                                                        use_mantid_histogram=False)
-            self._curr_vec_x = bin_edges
-            self._curr_vec_y = hist
-            print ('[DB...BAT] vec X shape = {}, vec Y shape = {}'.format(bin_edges.shape,
-                                                                          hist.shape))
+            # PyRS reduction engine
+            reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
+            reduction_engine.set_experimental_data(two_theta, raw_count_vec)
+            reduction_engine.build_instrument(None)
         # END-IF
 
+        # Mask
+        if mask_vec is not None:
+            reduction_engine.set_mask(mask_vec)
+
+        # Reduce
+        num_bins = 500
+        two_theta_range = (10, 60)
+        bin_edges, hist = reduction_engine.reduce_to_2theta_histogram(num_bins, two_theta_range,
+                                                                      is_point_data=True,
+                                                                      use_mantid_histogram=False)
+
+        print ('[DB...BAT] vec X shape = {}, vec Y shape = {}'.format(bin_edges.shape, hist.shape))
+
         # record
-        if data_id not in self._reduce_data_dict:
-            self._reduce_data_dict[data_id] = dict()
-        if sub_run is None:
-            # single run mode
-            self._reduce_data_dict[data_id][mask_id] = self._curr_vec_x, self._curr_vec_y
-        else:
-            # project file mode
-            self._reduce_data_dict[data_id][sub_run] = dict()
-            self._reduce_data_dict[data_id][sub_run][mask_id] = self._curr_vec_x, self._curr_vec_y
+        workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_edges, hist)
 
         return
 

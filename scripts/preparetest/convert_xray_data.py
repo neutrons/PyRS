@@ -99,8 +99,8 @@ def main():
 
     # add sample log data & sub runs
     # for log_name in ['sub-run', '2Theta']
-    project_file.add_experiment_information('sub-run', numpy.array([1]))
-    project_file.add_experiment_information('2Theta', numpy.array([35.]))
+    project_file.add_experiment_information(rs_project_file.HidraConstants.SUB_RUNS, numpy.array([1]))
+    project_file.add_experiment_information(rs_project_file.HidraConstants.TWO_THETA, numpy.array([35.]))
 
     # add instrument information
     instrument_setup = generate_xray_instrument()

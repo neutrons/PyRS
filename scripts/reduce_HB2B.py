@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import sys
 import os
-from pyrs.core import reductionengine
+from pyrs.core import reduction_manager
 from pyrs.utilities import checkdatatypes
 from pyrs.core import calibration_file_io
 from pyrs.core import mask_util
@@ -24,7 +24,7 @@ class ReductionApp(object):
         initialization
         """
         self._use_mantid_engine = False
-        self._reduction_engine = reductionengine.HB2BReductionManager()
+        self._reduction_engine = reduction_manager.HB2BReductionManager()
         self._instrument = None
 
         return

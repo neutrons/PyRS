@@ -10,7 +10,7 @@ from scipy.optimize import basinhopping
 
 from pyrs.core import reduce_hb2b_pyrs
 from pyrs.core import calibration_file_io
-from pyrs.core import reductionengine
+from pyrs.core import reduction_manager
 from pyrs.core import mask_util
 from mantid.simpleapi import CreateWorkspace, FitPeaks
 from mantid.api import AnalysisDataService as mtd
@@ -176,7 +176,7 @@ def main():
         roi_vec_neg, mask_2thetA, notE = mask_util.load_pyrs_mask(neg_mask_h5)
 
         # reduction engine
-        engine = reductionengine.HB2BReductionManager()
+        engine = reduction_manager.HB2BReductionManager()
         test_data_id = engine.load_data(data_file_name=test_file_name, target_dimension=2048,
                                         load_to_workspace=False)
 
@@ -188,7 +188,7 @@ def main():
         t_start = time.time()
 
         # reduction engine
-        engine = reductionengine.HB2BReductionManager()
+        engine = reduction_manager.HB2BReductionManager()
         test_data_id = engine.load_data(data_file_name=test_file_name, target_dimension=2048,
                                         load_to_workspace=False)
         # instrument

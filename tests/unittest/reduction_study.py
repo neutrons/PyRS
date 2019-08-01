@@ -5,7 +5,7 @@ import os
 import sys
 from pyrs.core import reduce_hb2b_pyrs
 from pyrs.core import calibration_file_io
-from pyrs.core import reductionengine
+from pyrs.core import reduction_manager
 from pyrs.core import mask_util
 import numpy
 try:
@@ -62,7 +62,7 @@ def create_instrument_load_data(calibrated, pixel_number, use_mantid):
     test_calibration.rotation_z = rot_z_spin  # + 0.0022
 
     # reduction engine
-    engine = reductionengine.HB2BReductionManager()
+    engine = reduction_manager.HB2BReductionManager()
     test_data_id, two_theta_tmp = engine.load_data(data_file_name=test_data, target_dimension=pixel_number,
                                                    load_to_workspace=use_mantid)
 

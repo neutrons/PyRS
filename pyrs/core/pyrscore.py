@@ -1,12 +1,11 @@
 # This is the core of PyRS serving as the controller of PyRS and hub for all the data
-import datamanagers
 from pyrs.utilities import checkdatatypes
 # from pyrs.utilities import rs_scan_io
 from pyrs.utilities import file_util
 from pyrs.utilities import rs_project_file
 import mantid_fit_peak
 import strain_stress_calculator
-import reductionengine
+import reduction_manager
 import polefigurecalculator
 import os
 import numpy
@@ -24,7 +23,7 @@ class PyRsCore(object):
         initialization
         """
         # declaration of class members
-        self._reduction_manager = reductionengine.HB2BReductionManager()
+        self._reduction_manager = reduction_manager.HB2BReductionManager()
 
         # working environment
         if os.path.exists('tests/testdata/'):

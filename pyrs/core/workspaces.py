@@ -3,7 +3,7 @@ import numpy
 import os
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities import rs_project_file
-
+from pyrs.core import instrument_geometry
 
 class ScanDataHolder(object):
     """
@@ -155,6 +155,36 @@ class HidraWorkspace(object):
 
         return
 
+    def get_2theta(self, sub_run):
+        """
+        Get 2theta log
+        This is a special one
+        :param sub_run:
+        :return:
+        """
+        return self._sample_log_dict['2Theta'][sub_run]
+
+    def get_instrument_setup(self):
+        """
+        Get the handler to instrument setup
+        :return:
+        """
+        return self._instrument_setup
+
+    def get_raw_data(self, sub_run):
+        # TODO - TONIGHT NOW - doc & check
+        print ('L159: Raw counts keys: ', self._raw_counts.keys())
+        print ('L159: Raw counts: ', self._raw_counts[sub_run])
+        return self._raw_counts[sub_run]
+
+    def get_subruns(self):
+        """ Get sub runs that loaded to this workspace
+        :return:
+        """
+        sub_runs = sorted(self._sub_run_to_spectrum.keys())
+        print ('L163: sub runs', sub_runs)
+        return sub_runs
+
     def load_hidra_project(self, hidra_file, load_raw_counts, load_reduced_diffraction):
         """
         Load HIDRA project file
@@ -167,6 +197,7 @@ class HidraWorkspace(object):
 
         # create the spectrum map
         sub_run_list = hidra_file.get_sub_runs()
+        print ('L184: sub runs: ', sub_run_list)
         self._create_subrun_spectrum_map(sub_run_list)
 
         # load raw detector counts
@@ -196,6 +227,7 @@ class HidraWorkspace(object):
         self._spectrum_to_sub_run = dict()
 
         # besides the dictionaries are created
+        print ('L214: sub runs:', sub_run_list)
         for spec_id, sub_run in enumerate(sorted(sub_run_list)):
             self._sub_run_to_spectrum[sub_run] = spec_id
             self._spectrum_to_sub_run[spec_id] = sub_run
@@ -211,8 +243,7 @@ class HidraWorkspace(object):
 
         for sub_run_i in sorted(self._sub_run_to_spectrum.keys()):
             counts_vec_i = hidra_file.get_raw_counts(sub_run_i)
-            spec_i = self._sub_run_to_spectrum[sub_run_i]
-            self._raw_counts[spec_i] = counts_vec_i
+            self._raw_counts[sub_run_i] = counts_vec_i
         # END-FOR
 
         return
@@ -264,9 +295,11 @@ class HidraWorkspace(object):
         :param hidra_file:
         :return:
         """
+        # Check
         checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
 
-        # TODO - TONIGHT NOW - ASAP
+        # Get values
+        self._instrument_setup = hidra_file.get_instrument_geometry()
 
         return
 
@@ -278,7 +311,8 @@ class HidraWorkspace(object):
         """
         checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
 
-        # TODO - TONIGHT NOW - ASAP
+        # Get special values
+        self._sample_log_dict = hidra_file.get_logs()
 
         return
 
@@ -617,3 +651,20 @@ class HidraWorkspace(object):
             has_log = sample_log_name in self._data_dict[main_key].sample_log_names
 
         return has_log
+
+    def set_reduced_diffraction_data(self, sub_run, mask_id, bin_edges, hist):
+        """ Set reduced diffraction data
+        :param sub_run:
+        :param mask_id:
+        :param bin_edges:
+        :param hist:
+        :return:
+        """
+        if self._2theta_vec.shape != bin_edges:
+            raise RuntimeError('2theta vector are different to set: {} vs {}'.format(self._2theta_vec.shape,
+                                                                                     bin_edges.shape))
+
+        spec_id = self._sub_run_to_spectrum[sub_run]
+        self._diff_data_set[spec_id] = hist
+
+        return

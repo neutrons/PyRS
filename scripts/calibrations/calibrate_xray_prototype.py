@@ -59,7 +59,7 @@ def main(argv):
     # Optional: bins
 
     # long-name, short-name, target name, type, default value, is mandatory, documen
-    args_def_dict = [('input', 'i', 'inputfile', str, None, True, 'Input HIDRA project file'),
+    args_def_list = [('input', 'i', 'inputfile', str, None, True, 'Input HIDRA project file'),
                      ('masks', 'm', 'masksfiles', str, None, False,
                       'Path to an ASCI file containing list of path to mask files, separated by ":", ", " or "\n"'),
                      ('instrument', None, 'instrument', str, None, False, 'Path to instrument file'),
@@ -67,7 +67,7 @@ def main(argv):
                      ('binsize', 'b', 'binsize', float, 0.01, False, '2theta step')]
 
     try:
-        param_dict = script_helper.process_arguments(argv, args_def_dict)
+        param_dict = script_helper.process_arguments(argv, args_def_list)
     except RuntimeError as run_err:
         print ('Failed to parse inputs due to {}'.format(run_err))
         return
@@ -84,7 +84,7 @@ def main(argv):
     calib_controller.load_hidra_project(param_dict['inputfile'], project_name=project_name)
 
     # Reduce data
-    calib_controller.reduce_diffraction_data(project_name, two_theta_step=args_def_dict['binsize'],
+    calib_controller.reduce_diffraction_data(project_name, two_theta_step=param_dict['binsize'],
                                              pyrs_engine=True)
 
     # Export reduction data

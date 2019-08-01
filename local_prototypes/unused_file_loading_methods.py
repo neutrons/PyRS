@@ -1,5 +1,5 @@
 
-# From reductionengine.py
+# From reduction_manager.py
 def load_data(self, data_file_name, sub_run=None, target_dimension=None, load_to_workspace=True):
     """
     Load data set and
