@@ -87,16 +87,24 @@ def main(argv):
     calib_controller.reduce_diffraction_data(project_name, two_theta_step=param_dict['binsize'],
                                              pyrs_engine=True)
 
-    # Export reduction data
-    calib_controller.export_diffraction_data(project_name, param_dict['inputfile'])
-
     # Calibration init: import ROI/Mask files
-    mask_file_list = parse_mask_files(param_dict['masks'])
-    if len(mask_file_list) < 2:
-        print ('For X-ray case, user must specify at least 2 masks')
+    if 'masksfiles' in param_dict:
+        mask_file_list = parse_mask_files(param_dict['masksfiles'])
+        if len(mask_file_list) < 2:
+            print ('For X-ray case, user must specify at least 2 masks')
+            sys.exit(-1)
+    else:
+        print ('[ERROR] X-ray-calibration algorithm requires Masks')
         sys.exit(-1)
 
-    # TODO - to be continued
+    # Last test before calibration start: reduce by mask
+    for mask_file_name in mask_file_list:
+        calib_controller.reduce_diffraction_data(project_name,  two_theta_step=param_dict['binsize'],
+                                                 pyrs_engine=True, mask_file_name=mask_file_name)
+    # END-FOR
+
+    # Export reduction data
+    calib_controller.save_diffraction_data(project_name, param_dict['inputfile'])
 
     return
 

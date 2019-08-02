@@ -142,7 +142,7 @@ class HidraWorkspace(object):
 
         # diffraction
         self._2theta_vec = None  # ndarray.  shape = (m, ) m = number of 2theta
-        self._diff_data_set = None  # ndarray. shape=(n, m)  n = number of sub-run, m = number of of 2theta
+        self._diff_data_set = dict()  # [mask id] = ndarray: shape=(n, m), n: number of sub-run, m: number of of 2theta
 
         # instrument
         self._instrument_setup = None
@@ -197,7 +197,6 @@ class HidraWorkspace(object):
 
         # create the spectrum map
         sub_run_list = hidra_file.get_sub_runs()
-        print ('L184: sub runs: ', sub_run_list)
         self._create_subrun_spectrum_map(sub_run_list)
 
         # load raw detector counts
@@ -655,16 +654,49 @@ class HidraWorkspace(object):
     def set_reduced_diffraction_data(self, sub_run, mask_id, bin_edges, hist):
         """ Set reduced diffraction data
         :param sub_run:
-        :param mask_id:
+        :param mask_id: None (no mask) or String (with mask indexed by this string)
         :param bin_edges:
         :param hist:
         :return:
         """
-        if self._2theta_vec.shape != bin_edges:
+        # TODO - TONIGHT NOW - Check & Doc
+
+        # Set 2-theta (X)
+        if self._2theta_vec is None:
+            # First time set up
+            # Set X
+            self._2theta_vec = bin_edges.copy()
+
+        elif self._2theta_vec.shape != bin_edges.shape:
+            # Need to check if previously set
             raise RuntimeError('2theta vector are different to set: {} vs {}'.format(self._2theta_vec.shape,
                                                                                      bin_edges.shape))
+        # END-IF-ELSE
 
+        # Initialize Y with mask
+        print ('L667: Mask ID: "{}"'.format(mask_id))
+
+        if mask_id not in self._diff_data_set:
+            num_sub_runs = len(self._sub_run_to_spectrum)
+            self._diff_data_set[mask_id] = numpy.ndarray(shape=(num_sub_runs, hist.shape[0]), dtype=hist.dtype)
+
+        # Check array shape
+        if self._diff_data_set[mask_id].shape[1] != hist.shape[0]:
+            raise RuntimeError('blabla')
+
+        # Set Y
         spec_id = self._sub_run_to_spectrum[sub_run]
-        self._diff_data_set[spec_id] = hist
+        self._diff_data_set[mask_id][spec_id] = hist
+
+        return
+
+    def save_reduced_diffraction_data(self, hidra_project):
+        """ Export reduced diffraction data to project
+        :param hidra_project:
+        :return:
+        """
+        checkdatatypes.check_type('HIDRA project file', hidra_project, rs_project_file.HydraProjectFile)
+
+        hidra_project.set_reduced_diffraction_dataset(self._2theta_vec, self._diff_data_set)
 
         return

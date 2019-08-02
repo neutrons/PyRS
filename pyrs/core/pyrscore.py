@@ -3,6 +3,7 @@ from pyrs.utilities import checkdatatypes
 # from pyrs.utilities import rs_scan_io
 from pyrs.utilities import file_util
 from pyrs.utilities import rs_project_file
+from pyrs.core import mask_util
 import mantid_fit_peak
 import strain_stress_calculator
 import reduction_manager
@@ -597,6 +598,17 @@ class PyRsCore(object):
 
         return data_key, message
 
+    def save_diffraction_data(self, project_name, file_name):
+        """
+
+        :param project_name:
+        :param file_name:
+        :return:
+        """
+        self.reduction_manager.save_reduced_diffraction(project_name, file_name)
+
+        return
+
     def save_peak_fit_result(self, data_key, src_rs_file_name, target_rs_file_name):
         """ Save peak fit result to file with original data
         :param data_key:
@@ -629,9 +641,18 @@ class PyRsCore(object):
 
         return
 
-    def reduce_diffraction_data(self, session_name, two_theta_step, pyrs_engine):
+    def reduce_diffraction_data(self, session_name, two_theta_step, pyrs_engine, mask_file_name=None):
+        # TODO - TONIGHT NOW #72 - Doc and more input as two_theta_range...
 
-        self._reduction_manager.reduce_diffraction_data(session_name, two_theta_step, pyrs_engine)
+        if mask_file_name:
+            mask_info = self._reduction_manager.load_mask_file(mask_file_name)
+            mask_id = mask_info[2]
+            print ('L650 Mask ID = {}'.format(mask_id))
+        else:
+            mask_id = None
+
+        self._reduction_manager.reduce_diffraction_data(session_name, two_theta_step, pyrs_engine,
+                                                        mask_id)
 
         return
 

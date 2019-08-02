@@ -20,6 +20,7 @@ class HidraConstants(object):
     GEOMETRY_SETUP = 'geometry setup'
     DETECTOR_PARAMS = 'detector'
     TWO_THETA = '2Theta'
+    REDUCED_MAIN = 'main'
 
 
 class HydraProjectFileMode(Enum):
@@ -142,6 +143,30 @@ class HydraProjectFile(object):
         # reduced_data.create_group('d-spacing')
 
         return
+
+    def get_2theta_vector(self):
+        # TODO - NOW TONIGHT #72 - Doc
+
+        two_theta_vec = self._project_h5[HidraConstants.REDUCED_DATA][HidraConstants.TWO_THETA].value
+
+        return two_theta_vec
+
+    def get_reduced_diffraction_data(self, mask_id, sub_run):
+        """
+
+        :param mask_id:
+        :param sub_run:
+        :return:
+        """
+        sub_run_list = self.get_sub_runs()
+        sub_run_index = sub_run_list.index(sub_run)
+
+        if mask_id is None:
+            mask_id = HidraConstants.REDUCED_MAIN
+
+        reduced_diff_hist = self._project_h5[HidraConstants.REDUCED_DATA][mask_id].value[sub_run_index]
+
+        return reduced_diff_hist
 
     def get_instrument_geometry(self):
         """
@@ -430,6 +455,36 @@ class HydraProjectFile(object):
 
         for info_name in info_dict:
             self._project_h5.attrs[info_name] = info_dict[info_name]
+
+        return
+
+    def set_reduced_diffraction_dataset(self, two_theta_vec, diff_data_set):
+        # TODO - TONIGHT NOW #72 - Check & Doc
+        diff_group = self._project_h5[HidraConstants.REDUCED_DATA]
+
+        # Add 2theta vector
+        if HidraConstants.TWO_THETA in diff_group.keys():
+            # over write data
+            diff_group[HidraConstants.TWO_THETA][...] = two_theta_vec
+        else:
+            # new data
+            diff_group.create_dataset(HidraConstants.TWO_THETA, data=two_theta_vec)
+
+        # Add Diffraction data
+        for mask_id in diff_data_set:
+            if mask_id is None:
+                data_name = HidraConstants.REDUCED_MAIN
+            else:
+                data_name = mask_id
+
+            if data_name in diff_group.keys():
+                # overwrite
+                diff_h5_data = diff_group[data_name]
+                diff_h5_data[...] = diff_data_set[mask_id]
+            else:
+                # new
+                diff_group.create_dataset(data_name, data=diff_data_set[mask_id])
+        # END-FOR
 
         return
 

@@ -98,6 +98,9 @@ class ResidualStressInstrument(object):
         # check input
         checkdatatypes.check_float_variable('2theta', two_theta, (None, None))
 
+        print ('[DB...L101] Build instrumnent: 2theta = {}, arm = {}'
+               ''.format(two_theta, self._instrument_geom_params.arm_length))
+
         # make a copy from raw (constant position)
         self._pixel_matrix = self._raw_pixel_matrix.copy()
 
@@ -122,14 +125,14 @@ class ResidualStressInstrument(object):
         # END-IF-ELSE
 
         # push to +Z at length of detector arm
+        arm_l2 = self._instrument_geom_params.arm_length
         if instrument_calibration is not None:
             # Apply the shift on Z (arm length)
-            self._pixel_matrix[:, :, 2] += self._instrument_geom_params.arm_length + \
-                                           instrument_calibration.center_shift_z
+            arm_l2 += instrument_calibration.center_shift_z
         # END-IF
+        self._pixel_matrix[:, :, 2] += arm_l2
 
         # rotate 2theta
-        print ('[INFO] Build instrument with 2theta = {}'.format(two_theta))
         two_theta_rad = two_theta * np.pi / 180.
         two_theta_rot_matrix = self._cal_rotation_matrix_y(two_theta_rad)
         self._pixel_matrix = self._rotate_detector(self._pixel_matrix, two_theta_rot_matrix)
@@ -521,6 +524,10 @@ class PyHB2BReduction(object):
         self._detector_counts = raw_count_vec
 
         return
+
+    def set_mask(self, mask_vec):
+        # TODO - TONIGHT NOW #72 - Doc & check
+        self._detector_mask = mask_vec
 
 
     @staticmethod

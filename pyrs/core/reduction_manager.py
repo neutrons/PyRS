@@ -32,6 +32,7 @@ class HB2BReductionManager(object):
 
         # workspace name or array vector
         self._curr_workspace = None
+        self._curr_session_name = None
         self._session_dict = dict()  # ID = workspace, counts vector
 
         # number of bins
@@ -109,7 +110,9 @@ class HB2BReductionManager(object):
             raise RuntimeError('Session name {} is either empty or previously used (not unique)'.format(session_name))
 
         self._curr_workspace = workspaces.HidraWorkspace()
+        self._curr_session_name = session_name
         self._session_dict[session_name] = self._curr_workspace
+
 
         return
 
@@ -135,23 +138,8 @@ class HB2BReductionManager(object):
                                                 load_raw_counts=True,
                                                 load_reduced_diffraction=False)
 
-        # # Load sample logs
-        # sub_run_list = project_h5_file.get_sub_runs()
-        # for sub_run in sorted(sub_run_list):
-        #     # count
-        #     count_vec = project_h5_file.get_scan_counts(sub_run=sub_run)
-        #     self._curr_workspace.add_sub_run(sub_run, count_vec)
-        # # END-FOR
-        #
-        # # Get sample logs
-        # two_theta_log = project_h5_file.get_log_value(log_name='2Theta')
-        # self._curr_workspace.add_log('2Theta', two_theta_log)
-        #
-        # # Instrument
-        # instrument_setup = project_h5_file.get_instrument_geometry(load_calibrated_instrument)
-        # self._curr_workspace.set_instrument(instrument_setup)
-        #
-        # project_h5_file.close()
+        # Close
+        project_h5_file.close()
 
         return
 
@@ -180,7 +168,8 @@ class HB2BReductionManager(object):
         # register the masks
         self._loaded_mask_files.append(mask_file_name)
 
-        mask_id = os.path.basename(mask_file_name).split('.')[0] + '_{}'.format(hash(mask_file_name))
+        mask_id = os.path.basename(mask_file_name).split('.')[0] + '_{}'.format(hash(mask_file_name) % 100)
+        print (mask_id)
         self._loaded_mask_dict[mask_id] = mask_vec, two_theta, mask_file_name
 
         return two_theta, note, mask_id
@@ -326,6 +315,7 @@ class HB2BReductionManager(object):
         return sorted(self._loaded_mask_dict.keys())
 
     def get_mask_vector(self, mask_id):
+        print ('L317 Mask dict: {}'.format(self._loaded_mask_dict.keys()))
         return self._loaded_mask_dict[mask_id][0]
 
     def get_raw_data(self, data_id, is_workspace):
@@ -352,35 +342,16 @@ class HB2BReductionManager(object):
 
         return
 
-    def reduce_diffraction_data(self, session_name, bin_size_2theta, use_pyrs_engine):
-        # TODO - NOW - #72 Continue to work on!
+    def reduce_diffraction_data(self, session_name, bin_size_2theta, use_pyrs_engine, mask):
+        # TODO - NOW TONIGHT #72 - Doc, check and etc
+        # mask:  mask ID or mask vector
 
         if session_name is None:
             workspace = self._curr_workspace
         else:
             workspace = self._session_dict[session_name]
 
-        for sub_run in workspace.get_subruns():
-            self.reduce_to_2theta(workspace, sub_run,
-                                  use_mantid_engine=not use_pyrs_engine,
-                                  mask=None,
-                                  resolution_2theta=bin_size_2theta)
-
-        return
-
-    # TODO - TONIGHT 0 - This script does not work correctly! Refer to compare_reduction_engines_tst
-    def reduce_to_2theta(self, workspace, sub_run, use_mantid_engine, mask,
-                         min_2theta=None, max_2theta=None, resolution_2theta=None):
-        """
-        Reduce import data (workspace or vector) to 2-theta ~ I
-        :param workspace:
-        :param use_mantid_engine:
-        :param mask: mask ID or mask vector
-        :param min_2theta: None or user specified
-        :param max_2theta: None or user specified
-        :param resolution_2theta: None or user specified
-        :return:
-        """
+        # mask
         # Process mask
         if mask is None:
             mask_vec = None
@@ -396,6 +367,28 @@ class HB2BReductionManager(object):
                       hash('{}'.format(mask_vec.mean()))
         # END-IF-ELSE
 
+        # TODO - TONIGHT NOW #72 - How to embed mask information???
+        for sub_run in workspace.get_subruns():
+            self.reduce_to_2theta(workspace, sub_run,
+                                  use_mantid_engine=not use_pyrs_engine,
+                                  mask_vec_id=(mask_id, mask_vec),
+                                  resolution_2theta=bin_size_2theta)
+
+        return
+
+    # NOTE: Refer to compare_reduction_engines_tst
+    def reduce_to_2theta(self, workspace, sub_run, use_mantid_engine, mask_vec_id,
+                         min_2theta=None, max_2theta=None, resolution_2theta=None):
+        """
+        Reduce import data (workspace or vector) to 2-theta ~ I
+        :param workspace:
+        :param use_mantid_engine:
+        :param mask_vec_id: 2-tuple (String as ID, None or vector for Mask)
+        :param min_2theta: None or user specified
+        :param max_2theta: None or user specified
+        :param resolution_2theta: None or user specified
+        :return:
+        """
         # Get the raw data
         raw_count_vec = workspace.get_raw_data(sub_run)
 
@@ -417,9 +410,33 @@ class HB2BReductionManager(object):
             reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
             reduction_engine.set_experimental_data(two_theta, raw_count_vec)
             reduction_engine.build_instrument(None)
+
+            # TODO FIXME - NEXT - START OF DEBUG OUTPUT -------->
+            # Debug output: self._pixel_matrix
+            # check corners
+            # test 5 spots (corner and center): (0, 0), (0, 1023), (1023, 0), (1023, 1023), (512, 512)
+            pixel_1d_array = reduction_engine.get_pixel_positions(False)
+            pixel_number = 2048
+            pixel_locations = [(0, 0),
+                               (0, pixel_number - 1),
+                               (pixel_number - 1, 0),
+                               (pixel_number - 1, pixel_number - 1),
+                               (pixel_number / 2, pixel_number / 2)]
+            for index_i, index_j in pixel_locations:
+                index1d = index_i + pixel_number * index_j
+                pos_python = pixel_1d_array[index1d]
+                print (pos_python)
+                for i in range(3):
+                    print ('dir {}:  {:10f}'
+                           ''.format(i, float(pos_python[i])))
+                # END-FOR
+            # END-FOR
+            # TODO FIXME - NEXT - END OF DEBUG OUTPUT <------------
+
         # END-IF
 
         # Mask
+        mask_id, mask_vec = mask_vec_id
         if mask_vec is not None:
             reduction_engine.set_mask(mask_vec)
 
@@ -449,14 +466,29 @@ class HB2BReductionManager(object):
 
         return
 
-    # TODO - TONIGHT 0 - From here!
-    def save_reduced_diffraction(self, data_id, output_name):
+    def save_reduced_diffraction(self, session_name, output_name):
+        """
+        Save the reduced diffraction data to file
+        :param session_name:
+        :param output_name:
+        :return:
+        """
         checkdatatypes.check_file_name(output_name, False, True, False, 'Output reduced file')
 
-        print ('data id: ', data_id)
-        print ('masks: ', self._reduce_data_dict[data_id].keys())
-        # self._reduce_data_dict[data_id][mask_id] = self._curr_vec_x, self._curr_vec_y
+        workspace = self._session_dict[session_name]
 
+        # Open
+        if os.path.exists(output_name):
+            io_mode = rs_project_file.HydraProjectFileMode.READWRITE
+        else:
+            io_mode = rs_project_file.HydraProjectFileMode.OVERWRITE
+        project_file = rs_project_file.HydraProjectFile(output_name, io_mode)
+
+        # Save
+        workspace.save_reduced_diffraction_data(project_file)
+
+        # Close
+        project_file.save_hydra_project()
 
         return
 
