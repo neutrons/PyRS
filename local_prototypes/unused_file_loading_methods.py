@@ -46,3 +46,55 @@ def load_data(self, data_file_name, sub_run=None, target_dimension=None, load_to
     self._last_loaded_data_id = data_id
 
     return data_id, two_theta
+
+
+class ScanDataHolder(object):
+    """
+    holder for a single scan data which contains diffraction data and sample logs
+    """
+    def __init__(self, file_name, diff_data_dict, sample_log_dict):
+        """
+
+        :param file_name:
+        :param diff_data_dict: dict (key: int/scan log index; value: tuple: vec_2theta, vec_intensity
+        :param sample_log_dict:
+        """
+        # check
+        checkdatatypes.check_file_name(file_name)
+        checkdatatypes.check_dict('Diffraction data dictionary', diff_data_dict)
+        checkdatatypes.check_dict('Sample log dictionary', sample_log_dict)
+
+        # check diffraction data dictionary
+        for log_index in sorted(diff_data_dict.keys()):
+            checkdatatypes.check_int_variable('Diffraction data log index', log_index, value_range=[0, None])
+            diff_tup = diff_data_dict[log_index]
+            checkdatatypes.check_tuple('Diffraction data set', diff_tup, 2)
+            vec_2theta = diff_tup[0]
+            vec_intensity = diff_tup[1]
+            checkdatatypes.check_numpy_arrays('Vector for 2theta and intensity', [vec_2theta, vec_intensity],
+                                              dimension=1, check_same_shape=True)
+
+        # store a list of all existing scan (log) indexes in ascending order
+        self._scan_log_indexes = diff_data_dict.keys()
+        self._scan_log_indexes.sort()
+        self._scan_log_index_vec = numpy.array(self._scan_log_indexes)
+
+        # check sample log dictionary
+        for log_name in sample_log_dict:
+            # skip peak fit part
+            if log_name == 'peak_fit':
+                continue
+            checkdatatypes.check_string_variable('Sample log name', log_name)
+            log_value_vec = sample_log_dict[log_name]
+            checkdatatypes.check_numpy_arrays('Sample log {0} value vector'.format(log_name),
+                                              log_value_vec, 1, False)
+            if len(log_value_vec) != len(self._scan_log_indexes):
+                raise RuntimeError('Number of log values of {0} {1} is not equal to number of scan logs {2}'
+                                   ''.format(log_name, len(log_value_vec), len(self._scan_log_indexes)))
+
+        # set
+        self._file_name = file_name
+        self._diff_data_dict = diff_data_dict
+        self._sample_log_dict = sample_log_dict
+
+        return

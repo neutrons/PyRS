@@ -306,7 +306,7 @@ class PyRsCore(object):
         diff_data_list = list()
         # TODO - FUTURE - sun run will be used to replace log_index
         for log_index in scan_index_list:
-            diff_data = self._data_manager.get_data_set(data_key_set, log_index)
+            diff_data = self._data_manager.get_reduced_diffraction_data(data_key_set, log_index)
             diff_data_list.append(diff_data)
         # END-FOR
 
@@ -401,7 +401,7 @@ class PyRsCore(object):
         # END-IF
 
         # get data
-        diff_data_set = self._data_manager.get_data_set(data_key, scan_log_index)
+        diff_data_set = self._data_manager.get_reduced_diffraction_data(data_key, scan_log_index)
 
         return diff_data_set
 
