@@ -442,10 +442,13 @@ class PyHB2BReduction(object):
         two_theta_vector = self.generate_2theta_histogram_vector(two_theta_range[0], two_theta_step, two_theta_range[1])
 
         # Get the data (each pixel's 2theta and counts)
-        pixel_2theta_array = self._instrument.get_pixel_array()
+        pixel_2theta_array = self._instrument.get_pixels_2theta(1)
         checkdatatypes.check_numpy_arrays('Two theta and detector counts array',
-                                          [pixel_2theta_array,self._detector_counts], 1,
-                                          check_same_shape=False)  # optional check
+                                          [pixel_2theta_array, self._detector_counts], 1,
+                                          check_same_shape=True)  # optional check
+        if pixel_2theta_array.shape[0] != self._detector_counts.shape[0]:
+            raise RuntimeError('Detector pixel position array ({}) does not match detector counts array ({})'
+                               ''.format(pixel_2theta_array.shape, self._detector_counts.shape))
         # Convert count type
         vec_counts = self._detector_counts.astype('float64')
 
@@ -483,7 +486,7 @@ class PyHB2BReduction(object):
             # use numpy.histogram
             two_theta_vector, intensity_vector = self.histogram_by_numpy(pixel_2theta_array, vec_counts,
                                                                          two_theta_vector,
-                                                                         is_point_data, use_mantid_histogram=False)
+                                                                         is_point_data, True)
 
         # Record
         self._reduced_diffraction_data = two_theta_vector, intensity_vector
@@ -615,7 +618,7 @@ class PyHB2BReduction(object):
         return bin_edges, hist
 
     @staticmethod
-    def histogram_by_numpy(pixel_2theta_array, vec_counts, x_range, num_bins, is_point_data, norm_bins):
+    def histogram_by_numpy(pixel_2theta_array, vec_counts, two_theta_vec, is_point_data, norm_bins):
         """
         Histogram a data set (X, Y) by numpy histogram algorithm
         Assumption:
@@ -629,18 +632,33 @@ class PyHB2BReduction(object):
                           by the number of pixels fall into this 2theta range
         :return:
         """
+        checkdatatypes.check_numpy_arrays('Pixel 2theta array, pixel counts array',
+                                          [pixel_2theta_array, vec_counts],
+                                          1, True)
+
         # Call numpy to histogram
         # TODO - NOW NOW #72 - Try bins = two_theta_vector
         if False:
+            x_range, num_bins = two_theta_vec
             hist, bin_edges = np.histogram(pixel_2theta_array, bins=num_bins, range=x_range, weights=vec_counts)
         else:
             hist, bin_edges = np.histogram(pixel_2theta_array, bins=two_theta_vec, weights=vec_counts)
+            # from matplotlib import pyplot as plt
+            # plt.plot(bin_edges[1:], hist)
+            # plt.show()
 
         # Optionally to normalize by number of pixels (sampling points) in the 2theta bin
         if norm_bins:
             # Create an all 1 vector
             vec_one = numpy.zeros(shape=vec_counts.shape) + 1
             # Histograms
+            # TODO FIXME - TONIGHT - NOW
+            #
+            #   File "/home/wzz/Projects/PyRS/build/lib.linux-x86_64-2.7/pyrs/core/reduce_hb2b_pyrs.py", line 653, in histogram_by_numpy
+            #   hist_bin, bin_edges2 = np.histogram(pixel_2theta_array, bins=num_bins, range=x_range, weights=vec_one)
+            #   UnboundLocalError: local variable 'num_bins' referenced before assignment
+            #
+            #
             hist_bin, bin_edges2 = np.histogram(pixel_2theta_array, bins=num_bins, range=x_range, weights=vec_one)
 
             # Normalize with cautious to avoid zero number of bins on any X

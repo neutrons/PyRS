@@ -441,10 +441,14 @@ class HB2BReductionManager(object):
             reduction_engine.set_mask(mask_vec)
 
         # Reduce
+        # TODO - TONIGHT NOW #72 - Make this method call happy!
         num_bins = 500
         two_theta_range = (10, 60)
-        bin_edges, hist = reduction_engine.reduce_to_2theta_histogram(num_bins, two_theta_range,
+        two_theta_step = 50./500.
+        bin_edges, hist = reduction_engine.reduce_to_2theta_histogram(two_theta_range, two_theta_step,
+                                                                      apply_mask=True,
                                                                       is_point_data=True,
+                                                                      normalize_pixel_bin=True,
                                                                       use_mantid_histogram=False)
 
         print ('[DB...BAT] vec X shape = {}, vec Y shape = {}'.format(bin_edges.shape, hist.shape))
