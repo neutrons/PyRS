@@ -35,28 +35,17 @@ class HB2BReductionManager(object):
         self._curr_session_name = None
         self._session_dict = dict()  # ID = workspace, counts vector
 
-        # number of bins
+        # Reduction engine
+        self._last_reduction_engine = None
+
+        # TODO - FUTURE - Whether a reduction engine can be re-used or stored???
+
+        # (default) number of bins
         self._num_bins = 2500
-
-        # instrument setup (for non NeXus input)
-        self._instrument = None
-        self._mantid_idf = None
-        # calibration
-
-        # record
-        self._last_loaded_data_id = None
 
         # masks
         self._loaded_mask_files = list()
         self._loaded_mask_dict = dict()
-
-        # # reduced data
-        # self._curr_vec_x = None
-        # self._curr_vec_y = None
-
-        # raw data and reduced data
-        self._raw_data_dict = dict()  # [Handler][Sub-run][Mask ID] = vec_y, 2theta
-        self._reduce_data_dict = dict()  # D[data ID][mask ID] = vec_x, vec_y
 
         # Outputs
         self._output_directory = None
@@ -72,32 +61,41 @@ class HB2BReductionManager(object):
 
         return ws_name
 
-    @property
-    def current_data_id(self):
+    def get_last_reduction_engine(self):
         """
-        current or last loaded data ID
+        Get the reduction engine recently used
         :return:
         """
-        return self._last_loaded_data_id
+        return self._last_reduction_engine
 
-    def get_diffraction_pattern(self, data_handler, sub_run):
-        try:
-            vec_x, vec_y = self._reduce_data_dict[data_handler][sub_run][None]
-        except KeyError as key_err:
-            vec_x = vec_y = None
+    # TODO - TONIGHT 0 - Need to register reduced data with sub-run
+    def get_reduced_diffraction_data(self, session_name, sub_run=None, mask_id=None):
+        """
+        Get the reduce data
+        :param data_id:
+        :param mask_id:  ID of mask
+        :return:
+        """
+        # TODO - TONIGHT NOW #72 - Redo!!!
 
-        return vec_x, vec_y
+        return
 
-    def get_sub_runs(self, exp_handler):
-
+    def get_sub_runs(self, session_name):
         # TODO - TONIGHT - Doc and check
-        return self._raw_data_dict[exp_handler].keys()
+        return
 
-    def get_sub_run_count(self, exp_handler, sub_run):
-        return self._raw_data_dict[exp_handler][sub_run][0]
+    def get_sub_run_detector_counts(self, session_name, sub_run):
+        # TODO - TONIGHT - Doc and check
+        return
 
     def get_sub_run_2theta(self, exp_handler, sub_run):
-        return self._raw_data_dict[exp_handler][sub_run][1]
+        # TODO - TONIGHT - Doc and check
+        return
+
+    def get_sub_run_workspace(self, session_name):
+        # TODO - TONIGHT - Doc and check
+        # TODO - GOAL: Replace: get counts() and get 2theta()
+        return
 
     def init_session(self, session_name):
         """
@@ -112,7 +110,6 @@ class HB2BReductionManager(object):
         self._curr_workspace = workspaces.HidraWorkspace()
         self._curr_session_name = session_name
         self._session_dict[session_name] = self._curr_workspace
-
 
         return
 
@@ -145,7 +142,7 @@ class HB2BReductionManager(object):
 
     def load_instrument_file(self, instrument_file_name):
         """
-        Load instrument (setup) file
+        Load instrument (setup) file to current "workspace"
         :param instrument_file_name:
         :return:
         """
@@ -159,7 +156,7 @@ class HB2BReductionManager(object):
         return
 
     def load_mask_file(self, mask_file_name):
-        """ Load mask file
+        """ Load mask file to 1D array and auxiliary information
         :param mask_file_name:
         :return:
         """
@@ -169,136 +166,9 @@ class HB2BReductionManager(object):
         self._loaded_mask_files.append(mask_file_name)
 
         mask_id = os.path.basename(mask_file_name).split('.')[0] + '_{}'.format(hash(mask_file_name) % 100)
-        print (mask_id)
         self._loaded_mask_dict[mask_id] = mask_vec, two_theta, mask_file_name
 
         return two_theta, note, mask_id
-
-    def _load_nexus(self, nxs_file_name):
-        """
-        Load NeXus file
-        :param nxs_file_name:
-        :return:
-        """
-        out_ws_name = self._generate_ws_name(nxs_file_name)
-        LoadEventNexus(Filename=nxs_file_name, OutputWorkspace=out_ws_name)
-
-        # get vector of counts
-        CovertToMatrixWorkspace(InputWorkspace=out_ws_name, OutputWorkspace='_temp')
-        count_ws = Transpose(InputWorkspace='_temp', OutputWorkspace='_temp')
-        count_vec = count_ws.readY(0)
-
-        self._data_dict[out_ws_name] = [out_ws_name, count_vec]
-
-        return out_ws_name
-
-    def _load_pyrs_h5(self, pyrs_h5_name, sub_run, create_workspace):
-        """ Load Reduced PyRS file in HDF5 format
-        :param pyrs_h5_name:
-        :return:
-        """
-        # check input
-        checkdatatypes.check_string_variable('PyRS reduced file (.hdf5)', pyrs_h5_name)
-        checkdatatypes.check_file_name(pyrs_h5_name, True, False, False, 'PyRS reduced file (.hdf5)')
-
-        # using base name (without postfix) with hashed directory as ID (unique)
-        data_id = os.path.basename(pyrs_h5_name).split('.h')[0] + '_{}'.format(hash(os.path.dirname(pyrs_h5_name)))
-
-        # load file
-        if pyrs_h5_name.endswith('hdf5'):
-            # start file and load
-            diff_file = rs_project_file.HydraProjectFile(pyrs_h5_name, mode='r')
-            count_vec = diff_file.get_raw_counts(sub_run=sub_run)
-            two_theta = diff_file.get_log_value(log_name='2Theta', sub_run=sub_run)
-            # close file
-            diff_file.close()
-        else:
-            diff_file = rs_scan_io.DiffractionDataFile()
-            count_vec, two_theta = diff_file.load_raw_measurement_data(pyrs_h5_name)
-
-        # create workspace for counts as an option
-        if create_workspace:
-            vec_x = np.zeros(count_vec.shape)
-            ws = CreateWorkspace(DataX=vec_x, DataY=count_vec, DataE=np.sqrt(count_vec), NSpec=vec_x.shape[0],
-                                 OutputWorkspace=data_id, UnitX='SpectraNumber')
-            # ws = Transpose(data_id, OutputWorkspace=data_id)
-            print ('[DB.......BAT......LOOK] Unit of workspace = {}'.format(ws.getAxis(0).getUnit().unitID()))
-
-        self._data_dict[data_id] = [data_id, count_vec]
-
-        return data_id, two_theta
-
-    def _load_spice_binary(self, bin_file_name):
-        """ Load SPICE binary
-        :param bin_file_name:
-        :return:
-        """
-        ws_name = self._generate_ws_name(bin_file_name, is_nexus=False)
-        LoadSpiceXML2DDet(Filename=bin_file_name, OutputWorkspace=ws_name, LoadInstrument=False)
-
-        # get vector of counts
-        counts_ws = Transpose(InputWorkspace=ws_name, OutputWorkspace='_temp')
-        count_vec = counts_ws.readY(0)
-
-        self._data_dict[ws_name] = [ws_name, count_vec]
-
-        return ws_name
-
-    def _load_tif_image(self, raw_tiff_name, pixel_size, rotate, load_to_workspace):
-        """
-        Load data from TIFF
-        It is same as pyrscalibration.load_data_from_tiff
-        Create numpy 2D array with integer 32
-        :param raw_tiff_name:
-        :param pixel_size: linear pixel size (N) image is N x N
-        :param rotate:
-        :return:
-        """
-        # Load data from TIFF
-        image_2d_data = matplotlib.image.imread(raw_tiff_name)
-        image_2d_data.astype(np.int32)  # to an N x N data
-        if rotate:
-            image_2d_data = image_2d_data.transpose()
-
-        if image_2d_data.shape[0] != 2048:
-            raise RuntimeError('Current algorithm can only handle 2048 x 2048 TIFF but not of size {}'
-                               ''.format(image_2d_data.shape))
-        # Merge data if required
-        if pixel_size == 1024:
-            counts_vec = image_2d_data[::2, ::2] + image_2d_data[::2, 1::2] + image_2d_data[1::2, ::2] + image_2d_data[
-                                                                                                         1::2, 1::2]
-            pixel_type = '1K'
-            # print (DataR.shape, type(DataR))
-        else:
-            # No merge
-            counts_vec = image_2d_data
-            pixel_type = '2K'
-
-        counts_vec = counts_vec.reshape((pixel_size * pixel_size,))
-        data_id = self._generate_ws_name(raw_tiff_name, is_nexus=False)
-        self._data_dict[data_id] = [None, counts_vec]
-
-        if load_to_workspace:
-            data_ws_name = '{}_{}'.format(data_id, pixel_type)
-            CreateWorkspace(DataX=np.zeros((pixel_size ** 2,)), DataY=counts_vec, DataE=np.sqrt(counts_vec),
-                            NSpec=pixel_size ** 2,
-                            OutputWorkspace=data_ws_name, VerticalAxisUnit='SpectraNumber')
-            self._data_dict[data_id][0] = data_ws_name
-
-        print ('[DB...BAT] Loaded TIF and return DataID = {}'.format(data_id))
-
-        return data_id
-
-    def get_counts(self, data_id):
-        """
-        Get the array as detector counts
-        :param data_id:
-        :return:
-        """
-        if data_id not in self._data_dict:
-            raise RuntimeError('Data key {} does not exist in loaded data dictionary (keys are {})'
-                               ''.format(data_id, self._data_dict.keys()))
-        return self._data_dict[data_id][1]
 
     def get_loaded_mask_files(self):
         """
@@ -315,20 +185,9 @@ class HB2BReductionManager(object):
         return sorted(self._loaded_mask_dict.keys())
 
     def get_mask_vector(self, mask_id):
+        # TODO - Doc and check
         print ('L317 Mask dict: {}'.format(self._loaded_mask_dict.keys()))
         return self._loaded_mask_dict[mask_id][0]
-
-    def get_raw_data(self, data_id, is_workspace):
-        """
-        Get the raw data
-        :param data_id:
-        :param is_workspace: True, workspace; False: vector
-        :return:
-        """
-        if is_workspace:
-            return self._data_dict[data_id][0]
-
-        return self._data_dict[data_id][1]
 
     def set_geometry_calibration(self, geometry_calibration):
         """
@@ -336,6 +195,7 @@ class HB2BReductionManager(object):
         :param geometry_calibration:
         :return:
         """
+        # TODO FIXME - NEXT - ???????
         checkdatatypes.check_type('Geometry calibration', geometry_calibration,
                                   calibration_file_io.ResidualStressInstrumentCalibration)
         self._geometry_calibration = geometry_calibration
@@ -369,7 +229,7 @@ class HB2BReductionManager(object):
 
         # TODO - TONIGHT NOW #72 - How to embed mask information???
         for sub_run in workspace.get_subruns():
-            self.reduce_to_2theta(workspace, sub_run,
+            self.reduce_sub_run_diffraction(workspace, sub_run,
                                   use_mantid_engine=not use_pyrs_engine,
                                   mask_vec_id=(mask_id, mask_vec),
                                   resolution_2theta=bin_size_2theta)
@@ -377,7 +237,7 @@ class HB2BReductionManager(object):
         return
 
     # NOTE: Refer to compare_reduction_engines_tst
-    def reduce_to_2theta(self, workspace, sub_run, use_mantid_engine, mask_vec_id,
+    def reduce_sub_run_diffraction(self, workspace, sub_run, use_mantid_engine, mask_vec_id,
                          min_2theta=None, max_2theta=None, resolution_2theta=None):
         """
         Reduce import data (workspace or vector) to 2-theta ~ I
@@ -432,7 +292,6 @@ class HB2BReductionManager(object):
                 # END-FOR
             # END-FOR
             # TODO FIXME - NEXT - END OF DEBUG OUTPUT <------------
-
         # END-IF
 
         # Mask
@@ -455,18 +314,7 @@ class HB2BReductionManager(object):
 
         # record
         workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_edges, hist)
-
-        return
-
-    def save_project(self, project_id, output_project_file, mask_id=None):
-
-        project_file = rs_project_file.HydraProjectFile(output_project_file, mode='a')
-
-        for sub_run in sorted(self._reduce_data_dict[project_id].keys()):
-            vec_x, vec_y = self._reduce_data_dict[project_id][sub_run][mask_id]
-            project_file.add_diffraction_data(sub_run, vec_x, vec_y, '2theta')
-
-        project_file.close()
+        self._last_reduction_engine = reduction_engine
 
         return
 
@@ -496,21 +344,7 @@ class HB2BReductionManager(object):
 
         return
 
-    # TODO - TONIGHT 0 - Need to register reduced data with sub-run
-    def get_reduced_data(self, data_id=None, mask_id=None):
-        """
-        Get the reduce data
-        :param data_id:
-        :param mask_id:  ID of mask
-        :return:
-        """
-        # default (no data ID) is the currently reduced 2theta pattern
-        if data_id is None:
-            return self._curr_vec_x, self._curr_vec_y
-
-        # TODO - TONIGHT 0 - ASAP: How to store previously reduced data (different masks as use cases)
-        return self._reduced_data_dict[data_id][mask_id]
-
+    # TODO - FUTURE - ??????
     def set_mantid_idf(self, idf_name):
         """
         set the IDF file to reduction engine
@@ -525,68 +359,16 @@ class HB2BReductionManager(object):
 
         return
 
-    def set_instrument(self, instrument):
-        """
-        set the instrument configuration
-        :param instrument:
-        :return:
-        """
-        checkdatatypes.check_type('Instrument setup', instrument, calibration_file_io.InstrumentSetup)
-        self._instrument = instrument
-
-        return
-
     def set_output_dir(self, output_dir):
         """
         set the directory for output data
         :param output_dir:
         :return:
         """
-        # FIXME - check whether the output dir exist;
+        # TODO - FIXME - check whether the output dir exist;
 
         self._output_directory = output_dir
 
         return
 
 # END-CLASS-DEF
-
-def get_log_value(workspace, log_name):
-    """
-    get log value from workspace
-    :param workspace:
-    :param log_name:
-    :return:
-    """
-    # TODO - 20181204 - Implement!
-
-    return blabla
-
-
-def set_log_value(workspace, log_name, log_value):
-    """
-    set a value to a workspace's sample logs
-    :param workspace:
-    :param log_name:
-    :param log_value:
-    :return:
-    """
-    # TODO - 20181204 - Implement!
-
-    return
-
-
-def retrieve_workspace(ws_name, must_be_event=True):
-    """
-    retrieve workspace
-    :param ws_name:
-    :param must_be_event: throw if not event workspace if this is specified
-    :return:
-    """
-    checkdatatypes.check_string_variable('Workspace name', ws_name)
-    if ws_name == '':
-        raise RuntimeError('Workspace name cannot be an empty string')
-
-    if not ADS.doesExist(ws_name):
-        raise RuntimeError('Worksapce {} does not exist in Mantid ADS'.format(ws_name))
-
-    return ADS.retrieve(ws_name)

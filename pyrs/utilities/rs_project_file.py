@@ -465,7 +465,12 @@ class HydraProjectFile(object):
         # Add 2theta vector
         if HidraConstants.TWO_THETA in diff_group.keys():
             # over write data
-            diff_group[HidraConstants.TWO_THETA][...] = two_theta_vec
+            try:
+                diff_group[HidraConstants.TWO_THETA][...] = two_theta_vec
+            except TypeError:
+                # usually two theta vector size changed
+                del diff_group[HidraConstants.TWO_THETA]
+                diff_group.create_dataset(HidraConstants.TWO_THETA, data=two_theta_vec)
         else:
             # new data
             diff_group.create_dataset(HidraConstants.TWO_THETA, data=two_theta_vec)
@@ -480,7 +485,12 @@ class HydraProjectFile(object):
             if data_name in diff_group.keys():
                 # overwrite
                 diff_h5_data = diff_group[data_name]
-                diff_h5_data[...] = diff_data_set[mask_id]
+                try:
+                    diff_h5_data[...] = diff_data_set[mask_id]
+                except TypeError:
+                    # usually two theta vector size changed
+                    del diff_group[data_name]
+                    diff_group.create_dataset(data_name, data=diff_data_set[mask_id])
             else:
                 # new
                 diff_group.create_dataset(data_name, data=diff_data_set[mask_id])

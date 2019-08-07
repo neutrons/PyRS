@@ -343,6 +343,14 @@ class PyHB2BReduction(object):
 
         return
 
+    @property
+    def instrument(self):
+        """
+        Return instrument geometry/calculation instance
+        :return:
+        """
+        return self._instrument
+
     def build_instrument(self, calibration):
         """
         build an instrument
@@ -659,7 +667,7 @@ class PyHB2BReduction(object):
             #   UnboundLocalError: local variable 'num_bins' referenced before assignment
             #
             #
-            hist_bin, bin_edges2 = np.histogram(pixel_2theta_array, bins=num_bins, range=x_range, weights=vec_one)
+            hist_bin, bin_edges2 = np.histogram(pixel_2theta_array, bins=two_theta_vec, weights=vec_one)
 
             # Normalize with cautious to avoid zero number of bins on any X
             if False:

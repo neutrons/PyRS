@@ -244,7 +244,7 @@ class ManualReductionWindow(QMainWindow):
         # FIXME - Need to separate these 2 plotting method: detector view vs reduced data
         # plot detector view
         sub_run = int(self.ui.comboBox_sub_runs.currentText())
-        count_vec = self._core.reduction_manager.get_sub_run_count(self._project_data_id, sub_run)
+        count_vec = self._core.reduction_manager.get_sub_run_detector_counts(self._project_data_id, sub_run)
         two_theta = self._core.reduction_manager.get_sub_run_2theta(self._project_data_id, sub_run)
 
         # set information
