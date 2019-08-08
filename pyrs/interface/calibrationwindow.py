@@ -417,11 +417,11 @@ class InstrumentCalibrationWindow(QMainWindow):
         self._core.reduction_manager.set_geometry_calibration(geom_calibration)
         for mask_id in self._core.reduction_manager.get_mask_ids():
             # mask_vec = self._core.reduction_engine.get_mask_vector(mask_id)
-            self._core.reduction_manager.reduce_to_2theta(data_id=self._curr_data_id,
-                                                          output_name=None,
-                                                          use_mantid_engine=False,
-                                                          mask=mask_id,
-                                                          two_theta=two_theta)
+            self._core.reduction_manager.reduce_to_2theta_histogram(data_id=self._curr_data_id,
+                                                                    output_name=None,
+                                                                    use_mantid_engine=False,
+                                                                    mask=mask_id,
+                                                                    two_theta=two_theta)
             """
              data_id, output_name, use_mantid_engine, mask, two_theta,
                          min_2theta=None, max_2theta=None, resolution_2theta=None

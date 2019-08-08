@@ -182,13 +182,13 @@ class AnglerCameraDetectorShift(object):
         """
         initialize
         """
-        self._center_shift_x = 0.
-        self._center_shift_y = 0.
-        self._center_shift_z = 0.  # center shift Z along detector arm
+        self._center_shift_x = shift_x
+        self._center_shift_y = shift_y
+        self._center_shift_z = shift_z  # center shift Z along detector arm
 
-        self._rotation_x = 0.  # in Y-Z plane (horizontal), i.e, flip
-        self._rotation_y = 0.  # in X-Z plane along Y axis (vertical), i.e., rotate
-        self._rotation_z = 0.  # in X-Y plane along Z axis, i.e., spin at detector center
+        self._rotation_x = rotation_x  # in Y-Z plane (horizontal), i.e, flip
+        self._rotation_y = rotation_y  # in X-Z plane along Y axis (vertical), i.e., rotate
+        self._rotation_z = rotation_z  # in X-Y plane along Z axis, i.e., spin at detector center
 
         # Need data from client to finish this
         self.calibrated_wave_length = {'Si001': 1.00}

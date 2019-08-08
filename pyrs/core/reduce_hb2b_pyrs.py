@@ -352,9 +352,8 @@ class PyHB2BReduction(object):
         return self._instrument
 
     def build_instrument(self, calibration):
-        """
-        build an instrument
-        :param two_theta: 2theta position of the detector panel.  It shall be negative to sample log value
+        """ Build an instrument for each pixel's position in cartesian coordinate
+        :param calibration: AnglerCameraDetectorShift from geometry calibration
         :return: 2D numpy array
         """
         if calibration is not None:

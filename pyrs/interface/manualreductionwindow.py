@@ -369,11 +369,11 @@ class ManualReductionWindow(QMainWindow):
         for sub_run_number in sub_run_list:
             tth_i = self._core.reduction_manager.get_sub_run_2theta(self._project_data_id, sub_run_number)
             try:
-                self._core.reduction_manager.reduce_to_2theta(data_id=self._project_data_id,
-                                                              sub_run=sub_run_number,
-                                                              two_theta=tth_i,
-                                                              use_mantid_engine=False,
-                                                              mask=None)
+                self._core.reduction_manager.reduce_to_2theta_histogram(data_id=self._project_data_id,
+                                                                        sub_run=sub_run_number,
+                                                                        two_theta=tth_i,
+                                                                        use_mantid_engine=False,
+                                                                        mask=None)
             except RuntimeError as run_err:
                 message += 'Sub-run: {}... Failed: {}\n'.format(sub_run_number, run_err)
             else:

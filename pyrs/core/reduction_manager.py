@@ -1,15 +1,14 @@
 # Reduction engine including slicing
 import os
-import numpy as np
-import matplotlib.image
+import random
 from pyrs.utilities import checkdatatypes
 from pyrs.core import workspaces
 from pyrs.utilities import calibration_file_io
 from pyrs.core import mask_util
 from pyrs.core import reduce_hb2b_mtd
 from pyrs.core import reduce_hb2b_pyrs
-from pyrs.utilities import rs_scan_io
 from pyrs.utilities import rs_project_file
+from pyrs.core import instrument_geometry
 from mantid.simpleapi import CreateWorkspace, LoadSpiceXML2DDet, Transpose, LoadEventNexus, ConvertToMatrixWorkspace
 
 # TODO - FIXME - Issue #72 : Clean up
@@ -37,6 +36,9 @@ class HB2BReductionManager(object):
 
         # Reduction engine
         self._last_reduction_engine = None
+
+        # IDF
+        self._mantid_idf = None
 
         # TODO - FUTURE - Whether a reduction engine can be re-used or stored???
 
@@ -70,15 +72,17 @@ class HB2BReductionManager(object):
 
     # TODO - TONIGHT 0 - Need to register reduced data with sub-run
     def get_reduced_diffraction_data(self, session_name, sub_run=None, mask_id=None):
-        """
-        Get the reduce data
-        :param data_id:
-        :param mask_id:  ID of mask
+        """ Get the reduce data
+        :param session_name:
+        :param sub_run:
+        :param mask_id:
         :return:
         """
-        # TODO - TONIGHT NOW #72 - Redo!!!
+        workspace = self._session_dict[session_name]
 
-        return
+        data_set = workspace.get_reduced_diffraction_data(sub_run, mask_id)
+
+        return data_set
 
     def get_sub_runs(self, session_name):
         # TODO - TONIGHT - Doc and check
@@ -202,17 +206,23 @@ class HB2BReductionManager(object):
 
         return
 
-    def reduce_diffraction_data(self, session_name, bin_size_2theta, use_pyrs_engine, mask):
-        # TODO - NOW TONIGHT #72 - Doc, check and etc
-        # mask:  mask ID or mask vector
-
-        if session_name is None:
+    def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, bin_size_2theta, use_pyrs_engine, mask):
+        """ Reduce ALL sub runs in a workspace from detector counts to diffraction data
+        :param session_name:
+        :param apply_calibrated_geometry: 3 options (1) user-provided AnglerCameraDetectorShift
+                                          (2) True (use the one in workspace) (3) False (no calibration)
+        :param bin_size_2theta:
+        :param use_pyrs_engine:
+        :param mask:  mask ID or mask vector
+        :return:
+        """
+        # Get workspace
+        if session_name is None:  # default as current session/workspace
             workspace = self._curr_workspace
         else:
             workspace = self._session_dict[session_name]
 
-        # mask
-        # Process mask
+        # Process mask: No mask, Mask ID and mask vector
         if mask is None:
             mask_vec = None
             mask_id = None
@@ -223,27 +233,41 @@ class HB2BReductionManager(object):
         else:
             checkdatatypes.check_numpy_arrays('Mask', [mask], dimension=1, check_same_shape=False)
             mask_vec = mask
-            mask_id = hash('{}'.format(mask_vec.min())) + hash('{}'.format(mask_vec.max())) + \
-                      hash('{}'.format(mask_vec.mean()))
+            mask_id = 'Mask_{0:04}'.format(random.randint(1000))
         # END-IF-ELSE
+
+        # Apply (or not) instrument geometry calibration shift
+        if isinstance(apply_calibrated_geometry, instrument_geometry.AnglerCameraDetectorShift):
+            det_pos_shift = apply_calibrated_geometry
+        elif apply_calibrated_geometry:
+            det_pos_shift = workspace.get_detector_shift()
+        else:
+            det_pos_shift = None
+        # END-IF-ELSE
+        print ('[DB...BAT] Det Position Shift: {}'.format(det_pos_shift))
 
         # TODO - TONIGHT NOW #72 - How to embed mask information???
         for sub_run in workspace.get_subruns():
-            self.reduce_sub_run_diffraction(workspace, sub_run,
-                                  use_mantid_engine=not use_pyrs_engine,
-                                  mask_vec_id=(mask_id, mask_vec),
-                                  resolution_2theta=bin_size_2theta)
+            self.reduce_sub_run_diffraction(workspace, sub_run, det_pos_shift,
+                                            use_mantid_engine=not use_pyrs_engine,
+                                            mask_vec_id=(mask_id, mask_vec),
+                                            resolution_2theta=bin_size_2theta)
+        # END-FOR
 
         return
 
     # NOTE: Refer to compare_reduction_engines_tst
-    def reduce_sub_run_diffraction(self, workspace, sub_run, use_mantid_engine, mask_vec_id,
-                         min_2theta=None, max_2theta=None, resolution_2theta=None):
+    def reduce_sub_run_diffraction(self, workspace, sub_run, geometry_calibration, use_mantid_engine,
+                                   mask_vec_id,
+                                   min_2theta=None, max_2theta=None, resolution_2theta=None):
         """
         Reduce import data (workspace or vector) to 2-theta ~ I
+        Note: engine may not be reused because 2theta value may change among sub runs
         :param workspace:
-        :param use_mantid_engine:
+        :param sub_run: integer for sub run number in workspace to reduce
+        :param use_mantid_engine: Flag to use Mantid engine
         :param mask_vec_id: 2-tuple (String as ID, None or vector for Mask)
+        :param geometry_calibration: instrument_geometry.AnglerCameraDetectorShift instance
         :param min_2theta: None or user specified
         :param max_2theta: None or user specified
         :param resolution_2theta: None or user specified
@@ -261,15 +285,14 @@ class HB2BReductionManager(object):
         # Set up reduction engine and also
         if use_mantid_engine:
             # Mantid reduction engine
-            reduction_engine = reduce_hb2b_mtd.MantidHB2BReduction()
-            data_ws_name = reduction_engine.create_workspace()
-            reduction_engine.set_workspace(data_ws_name)
-            reduction_engine.load_instrument(two_theta, mantid_idf, test_calibration)
+            reduction_engine = reduce_hb2b_mtd.MantidHB2BReduction(self._mantid_idf)
+            data_ws_name = reduction_engine.set_experimental_data(two_theta, raw_count_vec)
+            reduction_engine.build_instrument(geometry_calibration)
         else:
             # PyRS reduction engine
             reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
             reduction_engine.set_experimental_data(two_theta, raw_count_vec)
-            reduction_engine.build_instrument(None)
+            reduction_engine.build_instrument(geometry_calibration)
 
             # TODO FIXME - NEXT - START OF DEBUG OUTPUT -------->
             # Debug output: self._pixel_matrix
@@ -304,11 +327,14 @@ class HB2BReductionManager(object):
         num_bins = 500
         two_theta_range = (10, 60)
         two_theta_step = 50./500.
-        bin_edges, hist = reduction_engine.reduce_to_2theta_histogram(two_theta_range, two_theta_step,
-                                                                      apply_mask=True,
-                                                                      is_point_data=True,
-                                                                      normalize_pixel_bin=True,
-                                                                      use_mantid_histogram=False)
+        data_set = reduction_engine.reduce_to_2theta_histogram(two_theta_range, two_theta_step,
+                                                               apply_mask=True,
+                                                               is_point_data=True,
+                                                               normalize_pixel_bin=True,
+                                                               use_mantid_histogram=False)
+
+        bin_edges = data_set[0]
+        hist = data_set[1]
 
         print ('[DB...BAT] vec X shape = {}, vec Y shape = {}'.format(bin_edges.shape, hist.shape))
 
@@ -344,7 +370,6 @@ class HB2BReductionManager(object):
 
         return
 
-    # TODO - FUTURE - ??????
     def set_mantid_idf(self, idf_name):
         """
         set the IDF file to reduction engine

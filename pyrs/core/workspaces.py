@@ -32,83 +32,13 @@ class HidraWorkspace(object):
 
         # instrument
         self._instrument_setup = None
+        self._instrument_geometry_shift = None  # geometry shift
 
         # sample logs
         self._sample_log_dict = dict()  # sample logs
 
         # self._data_dict = dict()  # key = data key, data = data class
         # self._file_ref_dict = dict()  # key = file name, value = data key / reference ID
-
-        return
-
-    def get_2theta(self, sub_run):
-        """ Get 2theta value from sample log
-        This is a special one
-        :param sub_run:
-        :return: float number as 2theta
-        """
-        try:
-            two_theta = self._sample_log_dict['2Theta'][sub_run]
-        except KeyError as key_err:
-            raise RuntimeError('Unable to retrieve 2theta value from {} due to {}'
-                               .format(sub_run, key_err))
-
-        return two_theta
-
-    def get_instrument_setup(self):
-        """ Get the handler to instrument setup
-        :return:
-        """
-        return self._instrument_setup
-
-    def get_raw_data(self, sub_run):
-        """
-        Get raw detector counts in the order of pixel IDs by a given sub run
-        :param sub_run:
-        :return:
-        """
-        checkdatatypes.check_int_variable('Sub run number', sub_run, (1, None))
-        if sub_run not in self._raw_counts:
-            raise RuntimeError('Sub run {} does not exist in loaded raw counts. FYI loaded '
-                               'sub runs are {}'.format(sub_run, self._raw_counts.keys()))
-
-        return self._raw_counts[sub_run]
-
-    def get_subruns(self):
-        """ Get sub runs that loaded to this workspace
-        :return:
-        """
-        sub_runs = sorted(self._sub_run_to_spectrum.keys())
-        print ('L163: sub runs', sub_runs)
-        return sub_runs
-
-    def load_hidra_project(self, hidra_file, load_raw_counts, load_reduced_diffraction):
-        """
-        Load HIDRA project file
-        :param hidra_file: HIDRA project file instance (not file name)
-        :param load_raw_counts: Flag to load raw counts
-        :param load_reduced_diffraction: Flag to load reduced diffraction data
-        :return:
-        """
-        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
-
-        # create the spectrum map
-        sub_run_list = hidra_file.get_sub_runs()
-        self._create_subrun_spectrum_map(sub_run_list)
-
-        # load raw detector counts
-        if load_raw_counts:
-            self._load_raw_counts(hidra_file)
-
-        # load reduced diffraction
-        if load_reduced_diffraction:
-            self._load_reduced_diffraction_data(hidra_file)
-
-        # load instrument
-        self._load_instrument(hidra_file)
-
-        # load sample logs
-        self._load_sample_logs(hidra_file)
 
         return
 
@@ -144,6 +74,7 @@ class HidraWorkspace(object):
 
         return
 
+    # TODO FIXME - NOW TONIGHT - Fix this!!! or combine with other methods
     def _load_reduced_diffraction_data(self, hidra_file):
         """
         Load reduced diffraction data from HIDRA file
@@ -154,7 +85,7 @@ class HidraWorkspace(object):
 
         # get X value
         vec_2theta = hidra_file.get_reduced_diff_2theta_vec()
-        self._diff_2theta_vec = vec_2theta[:]
+        self._2theta_vec = vec_2theta[:]
 
         # initialize data set for reduced diffraction patterns
         self._diff_data_set = numpy.ndarray(shape=(num_spec, vec_2theta.shape[0]),
@@ -212,84 +143,83 @@ class HidraWorkspace(object):
 
         return
 
-    def add_raw_data_set(self, diff_data_dict_set, sample_log_dict, det_h5_list, replace=True):
+
+    def get_2theta(self, sub_run):
+        """ Get 2theta value from sample log
+        This is a special one
+        :param sub_run:
+        :return: float number as 2theta
         """
-        add a loaded raw data set
-        :param diff_data_dict_set:
-        :param sample_log_dict:
-        :param det_h5_list:
-        :param replace:
+        try:
+            two_theta = self._sample_log_dict['2Theta'][sub_run]
+        except KeyError as key_err:
+            raise RuntimeError('Unable to retrieve 2theta value from {} due to {}'
+                               .format(sub_run, key_err))
+
+        return two_theta
+
+    def get_instrument_setup(self):
+        """ Get the handler to instrument setup
         :return:
         """
-        data_key = self.generate_data_set_key(det_h5_list)
+        return self._instrument_setup
 
-        if data_key in self._data_dict and not replace:
-            raise RuntimeError('Data file {0} has been loaded and not allowed to be replaced.'.format(det_h5_list))
-        else:
-            self._data_dict[data_key] = dict()
-
-        for det_id, h5file in det_h5_list:
-            sub_key = self.generate_sub_data_key(det_id, h5file)
-            self._data_dict[data_key][sub_key] = ScanDataHolder(h5file, diff_data_dict_set[det_id],
-                                                                sample_log_dict[det_id])
-            self._file_ref_dict[h5file] = data_key, sub_key
-        # END-FOR
-
-        return data_key
-
-    @staticmethod
-    def generate_data_key(file_name):
+    def get_raw_data(self, sub_run):
         """
-        generate a quasi-unique data (reference) ID for a file and unique within 2^8 occurance with same file name
-        :param file_name:
+        Get raw detector counts in the order of pixel IDs by a given sub run
+        :param sub_run:
         :return:
         """
-        checkdatatypes.check_string_variable('Data file name for data reference ID', file_name)
+        checkdatatypes.check_int_variable('Sub run number', sub_run, (1, None))
+        if sub_run not in self._raw_counts:
+            raise RuntimeError('Sub run {} does not exist in loaded raw counts. FYI loaded '
+                               'sub runs are {}'.format(sub_run, self._raw_counts.keys()))
 
-        base_name = os.path.basename(file_name)
-        dir_name = os.path.dirname(file_name)
+        return self._raw_counts[sub_run]
 
-        data_key = base_name + '_' + str(abs(hash(dir_name) % 256))
-
-        return data_key
-
-    @staticmethod
-    def generate_data_set_key(det_h5_list):
-        """
-        generate a quasi-unique data (reference) ID for a file and unique within 2^8 occurance
-        with same file name:  the name will be based on the first file's name
-        :param det_h5_list:
+    def get_subruns(self):
+        """ Get sub runs that loaded to this workspace
         :return:
         """
-        # check input and sort the files
-        checkdatatypes.check_list('HDF5 file list for each detector', det_h5_list)
-        det_h5_list.sort()
+        sub_runs = sorted(self._sub_run_to_spectrum.keys())
+        return sub_runs
 
-        # construct the name from the first file
-        file_name = det_h5_list[0][1]
-        checkdatatypes.check_string_variable('Data file name for data reference ID', file_name)
-
-        base_name = os.path.basename(file_name)
-        dir_name = os.path.dirname(file_name)
-
-        data_key = base_name + '_{0}_'.format(len(det_h5_list)) + str(abs(hash(dir_name) % 256))
-
-        return data_key
-
-    @staticmethod
-    def generate_sub_data_key(det_id, file_name):
+    def load_hidra_project(self, hidra_file, load_raw_counts, load_reduced_diffraction):
         """
-        generate a quasi-unique data (reference) ID for a file under a unique data key
-        :param det_id
-        :param file_name:
+        Load HIDRA project file
+        :param hidra_file: HIDRA project file instance (not file name)
+        :param load_raw_counts: Flag to load raw counts
+        :param load_reduced_diffraction: Flag to load reduced diffraction data
         :return:
         """
-        # FUTURE: in this stage, detector ID as integer is good enough to be a sub key
-        checkdatatypes.check_string_variable('Data file name for data reference ID', file_name)
-        checkdatatypes.check_int_variable('Detector ID', det_id, (0, None))
-        data_key = det_id
+        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
 
-        return data_key
+        # create the spectrum map
+        sub_run_list = hidra_file.get_sub_runs()
+        self._create_subrun_spectrum_map(sub_run_list)
+
+        # load raw detector counts
+        if load_raw_counts:
+            self._load_raw_counts(hidra_file)
+
+        # load reduced diffraction
+        if load_reduced_diffraction:
+            self._load_reduced_diffraction_data(hidra_file)
+
+        # load instrument
+        self._load_instrument(hidra_file)
+
+        # load sample logs
+        self._load_sample_logs(hidra_file)
+
+        return
+
+    def get_detector_shift(self):
+        """
+        Get detector geometry shift
+        :return: AnglerDetectorShift instance
+        """
+        return self._instrument_geometry_shift
 
     def get_reduced_diffraction_data(self, sub_run, mask_id=None):
         """
@@ -301,7 +231,8 @@ class HidraWorkspace(object):
         # Check inputs
         checkdatatypes.check_int_variable('Sub run number', sub_run, (1, None))
         if mask_id is None:
-            mask_id = 'main'
+            # mask_id = 'main'
+            pass
         else:
             checkdatatypes.check_string_variable('Mask ID', mask_id)
 
@@ -311,7 +242,7 @@ class HidraWorkspace(object):
         spec_index = self._sub_run_to_spectrum[sub_run]
 
         # Vector 2theta
-        vec_2theta = self._diff_2theta_vec.copy()
+        vec_2theta = self._2theta_vec.copy()
 
         # Vector intensity
         try:
@@ -342,6 +273,7 @@ class HidraWorkspace(object):
 
         return sub_run in self._raw_counts
 
+    # TODO FIXME - NOW TONIGHT #72 - Make it work!
     def has_sample_log(self, data_reference_id, sample_log_name):
         """
         check whether a certain sample log exists in a loaded data file
@@ -380,8 +312,8 @@ class HidraWorkspace(object):
 
         elif self._2theta_vec.shape != bin_edges.shape:
             # Need to check if previously set
-            raise RuntimeError('2theta vector are different to set: {} vs {}'.format(self._2theta_vec.shape,
-                                                                                     bin_edges.shape))
+            raise RuntimeError('2theta vector are different between parent method set {} and '
+                               'reduction engine returned {}'.format(self._2theta_vec.shape, bin_edges.shape))
         # END-IF-ELSE
 
         # Initialize Y with mask
@@ -393,7 +325,7 @@ class HidraWorkspace(object):
 
         # Check array shape
         if self._diff_data_set[mask_id].shape[1] != hist.shape[0]:
-            raise RuntimeError('blabla')
+            raise RuntimeError('blabla')  # TODO - TONGIHT NOW #72 - Better error message
 
         # Set Y
         spec_id = self._sub_run_to_spectrum[sub_run]
@@ -431,14 +363,6 @@ class HidraWorkspace(object):
             raise RuntimeError('Sample log {0} cannot be found.'.format(sample_log_name))
 
         return self._sample_log_dict[sample_log_name]
-
-    def get_nexus_file_name(self, sub_run):
-        """ Raw Nexus file name
-        :param sub_run: sub run number
-        :return:
-        """
-        checkdatatypes.check_int_variable('Sub run number', sub_run, (1, None))
-        return self._file_name
 
     @property
     def sample_logs_for_plot(self):

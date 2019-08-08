@@ -1,5 +1,6 @@
 # This is the core of PyRS serving as the controller of PyRS and hub for all the data
 from pyrs.utilities import checkdatatypes
+from pyrs.core import instrument_geometry
 # from pyrs.utilities import rs_scan_io
 from pyrs.utilities import file_util
 from pyrs.utilities import rs_project_file
@@ -387,21 +388,15 @@ class PyRsCore(object):
 
         return self._data_manager.get_sub_keys(data_key)
 
-    def get_diffraction_data(self, data_key, scan_log_index):
+    def get_diffraction_data(self, session_name, sub_run, mask):
         """ get diffraction data of a certain
         :param data_key:
         :param scan_log_index:
         :return: tuple: vec_2theta, vec_intensit
         """
-        # get data key: by default for single data set but not for pole figure!
-        if data_key is None:
-            data_key = self._curr_data_key
-            if data_key is None:
-                raise RuntimeError('There is no current loaded data.')
-        # END-IF
+        # TODO FIXME - TONIGHT NOW #72 - Doc & Check
 
-        # get data
-        diff_data_set = self._data_manager.get_reduced_diffraction_data(data_key, scan_log_index)
+        diff_data_set = self._reduction_manager.get_reduced_diffraction_data(session_name, sub_run, mask)
 
         return diff_data_set
 
@@ -641,9 +636,17 @@ class PyRsCore(object):
 
         return
 
-    def reduce_diffraction_data(self, session_name, two_theta_step, pyrs_engine, mask_file_name=None):
-        # TODO - TONIGHT NOW #72 - Doc and more input as two_theta_range...
-
+    def reduce_diffraction_data(self, session_name, two_theta_step, pyrs_engine, mask_file_name=None,
+                                geometry_calibration=None):
+        """ Reduce all sub runs in a workspace from detector counts to diffraction data
+        :param session_name:
+        :param two_theta_step:
+        :param pyrs_engine:
+        :param mask_file_name:
+        :param geometry_calibration: True/file name/AnglerCameraDetectorShift/None), False, None/(False, )
+        :return:
+        """
+        # Mask file
         if mask_file_name:
             mask_info = self._reduction_manager.load_mask_file(mask_file_name)
             mask_id = mask_info[2]
@@ -651,7 +654,28 @@ class PyRsCore(object):
         else:
             mask_id = None
 
-        self._reduction_manager.reduce_diffraction_data(session_name, two_theta_step, pyrs_engine,
+        # Geometry calibration
+        if geometry_calibration is None or geometry_calibration is False:
+            # No apply
+            apply_calibration = False
+        elif isinstance(geometry_calibration, str):
+            # From a Json file
+            calib_shift = instrument_geometry.AnglerCameraDetectorShift(0, 0, 0, 0, 0, 0)
+            calib_shift.from_json(geometry_calibration)
+            apply_calibration = calib_shift
+        elif isinstance(geometry_calibration, instrument_geometry.AnglerCameraDetectorShift):
+            # Already a AnglerCameraDetectorShift instance
+            apply_calibration = geometry_calibration
+        elif geometry_calibration is True:
+            # Use what is loaded from file or set to workspace before
+            apply_calibration = True
+        else:
+            raise RuntimeError('Argument geometry_calibration of value {} and type {} is not supported'
+                               ''.format(geometry_calibration, type(geometry_calibration)))
+        # END-IF-ELSE
+
+        self._reduction_manager.reduce_diffraction_data(session_name, apply_calibration,
+                                                        two_theta_step, pyrs_engine,
                                                         mask_id)
 
         return
