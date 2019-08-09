@@ -14,10 +14,11 @@ MANTIDMACPATH=/Users/wzz/MantidBuild/debug/bin/
 MANTIDSNSDEBUGPATH=/opt/mantidnightly/bin/  # NIGHTLY for latest Pseudo-voigt
 MANTIDPATH=$MANTIDMACPATH:$MANTIDLOCALPATH:$MANTIDSNSDEBUGPATH
 PYTHONPATH=$MANTIDPATH:$PYTHONPATH
+PYRSPATH=build/lib.linux-x86_64-2.7/:build/lib/
 
 if [ "$1" = "1" ] || [ "$1" = "r" ] ; then
     echo "Reduction Test"
-    PYTHONPATH=build/lib:$PYTHONPATH build/scripts-2.7/reduction_test.py
+    PYTHONPATH=$PYRSPATH:$PYTHONPATH build/scripts-2.7/reduction_test.py
 fi
 
 # PYTHONPATH=build/lib:$PYTHONPATH $CMD build/scripts-2.7/pyrs_core_test.py
