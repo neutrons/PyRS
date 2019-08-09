@@ -391,16 +391,37 @@ class PyHB2BReduction(object):
 
         return
 
-    def get_pixel_positions(self, is_matrix=False):
+    def get_pixel_positions(self, is_matrix=False, corner_center=False):
         """
         return the pixel matrix of the instrument built
         :param is_matrix: flag to output pixels in matrix. Otherwise, 1D array in order of pixel IDs
         :return:
         """
+        import math
+
         if is_matrix:
             pixel_array = self._instrument.get_pixel_matrix()
         else:
+            # 1D array
             pixel_array = self._instrument.get_pixel_array()
+
+            if corner_center:
+                # only return 5 positions: 4 corners and center
+                pos_array = numpy.ndarray(shape=(5, 3), dtype='float')
+
+                # num detectors
+                num_dets = pixel_array.shape[0]
+
+                l = int(math.sqrt(num_dets))
+                for i_pos, pos_tuple in enumerate([(0, 0), (0, l - 1), (l - 1, 0), (l - 1, l - 1), (l / 2, l / 2)]):
+                    i_ws = pos_tuple[0] * l + pos_tuple[1]
+                    pos_array[i_pos] = pixel_array[i_ws]
+                # END-FOR
+
+                # re-assign output
+                pixel_array = pos_array
+
+            # END-IF
 
         return pixel_array
 

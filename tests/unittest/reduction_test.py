@@ -116,7 +116,7 @@ class ReductionTest(object):
         Mantid and PyRS reduction engine
         :return:
         """
-        # Test with embedded calibration]
+        # Test with mantid engine
         idf_xml = 'tests/testdata/xray_data/XRAY_Definition_20190521_1342.xml'
         self._reduction_controller.reduction_manager.set_mantid_idf(idf_xml)
         self._reduction_controller.reduce_diffraction_data(self._project_name,
@@ -126,7 +126,26 @@ class ReductionTest(object):
                                                            geometry_calibration=False)
         mantid_engine = self._reduction_controller.reduction_manager.get_last_reduction_engine()
         print ('[TEST] Engine name: {}'.format(mantid_engine))
-        mantid_pixel_positions = mantid_engine.get_pixel_positions(is_matrix=False)
+        mantid_pixel_positions = mantid_engine.get_pixel_positions(is_matrix=False, corner_center=True)
+
+        # Test with pyrs engine
+        self._reduction_controller.reduce_diffraction_data(self._project_name,
+                                                           0.005, True, None)
+        reduction_engine = self._reduction_controller.reduction_manager.get_last_reduction_engine()
+        # pixels
+        pyrs_pixel_positions = reduction_engine.get_pixel_positions(is_matrix=False, corner_center=True)
+
+        # compare
+        for i_pixel in range(5):
+            print ('{}:   {}   vs   {}'.format(i_pixel, mantid_pixel_positions[i_pixel],
+                                               pyrs_pixel_positions[i_pixel]))
+            for i_dir in range(3):
+                print ('\t{}  -  {}   =  {}'
+                       ''.format(mantid_pixel_positions[i_pixel][i_dir],
+                                 pyrs_pixel_positions[i_pixel][i_dir],
+                                 mantid_pixel_positions[i_pixel][i_dir] - pyrs_pixel_positions[i_pixel][i_dir]))
+            # END-FOR
+        # END-FOR
 
         return
 
