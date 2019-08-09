@@ -135,7 +135,7 @@ class GridSearchCalibration(object):
                                                                           rot_z_i, x_shift_i,
                                                                           y_shift_i, z_shift_i)
                                 # reduce
-                                self._instrument_reducer.reduce_to_2theta()
+                                self._instrument_reducer.reduce_to_2theta_histogram()
 
                                 # calculate the cost
                                 cost_i = self._calculate_cost(record=True)

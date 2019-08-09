@@ -1,11 +1,13 @@
 # This is the core of PyRS serving as the controller of PyRS and hub for all the data
-import datamanagers
 from pyrs.utilities import checkdatatypes
-from pyrs.utilities import rs_scan_io
+from pyrs.core import instrument_geometry
+# from pyrs.utilities import rs_scan_io
 from pyrs.utilities import file_util
+from pyrs.utilities import rs_project_file
+from pyrs.core import mask_util
 import mantid_fit_peak
 import strain_stress_calculator
-import reductionengine
+import reduction_manager
 import polefigurecalculator
 import os
 import numpy
@@ -23,9 +25,7 @@ class PyRsCore(object):
         initialization
         """
         # declaration of class members
-        self._file_io_controller = rs_scan_io.DiffractionDataFile()  # a I/O instance for standard HB2B file
-        self._data_manager = datamanagers.RawDataManager()
-        self._reduction_engine = reductionengine.HB2BReductionManager()
+        self._reduction_manager = reduction_manager.HB2BReductionManager()
 
         # working environment
         if os.path.exists('tests/testdata/'):
@@ -33,10 +33,8 @@ class PyRsCore(object):
         else:
             self._working_dir = os.getcwd()
 
-        # current/default status
-        self._curr_data_key = None
-        self._curr_file_name = None
-
+        # These are for peak fitting and etc.
+        # TODO - AFTER #72 - Better to refactor!
         self._last_optimizer = None  # None or RsPeakFitEngine/MantidPeakFitEngine instance
 
         # container for optimizers
@@ -309,7 +307,7 @@ class PyRsCore(object):
         diff_data_list = list()
         # TODO - FUTURE - sun run will be used to replace log_index
         for log_index in scan_index_list:
-            diff_data = self._data_manager.get_data_set(data_key_set, log_index)
+            diff_data = self._data_manager.get_reduced_diffraction_data(data_key_set, log_index)
             diff_data_list.append(diff_data)
         # END-FOR
 
@@ -390,21 +388,15 @@ class PyRsCore(object):
 
         return self._data_manager.get_sub_keys(data_key)
 
-    def get_diffraction_data(self, data_key, scan_log_index):
+    def get_diffraction_data(self, session_name, sub_run, mask):
         """ get diffraction data of a certain
         :param data_key:
         :param scan_log_index:
         :return: tuple: vec_2theta, vec_intensit
         """
-        # get data key: by default for single data set but not for pole figure!
-        if data_key is None:
-            data_key = self._curr_data_key
-            if data_key is None:
-                raise RuntimeError('There is no current loaded data.')
-        # END-IF
+        # TODO FIXME - TONIGHT NOW #72 - Doc & Check
 
-        # get data
-        diff_data_set = self._data_manager.get_data_set(data_key, scan_log_index)
+        diff_data_set = self._reduction_manager.get_reduced_diffraction_data(session_name, sub_run, mask)
 
         return diff_data_set
 
@@ -553,6 +545,19 @@ class PyRsCore(object):
 
         return peak_intensities
 
+    def load_hidra_project(self, hidra_h5_name, project_name):
+        """
+        Load a HIDRA project file
+        :param hidra_h5_name: name of HIDRA project file in HDF5 format
+        :param project_name: name of the reduction project specified by user to trace
+        :return:
+        """
+        # Load data
+        self._reduction_manager.init_session(project_name)
+        self._reduction_manager.load_hidra_project(hidra_h5_name, False)
+
+        return
+
     def load_rs_raw(self, h5file):
         """
         load HB2B raw h5 file
@@ -561,7 +566,7 @@ class PyRsCore(object):
         """
         diff_data_dict, sample_log_dict = self._file_io_controller.load_rs_file(h5file)
 
-        data_key = self.data_center.add_raw_data(diff_data_dict, sample_log_dict, h5file, replace=True)
+        data_key = self.data_center._load_raw_counts(diff_data_dict, sample_log_dict, h5file, replace=True)
         message = 'Load {0} (Ref ID {1})'.format(h5file, data_key)
 
         # set to current key
@@ -587,6 +592,17 @@ class PyRsCore(object):
         self._curr_data_key = data_key
 
         return data_key, message
+
+    def save_diffraction_data(self, project_name, file_name):
+        """
+
+        :param project_name:
+        :param file_name:
+        :return:
+        """
+        self.reduction_manager.save_reduced_diffraction(project_name, file_name)
+
+        return
 
     def save_peak_fit_result(self, data_key, src_rs_file_name, target_rs_file_name):
         """ Save peak fit result to file with original data
@@ -620,13 +636,57 @@ class PyRsCore(object):
 
         return
 
+    def reduce_diffraction_data(self, session_name, two_theta_step, pyrs_engine, mask_file_name=None,
+                                geometry_calibration=None):
+        """ Reduce all sub runs in a workspace from detector counts to diffraction data
+        :param session_name:
+        :param two_theta_step:
+        :param pyrs_engine:
+        :param mask_file_name:
+        :param geometry_calibration: True/file name/AnglerCameraDetectorShift/None), False, None/(False, )
+        :return:
+        """
+        # Mask file
+        if mask_file_name:
+            mask_info = self._reduction_manager.load_mask_file(mask_file_name)
+            mask_id = mask_info[2]
+            print ('L650 Mask ID = {}'.format(mask_id))
+        else:
+            mask_id = None
+
+        # Geometry calibration
+        if geometry_calibration is None or geometry_calibration is False:
+            # No apply
+            apply_calibration = False
+        elif isinstance(geometry_calibration, str):
+            # From a Json file
+            calib_shift = instrument_geometry.AnglerCameraDetectorShift(0, 0, 0, 0, 0, 0)
+            calib_shift.from_json(geometry_calibration)
+            apply_calibration = calib_shift
+        elif isinstance(geometry_calibration, instrument_geometry.AnglerCameraDetectorShift):
+            # Already a AnglerCameraDetectorShift instance
+            apply_calibration = geometry_calibration
+        elif geometry_calibration is True:
+            # Use what is loaded from file or set to workspace before
+            apply_calibration = True
+        else:
+            raise RuntimeError('Argument geometry_calibration of value {} and type {} is not supported'
+                               ''.format(geometry_calibration, type(geometry_calibration)))
+        # END-IF-ELSE
+
+        self._reduction_manager.reduce_diffraction_data(session_name, apply_calibration,
+                                                        two_theta_step, pyrs_engine,
+                                                        mask_id)
+
+        return
+
     @property
-    def reduction_engine(self):
+    def reduction_manager(self):
         """
         get the reference to reduction engine
         :return:
         """
-        return self._reduction_engine
+        return self._reduction_manager
 
     def reset_strain_stress(self, is_plane_strain, is_plane_stress):
         """ reset the strain and stress calculation due to change of type

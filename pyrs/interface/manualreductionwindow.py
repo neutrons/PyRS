@@ -128,7 +128,7 @@ class ManualReductionWindow(QMainWindow):
         self.ui.lineEdit_calibratonFile.setText(calibration_file)
 
         # set to core
-        self._core.reduction_engine.set_calibration_file(calibration_file)
+        self._core.reduction_manager.set_calibration_file(calibration_file)
 
         return
 
@@ -150,7 +150,7 @@ class ManualReductionWindow(QMainWindow):
 
         # set
         instrument = calibration_file_io.import_instrument_setup(idf_name)
-        self._core.reduction_engine.set_instrument(instrument)
+        self._core.reduction_manager.set_instrument(instrument)
 
         return
 
@@ -163,7 +163,7 @@ class ManualReductionWindow(QMainWindow):
                                            default_dir=os.path.expanduser('~'))
         if output_dir != '':
             self.ui.lineEdit_outputDir.setText(output_dir)
-            self._core.reduction_engine.set_output_dir(output_dir)
+            self._core.reduction_manager.set_output_dir(output_dir)
             self._output_dir = output_dir
 
         return
@@ -185,21 +185,21 @@ class ManualReductionWindow(QMainWindow):
         # END-IF-ELSE
 
         try:
-            data_key = self._core.reduction_engine.chop_data()
+            data_key = self._core.reduction_manager.chop_data()
         except RuntimeError as run_err:
             gui_helper.pop_message(self, message='Unable to slice data', detailed_message=str(run_err),
                                    message_type='error')
             return
 
         try:
-            self._core.reduction_engine.reduced_chopped_data(data_key)
+            self._core.reduction_manager.reduced_chopped_data(data_key)
         except RuntimeError as run_err:
             gui_helper.pop_message(self, message='Failed to reduce sliced data', detailed_message=str(run_err),
                                    message_type='error')
             return
 
         # fill the run numbers to plot selection
-        self._setup_plot_selection(append_mode=False, item_list=self._core.reduction_engine.get_chopped_names())
+        self._setup_plot_selection(append_mode=False, item_list=self._core.reduction_manager.get_chopped_names())
 
         # plot
         self._plot_data()
@@ -222,7 +222,7 @@ class ManualReductionWindow(QMainWindow):
                                                  save_file=False)
 
         try:
-            data_handler = self._core.reduction_engine.load_hidra_project(project_h5_name)
+            data_handler = self._core.reduction_manager.load_hidra_project(project_h5_name)
         except RuntimeError as run_err:
             gui_helper.pop_message(self, 'Failed to load project file {}: {}'.format(project_h5_name, run_err),
                                    None, 'error')
@@ -244,8 +244,8 @@ class ManualReductionWindow(QMainWindow):
         # FIXME - Need to separate these 2 plotting method: detector view vs reduced data
         # plot detector view
         sub_run = int(self.ui.comboBox_sub_runs.currentText())
-        count_vec = self._core.reduction_engine.get_sub_run_count(self._project_data_id, sub_run)
-        two_theta = self._core.reduction_engine.get_sub_run_2theta(self._project_data_id, sub_run)
+        count_vec = self._core.reduction_manager.get_sub_run_detector_counts(self._project_data_id, sub_run)
+        two_theta = self._core.reduction_manager.get_sub_run_2theta(self._project_data_id, sub_run)
 
         # set information
         info = 'Sub-run: {}, 2theta = {}, Det size = {}'.format(sub_run, two_theta, count_vec.shape[0])
@@ -255,8 +255,8 @@ class ManualReductionWindow(QMainWindow):
         self.ui.graphicsView_detectorView.plot_counts(count_vec)
 
         # plot reduced data
-        vec_x, vec_y = self._core.reduction_engine.get_diffraction_pattern(self._project_data_id,
-                                                                           sub_run)
+        vec_x, vec_y = self._core.reduction_manager.get_diffraction_pattern(self._project_data_id,
+                                                                            sub_run)
         if vec_x is not None:
             self.ui.graphicsView_1DPlot.plot_diffraction(vec_x, vec_y, '2theta', 'intensity', False)
 
@@ -267,7 +267,7 @@ class ManualReductionWindow(QMainWindow):
         :param data_id:
         :return:
         """
-        sub_runs = self._core.reduction_engine.get_sub_runs(data_id)
+        sub_runs = self._core.reduction_manager.get_sub_runs(data_id)
 
         self.ui.comboBox_sub_runs.clear()
         for sub_run in sorted(sub_runs):
@@ -354,7 +354,7 @@ class ManualReductionWindow(QMainWindow):
         # get (sub) run numbers
         sub_runs_str = str(self.ui.lineEdit_runNumbersList.text()).strip().lower()
         if sub_runs_str == 'all':
-            sub_run_list = self._core.reduction_engine.get_sub_runs(self._project_data_id)
+            sub_run_list = self._core.reduction_manager.get_sub_runs(self._project_data_id)
         else:
             try:
                 sub_run_list = gui_helper.parse_integers(sub_runs_str)
@@ -367,13 +367,13 @@ class ManualReductionWindow(QMainWindow):
         # form a message
         message = 'Reduced.... \n'
         for sub_run_number in sub_run_list:
-            tth_i = self._core.reduction_engine.get_sub_run_2theta(self._project_data_id, sub_run_number)
+            tth_i = self._core.reduction_manager.get_sub_run_2theta(self._project_data_id, sub_run_number)
             try:
-                self._core.reduction_engine.reduce_to_2theta(data_id=self._project_data_id,
-                                                             sub_run=sub_run_number,
-                                                             two_theta=tth_i,
-                                                             use_mantid_engine=False,
-                                                             mask=None)
+                self._core.reduction_manager.reduce_to_2theta_histogram(data_id=self._project_data_id,
+                                                                        sub_run=sub_run_number,
+                                                                        two_theta=tth_i,
+                                                                        use_mantid_engine=False,
+                                                                        mask=None)
             except RuntimeError as run_err:
                 message += 'Sub-run: {}... Failed: {}\n'.format(sub_run_number, run_err)
             else:
@@ -398,7 +398,7 @@ class ManualReductionWindow(QMainWindow):
             import shutil
             shutil.copyfile(self._curr_project_name, output_project_name)
 
-        self._core.reduction_engine.save_project(self._project_data_id, output_project_name)
+        self._core.reduction_manager.save_project(self._project_data_id, output_project_name)
 
     def do_set_ipts_exp(self):
         """
@@ -410,7 +410,7 @@ class ManualReductionWindow(QMainWindow):
             exp_number = gui_helper.parse_integer(str(self.ui.lineEdit_expNumber.text()))
             self._currIPTSNumber = ipts_number
             self._currExpNumber = exp_number
-            self._core.reduction_engine.set_ipts_exp_number(ipts_number, exp_number)
+            self._core.reduction_manager.set_ipts_exp_number(ipts_number, exp_number)
         except RuntimeError:
             gui_helper.pop_message(self, 'IPTS number shall be set to an integer.', message_type='error')
 
@@ -476,16 +476,16 @@ class ManualReductionWindow(QMainWindow):
             return
 
         curr_run_number = int(str(self.ui.comboBox_runs.currentText()))
-        if not self._core.reduction_engine.has_run_reduced(curr_run_number):
+        if not self._core.reduction_manager.has_run_reduced(curr_run_number):
             return
 
-        is_chopped = self._core.reduction_engine.is_chopped_run(curr_run_number)
+        is_chopped = self._core.reduction_manager.is_chopped_run(curr_run_number)
 
         # set the sliced box
         self._plot_sliced_mutex = True
         self.ui.comboBox_slicedRuns.clear()
         if is_chopped:
-            sliced_segment_list = self._core.reduction_engine.get_chopped_names(curr_run_number)
+            sliced_segment_list = self._core.reduction_manager.get_chopped_names(curr_run_number)
             for segment in sorted(sliced_segment_list):
                 self.ui.comboBox_slicedRuns.addItem('{}'.format(segment))
         else:

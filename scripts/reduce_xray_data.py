@@ -1,5 +1,5 @@
 import sys
-from pyrs.core import reductionengine
+from pyrs.core import reduction_manager
 from pyrs.utilities import checkdatatypes
 
 
@@ -62,7 +62,7 @@ def main(argv):
     reduction_method = argv[3]
 
     # call for reduction
-    reduction_engine = reductionengine.HB2BReductionManager()
+    reduction_engine = reduction_manager.HB2BReductionManager()
     reduction_engine.load_data(data_info_dict['file'])
     reduction_engine.set_2theta(data_info_dict['2theta'][0], data_info_dict['2theta'][1])
     reduction_engine.set_instrument_calibration(data_info_dict)

@@ -4,6 +4,7 @@ import sys
 import os
 from pyrs.core import pyrscore
 from pyrs.utilities import script_helper
+from pyrs.core import instrument_geometry
 
 
 def parse_mask_files(mask_file_name):
@@ -44,6 +45,17 @@ def set_mask_files(masks_list_file_name):
     mask_xml_list = [os.path.join('tests/testdata/masks', xml_name) for xml_name in temp_list]
 
     return mask_xml_list
+
+
+def generate_testing_geometry_shift():
+    """
+    Get a slight shift from original position to simulate the geometry calibration
+    :return:
+    """
+    testing_shift = instrument_geometry.AnglerCameraDetectorShift(0.1, -0.05, 0.12,
+                                                                  1.0, 0.3, -1.23)
+
+    return testing_shift
 
 
 def main(argv):
@@ -87,21 +99,29 @@ def main(argv):
     calib_controller.reduce_diffraction_data(project_name, two_theta_step=param_dict['binsize'],
                                              pyrs_engine=True)
 
-    # Calibration init: import ROI/Mask files
-    if 'masksfiles' in param_dict:
-        mask_file_list = parse_mask_files(param_dict['masksfiles'])
-        if len(mask_file_list) < 2:
-            print ('For X-ray case, user must specify at least 2 masks')
-            sys.exit(-1)
-    else:
-        print ('[ERROR] X-ray-calibration algorithm requires Masks')
-        sys.exit(-1)
+    # get handler on reduciton engine
+    reduction_engine = calib_controller.reduction_manager.get_last_reduction_engine()
+    # Get pixels
+    pixel_pos_array = reduction_engine.get_pixel_positions(is_matrix=False)  # (N, 3) array
+    pixel_2theta_array = reduction_engine.instrument.get_pixels_2theta(dimension=1)  # (N, ) array
 
-    # Last test before calibration start: reduce by mask
-    for mask_file_name in mask_file_list:
-        calib_controller.reduce_diffraction_data(project_name,  two_theta_step=param_dict['binsize'],
-                                                 pyrs_engine=True, mask_file_name=mask_file_name)
-    # END-FOR
+    #
+
+    # # Calibration init: import ROI/Mask files
+    # if 'masksfiles' in param_dict:
+    #     mask_file_list = parse_mask_files(param_dict['masksfiles'])
+    #     if len(mask_file_list) < 2:
+    #         print ('For X-ray case, user must specify at least 2 masks')
+    #         sys.exit(-1)
+    # else:
+    #     print ('[ERROR] X-ray-calibration algorithm requires Masks')
+    #     sys.exit(-1)
+    #
+    # # Last test before calibration start: reduce by mask
+    # for mask_file_name in mask_file_list:
+    #     calib_controller.reduce_diffraction_data(project_name,  two_theta_step=param_dict['binsize'],
+    #                                              pyrs_engine=True, mask_file_name=mask_file_name)
+    # # END-FOR
 
     # Export reduction data
     calib_controller.save_diffraction_data(project_name, param_dict['inputfile'])

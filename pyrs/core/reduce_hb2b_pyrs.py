@@ -1,8 +1,10 @@
 # This is a prototype reduction engine for HB2B living independently from Mantid
 import numpy as np
 import numpy
-import calibration_file_io
+from pyrs.core import instrument_geometry
 from pyrs.utilities import checkdatatypes
+from mantid.simpleapi import CreateWorkspace, SortXAxis, ResampleX
+import time
 
 
 class ResidualStressInstrument(object):
@@ -15,10 +17,13 @@ class ResidualStressInstrument(object):
         :param instrument_setup:
         """
         # check input
-        checkdatatypes.check_type('Instrument setup', instrument_setup, calibration_file_io.InstrumentSetup)
+        checkdatatypes.check_type('Instrument setup', instrument_setup,
+                                  instrument_geometry.AnglerCameraDetectorGeometry)
 
-        self._init_setup = instrument_setup
+        # Instrument geometry parameters
+        self._instrument_geom_params = instrument_setup
 
+        # Pixels' positions without calibration. It is kept stable upon calibration values (shifts) and arm (000 plane)
         self._raw_pixel_matrix = self._set_uncalibrated_pixels()  # never been used for external client: len(shape) = 3
 
         self._pixel_matrix = None  # used by external after build_instrument: matrix for pixel positions
@@ -54,14 +59,12 @@ class ResidualStressInstrument(object):
           2. this is not a useful geometry because arm length is not set.
         :return: numpy.ndarray; shape = (num_rows) x (num_cols) x 3
         """
-        assert self._init_setup is not None, 'Initial instrument setup is not set yet'
+        assert self._instrument_geom_params is not None, 'Initial instrument setup is not set yet'
 
         # build raw instrument/pixel matrix
-        num_rows = self._init_setup.detector_rows
-        num_columns = self._init_setup.detector_columns
-        pixel_size_x = self._init_setup.pixel_size_x
-        pixel_size_y = self._init_setup.pixel_size_y
-        # arm_length = self._init_setup.arm_length
+        num_rows, num_columns = self._instrument_geom_params.detector_size
+        pixel_size_x, pixel_size_y = self._instrument_geom_params.pixel_dimension
+        # arm_length = self._instrument_geom_params.arm_length
 
         # instrument is a N x M matrix, each element has
         pixel_matrix = np.ndarray(shape=(num_rows, num_columns, 3), dtype='float')
@@ -91,39 +94,49 @@ class ResidualStressInstrument(object):
         step 1: rotate instrument according to the calibration
         step 2: rotate instrument about 2theta
         :param two_theta
-        :param instrument_calibration:
+        :param instrument_calibration: AnglerCameraDetectorShift or None (no calibration)
         :return:
         """
         # check input
-        checkdatatypes.check_type('Instrument calibration', instrument_calibration,
-                                  calibration_file_io.ResidualStressInstrumentCalibration)
         checkdatatypes.check_float_variable('2theta', two_theta, (None, None))
 
-        # make a copy
+        print ('[DB...L101] Build instrumnent: 2theta = {}, arm = {}'
+               ''.format(two_theta, self._instrument_geom_params.arm_length))
+
+        # make a copy from raw (constant position)
         self._pixel_matrix = self._raw_pixel_matrix.copy()
 
-        # shift center
-        self._pixel_matrix[:, :, 0] += instrument_calibration.center_shift_x
-        self._pixel_matrix[:, :, 1] += instrument_calibration.center_shift_y
+        if instrument_calibration is not None:
+            # check type
+            checkdatatypes.check_type('Instrument calibration', instrument_calibration,
+                                      instrument_geometry.AnglerCameraDetectorShift)
 
-        # get rotation matrix at origin (for flip, spin and vertical): all data from calibration value
-        rot_x_flip = instrument_calibration.rotation_x * np.pi / 180.
-        rot_y_flip = instrument_calibration.rotation_y * np.pi / 180.
-        rot_z_spin = instrument_calibration.rotation_z * np.pi / 180.
-        calib_matrix = self.generate_rotation_matrix(rot_x_flip, rot_y_flip, rot_z_spin)
-        # print ('[DB...BAT] Calibration rotation matrix:\n{}'.format(calib_matrix))
-        # and rotate at origin
-        self._pixel_matrix = self._rotate_detector(self._pixel_matrix, calib_matrix)
+            # shift center
+            self._pixel_matrix[:, :, 0] += instrument_calibration.center_shift_x
+            self._pixel_matrix[:, :, 1] += instrument_calibration.center_shift_y
+
+            # rotation around instrument center
+            # get rotation matrix at origin (for flip, spin and vertical): all data from calibration value
+            rot_x_flip = instrument_calibration.rotation_x * np.pi / 180.
+            rot_y_flip = instrument_calibration.rotation_y * np.pi / 180.
+            rot_z_spin = instrument_calibration.rotation_z * np.pi / 180.
+            calib_matrix = self.generate_rotation_matrix(rot_x_flip, rot_y_flip, rot_z_spin)
+            # print ('[DB...BAT] Calibration rotation matrix:\n{}'.format(calib_matrix))
+            # and rotate at origin
+            self._pixel_matrix = self._rotate_detector(self._pixel_matrix, calib_matrix)
+        # END-IF-ELSE
 
         # push to +Z at length of detector arm
-        print ('[DEBUG...DELETE LATER] arm length = {}'.format(self._init_setup.arm_length))
-        self._pixel_matrix[:, :, 2] += self._init_setup.arm_length + instrument_calibration.center_shift_z
+        arm_l2 = self._instrument_geom_params.arm_length
+        if instrument_calibration is not None:
+            # Apply the shift on Z (arm length)
+            arm_l2 += instrument_calibration.center_shift_z
+        # END-IF
+        self._pixel_matrix[:, :, 2] += arm_l2
 
         # rotate 2theta
-        print ('[INFO] Build instrument with 2theta = {}'.format(two_theta))
         two_theta_rad = two_theta * np.pi / 180.
         two_theta_rot_matrix = self._cal_rotation_matrix_y(two_theta_rad)
-        # print ('[DB...BAT] 2-theta rotation matrix:\n{}'.format(two_theta_rot_matrix))
         self._pixel_matrix = self._rotate_detector(self._pixel_matrix, two_theta_rot_matrix)
 
         # get 2theta too
@@ -252,7 +265,7 @@ class ResidualStressInstrument(object):
 
         return self._pixel_matrix
 
-    def get_2theta_values(self, dimension):
+    def get_pixels_2theta(self, dimension):
         """
         get the 2theta values for all the pixels
         :param dimension: 1 for array, 2 for matrix
@@ -275,7 +288,7 @@ class ResidualStressInstrument(object):
         :param dimension:
         :return:
         """
-        two_theta_array = self.get_2theta_values(dimension)
+        two_theta_array = self.get_pixels_2theta(dimension)
         print ('[DB...BAT] 2theta range: ({}, {})'
                ''.format(two_theta_array.min(), two_theta_array.max()))
         assert isinstance(two_theta_array, numpy.ndarray), 'check'
@@ -324,10 +337,35 @@ class PyHB2BReduction(object):
         if wave_length is not None:
             self._instrument.set_wave_length(wave_length)
 
+        self._detector_2theta = None
+        self._detector_counts = None
+        self._detector_mask = None
+
         return
 
-    def build_instrument(self, two_theta, arm_length_shift, center_shift_x, center_shift_y,
-                         rot_x_flip, rot_y_flip, rot_z_spin):
+    @property
+    def instrument(self):
+        """
+        Return instrument geometry/calculation instance
+        :return:
+        """
+        return self._instrument
+
+    def build_instrument(self, calibration):
+        """ Build an instrument for each pixel's position in cartesian coordinate
+        :param calibration: AnglerCameraDetectorShift from geometry calibration
+        :return: 2D numpy array
+        """
+        if calibration is not None:
+            checkdatatypes.check_type('Instrument geometry calibrated shift', calibration,
+                                      instrument_geometry.AnglerCameraDetectorShift)
+
+        self._instrument.build_instrument(self._detector_2theta, instrument_calibration=calibration)
+
+        return
+
+    def build_instrument_prototype(self, two_theta, arm_length_shift, center_shift_x, center_shift_y,
+                                   rot_x_flip, rot_y_flip, rot_z_spin):
         """
         build an instrument
         :param two_theta: 2theta position of the detector panel.  It shall be negative to sample log value
@@ -353,81 +391,135 @@ class PyHB2BReduction(object):
 
         return
 
-    def get_pixel_positions(self, is_matrix=False):
+    def get_pixel_positions(self, is_matrix=False, corner_center=False):
         """
         return the pixel matrix of the instrument built
         :param is_matrix: flag to output pixels in matrix. Otherwise, 1D array in order of pixel IDs
         :return:
         """
+        import math
+
         if is_matrix:
             pixel_array = self._instrument.get_pixel_matrix()
         else:
+            # 1D array
             pixel_array = self._instrument.get_pixel_array()
+
+            if corner_center:
+                # only return 5 positions: 4 corners and center
+                pos_array = numpy.ndarray(shape=(5, 3), dtype='float')
+
+                # num detectors
+                num_dets = pixel_array.shape[0]
+
+                l = int(math.sqrt(num_dets))
+                for i_pos, pos_tuple in enumerate([(0, 0), (0, l - 1), (l - 1, 0), (l - 1, l - 1), (l / 2, l / 2)]):
+                    i_ws = pos_tuple[0] * l + pos_tuple[1]
+                    pos_array[i_pos] = pixel_array[i_ws]
+                # END-FOR
+
+                # re-assign output
+                pixel_array = pos_array
+
+            # END-IF
 
         return pixel_array
 
-    # TODO - TONIGHT 1 - Doc and clean
-    # TODO - TONIGHT 0 - Normalize by num bins (aka vanadium as old saying)
-    def reduce_to_2theta_histogram(self, counts_array, mask, num_bins, x_range=None,
-                                   is_point_data=True, use_mantid_histogram=False):
-        """ convert the inputs (detector matrix and counts to 2theta histogram)
-        :param counts_array:
-        :param mask: vector of masks
-        :param num_bins:
-        :param x_range: range of X value
-        :param use_mantid_histogram: use Mantid ResampleX to compare numpy histogram
-        :return: 2-tuple (bin edges, counts in histogram)
+    def generate_2theta_histogram_vector(self, min_2theta, step_2theta, max_2theta):
+        """ Generate a 1-D array for histogram 2theta bins
+        :param min_2theta: minimum 2theta or None
+        :param step_2theta: constant bin size 2theta or None
+        :param max_2theta: maximum 2theta and must be integer
+        :return: 1D array
         """
-        # get vector of X: 2theta
-        pixel_array = self._instrument.get_pixel_array()
+        # Get the 2theta values for all pixels if default value is required
+        if min_2theta is None or max_2theta is None:
+            pixel_2theta_vector = self._instrument.get_pixels_2theta(dimension=1)
+            if min_2theta is None:
+                min_2theta = numpy.min(pixel_2theta_vector)
+            if max_2theta is None:
+                max_2theta = numpy.max(pixel_2theta_vector)
+        # END-IF
 
-        # ... broken?
-        # two_theta_array = self.convert_to_2theta(pixel_array)
-        two_theta_array = self._instrument.get_2theta_values(dimension=1)
-        checkdatatypes.check_numpy_arrays('Two theta array', [two_theta_array], 1, check_same_shape=False)
+        # Check inputs
+        checkdatatypes.check_float_variable('Minimum 2theta', min_2theta, (-180, 180))
+        checkdatatypes.check_float_variable('Maximum 2theta', max_2theta, (-180, 180))
+        checkdatatypes.check_float_variable('2theta bin size', step_2theta, (0, 180))
 
-        # check with counts
-        if two_theta_array.shape != counts_array.shape:
-            raise RuntimeError('Counts (array) has a different ... blabla')
+        if min_2theta >= max_2theta:
+            raise RuntimeError('2theta range ({}, {}) is invalid for generating histogram'
+                               ''.format(min_2theta, max_2theta))
 
-        # convert count type
-        vec_counts = counts_array.astype('float64')
-        print ('[INFO] PyRS.Instrument: 2theta range: {}, {}'.format(two_theta_array.min(),
-                                                                     two_theta_array.max()))
+        vec_2theta = np.arange(min_2theta, max_2theta, step_2theta)
 
-        # check inputs of x range
-        if x_range:
-            checkdatatypes.check_tuple('X range', x_range, 2)
-            if x_range[0] >= x_range[1]:
-                raise RuntimeError('X range {} is not allowed'.format(x_range))
+        return vec_2theta
 
-        # apply mask
-        raw_counts = vec_counts.sum()
-        if mask is not None:
-            checkdatatypes.check_numpy_arrays('Counts vector and mask vector', [counts_array, mask], 1, True)
-            vec_counts *= mask
+    # TODO TEST - #72
+    def reduce_to_2theta_histogram(self, two_theta_range, two_theta_step, apply_mask,
+                                   is_point_data=True, normalize_pixel_bin=True, use_mantid_histogram=False):
+        """ Reduce the previously added detector raw counts to 2theta histogram (i.e., diffraction pattern)
+        :param two_theta_range: range of 2theta for histogram
+        :param two_theta_step: step size of two theta
+        :param apply_mask: If true and self._detector_mask has been set, the apply mask to output
+        :param is_point_data: Flag whether the output is point data (numbers of X and Y are same)
+        :param normalize_pixel_bin: normalize the number of pixels in each 2theta histogram bin
+        :param use_mantid_histogram: Flag to use Mantid (algorithm ResampleX) to do histogram
+        :return: 2-tuple (2-theta vector, counts in histogram)
+        """
+        # Get two-theta-histogram vector
+        two_theta_vector = self.generate_2theta_histogram_vector(two_theta_range[0], two_theta_step, two_theta_range[1])
+
+        # Get the data (each pixel's 2theta and counts)
+        pixel_2theta_array = self._instrument.get_pixels_2theta(1)
+        checkdatatypes.check_numpy_arrays('Two theta and detector counts array',
+                                          [pixel_2theta_array, self._detector_counts], 1,
+                                          check_same_shape=True)  # optional check
+        if pixel_2theta_array.shape[0] != self._detector_counts.shape[0]:
+            raise RuntimeError('Detector pixel position array ({}) does not match detector counts array ({})'
+                               ''.format(pixel_2theta_array.shape, self._detector_counts.shape))
+        # Convert count type
+        vec_counts = self._detector_counts.astype('float64')
+
+        print ('[INFO] PyRS.Instrument: pixels 2theta range: ({}, {}) vs 2theta histogram range: ({}, {})'
+               ''.format(pixel_2theta_array.min(), pixel_2theta_array.max(), two_theta_vector.min(),
+                         two_theta_vector.max()))
+
+        # Apply mask: act on local variable vec_counts and thus won't affect raw data
+        raw_event_counts = vec_counts.sum()
+        if apply_mask and self._detector_mask is not None:
+            # mask detector counts, assuming detector mask and counts are in same order of pixel
+            checkdatatypes.check_numpy_arrays('Counts vector and mask vector',
+                                              [self._detector_counts, self._detector_mask], 1, True)
+            vec_counts *= self._detector_mask
             masked_counts = vec_counts.sum()
-            num_masked = mask.shape[0] - mask.sum()
+            num_masked = self._detector_mask.shape[0] - self._detector_mask.sum()
         else:
-            masked_counts = raw_counts
+            masked_counts = raw_event_counts
             num_masked = 0
         # END-IF-ELSE
         print ('[INFO] Raw counts = {}, # Masked Pixels = {}, Counts in ROI = {}'
-               ''.format(raw_counts, num_masked, masked_counts))
+               ''.format(raw_event_counts, num_masked, masked_counts))
 
-        # this is histogram data
-        use_mantid_histogram = False   # TODO FIXME - Turned on for debugging!
-        if not use_mantid_histogram:
-            norm_bins = True
-            bin_edges, hist = self.histogram_by_numpy(two_theta_array, vec_counts, x_range,
-                                                      num_bins, is_point_data, norm_bins)
+        # Histogram:
+        # NOTE: input 2theta_range may not be accurate because 2theta max may not be on the full 2-theta tick
+        two_theta_vec_range = two_theta_vector.min(), two_theta_vector.max() + two_theta_step
+
+        if use_mantid_histogram:
+            # this is a branch used for testing against Mantid method
+            num_bins = two_theta_vector.size()
+            two_theta_vector, intensity_vector = self.histogram_by_mantid(pixel_2theta_array, masked_counts,
+                                                                          two_theta_vec_range, num_bins)
 
         else:
-            # this is a branch used for testing against Mantid method
-            bin_edges, hist = self.histogram_by_mantid(two_theta_array, vec_counts)
-        # END-IF
+            # use numpy.histogram
+            two_theta_vector, intensity_vector = self.histogram_by_numpy(pixel_2theta_array, vec_counts,
+                                                                         two_theta_vector,
+                                                                         is_point_data, True)
 
-        return bin_edges, hist
+        # Record
+        self._reduced_diffraction_data = two_theta_vector, intensity_vector
+
+        return two_theta_vector, intensity_vector
 
     # TODO - TEST 0 -
     def reduce_to_dspacing_histogram(self, counts_array, mask, num_bins, x_range=None,
@@ -483,10 +575,42 @@ class PyHB2BReduction(object):
 
         return bin_edges, hist
 
+    def set_experimental_data(self, two_theta, raw_count_vec):
+        """ Set experimental data (for a sub-run)
+        :param two_theta: detector position
+        :param raw_count_vec: detector raw counts
+        :return:
+        """
+        checkdatatypes.check_float_variable('2-theta', two_theta, (-180, 180))
+        checkdatatypes.check_numpy_arrays('Detector (raw) counts', [raw_count_vec], 1, False)
+
+        self._detector_2theta = two_theta
+        self._detector_counts = raw_count_vec
+
+        return
+
+    def set_mask(self, mask_vec):
+        """
+        Set mask vector to this instance
+        :param mask_vec: 1D array for mask (1 for ROI, 0 for mask out)
+        :return:
+        """
+        checkdatatypes.check_numpy_arrays('Mask vector', [mask_vec], 1, False)
+
+        self._detector_mask = mask_vec
+
+        return
+
     @staticmethod
     def histogram_by_mantid(two_theta_array, vec_counts, x_range, num_bins):
-        from mantid.simpleapi import CreateWorkspace, SortXAxis, ResampleX
-        import time
+        """
+        Use Mantid's ResampleX to histogram detector counts to 2theta
+        :param two_theta_array:
+        :param vec_counts:
+        :param x_range:
+        :param num_bins:
+        :return:
+        """
         # create a 1-spec workspace
         t0 = time.time()
 
@@ -522,32 +646,74 @@ class PyHB2BReduction(object):
         return bin_edges, hist
 
     @staticmethod
-    def histogram_by_numpy(two_theta_array, vec_counts, x_range, num_bins, is_point_data, norm_bins):
-        hist, bin_edges = np.histogram(two_theta_array, bins=num_bins, range=x_range, weights=vec_counts)
+    def histogram_by_numpy(pixel_2theta_array, vec_counts, two_theta_vec, is_point_data, norm_bins):
+        """
+        Histogram a data set (X, Y) by numpy histogram algorithm
+        Assumption:
+        1. pixel_2theta_array[i] and vec_counts[i] correspond to the same detector pixel
+        :param pixel_2theta_array: 2theta array for each pixel
+        :param vec_counts: array for vector counts
+        :param x_range: 2-theta range
+        :param num_bins: number of bins
+        :param is_point_data: whether the output is a point data
+        :param norm_bins: whether in each histogram 2theta bin, the intensity (summed counts) shall be normalized
+                          by the number of pixels fall into this 2theta range
+        :return:
+        """
+        checkdatatypes.check_numpy_arrays('Pixel 2theta array, pixel counts array',
+                                          [pixel_2theta_array, vec_counts],
+                                          1, True)
 
+        # Call numpy to histogram
+        # TODO - NOW NOW #72 - Try bins = two_theta_vector
+        if False:
+            x_range, num_bins = two_theta_vec
+            hist, bin_edges = np.histogram(pixel_2theta_array, bins=num_bins, range=x_range, weights=vec_counts)
+        else:
+            hist, bin_edges = np.histogram(pixel_2theta_array, bins=two_theta_vec, weights=vec_counts)
+            # from matplotlib import pyplot as plt
+            # plt.plot(bin_edges[1:], hist)
+            # plt.show()
+
+        # Optionally to normalize by number of pixels (sampling points) in the 2theta bin
         if norm_bins:
+            # Create an all 1 vector
             vec_one = numpy.zeros(shape=vec_counts.shape) + 1
-            hist_bin, bin_edges2 = np.histogram(two_theta_array, bins=num_bins, range=x_range, weights=vec_one)
+            # Histograms
+            # TODO FIXME - TONIGHT - NOW
+            #
+            #   File "/home/wzz/Projects/PyRS/build/lib.linux-x86_64-2.7/pyrs/core/reduce_hb2b_pyrs.py", line 653, in histogram_by_numpy
+            #   hist_bin, bin_edges2 = np.histogram(pixel_2theta_array, bins=num_bins, range=x_range, weights=vec_one)
+            #   UnboundLocalError: local variable 'num_bins' referenced before assignment
+            #
+            #
+            hist_bin, bin_edges2 = np.histogram(pixel_2theta_array, bins=two_theta_vec, weights=vec_one)
 
-            # avoid zero number of bins on any X
-            for ibin in range(hist_bin.shape[0]):
-                if hist_bin[ibin] < 1.E-4:  # zero
-                    hist_bin[ibin] = 1.E10  # doesn't matter how big it is
-            # END-FOR
+            # Normalize with cautious to avoid zero number of bins on any X
+            if False:
+                # FIXME TODO - #72 - Remove this as next works
+                for ibin in range(hist_bin.shape[0]):
+                    if hist_bin[ibin] < 1.E-4:  # zero
+                        hist_bin[ibin] = 1.E10  # doesn't matter how big it is
+                # END-FOR
+            else:
+                # Shall be a better operation with numpy
+                hist_bin[numpy.where(hist_bin < 0.1)] += 1
 
-            hist /= hist_bin
+            hist /= hist_bin  # normalize
         # END-IF
 
-        # bins information output
+        # Bins information output
         bin_size_vec = (bin_edges[1:] - bin_edges[:-1])
         print ('[DB...BAT] Histograms Bins: X = [{}, {}]'.format(bin_edges[0], bin_edges[-1]))
         print ('[DB...BAT] Bin size = {}, Std = {}'.format(numpy.average(bin_size_vec), numpy.std(bin_size_vec)))
 
-        # convert to point data
+        # convert to point data as an option.  Use the center of the 2theta bin as new theta
         if is_point_data:
             delta_bin = bin_edges[1] - bin_edges[0]
             bin_edges += delta_bin * 0.5
             bin_edges = bin_edges[:-1]
+        # END-IF
 
         return bin_edges, hist
 

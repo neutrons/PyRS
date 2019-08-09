@@ -1,4 +1,5 @@
 import os
+import datetime
 import numpy
 from mantid.simpleapi import FilterEvents, LoadEventNexus, LoadInstrument, GenerateEventsFilter
 from mantid.simpleapi import ConvertSpectrumAxis, ResampleX, Transpose, AddSampleLog, GeneratePythonScript
@@ -55,7 +56,7 @@ def histogram_data(raw_vec_x, raw_vec_y, target_vec_2theta):
 class MantidHB2BReduction(object):
     """ Reducing the data using Mantid algorithm
     """
-    def __init__(self):
+    def __init__(self, idf_file_name):
         """
         initialization
         """
@@ -65,7 +66,13 @@ class MantidHB2BReduction(object):
         self._data_ws_name = None
 
         # instrument file
-        self._mantid_idf = None
+        checkdatatypes.check_file_name(idf_file_name, True, False, False, 'Mantid IDF XML file')
+        self._mantid_idf = idf_file_name
+
+        # about experimental data
+        self._detector_2theta = None
+        self._detector_counts = None
+        self._detector_mask = None
 
         # calibration: an instance of ResidualStressInstrumentCalibration
         self._instrument_calibration = None
@@ -77,38 +84,76 @@ class MantidHB2BReduction(object):
         return
 
     @staticmethod
-    def convert_from_raw_to_2theta(matrix_ws_name, test_mode=False):
-        """
-        Convert from raw to workspace with unit X as
-        :param matrix_ws_name: name of input workspace
+    def convert_from_raw_to_2theta(det_counts_ws_name, test_mode=False):
+        """ Convert workspace with detector counts workspace with unit X as
+        :param det_counts_ws_name: name of input workspace
         :param test_mode: test mode.... cannot give out correct result
         :return: workspace in unit 2theta and transposed to 1-spectrum workspace (handler)
         """
         print ('[DB...BAT] Report: Convert raw to 2theta')
 
         # check input
-        checkdatatypes.check_string_variable('Input raw data workspace name', matrix_ws_name)
-        if not ADS.doesExist(matrix_ws_name):
-            raise RuntimeError('Raw data workspace {} does not exist in Mantid ADS.'.format(matrix_ws_name))
+        checkdatatypes.check_string_variable('Input raw data workspace name', det_counts_ws_name)
+        if not ADS.doesExist(det_counts_ws_name):
+            raise RuntimeError('Raw data workspace {} does not exist in Mantid ADS.'.format(det_counts_ws_name))
 
         # convert to 2theta - counts
-        matrix_ws = ADS.retrieve(matrix_ws_name)
+        matrix_ws = ADS.retrieve(det_counts_ws_name)
         print ('[DB...BAT] Raw workspace: number of histograms = {}, Unit = {}'
                ''.format(matrix_ws.getNumberHistograms(), matrix_ws.getAxis(0).getUnit().unitID()))
 
-        ConvertSpectrumAxis(InputWorkspace=matrix_ws_name, Target='Theta', OutputWorkspace=matrix_ws_name,
+        two_theta_ws_name = '{}_2theta'.format(det_counts_ws_name)
+
+        ConvertSpectrumAxis(InputWorkspace=det_counts_ws_name, Target='Theta', OutputWorkspace=two_theta_ws_name,
                             EnableLogging=False, OrderAxis=False)
 
         # convert from N-spectra-single element to 1-spectrum-N-element
-        raw_data_ws = Transpose(InputWorkspace=matrix_ws_name, OutputWorkspace=matrix_ws_name, EnableLogging=False)
-        print ('[DB.....BAT.....PROBLEM] Raw workspace {}: num histograms = {}, sum(Y) = {}\nY: {}'
-               ''.format(matrix_ws_name, raw_data_ws.getNumberHistograms(), raw_data_ws.readY(0).sum(),
-                         raw_data_ws.readY(0)))
+        two_theta_ws = Transpose(InputWorkspace=two_theta_ws_name, OutputWorkspace=two_theta_ws_name,
+                                 EnableLogging=False)
+        print ('[DB.....BAT.....PROBLEM] Reduced 2theta workspace {}: num histograms = {}, sum(Y) = {}\nY: {}'
+               ''.format(det_counts_ws_name, two_theta_ws.getNumberHistograms(), two_theta_ws.readY(0).sum(),
+                         two_theta_ws.readY(0)))
 
-        return raw_data_ws
+        return two_theta_ws
 
-    def reduce_to_2theta(self, matrix_ws_name, two_theta_min=None, two_theta_max=None, num_2theta_bins=None,
-                         mask=None, target_vec_2theta=None):
+    def get_pixel_positions(self, is_matrix=False, corner_center=True):
+        """
+        Get 3D positions of each pixel
+        :param is_matrix:
+        :return:
+        """
+        import time
+        import math
+
+        workspace = ADS.retrieve(self._data_ws_name)
+        num_dets = workspace.getNumberHistograms()
+
+        if corner_center:
+            # only return 5 positions: 4 corners and center
+            pos_array = numpy.ndarray(shape=(5, 3), dtype='float')
+
+            l = int(math.sqrt(num_dets))
+            for i_pos, pos_tuple in enumerate([(0, 0), (0, l-1), (l-1, 0), (l-1, l-1), (l/2, l/2)]):
+                i_ws = pos_tuple[0] * l + pos_tuple[1]
+                pos_array[i_pos] = workspace.getDetector(i_ws).getPos()
+            # END-FOR
+
+        else:
+            # full list of pixels' positions
+            print ('[L125] Number of spectra in {} is {}'.format(self._data_ws_name, num_dets))
+            pos_array = numpy.ndarray(shape=(num_dets, 3), dtype='float')
+
+            t0 = time.time()
+            for iws in range(num_dets):
+                pos_array[iws] = workspace.getDetector(iws).getPos()
+            tf = time.time()
+            print ('[L134] Time to build array of all detectors positions: {}'.format(tf - t0))
+        # END-IF
+
+        return pos_array
+
+    def reduce_to_2theta_histogram(self, two_theta_range, two_theta_step,
+                                   apply_mask, is_point_data, normalize_pixel_bin, use_mantid_histogram):
         """ Reduce the raw matrix workspace, with instrument already loaded, to 2theta
         :param matrix_ws_name:
         :param two_theta_min:
@@ -117,23 +162,31 @@ class MantidHB2BReduction(object):
         :param mask:
         :return:
         """
+        # Process input arguments
+        matrix_ws_name = self._data_ws_name
+        two_theta_min, two_theta_max = two_theta_range
+        num_2theta_bins = numpy.arange(two_theta_min, two_theta_max, two_theta_step).shape[0] - 1  # TODO FIXME - NOW NOW TONIGHT - #72 2-theta range is a myth!!!
+        target_vec_2theta = None
+
         # convert with Axis ordered
-        raw_data_ws = self.convert_from_raw_to_2theta(matrix_ws_name, test_mode=False)  # order Axis
+        theta_ws = self.convert_from_raw_to_2theta(matrix_ws_name, test_mode=False)  # order Axis
+        print ('[L158] (Half) reduced workspace (theta): {}'.format(theta_ws.name()))
 
         # mask if required
-        if mask is not None:
-            checkdatatypes.check_numpy_arrays('Mask vector', [mask, raw_data_ws.readY(0)], 1, True)
-            masked_vec = raw_data_ws.dataY(0)
+        mask = None   # TODO FIXME #72 - mask = self._det_mask_vec
+        if apply_mask and mask is not None:
+            checkdatatypes.check_numpy_arrays('Mask vector', [mask, theta_ws.readY(0)], 1, True)
+            masked_vec = theta_ws.dataY(0)
             masked_vec *= mask
         # END-IF(mask)
 
-        # set up resolutin and number of bins for re-sampling/binning
+        # set up resolution and number of bins for re-sampling/binning
         if two_theta_min is None:
-            two_theta_min = raw_data_ws.readX(0)[0]
+            two_theta_min = theta_ws.readX(0)[0]
         else:
             checkdatatypes.check_float_variable('Mininum 2theta for binning', two_theta_min, (-180, 180))
         if two_theta_max is None:
-            two_theta_max = raw_data_ws.readX(0)[-1]
+            two_theta_max = theta_ws.readX(0)[-1]
         else:
             checkdatatypes.check_float_variable('Maximum 2theta for binning', two_theta_max, (-180, 180))
         if two_theta_min >= two_theta_max:
@@ -147,7 +200,7 @@ class MantidHB2BReduction(object):
 
         # rebin
         if False:
-            ResampleX(InputWorkspace=raw_data_ws, OutputWorkspace=matrix_ws_name, XMin=two_theta_min,
+            ResampleX(InputWorkspace=theta_ws, OutputWorkspace=theta_ws.name(), XMin=two_theta_min,
                       XMax=two_theta_max,
                       NumberBins=num_bins, EnableLogging=False)
             reduced_ws = ADS.retrieve(matrix_ws_name)
@@ -163,9 +216,9 @@ class MantidHB2BReduction(object):
             import time
             t0 = time.time()
 
-            raw_2theta = raw_data_ws.readX(0)
-            raw_counts = raw_data_ws.readY(0)
-            raw_error = raw_data_ws.readE(0)
+            raw_2theta = theta_ws.readX(0)
+            raw_counts = theta_ws.readY(0)
+            raw_error = theta_ws.readE(0)
 
             # create a 1-spec workspace
             CreateWorkspace(DataX=raw_2theta, DataY=raw_counts, DataE=raw_error, NSpec=1, OutputWorkspace='prototype')
@@ -179,7 +232,7 @@ class MantidHB2BReduction(object):
             t2 = time.time()
 
             # Resample
-            binned = ResampleX(InputWorkspace='prot_sorted', OutputWorkspace=matrix_ws_name, XMin=two_theta_min,
+            binned = ResampleX(InputWorkspace='prot_sorted', OutputWorkspace=theta_ws.name(), XMin=two_theta_min,
                       XMax=two_theta_max,
                       NumberBins=num_bins, EnableLogging=False)
 
@@ -403,43 +456,30 @@ class MantidHB2BReduction(object):
 
         return ADS.retrieve(self._data_ws_name)
 
-    def load_instrument(self, two_theta_value, idf_name, calibration):
-        """
-        Load instrument with calibration to
+    def build_instrument(self, geometry_shift):
+        """ Load instrument with option as calibration
+        :param geometry_shift: detector position shift
         :return:
         """
+        from pyrs.core import instrument_geometry
+        # Get required parameters
+        two_theta_value, idf_name = self._detector_2theta, self._mantid_idf
+
         if self._data_ws_name is None or ADS.doesExist(self._data_ws_name) is False:
             raise RuntimeError('Reduction HB2B (Mantid) has no workspace set to reduce')
         else:
             data_ws = ADS.retrieve(self._data_ws_name)
 
         # check calibration
-        assert isinstance(calibration, calibration_file_io.ResidualStressInstrumentCalibration), 'blabla'
-        print ('[DB...BAT] Input calibration: {}'.format(calibration))
+        if geometry_shift is not None:
+            checkdatatypes.check_type('Instrument geometry shift', geometry_shift,
+                                      instrument_geometry.AnglerCameraDetectorShift)
+        else:
+            geometry_shift = instrument_geometry.AnglerCameraDetectorShift(0., 0., 0., 0., 0., 0.)
+        # END-IF
 
-        # check idf & calibration & 2theta
-        checkdatatypes.check_file_name(idf_name, True, False, False, 'Mantid IDF for HB2B')
-
-        # set 2theta value if the workspace does not contain it
-        if two_theta_value:
-            # if 2theta is not None: must be a float
-            checkdatatypes.check_float_variable('Two theta value', two_theta_value, (-181., 181))
-
-        # check whether it is necessary to set 2theta
-        try:
-            two_theta_property = data_ws.run().getProperty('2theta')
-            if two_theta_value:
-                add_2theta = True
-            else:
-                add_2theta = True
-        except RuntimeError:
-            # 2theta does not exist
-            if two_theta_value:
-                add_2theta = True
-            else:
-                raise RuntimeError('2theta must be given for workspace without 2theta log')
-        # END-IF-TRY
-
+        # TODO - FUTURE - add_theta shall be a variable set up according to how the workspace is constructed
+        add_2theta = True
         if add_2theta:
             print ('[INFO] 2theta degree = {}'.format(two_theta_value))
             AddSampleLog(Workspace=self._data_ws_name, LogName='2theta',
@@ -450,37 +490,37 @@ class MantidHB2BReduction(object):
         # set up sample logs
         # cal::arm
         AddSampleLog(Workspace=self._data_ws_name, LogName='cal::arm',
-                     LogText='{}'.format(calibration.center_shift_z),  # arm_length-DEFAULT_ARM_LENGTH),
+                     LogText='{}'.format(geometry_shift.center_shift_z),  # arm_length-DEFAULT_ARM_LENGTH),
                      LogType='Number Series', LogUnit='meter',
                      NumberType='Double')
 
         # cal::deltax
         AddSampleLog(Workspace=self._data_ws_name, LogName='cal::deltax',
-                     LogText='{}'.format(calibration.center_shift_x),
+                     LogText='{}'.format(geometry_shift.center_shift_x),
                      LogType='Number Series', LogUnit='meter',
                      NumberType='Double')
         #
         # cal::deltay
         AddSampleLog(Workspace=self._data_ws_name, LogName='cal::deltay',
-                     LogText='{}'.format(calibration.center_shift_y),
+                     LogText='{}'.format(geometry_shift.center_shift_y),
                      LogType='Number Series', LogUnit='meter',
                      NumberType='Double')
 
         # cal::roty
         AddSampleLog(Workspace=self._data_ws_name, LogName='cal::roty',
-                     LogText='{}'.format(calibration.rotation_y),
+                     LogText='{}'.format(geometry_shift.rotation_y),
                      LogType='Number Series', LogUnit='degree',
                      NumberType='Double')
 
         # cal::flip
         AddSampleLog(Workspace=self._data_ws_name, LogName='cal::flip',
-                     LogText='{}'.format(calibration.rotation_x),
+                     LogText='{}'.format(geometry_shift.rotation_x),
                      LogType='Number Series', LogUnit='degree',
                      NumberType='Double')
 
         # cal::spin
         AddSampleLog(Workspace=self._data_ws_name, LogName='cal::spin',
-                     LogText='{}'.format(calibration.rotation_z),
+                     LogText='{}'.format(geometry_shift.rotation_z),
                      LogType='Number Series', LogUnit='degree',
                      NumberType='Double')
 
@@ -645,9 +685,39 @@ class MantidHB2BReduction(object):
 
         return
 
-    def set_workspace(self, ws_name):
+    def set_experimental_data(self, det_2theta_pos, det_counts_vec):
+        """ Set experimental data to engine for data reduction
+        :param det_2theta_pos: 2theta position of detector arm
+        :param det_counts_vec: 1D array for all detector counts
+        :return:
         """
-        set the workspace that is ready for reduction to 2theta
+        checkdatatypes.check_float_variable('Detector arm 2theta', det_2theta_pos, (-180., 180.))
+        checkdatatypes.check_numpy_arrays('Detector counts', [det_counts_vec], 1, False)
+
+        # Set
+        self._detector_2theta = det_2theta_pos
+
+        # Create workspace
+        num_pixels = det_counts_vec.shape[0]
+        vec_x = numpy.array([0, 1])
+        vec_e = numpy.sqrt(det_counts_vec)
+
+        # workspace name
+        now64 = numpy.datetime64(str(datetime.datetime.now()))
+        start = numpy.datetime64('2011-08-26T11:46:52.960756')
+        tag = hash((now64 - start).astype('int')) % 100000
+
+        self._data_ws_name = 'HB2B_{}'.format(tag)
+
+        CreateWorkspace(DataX=vec_x, DataY=det_counts_vec, DataE=vec_e, NSpec=num_pixels,
+                        OutputWorkspace=self._data_ws_name)
+
+        return
+
+    def set_workspace(self, ws_name):
+        """ Set the workspace that is ready for reduction to 2theta
+        The workspace usually is created from loading a NeXus file
+        This method is complementary to set_experimental_data()
         :param ws_name:
         :return:
         """
@@ -657,6 +727,22 @@ class MantidHB2BReduction(object):
             self._data_ws_name = ws_name
         else:
             raise RuntimeError('Workspace {} does not exist in ADS'.format(ws_name))
+
+        # check whether it is necessary to set 2theta
+        # TODO - FUTURE - Instead of below, only a flag is required to indicate where detector's 2-theta comes from
+        try:
+            two_theta_property = data_ws.run().getProperty('2theta')
+            if two_theta_value:
+                add_2theta = True
+            else:
+                add_2theta = True
+        except RuntimeError:
+            # 2theta does not exist
+            if two_theta_value:
+                add_2theta = True
+            else:
+                raise RuntimeError('2theta must be given for workspace without 2theta log')
+        # END-IF-TRY
 
         return
 

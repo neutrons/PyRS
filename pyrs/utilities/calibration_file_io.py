@@ -159,7 +159,6 @@ def write_calibration_ascii_file(two_theta, arm_length, calib_config, note, geom
     return
 
 
-
 class ResidualStressCalibrationFile(object):
     """
     a dedicated file import/export
