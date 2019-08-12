@@ -14,7 +14,7 @@ from pyrs.utilities import rs_scan_io
 # to a standard HDF5 format to simulate the NeXus file
 
 
-def parse_xray_tiff(tiff_file_name):
+def parse_xray_tiff(tiff_file_name, pixel_size=2048):
     """
     Parse XRay TIFF (image) data into memory
     :param tiff_file_name:
@@ -27,7 +27,7 @@ def parse_xray_tiff(tiff_file_name):
         # consider: load_data_from_tif(raw_tiff_name=tiff_file_name, pixel_size=2048, rotate=False)
     else:
         # rotated
-        counts_matrix = file_util.load_gray_scale_tif(raw_tiff_name=tiff_file_name, pixel_size=2048, rotate=True)
+        counts_matrix = file_util.load_gray_scale_tif(raw_tiff_name=tiff_file_name, pixel_size=pixel_size, rotate=True)
 
     counts_array = counts_matrix.flatten()
 
