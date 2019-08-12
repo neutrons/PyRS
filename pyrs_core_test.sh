@@ -6,7 +6,7 @@ if [ $1 ]; then
     CMD=$1
 else
     CMD=''
-    echo "1: Reduction test (r); 2: Prototype HZB; 3: Prototype Chris (X-ray)"
+    echo "1: Reduction test (r); 2: Peak fitting test (f);  3: Prototype Chris (X-ray)"
 fi
 
 MANTIDLOCALPATH=/home/wzz/Mantid_Project/debug/bin/
@@ -19,6 +19,12 @@ PYRSPATH=build/lib.linux-x86_64-2.7/:build/lib/
 if [ "$1" = "1" ] || [ "$1" = "r" ] ; then
     echo "Reduction Test"
     PYTHONPATH=$PYRSPATH:$PYTHONPATH build/scripts-2.7/reduction_test.py
+fi
+
+if [ "$1" = "2" ] || [ "$1" = "f" ] ; then
+    echo "Peak Fitting Test"
+    PYTHONPATH=build/lib:$PYTHONPATH scripts/preparetest/convert_hb2b_peaks.py
+    PYTHONPATH=$PYRSPATH:$PYTHONPATH build/scripts-2.7/fit_peaks_test.py
 fi
 
 # PYTHONPATH=build/lib:$PYTHONPATH $CMD build/scripts-2.7/pyrs_core_test.py
