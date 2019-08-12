@@ -1,32 +1,38 @@
 # Peak fitting engine by calling mantid
-import mantid
-from mantid.simpleapi import FitPeaks, CreateWorkspace
-from mantid.api import AnalysisDataService
+from pyrs.core import mantid_helper
 from pyrs.utilities import checkdatatypes
-import pyrs_fit_engine
+from pyrs.core import peak_fit_factory
 import numpy as np
 import os
 import math
 
 
-class MantidPeakFitEngine(pyrs_fit_engine.RsPeakFitEngine):
+class MantidPeakFitEngine(peak_fit_factory.PeakFitEngine):
     """
     peak fitting engine class for mantid
     """
-    def __init__(self, sub_run_list, data_set_list, ref_id):
+    def __init__(self, workspace, sub_run_list, mask_id):
         """ Initialization to set up the workspace for fitting
         :param sub_run_list: list of sun runs
         :param data_set_list: list of data set
         :param ref_id: reference ID
         :param
         """
+        # Original:         :  sub_run_list, data_set_list, ref_id):
+
         # call parent
         super(MantidPeakFitEngine, self).__init__(sub_run_list, data_set_list, ref_id)
 
-        # related to Mantid workspaces
-        self._workspace_name = self._get_matrix_name(ref_id)
-        self._ws_index_sub_run_dict = None
-        self.generate_matrix_workspace(data_set_list, matrix_ws_name=self._workspace_name)
+        # TODO ....
+
+        self._sub_run_list = sub_run_list
+        self._mantid_workspace = mantid_helper.generate_mantid_workspace(workspace)  # generate a workspace with all sub runs!!!
+
+
+        # # related to Mantid workspaces
+        # self._workspace_name = self._get_matrix_name(ref_id)
+        # self._ws_index_sub_run_dict = None
+        # self.generate_matrix_workspace(data_set_list, matrix_ws_name=self._workspace_name)
 
         # some observed properties
         self._center_of_mass_ws_name = None

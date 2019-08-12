@@ -1,6 +1,35 @@
 from mantid.api import AnalysisDataService as mtd
 from mantid.simpleapi import LoadSpiceXML2DDet, Transpose
 from pyrs.utilities import checkdatatypes
+from pyrs.core import workspaces
+
+import mantid
+from mantid.simpleapi import FitPeaks, CreateWorkspace
+from mantid.api import AnalysisDataService
+
+
+def generate_mantid_workspace(hidra_workspace, workspace_name, mask_id=None):
+    """
+    Generate a Mantid workspace from a HidraWorkspace
+    :param hidra_workspace:
+    :return:
+    """
+    checkdatatypes.check_type('Hidra workspace', hidra_workspace, workspaces.HidraWorkspace)
+
+    two_theta_array, data_y_matrix = hidra_workspace.get_reduced_diffraction_data(mask_id)
+
+    # workspace name:
+    if workspace_name is None:
+        workspace_name = hidra_workspace.name()
+    else:
+        checkdatatypes.check_string_variable('Workspace name', workspace_name)
+
+    matrix_ws = CreateWorkspace(DataX=two_theta_array,
+                                DataY=data_y_matrix,
+                                NSpec=data_y_matrix.shape[0],
+                                OutputWorkspace=workspace_name)
+
+    return matrix_ws
 
 
 def get_data_y(ws_name, transpose):

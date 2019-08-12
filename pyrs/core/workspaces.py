@@ -164,7 +164,7 @@ class HidraWorkspace(object):
         """
         return self._instrument_setup
 
-    def get_raw_data(self, sub_run):
+    def get_detector_counts(self, sub_run):
         """
         Get raw detector counts in the order of pixel IDs by a given sub run
         :param sub_run:
