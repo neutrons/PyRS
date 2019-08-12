@@ -23,6 +23,7 @@ class ResidualStressInstrument(object):
 
         self._pixel_matrix = None  # used by external after build_instrument: matrix for pixel positions
         self._pixel_2theta_matrix = None  # matrix for pixel's 2theta value
+        self._pixel_eta_matrix = None  # matrix for pixel's eta value
 
         self._wave_length = None
 
@@ -126,9 +127,9 @@ class ResidualStressInstrument(object):
         # print ('[DB...BAT] 2-theta rotation matrix:\n{}'.format(two_theta_rot_matrix))
         self._pixel_matrix = self._rotate_detector(self._pixel_matrix, two_theta_rot_matrix)
 
-        # get 2theta too
+        # get 2theta and eta
         self._calculate_pixel_2theta()
-
+        self._calculate_pixel_eta()
         return self._pixel_matrix
 
     def _calculate_pixel_2theta(self):
@@ -143,7 +144,7 @@ class ResidualStressInstrument(object):
         # define
         k_in_vec = [0, 0, 1]
 
-        des_pos_array = self._pixel_matrix.copy()
+        det_pos_array = self._pixel_matrix.copy()
 
         if len(self._pixel_matrix[:].shape) == 3:
             # N x M x 3 array
@@ -153,34 +154,79 @@ class ResidualStressInstrument(object):
             det_pos_norm_matrix = np.sqrt(self._pixel_matrix[:][:, :, 0] ** 2 +
                                           self._pixel_matrix[:][:, :, 1] ** 2 +
                                           self._pixel_matrix[:][:, :, 2] ** 2)
+            #### Instrument K_in is fixed to [0,0,1]
             # normalize pixel position for diffraction angle
-            for i_dir in range(3):
-                des_pos_array[:, :, i_dir] /= det_pos_norm_matrix
+            #for i_dir in range(3):
+            #    det_pos_array[:, :, i_dir] /= det_pos_norm_matrix
 
             # convert to  2theta in degree
-            diff_angle_cos_matrix = des_pos_array[:, :, 0] * k_in_vec[0] + des_pos_array[:, :, 1] * k_in_vec[1] + \
-                                    des_pos_array[:, :, 2] * k_in_vec[2]
-            twotheta_matrix = np.arccos(diff_angle_cos_matrix) * 180 / np.pi
+            #diff_angle_cos_matrix = det_pos_array[:, :, 0] * k_in_vec[0] + det_pos_array[:, :, 1] * k_in_vec[1] + \
+            #                        det_pos_array[:, :, 2] * k_in_vec[2]
+            #twotheta_matrix = np.arccos(diff_angle_cos_matrix) * 180 / np.pi
+            twotheta_matrix = np.arccos(det_pos_array[:, :, 2] / det_pos_norm_matrix ) * 180 / np.pi
 
             return_value = twotheta_matrix
         else:
             # (N x M) x 3 array
             # convert detector positions array to 2theta array
             # normalize the detector position 2D array
-            det_pos_norm_array = np.sqrt(des_pos_array[:, 0] ** 2 + des_pos_array[:, 1] ** 2 + des_pos_array[:, 2] ** 2)
+            det_pos_norm_array = np.sqrt(det_pos_array[:, 0] ** 2 + det_pos_array[:, 1] ** 2 + det_pos_array[:, 2] ** 2)
+
+            #### Instrument K_in is fixed to [0,0,1]            
             # normalize pixel position for diffraction angle
-            for i_dir in range(3):
-                des_pos_array[:, i_dir] /= det_pos_norm_array
+            #for i_dir in range(3):
+            #    des_pos_array[:, i_dir] /= det_pos_norm_array
 
             # convert to  2theta in degree
-            diff_angle_cos_array = des_pos_array[:, 0] * k_in_vec[0] + des_pos_array[:, 1] * k_in_vec[1] + \
-                                   des_pos_array[:, 2] * k_in_vec[2]
-            twotheta_array = np.arccos(diff_angle_cos_array) * 180 / np.pi
+            #diff_angle_cos_array = det_pos_array[:, 0] * k_in_vec[0] + det_pos_array[:, 1] * k_in_vec[1] + \
+            #                       det_pos_array[:, 2] * k_in_vec[2]
 
+            #twotheta_array = np.arccos(diff_angle_cos_array) * 180 / np.pi
+            twotheta_array = np.arccos( det_pos_array[:, 2] / det_pos_norm_array ) * 180 / np.pi
             return_value = twotheta_array
         # END-IF-ELSE
 
         self._pixel_2theta_matrix = return_value
+
+        return
+
+    def _calculate_pixel_eta(self):
+        """
+        convert the pixel position matrix to 2theta. Result is recorded to self._pixel_eta_matrix
+        :return:
+        """
+        # check whether instrument is well built
+        if self._pixel_matrix is None:
+            raise RuntimeError('Instrument has not been built yet. Pixel matrix is missing')
+
+        # define
+
+        det_pos_array = self._pixel_matrix.copy()
+
+        if len(self._pixel_matrix[:].shape) == 3:
+            # N x M x 3 array
+            # convert detector position matrix to 2theta
+
+            eta_matrix = 180. - np.arctan2(det_pos_array[:, :, 1],  det_pos_array[:, :,0] ) * 180 / np.pi
+            eta_temp = eta_matrix.reshape(-1)
+            index = np.where( eta_temp > 180. ) [0]
+            eta_temp[index] -= 360
+            eta_matrix = eta_temp.reshape(eta_matrix.shape)
+
+            return_value = eta_matrix
+        else:
+            # (N x M) x 3 array
+            # convert detector positions array to 2theta array
+            # normalize the detector position 2D array
+
+            eta_array = 180. - np.arctan2(det_pos_array[:, 1],  det_pos_array[:,0] ) * 180 / np.pi
+            index = np.where( eta_array > 180. ) [0]
+            eta_array[index] -= 360
+
+            return_value = eta_array
+        # END-IF-ELSE
+
+        self._pixel_eta_matrix = return_value
 
         return
 
@@ -268,6 +314,23 @@ class ResidualStressInstrument(object):
             two_theta_values = self._pixel_2theta_matrix[:, :]
 
         return two_theta_values
+
+    def get_eta_values(self, dimension):
+        """
+        get the 2theta values for all the pixels
+        :param dimension: 1 for array, 2 for matrix
+        :return:
+        """
+        if self._pixel_eta_matrix is None:
+            raise RuntimeError('2theta values for all the pixels are not calculated yet. (instrument not built')
+
+        if dimension == 1:
+            m, n = self._pixel_eta_matrix.shape
+            eta_values = self._pixel_eta_matrix.reshape((m*n,))
+        else:
+            eta_values = self._pixel_eta_matrix[:, :]
+
+        return eta_values
 
     def get_dspacing_value(self, dimension=1):
         """
@@ -368,6 +431,10 @@ class PyHB2BReduction(object):
 
     # TODO - TONIGHT 1 - Doc and clean
     # TODO - TONIGHT 0 - Normalize by num bins (aka vanadium as old saying)
+
+    def get_eta_Values( self ):
+        return self._instrument.get_eta_values(dimension=1)
+
     def reduce_to_2theta_histogram(self, counts_array, mask, num_bins, x_range=None,
                                    is_point_data=True, use_mantid_histogram=False):
         """ convert the inputs (detector matrix and counts to 2theta histogram)
