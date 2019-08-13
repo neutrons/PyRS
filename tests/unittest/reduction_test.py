@@ -5,8 +5,67 @@ import os
 import numpy
 from pyrs.core import pyrscore
 from pyrs.core import instrument_geometry
-from pyrs.utilities import script_helper
 from matplotlib import pyplot as plt
+
+"""
+Instrument geometry test result (X-ray): 5 corners and quick!  NO SHIFT
+[-0.07092737 -0.2047      0.45817835]
+dir 0:   -0.070927
+dir 1:   -0.204700
+dir 2:    0.458178
+[-0.40628822 -0.2047      0.22335615]
+dir 0:   -0.406288
+dir 1:   -0.204700
+dir 2:    0.223356
+[-0.07092737  0.2047      0.45817835]
+dir 0:   -0.070927
+dir 1:    0.204700
+dir 2:    0.458178
+[-0.40628822  0.2047      0.22335615]
+dir 0:   -0.406288
+dir 1:    0.204700
+dir 2:    0.223356
+[ -2.38689713e-01   1.00000000e-04   3.40709893e-01]
+dir 0:   -0.238690
+dir 1:    0.000100
+dir 2:    0.340710
+"""
+
+"""
+Instrument geometry test result (X-ray): 5 corners and quick!  WITH SHIFT
+Shift:    0.1,  -0.05,  0.12
+Rotation: 1.0, 0.3, -1.23
+[INFO] User specified 2theta = 35.0 is converted to Mantid 2theta = -35.0
+[DB...L101] Build instrumnent: 2theta = -35.0, arm = 0.416
+[-0.05886799 -0.26111486  0.60563883]
+dir 0:   -0.058868
+dir 1:   -0.261115
+dir 2:    0.605639
+[-0.39546399 -0.25236546  0.37275487]
+dir 0:   -0.395464
+dir 1:   -0.252365
+dir 2:    0.372755
+[-0.05574015  0.14812927  0.61649325]
+dir 0:   -0.055740
+dir 1:    0.148129
+dir 2:    0.616493
+[-0.39233615  0.15687867  0.38360929]
+dir 0:   -0.392336
+dir 1:    0.156879
+dir 2:    0.383609
+[-0.22568352 -0.05201599  0.49456983]
+dir 0:   -0.225684
+dir 1:   -0.052016
+dir 2:    0.494570
+"""
+
+"""
+TODO - Time consuming unit test: compare geometry between Mantid and PyRS
+"""
+
+"""
+TODO - Time consuming unit test: compare reduced data between Mantid and PyRS
+"""
 
 
 class ReductionTest(object):
