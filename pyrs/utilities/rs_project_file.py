@@ -13,6 +13,7 @@ import numpy
 class HidraConstants(object):
     RAW_DATA = 'raw data'
     REDUCED_DATA = 'reduced diffraction data'
+    REDUCED_MAIN = 'main'   # default reduced data
     SUB_RUNS = 'sub-runs'
     CALIBRATION = 'calibration'
     SAMPLE_LOGS = 'logs'
@@ -20,7 +21,6 @@ class HidraConstants(object):
     GEOMETRY_SETUP = 'geometry setup'
     DETECTOR_PARAMS = 'detector'
     TWO_THETA = '2Theta'
-    REDUCED_MAIN = 'main'
 
 
 class HydraProjectFileMode(Enum):
@@ -511,14 +511,17 @@ class HydraProjectFile(object):
         print ('[DB...BAT] sub group entry name in hdf: {}'.format(sub_run_group_name))
 
         # check existing node or create a new node
-        if sub_run_group_name in self._project_h5['diffraction']:
+        print ('[DB...BAT] Diffraction node sub group/entries: {}'
+               ''.format( self._project_h5[HidraConstants.REDUCED_DATA].keys()))
+        if sub_run_group_name in self._project_h5[HidraConstants.REDUCED_DATA]:
             # sub-run node exist and check
-            diff_group = self._project_h5['diffraction'][sub_run_group_name]
+            print ('[DB...BAT] sub-group: {}'.format(sub_run_group_name))
+            diff_group = self._project_h5[HidraConstants.REDUCED_DATA][sub_run_group_name]
             if not (DiffractionUnit.TwoTheta in diff_group and DiffractionUnit.DSpacing in diff_group):
                 raise RuntimeError('Diffraction node for sub run {} exists but is not complete'.format(sub_run_number))
         else:
             # create new node: parent, child-2theta, child-dspacing
-            diff_group = self._project_h5['diffraction'].create_group(sub_run_group_name)
+            diff_group = self._project_h5[HidraConstants.REDUCED_DATA].create_group(sub_run_group_name)
             diff_group.create_group(DiffractionUnit.unit(DiffractionUnit.TwoTheta))
             diff_group.create_group(DiffractionUnit.unit(DiffractionUnit.DSpacing))
 

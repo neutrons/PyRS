@@ -49,7 +49,7 @@ def main():
     Test main
     :return:
     """
-    test_project_file_name = ''
+    test_project_file_name = 'tests/testdata/Hydra_16-1_cor_log.hdf5'
 
     # Create tester
     tester = PeakFittingTest(test_project_file_name)

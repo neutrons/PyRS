@@ -1,13 +1,14 @@
 # Peak fitting engine by calling mantid
 from pyrs.core import mantid_helper
 from pyrs.utilities import checkdatatypes
-from pyrs.core import peak_fit_factory
+from pyrs.core import peak_fit_engine
 import numpy as np
 import os
 import math
 
 
-class MantidPeakFitEngine(peak_fit_factory.PeakFitEngine):
+# TODO #79 - #74 - Clean and move on!
+class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
     """
     peak fitting engine class for mantid
     """

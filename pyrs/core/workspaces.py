@@ -81,10 +81,11 @@ class HidraWorkspace(object):
         :param hidra_file:
         :return:
         """
+        # TODO #79 - #74 - Clean the whole method!!!
         checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
 
         # get X value
-        vec_2theta = hidra_file.get_reduced_diff_2theta_vec()
+        vec_2theta = hidra_file.get_reduced_diff_2theta_vec()  # TODO #79 - #74,65 - Not implemented
         self._2theta_vec = vec_2theta[:]
 
         # initialize data set for reduced diffraction patterns
