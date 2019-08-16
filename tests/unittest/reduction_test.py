@@ -31,6 +31,18 @@ dir 1:    0.000100
 dir 2:    0.340710
 """
 
+GoldDataXrayNoShift = {0: numpy.array([-0.07092737, -0.20470000, 0.45817835]),
+                       2047: numpy.array([-0.40628822, -0.20470000, 0.22335615]),
+                       2047*2048: numpy.array([-0.07092737,  0.2047,      0.45817835]),
+                       2047*2048+2047: numpy.array([-0.40628822,  0.2047,      0.22335615]),
+                       2047/2*2048+2047/2: numpy.array([-2.38689713e-01,   1.00000000e-04,   3.40709893e-01])}
+
+GoldDataXrayWithShift = {0: numpy.array([-0.05886799, -0.26111486,  0.60563883]),
+                         2047: numpy.array([-0.39546399, -0.25236546, 0.37275487]),
+                         2047*2048: numpy.array([-0.05574015,  0.14812927,  0.61649325]),
+                         2047*2048+2047: numpy.array([-0.39233615, 0.15687867,  0.38360929]),
+                         2047/2 * 2048 + 2047 / 2: numpy.array([-0.22568352, -0.05201599, 0.49456983])}
+
 """
 Instrument geometry test result (X-ray): 5 corners and quick!  WITH SHIFT
 Shift:    0.1,  -0.05,  0.12
@@ -66,6 +78,30 @@ TODO - Time consuming unit test: compare geometry between Mantid and PyRS
 """
 TODO - Time consuming unit test: compare reduced data between Mantid and PyRS
 """
+
+def assert_diff_delta(value1, value2, delta):
+    """
+    Check whether 2 values are close enough
+    :param value1:
+    :param value2:
+    :param delta:
+    :return:
+    """
+    if type(value1) != type(value2):
+        raise AssertionError('{} and {} are of different type {} and {}'
+                             ''.format(value1, value2, type(value1), type(value2)))
+
+    if isinstance(value1, numpy.ndarray):
+        if value1.shape != value2.shape:
+            raise AssertionError('{} and {} are of different shape {} and {}'
+                                 ''.format(value1, value2, value1.shape, value2.shape))
+        diff = value1 - value2
+        norm_diff = numpy.sqrt(numpy.sum(diff**2))
+        if norm_diff >= delta:
+            raise AssertionError('{} and {} are not same considering tolerance {}'
+                                 ''.format(value1, value2, delta))
+
+    return
 
 
 class ReductionTest(object):
@@ -116,11 +152,16 @@ class ReductionTest(object):
         vec_x, vec_y = reduction_engine.histogram_by_numpy(pixel_2theta_array, one_count_vec, histogram_2theta_vec,
                                                            is_point_data=True, norm_bins=True)
 
+        # Test a subset of pixels' positions
+        for pixel_id in GoldDataXrayNoShift.keys():
+            pixel_pos = pixel_pos_array[pixel_id]
+            assert_diff_delta(pixel_pos, GoldDataXrayNoShift[pixel_id], 0.000001)
+
         plt.plot(vec_x, vec_y)
 
         return
 
-    def test_reduce_data_calibration(self):
+    def test_reduce_data_geometry_shift(self):
         """ Test reduction (PyRS engine) classes and methods with calibration/instrument shift
         :return:
         """
@@ -137,6 +178,16 @@ class ReductionTest(object):
         # Get data and plot
         data_set = self._reduction_controller.get_diffraction_data(self._project_name, sub_run=1,
                                                                    mask=None)
+
+        # Get the detectors' position
+        reduction_engine = self._reduction_controller.reduction_manager.get_last_reduction_engine()
+        pixel_pos_array = reduction_engine.get_pixel_positions(is_matrix=False)
+
+        # Test a subset of pixels' positions
+        # Test a subset of pixels' positions
+        for pixel_id in GoldDataXrayWithShift.keys():
+            pixel_pos = pixel_pos_array[pixel_id]
+            assert_diff_delta(pixel_pos, GoldDataXrayWithShift[pixel_id], 0.000001)
 
         # Plot
         vec_2theta = data_set[0]
@@ -233,7 +284,7 @@ def main():
     tester.test_reduce_data_basic()
 
     # Test calibration
-    tester.test_reduce_data_calibration()
+    tester.test_reduce_data_geometry_shift()
     tester.test_reduce_data_calibration_more_format()
 
     # Engine comparison
