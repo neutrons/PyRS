@@ -100,7 +100,7 @@ class ResidualStressInstrument(object):
         # check input
         checkdatatypes.check_float_variable('2theta', two_theta, (None, None))
 
-        print ('[DB...L101] Build instrumnent: 2theta = {}, arm = {}'
+        print ('[DB...L101] Build instrument: 2theta = {}, arm = {}'
                ''.format(two_theta, self._instrument_geom_params.arm_length))
 
         # make a copy from raw (constant position)
@@ -199,7 +199,7 @@ class ResidualStressInstrument(object):
 
     def generate_rotation_matrix(self, rot_x_rad, rot_y_rad, rot_z_rad):
         """
-        build a ration matrix with 3 orthoganol directions
+        build a ration matrix with 3 orthognol directions
         :param rot_x_rad: rotation about X-axis in rad (flip forward/backward)
         :param rot_y_rad: rotation about Y-axis in rad (vertical rotation)
         :param rot_z_rad: rotation about Z-axis in rad (spin)

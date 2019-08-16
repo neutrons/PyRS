@@ -32,16 +32,16 @@ dir 2:    0.340710
 """
 
 GoldDataXrayNoShift = {0: numpy.array([-0.07092737, -0.20470000, 0.45817835]),
-                       2047: numpy.array([-0.40628822, -0.20470000, 0.22335615]),
-                       2047*2048: numpy.array([-0.07092737,  0.2047,      0.45817835]),
-                       2047*2048+2047: numpy.array([-0.40628822,  0.2047,      0.22335615]),
-                       2047/2*2048+2047/2: numpy.array([-2.38689713e-01,   1.00000000e-04,   3.40709893e-01])}
+                       2047 * 2048: numpy.array([-0.40628822, -0.20470000, 0.22335615]),
+                       2047: numpy.array([-0.07092737,  0.2047,      0.45817835]),
+                       2047 * 2048 + 2047: numpy.array([-0.40628822,  0.2047,      0.22335615]),
+                       2048/2*2048+2048/2: numpy.array([-2.38689713e-01,   1.00000000e-04,   3.40709893e-01])}
 
 GoldDataXrayWithShift = {0: numpy.array([-0.05886799, -0.26111486,  0.60563883]),
-                         2047: numpy.array([-0.39546399, -0.25236546, 0.37275487]),
-                         2047*2048: numpy.array([-0.05574015,  0.14812927,  0.61649325]),
-                         2047*2048+2047: numpy.array([-0.39233615, 0.15687867,  0.38360929]),
-                         2047/2 * 2048 + 2047 / 2: numpy.array([-0.22568352, -0.05201599, 0.49456983])}
+                         2047 * 2048: numpy.array([-0.39546399, -0.25236546, 0.37275487]),
+                         2047: numpy.array([-0.05574015,  0.14812927,  0.61649325]),
+                         2047 * 2048 + 2047: numpy.array([-0.39233615, 0.15687867,  0.38360929]),
+                         2048/2 * 2048 + 2048 / 2: numpy.array([-0.22568352, -0.05201599, 0.49456983])}
 
 """
 Instrument geometry test result (X-ray): 5 corners and quick!  WITH SHIFT
@@ -154,6 +154,7 @@ class ReductionTest(object):
 
         # Test a subset of pixels' positions
         for pixel_id in GoldDataXrayNoShift.keys():
+            print ('Test pixel {} position'.format(pixel_id))
             pixel_pos = pixel_pos_array[pixel_id]
             assert_diff_delta(pixel_pos, GoldDataXrayNoShift[pixel_id], 0.000001)
 
