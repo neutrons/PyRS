@@ -85,10 +85,11 @@ class HidraWorkspace(object):
         checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
 
         # get X value
-        vec_2theta = hidra_file.get_reduced_diff_2theta_vec()  # TODO #79 - #74,65 - Not implemented
+        vec_2theta = hidra_file.get_diffraction_2theta_vector()  # TODO - DONE - #74,65 - Not implemented
         self._2theta_vec = vec_2theta[:]
 
         # initialize data set for reduced diffraction patterns
+        num_spec = len(hidra_file.get_sub_runs())
         self._diff_data_set = numpy.ndarray(shape=(num_spec, vec_2theta.shape[0]),
                                             dtype='float')
 
@@ -96,24 +97,19 @@ class HidraWorkspace(object):
         diff_mask_list = hidra_file.get_reduced_data_masks()
         for mask_name in diff_mask_list:
             # init masks
+            # TODO FIXME - TONIGHT - #80 - define it: _diff_data_mask_set
             self._diff_data_mask_set[mask_name] = numpy.ndarray(shape=self._diff_data_set.shape,
                                                                 dtype=self._diff_data_set.dtype)
         # END-FOR
 
-        for sub_run_i in sorted(self._sub_run_to_spectrum.keys()):
-            # get spectrum ID
-            spec_i = self._sub_run_to_spectrum[sub_run_i]
+        # Load data: main
+        self._diff_data_set = hidra_file.get_reduced_diffraction_data(mask_i=None, sub_run=None)
 
-            # main
-            diff_main_vec_i = hidra_file.get_reduced_diff_intensity(sub_run_i)
-            self._diff_data_set[spec_i] = diff_main_vec_i
-
-            # masks
-            for mask_name in diff_mask_list:
-                diff_mask_vec_i = hidra_file.get_reduced_diff_intensity(sub_run_i, mask_name)
-                self._diff_data_mask_set[mask_name][spec_i] = diff_main_vec_i
-            # END-FOR (mask)
-        # END-FOR (sub-run)
+        # Load data: with masks / ROI
+        for mask_name in diff_mask_list:
+            diff_mask_vec = hidra_file.get_reduced_diffraction_data(mask_id=mask_name, sub_run=None)
+            self._diff_data_mask_set[mask_name] = diff_mask_vec
+        # END-FOR (mask)
 
         return
 

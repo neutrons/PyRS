@@ -8,6 +8,7 @@ NATIVE_PEAK_PARAMETERS = {'Gaussian': ['Height', 'PeakCentre', 'Sigma', 'A0', 'A
                                     'A0', 'A1']}
 EFFECTIVE_PEAK_PARAMETERS = ['Center', 'Height', 'FWHM', 'A0', 'A1']
 
+
 class PeakFitEngine(object):
     """
     Virtual peak fit engine

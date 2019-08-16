@@ -6,7 +6,7 @@ project_file_name = sys.argv[1]
 project = rs_project_file.HydraProjectFile(project_file_name, mode=rs_project_file.HydraProjectFileMode.READONLY)
 
 # Get first sub run data
-two_theta_vec = project.get_2theta_vector()
+two_theta_vec = project.get_diffraction_2theta_vector()
 histogram = project.get_reduced_diffraction_data(None, 1)
 
 histogram_chi0 = project.get_reduced_diffraction_data('Chi_0_68', 1)

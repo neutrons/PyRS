@@ -79,6 +79,7 @@ TODO - Time consuming unit test: compare geometry between Mantid and PyRS
 TODO - Time consuming unit test: compare reduced data between Mantid and PyRS
 """
 
+
 def assert_diff_delta(value1, value2, delta):
     """
     Check whether 2 values are close enough
