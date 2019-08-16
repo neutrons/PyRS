@@ -344,7 +344,7 @@ class HB2BReductionManager(object):
             for index_i, index_j in pixel_locations:
                 index1d = index_i + pixel_number * index_j
                 pos_python = pixel_1d_array[index1d]
-                print (pos_python)
+                print ('Pixel {}:  position = {}'.format(index1d, pos_python))
                 for i in range(3):
                     print ('dir {}:  {:10f}'
                            ''.format(i, float(pos_python[i])))
