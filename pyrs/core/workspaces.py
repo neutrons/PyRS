@@ -103,7 +103,7 @@ class HidraWorkspace(object):
         # END-FOR
 
         # Load data: main
-        self._diff_data_set = hidra_file.get_reduced_diffraction_data(mask_i=None, sub_run=None)
+        self._diff_data_set = hidra_file.get_reduced_diffraction_data(mask=None, sub_run=None)
 
         # Load data: with masks / ROI
         for mask_name in diff_mask_list:
@@ -337,7 +337,7 @@ class HidraWorkspace(object):
         """
         checkdatatypes.check_type('HIDRA project file', hidra_project, rs_project_file.HydraProjectFile)
 
-        hidra_project.set_reduced_diffraction_dataset(self._2theta_vec, self._diff_data_set)
+        hidra_project.set_reduced_diffraction_data_set(self._2theta_vec, self._diff_data_set)
 
         return
 

@@ -6,7 +6,8 @@ Convert the "old" HB2B data, now used to test peak fitting, to new HydraProject 
 1. Add PyRS path to python path (refer to pyrsdev.sh)
 1. Run this script
 
-""" 
+"""
+import numpy
 from pyrs.utilities import rs_scan_io
 from pyrs.utilities import rs_project_file
 
@@ -26,17 +27,33 @@ def main():
     target_file = rs_project_file.HydraProjectFile(target_project_file_name,
                                                    rs_project_file.HydraProjectFileMode.OVERWRITE)
 
+    # Create sub runs
+    target_file.set_sub_runs(sorted(diff_data_dict.keys()))
+
     # Add (reduced) diffraction data
-    for sub_run_index in diff_data_dict.keys():
-        two_theta_vector, intensity_vector = diff_data_dict[sub_run_index]
+    two_theta_vector = None
+    diff_data_matrix = None
 
-        print ('[DB...BAT] {}; {}'.format(two_theta_vector, intensity_vector))
+    # construct the matrix of intensities
+    for sub_run_index, sub_run_number in enumerate(sorted(diff_data_dict.keys())):
+        two_theta_vector_i, intensity_vector_i = diff_data_dict[sub_run_index]
 
-        target_file.set_2theta_diffraction_data(sub_run_index, two_theta_vector, intensity_vector)
+        # create data set
+        if two_theta_vector is None:
+            two_theta_vector = two_theta_vector_i
+            diff_data_matrix = numpy.ndarray(shape=(len(diff_data_dict.keys()), intensity_vector_i.shape[0]),
+                                             dtype='float')
+        # END-IF
 
+        # set vector
+        diff_data_matrix[sub_run_index] = intensity_vector_i
     # END-FOR
 
-    target_file.save_hydra_project()
+    # Add data
+    target_file.set_reduced_diffraction_data_set(two_theta_vector, {None: diff_data_matrix})
+
+    # Save
+    target_file.save_hydra_project(verbose=True)
 
     return
 
