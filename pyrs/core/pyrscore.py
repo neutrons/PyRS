@@ -266,8 +266,13 @@ class PyRsCore(object):
         # Get workspace
         workspace = self.reduction_manager.get_hidra_workspace(session_name)
 
+        # Deal with sub runs
+        if sub_run_list is None:
+            sub_run_list = workspace.get_subruns()
+            print ('[DB...BAT] Sub runs: ', sub_run_list)
+
         # For the data for fitting
-        self._peak_fit_controller = peak_fit_factory.PeakFitEngineFactory.getInstance('Mantid')(workspace, sub_run_list)
+        self._peak_fit_controller = peak_fit_factory.PeakFitEngineFactory.getInstance('Mantid')(workspace, sub_run_list, None)
 
         # fit peaks
         self._peak_fit_controller.fit_peaks(peak_type, background_type, fit_range)

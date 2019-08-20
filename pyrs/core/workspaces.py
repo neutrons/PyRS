@@ -53,10 +53,12 @@ class HidraWorkspace(object):
         self._spectrum_to_sub_run = dict()
 
         # besides the dictionaries are created
-        print ('L214: sub runs:', sub_run_list)
+        print ('[DB....BAT] L214: sub runs:', sub_run_list)
         for spec_id, sub_run in enumerate(sorted(sub_run_list)):
             self._sub_run_to_spectrum[sub_run] = spec_id
             self._spectrum_to_sub_run[spec_id] = sub_run
+
+        print ('[DB...BAT] ', self._sub_run_to_spectrum, self._spectrum_to_sub_run)
 
         return
 
@@ -103,7 +105,7 @@ class HidraWorkspace(object):
         # END-FOR
 
         # Load data: main
-        self._diff_data_set = hidra_file.get_reduced_diffraction_data(mask=None, sub_run=None)
+        self._diff_data_set = hidra_file.get_reduced_diffraction_data(mask_id=None, sub_run=None)
 
         # Load data: with masks / ROI
         for mask_name in diff_mask_list:
@@ -139,7 +141,6 @@ class HidraWorkspace(object):
         self._sample_log_dict = hidra_file.get_logs()
 
         return
-
 
     def get_2theta(self, sub_run):
         """ Get 2theta value from sample log
@@ -179,6 +180,9 @@ class HidraWorkspace(object):
         :return:
         """
         sub_runs = sorted(self._sub_run_to_spectrum.keys())
+        if len(sub_runs):
+            raise RuntimeError('Sub run - spectrum map has not been built')
+
         return sub_runs
 
     def load_hidra_project(self, hidra_file, load_raw_counts, load_reduced_diffraction):
@@ -195,16 +199,14 @@ class HidraWorkspace(object):
         sub_run_list = hidra_file.get_sub_runs()
         self._create_subrun_spectrum_map(sub_run_list)
 
-        # load raw detector counts
+        # load raw detector counts and load instrument
         if load_raw_counts:
             self._load_raw_counts(hidra_file)
+            self._load_instrument(hidra_file)
 
         # load reduced diffraction
         if load_reduced_diffraction:
             self._load_reduced_diffraction_data(hidra_file)
-
-        # load instrument
-        self._load_instrument(hidra_file)
 
         # load sample logs
         self._load_sample_logs(hidra_file)

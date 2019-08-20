@@ -12,7 +12,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
     """
     peak fitting engine class for mantid
     """
-    def __init__(self, workspace, sub_run_list, mask_id):
+    def __init__(self, workspace, sub_run_list, mask_name):
         """ Initialization to set up the workspace for fitting
         :param sub_run_list: list of sun runs
         :param data_set_list: list of data set
@@ -22,12 +22,10 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         # Original:         :  sub_run_list, data_set_list, ref_id):
 
         # call parent
-        super(MantidPeakFitEngine, self).__init__(sub_run_list, data_set_list, ref_id)
+        super(MantidPeakFitEngine, self).__init__(workspace, sub_run_list, mask_name)
 
-        # TODO ....
-
-        self._sub_run_list = sub_run_list
-        self._mantid_workspace = mantid_helper.generate_mantid_workspace(workspace)  # generate a workspace with all sub runs!!!
+        # Create Mantid workspace
+        self._mantid_workspace = mantid_helper.generate_mantid_workspace(workspace, mask_name)  # generate a workspace with all sub runs!!!
 
 
         # # related to Mantid workspaces

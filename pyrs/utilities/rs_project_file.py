@@ -394,11 +394,15 @@ class HydraProjectFile(object):
         get list of the sub runs
         :return:
         """
-        sub_runs_str_list = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SUB_RUNS]
+        sub_runs_str_list = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS][HidraConstants.SUB_RUNS].value
+
+        print ('[DB....BAT....] Sun runs: {}'.format(sub_runs_str_list))
 
         sub_run_list = [None] * len(sub_runs_str_list)
         for index, sub_run_str in enumerate(sub_runs_str_list):
             sub_run_list[index] = int(sub_run_str)
+
+        print ('[DB....BAT....] Sun runs: {}'.format(sub_run_list))
 
         return sub_run_list
 
@@ -552,7 +556,7 @@ class HydraProjectFile(object):
             checkdatatypes.check_numpy_arrays('Sub run numbers', [sub_runs], 1, False)
 
         sample_log_entry = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS]
-        sample_log_entry.create_dataset(HidraConstants.SAMPLE_LOGS, data=sub_runs)
+        sample_log_entry.create_dataset(HidraConstants.SUB_RUNS, data=sub_runs)
 
         return
 
