@@ -6,6 +6,7 @@ from pyrs.utilities import rs_project_file
 from pyrs.core import instrument_geometry
 
 
+# TODO - #80 - Overall quality
 class HidraWorkspace(object):
     """
     This workspace is the central data structure to manage all the raw and/or processed data.
@@ -15,10 +16,12 @@ class HidraWorkspace(object):
     - container for fitted peaks' parameters
     - container for instrument information
     """
-    def __init__(self):
+    def __init__(self, name='hidradata'):
         """
         initialization
         """
+        self._name = name
+
         # raw counts
         self._raw_counts = dict()  # dict [sub-run] = count vector
 
@@ -41,6 +44,10 @@ class HidraWorkspace(object):
         # self._file_ref_dict = dict()  # key = file name, value = data key / reference ID
 
         return
+
+    @property
+    def name(self):
+        return self._name
 
     def _create_subrun_spectrum_map(self, sub_run_list):
         """
@@ -92,25 +99,25 @@ class HidraWorkspace(object):
 
         # initialize data set for reduced diffraction patterns
         num_spec = len(hidra_file.get_sub_runs())
-        self._diff_data_set = numpy.ndarray(shape=(num_spec, vec_2theta.shape[0]),
-                                            dtype='float')
+        self._diff_data_set[None] = numpy.ndarray(shape=(num_spec, vec_2theta.shape[0]), dtype='float')
 
         # check whether there is diffraction data reduced with mask
         diff_mask_list = hidra_file.get_reduced_data_masks()
         for mask_name in diff_mask_list:
             # init masks
             # TODO FIXME - TONIGHT - #80 - define it: _diff_data_mask_set
-            self._diff_data_mask_set[mask_name] = numpy.ndarray(shape=self._diff_data_set.shape,
-                                                                dtype=self._diff_data_set.dtype)
+            self._diff_data_set[mask_name] = numpy.ndarray(shape=self._diff_data_set.shape,
+                                                           dtype=self._diff_data_set.dtype)
         # END-FOR
 
         # Load data: main
-        self._diff_data_set = hidra_file.get_reduced_diffraction_data(mask_id=None, sub_run=None)
+        self._diff_data_set[None] = hidra_file.get_reduced_diffraction_data(mask_id=None, sub_run=None)
+        print ('[DB...BAT...CHECKPOINT2] self._diff_data_set.shape = {}'.format(self._diff_data_set[None].shape))
 
         # Load data: with masks / ROI
         for mask_name in diff_mask_list:
             diff_mask_vec = hidra_file.get_reduced_diffraction_data(mask_id=mask_name, sub_run=None)
-            self._diff_data_mask_set[mask_name] = diff_mask_vec
+            self._diff_data_set[mask_name] = diff_mask_vec
         # END-FOR (mask)
 
         return
@@ -180,7 +187,7 @@ class HidraWorkspace(object):
         :return:
         """
         sub_runs = sorted(self._sub_run_to_spectrum.keys())
-        if len(sub_runs):
+        if len(sub_runs) == 0:
             raise RuntimeError('Sub run - spectrum map has not been built')
 
         return sub_runs
@@ -220,6 +227,33 @@ class HidraWorkspace(object):
         """
         return self._instrument_geometry_shift
 
+    def get_reduced_diffraction_data_set(self, mask_id=None):
+        """ Get the full data set (matrix) of reduced diffraction pattern in 2theta unit
+        :param mask_id: None (as default main) or ID as a String
+        :return:
+        """
+        # Check
+        if mask_id is None:
+            # mask_id = 'main'
+            pass
+        else:
+            checkdatatypes.check_string_variable('Mask ID', mask_id)
+
+        # Vector 2theta
+        vec_2theta = self._2theta_vec.copy()
+
+        try:
+            intensity_matrix = self._diff_data_set[mask_id].copy()
+        except KeyError:
+            raise RuntimeError('Mask ID {} does not exist in reduced diffraction pattern. '
+                               'The available masks are {}'
+                               ''.format(mask_id, self._diff_data_set.keys()))
+
+        print ('[DB...BAT...CHECKPOINT3A] self._diff_data_set.shape: {}'.format( self._diff_data_set[mask_id].shape))
+        print ('[DB...BAT...CHECKPOINT3B] Intensity matrix shape: {}'.format(intensity_matrix.shape))
+
+        return vec_2theta, intensity_matrix
+
     def get_reduced_diffraction_data(self, sub_run, mask_id=None):
         """
         get data set of a single diffraction pattern
@@ -246,7 +280,7 @@ class HidraWorkspace(object):
         # Vector intensity
         try:
             vec_intensity = self._diff_data_set[mask_id][spec_index].copy()
-        except KeyError as run_err:
+        except KeyError:
             raise RuntimeError('Mask ID {} does not exist in reduced diffraction pattern. '
                                'The available masks are {}'
                                ''.format(mask_id, self._diff_data_set.keys()))
@@ -302,7 +336,6 @@ class HidraWorkspace(object):
         :return:
         """
         # TODO - TONIGHT NOW - Check & Doc
-
         # Set 2-theta (X)
         if self._2theta_vec is None:
             # First time set up

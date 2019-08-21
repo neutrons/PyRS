@@ -5,6 +5,8 @@ from pyrs.core import peak_fit_engine
 import numpy as np
 import os
 import math
+from mantid.api import AnalysisDataService
+from mantid.simpleapi import CreateWorkspace, FitPeaks
 
 
 # TODO #79 - #74 - Clean and move on!
@@ -26,7 +28,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
         # Create Mantid workspace
         self._mantid_workspace = mantid_helper.generate_mantid_workspace(workspace, mask_name)  # generate a workspace with all sub runs!!!
-
+        self._workspace_name = self._mantid_workspace.name()
 
         # # related to Mantid workspaces
         # self._workspace_name = self._get_matrix_name(ref_id)
@@ -149,7 +151,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
         data_workspace = self.retrieve_workspace(self._workspace_name, True)
         num_spectra = data_workspace.getNumberHistograms()
-        peak_window_ws_name = 'fit_window_{0}'.format(self._reference_id)
+        peak_window_ws_name = 'fit_window_{0}'.format(self._workspace_name)
         CreateWorkspace(DataX=np.array([fit_range[0], fit_range[1]] * num_spectra),
                         DataY=np.array([fit_range[0], fit_range[1]] * num_spectra),
                         NSpec=num_spectra, OutputWorkspace=peak_window_ws_name)
@@ -159,10 +161,10 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
                ''.format(num_spectra, fit_range))
 
         # no pre-determined peak center: use center of mass
-        r_positions_ws_name = 'fitted_peak_positions_{0}'.format(self._reference_id)
-        r_param_table_name = 'param_m_{0}'.format(self._reference_id)
-        r_error_table_name = 'param_e_{0}'.format(self._reference_id)
-        r_model_ws_name = 'model_full_{0}'.format(self._reference_id)
+        r_positions_ws_name = 'fitted_peak_positions_{0}'.format(self._workspace_name)
+        r_param_table_name = 'param_m_{0}'.format(self._workspace_name)
+        r_error_table_name = 'param_e_{0}'.format(self._workspace_name)
+        r_model_ws_name = 'model_full_{0}'.format(self._workspace_name)
 
         # TODO - NOW - Requiring good estimation!!! - shall we use a dictionary to set up somewhere else?
         width_dict = {'Gaussian': ('Sigma', 0.36),
@@ -173,9 +175,21 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         print ('[DB...BAT] Param names:   {}'.format(width_dict[peak_function_name][0]))
         print ('[DB...BAT] Param values:  {}'.format(width_dict[peak_function_name][1]))
 
+        # Get peak center workspace
+        self.calculate_center_of_mass()
+
+        args = dict()
+        if self._center_of_mass_ws_name == '' or self._center_of_mass_ws_name is None:
+            peak_centers = 85.
+            args['PeakCenters'] = peak_centers
+        else:
+            args['PeakCentersWorkspace'] = self._center_of_mass_ws_name
+            peak_centers = None
+
         r = FitPeaks(InputWorkspace=self._workspace_name,
                      OutputWorkspace=r_positions_ws_name,
                      PeakCentersWorkspace=self._center_of_mass_ws_name,
+                     # PeakCenters=peak_centers,
                      PeakFunction=peak_function_name,
                      BackgroundType=background_function_name,
                      StartWorkspaceIndex=start,
@@ -271,81 +285,57 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         """
         return self._peak_center_vec
 
-    def get_peak_fit_parameters(self):
-        """
-        get fitted peak's parameters
-        :return: dictionary of dictionary. level 0: key as scan index, value as dictionary
-                                           level 1: key as parameter name such as height, cost, and etc
-        """
-        # TODO - 20181101 - Need to expand this method such that all fitted parameters will be added to output
-        # get value
-        scan_index_vector = self.get_scan_indexes()
-        cost_vector = self.get_fitted_params(param_name_list='chi2')
-        height_vector = self.get_fitted_params(param_name_list='height')
-        width_vector = self.get_fitted_params(param_name_list='width')
+    # def get_peak_fit_parameters(self):
+    #     """
+    #     get fitted peak's parameters
+    #     :return: dictionary of dictionary. level 0: key as scan index, value as dictionary
+    #                                        level 1: key as parameter name such as height, cost, and etc
+    #     """
+    #     # TODO - 20181101 - Need to expand this method such that all fitted parameters will be added to output
+    #     # get value
+    #     scan_index_vector = self.get_scan_indexes()
+    #     cost_vector = self.get_fitted_params(param_name_list='chi2')
+    #     height_vector = self.get_fitted_params(param_name_list='height')
+    #     width_vector = self.get_fitted_params(param_name_list='width')
+    #
+    #     # check
+    #     if len(scan_index_vector) != len(cost_vector) or len(cost_vector) != len(height_vector) \
+    #             or len(cost_vector) != len(width_vector):
+    #         raise RuntimeError('Scan indexes ({0}) and cost/height/width ({1}/{2}/{3}) have different sizes.'
+    #                            ''.format(len(scan_index_vector), len(cost_vector), len(height_vector),
+    #                                      len(width_vector)))
+    #
+    #     # combine to dictionary
+    #     fit_params_dict = dict()
+    #     for index in range(len(scan_index_vector)):
+    #         scan_log_index = scan_index_vector[index]
+    #         fit_params_dict[scan_log_index] = dict()
+    #         fit_params_dict[scan_log_index]['cost'] = cost_vector[index]
+    #         fit_params_dict[scan_log_index]['height'] = height_vector[index]
+    #         fit_params_dict[scan_log_index]['width'] = width_vector[index]
+    #
+    #     return fit_params_dict
 
-        # check
-        if len(scan_index_vector) != len(cost_vector) or len(cost_vector) != len(height_vector) \
-                or len(cost_vector) != len(width_vector):
-            raise RuntimeError('Scan indexes ({0}) and cost/height/width ({1}/{2}/{3}) have different sizes.'
-                               ''.format(len(scan_index_vector), len(cost_vector), len(height_vector),
-                                         len(width_vector)))
-
-        # combine to dictionary
-        fit_params_dict = dict()
-        for index in range(len(scan_index_vector)):
-            scan_log_index = scan_index_vector[index]
-            fit_params_dict[scan_log_index] = dict()
-            fit_params_dict[scan_log_index]['cost'] = cost_vector[index]
-            fit_params_dict[scan_log_index]['height'] = height_vector[index]
-            fit_params_dict[scan_log_index]['width'] = width_vector[index]
-
-        return fit_params_dict
-
-    def get_peak_intensities(self):
-        """
-        get peak intensities for each fitted peaks
-        :return:
-        """
-        # get value
-        scan_index_vector = self.get_scan_indexes()
-        intensity_vector = self.get_fitted_params(param_name_list='intensity')
-
-        # check
-        if len(scan_index_vector) != len(intensity_vector):
-            raise RuntimeError('Scan indexes ({0}) and intensity ({1}) have different sizes.'
-                               ''.format(len(scan_index_vector), len(intensity_vector)))
-
-        # combine to dictionary
-        intensity_dict = dict()
-        for index in range(len(scan_index_vector)):
-            intensity_dict[scan_index_vector[index]] = intensity_vector[index]
-
-        return intensity_dict
-
-    def get_data_workspace_name(self):
-        """
-        get the data workspace name
-        :return:
-        """
-        return self._workspace_name
-
-    def get_center_of_mass_workspace_name(self):
-        """
-        Get the center of mass workspace name
-        :return:
-        """
-        return self._center_of_mass_ws_name
-
-    def get_scan_indexes(self):
-        """
-        get a vector of scan indexes and assume that the scan log indexes are from 0 and consecutive
-        :return: vector of integer from 0 and up consecutively
-        """
-        data_workspace = self.retrieve_workspace(self._workspace_name, True)
-        indexes_list = range(data_workspace.getNumberHistograms())
-
-        return np.array(indexes_list)
+    # def get_peak_intensities(self):
+    #     """
+    #     get peak intensities for each fitted peaks
+    #     :return:
+    #     """
+    #     # get value
+    #     scan_index_vector = self.get_scan_indexes()
+    #     intensity_vector = self.get_fitted_params(param_name_list='intensity')
+    #
+    #     # check
+    #     if len(scan_index_vector) != len(intensity_vector):
+    #         raise RuntimeError('Scan indexes ({0}) and intensity ({1}) have different sizes.'
+    #                            ''.format(len(scan_index_vector), len(intensity_vector)))
+    #
+    #     # combine to dictionary
+    #     intensity_dict = dict()
+    #     for index in range(len(scan_index_vector)):
+    #         intensity_dict[scan_index_vector[index]] = intensity_vector[index]
+    #
+    #     return intensity_dict
 
     def get_calculated_peak(self, scan_log_index):
         """
@@ -363,25 +353,40 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
         return vec_x, vec_y
 
-    def get_function_parameter_names(self):
+    def get_center_of_mass_workspace_name(self):
         """
-        get all the function parameters' names
+        Get the center of mass workspace name
         :return:
         """
-        fitted_param_names = self._fitted_function_param_table.getColumnNames()
-        fitted_param_names.append('center_d')
+        return self._center_of_mass_ws_name
 
-        return fitted_param_names
-
-    def get_number_scans(self):
+    def get_data_workspace_name(self):
         """
-        get number of scans in input data to fit
+        get the data workspace name
         :return:
         """
-        data_workspace = self.retrieve_workspace(self._workspace_name, True)
-        return data_workspace.getNumberHistograms()
+        return self._workspace_name
 
-    def get_fitted_params(self, param_name_list, including_error, max_chi2=1.E20):
+    def _get_fitted_parameters_value(self, spec_index_vec, param_name_list, param_value_array):
+        # TODO - #80 NOWNOW ASAP - Implement
+        # HINT:
+        #  m3 = np.concatenate((v1, v2), axis=0) : automatically changed to float64
+        #  m5 = m3.reshape(2, 10)
+        #  sort_index = np.argsort(m5)[0]
+        #  m6 = m5[:, sort_index]
+        return
+
+    def get_fit_cost(self, max_chi2):
+        """
+
+        :param max_chi2:
+        :return:
+        """
+        # TODO - #80 NOW NOW - ASAP - Implement
+
+        return np.arange(5), np.zeros((5, ))
+
+    def get_fitted_params_x(self, param_name_list, including_error, max_chi2=1.E20):
         """ Get specified parameters' fitted value and optionally error with optionally filtered value
         :param param_name_list:
         :param including_error:
@@ -420,7 +425,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         if including_error:
             num_items = 2
         else:
-            num_items =1
+            num_items = 1
         param_vec = np.zeros(shape=(num_params, len(row_index_list), num_items), dtype='float')
         sub_run_vec = np.zeros(shape=(len(row_index_list), ), dtype='int')
 
@@ -475,6 +480,16 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         # END-FOR (each parameter)
 
         return sub_run_vec, param_vec
+
+    def get_scan_indexes(self):
+        """
+        get a vector of scan indexes and assume that the scan log indexes are from 0 and consecutive
+        :return: vector of integer from 0 and up consecutively
+        """
+        data_workspace = self.retrieve_workspace(self._workspace_name, True)
+        indexes_list = range(data_workspace.getNumberHistograms())
+
+        return np.array(indexes_list)
 
     # def get_fitted_params_error(self, param_name):
     #     """ Get the value of a specified parameters's fitted error of whole scan
@@ -558,6 +573,24 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
     #     param_vec = np.array(param_list)
     #
     #     return log_index_vec, param_vec
+
+
+    def get_function_parameter_names(self):
+        """
+        get all the function parameters' names
+        :return:
+        """
+        fitted_param_names = self._fitted_function_param_table.getColumnNames()
+        fitted_param_names.append('center_d')
+
+        return fitted_param_names
+
+    def get_number_scans(self):
+        """ Get number of scans in input data to fit
+        :return:
+        """
+        data_workspace = self.retrieve_workspace(self._workspace_name, True)
+        return data_workspace.getNumberHistograms()
 
     @staticmethod
     def retrieve_workspace(ws_name, throw_if_not_exist):

@@ -8,6 +8,7 @@ from mantid.simpleapi import FitPeaks, CreateWorkspace
 from mantid.api import AnalysisDataService
 
 
+# TODO - #80 - Doc & check
 def generate_mantid_workspace(hidra_workspace, workspace_name, mask_id=None):
     """
     Generate a Mantid workspace from a HidraWorkspace
@@ -16,11 +17,11 @@ def generate_mantid_workspace(hidra_workspace, workspace_name, mask_id=None):
     """
     checkdatatypes.check_type('Hidra workspace', hidra_workspace, workspaces.HidraWorkspace)
 
-    two_theta_array, data_y_matrix = hidra_workspace.get_reduced_diffraction_data(mask_id)
+    two_theta_array, data_y_matrix = hidra_workspace.get_reduced_diffraction_data_set(mask_id)
 
     # workspace name:
     if workspace_name is None:
-        workspace_name = hidra_workspace.name()
+        workspace_name = hidra_workspace.name
     else:
         checkdatatypes.check_string_variable('Workspace name', workspace_name)
 

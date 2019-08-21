@@ -167,6 +167,7 @@ class HydraProjectFile(object):
         if sub_run is None:
             # all the sub runs
             reduced_diff_hist = self._project_h5[HidraConstants.REDUCED_DATA][mask_id].value
+            print ('[DB...BAT...CHECKPOINT1] Shape = {}'.format(reduced_diff_hist.shape))
         else:
             # specific one sub run
             sub_run_list = self.get_sub_runs()

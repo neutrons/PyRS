@@ -252,6 +252,7 @@ class PyRsCore(object):
 
         return data_key, sub_key
 
+    # TODO - #80 - QA
     def fit_peaks(self, session_name, sub_run_list, peak_type, background_type, fit_range):
         """
         Fit a single peak on each diffraction pattern selected from client-specified
@@ -276,6 +277,9 @@ class PyRsCore(object):
 
         # fit peaks
         self._peak_fit_controller.fit_peaks(peak_type, background_type, fit_range)
+
+        # Get optimizaer
+        self._last_optimizer = self._peak_fit_controller
 
         return
 
@@ -456,13 +460,13 @@ class PyRsCore(object):
         :return: 1 vector or 2-tuple (vector + vector)
         """
         # check input
-        optimizer = self._get_optimizer(data_key)
+        # TODO - #80 - Again data_key shall be replaced by ...
+        optimizer = self._get_optimizer(None)
 
         if max_cost is None:
             sub_run_vec, param_vec = optimizer.get_fitted_params(param_name_list, False)
-            log_index_vec = numpy.arange(len(param_vec))
         else:
-            log_index_vec, param_vec = optimizer.get_good_fitted_params(param_name, max_cost)
+            sub_run_vec, param_vec = optimizer.get_good_fitted_params(param_name_list, max_cost)
 
         return sub_run_vec, param_vec
 
@@ -491,15 +495,18 @@ class PyRsCore(object):
         :return:
         """
         # check input
-        optimizer = self._get_optimizer(data_key)
+        optimizer = self._get_optimizer(None)  # TODO FIXME - #80 - Need a new mechanism for data key!
 
         # get names, detector IDs (for check) & log indexes
         param_names = optimizer.get_function_parameter_names()
-        detector_ids = self.get_detector_ids(data_key)
-        print ('[DB...BAT] Detector IDs = {}'.format(detector_ids))
-        if detector_ids is not None:
-            raise NotImplementedError('Multiple-detector ID case has not been considered yet. '
-                                      'Contact developer for this issue.')
+        if False:
+            # TODO FIXME - #80 - Need to think of how to deal with mask (aka detector ID)
+            detector_ids = self.get_detector_ids(data_key)
+            print ('[DB...BAT] Detector IDs = {}'.format(detector_ids))
+            if detector_ids is not None:
+                raise NotImplementedError('Multiple-detector ID case has not been considered yet. '
+                                          'Contact developer for this issue.')
+
         scan_log_index_list = optimizer.get_scan_indexes()
 
         # init dictionary

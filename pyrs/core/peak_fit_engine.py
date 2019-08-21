@@ -61,16 +61,52 @@ class PeakFitEngine(object):
         """
         raise NotImplementedError('Virtual base class member method get_calculated_peak()')
 
-    def get_number_scans(self, param_name):
+    def get_fit_cost(self, max_chi2):
+        raise NotImplementedError('This is virtual')
+
+    def _get_fitted_parameters_value(self, spectrum_index_vec, parameter_name_list, parameter_value_matrix):
+        raise NotImplementedError('This is virtual')
+
+    def get_fitted_params(self, param_name_list, including_error, max_chi2=1.E20):
+        """ Get specified parameters' fitted value and optionally error with optionally filtered value
+        :param param_name_list:
+        :param including_error:
+        :param max_chi2: Default is including all.
+        :return: 2-tuple: (1) (n, ) vector for sub run number  (2) (p, n, 1) or (p, n, 2) vector for parameter values
+                  and
+                 optionally fitting error: p = number of parameters , n = number of sub runs
         """
-        get the value of a fitted parameter
-        :return:
-        """
-        raise NotImplementedError('Virtual base class member method get_number_scans()')
+        # Deal with multiple default
+        if max_chi2 is None:
+            max_chi2 = 1.E20
+
+        # Check inputs
+        checkdatatypes.check_list('Function parameters', param_name_list)
+        checkdatatypes.check_bool_variable('Flag to output fitting error', including_error)
+        checkdatatypes.check_float_variable('Maximum cost chi^2', max_chi2, (1, None))
+
+        # Get number of sub-runs meets the requirement
+        spec_index_vec, fit_cost_vec = self.get_fit_cost(max_chi2)
+
+        # init parameters
+        num_sub_runs = fit_cost_vec.shape[0]
+        num_params = len(param_name_list)
+        if including_error:
+            num_items = 2
+        else:
+            num_items = 1
+        param_value_array = numpy.zeros(shape=(num_params, num_sub_runs, num_items), dtype='float')
+
+        # Set values of parameters
+        self._get_fitted_parameters_value(spec_index_vec, param_name_list, param_value_array)
+
+        # Convert
+        sub_runs_vec = self._workspace.get_sub_runs_from_spectrum(spec_index_vec)  # TODO FIXME #80 NOW NOW ASAP Implement!
+
+        return sub_runs_vec, fit_cost_vec, param_value_array
 
     def get_number_scans(self):
-        """
-        get number of scans in input data to fit
+        """ Get number of scans in input data to fit
         :return:
         """
         raise NotImplementedError('Virtual base class member method get_number_scans()')
