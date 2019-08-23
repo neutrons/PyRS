@@ -138,6 +138,9 @@ class HydraProjectFile(object):
         geometry_group.create_group('detector')
         geometry_group.create_group('wave length')
 
+        # peaks
+        self._project_h5.create_group('peaks')
+
         # reduced data
         reduced_data = self._project_h5.create_group(HidraConstants.REDUCED_DATA)
         # reduced_data.create_group('2theta')
@@ -248,18 +251,27 @@ class HydraProjectFile(object):
     def set_instrument_calibration(self):
         return
 
-    def set_peak_fit_result(self, sub_run_number, peak_tag, peak_profile, peak_params):
+    def set_peak_fit_result(self, peak_tag, peak_profile, peak_param_names, sub_run_vec, chi2_vec, peak_params):
 
         self._validate_write_operation()
+        checkdatatypes.check_string_variable('Peak tag', peak_tag)
+
+        checkdatatypes.check_list('Peak parameter names', peak_param_names)
 
         # access or create node for peak data
-        fit_entry = self._project_h5['Peaks']
-        peak_entry = self._create_peak_node(sub_run_number, peak_tag, {'profile': peak_profile})
+        fit_entry = self._project_h5['peaks']
+        tag_entry = fit_entry.create_group(peak_tag)
+        tag_entry.create_dataset(HidraConstants.SUB_RUNS, data=sub_run_vec)
+        tag_entry.create_dataset('chi2', data=chi2_vec)
+        tag_entry.create_dataset('parameters', data=peak_params)
 
-        # add value
-        for param_name_i in peak_params:
-            peak_entry[param_name_i] = peak_params[param_name_i]
-        # END-FOR
+        # TODO FIXME #80 NOWNOW
+        # TODO ... peak_entry = self._create_peak_node(sub_run_number, peak_tag, {'profile': peak_profile})
+
+        # # add value
+        # for param_name_i in peak_params:
+        #     peak_entry[param_name_i] = peak_params[param_name_i]
+        # # END-FOR
 
         return
 

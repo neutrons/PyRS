@@ -1,6 +1,8 @@
 # This is the virtual base class as the fitting frame
 import numpy
+import math
 from pyrs.core import workspaces
+from pyrs.utilities import rs_project_file
 from pyrs.utilities import checkdatatypes
 
 NATIVE_PEAK_PARAMETERS = {'Gaussian': ['Height', 'PeakCentre', 'Sigma', 'A0', 'A1'],
@@ -34,14 +36,63 @@ class PeakFitEngine(object):
         self._peak_center_vec = None  # 2D vector for observed center of mass and highest data point
         self._peak_center_d_vec = None  # 1D vector for calculated center in d-spacing
 
+        # Peak function
+        self._peak_function_name = None
+
         return
 
-    def export_fit_result(self):
+    def calculate_peak_position_d(self, wave_length_vec):
+        """ Calculate peak positions in d-spacing
+        :return:
+        """
+        # TODO/FIXME - #80+ - Must have a better way than try and guess
+        try:
+            r = self.get_fitted_params(param_name_list=['PeakCentre'], including_error=True)
+        except KeyError:
+            r = self.get_fitted_params(param_name_list=['centre'], including_error=True)
+        sub_run_vec = r[0]
+        params_vec = r[2]
+
+        # init vector for peak center in d-spacing with error
+        self._peak_center_d_vec = numpy.ndarray((params_vec.shape[1], 2), params_vec.dtype)
+
+        for ws_index in range(sub_run_vec.shape[0]):
+            # convert to d-spacing: both fitted value and fitting error
+            lambda_i = wave_length_vec[ws_index]
+            for sub_index in range(2):
+                peak_i_2theta_j = params_vec[0][ws_index][0]
+                try:
+                    peak_i_d_j = lambda_i * 0.5 / math.sin(peak_i_2theta_j * 0.5 * math.pi / 180.)
+                except ZeroDivisionError as zero_err:
+                    print ('Peak(i) @ {}'.format(peak_i_2theta_j))
+                    raise zero_err
+                self._peak_center_d_vec[ws_index][0] = peak_i_d_j
+
+            # peak_i_2theta_std = centre_vec[index][1]
+            # peak_i_d_std = lambda_i * 0.5 / math.sin(peak_i_2theta_std * 0.5 * math.pi / 180.)
+            # self._peak_center_d_vec[index][0] = peak_i_d
+            # self._peak_center_d_vec[index][1] = peak_i_d_std
+        # END-FOR
+
+        return
+
+    def export_fit_result(self, file_name, peak_tag):
         """
         export fit result for all the peaks
         :return: a dictionary of fitted peak information
         """
-        raise NotImplementedError('Virtual base class member method export_fit_result()')
+        hidra_file = rs_project_file.HydraProjectFile(file_name, rs_project_file.HydraProjectFileMode.READWRITE)
+
+        param_names = self.get_peak_param_names(self._peak_function_name, is_effective=False)
+        print ('[DB...BAT] Parameter names: {}'.format(param_names))
+
+        # Get parameter values
+        sub_run_vec, chi2_vec, param_matrix = self.get_fitted_params(param_names, including_error=True)
+
+        hidra_file.set_peak_fit_result(peak_tag, self._peak_function_name, param_names, sub_run_vec, chi2_vec,
+                                       param_matrix)
+
+        return
 
     def fit_peaks(self, peak_function_name, background_function_name, fit_range, scan_index=None):
         """
@@ -72,9 +123,10 @@ class PeakFitEngine(object):
         :param param_name_list:
         :param including_error:
         :param max_chi2: Default is including all.
-        :return: 2-tuple: (1) (n, ) vector for sub run number  (2) (p, n, 1) or (p, n, 2) vector for parameter values
-                  and
-                 optionally fitting error: p = number of parameters , n = number of sub runs
+        :return: 3-tuple: (1) (n, ) vector for sub run number (2) costs
+                          (3) (p, n, 1) or (p, n, 2) vector for parameter values
+                            and
+                            optionally fitting error: p = number of parameters , n = number of sub runs
         """
         # Deal with multiple default
         if max_chi2 is None:

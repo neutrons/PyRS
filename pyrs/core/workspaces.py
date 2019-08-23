@@ -296,6 +296,20 @@ class HidraWorkspace(object):
 
         return self._sample_log_dict[sample_log_name].copy()
 
+    def get_sub_runs_from_spectrum(self, spectra):
+        """ Get sub runs corresponding to spectra (same as ws index)
+        :param spectra: list/vector/array of spectra (workspace indexes)
+        :return:
+        """
+        if not (isinstance(spectra, list) or isinstance(spectra, numpy.ndarray)):
+            raise AssertionError('{} must be list or array'.format(type(spectra)))
+
+        sub_run_vec = numpy.ndarray(shape=(len(spectra), ), dtype='int')
+        for i, ws_index in enumerate(spectra):
+            sub_run_vec[i] = self._spectrum_to_sub_run[ws_index]
+
+        return sub_run_vec
+
     def has_raw_data(self, sub_run):
         """ Check whether a raw file that has been loaded
         :param sub_run:

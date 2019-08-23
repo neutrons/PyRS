@@ -277,6 +277,9 @@ class PyRsCore(object):
 
         # fit peaks
         self._peak_fit_controller.fit_peaks(peak_type, background_type, fit_range)
+        # TODO FIXME - #80 NOWNOW ASAP - wave length shall be retrieved somewhere!!!
+        self._peak_fit_controller.calculate_peak_position_d(wave_length_vec=[1.]*len(sub_run_list))
+
 
         # Get optimizaer
         self._last_optimizer = self._peak_fit_controller
@@ -457,18 +460,18 @@ class PyRsCore(object):
         :param data_key:
         :param param_name:
         :param max_cost: if not None, then filter out the bad (with large cost) fitting
-        :return: 1 vector or 2-tuple (vector + vector)
+        :return: 3-tuple
         """
         # check input
         # TODO - #80 - Again data_key shall be replaced by ...
         optimizer = self._get_optimizer(None)
 
         if max_cost is None:
-            sub_run_vec, param_vec = optimizer.get_fitted_params(param_name_list, False)
+            sub_run_vec, chi2_vec, param_vec = optimizer.get_fitted_params(param_name_list, False)
         else:
-            sub_run_vec, param_vec = optimizer.get_good_fitted_params(param_name_list, max_cost)
+            sub_run_vec, chi2_vec, param_vec = optimizer.get_good_fitted_params(param_name_list, max_cost)
 
-        return sub_run_vec, param_vec
+        return sub_run_vec, chi2_vec, param_vec
 
     def get_peak_fit_param_value_error(self, data_key, param_name, max_cost):
         """ Get a specific peak parameter's fitting value with error
@@ -507,26 +510,25 @@ class PyRsCore(object):
                 raise NotImplementedError('Multiple-detector ID case has not been considered yet. '
                                           'Contact developer for this issue.')
 
-        scan_log_index_list = optimizer.get_scan_indexes()
+        # Get peak parameters value
+        sub_run_vec, chi2_vec, params_values_matrix = self.get_peak_fit_param_value(data_key, param_names,
+                                                                                    max_cost=None)
 
         # init dictionary
         fit_param_value_dict = dict()
-        for scan_log_index in scan_log_index_list:
-            param_dict = dict()
-            fit_param_value_dict[scan_log_index] = param_dict
-        # END-FOR
 
-        for param_name in param_names:
-            scan_index_vec, param_value = self.get_peak_fit_param_value(data_key, [param_name], max_cost=None)
-            checkdatatypes.check_numpy_arrays('Parameter values', [param_value], dimension=1, check_same_shape=False)
-            # add the values to dictionary
-            for si in range(len(scan_index_vec)):
-                scan_log_index = scan_index_vec[si]
-                if scan_log_index not in fit_param_value_dict:
-                    fit_param_value_dict[scan_log_index] = dict()
-                fit_param_value_dict[scan_log_index][param_name] = param_value[scan_log_index]
-            # END-FOR (scan-log-index)
-        # END-FOR (param_name)
+        # set: this shall really good to be a pandas DataFrame or labelled numpy matrix  TODO FIXME #80+
+        for index in range(len(sub_run_vec)):
+            # get sub runs and chi2
+            sub_run_i = sub_run_vec[index]
+            chi2_i = chi2_vec[index]
+            fit_param_value_dict[sub_run_i] = {'cost': chi2_i}
+
+            for p_index in range(len(param_names)):
+                param_name = param_names[p_index]
+                fit_param_value_dict[sub_run_i][param_name] = params_values_matrix[p_index, index, 0]
+            # END-FOR
+        # END-FOR
 
         return fit_param_value_dict
 
@@ -590,16 +592,16 @@ class PyRsCore(object):
 
         return
 
-    def save_peak_fit_result(self, data_key, src_rs_file_name, target_rs_file_name):
+    def save_peak_fit_result(self, data_key, hidra_file_name, peak_tag):
         """ Save peak fit result to file with original data
         :param data_key:
         :param src_rs_file_name:
         :param target_rs_file_name:
         :return:
         """
-        peak_fit_dict = self.get_peak_fit_params_in_dict(data_key)
-        self._file_io_controller.export_peak_fit(src_rs_file_name, target_rs_file_name,
-                                                 peak_fit_dict)
+        optimizer = self._get_optimizer(None)  # TODO FIXME - #80 - Need a new mechanism for data key!
+
+        optimizer.export_fit_result(hidra_file_name, peak_tag)
 
         return
 

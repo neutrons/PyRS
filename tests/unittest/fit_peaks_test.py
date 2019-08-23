@@ -37,9 +37,12 @@ class PeakFittingTest(object):
                                              peak_type='PseudoVoigt', background_type='Linear',
                                              fit_range=(70., 95.))
 
+        return
+
+    def save_fit_result(self, out_file_name, peak_tag):
+
         # Save result with default value on file name to import from and export to
-        self._reduction_controller.save_peak_fit_result(self._project_name, src_rs_file_name=None,
-                                                        target_rs_file_name=None)
+        self._reduction_controller.save_peak_fit_result(self._project_name, out_file_name, peak_tag)
 
         return
 
@@ -53,8 +56,10 @@ def main():
 
     # Create tester
     tester = PeakFittingTest(test_project_file_name)
-
+    # fit
     tester.fit_pseudo_voigt()
+    # save
+    tester.save_fit_result(test_project_file_name, 'Si111')
 
     return
 

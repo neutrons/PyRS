@@ -9,7 +9,7 @@ else
     echo "1: Reduction test (r); 2: Peak fitting test (f);  3: Prototype Chris (X-ray)"
 fi
 
-MANTIDLOCALPATH=/home/wzz/Mantid_Project/debug/bin/
+MANTIDLOCALPATH=/home/wzz/Mantid_Project/builds/mantid-python2/bin/
 MANTIDMACPATH=/Users/wzz/MantidBuild/debug/bin/
 MANTIDSNSDEBUGPATH=/opt/mantidnightly/bin/  # NIGHTLY for latest Pseudo-voigt
 MANTIDPATH=$MANTIDMACPATH:$MANTIDLOCALPATH:$MANTIDSNSDEBUGPATH

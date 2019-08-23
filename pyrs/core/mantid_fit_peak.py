@@ -77,37 +77,6 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
         return
 
-    def calculate_peak_position_d(self, wave_length_vec):
-        """ Calculate peak positions in d-spacing
-        :return:
-        """
-        # TODO/FIXME - #80+ - Must have a better way than try and guess
-        try:
-            r = self.get_fitted_params(param_name_list=['PeakCentre'], including_error=True)
-        except KeyError:
-            r = self.get_fitted_params(param_name_list=['centre'], including_error=True)
-        sub_run_vec = r[0]
-        params_vec = r[1]
-
-        # init vector for peak center in d-spacing with error
-        self._peak_center_d_vec = np.ndarray((params_vec.shape[1], 2), params_vec.dtype)
-
-        for index in range(sub_run_vec.shape[0]):
-            # convert to d-spacing: both fitted value and fitting error
-            lambda_i = wave_length_vec[index]
-            for sub_index in range(2):
-                peak_i_2theta_j = params_vec[0][index][sub_index]
-                peak_i_d_j = lambda_i * 0.5 / math.sin(peak_i_2theta_j * 0.5 * math.pi / 180.)
-                self._peak_center_d_vec[index][sub_index] = peak_i_d_j
-
-            # peak_i_2theta_std = centre_vec[index][1]
-            # peak_i_d_std = lambda_i * 0.5 / math.sin(peak_i_2theta_std * 0.5 * math.pi / 180.)
-            # self._peak_center_d_vec[index][0] = peak_i_d
-            # self._peak_center_d_vec[index][1] = peak_i_d_std
-        # END-FOR
-
-        return
-
     def fit_peaks(self, peak_function_name, background_function_name, fit_range, scan_index=None):
         """
         fit peaks
@@ -202,6 +171,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         # END-IF-DEBUG (True)
 
         # process output
+        self._peak_function_name = peak_function_name
         self._fitted_peak_position_ws = AnalysisDataService.retrieve(r_positions_ws_name)
         self._fitted_function_param_table = AnalysisDataService.retrieve(r_param_table_name)
         self._fitted_function_error_table = AnalysisDataService.retrieve(r_error_table_name)
@@ -339,7 +309,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         Get fitted peak parameters' value
         :param spec_index_vec:
         :param param_name_list:
-        :param param_value_array:
+        :param param_value_array: a (p, s, e) array: p = param_name_list.size, s = sub runs size, e = 1 or 2
         :return:
         """
         # table column names
@@ -348,10 +318,15 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         # get fitted parameter value
         for out_index, param_name in enumerate(param_name_list):
             # get value from column
-            param_col_index = col_names.index(param_name)
-            param_vec = self._fitted_function_param_table.column(param_col_index)
+            if param_name in col_names:
+                param_col_index = col_names.index(param_name)
+                param_vec = np.array(self._fitted_function_param_table.column(param_col_index))
+            elif param_name == 'center_d':
+                param_vec = self._peak_center_d_vec[:, 0]
+            else:
+                raise RuntimeError('Peak parameter {} does not exist'.format(param_name))
             # set value
-            param_value_array[:, out_index] = param_vec
+            param_value_array[out_index, :, 0] = param_vec[spec_index_vec]
         # END-FOR
 
         return
@@ -365,8 +340,8 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         col_names = self._fitted_function_param_table.getColumnNames()
         chi2_col_index = col_names.index('chi2')
 
-        # TODO FIXME TEST - #80 - does this work?
-        chi2_vec = self._fitted_function_param_table.column(chi2_col_index)
+        # Get chi2 from table workspace (native return is List)
+        chi2_vec = np.array(self._fitted_function_param_table.column(chi2_col_index))  # form to np.ndarray
 
         # Filter out the sub runs/spectra with large chi^2
         if max_chi2 is not None and max_chi2 < 1.E20:
@@ -376,6 +351,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
             spec_vec = good_fit_indexes[0]
         else:
             # all
+            print (chi2_vec)
             spec_vec = np.arange(chi2_vec.shape[0])
 
         return spec_vec, chi2_vec
