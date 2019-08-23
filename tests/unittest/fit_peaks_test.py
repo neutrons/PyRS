@@ -54,12 +54,21 @@ def main():
     """
     test_project_file_name = 'tests/testdata/Hydra_16-1_cor_log.hdf5'
 
+    # TODO - #81 NOW - Find wave length and put to a proper place in both Hidra project file and Hidra workspace
+
     # Create tester
     tester = PeakFittingTest(test_project_file_name)
     # fit
     tester.fit_pseudo_voigt()
     # save
     tester.save_fit_result(test_project_file_name, 'Si111')
+
+    # TODO - #81 NOW - More tests
+    # 1. get the best fit and plot
+    # 2. get the worst fit and plot
+    # 3. plot all peak center
+    # 4. plot all mixing factor
+    # 5. plot all peak width
 
     return
 
