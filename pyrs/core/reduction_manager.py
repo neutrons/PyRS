@@ -70,7 +70,6 @@ class HB2BReductionManager(object):
         """
         return self._last_reduction_engine
 
-    # TODO - TONIGHT 0 - Need to register reduced data with sub-run
     def get_reduced_diffraction_data(self, session_name, sub_run=None, mask_id=None):
         """ Get the reduce data
         :param session_name:
@@ -78,6 +77,7 @@ class HB2BReductionManager(object):
         :param mask_id:
         :return:
         """
+        checkdatatypes.check_string_variable('Session name', session_name, self._session_dict.keys())
         workspace = self._session_dict[session_name]
 
         data_set = workspace.get_reduced_diffraction_data(sub_run, mask_id)
@@ -85,21 +85,49 @@ class HB2BReductionManager(object):
         return data_set
 
     def get_sub_runs(self, session_name):
-        # TODO - TONIGHT - Doc and check
-        return
+        """
+        Get sub runs from a workspace belonged to a session
+        :param session_name:
+        :return:
+        """
+        checkdatatypes.check_string_variable('Session name', session_name, self._session_dict.keys())
+        workspace = self._session_dict[session_name]
+
+        return workspace.get_subruns()
 
     def get_sub_run_detector_counts(self, session_name, sub_run):
-        # TODO - TONIGHT - Doc and check
-        return
+        """
+        Get the detector counts
+        :param session_name:
+        :param sub_run:
+        :return:
+        """
+        checkdatatypes.check_string_variable('Session name', session_name, self._session_dict.keys())
+        workspace = self._session_dict[session_name]
 
-    def get_sub_run_2theta(self, exp_handler, sub_run):
-        # TODO - TONIGHT - Doc and check
-        return
+        return workspace.get_detector_counts(sub_run)
 
-    def get_sub_run_workspace(self, session_name):
-        # TODO - TONIGHT - Doc and check
-        # TODO - GOAL: Replace: get counts() and get 2theta()
-        return
+    def get_sub_run_2theta(self, session_name, sub_run):
+        """
+        Get the detector arm's 2theta position of a sub run
+        :param session_name:
+        :param sub_run:
+        :return:
+        """
+        checkdatatypes.check_string_variable('Session name', session_name, self._session_dict.keys())
+        workspace = self._session_dict[session_name]
+
+        return workspace.get_2theta(sub_run)
+
+    def get_hidra_workspace(self, session_name):
+        """ Get the HIDRA workspace
+        :param session_name:
+        :return:
+        """
+        checkdatatypes.check_string_variable('Session name', session_name, self._session_dict.keys())
+        workspace = self._session_dict[session_name]
+
+        return workspace
 
     def init_session(self, session_name):
         """
@@ -117,11 +145,14 @@ class HB2BReductionManager(object):
 
         return
 
-    def load_hidra_project(self, project_file_name, load_calibrated_instrument):
-        """
-        load hidra project file
+    def load_hidra_project(self, project_file_name, load_calibrated_instrument, load_detectors_counts,
+                           load_reduced_diffraction):
+        """ Load hidra project file
         :param project_file_name:
-        :return:
+        :param load_calibrated_instrument:
+        :param load_detectors_counts: Flag to load detector counts
+        :param load_reduced_diffraction: Flag to reduced diffraction data
+        :return: None
         """
         # check inputs
         checkdatatypes.check_file_name(project_file_name, True, False, False, 'Project file to load')
@@ -136,8 +167,8 @@ class HB2BReductionManager(object):
 
         # Load
         self._curr_workspace.load_hidra_project(project_h5_file,
-                                                load_raw_counts=True,
-                                                load_reduced_diffraction=False)
+                                                load_raw_counts=load_detectors_counts,
+                                                load_reduced_diffraction=load_reduced_diffraction)
 
         # Close
         project_h5_file.close()
@@ -189,19 +220,24 @@ class HB2BReductionManager(object):
         return sorted(self._loaded_mask_dict.keys())
 
     def get_mask_vector(self, mask_id):
-        # TODO - Doc and check
-        print ('L317 Mask dict: {}'.format(self._loaded_mask_dict.keys()))
+        """
+        Get the detector mask
+        :param mask_id:  String as ID
+        :return: a 1D array (0: mask, 1: keep)
+        """
+        checkdatatypes.check_string_variable('Mask ID', mask_id, self._loaded_mask_dict.keys())
+
         return self._loaded_mask_dict[mask_id][0]
 
     def set_geometry_calibration(self, geometry_calibration):
-        """
-        Load calibration file
+        """ Load and apply calibration file
         :param geometry_calibration:
         :return:
         """
-        # TODO FIXME - NEXT - ???????
+        # TODO FIXME - NEXT - Still not sure how to apply!
         checkdatatypes.check_type('Geometry calibration', geometry_calibration,
-                                  calibration_file_io.ResidualStressInstrumentCalibration)
+                                  instrument_geometry.AnglerCameraDetectorShift)
+
         self._geometry_calibration = geometry_calibration
 
         return
@@ -274,7 +310,7 @@ class HB2BReductionManager(object):
         :return:
         """
         # Get the raw data
-        raw_count_vec = workspace.get_raw_data(sub_run)
+        raw_count_vec = workspace.get_detector_counts(sub_run)
 
         # process two theta
         two_theta = workspace.get_2theta(sub_run)
@@ -390,7 +426,7 @@ class HB2BReductionManager(object):
         :param output_dir:
         :return:
         """
-        # TODO - FIXME - check whether the output dir exist;
+        checkdatatypes.check_file_name(output_dir, True, True, True, 'Output directory')
 
         self._output_directory = output_dir
 

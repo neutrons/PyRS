@@ -13,6 +13,7 @@ import numpy
 class HidraConstants(object):
     RAW_DATA = 'raw data'
     REDUCED_DATA = 'reduced diffraction data'
+    REDUCED_MAIN = 'main'   # default reduced data
     SUB_RUNS = 'sub-runs'
     CALIBRATION = 'calibration'
     SAMPLE_LOGS = 'logs'
@@ -20,7 +21,6 @@ class HidraConstants(object):
     GEOMETRY_SETUP = 'geometry setup'
     DETECTOR_PARAMS = 'detector'
     TWO_THETA = '2Theta'
-    REDUCED_MAIN = 'main'
 
 
 class HydraProjectFileMode(Enum):
@@ -51,6 +51,7 @@ class DiffractionUnit(Enum):
         return 'dSpacing'
 
 
+# TODO - #80 - Clean up the codes for all the methods and docs...
 class HydraProjectFile(object):
     """ Read and/or write an HB2B project to an HDF5 with entries for detector counts, sample logs, reduced data,
     fitted peaks and etc.
@@ -137,6 +138,9 @@ class HydraProjectFile(object):
         geometry_group.create_group('detector')
         geometry_group.create_group('wave length')
 
+        # peaks
+        self._project_h5.create_group('peaks')
+
         # reduced data
         reduced_data = self._project_h5.create_group(HidraConstants.REDUCED_DATA)
         # reduced_data.create_group('2theta')
@@ -144,9 +148,10 @@ class HydraProjectFile(object):
 
         return
 
-    def get_2theta_vector(self):
-        # TODO - NOW TONIGHT #72 - Doc
+    def get_diffraction_2theta_vector(self):
+        # TODO - NOW TONIGHT #80 #72 - Doc
 
+        print (self._project_h5.name)
         two_theta_vec = self._project_h5[HidraConstants.REDUCED_DATA][HidraConstants.TWO_THETA].value
 
         return two_theta_vec
@@ -155,18 +160,38 @@ class HydraProjectFile(object):
         """
 
         :param mask_id:
-        :param sub_run:
-        :return:
+        :param sub_run: If sub run = None: ...
+        :return: 1D array or 2D array depending on sub ru
         """
-        sub_run_list = self.get_sub_runs()
-        sub_run_index = sub_run_list.index(sub_run)
-
+        # Mask
         if mask_id is None:
             mask_id = HidraConstants.REDUCED_MAIN
 
-        reduced_diff_hist = self._project_h5[HidraConstants.REDUCED_DATA][mask_id].value[sub_run_index]
+        if sub_run is None:
+            # all the sub runs
+            reduced_diff_hist = self._project_h5[HidraConstants.REDUCED_DATA][mask_id].value
+            print ('[DB...BAT...CHECKPOINT1] Shape = {}'.format(reduced_diff_hist.shape))
+        else:
+            # specific one sub run
+            sub_run_list = self.get_sub_runs()
+            sub_run_index = sub_run_list.index(sub_run)
+
+            if mask_id is None:
+                mask_id = HidraConstants.REDUCED_MAIN
+
+            reduced_diff_hist = self._project_h5[HidraConstants.REDUCED_DATA][mask_id].value[sub_run_index]
+        # END-IF-ELSE
 
         return reduced_diff_hist
+
+    def get_reduced_data_masks(self):
+        """
+        Get the list of masks
+        :return:
+        """
+        # TODO - TONIGHT - #81 ASAP
+
+        return list()
 
     def get_instrument_geometry(self):
         """
@@ -226,18 +251,27 @@ class HydraProjectFile(object):
     def set_instrument_calibration(self):
         return
 
-    def set_peak_fit_result(self, sub_run_number, peak_tag, peak_profile, peak_params):
+    def set_peak_fit_result(self, peak_tag, peak_profile, peak_param_names, sub_run_vec, chi2_vec, peak_params):
 
         self._validate_write_operation()
+        checkdatatypes.check_string_variable('Peak tag', peak_tag)
+
+        checkdatatypes.check_list('Peak parameter names', peak_param_names)
 
         # access or create node for peak data
-        fit_entry = self._project_h5['Peaks']
-        peak_entry = self._create_peak_node(sub_run_number, peak_tag, {'profile': peak_profile})
+        fit_entry = self._project_h5['peaks']
+        tag_entry = fit_entry.create_group(peak_tag)
+        tag_entry.create_dataset(HidraConstants.SUB_RUNS, data=sub_run_vec)
+        tag_entry.create_dataset('chi2', data=chi2_vec)
+        tag_entry.create_dataset('parameters', data=peak_params)
 
-        # add value
-        for param_name_i in peak_params:
-            peak_entry[param_name_i] = peak_params[param_name_i]
-        # END-FOR
+        # TODO FIXME #80 NOWNOW
+        # TODO ... peak_entry = self._create_peak_node(sub_run_number, peak_tag, {'profile': peak_profile})
+
+        # # add value
+        # for param_name_i in peak_params:
+        #     peak_entry[param_name_i] = peak_params[param_name_i]
+        # # END-FOR
 
         return
 
@@ -263,26 +297,27 @@ class HydraProjectFile(object):
 
         return
 
-    def add_diffraction_data(self, sub_run_index, vec_x, vec_y, unit):
-        """ add reduced and corrected diffraction data in specified unit
-        :param unit:
-        :return:
-        """
-        raise RuntimeError('This method is deprecated by set_2theta_diffraction_data and set_d_diffraction_data')
-        # TODO - TONIGHT 0 - Many checks...
-        checkdatatypes.check_string_variable('Unit', unit, ['2theta', 'd-spacing'])
-
-        if 'reduced data' not in self._project_h5.keys():
-            raise RuntimeError('No reduced data')
-        elif unit not in self._project_h5['reduced data']:
-            raise RuntimeError('{} missing'.format(unit))
-
-        # create group
-        reduced_data = self._project_h5[HidraConstants.REDUCED_DATA][unit].create_group('{:04}'.format(sub_run_index))
-        reduced_data.create_dataset('x', data=vec_x)
-        reduced_data.create_dataset('y', data=vec_y)
-
-        return
+    # # TODO FIXME - #80 - Anymore?
+    # def add_diffraction_data(self, sub_run_index, vec_x, vec_y, unit):
+    #     """ add reduced and corrected diffraction data in specified unit
+    #     :param unit:
+    #     :return:
+    #     """
+    #     raise RuntimeError('This method is deprecated by set_2theta_diffraction_data and set_d_diffraction_data')
+    #     # TODO - TONIGHT 0 - Many checks...
+    #     checkdatatypes.check_string_variable('Unit', unit, ['2theta', 'd-spacing'])
+    #
+    #     if 'reduced data' not in self._project_h5.keys():
+    #         raise RuntimeError('No reduced data')
+    #     elif unit not in self._project_h5['reduced data']:
+    #         raise RuntimeError('{} missing'.format(unit))
+    #
+    #     # create group
+    #     reduced_data = self._project_h5[HidraConstants.REDUCED_DATA][unit].create_group('{:04}'.format(sub_run_index))
+    #     reduced_data.create_dataset('x', data=vec_x)
+    #     reduced_data.create_dataset('y', data=vec_y)
+    #
+    #     return
 
     def add_experiment_information(self, log_name, log_value_array):
         """ add information about the experiment including scan indexes, sample logs, 2theta and etc
@@ -372,72 +407,79 @@ class HydraProjectFile(object):
         get list of the sub runs
         :return:
         """
-        sub_runs_str_list = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SUB_RUNS]
+        sub_runs_str_list = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS][HidraConstants.SUB_RUNS].value
+
+        print ('[DB....BAT....] Sun runs: {}'.format(sub_runs_str_list))
 
         sub_run_list = [None] * len(sub_runs_str_list)
         for index, sub_run_str in enumerate(sub_runs_str_list):
             sub_run_list[index] = int(sub_run_str)
 
+        print ('[DB....BAT....] Sun runs: {}'.format(sub_run_list))
+
         return sub_run_list
 
-    def set_2theta_diffraction_data(self, sub_run, two_theta_vector, intensity_vector):
-        """
-        Set the 2theta-intensity (reduced) to file
-        :param sub_run:
-        :param two_theta_vector:
-        :param intensity_vector:
-        :return:
-        """
-        # check inputs and state
-        self._validate_write_operation()
-        checkdatatypes.check_int_variable('Sub run', sub_run, (0, None))
-        checkdatatypes.check_numpy_arrays('2theta vector and intensity vector',
-                                          [two_theta_vector, intensity_vector],
-                                          dimension=None,
-                                          check_same_shape=True)
+    # def set_2theta_diffraction_data(self, sub_run, two_theta_vector, intensity_vector):
+    #     """
+    #     Set the 2theta-intensity (reduced) to file
+    #     :param sub_run:
+    #     :param two_theta_vector:
+    #     :param intensity_vector:
+    #     :return:
+    #     """
+    #     # check inputs and state
+    #     self._validate_write_operation()
+    #     checkdatatypes.check_int_variable('Sub run', sub_run, (0, None))
+    #     checkdatatypes.check_numpy_arrays('2theta vector and intensity vector',
+    #                                       [two_theta_vector, intensity_vector],
+    #                                       dimension=None,
+    #                                       check_same_shape=True)
+    #
+    #     diff_group = self._create_diffraction_node(sub_run)
+    #     diff_2t_group = diff_group[DiffractionUnit.unit(DiffractionUnit.TwoTheta)]
+    #
+    #     # set value
+    #     diff_2t_group.create_dataset(HidraConstants.TWO_THETA, data=two_theta_vector)
+    #     diff_2t_group.create_dataset('intensity', data=intensity_vector)
+    #
+    #     return
+    #
+    # def set_d_spacing_diffraction_data(self, sub_run, d_vector, intensity_vector):
+    #     """
+    #     Set the dSpacing-intensity (reduced diffraction) to file
+    #     :param sub_run:
+    #     :param d_vector:
+    #     :param intensity_vector:
+    #     :return:
+    #     """
+    #     # check inputs and state
+    #     self._validate_write_operation()
+    #     checkdatatypes.check_int_variable('Sub run', sub_run, (0, None))
+    #     checkdatatypes.check_numpy_arrays('d-spacing vector and intensity vector',
+    #                                       [d_vector, intensity_vector],
+    #                                       dimension=None,
+    #                                       check_same_shape=True)
+    #
+    #     # check or create new node/entry for this sub run
+    #     diff_group = self._create_diffraction_node(sub_run)
+    #     diff_d_group = diff_group[DiffractionUnit.DSpacing]
+    #
+    #     # set value
+    #     diff_d_group.create_dataset('2theta', data=d_vector)
+    #     diff_d_group.create_dataset('intensity', data=intensity_vector)
+    #
+    #     return
 
-        diff_group = self._create_diffraction_node(sub_run)
-        diff_2t_group = diff_group[DiffractionUnit.unit(DiffractionUnit.TwoTheta)]
-
-        # set value
-        diff_2t_group.create_dataset('2theta', data=two_theta_vector)
-        diff_2t_group.create_dataset('intensity', data=intensity_vector)
-
-        return
-
-    def set_d_spacing_diffraction_data(self, sub_run, d_vector, intensity_vector):
-        """
-        Set the dSpacing-intensity (reduced diffraction) to file
-        :param sub_run:
-        :param d_vector:
-        :param intensity_vector:
-        :return:
-        """
-        # check inputs and state
-        self._validate_write_operation()
-        checkdatatypes.check_int_variable('Sub run', sub_run, (0, None))
-        checkdatatypes.check_numpy_arrays('d-spacing vector and intensity vector',
-                                          [d_vector, intensity_vector],
-                                          dimension=None,
-                                          check_same_shape=True)
-
-        # check or create new node/entry for this sub run
-        diff_group = self._create_diffraction_node(sub_run)
-        diff_d_group = diff_group[DiffractionUnit.DSpacing]
-
-        # set value
-        diff_d_group.create_dataset('2theta', data=d_vector)
-        diff_d_group.create_dataset('intensity', data=intensity_vector)
-
-        return
-
-    def save_hydra_project(self):
+    def save_hydra_project(self, verbose=False):
         """
         convert all the information about project to HDF file.
         As the data has been written to h5.File instance already, the only thing left is to close the file
         :return:
         """
         self._validate_write_operation()
+
+        if verbose:
+            print ('Changes are saved to {0}; {0} will be closed right after.'.format(self._project_h5.filename))
 
         self._project_h5.close()
 
@@ -458,8 +500,17 @@ class HydraProjectFile(object):
 
         return
 
-    def set_reduced_diffraction_dataset(self, two_theta_vec, diff_data_set):
-        # TODO - TONIGHT NOW #72 - Check & Doc
+    def set_reduced_diffraction_data_set(self, two_theta_vec, diff_data_set):
+        """ Set the reduced diffraction data (set)
+        :param two_theta_vec:
+        :param diff_data_set: dictionary
+        :return:
+        """
+        # Check input
+        checkdatatypes.check_numpy_arrays('Two theta vector', [two_theta_vec], 1, False)
+        checkdatatypes.check_dict('Diffraction data set', diff_data_set)
+
+        # Retrieve diffraction group
         diff_group = self._project_h5[HidraConstants.REDUCED_DATA]
 
         # Add 2theta vector
@@ -477,24 +528,48 @@ class HydraProjectFile(object):
 
         # Add Diffraction data
         for mask_id in diff_data_set:
+            # Get data
+            diff_data_matrix_i = diff_data_set[mask_id]
+            # Check
+            checkdatatypes.check_numpy_arrays('Diffraction data (matrix)', [diff_data_matrix_i], 2, False)
+            if two_theta_vec.shape[0] != diff_data_matrix_i.shape[1]:
+                raise RuntimeError('Length of 2theta vector ({}) is different from intensities ({})'
+                                   ''.format(two_theta_vec.shape, diff_data_matrix_i.shape))
+            # Set name for default mask
             if mask_id is None:
                 data_name = HidraConstants.REDUCED_MAIN
             else:
                 data_name = mask_id
 
+            # Write
             if data_name in diff_group.keys():
                 # overwrite
                 diff_h5_data = diff_group[data_name]
                 try:
-                    diff_h5_data[...] = diff_data_set[mask_id]
+                    diff_h5_data[...] = diff_data_matrix_i
                 except TypeError:
                     # usually two theta vector size changed
                     del diff_group[data_name]
-                    diff_group.create_dataset(data_name, data=diff_data_set[mask_id])
+                    diff_group.create_dataset(data_name, data=diff_data_matrix_i)
             else:
                 # new
-                diff_group.create_dataset(data_name, data=diff_data_set[mask_id])
+                diff_group.create_dataset(data_name, data=diff_data_matrix_i)
         # END-FOR
+
+        return
+
+    def set_sub_runs(self, sub_runs):
+        """ Set sub runs to sample log entry
+        :param sub_runs:
+        :return:
+        """
+        if isinstance(sub_runs, list):
+            sub_runs = numpy.array(sub_runs)
+        else:
+            checkdatatypes.check_numpy_arrays('Sub run numbers', [sub_runs], 1, False)
+
+        sample_log_entry = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS]
+        sample_log_entry.create_dataset(HidraConstants.SUB_RUNS, data=sub_runs)
 
         return
 
@@ -511,14 +586,17 @@ class HydraProjectFile(object):
         print ('[DB...BAT] sub group entry name in hdf: {}'.format(sub_run_group_name))
 
         # check existing node or create a new node
-        if sub_run_group_name in self._project_h5['diffraction']:
+        print ('[DB...BAT] Diffraction node sub group/entries: {}'
+               ''.format( self._project_h5[HidraConstants.REDUCED_DATA].keys()))
+        if sub_run_group_name in self._project_h5[HidraConstants.REDUCED_DATA]:
             # sub-run node exist and check
-            diff_group = self._project_h5['diffraction'][sub_run_group_name]
+            print ('[DB...BAT] sub-group: {}'.format(sub_run_group_name))
+            diff_group = self._project_h5[HidraConstants.REDUCED_DATA][sub_run_group_name]
             if not (DiffractionUnit.TwoTheta in diff_group and DiffractionUnit.DSpacing in diff_group):
                 raise RuntimeError('Diffraction node for sub run {} exists but is not complete'.format(sub_run_number))
         else:
             # create new node: parent, child-2theta, child-dspacing
-            diff_group = self._project_h5['diffraction'].create_group(sub_run_group_name)
+            diff_group = self._project_h5[HidraConstants.REDUCED_DATA].create_group(sub_run_group_name)
             diff_group.create_group(DiffractionUnit.unit(DiffractionUnit.TwoTheta))
             diff_group.create_group(DiffractionUnit.unit(DiffractionUnit.DSpacing))
 
@@ -566,13 +644,3 @@ class HydraProjectFile(object):
             raise RuntimeError('Project file {} is set to read-only by user'.format(self._project_h5.name))
 
         return
-
-
-def test_main():
-    project_h5 = h5py.File(project_file_name, 'r')
-    scan_index = project_h5['experiment']['logs']['Scan Index'][0]
-    assert scan_index == 1
-    print project_h5['experiment'].keys()
-    counts_vec_index001 = project_h5['experiment']['sub-runs']['{:04}'.format(scan_index)]['counts'].value
-    print (counts_vec_index001.max())
-    two_theta_value = project_h5['experiment']['logs']['2Theta'][0]

@@ -13,6 +13,13 @@ import numpy
 from pyrs.utilities import checkdatatypes
 
 
+# TODO LIST - #72 - 1. UI: change segments to masks
+# TODO              2. UI: add solid angle input
+# TODO              3. UI: add option to use reduced data from input project file
+# TODO              4. Implement plot method for reduced data
+# TODO              5. Implement method to reduce data
+# TODO              6. Add parameters for reducing data
+
 class ManualReductionWindow(QMainWindow):
     """
     GUI window for user to fit peaks
@@ -55,7 +62,7 @@ class ManualReductionWindow(QMainWindow):
         self.ui.pushButton_chopReduce.clicked.connect(self.do_chop_reduce_run)
 
         self.ui.pushButton_launchAdvSetupWindow.clicked.connect(self.do_launch_slice_setup)
-        self.ui.pushButton_plotDetView.clicked.connect(self.do_plot_sub_run)
+        self.ui.pushButton_plotDetView.clicked.connect(self.do_plot_det_counts)
 
         # radio button operation
         self.ui.radioButton_chopByTime.toggled.connect(self.event_change_slice_type)
@@ -222,7 +229,8 @@ class ManualReductionWindow(QMainWindow):
                                                  save_file=False)
 
         try:
-            data_handler = self._core.reduction_manager.load_hidra_project(project_h5_name)
+            # TODO FIXME - #72 - Error!
+            data_handler = self._core.reduction_manager.load_hidra_project(project_h5_name, blabla)
         except RuntimeError as run_err:
             gui_helper.pop_message(self, 'Failed to load project file {}: {}'.format(project_h5_name, run_err),
                                    None, 'error')
@@ -237,8 +245,8 @@ class ManualReductionWindow(QMainWindow):
 
         return
 
-    def do_plot_sub_run(self):
-        """ Plot data with 2D view
+    def do_plot_det_counts(self):
+        """ Plot detector counts as 2D detector view view
         :return:
         """
         # FIXME - Need to separate these 2 plotting method: detector view vs reduced data
@@ -255,6 +263,7 @@ class ManualReductionWindow(QMainWindow):
         self.ui.graphicsView_detectorView.plot_counts(count_vec)
 
         # plot reduced data
+        # TODO CHECK - #72 - API???
         vec_x, vec_y = self._core.reduction_manager.get_diffraction_pattern(self._project_data_id,
                                                                             sub_run)
         if vec_x is not None:

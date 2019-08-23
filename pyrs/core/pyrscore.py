@@ -51,19 +51,10 @@ class PyRsCore(object):
 
         return
 
-    @property
-    def file_controller(self):
-        """
-        return handler to data loader and saver
-        :return:
-        """
-        return self._file_io_controller
-
     def new_strain_stress_session(self, session_name, is_plane_stress, is_plane_strain):
-        """
-        create a new strain/stress session
-        :param session_name:
-        :param is_plane_stress:
+        """ Create a new strain/stress session by initializing a new StrainStressCalculator instance
+        :param session_name: name of strain/stress session to query
+        :param is_plane_stress: flag for being plane stress (specific equation)
         :param is_plane_strain:
         :return:
         """
@@ -93,14 +84,6 @@ class PyRsCore(object):
         :return:
         """
         return self._curr_data_key
-
-    @property
-    def data_center(self):
-        """
-        return handler to data center which stores and manages all the data loaded and processed
-        :return:
-        """
-        return self._data_manager
 
     @property
     def strain_stress_calculator(self):
@@ -134,8 +117,9 @@ class PyRsCore(object):
 
         return
 
+    # TODO FIXME - NOW - Broken
     def calculate_pole_figure(self, data_key, detector_id_list):
-        """ calculate pole figure
+        """ API method to calculate pole figure by a specified data key
         :param data_key:
         :param detector_id_list:
         :return:
@@ -182,8 +166,7 @@ class PyRsCore(object):
         return
 
     def get_pole_figure_values(self, data_key, detector_id_list, max_cost):
-        """
-        get the (N, 3) array for pole figures
+        """ API method to get the (N, 3) array for pole figures
         :param data_key:
         :param detector_id_list:
         :param max_cost:
@@ -269,7 +252,42 @@ class PyRsCore(object):
 
         return data_key, sub_key
 
-    def fit_peaks(self, data_key_set, scan_index, peak_type, background_type, fit_range):
+    # TODO - #80 - QA
+    def fit_peaks(self, session_name, sub_run_list, peak_type, background_type, fit_range):
+        """
+        Fit a single peak on each diffraction pattern selected from client-specified
+        :param session_name:
+        :param sub_run_list: None as the default as All;
+        :param peak_type:
+        :param background_type:
+        :param fit_range:
+        :return:
+        """
+        from pyrs.core import peak_fit_factory
+        # Get workspace
+        workspace = self.reduction_manager.get_hidra_workspace(session_name)
+
+        # Deal with sub runs
+        if sub_run_list is None:
+            sub_run_list = workspace.get_subruns()
+            print ('[DB...BAT] Sub runs: ', sub_run_list)
+
+        # For the data for fitting
+        self._peak_fit_controller = peak_fit_factory.PeakFitEngineFactory.getInstance('Mantid')(workspace, sub_run_list, None)
+
+        # fit peaks
+        self._peak_fit_controller.fit_peaks(peak_type, background_type, fit_range)
+        # TODO FIXME - #80 NOWNOW ASAP - wave length shall be retrieved somewhere!!!
+        self._peak_fit_controller.calculate_peak_position_d(wave_length_vec=[1.]*len(sub_run_list))
+
+
+        # Get optimizaer
+        self._last_optimizer = self._peak_fit_controller
+
+        return
+
+    # TODO FIXME - NOW - Broken now
+    def fit_peaks_old(self, data_key_set, scan_index, peak_type, background_type, fit_range):
         """
         fit a single peak of a measurement in a multiple-log scan
         :param data_key_set:
@@ -389,13 +407,12 @@ class PyRsCore(object):
         return self._data_manager.get_sub_keys(data_key)
 
     def get_diffraction_data(self, session_name, sub_run, mask):
-        """ get diffraction data of a certain
-        :param data_key:
-        :param scan_log_index:
+        """ get diffraction data of a certain session/wokspace
+        :param session_name: name of session for workspace
+        :param sub_run: sub run of the diffraction ata
+        :param mask: String as mask ID for reduced diffraction data
         :return: tuple: vec_2theta, vec_intensit
         """
-        # TODO FIXME - TONIGHT NOW #72 - Doc & Check
-
         diff_data_set = self._reduction_manager.get_reduced_diffraction_data(session_name, sub_run, mask)
 
         return diff_data_set
@@ -443,18 +460,18 @@ class PyRsCore(object):
         :param data_key:
         :param param_name:
         :param max_cost: if not None, then filter out the bad (with large cost) fitting
-        :return: 1 vector or 2-tuple (vector + vector)
+        :return: 3-tuple
         """
         # check input
-        optimizer = self._get_optimizer(data_key)
+        # TODO - #80 - Again data_key shall be replaced by ...
+        optimizer = self._get_optimizer(None)
 
         if max_cost is None:
-            sub_run_vec, param_vec = optimizer.get_fitted_params(param_name_list, False)
-            log_index_vec = numpy.arange(len(param_vec))
+            sub_run_vec, chi2_vec, param_vec = optimizer.get_fitted_params(param_name_list, False)
         else:
-            log_index_vec, param_vec = optimizer.get_good_fitted_params(param_name, max_cost)
+            sub_run_vec, chi2_vec, param_vec = optimizer.get_good_fitted_params(param_name_list, max_cost)
 
-        return sub_run_vec, param_vec
+        return sub_run_vec, chi2_vec, param_vec
 
     def get_peak_fit_param_value_error(self, data_key, param_name, max_cost):
         """ Get a specific peak parameter's fitting value with error
@@ -481,35 +498,37 @@ class PyRsCore(object):
         :return:
         """
         # check input
-        optimizer = self._get_optimizer(data_key)
+        optimizer = self._get_optimizer(None)  # TODO FIXME - #80 - Need a new mechanism for data key!
 
         # get names, detector IDs (for check) & log indexes
         param_names = optimizer.get_function_parameter_names()
-        detector_ids = self.get_detector_ids(data_key)
-        print ('[DB...BAT] Detector IDs = {}'.format(detector_ids))
-        if detector_ids is not None:
-            raise NotImplementedError('Multiple-detector ID case has not been considered yet. '
-                                      'Contact developer for this issue.')
-        scan_log_index_list = optimizer.get_scan_indexes()
+        if False:
+            # TODO FIXME - #80 - Need to think of how to deal with mask (aka detector ID)
+            detector_ids = self.get_detector_ids(data_key)
+            print ('[DB...BAT] Detector IDs = {}'.format(detector_ids))
+            if detector_ids is not None:
+                raise NotImplementedError('Multiple-detector ID case has not been considered yet. '
+                                          'Contact developer for this issue.')
+
+        # Get peak parameters value
+        sub_run_vec, chi2_vec, params_values_matrix = self.get_peak_fit_param_value(data_key, param_names,
+                                                                                    max_cost=None)
 
         # init dictionary
         fit_param_value_dict = dict()
-        for scan_log_index in scan_log_index_list:
-            param_dict = dict()
-            fit_param_value_dict[scan_log_index] = param_dict
-        # END-FOR
 
-        for param_name in param_names:
-            scan_index_vec, param_value = self.get_peak_fit_param_value(data_key, [param_name], max_cost=None)
-            checkdatatypes.check_numpy_arrays('Parameter values', [param_value], dimension=1, check_same_shape=False)
-            # add the values to dictionary
-            for si in range(len(scan_index_vec)):
-                scan_log_index = scan_index_vec[si]
-                if scan_log_index not in fit_param_value_dict:
-                    fit_param_value_dict[scan_log_index] = dict()
-                fit_param_value_dict[scan_log_index][param_name] = param_value[scan_log_index]
-            # END-FOR (scan-log-index)
-        # END-FOR (param_name)
+        # set: this shall really good to be a pandas DataFrame or labelled numpy matrix  TODO FIXME #80+
+        for index in range(len(sub_run_vec)):
+            # get sub runs and chi2
+            sub_run_i = sub_run_vec[index]
+            chi2_i = chi2_vec[index]
+            fit_param_value_dict[sub_run_i] = {'cost': chi2_i}
+
+            for p_index in range(len(param_names)):
+                param_name = param_names[p_index]
+                fit_param_value_dict[sub_run_i][param_name] = params_values_matrix[p_index, index, 0]
+            # END-FOR
+        # END-FOR
 
         return fit_param_value_dict
 
@@ -545,53 +564,22 @@ class PyRsCore(object):
 
         return peak_intensities
 
-    def load_hidra_project(self, hidra_h5_name, project_name):
+    def load_hidra_project(self, hidra_h5_name, project_name, load_detector_counts=True, load_diffraction=False):
         """
         Load a HIDRA project file
         :param hidra_h5_name: name of HIDRA project file in HDF5 format
         :param project_name: name of the reduction project specified by user to trace
+        :param load_detector_counts:
+        :param load_diffraction:
         :return:
         """
-        # Load data
+        # Initialize session
         self._reduction_manager.init_session(project_name)
-        self._reduction_manager.load_hidra_project(hidra_h5_name, False)
+
+        # Load project
+        self._reduction_manager.load_hidra_project(hidra_h5_name, False, load_detector_counts, load_diffraction)
 
         return
-
-    def load_rs_raw(self, h5file):
-        """
-        load HB2B raw h5 file
-        :param h5file:
-        :return: str as message
-        """
-        diff_data_dict, sample_log_dict = self._file_io_controller.load_rs_file(h5file)
-
-        data_key = self.data_center._load_raw_counts(diff_data_dict, sample_log_dict, h5file, replace=True)
-        message = 'Load {0} (Ref ID {1})'.format(h5file, data_key)
-
-        # set to current key
-        self._curr_data_key = data_key
-        self._curr_file_name = h5file
-
-        return data_key, message
-
-    def load_rs_raw_set(self, det_h5_list):
-        """
-        Load a set of HB2B raw daa file with information of detector IDs
-        :param det_h5_list:
-        :return:
-        """
-        # read data and store in arrays managed by dictionary with detector IDs
-        diff_data_dict, sample_log_dict = self._file_io_controller.load_rs_file_set(det_h5_list)
-        print ('INFO: detector keys: {0}'.format(diff_data_dict.keys()))
-
-        data_key = self.data_center.add_raw_data_set(diff_data_dict, sample_log_dict, det_h5_list, replace=True)
-        message = 'Load {0} (Ref ID {1})'.format(det_h5_list, data_key)
-
-        # set to current key
-        self._curr_data_key = data_key
-
-        return data_key, message
 
     def save_diffraction_data(self, project_name, file_name):
         """
@@ -604,16 +592,16 @@ class PyRsCore(object):
 
         return
 
-    def save_peak_fit_result(self, data_key, src_rs_file_name, target_rs_file_name):
+    def save_peak_fit_result(self, data_key, hidra_file_name, peak_tag):
         """ Save peak fit result to file with original data
         :param data_key:
         :param src_rs_file_name:
         :param target_rs_file_name:
         :return:
         """
-        peak_fit_dict = self.get_peak_fit_params_in_dict(data_key)
-        self._file_io_controller.export_peak_fit(src_rs_file_name, target_rs_file_name,
-                                                 peak_fit_dict)
+        optimizer = self._get_optimizer(None)  # TODO FIXME - #80 - Need a new mechanism for data key!
+
+        optimizer.export_fit_result(hidra_file_name, peak_tag)
 
         return
 

@@ -25,8 +25,9 @@ def main():
                        (6, 'tests/testdata/HB2B_exp129_Long_Al_222[6]_single.hdf5'),
                        (7, 'tests/testdata/HB2B_exp129_Long_Al_222[7]_single.hdf5')]
 
-    # TODO FIXME - FUTURE - HIDRA may have a different workflow to generate the reduced data sets across the detector
+    # TODO FIXME - #72    - HIDRA may have a different workflow to generate the reduced data sets across the detector
     # TODO ... ...        - Thus, how to form the raw data is still UNDER DISCUSSION
+    # TODO ... ..         - Solution: Add these 7 reduced set to 7 masked reduced data set with proper tag and meta data for detector center/out of plane angle
 
 
     return

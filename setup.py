@@ -124,7 +124,8 @@ if __name__ == "__main__":
                'scripts/convert_raw_data.py',
                'scripts/convert_hzb_data.py']
     test_scripts = ['tests/unittest/pyrs_core_test.py',
-                    'tests/unittest/reduction_test.py',
+                    'tests/unittest/reduction_test.py',  # beta version
+                    'tests/unittest/fit_peaks_test.py',  # beta version
                     'tests/unittest/utilities_test.py',
                     'tests/unittest/polefigurecal_test.py',
                     'tests/unittest/straincalculationtest.py',
