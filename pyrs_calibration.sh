@@ -14,20 +14,31 @@ PYTHONPATH=$MANTIDPATH:$PYTHONPATH
 
 echo "User option: $1"
 
-if [ "$1" = "111" ] || [ "$1" = "prototype" ] ; then
+if [ "$1" = "1" ] || [ "$1" = "prototype" ] ; then
     echo "Protyping calibration"
     PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./prototypes/calibration/Quick_Calibration_general.py
 fi
 
 if [ "$1" = "11" ] || [ "$1" = "prototype" ] ; then
     echo "Protyping calibration"
-    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./prototypes/calibration/Quick_Calibration_Corr.py
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./prototypes/calibration/Quick_Calibration_PeakFit.py
+fi
+
+if [ "$1" = "111" ] || [ "$1" = "prototype" ] ; then
+    echo "Protyping calibration"
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./prototypes/calibration/Quick_Calibration_Corr_Scipy.py
 fi
 
 if [ "$1" = "22" ] || [ "$1" = "prototype" ] ; then
     echo "Protyping calibration"
     PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./prototypes/calibration/Quick_Calibration_Corr_LMFIT.py
 fi
+
+if [ "$1" = "22" ] || [ "$1" = "prototype" ] ; then
+    echo "Protyping calibration"
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./prototypes/calibration/Quick_Calibration_Corr_LMFIT.py
+fi
+
 
 if [ "$1" = "1" ] ; then
     echo "NOT DEFINED YET"

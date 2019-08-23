@@ -36,8 +36,6 @@ def convert_to_2theta(hb2b, pyrs_reducer, roi_vec, min_2theta, max_2theta, num_b
                                                                    num_bins=num_bins,
                                                                    is_point_data=True,
                                                                    use_mantid_histogram=False)
-    print (hb2b.get_counts(curr_id).shape)
-
 
     vec_2theta_V, vec_hist_V = pyrs_reducer.reduce_to_2theta_histogram(counts_array=np.ones_like(hb2b.get_counts(curr_id)),
                                                                    mask=roi_vec, x_range=(min_2theta, max_2theta),
@@ -63,7 +61,7 @@ def peaks_alignment_score(x, engine, hb2b_setup, two_theta, roi_vec_set, plot=Fa
 
     peak_pos = [17.5,24.5,30.25,35.2,39.4,43.2,53.5]
 
-    peak_pos = [17.5,24.5, 39.4]
+    peak_pos = [25.5,30.25,35.2,39.4,43.2,50.7, 54., 57., 59]
 
     # check
     #assert isinstance(roi_vec_set, list), 'must be list'
@@ -94,6 +92,30 @@ def peaks_alignment_score(x, engine, hb2b_setup, two_theta, roi_vec_set, plot=Fa
     # reduce data
     reduced_data_set = [None] * num_reduced_set
 
+    if plot:
+        fig, ax = plt.subplots(1,1, figsize=(10,10))
+
+        for i_roi in range(num_reduced_set):
+            # Define Mask
+            Mask = np.zeros_like( Eta_val )
+            if abs(roi_vec_set[i_roi]) == roi_vec_set[i_roi]:
+                index = np.where( (Eta_val < (roi_vec_set[i_roi]+5) ) == ( Eta_val > (roi_vec_set[i_roi]-5 ) ))[0]
+            else:
+                index = np.where( (Eta_val > (roi_vec_set[i_roi]-5) ) == ( Eta_val < (roi_vec_set[i_roi]+5 ) ))[0]
+
+            Mask[index] = 1.
+
+            #x_vec, y_vec = convert_to_2theta(engine, pyrs_reducer, Mask, 18, 63, 1800 )
+            vec_x, vec_y = convert_to_2theta(engine, pyrs_reducer, Mask, 18, 63, 1800 )
+            ax.plot(  vec_x.T, vec_y.T, label=roi_vec_set[i_roi] )
+
+        ax.set_ylabel('Int (cts.)')
+        ax.set_ylabel('2theta (deg.)')
+        handles, labels = ax.get_legend_handles_labels()
+        fig.legend(handles, labels, loc='upper center')
+        plt.show()
+        return
+
     for i_roi in range(num_reduced_set):
         Peaks = [None] * num_peaks
 
@@ -120,8 +142,13 @@ def peaks_alignment_score(x, engine, hb2b_setup, two_theta, roi_vec_set, plot=Fa
         for peak_i, peak_j in list(itertools.combinations(range(num_peaks), 2)):
             # get data
 
-            residual_sq = np.correlate( reduced_data_set[i_roi][peak_i], reduced_data_set[i_roi][peak_j] )
+            #residual_sq = 1. / np.min( np.corrcoef( reduced_data_set[i_roi][peak_i], reduced_data_set[i_roi][peak_j] ) )
 
+            temp_p1 = reduced_data_set[i_roi][peak_i]
+            temp_p2 = reduced_data_set[i_roi][peak_j]
+            residual_sq = 1. / np.correlate( temp_p1 / np.linalg.norm(temp_p1), temp_p2 / np.linalg.norm(temp_p2) )
+#            residual_sq = np.correlate( reduced_data_set[i_roi][peak_i], reduced_data_set[i_roi][peak_j] )
+            if not np.isfinite(residual_sq): residual_sq = np.array( [1000.] )
             if residual is None:
                 residual = residual_sq
             else:
@@ -183,10 +210,11 @@ def main():
         start_calibration = [-3.90985615e-05, -2.72036598e-04, 3.91642084e-04, 5.99667751e-03,
                                  -8.15624721e-01, 1.42673120e+00]
 
-        start_calibration = [0] * 6
+        #start_calibration = [0] * 6
 
         roi_vec_list = np.arange( -30, 30.1, 15) 
 
+        
         params = lmfit.Parameters()
         params.add('center_shift_x', value=start_calibration[0], min=-.1, max=.1)
         params.add('center_shift_y', value=start_calibration[1], min=-.1, max=.1)
@@ -195,12 +223,16 @@ def main():
         params.add('rotation_y', value=start_calibration[4], min=-np.pi, max=np.pi)
         params.add('rotation_z', value=start_calibration[5], min=-np.pi, max=np.pi)
 
-        out = lmfit.minimize( peaks_alignment_score, params, args=(engine, instrument, two_theta, roi_vec_list, False) )
-
+        #out = lmfit.minimize( peaks_alignment_score, params, method='basinhopping', args=(engine, instrument, two_theta, roi_vec_list, False) )
+        out = lmfit.minimize( peaks_alignment_score, params, method='lbfgsb', args=(engine, instrument, two_theta, roi_vec_list, False) )
+        #out1 = lmfit.minimize( peaks_alignment_score, out.params, method='lbfgsb', args=(engine, instrument, two_theta, roi_vec_list, False) )
+#        out1 = lmfit.minimize( peaks_alignment_score, out.params, method='least_squares', args=(engine, instrument, two_theta, roi_vec_list, False) )
         t_stop = time.time()
         print ('Total Time: {}'.format(t_stop - t_start))
         print (out.params)
+#        print (out1.params)
 
+        peaks_alignment_score(out.params, engine, instrument, two_theta, roi_vec_list, True)
     # END-IF-ELSE
 
     return

@@ -459,8 +459,8 @@ class PyHB2BReduction(object):
 
         # convert count type
         vec_counts = counts_array.astype('float64')
-        print ('[INFO] PyRS.Instrument: 2theta range: {}, {}'.format(two_theta_array.min(),
-                                                                     two_theta_array.max()))
+ #       print ('[INFO] PyRS.Instrument: 2theta range: {}, {}'.format(two_theta_array.min(),
+ #                                                                    two_theta_array.max()))
 
         # check inputs of x range
         if x_range:
@@ -479,8 +479,8 @@ class PyHB2BReduction(object):
             masked_counts = raw_counts
             num_masked = 0
         # END-IF-ELSE
-        print ('[INFO] Raw counts = {}, # Masked Pixels = {}, Counts in ROI = {}'
-               ''.format(raw_counts, num_masked, masked_counts))
+#        print ('[INFO] Raw counts = {}, # Masked Pixels = {}, Counts in ROI = {}'
+#               ''.format(raw_counts, num_masked, masked_counts))
 
         # this is histogram data
         use_mantid_histogram = False   # TODO FIXME - Turned on for debugging!
@@ -607,8 +607,8 @@ class PyHB2BReduction(object):
 
         # bins information output
         bin_size_vec = (bin_edges[1:] - bin_edges[:-1])
-        print ('[DB...BAT] Histograms Bins: X = [{}, {}]'.format(bin_edges[0], bin_edges[-1]))
-        print ('[DB...BAT] Bin size = {}, Std = {}'.format(numpy.average(bin_size_vec), numpy.std(bin_size_vec)))
+        #print ('[DB...BAT] Histograms Bins: X = [{}, {}]'.format(bin_edges[0], bin_edges[-1]))
+        #print ('[DB...BAT] Bin size = {}, Std = {}'.format(numpy.average(bin_size_vec), numpy.std(bin_size_vec)))
 
         # convert to point data
         if is_point_data:

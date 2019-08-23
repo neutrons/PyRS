@@ -4,7 +4,8 @@ print ('Prototype Calibration: Quick_Calibration_v4')
 import numpy as np
 import time
 import os
-from scipy.optimize import leastsq
+from scipy.optimize import minimize
+from scipy.optimize import least_squares
 # from scipy.optimize import minimize
 # from scipy.optimize import basinhopping
 import itertools
@@ -18,7 +19,6 @@ from pyrs.core import mask_util
 from mantid.simpleapi import CreateWorkspace, FitPeaks
 from mantid.api import AnalysisDataService as mtd
 from matplotlib import pyplot as plt
-
 
 class GlobalParameter(object):
     global_curr_sequence = 0
@@ -48,7 +48,7 @@ def convert_to_2theta(engine, pyrs_reducer, roi_vec, ws_name):
     return vec_2theta, vec_hist
 
 
-def peaks_alignment_score(x, engine, hb2b_setup, two_theta, roi_vec_set, plot=False):
+def peaks_alignment_score(x, engine, hb2b_setup, two_theta, roi_vec_set, plot=False, ScalarReturn=False):
     """ Cost function for peaks alignment
     :param x:
     :param engine:
@@ -58,8 +58,13 @@ def peaks_alignment_score(x, engine, hb2b_setup, two_theta, roi_vec_set, plot=Fa
     :param plot:
     :return:
     """
-    peak_centers = '17.5,24.5,30.25,35.2,39.4,43.2,53.5'
-    fit_windows = '16,19,23,26,29,32,33,37,38,41,42,44.5,51.5,55'
+
+
+    peak_centers = '17.5,24.5,30.25,35.2,39.4,43.2,50.0,53.5,56.4,59.45'
+    fit_windows = '16,19,23,26,29,32,33,37,38,41,42,44.5,49.1,51.5,51.5,55,55,58,58,61'
+
+    peak_centers = '24.5,30.25,50.0,53.5,56.4,59.45'
+    fit_windows = '23,26,29,32,49.1,51.5,51.5,55,55,58,58,61'
 
     # check
     assert isinstance(roi_vec_set, list), 'must be list'
@@ -70,12 +75,12 @@ def peaks_alignment_score(x, engine, hb2b_setup, two_theta, roi_vec_set, plot=Fa
 
     # convert the input X array (to be refined) to geometry calibration values
     geom_calibration = calibration_file_io.ResidualStressInstrumentCalibration()
-    geom_calibration.center_shift_x = x['center_shift_x'].value
-    geom_calibration.center_shift_y = x['center_shift_y'].value
-    geom_calibration.center_shift_z = x['center_shift_z'].value
-    geom_calibration.rotation_x = x['rotation_x'].value
-    geom_calibration.rotation_y = x['rotation_y'].value
-    geom_calibration.rotation_z = x['rotation_z'].value
+    geom_calibration.center_shift_x = x[0]
+    geom_calibration.center_shift_y = x[1]
+    geom_calibration.center_shift_z = x[2]
+    geom_calibration.rotation_x = x[3]
+    geom_calibration.rotation_y = x[4]
+    geom_calibration.rotation_z = x[5]
 
     # load instrument: as it changes
     pyrs_reducer = reduce_hb2b_pyrs.PyHB2BReduction(hb2b_setup, 1.239)
@@ -133,12 +138,12 @@ def peaks_alignment_score(x, engine, hb2b_setup, two_theta, roi_vec_set, plot=Fa
             neg_pos_i = mtd[r_t_j[2]].readY(0)[p_index]
             if pos_pos_i < 0. and neg_pos_i < 0.:
                 # both failed to fit
-                residual_sq[p_index] = 20 ** 2
+                residual_sq[p_index] = 200 ** 2
             elif pos_pos_i * neg_pos_i < 0.:
                 # 1 failed to fit
-                residual_sq[p_index] = 10 ** 2
+                residual_sq[p_index] = 100 ** 2
             else:
-                residual_sq[p_index] = (pos_pos_i - neg_pos_i) ** 2
+                residual_sq[p_index] = ( (pos_pos_i - neg_pos_i) ** 2 )
         # END-FOR
 
         if residual is None:
@@ -180,7 +185,11 @@ def peaks_alignment_score(x, engine, hb2b_setup, two_theta, roi_vec_set, plot=Fa
     # print ('Fitted Peaks -: {}'.format(mtd[N30_Fit].readY(0)))
     print ('Residual      = {}'.format(norm_cost))
 
-    return residual
+    if ScalarReturn:
+        return np.sum( residual )
+    else:
+        return residual
+
 # This is main!!!
 
 
@@ -235,17 +244,17 @@ def main():
 
         roi_vec_list = [30, -30, 10, -10]
 
-        params = lmfit.Parameters()
-        params.add('center_shift_x', value=start_calibration[0], min=-.1, max=.1)
-        params.add('center_shift_y', value=start_calibration[1], min=-.1, max=.1)
-        params.add('center_shift_z', value=start_calibration[2], min=-.1, max=.1)
-        params.add('rotation_x', value=start_calibration[3], min=-np.pi, max=np.pi)
-        params.add('rotation_y', value=start_calibration[4], min=-np.pi, max=np.pi)
-        params.add('rotation_z', value=start_calibration[5], min=-np.pi, max=np.pi)
+        start_calibration = np.array( [0.00026239, 0.0055485, 0.00048748, 0.00130224, -0.00025911, -0.0006577] )
 
+        #out = minimize(peaks_alignment_score, start_calibration, args=(engine, instrument, two_theta, roi_vec_list, False, True), method='L-BFGS-B', jac=None, bounds=None, tol=None, callback=None, options={'disp': None, 'maxcor': 10, 'ftol': 2.220446049250313e-05, 'gtol': 1e-03, 'eps': 1e-03, 'maxfun': 2, 'maxiter': 2, 'iprint': -1, 'maxls': 20})
+        t_stop1 = time.time()
 
-        out = lmfit.minimize( peaks_alignment_score, params, args=(engine, instrument, two_theta, roi_vec_list, False) )
+        #out2 = minimize(peaks_alignment_score, out.x, args=(engine, instrument, two_theta, roi_vec_list, False, True), method='L-BFGS-B', jac=None, bounds=None, tol=None, callback=None, options={'disp': None, 'maxcor': 10, 'ftol': 2.220446049250313e-09, 'gtol': 1e-05, 'eps': 1e-07, 'maxfun': 2, 'maxiter': 2, 'iprint': -1, 'maxls': 20})
+        t_stop2 = time.time()
 
+        out3 = least_squares(peaks_alignment_score, start_calibration, jac='2-point', bounds=([-.1, -.1, -.1, -np.pi, -np.pi, -np.pi], [.1, .1, .1, np.pi, np.pi, np.pi]), method='trf', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', f_scale=1.0, diff_step=None, tr_solver=None, tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0, args=(engine, instrument, two_theta, roi_vec_list, False, False), kwargs={})
+
+#        out3 = least_squares(peaks_alignment_score, out2.x, jac='2-point', bounds=([-.1, -.1, -.1, -np.pi, -np.pi, -np.pi], [.1, .1, .1, np.pi, np.pi, np.pi]), method='trf', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', f_scale=1.0, diff_step=None, tr_solver=None, tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0, args=(engine, instrument, two_theta, roi_vec_list, False, False), kwargs={})
 
 #        # optimize
 #        GlobalParameter.global_curr_sequence = 0  # reset output
@@ -254,9 +263,12 @@ def main():
 #                         xtol=1e-15, ftol=1e-12, gtol=1e-12, maxfev=30000, epsfcn=1e-2)
 
         t_stop = time.time()
+        print ('Global Refine: {}'.format(t_stop1 - t_start))
+        print ('Local Refine: {}'.format(t_stop2 - t_start))
         print ('Total Time: {}'.format(t_stop - t_start))
-        print (out.params)
+        print (out3.x)
 
+        peaks_alignment_score(out3.x, engine, instrument, two_theta, roi_vec_list, True, True)
 
         # DE_Res = leastsq(MinDifference, [-1], xtol=1e-15, maxfev=3000)
     # END-IF-ELSE
