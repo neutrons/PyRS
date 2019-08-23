@@ -9,31 +9,25 @@ from mantid.api import AnalysisDataService
 from mantid.simpleapi import CreateWorkspace, FitPeaks
 
 
-# TODO #79 - #74 - Clean and move on!
 class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
     """
     peak fitting engine class for mantid
     """
     def __init__(self, workspace, sub_run_list, mask_name):
         """ Initialization to set up the workspace for fitting
+        :param workspace: Hidra workspace to get the diffraction peaks from
         :param sub_run_list: list of sun runs
-        :param data_set_list: list of data set
-        :param ref_id: reference ID
-        :param
+        :param mask_name: Mask acting on the detector (i.e., referring to a specific set of diffraction data)
         """
-        # Original:         :  sub_run_list, data_set_list, ref_id):
-
         # call parent
         super(MantidPeakFitEngine, self).__init__(workspace, sub_run_list, mask_name)
 
-        # Create Mantid workspace
-        self._mantid_workspace = mantid_helper.generate_mantid_workspace(workspace, mask_name)  # generate a workspace with all sub runs!!!
-        self._workspace_name = self._mantid_workspace.name()
+        # sub-run, Mantid workspace index dictionary
+        # self._ws_index_sub_run_dict = dict()
 
-        # # related to Mantid workspaces
-        # self._workspace_name = self._get_matrix_name(ref_id)
-        # self._ws_index_sub_run_dict = None
-        # self.generate_matrix_workspace(data_set_list, matrix_ws_name=self._workspace_name)
+        # Create Mantid workspace: generate a workspace with all sub runs!!!
+        self._mantid_workspace = mantid_helper.generate_mantid_workspace(workspace, mask_name)
+        self._workspace_name = self._mantid_workspace.name()
 
         # some observed properties
         self._center_of_mass_ws_name = None
@@ -47,18 +41,8 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
         return
 
-    @staticmethod
-    def _get_matrix_name(ref_id):
-        """
-        get the matrix workspace name hinted by a reference ID
-        :param ref_id:
-        :return:
-        """
-        return '{0}_workspace'.format(ref_id)
-
     def calculate_center_of_mass(self):
-        """
-        calculate center of mass of peaks in the workspace as class variable
+        """ calculate center of mass of peaks in the Mantid MatrixWorkspace as class variable
         and highest data point
         :return:
         """
@@ -94,10 +78,10 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         return
 
     def calculate_peak_position_d(self, wave_length_vec):
-        """
+        """ Calculate peak positions in d-spacing
         :return:
         """
-        # TODO/FIXME - TONIGHT 0 - Must have a better way than try and guess
+        # TODO/FIXME - #80+ - Must have a better way than try and guess
         try:
             r = self.get_fitted_params(param_name_list=['PeakCentre'], including_error=True)
         except KeyError:
@@ -214,25 +198,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
         # Save all the workspaces automatically for further review
         if False:
-            # debug mode is disabled
-            # find the directory for file
-            dir_name = scandataio.get_temp_directory()
-            print ('[DEBUG-INFO] Mantid fit debugging data files will be written to {0}'.format(dir_name))
-
-            # workspace for data
-            base_name = self._reference_id.replace('.', '_') + '_' + peak_function_name
-            raw_file_name = os.path.join(dir_name, '{0}_data.nxs'.format(base_name))
-            scandataio.save_mantid_nexus(self._workspace_name, raw_file_name,
-                                         title='raw data for {0}'.format(self._reference_id))
-
-            # peak window workspace
-            fit_window_name = os.path.join(dir_name, '{0}_fit_window.nxs'.format(base_name))
-            scandataio.save_mantid_nexus(peak_window_ws_name, fit_window_name, title='Peak fit window workspace')
-
-            # peak center workspace
-            peak_center_file_name = os.path.join(dir_name, '{0}_peak_center.nxs'.format(base_name))
-            scandataio.save_mantid_nexus(self._center_of_mass_ws_name, peak_center_file_name,
-                                         title='Peak center (center of mass) workspace')
+            mantid_helper.study_mantid_peak_fitting()
         # END-IF-DEBUG (True)
 
         # process output
@@ -243,40 +209,41 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
         return
 
-    def generate_matrix_workspace(self, data_set_list, matrix_ws_name):
-        """
-        convert data set of all scans to a multiple-spectra Mantid MatrixWorkspace
-        :param data_set_list:
-        :param matrix_ws_name
-        :return:
-        """
-        # check input
-        checkdatatypes.check_list('Data set list', data_set_list)
-        checkdatatypes.check_string_variable('MatrixWorkspace name', matrix_ws_name)
-
-        # convert input data set to list of vector X and vector Y
-        self._ws_index_sub_run_dict = dict()
-        vec_x_list = list()
-        vec_y_list = list()
-        for index in range(len(data_set_list)):
-            # get data
-            diff_data = data_set_list[index]
-            vec_x = diff_data[0]
-            vec_y = diff_data[1]
-            # append
-            vec_x_list.append(vec_x)
-            vec_y_list.append(vec_y)
-            # update ws-index to sub run map
-            self._ws_index_sub_run_dict[index] = self._sub_run_list[index]  # maybe redundant
-        # END-FOR
-
-        # create MatrixWorkspace
-        datax = np.concatenate(vec_x_list, axis=0)
-        datay = np.concatenate(vec_y_list, axis=0)
-        ws_full = CreateWorkspace(DataX=datax, DataY=datay, NSpec=len(vec_x_list),
-                                  OutputWorkspace=matrix_ws_name)
-
-        return ws_full
+    # def generate_matrix_workspace(self, data_set_list, matrix_ws_name):
+    #     """ Convert data set of all scans to a multiple-spectra Mantid MatrixWorkspace
+    #     :param data_set_list:
+    #     :param matrix_ws_name
+    #     :return:
+    #     """
+    #     # check input
+    #     checkdatatypes.check_list('Data set list', data_set_list)
+    #     checkdatatypes.check_string_variable('MatrixWorkspace name', matrix_ws_name)
+    #
+    #     # make ws-index sub-run map get ready
+    #     self._ws_index_sub_run_dict.clear()
+    #
+    #     # convert input data set to list of vector X and vector Y
+    #     vec_x_list = list()
+    #     vec_y_list = list()
+    #     for index in range(len(data_set_list)):
+    #         # get data
+    #         diff_data = data_set_list[index]
+    #         vec_x = diff_data[0]
+    #         vec_y = diff_data[1]
+    #         # append
+    #         vec_x_list.append(vec_x)
+    #         vec_y_list.append(vec_y)
+    #         # update ws-index to sub run map
+    #         self._ws_index_sub_run_dict[index] = self._sub_run_list[index]  # maybe redundant
+    #     # END-FOR
+    #
+    #     # create MatrixWorkspace
+    #     datax = np.concatenate(vec_x_list, axis=0)
+    #     datay = np.concatenate(vec_y_list, axis=0)
+    #     ws_full = CreateWorkspace(DataX=datax, DataY=datay, NSpec=len(vec_x_list),
+    #                               OutputWorkspace=matrix_ws_name)
+    #
+    #     return ws_full
 
     def get_observed_peaks_centers(self):
         """
@@ -368,23 +335,50 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         return self._workspace_name
 
     def _get_fitted_parameters_value(self, spec_index_vec, param_name_list, param_value_array):
-        # TODO - #80 NOWNOW ASAP - Implement
-        # HINT:
-        #  m3 = np.concatenate((v1, v2), axis=0) : automatically changed to float64
-        #  m5 = m3.reshape(2, 10)
-        #  sort_index = np.argsort(m5)[0]
-        #  m6 = m5[:, sort_index]
+        """
+        Get fitted peak parameters' value
+        :param spec_index_vec:
+        :param param_name_list:
+        :param param_value_array:
+        :return:
+        """
+        # table column names
+        col_names = self._fitted_function_param_table.getColumnNames()
+
+        # get fitted parameter value
+        for out_index, param_name in enumerate(param_name_list):
+            # get value from column
+            param_col_index = col_names.index(param_name)
+            param_vec = self._fitted_function_param_table.column(param_col_index)
+            # set value
+            param_value_array[:, out_index] = param_vec
+        # END-FOR
+
         return
 
     def get_fit_cost(self, max_chi2):
-        """
-
+        """ Get the peak function cost
         :param max_chi2:
         :return:
         """
-        # TODO - #80 NOW NOW - ASAP - Implement
+        # Get chi2 column
+        col_names = self._fitted_function_param_table.getColumnNames()
+        chi2_col_index = col_names.index('chi2')
 
-        return np.arange(5), np.zeros((5, ))
+        # TODO FIXME TEST - #80 - does this work?
+        chi2_vec = self._fitted_function_param_table.column(chi2_col_index)
+
+        # Filter out the sub runs/spectra with large chi^2
+        if max_chi2 is not None and max_chi2 < 1.E20:
+            # selected
+            good_fit_indexes = np.where(chi2_vec < max_chi2)
+            chi2_vec = chi2_vec[good_fit_indexes]
+            spec_vec = good_fit_indexes[0]
+        else:
+            # all
+            spec_vec = np.arange(chi2_vec.shape[0])
+
+        return spec_vec, chi2_vec
 
     def get_fitted_params_x(self, param_name_list, including_error, max_chi2=1.E20):
         """ Get specified parameters' fitted value and optionally error with optionally filtered value

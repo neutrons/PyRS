@@ -3,7 +3,6 @@ import numpy
 import os
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities import rs_project_file
-from pyrs.core import instrument_geometry
 
 
 # TODO - #80 - Overall quality

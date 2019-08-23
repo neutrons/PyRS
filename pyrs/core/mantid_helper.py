@@ -72,6 +72,32 @@ def retrieve_workspace(ws_name, throw=True):
     return mtd.retrieve(ws_name)
 
 
+def study_mantid_peak_fitting():
+    """
+    Save the workspaces used or output from Mantid FitPeaks
+    :return:
+    """
+    # debug mode is disabled
+    # find the directory for file
+    dir_name = scandataio.get_temp_directory()
+    print ('[DEBUG-INFO] Mantid fit debugging data files will be written to {0}'.format(dir_name))
+
+    # workspace for data
+    base_name = self._reference_id.replace('.', '_') + '_' + peak_function_name
+    raw_file_name = os.path.join(dir_name, '{0}_data.nxs'.format(base_name))
+    scandataio.save_mantid_nexus(self._workspace_name, raw_file_name,
+                                 title='raw data for {0}'.format(self._reference_id))
+
+    # peak window workspace
+    fit_window_name = os.path.join(dir_name, '{0}_fit_window.nxs'.format(base_name))
+    scandataio.save_mantid_nexus(peak_window_ws_name, fit_window_name, title='Peak fit window workspace')
+
+    # peak center workspace
+    peak_center_file_name = os.path.join(dir_name, '{0}_peak_center.nxs'.format(base_name))
+    scandataio.save_mantid_nexus(self._center_of_mass_ws_name, peak_center_file_name,
+                                 title='Peak center (center of mass) workspace')
+
+
 def workspace_exists(ws_name):
     """
     check whether a workspace exists or not
