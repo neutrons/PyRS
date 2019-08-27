@@ -75,12 +75,12 @@ class HB2BReductionManager(object):
         :param session_name:
         :param sub_run:
         :param mask_id:
-        :return:
+        :return: 2-vectors: 2theta and intensity
         """
         checkdatatypes.check_string_variable('Session name', session_name, self._session_dict.keys())
         workspace = self._session_dict[session_name]
 
-        data_set = workspace.get_diffraction_intensity_vector(sub_run, mask_id)
+        data_set = workspace.get_reduced_diffraction_data(sub_run, mask_id)
 
         return data_set
 

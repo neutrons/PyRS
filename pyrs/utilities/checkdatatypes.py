@@ -240,7 +240,7 @@ def check_sequence(var_name, variable, allowed_type=None, size=None):
     return
 
 
-def check_string_variable(var_name, variable, allowed_values=None):
+def check_string_variable(var_name, variable, allowed_values=None, allow_empty=True):
     """
     check whether an input variable is a float
     :except AssertionError:
@@ -248,13 +248,16 @@ def check_string_variable(var_name, variable, allowed_values=None):
     :param var_name:
     :param variable:
     :param allowed_values: list of strings
+    :param allow_empty: Flag to allow empty string
     :return:
     """
     assert isinstance(var_name, str), 'Variable name {0} must be a string but not a {1}'\
         .format(var_name, type(var_name))
 
-    assert isinstance(variable, str), '{0} {1} must be a string but not a {2}'\
-        .format(var_name, variable, type(variable))
+    assert isinstance(variable, str) or isinstance(variable, unicode), '{0} {1} must be a string or unicode' \
+                                                                       'but not a {2}' \
+                                                                       ''.format(var_name, variable,
+                                                                                 type(variable))
 
     if isinstance(allowed_values, list):
         if variable not in allowed_values:
@@ -268,6 +271,10 @@ def check_string_variable(var_name, variable, allowed_values=None):
     elif allowed_values is not None:
         raise RuntimeError('Allowed values {} must be given in a list but not a {}'
                            ''.format(allowed_values, type(allowed_values)))
+
+    # Not allow empty
+    if not allow_empty and len(variable) == 0:
+        raise RuntimeError('Variable "{}" is not allowed to be an empty string'.format(var_name))
 
     return
 

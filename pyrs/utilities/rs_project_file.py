@@ -158,7 +158,7 @@ class HydraProjectFile(object):
         File name on HDD
         :return:
         """
-        return self._project_h5
+        return self._project_h5.name
 
     def add_raw_counts(self, sub_run_number, counts_array):
         """ add raw detector counts collected in a single scan/Pt
@@ -249,7 +249,10 @@ class HydraProjectFile(object):
         Get the list of masks
         :return:
         """
-        return self._project_h5[HidraConstants.REDUCED_DATA].keys()
+        masks = self._project_h5[HidraConstants.REDUCED_DATA].keys()
+        masks.remove('2Theta')
+
+        return masks
 
     def get_instrument_geometry(self):
         """

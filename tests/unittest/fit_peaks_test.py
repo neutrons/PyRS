@@ -33,7 +33,7 @@ class PeakFittingTest(object):
         Fit pseudo-voigt peaks
         :return:
         """
-        peak_info_dict = {'Fe111': {'Center', [84.], 'Range', [70., 95]}}
+        peak_info_dict = {'Fe111': {'Center': 84., 'Range': [70., 95]}}
 
         # Fit peaks
         self._reduction_controller.fit_peaks(self._project_name, sub_run_list=None,
@@ -46,7 +46,7 @@ class PeakFittingTest(object):
         """ Test fitting with Gaussian
         :return:
         """
-        peak_info_dict = {'Fe111': {'Center', [84.], 'Range', [70., 95]}}
+        peak_info_dict = {'Fe111': {'Center', 84., 'Range', [70., 95]}}
 
         # Fit peaks
         self._reduction_controller.fit_peaks(self._project_name, sub_run_list=None,

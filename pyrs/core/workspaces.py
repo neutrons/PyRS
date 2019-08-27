@@ -189,6 +189,20 @@ class HidraWorkspace(object):
 
         return sub_runs
 
+    def get_wave_length(self, calibrated):
+        """
+
+        :return:
+        """
+        # TODO - #80 NOW - Implement
+
+        d = dict()
+        sub_runs = sorted(self._sub_run_to_spectrum.keys())
+        for s in sub_runs:
+            d[s] = 1.079
+
+        return d
+
     def load_hidra_project(self, hidra_file, load_raw_counts, load_reduced_diffraction):
         """
         Load HIDRA project file
@@ -199,7 +213,7 @@ class HidraWorkspace(object):
         """
         # Check input
         checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
-        self._project_file_name = hidra_file.name()
+        self._project_file_name = hidra_file.name
 
         # create the spectrum map
         sub_run_list = hidra_file.get_sub_runs()

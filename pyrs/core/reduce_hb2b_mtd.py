@@ -226,15 +226,15 @@ class MantidHB2BReduction(object):
             t1 = time.time()
 
             # Sort X-axis
-            SortXAxis(InputWorkspace='prototype', OutputWorkspace='prot_sorted', Ordering='Ascending',
-                      IgnoreHistogramValidation=True)
+            SortXAxis(InputWorkspace='prototype', OutputWorkspace='prototype_sorted', Ordering='Ascending')
 
             t2 = time.time()
 
             # Resample
-            binned = ResampleX(InputWorkspace='prot_sorted', OutputWorkspace=theta_ws.name(), XMin=two_theta_min,
-                      XMax=two_theta_max,
-                      NumberBins=num_bins, EnableLogging=False)
+            binned = ResampleX(InputWorkspace='prototype_sorted', OutputWorkspace=theta_ws.name(),
+                               XMin=two_theta_min,
+                               XMax=two_theta_max,
+                               NumberBins=num_bins, EnableLogging=False)
 
             t3 = time.time()
 

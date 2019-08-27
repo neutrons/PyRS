@@ -13,14 +13,13 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
     """
     peak fitting engine class for mantid
     """
-    def __init__(self, workspace, sub_run_list, mask_name):
+    def __init__(self, workspace, mask_name):
         """ Initialization to set up the workspace for fitting
         :param workspace: Hidra workspace to get the diffraction peaks from
-        :param sub_run_list: list of sun runs
         :param mask_name: Mask acting on the detector (i.e., referring to a specific set of diffraction data)
         """
         # call parent
-        super(MantidPeakFitEngine, self).__init__(workspace, sub_run_list, mask_name)
+        super(MantidPeakFitEngine, self).__init__(workspace, mask_name)
 
         # sub-run, Mantid workspace index dictionary
         # self._ws_index_sub_run_dict = dict()
@@ -82,7 +81,8 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         :param peak_center: float or numpy array
         :return:
         """
-        num_spectra = mantid_helper.retrieve_workspace(self._mantid_workspace_name)
+        mtd_ws = mantid_helper.retrieve_workspace(self._mantid_workspace_name)
+        num_spectra = mtd_ws.getNumberHistograms()
 
         if isinstance(peak_center, float):
             peak_center_array = np.zeros(shape=(num_spectra,), dtype='float')
@@ -93,7 +93,8 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
                 raise RuntimeError('Peak center (array) must be a ndarray with shape ({}, ) '
                                    'but not {}'.format(num_spectra, peak_center_array.shape))
         else:
-            raise NotImplementedError('Impossible situation')
+            raise NotImplementedError('Impossible situation: Peak center is specified as {} in type {}'
+                                      ''.format(peak_center, type(peak_center)))
 
         # Create workspace
         peak_center_ws_name = 'Input_Center_{}'.format(self._mantid_workspace_name)
@@ -103,7 +104,8 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
         return center_ws
 
-    def fit_peaks(self, peak_function_name, background_function_name, peak_center, peak_range, wave_length_array):
+    def fit_peaks(self, sub_run_range, peak_function_name, background_function_name, peak_center, peak_range,
+                  cal_center_d):
         """ Fit peaks with option to calculate peak center in d-spacing
         :param peak_function_name:
         :param background_function_name:
@@ -117,7 +119,10 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
                                              ['Gaussian', 'Voigt', 'PseudoVoigt', 'Lorentzian'])
         checkdatatypes.check_string_variable('Background function name', background_function_name,
                                              ['Linear', 'Flat', 'Quadratic'])
-        checkdatatypes.check_tuple('Peak range', peak_range, 2)
+        # checkdatatypes.check_tuple('Peak range', peak_range, 2) # TODO - #81 NOW - A new check for series: tuple, array, list, ...
+
+        self._fit_peaks_checks(sub_run_range, peak_function_name, background_function_name, peak_center, peak_range,
+                               cal_center_d)
 
         # Get workspace and gather some information
         mantid_ws = mantid_helper.retrieve_workspace(self._mantid_workspace_name, True)
@@ -134,13 +139,13 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
                         NSpec=num_spectra, OutputWorkspace=peak_window_ws_name)
 
         # Create peak center workspace
-        if isinstance(peak_center, float) or isinstance(peak_center, np.ndarray):
+        if isinstance(peak_center, float) or isinstance(peak_center, np.ndarray) or isinstance(peak_center, list):
             # single value float or numpy array
             peak_center_ws = self._create_peak_center_ws(peak_center)
         elif isinstance(peak_center, str):
             # workspace name
             peak_center_ws = mantid_helper.retrieve_workspace(peak_center, True)
-        elif mantid_helper.is_matrix_workspace(peak_center):
+        elif mantid_helper.is_matrix_workspace(peak_center):  # TODO - #81 NOW - Implement!
             # already a workspace
             peak_center_ws = peak_center
             assert peak_center_ws.getNumberHistograms() == num_spectra
@@ -167,6 +172,8 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
         # Get peak center workspace
         self.calculate_center_of_mass()
+
+        # TODO - #81 NOW - need to convert sub_run_range to start_spectrum and end_sepctrum
 
         # Fit peak by Mantid.FitPeaks
         r = FitPeaks(InputWorkspace=self._mantid_workspace_name,
@@ -526,3 +533,16 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
             workspace = None
 
         return workspace
+
+    def set_wavelength(self, wavelengths):
+        """
+
+        :param wavelengths:
+        :return:
+        """
+        super(MantidPeakFitEngine, self).set_wavelength(wavelengths)
+
+        # TODO - #80 NOW - Set to an array
+        self._wavelength_vec = np.array([1.071]*1000)
+
+        return

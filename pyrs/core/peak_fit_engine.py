@@ -16,20 +16,17 @@ class PeakFitEngine(object):
     """
     Virtual peak fit engine
     """
-    def __init__(self, workspace, sub_run_list, mask_name):
+    def __init__(self, workspace, mask_name):
         """
         initialization
-        :param data_set_list:
-        :param ref_id:
+        :param workspace: HidraWorksapce containing the diffraction data
+        :param mask_name: name of mask ID (or main/None) for reduced diffraction data
         """
         # check
         checkdatatypes.check_type('Diffraction workspace', workspace, workspaces.HidraWorkspace)
-        checkdatatypes.check_list('Sun runs', sub_run_list)
 
         # for scipy: keep the numpy array will be good enough
-        # self._data_set = data_set_list
         self._workspace = workspace
-        self._sub_run_list = sub_run_list
         self._mask_name = mask_name
 
         # for fitted result
@@ -94,16 +91,23 @@ class PeakFitEngine(object):
 
         return
 
-    def fit_peaks(self, peak_function_name, background_function_name, peak_center, peak_range, wave_length_array):
+    def fit_peaks(self, sub_run_range, peak_function_name, background_function_name, peak_center, peak_range,
+                  cal_center_d):
         """ Fit peaks with option to calculate peak center in d-spacing
+        :param sub_run_range: range of sub runs (including both end) to refine
         :param peak_function_name:
         :param background_function_name:
         :param peak_center:
         :param peak_range:
-        :param wave_length_array:
+        :param cal_center_d:
         :return:
         """
         raise NotImplementedError('Virtual base class member method fit_peaks()')
+
+    @staticmethod
+    def _fit_peaks_checks(sub_run_range, peak_function_name, background_function_name, peak_center, peak_range,
+                          cal_center_d):
+        return
 
     def get_calculated_peak(self, scan_log_index):
         """
@@ -185,6 +189,17 @@ class PeakFitEngine(object):
                                    ''.format(peak_function, NATIVE_PEAK_PARAMETERS.keys(), key_err))
 
         return param_names
+
+    def set_wavelength(self, wavelengths):
+        """
+
+        :param wavelengths:
+        :return:
+        """
+        # TODO - #80 NOW - Implement
+        self._wavelength_dict = wavelengths
+
+        return
 
     def write_result(self):
         """
