@@ -80,7 +80,7 @@ class HB2BReductionManager(object):
         checkdatatypes.check_string_variable('Session name', session_name, self._session_dict.keys())
         workspace = self._session_dict[session_name]
 
-        data_set = workspace.get_reduced_diffraction_data(sub_run, mask_id)
+        data_set = workspace.get_diffraction_intensity_vector(sub_run, mask_id)
 
         return data_set
 
@@ -121,10 +121,16 @@ class HB2BReductionManager(object):
 
     def get_hidra_workspace(self, session_name):
         """ Get the HIDRA workspace
-        :param session_name:
-        :return:
+        :param session_name: string as the session/workspace name
+        :return: HidraWorkspace instance
         """
         checkdatatypes.check_string_variable('Session name', session_name, self._session_dict.keys())
+
+        # Check availability
+        if session_name not in self._session_dict:
+            raise RuntimeError('Session/HidraWorkspace {} does not exist. Available sessions/workspaces are {}'
+                               ''.format(session_name, self._session_dict.keys()))
+
         workspace = self._session_dict[session_name]
 
         return workspace
@@ -234,7 +240,7 @@ class HB2BReductionManager(object):
         :param geometry_calibration:
         :return:
         """
-        # TODO FIXME - NEXT - Still not sure how to apply!
+        # TODO FIXME - #81 NOWNOW - Still not sure how to apply!
         checkdatatypes.check_type('Geometry calibration', geometry_calibration,
                                   instrument_geometry.AnglerCameraDetectorShift)
 

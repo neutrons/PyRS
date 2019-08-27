@@ -136,7 +136,7 @@ def main():
     # add sample log data & sub runs
     for log_name in [rs_project_file.HidraConstants.SUB_RUNS, rs_project_file.HidraConstants.TWO_THETA,
                      'Monitor', 'L2']:
-        project_file.add_experiment_information(log_name, exp_logs_dict[log_name])
+        project_file.add_experiment_log(log_name, exp_logs_dict[log_name])
     # END-FOR
     # project_file.add_experiment_information('sub-run', sub_run_list)
 

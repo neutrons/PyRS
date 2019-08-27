@@ -6,6 +6,7 @@ from pyrs.core import pyrscore
 from pyrs.core import instrument_geometry
 from pyrs.utilities import script_helper
 from matplotlib import pyplot as plt
+from pyrs.utilities import rs_project_file
 
 
 class PeakFittingTest(object):
@@ -32,12 +33,49 @@ class PeakFittingTest(object):
         Fit pseudo-voigt peaks
         :return:
         """
+        peak_info_dict = {'Fe111': {'Center', [84.], 'Range', [70., 95]}}
+
         # Fit peaks
         self._reduction_controller.fit_peaks(self._project_name, sub_run_list=None,
                                              peak_type='PseudoVoigt', background_type='Linear',
-                                             fit_range=(70., 95.))
+                                             peaks_fitting_setup=peak_info_dict)
 
         return
+
+    def fit_gaussian(self):
+        """ Test fitting with Gaussian
+        :return:
+        """
+        peak_info_dict = {'Fe111': {'Center', [84.], 'Range', [70., 95]}}
+
+        # Fit peaks
+        self._reduction_controller.fit_peaks(self._project_name, sub_run_list=None,
+                                             peak_type='Gaussian', background_type='Linear',
+                                             peaks_fitting_setup=peak_info_dict)
+
+        return
+
+    def show_fit_result(self):
+        """ Get the fit results and plot
+        :return:
+        """
+        peak_params_dict = self._reduction_controller.get_peak_fitting_result(self._project_name,
+                                                                              format=dict,
+                                                                              effective_parameter=False)
+
+        peak_params_matrix = self._reduction_controller.get_peak_fitting_result(self._project_name,
+                                                                                format=numpy.ndarray,
+                                                                                effective_parameter=True)
+
+        # Print parameters
+        print ('sub-run = {}, peak width = {}'.format(3, peak_params_dict[3]['PeakWidth']))
+
+        # Plot peak width
+        sub_run_vec = peak_params_matrix[rs_project_file.HidraConstants.SUB_RUNS]
+        peak_width = peak_params_matrix[rs_project_file.HidraConstants.FWHM]
+        plt.plot(sub_run_vec, peak_width, color='red', label='FWHM')
+
+        plt.show()
 
     def save_fit_result(self, out_file_name, peak_tag):
 

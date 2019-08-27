@@ -1,6 +1,5 @@
 # Data manager
 import numpy
-import os
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities import rs_project_file
 
@@ -19,6 +18,7 @@ class HidraWorkspace(object):
         """
         initialization
         """
+        # workspace name
         self._name = name
 
         # raw counts
@@ -39,18 +39,23 @@ class HidraWorkspace(object):
         # sample logs
         self._sample_log_dict = dict()  # sample logs
 
-        # self._data_dict = dict()  # key = data key, data = data class
-        # self._file_ref_dict = dict()  # key = file name, value = data key / reference ID
+        # raw Hidra project file
+        self._project_file_name = None
 
         return
 
     @property
     def name(self):
+        """
+        Workspace name
+        :return:
+        """
         return self._name
 
     def _create_subrun_spectrum_map(self, sub_run_list):
         """
-        Set up the sub-run/spectrum maps
+        Set up the sub-run/spectrum maps: This is the only place in this code to write to _sub_run_to_spectrum
+        and _spectrum_to_sub_run
         :param sub_run_list:
         :return:
         """
@@ -59,12 +64,9 @@ class HidraWorkspace(object):
         self._spectrum_to_sub_run = dict()
 
         # besides the dictionaries are created
-        print ('[DB....BAT] L214: sub runs:', sub_run_list)
         for spec_id, sub_run in enumerate(sorted(sub_run_list)):
             self._sub_run_to_spectrum[sub_run] = spec_id
             self._spectrum_to_sub_run[spec_id] = sub_run
-
-        print ('[DB...BAT] ', self._sub_run_to_spectrum, self._spectrum_to_sub_run)
 
         return
 
@@ -82,42 +84,39 @@ class HidraWorkspace(object):
 
         return
 
-    # TODO FIXME - NOW TONIGHT - Fix this!!! or combine with other methods
     def _load_reduced_diffraction_data(self, hidra_file):
-        """
-        Load reduced diffraction data from HIDRA file
-        :param hidra_file:
+        """ Load reduced diffraction data from HIDRA file
+        :param hidra_file: HidraProjectFile instance
         :return:
         """
-        # TODO #79 - #74 - Clean the whole method!!!
+        # Check inputs
         checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
 
-        # get X value
-        vec_2theta = hidra_file.get_diffraction_2theta_vector()  # TODO - DONE - #74,65 - Not implemented
+        # get 2theta value
+        vec_2theta = hidra_file.get_diffraction_2theta_vector()
         self._2theta_vec = vec_2theta[:]
 
         # initialize data set for reduced diffraction patterns
         num_spec = len(hidra_file.get_sub_runs())
-        self._diff_data_set[None] = numpy.ndarray(shape=(num_spec, vec_2theta.shape[0]), dtype='float')
-
-        # check whether there is diffraction data reduced with mask
-        diff_mask_list = hidra_file.get_reduced_data_masks()
+        diff_mask_list = hidra_file.get_diffraction_masks()
+        print ('[DB...BAT...TEST#81] Masks of diffraction data in HidraProjectFile: {}'.format(diff_mask_list))
         for mask_name in diff_mask_list:
-            # init masks
-            # TODO FIXME - TONIGHT - #80 - define it: _diff_data_mask_set
-            self._diff_data_set[mask_name] = numpy.ndarray(shape=self._diff_data_set.shape,
-                                                           dtype=self._diff_data_set.dtype)
+            if mask_name == 'main':
+                mask_name = None
+            self._diff_data_set[mask_name] = numpy.ndarray(shape=(num_spec, vec_2theta.shape[0]), dtype='float')
         # END-FOR
 
-        # Load data: main
-        self._diff_data_set[None] = hidra_file.get_reduced_diffraction_data(mask_id=None, sub_run=None)
-        print ('[DB...BAT...CHECKPOINT2] self._diff_data_set.shape = {}'.format(self._diff_data_set[None].shape))
-
-        # Load data: with masks / ROI
+        # Load data: all including masks / ROI
         for mask_name in diff_mask_list:
-            diff_mask_vec = hidra_file.get_reduced_diffraction_data(mask_id=mask_name, sub_run=None)
-            self._diff_data_set[mask_name] = diff_mask_vec
+            # force to None
+            if mask_name == 'main':
+                mask_name = None
+            self._diff_data_set[mask_name] = hidra_file.get_diffraction_intensity_vector(mask_id=mask_name,
+                                                                                         sub_run=None)
         # END-FOR (mask)
+
+        print ('[INFO] Loaded diffraction data from {} includes : {}'
+               ''.format(self._project_file_name, self._diff_data_set.keys()))
 
         return
 
@@ -136,8 +135,7 @@ class HidraWorkspace(object):
         return
 
     def _load_sample_logs(self, hidra_file):
-        """
-
+        """ Load sample logs
         :param hidra_file:
         :return:
         """
@@ -199,7 +197,9 @@ class HidraWorkspace(object):
         :param load_reduced_diffraction: Flag to load reduced diffraction data
         :return:
         """
+        # Check input
         checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
+        self._project_file_name = hidra_file.name()
 
         # create the spectrum map
         sub_run_list = hidra_file.get_sub_runs()
@@ -233,7 +233,7 @@ class HidraWorkspace(object):
         """
         # Check
         if mask_id is None:
-            # mask_id = 'main'
+            # mask_id is 'main'
             pass
         else:
             checkdatatypes.check_string_variable('Mask ID', mask_id)
@@ -247,9 +247,6 @@ class HidraWorkspace(object):
             raise RuntimeError('Mask ID {} does not exist in reduced diffraction pattern. '
                                'The available masks are {}'
                                ''.format(mask_id, self._diff_data_set.keys()))
-
-        print ('[DB...BAT...CHECKPOINT3A] self._diff_data_set.shape: {}'.format( self._diff_data_set[mask_id].shape))
-        print ('[DB...BAT...CHECKPOINT3B] Intensity matrix shape: {}'.format(intensity_matrix.shape))
 
         return vec_2theta, intensity_matrix
 
@@ -319,36 +316,35 @@ class HidraWorkspace(object):
 
         return sub_run in self._raw_counts
 
-    # TODO FIXME - NOW TONIGHT #72 - Make it work!
-    def has_sample_log(self, data_reference_id, sample_log_name):
+    def has_sample_log(self, sample_log_name):
         """
-        check whether a certain sample log exists in a loaded data file
-        :param data_reference_id:
+        check whether a certain sample log exists in the workspace (very likely loaded from file)
         :param sample_log_name:
         :return:
         """
-        self._check_data_key(data_reference_id)
+        # Check inputs
+        checkdatatypes.check_string_variable('Sample log name', sample_log_name)
 
-        # separate main key and sub key
-        if isinstance(data_reference_id, tuple):
-            main_key = data_reference_id[0]
-            sub_key = data_reference_id[1]
-            has_log = sample_log_name in self._data_dict[main_key][sub_key].sample_log_names
-        else:
-            main_key = data_reference_id
-            has_log = sample_log_name in self._data_dict[main_key].sample_log_names
+        has_log = sample_log_name in self._sample_log_dict
 
         return has_log
 
     def set_reduced_diffraction_data(self, sub_run, mask_id, bin_edges, hist):
-        """ Set reduced diffraction data
+        """ Set reduced diffraction data to workspace
         :param sub_run:
         :param mask_id: None (no mask) or String (with mask indexed by this string)
         :param bin_edges:
         :param hist:
         :return:
         """
-        # TODO - TONIGHT NOW - Check & Doc
+        # Check inputs
+        checkdatatypes.check_int_variable('Sub run number', sub_run, (1, None))
+        if mask_id is not None:
+            checkdatatypes.check_string_variable('Mask ID', mask_id)
+            print ('L667: Mask ID: "{}"'.format(mask_id))
+
+        # check status
+
         # Set 2-theta (X)
         if self._2theta_vec is None:
             # First time set up
@@ -362,7 +358,6 @@ class HidraWorkspace(object):
         # END-IF-ELSE
 
         # Initialize Y with mask
-        print ('L667: Mask ID: "{}"'.format(mask_id))
 
         if mask_id not in self._diff_data_set:
             num_sub_runs = len(self._sub_run_to_spectrum)

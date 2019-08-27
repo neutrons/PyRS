@@ -1,10 +1,8 @@
 # This is the core of PyRS serving as the controller of PyRS and hub for all the data
 from pyrs.utilities import checkdatatypes
 from pyrs.core import instrument_geometry
-# from pyrs.utilities import rs_scan_io
 from pyrs.utilities import file_util
-from pyrs.utilities import rs_project_file
-from pyrs.core import mask_util
+from pyrs.core import peak_fit_factory
 import mantid_fit_peak
 import strain_stress_calculator
 import reduction_manager
@@ -38,6 +36,7 @@ class PyRsCore(object):
         self._last_optimizer = None  # None or RsPeakFitEngine/MantidPeakFitEngine instance
 
         # container for optimizers
+        self._peak_fit_controller = None
         self._optimizer_dict = dict()
 
         # pole figure calculation
@@ -252,18 +251,20 @@ class PyRsCore(object):
 
         return data_key, sub_key
 
-    # TODO - #80 - QA
-    def fit_peaks(self, session_name, sub_run_list, peak_type, background_type, fit_range):
+    def fit_peaks(self, session_name, sub_run_list, peak_type, background_type, peaks_fitting_setup):
         """
         Fit a single peak on each diffraction pattern selected from client-specified
+
+        Note:
+        - peaks_info: consider use cases for multiple non-overlapped peaks fitting
+
         :param session_name:
         :param sub_run_list: None as the default as All;
         :param peak_type:
         :param background_type:
-        :param fit_range:
+        :param peaks_fitting_setup: dict containing peak information [peak tag] = {Center: xx, Range: [2theta1, 2theta2]}
         :return:
         """
-        from pyrs.core import peak_fit_factory
         # Get workspace
         workspace = self.reduction_manager.get_hidra_workspace(session_name)
 
@@ -271,18 +272,41 @@ class PyRsCore(object):
         if sub_run_list is None:
             sub_run_list = workspace.get_subruns()
             print ('[DB...BAT] Sub runs: ', sub_run_list)
+        else:
+            checkdatatypes.check_list('Sub run numbers', sub_run_list)
+
+        # Check Inputs
+        checkdatatypes.check_dict('Peak fitting (information) parameters', peaks_fitting_setup)
+        checkdatatypes.check_string_variable('Peak type', peak_type, peak_fit_factory.SupportedPeakProfiles)
+        checkdatatypes.check_string_variable('Background type', background_type,
+                                             peak_fit_factory.SupportedBackgroundTypes)
 
         # For the data for fitting
-        self._peak_fit_controller = peak_fit_factory.PeakFitEngineFactory.getInstance('Mantid')(workspace, sub_run_list, None)
+        self._peak_fit_controller = peak_fit_factory.PeakFitEngineFactory.getInstance('Mantid')(
+            workspace, sub_run_list, None)
 
-        # fit peaks
-        self._peak_fit_controller.fit_peaks(peak_type, background_type, fit_range)
-        # TODO FIXME - #80 NOWNOW ASAP - wave length shall be retrieved somewhere!!!
-        self._peak_fit_controller.calculate_peak_position_d(wave_length_vec=[1.]*len(sub_run_list))
+        # Fit peaks
+        peak_tags = sorted(peaks_fitting_setup.keys())
+        print ('[INFO] Fitting peak: {}'.format(peak_tags))
 
+        error_message = ''
+        for peak_tag_i in peak_tags:
+            # get fit setup parameters
+            try:
+                peak_center = peaks_fitting_setup[peak_tag_i]['Center']
+                peak_range = peaks_fitting_setup[peak_tag_i]['Range']
+            except KeyError as key_err:
+                raise KeyError('Peak fitting parameter info-dict for peak (tag) {} must have keys as '
+                               'Center and Range but not {}.  FYI: {}'
+                               ''.format(peak_tag_i, peaks_fitting_setup[peak_tag_i].keys(), key_err))
 
-        # Get optimizaer
-        self._last_optimizer = self._peak_fit_controller
+            # fit peak
+            try:
+                self._peak_fit_controller.fit_peaks(peak_type, background_type, peak_center, peak_range,
+                                                    wave_length_dict)
+            except RuntimeError as run_err:
+                error_message += 'Failed to fit (tag) {} due to {}\n'.format(peak_tag_i, run_err)
+        # END-FOR
 
         return
 
@@ -325,7 +349,7 @@ class PyRsCore(object):
         diff_data_list = list()
         # TODO - FUTURE - sun run will be used to replace log_index
         for log_index in scan_index_list:
-            diff_data = self._data_manager.get_reduced_diffraction_data(data_key_set, log_index)
+            diff_data = self._data_manager.get_diffraction_intensity_vector(data_key_set, log_index)
             diff_data_list.append(diff_data)
         # END-FOR
 

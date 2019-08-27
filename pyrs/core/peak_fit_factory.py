@@ -3,6 +3,10 @@ from pyrs.core import mantid_fit_peak
 from pyrs.utilities import checkdatatypes
 
 
+SupportedPeakProfiles = ['Gaussian', 'PseudoVoigt', 'Voigt']
+SupportedBackgroundTypes = ['Flat', 'Linear', 'Quadratic']
+
+
 class PeakFitEngineFactory(object):
     """
     Peak fitting engine factory

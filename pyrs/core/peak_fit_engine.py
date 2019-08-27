@@ -94,13 +94,13 @@ class PeakFitEngine(object):
 
         return
 
-    def fit_peaks(self, peak_function_name, background_function_name, fit_range, scan_index=None):
-        """
-        fit peaks
+    def fit_peaks(self, peak_function_name, background_function_name, peak_center, peak_range, wave_length_array):
+        """ Fit peaks with option to calculate peak center in d-spacing
         :param peak_function_name:
         :param background_function_name:
-        :param fit_range:
-        :param scan_index:
+        :param peak_center:
+        :param peak_range:
+        :param wave_length_array:
         :return:
         """
         raise NotImplementedError('Virtual base class member method fit_peaks()')

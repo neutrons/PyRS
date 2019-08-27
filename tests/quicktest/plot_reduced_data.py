@@ -7,11 +7,11 @@ project = rs_project_file.HydraProjectFile(project_file_name, mode=rs_project_fi
 
 # Get first sub run data
 two_theta_vec = project.get_diffraction_2theta_vector()
-histogram = project.get_reduced_diffraction_data(None, 1)
+histogram = project.get_diffraction_intensity_vector(None, 1)
 
-histogram_chi0 = project.get_reduced_diffraction_data('Chi_0_68', 1)
-histogram_chi10 = project.get_reduced_diffraction_data('Chi_10_50', 1)
-histogram_chi30 = project.get_reduced_diffraction_data('Chi_30_76', 1)
+histogram_chi0 = project.get_diffraction_intensity_vector('Chi_0_68', 1)
+histogram_chi10 = project.get_diffraction_intensity_vector('Chi_10_50', 1)
+histogram_chi30 = project.get_diffraction_intensity_vector('Chi_30_76', 1)
 
 print (two_theta_vec.shape)
 print (histogram.shape)
