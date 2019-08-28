@@ -36,7 +36,7 @@ class PeakFittingTest(object):
         Fit pseudo-voigt peaks
         :return:
         """
-        peak_info_dict = {'Fe111': {'Center': 84., 'Range': [70., 95]}}
+        peak_info_dict = {'Fe111': {'Center': 94.5, 'Range': [91., 97]}}
 
         # Fit peaks
         self._reduction_controller.fit_peaks(self._project_name, sub_run_list=None,
@@ -62,6 +62,7 @@ class PeakFittingTest(object):
         """ Get the fit results and plot
         :return:
         """
+        # TODO - #81 NOW - Implement get_peak_fitting_result()
         peak_params_dict = self._reduction_controller.get_peak_fitting_result(self._project_name,
                                                                               format=dict,
                                                                               effective_parameter=False)
@@ -103,6 +104,12 @@ def main():
     tester.fit_pseudo_voigt()
     # save
     tester.save_fit_result(test_project_file_name, 'Si111')
+    # show result
+    tester.show_fit_result()
+
+    # fit for gaussian
+    tester.fit_gaussian()
+    tester.show_fit_result()
 
     # TODO - #81 NOW - More tests
     # 1. get the best fit and plot

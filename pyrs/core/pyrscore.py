@@ -280,8 +280,8 @@ class PyRsCore(object):
             # create a controller from factory
             self._peak_fit_controller = peak_fit_factory.PeakFitEngineFactory.getInstance('Mantid')(
                 workspace, None)
-            # set wave length
-            wave_length_dict = workspace.get_wave_length(calibrated=True)
+            # set wave length: TODO - #81+ - shall be a way to use calibrated or non-calibrated
+            wave_length_dict = workspace.get_wave_length(calibrated=False, throw_if_not_set=True)
             self._peak_fit_controller.set_wavelength(wave_length_dict)
 
             # add to dictionary
@@ -299,6 +299,7 @@ class PyRsCore(object):
             sub_run_list = workspace.get_subruns()
         else:
             checkdatatypes.check_list('Sub run numbers', sub_run_list)
+        sub_run_range = sub_run_list[0], sub_run_list[-1]
 
         # Fit peaks
         peak_tags = sorted(peaks_fitting_setup.keys())
@@ -317,7 +318,7 @@ class PyRsCore(object):
 
             # fit peak
             try:
-                self._peak_fit_controller.fit_peaks(sub_run_list, peak_type, background_type, peak_center, peak_range,
+                self._peak_fit_controller.fit_peaks(sub_run_range, peak_type, background_type, peak_center, peak_range,
                                                     cal_center_d=True)
             except RuntimeError as run_err:
                 error_message += 'Failed to fit (tag) {} due to {}\n'.format(peak_tag_i, run_err)

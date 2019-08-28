@@ -340,6 +340,15 @@ class HidraWorkspace(object):
 
         return self._sample_log_dict[sample_log_name].copy()
 
+    def get_spectrum(self, sub_run):
+        """
+        Get spectrum (index) from sub run
+        :param sub_run:
+        :return:
+        """
+        # TODO - #81 - Doc & robustness
+        return self._sub_run_to_spectrum[sub_run]
+
     def get_sub_runs_from_spectrum(self, spectra):
         """ Get sub runs corresponding to spectra (same as ws index)
         :param spectra: list/vector/array of spectra (workspace indexes)

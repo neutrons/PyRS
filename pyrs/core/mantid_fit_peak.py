@@ -7,6 +7,7 @@ import os
 import math
 from mantid.api import AnalysisDataService
 from mantid.simpleapi import CreateWorkspace, FitPeaks
+from mantid.simpleapi import SaveNexusProcessed
 
 
 class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
@@ -127,6 +128,9 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         self._fit_peaks_checks(sub_run_range, peak_function_name, background_function_name, peak_center, peak_range,
                                cal_center_d)
 
+        # Set class variable
+        self._peak_function_name = peak_function_name
+
         # Get workspace and gather some information
         mantid_ws = mantid_helper.retrieve_workspace(self._mantid_workspace_name, True)
         num_spectra = mantid_ws.getNumberHistograms()
@@ -183,10 +187,14 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         # Get peak center workspace
         self.calculate_center_of_mass()
 
+        # SaveNexusProcessed(InputWorkspace=self._mantid_workspace_name, Filename='/tmp/data.nxs')
+        # SaveNexusProcessed(InputWorkspace=peak_center_ws, Filename='/tmp/position.nxs')
+        # SaveNexusProcessed(InputWorkspace=peak_window_ws_name, Filename='/tmp/peakwindow.nxs')
+
         # Fit peak by Mantid.FitPeaks
         r = FitPeaks(InputWorkspace=self._mantid_workspace_name,
-                     OutputWorkspace=r_positions_ws_name,
                      PeakCentersWorkspace=peak_center_ws,
+                     FitPeakWindowWorkspace=peak_window_ws_name,
                      PeakFunction=peak_function_name,
                      BackgroundType=background_function_name,
                      StartWorkspaceIndex=start_spectrum,
@@ -194,13 +202,13 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
                      FindBackgroundSigma=1,
                      HighBackground=False,
                      ConstrainPeakPositions=False,
-                     PeakParameterNames=width_dict[peak_function_name][0],
-                     PeakParameterValues=width_dict[peak_function_name][1],
+                     PeakParameterNames="{}, {}".format(width_dict[peak_function_name][0], 'Mixing'),
+                     PeakParameterValues="{}, {}".format(width_dict[peak_function_name][1], '0.5'),
                      RawPeakParameters=True,
+                     OutputWorkspace=r_positions_ws_name,
                      OutputPeakParametersWorkspace=r_param_table_name,
                      OutputParameterFitErrorsWorkspace=r_error_table_name,
-                     FittedPeaksWorkspace=r_model_ws_name,
-                     FitPeakWindowWorkspace=peak_window_ws_name)
+                     FittedPeaksWorkspace=r_model_ws_name)
 
         # r is a class containing multiple outputs (workspaces)
         # print (r,  r.OutputParameterFitErrorsWorkspace.getColumnNames(), r.OutputPeakParametersWorkspace,
@@ -211,16 +219,17 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
             mantid_helper.study_mantid_peak_fitting()
         # END-IF-DEBUG (True)
 
-        # Calculate d-spacing with wave length given
-        if wave_length_array is not None:
-            self.calculate_peak_position_d(wave_length_vec=wave_length_array)
-
         # process output
         self._peak_function_name = peak_function_name
         self._fitted_peak_position_ws = AnalysisDataService.retrieve(r_positions_ws_name)
         self._fitted_function_param_table = AnalysisDataService.retrieve(r_param_table_name)
         self._fitted_function_error_table = AnalysisDataService.retrieve(r_error_table_name)
         self._model_matrix_ws = AnalysisDataService.retrieve(r_model_ws_name)
+
+        # Calculate d-spacing with wave length given
+        if cal_center_d:
+            # optionally to use calibrated wave length as default
+            self.calculate_peak_position_d(wave_length_vec=self._wavelength_vec)
 
         return
 
