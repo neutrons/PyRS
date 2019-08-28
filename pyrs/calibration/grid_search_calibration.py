@@ -61,7 +61,7 @@ class GridSearchCalibration(object):
         :return:
         """
         # check and get values
-        checkdatatypes.check_sequence(note, grid_params, [float, None], size=3)
+        checkdatatypes.check_series(note, grid_params, [float, None], size=3)
         val_min, val_step, val_max = grid_params
 
         if val_min is None:

@@ -28,6 +28,10 @@ class HidraWorkspace(object):
         self._sub_run_to_spectrum = None  # [sub-run] = spectrum, spectrum: 0 - ... continuous
         self._spectrum_to_sub_run = None  # [spectrum] = sub-run
 
+        # wave length
+        self._wave_length_dict = None
+        self._wave_length_calibrated_dict = None
+
         # diffraction
         self._2theta_vec = None  # ndarray.  shape = (m, ) m = number of 2theta
         self._diff_data_set = dict()  # [mask id] = ndarray: shape=(n, m), n: number of sub-run, m: number of of 2theta
@@ -146,6 +150,18 @@ class HidraWorkspace(object):
 
         return
 
+    def _load_wave_length(self, hidra_file):
+        """
+        Load wave length
+        :param hidra_file:
+        :return:
+        """
+        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
+
+        # TODO - #81 - Implement wave length storage in HidraProjectFile!
+
+        return
+
     def get_2theta(self, sub_run):
         """ Get 2theta value from sample log
         This is a special one
@@ -181,7 +197,7 @@ class HidraWorkspace(object):
 
     def get_subruns(self):
         """ Get sub runs that loaded to this workspace
-        :return:
+        :return: list of sorted sub runs
         """
         sub_runs = sorted(self._sub_run_to_spectrum.keys())
         if len(sub_runs) == 0:
@@ -189,19 +205,33 @@ class HidraWorkspace(object):
 
         return sub_runs
 
-    def get_wave_length(self, calibrated):
-        """
-
+    def get_wave_length(self, calibrated, throw_if_not_set):
+        """ Get the wave length from the workspace
+        :param calibrated: Flag for returning calibrated wave length
+        :param throw_if_not_set: Flag to throw an exception if relative wave length (dict) is not set
         :return:
         """
-        # TODO - #80 NOW - Implement
+        if calibrated:
+            # calibrated wave length
+            if self._wave_length_calibrated_dict is None:
+                if throw_if_not_set:
+                    raise RuntimeError('There is no calibrated wave length in HidraWorkspace {}'.format(self._name))
+                else:
+                    wave_length_dict = None
+            else:
+                wave_length_dict = self._wave_length_calibrated_dict
+        else:
+            # native wave length
+            if self._wave_length_dict is None:
+                if throw_if_not_set:
+                    raise RuntimeError('There is no original/native wave length in HidraWorkspace {}'
+                                       ''.format(self._name))
+                else:
+                    wave_length_dict = None
+            else:
+                wave_length_dict = self._wave_length_dict
 
-        d = dict()
-        sub_runs = sorted(self._sub_run_to_spectrum.keys())
-        for s in sub_runs:
-            d[s] = 1.079
-
-        return d
+        return wave_length_dict
 
     def load_hidra_project(self, hidra_file, load_raw_counts, load_reduced_diffraction):
         """
@@ -230,6 +260,9 @@ class HidraWorkspace(object):
 
         # load sample logs
         self._load_sample_logs(hidra_file)
+
+        # load the wave length
+        self._load_wave_length(hidra_file)
 
         return
 
@@ -430,3 +463,37 @@ class HidraWorkspace(object):
                 sample_logs.append(sample_log_name)
 
         return sorted(sample_logs)
+
+    def set_wave_length(self, wave_length, calibrated):
+        """ Set wave length which could be either a float (uniform) or a dictionary
+        :param wave_length:
+        :param calibrated: Flag for calibrated wave length
+        :return:
+        """
+        # Get the sub runs
+        sub_runs = self.get_subruns()
+
+        if isinstance(wave_length, float):
+            # single wave length value
+            wl_dict = dict()
+            for sub_run in sub_runs:
+                wl_dict[sub_run] = wave_length
+        elif isinstance(wave_length, dict):
+            # already in the dictionary format: check the sub runs
+            dict_keys = sorted(wave_length.keys())
+            if dict_keys != sub_runs:
+                raise RuntimeError('Input wave length dictionary has different set of sub runs')
+            wl_dict = wave_length
+        else:
+            # unsupported format
+            raise RuntimeError('Wave length {} in format {} is not supported.'
+                               ''.format(wave_length, type(wave_length)))
+        # END-IF-ELSE
+
+        # Set to desired target
+        if calibrated:
+            self._wave_length_calibrated_dict = wl_dict
+        else:
+            self._wave_length_dict = wl_dict
+
+        return

@@ -612,15 +612,15 @@ class PyRsCore(object):
         :param project_name: name of the reduction project specified by user to trace
         :param load_detector_counts:
         :param load_diffraction:
-        :return:
+        :return: HidraWorkspace instance
         """
         # Initialize session
         self._reduction_manager.init_session(project_name)
 
         # Load project
-        self._reduction_manager.load_hidra_project(hidra_h5_name, False, load_detector_counts, load_diffraction)
+        ws = self._reduction_manager.load_hidra_project(hidra_h5_name, False, load_detector_counts, load_diffraction)
 
-        return
+        return ws
 
     def save_diffraction_data(self, project_name, file_name):
         """

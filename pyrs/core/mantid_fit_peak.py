@@ -28,6 +28,9 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         mantid_workspace = mantid_helper.generate_mantid_workspace(workspace, mask_name)
         self._mantid_workspace_name = mantid_workspace.name()
 
+        # wave length
+        self._wavelength_vec = None
+
         # some observed properties
         self._center_of_mass_ws_name = None
         self._highest_point_ws_name = None
@@ -119,7 +122,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
                                              ['Gaussian', 'Voigt', 'PseudoVoigt', 'Lorentzian'])
         checkdatatypes.check_string_variable('Background function name', background_function_name,
                                              ['Linear', 'Flat', 'Quadratic'])
-        # checkdatatypes.check_tuple('Peak range', peak_range, 2) # TODO - #81 NOW - A new check for series: tuple, array, list, ...
+        checkdatatypes.check_series('(To fit) sub runs range', sub_run_range, None, 2)
 
         self._fit_peaks_checks(sub_run_range, peak_function_name, background_function_name, peak_center, peak_range,
                                cal_center_d)
@@ -128,9 +131,16 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         mantid_ws = mantid_helper.retrieve_workspace(self._mantid_workspace_name, True)
         num_spectra = mantid_ws.getNumberHistograms()
 
-        # TODO - #81 - will support range of spectra for fit later
-        start_spectrum = 0
-        end_spectrum = num_spectra - 1
+        # Get the sub run range
+        start_sub_run, end_sub_run = sub_run_range
+        if start_sub_run is None:
+            start_spectrum = 0
+        else:
+            start_spectrum = self._hd_workspace.get_spectrum(start_sub_run)
+        if end_sub_run is None:
+            end_spectrum = num_spectra - 1
+        else:
+            end_spectrum = self._hd_workspace.get_spectrum(end_sub_run)
 
         # Create Peak range/window workspace
         peak_window_ws_name = 'fit_window_{0}'.format(self._mantid_workspace_name)
@@ -172,8 +182,6 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
         # Get peak center workspace
         self.calculate_center_of_mass()
-
-        # TODO - #81 NOW - need to convert sub_run_range to start_spectrum and end_sepctrum
 
         # Fit peak by Mantid.FitPeaks
         r = FitPeaks(InputWorkspace=self._mantid_workspace_name,
@@ -535,14 +543,22 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         return workspace
 
     def set_wavelength(self, wavelengths):
-        """
-
+        """ Set wave length to each spectrum
         :param wavelengths:
         :return:
         """
+        # Call base class method
         super(MantidPeakFitEngine, self).set_wavelength(wavelengths)
 
-        # TODO - #80 NOW - Set to an array
-        self._wavelength_vec = np.array([1.071]*1000)
+        # Set to an ndarray for
+        mtd_ws = mantid_helper.retrieve_workspace(self._mantid_workspace_name)
+        self._wavelength_vec = np.ndarray(shape=(mtd_ws.getNumberHistograms(), ), dtype='float')
+
+        sub_runs = sorted(wavelengths.keys())
+        if len(sub_runs) != self._wavelength_vec.shape[0]:
+            raise RuntimeError('Input wavelength dictionary has different number of histograms')
+
+        for i in range(len(sub_runs)):
+            self._wavelength_vec[i] = wavelengths[sub_runs[i]]
 
         return

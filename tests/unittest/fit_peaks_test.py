@@ -22,9 +22,12 @@ class PeakFittingTest(object):
 
         # Load data
         self._project_name = 'NFRS2 Peaks'
-        self._reduction_controller.load_hidra_project(input_file_name, project_name=self._project_name,
-                                                      load_detector_counts=False,
-                                                      load_diffraction=True)
+        hd_ws = self._reduction_controller.load_hidra_project(input_file_name, project_name=self._project_name,
+                                                              load_detector_counts=False,
+                                                              load_diffraction=True)
+
+        # set wave length
+        hd_ws.set_wave_length(1.071, False)
 
         return
 

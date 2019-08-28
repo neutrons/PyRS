@@ -204,8 +204,8 @@ def check_numpy_arrays(var_name, variables, dimension, check_same_shape):
     return
 
 
-def check_sequence(var_name, variable, allowed_type=None, size=None):
-    """ check whether the input is of type tuple or list
+def check_series(var_name, variable, allowed_type=None, size=None):
+    """ check whether the input is of type tuple or list or numpy array
     :param var_name:
     :param variable:
     :param allowed_type: allowed type such as str, float, int.
@@ -214,7 +214,7 @@ def check_sequence(var_name, variable, allowed_type=None, size=None):
     """
     check_string_variable('Variable name', var_name)
 
-    assert isinstance(variable, list) or isinstance(variable, tuple),\
+    assert isinstance(variable, list) or isinstance(variable, tuple) or isinstance(variable, numpy.ndarray),\
         '{} {} must be a list or tuple but not a {}'.format(var_name, variable, type(variable))
 
     # check size

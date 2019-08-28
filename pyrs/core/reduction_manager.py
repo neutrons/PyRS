@@ -158,7 +158,7 @@ class HB2BReductionManager(object):
         :param load_calibrated_instrument:
         :param load_detectors_counts: Flag to load detector counts
         :param load_reduced_diffraction: Flag to reduced diffraction data
-        :return: None
+        :return: HidraWorkspace instance
         """
         # check inputs
         checkdatatypes.check_file_name(project_file_name, True, False, False, 'Project file to load')
@@ -179,7 +179,7 @@ class HB2BReductionManager(object):
         # Close
         project_h5_file.close()
 
-        return
+        return self._curr_workspace
 
     def load_instrument_file(self, instrument_file_name):
         """

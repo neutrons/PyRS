@@ -26,7 +26,7 @@ class PeakFitEngine(object):
         checkdatatypes.check_type('Diffraction workspace', workspace, workspaces.HidraWorkspace)
 
         # for scipy: keep the numpy array will be good enough
-        self._workspace = workspace
+        self._hd_workspace = workspace  # hd == HiDra
         self._mask_name = mask_name
 
         # for fitted result
@@ -157,7 +157,7 @@ class PeakFitEngine(object):
         self._get_fitted_parameters_value(spec_index_vec, param_name_list, param_value_array)
 
         # Convert
-        sub_runs_vec = self._workspace.get_sub_runs_from_spectrum(spec_index_vec)  # TODO FIXME #80 NOW NOW ASAP Implement!
+        sub_runs_vec = self._hd_workspace.get_sub_runs_from_spectrum(spec_index_vec)  # TODO FIXME #80 NOW NOW ASAP Implement!
 
         return sub_runs_vec, fit_cost_vec, param_value_array
 
