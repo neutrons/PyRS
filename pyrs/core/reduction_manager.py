@@ -335,28 +335,6 @@ class HB2BReductionManager(object):
             reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
             reduction_engine.set_experimental_data(two_theta, raw_count_vec)
             reduction_engine.build_instrument(geometry_calibration)
-
-            # TODO FIXME - NEXT - START OF DEBUG OUTPUT -------->
-            # Debug output: self._pixel_matrix
-            # check corners
-            # test 5 spots (corner and center): (0, 0), (0, 1023), (1023, 0), (1023, 1023), (512, 512)
-            pixel_1d_array = reduction_engine.get_pixel_positions(False)
-            pixel_number = 2048
-            pixel_locations = [(0, 0),
-                               (0, pixel_number - 1),
-                               (pixel_number - 1, 0),
-                               (pixel_number - 1, pixel_number - 1),
-                               (pixel_number / 2, pixel_number / 2)]
-            for index_i, index_j in pixel_locations:
-                index1d = index_i + pixel_number * index_j
-                pos_python = pixel_1d_array[index1d]
-                print ('Pixel {}:  position = {}'.format(index1d, pos_python))
-                for i in range(3):
-                    print ('dir {}:  {:10f}'
-                           ''.format(i, float(pos_python[i])))
-                # END-FOR
-            # END-FOR
-            # TODO FIXME - NEXT - END OF DEBUG OUTPUT <------------
         # END-IF
 
         # Mask

@@ -278,7 +278,6 @@ class MantidHB2BReduction(object):
         # do some study on the workspace dimension
         print ('[DB...BAT] 2theta range: {}, {}; 2theta-size = {}, Y-size = {}'
                ''.format(vec_2theta[0], vec_2theta[-1], len(vec_2theta), len(vec_y)))
-        print ('[DB...BAT] Y: {}'.format(vec_y))
 
         # GeneratePythonScript(InputWorkspace=reduced_ws, Filename='reduce_mantid.py')
         # file_util.save_mantid_nexus(workspace_name=matrix_ws_name, file_name='debugmantid.nxs')
