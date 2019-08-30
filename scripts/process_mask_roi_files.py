@@ -19,6 +19,7 @@ def parse_inputs(input_args):
 
     for argument in input_args:
         terms = argument.split('=')
+        print (terms)
         arg_type = terms[0].strip().lower()
         arg_value = terms[1].strip()
         if arg_type == 'roi':
@@ -50,7 +51,7 @@ def main(argv):
         print ()
         sys.exit(-1)
 
-    roi_xml_list, mask_xml_list, mask_operation, out_h5_name, square_det_size = parse_inputs(argv)
+    roi_xml_list, mask_xml_list, mask_operation, out_h5_name, square_det_size = parse_inputs(argv[1:])
 
     # parse ROI and mask XML (Mantid) files
     mask_array_list = list()
