@@ -1,12 +1,18 @@
 # This is the virtual base class as the fitting frame
 from pyrs.utilities import checkdatatypes
 
+NATIVE_PEAK_PARAMETERS = {'Gaussian': ['Height', 'PeakCentre', 'Sigma', 'A0', 'A1'],
+                          'PseudoVoigt': ['Mixing', 'Intensity', 'PeakCentre', 'FWHM', 'A0', 'A1'],
+                          'Voigt': ['LorentzAmp', 'LorentzPos', 'LorentzFWHM', 'GaussianFWHM',
+                                    'A0', 'A1']}
+EFFECTIVE_PEAK_PARAMETERS = ['Center', 'Height', 'FWHM', 'A0', 'A1']
+
 
 class RsPeakFitEngine(object):
     """
     virtual peak fit engine
     """
-    def __init__(self, data_set_list, ref_id):
+    def __init__(self, sub_run_list, data_set_list, ref_id):
         """
         initialization
         :param data_set_list:
@@ -14,11 +20,17 @@ class RsPeakFitEngine(object):
         """
         # check
         checkdatatypes.check_list('Data set list', data_set_list)
+        checkdatatypes.check_list('Sun runs', sub_run_list)
         checkdatatypes.check_string_variable('Peak fitting reference ID', ref_id)
+
+        if len(sub_run_list) != len(data_set_list):
+            raise RuntimeError('Sub runs ({}) and data sets ({}) have different sizes'
+                               ''.format(len(sub_run_list), len(data_set_list)))
 
         # for scipy: keep the numpy array will be good enough
         self._data_set = data_set_list
         self._reference_id = ref_id
+        self._sub_run_list = sub_run_list
 
         # for fitted result
         self._peak_center_vec = None  # 2D vector for observed center of mass and highest data point
@@ -64,6 +76,29 @@ class RsPeakFitEngine(object):
         :return:
         """
         raise NotImplementedError('Virtual base class member method get_number_scans()')
+
+    @staticmethod
+    def get_peak_param_names(peak_function, is_effective):
+        """ Get the peak parameter names
+        :param peak_function:
+        :param is_effective:
+        :return:
+        """
+        if is_effective:
+            # Effective parameters
+            param_names = EFFECTIVE_PEAK_PARAMETERS[:]
+            if peak_function == 'PseudoVoigt':
+                param_names.append('Mixing')
+
+        else:
+            # Native parameters
+            try:
+                param_names = NATIVE_PEAK_PARAMETERS[peak_function][:]
+            except KeyError as key_err:
+                raise RuntimeError('Peak type {} not supported.  The supported peak functions are {}.  FYI: {}'
+                                   ''.format(peak_function, NATIVE_PEAK_PARAMETERS.keys(), key_err))
+
+        return param_names
 
     def write_result(self):
         """

@@ -11,9 +11,11 @@ import ManualSlicerSetupDialog
 try:
     from PyQt5 import QtCore as QtCore
     from PyQt5.QtWidgets import QMainWindow, QButtonGroup, QFileDialog
+    from PyQt5.uic import loadUi as load_ui
 except ImportError:
     from PyQt4 import QtCore as QtCore
     from PyQt4.QtGui import QMainWindow, QButtonGroup, QFileDialog
+    from PyQt4.uic import loadUi as load_ui
 
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
@@ -21,9 +23,10 @@ except AttributeError:
     def _fromUtf8(s):
         return s
 
-import ui.ui_eventslicersetupwindow
 import gui_helper
 from pyrs.utilities import checkdatatypes
+from pyrs.interface.ui import qt_util
+from pyrs.interface.ui.eventslicesetupwidgets import LogGraphicsView
 
 OUT_PICKER = 0
 IN_PICKER = 1
@@ -49,8 +52,11 @@ class EventSlicerSetupWindow(QMainWindow):
         self._mutexLockSwitchSliceMethod = False
 
         # set up UI
-        self.ui = ui.ui_eventslicersetupwindow.Ui_MainWindow()
-        self.ui.setupUi(self)
+        ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', 'eventslicersetupwindow.ui'))
+        self.ui = load_ui(ui_path, baseinstance=self)
+
+        # promote
+        self.ui.graphicsView_main = qt_util.promote_widget(self, self.ui.graphicsView_main_frame, LogGraphicsView)
 
         # Set up widgets
         self._init_widgets_setup()

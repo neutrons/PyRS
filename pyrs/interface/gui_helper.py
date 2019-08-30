@@ -187,7 +187,9 @@ def parse_integer(int_str):
     :param int_str:
     :return:
     """
-    if isinstance(int_str, QLineEdit):
+    if isinstance(int_str, str):
+        pass
+    elif isinstance(int_str, QLineEdit):
         int_str = str(int_str.text())
     elif is_qt4 and isinstance(int_str, QtCore.QString):
         # There is no QString in PyQt5

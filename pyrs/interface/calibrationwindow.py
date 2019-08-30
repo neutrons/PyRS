@@ -1,13 +1,15 @@
 import pyrs.interface.pyrs_main
 try:
     from PyQt5.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout, QHBoxLayout, QPushButton
+    from PyQt5.uic import loadUi as load_ui
 except ImportError:
     from PyQt4.QtGui import QMainWindow, QFileDialog, QVBoxLayout, QHBoxLayout, QPushButton
+    from PyQt4.uic import loadUi as load_ui
+from pyrs.interface.ui import qt_util
 from pyrs.utilities import checkdatatypes
 import pyrs.core.pyrscore
 import os
 import gui_helper
-import ui.ui_calibrationwindow
 from ui import diffdataviews
 
 # setup of constants
@@ -40,8 +42,9 @@ class InstrumentCalibrationWindow(QMainWindow):
         self._peaks_shown = False
 
         # set up UI
-        self.ui = ui.ui_calibrationwindow.Ui_MainWindow()
-        self.ui.setupUi(self)
+        ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', 'calibrationwindow.ui'))
+        self.ui = load_ui(ui_path, baseinstance=self)
+        # promote widgets
         self._promote_widgets()
 
         self.ui.pushButton_loadRawData.clicked.connect(self.do_load_raw)
@@ -275,7 +278,7 @@ class InstrumentCalibrationWindow(QMainWindow):
 
         instrument_file = str(self.ui.lineEdit_instrument.text())
 
-        self._core.reduction_engine.load_instrument_file(instrument_file)
+        self._core.reduction_manager.load_instrument_file(instrument_file)
 
     def do_load_raw(self):
         """
@@ -307,8 +310,8 @@ class InstrumentCalibrationWindow(QMainWindow):
         # load
         try:
             # FIXME - NOTE - Target dimension shall be set up by user
-            self._curr_data_id, two_theta = self._core.reduction_engine.load_data(file_name, target_dimension=2048,
-                                                                                  load_to_workspace=False)
+            self._curr_data_id, two_theta = self._core.reduction_manager.load_data(file_name, target_dimension=2048,
+                                                                                   load_to_workspace=False)
         except RuntimeError as run_err:
             gui_helper.pop_message(self, message_type='error', message='Unable to load data {}'.format(file_name),
                                    detailed_message='{}'.format(run_err))
@@ -323,7 +326,7 @@ class InstrumentCalibrationWindow(QMainWindow):
         print ('[DB...BAT] Parsed line edit value: {} of type {}'.format(curr_mask_file, type(curr_mask_file)))
 
         # whether it has been loaded
-        if curr_mask_file in self._core.reduction_engine.get_loaded_mask_files():
+        if curr_mask_file in self._core.reduction_manager.get_loaded_mask_files():
             gui_helper.pop_message(self, message='Mask {} has been loaded', message_type='info',
                                    detailed_message='If need to load a new mask, clear the file name in editor')
             return
@@ -353,7 +356,7 @@ class InstrumentCalibrationWindow(QMainWindow):
     def load_mask_file(self, mask_file_name):
         # load mask
         try:
-            two_theta, note, mask_id = self._core.reduction_engine.load_mask_file(mask_file_name)
+            two_theta, note, mask_id = self._core.reduction_manager.load_mask_file(mask_file_name)
             self.ui.plainTextEdit_maskList.appendPlainText('{}: 2theta = {}, note = {}\n'
                                                            ''.format(mask_file_name, two_theta, note))
         except RuntimeError as run_err:
@@ -411,19 +414,19 @@ class InstrumentCalibrationWindow(QMainWindow):
         geom_calibration.rotation_y = cal_rot_y
         geom_calibration.rotation_z = cal_rot_z
 
-        self._core.reduction_engine.set_geometry_calibration(geom_calibration)
-        for mask_id in self._core.reduction_engine.get_mask_ids():
+        self._core.reduction_manager.set_geometry_calibration(geom_calibration)
+        for mask_id in self._core.reduction_manager.get_mask_ids():
             # mask_vec = self._core.reduction_engine.get_mask_vector(mask_id)
-            self._core.reduction_engine.reduce_to_2theta(data_id=self._curr_data_id,
-                                                         output_name=None,
-                                                         use_mantid_engine=False,
-                                                         mask=mask_id,
-                                                         two_theta=two_theta)
+            self._core.reduction_manager.reduce_to_2theta_histogram(data_id=self._curr_data_id,
+                                                                    output_name=None,
+                                                                    use_mantid_engine=False,
+                                                                    mask=mask_id,
+                                                                    two_theta=two_theta)
             """
              data_id, output_name, use_mantid_engine, mask, two_theta,
                          min_2theta=None, max_2theta=None, resolution_2theta=None
             """
-            vec_x, vec_y = self._core.reduction_engine.get_reduced_data()
+            vec_x, vec_y = self._core.reduction_manager.get_reduced_data()
             self.ui.graphicsView_calibration.plot_data(vec_x, vec_y, self._mask_subplot_dict[mask_id])
 
         return

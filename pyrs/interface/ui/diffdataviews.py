@@ -276,7 +276,7 @@ class PeakFitSetupView(MplFitPlottingWidget):
         fit_diff_vec = diff_data_set[1] - model_data_set[1]
 
         # plot
-        self._last_fit_diff_reference = self.add_plot(diff_data_set[0], fit_diff_vec, color='green')
+        self._last_fit_diff_reference = self._myCanvas.add_plot_lower_axis(diff_data_set[0])
 
         return
 
@@ -300,7 +300,8 @@ class PeakFitSetupView(MplFitPlottingWidget):
             self._last_model_reference = None
 
         # plot
-        self._last_model_reference = self.add_plot(model_data_set[0], model_data_set[1], color='red')
+        # TODO - TONIGHT - Merge this with FitPeak UI's Figure Canvas
+        # self._last_model_reference = self.add_plot(model_data_set[0], model_data_set[1], color='red')
 
         return
 

@@ -3,61 +3,55 @@ import sys
 import os
 import re
 import versioneer  # https://github.com/warner/python-versioneer
-
+from shutil import copyfile
 from setuptools import setup, find_packages
 
 if sys.argv[-1] == 'pyuic':
-    # convert the UI in designer (for the application)
+    # copy UI files in designer to builds
     indir = 'designer'
-    outdir = 'pyrs/interface/ui'
+    if os.path.exists('build/lib.linux-x86_64-2.7'):
+        outdir1 = 'build/lib.linux-x86_64-2.7/pyrs/interface/ui'
+    else:
+        outdir1 = None
+    if os.path.exists('build/lib'):
+        outdir2 = 'build/lib/pyrs/interface/ui'
+    else:
+        outdir2 = None
     files = os.listdir(indir)
-    files = [os.path.join('designer', item) for item in files]
+    # UI file only
     files = [item for item in files if item.endswith('.ui')]
-
-    try:
-        import qtconsole.inprocess
-        import PyQt5
-        pyui_ver = 5
-    except ImportError:
-        pyui_ver = 4
-    
-    done = 0
-    for inname in files:
-        base_inname = os.path.basename(inname)
-        outname = 'ui_' + base_inname.replace('.ui', '.py')
-        outname = os.path.join(outdir, outname)
-        if os.path.exists(outname):
-            if os.stat(inname).st_mtime < os.stat(outname).st_mtime:
-                continue
-        print("Converting '%s' to '%s'" % (inname, outname))
-        command = "pyuic%d %s -o %s"  % (pyui_ver, inname, outname)
-        os.system(command)
-        done += 1
-    if not done:
-        print("Did not convert any '.ui' files")
-
-    # convert the UI in test/widgettest (for the application)
-    indir = 'tests/widgets'
-    outdir = 'pyrs/interface/ui'  # all UI shall be in the same directory with widgets module to avoid importing issue
-    files = os.listdir(indir)
+    # add directory
     files = [os.path.join(indir, item) for item in files]
-    files = [item for item in files if item.endswith('.ui')]
 
     done = 0
-    for inname in files:
-        base_inname = os.path.basename(inname)
-        outname = 'uitest_' + base_inname.replace('.ui', '.py')
-        outname = os.path.join(outdir, outname)
-        if os.path.exists(outname):
-            if os.stat(inname).st_mtime < os.stat(outname).st_mtime:
-                continue
-        print("Converting '%s' to '%s'" % (inname, outname))
-        command = "pyuic%d %s -o %s"  % (pyui_ver, inname, outname)
-        os.system(command)
+    for ui_name in files:
+        # target name
+        base_ui_name = os.path.basename(ui_name)
+        if outdir1:
+            dest_ui_name1 = os.path.join(outdir1, base_ui_name)
+        if outdir2:
+            dest_ui_name2 = os.path.join(outdir2, base_ui_name)
+        # need to copy?
+        if outdir1:
+            if not (os.path.exists(dest_ui_name1) and os.stat(ui_name).st_mtime < os.stat(dest_ui_name1).st_mtime):
+                # copy UI file to target
+                copyfile(ui_name, dest_ui_name1)
+                print("Copied '%s' to '%s'" % (ui_name, dest_ui_name1))
+
+        if outdir2:
+            if not (os.path.exists(dest_ui_name2) and os.stat(ui_name).st_mtime < os.stat(dest_ui_name2).st_mtime):
+                # copy UI file to target
+                copyfile(ui_name, dest_ui_name2)
+                print("Copied '%s' to '%s'" % (ui_name, dest_ui_name2))
+
         done += 1
+    # END-FOR
+
     if not done:
-        print("Did not convert any '.ui' files")
+        print("No new '.ui' files found and copied")
+
     sys.exit(0)
+
 
 ###################################################################
 
@@ -130,6 +124,8 @@ if __name__ == "__main__":
                'scripts/convert_raw_data.py',
                'scripts/convert_hzb_data.py']
     test_scripts = ['tests/unittest/pyrs_core_test.py',
+                    'tests/unittest/reduction_test.py',  # beta version
+                    'tests/unittest/fit_peaks_test.py',  # beta version
                     'tests/unittest/utilities_test.py',
                     'tests/unittest/polefigurecal_test.py',
                     'tests/unittest/straincalculationtest.py',

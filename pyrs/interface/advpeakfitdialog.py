@@ -1,14 +1,14 @@
 try:
     from PyQt5.QtWidgets import QDialog, QFileDialog, QMainWindow
     from PyQt5.QtCore import pyqtSignal
+    from PyQt5.uic import loadUi as load_ui
 except ImportError:
     from PyQt4.QtGui import QDialog, QFileDialog, QMainWindow
     from PyQt4.QtCore import pyqtSignal
-import pyrs.utilities.hb2b_utilities as hb2b
+    from PyQt4.uic import loadUi as load_ui
 import os
 import gui_helper
 import numpy
-from ui import ui_peakfitadvsetting
 
 
 class SmartPeakFitControlDialog(QDialog):
@@ -34,8 +34,8 @@ class SmartPeakFitControlDialog(QDialog):
         self.FitPeakSignal.connect(self._main_window.fit_peaks_smart)
 
         # set up UI
-        self.ui = ui_peakfitadvsetting.Ui_Dialog()
-        self.ui.setupUi(self)
+        ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', 'peakfitadvsetting.ui'))
+        self.ui = load_ui(ui_path, baseinstance=self)
 
         # init UI
         self._init_widgets()

@@ -1,8 +1,12 @@
 try:
     from PyQt5.QtWidgets import QMainWindow, QFileDialog
+    from PyQt5.uic import loadUi as load_ui
 except ImportError:
     from PyQt4.QtGui import QMainWindow, QFileDialog
-import ui.ui_texturecalculationwindow
+    from PyQt4.uic import loadUi as load_ui
+from pyrs.interface.ui import qt_util
+from pyrs.interface.ui.rstables import PoleFigureTable
+from pyrs.interface.ui.diffdataviews import PeakFitSetupView, GeneralDiffDataView, Diffraction2DPlot
 from pyrs.utilities import checkdatatypes
 import pyrs.core.pyrscore
 import os
@@ -26,8 +30,23 @@ class TextureAnalysisWindow(QMainWindow):
         self._core = None
 
         # set up UI
-        self.ui = ui.ui_texturecalculationwindow.Ui_MainWindow()
-        self.ui.setupUi(self)
+        # self.ui = ui.ui_texturecalculationwindow.Ui_MainWindow()
+        # self.ui.setupUi(self)
+
+        ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', 'texturecalculationwindow.ui'))
+        self.ui = load_ui(ui_path, baseinstance=self)
+
+        # promote widgets
+        self.ui.graphicsView_fitSetup = qt_util.promote_widget(self, self.ui.graphicsView_fitSetup_frame,
+                                                               PeakFitSetupView)
+        self.ui.graphicsView_fitResult = qt_util.promote_widget(self, self.ui.graphicsView_fitResult_frame,
+                                                                GeneralDiffDataView)
+        self.ui.graphicsView_contour = qt_util.promote_widget(self, self.ui.graphicsView_contour_frame,
+                                                              Diffraction2DPlot)
+        self.ui.tableView_poleFigureParams = qt_util.promote_widget(self, self.ui.tableView_poleFigureParams_frame,
+                                                                    PoleFigureTable)
+
+        # init widgets
         self._init_widgets()
 
         # set up handling
@@ -411,8 +430,8 @@ class TextureAnalysisWindow(QMainWindow):
 
                 # existing model
                 if self._data_key is not None:
-                    model_data_set = self._core.get_modeled_data(data_key=(self._data_key, det_id),
-                                                                 scan_log_index=scan_log_index_list[0])
+                    model_data_set = self._core.get_modeled_data(session_name=(self._data_key, det_id),
+                                                                 sub_run=scan_log_index_list[0])
                 else:
                     model_data_set = None
 

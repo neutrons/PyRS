@@ -5,7 +5,7 @@ import h5py
 import checkdatatypes
 import platform
 from mantid.api import AnalysisDataService
-from mantid.simpleapi import AnalysisDataService
+from mantid.simpleapi import AnalysisDataService, SaveNexusProcessed
 from skimage import io, exposure, img_as_uint, img_as_float
 from PIL import Image
 import numpy as np
@@ -225,4 +225,4 @@ def get_temp_directory():
 
 
 # testing
-print (check_creation_date('__init__.py'))
+# print (check_creation_date('__init__.py'))

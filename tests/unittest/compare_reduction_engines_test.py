@@ -5,7 +5,7 @@ import sys
 from pyrs.core import reduce_hb2b_mtd
 from pyrs.core import reduce_hb2b_pyrs
 from pyrs.core import calibration_file_io
-from pyrs.core import reductionengine
+from pyrs.core import reduction_manager
 from pyrs.core import mask_util
 import time
 import numpy
@@ -100,7 +100,7 @@ def create_instrument_load_data(instrument, calibrated, pixel_number):
     test_calibration.rotation_z = rot_z_spin
 
     # reduction engine
-    engine = reductionengine.HB2BReductionManager()
+    engine = reduction_manager.HB2BReductionManager()
     test_data_id, two_theta_tmp = engine.load_data(data_file_name=test_data_file, target_dimension=pixel_number,
                                                    load_to_workspace=True)
 
@@ -112,7 +112,7 @@ def create_instrument_load_data(instrument, calibrated, pixel_number):
     mantid_reducer = reduce_hb2b_mtd.MantidHB2BReduction()
     data_ws_name = engine.get_raw_data(test_data_id, is_workspace=True)
     mantid_reducer.set_workspace(data_ws_name)
-    mantid_reducer.load_instrument(two_theta, mantid_idf, test_calibration)
+    mantid_reducer.build_instrument(two_theta, mantid_idf, test_calibration)
 
     return engine, pyrs_reducer, mantid_reducer
 
@@ -261,10 +261,10 @@ def compare_reduced_no_mask(calibrated, pixel_number=2048):
     # reduce Mantid
     data_ws = mantid_reducer.get_workspace()
     resolution = (pyrs_vec_x[-1] - pyrs_vec_x[0]) / NUM_BINS
-    reduced_data = mantid_reducer.reduce_to_2theta(data_ws.name(), two_theta_min=min_2theta,
-                                                   two_theta_max=max_2theta,
-                                                   num_2theta_bins=NUM_BINS,
-                                                   mask=None)
+    reduced_data = mantid_reducer.reduce_to_2theta_histogram(data_ws.name(), two_theta_min=min_2theta,
+                                                             two_theta_max=max_2theta,
+                                                             num_2theta_bins=NUM_BINS,
+                                                             mask=None)
     mantid_vec_x = reduced_data[0]
     mantid_vec_y = reduced_data[1]
 
@@ -314,11 +314,11 @@ def compare_reduced_masked(angle, calibrated, pixel_number):
 
     # reduce by Mantid
     data_ws = mantid_reducer.get_workspace()
-    reduced_data = mantid_reducer.reduce_to_2theta(data_ws.name(),
-                                                   two_theta_min=min_2theta,
-                                                   two_theta_max=max_2theta,
-                                                   num_2theta_bins=NUM_BINS,
-                                                   mask=mask_vec)
+    reduced_data = mantid_reducer.reduce_to_2theta_histogram(data_ws.name(),
+                                                             two_theta_min=min_2theta,
+                                                             two_theta_max=max_2theta,
+                                                             num_2theta_bins=NUM_BINS,
+                                                             mask=mask_vec)
     mantid_vec_x = reduced_data[0]
     mantid_vec_y = reduced_data[1]
 

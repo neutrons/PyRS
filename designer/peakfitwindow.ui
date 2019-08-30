@@ -220,7 +220,7 @@
      </layout>
     </item>
     <item row="1" column="3">
-     <widget class="GeneralDiffDataView" name="graphicsView_fitResult">
+     <widget class="QFrame" name="graphicsView_fitResult_frame">
       <property name="toolTip">
        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Single peak fit&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
       </property>
@@ -316,7 +316,7 @@
      </layout>
     </item>
     <item row="3" column="3">
-     <widget class="DiffContourView" name="graphicsView_contourView"/>
+     <widget class="QFrame" name="graphicsView_contourView_frame"/>
     </item>
     <item row="1" column="2">
      <spacer name="horizontalSpacer_3">
@@ -471,7 +471,7 @@
     <item row="3" column="0">
      <layout class="QVBoxLayout" name="verticalLayout_2">
       <item>
-       <widget class="FitResultTable" name="tableView_fitSummary">
+       <widget class="QFrame" name="tableView_fitSummary_frame">
         <property name="toolTip">
          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Peak fit result&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
         </property>

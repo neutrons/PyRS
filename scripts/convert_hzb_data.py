@@ -87,19 +87,21 @@ def main(argv):
     exp_summary_dict, exp_logs_dict = import_hzb_summary(exp_summary_excel)
 
     # start project file
-    project_file = rs_project_file.HydraProjectFile(project_file_name, mode='w')
+    project_file = rs_project_file.HydraProjectFile(project_file_name,
+                                                    mode=rs_project_file.HydraProjectFileMode.OVERWRITE)
 
     # add sample log data
     for log_name in ['Scan Index', '2Theta', 'Monitor', 'L2']:
-        project_file.add_experiment_information(log_name, exp_logs_dict[log_name])
+        project_file.add_experiment_log(log_name, exp_logs_dict[log_name])
     # END-FOR
 
     # parse and add counts
-    for scan_index in sorted(exp_summary_dict.keys()):
-        tiff_name = exp_summary_dict[scan_index]['Tiff']
+    sub_run_list = exp_summary_dict.keys()
+    for sub_run_i in sorted(sub_run_list):
+        tiff_name = exp_summary_dict[sub_run_i]['Tiff']
         counts_array = parse_hzb_tiff(os.path.join(exp_data_dir, tiff_name))
         print (counts_array.min(), counts_array.max(), (numpy.where(counts_array > 0.5)[0]).shape)
-        project_file.add_scan_counts(scan_index, counts_array)
+        project_file.add_raw_counts(sub_run_i, counts_array)
     # END-FOR
 
     # save
