@@ -430,8 +430,8 @@ class TextureAnalysisWindow(QMainWindow):
 
                 # existing model
                 if self._data_key is not None:
-                    model_data_set = self._core.get_modeled_data(data_key=(self._data_key, det_id),
-                                                                 scan_log_index=scan_log_index_list[0])
+                    model_data_set = self._core.get_modeled_data(session_name=(self._data_key, det_id),
+                                                                 sub_run=scan_log_index_list[0])
                 else:
                     model_data_set = None
 

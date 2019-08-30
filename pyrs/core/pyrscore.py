@@ -1,16 +1,15 @@
 # This is the core of PyRS serving as the controller of PyRS and hub for all the data
 from pyrs.utilities import checkdatatypes
 from pyrs.core import instrument_geometry
-# from pyrs.utilities import rs_scan_io
 from pyrs.utilities import file_util
-from pyrs.utilities import rs_project_file
-from pyrs.core import mask_util
+from pyrs.core import peak_fit_factory
 import mantid_fit_peak
 import strain_stress_calculator
 import reduction_manager
 import polefigurecalculator
 import os
 import numpy
+from pandas import DataFrame
 
 # Define Constants
 SUPPORTED_PEAK_TYPES = ['PseudoVoigt', 'Gaussian', 'Voigt']  # 'Lorentzian': No a profile of HB2B
@@ -38,6 +37,7 @@ class PyRsCore(object):
         self._last_optimizer = None  # None or RsPeakFitEngine/MantidPeakFitEngine instance
 
         # container for optimizers
+        self._peak_fit_controller = None
         self._optimizer_dict = dict()
 
         # pole figure calculation
@@ -252,37 +252,80 @@ class PyRsCore(object):
 
         return data_key, sub_key
 
-    # TODO - #80 - QA
-    def fit_peaks(self, session_name, sub_run_list, peak_type, background_type, fit_range):
+    def fit_peaks(self, project_name, sub_run_list, peak_type, background_type, peaks_fitting_setup):
         """
         Fit a single peak on each diffraction pattern selected from client-specified
-        :param session_name:
+
+        Note:
+        - peaks_info: consider use cases for multiple non-overlapped peaks fitting
+
+        :param project_name: Name of current project for loading, peak fitting and etc.
         :param sub_run_list: None as the default as All;
         :param peak_type:
         :param background_type:
-        :param fit_range:
+        :param peaks_fitting_setup: dict containing peak information [peak tag] = {Center: xx, Range: [2theta1, 2theta2]}
         :return:
         """
-        from pyrs.core import peak_fit_factory
-        # Get workspace
-        workspace = self.reduction_manager.get_hidra_workspace(session_name)
+        # Check input
+        checkdatatypes.check_string_variable('Project name', project_name, allow_empty=False)
+
+        # Get peak fitting controller
+        if project_name in self._optimizer_dict:
+            # if it does exist
+            self._peak_fit_controller = self._optimizer_dict[project_name]
+            workspace = self._peak_fit_controller.get_hidra_workspace()  # TODO FIXME - #81 NOW - No such method
+        else:
+            # create a new one
+            # get workspace
+            workspace = self.reduction_manager.get_hidra_workspace(project_name)
+            # create a controller from factory
+            self._peak_fit_controller = peak_fit_factory.PeakFitEngineFactory.getInstance('Mantid')(
+                workspace, None)
+            # set wave length: TODO - #81+ - shall be a way to use calibrated or non-calibrated
+            wave_length_dict = workspace.get_wave_length(calibrated=False, throw_if_not_set=True)
+            self._peak_fit_controller.set_wavelength(wave_length_dict)
+
+            # add to dictionary
+            self._optimizer_dict[project_name] = self._peak_fit_controller
+        # END-IF-ELSE
+
+        # Check Inputs
+        checkdatatypes.check_dict('Peak fitting (information) parameters', peaks_fitting_setup)
+        checkdatatypes.check_string_variable('Peak type', peak_type, peak_fit_factory.SupportedPeakProfiles)
+        checkdatatypes.check_string_variable('Background type', background_type,
+                                             peak_fit_factory.SupportedBackgroundTypes)
 
         # Deal with sub runs
         if sub_run_list is None:
             sub_run_list = workspace.get_subruns()
-            print ('[DB...BAT] Sub runs: ', sub_run_list)
+        else:
+            checkdatatypes.check_list('Sub run numbers', sub_run_list)
+        sub_run_range = sub_run_list[0], sub_run_list[-1]
 
-        # For the data for fitting
-        self._peak_fit_controller = peak_fit_factory.PeakFitEngineFactory.getInstance('Mantid')(workspace, sub_run_list, None)
+        # Fit peaks
+        peak_tags = sorted(peaks_fitting_setup.keys())
+        print ('[INFO] Fitting peak: {}'.format(peak_tags))
 
-        # fit peaks
-        self._peak_fit_controller.fit_peaks(peak_type, background_type, fit_range)
-        # TODO FIXME - #80 NOWNOW ASAP - wave length shall be retrieved somewhere!!!
-        self._peak_fit_controller.calculate_peak_position_d(wave_length_vec=[1.]*len(sub_run_list))
+        error_message = ''
+        for peak_tag_i in peak_tags:
+            # get fit setup parameters
+            try:
+                peak_center = peaks_fitting_setup[peak_tag_i]['Center']
+                peak_range = peaks_fitting_setup[peak_tag_i]['Range']
+            except KeyError as key_err:
+                raise KeyError('Peak fitting parameter info-dict for peak (tag) {} must have keys as '
+                               'Center and Range but not {}.  FYI: {}'
+                               ''.format(peak_tag_i, peaks_fitting_setup[peak_tag_i].keys(), key_err))
 
+            # fit peak
+            try:
+                self._peak_fit_controller.fit_peaks(sub_run_range, peak_type, background_type, peak_center, peak_range,
+                                                    cal_center_d=True)
+            except RuntimeError as run_err:
+                error_message += 'Failed to fit (tag) {} due to {}\n'.format(peak_tag_i, run_err)
+        # END-FOR
 
-        # Get optimizaer
-        self._last_optimizer = self._peak_fit_controller
+        print ('[ERROR] {}'.format(error_message))
 
         return
 
@@ -325,7 +368,7 @@ class PyRsCore(object):
         diff_data_list = list()
         # TODO - FUTURE - sun run will be used to replace log_index
         for log_index in scan_index_list:
-            diff_data = self._data_manager.get_reduced_diffraction_data(data_key_set, log_index)
+            diff_data = self._data_manager.get_diffraction_intensity_vector(data_key_set, log_index)
             diff_data_list.append(diff_data)
         # END-FOR
 
@@ -354,30 +397,22 @@ class PyRsCore(object):
 
         return ref_id
 
-    def _get_optimizer(self, data_key):
+    def _get_optimizer(self, fit_session_name):
         """
         get optimizer.
         raise exception if optimizer to return is None
-        :param data_key:
+        :param fit_session_name:
         :return:
         """
-        # check input
-        if self._last_optimizer is None:
-            # never been used
-            return None
-        elif data_key is None and self._last_optimizer is not None:
-            # by default: current optimizer
-            print ('Return last optimizer')
-            optimizer = self._last_optimizer
-        elif data_key in self._optimizer_dict:
+        if fit_session_name in self._optimizer_dict:
             # with data key
-            optimizer = self._optimizer_dict[data_key]
+            optimizer = self._optimizer_dict[fit_session_name]
             print ('Return optimizer in dictionary: {0}'.format(optimizer))
         else:
             # data key exist but optimizer does not: could be not been fitted yet
             raise RuntimeError('Unable to find optimizer related to data with reference ID {0} of type {1}.'
                                'Current keys are {2}.'
-                               ''.format(data_key, type(data_key), self._optimizer_dict.keys()))
+                               ''.format(fit_session_name, type(fit_session_name), self._optimizer_dict.keys()))
 
         return optimizer
 
@@ -417,26 +452,19 @@ class PyRsCore(object):
 
         return diff_data_set
 
-    def get_modeled_data(self, data_key, scan_log_index):
-        """
-        get calculated data according to fitted model
-        :param data_key:
-        :param scan_log_index:
+    def get_modeled_data(self, session_name, sub_run):
+        """ Get calculated data according to fitted model
+        :param session_name:
+        :param sub_run:
         :return:
         """
-        checkdatatypes.check_int_variable('Scan index', scan_log_index, (0, None))
-        # get data key
-        if data_key is None:
-            data_key = self._curr_data_key
-            if data_key is None:
-                raise RuntimeError('There is no current loaded data.')
-        # END-IF
+        # Check input
+        checkdatatypes.check_int_variable('Sub run numbers', sub_run, (0, None))
+        checkdatatypes.check_string_variable('Project/session name', session_name, allow_empty=False)
 
-        optimizer = self._get_optimizer(data_key)
-        if optimizer is None:
-            data_set = None
-        else:
-            data_set = optimizer.get_calculated_peak(scan_log_index)
+        # get data key
+        optimizer = self._get_optimizer(session_name)
+        data_set = optimizer.get_calculated_peak(sub_run)
 
         return data_set
 
@@ -452,6 +480,66 @@ class PyRsCore(object):
             return None
 
         return optimizer.get_function_parameter_names()
+
+    # TODO - #81 - Code quality
+    def get_peak_fitting_result(self, project_name, return_format, effective_parameter):
+        """ Get peak fitting result
+        Note: this provides a convenient method to retrieve information
+        :param project_name:
+        :param return_format:
+        :param effective_parameter:
+        :return:
+        """
+        # Get peak fitting controller
+        if project_name in self._optimizer_dict:
+            # if it does exist
+            peak_fitter = self._optimizer_dict[project_name]
+        else:
+            raise RuntimeError('{} not exist'.format(project_name))
+
+        # Param names
+        param_names = peak_fitter.get_peak_param_names(None, False)
+
+        # Get the parameter values
+        if effective_parameter:
+            raise NotImplementedError('Effective parameters... ASAP')
+            peak_fitter.get_fitted_effective_params(param_names)
+        else:
+            sub_run_vec, chi2_vec, param_vec = peak_fitter.get_fitted_params(param_names, including_error=True)
+
+        if return_format == dict:
+            # dictionary
+            param_data = dict()
+            for s_index in range(sub_run_vec.shape[0]):
+                sub_run_i = sub_run_vec[s_index]
+            # TODO - #81 - continue to develop til finish!
+
+        elif return_format == numpy.ndarray:
+            # numpy array
+            # initialize
+            array_shape = sub_run_vec.shape[0], 2+param_vec.shape[0]
+            param_data = numpy.ndarray(shape=array_shape, dtype='float')
+
+            # set value
+            param_data[:, 0] = sub_run_vec
+            param_data[:, 1] = chi2_vec
+            for j in range(param_vec.shape[0]):
+                param_data[:, j+1] = param_vec[j, :, 0]   # data for all sub run
+
+        elif return_format == DataFrame:
+            # pandas data frame
+            # TODO - #81 - ...
+            raise NotImplementedError('ASAP')
+
+        else:
+            # ...
+            raise RuntimeError('not supported')
+
+        # TODO - #81 - Shall be a nicer output
+        param_names.insert(0, 'Sub-run')
+        param_names.insert(1, 'chi2')
+
+        return param_names, param_data
 
     # TODO - TONIGHT NOW - Need to migrate to new get_fitted_params
     def get_peak_fit_param_value(self, data_key, param_name_list, max_cost):
@@ -571,15 +659,15 @@ class PyRsCore(object):
         :param project_name: name of the reduction project specified by user to trace
         :param load_detector_counts:
         :param load_diffraction:
-        :return:
+        :return: HidraWorkspace instance
         """
         # Initialize session
         self._reduction_manager.init_session(project_name)
 
         # Load project
-        self._reduction_manager.load_hidra_project(hidra_h5_name, False, load_detector_counts, load_diffraction)
+        ws = self._reduction_manager.load_hidra_project(hidra_h5_name, False, load_detector_counts, load_diffraction)
 
-        return
+        return ws
 
     def save_diffraction_data(self, project_name, file_name):
         """
@@ -592,14 +680,18 @@ class PyRsCore(object):
 
         return
 
-    def save_peak_fit_result(self, data_key, hidra_file_name, peak_tag):
+    def save_peak_fit_result(self, project_name, hidra_file_name, peak_tag):
         """ Save peak fit result to file with original data
         :param data_key:
         :param src_rs_file_name:
         :param target_rs_file_name:
         :return:
         """
-        optimizer = self._get_optimizer(None)  # TODO FIXME - #80 - Need a new mechanism for data key!
+        # TODO - #81 - Doc!
+        if project_name is None:
+            optimizer = self._peak_fit_controller
+        else:
+            optimizer = self._optimizer_dict[project_name]
 
         optimizer.export_fit_result(hidra_file_name, peak_tag)
 

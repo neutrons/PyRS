@@ -92,7 +92,7 @@ def main(argv):
 
     # add sample log data
     for log_name in ['Scan Index', '2Theta', 'Monitor', 'L2']:
-        project_file.add_experiment_information(log_name, exp_logs_dict[log_name])
+        project_file.add_experiment_log(log_name, exp_logs_dict[log_name])
     # END-FOR
 
     # parse and add counts

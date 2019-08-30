@@ -6,11 +6,11 @@ from pyrs.core import instrument_geometry
 from enum import Enum
 import numpy
 
-# TODO - NOW TONIGHT #72 - Use more enumerate and constant for HDF groups' names
 
-
-# TODO - NOW TONIGHT #72 - Apply HidraConstants to HydraProjectFile
 class HidraConstants(object):
+    """
+    Constants used for Hidra project file, workspace and related dictionary
+    """
     RAW_DATA = 'raw data'
     REDUCED_DATA = 'reduced diffraction data'
     REDUCED_MAIN = 'main'   # default reduced data
@@ -21,6 +21,12 @@ class HidraConstants(object):
     GEOMETRY_SETUP = 'geometry setup'
     DETECTOR_PARAMS = 'detector'
     TWO_THETA = '2Theta'
+
+    # constants about peak fitting
+    PEAK_PROFILE = 'peak profile'
+    PEAKS = 'peaks'  # main entry for fitted peaks' parameters
+    PEAK_FIT_CHI2 = 'chi2'
+    PEAK_PARAMS = 'parameters'
 
 
 class HydraProjectFileMode(Enum):
@@ -51,7 +57,6 @@ class DiffractionUnit(Enum):
         return 'dSpacing'
 
 
-# TODO - #80 - Clean up the codes for all the methods and docs...
 class HydraProjectFile(object):
     """ Read and/or write an HB2B project to an HDF5 with entries for detector counts, sample logs, reduced data,
     fitted peaks and etc.
@@ -90,6 +95,7 @@ class HydraProjectFile(object):
         # open file for H5
         self._project_h5 = None
         self._is_writable = False
+        self._file_name = project_file_name
 
         if mode == HydraProjectFileMode.READONLY:
             # read: check file existing?
@@ -142,144 +148,17 @@ class HydraProjectFile(object):
         self._project_h5.create_group('peaks')
 
         # reduced data
-        reduced_data = self._project_h5.create_group(HidraConstants.REDUCED_DATA)
-        # reduced_data.create_group('2theta')
-        # reduced_data.create_group('d-spacing')
+        self._project_h5.create_group(HidraConstants.REDUCED_DATA)
 
         return
 
-    def get_diffraction_2theta_vector(self):
-        # TODO - NOW TONIGHT #80 #72 - Doc
-
-        print (self._project_h5.name)
-        two_theta_vec = self._project_h5[HidraConstants.REDUCED_DATA][HidraConstants.TWO_THETA].value
-
-        return two_theta_vec
-
-    def get_reduced_diffraction_data(self, mask_id, sub_run):
+    @property
+    def name(self):
         """
-
-        :param mask_id:
-        :param sub_run: If sub run = None: ...
-        :return: 1D array or 2D array depending on sub ru
-        """
-        # Mask
-        if mask_id is None:
-            mask_id = HidraConstants.REDUCED_MAIN
-
-        if sub_run is None:
-            # all the sub runs
-            reduced_diff_hist = self._project_h5[HidraConstants.REDUCED_DATA][mask_id].value
-            print ('[DB...BAT...CHECKPOINT1] Shape = {}'.format(reduced_diff_hist.shape))
-        else:
-            # specific one sub run
-            sub_run_list = self.get_sub_runs()
-            sub_run_index = sub_run_list.index(sub_run)
-
-            if mask_id is None:
-                mask_id = HidraConstants.REDUCED_MAIN
-
-            reduced_diff_hist = self._project_h5[HidraConstants.REDUCED_DATA][mask_id].value[sub_run_index]
-        # END-IF-ELSE
-
-        return reduced_diff_hist
-
-    def get_reduced_data_masks(self):
-        """
-        Get the list of masks
+        File name on HDD
         :return:
         """
-        # TODO - TONIGHT - #81 ASAP
-
-        return list()
-
-    def get_instrument_geometry(self):
-        """
-        Get instrument geometry parameters
-        :return: an instance of instrument_geometry.InstrumentSetup
-        """
-        # Get group
-        geometry_group = self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.GEOMETRY_SETUP]
-        detector_group = geometry_group[HidraConstants.DETECTOR_PARAMS]
-
-        # Get value
-        num_rows, num_cols = detector_group['detector size'].value
-        pixel_size_x, pixel_size_y = detector_group['pixel dimension'].value
-        arm_length = detector_group['L2'].value
-
-        # Initialize
-        instrument_setup = instrument_geometry.AnglerCameraDetectorGeometry(num_rows=num_rows,
-                                                                            num_columns=num_cols,
-                                                                            pixel_size_x=pixel_size_x,
-                                                                            pixel_size_y=pixel_size_y,
-                                                                            arm_length=arm_length,
-                                                                            calibrated=False)
-
-        return instrument_setup
-
-    def set_instrument_geometry(self, instrument_setup):
-        """
-        Add instrument geometry and wave length information to project file
-        :param instrument_setup:
-        :return:
-        """
-        # check inputs
-        self._validate_write_operation()
-        checkdatatypes.check_type('Instrument geometry setup', instrument_setup, instrument_geometry.HydraSetup)
-
-        # write value to instrument
-        instrument_group = self._project_h5[HidraConstants.INSTRUMENT]
-
-        # write attributes
-        instrument_group.attrs['name'] = instrument_setup.name
-
-        # get the entry for raw instrument setup
-        detector_group = instrument_group['geometry setup']['detector']
-        raw_geometry = instrument_setup.get_instrument_geometry(False)
-        detector_group.create_dataset('L2', data=numpy.array(raw_geometry.arm_length))
-        det_size = numpy.array(instrument_setup.get_instrument_geometry(False).detector_size)
-        detector_group.create_dataset('detector size', data=det_size)
-        pixel_dimension = list(instrument_setup.get_instrument_geometry(False).pixel_dimension)
-        detector_group.create_dataset('pixel dimension', data=numpy.array(pixel_dimension))
-
-        # wave length
-        wavelength_group = instrument_group['geometry setup']['wave length']
-        wavelength_group.create_dataset('wavelength', data=numpy.array([instrument_setup.get_wavelength(None, False)]))
-
-        return
-
-    def set_instrument_calibration(self):
-        return
-
-    def set_peak_fit_result(self, peak_tag, peak_profile, peak_param_names, sub_run_vec, chi2_vec, peak_params):
-
-        self._validate_write_operation()
-        checkdatatypes.check_string_variable('Peak tag', peak_tag)
-
-        checkdatatypes.check_list('Peak parameter names', peak_param_names)
-
-        # access or create node for peak data
-        fit_entry = self._project_h5['peaks']
-        tag_entry = fit_entry.create_group(peak_tag)
-        tag_entry.create_dataset(HidraConstants.SUB_RUNS, data=sub_run_vec)
-        tag_entry.create_dataset('chi2', data=chi2_vec)
-        tag_entry.create_dataset('parameters', data=peak_params)
-
-        # TODO FIXME #80 NOWNOW
-        # TODO ... peak_entry = self._create_peak_node(sub_run_number, peak_tag, {'profile': peak_profile})
-
-        # # add value
-        # for param_name_i in peak_params:
-        #     peak_entry[param_name_i] = peak_params[param_name_i]
-        # # END-FOR
-
-        return
-
-    def get_wave_length(self):
-        return
-
-    def set_wave_length(self):
-        return
+        return self._project_h5.name
 
     def add_raw_counts(self, sub_run_number, counts_array):
         """ add raw detector counts collected in a single scan/Pt
@@ -297,29 +176,7 @@ class HydraProjectFile(object):
 
         return
 
-    # # TODO FIXME - #80 - Anymore?
-    # def add_diffraction_data(self, sub_run_index, vec_x, vec_y, unit):
-    #     """ add reduced and corrected diffraction data in specified unit
-    #     :param unit:
-    #     :return:
-    #     """
-    #     raise RuntimeError('This method is deprecated by set_2theta_diffraction_data and set_d_diffraction_data')
-    #     # TODO - TONIGHT 0 - Many checks...
-    #     checkdatatypes.check_string_variable('Unit', unit, ['2theta', 'd-spacing'])
-    #
-    #     if 'reduced data' not in self._project_h5.keys():
-    #         raise RuntimeError('No reduced data')
-    #     elif unit not in self._project_h5['reduced data']:
-    #         raise RuntimeError('{} missing'.format(unit))
-    #
-    #     # create group
-    #     reduced_data = self._project_h5[HidraConstants.REDUCED_DATA][unit].create_group('{:04}'.format(sub_run_index))
-    #     reduced_data.create_dataset('x', data=vec_x)
-    #     reduced_data.create_dataset('y', data=vec_y)
-    #
-    #     return
-
-    def add_experiment_information(self, log_name, log_value_array):
+    def add_experiment_log(self, log_name, log_value_array):
         """ add information about the experiment including scan indexes, sample logs, 2theta and etc
         :param log_name: name of the sample log
         :param log_value_array:
@@ -348,6 +205,78 @@ class HydraProjectFile(object):
         self._project_h5.close()
 
         return
+
+    def get_diffraction_2theta_vector(self):
+        """
+        Get the (reduced) diffraction data's 2-theta vector
+        :return:
+        """
+        two_theta_vec = self._project_h5[HidraConstants.REDUCED_DATA][HidraConstants.TWO_THETA].value
+
+        return two_theta_vec
+
+    def get_diffraction_intensity_vector(self, mask_id, sub_run):
+        """ Get the (reduced) diffraction data's intensity
+        :param mask_id:
+        :param sub_run: If sub run = None: ...
+        :return: 1D array or 2D array depending on sub ru
+        """
+        # Get default for mask/main
+        if mask_id is None:
+            mask_id = HidraConstants.REDUCED_MAIN
+
+        checkdatatypes.check_string_variable('Mask ID', mask_id, self._project_h5[HidraConstants.REDUCED_DATA].keys())
+
+        # Get data to return
+        if sub_run is None:
+            # all the sub runs
+            reduced_diff_hist = self._project_h5[HidraConstants.REDUCED_DATA][mask_id].value
+        else:
+            # specific one sub run
+            sub_run_list = self.get_sub_runs()
+            sub_run_index = sub_run_list.index(sub_run)
+
+            if mask_id is None:
+                mask_id = HidraConstants.REDUCED_MAIN
+
+            reduced_diff_hist = self._project_h5[HidraConstants.REDUCED_DATA][mask_id].value[sub_run_index]
+        # END-IF-ELSE
+
+        return reduced_diff_hist
+
+    def get_diffraction_masks(self):
+        """
+        Get the list of masks
+        :return:
+        """
+        masks = self._project_h5[HidraConstants.REDUCED_DATA].keys()
+        masks.remove('2Theta')
+
+        return masks
+
+    def get_instrument_geometry(self):
+        """
+        Get instrument geometry parameters
+        :return: an instance of instrument_geometry.InstrumentSetup
+        """
+        # Get group
+        geometry_group = self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.GEOMETRY_SETUP]
+        detector_group = geometry_group[HidraConstants.DETECTOR_PARAMS]
+
+        # Get value
+        num_rows, num_cols = detector_group['detector size'].value
+        pixel_size_x, pixel_size_y = detector_group['pixel dimension'].value
+        arm_length = detector_group['L2'].value
+
+        # Initialize
+        instrument_setup = instrument_geometry.AnglerCameraDetectorGeometry(num_rows=num_rows,
+                                                                            num_columns=num_cols,
+                                                                            pixel_size_x=pixel_size_x,
+                                                                            pixel_size_y=pixel_size_y,
+                                                                            arm_length=arm_length,
+                                                                            calibrated=False)
+
+        return instrument_setup
 
     def get_logs(self):
         """
@@ -419,57 +348,6 @@ class HydraProjectFile(object):
 
         return sub_run_list
 
-    # def set_2theta_diffraction_data(self, sub_run, two_theta_vector, intensity_vector):
-    #     """
-    #     Set the 2theta-intensity (reduced) to file
-    #     :param sub_run:
-    #     :param two_theta_vector:
-    #     :param intensity_vector:
-    #     :return:
-    #     """
-    #     # check inputs and state
-    #     self._validate_write_operation()
-    #     checkdatatypes.check_int_variable('Sub run', sub_run, (0, None))
-    #     checkdatatypes.check_numpy_arrays('2theta vector and intensity vector',
-    #                                       [two_theta_vector, intensity_vector],
-    #                                       dimension=None,
-    #                                       check_same_shape=True)
-    #
-    #     diff_group = self._create_diffraction_node(sub_run)
-    #     diff_2t_group = diff_group[DiffractionUnit.unit(DiffractionUnit.TwoTheta)]
-    #
-    #     # set value
-    #     diff_2t_group.create_dataset(HidraConstants.TWO_THETA, data=two_theta_vector)
-    #     diff_2t_group.create_dataset('intensity', data=intensity_vector)
-    #
-    #     return
-    #
-    # def set_d_spacing_diffraction_data(self, sub_run, d_vector, intensity_vector):
-    #     """
-    #     Set the dSpacing-intensity (reduced diffraction) to file
-    #     :param sub_run:
-    #     :param d_vector:
-    #     :param intensity_vector:
-    #     :return:
-    #     """
-    #     # check inputs and state
-    #     self._validate_write_operation()
-    #     checkdatatypes.check_int_variable('Sub run', sub_run, (0, None))
-    #     checkdatatypes.check_numpy_arrays('d-spacing vector and intensity vector',
-    #                                       [d_vector, intensity_vector],
-    #                                       dimension=None,
-    #                                       check_same_shape=True)
-    #
-    #     # check or create new node/entry for this sub run
-    #     diff_group = self._create_diffraction_node(sub_run)
-    #     diff_d_group = diff_group[DiffractionUnit.DSpacing]
-    #
-    #     # set value
-    #     diff_d_group.create_dataset('2theta', data=d_vector)
-    #     diff_d_group.create_dataset('intensity', data=intensity_vector)
-    #
-    #     return
-
     def save_hydra_project(self, verbose=False):
         """
         convert all the information about project to HDF file.
@@ -482,6 +360,95 @@ class HydraProjectFile(object):
             print ('Changes are saved to {0}; {0} will be closed right after.'.format(self._project_h5.filename))
 
         self._project_h5.close()
+
+        return
+
+    def set_instrument_geometry(self, instrument_setup):
+        """
+        Add instrument geometry and wave length information to project file
+        :param instrument_setup:
+        :return:
+        """
+        # check inputs
+        self._validate_write_operation()
+        checkdatatypes.check_type('Instrument geometry setup', instrument_setup, instrument_geometry.HydraSetup)
+
+        # write value to instrument
+        instrument_group = self._project_h5[HidraConstants.INSTRUMENT]
+
+        # write attributes
+        instrument_group.attrs['name'] = instrument_setup.name
+
+        # get the entry for raw instrument setup
+        detector_group = instrument_group['geometry setup']['detector']
+        raw_geometry = instrument_setup.get_instrument_geometry(False)
+        detector_group.create_dataset('L2', data=numpy.array(raw_geometry.arm_length))
+        det_size = numpy.array(instrument_setup.get_instrument_geometry(False).detector_size)
+        detector_group.create_dataset('detector size', data=det_size)
+        pixel_dimension = list(instrument_setup.get_instrument_geometry(False).pixel_dimension)
+        detector_group.create_dataset('pixel dimension', data=numpy.array(pixel_dimension))
+
+        # wave length
+        wavelength_group = instrument_group['geometry setup']['wave length']
+        wavelength_group.create_dataset('wavelength', data=numpy.array([instrument_setup.get_wavelength(None, False)]))
+
+        return
+
+    def set_instrument_calibration(self):
+        return
+
+    def set_peak_fit_result(self, peak_tag, peak_profile, peak_param_names, sub_run_vec, chi2_vec, peak_params):
+        """
+        Set the peak fitting results to project file
+        :param peak_tag:
+        :param peak_profile:
+        :param peak_param_names:
+        :param sub_run_vec:
+        :param chi2_vec:
+        :param peak_params:
+        :return:
+        """
+        # Check inputs and file status
+        self._validate_write_operation()
+
+        checkdatatypes.check_string_variable('Peak tag', peak_tag)
+        checkdatatypes.check_string_variable('Peak profile', peak_profile)
+        checkdatatypes.check_list('Peak parameter names', peak_param_names)
+
+        # access or create node for peak with given tag
+        peak_main_group = self._project_h5[HidraConstants.PEAKS]
+
+        if peak_tag not in peak_main_group:
+            single_peak_entry = peak_main_group.create_group(peak_tag)
+        else:
+            single_peak_entry = peak_main_group[peak_tag]
+
+        # Attributes
+        self.set_attributes(single_peak_entry, HidraConstants.PEAK_PROFILE, peak_profile)
+
+        single_peak_entry.create_dataset(HidraConstants.SUB_RUNS, data=sub_run_vec)
+        single_peak_entry.create_dataset(HidraConstants.PEAK_FIT_CHI2, data=chi2_vec)
+        single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS, data=peak_params)
+
+        return
+
+    def get_wave_length(self):
+        """ Get wave length
+        :return:
+        """
+        return
+
+    def set_wave_length(self, wave_length):
+        """ Set wave length
+        :param wave_length: wave length in A
+        :return:
+        """
+        checkdatatypes.check_float_variable('Wave length', wave_length, (0, 1000))
+
+        # TODO - #81 TODO - Where and how to store wave length?
+
+        # set value
+        self._project_h5[HidraConstants.INSTRUMENT]
 
         return
 
@@ -602,38 +569,6 @@ class HydraProjectFile(object):
 
         return diff_group
 
-    def _create_peak_node(self, sub_run_number, peak_tag, attrib_dict):
-        """
-        Create a node to record the peak fitting parameters
-        :param sub_run_number:
-        :param peak_tag:
-        :param attrib_dict:
-        :return:
-        """
-        # check inputs
-        checkdatatypes.check_int_variable('Sub-run number', sub_run_number, (0, None))
-        checkdatatypes.check_string_variable('Peak tag (example: 111)', peak_tag)
-        checkdatatypes.check_dict('Attributions', attrib_dict)
-
-        # create a new node if it does not exist
-        if peak_tag not in self._project_h5['peak']:
-            peak_tag_entry = self._project_h5['peak'].create_group(peak_tag)
-        else:
-            peak_tag_entry = self._project_h5['peak'][peak_tag]
-
-        # create a new node for this sub run or access it
-        sub_run_node_name = '{0:04}'.format(sub_run_number)
-        if sub_run_node_name in peak_tag_entry:
-            sub_run_node = peak_tag_entry[sub_run_node_name]
-        else:
-            sub_run_node = peak_tag_entry.create_group(sub_run_node_name)
-
-        # add attributes
-        for attrib_name in attrib_dict:
-            sub_run_node.attrs[attrib_name] = attrib_dict[attrib_name]
-
-        return sub_run_node
-
     def _validate_write_operation(self):
         """
         Validate whether a writing operation is allowed for this file
@@ -642,5 +577,20 @@ class HydraProjectFile(object):
         """
         if self._io_mode == HydraProjectFileMode.READONLY:
             raise RuntimeError('Project file {} is set to read-only by user'.format(self._project_h5.name))
+
+        return
+
+    @staticmethod
+    def set_attributes(h5_group, attribute_name, attribute_value):
+        """
+        Set attribute to a group
+        :param h5_group:
+        :param attribute_name:
+        :param attribute_value:
+        :return:
+        """
+        checkdatatypes.check_string_variable('Attribute name', attribute_name)
+
+        h5_group.attrs[attribute_name] = attribute_value
 
         return

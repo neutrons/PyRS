@@ -690,7 +690,7 @@ class FitPeaksWindow(QMainWindow):
         data_set_label = 'Scan {0}'.format(scan_log_index)
 
         if plot_model:
-            model_data_set = self._core.get_modeled_data(data_key=None, scan_log_index=scan_log_index)
+            model_data_set = self._core.get_modeled_data(session_name=None, sub_run=scan_log_index)
         else:
             model_data_set = None
 

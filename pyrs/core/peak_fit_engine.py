@@ -16,20 +16,17 @@ class PeakFitEngine(object):
     """
     Virtual peak fit engine
     """
-    def __init__(self, workspace, sub_run_list, mask_name):
+    def __init__(self, workspace, mask_name):
         """
         initialization
-        :param data_set_list:
-        :param ref_id:
+        :param workspace: HidraWorksapce containing the diffraction data
+        :param mask_name: name of mask ID (or main/None) for reduced diffraction data
         """
         # check
         checkdatatypes.check_type('Diffraction workspace', workspace, workspaces.HidraWorkspace)
-        checkdatatypes.check_list('Sun runs', sub_run_list)
 
         # for scipy: keep the numpy array will be good enough
-        # self._data_set = data_set_list
-        self._workspace = workspace
-        self._sub_run_list = sub_run_list
+        self._hd_workspace = workspace  # hd == HiDra
         self._mask_name = mask_name
 
         # for fitted result
@@ -94,16 +91,23 @@ class PeakFitEngine(object):
 
         return
 
-    def fit_peaks(self, peak_function_name, background_function_name, fit_range, scan_index=None):
-        """
-        fit peaks
+    def fit_peaks(self, sub_run_range, peak_function_name, background_function_name, peak_center, peak_range,
+                  cal_center_d):
+        """ Fit peaks with option to calculate peak center in d-spacing
+        :param sub_run_range: range of sub runs (including both end) to refine
         :param peak_function_name:
         :param background_function_name:
-        :param fit_range:
-        :param scan_index:
+        :param peak_center:
+        :param peak_range:
+        :param cal_center_d:
         :return:
         """
         raise NotImplementedError('Virtual base class member method fit_peaks()')
+
+    @staticmethod
+    def _fit_peaks_checks(sub_run_range, peak_function_name, background_function_name, peak_center, peak_range,
+                          cal_center_d):
+        return
 
     def get_calculated_peak(self, scan_log_index):
         """
@@ -153,7 +157,7 @@ class PeakFitEngine(object):
         self._get_fitted_parameters_value(spec_index_vec, param_name_list, param_value_array)
 
         # Convert
-        sub_runs_vec = self._workspace.get_sub_runs_from_spectrum(spec_index_vec)  # TODO FIXME #80 NOW NOW ASAP Implement!
+        sub_runs_vec = self._hd_workspace.get_sub_runs_from_spectrum(spec_index_vec)  # TODO FIXME #80 NOW NOW ASAP Implement!
 
         return sub_runs_vec, fit_cost_vec, param_value_array
 
@@ -163,13 +167,16 @@ class PeakFitEngine(object):
         """
         raise NotImplementedError('Virtual base class member method get_number_scans()')
 
-    @staticmethod
-    def get_peak_param_names(peak_function, is_effective):
+    def get_peak_param_names(self, peak_function, is_effective):
         """ Get the peak parameter names
-        :param peak_function:
+        :param peak_function: None for default/current peak function
         :param is_effective:
         :return:
         """
+        # Default
+        if peak_function is None:
+            peak_function = self._peak_function_name
+
         if is_effective:
             # Effective parameters
             param_names = EFFECTIVE_PEAK_PARAMETERS[:]
@@ -185,6 +192,17 @@ class PeakFitEngine(object):
                                    ''.format(peak_function, NATIVE_PEAK_PARAMETERS.keys(), key_err))
 
         return param_names
+
+    def set_wavelength(self, wavelengths):
+        """
+
+        :param wavelengths:
+        :return:
+        """
+        # TODO - #80 NOW - Implement
+        self._wavelength_dict = wavelengths
+
+        return
 
     def write_result(self):
         """

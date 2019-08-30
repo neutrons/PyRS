@@ -75,7 +75,7 @@ class HB2BReductionManager(object):
         :param session_name:
         :param sub_run:
         :param mask_id:
-        :return:
+        :return: 2-vectors: 2theta and intensity
         """
         checkdatatypes.check_string_variable('Session name', session_name, self._session_dict.keys())
         workspace = self._session_dict[session_name]
@@ -121,10 +121,16 @@ class HB2BReductionManager(object):
 
     def get_hidra_workspace(self, session_name):
         """ Get the HIDRA workspace
-        :param session_name:
-        :return:
+        :param session_name: string as the session/workspace name
+        :return: HidraWorkspace instance
         """
         checkdatatypes.check_string_variable('Session name', session_name, self._session_dict.keys())
+
+        # Check availability
+        if session_name not in self._session_dict:
+            raise RuntimeError('Session/HidraWorkspace {} does not exist. Available sessions/workspaces are {}'
+                               ''.format(session_name, self._session_dict.keys()))
+
         workspace = self._session_dict[session_name]
 
         return workspace
@@ -152,7 +158,7 @@ class HB2BReductionManager(object):
         :param load_calibrated_instrument:
         :param load_detectors_counts: Flag to load detector counts
         :param load_reduced_diffraction: Flag to reduced diffraction data
-        :return: None
+        :return: HidraWorkspace instance
         """
         # check inputs
         checkdatatypes.check_file_name(project_file_name, True, False, False, 'Project file to load')
@@ -173,7 +179,7 @@ class HB2BReductionManager(object):
         # Close
         project_h5_file.close()
 
-        return
+        return self._curr_workspace
 
     def load_instrument_file(self, instrument_file_name):
         """
@@ -234,7 +240,7 @@ class HB2BReductionManager(object):
         :param geometry_calibration:
         :return:
         """
-        # TODO FIXME - NEXT - Still not sure how to apply!
+        # TODO FIXME - #81 NOWNOW - Still not sure how to apply!
         checkdatatypes.check_type('Geometry calibration', geometry_calibration,
                                   instrument_geometry.AnglerCameraDetectorShift)
 
