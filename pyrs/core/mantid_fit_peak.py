@@ -240,19 +240,19 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         """
         return self._peak_center_vec
 
-    def get_calculated_peak(self, scan_log_index):
+    def get_calculated_peak(self, sub_run):
         """
         get the model (calculated) peak of a certain scan
-        :param scan_log_index:
+        :param sub_run:
         :return:
         """
         if self._model_matrix_ws is None:
             raise RuntimeError('There is no fitting result!')
 
-        checkdatatypes.check_int_variable('Scan log index', scan_log_index, (0, self._model_matrix_ws.getNumberHistograms()))
+        checkdatatypes.check_int_variable('Scan log index', sub_run, (0, self._model_matrix_ws.getNumberHistograms()))
 
-        vec_x = self._model_matrix_ws.readX(scan_log_index)
-        vec_y = self._model_matrix_ws.readY(scan_log_index)
+        vec_x = self._model_matrix_ws.readX(sub_run)
+        vec_y = self._model_matrix_ws.readY(sub_run)
 
         return vec_x, vec_y
 
@@ -290,7 +290,8 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
             elif param_name == 'center_d':
                 param_vec = self._peak_center_d_vec[:, 0]
             else:
-                raise RuntimeError('Peak parameter {} does not exist'.format(param_name))
+                raise RuntimeError('Peak parameter {} does not exist. Available parameters are {} and center_d'
+                                   ''.format(param_name, col_names))
             # set value
             param_value_array[out_index, :, 0] = param_vec[spec_index_vec]
         # END-FOR

@@ -63,23 +63,34 @@ class PeakFittingTest(object):
         :return:
         """
         # TODO - #81 NOW - Implement get_peak_fitting_result()
-        peak_params_dict = self._reduction_controller.get_peak_fitting_result(self._project_name,
-                                                                              format=dict,
-                                                                              effective_parameter=False)
+        peak_name_list, peak_params_matrix = \
+            self._reduction_controller.get_peak_fitting_result(self._project_name, return_format=numpy.ndarray,
+                                                               effective_parameter=False)
+        # Plot peak width
+        sub_run_vec = peak_params_matrix[:, 0]
+        peak_width = peak_params_matrix[:, 5]  # rs_project_file.HidraConstants.Peak_FWHM for pandas output
+        plt.plot(sub_run_vec, peak_width, color='red', label='FWHM')
 
-        peak_params_matrix = self._reduction_controller.get_peak_fitting_result(self._project_name,
-                                                                                format=numpy.ndarray,
-                                                                                effective_parameter=True)
+        # plt.show()
+
+        # Test to get the original data and fitted data from
+        exp_data_set = self._reduction_controller.get_diffraction_data(self._project_name, sub_run=3, mask=None)
+        fit_data_set = self._reduction_controller.get_modeled_data(self._project_name, sub_run=3)
+
+        plt.plot(exp_data_set[0], exp_data_set[1], color='black', label='Experiment')
+        plt.plot(fit_data_set[0], fit_data_set[1], color='green', label='Fitted')
+        plt.show()
+
+        # Effective parameters
+        peak_params_dict = self._reduction_controller.get_peak_fitting_result(self._project_name,
+                                                                              return_format=dict,
+                                                                              effective_parameter=True)
 
         # Print parameters
         print ('sub-run = {}, peak width = {}'.format(3, peak_params_dict[3]['PeakWidth']))
 
-        # Plot peak width
-        sub_run_vec = peak_params_matrix[rs_project_file.HidraConstants.SUB_RUNS]
-        peak_width = peak_params_matrix[rs_project_file.HidraConstants.FWHM]
-        plt.plot(sub_run_vec, peak_width, color='red', label='FWHM')
 
-        plt.show()
+        return
 
     def save_fit_result(self, out_file_name, peak_tag):
 

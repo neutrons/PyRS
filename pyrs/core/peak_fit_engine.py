@@ -167,13 +167,16 @@ class PeakFitEngine(object):
         """
         raise NotImplementedError('Virtual base class member method get_number_scans()')
 
-    @staticmethod
-    def get_peak_param_names(peak_function, is_effective):
+    def get_peak_param_names(self, peak_function, is_effective):
         """ Get the peak parameter names
-        :param peak_function:
+        :param peak_function: None for default/current peak function
         :param is_effective:
         :return:
         """
+        # Default
+        if peak_function is None:
+            peak_function = self._peak_function_name
+
         if is_effective:
             # Effective parameters
             param_names = EFFECTIVE_PEAK_PARAMETERS[:]

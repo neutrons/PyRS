@@ -9,6 +9,7 @@ import reduction_manager
 import polefigurecalculator
 import os
 import numpy
+from pandas import DataFrame
 
 # Define Constants
 SUPPORTED_PEAK_TYPES = ['PseudoVoigt', 'Gaussian', 'Voigt']  # 'Lorentzian': No a profile of HB2B
@@ -396,30 +397,22 @@ class PyRsCore(object):
 
         return ref_id
 
-    def _get_optimizer(self, data_key):
+    def _get_optimizer(self, fit_session_name):
         """
         get optimizer.
         raise exception if optimizer to return is None
-        :param data_key:
+        :param fit_session_name:
         :return:
         """
-        # check input
-        if self._last_optimizer is None:
-            # never been used
-            return None
-        elif data_key is None and self._last_optimizer is not None:
-            # by default: current optimizer
-            print ('Return last optimizer')
-            optimizer = self._last_optimizer
-        elif data_key in self._optimizer_dict:
+        if fit_session_name in self._optimizer_dict:
             # with data key
-            optimizer = self._optimizer_dict[data_key]
+            optimizer = self._optimizer_dict[fit_session_name]
             print ('Return optimizer in dictionary: {0}'.format(optimizer))
         else:
             # data key exist but optimizer does not: could be not been fitted yet
             raise RuntimeError('Unable to find optimizer related to data with reference ID {0} of type {1}.'
                                'Current keys are {2}.'
-                               ''.format(data_key, type(data_key), self._optimizer_dict.keys()))
+                               ''.format(fit_session_name, type(fit_session_name), self._optimizer_dict.keys()))
 
         return optimizer
 
@@ -459,26 +452,19 @@ class PyRsCore(object):
 
         return diff_data_set
 
-    def get_modeled_data(self, data_key, scan_log_index):
-        """
-        get calculated data according to fitted model
-        :param data_key:
-        :param scan_log_index:
+    def get_modeled_data(self, session_name, sub_run):
+        """ Get calculated data according to fitted model
+        :param session_name:
+        :param sub_run:
         :return:
         """
-        checkdatatypes.check_int_variable('Scan index', scan_log_index, (0, None))
-        # get data key
-        if data_key is None:
-            data_key = self._curr_data_key
-            if data_key is None:
-                raise RuntimeError('There is no current loaded data.')
-        # END-IF
+        # Check input
+        checkdatatypes.check_int_variable('Sub run numbers', sub_run, (0, None))
+        checkdatatypes.check_string_variable('Project/session name', session_name, allow_empty=False)
 
-        optimizer = self._get_optimizer(data_key)
-        if optimizer is None:
-            data_set = None
-        else:
-            data_set = optimizer.get_calculated_peak(scan_log_index)
+        # get data key
+        optimizer = self._get_optimizer(session_name)
+        data_set = optimizer.get_calculated_peak(sub_run)
 
         return data_set
 
@@ -494,6 +480,66 @@ class PyRsCore(object):
             return None
 
         return optimizer.get_function_parameter_names()
+
+    # TODO - #81 - Code quality
+    def get_peak_fitting_result(self, project_name, return_format, effective_parameter):
+        """ Get peak fitting result
+        Note: this provides a convenient method to retrieve information
+        :param project_name:
+        :param return_format:
+        :param effective_parameter:
+        :return:
+        """
+        # Get peak fitting controller
+        if project_name in self._optimizer_dict:
+            # if it does exist
+            peak_fitter = self._optimizer_dict[project_name]
+        else:
+            raise RuntimeError('{} not exist'.format(project_name))
+
+        # Param names
+        param_names = peak_fitter.get_peak_param_names(None, False)
+
+        # Get the parameter values
+        if effective_parameter:
+            raise NotImplementedError('Effective parameters... ASAP')
+            peak_fitter.get_fitted_effective_params(param_names)
+        else:
+            sub_run_vec, chi2_vec, param_vec = peak_fitter.get_fitted_params(param_names, including_error=True)
+
+        if return_format == dict:
+            # dictionary
+            param_data = dict()
+            for s_index in range(sub_run_vec.shape[0]):
+                sub_run_i = sub_run_vec[s_index]
+            # TODO - #81 - continue to develop til finish!
+
+        elif return_format == numpy.ndarray:
+            # numpy array
+            # initialize
+            array_shape = sub_run_vec.shape[0], 2+param_vec.shape[0]
+            param_data = numpy.ndarray(shape=array_shape, dtype='float')
+
+            # set value
+            param_data[:, 0] = sub_run_vec
+            param_data[:, 1] = chi2_vec
+            for j in range(param_vec.shape[0]):
+                param_data[:, j+1] = param_vec[j, :, 0]   # data for all sub run
+
+        elif return_format == DataFrame:
+            # pandas data frame
+            # TODO - #81 - ...
+            raise NotImplementedError('ASAP')
+
+        else:
+            # ...
+            raise RuntimeError('not supported')
+
+        # TODO - #81 - Shall be a nicer output
+        param_names.insert(0, 'Sub-run')
+        param_names.insert(1, 'chi2')
+
+        return param_names, param_data
 
     # TODO - TONIGHT NOW - Need to migrate to new get_fitted_params
     def get_peak_fit_param_value(self, data_key, param_name_list, max_cost):
