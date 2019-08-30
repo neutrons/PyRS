@@ -2,7 +2,7 @@
 python setup.py pyuic
 python setup.py build
 
-MANTIDLOCALPATH=/home/wzz/Mantid_Project/debug/bin/
+MANTIDLOCALPATH=/home/wzz/Mantid_Project/builds/mantid-python2/bin/
 MANTIDMACPATH=/Users/wzz/MantidBuild/debug/bin/
 MANTIDSNSDEBUGPATH=/opt/mantidnightly/bin/  # NIGHTLY for latest Pseudo-voigt
 MANTIDPATH=$MANTIDMACPATH:$MANTIDLOCALPATH:$MANTIDSNSDEBUGPATH
