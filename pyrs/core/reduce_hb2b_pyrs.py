@@ -324,18 +324,18 @@ class ResidualStressInstrument(object):
 
         return two_theta_values
 
-     def get_eta_values(self, dimension):
+    def get_eta_values(self, dimension):
         """
-        get the 2theta values for all the pixels
-        :param dimension: 1 for array, 2 for matrix
-        :return:
+                get the 2theta values for all the pixels
+                :param dimension: 1 for array, 2 for matrix
+                :return:
         """
         if self._pixel_eta_matrix is None:
             raise RuntimeError('2theta values for all the pixels are not calculated yet. (instrument not built')
 
         if dimension == 1:
             m, n = self._pixel_eta_matrix.shape
-            eta_values = self._pixel_eta_matrix.reshape((m*n,))
+            eta_values = self._pixel_eta_matrix.reshape((m * n,))
         else:
             eta_values = self._pixel_eta_matrix[:, :]
 
