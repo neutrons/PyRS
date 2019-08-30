@@ -155,9 +155,14 @@ class ReductionTest(object):
 
         # Test a subset of pixels' positions
         for pixel_id in GoldDataXrayNoShift.keys():
-            print ('Test pixel {} position'.format(pixel_id))
+            # print ('Test pixel {} position'.format(pixel_id))
             pixel_pos = pixel_pos_array[pixel_id]
             assert_diff_delta(pixel_pos, GoldDataXrayNoShift[pixel_id], 0.000001)
+        # END-FOR
+
+        # Visual report
+        print ("*************************\nNo Shift Reduction Passed (Golden Xray Data)\n"
+               "*************************")
 
         plt.plot(vec_x, vec_y)
 
@@ -169,8 +174,6 @@ class ReductionTest(object):
         """
         # Geometry shift
         test_shift = self.generate_testing_geometry_shift()
-        print ('[DB...BAT] In Reduction-Test  Shift: {}'.format(test_shift))
-
         self._reduction_controller.reduce_diffraction_data(self._project_name,
                                                            two_theta_step=0.005,
                                                            pyrs_engine=True,
@@ -190,6 +193,11 @@ class ReductionTest(object):
         for pixel_id in GoldDataXrayWithShift.keys():
             pixel_pos = pixel_pos_array[pixel_id]
             assert_diff_delta(pixel_pos, GoldDataXrayWithShift[pixel_id], 0.000001)
+        # END-FOR
+
+        # Visual report
+        print ("***************************\nShifted Geometry Reduction Passed (Golden Xray Data)\n"
+               "***************************")
 
         # Plot
         vec_2theta = data_set[0]
@@ -231,34 +239,54 @@ class ReductionTest(object):
         # Test with mantid engine
         idf_xml = 'tests/testdata/xray_data/XRAY_Definition_20190521_1342.xml'
         self._reduction_controller.reduction_manager.set_mantid_idf(idf_xml)
+        if False:
+            test_shift = False
+        else:
+            test_shift = self.generate_testing_geometry_shift()
         self._reduction_controller.reduce_diffraction_data(self._project_name,
                                                            two_theta_step=0.004,
                                                            pyrs_engine=False,
                                                            mask_file_name=None,
-                                                           geometry_calibration=False)
+                                                           geometry_calibration=test_shift)
         mantid_engine = self._reduction_controller.reduction_manager.get_last_reduction_engine()
         print ('[TEST] Engine name: {}'.format(mantid_engine))
         mantid_pixel_positions = mantid_engine.get_pixel_positions(is_matrix=False, corner_center=True)
 
         # Test with pyrs engine
         self._reduction_controller.reduce_diffraction_data(self._project_name,
-                                                           0.005, True, None)
+                                                           0.005,
+                                                           pyrs_engine=True,
+                                                           mask_file_name=None,
+                                                           geometry_calibration=test_shift)
         reduction_engine = self._reduction_controller.reduction_manager.get_last_reduction_engine()
         # pixels
         pyrs_pixel_positions = reduction_engine.get_pixel_positions(is_matrix=False, corner_center=True)
 
         # compare
+        err_msg = ''
+        is_wrong = False
         for i_pixel in range(5):
-            print ('{}:   {}   vs   {}'.format(i_pixel, mantid_pixel_positions[i_pixel],
-                                               pyrs_pixel_positions[i_pixel]))
+            err_msg += '{}:   {}   vs   {}\n'.format(i_pixel, mantid_pixel_positions[i_pixel],
+                                                     pyrs_pixel_positions[i_pixel])
+            err_sum = 0.
             for i_dir in range(3):
-                print ('\t{}  -  {}   =  {}'
-                       ''.format(mantid_pixel_positions[i_pixel][i_dir],
-                                 pyrs_pixel_positions[i_pixel][i_dir],
-                                 mantid_pixel_positions[i_pixel][i_dir] - pyrs_pixel_positions[i_pixel][i_dir]))
+                err_sum += (mantid_pixel_positions[i_pixel][i_dir] - pyrs_pixel_positions[i_pixel][i_dir])**2
+                err_msg += '\tdir {}: {}  -  {}   =  {}\n' \
+                           ''.format(i_dir, mantid_pixel_positions[i_pixel][i_dir],
+                                     pyrs_pixel_positions[i_pixel][i_dir],
+                                     mantid_pixel_positions[i_pixel][i_dir] - pyrs_pixel_positions[i_pixel][i_dir])
             # END-FOR
+            err_sum = numpy.sqrt(err_sum)
+            if err_sum > 1.E-10:
+                is_wrong = True
         # END-FOR
-
+        if is_wrong:
+            print ('***********************\nFailure: Reduction Engine Consistency Test\n'
+                   '***********************')
+            print (err_msg)
+        else:
+            print ('***********************\nPassed: Reduction Engine Consistency Test\n'
+                   '***********************')
         return
 
     def set_mask_files(self, masks_list_file_name):
