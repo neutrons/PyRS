@@ -51,7 +51,7 @@ class ManualReductionWindow(QMainWindow):
         self._promote_widgets()
 
         # set up the event handling
-        self.ui.pushButton_setIPTSNumber.clicked.connect(self.do_set_ipts_exp)
+        self.ui.pushButton_loadProjectFile.clicked.connect(self.do_load_hidra_projec_file)
         self.ui.pushButton_browseOutputDir.clicked.connect(self.do_browse_output_dir)
         self.ui.pushButton_setCalibrationFile.clicked.connect(self.do_browse_calibration_file)
 
@@ -409,7 +409,7 @@ class ManualReductionWindow(QMainWindow):
 
         self._core.reduction_manager.save_project(self._project_data_id, output_project_name)
 
-    def do_set_ipts_exp(self):
+    def do_load_hidra_projec_file(self):
         """
         set IPTS number
         :return:
@@ -419,9 +419,12 @@ class ManualReductionWindow(QMainWindow):
             exp_number = gui_helper.parse_integer(str(self.ui.lineEdit_expNumber.text()))
             self._currIPTSNumber = ipts_number
             self._currExpNumber = exp_number
-            self._core.reduction_manager.set_ipts_exp_number(ipts_number, exp_number)
+            project_file_name = 'blabla.hdf5'
         except RuntimeError:
             gui_helper.pop_message(self, 'IPTS number shall be set to an integer.', message_type='error')
+            project_file_name = gui_helper.browse_file(self, 'Hidra Project File', '', 'hdf5 (*.hdf5)', False, False)
+
+        self.load_hydra_file(project_file_name)
 
         return
 
@@ -511,6 +514,21 @@ class ManualReductionWindow(QMainWindow):
             pass
 
         self._plot_sliced_mutex = False
+
+        return
+
+    def load_hydra_file(self, project_file_name):
+        """
+        Load Hidra project file to the core
+        :param project_file_name:
+        :return:
+        """
+        project_name = os.path.basename(project_file_name).split('.')[0]
+        self._core.load_hidra_project(project_file_name, project_name=project_name)
+
+        self._curr_project_name = project_file_name
+
+        return
 
     def setup_window(self, pyrs_core):
         """

@@ -8,12 +8,12 @@ do
   CMDS="$CMDS $file"
 done
 
-MANTIDLOCALPATH=/home/wzz/Mantid_Project/debug/bin/
-MANTIDMACPATH=/Users/wzz/MantidBuild/debug-stable/bin/
-MANTIDSNSDEBUGPATH=/opt/Mantid/bin/
+# Set mantid path on different platform
+MANTIDLOCALPATH=/home/wzz/Mantid_Project/builds/mantid-python2/bin/
+MANTIDMACPATH=/Users/wzz/MantidBuild/debug/bin/
+MANTIDSNSDEBUGPATH=/opt/mantidnightly/bin/  # NIGHTLY for latest Pseudo-voigt
 MANTIDPATH=$MANTIDMACPATH:$MANTIDLOCALPATH:$MANTIDSNSDEBUGPATH
 PYTHONPATH=$MANTIDPATH:$PYTHONPATH
-echo $PYTHONPATH
 PYRSPATH=build/lib.linux-x86_64-2.7/:build/lib/
 
 PYTHONPATH=$PYRSPATH:$PYTHONPATH build/scripts-2.7/pyrsplot $CMD 
