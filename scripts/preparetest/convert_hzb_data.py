@@ -80,7 +80,8 @@ def import_hzb_summary(summary_excel):
         summary_dict[scan_index_array[item_index]] = scan_i_dict
     # END-FOR
 
-    return summary_dict, {'sub-run': scan_index_array, '2Theta': two_theta_array,
+    return summary_dict, {rs_project_file.HidraConstants.SUB_RUNS: scan_index_array,
+                          rs_project_file.HidraConstants.TWO_THETA: two_theta_array,
                           'Monitor': monitor_array, 'L2': l2_array}
 
 

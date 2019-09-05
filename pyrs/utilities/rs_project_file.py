@@ -201,8 +201,8 @@ class HydraProjectFile(object):
         :return:
         """
         assert self._project_h5 is not None, 'cannot be None'
-
         self._project_h5.close()
+        print ('[INFO] File {} is closed'.format(self._file_name))
 
         return
 

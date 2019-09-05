@@ -3,12 +3,9 @@ import sys
 import os
 from pyrs.core import reduction_manager
 from pyrs.utilities import checkdatatypes
+from pyrs.core import calibration_file_io
 from pyrs.core import mask_util
 from matplotlib import pyplot as plt
-
-# This is the final version of command line script to reduce HB2B data
-# including
-# 1.
 
 
 # 1. implement 2theta option
