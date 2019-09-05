@@ -10,12 +10,7 @@ from matplotlib import pyplot as plt
 # including
 # 1.
 
-
-# 1. implement 2theta option
-# 2. add test case for .bin file
-# TODO - TONIGHT - 3. synchronize calibration parameter names among XML, .cal (ascii) and .cal.h5 (hdf5) AND doc!
-# 3-1: synchronize calibration parameter names among XML,
-# TODO - TONIGHT - 4. add test data file of X-ray instrument
+# TODO - #84 - Overall docs & type checks
 
 
 class ReductionApp(object):
@@ -27,8 +22,13 @@ class ReductionApp(object):
         initialization
         """
         self._use_mantid_engine = False
-        self._reduction_engine = reduction_manager.HB2BReductionManager()
-        self._instrument = None
+        self._reduction_manager = reduction_manager.HB2BReductionManager()
+        self._hydra_ws = None   # HidraWorkspace used for reduction
+
+        # initialize reduction session with a general name (single session script)
+        self._session = 'GeneralHB2BReduction'
+        self._reduction_manager.init_session(self._session)
+        self._hydra_file_name = None
 
         return
 
@@ -66,17 +66,19 @@ class ReductionApp(object):
 
         return
 
-    def load_raw_data(self, data_file):
+    def load_project_file(self, data_file):
+        """
 
-        # load data
-        data_id, two_theta = self._reduction_engine.load_data(data_file, target_dimension=2048,
-                                                              load_to_workspace=False)
+        :param data_file:
+        :return:
+        """
 
-        counts_vec = self._reduction_engine.get_counts(data_id)
-        print ('Counts vec:', counts_vec)
-        print ('Counts shape:', counts_vec.shape)
+        # load data: from raw counts to reduced data
+        self._hydra_ws = self._reduction_manager.load_hidra_project(data_file, True, True, True)
 
-        return counts_vec
+        self._hydra_file_name = data_file
+
+        return
 
     def mask_detectors(self, counts_vec, mask_file):
 
@@ -112,149 +114,38 @@ class ReductionApp(object):
 
         return
 
-    def reduce_proj(self, data_file, output, instrument_file, calibration_file, mask_file=None, sub_run=None):
-        """
-        reduce from an HB2B project file
-        :param data_file:
-        :param output:
+    def reduce_data(self, sub_runs, instrument_file, calibration_file, mask):
+        """ Reduce data from HidraWorkspace
+        :param sub_runs:
         :param instrument_file:
         :param calibration_file:
-        :param mask_file:
-        :param sub_run:
+        :param mask:
         :return:
         """
-        import shutil
-
-        checkdatatypes.check_file_name(data_file, True, False, False, description='Input source data file')
-        checkdatatypes.check_string_variable('Output file/directory', output)
-
-        # determine output file
-        base_name = os.path.basename(data_file)
-
-        if os.path.samefile(data_file, output):
-            # data file: In/Out mode
-            output_file_name = data_file
-        elif os.path.exists(output) and os.path.isdir(output):
-            # only output directory given
-            output_file_name = os.path.join(output, base_name)
-            if not os.path.exists(output_file_name) or not os.path.samefile(data_file, output_file_name):
-                shutil.copyfile(data_file, output_file_name)
+        # Check inputs
+        if sub_runs is None:
+            sub_runs = self._hydra_ws.get_subruns()
         else:
-            # given name is supposed to be the target file name
-            output_file_name = output
-            shutil.copyfile(data_file, output_file_name)
-        # END-IF
+            checkdatatypes.check_list('Sub runs', sub_runs)
 
-        checkdatatypes.check_file_name(output_file_name, False, True, False, 'Output reduced hdf5 file')
+        # instrument file
+        if instrument_file is not None:
+            print ('instrument file: {}'.format(instrument_file))
+            # TODO - #84 - Implement
 
-        # mask file
-        if mask_file is not None:
-            mask_vec, mask_2theta, note = mask_util.load_pyrs_mask(mask_file)
-        else:
-            mask_vec = None
+        # calibration file
+        if calibration_file is not None:
+            blabla()
 
-        # get engine first
-        if instrument_file.lower().endswith('.xml'):
-            use_mantid = True
-        elif instrument_file.lower().endswith('.txt'):
-            use_mantid = False
-        else:
-            raise NotImplementedError('Impossible')
+        # mask
+        if mask is not None:
+            blabla()
 
-        # load data
-        data_id, two_theta = self._reduction_engine.load_data(data_file, sub_run=sub_run, load_to_workspace=use_mantid)
-
-        # load instrument
-        if instrument_file.lower().endswith('.xml'):
-            # Mantid IDF file: use mantid engine
-            self._reduction_engine.set_mantid_idf(instrument_file)
-        elif instrument_file.lower().endswith('.txt'):
-            # plain text instrument setup
-            instrument = calibration_file_io.import_instrument_setup(instrument_file)
-            self._reduction_engine.set_instrument(instrument)
-        else:
-            raise NotImplementedError('Impossible')
-
-        if calibration_file:
-            geom_calibration = self.import_calibration_file(calibration_file)
-            self._reduction_engine.set_geometry_calibration(geom_calibration)
-
-        # reduce
-        self._reduction_engine.reduce_to_2theta(data_id=data_id,
-                                                sub_run=None,
-                                                two_theta=two_theta,
-                                                use_mantid_engine=use_mantid,
-                                                mask=mask_vec)
-
-        self._reduction_engine.save_reduced_diffraction(data_id, output_file_name)
-
-        return
-
-    def reduce_beta(self, data_file, output, instrument_file, two_theta, calibration_file, mask_file=None):
-        """ Reduce data
-        :param data_file:
-        :param output:
-        :param instrument_file:
-        :param two_theta
-        :param calibration_file:
-        :param mask_file:
-        :return:
-        """
-        checkdatatypes.check_file_name(data_file, True, False, False, description='Input source data file')
-        checkdatatypes.check_string_variable('Output file/directory', output)
-
-        if os.path.exists(output) and os.path.isdir(output):
-            # user specifies a directory
-            base_name = os.path.basename(data_file).split('.')[0]
-            output_file_name = os.path.join(output, '{}.h5'.format(base_name))
-            if output_file_name == data_file:
-                raise RuntimeError('Default output file name is exactly as same as input file name {}'
-                                   ''.format(data_file))
-        else:
-            output_file_name = output
-        checkdatatypes.check_file_name(output_file_name, False, True, False, 'Output reduced hdf5 file')
-
-        # mask file
-        if mask_file is not None:
-            mask_vec, mask_2theta, note = mask_util.load_pyrs_mask(mask_file)
-        else:
-            mask_vec = None
-
-        # get engine first
-        if instrument_file.lower().endswith('.xml'):
-            use_mantid = True
-        elif instrument_file.lower().endswith('.txt'):
-            use_mantid = False
-        else:
-            raise NotImplementedError('Impossible')
-
-        # load data
-        data_id, two_th_tp = self._reduction_engine.load_data(data_file, target_dimension=2048,
-                                                              load_to_workspace=use_mantid)
-        print ('2theta = {} (from {}) vs {} (from user)'.format(two_th_tp, data_file, two_theta))
-
-        # load instrument
-        if instrument_file.lower().endswith('.xml'):
-            # Mantid IDF file: use mantid engine
-            self._reduction_engine.set_mantid_idf(instrument_file)
-        elif instrument_file.lower().endswith('.txt'):
-            # plain text instrument setup
-            instrument = calibration_file_io.import_instrument_setup(instrument_file)
-            self._reduction_engine.set_instrument(instrument)
-        else:
-            raise NotImplementedError('Impossible')
-
-        if calibration_file:
-            geom_calibration = self.import_calibration_file(calibration_file)
-            self._reduction_engine.set_geometry_calibration(geom_calibration)
-
-        # reduce
-        self._reduction_engine.reduce_to_2theta(data_id=data_id,
-                                                two_theta=two_theta,
-                                                use_mantid_engine=use_mantid,
-                                                mask=mask_vec)
-
-        self._reduction_engine.save_reduced_diffraction(data_id, output_file_name)
+        self._reduction_manager.reduce_diffraction_data(self._session, apply_calibrated_geometry=False,
+                                                        bin_size_2theta=0.05,
+                                                        use_pyrs_engine=not self._use_mantid_engine,
+                                                        mask=None,
+                                                        sub_run_list=sub_runs)
 
         return
 
@@ -269,6 +160,17 @@ class ReductionApp(object):
         else:
             plt.plot(vec_x, vec_y)
         plt.show()
+
+    def save_diffraction_data(self):
+
+        from pyrs.utilities import rs_project_file
+
+        out_file = rs_project_file.HydraProjectFile(self._hydra_file_name,
+                                                    rs_project_file.HydraProjectFileMode.READWRITE)
+
+        self._hydra_ws.save_reduced_diffraction_data(out_file)
+
+        return
 
 
 def main(argv):
@@ -297,12 +199,12 @@ def main(argv):
         reducer.use_mantid_engine = False
 
     # Load Hidra project file
-    project_handler = reducer.load_project_file(project_data_file)
+    reducer.load_project_file(project_data_file)
 
     # Process data
     if inputs_option_dict['no reduction']:
         # plot raw detector counts without reduction but possibly with masking
-        reducer.plot_detector_counts(project_handler, mask=inputs_option_dict['mask'])
+        reducer.plot_detector_counts(mask=inputs_option_dict['mask'])
     else:
         # reduce data
         # collect information
@@ -310,12 +212,21 @@ def main(argv):
         user_calibration = inputs_option_dict['calibration']
         mask = inputs_option_dict['mask']
 
+        # sub run
+        if inputs_option_dict['subrun'] is None:
+            sub_run_list = None
+        else:
+            sub_run_list = [inputs_option_dict['subrun']]
+
         # reduce
-        reducer.reduce_data(output=output_dir,
-                            instrument_file=user_instrument,
+        reducer.reduce_data(instrument_file=user_instrument,
                             calibration_file=user_calibration,
                             mask=mask,
                             sub_runs=sub_run_list)
+
+        # save
+        reducer.save_diffraction_data()
+
     # END-IF-ELSE
 
     return

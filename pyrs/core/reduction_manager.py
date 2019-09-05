@@ -248,7 +248,8 @@ class HB2BReductionManager(object):
 
         return
 
-    def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, bin_size_2theta, use_pyrs_engine, mask):
+    def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, bin_size_2theta, use_pyrs_engine, mask,
+                                sub_run_list):
         """ Reduce ALL sub runs in a workspace from detector counts to diffraction data
         :param session_name:
         :param apply_calibrated_geometry: 3 options (1) user-provided AnglerCameraDetectorShift
@@ -289,7 +290,9 @@ class HB2BReductionManager(object):
         print ('[DB...BAT] Det Position Shift: {}'.format(det_pos_shift))
 
         # TODO - TONIGHT NOW #72 - How to embed mask information???
-        for sub_run in workspace.get_subruns():
+        if sub_run_list is None:
+            sub_run_list = workspace.get_subruns()
+        for sub_run in sub_run_list:
             self.reduce_sub_run_diffraction(workspace, sub_run, det_pos_shift,
                                             use_mantid_engine=not use_pyrs_engine,
                                             mask_vec_id=(mask_id, mask_vec),
@@ -318,22 +321,23 @@ class HB2BReductionManager(object):
         # Get the raw data
         raw_count_vec = workspace.get_detector_counts(sub_run)
 
-        # process two theta
+        # Retrieve two theta and L2 from loaded workspace
         two_theta = workspace.get_2theta(sub_run)
         print ('[INFO] User specified 2theta = {} is converted to Mantid 2theta = {}'
                ''.format(two_theta, -two_theta))
         two_theta = -two_theta
+        l2 = workspace.get_l2(sub_run)
 
         # Set up reduction engine and also
         if use_mantid_engine:
             # Mantid reduction engine
             reduction_engine = reduce_hb2b_mtd.MantidHB2BReduction(self._mantid_idf)
-            data_ws_name = reduction_engine.set_experimental_data(two_theta, raw_count_vec)
+            data_ws_name = reduction_engine.set_experimental_data(two_theta, l2, raw_count_vec)
             reduction_engine.build_instrument(geometry_calibration)
         else:
             # PyRS reduction engine
             reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
-            reduction_engine.set_experimental_data(two_theta, raw_count_vec)
+            reduction_engine.set_experimental_data(two_theta, l2, raw_count_vec)
             reduction_engine.build_instrument(geometry_calibration)
         # END-IF
 

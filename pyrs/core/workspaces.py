@@ -97,7 +97,14 @@ class HidraWorkspace(object):
         checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
 
         # get 2theta value
-        vec_2theta = hidra_file.get_diffraction_2theta_vector()
+        try:
+            vec_2theta = hidra_file.get_diffraction_2theta_vector()
+        except KeyError as key_err:
+            print ('[INFO] Unable to load 2theta vector from HidraProject file due to {}.'
+                   'It is very likely that no reduced data is recorded.'
+                   ''.format(key_err))
+            return
+        # TRY-CATCH
         self._2theta_vec = vec_2theta[:]
 
         # initialize data set for reduced diffraction patterns
@@ -169,12 +176,26 @@ class HidraWorkspace(object):
         :return: float number as 2theta
         """
         try:
-            two_theta = self._sample_log_dict['2Theta'][sub_run]
+            two_theta = self._sample_log_dict[rs_project_file.HidraConstants.TWO_THETA][sub_run]
         except KeyError as key_err:
             raise RuntimeError('Unable to retrieve 2theta value from {} due to {}'
                                .format(sub_run, key_err))
 
         return two_theta
+
+    def get_l2(self, sub_run):
+        # TODO - #84 - Doc
+        if rs_project_file.HidraConstants.L2 in self._sample_log_dict:
+            try:
+                l2 = self._sample_log_dict[rs_project_file.HidraConstants.L2][sub_run]
+            except KeyError as key_err:
+                raise RuntimeError('Unable to retrieve L2 value for {} due to {}. Available sun runs are {}'
+                                   .format(sub_run, key_err, self._sample_log_dict[rs_project_file.HidraConstants.L2]))
+        else:
+            # L2 might be unchanged
+            l2 = None
+
+        return l2
 
     def get_instrument_setup(self):
         """ Get the handler to instrument setup
@@ -431,7 +452,7 @@ class HidraWorkspace(object):
 
     def save_reduced_diffraction_data(self, hidra_project):
         """ Export reduced diffraction data to project
-        :param hidra_project:
+        :param hidra_project: HidraProjectFile instance
         :return:
         """
         checkdatatypes.check_type('HIDRA project file', hidra_project, rs_project_file.HydraProjectFile)

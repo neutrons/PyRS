@@ -70,7 +70,7 @@ def import_hzb_summary(summary_excel):
     # create a dictionary of dictionary for the information
     summary_dict = dict()
     for item_index in range(len(tiff_files)):
-        scan_i_dict = {'2theta': two_theta_array[item_index],
+        scan_i_dict = {rs_project_file.HidraConstants.TWO_THETA: two_theta_array[item_index],
                        'Tiff': tiff_files[item_index],
                        'Monitor': monitor_array[item_index],
                        'L2': l2_array[item_index]}
@@ -130,7 +130,7 @@ def main():
     for sub_run_i in sorted(sub_run_list):
         tiff_name = exp_summary_dict[sub_run_i]['Tiff']
         counts_array = parse_hzb_tiff(os.path.join(exp_data_dir, tiff_name))
-        print (counts_array.min(), counts_array.max(), (numpy.where(counts_array > 0.5)[0]).shape)
+        # print (counts_array.min(), counts_array.max(), (numpy.where(counts_array > 0.5)[0]).shape)
         project_file.add_raw_counts(sub_run_i, counts_array)
     # END-FOR
 

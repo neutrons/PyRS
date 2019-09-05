@@ -756,7 +756,7 @@ class PyRsCore(object):
 
         self._reduction_manager.reduce_diffraction_data(session_name, apply_calibration,
                                                         two_theta_step, pyrs_engine,
-                                                        mask_id)
+                                                        mask_id, None)
 
         return
 

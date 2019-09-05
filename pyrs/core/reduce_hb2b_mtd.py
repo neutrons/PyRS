@@ -463,6 +463,9 @@ class MantidHB2BReduction(object):
         from pyrs.core import instrument_geometry
         # Get required parameters
         two_theta_value, idf_name = self._detector_2theta, self._mantid_idf
+        l2_value = self._l2
+        if l2_value is not None:
+            raise RuntimeError('It is not clear how to set L2 to workspace\'s run properties.')
 
         if self._data_ws_name is None or ADS.doesExist(self._data_ws_name) is False:
             raise RuntimeError('Reduction HB2B (Mantid) has no workspace set to reduce')
@@ -684,9 +687,10 @@ class MantidHB2BReduction(object):
 
         return
 
-    def set_experimental_data(self, det_2theta_pos, det_counts_vec):
+    def set_experimental_data(self, det_2theta_pos, l2, det_counts_vec):
         """ Set experimental data to engine for data reduction
         :param det_2theta_pos: 2theta position of detector arm
+        :param l2: L2 (None to use default value)
         :param det_counts_vec: 1D array for all detector counts
         :return:
         """
@@ -695,6 +699,11 @@ class MantidHB2BReduction(object):
 
         # Set
         self._detector_2theta = det_2theta_pos
+        if l2 is None:
+            self._l2 = None
+        else:
+            checkdatatypes.check_float_variable('L2', l2, (1.E-2, None))
+            self._l2 = l2
 
         # Create workspace
         num_pixels = det_counts_vec.shape[0]

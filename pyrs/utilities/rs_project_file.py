@@ -21,6 +21,7 @@ class HidraConstants(object):
     GEOMETRY_SETUP = 'geometry setup'
     DETECTOR_PARAMS = 'detector'
     TWO_THETA = '2Theta'
+    L2 = 'L2'
 
     # constants about peak fitting
     PEAK_PROFILE = 'peak profile'
@@ -61,8 +62,6 @@ class HydraProjectFile(object):
     """ Read and/or write an HB2B project to an HDF5 with entries for detector counts, sample logs, reduced data,
     fitted peaks and etc.
     All the import/export information will be buffered in order to avoid exception during operation
-
-
 
     File structure:
     - experiment
@@ -188,6 +187,7 @@ class HydraProjectFile(object):
         checkdatatypes.check_string_variable('Log name', log_name)
 
         try:
+            print ('[DB...BAT] Add sample log: {}'.format(log_name))
             self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS].create_dataset(
                 log_name, data=log_value_array)
         except RuntimeError as run_err:
@@ -497,6 +497,7 @@ class HydraProjectFile(object):
         for mask_id in diff_data_set:
             # Get data
             diff_data_matrix_i = diff_data_set[mask_id]
+            print ('[INFO] Mask {} data set shape: {}'.format(mask_id, diff_data_matrix_i.shape))
             # Check
             checkdatatypes.check_numpy_arrays('Diffraction data (matrix)', [diff_data_matrix_i], 2, False)
             if two_theta_vec.shape[0] != diff_data_matrix_i.shape[1]:

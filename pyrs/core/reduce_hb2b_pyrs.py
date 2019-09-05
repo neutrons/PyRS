@@ -89,7 +89,7 @@ class ResidualStressInstrument(object):
 
         return pixel_matrix
 
-    def build_instrument(self, two_theta, instrument_calibration):
+    def build_instrument(self, two_theta, l2, instrument_calibration):
         """
         build instrument considering calibration
         step 1: rotate instrument according to the calibration
@@ -98,15 +98,21 @@ class ResidualStressInstrument(object):
         :param instrument_calibration: AnglerCameraDetectorShift or None (no calibration)
         :return:
         """
-        # check input
+        # Check input
         checkdatatypes.check_float_variable('2theta', two_theta, (None, None))
+        # Check or set L2
+        if l2 is None:
+            l2 = self._instrument_geom_params.arm_length
+        else:
+            checkdatatypes.check_float_variable('L2', l2, (1E-2, None))
 
-        print ('[DB...L101] Build instrument: 2theta = {}, arm = {}'
-               ''.format(two_theta, self._instrument_geom_params.arm_length))
+        print ('[DB...L101] Build instrument: 2theta = {}, arm = {} (diff to default = {})'
+               ''.format(two_theta, l2, l2 - self._instrument_geom_params.arm_length))
 
         # make a copy from raw (constant position)
         self._pixel_matrix = self._raw_pixel_matrix.copy()
 
+        # Check and set instrument calibration
         if instrument_calibration is not None:
             # check type
             checkdatatypes.check_type('Instrument calibration', instrument_calibration,
@@ -128,7 +134,7 @@ class ResidualStressInstrument(object):
         # END-IF-ELSE
 
         # push to +Z at length of detector arm
-        arm_l2 = self._instrument_geom_params.arm_length
+        arm_l2 = l2
         if instrument_calibration is not None:
             # Apply the shift on Z (arm length)
             arm_l2 += instrument_calibration.center_shift_z
@@ -397,6 +403,7 @@ class PyHB2BReduction(object):
             self._instrument.set_wave_length(wave_length)
 
         self._detector_2theta = None
+        self._detector_l2 = None
         self._detector_counts = None
         self._detector_mask = None
 
@@ -419,7 +426,8 @@ class PyHB2BReduction(object):
             checkdatatypes.check_type('Instrument geometry calibrated shift', calibration,
                                       instrument_geometry.AnglerCameraDetectorShift)
 
-        self._instrument.build_instrument(self._detector_2theta, instrument_calibration=calibration)
+        self._instrument.build_instrument(self._detector_2theta, self._detector_l2,
+                                          instrument_calibration=calibration)
 
         return
 
@@ -637,7 +645,7 @@ class PyHB2BReduction(object):
 
         return bin_edges, hist
 
-    def set_experimental_data(self, two_theta, raw_count_vec):
+    def set_experimental_data(self, two_theta, l2, raw_count_vec):
         """ Set experimental data (for a sub-run)
         :param two_theta: detector position
         :param raw_count_vec: detector raw counts
@@ -645,8 +653,11 @@ class PyHB2BReduction(object):
         """
         checkdatatypes.check_float_variable('2-theta', two_theta, (-180, 180))
         checkdatatypes.check_numpy_arrays('Detector (raw) counts', [raw_count_vec], 1, False)
+        if l2 is not None:
+            checkdatatypes.check_float_variable('L2', l2, (1.E-2, None))
 
         self._detector_2theta = two_theta
+        self._detector_l2 = l2
         self._detector_counts = raw_count_vec
 
         return
