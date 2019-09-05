@@ -15,7 +15,7 @@ from matplotlib import pyplot as plt
 # TODO - TONIGHT - 4. add test data file of X-ray instrument
 
 
-class ReductionApp(object):
+class PrototypeReductionApp(object):
     """
     Data reduction application
     """
@@ -276,7 +276,7 @@ def main(argv):
     inputs_option_dict = parse_inputs(argv[3:])
 
     # call for reduction
-    reducer = ReductionApp()
+    reducer = PrototypeReductionApp()
 
     if inputs_option_dict['engine'] == 'mantid':
         reducer.use_mantid_engine = True
