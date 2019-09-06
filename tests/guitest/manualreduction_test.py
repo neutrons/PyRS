@@ -17,6 +17,7 @@ def test_hzb_data(reduction_window):
     :param reduction_window:
     :return:
     """
+    # TODO - #84 - Implement
     # 1. Load HZB data
 
     # 2. Plot raw data
@@ -24,6 +25,8 @@ def test_hzb_data(reduction_window):
     # 3. Plot reduced data
 
     # 4. Reduce HZB data
+
+    # 5. Plot re-reduced data
 
     return
 
@@ -40,7 +43,6 @@ def test_main():
 
     # Test 1
     test_hzb_data(manual_reduction_window)
-
 
     #
     # # set up IPTS and run number

@@ -107,6 +107,17 @@ class HB2BReductionManager(object):
 
         return workspace.get_detector_counts(sub_run)
 
+    # TODO - #84 - Better
+    def get_sample_logs_list(self, session_name, can_plot):
+
+        workspace = self._session_dict[session_name]
+        # TODO - #84 - Implement
+        # sample_logs = workspace.get_sample_logs()
+
+        sample_logs = ['sub-run']
+
+        return sample_logs
+
     def get_sub_run_2theta(self, session_name, sub_run):
         """
         Get the detector arm's 2theta position of a sub run
@@ -151,6 +162,7 @@ class HB2BReductionManager(object):
 
         return
 
+    # TODO - #84 - load_calibrated_instrument IS NOT IMPLEMENTED YET!
     def load_hidra_project(self, project_file_name, load_calibrated_instrument, load_detectors_counts,
                            load_reduced_diffraction):
         """ Load hidra project file

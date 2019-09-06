@@ -135,6 +135,7 @@ class ReductionApp(object):
 
         # calibration file
         if calibration_file is not None:
+            # TODO - #84 - parse calibration file or already a calibration object
             blabla()
 
         # mask

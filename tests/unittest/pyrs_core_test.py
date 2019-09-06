@@ -17,7 +17,7 @@ def test_main():
     rs_core = pyrscore.PyRsCore()
 
     # load data
-    data_key, message = rs_core.load_rs_raw(test_data)
+    data_key, message = rs_core.load_hidra_project(test_data)
     print ('Data reference ID: {0}'.format(data_key))
     # scan log data range
     print ('Scan log index range: {0}'.format(rs_core.data_center.get_scan_range(data_key)))

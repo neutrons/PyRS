@@ -19,13 +19,13 @@ PYRSPATH=build/lib.linux-x86_64-2.7/:build/lib/
 if [ "$1" = "1" ]
 then 
 	echo "Test peak fitting module"
-        PYTHONPATH=build/lib:$PYTHONPATH build/scripts-2.7/peakfitgui_test.py
+        PYTHONPATH=$PYRSPATH:$PYTHONPATH python build/scripts-2.7/peakfitgui_test.py
 fi
 
 if [ "$1" = "2" ]
 then 
 	echo "Test texture calculation module"
-        PYTHONPATH=build/lib:$PYTHONPATH build/scripts-2.7/texturegui_test.py
+        PYTHONPATH=$PYRSPATH:$PYTHONPATH build/scripts-2.7/texturegui_test.py
 fi
 
 if [ "$1" = "3" ]

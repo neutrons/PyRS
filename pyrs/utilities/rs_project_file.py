@@ -336,6 +336,8 @@ class HydraProjectFile(object):
         get list of the sub runs
         :return:
         """
+        print (self._project_h5.keys())
+        print (self._file_name)
         sub_runs_str_list = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS][HidraConstants.SUB_RUNS].value
 
         print ('[DB....BAT....] Sun runs: {}'.format(sub_runs_str_list))

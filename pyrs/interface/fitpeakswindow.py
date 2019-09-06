@@ -127,6 +127,8 @@ class FitPeaksWindow(QMainWindow):
         use IPTS and Exp to determine
         :return:
         """
+        from pyrs.core import hb2b_utilities
+
         try:
             ipts_number = gui_helper.parse_integer(self.ui.lineEdit_iptsNumber)
             exp_number = gui_helper.parse_integer(self.ui.lineEdit_expNumber)
@@ -134,7 +136,8 @@ class FitPeaksWindow(QMainWindow):
             gui_helper.pop_message(self, 'Unable to parse IPTS or Exp due to {0}'.format(run_err))
             return None
 
-        archive_data = hb2b.get_hb2b_raw_data(ipts_number, exp_number)
+        # Locate default saved HidraProject data
+        archive_data = hb2b_utilities.get_hb2b_raw_data(ipts_number, exp_number)
 
         return archive_data
 
@@ -164,7 +167,9 @@ class FitPeaksWindow(QMainWindow):
         """
         self._check_core()
 
-        default_dir = self._get_default_hdf()
+        # TODO - #84 - check hb2b_utilities called in _get_default_hdf()
+        # disabled temporarily default_dir = self._get_default_hdf()
+        default_dir = None
         if default_dir is None:
             default_dir = self._core.working_dir
 
@@ -215,33 +220,36 @@ class FitPeaksWindow(QMainWindow):
 
         # get file
         if from_browse:
-            rs_file_name = str(self.ui.lineEdit_expFileName.text())
+            hydra_project_file = str(self.ui.lineEdit_expFileName.text())
         else:
-            rs_file_name = self.set_file_from_archive()
+            hydra_project_file = self.set_file_from_archive()
 
         # load file
         try:
-            data_key, message = self._core.load_rs_raw(rs_file_name)
+            self._project_name = os.path.basename(hydra_project_file).split('.')[0]
+            self._core.load_hidra_project(hydra_project_file, project_name=self._project_name,
+                                          load_detector_counts=False,
+                                          load_diffraction=True)
         except RuntimeError as run_err:
-            gui_helper.pop_message(self, 'Unable to load {}'.format(rs_file_name), detailed_message=str(run_err),
+            gui_helper.pop_message(self, 'Unable to load {}'.format(hydra_project_file), detailed_message=str(run_err),
                                    message_type='error')
             return
 
         # edit information
-        self.ui.label_loadedFileInfo.setText(message)
+        self.ui.label_loadedFileInfo.setText('Loaded {}; Project name: {}'
+                                             ''.format(hydra_project_file, self._project_name))
 
-        # get the range of log indexes
-        log_range = self._core.data_center.get_scan_range(data_key)
-        self.ui.label_logIndexMin.setText(str(log_range[0]))
-        self.ui.label_logIndexMax.setText(str(log_range[-1]))
+        # Get the range of sub runs
+        sub_run_list = self._core.reduction_manager.get_sub_runs(self._project_name)
+        self.ui.label_logIndexMin.setText(str(sub_run_list[0]))
+        self.ui.label_logIndexMax.setText(str(sub_run_list[-1]))
 
         # get the sample logs
-        sample_log_names = self._core.data_center.get_sample_logs_list(data_key, can_plot=True)
+        sample_log_names = self._core.reduction_manager.get_sample_logs_list(self._project_name, can_plot=True)
 
         self._sample_log_names_mutex = True
         self.ui.comboBox_xaxisNames.clear()
         self.ui.comboBox_yaxisNames.clear()
-        self.ui.comboBox_xaxisNames.addItem('Log Index')
 
         # Maintain a copy of sample logs!
         self._sample_log_names = sample_log_names[:]
@@ -255,22 +263,24 @@ class FitPeaksWindow(QMainWindow):
         self.ui.graphicsView_fitResult.reset_viewer()
 
         # Record data key and next
-        self._curr_data_key = data_key
-        self._curr_file_name = rs_file_name
+        self._curr_data_key = self._project_name  # TODO - #84 - _curr_data_key vs _project_name
+        self._curr_file_name = hydra_project_file
 
         # About table
         if self.ui.tableView_fitSummary.rowCount() > 0:
             self.ui.tableView_fitSummary.remove_all_rows()
-        self.ui.tableView_fitSummary.init_exp(self._core.data_center.get_scan_range(data_key))
+        self.ui.tableView_fitSummary.init_exp(sub_run_list)
 
         # plot first peak for default peak range
         self.ui.lineEdit_scanNumbers.setText('0')
-        self.do_plot_diff_data(plot_model=False)
+        # TODO - #84 - CHECK: self.do_plot_diff_data(plot_model=False)
 
         # auto fit
         if self.ui.checkBox_autoFit.isChecked():
             # auto fit: no need to plot anymore
-            self.do_fit_peaks()
+            # TODO - #84 - CHECK!
+            # self.do_fit_peaks()
+            pass
 
         # plot the contour
         # FIXME/TODO/ASAP3 self.ui.graphicsView_contourView.plot_contour(self._core.data_center.get_data_2d(data_key))

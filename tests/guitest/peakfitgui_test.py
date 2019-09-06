@@ -13,7 +13,7 @@ except ImportError:
 
 def test_main():
     """
-    test main
+    Test main for fitting peaks
     """
     fit_window = fitpeakswindow.FitPeaksWindow(None)
     pyrs_core = pyrscore.PyRsCore()
@@ -25,13 +25,13 @@ def test_main():
     # tests/testdata/16-1_TD.cor_Log.hdf5
     # tests/testdata/16-1_ND.cor_Log.hdf5
     # tests/testdata/16-1_LD.cor_Log.hdf5
-    fit_window.ui.lineEdit_expFileName.setText('tests/testdata/16-1_TD.cor_Log.hdf5')
+    fit_window.ui.lineEdit_expFileName.setText('tests/testdata/Hydra_16-1_cor_log.hdf5')
     fit_window.ui.comboBox_peakType.setCurrentIndex(0)  # Test pseudo voigt
     fit_window.do_load_scans()
     if False:
         fit_window.do_plot_meta_data()
 
-    if True:
+    if False:
         fit_window.do_fit_peaks()
         fit_window.ui.lineEdit_scanNumbers.setText('0')
         fit_window.do_plot_diff_data()
