@@ -12,7 +12,9 @@ import itertools
 import math
 import lmfit
 
+from pyrs.core import pyrscore
 from pyrs.core import reduce_hb2b_pyrs
+from pyrs.core import instrument_geometry
 from pyrs.core import calibration_file_io
 from pyrs.core import reductionengine
 from pyrs.core import mask_util
@@ -29,18 +31,23 @@ class GlobalParameter(object):
 
 def convert_to_2theta(engine, pyrs_reducer, roi_vec, ws_name):
     # reduce data
-    min_2theta = 16.
-    max_2theta = 61.
-    num_bins = 1800
-
+    min_2theta  = 16.
+    max_2theta  = 61.
+    num_bins    = 1800
+    TTHStep     = (max_2theta - min_2theta) / num_bins
     # reduce PyRS (pure python)
     curr_id = engine.current_data_id
 
-    vec_2theta, vec_hist = pyrs_reducer.reduce_to_2theta_histogram(counts_array=engine.get_counts(curr_id),
-                                                                   mask=roi_vec, x_range=(min_2theta, max_2theta),
-                                                                   num_bins=num_bins,
-                                                                   is_point_data=True,
-                                                                   use_mantid_histogram=False)
+    pyrs_reducer.set_mask( roi_vec )
+    pyrs_reducer._detector_counts = engine.get_counts(curr_id)
+#    vec_2theta, vec_hist = pyrs_reducer.reduce_to_2theta_histogram(counts_array=engine.get_counts(curr_id),
+#                                                                   mask=roi_vec, x_range=(min_2theta, max_2theta),
+#                                                                   num_bins=num_bins,
+#                                                                   is_point_data=True,
+#                                                                   use_mantid_histogram=False)
+
+    vec_2theta, vec_hist = pyrs_reducer.reduce_to_2theta_histogram((min_2theta, max_2theta), TTHStep, True,
+                                   is_point_data=True, normalize_pixel_bin=True, use_mantid_histogram=False)
 
     CreateWorkspace(DataX=vec_2theta, DataY=vec_hist, DataE=np.sqrt(vec_hist), NSpec=1,
                     OutputWorkspace=ws_name)
@@ -74,20 +81,23 @@ def peaks_alignment_score(x, engine, hb2b_setup, two_theta, roi_vec_set, plot=Fa
         num_reduced_set = len(roi_vec_set)
 
     # convert the input X array (to be refined) to geometry calibration values
-    geom_calibration = calibration_file_io.ResidualStressInstrumentCalibration()
-    geom_calibration.center_shift_x = x[0]
-    geom_calibration.center_shift_y = x[1]
-    geom_calibration.center_shift_z = x[2]
-    geom_calibration.rotation_x = x[3]
-    geom_calibration.rotation_y = x[4]
-    geom_calibration.rotation_z = x[5]
+#    geom_calibration = calibration_file_io.ResidualStressInstrumentCalibration()
+#    geom_calibration.center_shift_x = x[0]
+#    geom_calibration.center_shift_y = x[1]
+#    geom_calibration.center_shift_z = x[2]
+#    geom_calibration.rotation_x = x[3]
+#    geom_calibration.rotation_y = x[4]
+#    geom_calibration.rotation_z = x[5]
+
+    #geom_shift = instrument_geometry.AnglerCameraDetectorShift( x[0], x[1], x[2], x[3], x[4], x[5] )
+
+#AnglerCameraDetectorGeometry.apply_shift( instrument_geometry.AnglerCameraDetectorShift( x[0], x[1], x[2], x[3], x[4], x[5] ) )
 
     # load instrument: as it changes
     pyrs_reducer = reduce_hb2b_pyrs.PyHB2BReduction(hb2b_setup, 1.239)
-    pyrs_reducer.build_instrument(two_theta, geom_calibration.center_shift_z,
-                                  geom_calibration.center_shift_x, geom_calibration.center_shift_y,
-                                  geom_calibration.rotation_x, geom_calibration.rotation_y,
-                                  geom_calibration.rotation_z)
+    pyrs_reducer.build_instrument_prototype(two_theta, x[0], x[1], x[2], x[3], x[4], x[5] )
+
+#    pyrs_reducer.build_instrument_prototype()
 
     Eta_val = pyrs_reducer.get_eta_Values()
 
@@ -237,7 +247,9 @@ def main():
         test_data_id = engine.load_data(data_file_name=test_file_name, target_dimension=2048,
                                         load_to_workspace=False)
         # instrument
-        instrument = calibration_file_io.import_instrument_setup(idf_name)
+        instrument  = calibration_file_io.import_instrument_setup(idf_name)
+
+        HB2B        = instrument_geometry.AnglerCameraDetectorGeometry( instrument.detector_rows, instrument.detector_columns, instrument.pixel_size_x, instrument.pixel_size_y, instrument.arm_length, False )
 
         start_calibration = [-3.90985615e-05, -2.72036598e-04, 3.91642084e-04, 5.99667751e-03,
                                  -8.15624721e-01, 1.42673120e+00]
@@ -247,13 +259,13 @@ def main():
         start_calibration = np.array( [0.00026239, 0.0055485, 0.00048748, 0.00130224, -0.00025911, -0.0006577] )
         start_calibration = np.array( [0] * 6 )
 
-        out = minimize(peaks_alignment_score, start_calibration, args=(engine, instrument, two_theta, roi_vec_list, False, True), method='L-BFGS-B', jac=None, bounds=None, tol=None, callback=None, options={'disp': None, 'maxcor': 10, 'ftol': 2.220446049250313e-05, 'gtol': 1e-03, 'eps': 1e-03, 'maxfun': 100, 'maxiter': 100, 'iprint': -1, 'maxls': 20})
+        out = minimize(peaks_alignment_score, start_calibration, args=(engine, HB2B, two_theta, roi_vec_list, False, True), method='L-BFGS-B', jac=None, bounds=None, tol=None, callback=None, options={'disp': None, 'maxcor': 10, 'ftol': 2.220446049250313e-05, 'gtol': 1e-03, 'eps': 1e-03, 'maxfun': 100, 'maxiter': 100, 'iprint': -1, 'maxls': 20})
         t_stop1 = time.time()
 
-        out2 = minimize(peaks_alignment_score, out.x, args=(engine, instrument, two_theta, roi_vec_list, False, True), method='L-BFGS-B', jac=None, bounds=None, tol=None, callback=None, options={'disp': None, 'maxcor': 10, 'ftol': 2.220446049250313e-09, 'gtol': 1e-05, 'eps': 1e-07, 'maxfun': 100, 'maxiter': 100, 'iprint': -1, 'maxls': 20})
+        out2 = minimize(peaks_alignment_score, out.x, args=(engine, HB2B, two_theta, roi_vec_list, False, True), method='L-BFGS-B', jac=None, bounds=None, tol=None, callback=None, options={'disp': None, 'maxcor': 10, 'ftol': 2.220446049250313e-09, 'gtol': 1e-05, 'eps': 1e-07, 'maxfun': 100, 'maxiter': 100, 'iprint': -1, 'maxls': 20})
         t_stop2 = time.time()
 
-        out3 = least_squares(peaks_alignment_score, out2.x, jac='2-point', bounds=([-.1, -.1, -.1, -np.pi, -np.pi, -np.pi], [.1, .1, .1, np.pi, np.pi, np.pi]), method='trf', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', f_scale=1.0, diff_step=None, tr_solver=None, tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0, args=(engine, instrument, two_theta, roi_vec_list, False, False), kwargs={})
+        out3 = least_squares(peaks_alignment_score, out2.x, jac='2-point', bounds=([-.1, -.1, -.1, -np.pi, -np.pi, -np.pi], [.1, .1, .1, np.pi, np.pi, np.pi]), method='trf', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', f_scale=1.0, diff_step=None, tr_solver=None, tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0, args=(engine, HB2B, two_theta, roi_vec_list, False, False), kwargs={})
 
 #        # optimize
 #        GlobalParameter.global_curr_sequence = 0  # reset output
