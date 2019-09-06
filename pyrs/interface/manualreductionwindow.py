@@ -13,7 +13,7 @@ import numpy
 from pyrs.utilities import checkdatatypes
 
 
-# TODO LIST - #72 - 1. UI: change segments to masks
+# TODO LIST - #84 - 1. UI: change segments to masks
 # TODO              2. UI: add solid angle input
 # TODO              3. UI: add option to use reduced data from input project file
 # TODO              4. Implement plot method for reduced data
@@ -62,7 +62,7 @@ class ManualReductionWindow(QMainWindow):
         self.ui.pushButton_chopReduce.clicked.connect(self.do_chop_reduce_run)
 
         self.ui.pushButton_launchAdvSetupWindow.clicked.connect(self.do_launch_slice_setup)
-        self.ui.pushButton_plotDetView.clicked.connect(self.do_plot_det_counts)
+        self.ui.pushButton_plotDetView.clicked.connect(self.do_plot)
 
         # radio button operation
         self.ui.radioButton_chopByTime.toggled.connect(self.event_change_slice_type)
@@ -117,6 +117,10 @@ class ManualReductionWindow(QMainWindow):
         self.ui.frame_detectorView.setLayout(curr_layout)
         self.ui.graphicsView_detectorView = DetectorView(self)
         curr_layout.addWidget(self.ui.graphicsView_detectorView)
+
+        # Sub run information table
+        # TODO - #84 - Sub run information table to implement
+        self.ui.frame_subRunInfoTable
 
         return
 
@@ -245,13 +249,26 @@ class ManualReductionWindow(QMainWindow):
 
         return
 
-    def do_plot_det_counts(self):
-        """ Plot detector counts as 2D detector view view
+    def do_plot(self):
+        """ Plot detector counts as 2D detector view view OR reduced data according to the tab that is current on
         :return:
         """
+        # TODO - #84 - Clean up this method!
+        print ('[DB...BAT] Plotting tab index = {}'.format(self.ui.tabWidget_View.currentIndex()))
+
+        current_tab_index = self.ui.tabWidget_View.currentIndex()
+        sub_run = int(self.ui.comboBox_sub_runs.currentText())
+
+        if current_tab_index == 0:
+            # raw view
+            pass
+        elif current_tab_index == 1:
+            # reduced view
+            pass
+
         # FIXME - Need to separate these 2 plotting method: detector view vs reduced data
         # plot detector view
-        sub_run = int(self.ui.comboBox_sub_runs.currentText())
+
         count_vec = self._core.reduction_manager.get_sub_run_detector_counts(self._project_data_id, sub_run)
         two_theta = self._core.reduction_manager.get_sub_run_2theta(self._project_data_id, sub_run)
 
@@ -422,7 +439,7 @@ class ManualReductionWindow(QMainWindow):
             project_file_name = 'blabla.hdf5'
         except RuntimeError:
             gui_helper.pop_message(self, 'IPTS number shall be set to an integer.', message_type='error')
-            project_file_name = gui_helper.browse_file(self, 'Hidra Project File', '', 'hdf5 (*.hdf5)', False, False)
+            project_file_name = gui_helper.browse_file(self, 'Hidra Project File', os.getcwd(), 'hdf5 (*.hdf5)', False, False)
 
         self.load_hydra_file(project_file_name)
 
@@ -523,10 +540,17 @@ class ManualReductionWindow(QMainWindow):
         :param project_file_name:
         :return:
         """
+        # TODO - #84 - Need try-catch
+        # Load data file
         project_name = os.path.basename(project_file_name).split('.')[0]
         self._core.load_hidra_project(project_file_name, project_name=project_name)
-
         self._curr_project_name = project_file_name
+
+        # TODO - #84 - Fill sub runs to self.ui.comboBox_sub_runs
+
+        # TODO - #84 - Set to first sub run and plot
+
+        # TODO - #84 - Fill in self.ui.frame_subRunInfoTable
 
         return
 

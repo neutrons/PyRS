@@ -11,6 +11,23 @@ except ImportError:
     from PyQt4.QtGui import QApplication
 
 
+def test_hzb_data(reduction_window):
+    """
+
+    :param reduction_window:
+    :return:
+    """
+    # 1. Load HZB data
+
+    # 2. Plot raw data
+
+    # 3. Plot reduced data
+
+    # 4. Reduce HZB data
+
+    return
+
+
 def test_main():
     """
     test main
@@ -20,6 +37,11 @@ def test_main():
     manual_reduction_window.setup_window(pyrs_core)
 
     manual_reduction_window.show()
+
+    # Test 1
+    test_hzb_data(manual_reduction_window)
+
+
     #
     # # set up IPTS and run number
     # manual_reduction_window.ui.lineEdit_iptsNumber.setText('12345')
