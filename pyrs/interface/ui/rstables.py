@@ -704,6 +704,34 @@ class PoleFigureTable(NTableWidget.NTableWidget):
 # END-DEF-CLASS()
 
 
+class RawDataTable(NTableWidget.NTableWidget):
+    """
+    A table to contain raw data information to review for reduction
+    """
+    TableSetupList = [('sub-run', 'int'),
+                      ('2theta', 'float'),
+                      ('reduced', 'bool')]
+
+    def __init__(self, parent):
+        """ Initialization
+        :param parent:
+        """
+        super(RawDataTable, self).__init__(parent)
+
+        return
+
+    def add_raw_sub_run(self, sub_run_number, two_theta):
+        """
+        Add raw data for one sub run
+        :param sub_run_number:
+        :param two_theta:
+        :return:
+        """
+        self.append_row([sub_run_number, two_theta, False])
+
+        return
+
+
 class StrainStressValueTable(NTableWidget.NTableWidget):
     """
     A table for strain and stress value

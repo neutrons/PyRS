@@ -17,10 +17,12 @@ def test_hzb_data(reduction_window):
     :param reduction_window:
     :return:
     """
-    # TODO - #84 - Implement
-    # 1. Load HZB data
+    # Load HZB data
+    hzb_hidra_name = 'tests/testdata/HZB_Raw_Project.hdf'
+    reduction_window.load_hydra_file(hzb_hidra_name)
 
-    # 2. Plot raw data
+    # Plot raw data
+    reduction_window.plot_detector_counts(sub_run=2)
 
     # 3. Plot reduced data
 

@@ -4,7 +4,6 @@ from pyrs.utilities import checkdatatypes
 from pyrs.utilities import rs_project_file
 
 
-# TODO - #80 - Overall quality
 class HidraWorkspace(object):
     """
     This workspace is the central data structure to manage all the raw and/or processed data.
@@ -132,9 +131,8 @@ class HidraWorkspace(object):
         return
 
     def _load_instrument(self,  hidra_file):
-        """
-        Load instrument setup from HIDRA file
-        :param hidra_file:
+        """ Load instrument setup from HIDRA file
+        :param hidra_file: HIDRA project file instance
         :return:
         """
         # Check
@@ -146,8 +144,10 @@ class HidraWorkspace(object):
         return
 
     def _load_sample_logs(self, hidra_file):
-        """ Load sample logs
-        :param hidra_file:
+        """ Load sample logs.
+        Note: this method can clear all the sample logs added previously. But it is not
+            an issue in the real use cases.
+        :param hidra_file:  HIDRA project file instance
         :return:
         """
         checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
@@ -158,23 +158,24 @@ class HidraWorkspace(object):
         return
 
     def _load_wave_length(self, hidra_file):
-        """
-        Load wave length
-        :param hidra_file:
+        """ Load wave length
+        :param hidra_file:  HIDRA project file instance
         :return:
         """
         checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
 
-        # TODO - #81 - Implement wave length storage in HidraProjectFile!
+        # reset the wave length (dictionary) from HIDRA project file
+        self._wave_length_dict = hidra_file.get_wave_lengths()
 
         return
 
     def get_2theta(self, sub_run):
         """ Get 2theta value from sample log
         This is a special one
-        :param sub_run:
+        :param sub_run: sub run number (integer)
         :return: float number as 2theta
         """
+        checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
         try:
             two_theta = self._sample_log_dict[rs_project_file.HidraConstants.TWO_THETA][sub_run]
         except KeyError as key_err:
@@ -184,8 +185,14 @@ class HidraWorkspace(object):
         return two_theta
 
     def get_l2(self, sub_run):
-        # TODO - #84 - Doc
+        """ Get L2 for a specific sub run
+        :param sub_run: sub run number (integer)
+        :return: L2 or None (i.e., using default L2)
+        """
+        checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
+
         if rs_project_file.HidraConstants.L2 in self._sample_log_dict:
+            # L2 is a valid sample log: get L2
             try:
                 l2 = self._sample_log_dict[rs_project_file.HidraConstants.L2][sub_run]
             except KeyError as key_err:
@@ -216,7 +223,7 @@ class HidraWorkspace(object):
 
         return self._raw_counts[sub_run]
 
-    def get_subruns(self):
+    def get_sub_runs(self):
         """ Get sub runs that loaded to this workspace
         :return: list of sorted sub runs
         """
@@ -321,7 +328,7 @@ class HidraWorkspace(object):
     def get_reduced_diffraction_data(self, sub_run, mask_id=None):
         """
         get data set of a single diffraction pattern
-        :param sub_run:
+        :param sub_run: sub run number (integer)
         :param mask_id: None (as default main) or ID as a String
         :return:
         """
@@ -361,13 +368,18 @@ class HidraWorkspace(object):
 
         return self._sample_log_dict[sample_log_name].copy()
 
-    def get_spectrum(self, sub_run):
+    def get_spectrum_index(self, sub_run):
         """
-        Get spectrum (index) from sub run
-        :param sub_run:
+        Get spectrum (index) from sub run number
+        :param sub_run: sub run number (integer)
         :return:
         """
-        # TODO - #81 - Doc & robustness
+        checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
+
+        if sub_run not in self._sub_run_to_spectrum:
+            raise KeyError('Sub run {} does not exist in spectrum/sub run map.  Available sub runs are {}'
+                           ''.format(sub_run, self._sub_run_to_spectrum.keys()))
+
         return self._sub_run_to_spectrum[sub_run]
 
     def get_sub_runs_from_spectrum(self, spectra):
@@ -386,7 +398,7 @@ class HidraWorkspace(object):
 
     def has_raw_data(self, sub_run):
         """ Check whether a raw file that has been loaded
-        :param sub_run:
+        :param sub_run: sub run number (integer)
         :return:
         """
         checkdatatypes.check_int_variable('Sub run', sub_run, (1, None))
@@ -396,7 +408,7 @@ class HidraWorkspace(object):
     def has_sample_log(self, sample_log_name):
         """
         check whether a certain sample log exists in the workspace (very likely loaded from file)
-        :param sample_log_name:
+        :param sample_log_name: sample log name
         :return:
         """
         # Check inputs
@@ -405,6 +417,23 @@ class HidraWorkspace(object):
         has_log = sample_log_name in self._sample_log_dict
 
         return has_log
+
+    def set_raw_counts(self, sub_run_number, counts):
+        """
+        Set the raw counts to
+        :param sub_run_number: integer for sub run number
+        :param counts: ndarray of detector counts
+        :return:
+        """
+        # Check inputs
+        checkdatatypes.check_int_variable('Sub run number', sub_run_number, (1, None))
+        checkdatatypes.check_numpy_arrays('Counts', [counts], dimension=None,
+                                          check_same_shape=False)
+
+        # Set
+        self._raw_counts[sub_run_number] = counts
+
+        return
 
     def set_reduced_diffraction_data(self, sub_run, mask_id, bin_edges, hist):
         """ Set reduced diffraction data to workspace
@@ -447,6 +476,38 @@ class HidraWorkspace(object):
         # Set Y
         spec_id = self._sub_run_to_spectrum[sub_run]
         self._diff_data_set[mask_id][spec_id] = hist
+
+        return
+
+    def set_sample_log(self, log_name, log_value_array):
+        """
+        Set sample log value for each sub run, i.e., average value in each sub run
+        :param log_name:
+        :param log_value_array:
+        :return:
+        """
+        # Check inputs
+        checkdatatypes.check_string_variable('Log name', log_name)
+        checkdatatypes.check_numpy_arrays('Log value ', [log_value_array], 1, False)
+
+        # Set
+        self._sample_log_dict[log_name] = log_value_array
+
+        return
+
+    def save_experimental_data(self, hidra_project):
+        """
+        Save experimental data including raw counts and sample logs
+        :param hidra_project:
+        :return:
+        """
+        # Raw counts
+        for sub_run_i in self._raw_counts.keys():
+            hidra_project.add_raw_counts(sub_run_i, self._raw_counts[sub_run_i])
+
+        # Sample logs
+        for log_name in self._sample_log_dict.keys():
+            hidra_project.add_experiment_log(log_name, self._sample_log_dict[log_name])
 
         return
 
@@ -501,7 +562,7 @@ class HidraWorkspace(object):
         :return:
         """
         # Get the sub runs
-        sub_runs = self.get_subruns()
+        sub_runs = self.get_sub_runs()
 
         if isinstance(wave_length, float):
             # single wave length value

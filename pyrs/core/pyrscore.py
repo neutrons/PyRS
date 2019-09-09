@@ -297,7 +297,7 @@ class PyRsCore(object):
 
         # Deal with sub runs
         if sub_run_list is None:
-            sub_run_list = workspace.get_subruns()
+            sub_run_list = workspace.get_sub_runs()
         else:
             checkdatatypes.check_list('Sub run numbers', sub_run_list)
         sub_run_range = sub_run_list[0], sub_run_list[-1]

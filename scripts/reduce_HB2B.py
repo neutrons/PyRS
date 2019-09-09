@@ -124,7 +124,7 @@ class ReductionApp(object):
         """
         # Check inputs
         if sub_runs is None:
-            sub_runs = self._hydra_ws.get_subruns()
+            sub_runs = self._hydra_ws.get_sub_runs()
         else:
             checkdatatypes.check_list('Sub runs', sub_runs)
 

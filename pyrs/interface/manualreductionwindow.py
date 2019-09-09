@@ -11,6 +11,7 @@ import os
 import gui_helper
 import numpy
 from pyrs.utilities import checkdatatypes
+from pyrs.interface.ui import rstables
 
 
 # TODO LIST - #84 - 1. UI: change segments to masks
@@ -119,8 +120,8 @@ class ManualReductionWindow(QMainWindow):
         curr_layout.addWidget(self.ui.graphicsView_detectorView)
 
         # Sub run information table
-        # TODO - #84 - Sub run information table to implement
-        self.ui.frame_subRunInfoTable
+        self.ui.rawDataTable = rstables.RawDataTable()
+        gui_helper.promote_widget(self.ui.frame_subRunInfoTable, self.ui.rawDataTable)
 
         return
 
@@ -546,11 +547,40 @@ class ManualReductionWindow(QMainWindow):
         self._core.load_hidra_project(project_file_name, project_name=project_name)
         self._curr_project_name = project_file_name
 
-        # TODO - #84 - Fill sub runs to self.ui.comboBox_sub_runs
+        # Fill sub runs to self.ui.comboBox_sub_runs
+        sub_runs = self._core.reduction_manager.get_sub_runs(self._curr_project_name)
+        sub_runs.sort()
 
-        # TODO - #84 - Set to first sub run and plot
+        # set sub runs: lock and release
+        self._mutexPlotRuns = True
+        # clear and set
+        self.ui.comboBox_sub_runs.clear()
+        for sub_run in sub_runs:
+            self.ui.comboBox_sub_runs.addItem(sub_run)
+        self._mutexPlotRuns = False
+
+        # Set to first sub run and plot
+        self.ui.comboBox_sub_runs.setCurrentIndex(0)
 
         # TODO - #84 - Fill in self.ui.frame_subRunInfoTable
+
+        return
+
+    def plot_detector_counts(self, sub_run_number):
+        """
+        Plot detector counts on the detector view
+        :param sub_run_number:  sub run number (integer)
+        :return:
+        """
+        # Check inputs
+        checkdatatypes.check_int_variable('Sub run number', sub_run_number, (0, None))
+
+        # Get the detector counts
+        detector_counts_array = self._core.reduction_manager.get_detector_counts(self._curr_project_name,
+                                                                                 sub_run_number)
+
+        # Plot
+        self.ui.graphicsView_detectorView.plot_detector_view(sub_run_number, detector_counts_array)
 
         return
 

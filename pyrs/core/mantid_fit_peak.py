@@ -140,11 +140,11 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         if start_sub_run is None:
             start_spectrum = 0
         else:
-            start_spectrum = self._hd_workspace.get_spectrum(start_sub_run)
+            start_spectrum = self._hd_workspace.get_spectrum_index(start_sub_run)
         if end_sub_run is None:
             end_spectrum = num_spectra - 1
         else:
-            end_spectrum = self._hd_workspace.get_spectrum(end_sub_run)
+            end_spectrum = self._hd_workspace.get_spectrum_index(end_sub_run)
 
         # Create Peak range/window workspace
         peak_window_ws_name = 'fit_window_{0}'.format(self._mantid_workspace_name)

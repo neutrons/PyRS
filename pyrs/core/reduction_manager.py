@@ -93,7 +93,7 @@ class HB2BReductionManager(object):
         checkdatatypes.check_string_variable('Session name', session_name, self._session_dict.keys())
         workspace = self._session_dict[session_name]
 
-        return workspace.get_subruns()
+        return workspace.get_sub_runs()
 
     def get_sub_run_detector_counts(self, session_name, sub_run):
         """
@@ -121,7 +121,7 @@ class HB2BReductionManager(object):
     def get_sub_run_2theta(self, session_name, sub_run):
         """
         Get the detector arm's 2theta position of a sub run
-        :param session_name:
+        :param session_name: name of the session for locating workspace
         :param sub_run:
         :return:
         """
@@ -129,6 +129,17 @@ class HB2BReductionManager(object):
         workspace = self._session_dict[session_name]
 
         return workspace.get_2theta(sub_run)
+
+    def get_detector_counts(self, session_name, sub_run):
+        """ Get the raw counts from detector of the specified sub run
+        :param session_name: name of the session for locating workspace
+        :param sub_run: sub run number (integer)
+        :return: array of detector counts
+        """
+        checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
+        workspace = self._session_dict[session_name]
+
+        return workspace.get_detector_counts(sub_run)
 
     def get_hidra_workspace(self, session_name):
         """ Get the HIDRA workspace
@@ -303,7 +314,7 @@ class HB2BReductionManager(object):
 
         # TODO - TONIGHT NOW #72 - How to embed mask information???
         if sub_run_list is None:
-            sub_run_list = workspace.get_subruns()
+            sub_run_list = workspace.get_sub_runs()
         for sub_run in sub_run_list:
             self.reduce_sub_run_diffraction(workspace, sub_run, det_pos_shift,
                                             use_mantid_engine=not use_pyrs_engine,
