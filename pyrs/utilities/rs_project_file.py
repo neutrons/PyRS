@@ -434,11 +434,13 @@ class HydraProjectFile(object):
 
         return
 
-    def get_wave_length(self):
+    def get_wave_lengths(self):
         """ Get wave length
         :return:
         """
-        return
+        # TODO - #84 - Implement ASAP
+
+        return dict()
 
     def set_wave_length(self, wave_length):
         """ Set wave length

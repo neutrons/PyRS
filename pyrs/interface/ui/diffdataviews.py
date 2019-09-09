@@ -82,12 +82,12 @@ class DetectorView(MplGraphicsView2D):
 
         return
 
-    def plot_detector_view(self, raw_counts):
+    def plot_detector_view(self, sub_run_number, raw_counts):
         """
         :param raw_counts: 1D array
         :return:
         """
-        # TODO - 20181117 - Make it real!
+        # TODO - #84 - Make it real!
 
         self._myCanvas.add_image_file('tests/testdata/Lab6_45-00130_Rotated.tif')
 

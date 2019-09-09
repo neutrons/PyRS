@@ -37,8 +37,8 @@ class ManualReductionWindow(QMainWindow):
         self._currIPTSNumber = None
         self._currExpNumber = None
         self._project_data_id = None
+        self._project_file_name = None   # last loaded project file
         self._output_dir = None
-        self._curr_project_name = None   # last loaded project file
 
         # mutexes
         self._plot_run_numbers_mutex = False
@@ -69,6 +69,8 @@ class ManualReductionWindow(QMainWindow):
         self.ui.radioButton_chopByTime.toggled.connect(self.event_change_slice_type)
         self.ui.radioButton_chopByLogValue.toggled.connect(self.event_change_slice_type)
         self.ui.radioButton_chopAdvanced.toggled.connect(self.event_change_slice_type)
+
+        self.ui.actionQuit.triggered.connect(self.do_quit)
 
         # event handling for combobox
         # self.ui.comboBox_sub_runs.currentIndexChanged.connect(self.event_new_run_to_plot)
@@ -120,7 +122,7 @@ class ManualReductionWindow(QMainWindow):
         curr_layout.addWidget(self.ui.graphicsView_detectorView)
 
         # Sub run information table
-        self.ui.rawDataTable = rstables.RawDataTable()
+        self.ui.rawDataTable = rstables.RawDataTable(self)
         gui_helper.promote_widget(self.ui.frame_subRunInfoTable, self.ui.rawDataTable)
 
         return
@@ -234,18 +236,12 @@ class ManualReductionWindow(QMainWindow):
                                                  save_file=False)
 
         try:
-            # TODO FIXME - #72 - Error!
-            data_handler = self._core.reduction_manager.load_hidra_project(project_h5_name, blabla)
+            self.load_hydra_file(project_h5_name)
         except RuntimeError as run_err:
             gui_helper.pop_message(self, 'Failed to load project file {}: {}'.format(project_h5_name, run_err),
                                    None, 'error')
         else:
-            print ('Loaded {} to {}'.format(project_h5_name, data_handler))
-
-            # populate the sub-runs
-            self._set_sub_runs(data_handler)
-            self._project_data_id = data_handler
-            self._curr_project_name = project_h5_name
+            print ('Loaded {} to {}'.format(project_h5_name, self._project_data_id))
         # END-TRY-EXCEPT
 
         return
@@ -289,18 +285,30 @@ class ManualReductionWindow(QMainWindow):
 
         return
 
-    def _set_sub_runs(self, data_id):
+    def _set_sub_runs(self):
         """ set the sub runs to comboBox_sub_runs
-        :param data_id:
         :return:
         """
-        sub_runs = self._core.reduction_manager.get_sub_runs(data_id)
+        # sub_runs = self._core.reduction_manager.get_sub_runs(data_id)
+        #
+        # self.ui.comboBox_sub_runs.clear()
+        # for sub_run in sorted(sub_runs):
+        #     self.ui.comboBox_sub_runs.addItem('{:04}'.format(sub_run))
+        #
+        #
+        # """
+        # """
+        # #
+        sub_runs = self._core.reduction_manager.get_sub_runs(self._project_data_id)
+        sub_runs.sort()
 
+        # set sub runs: lock and release
+        self._mutexPlotRuns = True
+        # clear and set
         self.ui.comboBox_sub_runs.clear()
-        for sub_run in sorted(sub_runs):
+        for sub_run in sub_runs:
             self.ui.comboBox_sub_runs.addItem('{:04}'.format(sub_run))
-
-        self.ui.comboBox_sub_runs.setCurrentIndex(0)
+        self._mutexPlotRuns = False
 
         return
 
@@ -373,6 +381,10 @@ class ManualReductionWindow(QMainWindow):
 
         return
 
+    def do_quit(self):
+        #
+        self.close()
+
     def do_reduce_batch_runs(self):
         """
         (simply) reduce a list of runs in same experiment in a batch
@@ -396,6 +408,7 @@ class ManualReductionWindow(QMainWindow):
         for sub_run_number in sub_run_list:
             tth_i = self._core.reduction_manager.get_sub_run_2theta(self._project_data_id, sub_run_number)
             try:
+                # TODO FIXME - #84 - This is completely broken + GUI test
                 self._core.reduction_manager.reduce_to_2theta_histogram(data_id=self._project_data_id,
                                                                         sub_run=sub_run_number,
                                                                         two_theta=tth_i,
@@ -420,10 +433,10 @@ class ManualReductionWindow(QMainWindow):
         """Save project
         :return:
         """
-        output_project_name = os.path.join(self._output_dir, os.path.basename(self._curr_project_name))
-        if output_project_name != self._curr_project_name:
+        output_project_name = os.path.join(self._output_dir, os.path.basename(self._project_file_name))
+        if output_project_name != self._project_file_name:
             import shutil
-            shutil.copyfile(self._curr_project_name, output_project_name)
+            shutil.copyfile(self._project_file_name, output_project_name)
 
         self._core.reduction_manager.save_project(self._project_data_id, output_project_name)
 
@@ -543,21 +556,16 @@ class ManualReductionWindow(QMainWindow):
         """
         # TODO - #84 - Need try-catch
         # Load data file
+        print ('Loading ... {}'.format(project_file_name))
         project_name = os.path.basename(project_file_name).split('.')[0]
         self._core.load_hidra_project(project_file_name, project_name=project_name)
-        self._curr_project_name = project_file_name
+        self._project_file_name = project_file_name
+
+        # populate the sub-runs
+        self._project_data_id = project_name
 
         # Fill sub runs to self.ui.comboBox_sub_runs
-        sub_runs = self._core.reduction_manager.get_sub_runs(self._curr_project_name)
-        sub_runs.sort()
-
-        # set sub runs: lock and release
-        self._mutexPlotRuns = True
-        # clear and set
-        self.ui.comboBox_sub_runs.clear()
-        for sub_run in sub_runs:
-            self.ui.comboBox_sub_runs.addItem(sub_run)
-        self._mutexPlotRuns = False
+        self._set_sub_runs()
 
         # Set to first sub run and plot
         self.ui.comboBox_sub_runs.setCurrentIndex(0)
@@ -576,7 +584,7 @@ class ManualReductionWindow(QMainWindow):
         checkdatatypes.check_int_variable('Sub run number', sub_run_number, (0, None))
 
         # Get the detector counts
-        detector_counts_array = self._core.reduction_manager.get_detector_counts(self._curr_project_name,
+        detector_counts_array = self._core.reduction_manager.get_detector_counts(self._project_data_id,
                                                                                  sub_run_number)
 
         # Plot
