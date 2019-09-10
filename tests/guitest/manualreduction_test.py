@@ -25,10 +25,14 @@ def test_hzb_data(reduction_window):
     reduction_window.plot_detector_counts(sub_run=2)
 
     # 3. Plot reduced data
+    reduction_window.plot_reduced_data(sub_run=2)
 
     # 4. Reduce HZB data
+    reduction_window.reduce_sub_runs(sub_runs=[3])
+    reduction_window.reduce_sub_runs(sub_runs=None)
 
     # 5. Plot re-reduced data
+    reduction_window.plot_reduced_data(sub_run=2)
 
     return
 

@@ -11,6 +11,7 @@ import os
 import gui_helper
 import numpy
 from pyrs.utilities import checkdatatypes
+from pyrs.utilities.rs_project_file import HidraConstants
 from pyrs.interface.ui import rstables
 
 
@@ -120,7 +121,7 @@ class ManualReductionWindow(QMainWindow):
         curr_layout.addWidget(self.ui.graphicsView_detectorView)
 
         # Sub run information table
-        self.ui.rawDataTable = rstables.RawDataTable()
+        self.ui.rawDataTable = rstables.RawDataTable(self)
         gui_helper.promote_widget(self.ui.frame_subRunInfoTable, self.ui.rawDataTable)
 
         return
@@ -254,7 +255,6 @@ class ManualReductionWindow(QMainWindow):
         """ Plot detector counts as 2D detector view view OR reduced data according to the tab that is current on
         :return:
         """
-        # TODO - #84 - Clean up this method!
         print ('[DB...BAT] Plotting tab index = {}'.format(self.ui.tabWidget_View.currentIndex()))
 
         current_tab_index = self.ui.tabWidget_View.currentIndex()
@@ -262,30 +262,13 @@ class ManualReductionWindow(QMainWindow):
 
         if current_tab_index == 0:
             # raw view
-            pass
+            self.plot_detector_counts(sub_run)
         elif current_tab_index == 1:
             # reduced view
-            pass
-
-        # FIXME - Need to separate these 2 plotting method: detector view vs reduced data
-        # plot detector view
-
-        count_vec = self._core.reduction_manager.get_sub_run_detector_counts(self._project_data_id, sub_run)
-        two_theta = self._core.reduction_manager.get_sub_run_2theta(self._project_data_id, sub_run)
-
-        # set information
-        info = 'Sub-run: {}, 2theta = {}, Det size = {}'.format(sub_run, two_theta, count_vec.shape[0])
-        self.ui.lineEdit_detViewInfo.setText(info)
-
-        # plot
-        self.ui.graphicsView_detectorView.plot_counts(count_vec)
-
-        # plot reduced data
-        # TODO CHECK - #72 - API???
-        vec_x, vec_y = self._core.reduction_manager.get_diffraction_pattern(self._project_data_id,
-                                                                            sub_run)
-        if vec_x is not None:
-            self.ui.graphicsView_1DPlot.plot_diffraction(vec_x, vec_y, '2theta', 'intensity', False)
+            self.plot_reduced_data(sub_run)
+        else:
+            raise NotImplementedError('Tab {} with index {} is not defined'
+                                      ''.format(self.ui.tabWidget_View.name(), current_tab_index))
 
         return
 
@@ -356,20 +339,6 @@ class ManualReductionWindow(QMainWindow):
         if append_mode is False:
             self.ui.comboBox_sampleLogNames.setCurrentIndex(0)
         self._plot_selection_mutex = False
-
-        return
-
-    def _plot_data(self):
-        """
-
-        :return:
-        """
-        print ('[WARNING] Not Implemented')
-        # TODO - 20181006 - Implement ASAP
-
-        # self.ui.comboBox_plotSelection
-        #
-        # self.ui.graphicsView_1DPlot.plot_
 
         return
 
@@ -562,14 +531,18 @@ class ManualReductionWindow(QMainWindow):
         # Set to first sub run and plot
         self.ui.comboBox_sub_runs.setCurrentIndex(0)
 
-        # TODO - #84 - Fill in self.ui.frame_subRunInfoTable
+        # Fill in self.ui.frame_subRunInfoTable
+        meta_data_array = self._core.reduction_manager.get_sample_logs_values([HidraConstants.SUB_RUNS,
+                                                                               HidraConstants.TWO_THETA])
+        self.ui.rawDataTable.add_subruns_info(meta_data_array, clear_table=True)
 
         return
 
-    def plot_detector_counts(self, sub_run_number):
+    def plot_detector_counts(self, sub_run_number, mask_id):
         """
         Plot detector counts on the detector view
         :param sub_run_number:  sub run number (integer)
+        :param mask_id: Mask ID (string) or None
         :return:
         """
         # Check inputs
@@ -579,8 +552,59 @@ class ManualReductionWindow(QMainWindow):
         detector_counts_array = self._core.reduction_manager.get_detector_counts(self._curr_project_name,
                                                                                  sub_run_number)
 
+        # set information
+        det_2theta = self._core.reduction_manager.get_sample_log_value(self._project_data_id,
+                                                                       sub_run_number,
+                                                                       HidraConstants.TWO_THETA)
+        info = 'sub-run: {}, 2theta = {}' \
+               ''.format(sub_run_number, det_2theta)
+
+        # If mask ID is not None
+        if mask_id is not None:
+            # Get mask in array and do a AND operation to detector counts (array)
+            mask_array = self._core.reduction_manager.get_mask_array(self._curr_project_name, mask_id)
+            detector_counts_array *= mask_array
+            info += ', mask ID = {}'.format(mask_id)
+
+        # Set information
+        self.ui.lineEdit_detViewInfo.setText(info)
+
         # Plot
-        self.ui.graphicsView_detectorView.plot_detector_view(sub_run_number, detector_counts_array)
+        self.ui.graphicsView_detectorView.plot_detector_view(detector_counts_array, (sub_run_number, mask_id))
+
+        return
+
+    def plot_reduced_data(self, sub_run_number, mask_id):
+        """
+        Plot reduced data
+        :param sub_run_number: sub run number (integer)
+        :param mask_id: Mask ID (string) or None
+        :return:
+        """
+        # Check inputs
+        checkdatatypes.check_int_variable('Sub run number', sub_run_number, (0, None))
+
+        try:
+            two_theta_array, diff_array = self._core.reduction_manager.get_diffraction_pattern(self._project_data_id,
+                                                                                               sub_run_number,
+                                                                                               mask_id)
+            if two_theta_array is None:
+                raise NotImplementedError('2theta array is not supposed to be None.')
+        except RuntimeError as run_err:
+            gui_helper.pop_message(self, 'Unable to retrieve reduced data',
+                                   'For sub run {} due to {}'.format(sub_run_number, run_err),
+                                   'error')
+            return
+
+        # set information
+        det_2theta = self._core.reduction_manager.get_sample_log_value(self._project_data_id,
+                                                                       sub_run_number,
+                                                                       HidraConstants.TWO_THETA)
+        info = 'sub-run: {}, 2theta = {}' \
+               ''.format(sub_run_number, det_2theta)
+
+        # plot diffraction data
+        self.ui.graphicsView_1DPlot.plot_diffraction(two_theta_array, diff_array, info)
 
         return
 
