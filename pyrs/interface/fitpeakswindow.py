@@ -695,6 +695,8 @@ class FitPeaksWindow(QMainWindow):
         plot a set of diffraction data (one scan log index) and plot its fitted data
         :return:
         """
+        # TODO FIXME - #84: TypeError: get_diffraction_data() got an unexpected keyword argument 'data_key'
+        # ..... UNIT TEST!
         # get experimental data and plot
         diff_data_set = self._core.get_diffraction_data(data_key=None, scan_log_index=scan_log_index)
         data_set_label = 'Scan {0}'.format(scan_log_index)

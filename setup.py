@@ -119,6 +119,7 @@ if __name__ == "__main__":
     """
     scripts = ['scripts/pyrsplot',
                'tests/guitest/peakfitgui_test.py',
+               'tests/guitest/manualreduction_test.py',
                'scripts/pyrscalibration.py',
                'scripts/reduce_HB2B.py',
                'scripts/create_mask.py',
@@ -133,7 +134,6 @@ if __name__ == "__main__":
                     'tests/unittest/polefigurecal_test.py',
                     'tests/unittest/straincalculationtest.py',
                     'tests/guitest/texturegui_test.py',
-                    'tests/guitest/manualreduction_test.py',
                     'tests/guitest/strainstressgui_test.py',
                     'tests/guitest/calibration_gui_test.py',
                     #'tests/unittest/test_reduced_hb2b.py',
