@@ -22,17 +22,19 @@ def test_hzb_data(reduction_window):
     reduction_window.load_hydra_file(hzb_hidra_name)
 
     # Plot raw data
-    reduction_window.plot_detector_counts(sub_run_number=2)
+    reduction_window.plot_detector_counts(sub_run_number=2, mask_id=None)
+
+    return
 
     # 3. Plot reduced data
-    reduction_window.plot_reduced_data(sub_run=2)
+    reduction_window.plot_reduced_data(sub_run_number=2, mask_id=None)
 
     # 4. Reduce HZB data
     reduction_window.reduce_sub_runs(sub_runs=[3])
     reduction_window.reduce_sub_runs(sub_runs=None)
 
     # 5. Plot re-reduced data
-    reduction_window.plot_reduced_data(sub_run=2)
+    reduction_window.plot_reduced_data(sub_run_number=2, mask_id=None)
 
     return
 

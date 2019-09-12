@@ -103,6 +103,8 @@ class ManualReductionWindow(QMainWindow):
         """
         self.ui.radioButton_chopByLogValue.setChecked(True)
 
+        self.ui.rawDataTable.setup()
+
         return
 
     def _promote_widgets(self):
@@ -258,10 +260,10 @@ class ManualReductionWindow(QMainWindow):
 
         if current_tab_index == 0:
             # raw view
-            self.plot_detector_counts(sub_run)
+            self.plot_detector_counts(sub_run, mask_id=None)
         elif current_tab_index == 1:
             # reduced view
-            self.plot_reduced_data(sub_run)
+            self.plot_reduced_data(sub_run, mask_id=None)
         else:
             raise NotImplementedError('Tab {} with index {} is not defined'
                                       ''.format(self.ui.tabWidget_View.name(), current_tab_index))
@@ -459,6 +461,8 @@ class ManualReductionWindow(QMainWindow):
         Load image binary file (as HFIR SPICE binary standard)
         :return:
         """
+        gui_helper.pop_message(self, 'Tell me', 'What do you want from me!', 'error')
+
         bin_file = gui_helper.browse_file(self, caption='Select a SPICE Image Binary File',
                                           default_dir=self._core.working_dir,
                                           file_filter='Binary (*.bin)', file_list=False, save_file=False)
@@ -467,16 +471,7 @@ class ManualReductionWindow(QMainWindow):
         if bin_file == '':
             return
 
-        print ('[DB...BAT] Select {} to load: ... '.format(bin_file))
 
-        # TODO - ASAP - Move the following to correct place
-        import mantid
-
-        # bin_file_name = '/home/wzz/Projects/PyRS/tests/testdata/LaB6_10kev_35deg-00004_Rotated.bin'
-
-        ws_name = 'testws'
-
-        LoadSpiceXML2DDet(Filename=bin_file_name, OutputWorkspace=ws_name, LoadInstrument=False)
 
         return
 
@@ -527,7 +522,9 @@ class ManualReductionWindow(QMainWindow):
         # Load data file
         print ('Loading ... {}'.format(project_file_name))
         project_name = os.path.basename(project_file_name).split('.')[0]
-        self._core.load_hidra_project(project_file_name, project_name=project_name)
+        self._core.load_hidra_project(project_file_name, project_name=project_name,
+                                      load_detector_counts=True,
+                                      load_diffraction=True)
         self._project_file_name = project_file_name
 
         # populate the sub-runs
@@ -540,7 +537,8 @@ class ManualReductionWindow(QMainWindow):
         self.ui.comboBox_sub_runs.setCurrentIndex(0)
 
         # Fill in self.ui.frame_subRunInfoTable
-        meta_data_array = self._core.reduction_manager.get_sample_logs_values([HidraConstants.SUB_RUNS,
+        meta_data_array = self._core.reduction_manager.get_sample_logs_values(self._project_data_id,
+                                                                              [HidraConstants.SUB_RUNS,
                                                                                HidraConstants.TWO_THETA])
         self.ui.rawDataTable.add_subruns_info(meta_data_array, clear_table=True)
 
@@ -561,9 +559,9 @@ class ManualReductionWindow(QMainWindow):
                                                                                  sub_run_number)
 
         # set information
-        det_2theta = self._core.reduction_manager.get_sample_log_value(self._project_data_id,
-                                                                       sub_run_number,
-                                                                       HidraConstants.TWO_THETA)
+        det_2theta_dict = self._core.reduction_manager.get_sample_logs_values(self._project_data_id,
+                                                                              [HidraConstants.TWO_THETA])[0]
+        det_2theta = det_2theta_dict[sub_run_number]
         info = 'sub-run: {}, 2theta = {}' \
                ''.format(sub_run_number, det_2theta)
 
@@ -593,9 +591,8 @@ class ManualReductionWindow(QMainWindow):
         checkdatatypes.check_int_variable('Sub run number', sub_run_number, (0, None))
 
         try:
-            two_theta_array, diff_array = self._core.reduction_manager.get_diffraction_pattern(self._project_data_id,
-                                                                                               sub_run_number,
-                                                                                               mask_id)
+            two_theta_array, diff_array = self._core.reduction_manager.get_reduced_diffraction_data(
+                self._project_data_id,  sub_run_number, mask_id)
             if two_theta_array is None:
                 raise NotImplementedError('2theta array is not supposed to be None.')
         except RuntimeError as run_err:
@@ -605,14 +602,33 @@ class ManualReductionWindow(QMainWindow):
             return
 
         # set information
-        det_2theta = self._core.reduction_manager.get_sample_log_value(self._project_data_id,
-                                                                       sub_run_number,
-                                                                       HidraConstants.TWO_THETA)
+        det_2theta = self._core.reduction_manager.get_sample_logs_values(self._project_data_id,
+                                                                         [HidraConstants.TWO_THETA])
+        det_2theta = det_2theta[0][ sub_run_number]
         info = 'sub-run: {}, 2theta = {}' \
                ''.format(sub_run_number, det_2theta)
 
         # plot diffraction data
-        self.ui.graphicsView_1DPlot.plot_diffraction(two_theta_array, diff_array, info)
+        # TODO - #84 - Add 'info' to plot!
+        self.ui.graphicsView_1DPlot.plot_diffraction(two_theta_array, diff_array, '2theta',
+                                                     'intensity', True)
+
+        return
+
+    def reduce_sub_runs(self, sub_runs):
+        """
+
+        :param sub_runs:
+        :return:
+        """
+        # TODO - #84 - Need mask, calibration, and etc.
+
+        self._core.reduce_diffraction_data(session_name=self._project_data_id,
+                                           two_theta_step=0.1,
+                                           pyrs_engine=True,
+                                           mask_file_name=None,
+                                           geometry_calibration=None,
+                                           sub_run_list=sub_runs)
 
         return
 

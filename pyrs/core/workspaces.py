@@ -363,6 +363,10 @@ class HidraWorkspace(object):
         :param sample_log_name:
         :return: vector of integer or float in the same order as sub run number
         """
+        if sample_log_name == rs_project_file.HidraConstants.SUB_RUNS and \
+                        sample_log_name not in self._sample_log_dict.keys():
+            return self.get_sub_runs()
+
         checkdatatypes.check_string_variable('Sample log name', sample_log_name,
                                              self._sample_log_dict.keys())
 

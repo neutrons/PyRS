@@ -108,6 +108,22 @@ class HB2BReductionManager(object):
         return workspace.get_detector_counts(sub_run)
 
     # TODO - #84 - Better
+    def get_sample_logs_values(self, session_name, log_names):
+        """ Get sample logs' value
+        :param session_name:
+        :param log_names:
+        :return: List of ...
+        """
+        workspace = self._session_dict[session_name]
+
+        log_values = list()
+        for log_name in log_names:
+            log_value_array = workspace.get_sample_log_values(log_name)
+            log_values.append(log_value_array)
+
+        return log_values
+
+    # TODO - #84 - Better
     def get_sample_logs_list(self, session_name, can_plot):
 
         workspace = self._session_dict[session_name]

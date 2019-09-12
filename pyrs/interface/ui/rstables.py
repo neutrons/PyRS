@@ -720,6 +720,20 @@ class RawDataTable(NTableWidget.NTableWidget):
 
         return
 
+    def add_subruns_info(self, meta_data_array, clear_table=True):
+        if clear_table:
+            self.remove_all_rows()
+
+        num_sub_runs = len(meta_data_array[0])
+
+        for row in range(5):
+            sub_run_i = meta_data_array[0][row]
+            two_theta_i = meta_data_array[1][sub_run_i]
+
+            self.add_raw_sub_run(sub_run_i, two_theta_i)
+
+        return
+
     def add_raw_sub_run(self, sub_run_number, two_theta):
         """
         Add raw data for one sub run
@@ -727,7 +741,19 @@ class RawDataTable(NTableWidget.NTableWidget):
         :param two_theta:
         :return:
         """
-        self.append_row([sub_run_number, two_theta, False])
+        print ('[DB...BAT] Add ... {}, {}'.format(sub_run_number, two_theta))
+        success, error_msg = self.append_row([sub_run_number, two_theta, False])
+        if not success:
+            print ('[ERROR] Unable to append row due to {}'.format(error_msg))
+
+        return
+
+    def setup(self):
+        """
+        Init setup
+        :return:
+        """
+        self.init_setup(self.TableSetupList)
 
         return
 
