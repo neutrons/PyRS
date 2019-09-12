@@ -28,6 +28,12 @@ class FitPeaksWindow(QMainWindow):
 
         # class variables
         self._core = None
+        self._project_name = None
+        # current/last loaded data
+        self._curr_file_name = None
+
+        # a copy of sample logs
+        self._sample_log_names = list()  # a copy of sample logs' names that are added to combo-box
 
         # sub windows
         self._advanced_fit_dialog = None
@@ -55,7 +61,7 @@ class FitPeaksWindow(QMainWindow):
         self.ui.checkBox_autoLoad.setChecked(True)
 
         # set up handling
-        self.ui.pushButton_loadHDF.clicked.connect(self.do_load_scans)
+        self.ui.pushButton_loadHDF.clicked.connect(self.do_load_data_file)
         self.ui.pushButton_browseHDF.clicked.connect(self.do_browse_hdf)
         self.ui.pushButton_plotPeaks.clicked.connect(self.do_plot_diff_data)
         self.ui.pushButton_plotPreviousScan.clicked.connect(self.do_plot_prev_scan)
@@ -81,13 +87,6 @@ class FitPeaksWindow(QMainWindow):
 
         # mutexes
         self._sample_log_names_mutex = False
-
-        # current/last loaded data
-        self._curr_data_key = None
-        self._curr_file_name = None
-
-        # a copy of sample logs
-        self._sample_log_names = list()  # a copy of sample logs' names that are added to combo-box
 
         # TODO - 20181124 - New GUI parameters (After FitPeaks)
         # checkBox_showFitError
@@ -194,7 +193,7 @@ class FitPeaksWindow(QMainWindow):
             raise RuntimeError('File {0} does not exist.'.format(hdf_name))
 
         if self.ui.checkBox_autoLoad.isChecked():
-            self.do_load_scans(from_browse=True)
+            self.do_load_data_file(from_browse=True)
 
         return
 
@@ -210,9 +209,9 @@ class FitPeaksWindow(QMainWindow):
 
         return
 
-    def do_load_scans(self, from_browse=True):
-        """
-        load scan's reduced files
+    def do_load_data_file(self, from_browse=True):
+        """ Load data from file, including
+        - Hidra project file
         :param from_browse: if True, then file will be read from lineEdit_expFileName.
         :return:
         """
@@ -263,7 +262,6 @@ class FitPeaksWindow(QMainWindow):
         self.ui.graphicsView_fitResult.reset_viewer()
 
         # Record data key and next
-        self._curr_data_key = self._project_name  # TODO - #84 - _curr_data_key vs _project_name
         self._curr_file_name = hydra_project_file
 
         # About table
@@ -292,16 +290,14 @@ class FitPeaksWindow(QMainWindow):
         Fit ALL peaks
         :return:
         """
-        # int_string_list = str(self.ui.lineEdit_scanNumbers.text()).strip()
-        # if len(int_string_list) == 0:
-        #     scan_log_index = None
-        # else:
-        #     scan_log_index = gui_helper.parse_integers(int_string_list)
-        data_key = self._core.current_data_reference_id
-        if data_key != self._curr_data_key:
-            raise RuntimeError('Core current data key {} shall be same as UI current data key {}'
-                               ''.format(data_key, self._curr_data_key))
+        # Get the sub runs to fit
+        int_string_list = str(self.ui.lineEdit_scanNumbers.text()).strip()
+        if len(int_string_list) == 0:
+            sub_run_list = None  # not set and thus default for all
+        else:
+            sub_run_list = gui_helper.parse_integers(int_string_list)
 
+        # Peak function and background function
         peak_function = str(self.ui.comboBox_peakType.currentText())
         bkgd_function = str(self.ui.comboBox_backgroundType.currentText())
 
@@ -310,22 +306,31 @@ class FitPeaksWindow(QMainWindow):
 
         # Fit Peaks!
         # It is better to fit all the peaks at the same time after testing
-        scan_log_index = None
-        self._core.fit_peaks(data_key, scan_log_index, peak_function, bkgd_function, fit_range)
+        peak_center = 0.5 * (fit_range[0] + fit_range[1])
+        peak_info_dict = {'Peak 1': {'Center': peak_center, 'Range': fit_range}}
+        self._core.fit_peaks(self._project_name, sub_run_list,
+                             peak_type=peak_function,
+                             background_type=bkgd_function,
+                             peaks_fitting_setup=peak_info_dict)
 
         # Process fitted peaks
-        function_params = self._core.get_peak_fit_parameter_names(data_key)
+        # TODO FIXME - #84 - This shall be reviewed!
+        function_params, fit_values = self._core.get_peak_fitting_result(self._project_name,
+                                                             return_format=dict,
+                                                             effective_parameter=False)  # temp solution
+
         self._sample_log_names_mutex = True
         curr_x_index = self.ui.comboBox_xaxisNames.currentIndex()
         curr_y_index = self.ui.comboBox_yaxisNames.currentIndex()
         # add fitted parameters by resetting and build from the copy of fit parameters
         self.ui.comboBox_xaxisNames.clear()
         self.ui.comboBox_yaxisNames.clear()
-        self.ui.comboBox_xaxisNames.addItem('Log Index')
+        self.ui.comboBox_xaxisNames.addItem('sub-run')
         for sample_log_name in self._sample_log_names:
             self.ui.comboBox_xaxisNames.addItem(sample_log_name)
             self.ui.comboBox_yaxisNames.addItem(sample_log_name)
         for param_name in function_params:
+            print ('[xxwd] {}, {}'.format(function_params, param_name))
             self.ui.comboBox_xaxisNames.addItem(param_name)
             self.ui.comboBox_yaxisNames.addItem(param_name)
             self._function_param_name_set.add(param_name)
@@ -353,17 +358,17 @@ class FitPeaksWindow(QMainWindow):
 
         # Show fitting result in Table
         # TODO - could add an option to show native or effective peak parameters
-        self._show_fit_result_table(peak_function, data_key, is_effective=False)
+        self._show_fit_result_table(peak_function, function_params, fit_values, is_effective=False)
 
         # plot the model and difference
-        if scan_log_index is None:
+        if sub_run_list is None:
             scan_log_index = 0
             # FIXME This case is not likely to occur
         # FIXME - TODO - self.do_plot_diff_data()
 
         return
 
-    def _show_fit_result_table(self, peak_function, data_key, is_effective):
+    def _show_fit_result_table(self, peak_function, peak_param_names, param_values, is_effective):
         """ Set up the table containing fit result
         :param peak_function: name of peak function
         :param data_key:
@@ -371,14 +376,15 @@ class FitPeaksWindow(QMainWindow):
         :return:
         """
         # Get raw peak parameters
-        peak_param_names = pyrs_fit_engine.RsPeakFitEngine.get_peak_param_names(peak_function, is_effective)
         # appending chi2
         peak_param_names.append('chi2')
+        print ('[ac Param names] {}'.format(peak_param_names))
 
         # Retrieve fitting result to param_dict
         # Expand table with extra information including Center of Mass and Sub-Run
         param_dict = dict()
-        sub_run_vec, params_vec = self._core.get_peak_fit_param_value(data_key, peak_param_names, max_cost=None)
+        print ('[values...] {}'.format(param_values))
+        sub_run_vec, params_vec = param_values
         for param_index, param_name in enumerate(peak_param_names):
             param_dict[param_name] = params_vec[param_index]
         com_vec = self._core.get_peak_center_of_mass(data_key)
@@ -690,7 +696,7 @@ class FitPeaksWindow(QMainWindow):
 
         return value_vector
 
-    def plot_diff_data(self, scan_log_index, plot_model):
+    def plot_diff_data(self, sub_run_number, plot_model):
         """
         plot a set of diffraction data (one scan log index) and plot its fitted data
         :return:
@@ -698,11 +704,17 @@ class FitPeaksWindow(QMainWindow):
         # TODO FIXME - #84: TypeError: get_diffraction_data() got an unexpected keyword argument 'data_key'
         # ..... UNIT TEST!
         # get experimental data and plot
-        diff_data_set = self._core.get_diffraction_data(data_key=None, scan_log_index=scan_log_index)
-        data_set_label = 'Scan {0}'.format(scan_log_index)
+        diff_data_set = self._core.get_diffraction_data(session_name=self._project_name,
+                                                        sub_run=sub_run_number,
+                                                        mask=None)
+
+        data_set_label = 'Scan {0}'.format(sub_run_number)
 
         if plot_model:
-            model_data_set = self._core.get_modeled_data(session_name=None, sub_run=scan_log_index)
+            # TODO FIXME - #84 - Need to implement
+            # model_data_set = self._core.get_modeled_data(session_name=self._project_name,
+            #                                              sub_run=sub_run_number)
+            model_data_set = None
         else:
             model_data_set = None
 

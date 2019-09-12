@@ -468,18 +468,18 @@ class PyRsCore(object):
 
         return data_set
 
-    def get_peak_fit_parameter_names(self, data_key=None):
-        """
-        get the fitted function's parameters
-        :param data_key:
-        :return: list (of parameter names)
-        """
-        # check input
-        optimizer = self._get_optimizer(data_key)
-        if optimizer is None:
-            return None
-
-        return optimizer.get_function_parameter_names()
+    # def get_peak_fit_parameter_names(self, data_key=None):
+    #     """
+    #     get the fitted function's parameters
+    #     :param data_key:
+    #     :return: list (of parameter names)
+    #     """
+    #     # check input
+    #     optimizer = self._get_optimizer(data_key)
+    #     if optimizer is None:
+    #         return None
+    #
+    #     return optimizer.get_function_parameter_names()
 
     # TODO - #81 - Code quality
     def get_peak_fitting_result(self, project_name, return_format, effective_parameter):
@@ -502,6 +502,7 @@ class PyRsCore(object):
 
         # Get the parameter values
         if effective_parameter:
+            # TODO - #84 ASAAP - Impelment it!
             raise NotImplementedError('Effective parameters... ASAP')
             peak_fitter.get_fitted_effective_params(param_names)
         else:

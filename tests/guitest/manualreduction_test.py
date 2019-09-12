@@ -24,8 +24,6 @@ def test_hzb_data(reduction_window):
     # Plot raw data
     reduction_window.plot_detector_counts(sub_run_number=2, mask_id=None)
 
-    return
-
     # 3. Plot reduced data
     reduction_window.plot_reduced_data(sub_run_number=2, mask_id=None)
 

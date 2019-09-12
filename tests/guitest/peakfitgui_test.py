@@ -22,12 +22,9 @@ def test_main():
     fit_window.show()
 
     # 3 candidate files
-    # tests/testdata/16-1_TD.cor_Log.hdf5
-    # tests/testdata/16-1_ND.cor_Log.hdf5
-    # tests/testdata/16-1_LD.cor_Log.hdf5
     fit_window.ui.lineEdit_expFileName.setText('tests/testdata/Hydra_16-1_cor_log.hdf5')
     fit_window.ui.comboBox_peakType.setCurrentIndex(0)  # Test pseudo voigt
-    fit_window.do_load_scans()
+    fit_window.do_load_data_file()
     if False:
         fit_window.do_plot_meta_data()
 
