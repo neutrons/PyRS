@@ -316,8 +316,11 @@ class FitPeaksWindow(QMainWindow):
         # Process fitted peaks
         # TODO FIXME - #84 - This shall be reviewed!
         function_params, fit_values = self._core.get_peak_fitting_result(self._project_name,
-                                                             return_format=dict,
+                                                             return_format=numpy.ndarray,
                                                              effective_parameter=False)  # temp solution
+
+        print ('[DB...BAT...FITWINDOW....FIT] returned = {}, {}'.format(function_params, fit_values))
+
 
         self._sample_log_names_mutex = True
         curr_x_index = self.ui.comboBox_xaxisNames.currentIndex()
@@ -368,13 +371,15 @@ class FitPeaksWindow(QMainWindow):
 
         return
 
-    def _show_fit_result_table(self, peak_function, peak_param_names, param_values, is_effective):
+    # TODO - #84 - We don't need parameter names list but from peak parameter dict will be good enough!
+    def _show_fit_result_table(self, peak_function, peak_param_dict, is_effective):
         """ Set up the table containing fit result
         :param peak_function: name of peak function
         :param data_key:
         :param is_effective: Flag for the parameter to be shown as effective (True) or native (False)
         :return:
         """
+        # Example:  returned = ['Sub-run', 'chi2', 'Mixing', 'Intensity', 'PeakCentre', 'FWHM', 'A0', 'A1']
         # Get raw peak parameters
         # appending chi2
         peak_param_names.append('chi2')
@@ -383,8 +388,9 @@ class FitPeaksWindow(QMainWindow):
         # Retrieve fitting result to param_dict
         # Expand table with extra information including Center of Mass and Sub-Run
         param_dict = dict()
-        print ('[values...] {}'.format(param_values))
-        sub_run_vec, params_vec = param_values
+        print ('[values...] {}'.format(peak_param_dict))
+        sub_run_vec = peak_param_dict[0]
+
         for param_index, param_name in enumerate(peak_param_names):
             param_dict[param_name] = params_vec[param_index]
         com_vec = self._core.get_peak_center_of_mass(data_key)

@@ -513,7 +513,9 @@ class PyRsCore(object):
             param_data = dict()
             for s_index in range(sub_run_vec.shape[0]):
                 sub_run_i = sub_run_vec[s_index]
-            # TODO - #81 - continue to develop til finish!
+            # TODO - #81 #84 - continue to develop til finish!
+
+            raise RuntimeError('........')
 
         elif return_format == numpy.ndarray:
             # numpy array
