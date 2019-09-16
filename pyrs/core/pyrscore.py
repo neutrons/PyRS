@@ -468,19 +468,6 @@ class PyRsCore(object):
 
         return data_set
 
-    # def get_peak_fit_parameter_names(self, data_key=None):
-    #     """
-    #     get the fitted function's parameters
-    #     :param data_key:
-    #     :return: list (of parameter names)
-    #     """
-    #     # check input
-    #     optimizer = self._get_optimizer(data_key)
-    #     if optimizer is None:
-    #         return None
-    #
-    #     return optimizer.get_function_parameter_names()
-
     # TODO - #81 - Code quality
     def get_peak_fitting_result(self, project_name, return_format, effective_parameter):
         """ Get peak fitting result
@@ -490,6 +477,8 @@ class PyRsCore(object):
         :param effective_parameter:
         :return:
         """
+        from pyrs.utilities.rs_project_file import HidraConstants
+
         # Get peak fitting controller
         if project_name in self._optimizer_dict:
             # if it does exist
@@ -509,13 +498,13 @@ class PyRsCore(object):
             sub_run_vec, chi2_vec, param_vec = peak_fitter.get_fitted_params(param_names, including_error=True)
 
         if return_format == dict:
-            # dictionary
-            param_data = dict()
-            for s_index in range(sub_run_vec.shape[0]):
-                sub_run_i = sub_run_vec[s_index]
-            # TODO - #81 #84 - continue to develop til finish!
-
-            raise RuntimeError('........')
+            # The output format is a dictionary for each parameter including sub-run
+            param_data_dict = dict()
+            for para_name, param_index in enumerate(param_names):
+                if param_name == HidraConstants.SUB_RUNS:
+                    param_data_dict[para_name] = sub_run_vec
+                else:
+                    param_data_dict[para_name] = param_vec[param_index]
 
         elif return_format == numpy.ndarray:
             # numpy array
@@ -531,16 +520,16 @@ class PyRsCore(object):
 
         elif return_format == DataFrame:
             # pandas data frame
-            # TODO - #81 - ...
+            # TODO - #84+ - Implement pandas DataFrame ASAP
             raise NotImplementedError('ASAP')
 
         else:
-            # ...
+            # Not supported case
             raise RuntimeError('not supported')
 
-        # TODO - #81 - Shall be a nicer output
-        param_names.insert(0, 'Sub-run')
-        param_names.insert(1, 'chi2')
+        # Insert sub run and chi-square as the beginning 2 parameters
+        param_names.insert(0, HidraConstants.SUB_RUNS)
+        param_names.insert(1, HidraConstants.PEAK_FIT_CHI2)
 
         return param_names, param_data
 

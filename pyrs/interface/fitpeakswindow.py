@@ -7,8 +7,8 @@ except ImportError:
 from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.diffdataviews import GeneralDiffDataView, DiffContourView
 from pyrs.interface.ui.rstables import FitResultTable
-from pyrs.core import pyrs_fit_engine
-# import pyrs.utilities.hb2b_utilities as hb2bhb2b
+from pyrs.utilities import hb2b_utilities
+from pyrs.utilities import checkdatatypes
 import advpeakfitdialog
 import os
 import gui_helper
@@ -61,7 +61,7 @@ class FitPeaksWindow(QMainWindow):
         self.ui.checkBox_autoLoad.setChecked(True)
 
         # set up handling
-        self.ui.pushButton_loadHDF.clicked.connect(self.do_load_data_file)
+        self.ui.pushButton_loadHDF.clicked.connect(self.do_load_hydra_file)
         self.ui.pushButton_browseHDF.clicked.connect(self.do_browse_hdf)
         self.ui.pushButton_plotPeaks.clicked.connect(self.do_plot_diff_data)
         self.ui.pushButton_plotPreviousScan.clicked.connect(self.do_plot_prev_scan)
@@ -126,8 +126,6 @@ class FitPeaksWindow(QMainWindow):
         use IPTS and Exp to determine
         :return:
         """
-        from pyrs.core import hb2b_utilities
-
         try:
             ipts_number = gui_helper.parse_integer(self.ui.lineEdit_iptsNumber)
             exp_number = gui_helper.parse_integer(self.ui.lineEdit_expNumber)
@@ -160,40 +158,36 @@ class FitPeaksWindow(QMainWindow):
         return
 
     def do_browse_hdf(self):
-        """
-        browse HDF file
+        """ Browse Hidra project HDF file
         :return:
         """
+        # Check
         self._check_core()
 
-        # TODO - #84 - check hb2b_utilities called in _get_default_hdf()
-        # disabled temporarily default_dir = self._get_default_hdf()
-        default_dir = None
-        if default_dir is None:
-            default_dir = self._core.working_dir
+        # Use IPTS and run number to get the default Hydra HDF
+        hydra_file_name = self._get_default_hdf()
+        if hydra_file_name is None:
+            # No default Hidra file: browse the file
+            file_filter = 'HDF (*.hdf);H5 (*.h5)'
+            hydra_file_name = gui_helper.browse_file(self, 'HIDRA Project File', os.getcwd(), file_filter,
+                                                     file_list=False, save_file=False)
 
-        file_filter = 'HDF(*.hdf5);;All Files(*.*)'
-        open_value = QFileDialog.getOpenFileName(self, 'HB2B Raw HDF File', default_dir, file_filter)
-        print open_value
+            if hydra_file_name is None:
+                # use cancel
+                return
+        # END-IF
 
-        if isinstance(open_value, tuple):
-            # PyQt5
-            hdf_name = str(open_value[0])
-        else:
-            hdf_name = str(open_value)
+        # Add file name to line edit to show
+        self.ui.lineEdit_expFileName.setText(hydra_file_name)
 
-        if len(hdf_name) == 0:
-            # use cancel
-            return
-
-        if os.path.exists(hdf_name):
-            self.ui.lineEdit_expFileName.setText(hdf_name)
-        else:
-            # pass
-            raise RuntimeError('File {0} does not exist.'.format(hdf_name))
-
+        # Load file as an option
         if self.ui.checkBox_autoLoad.isChecked():
-            self.do_load_data_file(from_browse=True)
+            try:
+                self.do_load_hydra_file(from_browse=True)
+            except RuntimeError as run_err:
+                gui_helper.pop_message(self, 'Failed to load {}'.format(hydra_file_name),
+                                       str(run_err), 'error')
+        # END-IF
 
         return
 
@@ -209,19 +203,17 @@ class FitPeaksWindow(QMainWindow):
 
         return
 
-    def do_load_data_file(self, from_browse=True):
-        """ Load data from file, including
-        - Hidra project file
-        :param from_browse: if True, then file will be read from lineEdit_expFileName.
-        :return:
+    def do_load_hydra_file(self, hydra_project_file=None):
+        """ Load Hidra project file
+        :return: None
         """
         self._check_core()
 
-        # get file
-        if from_browse:
+        # Get file
+        if hydra_project_file is None:
             hydra_project_file = str(self.ui.lineEdit_expFileName.text())
         else:
-            hydra_project_file = self.set_file_from_archive()
+            checkdatatypes.check_string_variable(hydra_project_file)
 
         # load file
         try:
@@ -229,12 +221,14 @@ class FitPeaksWindow(QMainWindow):
             self._core.load_hidra_project(hydra_project_file, project_name=self._project_name,
                                           load_detector_counts=False,
                                           load_diffraction=True)
-        except RuntimeError as run_err:
+            # Record data key and next
+            self._curr_file_name = hydra_project_file
+        except (RuntimeError, TypeError) as run_err:
             gui_helper.pop_message(self, 'Unable to load {}'.format(hydra_project_file), detailed_message=str(run_err),
                                    message_type='error')
             return
 
-        # edit information
+        # Edit information on the UI for user to visualize
         self.ui.label_loadedFileInfo.setText('Loaded {}; Project name: {}'
                                              ''.format(hydra_project_file, self._project_name))
 
@@ -243,84 +237,104 @@ class FitPeaksWindow(QMainWindow):
         self.ui.label_logIndexMin.setText(str(sub_run_list[0]))
         self.ui.label_logIndexMax.setText(str(sub_run_list[-1]))
 
-        # get the sample logs
+        # Set the widgets about viewer: get the sample logs and add the combo boxes for plotting
         sample_log_names = self._core.reduction_manager.get_sample_logs_list(self._project_name, can_plot=True)
+        self._set_sample_logs_for_plotting(sample_log_names)
 
+        # plot first peak for default peak range
+        self.ui.lineEdit_scanNumbers.setText('1')
+        self.do_plot_diff_data(plot_model=False)
+
+        # reset the plot
+        self.ui.graphicsView_fitResult.reset_viewer()
+
+        # Set the table
+        if self.ui.tableView_fitSummary.rowCount() > 0:
+            self.ui.tableView_fitSummary.remove_all_rows()
+        self.ui.tableView_fitSummary.init_exp(sub_run_list)
+
+        # Auto fit for all the peaks
+        if self.ui.checkBox_autoFit.isChecked():
+            self.do_fit_peaks(all_sub_runs=True)
+
+        return
+
+    def _set_sample_logs_for_plotting(self, sample_log_names):
+        """ There are 2 combo boxes containing sample logs' names for plotting.  Clear the existing ones
+        and add the sample log names specified to them
+        :param sample_log_names:
+        :return:
+        """
         self._sample_log_names_mutex = True
         self.ui.comboBox_xaxisNames.clear()
         self.ui.comboBox_yaxisNames.clear()
 
         # Maintain a copy of sample logs!
-        self._sample_log_names = sample_log_names[:]
+        self._sample_log_names = list(set(sample_log_names))
+        self._sample_log_names.sort()
+
         for sample_log in sample_log_names:
             self.ui.comboBox_xaxisNames.addItem(sample_log)
             self.ui.comboBox_yaxisNames.addItem(sample_log)
             self._sample_log_name_set.add(sample_log)
         self._sample_log_names_mutex = False
 
-        # reset the plot
-        self.ui.graphicsView_fitResult.reset_viewer()
-
-        # Record data key and next
-        self._curr_file_name = hydra_project_file
-
-        # About table
-        if self.ui.tableView_fitSummary.rowCount() > 0:
-            self.ui.tableView_fitSummary.remove_all_rows()
-        self.ui.tableView_fitSummary.init_exp(sub_run_list)
-
-        # plot first peak for default peak range
-        self.ui.lineEdit_scanNumbers.setText('0')
-        # TODO - #84 - CHECK: self.do_plot_diff_data(plot_model=False)
-
-        # auto fit
-        if self.ui.checkBox_autoFit.isChecked():
-            # auto fit: no need to plot anymore
-            # TODO - #84 - CHECK!
-            # self.do_fit_peaks()
-            pass
-
-        # plot the contour
-        # FIXME/TODO/ASAP3 self.ui.graphicsView_contourView.plot_contour(self._core.data_center.get_data_2d(data_key))
-
         return
 
-    def do_fit_peaks(self):
+    def _parse_sub_runs(self):
+        """ Parse sub run numbers specified in lineEdit_scanNumbers
+        :return: List (of integers) or None
         """
-        Fit ALL peaks
-        :return:
-        """
-        # Get the sub runs to fit
         int_string_list = str(self.ui.lineEdit_scanNumbers.text()).strip()
-        if len(int_string_list) == 0:
+        if len(int_string_list) == 0 or not self.ui.fit_selected.isChecked():
             sub_run_list = None  # not set and thus default for all
         else:
             sub_run_list = gui_helper.parse_integers(int_string_list)
 
-        # Peak function and background function
+        return sub_run_list
+
+    # TODO - #84 - Clean up this method!
+    def do_fit_peaks(self, all_sub_runs=False):
+        """ Fit peaks either all peaks or selected peaks
+        The workflow includes
+        1. parse sub runs, peak and background type
+        2. fit peaks
+        3. show the fitting result in table
+        4. plot the peak in first sub runs that is fit
+        :param all_sub_runs: Flag to fit peaks of all sub runs without checking
+        :return:
+        """
+        # Get the sub runs to fit or all the peaks
+        if self.ui.checkBox_fitSubRuns.isChecked() and not all_sub_runs:
+            # Parse sub runs specified in lineEdit_scanNumbers
+            sub_run_list = self._parse_sub_runs()
+        else:
+            sub_run_list = None
+
+        # Get peak function and background function
         peak_function = str(self.ui.comboBox_peakType.currentText())
         bkgd_function = str(self.ui.comboBox_backgroundType.currentText())
 
+        # Get peak fitting range from the range of figure
         fit_range = self._ui_graphicsView_fitSetup.get_x_limit()
         print ('[INFO] Peak fit range: {0}'.format(fit_range))
 
-        # Fit Peaks!
-        # It is better to fit all the peaks at the same time after testing
-        peak_center = 0.5 * (fit_range[0] + fit_range[1])
-        peak_info_dict = {'Peak 1': {'Center': peak_center, 'Range': fit_range}}
+        # Fit Peaks: It is better to fit all the peaks at the same time after testing
+        guessed_peak_center = 0.5 * (fit_range[0] + fit_range[1])
+        peak_info_dict = {'Peak 1': {'Center': guessed_peak_center, 'Range': fit_range}}
         self._core.fit_peaks(self._project_name, sub_run_list,
                              peak_type=peak_function,
                              background_type=bkgd_function,
                              peaks_fitting_setup=peak_info_dict)
 
         # Process fitted peaks
-        # TODO FIXME - #84 - This shall be reviewed!
+        # TEST - #84 - This shall be reviewed!
         function_params, fit_values = self._core.get_peak_fitting_result(self._project_name,
-                                                             return_format=numpy.ndarray,
-                                                             effective_parameter=False)  # temp solution
+                                                                         return_format=dict,
+                                                                         effective_parameter=False)
+        # TODO - #84+ - Need to implement the option as effective_parameter=True
 
         print ('[DB...BAT...FITWINDOW....FIT] returned = {}, {}'.format(function_params, fit_values))
-
 
         self._sample_log_names_mutex = True
         curr_x_index = self.ui.comboBox_xaxisNames.currentIndex()
@@ -369,53 +383,38 @@ class FitPeaksWindow(QMainWindow):
             # FIXME This case is not likely to occur
         # FIXME - TODO - self.do_plot_diff_data()
 
+        # plot the contour
+        self.ui.graphicsView_contourView.plot_contour(self._core.data_center.get_data_2d(data_key))
+
         return
 
     # TODO - #84 - We don't need parameter names list but from peak parameter dict will be good enough!
-    def _show_fit_result_table(self, peak_function, peak_param_dict, is_effective):
+    def _show_fit_result_table(self, peak_function, peak_param_names, peak_param_dict, is_effective):
         """ Set up the table containing fit result
         :param peak_function: name of peak function
-        :param data_key:
+        :param peak_param_names: name of the parameters for the order of columns
+        :param peak_param_dict: parameter names
         :param is_effective: Flag for the parameter to be shown as effective (True) or native (False)
         :return:
         """
-        # Example:  returned = ['Sub-run', 'chi2', 'Mixing', 'Intensity', 'PeakCentre', 'FWHM', 'A0', 'A1']
-        # Get raw peak parameters
-        # appending chi2
-        peak_param_names.append('chi2')
-        print ('[ac Param names] {}'.format(peak_param_names))
+        from pyrs.utilities.rs_project_file import HidraConstants
 
-        # Retrieve fitting result to param_dict
-        # Expand table with extra information including Center of Mass and Sub-Run
-        param_dict = dict()
-        print ('[values...] {}'.format(peak_param_dict))
-        sub_run_vec = peak_param_dict[0]
+        # Add peaks' centers of mass to the output table
+        peak_param_names.append(HidraConstants.PEAK_COM)
+        com_vec = self._core.get_peak_center_of_mass(self._project_name)
+        peak_param_dict[HidraConstants.PEAK_COM] = com_vec
 
-        for param_index, param_name in enumerate(peak_param_names):
-            param_dict[param_name] = params_vec[param_index]
-        com_vec = self._core.get_peak_center_of_mass(data_key)
-        # scan_index_list = [None] * len(com_vec)
-        # for row_number in range(len(com_vec)):
-        #     scan_index_list[row_number] = param_dict['wsindex'][row_number] + 1
-        param_dict['C.O.M'] = com_vec
-        param_dict['sub-run'] = sub_run_vec
-
-        # Reset columns of table
+        # Initialize the table by resetting the column names
         self.ui.tableView_fitSummary.reset_table(peak_param_names)
-        #
-        # add fitted value to peaks
-        for row_index in range(len(com_vec)):
-            self.ui.tableView_fitSummary.set_fit_summary(row_index, param_dict)
 
-            # self.ui.tableView_fitSummary.set_peak_params(row_index,
-            #                                              center_vec[row_index],
-            #                                              height_vec[row_index],
-            #                                              fwhm_vec[row_index],
-            #                                              intensity_vec[row_index],
-            #                                              chi2_vec[row_index],
-            #                                              peak_function)
-            # self.ui.tableView_fitSummary.set_peak_center_of_mass(row_index, com_vec[row_index])
-        # END-FOR (rows)
+        # Get sub runs for rows in the table
+        sub_run_vec = peak_param_dict[HidraConstants.SUB_RUNS]
+
+        # Add rows to the table for parameter information
+        for row_index in range(sub_run_vec.shape[0]):
+            # Set fit result
+            self.ui.tableView_fitSummary.set_fit_summary(row_index, peak_param_names, peak_param_dict)
+        # END-FOR
 
         return
 
@@ -454,6 +453,7 @@ class FitPeaksWindow(QMainWindow):
 
         :return:
         """
+        # TODO - #84 - Implement this method
         return
 
     def do_plot_diff_data(self, plot_model=True):
@@ -703,8 +703,7 @@ class FitPeaksWindow(QMainWindow):
         return value_vector
 
     def plot_diff_data(self, sub_run_number, plot_model):
-        """
-        plot a set of diffraction data (one scan log index) and plot its fitted data
+        """ Plot a set of diffraction data (one scan log index) and plot its fitted data
         :return:
         """
         # TODO FIXME - #84: TypeError: get_diffraction_data() got an unexpected keyword argument 'data_key'
@@ -716,26 +715,20 @@ class FitPeaksWindow(QMainWindow):
 
         data_set_label = 'Scan {0}'.format(sub_run_number)
 
-        if plot_model:
-            # TODO FIXME - #84 - Need to implement
-            # model_data_set = self._core.get_modeled_data(session_name=self._project_name,
-            #                                              sub_run=sub_run_number)
-            model_data_set = None
-        else:
-            model_data_set = None
+        # Plot experimental data
+        self._ui_graphicsView_fitSetup.plot_experiment_data(data_set=diff_data_set, color=None,
+                                                            line_label=data_set_label)
 
-        # plot
-        if model_data_set is None:
-            # data only (no model or not chosen to)
-            self._ui_graphicsView_fitSetup.plot_data(data_set=diff_data_set, color=None,
-                                                     line_label=data_set_label)
-        else:
-            # plot with model
-            residual_y_vec = diff_data_set[1] - model_data_set[1]
-            residual_data_set = [diff_data_set[0], residual_y_vec]
-            self._ui_graphicsView_fitSetup.plot_data_model(data_set=diff_data_set, data_label=data_set_label,
-                                                           model_set=model_data_set, model_label='',
-                                                           residual_set=residual_data_set)
+        # Plot fitted model data
+        if plot_model:
+            model_data_set = self._core.get_modeled_data(session_name=self._project_name,
+                                                         sub_run=sub_run_number)
+            if model_data_set is not None:
+                residual_y_vec = diff_data_set[1] - model_data_set[1]
+                residual_data_set = [diff_data_set[0], residual_y_vec]
+                self._ui_graphicsView_fitSetup.plot_model_data(model_set=model_data_set, model_label='',
+                                                               residual_set=residual_data_set)
+            # END-if
         # END-IF-ELSE
 
         return

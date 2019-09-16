@@ -1,6 +1,7 @@
 # Module containing extended TableWidgets for PyRS project
 import NTableWidget
 from pyrs.utilities import checkdatatypes
+import numpy
 
 
 class FitResultTable(NTableWidget.NTableWidget):
@@ -60,7 +61,7 @@ class FitResultTable(NTableWidget.NTableWidget):
 
     def reset_table(self, peak_param_names):
         """ Reset table. Parameters other than peak fitting will be handled by setup()
-        :param peak_param_names:
+        :param peak_param_names: List of peak parameters names
         :return:
         """
         # Completely clear the previously written table
@@ -106,28 +107,36 @@ class FitResultTable(NTableWidget.NTableWidget):
 
         return
 
-    def set_fit_summary(self, row_number, param_dict, write_error=False):
+    def set_fit_summary(self, row_number, ordered_param_list, param_dict, write_error=False):
         """
-        Set the fitting summary
+        Set the fitting result, i.e., peak parameters' value to a row
         :param row_number: row number
-        :param param_dict:
+        :param ordered_param_list: parameters names list with the same order as table columns
+        :param param_dict: dictionary containing peak parameter values
+        :param write_error: Flag to write out error or value
         :return:
         """
-        import numpy
-
+        # Init list to append
         this_value_list = list()
-        for column_item in self._column_names:
-            if column_item in param_dict:
-                value_i = param_dict[column_item][row_number]
-                if isinstance(value_i, numpy.ndarray):
-                    if write_error and value_i.shape[0] > 1:
-                        value_i = value_i[1]
-                    else:
-                        value_i = value_i[0]
-                # END-IF in case of numpy array
-                this_value_list.append(value_i)
-            else:
-                this_value_list.append(None)
+
+        # Set values
+        for param_name in ordered_param_list:
+            # Get numpy array of this parameter
+            param_value_vec = param_dict[param_name]
+            assert isinstance(param_value_vec, numpy.ndarray), 'Parameter value must be given by array'
+            # Get value
+            value_i = param_dict[param_name][row_number]
+            # value_i can be float or numpy array
+            if isinstance(value_i, numpy.ndarray):
+                if write_error and value_i.shape[0] > 1:
+                    # Output is the error
+                    value_i = value_i[1]
+                else:
+                    # Output is the value
+                    value_i = value_i[0]
+            # END-IF in case of numpy array
+
+            this_value_list.append(value_i)
         # END-FOR
 
         if row_number < self.rowCount():
@@ -139,6 +148,7 @@ class FitResultTable(NTableWidget.NTableWidget):
                         print ('Cell @ {}, {} of value {} cannot be updated'.format(row_number, col_num, item_value))
         else:
             self.append_row(row_value_list=this_value_list)
+        # END-IF-ELSE
 
         return
 

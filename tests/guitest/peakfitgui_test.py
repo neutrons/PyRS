@@ -24,7 +24,7 @@ def test_main():
     # 3 candidate files
     fit_window.ui.lineEdit_expFileName.setText('tests/testdata/Hydra_16-1_cor_log.hdf5')
     fit_window.ui.comboBox_peakType.setCurrentIndex(0)  # Test pseudo voigt
-    fit_window.do_load_data_file()
+    fit_window.do_load_hydra_file()
     if False:
         fit_window.do_plot_meta_data()
 

@@ -6,7 +6,7 @@ import numpy
 from pyrs.utilities import rs_project_file
 from pyrs.core import workspaces
 from pyrs.utilities import checkdatatypes
-from mantid.simpleapi import GenerateEventFilters, LoadEventNexus, FilterEvents
+from mantid.simpleapi import GenerateEventsFilter, LoadEventNexus, FilterEvents
 
 """
 Convert HB2B NeXus file to Hidra project file for further reduction
@@ -44,9 +44,10 @@ class NeXusConvertingApp(object):
         2. for each split workspace, aka a sub run, get the total counts for each spectrum and save to a 1D array
         :return:
         """
-        # Load data file
-        self.split_sub_runs()
+        # Load data file, split to sub runs and sample logs
+        self._sub_run_workspace_dict = self._split_sub_runs()
 
+        # Get the sample log value
         sample_log_dict = dict()
         log_array_size = len(self._sub_run_workspace_dict.keys())
 
@@ -61,15 +62,15 @@ class NeXusConvertingApp(object):
             # sample logs
             for log_property in event_ws_i.getProperties():
                 name = log_property.name
-                value = log_property.value.mean()
+                log_value = self._calculate_log_mean_value(log_property)
 
                 # if the entry for this log is not created, create it!
                 if name not in sample_log_dict:
                     sample_log_dict[name] = numpy.ndarray(shape=(log_array_size, ),
-                                                          dtype=get_type(value))
+                                                          dtype=get_type(log_value))
                 # END-OF
 
-                sample_log_dict[name][sub_run_index] = value
+                sample_log_dict[name][sub_run_index] = log_value
             # END-FOR
 
             sub_run_index += 1
@@ -94,36 +95,72 @@ class NeXusConvertingApp(object):
         out_file_name = os.path.join(output_dir, os.path.basename(self._nexus_name).split('.')[0] +
                                      '.hdf')
         hydra_file = rs_project_file.HydraProjectFile(out_file_name, rs_project_file.HydraProjectFileMode.OVERWRITE)
-        self._hydra_workspace.save_experimental_data(hydra_file, out_file_name)
+        self._hydra_workspace.save_experimental_data(hydra_file)
 
         return
 
-    def split_sub_runs(self):
+    @staticmethod
+    def _calculate_log_mean_value(log_property):
+        """
+        Calculate the mean value of the sample log "within" the sub run time range
+        :param log_property: Mantid run property
+        :return:
+        """
+        # Single value
+
+        # Time series property
+
+        sample_log_times = log_property.times
+        sample_log_value = log_property.value
+
+        # TODO - FIXME - #84+ - Make this correct!
+        log_mean_value = sample_log_value.mean()
+
+        return log_mean_value
+
+    def _split_sub_runs(self):
         """
         Performing event filtering according to sample log sub-runs
-        :return:
+        :return: dictionary: key = sub run number (integer), value = workspace name (string)
         """
         # Load data
         event_ws = LoadEventNexus(Filename=self._nexus_name, OutputWorkspace=self._event_ws_name)
 
-        # Generate splitters
+        # Generate splitters by sample log 'scan_index'.  real sub run starts with scan_index == 1
         split_ws_name = 'Splitter_{}'.format(self._nexus_name)
-        split_inf_name = 'InfoTable_{}'.format(self._nexus_name)
-        GenerateEventFilters(InputWorkspace=self._event_ws_name, LogName='sub run',
+        split_info_name = 'InfoTable_{}'.format(self._nexus_name)
+        GenerateEventsFilter(InputWorkspace=self._event_ws_name,
                              OutputWorkspace=split_ws_name,
-                             OutputInformationWorkspace=split_inf_name)
+                             InformationWorkspace=split_info_name,
+                             LogName='scan_index',
+                             MinimumLogValue=0,
+                             LogValueInterval=1)
 
         # Split
+        base_out_name = self._event_ws_name + '_split'
         split_returns = FilterEvents(InputWorkspace=self._event_ws_name,
                                      SplitterWorkspace=split_ws_name,
-                                     SplitterInfoTableWorskpace=split_inf_name)
-
-        # TODO - Need to figure out how the split returns look like!
+                                     InformationWorkspace=split_info_name,
+                                     OutputWorkspaceBaseName=base_out_name,
+                                     DescriptiveOutputNames=False,  # requires split workspace ends with sub run
+                                     OutputWorkspaceIndexedFrom1=False,  # as workspace 0 is kept for what left between
+                                                                         # 2 sub runs
+                                     GroupWorkspaces=True)
 
         # Fill in
-        self._sub_run_workspace_dict[sub_run_i] = ws_i
+        output_ws_names = split_returns.OutputWorkspaceNames
+        sub_run_ws_dict = dict()   # [sub run number] = workspace name
+        for ws_name in output_ws_names:
+            try:
+                sub_run_number = int(ws_name.split('_')[-1])
+                if sub_run_number > 0:
+                    sub_run_ws_dict[sub_run_number] = ws_name
+            except ValueError:
+                # sub runs not ends with integer: unsplit
+                pass
+        # END-FOR
 
-        return
+        return sub_run_ws_dict
 
 
 def parse_inputs(argv):
@@ -146,8 +183,8 @@ def parse_inputs(argv):
 def get_type(value):
     """
     Get the numpy dtype for the input value if it is not a numpy
-    :param value:
-    :return:
+    :param value: any value
+    :return: string for numpy data type
     """
     if type(value) == int:
         dtype = 'int'
@@ -156,7 +193,7 @@ def get_type(value):
     else:
         dtype = 'float'
 
-    return
+    return dtype
 
 
 def main(argv):
@@ -179,7 +216,6 @@ def main(argv):
 
     except KeyError as key_err:
         print ('Unable to convert NeXus to Hidra project due to {}'.format(key_err))
-
 
     return
 

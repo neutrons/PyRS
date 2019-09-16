@@ -4,24 +4,44 @@ import checkdatatypes
 import file_utilities
 
 
-
-
-def get_hb2b_raw_data(ipts_number, exp_number):
+def get_hb2b_raw_data(ipts_number, run_number):
     """
     get the archived HB2B raw data
     :param ipts_number:
-    :param exp_number:
+    :param run_number:
     :return:
     """
     # check inputs
     checkdatatypes.check_int_variable('IPTS number', ipts_number, (1, None))
-    checkdatatypes.check_int_variable('Experiment number', exp_number, (1, None))
+    checkdatatypes.check_int_variable('Run number', run_number, (1, None))
 
-    raw_exp_file_name = '/HFIR/HB2B/IPTS-{0}/datafiles/{1}.h5'.format(ipts_number, exp_number)
+    raw_exp_file_name = '/HFIR/HB2B/IPTS-{0}/datafiles/{1}.h5'.format(ipts_number, run_number)
 
     checkdatatypes.check_file_name(raw_exp_file_name, check_exist=True, check_writable=False, is_dir=False)
 
     return raw_exp_file_name
+
+
+def get_hydra_project_file(ipts_number, run_number):
+    """
+    get the archived HB2B raw data
+    :param ipts_number: IPTS number (int)
+    :param run_number: Run number (int)
+    :return:
+    """
+    # check inputs
+    checkdatatypes.check_int_variable('IPTS number', ipts_number, (1, None))
+    checkdatatypes.check_int_variable('Run number', run_number, (1, None))
+
+    hydra_file_name = '/HFIR/HB2B/IPTS-{0}/shared/reduced_files/HB2B_{1}.hdf'.format(ipts_number, run_number)
+
+    try:
+        checkdatatypes.check_file_name(hydra_file_name, check_exist=True, check_writable=False, is_dir=False)
+    except RuntimeError as run_error:
+        print ('[ERROR] Unable to find Hydra project file {} due to {}'.format(hydra_file_name, run_error))
+        return None
+
+    return hydra_file_name
 
 
 def is_calibration_dir(cal_sub_dir_name):
