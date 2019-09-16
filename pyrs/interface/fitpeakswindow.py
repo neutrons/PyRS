@@ -384,7 +384,8 @@ class FitPeaksWindow(QMainWindow):
         # FIXME - TODO - self.do_plot_diff_data()
 
         # plot the contour
-        self.ui.graphicsView_contourView.plot_contour(self._core.data_center.get_data_2d(data_key))
+        # TODO - #84 - Implement this!
+        self.ui.graphicsView_contourView.plot_data_set(self._core.data_center.get_data_2d(data_key))
 
         return
 
@@ -408,6 +409,8 @@ class FitPeaksWindow(QMainWindow):
         self.ui.tableView_fitSummary.reset_table(peak_param_names)
 
         # Get sub runs for rows in the table
+        print(peak_param_dict.keys())
+        print('#Adfad')
         sub_run_vec = peak_param_dict[HidraConstants.SUB_RUNS]
 
         # Add rows to the table for parameter information
@@ -716,8 +719,7 @@ class FitPeaksWindow(QMainWindow):
         data_set_label = 'Scan {0}'.format(sub_run_number)
 
         # Plot experimental data
-        self._ui_graphicsView_fitSetup.plot_experiment_data(data_set=diff_data_set, color=None,
-                                                            line_label=data_set_label)
+        self._ui_graphicsView_fitSetup.plot_experiment_data(diff_data_set=diff_data_set, data_reference=data_set_label)
 
         # Plot fitted model data
         if plot_model:

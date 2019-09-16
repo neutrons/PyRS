@@ -120,11 +120,11 @@ if __name__ == "__main__":
     scripts = ['scripts/pyrsplot',
                'tests/guitest/peakfitgui_test.py',
                'tests/guitest/manualreduction_test.py',
+               'scripts/convert_nexus_to_hidra.py',
                'scripts/pyrscalibration.py',
                'scripts/reduce_HB2B.py',
                'scripts/create_mask.py',
-               'scripts/convert_raw_data.py',
-               'scripts/convert_hzb_data.py']
+               'scripts/convert_raw_data.py']
 
 
     test_scripts = ['tests/unittest/pyrs_core_test.py',

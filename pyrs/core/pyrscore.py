@@ -500,19 +500,28 @@ class PyRsCore(object):
         if return_format == dict:
             # The output format is a dictionary for each parameter including sub-run
             param_data_dict = dict()
-            for para_name, param_index in enumerate(param_names):
+            for param_index, param_name in enumerate(param_names):
                 if param_name == HidraConstants.SUB_RUNS:
-                    param_data_dict[para_name] = sub_run_vec
+                    param_data_dict[param_name] = sub_run_vec
                 else:
-                    param_data_dict[para_name] = param_vec[param_index]
+                    param_data_dict[param_name] = param_vec[param_index]
+                # END-IF-ELSE
+            # END-FOR
+
+            # add sub runs and chi2
+            param_data_dict[HidraConstants.SUB_RUNS] = sub_run_vec
+            param_data_dict[HidraConstants.PEAK_FIT_CHI2] = chi2_vec
+
+            # Rename for return
+            param_data = param_data_dict
 
         elif return_format == numpy.ndarray:
             # numpy array
             # initialize
-            array_shape = sub_run_vec.shape[0], 2+param_vec.shape[0]
+            array_shape = sub_run_vec.shape[0], param_vec.shape[0] + 2   # add 2 more columns for sub run and chi2
             param_data = numpy.ndarray(shape=array_shape, dtype='float')
 
-            # set value
+            # set value: set sub runs and chi2 vector to 0th and 1st column
             param_data[:, 0] = sub_run_vec
             param_data[:, 1] = chi2_vec
             for j in range(param_vec.shape[0]):

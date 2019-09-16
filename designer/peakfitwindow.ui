@@ -20,7 +20,7 @@
       <item row="0" column="0">
        <widget class="QLabel" name="label_4">
         <property name="text">
-         <string>Scan Numbers</string>
+         <string>Sub runs</string>
         </property>
        </widget>
       </item>
@@ -94,6 +94,13 @@
          <widget class="QPushButton" name="pushButton_fitPeaks">
           <property name="text">
            <string>Fit Peak(s)</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="checkBox_fitSubRuns">
+          <property name="text">
+           <string>Fit sub runs</string>
           </property>
          </widget>
         </item>
@@ -582,23 +589,6 @@
    </property>
   </action>
  </widget>
- <customwidgets>
-  <customwidget>
-   <class>GeneralDiffDataView</class>
-   <extends>QGraphicsView</extends>
-   <header>diffdataviews.h</header>
-  </customwidget>
-  <customwidget>
-   <class>FitResultTable</class>
-   <extends>QTableView</extends>
-   <header>rstables.h</header>
-  </customwidget>
-  <customwidget>
-   <class>DiffContourView</class>
-   <extends>QGraphicsView</extends>
-   <header>diffdataviews.h</header>
-  </customwidget>
- </customwidgets>
  <resources/>
  <connections/>
 </ui>

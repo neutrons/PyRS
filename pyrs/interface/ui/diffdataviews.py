@@ -230,6 +230,24 @@ class PeakFitSetupView(MplFitPlottingWidget):
 
         return
 
+    def plot_experiment_data(self, diff_data_set, data_reference):
+        """
+        plot a diffraction data
+        :param diff_data_set:
+        :param data_reference: reference name for the data to plot for presentation purpose
+        :return:
+        """
+        # parse the data
+        vec_x = diff_data_set[0]
+        vec_y = diff_data_set[1]
+
+        ref_id = self.plot_data(data_set=(vec_x, vec_y), color='black', line_label=data_reference)
+
+        self._diff_reference_list.append(ref_id)
+        self._last_diff_reference = ref_id
+
+        return
+
     def plot_diff_data(self, diff_data_set, data_reference):
         """
         plot a diffraction data
