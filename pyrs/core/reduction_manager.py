@@ -124,13 +124,17 @@ class HB2BReductionManager(object):
         return log_values
 
     # TODO - #84 - Better
-    def get_sample_logs_list(self, session_name, can_plot):
-
+    # TODO - #84 - Implement
+    def get_sample_logs_names(self, session_name, can_plot):
+        """
+        Get the names of all sample logs in the workspace
+        :param session_name:
+        :param can_plot:
+        :return:
+        """
         workspace = self._session_dict[session_name]
-        # TODO - #84 - Implement
-        # sample_logs = workspace.get_sample_logs()
 
-        sample_logs = ['sub-run']
+        sample_logs = workspace.sample_log_names
 
         return sample_logs
 

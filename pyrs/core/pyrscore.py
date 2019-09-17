@@ -3,6 +3,7 @@ from pyrs.utilities import checkdatatypes
 from pyrs.core import instrument_geometry
 from pyrs.utilities import file_util
 from pyrs.core import peak_fit_factory
+from pyrs.utilities.rs_project_file import HidraConstants
 import mantid_fit_peak
 import strain_stress_calculator
 import reduction_manager
@@ -477,8 +478,6 @@ class PyRsCore(object):
         :param effective_parameter:
         :return:
         """
-        from pyrs.utilities.rs_project_file import HidraConstants
-
         # Get peak fitting controller
         if project_name in self._optimizer_dict:
             # if it does exist
@@ -543,22 +542,25 @@ class PyRsCore(object):
         return param_names, param_data
 
     # TODO - TONIGHT NOW - Need to migrate to new get_fitted_params
-    def get_peak_fit_param_value(self, data_key, param_name_list, max_cost):
+    def get_peak_fit_param_value(self, project_name, param_name, max_cost):
         """
         get a specific parameter's fitted value
-        :param data_key:
+        :param project_name:
         :param param_name:
         :param max_cost: if not None, then filter out the bad (with large cost) fitting
         :return: 3-tuple
         """
-        # check input
-        # TODO - #80 - Again data_key shall be replaced by ...
-        optimizer = self._get_optimizer(None)
+        # Get peak fitting controller
+        if project_name in self._optimizer_dict:
+            # if it does exist
+            peak_fitter = self._optimizer_dict[project_name]
+        else:
+            raise RuntimeError('{} not exist'.format(project_name))
 
         if max_cost is None:
-            sub_run_vec, chi2_vec, param_vec = optimizer.get_fitted_params(param_name_list, False)
+            sub_run_vec, chi2_vec, param_vec = peak_fitter.get_fitted_params([param_name], False)
         else:
-            sub_run_vec, chi2_vec, param_vec = optimizer.get_good_fitted_params(param_name_list, max_cost)
+            sub_run_vec, chi2_vec, param_vec = peak_fitter.get_fitted_params([param_name], False, max_chi2=max_cost)
 
         return sub_run_vec, chi2_vec, param_vec
 

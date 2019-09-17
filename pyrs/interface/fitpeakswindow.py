@@ -9,6 +9,7 @@ from pyrs.interface.ui.diffdataviews import GeneralDiffDataView, DiffContourView
 from pyrs.interface.ui.rstables import FitResultTable
 from pyrs.utilities import hb2b_utilities
 from pyrs.utilities import checkdatatypes
+from pyrs.utilities.rs_project_file import HidraConstants
 import advpeakfitdialog
 import os
 import gui_helper
@@ -238,7 +239,7 @@ class FitPeaksWindow(QMainWindow):
         self.ui.label_logIndexMax.setText(str(sub_run_list[-1]))
 
         # Set the widgets about viewer: get the sample logs and add the combo boxes for plotting
-        sample_log_names = self._core.reduction_manager.get_sample_logs_list(self._project_name, can_plot=True)
+        sample_log_names = self._core.reduction_manager.get_sample_logs_names(self._project_name, can_plot=True)
         self._set_sample_logs_for_plotting(sample_log_names)
 
         # plot first peak for default peak range
@@ -341,12 +342,12 @@ class FitPeaksWindow(QMainWindow):
         # add fitted parameters by resetting and build from the copy of fit parameters
         self.ui.comboBox_xaxisNames.clear()
         self.ui.comboBox_yaxisNames.clear()
-        # self.ui.comboBox_xaxisNames.addItem('sub-run')
+        # add sample logs (names)
         for sample_log_name in self._sample_log_names:
             self.ui.comboBox_xaxisNames.addItem(sample_log_name)
             self.ui.comboBox_yaxisNames.addItem(sample_log_name)
+        # add function parameters (names)
         for param_name in function_params:
-            print ('[xxwd] {}, {}'.format(function_params, param_name))
             self.ui.comboBox_xaxisNames.addItem(param_name)
             self.ui.comboBox_yaxisNames.addItem(param_name)
             self._function_param_name_set.add(param_name)
@@ -388,7 +389,6 @@ class FitPeaksWindow(QMainWindow):
 
         return
 
-    # TODO - #84 - We don't need parameter names list but from peak parameter dict will be good enough!
     def _show_fit_result_table(self, peak_function, peak_param_names, peak_param_dict, is_effective):
         """ Set up the table containing fit result
         :param peak_function: name of peak function
@@ -397,8 +397,6 @@ class FitPeaksWindow(QMainWindow):
         :param is_effective: Flag for the parameter to be shown as effective (True) or native (False)
         :return:
         """
-        from pyrs.utilities.rs_project_file import HidraConstants
-
         # Add peaks' centers of mass to the output table
         peak_param_names.append(HidraConstants.PEAK_COM)
         com_vec = self._core.get_peak_center_of_mass(self._project_name)
@@ -410,14 +408,12 @@ class FitPeaksWindow(QMainWindow):
         # Get sub runs for rows in the table
         sub_run_vec = peak_param_dict[HidraConstants.SUB_RUNS]
 
-        print(peak_param_dict.keys())
-        print(sub_run_vec.shape)
-        print('#Adfad')
-
         # Add rows to the table for parameter information
         for row_index in range(sub_run_vec.shape[0]):
             # Set fit result
-            self.ui.tableView_fitSummary.set_fit_summary(row_index, peak_param_names, peak_param_dict, 'peak profile')
+            self.ui.tableView_fitSummary.set_fit_summary(row_index, peak_param_names, peak_param_dict,
+                                                         write_error=False,
+                                                         peak_profile=peak_function)
         # END-FOR
 
         return
@@ -560,17 +556,28 @@ class FitPeaksWindow(QMainWindow):
         x_axis_name = str(self.ui.comboBox_xaxisNames.currentText())
         y_axis_name = str(self.ui.comboBox_yaxisNames.currentText())
 
-        if x_axis_name in self._function_param_name_set and y_axis_name == 'Log Index':
+        # Return if sample logs combo box not set
+        if x_axis_name == '' and y_axis_name == '':
+            return
+
+        if x_axis_name in self._function_param_name_set and y_axis_name == HidraConstants.SUB_RUNS:
             vec_y, vec_x = self.get_function_parameter_data(x_axis_name)
-        elif y_axis_name in self._function_param_name_set and x_axis_name == 'Log Index':
+        elif y_axis_name in self._function_param_name_set and x_axis_name == HidraConstants.SUB_RUNS:
             vec_x, vec_y = self.get_function_parameter_data(y_axis_name)
         elif x_axis_name in self._function_param_name_set or y_axis_name in self._function_param_name_set:
-            gui_helper.pop_message(self, 'It has not considered how to plot 2 function parameters against '
-                                         'each other', message_type='error')
+            gui_helper.pop_message(self, 'It has not considered how to plot 2 function parameters '
+                                         '{} and {} against each other'
+                                         ''.format(x_axis_name, y_axis_name),
+                                   message_type='error')
             return
         else:
             vec_x = self.get_meta_sample_data(x_axis_name)
             vec_y = self.get_meta_sample_data(y_axis_name)
+        # END-IF-ELSE
+
+        if vec_x is None or vec_y is None:
+            raise RuntimeError('{} or {} cannot be None ({}, {})'
+                               ''.format(x_axis_name, y_axis_name, vec_x, vec_y))
 
         self.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y, x_axis_name, y_axis_name)
 
@@ -673,14 +680,16 @@ class FitPeaksWindow(QMainWindow):
         :return:
         """
         # get data key
-        data_key = self._core.current_data_reference_id
-        if data_key is None:
+        if self._project_name is None:
             gui_helper.pop_message(self, 'No data loaded', 'error')
             return
 
-        vec_log_index, vec_param_value = self._core.get_peak_fit_param_value(data_key, param_name, max_cost=1000)
-
-        return vec_log_index, vec_param_value
+        sub_run_vec, chi2_vec, param_value_2darray = self._core.get_peak_fit_param_value(self._project_name,
+                                                                                         param_name,
+                                                                                         max_cost=1E5)
+        print('DB...BAT: chi2 shape = {}, param values shape = {}'.format(chi2_vec.shape,
+                                                                          param_value_2darray.shape))
+        return sub_run_vec, param_value_2darray[0]
 
     def get_meta_sample_data(self, name):
         """
@@ -690,17 +699,22 @@ class FitPeaksWindow(QMainWindow):
         :return:
         """
         # get data key
-        data_key = self._core.current_data_reference_id
-        if data_key is None:
+        if self._project_name is None:
             gui_helper.pop_message(self, 'No data loaded', 'error')
             return
 
-        if name == 'Log Index':
-            value_vector = numpy.array(self._core.data_center.get_scan_range(data_key))
-        elif self._core.data_center.has_sample_log(data_key, name):
-            value_vector = self._core.data_center.get_sample_log_values(data_key, name)
+        sample_log_names = self._core.reduction_manager.get_sample_logs_names(self._project_name, True)
+
+        if name == HidraConstants.SUB_RUNS:
+            # sub run vector
+            value_vector = numpy.array(self._core.reduction_manager.get_sub_runs(self._project_name))
+        elif name in sample_log_names:
+            # sample log but not sub-runs
+            value_vector = self._core.reduction_manager.get_sample_log_values(self._project_name, name)
         elif name == 'Center of mass':
-            value_vector = self._core.get_peak_center_of_mass(data_key)
+            # center of mass is different????
+            # TODO - #84 - Make sure of it!
+            value_vector = self._core.get_peak_center_of_mass(self._project_name)
         else:
             value_vector = None
 
