@@ -233,7 +233,7 @@ class PeakFitSetupView(MplFitPlottingWidget):
     def plot_experiment_data(self, diff_data_set, data_reference):
         """
         plot a diffraction data
-        :param diff_data_set:
+        :param diff_data_set: 2-tuple for vector X and vector Y
         :param data_reference: reference name for the data to plot for presentation purpose
         :return:
         """
@@ -245,6 +245,17 @@ class PeakFitSetupView(MplFitPlottingWidget):
 
         self._diff_reference_list.append(ref_id)
         self._last_diff_reference = ref_id
+
+        return
+
+    def plot_model_data(self, diff_data_set, model_label, residual_set):
+        """ Plot fitting model
+        :param diff_data_set:
+        """
+        vec_x = diff_data_set[0]
+        vec_y = diff_data_set[1]
+
+        ref_id = self.plot_data(data_set=(vec_x, vec_y), color='red', line_label='model')
 
         return
 

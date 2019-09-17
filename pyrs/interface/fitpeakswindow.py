@@ -293,7 +293,6 @@ class FitPeaksWindow(QMainWindow):
 
         return sub_run_list
 
-    # TODO - #84 - Clean up this method!
     def do_fit_peaks(self, all_sub_runs=False):
         """ Fit peaks either all peaks or selected peaks
         The workflow includes
@@ -342,7 +341,7 @@ class FitPeaksWindow(QMainWindow):
         # add fitted parameters by resetting and build from the copy of fit parameters
         self.ui.comboBox_xaxisNames.clear()
         self.ui.comboBox_yaxisNames.clear()
-        self.ui.comboBox_xaxisNames.addItem('sub-run')
+        # self.ui.comboBox_xaxisNames.addItem('sub-run')
         for sample_log_name in self._sample_log_names:
             self.ui.comboBox_xaxisNames.addItem(sample_log_name)
             self.ui.comboBox_yaxisNames.addItem(sample_log_name)
@@ -384,8 +383,8 @@ class FitPeaksWindow(QMainWindow):
         # FIXME - TODO - self.do_plot_diff_data()
 
         # plot the contour
-        # TODO - #84 - Implement this!
-        self.ui.graphicsView_contourView.plot_data_set(self._core.data_center.get_data_2d(data_key))
+        # TODO - #84+ - Implement this! Plot contour for what????
+        # self.ui.graphicsView_contourView
 
         return
 
@@ -409,14 +408,16 @@ class FitPeaksWindow(QMainWindow):
         self.ui.tableView_fitSummary.reset_table(peak_param_names)
 
         # Get sub runs for rows in the table
-        print(peak_param_dict.keys())
-        print('#Adfad')
         sub_run_vec = peak_param_dict[HidraConstants.SUB_RUNS]
+
+        print(peak_param_dict.keys())
+        print(sub_run_vec.shape)
+        print('#Adfad')
 
         # Add rows to the table for parameter information
         for row_index in range(sub_run_vec.shape[0]):
             # Set fit result
-            self.ui.tableView_fitSummary.set_fit_summary(row_index, peak_param_names, peak_param_dict)
+            self.ui.tableView_fitSummary.set_fit_summary(row_index, peak_param_names, peak_param_dict, 'peak profile')
         # END-FOR
 
         return
@@ -728,7 +729,7 @@ class FitPeaksWindow(QMainWindow):
             if model_data_set is not None:
                 residual_y_vec = diff_data_set[1] - model_data_set[1]
                 residual_data_set = [diff_data_set[0], residual_y_vec]
-                self._ui_graphicsView_fitSetup.plot_model_data(model_set=model_data_set, model_label='',
+                self._ui_graphicsView_fitSetup.plot_model_data(diff_data_set=model_data_set, model_label='',
                                                                residual_set=residual_data_set)
             # END-if
         # END-IF-ELSE

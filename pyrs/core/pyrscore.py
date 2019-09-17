@@ -273,7 +273,7 @@ class PyRsCore(object):
         if project_name in self._optimizer_dict:
             # if it does exist
             self._peak_fit_controller = self._optimizer_dict[project_name]
-            workspace = self._peak_fit_controller.get_hidra_workspace()  # TODO FIXME - #81 NOW - No such method
+            workspace = self._peak_fit_controller.get_hidra_workspace()
         else:
             # create a new one
             # get workspace

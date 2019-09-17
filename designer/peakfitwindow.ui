@@ -250,7 +250,7 @@
         <item>
          <widget class="QLabel" name="label_2">
           <property name="text">
-           <string>Exp Number</string>
+           <string>Run Number</string>
           </property>
          </widget>
         </item>

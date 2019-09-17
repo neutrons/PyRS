@@ -83,16 +83,17 @@ class FitResultTable(NTableWidget.NTableWidget):
         # create table columns dynamically
         self.TableSetupList = list()
 
-        self.TableSetupList.append(('sub-run', 'int'))
+        # self.TableSetupList.append(('sub-run', 'int'))
         for param_name in peak_param_names:
             self.TableSetupList.append((param_name, 'float'))
-        self.TableSetupList.append(('C.O.M', 'float'))
+        # self.TableSetupList.append(('C.O.M', 'float'))
         self.TableSetupList.append(('Profile', 'string'))
 
         self._column_names = [item[0] for item in self.TableSetupList]
 
         # reset table
         self.init_setup(self.TableSetupList)
+        print('[DB...BAT] Init setup table columns: {}'.format(self.TableSetupList))
 
         # # Set up column width
         self.setColumnWidth(0, 60)
@@ -101,13 +102,14 @@ class FitResultTable(NTableWidget.NTableWidget):
         self.setColumnWidth(len(self._column_names)-1, 120)
 
         # Set up the column index for start, stop and select
-        self._colIndexIndex = self.TableSetupList.index(('sub-run', 'int'))
-        self._colIndexCoM = self.TableSetupList.index(('C.O.M', 'float'))
-        self._colIndexProfile = self.TableSetupList.index(('Profile', 'string'))
+        # self._colIndexIndex = self.TableSetupList.index(('sub-runs', 'int'))
+        # self._colIndexCoM = self.TableSetupList.index(('C.O.M', 'float'))
+        # self._colIndexProfile = self.TableSetupList.index(('Profile', 'string'))
 
         return
 
-    def set_fit_summary(self, row_number, ordered_param_list, param_dict, write_error=False):
+    def set_fit_summary(self, row_number, ordered_param_list, param_dict,  write_error=False,
+                        peak_profile='not set'):
         """
         Set the fitting result, i.e., peak parameters' value to a row
         :param row_number: row number
@@ -139,6 +141,9 @@ class FitResultTable(NTableWidget.NTableWidget):
             this_value_list.append(value_i)
         # END-FOR
 
+        # Last: peak profile
+        this_value_list.append(peak_profile)
+
         if row_number < self.rowCount():
             for col_num, item_value in enumerate(this_value_list):
                 if item_value is not None:
@@ -147,7 +152,9 @@ class FitResultTable(NTableWidget.NTableWidget):
                     except TypeError as type_err:
                         print ('Cell @ {}, {} of value {} cannot be updated'.format(row_number, col_num, item_value))
         else:
-            self.append_row(row_value_list=this_value_list)
+            status, err_msg = self.append_row(row_value_list=this_value_list)
+            if not status:
+                print('[ERROR] {}'.format(err_msg))
         # END-IF-ELSE
 
         return
