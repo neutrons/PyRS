@@ -438,13 +438,7 @@ class PyHB2BReduction(object):
         """
         print ('[INFO] Building instrument: 2theta @ {}'.format(two_theta))
 
-        calibration = calibration_file_io.ResidualStressInstrumentCalibration()
-        calibration.center_shift_z = arm_length_shift
-        calibration.center_shift_x = center_shift_x
-        calibration.center_shift_y = center_shift_y
-        calibration.rotation_x = rot_x_flip
-        calibration.rotation_y = rot_y_flip
-        calibration.rotation_z = rot_z_spin
+        calibration = instrument_geometry.AnglerCameraDetectorShift( arm_length_shift, center_shift_x, center_shift_y, rot_x_flip, rot_y_flip, rot_z_spin )
 
         self._instrument.build_instrument(two_theta, instrument_calibration=calibration)
 
