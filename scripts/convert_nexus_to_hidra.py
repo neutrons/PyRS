@@ -171,11 +171,13 @@ def parse_inputs(argv):
     """
     # Define parser
     parser = argparse.ArgumentParser(description='Convert HB2B data to Hidra Project File')
-    parser.add_argument('nexus', metavar='n', type=str, help='name of nexus file')
-    parser.add_argument('output', metavar='o', type=str, help='Path to output directory')
+    parser.add_argument('nexus', metavar='-n', type=str, help='name of nexus file')
+    parser.add_argument('output', metavar='-o', type=str, help='Path to output directory')
 
     # Parse
     args = parser.parse_args()
+
+    print('Args: {}'.format(args))
 
     return args
 

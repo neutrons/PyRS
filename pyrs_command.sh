@@ -23,6 +23,7 @@ else
     echo "(3) convert (source data file to standard HDF5)"
     echo "(4) Reduce HZB data (1 sub run)"
     echo "(5) Reduce HZB data (all sub runs)"
+    echo "(6) [TEST] Convert NeXus file to HIDRA project file)"
 fi
 
 MANTIDLOCALPATH=/home/wzz/Mantid_Project/builds/mantid-python2/bin/
@@ -64,6 +65,7 @@ fi
 
 if [ "$1" = "6" ] || [ "$1" = "convert" ]  ; then
     echo "Reduce data test (HBZ) all sub runs"
-    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/convert_nexus_to_hidra.py --nexus=/HFIR/HB2B/IPTS-22731/nexus/HB2B_439.nxs.h5 --output=/tmp/HB2B_439.hdf
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/convert_nexus_to_hidra.py -h
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/convert_nexus_to_hidra.py -n=/HFIR/HB2B/IPTS-22731/nexus/HB2B_439.nxs.h5 -o=/tmp/HB2B_439.hdf
 fi
 
