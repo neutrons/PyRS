@@ -570,7 +570,7 @@ class PyHB2BReduction(object):
             # use numpy.histogram
             two_theta_vector, intensity_vector = self.histogram_by_numpy(pixel_2theta_array, vec_counts,
                                                                          two_theta_vector,
-                                                                         is_point_data, True)
+                                                                         is_point_data, normalize_pixel_bin)
 
         # Record
         self._reduced_diffraction_data = two_theta_vector, intensity_vector
@@ -734,7 +734,8 @@ class PyHB2BReduction(object):
         # Optionally to normalize by number of pixels (sampling points) in the 2theta bin
         if norm_bins:
             # Create an all 1 vector
-            vec_one = numpy.zeros(shape=vec_counts.shape) + 1
+#            vec_one = np.zeros_like( vec_counts ) 
+#            vec_one[ np.where( vec_counts > .5 )[0] ] += 1
             # Histograms
             # TODO FIXME - TONIGHT - NOW
             #
@@ -743,18 +744,19 @@ class PyHB2BReduction(object):
             #   UnboundLocalError: local variable 'num_bins' referenced before assignment
             #
             #
-            hist_bin, bin_edges2 = np.histogram(pixel_2theta_array, bins=two_theta_vec, weights=vec_one)
+#            hist_bin, bin_edges2 = np.histogram(pixel_2theta_array, bins=two_theta_vec, weights=vec_one)
+            hist_bin = np.histogram(pixel_2theta_array[np.where( vec_counts > .5 )[0] ], bins=two_theta_vec )[0]
 
-            # Normalize with cautious to avoid zero number of bins on any X
-            if False:
-                # FIXME TODO - #72 - Remove this as next works
-                for ibin in range(hist_bin.shape[0]):
-                    if hist_bin[ibin] < 1.E-4:  # zero
-                        hist_bin[ibin] = 1.E10  # doesn't matter how big it is
-                # END-FOR
-            else:
-                # Shall be a better operation with numpy
-                hist_bin[numpy.where(hist_bin < 0.1)] += 1
+#            # Normalize with cautious to avoid zero number of bins on any X
+#            if False:
+#                # FIXME TODO - #72 - Remove this as next works
+#                for ibin in range(hist_bin.shape[0]):
+#                    if hist_bin[ibin] < 1.E-4:  # zero
+#                        hist_bin[ibin] = 1.E10  # doesn't matter how big it is
+#                # END-FOR
+#            else:
+#                # Shall be a better operation with numpy
+#                hist_bin[numpy.where(hist_bin < 0.1)] += 1
 
             hist /= hist_bin  # normalize
         # END-IF
