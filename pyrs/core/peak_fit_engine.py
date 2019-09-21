@@ -167,6 +167,15 @@ class PeakFitEngine(object):
         """
         raise NotImplementedError('Virtual base class member method get_number_scans()')
 
+    def get_hidra_workspace(self):
+        """
+        Get the HidraWorkspace instance associated with this peak fit engine
+        :return:
+        """
+        assert self._hd_workspace is not None, 'No HidraWorkspace has been set up.'
+
+        return self._hd_workspace
+
     def get_peak_param_names(self, peak_function, is_effective):
         """ Get the peak parameter names
         :param peak_function: None for default/current peak function

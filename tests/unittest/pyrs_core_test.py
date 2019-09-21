@@ -17,12 +17,12 @@ def test_main():
     rs_core = pyrscore.PyRsCore()
 
     # load data
-    data_key, message = rs_core.load_rs_raw(test_data)
+    data_key, message = rs_core.load_hidra_project(test_data)
     print ('Data reference ID: {0}'.format(data_key))
     # scan log data range
     print ('Scan log index range: {0}'.format(rs_core.data_center.get_scan_range(data_key)))
     # sample logs
-    print ('Sample logs: {0}'.format(rs_core.data_center.get_sample_logs_list(data_key, can_plot=True)))
+    print ('Sample logs: {0}'.format(rs_core.data_center.get_sample_logs_names(data_key, can_plot=True)))
     # fit peaks
     rs_core.fit_peaks(data_key, None, 'Gaussian', 'Linear', [80, 90])
     vec_index = rs_core.data_center.get_scan_range(data_key)

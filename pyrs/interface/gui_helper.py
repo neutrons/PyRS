@@ -3,10 +3,10 @@ import os
 import platform
 from pyrs.utilities import checkdatatypes
 try:
-    from PyQt5.QtWidgets import QDialog, QLineEdit, QFileDialog, QMessageBox
+    from PyQt5.QtWidgets import QDialog, QLineEdit, QFileDialog, QMessageBox, QVBoxLayout
     is_qt4 = False
 except ImportError:
-    from PyQt4.QtGui import QDialog, QLineEdit, QFileDialog, QMessageBox
+    from PyQt4.QtGui import QDialog, QLineEdit, QFileDialog, QMessageBox, QVBoxLayout
     from PyQt4 import QtCore
     is_qt4 = True
 
@@ -276,6 +276,20 @@ def parse_integers(int_list_string):
     int_list.sort()
 
     return int_list
+
+
+def promote_widget(frame_widget, promoted_widget):
+    """
+    Add a promoted widget to a QFrame in the main window
+    :param frame_widget:
+    :param promoted_widget:
+    :return:
+    """
+    curr_layout = QVBoxLayout()
+    frame_widget.setLayout(curr_layout)
+    curr_layout.addWidget(promoted_widget)
+
+    return
 
 
 def get_boolean_from_dialog(window_title, message):

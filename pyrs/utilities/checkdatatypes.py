@@ -34,6 +34,7 @@ def check_dict(var_name, dict_var):
 def check_file_name(file_name, check_exist=True, check_writable=False, is_dir=False, description=''):
     """
     check whether an input file name is a string and whether it is a file or a file can be written to
+    :exception RuntimeError: file does not meet the requirement
     :param file_name:
     :param check_exist:
     :param check_writable:
@@ -44,7 +45,7 @@ def check_file_name(file_name, check_exist=True, check_writable=False, is_dir=Fa
     assert isinstance(file_name, str), 'Input file name {0}  must be a string but not a {1}.' \
                                        ''.format(file_name, type(file_name))
     assert isinstance(description, str), 'Input file description {} must be a string but not a {}' \
-                                  ''.format(description, type(description))
+                                         ''.format(description, type(description))
 
     # set note
     if len(description) == 0:

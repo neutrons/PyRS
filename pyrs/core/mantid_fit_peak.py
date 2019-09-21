@@ -140,11 +140,11 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         if start_sub_run is None:
             start_spectrum = 0
         else:
-            start_spectrum = self._hd_workspace.get_spectrum(start_sub_run)
+            start_spectrum = self._hd_workspace.get_spectrum_index(start_sub_run)
         if end_sub_run is None:
             end_spectrum = num_spectra - 1
         else:
-            end_spectrum = self._hd_workspace.get_spectrum(end_sub_run)
+            end_spectrum = self._hd_workspace.get_spectrum_index(end_sub_run)
 
         # Create Peak range/window workspace
         peak_window_ws_name = 'fit_window_{0}'.format(self._mantid_workspace_name)
@@ -552,6 +552,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
         return workspace
 
+    # TODO URGENT - #84 - Need to talk to IS about wave length!!!
     def set_wavelength(self, wavelengths):
         """ Set wave length to each spectrum
         :param wavelengths:
@@ -565,10 +566,13 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         self._wavelength_vec = np.ndarray(shape=(mtd_ws.getNumberHistograms(), ), dtype='float')
 
         sub_runs = sorted(wavelengths.keys())
-        if len(sub_runs) != self._wavelength_vec.shape[0]:
-            raise RuntimeError('Input wavelength dictionary has different number of histograms')
-
-        for i in range(len(sub_runs)):
-            self._wavelength_vec[i] = wavelengths[sub_runs[i]]
+        if len(sub_runs) == self._wavelength_vec.shape[0]:
+            for i in range(len(sub_runs)):
+                self._wavelength_vec[i] = wavelengths[sub_runs[i]]
+        else:
+            # FIXME TODO - #84 NOWNOW URGENT
+            self._wavelength_vec = np.zeros_like(self._wavelength_vec) + 1.1723
+            # raise RuntimeError('Input wavelength dictionary {} has different number than the sub runs {}.'
+            #                    ''.format(wavelengths, self._wavelength_vec.shape[0]))
 
         return

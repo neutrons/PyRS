@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1347</width>
-    <height>795</height>
+    <width>1422</width>
+    <height>857</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -19,7 +19,7 @@
      <layout class="QVBoxLayout" name="verticalLayout">
       <item>
        <layout class="QGridLayout" name="gridLayout">
-        <item row="3" column="1">
+        <item row="4" column="1">
          <widget class="QLineEdit" name="lineEdit_calibratonFile">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
@@ -29,14 +29,14 @@
           </property>
          </widget>
         </item>
-        <item row="3" column="0">
+        <item row="4" column="0">
          <widget class="QLabel" name="label_4">
           <property name="text">
            <string>Calibration File</string>
           </property>
          </widget>
         </item>
-        <item row="3" column="2">
+        <item row="4" column="2">
          <widget class="QPushButton" name="pushButton_setCalibrationFile">
           <property name="text">
            <string>Set</string>
@@ -66,10 +66,10 @@
           </property>
          </spacer>
         </item>
-        <item row="0" column="2">
-         <widget class="QPushButton" name="pushButton_setIPTSNumber">
+        <item row="2" column="1">
+         <widget class="QLineEdit" name="lineEdit_idfName">
           <property name="text">
-           <string>Set</string>
+           <string>/home/wzz/Projects/PyRS/tests/testdata/hzb/HZB_Definition_20190523_0844.txt</string>
           </property>
          </widget>
         </item>
@@ -83,7 +83,7 @@
           </property>
          </widget>
         </item>
-        <item row="2" column="1">
+        <item row="3" column="1">
          <widget class="QLineEdit" name="lineEdit_outputDir">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
@@ -93,28 +93,28 @@
           </property>
          </widget>
         </item>
-        <item row="2" column="2">
+        <item row="3" column="2">
          <widget class="QPushButton" name="pushButton_browseOutputDir">
           <property name="text">
            <string>Set</string>
           </property>
          </widget>
         </item>
-        <item row="2" column="0">
+        <item row="3" column="0">
          <widget class="QLabel" name="label_5">
           <property name="text">
            <string>Save to ... ...</string>
           </property>
          </widget>
         </item>
-        <item row="3" column="4">
+        <item row="4" column="4">
          <widget class="QCheckBox" name="checkBox_autoCalibSet">
           <property name="text">
            <string>Auto</string>
           </property>
          </widget>
         </item>
-        <item row="1" column="0">
+        <item row="2" column="0">
          <widget class="QLabel" name="label_3">
           <property name="toolTip">
            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Instrument file&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -124,17 +124,30 @@
           </property>
          </widget>
         </item>
-        <item row="1" column="1">
-         <widget class="QLineEdit" name="lineEdit_idfName">
-          <property name="text">
-           <string>/home/wzz/Projects/PyRS/tests/testdata/hzb/HZB_Definition_20190523_0844.txt</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="2">
+        <item row="2" column="2">
          <widget class="QPushButton" name="pushButton_setBrowseIDF">
           <property name="text">
            <string>Set</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="label_14">
+          <property name="text">
+           <string>Run Number</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QLineEdit" name="lineEdit_runNumber"/>
+        </item>
+        <item row="1" column="2">
+         <widget class="QPushButton" name="pushButton_loadProjectFile">
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Load Hidra project file&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="text">
+           <string>Load</string>
           </property>
          </widget>
         </item>
@@ -397,9 +410,18 @@
            </layout>
           </item>
           <item>
-           <widget class="QPlainTextEdit" name="plainTextEdit_message">
-            <property name="enabled">
-             <bool>false</bool>
+           <widget class="QFrame" name="frame_subRunInfoTable">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="frameShape">
+             <enum>QFrame::StyledPanel</enum>
+            </property>
+            <property name="frameShadow">
+             <enum>QFrame::Raised</enum>
             </property>
            </widget>
           </item>
@@ -798,29 +820,6 @@
          <widget class="QComboBox" name="comboBox_sub_runs"/>
         </item>
         <item>
-         <widget class="QLabel" name="label_12">
-          <property name="maximumSize">
-           <size>
-            <width>100</width>
-            <height>16777215</height>
-           </size>
-          </property>
-          <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Sliced segments.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;p&gt;If not sliced data, then there is nothing to show in the right combo-box&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
-          <property name="text">
-           <string>Segments</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QComboBox" name="comboBox_slicedRuns">
-          <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;For chopped run only!&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
-         </widget>
-        </item>
-        <item>
          <widget class="QLabel" name="label_13">
           <property name="maximumSize">
            <size>
@@ -858,7 +857,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1347</width>
+     <width>1422</width>
      <height>25</height>
     </rect>
    </property>

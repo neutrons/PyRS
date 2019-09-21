@@ -3,6 +3,7 @@ from pyrs.utilities import checkdatatypes
 from pyrs.core import instrument_geometry
 from pyrs.utilities import file_util
 from pyrs.core import peak_fit_factory
+from pyrs.utilities.rs_project_file import HidraConstants
 import mantid_fit_peak
 import strain_stress_calculator
 import reduction_manager
@@ -273,7 +274,7 @@ class PyRsCore(object):
         if project_name in self._optimizer_dict:
             # if it does exist
             self._peak_fit_controller = self._optimizer_dict[project_name]
-            workspace = self._peak_fit_controller.get_hidra_workspace()  # TODO FIXME - #81 NOW - No such method
+            workspace = self._peak_fit_controller.get_hidra_workspace()
         else:
             # create a new one
             # get workspace
@@ -297,7 +298,7 @@ class PyRsCore(object):
 
         # Deal with sub runs
         if sub_run_list is None:
-            sub_run_list = workspace.get_subruns()
+            sub_run_list = workspace.get_sub_runs()
         else:
             checkdatatypes.check_list('Sub run numbers', sub_run_list)
         sub_run_range = sub_run_list[0], sub_run_list[-1]
@@ -468,19 +469,6 @@ class PyRsCore(object):
 
         return data_set
 
-    def get_peak_fit_parameter_names(self, data_key=None):
-        """
-        get the fitted function's parameters
-        :param data_key:
-        :return: list (of parameter names)
-        """
-        # check input
-        optimizer = self._get_optimizer(data_key)
-        if optimizer is None:
-            return None
-
-        return optimizer.get_function_parameter_names()
-
     # TODO - #81 - Code quality
     def get_peak_fitting_result(self, project_name, return_format, effective_parameter):
         """ Get peak fitting result
@@ -502,25 +490,37 @@ class PyRsCore(object):
 
         # Get the parameter values
         if effective_parameter:
+            # TODO - #84 ASAAP - Impelment it!
             raise NotImplementedError('Effective parameters... ASAP')
             peak_fitter.get_fitted_effective_params(param_names)
         else:
             sub_run_vec, chi2_vec, param_vec = peak_fitter.get_fitted_params(param_names, including_error=True)
 
         if return_format == dict:
-            # dictionary
-            param_data = dict()
-            for s_index in range(sub_run_vec.shape[0]):
-                sub_run_i = sub_run_vec[s_index]
-            # TODO - #81 - continue to develop til finish!
+            # The output format is a dictionary for each parameter including sub-run
+            param_data_dict = dict()
+            for param_index, param_name in enumerate(param_names):
+                if param_name == HidraConstants.SUB_RUNS:
+                    param_data_dict[param_name] = sub_run_vec
+                else:
+                    param_data_dict[param_name] = param_vec[param_index]
+                # END-IF-ELSE
+            # END-FOR
+
+            # add sub runs and chi2
+            param_data_dict[HidraConstants.SUB_RUNS] = sub_run_vec
+            param_data_dict[HidraConstants.PEAK_FIT_CHI2] = chi2_vec
+
+            # Rename for return
+            param_data = param_data_dict
 
         elif return_format == numpy.ndarray:
             # numpy array
             # initialize
-            array_shape = sub_run_vec.shape[0], 2+param_vec.shape[0]
+            array_shape = sub_run_vec.shape[0], param_vec.shape[0] + 2   # add 2 more columns for sub run and chi2
             param_data = numpy.ndarray(shape=array_shape, dtype='float')
 
-            # set value
+            # set value: set sub runs and chi2 vector to 0th and 1st column
             param_data[:, 0] = sub_run_vec
             param_data[:, 1] = chi2_vec
             for j in range(param_vec.shape[0]):
@@ -528,36 +528,39 @@ class PyRsCore(object):
 
         elif return_format == DataFrame:
             # pandas data frame
-            # TODO - #81 - ...
+            # TODO - #84+ - Implement pandas DataFrame ASAP
             raise NotImplementedError('ASAP')
 
         else:
-            # ...
+            # Not supported case
             raise RuntimeError('not supported')
 
-        # TODO - #81 - Shall be a nicer output
-        param_names.insert(0, 'Sub-run')
-        param_names.insert(1, 'chi2')
+        # Insert sub run and chi-square as the beginning 2 parameters
+        param_names.insert(0, HidraConstants.SUB_RUNS)
+        param_names.insert(1, HidraConstants.PEAK_FIT_CHI2)
 
         return param_names, param_data
 
     # TODO - TONIGHT NOW - Need to migrate to new get_fitted_params
-    def get_peak_fit_param_value(self, data_key, param_name_list, max_cost):
+    def get_peak_fit_param_value(self, project_name, param_name, max_cost):
         """
         get a specific parameter's fitted value
-        :param data_key:
+        :param project_name:
         :param param_name:
         :param max_cost: if not None, then filter out the bad (with large cost) fitting
         :return: 3-tuple
         """
-        # check input
-        # TODO - #80 - Again data_key shall be replaced by ...
-        optimizer = self._get_optimizer(None)
+        # Get peak fitting controller
+        if project_name in self._optimizer_dict:
+            # if it does exist
+            peak_fitter = self._optimizer_dict[project_name]
+        else:
+            raise RuntimeError('{} not exist'.format(project_name))
 
         if max_cost is None:
-            sub_run_vec, chi2_vec, param_vec = optimizer.get_fitted_params(param_name_list, False)
+            sub_run_vec, chi2_vec, param_vec = peak_fitter.get_fitted_params([param_name], False)
         else:
-            sub_run_vec, chi2_vec, param_vec = optimizer.get_good_fitted_params(param_name_list, max_cost)
+            sub_run_vec, chi2_vec, param_vec = peak_fitter.get_fitted_params([param_name], False, max_chi2=max_cost)
 
         return sub_run_vec, chi2_vec, param_vec
 
@@ -717,13 +720,14 @@ class PyRsCore(object):
         return
 
     def reduce_diffraction_data(self, session_name, two_theta_step, pyrs_engine, mask_file_name=None,
-                                geometry_calibration=None):
+                                geometry_calibration=None, sub_run_list=None):
         """ Reduce all sub runs in a workspace from detector counts to diffraction data
         :param session_name:
         :param two_theta_step:
         :param pyrs_engine:
         :param mask_file_name:
         :param geometry_calibration: True/file name/AnglerCameraDetectorShift/None), False, None/(False, )
+        :param sub_run_list: list of sub run numbers or None (for all)
         :return:
         """
         # Mask file
@@ -756,7 +760,7 @@ class PyRsCore(object):
 
         self._reduction_manager.reduce_diffraction_data(session_name, apply_calibration,
                                                         two_theta_step, pyrs_engine,
-                                                        mask_id)
+                                                        mask_id, sub_run_list)
 
         return
 

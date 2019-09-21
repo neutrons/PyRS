@@ -93,7 +93,7 @@ class HB2BReductionManager(object):
         checkdatatypes.check_string_variable('Session name', session_name, self._session_dict.keys())
         workspace = self._session_dict[session_name]
 
-        return workspace.get_subruns()
+        return workspace.get_sub_runs()
 
     def get_sub_run_detector_counts(self, session_name, sub_run):
         """
@@ -107,10 +107,41 @@ class HB2BReductionManager(object):
 
         return workspace.get_detector_counts(sub_run)
 
+    # TODO - #84 - Better
+    def get_sample_logs_values(self, session_name, log_names):
+        """ Get sample logs' value
+        :param session_name:
+        :param log_names:
+        :return: List of ...
+        """
+        workspace = self._session_dict[session_name]
+
+        log_values = list()
+        for log_name in log_names:
+            log_value_array = workspace.get_sample_log_values(log_name)
+            log_values.append(log_value_array)
+
+        return log_values
+
+    # TODO - #84 - Better
+    # TODO - #84 - Implement
+    def get_sample_logs_names(self, session_name, can_plot):
+        """
+        Get the names of all sample logs in the workspace
+        :param session_name:
+        :param can_plot:
+        :return:
+        """
+        workspace = self._session_dict[session_name]
+
+        sample_logs = workspace.sample_log_names
+
+        return sample_logs
+
     def get_sub_run_2theta(self, session_name, sub_run):
         """
         Get the detector arm's 2theta position of a sub run
-        :param session_name:
+        :param session_name: name of the session for locating workspace
         :param sub_run:
         :return:
         """
@@ -118,6 +149,17 @@ class HB2BReductionManager(object):
         workspace = self._session_dict[session_name]
 
         return workspace.get_2theta(sub_run)
+
+    def get_detector_counts(self, session_name, sub_run):
+        """ Get the raw counts from detector of the specified sub run
+        :param session_name: name of the session for locating workspace
+        :param sub_run: sub run number (integer)
+        :return: array of detector counts
+        """
+        checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
+        workspace = self._session_dict[session_name]
+
+        return workspace.get_detector_counts(sub_run)
 
     def get_hidra_workspace(self, session_name):
         """ Get the HIDRA workspace
@@ -151,6 +193,7 @@ class HB2BReductionManager(object):
 
         return
 
+    # TODO - #84 - load_calibrated_instrument IS NOT IMPLEMENTED YET!
     def load_hidra_project(self, project_file_name, load_calibrated_instrument, load_detectors_counts,
                            load_reduced_diffraction):
         """ Load hidra project file
@@ -248,7 +291,8 @@ class HB2BReductionManager(object):
 
         return
 
-    def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, bin_size_2theta, use_pyrs_engine, mask):
+    def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, bin_size_2theta, use_pyrs_engine, mask,
+                                sub_run_list):
         """ Reduce ALL sub runs in a workspace from detector counts to diffraction data
         :param session_name:
         :param apply_calibrated_geometry: 3 options (1) user-provided AnglerCameraDetectorShift
@@ -289,7 +333,9 @@ class HB2BReductionManager(object):
         print ('[DB...BAT] Det Position Shift: {}'.format(det_pos_shift))
 
         # TODO - TONIGHT NOW #72 - How to embed mask information???
-        for sub_run in workspace.get_subruns():
+        if sub_run_list is None:
+            sub_run_list = workspace.get_sub_runs()
+        for sub_run in sub_run_list:
             self.reduce_sub_run_diffraction(workspace, sub_run, det_pos_shift,
                                             use_mantid_engine=not use_pyrs_engine,
                                             mask_vec_id=(mask_id, mask_vec),
@@ -318,22 +364,23 @@ class HB2BReductionManager(object):
         # Get the raw data
         raw_count_vec = workspace.get_detector_counts(sub_run)
 
-        # process two theta
+        # Retrieve two theta and L2 from loaded workspace
         two_theta = workspace.get_2theta(sub_run)
         print ('[INFO] User specified 2theta = {} is converted to Mantid 2theta = {}'
                ''.format(two_theta, -two_theta))
         two_theta = -two_theta
+        l2 = workspace.get_l2(sub_run)
 
         # Set up reduction engine and also
         if use_mantid_engine:
             # Mantid reduction engine
             reduction_engine = reduce_hb2b_mtd.MantidHB2BReduction(self._mantid_idf)
-            data_ws_name = reduction_engine.set_experimental_data(two_theta, raw_count_vec)
+            data_ws_name = reduction_engine.set_experimental_data(two_theta, l2, raw_count_vec)
             reduction_engine.build_instrument(geometry_calibration)
         else:
             # PyRS reduction engine
             reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
-            reduction_engine.set_experimental_data(two_theta, raw_count_vec)
+            reduction_engine.set_experimental_data(two_theta, l2, raw_count_vec)
             reduction_engine.build_instrument(geometry_calibration)
         # END-IF
 

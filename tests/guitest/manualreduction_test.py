@@ -11,6 +11,32 @@ except ImportError:
     from PyQt4.QtGui import QApplication
 
 
+def test_hzb_data(reduction_window):
+    """
+
+    :param reduction_window:
+    :return:
+    """
+    # Load HZB data
+    hzb_hidra_name = 'tests/testdata/HZB_Raw_Project.hdf'
+    reduction_window.load_hydra_file(hzb_hidra_name)
+
+    # Plot raw data
+    reduction_window.plot_detector_counts(sub_run_number=2, mask_id=None)
+
+    # 3. Plot reduced data
+    reduction_window.plot_reduced_data(sub_run_number=2, mask_id=None)
+
+    # 4. Reduce HZB data
+    reduction_window.reduce_sub_runs(sub_runs=[3])
+    reduction_window.reduce_sub_runs(sub_runs=None)
+
+    # 5. Plot re-reduced data
+    reduction_window.plot_reduced_data(sub_run_number=2, mask_id=None)
+
+    return
+
+
 def test_main():
     """
     test main
@@ -20,6 +46,10 @@ def test_main():
     manual_reduction_window.setup_window(pyrs_core)
 
     manual_reduction_window.show()
+
+    # Test 1
+    test_hzb_data(manual_reduction_window)
+
     #
     # # set up IPTS and run number
     # manual_reduction_window.ui.lineEdit_iptsNumber.setText('12345')

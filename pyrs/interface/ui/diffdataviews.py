@@ -82,12 +82,12 @@ class DetectorView(MplGraphicsView2D):
 
         return
 
-    def plot_detector_view(self, raw_counts):
+    def plot_detector_view(self, sub_run_number, raw_counts):
         """
         :param raw_counts: 1D array
         :return:
         """
-        # TODO - 20181117 - Make it real!
+        # TODO - #84 - Make it real!
 
         self._myCanvas.add_image_file('tests/testdata/Lab6_45-00130_Rotated.tif')
 
@@ -227,6 +227,35 @@ class PeakFitSetupView(MplFitPlottingWidget):
 
         #
         self._auto_color = True
+
+        return
+
+    def plot_experiment_data(self, diff_data_set, data_reference):
+        """
+        plot a diffraction data
+        :param diff_data_set: 2-tuple for vector X and vector Y
+        :param data_reference: reference name for the data to plot for presentation purpose
+        :return:
+        """
+        # parse the data
+        vec_x = diff_data_set[0]
+        vec_y = diff_data_set[1]
+
+        ref_id = self.plot_data(data_set=(vec_x, vec_y), color='black', line_label=data_reference)
+
+        self._diff_reference_list.append(ref_id)
+        self._last_diff_reference = ref_id
+
+        return
+
+    def plot_model_data(self, diff_data_set, model_label, residual_set):
+        """ Plot fitting model
+        :param diff_data_set:
+        """
+        vec_x = diff_data_set[0]
+        vec_y = diff_data_set[1]
+
+        ref_id = self.plot_data(data_set=(vec_x, vec_y), color='red', line_label='model')
 
         return
 

@@ -279,8 +279,8 @@ class TextureAnalysisWindow(QMainWindow):
             self.ui.comboBox_detectorID.addItem(str(det_id))
 
         # get the sample logs
-        sample_log_names = self._core.data_center.get_sample_logs_list((data_key, det_id_list[0]),
-                                                                       can_plot=True)
+        sample_log_names = self._core.data_center.get_sample_logs_names((data_key, det_id_list[0]),
+                                                                        can_plot=True)
 
         self._sample_log_names_mutex = True
         self.ui.comboBox_xaxisNames.clear()

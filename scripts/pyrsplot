@@ -1,8 +1,9 @@
 #!/usr/bin/python
 import sys
-from pyrs.interface.ui.mantidipythonwidget import MantidIPythonWidget
-import os
+import imp
 try:
+    imp.find_module('IPython.paths')  # This is for WZ's develop
+    imp.find_module('qtconsole')  # This is for Analysis cluster
     from PyQt5 import QtCore as QtCore
     from PyQt5.QtWidgets import QDialog, QApplication
     from PyQt5.uic import loadUi as load_ui
@@ -11,6 +12,7 @@ except ImportError:
     from PyQt4.QtGui import QDialog, QApplication
     from PyQt4.uic import loadUi as load_ui
 import pyrs.interface.pyrs_main
+
 
 def main(argv):
     """
