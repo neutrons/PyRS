@@ -196,6 +196,19 @@ class HydraProjectFile(object):
 
         return
 
+    def add_mask_detetor_array(self):
+        # TODO - #94 - Implement & also get_mask_detector_array
+        # ..../main entry/mask/detector/
+
+        return
+
+    def add_mask_solid_angle(self):
+        # TODO - #94 - Implement & also get_mask_solid_angle
+        # main entry/mask/solid angle/
+        # data will be a range of solid angles and number of patterns to generate. example solid angle range = -8, 8, number of pattern = 3
+
+        return
+
     def close(self):
         """
         Close file without checking whether the file can be written or not
@@ -450,12 +463,31 @@ class HydraProjectFile(object):
         """
         checkdatatypes.check_float_variable('Wave length', wave_length, (0, 1000))
 
-        # TODO - #81 TODO - Where and how to store wave length?
+        # TODO - #94 TODO - Where and how to store wave length? + get_wave_length()
+
+        """ Wave length:
+        /instrument/monochromator setting/ ... .../
+
+        - same wave length to all sub runs
+        - only calibrated wave length in project file
+        - raw wave length comes from a table with setting
+        """
 
         # set value
         self._project_h5[HidraConstants.INSTRUMENT]
 
         return
+
+    def set_efficiency_correction(self):
+        """
+        Vanadium (efficiency correction)
+        ... /main entry/calibration/efficency: numpy array with 1024**2...
+
+        add the run number created from to the attribute
+
+        :return:
+        """
+        # TODO - #94 - Implement ASAP and also get_...()
 
     def set_information(self, info_dict):
         """
