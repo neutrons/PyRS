@@ -64,13 +64,34 @@ def test_detector_efficiency(remove_test_file):
 
 def test_monochromator_setup(remove_test_file):
     """
-
+    Test methods to read and write monochromator setup including
+    - calibrated wave length
+    - monochromator setting
     Parameters
     ----------
-    remove_test_file
+    remove_test_file :  bool
+        Flag to remove temporary testing file
 
     Returns
     -------
-
+    None
     """
+    # Generate a HiDRA project file
 
+    # Specify monochromator setting
+
+    # Write to file
+
+    # Specify calibrated wave length
+
+    # Write to file
+
+    # Close file
+
+    # Open file again
+
+    # Read monochromator setting & compare
+
+    # Read calibrated wave length & compare
+
+    return
