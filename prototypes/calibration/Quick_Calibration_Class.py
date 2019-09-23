@@ -31,6 +31,7 @@ def main():
 
     CalibrationObject = peakfit_calibration.PeakFitCalibration( HB2B, engine )
     CalibrationObject.FullCalibration() 
+    CalibrationObject.write_calibration()
 
     t_stop = time.time()
     print ('Total Time: {}'.format(t_stop - t_start))
