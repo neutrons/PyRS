@@ -354,24 +354,66 @@ class PeakFitCalibration(object):
     def set_shift( self, out):
         self._calib[0:3] = out.x
         self._calibstatus = out.status
+
+        J   = out.jac
+        cov = np.linalg.inv(J.T.dot(J))
+        var = np.sqrt(np.diagonal(cov))
+
+        self._caliberr[0:3] = var
+
         return 
 
     def set_rotation( self, out):
         self._calib[3:6] = out.x
         self._calibstatus = out.status
+
+        J   = out.jac
+        cov = np.linalg.inv(J.T.dot(J))
+        var = np.sqrt(np.diagonal(cov))
+
+        self._caliberr[3:6] = var
+
         return 
 
     def set_wavelength( self, out ):
+
         self._calib[6] = out.x[0]
         self._calibstatus = out.status
+
+        J   = Final.jac
+        cov = np.linalg.inv(J.T.dot(J))
+        var = np.sqrt(np.diagonal(cov))
+
+        self._caliberr[6] = var
+
         return 
 
     def set_calibration( self, out ):
         self._calib = out.x
         self._calibstatus = out.status
+
+        J   = out.jac
+        cov = np.linalg.inv(J.T.dot(J))
+        var = np.sqrt(np.diagonal(cov))
+
+        self._caliberr = var
+
         return 
 
-    def read_calibration( self ):
+    def get_calibration( self ):
+        import glob
+        import json
+
+        MonoSetting = ['Si333', 'Si511', 'Si422', 'Si331', 'Si400', 'Si311', 'Si220'][ self._engine.get_log_value( 'MonoSetting' )[0] ]
+
+        for files in glob.glob('/HFIR/HB2B/shared/CAL/%s/*.json'%MonoSetting ):
+            datetime = files.split( '.json' )[0].split( '_CAL_' )[1]
+            if dateutil.parser.parse( datetime ) < dateutil.parser.parse( self._engine.get_log_value( 'MonoSetting' )[0] ):
+                CalibData = json.read( files )
+                keys = ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda']
+                for i in range( len( keys ) ):
+                    self._calib[i] = CalibData[ keys[ i ] ] 
+
         return
 
     def write_calibration( self ):
@@ -383,7 +425,7 @@ class PeakFitCalibration(object):
         import json
         Year, Month, Day, Hour, Min = time.localtime()[0:5]
         Mono =  ['Si333', 'Si511', 'Si422', 'Si331', 'Si400', 'Si311', 'Si220'][ self._engine.get_log_value( 'MonoSetting' )[0] ]
-        with open('/HFIR/HB2B/shared/CAL/%s/HB2B_CAL_%d%d%d%d%d.json'%( Mono, Year, Month, Day, Hour, Min), 'w') as outfile:
+        with open('/HFIR/HB2B/shared/CAL/%s/HB2B_CAL_%s.json'%( Mono, time.strftime('%Y-%m-%dT%H:%M', time.localtime() )), 'w') as outfile:
             json.dump(CalibData, outfile)
 
 
