@@ -161,6 +161,21 @@ class PeakFitEngine(object):
 
         return sub_runs_vec, fit_cost_vec, param_value_array
 
+    def get_fitted_effective_parameters(self):
+        """ Get the effective peak parameters including
+        peak position, peak height, peak intensity, FWHM and Mixing
+
+        This method does calculate the effective parameters depending on the peak profile
+
+        Returns
+        -------
+        ndarray, ndarray, ndarray
+            (n,) for sub run numbers
+            (n,) for fitting cost
+            (p, n, 1) or (p, n, 2) for fitted parameters value,
+            p = number of parameters , n = number of sub runs, 2 containing fitting error
+        """
+
     def get_number_scans(self):
         """ Get number of scans in input data to fit
         :return:
