@@ -16,6 +16,7 @@ from pandas import DataFrame
 SUPPORTED_PEAK_TYPES = ['PseudoVoigt', 'Gaussian', 'Voigt']  # 'Lorentzian': No a profile of HB2B
 
 
+# TODO - #84 TONIGHT - Clean all the methods for new API of workspace and etc.
 class PyRsCore(object):
     """
     PyRS core
@@ -490,9 +491,9 @@ class PyRsCore(object):
 
         # Get the parameter values
         if effective_parameter:
-            # TODO - #84 ASAAP - Impelment it!
-            raise NotImplementedError('Effective parameters... ASAP')
-            peak_fitter.get_fitted_effective_params(param_names)
+            # Retrieve effective peak parameters
+            sub_run_vec, chi2_vec, param_vec = peak_fitter.get_fitted_effective_params(param_names,
+                                                                                       including_error=True)
         else:
             sub_run_vec, chi2_vec, param_vec = peak_fitter.get_fitted_params(param_names, including_error=True)
 
@@ -541,88 +542,92 @@ class PyRsCore(object):
 
         return param_names, param_data
 
-    # TODO - TONIGHT NOW - Need to migrate to new get_fitted_params
-    def get_peak_fit_param_value(self, project_name, param_name, max_cost):
-        """
-        get a specific parameter's fitted value
-        :param project_name:
-        :param param_name:
-        :param max_cost: if not None, then filter out the bad (with large cost) fitting
-        :return: 3-tuple
-        """
-        # Get peak fitting controller
-        if project_name in self._optimizer_dict:
-            # if it does exist
-            peak_fitter = self._optimizer_dict[project_name]
-        else:
-            raise RuntimeError('{} not exist'.format(project_name))
+    # NOTE: Deprecated and replaced by get_fitted_params()
+    # def get_peak_fit_param_value(self, project_name, param_name, max_cost):
+    #     """
+    #     get a specific parameter's fitted value
+    #     :param project_name:
+    #     :param param_name:
+    #     :param max_cost: if not None, then filter out the bad (with large cost) fitting
+    #     :return: 3-tuple
+    #     """
+    #     # Get peak fitting controller
+    #     if project_name in self._optimizer_dict:
+    #         # if it does exist
+    #         peak_fitter = self._optimizer_dict[project_name]
+    #     else:
+    #         raise RuntimeError('{} not exist'.format(project_name))
+    #
+    #     if max_cost is None:
+    #         sub_run_vec, chi2_vec, param_vec = peak_fitter.get_fitted_params([param_name], False)
+    #     else:
+    #         sub_run_vec, chi2_vec, param_vec = peak_fitter.get_fitted_params([param_name], False, max_chi2=max_cost)
+    #
+    #     return sub_run_vec, chi2_vec, param_vec
 
-        if max_cost is None:
-            sub_run_vec, chi2_vec, param_vec = peak_fitter.get_fitted_params([param_name], False)
-        else:
-            sub_run_vec, chi2_vec, param_vec = peak_fitter.get_fitted_params([param_name], False, max_chi2=max_cost)
+    # NOTE: Deprecated and replaced by get_fitted_params()
+    # def get_peak_fit_param_value_error(self, data_key, param_name, max_cost):
+    #     """ Get a specific peak parameter's fitting value with error
+    #     :param data_key:
+    #     :param param_name:
+    #     :param max_cost:
+    #     :return: 2-tuple: (1) (n, ) for sub runs (2) array as (n, 2) such that [i, 0] is value and [i, 1] is error
+    #     """
+    #     # check input
+    #     fit_engine = self._get_optimizer(data_key)
+    #
+    #     if max_cost is None:
+    #         sub_run_vec, param_error_vec = fit_engine.get_fitted_params(param_name,  inlcuding_error=True)
+    #     else:
+    #         sub_run_vec, param_error_vec = fit_engine.get_good_fitted_params(param_name, max_cost,
+    #                                                                          inlcuding_error=True)
+    #
+    #     return sub_run_vec, param_error_vec
 
-        return sub_run_vec, chi2_vec, param_vec
+    # NOTE: Deprecated and replaced by get_fitted_params()
+    # TODO FIXME - CHECK for deleting - This method shall be migrated to newer API to get parameter values
+    # def get_peak_fit_params_in_dict(self, data_key):
+    #     """
+    #     export the complete set of peak parameters fitted to a dictionary
+    #     :param data_key:
+    #     :return:
+    #     """
+    #     # check input
+    #     optimizer = self._get_optimizer(None)  # TODO FIXME - #80 - Need a new mechanism for data key!
+    #
+    #     # get names, detector IDs (for check) & log indexes
+    #     param_names = optimizer.get_function_parameter_names()
+    #     if False:
+    #         # TODO FIXME - #80 - Need to think of how to deal with mask (aka detector ID)
+    #         detector_ids = self.get_detector_ids(data_key)
+    #         print ('[DB...BAT] Detector IDs = {}'.format(detector_ids))
+    #         if detector_ids is not None:
+    #             raise NotImplementedError('Multiple-detector ID case has not been considered yet. '
+    #                                       'Contact developer for this issue.')
+    #
+    #     # Get peak parameters value
+    #     sub_run_vec, chi2_vec, params_values_matrix = self.get_peak_fit_param_value(data_key, param_names,
+    #                                                                                 max_cost=None)
+    #
+    #     # init dictionary
+    #     fit_param_value_dict = dict()
+    #
+    #     # set: this shall really good to be a pandas DataFrame or labelled numpy matrix  TODO FIXME #80+
+    #     for index in range(len(sub_run_vec)):
+    #         # get sub runs and chi2
+    #         sub_run_i = sub_run_vec[index]
+    #         chi2_i = chi2_vec[index]
+    #         fit_param_value_dict[sub_run_i] = {'cost': chi2_i}
+    #
+    #         for p_index in range(len(param_names)):
+    #             param_name = param_names[p_index]
+    #             fit_param_value_dict[sub_run_i][param_name] = params_values_matrix[p_index, index, 0]
+    #         # END-FOR
+    #     # END-FOR
+    #
+    #     return fit_param_value_dict
 
-    def get_peak_fit_param_value_error(self, data_key, param_name, max_cost):
-        """ Get a specific peak parameter's fitting value with error
-        :param data_key:
-        :param param_name:
-        :param max_cost:
-        :return: 2-tuple: (1) (n, ) for sub runs (2) array as (n, 2) such that [i, 0] is value and [i, 1] is error
-        """
-        # check input
-        fit_engine = self._get_optimizer(data_key)
-
-        if max_cost is None:
-            sub_run_vec, param_error_vec = fit_engine.get_fitted_params(param_name,  inlcuding_error=True)
-        else:
-            sub_run_vec, param_error_vec = fit_engine.get_good_fitted_params(param_name, max_cost, inlcuding_error=True)
-
-        return sub_run_vec, param_error_vec
-
-    # TODO FIXME - TONIGHT NOW - This method shall be migrated to newer API to get parameter values
-    def get_peak_fit_params_in_dict(self, data_key):
-        """
-        export the complete set of peak parameters fitted to a dictionary
-        :param data_key:
-        :return:
-        """
-        # check input
-        optimizer = self._get_optimizer(None)  # TODO FIXME - #80 - Need a new mechanism for data key!
-
-        # get names, detector IDs (for check) & log indexes
-        param_names = optimizer.get_function_parameter_names()
-        if False:
-            # TODO FIXME - #80 - Need to think of how to deal with mask (aka detector ID)
-            detector_ids = self.get_detector_ids(data_key)
-            print ('[DB...BAT] Detector IDs = {}'.format(detector_ids))
-            if detector_ids is not None:
-                raise NotImplementedError('Multiple-detector ID case has not been considered yet. '
-                                          'Contact developer for this issue.')
-
-        # Get peak parameters value
-        sub_run_vec, chi2_vec, params_values_matrix = self.get_peak_fit_param_value(data_key, param_names,
-                                                                                    max_cost=None)
-
-        # init dictionary
-        fit_param_value_dict = dict()
-
-        # set: this shall really good to be a pandas DataFrame or labelled numpy matrix  TODO FIXME #80+
-        for index in range(len(sub_run_vec)):
-            # get sub runs and chi2
-            sub_run_i = sub_run_vec[index]
-            chi2_i = chi2_vec[index]
-            fit_param_value_dict[sub_run_i] = {'cost': chi2_i}
-
-            for p_index in range(len(param_names)):
-                param_name = param_names[p_index]
-                fit_param_value_dict[sub_run_i][param_name] = params_values_matrix[p_index, index, 0]
-            # END-FOR
-        # END-FOR
-
-        return fit_param_value_dict
-
+    # TODO - 84 NOW - Rename!
     def get_peak_fit_scan_log_indexes(self, data_key):
         """
         get the scan log indexes from an optimizer

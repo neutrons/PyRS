@@ -529,19 +529,29 @@ class HydraProjectFile(object):
         Float or None
             Calibrated wave length or No wave length ever set
         """
+        # Init wave length
         wl = None
-        if HidraConstants.WAVELENGTH in self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.MONO]:
-            wl = self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.MONO][HidraConstants.WAVELENGTH].value
-            if wl.shape[0] == 0:
-                # empty numpy array: no data
-                wl = None
-            elif wl.shape[0] == 1:
-                # 1 calibrated wave length
-                wl = wl[0]
-            else:
-                # not supported
-                raise RuntimeError('There are more than 1 wave length registered')
-        # END-IF
+
+        # Get the node
+        try:
+            mono_node = self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.MONO]
+            if HidraConstants.WAVELENGTH in mono_node:
+                wl = self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.MONO][HidraConstants.WAVELENGTH].value
+                if wl.shape[0] == 0:
+                    # empty numpy array: no data
+                    wl = None
+                elif wl.shape[0] == 1:
+                    # 1 calibrated wave length
+                    wl = wl[0]
+                else:
+                    # not supported
+                    raise RuntimeError('There are more than 1 wave length registered')
+                    # END-IF
+        except KeyError:
+            # monochromator node does not exist
+            print('[ERROR] Node {} does not exist in HiDRA project file {}'
+                  ''.format(HidraConstants.MONO, self._file_name))
+        # END
 
         return wl
 

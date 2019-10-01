@@ -157,9 +157,24 @@ class PeakFitEngine(object):
         self._get_fitted_parameters_value(spec_index_vec, param_name_list, param_value_array)
 
         # Convert
-        sub_runs_vec = self._hd_workspace.get_sub_runs_from_spectrum(spec_index_vec)  # TODO FIXME #80 NOW NOW ASAP Implement!
+        sub_runs_vec = self._hd_workspace.get_sub_runs_from_spectrum(spec_index_vec)
 
-        return sub_runs_vec, fit_cost_vec, param_value_array
+        return sub_runs_vec, fit_cost_vec, (param_name_list, param_value_array)
+
+    def get_fitted_effective_params(self, param_name_list, including_error, max_chi2=1.E20):
+        """ Get the effective peak parameters including
+        peak position, peak height, peak intensity, FWHM and Mixing
+
+        This method does calculate the effective parameters depending on the peak profile
+
+        Returns
+        -------
+        ndarray, ndarray, ndarray
+            (n,) for sub run numbers
+            (n,) for fitting cost
+            (p, n, 1) or (p, n, 2) for fitted parameters value,
+            p = number of parameters , n = number of sub runs, 2 containing fitting error
+        """
 
     def get_number_scans(self):
         """ Get number of scans in input data to fit
