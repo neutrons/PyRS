@@ -53,39 +53,13 @@ class PyRsCore(object):
 
         return
 
-    def new_strain_stress_session(self, session_name, is_plane_stress, is_plane_strain):
-        """ Create a new strain/stress session by initializing a new StrainStressCalculator instance
-        :param session_name: name of strain/stress session to query
-        :param is_plane_stress: flag for being plane stress (specific equation)
-        :param is_plane_strain:
-        :return:
-        """
-        ss_type = self._get_strain_stress_type_key(is_plane_strain, is_plane_stress)
-        new_ss_calculator = strain_stress_calculator.StrainStressCalculator(session_name, is_plane_strain,
-                                                                            is_plane_stress)
-
-        self._ss_calculator_dict[session_name] = dict()
-        self._ss_calculator_dict[session_name][ss_type] = new_ss_calculator
-        self._curr_ss_session = session_name
-        self._curr_ss_type = ss_type
-
-        return
-
     @property
     def peak_fitting_controller(self):
         """
-        return handler to peak fitting manager
+        return handler to current peak fitting controller
         :return:
         """
-        return self._peak_fitting_controller
-
-    @property
-    def current_data_reference_id(self):
-        """
-        get the current/latest data reference ID
-        :return:
-        """
-        return self._curr_data_key
+        return self._peak_fit_controller
 
     @property
     def strain_stress_calculator(self):
@@ -119,7 +93,7 @@ class PyRsCore(object):
 
         return
 
-    # TODO FIXME - NOW - Broken
+    # TODO FIXME - This method is broken due to new API
     def calculate_pole_figure(self, data_key, detector_id_list):
         """ API method to calculate pole figure by a specified data key
         :param data_key:
@@ -166,93 +140,6 @@ class PyRsCore(object):
         self._last_pole_figure_calculator.calculate_pole_figure(detector_id_list)
 
         return
-
-    def get_pole_figure_values(self, data_key, detector_id_list, max_cost):
-        """ API method to get the (N, 3) array for pole figures
-        :param data_key:
-        :param detector_id_list:
-        :param max_cost:
-        :return:
-        """
-        pole_figure_calculator = self._pole_figure_calculator_dict[data_key]
-        assert isinstance(pole_figure_calculator, polefigurecalculator.PoleFigureCalculator),\
-            'Pole figure calculator type mismatched. Input is of type {0} but expected as {1}.' \
-            ''.format(type(pole_figure_calculator), 'polefigurecalculator.PoleFigureCalculato')
-
-        if detector_id_list is None:
-            detector_id_list = pole_figure_calculator.get_detector_ids()
-        else:
-            checkdatatypes.check_list('Detector ID list', detector_id_list)
-
-        # get all the pole figure vectors
-        vec_alpha = None
-        vec_beta = None
-        vec_intensity = None
-        for det_id in detector_id_list:
-            print ('[DB...BAt] Get pole figure from detector {0}'.format(det_id))
-            # get_pole_figure returned 2 tuple.  we need the second one as an array for alpha, beta, intensity
-            sub_array = pole_figure_calculator.get_pole_figure_vectors(det_id, max_cost)[1]
-            vec_alpha_i = sub_array[:, 0]
-            vec_beta_i = sub_array[:, 1]
-            vec_intensity_i = sub_array[:, 2]
-
-            print ('Det {} # data points = {}'.format(det_id, len(sub_array)))
-            # print ('alpha: {0}'.format(vec_alpha_i))
-
-            if vec_alpha is None:
-                vec_alpha = vec_alpha_i
-                vec_beta = vec_beta_i
-                vec_intensity = vec_intensity_i
-            else:
-                vec_alpha = numpy.concatenate((vec_alpha, vec_alpha_i), axis=0)
-                vec_beta = numpy.concatenate((vec_beta, vec_beta_i), axis=0)
-                vec_intensity = numpy.concatenate((vec_intensity, vec_intensity_i), axis=0)
-            # END-IF-ELSE
-            print ('Updated alpha: size = {0}: {1}'.format(len(vec_alpha), vec_alpha))
-        # END-FOR
-
-        return vec_alpha, vec_beta, vec_intensity
-
-    def get_pole_figure_value(self, data_key, detector_id, log_index):
-        """
-        get pole figure value of a certain measurement identified by data key and log index
-        :param data_key:
-        :param detector_id
-        :param log_index:
-        :return:
-        """
-        checkdatatypes.check_int_variable('Scan log #', log_index, (0, None))
-
-        alpha, beta = self._last_pole_figure_calculator.get_pole_figure_1_pt(detector_id, log_index)
-
-        # log_index_list, pole_figures = self._last_pole_figure_calculator.get_pole_figure_vectors(detector_id, max_cost=None)
-        # if len(pole_figures) < log_index + 1:
-        #     alpha = 0
-        #     beta = 0
-        # else:
-        #     try:
-        #         alpha = pole_figures[log_index][0]
-        #         beta = pole_figures[log_index][1]
-        #     except ValueError as val_err:
-        #         raise RuntimeError('Given detector {0} scan log index {1} of data IDed as {2} is out of range as '
-        #                            '({3}, {4})  (error = {5})'
-        #                            ''.format(detector_id, log_index, data_key, 0, len(pole_figures), val_err))
-        # # END-IF-ELSE
-
-        return alpha, beta
-
-    @staticmethod
-    def _check_data_key(data_key_set):
-        if isinstance(data_key_set, tuple) and len(data_key_set) == 2:
-            data_key, sub_key = data_key_set
-        elif isinstance(data_key_set, tuple):
-            raise RuntimeError('Wrong!')
-        else:
-            data_key = data_key_set
-            checkdatatypes.check_string_variable('Data reference ID', data_key)
-            sub_key = None
-
-        return data_key, sub_key
 
     def fit_peaks(self, project_name, sub_run_list, peak_type, background_type, peaks_fitting_setup):
         """
@@ -433,15 +320,7 @@ class PyRsCore(object):
 
         return 1
 
-    def get_detector_ids(self, data_key):
-        """
-        get detector IDs for the data loaded as h5 list
-        :param data_key:
-        :return:
-        """
-        self._check_data_key(data_key)
-
-        return self._data_manager.get_sub_keys(data_key)
+    #  get_detector_ids(self, data_key) removed due to new workflow to calculate pole figure and API
 
     def get_diffraction_data(self, session_name, sub_run, mask):
         """ get diffraction data of a certain session/wokspace
@@ -660,6 +539,80 @@ class PyRsCore(object):
 
         return peak_intensities
 
+    def get_pole_figure_value(self, data_key, detector_id, log_index):
+        """
+        get pole figure value of a certain measurement identified by data key and log index
+        :param data_key:
+        :param detector_id
+        :param log_index:
+        :return:
+        """
+        checkdatatypes.check_int_variable('Scan log #', log_index, (0, None))
+
+        alpha, beta = self._last_pole_figure_calculator.get_pole_figure_1_pt(detector_id, log_index)
+
+        # log_index_list, pole_figures = self._last_pole_figure_calculator.get_pole_figure_vectors(detector_id, max_cost=None)
+        # if len(pole_figures) < log_index + 1:
+        #     alpha = 0
+        #     beta = 0
+        # else:
+        #     try:
+        #         alpha = pole_figures[log_index][0]
+        #         beta = pole_figures[log_index][1]
+        #     except ValueError as val_err:
+        #         raise RuntimeError('Given detector {0} scan log index {1} of data IDed as {2} is out of range as '
+        #                            '({3}, {4})  (error = {5})'
+        #                            ''.format(detector_id, log_index, data_key, 0, len(pole_figures), val_err))
+        # # END-IF-ELSE
+
+        return alpha, beta
+
+    def get_pole_figure_values(self, data_key, detector_id_list, max_cost):
+        """ API method to get the (N, 3) array for pole figures
+        :param data_key:
+        :param detector_id_list:
+        :param max_cost:
+        :return:
+        """
+        pole_figure_calculator = self._pole_figure_calculator_dict[data_key]
+        assert isinstance(pole_figure_calculator, polefigurecalculator.PoleFigureCalculator),\
+            'Pole figure calculator type mismatched. Input is of type {0} but expected as {1}.' \
+            ''.format(type(pole_figure_calculator), 'polefigurecalculator.PoleFigureCalculato')
+
+        if detector_id_list is None:
+            detector_id_list = pole_figure_calculator.get_detector_ids()
+        else:
+            checkdatatypes.check_list('Detector ID list', detector_id_list)
+
+        # get all the pole figure vectors
+        vec_alpha = None
+        vec_beta = None
+        vec_intensity = None
+        for det_id in detector_id_list:
+            print ('[DB...BAt] Get pole figure from detector {0}'.format(det_id))
+            # get_pole_figure returned 2 tuple.  we need the second one as an array for alpha, beta, intensity
+            sub_array = pole_figure_calculator.get_pole_figure_vectors(det_id, max_cost)[1]
+            vec_alpha_i = sub_array[:, 0]
+            vec_beta_i = sub_array[:, 1]
+            vec_intensity_i = sub_array[:, 2]
+
+            print ('Det {} # data points = {}'.format(det_id, len(sub_array)))
+            # print ('alpha: {0}'.format(vec_alpha_i))
+
+            if vec_alpha is None:
+                vec_alpha = vec_alpha_i
+                vec_beta = vec_beta_i
+                vec_intensity = vec_intensity_i
+            else:
+                vec_alpha = numpy.concatenate((vec_alpha, vec_alpha_i), axis=0)
+                vec_beta = numpy.concatenate((vec_beta, vec_beta_i), axis=0)
+                vec_intensity = numpy.concatenate((vec_intensity, vec_intensity_i), axis=0)
+            # END-IF-ELSE
+            print ('Updated alpha: size = {0}: {1}'.format(len(vec_alpha), vec_alpha))
+        # END-FOR
+
+        return vec_alpha, vec_beta, vec_intensity
+
     def load_hidra_project(self, hidra_h5_name, project_name, load_detector_counts=True, load_diffraction=False):
         """
         Load a HIDRA project file
@@ -678,9 +631,8 @@ class PyRsCore(object):
         return ws
 
     def save_diffraction_data(self, project_name, file_name):
-        """
-
-        :param project_name:
+        """ Save (reduced) diffraction data to HiDRA project file
+        :param project_name: HiDRA wokspace reference or name
         :param file_name:
         :return:
         """
@@ -689,6 +641,19 @@ class PyRsCore(object):
         return
 
     def save_peak_fit_result(self, project_name, hidra_file_name, peak_tag):
+        """ Save the result from peak fitting to HiDRA project file
+        Parameters
+        ----------
+        project_name: String
+            name of peak fitting session
+        hidra_file_name: String
+            project file to export peaks fitting result to
+        peak_tag
+
+        Returns
+        -------
+
+        """
         """ Save peak fit result to file with original data
         :param data_key:
         :param src_rs_file_name:
@@ -721,6 +686,24 @@ class PyRsCore(object):
         else:
             raise RuntimeError('Data key {0} is not calculated for pole figure.  Current data keys contain {1}'
                                ''.format(data_key, self._pole_figure_calculator_dict.keys()))
+
+        return
+
+    def new_strain_stress_session(self, session_name, is_plane_stress, is_plane_strain):
+        """ Create a new strain/stress session by initializing a new StrainStressCalculator instance
+        :param session_name: name of strain/stress session to query
+        :param is_plane_stress: flag for being plane stress (specific equation)
+        :param is_plane_strain:
+        :return:
+        """
+        ss_type = self._get_strain_stress_type_key(is_plane_strain, is_plane_stress)
+        new_ss_calculator = strain_stress_calculator.StrainStressCalculator(session_name, is_plane_strain,
+                                                                            is_plane_stress)
+
+        self._ss_calculator_dict[session_name] = dict()
+        self._ss_calculator_dict[session_name][ss_type] = new_ss_calculator
+        self._curr_ss_session = session_name
+        self._curr_ss_type = ss_type
 
         return
 
