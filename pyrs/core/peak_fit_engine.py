@@ -38,9 +38,16 @@ class PeakFitEngine(object):
 
         return
 
-    def calculate_peak_position_d(self, wave_length_vec):
+    def calculate_peak_position_d(self, wave_length):
         """ Calculate peak positions in d-spacing
-        :return:
+        Output: result will be saved to self._peak_center_d_vec
+        Parameters
+        ----------
+        wave_length: float or numpy.ndarray(dtype=float)
+            uniform wave length or wave length for each sub run
+        Returns
+        -------
+        None
         """
         # TODO/FIXME - #80+ - Must have a better way than try and guess
         try:
@@ -50,25 +57,36 @@ class PeakFitEngine(object):
         sub_run_vec = r[0]
         params_vec = r[2]
 
+        # Other parameters
+        num_sub_runs = sub_run_vec.shape[0]
+
+        # Process wave length
+        if isinstance(wave_length, numpy.ndarray):
+            assert wave_length.shape[0] == num_sub_runs
+            various_wl = True
+            wl = 0
+        else:
+            various_wl = False
+            wl = wave_length
+
         # init vector for peak center in d-spacing with error
         self._peak_center_d_vec = numpy.ndarray((params_vec.shape[1], 2), params_vec.dtype)
 
-        for ws_index in range(sub_run_vec.shape[0]):
+        for sb_index in range(num_sub_runs):
             # convert to d-spacing: both fitted value and fitting error
-            lambda_i = wave_length_vec[ws_index]
+            # set wave length if various to sub runs
+            if various_wl:
+                wl = wave_length[sb_index]
+
+            # calculate peak position and propagating fitting error
             for sub_index in range(2):
-                peak_i_2theta_j = params_vec[0][ws_index][0]
+                peak_i_2theta_j = params_vec[0][sb_index][0]
                 try:
-                    peak_i_d_j = lambda_i * 0.5 / math.sin(peak_i_2theta_j * 0.5 * math.pi / 180.)
+                    peak_i_d_j = wl * 0.5 / math.sin(peak_i_2theta_j * 0.5 * math.pi / 180.)
                 except ZeroDivisionError as zero_err:
                     print ('Peak(i) @ {}'.format(peak_i_2theta_j))
                     raise zero_err
-                self._peak_center_d_vec[ws_index][0] = peak_i_d_j
-
-            # peak_i_2theta_std = centre_vec[index][1]
-            # peak_i_d_std = lambda_i * 0.5 / math.sin(peak_i_2theta_std * 0.5 * math.pi / 180.)
-            # self._peak_center_d_vec[index][0] = peak_i_d
-            # self._peak_center_d_vec[index][1] = peak_i_d_std
+                self._peak_center_d_vec[sb_index][0] = peak_i_d_j
         # END-FOR
 
         return
@@ -84,7 +102,7 @@ class PeakFitEngine(object):
         print ('[DB...BAT] Parameter names: {}'.format(param_names))
 
         # Get parameter values
-        sub_run_vec, chi2_vec, param_matrix = self.get_fitted_params(param_names, including_error=True)
+        sub_run_vec, chi2_vec, param_names, param_matrix = self.get_fitted_params(param_names, including_error=True)
 
         hidra_file.set_peak_fit_result(peak_tag, self._peak_function_name, param_names, sub_run_vec, chi2_vec,
                                        param_matrix)
@@ -159,13 +177,21 @@ class PeakFitEngine(object):
         # Convert
         sub_runs_vec = self._hd_workspace.get_sub_runs_from_spectrum(spec_index_vec)
 
-        return sub_runs_vec, fit_cost_vec, (param_name_list, param_value_array)
+        return sub_runs_vec, fit_cost_vec, param_value_array
 
-    def get_fitted_effective_params(self, param_name_list, including_error, max_chi2=1.E20):
-        """ Get the effective peak parameters including
+    def get_fitted_effective_params(self, effective_params_list, including_error, max_chi2=1.E20):
+        """
+        Get the effective peak parameters including
         peak position, peak height, peak intensity, FWHM and Mixing
 
-        This method does calculate the effective parameters depending on the peak profile
+        Parameters
+        ----------
+        effective_params_list: list of string
+            effective parameter names
+        including_error: boolean
+            returned will include fitting error
+        max_chi2: float
+            filtering with chi2
 
         Returns
         -------
@@ -175,6 +201,21 @@ class PeakFitEngine(object):
             (p, n, 1) or (p, n, 2) for fitted parameters value,
             p = number of parameters , n = number of sub runs, 2 containing fitting error
         """
+        # Create native -> effective parameters converter
+        from pyrs.core import peak_profile_utility
+        print('[DB...BAT] Current peak function: {}'.format(self._peak_function_name))
+        converter = peak_profile_utility.get_effective_parameters_converter(self._peak_function_name)
+
+        # Get raw peak parameters
+        param_name_list = converter.get_native_peak_param_names()
+        sub_run_array, fit_cost_array, param_value_array = self.get_fitted_params(param_name_list,
+                                                                                  including_error,
+                                                                                  max_chi2)
+
+        # Convert
+        effective_param_value_array = converter.calculate_effective_parameters(effective_params_list, param_value_array)
+
+        return sub_run_array, fit_cost_array, effective_param_value_array
 
     def get_number_scans(self):
         """ Get number of scans in input data to fit

@@ -229,7 +229,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         # Calculate d-spacing with wave length given
         if cal_center_d:
             # optionally to use calibrated wave length as default
-            self.calculate_peak_position_d(wave_length_vec=self._wavelength_vec)
+            self.calculate_peak_position_d(wave_length=self._wavelength_vec)
 
         return
 

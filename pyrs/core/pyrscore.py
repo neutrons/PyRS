@@ -279,7 +279,7 @@ class PyRsCore(object):
         else:
             # texture analysis case
             wave_length_vec = self.data_center.get_sample_log_values((data_key, sub_key), sample_log_name='Wavelength')
-        peak_optimizer.calculate_peak_position_d(wave_length_vec=wave_length_vec)
+        peak_optimizer.calculate_peak_position_d(wave_length=wave_length_vec)
 
         self._last_optimizer = peak_optimizer
         self._optimizer_dict[data_key_set] = self._last_optimizer

@@ -4,24 +4,26 @@ Containing peak profiles with method to calculate effective peak parameters and 
 import numpy as np
 
 
-def peak_parameter_converter(profile_name):
+def get_effective_parameters_converter(peak_profile):
     """
-
+    This is a factory method to create a proper native to effective peak parameters value converter
     Parameters
     ----------
-    profile_name
+    peak_profile: string
+        peak profile name including Gaussian, PseudoVoigt and Voigt
 
     Returns
     -------
-    Converter Instance
+    PeakParametersConverter
+        Gaussian, PseudoVoigt or Voigt
     """
-    profile_name = profile_name.lower()
+    profile_name = peak_profile.lower()
     if profile_name == 'gaussian':
-        converter = Gaussian(param_dict)
+        converter = Gaussian()
     elif profile_name == 'pseudovoigt':
-        converter = PseudoVoigt(param_dict)
+        converter = PseudoVoigt()
     elif profile_name == 'voigt':
-        converter = Voigt(param_dict)
+        converter = Voigt()
     else:
         raise RuntimeError('Profile {} is not supported.'.format(profile_name))
 
@@ -40,25 +42,82 @@ class PeakParametersConverter(object):
         param_value_dict
         """
 
+    @staticmethod
+    def get_native_peak_param_names():
+        """
+        Get the list of native peak parameters
+        Returns
+        -------
+
+        """
+        raise NotImplementedError('Virtual')
+
+    def calculate_effective_parameters(self, effective_params_list, param_value_array):
+        """
+
+        Parameters
+        ----------
+        effective_params_list
+        param_value_array : numpy.ndarray
+            (p, n, 1) or (p, n, 2) vector for parameter values and  optionally fitting error
+            p = number of native parameters , n = number of sub runs
+        Returns
+        -------
+        np.ndarray
+            (p', n, 1) or (p', n, 2) array for  parameter values and  optionally fitting error
+            p' = number of effective parameters , n = number of sub runs
+        """
+        raise NotImplementedError('Virtual')
+
 
 class Gaussian(PeakParametersConverter):
     """
     class for handling peak profile parameters' conversion
     """
-    def __init__(self, param1, param2):
+    def __init__(self):
         """
         Initialization
         """
-
-        self._param1 = blabla
-        self._param2 = blabla
-
-        if isinstance(param1, float):
-            self._dimension = None
-        else:
-            self._dimension = param1.shape
+        super(PeakParametersConverter, self).__init__()
 
         return
+
+    @staticmethod
+    def get_native_peak_param_names():
+        """
+        Get the list of native peak parameters
+        Returns
+        -------
+        List
+            list of string for peak parameter name used in Mantid as the standard
+        """
+        return ['Height', 'PeakCentre', 'Sigma']
+
+    def calculate_effective_parameters(self, effective_params_list, param_value_array):
+        """
+
+        Parameters
+        ----------
+        effective_params_list
+        param_value_array : numpy.ndarray
+            (p, n, 1) or (p, n, 2) vector for parameter values and  optionally fitting error
+            p = number of native parameters , n = number of sub runs
+        Returns
+        -------
+        np.ndarray
+            (p', n, 1) or (p', n, 2) array for  parameter values and  optionally fitting error
+            p' = number of effective parameters , n = number of sub runs
+        """
+        height_index = effective_params_list.index('Height')
+        peak_center_index = effective_params_list.index('PeakCentre')
+        sigma_index = effective_params_list.index('Sigma')
+
+        heights = param_value_array[height_index, :, 0]
+        peak_center_index = peak_center_index[peak_center_index, :, 0]
+
+
+
+
 
     def get_intensity(self):
         """
@@ -102,7 +161,6 @@ class Gaussian(PeakParametersConverter):
         return
 
 
-
 class PseudoVoigt(PeakParametersConverter):
     """
     class for handling peak profile parameters' conversion
@@ -121,6 +179,17 @@ class PseudoVoigt(PeakParametersConverter):
             self._dimension = param1.shape
 
         return
+
+    @staticmethod
+    def get_native_peak_param_names():
+        """
+        Get the list of native peak parameters
+        Returns
+        -------
+        List
+            list of string for peak parameter name used in Mantid as the standard
+        """
+        return ['Mixing', 'Intensity', 'PeakCentre', 'FWHM']
 
     def get_intensity(self):
         """
@@ -183,6 +252,17 @@ class Voigt(PeakParametersConverter):
 
         return
 
+    @staticmethod
+    def get_native_peak_param_names():
+        """
+        Get the list of native peak parameters
+        Returns
+        -------
+        List
+            list of string for peak parameter name used in Mantid as the standard
+        """
+        return ['LorentzAmp', 'LorentzPos', 'LorentzFWHM', 'GaussianFWHM']
+
     def get_intensity(self):
         """
 
@@ -191,6 +271,7 @@ class Voigt(PeakParametersConverter):
         Float/ndarray, Float/ndarray
             peak intensity and fitting error
         """
+
 
     def get_height(self):
         """
