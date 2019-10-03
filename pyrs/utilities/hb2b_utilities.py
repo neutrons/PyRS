@@ -83,4 +83,3 @@ def scan_calibration_in_archive():
     # END-FOR
 
     return calib_info_table
-

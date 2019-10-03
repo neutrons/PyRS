@@ -711,6 +711,3 @@ class WorkspaceTableWidget(baseTable.NTableWidget):
             ws_name_list.append(ws_name)
 
         return ws_name_list
-
-
-

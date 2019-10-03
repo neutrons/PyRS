@@ -17,7 +17,7 @@ z = np.linspace(7, 9, 33)
 data = f(*np.meshgrid(x, y, z, indexing='ij', sparse=True))
 print (data.shape)
 
-# data is now a 3D array with data[i,j,k] = f(x[i], y[j], z[k]). 
+# data is now a 3D array with data[i,j,k] = f(x[i], y[j], z[k]).
 
 # Next, define an interpolating function from this data:
 my_interpolating_function = RegularGridInterpolator((x, y, z), data)

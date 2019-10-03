@@ -20,24 +20,24 @@ def load_raw_measurement_data(file_name):
 
         # loop through the Logs
         counts = diff_data_group['counts'].value
-        
+
         # instrument
         instrument_group = scan_h5['instrument']
         two_theta = instrument_group['2theta'].value
-        
+
         print (counts)
         print (type(counts))
-        
+
         print (two_theta)
         print (type(two_theta))
-        
+
         """
         [0 0 0 ..., 0 0 0]
         <type 'numpy.ndarray'>
         35.0
         <type 'numpy.float64'>
         """
-        
+
         return counts, two_theta
 
 
@@ -70,7 +70,7 @@ def load_pyrs_mask(mask_h5):
         note = None
 
     return mask_vec, two_theta, note
-        
+
 
 file_name = 'tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5'
 mask_name = 'tests/testdata/masks/Chi_Neg30.hdf5'
@@ -106,7 +106,7 @@ AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::deltax', LogText='{}'.for
 AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::deltay', LogText='{}'.format(0),
                      LogType='Number Series', LogUnit='meter',
                      NumberType='Double')
-                     
+
 AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::flip', LogText='{}'.format(0),
                      LogType='Number Series', LogUnit='degree',
                      NumberType='Double')
@@ -125,4 +125,3 @@ LoadInstrument('raw', Filename='tests/testdata/XRay_Definition_2K.xml', RewriteS
 mask_ws = CreateWorkspace(DataX=vec_x, DataY=mask_vec, NSpec=1)
 mask_ws = Transpose(mask_ws)
 # raw_masked_ws = raw * mask_ws
-

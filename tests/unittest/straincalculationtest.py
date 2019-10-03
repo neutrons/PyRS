@@ -21,9 +21,9 @@ def create_test_data(rs_core, src_data_set, target_data_set):
     """
     fit peaks and output to h5 data sets as the input of strain/stress
     :param rs_core
-    :param src_data_set: 
-    :param target_data_set: 
-    :return: 
+    :param src_data_set:
+    :param target_data_set:
+    :return:
     """
     for direction in ['e11', 'e22', 'e33']:
         # load

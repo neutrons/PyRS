@@ -7,7 +7,7 @@
 # Case 2:
 #   - Input: Mantid XML ROI/Masking file(s)
 #   - Task:  Generating masking/ROI according to input or binary operation between inputs
-# 
+#
 # Output:
 #   - numpy array binary or hdf5
 #

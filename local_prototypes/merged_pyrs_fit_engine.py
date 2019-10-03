@@ -125,6 +125,3 @@ class RsPeakFitEngine(object):
 # In [21]: peak_fit_97['Chi2'] = 56.3
 #
 # In [22]: rwfile.close()
-
-
-

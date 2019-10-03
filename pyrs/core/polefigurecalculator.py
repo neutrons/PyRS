@@ -485,7 +485,7 @@ def export_arrays_to_ascii(pole_figure_array_dict, detector_id_list, file_name):
     :param file_name:
     :param detector_id_list: selected the detector IDs for pole figure
     :param pole_figure_array_dict:
-    :return: 
+    :return:
     """
     # check input types
     checkdatatypes.check_dict('Pole figure array dictionary', pole_figure_array_dict)

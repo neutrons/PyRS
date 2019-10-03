@@ -642,4 +642,3 @@ class ManualReductionWindow(QMainWindow):
         self._core = pyrs_core
 
         return
-
