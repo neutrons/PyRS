@@ -337,4 +337,3 @@ if __name__ == '__main__':
     # Test main
     shift = AnglerCameraDetectorShift(0., 0., 0., 0., 0., 0.)
     shift.to_json('geometry_shift_template.json')
-

@@ -17,4 +17,4 @@ io.use_plugin('freeimage')
 Data = np.array(ImageData, dtype=np.int16)
 Data[np.where((Data<0) == True)] = 0
 Data[np.where((Data>65536) == True)] = 0
-io.imsave('LaB6_10kev_0deg-00000_Rotated.tif', np.array(Data.T, dtype=np.uint16)) 
+io.imsave('LaB6_10kev_0deg-00000_Rotated.tif', np.array(Data.T, dtype=np.uint16))

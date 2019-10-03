@@ -455,4 +455,3 @@ class QtMplFitCanvas(FigureCanvas):
         # END-IF
 
         return
-

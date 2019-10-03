@@ -99,7 +99,7 @@ class ScipyPeakFitEngine(RsPeakFitEngine):
                 x0 = [Pos, IA, f, 0.99]
             else:
                 x0 = [Pos, IA, f]
-            
+
             if background_function_name.split(' ')[0] == 'Linear':
                 x0.append(0)
                 x0.append(Data[0])
@@ -113,10 +113,10 @@ class ScipyPeakFitEngine(RsPeakFitEngine):
                              full_output=True,ftol=1.e-15,  xtol=1.e-15)
 
             M.append(result[0])
-        
+
         M = np.array(M)
         print ('M is of shape {}'.format(M.shape))
-            
+
         # process output
         # TODO: Clean!
 
@@ -148,7 +148,7 @@ class ScipyPeakFitEngine(RsPeakFitEngine):
             CalcPatts.append(self.calculate_peak(M[log_index,:], self._data_workspace[1][log_index], self._data_workspace[0][log_index], peak_function_name, background_function_name.split(' ')[0], ReturnModel=True ))
 
         self.fitted_ws = np.array(CalcPatts)
-       
+
         print ('[DB...BAT] function parameters keys: {}'.format(self.func_param_ws.keys))
 
         return
@@ -183,7 +183,7 @@ class ScipyPeakFitEngine(RsPeakFitEngine):
 #        return self._data_workspace.getNumberHistograms()
 
         return self._data_workspace[2]
-    
+
     def get_fitted_params(self, param_name):
         """
 
@@ -203,7 +203,3 @@ class ScipyPeakFitEngine(RsPeakFitEngine):
 #            param_vec[row_index] = self.func_param_ws[param_name][row_index][0]
 
         return self.func_param_ws[param_name].values
-
-
-
-

@@ -448,5 +448,3 @@ def save_hb2b_reduced_data(scan_index_dict, file_name):
     # END-FOR
 
     return
-
-

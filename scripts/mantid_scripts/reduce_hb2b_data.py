@@ -121,8 +121,8 @@ def convert_to_2theta(ws_name, num_bins=1000):
     """
     # duplicate for vanadium
     vanadium = CloneWorkspace(InputWorkspace=ws_name, OutputWorkspace='vanadium')
-   
-    # transfer to 2theta for data 
+
+    # transfer to 2theta for data
     ConvertSpectrumAxis(InputWorkspace=ws_name, OutputWorkspace=ws_name, Target='Theta')
     Transpose(InputWorkspace=ws_name, OutputWorkspace=ws_name)
     ResampleX(InputWorkspace=ws_name, OutputWorkspace=ws_name, NumberBins=num_bins, PreserveEvents=False)
@@ -140,7 +140,7 @@ def convert_to_2theta(ws_name, num_bins=1000):
     Divide(LHSWorkspace=ws_name, RHSWorkspace='vanadium', OutputWorkspace=norm_ws_name)
 
     print ('Create vanadium workspace : {} seconds'.format(time_van_stop - time_van_start))
-  
+
     return norm_ws_name
 
 

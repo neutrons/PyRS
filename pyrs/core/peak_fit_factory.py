@@ -25,4 +25,3 @@ class PeakFitEngineFactory(object):
             raise RuntimeError('Implement general scipy peak fitting engine')
 
         return engine_class
-

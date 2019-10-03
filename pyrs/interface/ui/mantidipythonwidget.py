@@ -234,5 +234,3 @@ class MantidIPythonWidget(RichIPythonWidget):
         self.input_buffer = command
 
         return
-
-

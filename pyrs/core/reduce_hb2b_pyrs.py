@@ -514,7 +514,7 @@ class PyHB2BReduction(object):
         vec_2theta = np.arange(min_2theta, max_2theta, step_2theta)
 
         return vec_2theta
-        
+
     def get_eta_Values( self ):
         return self._instrument.get_eta_values(dimension=1)
 
@@ -783,7 +783,4 @@ class PyHB2BReduction(object):
         # END-IF
 
         return bin_edges, hist
-
 # END-CLASS
-
-

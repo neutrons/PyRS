@@ -45,4 +45,3 @@ def contain_strain_stress_main():
 
 if __name__ == '__main__':
     contain_strain_stress_main()
-

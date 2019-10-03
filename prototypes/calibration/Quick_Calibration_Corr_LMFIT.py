@@ -212,9 +212,9 @@ def main():
 
         #start_calibration = [0] * 6
 
-        roi_vec_list = np.arange( -30, 30.1, 15) 
+        roi_vec_list = np.arange( -30, 30.1, 15)
 
-        
+
         params = lmfit.Parameters()
         params.add('center_shift_x', value=start_calibration[0], min=-.1, max=.1)
         params.add('center_shift_y', value=start_calibration[1], min=-.1, max=.1)

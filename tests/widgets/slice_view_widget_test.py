@@ -124,5 +124,3 @@ if __name__ == '__main__':
     main_window.plot_contour(x, y, z)
 
     app.exec_()
-
-

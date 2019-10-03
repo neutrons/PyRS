@@ -281,7 +281,3 @@ def update_calibration_info_file(cal_info_file, cal_info_table, append):
     cal_info_file.close()
 
     return
-
-
-
-

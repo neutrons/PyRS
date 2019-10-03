@@ -69,6 +69,3 @@ if False:
     # plt.plot(log_index_vector, mrot_vector)
 
 plt.show()
-
-
-

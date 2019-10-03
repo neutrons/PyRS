@@ -407,4 +407,3 @@ if __name__ == '__main__':
             compare_geometry_test(calibrated=True, instrument='HBZ', pixel_number=256, check_all_pixels=True)
         else:
             raise NotImplementedError('ASAP')
-
