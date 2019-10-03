@@ -8,7 +8,6 @@ from setuptools import setup, find_packages
 
 NAME = "pyrs"
 META_PATH = os.path.join("src", "pyrs", "__init__.py")
-raise RuntimeError(META_PATH)
 KEYWORDS = ["class", "attribute", "boilerplate"]
 CLASSIFIERS = [
     "Development Status :: 5 - Production/Stable",
@@ -99,7 +98,7 @@ if __name__ == "__main__":
         description=find_meta("description"),
         license=find_meta("license"),
         url=find_meta("url"),
-        version=find_meta("version"),
+        version=versioneer.get_version(),
         author=find_meta("author"),
         author_email=find_meta("email"),
         maintainer=find_meta("author"),
