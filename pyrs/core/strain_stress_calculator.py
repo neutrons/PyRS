@@ -2,7 +2,7 @@ import numpy
 import math
 import pyrs.utilities.checkdatatypes
 from scipy.interpolate import griddata
-
+from pyrs.utilities import rs_scan_io
 
 class StrainStress(object):
     """
@@ -224,7 +224,7 @@ class StrainStressCalculator(object):
         self._is_saved = False
 
         # file loader (static kind of)
-        self._file_io = scandataio.DiffractionDataFile()
+        self._file_io = rs_scan_io.DiffractionDataFile()
 
         # strain stress parameters
         self._d0 = None
@@ -1011,7 +1011,7 @@ class StrainStressCalculator(object):
         sliced_grid_array = self.slice_md_data(param_grid_array, slice_dir, slice_pos, slice_resolution)
 
         # export result to hdf5
-        scandataio.export_md_array_hdf5(sliced_grid_array, [slice_dir], file_name)
+        rs_scan_io.export_md_array_hdf5(sliced_grid_array, [slice_dir], file_name)
 
         return
 
@@ -1280,10 +1280,10 @@ class StrainStressCalculator(object):
     @staticmethod
     def interpolate3d(exp_grid_pos_vector, param_value_vector, target_position_vector):
         """ interpolate a value in a 3D system
-        :param exp_grid_pos_vector: 
-        :param param_value_vector: 
+        :param exp_grid_pos_vector:
+        :param param_value_vector:
         :param target_position_vector:
-        :return: 
+        :return:
         """
         # check inputs
         # print ('[DB...BAT] Experimental grid position vector: type = {}'.format(type(exp_grid_pos_vector)))

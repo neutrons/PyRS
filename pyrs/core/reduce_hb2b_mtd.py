@@ -669,7 +669,7 @@ class MantidHB2BReduction(object):
                 scan_index_dict[scan_index_i] = ws_name, reduced_data_dict[ws_name]
         # END-IF-ELSE
 
-        scandataio.save_hb2b_reduced_data(scan_index_dict, file_name)
+        rs_scan_io.save_hb2b_reduced_data(scan_index_dict, file_name)
 
         return
 
