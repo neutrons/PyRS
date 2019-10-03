@@ -1,4 +1,4 @@
-from pyqt.QtWidgets import QMainWindow, QFileDialog
+from qtpy.QtWidgets import QMainWindow, QFileDialog
 from pyrs.utilities import load_ui
 
 # try:

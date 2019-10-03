@@ -1,13 +1,13 @@
 from pyrs.utilities import load_ui
-from qtpy.QtCore import pyqtSignal
+from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QDialog, QMainWindow
 # try:
 #     from PyQt5.QtWidgets import QDialog, QMainWindow
-#     from PyQt5.QtCore import pyqtSignal
+#     from PyQt5.QtCore import Signal
 #     from PyQt5.uic import loadUi as load_ui
 # except ImportError:
 #     from PyQt4.QtGui import QDialog, QMainWindow
-#     from PyQt4.QtCore import pyqtSignal
+#     from PyQt4.QtCore import Signal
 #     from PyQt4.uic import loadUi as load_ui
 from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.rstables import GridAlignmentTable, GridsStatisticsTable, ParamValueGridTable,\
@@ -21,7 +21,7 @@ import os
 class CreateNewSessionDialog(QDialog):
     """ Create a new strain/stress session dialog
     """
-    NewSessionSignal = pyqtSignal(str, bool, bool, name='new session signal')
+    NewSessionSignal = Signal(str, bool, bool, name='new session signal')
 
     def __init__(self, parent):
         """

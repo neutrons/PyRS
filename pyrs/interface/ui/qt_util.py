@@ -1,13 +1,17 @@
 # This module contains methods for PyQt UI files
 
-try:
-    from PyQt5 import QtCore
-    from PyQt5.QtWidgets import QWidget
-    from PyQt5.QtWidgets import QVBoxLayout
-except ImportError:
-    from PyQt4 import QtCore
-    from PyQt4.QtGui import QWidget
-    from PyQt4.QtGui import QVBoxLayout
+from qtpy import QtCore
+from qtpy.QtWidgets import QWidget, QVBoxLayout
+
+#
+# try:
+#     from PyQt5 import QtCore
+#     from PyQt5.QtWidgets import QWidget
+#     from PyQt5.QtWidgets import QVBoxLayout
+# except ImportError:
+#     from PyQt4 import QtCore
+#     from PyQt4.QtGui import QWidget
+#     from PyQt4.QtGui import QVBoxLayout
 
 
 def promote_widget(parent, ui_frame, widget_class):

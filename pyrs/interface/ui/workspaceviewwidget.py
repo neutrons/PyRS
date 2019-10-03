@@ -5,16 +5,22 @@
 ########################################################################
 from mantidipythonwidget import MantidIPythonWidget
 import time
-try:
-    from PyQt5 import QtCore
-    from PyQt5.QtWidgets import QWidget
-    from PyQt5.QtWidgets import QVBoxLayout
-    from PyQt5.uic import loadUi as load_ui
-except ImportError:
-    from PyQt4 import QtCore
-    from PyQt4.QtGui import QWidget
-    from PyQt4.QtGui import QVBoxLayout
-    from PyQt4.uic import loadUi as load_ui
+
+from qtpy import QtCore
+from qtpy.QtWidgets import QWidget, QVBoxLayout
+from pyrs.utilities import load_ui
+
+#
+# try:
+#     from PyQt5 import QtCore
+#     from PyQt5.QtWidgets import QWidget
+#     from PyQt5.QtWidgets import QVBoxLayout
+#     from PyQt5.uic import loadUi as load_ui
+# except ImportError:
+#     from PyQt4 import QtCore
+#     from PyQt4.QtGui import QWidget
+#     from PyQt4.QtGui import QVBoxLayout
+#     from PyQt4.uic import loadUi as load_ui
 
 from mplgraphicsview import MplGraphicsView
 import NTableWidget as baseTable

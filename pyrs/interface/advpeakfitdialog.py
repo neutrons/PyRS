@@ -1,14 +1,14 @@
 from pyrs.utilities import load_ui
-from qtpy.QtCore import pyqtSignal
+from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QDialog, QFileDialog, QMainWindow
 
 # try:
 #     from PyQt5.QtWidgets import QDialog, QFileDialog, QMainWindow
-#     from PyQt5.QtCore import pyqtSignal
+#     from PyQt5.QtCore import Signal
 #     from PyQt5.uic import loadUi as load_ui
 # except ImportError:
 #     from PyQt4.QtGui import QDialog, QFileDialog, QMainWindow
-#     from PyQt4.QtCore import pyqtSignal
+#     from PyQt4.QtCore import Signal
 #     from PyQt4.uic import loadUi as load_ui
 import os
 import gui_helper
@@ -20,7 +20,7 @@ class SmartPeakFitControlDialog(QDialog):
     GUI window for user to fit peaks
     """
 
-    FitPeakSignal = pyqtSignal(list, name='Smart Peak Fit Signal')
+    FitPeakSignal = Signal(list, name='Smart Peak Fit Signal')
 
     def __init__(self, parent):
         """
