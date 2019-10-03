@@ -1,5 +1,4 @@
 #!/bin/sh
-python setup.py pyuic
 python setup.py build
 
 # set the mantidpython to use - default to system installed nightly
