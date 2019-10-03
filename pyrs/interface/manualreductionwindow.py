@@ -1,11 +1,13 @@
-try:
-    from PyQt5.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout
-    from PyQt5.uic import loadUi as load_ui
-except ImportError:
-    from PyQt4.QtGui import QMainWindow, QFileDialog, QVBoxLayout
-    from PyQt4.uic import loadUi as load_ui
+from qtpy.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout
+from pyrs.utilities import load_ui
+# try:
+#     from PyQt5.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout
+#     from PyQt5.uic import loadUi as load_ui
+# except ImportError:
+#     from PyQt4.QtGui import QMainWindow, QFileDialog, QVBoxLayout
+#     from PyQt4.uic import loadUi as load_ui
 from pyrs.core.pyrscore import PyRsCore
-from pyrs.core import calibration_file_io
+from pyrs.utilities import calibration_file_io
 from ui.diffdataviews import DetectorView, GeneralDiffDataView
 import os
 import gui_helper

@@ -7,9 +7,9 @@ from mantid.simpleapi import SortXAxis, CreateWorkspace
 from mantid.api import AnalysisDataService as ADS
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities import file_util
-import calibration_file_io
-from pyrs.core.calibration_file_io import ResidualStressInstrumentCalibration
-
+from pyrs.utilities import calibration_file_io
+#from pyrs.core.calibration_file_io import ResidualStressInstrumentCalibration
+from pyrs.core.instrument_geometry import AnglerCameraDetectorShift as ResidualStressInstrumentCalibration
 
 def histogram_data(raw_vec_x, raw_vec_y, target_vec_2theta):
     """

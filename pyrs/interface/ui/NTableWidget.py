@@ -4,12 +4,16 @@ from __future__ import (absolute_import, division, print_function)
 from six.moves import range
 import csv
 #
-try:
-    from PyQt5 import QtCore
-    from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QCheckBox
-except ImportError:
-    from PyQt4 import QtCore
-    from PyQt4.QtGui import QTableWidget, QTableWidgetItem, QCheckBox
+
+from qtpy import QtCore
+from qtpy.QtWidgets import QTableWidget, QTableWidgetItem, QCheckBox
+
+# try:
+#     from PyQt5 import QtCore
+#     from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QCheckBox
+# except ImportError:
+#     from PyQt4 import QtCore
+#     from PyQt4.QtGui import QTableWidget, QTableWidgetItem, QCheckBox
 
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
@@ -311,7 +315,7 @@ class NTableWidget(QTableWidget):
     def get_selected_columns(self):
         """
         Get selected columns with mouse actions
-        
+
         NOTE: QModelIndexList QItemSelectionModel::selectedColumns
         """
         col_indexes = self.selectionModel().selectedColumns()

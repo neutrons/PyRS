@@ -1,9 +1,11 @@
-try:
-    from PyQt5.QtWidgets import QMainWindow, QFileDialog
-    from PyQt5.uic import loadUi as load_ui
-except ImportError:
-    from PyQt4.QtGui import QMainWindow, QFileDialog
-    from PyQt4.uic import loadUi as load_ui
+from qtpy.QtWidgets import QMainWindow, QFileDialog
+from pyrs.utilities import load_ui
+# try:
+#     from PyQt5.QtWidgets import QMainWindow, QFileDialog
+#     from PyQt5.uic import loadUi as load_ui
+# except ImportError:
+#     from PyQt4.QtGui import QMainWindow, QFileDialog
+#     from PyQt4.uic import loadUi as load_ui
 from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.rstables import PoleFigureTable
 from pyrs.interface.ui.diffdataviews import PeakFitSetupView, GeneralDiffDataView, Diffraction2DPlot

@@ -8,14 +8,17 @@ import os
 import numpy
 import ManualSlicerSetupDialog
 
-try:
-    from PyQt5 import QtCore as QtCore
-    from PyQt5.QtWidgets import QMainWindow, QButtonGroup, QFileDialog
-    from PyQt5.uic import loadUi as load_ui
-except ImportError:
-    from PyQt4 import QtCore as QtCore
-    from PyQt4.QtGui import QMainWindow, QButtonGroup, QFileDialog
-    from PyQt4.uic import loadUi as load_ui
+from pyqt import QtCore
+from pyqt.QtWidgets import QMainWindow, QButtonGroup, QFileDialog
+from pyrs.utilities import load_ui
+# try:
+#     from PyQt5 import QtCore as QtCore
+#     from PyQt5.QtWidgets import QMainWindow, QButtonGroup, QFileDialog
+#     from PyQt5.uic import loadUi as load_ui
+# except ImportError:
+#     from PyQt4 import QtCore as QtCore
+#     from PyQt4.QtGui import QMainWindow, QButtonGroup, QFileDialog
+#     from PyQt4.uic import loadUi as load_ui
 
 try:
     _fromUtf8 = QtCore.QString.fromUtf8

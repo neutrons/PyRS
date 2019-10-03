@@ -1,16 +1,19 @@
 #!/usr/bin/python
 import sys
 import imp
-try:
-    imp.find_module('IPython.paths')  # This is for WZ's develop
-    imp.find_module('qtconsole')  # This is for Analysis cluster
-    from PyQt5 import QtCore as QtCore
-    from PyQt5.QtWidgets import QDialog, QApplication
-    from PyQt5.uic import loadUi as load_ui
-except ImportError:
-    from PyQt4 import QtCore as QtCore
-    from PyQt4.QtGui import QDialog, QApplication
-    from PyQt4.uic import loadUi as load_ui
+# try:
+from qtpy import QtCore
+from qtpy.QtWidgets import QDialog, QApplication
+# from pyrs.utilities import load_ui
+# from PyQt4 import QtCore as QtCore
+# from PyQt4.QtGui import QDialog, QApplication
+# from PyQt4.uic import loadUi as load_ui
+# except ImportError:
+#     imp.find_module('IPython.paths')  # This is for WZ's develop
+#     imp.find_module('qtconsole')  # This is for Analysis cluster
+#     from PyQt5 import QtCore as QtCore
+#     from PyQt5.QtWidgets import QDialog, QApplication
+#     from PyQt5.uic import loadUi as load_ui
 import pyrs.interface.pyrs_main
 
 

@@ -1,14 +1,18 @@
-try:
-    from PyQt5.QtWidgets import QMainWindow, QSizePolicy, QWidget, QLabel, QMenuBar, QToolBar, QStatusBar, QGridLayout
-    from PyQt5 import QtCore
-    from PyQt5.uic import loadUi as load_ui
-    is_qt_4 = False
-except (ImportError, RuntimeError) as import_error:
-    print (import_error)
-    from PyQt4.QtGui import QMainWindow, QSizePolicy, QWidget, QLabel, QMenuBar, QToolBar, QStatusBar, QGridLayout
-    from PyQt4 import QtCore
-    from PyQt4.uic import loadUi as load_ui
-    is_qt_4 = True
+from qtpy import QtCore
+from qtpy.QtWidgets import QMainWindow, QSizePolicy, QWidget, QLabel, QMenuBar, QToolBar, QStatusBar, QGridLayout
+from pyrs.utilities import load_ui
+
+# try:
+#     from PyQt5.QtWidgets import QMainWindow, QSizePolicy, QWidget, QLabel, QMenuBar, QToolBar, QStatusBar, QGridLayout
+#     from PyQt5 import QtCore
+#     from PyQt5.uic import loadUi as load_ui
+#     is_qt_4 = False
+# except (ImportError, RuntimeError) as import_error:
+#     print (import_error)
+#     from PyQt4.QtGui import QMainWindow, QSizePolicy, QWidget, QLabel, QMenuBar, QToolBar, QStatusBar, QGridLayout
+#     from PyQt4 import QtCore
+#     from PyQt4.uic import loadUi as load_ui
+#     is_qt_4 = True
 from pyrs.core import pyrscore
 import os
 import fitpeakswindow
@@ -86,8 +90,9 @@ class PyRSLauncher(QMainWindow):
         super(PyRSLauncher, self).__init__(None)
 
         # set up UI
-        ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', 'pyrsmain.ui'))
-        self.ui = load_ui(ui_path, baseinstance=self)
+        # ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', 'pyrsmain.ui'))
+        # self.ui = load_ui(ui_path, baseinstance=self)
+        self.ui = load_ui('pyrsmain.ui', baseinstance=self)
 
         # define
         self.ui.pushButton_manualReduction.clicked.connect(self.do_reduce_manually)
@@ -109,7 +114,7 @@ class PyRSLauncher(QMainWindow):
         self.debugger = None   # IPython window
 
         return
-    
+
     @property
     def core(self):
         """

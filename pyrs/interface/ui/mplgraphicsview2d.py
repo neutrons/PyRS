@@ -2,16 +2,31 @@
 import os
 import numpy as np
 
-try:
-    from PyQt5.QtCore import pyqtSignal
-    from PyQt5.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
+from qtpy.QtCore import Signal
+from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
+from qtpy import PYQT5, PYQT4
+
+if PYQT5:
+    # from PyQt5.QtCore import pyqtSignal
+    # from PyQt5.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
     from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
-except ImportError:
-    from PyQt4.QtGui import QWidget, QSizePolicy, QVBoxLayout
-    from PyQt4.QtCore import pyqtSignal
+elif PYQT4:
+    # from PyQt4.QtGui import QWidget, QSizePolicy, QVBoxLayout
+    # from PyQt4.QtCore import pyqtSignal
     from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
+
+# try:
+#     from PyQt5.QtCore import pyqtSignal
+#     from PyQt5.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
+#     from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+#     from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
+# except ImportError:
+#     from PyQt4.QtGui import QWidget, QSizePolicy, QVBoxLayout
+#     from PyQt4.QtCore import pyqtSignal
+#     from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+#     from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
 
 from matplotlib.figure import Figure
 import matplotlib.image
@@ -887,10 +902,10 @@ class MyNavigationToolbar(NavigationToolbar2):
 
     # This defines a signal called 'home_button_pressed' that takes 1 boolean
     # argument for being in zoomed state or not
-    home_button_pressed = pyqtSignal()
+    home_button_pressed = Signal()
 
     # This defines a signal called 'canvas_zoom_released'
-    canvas_zoom_released = pyqtSignal()
+    canvas_zoom_released = Signal()
 
     def __init__(self, parent, canvas):
         """ Initialization

@@ -1,9 +1,12 @@
-try:
-    from PyQt5.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout
-    from PyQt5.uic import loadUi as load_ui
-except ImportError:
-    from PyQt4.QtGui import QMainWindow, QFileDialog, QVBoxLayout
-    from PyQt4.uic import loadUi as load_ui
+from pyrs.utilities import load_ui
+from qtpy.QtWidgets import QVBoxLayout, QFileDialog, QMainWindow
+
+# try:
+#     from PyQt5.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout
+#     from PyQt5.uic import loadUi as load_ui
+# except ImportError:
+#     from PyQt4.QtGui import QMainWindow, QFileDialog, QVBoxLayout
+#     from PyQt4.uic import loadUi as load_ui
 from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.diffdataviews import GeneralDiffDataView, DiffContourView
 from pyrs.interface.ui.rstables import FitResultTable
