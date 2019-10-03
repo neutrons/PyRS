@@ -3,6 +3,7 @@ import os
 import platform
 import time
 from pyrs.utilities import checkdatatypes
+from pyrs.core.instrument_geometry import AnglerCameraDetectorShift
 import h5py
 import numpy as np
 
@@ -48,7 +49,7 @@ def import_calibration_ascii_file(geometry_file_name):
     checkdatatypes.check_file_name(geometry_file_name, True, False, False, 'Geometry configuration file in ASCII')
 
     # init output
-    calibration_setup = ResidualStressInstrumentCalibration()
+    calibration_setup = AnglerCameraDetectorShift()
 
     calibration_file = open(geometry_file_name, 'r')
     geom_lines = calibration_file.readlines()
@@ -171,7 +172,7 @@ class ResidualStressCalibrationFile(object):
         """
         # init some parameters
         self._h5_file = None  # HDF5 handler
-        self._geometry_calibration = ResidualStressInstrumentCalibration()
+        self._geometry_calibration = AnglerCameraDetectorShift()
         self._calibration_date = ''
 
         # check
@@ -281,7 +282,3 @@ def update_calibration_info_file(cal_info_file, cal_info_table, append):
     cal_info_file.close()
 
     return
-
-
-
-

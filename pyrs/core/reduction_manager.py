@@ -27,6 +27,7 @@ class HB2BReductionManager(object):
         """
         # # calibration manager
         # self._calibration_manager = calibration_file_io.CalibrationManager()
+        # TODO should be pyrs.core.instrument_geometry.AnglerCameraDetectorShift
         # self._geometry_calibration = calibration_file_io.ResidualStressInstrumentCalibration()
 
         # workspace name or array vector

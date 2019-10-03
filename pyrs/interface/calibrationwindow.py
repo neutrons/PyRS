@@ -405,8 +405,8 @@ class InstrumentCalibrationWindow(QMainWindow):
         #                                              cal_wave_length)
 
         # reduce masks
-        from pyrs.utilities import calibration_file_io
-        geom_calibration = calibration_file_io.ResidualStressInstrumentCalibration()
+        from pyrs.core.instrument_geometry import AnglerCameraDetectorShift
+        geom_calibration = AnglerCameraDetectorShift()
         geom_calibration.center_shift_x = cal_shift_x
         geom_calibration.center_shift_y = cal_shift_y
         geom_calibration.center_shift_z = cal_shift_z
