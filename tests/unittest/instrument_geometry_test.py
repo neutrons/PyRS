@@ -220,7 +220,7 @@ def main(argv):
     else:
         raise RuntimeError('Wrong setup')
 
-    from pyrs.core import calibration_file_io
+    from pyqr.utilities import calibration_file_io
     xray_instrument = calibration_file_io.InstrumentSetup()
     xray_instrument.detector_rows = num_rows
     xray_instrument.detector_columns = num_columns

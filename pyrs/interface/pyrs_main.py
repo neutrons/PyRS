@@ -90,8 +90,9 @@ class PyRSLauncher(QMainWindow):
         super(PyRSLauncher, self).__init__(None)
 
         # set up UI
-        ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', 'pyrsmain.ui'))
-        self.ui = load_ui(ui_path, baseinstance=self)
+        # ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', 'pyrsmain.ui'))
+        # self.ui = load_ui(ui_path, baseinstance=self)
+        self.ui = load_ui('pyrsmain.ui', baseinstance=self)
 
         # define
         self.ui.pushButton_manualReduction.clicked.connect(self.do_reduce_manually)

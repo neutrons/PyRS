@@ -407,7 +407,7 @@ class InstrumentCalibrationWindow(QMainWindow):
         #                                              cal_wave_length)
 
         # reduce masks
-        from pyrs.core import calibration_file_io
+        from pyqr.utilities import calibration_file_io
         geom_calibration = calibration_file_io.ResidualStressInstrumentCalibration()
         geom_calibration.center_shift_x = cal_shift_x
         geom_calibration.center_shift_y = cal_shift_y

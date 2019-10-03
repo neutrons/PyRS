@@ -4,7 +4,7 @@
 import os
 import sys
 from pyrs.core import reduce_hb2b_pyrs
-from pyrs.core import calibration_file_io
+from pyqr.utilities import calibration_file_io
 from pyrs.core import reduction_manager
 from pyrs.core import mask_util
 import numpy
