@@ -9,7 +9,7 @@ from scipy.optimize import minimize
 from scipy.optimize import basinhopping
 
 from pyrs.core import reduce_hb2b_pyrs
-from pyrs.core import calibration_file_io
+from pyrs.utilities import calibration_file_io
 from pyrs.core import reduction_manager
 from pyrs.core import mask_util
 from mantid.simpleapi import CreateWorkspace, FitPeaks
@@ -135,8 +135,8 @@ def CostFunction(x, engine, hb2b_setup, two_theta, positive_roi_vec, negative_ro
         GlobalParameter.global_curr_sequence += 1
 
     print ('Parameters:     {}'.format(x))
-    print ('Fitted Peaks +: {}'.format(mtd[P30_Fit].readY(0))) 
-    print ('Fitted Peaks -: {}'.format(mtd[N30_Fit].readY(0))) 
+    print ('Fitted Peaks +: {}'.format(mtd[P30_Fit].readY(0)))
+    print ('Fitted Peaks -: {}'.format(mtd[N30_Fit].readY(0)))
     print ('Residual      = {}'.format(residual.sum()))
 
     return residual

@@ -15,7 +15,7 @@ import lmfit
 from pyrs.core import pyrscore
 from pyrs.core import reduce_hb2b_pyrs
 from pyrs.core import instrument_geometry
-from pyrs.core import calibration_file_io
+from pyrs.utilities import calibration_file_io
 from pyrs.core import reductionengine
 from pyrs.core import mask_util
 from mantid.simpleapi import CreateWorkspace, FitPeaks
@@ -37,7 +37,7 @@ def check_alignment_inputs(roi_vec_set, two_theta):
     :param roi_vec_set: list/array of ROI/mask vector
     :param two_theta:
     :return: num_reduced_set, two_theta, num_two_theta
-    """    
+    """
     # check
     assert isinstance(roi_vec_set, list), 'must be list'
     if len(roi_vec_set) < 2:
@@ -54,11 +54,11 @@ def get_alignment_residual(x, engine, hb2b_setup, two_theta, roi_vec_set ):
     :param x: list/array of detector shift/rotation and neutron wavelength values
     :x[0]: shift_x, x[1]: shift_y, x[2]: shift_z, x[3]: rot_x, x[4]: rot_y, x[5]: rot_z, x[6]: wavelength
     :param engine:
-    :param hb2b_setup: HB2B class containing instrument definitions 
+    :param hb2b_setup: HB2B class containing instrument definitions
     :param two_theta: list/array of detector positions
     :param roi_vec_set: list/array of ROI/mask vector
     :return:
-    """    
+    """
 
     GlobalParameter.global_curr_sequence += 1
 
@@ -69,7 +69,7 @@ def get_alignment_residual(x, engine, hb2b_setup, two_theta, roi_vec_set ):
     TTH_Calib   = TTH_Calib[ ~np.isnan( TTH_Calib ) ]
 
     for i_tth in range( len( two_theta ) ):
-        #reduced_data_set[i_tth] = [None] * num_reduced_set 
+        #reduced_data_set[i_tth] = [None] * num_reduced_set
         # load instrument: as it changes
         pyrs_reducer = reduce_hb2b_pyrs.PyHB2BReduction(hb2b_setup, x[6] )
         pyrs_reducer.build_instrument_prototype(two_theta[i_tth], x[0], x[1], x[2], x[3], x[4], x[5] )
@@ -82,7 +82,7 @@ def get_alignment_residual(x, engine, hb2b_setup, two_theta, roi_vec_set ):
         mintth  = np.min( TTH_val )
 
         peak_centers    = ''
-        fit_windows     = '' 
+        fit_windows     = ''
 
         CalibPeaks      = TTH_Calib[ np.where( (TTH_Calib > DetectorAngle-8) == (TTH_Calib < DetectorAngle+8) )[0] ]
         for ipeak in CalibPeaks:
@@ -309,7 +309,7 @@ def main():
     DataSets    = []
     two_theta   = []
     TTHS = np.arange(60, 65.1, 1)
-    engine      = reductionengine.HB2BReductionManager()    
+    engine      = reductionengine.HB2BReductionManager()
     TTHS = np.array( [56., 60.0, 65., 70., 81.] )
 
     for TTH in TTHS:
@@ -320,7 +320,7 @@ def main():
 
     # instrument geometry
     idf_name = 'tests/testdata/xray_data/XRay_Definition_2K.txt'
-    idf_name = 'tests/testdata/xray_data/XRay_Definition_1K.txt'      
+    idf_name = 'tests/testdata/xray_data/XRay_Definition_1K.txt'
 
     t_start = time.time()
 
@@ -336,7 +336,7 @@ def main():
     start_calibration = np.array( [0.0] * 7, dtype = np.float)
     start_calibration[6] =  1.452
 
-    GlobalParameter.global_curr_sequence = 0  
+    GlobalParameter.global_curr_sequence = 0
 
     #out = minimize(peaks_alignment_all, start_calibration, args=(engine, HB2B, two_theta, roi_vec_list, False, True, 1.452), method='L-BFGS-B', jac=None, bounds=None, tol=None, callback=None, options={'disp': None, 'maxcor': 10, 'ftol': 2.220446049250313e-05, 'gtol': 1e-03, 'eps': 1e-03, 'maxfun': 100, 'maxiter': 100, 'iprint': -1, 'maxls': 20})
     t_stop1 = time.time()
@@ -379,11 +379,11 @@ def main():
         fOUT.write( 'Rot_y: %.8f\n'%out3.x[4] )
         fOUT.write( 'Rot_z: %.8f\n'%out3.x[5] )
         if start_calibration.shape[0] == 7:
-            fOUT.write( 'Lambda: %.8f\n'%out3.x[6] ) 
-       
+            fOUT.write( 'Lambda: %.8f\n'%out3.x[6] )
+
     if start_calibration.shape[0] == 7:CalibData = dict( zip( ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda'], out3.x ) )
     else: CalibData = dict( zip( ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z'], out3.x ) )
-    
+
     import json
     with open('Calibration.txt', 'w') as outfile:
         json.dump(CalibData, outfile)

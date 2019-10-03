@@ -385,7 +385,7 @@ def main(argv):
 
     # create HB2B-builder (python)
     # hb2b_builder = reduce_hb2b_pyrs.PyHB2BReduction(num_rows, num_columns, pixel_size_x, pixel_size_y)
-    from pyrs.core import calibration_file_io
+    from pyrs.utilities import calibration_file_io
     xray_instrument = calibration_file_io.InstrumentSetup()
     xray_instrument.detector_rows = num_rows
     xray_instrument.detector_columns = num_columns

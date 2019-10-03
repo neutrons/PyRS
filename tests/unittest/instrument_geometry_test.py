@@ -72,7 +72,7 @@ def load_instrument(hb2b_builder, arm_length_shift, two_theta=0., center_shift_x
         AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::deltay', LogText='{}'.format(center_shift_y),
                      LogType='Number Series', LogUnit='meter',
                      NumberType='Double')
-                     
+
         # cal::flip
         print ('Rotation X = {}'.format(rot_x_flip))
         AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::flip', LogText='{}'.format(rot_x_flip),
@@ -220,7 +220,7 @@ def main(argv):
     else:
         raise RuntimeError('Wrong setup')
 
-    from pyrs.core import calibration_file_io
+    from pyrs.utilities import calibration_file_io
     xray_instrument = calibration_file_io.InstrumentSetup()
     xray_instrument.detector_rows = num_rows
     xray_instrument.detector_columns = num_columns
@@ -267,4 +267,3 @@ def main(argv):
 
 if __name__ == '__main__':
     main(['do it'])
-

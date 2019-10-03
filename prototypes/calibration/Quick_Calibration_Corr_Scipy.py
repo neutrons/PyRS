@@ -12,7 +12,7 @@ import math
 import lmfit
 
 from pyrs.core import reduce_hb2b_pyrs
-from pyrs.core import calibration_file_io
+from pyrs.utilities import calibration_file_io
 from pyrs.core import reductionengine
 from pyrs.core import mask_util
 from mantid.simpleapi import CreateWorkspace, FitPeaks
@@ -215,9 +215,9 @@ def main():
 
         start_calibration = np.array( [0] * 6 )
 
-        roi_vec_list = np.arange( -30, 30.1, 15) 
+        roi_vec_list = np.arange( -30, 30.1, 15)
 
-        
+
         out = minimize(peaks_alignment_score, start_calibration, args=(engine, instrument, two_theta, roi_vec_list, False, True), method='L-BFGS-B', jac=None, bounds=None, tol=None, callback=None, options={'disp': None, 'maxcor': 10, 'ftol': 2.220446049250313e-05, 'gtol': 1e-03, 'eps': 1e-03, 'maxfun': 100, 'maxiter': 100, 'iprint': -1, 'maxls': 20})
         t_stop1 = time.time()
 

@@ -8,14 +8,14 @@ from scipy.optimize import minimize
 from scipy.optimize import basinhopping
 
 from pyrs.core import reduce_hb2b_pyrs
-from pyrs.core import calibration_file_io
+from pyrs.utilities import calibration_file_io
 from pyrs.core import reduction_manager
 from pyrs.core import mask_util
 from mantid.simpleapi import CreateWorkspace, FitPeaks
 from mantid.api import AnalysisDataService as mtd
 from matplotlib import pyplot as plt
 
-#----------------s-----------------------------------------------------------    
+#----------------s-----------------------------------------------------------
 wavelength = 1.E5 # kev
 wavelength = 1.296  # A
 two_theta = 30.
@@ -140,8 +140,8 @@ def MinDifference(x, engine, hb2b_setup, positive_roi_vec, negative_roi_vec):
     Error3 = (mtd[N30_Fit].extractY()[0] - mtd[P30_Fit].extractY()[0])
 
     print ('Parameters:     {}'.format(x))
-    print ('Fitted Peaks +: {}'.format(mtd[P30_Fit].readY(0))) 
-    print ('Fitted Peaks -: {}'.format(mtd[N30_Fit].readY(0))) 
+    print ('Fitted Peaks +: {}'.format(mtd[P30_Fit].readY(0)))
+    print ('Fitted Peaks -: {}'.format(mtd[N30_Fit].readY(0)))
     print ('Diff**2       = {}'.format(Error3 * Error3))
     return (Error3 * Error3) * 1e8
 # This is main!!!
@@ -262,7 +262,7 @@ def main():
         plt.plot(pos_2theta, pos_hist, color='red')
         plt.plot(neg_2theta, neg_hist, color='blue')
         plt.show()
-        
+
         print ('RESULT EXAMINATION IS OVER')
 
     else:

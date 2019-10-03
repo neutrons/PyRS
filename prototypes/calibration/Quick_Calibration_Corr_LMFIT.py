@@ -12,7 +12,7 @@ import math
 import lmfit
 
 from pyrs.core import reduce_hb2b_pyrs
-from pyrs.core import calibration_file_io
+from pyrs.utilities import calibration_file_io
 from pyrs.core import reductionengine
 from pyrs.core import mask_util
 from mantid.simpleapi import CreateWorkspace, FitPeaks
@@ -212,9 +212,9 @@ def main():
 
         #start_calibration = [0] * 6
 
-        roi_vec_list = np.arange( -30, 30.1, 15) 
+        roi_vec_list = np.arange( -30, 30.1, 15)
 
-        
+
         params = lmfit.Parameters()
         params.add('center_shift_x', value=start_calibration[0], min=-.1, max=.1)
         params.add('center_shift_y', value=start_calibration[1], min=-.1, max=.1)

@@ -3,7 +3,7 @@ import os
 import sys
 from pyrs.core import reduce_hb2b_mtd
 from pyrs.core import reduce_hb2b_pyrs
-from pyrs.core import calibration_file_io
+from pyrs.utilities import calibration_file_io
 from pyrs.core import reduction_manager
 from pyrs.core import mask_util
 import numpy
@@ -25,34 +25,34 @@ def print_position(workspace):
     return
 
 def convert_to_2thetaVanadium(vanadium, num_bins=1900, Mask=None):
-    
+
     if Mask is not None:
         CloneWorkspace(InputWorkspace=vanadium, OutputWorkspace='V_Clone')
         MaskDetectors('V_Clone', MaskedWorkspace=Mask)
         ConvertSpectrumAxis(InputWorkspace='V_Clone', OutputWorkspace=vanadium+'_Reduce', Target='Theta')
     else:
         ConvertSpectrumAxis(InputWorkspace=vanadium, OutputWorkspace=vanadium+'_Reduce', Target='Theta')
-    
+
     Transpose(InputWorkspace=vanadium+'_Reduce', OutputWorkspace=vanadium+'_Reduce')
     ResampleX(InputWorkspace=vanadium+'_Reduce', OutputWorkspace=vanadium+'_Reduce', XMin=15, XMax=55, NumberBins=num_bins, PreserveEvents=False)
-    
+
     return vanadium+'_Reduce'
 
 def convert_to_2theta(ws_name, vanadium):
     """
     """
     num_bins = 1900
-       
-    # transfer to 2theta for data 
+
+    # transfer to 2theta for data
     ConvertSpectrumAxis(InputWorkspace=ws_name, OutputWorkspace=ws_name+'_reduced', Target='Theta')
     Transpose(InputWorkspace=ws_name+'_reduced', OutputWorkspace=ws_name+'_reduced')
     ResampleX(InputWorkspace=ws_name+'_reduced', OutputWorkspace=ws_name+'_reduced', XMin=15, XMax=55, NumberBins=num_bins, PreserveEvents=False)
-  
+
     Divide(LHSWorkspace=ws_name+'_reduced', RHSWorkspace=vanadium, OutputWorkspace=ws_name+'_normalized')
-  
+
     return
 
-#----------------s-----------------------------------------------------------    
+#----------------s-----------------------------------------------------------
 wavelength = 1.E5 # kev
 wavelength = 1.296  # A
 
@@ -69,7 +69,7 @@ def test_rotate_2theta(idf_name, InputWorkspace, output_ws_name, DetDistance = 0
                  LogName='cal::deltax', LogText='{}'.format(Beam_Center_X), LogType='Number Series', LogUnit='meter', NumberType='Double')
     AddSampleLog(Workspace=output_ws_name,
                  LogName='cal::deltay', LogText='{}'.format(-Beam_Center_Y), LogType='Number Series', LogUnit='meter', NumberType='Double')
-    
+
     AddSampleLog(Workspace=output_ws_name,
                  LogName='cal::flip', LogText='{}'.format(DetFlit), LogType='Number Series', LogUnit='degree', NumberType='Double')
     AddSampleLog(Workspace=output_ws_name,
@@ -162,7 +162,7 @@ idf_name = os.path.join(pyrs_root, 'XRay_Definition_2K.xml')
 assert os.path.exists(idf_name)
 #idf_name = 'CG2_Definition.xml'
 
-import os 
+import os
 os.system('cp ' + idf_name + ' ~/.mantid/instrument/HB2B_Definition.xml')
 # Load data
 print ('Loading {} ....'.format(hb2b_file_name))
@@ -216,26 +216,26 @@ vanadium_N30 = convert_to_2thetaVanadium(vanadium, num_bins=1900, Mask=n30Mask)
 
 def MinDifference(x):
 
-    
+
     WS_p30deg_Rot = test_rotate_2theta(idf_name, WS_p30deg,'hb2b_rotate_p30deg_Rot', DetDistance = 0.0, DetTTH = 35.0, DetTTH_Shift = 0.0, Beam_Center_X = -0.002, Beam_Center_Y = -0.007, DetFlit = x[0], DetSpin = 0.0)
     WS_n30deg_Rot = test_rotate_2theta(idf_name, WS_n30deg,'hb2b_rotate_n30deg_Rot', DetDistance = 0.0, DetTTH = 35.0, DetTTH_Shift = 0.0, Beam_Center_X = -0.002, Beam_Center_Y = -0.007, DetFlit = x[0], DetSpin = 0.0)
 
     convert_to_2theta(WS_p30deg_Rot, vanadium_P30)
     convert_to_2theta(WS_n30deg_Rot, vanadium_N30)
-    
+
     N30_Fit = 'Fit_N30'
     P30_Fit = 'Fit_P30'
 
     FitPeaks(InputWorkspace='hb2b_rotate_n30deg_Rot_reduced', OutputWorkspace=N30_Fit, StartWorkspaceIndex=0, StopWorkspaceIndex=0,
              PeakCenters='17.5,24.5,30.25,35.2,39.4,43.2,53.5',
              FitWindowBoundaryList='16,19,23,26,29,32,33,37,38,41,42,44.5,51.5,55', FittedPeaksWorkspace='hb2b_rotate_n30deg_reduced_Output', OutputPeakParametersWorkspace='hb2b_rotate_n30deg_reduced_FITS', OutputParameterFitErrorsWorkspace='hb2b_rotate_n30deg_reduced_Errors')
-    
+
     FitPeaks(InputWorkspace='hb2b_rotate_p30deg_Rot_reduced', OutputWorkspace=P30_Fit, StartWorkspaceIndex=0, StopWorkspaceIndex=0,
              PeakCenters='17.5,24.5,30.25,35.2,39.4,43.2,53.5', FitWindowBoundaryList='16,19,23,26,29,32,33,37,38,41,42,44.5,51.5,55',
              FittedPeaksWorkspace='hb2b_rotate_p30deg_reduced_Output', OutputPeakParametersWorkspace='hb2b_rotate_p30deg_reduced_FITS', OutputParameterFitErrorsWorkspace='hb2b_rotate_p23deg_reduced_Errors')
 
     Error3 = (mtd[N30_Fit].extractY()[0] - mtd[P30_Fit].extractY()[0])
-    
+
     print x
     print  Error3*Error3
     return (Error3*Error3) * 1e8
@@ -262,11 +262,10 @@ WS_p30deg_Rot = test_rotate_2theta(idf_name, WS_p30deg,'hb2b_rotate_p30deg_Rot',
 WS_n10deg_Rot = test_rotate_2theta(idf_name, WS_n10deg,'hb2b_rotate_n10deg_Rot', DetDistance = DD, DetTTH = 35.0, DetTTH_Shift = D_Shift, Beam_Center_X = Center_X, Beam_Center_Y = Center_Y, DetFlit = Flip, DetSpin = Spin)
 WS_n20deg_Rot = test_rotate_2theta(idf_name, WS_n20deg,'hb2b_rotate_n20deg_Rot', DetDistance = DD, DetTTH = 35.0, DetTTH_Shift = D_Shift, Beam_Center_X = Center_X, Beam_Center_Y = Center_Y, DetFlit = Flip, DetSpin = Spin)
 WS_n30deg_Rot = test_rotate_2theta(idf_name, WS_n30deg,'hb2b_rotate_n30deg_Rot', DetDistance = DD, DetTTH = 35.0, DetTTH_Shift = D_Shift, Beam_Center_X = Center_X, Beam_Center_Y = Center_Y, DetFlit = Flip, DetSpin = Spin)
-    
+
 convert_to_2theta(WS_p10deg_Rot, vanadium_P10)
 convert_to_2theta(WS_p20deg_Rot, vanadium_P20)
 convert_to_2theta(WS_p30deg_Rot, vanadium_P30)
 convert_to_2theta(WS_n10deg_Rot, vanadium_N10)
 convert_to_2theta(WS_n20deg_Rot, vanadium_N20)
 convert_to_2theta(WS_n30deg_Rot, vanadium_N30)
-    

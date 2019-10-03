@@ -52,7 +52,7 @@ class InstrumentCalibrationWindow(QMainWindow):
 
         self.ui.pushButton_loadMask.clicked.connect(self.do_load_mask)
         self.ui.pushButton_reduce.clicked.connect(self.do_reduce_data)
-       
+
         self.ui.pushButton_calibrateGeometry.clicked.connect(self.do_calibrate_geometry)
 
         # decrease button associated line edits dictionary
@@ -405,7 +405,7 @@ class InstrumentCalibrationWindow(QMainWindow):
         #                                              cal_wave_length)
 
         # reduce masks
-        from pyrs.core import calibration_file_io
+        from pyrs.utilities import calibration_file_io
         geom_calibration = calibration_file_io.ResidualStressInstrumentCalibration()
         geom_calibration.center_shift_x = cal_shift_x
         geom_calibration.center_shift_y = cal_shift_y

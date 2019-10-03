@@ -4,7 +4,7 @@ import os
 import sys
 from pyrs.core import reduce_hb2b_mtd
 from pyrs.core import reduce_hb2b_pyrs
-from pyrs.core import calibration_file_io
+from pyrs.utilities import calibration_file_io
 from pyrs.core import reduction_manager
 from pyrs.core import mask_util
 import time
@@ -407,4 +407,3 @@ if __name__ == '__main__':
             compare_geometry_test(calibrated=True, instrument='HBZ', pixel_number=256, check_all_pixels=True)
         else:
             raise NotImplementedError('ASAP')
-
