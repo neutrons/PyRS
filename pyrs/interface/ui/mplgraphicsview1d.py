@@ -9,27 +9,12 @@ from qtpy import PYQT4, PYQT5
 
 
 if PYQT5:
-    # from PyQt5.QtCore import pyqtSignal
-    # from PyQt5.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
     from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
 elif PYQT4:
-    # from PyQt4.QtGui import QWidget, QSizePolicy, QVBoxLayout
-    # from PyQt4.QtCore import pyqtSignal
     from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
 
-# try:
-#     from PyQt5.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
-#     from PyQt5.QtCore import pyqtSignal
-#     from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-#     from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
-# except (ImportError, RuntimeError) as err:
-#     print ('[INFO] Import PyQt4. Unable to importing PyQt5. Details: {0}'.format(err))
-#     from PyQt4.QtGui import QWidget, QSizePolicy, QVBoxLayout
-#     from PyQt4.QtCore import pyqtSignal
-#     from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-#     from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
 import matplotlib
 from matplotlib.figure import Figure
 

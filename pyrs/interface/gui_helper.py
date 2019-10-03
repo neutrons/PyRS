@@ -4,13 +4,6 @@ import platform
 from pyrs.utilities import checkdatatypes
 from qtpy.QtWidgets import QDialog, QLineEdit, QFileDialog, QMessageBox, QVBoxLayout
 from qtpy import QtCore
-# try:
-#     from PyQt5.QtWidgets import QDialog, QLineEdit, QFileDialog, QMessageBox, QVBoxLayout
-#     is_qt4 = False
-# except ImportError:
-#     from PyQt4.QtGui import QDialog, QLineEdit, QFileDialog, QMessageBox, QVBoxLayout
-#     from PyQt4 import QtCore
-#     is_qt4 = True
 
 
 def browse_dir(parent, caption, default_dir):

@@ -7,13 +7,9 @@ from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
 from qtpy import PYQT4, PYQT5
 
 if PYQT5:
-    # from PyQt5.QtCore import pyqtSignal
-    # from PyQt5.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
     from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
 elif PYQT4:
-    # from PyQt4.QtGui import QWidget, QSizePolicy, QVBoxLayout
-    # from PyQt4.QtCore import pyqtSignal
     from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
 
