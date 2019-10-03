@@ -10,7 +10,7 @@ from mantid.simpleapi import CreateWorkspace, ConvertToPointData, SaveNexusProce
 from mantid.api import AnalysisDataService as mtd
 from pyrs.utilities import file_utilities
 import time
-from pyrs.core import scandataio
+from pyrs.core import rs_scan_io
 
 
 # TODO - NIGHT - Continue to verify the cases for all masks!

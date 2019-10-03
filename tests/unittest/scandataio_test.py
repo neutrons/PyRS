@@ -1,5 +1,5 @@
 #!/usr/bin/python
-from pyrs.core import scandataio
+from pyrs.core import rs_scan_io
 import os
 import matplotlib.pyplot as plt
 import numpy
@@ -11,7 +11,7 @@ test_data = 'tests/testdata/BD_Data_Log.hdf5'
 print ('Data file {0} exists? : {1}'.format(test_data, os.path.exists(test_data)))
 
 # Load data:
-diff_data_file = scandataio.DiffractionDataFile()
+diff_data_file = rs_scan_io.DiffractionDataFile()
 diff_data_dict, sample_log_dict = diff_data_file.load_rs_file(test_data)
 
 # Look at the diffraction data

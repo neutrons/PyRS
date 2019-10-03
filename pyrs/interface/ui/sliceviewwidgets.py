@@ -1,10 +1,10 @@
 from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
 from qtpy import PYQT5, PYQT4
 
-try:
+if PYQT5:
     from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
-except ImportError:
+elif PYQT4:
     from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
 
