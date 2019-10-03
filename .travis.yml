@@ -41,24 +41,24 @@ install:
   - mamba update mamba -c conda-forge
   - mamba info -a
 
-    # BUILD: Create addie build environment
-  - mamba create -q -n addie_build python=$CONDA conda-build=3.17 conda-verify
-  - conda activate addie_build
+    # BUILD: Create PyRS build environment
+  - mamba create -q -n PyRS_build python=$CONDA conda-build=3.17 conda-verify
+  - conda activate PyRS_build
   - mamba build conda.recipe
   - export PKG_FILE=$(mamba build conda.recipe --output)
   - conda activate
 
 script:
     # TEST: Create test environment and test build
-  - mamba create -q -n addie_test python=$CONDA flake8 conda-build=3.17 anaconda-client pytest pytest-qt pytest-mpl
+  - mamba create -q -n PyRS_test python=$CONDA flake8 conda-build=3.17 anaconda-client pytest pytest-qt pytest-mpl
   - mamba info --envs
-  - conda activate addie_test
+  - conda activate PyRS_test
   - mkdir -p ${CONDA_PREFIX}/conda-bld/linux-64/
   - cp ${PKG_FILE} ${CONDA_PREFIX}/conda-bld/linux-64/
   - ls ${CONDA_PREFIX}/conda-bld
   - ls ${CONDA_PREFIX}/conda-bld/linux-64
   - conda index ${CONDA_PREFIX}/conda-bld
-  - mamba install -c ${CONDA_PREFIX}/conda-bld addie
+  - mamba install -c ${CONDA_PREFIX}/conda-bld PyRS
 
   - |
     # Mantid pre-requiste - create a properties file that turns off network access
@@ -68,7 +68,7 @@ script:
     echo "usagereports.enabled=0" >> ~/.mantid/Mantid.user.properties
     export DISPLAY=:99.0
     sleep 3
-  # - source activate addie_env
+  # - source activate PyRS_env
   # - conda install -c mantid/label/nightly mantid-workbench=4.0.20190416.1125
   # - conda install -c marshallmcdonnell mantid-total-scattering-python-wrapper
 
@@ -83,12 +83,12 @@ script:
   - echo "import time;time.sleep(5)" > workbenchshutdown.py
   - xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum mantidworkbench -q -x workbenchshutdown.py
 
-  # run addie tests
+  # run PyRS tests
   - xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum pytest --mpl tests --disable-pytest-warnings
-  - xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum addie --version
+  - xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum PyRS --version
 
 #deploy:
-# # Deploy conda package to Anaconda.org https://anaconda.org/addie-diffraction/addie
+# # Deploy conda package to Anaconda.org https://anaconda.org/PyRS-diffraction/PyRS
 # - provider: script
 #   script: cd conda.recipe && chmod +x anaconda_upload.sh && ./anaconda_upload.sh ${PKG_FILE}
 #   skip_cleanup: true

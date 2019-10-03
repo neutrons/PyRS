@@ -1,0 +1,49 @@
+{% set data = load_setup_py_data() %}
+
+package:
+  name: "PyRS"
+  version: "{{ data['version'] }}"
+
+source:
+  path: ..
+
+build:
+  string: py{{py}}
+  script: python setup.py install --single-version-externally-managed --record=record.txt
+
+requirements:
+  build:
+    - configparser
+    - mantid-total-scattering-python-wrapper
+    - mantid-workbench
+    - periodictable
+    - psutil
+    - python
+    - setuptools
+    - simplejson
+
+  run:
+    - configparser
+    - mantid-total-scattering-python-wrapper
+    - mantid-workbench
+    - periodictable
+    - psutil
+    - python
+    - simplejson
+
+test:
+  imports:
+    - PyRS
+
+about:
+  home: https://github.com/neutrons/PyRS
+  license: GPL (version 3)
+  license_family: GPL3
+  license_file:
+  summary: Reduction and visualization software for Stress Residual (HB2B)
+
+extra:
+  recipe-maintainers:
+    - JeanBilheux
+    - peterfpeterson
+    - wdzhou
