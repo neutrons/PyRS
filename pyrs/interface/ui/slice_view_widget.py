@@ -1,4 +1,4 @@
-from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
+from qtpy.QtWidgets import QGridLayout, QWidget, QSizePolicy, QVBoxLayout
 from qtpy import PYQT5, PYQT4
 
 if PYQT5:
@@ -593,7 +593,3 @@ class IndicatorManager(object):
                 self._lineManager[i_id][0][-1] = x_range[1]
 
         return
-
-
-
-
