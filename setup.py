@@ -7,7 +7,7 @@ from shutil import copyfile
 from setuptools import setup, find_packages
 
 NAME = "pyrs"
-META_PATH = os.path.join("src", "pyrs", "__init__.py")
+META_PATH = os.path.join("pyrs", "__init__.py")
 KEYWORDS = ["class", "attribute", "boilerplate"]
 CLASSIFIERS = [
     "Development Status :: 5 - Production/Stable",
