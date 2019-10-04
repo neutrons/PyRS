@@ -50,7 +50,7 @@ install:
 
 script:
     # TEST: Create test environment and test build
-  - mamba create -q -n PyRS_test python=$CONDA flake8 conda-build=3.17 anaconda-client pytest pytest-qt pytest-mpl
+  - mamba create -q -n PyRS_test python=$CONDA flake8 pylint conda-build=3.17 anaconda-client pytest pytest-qt pytest-mpl
   - mamba info --envs
   - conda activate PyRS_test
   - mkdir -p ${CONDA_PREFIX}/conda-bld/linux-64/
@@ -74,6 +74,7 @@ script:
 
   # lint the code and generate an error if a warning is introduced
   - flake8 .
+  - pylint --disable=C pyrs tests prototypes scripts local_prototypes
   - python -c "import mantid"
   - python -c "import qtpy"
   - python -c "import mantidqt"
@@ -85,7 +86,7 @@ script:
 
   # run PyRS tests
   - xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum pytest --mpl tests --disable-pytest-warnings
-  - xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum PyRS --version
+  #- xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum PyRS --version
 
 #deploy:
 # # Deploy conda package to Anaconda.org https://anaconda.org/PyRS-diffraction/PyRS
