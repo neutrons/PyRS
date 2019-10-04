@@ -6,7 +6,7 @@ from pyrs.interface import textureanalysiswindow
 from qtpy.QtWidgets import QApplication
 
 
-def test_main():
+def xtest_main():
     """
     test main
     """

@@ -6,7 +6,7 @@ from pyrs.interface import manualreductionwindow
 from qtpy.QtWidgets import QApplication
 
 
-def test_hzb_data(reduction_window):
+def xtest_hzb_data(reduction_window):
     """
 
     :param reduction_window:
@@ -32,7 +32,7 @@ def test_hzb_data(reduction_window):
     return
 
 
-def test_main():
+def xtest_main():
     """
     test main
     """
