@@ -20,6 +20,7 @@ class StrainStressCalculationWindow(QMainWindow):
     """
     GUI window to calculate strain and stress with simple visualization
     """
+
     def __init__(self, parent, pyrs_core):
         """
         initialization
@@ -350,7 +351,7 @@ class StrainStressCalculationWindow(QMainWindow):
         :return:
         """
         if self._grid_linear_arrays is None:
-            print ('[WARNING] Slice view grids has not been set up yet')
+            print('[WARNING] Slice view grids has not been set up yet')
             return False
 
         slice_direction_index = self.ui.comboBox_sliceDirection.currentIndex()
@@ -530,7 +531,7 @@ class StrainStressCalculationWindow(QMainWindow):
         load strain/stress file from either raw files or previously saved file
         :return:
         """
-        print ('[DB...BAT] RAW files are to be loaded.')
+        print('[DB...BAT] RAW files are to be loaded.')
 
         # current session is not canceled: ask user whether it is OK to delete and start a new one
         if self._curr_data_key is not None:
@@ -653,7 +654,7 @@ class StrainStressCalculationWindow(QMainWindow):
         self.ui.label_sliderValue.setText('{:.3f}'.format(slider_value))
         vec_x, vec_y, matrix_z, info, dir_tuple = self._slice_values_on_grid(slider_value, slider_direction_index)
 
-        print ('INFO: {}'.format(info))
+        print('INFO: {}'.format(info))
         self.ui.graphicsView_sliceView.plot_contour_raw(vec_x, vec_y, matrix_z, info, dir_tuple)
 
         return
@@ -672,8 +673,8 @@ class StrainStressCalculationWindow(QMainWindow):
         else:
             checkdatatypes.check_string_variable('Strain/stress session name', session_name)
 
-        print ('[DB...BAT] New Session {}... Plane Strain {}... Plane Stress {}'
-               ''.format(session_name, is_plane_strain, is_plane_stress))
+        print('[DB...BAT] New Session {}... Plane Strain {}... Plane Stress {}'
+              ''.format(session_name, is_plane_strain, is_plane_stress))
 
         # check with current session
         if self._session_name is not None and session_name == self._session_name:
@@ -684,7 +685,7 @@ class StrainStressCalculationWindow(QMainWindow):
             return
         elif self._session_name is not None:
             # TODO - FIXME - Auto/Semi-auto/Manual save current session
-            print ('[WARNING] Previous session {} is NOT saved'.format(self._session_name))
+            print('[WARNING] Previous session {} is NOT saved'.format(self._session_name))
 
         # check types
         checkdatatypes.check_bool_variable('Flag for being plane strain', is_plane_strain)
@@ -930,7 +931,7 @@ class StrainStressCalculationWindow(QMainWindow):
             return
         # END-DEF-add_values()s
 
-        print ('[DB...BAT] Direction {}. Sample log list: {}'.format(measurement_direction, sample_logs_list))
+        print('[DB...BAT] Direction {}. Sample log list: {}'.format(measurement_direction, sample_logs_list))
 
         # check inputs
         checkdatatypes.check_list('Sample log names', sample_logs_list)
@@ -971,7 +972,7 @@ class StrainStressCalculationWindow(QMainWindow):
 
         info = ('[DB....BAT] Generate grid at the plane normal to Axis = {} @ value = {}'
                 ''.format(slice_direction, slice_value))
-        print (info)
+        print(info)
 
         # construct 3D values
         dir_index_set = sorted(list(set(range(3)) - {slice_direction}))
@@ -1002,8 +1003,8 @@ class StrainStressCalculationWindow(QMainWindow):
         # END-FOR
 
         value_vec = self._core.strain_stress_calculator.interpolate3d(self._slice_view_exp_grid_vec,
-                                                          self._slice_view_exp_value_vec,
-                                                          grid_pos_vec)
+                                                                      self._slice_view_exp_value_vec,
+                                                                      grid_pos_vec)
         # print (value_vec)
         # print (value_vec.shape)
 
@@ -1032,7 +1033,7 @@ class StrainStressCalculationWindow(QMainWindow):
         checkdatatypes.check_string_variable('(Peak) parameter name', param_name)
         try:
             checkdatatypes.check_string_variable('Strain/stress direction (e11/e22/e33)', ss_direction,
-                                                  self._core.strain_stress_calculator.get_strain_stress_direction())
+                                                 self._core.strain_stress_calculator.get_strain_stress_direction())
         except ValueError as value_error:
             gui_helper.pop_message(self, message='Unable to plot @ {}'.format(ss_direction),
                                    detailed_message='{}'.format(value_error),
@@ -1040,7 +1041,7 @@ class StrainStressCalculationWindow(QMainWindow):
             return
         checkdatatypes.check_bool_variable('Flag for raw experiment grid', is_raw_grid)
 
-        print ('[DB...ASAP] Try to plot {} @ direction {}'.format(param_name, ss_direction))
+        print('[DB...ASAP] Try to plot {} @ direction {}'.format(param_name, ss_direction))
 
         # return if nothing chosen
         if param_name == '' or ss_direction == '':
@@ -1053,7 +1054,6 @@ class StrainStressCalculationWindow(QMainWindow):
         self._slice_view_label = '{} @ {}'.format(param_name, ss_direction)
 
         return
-
 
         # # TODO - 20181010 - Consider how to integrate method plot_peak_parameter()
         # self.plot_peak_parameter()
@@ -1265,7 +1265,7 @@ class StrainStressCalculationWindow(QMainWindow):
             slider_value -= 1
         self.ui.horizontalSlider_slicer3D.setValue(slider_value)
 
-        print ('[DB...BAT] New slider value: {}'.format(slider_value))
+        print('[DB...BAT] New slider value: {}'.format(slider_value))
 
         return
 
@@ -1275,12 +1275,12 @@ class StrainStressCalculationWindow(QMainWindow):
         :return:
         """
         slider_value = self.ui.horizontalSlider_slicer3D.value()
-        print ('[DB...BAT] Slider maximum: {}'.format(self.ui.horizontalSlider_slicer3D.maximum()))
+        print('[DB...BAT] Slider maximum: {}'.format(self.ui.horizontalSlider_slicer3D.maximum()))
         if slider_value < self.ui.horizontalSlider_slicer3D.maximum():
             slider_value += 1
         self.ui.horizontalSlider_slicer3D.setValue(slider_value)
 
-        print ('[DB...BAT] New slider value: {}'.format(slider_value))
+        print('[DB...BAT] New slider value: {}'.format(slider_value))
 
         return
 

@@ -84,7 +84,7 @@ def main(argv):
 
 if __name__ == '__main__':
     # Main application
-    print ('Test manual_reduction Analysis GUI')
+    print('Test manual_reduction Analysis GUI')
     app = main(sys.argv)
 
     # this must be here!

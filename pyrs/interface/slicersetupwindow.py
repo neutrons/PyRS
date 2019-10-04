@@ -33,6 +33,7 @@ class EventSlicerSetupWindow(QMainWindow):
     """ Class for general-puposed plot window
     """
     # class
+
     def __init__(self, parent=None):
         """ Initialization
         """
@@ -492,7 +493,6 @@ class EventSlicerSetupWindow(QMainWindow):
         # TODO/ISSUE/NEXT - make this work!
         # run_start_epoch = self.get_controller().get_run_start(run_number, epoch_time=True)
         # self.ui.label_runStartEpoch.setText('{0}'.format(run_start_epoch))
-
 
         return
 

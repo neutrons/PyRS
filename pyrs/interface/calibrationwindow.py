@@ -17,6 +17,7 @@ class InstrumentCalibrationWindow(QMainWindow):
     """
     GUI window to calculate strain and stress with simple visualization
     """
+
     def __init__(self, parent, pyrs_core):
         """
         initialization
@@ -320,7 +321,7 @@ class InstrumentCalibrationWindow(QMainWindow):
         """
         # get the current mask file
         curr_mask_file = gui_helper.parse_line_edit(self.ui.lineEdit_maskFile, str, False, 'Masking file')
-        print ('[DB...BAT] Parsed line edit value: {} of type {}'.format(curr_mask_file, type(curr_mask_file)))
+        print('[DB...BAT] Parsed line edit value: {} of type {}'.format(curr_mask_file, type(curr_mask_file)))
 
         # whether it has been loaded
         if curr_mask_file in self._core.reduction_manager.get_loaded_mask_files():

@@ -1,3 +1,7 @@
+import time
+import matplotlib.image
+from matplotlib.figure import Figure
+import numpy as np
 from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
 from qtpy import PYQT5, PYQT4
 
@@ -8,11 +12,6 @@ elif PYQT4:
     from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
 
-import numpy as np
-from matplotlib.figure import Figure
-import matplotlib.image
-import time
-
 
 class Mpl2DGraph(QWidget):
     """ A combined graphics view including matplotlib canvas and
@@ -20,6 +19,7 @@ class Mpl2DGraph(QWidget):
 
     Note: Merged with HFIR_Powder_Reduction.MplFigureCAnvas
     """
+
     def __init__(self, parent):
         """ Initialization
         """
@@ -135,6 +135,7 @@ class Qt4Mpl2DCanvas(FigureCanvas):
     """  A customized Qt widget for matplotlib figure.
     It can be used to replace GraphicsView of QtGui
     """
+
     def __init__(self, parent):
         """  Initialization
         """
@@ -204,7 +205,7 @@ class Qt4Mpl2DCanvas(FigureCanvas):
 
         # Do plot: resolution on Z axis (color bar is set to 100)
         time_s = time.time()
-        print ('[DB...BAT] Contour Plot Starting time (float) = {}'.format(time_s))
+        print('[DB...BAT] Contour Plot Starting time (float) = {}'.format(time_s))
 
         self.axes.clear()
         if False:
@@ -213,8 +214,8 @@ class Qt4Mpl2DCanvas(FigureCanvas):
             contour_plot = self.axes.contourf(vec_x, vec_y, matrix_z, 50, cmap="RdBu_r")
 
         time_f = time.time()
-        print ('[DB...BAT] Stopping time (float) = {}.  Used {} second for plotting'.format(time_f,
-                                                                                            time_f - time_s))
+        print('[DB...BAT] Stopping time (float) = {}.  Used {} second for plotting'.format(time_f,
+                                                                                           time_f - time_s))
 
         labels = [item.get_text() for item in self.axes.get_yticklabels()]
         print '[DB...BAT] Number of Y labels = ', len(labels), ', Number of Y = ', len(vec_y)
@@ -276,12 +277,12 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         # show image
         self._imagePlot = self.axes.imshow(array2d, extent=[xmin, xmax, ymin, ymax], interpolation='none')
 
-        print (self._imagePlot, type(self._imagePlot))
+        print(self._imagePlot, type(self._imagePlot))
 
         # set y ticks as an option:
         if yticklabels is not None:
             # it will always label the first N ticks even image is zoomed in
-            print ("[FIXME]: The way to set up the Y-axis ticks is wrong!")
+            print("[FIXME]: The way to set up the Y-axis ticks is wrong!")
             self.axes.set_yticklabels(yticklabels)
 
         # explicitly set aspect ratio of the image
@@ -512,6 +513,7 @@ class Mpl1DGraph(QWidget):
     """
     Simple matplotlib 1D plot
     """
+
     def __init__(self, parent):
         """Initialization
         :param parent:ns
@@ -559,6 +561,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
     """  A customized Qt widget for matplotlib figure.
     It can be used to replace GraphicsView of QtGui
     """
+
     def __init__(self, parent, row_size=None, col_size=None, rotate=False):
         """Initialization
         :param parent:

@@ -76,7 +76,7 @@ class SmartPeakFitControlDialog(QDialog):
         for peak_name, combo_box_i in [('Gaussian', self.ui.comboBox_guassian),
                                        ('PseudoVoigt', self.ui.comboBox_peudovoigt),
                                        ('Voigt', self.ui.comboBox_voigt),
-                                        ('Lorentzian', self.ui.comboBox_lorentzian)]:
+                                       ('Lorentzian', self.ui.comboBox_lorentzian)]:
             order_i_str = str(combo_box_i.currentText())
             if order_i_str.lower() == 'not used':
                 continue

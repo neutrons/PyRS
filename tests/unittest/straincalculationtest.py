@@ -11,10 +11,10 @@ except ImportError:
     from PyQt4.QtGui import QApplication
 
 # default testing directory is ..../PyRS/
-print (os.getcwd())
+print(os.getcwd())
 # therefore it is not too hard to locate testing data
 test_data = 'tests/testdata/BD_Data_Log.hdf5'
-print ('Data file {0} exists? : {1}'.format(test_data, os.path.exists(test_data)))
+print('Data file {0} exists? : {1}'.format(test_data, os.path.exists(test_data)))
 
 
 def create_test_data(rs_core, src_data_set, target_data_set):
@@ -29,7 +29,7 @@ def create_test_data(rs_core, src_data_set, target_data_set):
         # load
         src_h5_file = src_data_set[direction]
         data_key, message = rs_core.load_rs_raw(src_h5_file)
-        print ('Load {}: {}'.format(src_h5_file, message))
+        print('Load {}: {}'.format(src_h5_file, message))
         # fit
         rs_core.fit_peaks(data_key, None, 'Gaussian', 'Linear', [80, 90])
         # save
@@ -96,7 +96,8 @@ def test_strain_calculation():
     grid_dict = {'Min': {'X': -130, 'Y': None, 'Z': 9.},
                  'Max': {'X': 130., 'Y': None, 'Z': None},
                  'NotUsed': {}}
-    grids, maps = rs_core.strain_stress_calculator.generate_grids('e22', user_defined=False, grids_dimension_dict=grid_dict)
+    grids, maps = rs_core.strain_stress_calculator.generate_grids(
+        'e22', user_defined=False, grids_dimension_dict=grid_dict)
 
     # convert to image of slice view...
     rs_core.strain_stress_calculator.export_strain_2d(grids)
@@ -138,7 +139,7 @@ def test_copy_from_unconstrained_to_plane():
     try:
         rs_core.strain_stress_calculator.check_grids_alignment()
     except RuntimeError as run_err:
-        print ('Measuring points are not aligned: {}'.format(run_err))
+        print('Measuring points are not aligned: {}'.format(run_err))
 
     # create a plane strain/stress calculator
     ss_calculator = rs_core.strain_stress_calculator
@@ -185,7 +186,7 @@ def test_strain_stress_user_defined_grid():
     try:
         rs_core.strain_stress_calculator.check_grids_alignment()
     except RuntimeError as run_err:
-        print ('Measuring points are not aligned: {}'.format(run_err))
+        print('Measuring points are not aligned: {}'.format(run_err))
     rs_core.strain_stress_calculator.located_matched_grids(resolution=0.001)
 
     # convert peak positions to d-spacing
@@ -195,7 +196,8 @@ def test_strain_stress_user_defined_grid():
     grid_dict = {'Min': {'X': -130, 'Y': 0., 'Z': 9.},
                  'Max': {'X': 130., 'Y': 0., 'Z': 19},
                  'Resolution': {'X': 5.0, 'Y': None, 'Z': 1.0}}
-    grids, maps = rs_core.strain_stress_calculator.generate_grids(None, user_defined=True, grids_dimension_dict=grid_dict)
+    grids, maps = rs_core.strain_stress_calculator.generate_grids(
+        None, user_defined=True, grids_dimension_dict=grid_dict)
     center_d_vec = rs_core.strain_stress_calculator.align_peak_parameter_on_grids(grids, 'center_d', maps)
 
     # calculate unconstrained strain and stress
@@ -204,7 +206,6 @@ def test_strain_stress_user_defined_grid():
 
     # export
     #  rs_core.export_to_paraview(data_key, 'strain', '/tmp/stain_para.dat')
-
 
     return
 
@@ -240,7 +241,7 @@ def test_plane_strain():
     try:
         rs_core.strain_stress_calculator.check_grids_alignment()
     except RuntimeError as run_err:
-        print ('Measuring points are not aligned: {}'.format(run_err))
+        print('Measuring points are not aligned: {}'.format(run_err))
     rs_core.strain_stress_calculator.located_matched_grids(resolution=0.001)
 
     # convert peak positions to d-spacing
@@ -250,7 +251,8 @@ def test_plane_strain():
     grid_dict = {'Min': {'X': -130, 'Y': 0., 'Z': 9.},
                  'Max': {'X': 130., 'Y': 0., 'Z': 19},
                  'Resolution': {'X': 5.0, 'Y': None, 'Z': 1.0}}
-    grids, maps = rs_core.strain_stress_calculator.generate_grids(None, user_defined=True, grids_dimension_dict=grid_dict)
+    grids, maps = rs_core.strain_stress_calculator.generate_grids(
+        None, user_defined=True, grids_dimension_dict=grid_dict)
     center_d_vec = rs_core.strain_stress_calculator.align_peak_parameter_on_grids(grids, 'center_d', maps)
 
     # calculate unconstrained strain and stress
@@ -291,7 +293,7 @@ def test_plane_stress():
     try:
         rs_core.strain_stress_calculator.check_grids_alignment()
     except RuntimeError as run_err:
-        print ('Measuring points are not aligned: {}'.format(run_err))
+        print('Measuring points are not aligned: {}'.format(run_err))
     rs_core.strain_stress_calculator.located_matched_grids(resolution=0.001)
 
     # convert peak positions to d-spacing
@@ -301,7 +303,8 @@ def test_plane_stress():
     grid_dict = {'Min': {'X': -130, 'Y': 0., 'Z': 9.},
                  'Max': {'X': 130., 'Y': 0., 'Z': 19},
                  'Resolution': {'X': 5.0, 'Y': None, 'Z': 1.0}}
-    grids, maps = rs_core.strain_stress_calculator.generate_grids(None, user_defined=True, grids_dimension_dict=grid_dict)
+    grids, maps = rs_core.strain_stress_calculator.generate_grids(
+        None, user_defined=True, grids_dimension_dict=grid_dict)
     center_d_vec = rs_core.strain_stress_calculator.align_peak_parameter_on_grids(grids, 'center_d', maps)
 
     # calculate unconstrained strain and stress

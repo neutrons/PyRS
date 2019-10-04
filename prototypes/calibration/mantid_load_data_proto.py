@@ -1,30 +1,32 @@
+import os
+import pylab as plt
+import numpy as np
+from PIL import Image
+from skimage import io, exposure, img_as_uint, img_as_float
 image_file = '/home/wzz/Projects/PyRS/tests/testdata/LaB6_10kev_35deg-00004_Rotated.tif'
 
-from skimage import io, exposure, img_as_uint, img_as_float
-from PIL import Image
-import numpy as np
-import pylab as plt
 
 ImageData = Image.open(image_file)
 #im = img_as_uint(np.array(ImageData))
 io.use_plugin('freeimage')
 Data = np.array(ImageData, dtype=np.int32)
-print (Data.shape, type(Data), Data.min(), Data.max())
+print(Data.shape, type(Data), Data.min(), Data.max())
 Data.astype(np.uint32)
 
 # merge
 DataR = Data[::2, ::2] + Data[::2, 1::2] + Data[1::2, ::2] + Data[1::2, 1::2]
-print (DataR.shape, type(DataR))
+print(DataR.shape, type(DataR))
 
 DataR = DataR.reshape((1024*1024, ))
-print (DataR.min())
+print(DataR.min())
 
-CreateWorkspace(DataX=np.zeros((1024**2, )), DataY=DataR, DataE=np.sqrt(DataR), NSpec=1024**2, OutputWorkspace='from_tif', VerticalAxisUnit='SpectraNumber')
+CreateWorkspace(DataX=np.zeros((1024**2, )), DataY=DataR, DataE=np.sqrt(DataR), NSpec=1024 **
+                2, OutputWorkspace='from_tif', VerticalAxisUnit='SpectraNumber')
 # Transpose(InputWorkspace='from_tif', OutputWorkspace='from_tif')
 
 # TODO - ASAP - A script to reduce HB2B data
 # NOTE : script is for prototyping with MantidPlot
-import os
+
 
 def print_position(workspace):
     det_id_list = [0, 1023, 1023*1024, 1024*1024-1, 511*1024+511]
@@ -49,7 +51,8 @@ def convert_to_2theta(ws_name, reduced_ws_name):
     ws_name_resample = '{}_resample'.format(ws_name)
     ConvertSpectrumAxis(InputWorkspace=ws_name, OutputWorkspace=ws_name_theta1, Target='Theta')
     Transpose(InputWorkspace=ws_name_theta1, OutputWorkspace=ws_name_theta2)
-    ResampleX(InputWorkspace=ws_name_theta2, OutputWorkspace=ws_name_resample, NumberBins=num_bins, PreserveEvents=False)
+    ResampleX(InputWorkspace=ws_name_theta2, OutputWorkspace=ws_name_resample,
+              NumberBins=num_bins, PreserveEvents=False)
 
     # vanadium: set to 1 for now
     for iws in range(vanadium.getNumberHistograms()):
@@ -62,8 +65,9 @@ def convert_to_2theta(ws_name, reduced_ws_name):
 
     return
 
-#---------------------------------------------------------------------------
-wavelength = 1.E5 # kev
+
+# ---------------------------------------------------------------------------
+wavelength = 1.E5  # kev
 wavelength = 1.296  # A
 Beam_Center_X = 0.000805
 Beam_Center_Y = -0.006026
@@ -97,7 +101,6 @@ def test_rotate_2theta(ws_name, idf_name):
     print_position(mtd[output_ws_name])
 
     return output_ws_name
-
 
 
 # Set up

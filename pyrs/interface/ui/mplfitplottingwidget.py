@@ -2,6 +2,8 @@
 # It consists of 2 plots (top one for experimental data and model, bottom one for residual, aka difference)
 # plus a tool bar
 
+from pyrs.interface.ui import mplgraphicsview1d
+from matplotlib.figure import Figure
 from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
 from qtpy import PYQT5, PYQT4
 
@@ -12,13 +14,11 @@ elif PYQT4:
     from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
 
-from matplotlib.figure import Figure
-from pyrs.interface.ui import mplgraphicsview1d
-
 
 class MplFitPlottingWidget(QWidget):
     """ Specially implemented widget for showing data against fitted model along with residual (difference)
     """
+
     def __init__(self, parent):
         """
         initialization
@@ -221,6 +221,7 @@ class QtMplFitCanvas(FigureCanvas):
     """ Canvas containing 2 vertical plots and 1 tool bar
 
     """
+
     def __init__(self, parent):
         """ initialization for a canvas with 2 sub plots
         :param parent:

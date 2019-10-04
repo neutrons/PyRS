@@ -84,7 +84,7 @@ def load_rgb_tif(rgb_tiff_name, convert_to_1d):
 
     if convert_to_1d:
         gray_array = gray_array.flatten(order='F')
-    print ('{}: Max counts = {}, Mean counts = {}'.format(rgb_tiff_name, gray_array.max(), gray_array.mean()))
+    print('{}: Max counts = {}, Mean counts = {}'.format(rgb_tiff_name, gray_array.max(), gray_array.mean()))
 
     return gray_array
 
@@ -111,8 +111,7 @@ def load_gray_scale_tif(raw_tiff_name, pixel_size=2048, rotate=True):
     #
     # gray = (0.299 * ra + 0.587 * ga + 0.114 * ba)
 
-
-    print (image_2d_data.shape, type(image_2d_data), image_2d_data.min(), image_2d_data.max())
+    print(image_2d_data.shape, type(image_2d_data), image_2d_data.min(), image_2d_data.max())
     # image_2d_data.astype(np.uint32)
     image_2d_data.astype(np.float64)
     if rotate:
@@ -121,7 +120,8 @@ def load_gray_scale_tif(raw_tiff_name, pixel_size=2048, rotate=True):
     # TODO - TONIGHT 1 - Better to split the part below to other methods
     # Merge/compress data if required
     if pixel_size == 1024:
-        counts_vec = image_2d_data[::2, ::2] + image_2d_data[::2, 1::2] + image_2d_data[1::2, ::2] + image_2d_data[1::2, 1::2]
+        counts_vec = image_2d_data[::2, ::2] + image_2d_data[::2, 1::2] + \
+            image_2d_data[1::2, ::2] + image_2d_data[1::2, 1::2]
         pixel_type = '1K'
         # print (DataR.shape, type(DataR))
     else:
@@ -130,14 +130,14 @@ def load_gray_scale_tif(raw_tiff_name, pixel_size=2048, rotate=True):
         pixel_type = '2K'
 
     counts_vec = counts_vec.reshape((pixel_size * pixel_size,))
-    print (counts_vec.min())
+    print(counts_vec.min())
 
     if False:
         data_ws_name = os.path.basename(raw_tiff_name).split('.')[0] + '_{}'.format(pixel_type)
         CreateWorkspace(DataX=np.zeros((pixel_size**2,)), DataY=counts_vec, DataE=np.sqrt(counts_vec), NSpec=pixel_size**2,
                         OutputWorkspace=data_ws_name, VerticalAxisUnit='SpectraNumber')
 
-    #return data_ws_name, counts_vec
+    # return data_ws_name, counts_vec
 
     return image_2d_data
 

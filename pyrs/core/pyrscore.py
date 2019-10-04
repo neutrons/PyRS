@@ -20,6 +20,7 @@ class PyRsCore(object):
     """
     PyRS core
     """
+
     def __init__(self):
         """
         initialization
@@ -188,14 +189,14 @@ class PyRsCore(object):
         vec_beta = None
         vec_intensity = None
         for det_id in detector_id_list:
-            print ('[DB...BAt] Get pole figure from detector {0}'.format(det_id))
+            print('[DB...BAt] Get pole figure from detector {0}'.format(det_id))
             # get_pole_figure returned 2 tuple.  we need the second one as an array for alpha, beta, intensity
             sub_array = pole_figure_calculator.get_pole_figure_vectors(det_id, max_cost)[1]
             vec_alpha_i = sub_array[:, 0]
             vec_beta_i = sub_array[:, 1]
             vec_intensity_i = sub_array[:, 2]
 
-            print ('Det {} # data points = {}'.format(det_id, len(sub_array)))
+            print('Det {} # data points = {}'.format(det_id, len(sub_array)))
             # print ('alpha: {0}'.format(vec_alpha_i))
 
             if vec_alpha is None:
@@ -207,7 +208,7 @@ class PyRsCore(object):
                 vec_beta = numpy.concatenate((vec_beta, vec_beta_i), axis=0)
                 vec_intensity = numpy.concatenate((vec_intensity, vec_intensity_i), axis=0)
             # END-IF-ELSE
-            print ('Updated alpha: size = {0}: {1}'.format(len(vec_alpha), vec_alpha))
+            print('Updated alpha: size = {0}: {1}'.format(len(vec_alpha), vec_alpha))
         # END-FOR
 
         return vec_alpha, vec_beta, vec_intensity
@@ -305,7 +306,7 @@ class PyRsCore(object):
 
         # Fit peaks
         peak_tags = sorted(peaks_fitting_setup.keys())
-        print ('[INFO] Fitting peak: {}'.format(peak_tags))
+        print('[INFO] Fitting peak: {}'.format(peak_tags))
 
         error_message = ''
         for peak_tag_i in peak_tags:
@@ -326,7 +327,7 @@ class PyRsCore(object):
                 error_message += 'Failed to fit (tag) {} due to {}\n'.format(peak_tag_i, run_err)
         # END-FOR
 
-        print ('[ERROR] {}'.format(error_message))
+        print('[ERROR] {}'.format(error_message))
 
         return
 
@@ -380,7 +381,7 @@ class PyRsCore(object):
         peak_optimizer = mantid_fit_peak.MantidPeakFitEngine(scan_index_list, diff_data_list, ref_id=ref_id)
 
         # observed COM and highest Y value data point
-        print ('[DB...BAT] Fit Engine w/ Key: {0}'.format(data_key_set))
+        print('[DB...BAT] Fit Engine w/ Key: {0}'.format(data_key_set))
         peak_optimizer.calculate_center_of_mass()
         # fit peaks
         peak_optimizer.fit_peaks(peak_type, background_type, fit_range, None)
@@ -408,7 +409,7 @@ class PyRsCore(object):
         if fit_session_name in self._optimizer_dict:
             # with data key
             optimizer = self._optimizer_dict[fit_session_name]
-            print ('Return optimizer in dictionary: {0}'.format(optimizer))
+            print('Return optimizer in dictionary: {0}'.format(optimizer))
         else:
             # data key exist but optimizer does not: could be not been fitted yet
             raise RuntimeError('Unable to find optimizer related to data with reference ID {0} of type {1}.'
@@ -577,7 +578,8 @@ class PyRsCore(object):
         if max_cost is None:
             sub_run_vec, param_error_vec = fit_engine.get_fitted_params(param_name,  inlcuding_error=True)
         else:
-            sub_run_vec, param_error_vec = fit_engine.get_good_fitted_params(param_name, max_cost, inlcuding_error=True)
+            sub_run_vec, param_error_vec = fit_engine.get_good_fitted_params(
+                param_name, max_cost, inlcuding_error=True)
 
         return sub_run_vec, param_error_vec
 
@@ -596,7 +598,7 @@ class PyRsCore(object):
         if False:
             # TODO FIXME - #80 - Need to think of how to deal with mask (aka detector ID)
             detector_ids = self.get_detector_ids(data_key)
-            print ('[DB...BAT] Detector IDs = {}'.format(detector_ids))
+            print('[DB...BAT] Detector IDs = {}'.format(detector_ids))
             if detector_ids is not None:
                 raise NotImplementedError('Multiple-detector ID case has not been considered yet. '
                                           'Contact developer for this issue.')
@@ -734,7 +736,7 @@ class PyRsCore(object):
         if mask_file_name:
             mask_info = self._reduction_manager.load_mask_file(mask_file_name)
             mask_id = mask_info[2]
-            print ('L650 Mask ID = {}'.format(mask_id))
+            print('L650 Mask ID = {}'.format(mask_id))
         else:
             mask_id = None
 
@@ -782,7 +784,7 @@ class PyRsCore(object):
         if self._curr_ss_session is None:
             raise RuntimeError('Current session is not named.')
         elif self._curr_ss_session not in self._ss_calculator_dict:
-            print ('[WARNING] Current strain/stress session does not exist.')
+            print('[WARNING] Current strain/stress session does not exist.')
             return
 
         ss_type_index = self._get_strain_stress_type_key(is_plane_strain, is_plane_stress)

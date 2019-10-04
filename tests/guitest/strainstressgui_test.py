@@ -143,7 +143,6 @@ def test_main(test_dir):
     # # calculate strain/stress
     # ss_window.do_calculate_strain_stress()
 
-
     # Output!!!
     # # set the uer alignment
     # setup_dict = {'Max': {'Y': None, 'X': 140.0, 'Z': None},
@@ -316,7 +315,7 @@ def main(argv):
 
 if __name__ == '__main__':
     # Main application
-    print ('Test Strain/Stress GUI')
+    print('Test Strain/Stress GUI')
     app = main(sys.argv)
 
     # this must be here!

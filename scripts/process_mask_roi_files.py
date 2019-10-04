@@ -19,7 +19,7 @@ def parse_inputs(input_args):
 
     for argument in input_args:
         terms = argument.split('=')
-        print (terms)
+        print(terms)
         arg_type = terms[0].strip().lower()
         arg_value = terms[1].strip()
         if arg_type == 'roi':
@@ -35,7 +35,7 @@ def parse_inputs(input_args):
         elif arg_type == 'pixel':
             linear_pixel_size = int(arg_value)
         else:
-            print ('[ERROR] Input argument {} is not supported'.format(arg_type))
+            print('[ERROR] Input argument {} is not supported'.format(arg_type))
     # END-FOR
 
     return roi_list, mask_list, operation, h5_name, linear_pixel_size
@@ -48,7 +48,7 @@ def main(argv):
     :return:
     """
     if len(argv) < 2:
-        print ()
+        print()
         sys.exit(-1)
 
     roi_xml_list, mask_xml_list, mask_operation, out_h5_name, square_det_size = parse_inputs(argv[1:])

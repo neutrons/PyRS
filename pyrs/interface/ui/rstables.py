@@ -150,7 +150,7 @@ class FitResultTable(NTableWidget.NTableWidget):
                     try:
                         self.update_cell_value(row_number, col_num, item_value)
                     except TypeError as type_err:
-                        print ('Cell @ {}, {} of value {} cannot be updated'.format(row_number, col_num, item_value))
+                        print('Cell @ {}, {} of value {} cannot be updated'.format(row_number, col_num, item_value))
         else:
             status, err_msg = self.append_row(row_value_list=this_value_list)
             if not status:
@@ -758,10 +758,10 @@ class RawDataTable(NTableWidget.NTableWidget):
         :param two_theta:
         :return:
         """
-        print ('[DB...BAT] Add ... {}, {}'.format(sub_run_number, two_theta))
+        print('[DB...BAT] Add ... {}, {}'.format(sub_run_number, two_theta))
         success, error_msg = self.append_row([sub_run_number, two_theta, False])
         if not success:
-            print ('[ERROR] Unable to append row due to {}'.format(error_msg))
+            print('[ERROR] Unable to append row due to {}'.format(error_msg))
 
         return
 

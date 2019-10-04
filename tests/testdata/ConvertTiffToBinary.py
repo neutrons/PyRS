@@ -20,12 +20,12 @@ ImageData = Image.open(tiff_name)
 #im = img_as_uint(np.array(ImageData))
 io.use_plugin('freeimage')
 Data = np.array(ImageData, dtype=np.int16)
-print (Data.shape, type(Data))
+print(Data.shape, type(Data))
 Data.astype(np.uint32)
 
 # merge
 DataR = Data[::2, ::2] + Data[::2, 1::2] + Data[1::2, ::2] + Data[1::2, 1::2]
-print (DataR.shape, type(DataR))
+print(DataR.shape, type(DataR))
 
 DataR.tofile('test.bin')
 

@@ -1,3 +1,5 @@
+from mantid.api import AnalysisDataService as mtd
+from pygments.lexer import RegexLexer
 import threading
 import types
 import inspect
@@ -25,7 +27,6 @@ home_dir = os.path.expanduser('~')
 # IPython monkey patches the  pygments.lexer.RegexLexer.get_tokens_unprocessed method
 # and breaks Sphinx when running within MantidPlot.
 # We store the original method definition here on the pygments module before importing IPython
-from pygments.lexer import RegexLexer
 # Monkeypatch!
 RegexLexer.get_tokens_unprocessed_unpatched = RegexLexer.get_tokens_unprocessed
 
@@ -33,13 +34,12 @@ try:
     # This is PyQt5 compatible
     from qtconsole.rich_ipython_widget import RichIPythonWidget
     from qtconsole.inprocess import QtInProcessKernelManager
-    print ('mantidipythonwidget: import PyQt5')
+    print('mantidipythonwidget: import PyQt5')
 except ImportError as import_err:
     # This is PyQt4 compatible
     from IPython.qt.console.rich_ipython_widget import RichIPythonWidget
     from IPython.qt.inprocess import QtInProcessKernelManager
-    print ('mantidipythonwidget: import PyQt4')
-from mantid.api import AnalysisDataService as mtd
+    print('mantidipythonwidget: import PyQt4')
 
 try:
     from PyQt5.QtWidgets import QApplication
@@ -63,10 +63,10 @@ def our_run_code(self, code_obj, result=None):
     """
 
     t = threading.Thread()
-    #ipython 3.0 introduces a third argument named result
+    # ipython 3.0 introduces a third argument named result
     nargs = len(inspect.getargspec(self.ipython_run_code).args)
     if (nargs == 3):
-        t = threading.Thread(target=self.ipython_run_code, args=[code_obj,result])
+        t = threading.Thread(target=self.ipython_run_code, args=[code_obj, result])
     else:
         t = threading.Thread(target=self.ipython_run_code, args=[code_obj])
     t.start()
@@ -94,7 +94,7 @@ class MantidIPythonWidget(RichIPythonWidget):
 
         # Figure out the full path to the mantidplotrc.py file and then %run it
         from os import path
-        mantidplotpath = path.split(path.dirname(__file__))[0] # It's the directory above this one
+        mantidplotpath = path.split(path.dirname(__file__))[0]  # It's the directory above this one
         print '[....]  mantid plot path: ', mantidplotpath
         mantidplotrc = path.join(mantidplotpath, 'mantidplotrc.py')
         shell = kernel.shell
@@ -170,7 +170,7 @@ class MantidIPythonWidget(RichIPythonWidget):
         # result message: append plain text to the console
         if is_reserved:
             #
-            print ('[DB...BAT] Append Plain Text To Console: {}'.format(exec_message))
+            print('[DB...BAT] Append Plain Text To Console: {}'.format(exec_message))
             self._append_plain_text('\n%s\n' % exec_message)
 
         # update workspaces for inline workspace operation

@@ -139,7 +139,7 @@ def convert_to_2theta(ws_name, num_bins=1000):
     norm_ws_name = ws_name+'_normalized'
     Divide(LHSWorkspace=ws_name, RHSWorkspace='vanadium', OutputWorkspace=norm_ws_name)
 
-    print ('Create vanadium workspace : {} seconds'.format(time_van_stop - time_van_start))
+    print('Create vanadium workspace : {} seconds'.format(time_van_stop - time_van_start))
 
     return norm_ws_name
 

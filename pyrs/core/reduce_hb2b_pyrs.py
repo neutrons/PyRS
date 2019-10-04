@@ -11,6 +11,7 @@ class ResidualStressInstrument(object):
     """
     This is a class to define HB2B instrument geometry and related calculation
     """
+
     def __init__(self, instrument_setup):
         """
         initialization
@@ -106,8 +107,8 @@ class ResidualStressInstrument(object):
         else:
             checkdatatypes.check_float_variable('L2', l2, (1E-2, None))
 
-        print ('[DB...L101] Build instrument: 2theta = {}, arm = {} (diff to default = {})'
-               ''.format(two_theta, l2, l2 - self._instrument_geom_params.arm_length))
+        print('[DB...L101] Build instrument: 2theta = {}, arm = {} (diff to default = {})'
+              ''.format(two_theta, l2, l2 - self._instrument_geom_params.arm_length))
 
         # make a copy from raw (constant position)
         self._pixel_matrix = self._raw_pixel_matrix.copy()
@@ -175,29 +176,30 @@ class ResidualStressInstrument(object):
                                           self._pixel_matrix[:][:, :, 1] ** 2 +
                                           self._pixel_matrix[:][:, :, 2] ** 2)
             # normalize pixel position for diffraction angle
-            ## for i_dir in range(3):
+            # for i_dir in range(3):
             ##     des_pos_array[:, :, i_dir] /= det_pos_norm_matrix
 
             # convert to  2theta in degree
-            ## diff_angle_cos_matrix = des_pos_array[:, :, 0] * k_in_vec[0] + des_pos_array[:, :, 1] * k_in_vec[1] + \
+            # diff_angle_cos_matrix = des_pos_array[:, :, 0] * k_in_vec[0] + des_pos_array[:, :, 1] * k_in_vec[1] + \
             ##                         des_pos_array[:, :, 2] * k_in_vec[2]
             ## twotheta_matrix = np.arccos(diff_angle_cos_matrix) * 180 / np.pi
-            twotheta_matrix = np.arccos(det_pos_array[:, :, 2] / det_pos_norm_matrix ) * 180 / np.pi
+            twotheta_matrix = np.arccos(det_pos_array[:, :, 2] / det_pos_norm_matrix) * 180 / np.pi
             return_value = twotheta_matrix
         else:
             # (N x M) x 3 array
             # convert detector positions array to 2theta array
             # normalize the detector position 2D array
-            det_pos_norm_array = np.sqrt(des_pos_array[:, 0] ** 2 + des_pos_array[:, 1] ** 2 + des_pos_array[:, 2] ** 2)
+            det_pos_norm_array = np.sqrt(des_pos_array[:, 0] ** 2 +
+                                         des_pos_array[:, 1] ** 2 + des_pos_array[:, 2] ** 2)
             # normalize pixel position for diffraction angle
-            ## for i_dir in range(3):
+            # for i_dir in range(3):
             ##     des_pos_array[:, i_dir] /= det_pos_norm_array
 
             # convert to  2theta in degree
-            ## diff_angle_cos_array = des_pos_array[:, 0] * k_in_vec[0] + des_pos_array[:, 1] * k_in_vec[1] + \
+            # diff_angle_cos_array = des_pos_array[:, 0] * k_in_vec[0] + des_pos_array[:, 1] * k_in_vec[1] + \
             ##                        des_pos_array[:, 2] * k_in_vec[2]
             ## twotheta_array = np.arccos(diff_angle_cos_array) * 180 / np.pi
-            twotheta_array = np.arccos(det_pos_array[:, 2] / det_pos_norm_array ) * 180 / np.pi
+            twotheta_array = np.arccos(det_pos_array[:, 2] / det_pos_norm_array) * 180 / np.pi
             return_value = twotheta_array
         # END-IF-ELSE
 
@@ -222,9 +224,9 @@ class ResidualStressInstrument(object):
             # N x M x 3 array
             # convert detector position matrix to 2theta
 
-            eta_matrix = 180. - np.arctan2(det_pos_array[:, :, 1],  det_pos_array[:, :,0] ) * 180 / np.pi
+            eta_matrix = 180. - np.arctan2(det_pos_array[:, :, 1],  det_pos_array[:, :, 0]) * 180 / np.pi
             eta_temp = eta_matrix.reshape(-1)
-            index = np.where( eta_temp > 180. ) [0]
+            index = np.where(eta_temp > 180.)[0]
             eta_temp[index] -= 360
             eta_matrix = eta_temp.reshape(eta_matrix.shape)
 
@@ -234,8 +236,8 @@ class ResidualStressInstrument(object):
             # convert detector positions array to 2theta array
             # normalize the detector position 2D array
 
-            eta_array = 180. - np.arctan2(det_pos_array[:, 1],  det_pos_array[:,0] ) * 180 / np.pi
-            index = np.where( eta_array > 180. ) [0]
+            eta_array = 180. - np.arctan2(det_pos_array[:, 1],  det_pos_array[:, 0]) * 180 / np.pi
+            index = np.where(eta_array > 180.)[0]
             eta_array[index] -= 360
 
             return_value = eta_array
@@ -354,16 +356,16 @@ class ResidualStressInstrument(object):
         :return:
         """
         two_theta_array = self.get_pixels_2theta(dimension)
-        print ('[DB...BAT] 2theta range: ({}, {})'
-               ''.format(two_theta_array.min(), two_theta_array.max()))
+        print('[DB...BAT] 2theta range: ({}, {})'
+              ''.format(two_theta_array.min(), two_theta_array.max()))
         assert isinstance(two_theta_array, numpy.ndarray), 'check'
 
         # convert to d-spacing
         d_spacing_array = 0.5 * self._wave_length / numpy.sin(0.5 * two_theta_array * numpy.pi / 180.)
         assert isinstance(d_spacing_array, numpy.ndarray)
 
-        print ('[DB...BAT] Converted d-spacing range: ({}, {})'
-               ''.format(d_spacing_array.min(), d_spacing_array.max()))
+        print('[DB...BAT] Converted d-spacing range: ({}, {})'
+              ''.format(d_spacing_array.min(), d_spacing_array.max()))
 
         return d_spacing_array
 
@@ -392,6 +394,7 @@ class ResidualStressInstrument(object):
 class PyHB2BReduction(object):
     """ A class to reduce HB2B data in pure Python and numpy
     """
+
     def __init__(self, instrument, wave_length=None):
         """
         initialize the instrument
@@ -444,9 +447,10 @@ class PyHB2BReduction(object):
         :param rot_z_spin:
         :return: 2D numpy array
         """
-        print ('[INFO] Building instrument: 2theta @ {}'.format(two_theta))
+        print('[INFO] Building instrument: 2theta @ {}'.format(two_theta))
 
-        calibration = instrument_geometry.AnglerCameraDetectorShift( arm_length_shift, center_shift_x, center_shift_y, rot_x_flip, rot_y_flip, rot_z_spin )
+        calibration = instrument_geometry.AnglerCameraDetectorShift(
+            arm_length_shift, center_shift_x, center_shift_y, rot_x_flip, rot_y_flip, rot_z_spin)
 
         self._instrument.build_instrument(two_theta, instrument_calibration=calibration)
 
@@ -515,7 +519,7 @@ class PyHB2BReduction(object):
 
         return vec_2theta
 
-    def get_eta_Values( self ):
+    def get_eta_Values(self):
         return self._instrument.get_eta_values(dimension=1)
 
     # TODO TEST - #72
@@ -531,7 +535,8 @@ class PyHB2BReduction(object):
         :return: 2-tuple (2-theta vector, counts in histogram)
         """
         # Get two-theta-histogram vector
-        two_theta_vector = self.generate_2theta_histogram_vector(two_theta_range[0], two_theta_step, two_theta_range[1])
+        two_theta_vector = self.generate_2theta_histogram_vector(
+            two_theta_range[0], two_theta_step, two_theta_range[1])
 
         # Get the data (each pixel's 2theta and counts)
         pixel_2theta_array = self._instrument.get_pixels_2theta(1)
@@ -544,9 +549,9 @@ class PyHB2BReduction(object):
         # Convert count type
         vec_counts = self._detector_counts.astype('float64')
 
-        print ('[INFO] PyRS.Instrument: pixels 2theta range: ({}, {}) vs 2theta histogram range: ({}, {})'
-               ''.format(pixel_2theta_array.min(), pixel_2theta_array.max(), two_theta_vector.min(),
-                         two_theta_vector.max()))
+        print('[INFO] PyRS.Instrument: pixels 2theta range: ({}, {}) vs 2theta histogram range: ({}, {})'
+              ''.format(pixel_2theta_array.min(), pixel_2theta_array.max(), two_theta_vector.min(),
+                        two_theta_vector.max()))
 
         # Apply mask: act on local variable vec_counts and thus won't affect raw data
         raw_event_counts = vec_counts.sum()
@@ -561,8 +566,8 @@ class PyHB2BReduction(object):
             masked_counts = raw_event_counts
             num_masked = 0
         # END-IF-ELSE
-        print ('[INFO] Raw counts = {}, # Masked Pixels = {}, Counts in ROI = {}'
-               ''.format(raw_event_counts, num_masked, masked_counts))
+        print('[INFO] Raw counts = {}, # Masked Pixels = {}, Counts in ROI = {}'
+              ''.format(raw_event_counts, num_masked, masked_counts))
 
         # Histogram:
         # NOTE: input 2theta_range may not be accurate because 2theta max may not be on the full 2-theta tick
@@ -608,8 +613,8 @@ class PyHB2BReduction(object):
 
         # convert count type
         vec_counts = counts_array.astype('float64')
-        print ('[INFO] PyRS.Instrument: 2theta range: {}, {}'.format(d_space_vec.min(),
-                                                                     d_space_vec.max()))
+        print('[INFO] PyRS.Instrument: 2theta range: {}, {}'.format(d_space_vec.min(),
+                                                                    d_space_vec.max()))
 
         # check inputs of x range
         if x_range:
@@ -628,8 +633,8 @@ class PyHB2BReduction(object):
             masked_counts = raw_counts
             num_masked = 0
         # END-IF-ELSE
-        print ('[INFO] Raw counts = {}, # Masked Pixels = {}, Counts in ROI = {}'
-               ''.format(raw_counts, num_masked, masked_counts))
+        print('[INFO] Raw counts = {}, # Masked Pixels = {}, Counts in ROI = {}'
+              ''.format(raw_counts, num_masked, masked_counts))
 
         # this is histogram data
         norm_bins = True
@@ -691,7 +696,7 @@ class PyHB2BReduction(object):
         temp_ws = SortXAxis(InputWorkspace='prototype', OutputWorkspace='prot_sorted', Ordering='Ascending',
                             IgnoreHistogramValidation=True)
         temp_vec_y = temp_ws.readY(0)
-        print ('[DEBUG] After SortXAxis: Y-range = ({}, {})'.format(temp_vec_y.min(), temp_vec_y.max()))
+        print('[DEBUG] After SortXAxis: Y-range = ({}, {})'.format(temp_vec_y.min(), temp_vec_y.max()))
         t2 = time.time()
 
         # Resample
@@ -701,14 +706,14 @@ class PyHB2BReduction(object):
 
         t3 = time.time()
 
-        print ('[STAT] Create workspace: {}\n\tSort: {}\n\tResampleX: {}'
-               ''.format(t1 - t0, t2 - t0, t3 - t0))
+        print('[STAT] Create workspace: {}\n\tSort: {}\n\tResampleX: {}'
+              ''.format(t1 - t0, t2 - t0, t3 - t0))
 
         bin_edges = binned.readX(0)
         hist = binned.readY(0)
         pixel_ids = binned.readE(0)
 
-        print ('[DB...BAT] Workspace Size: {}, {}, {}'.format(len(bin_edges), len(hist), len(pixel_ids)))
+        print('[DB...BAT] Workspace Size: {}, {}, {}'.format(len(bin_edges), len(hist), len(pixel_ids)))
 
         return bin_edges, hist
 
@@ -772,8 +777,8 @@ class PyHB2BReduction(object):
 
         # Bins information output
         bin_size_vec = (bin_edges[1:] - bin_edges[:-1])
-        print ('[DB...BAT] Histograms Bins: X = [{}, {}]'.format(bin_edges[0], bin_edges[-1]))
-        print ('[DB...BAT] Bin size = {}, Std = {}'.format(numpy.average(bin_size_vec), numpy.std(bin_size_vec)))
+        print('[DB...BAT] Histograms Bins: X = [{}, {}]'.format(bin_edges[0], bin_edges[-1]))
+        print('[DB...BAT] Bin size = {}, Std = {}'.format(numpy.average(bin_size_vec), numpy.std(bin_size_vec)))
 
         # convert to point data as an option.  Use the center of the 2theta bin as new theta
         if is_point_data:

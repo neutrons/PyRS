@@ -17,6 +17,7 @@ class NeXusConvertingApp(object):
     """
     Convert NeXus file to Hidra project file
     """
+
     def __init__(self, nexus_file_name):
         """ Initialization
         :param nexus_file_name:
@@ -217,7 +218,7 @@ def main(argv):
         converter.save(output_dir)
 
     except KeyError as key_err:
-        print ('Unable to convert NeXus to Hidra project due to {}'.format(key_err))
+        print('Unable to convert NeXus to Hidra project due to {}'.format(key_err))
 
     return
 

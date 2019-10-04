@@ -1,3 +1,6 @@
+import matplotlib.tri as tri
+import sliceviewwidgets
+import numpy as np
 from qtpy.QtWidgets import QGridLayout, QWidget, QSizePolicy, QVBoxLayout
 from qtpy import PYQT5, PYQT4
 
@@ -8,15 +11,12 @@ elif PYQT4:
     from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
 
-import numpy as np
-import sliceviewwidgets
-import matplotlib.tri as tri
-
 
 class SliceViewWidget(QWidget):
     """
     """
     # TODO - 20180830 - Doc!
+
     def __init__(self, Form):
         """Initialization
         :param parent:ns
@@ -33,7 +33,7 @@ class SliceViewWidget(QWidget):
         # set up the UI
         # main 2D graphics view
         self.setLayout(QGridLayout())
-        self.paintwidget=QWidget(self)
+        self.paintwidget = QWidget(self)
         self.paintwidget.setMinimumSize(800, 600)
         self.layout().addWidget(self.paintwidget, 0, 0, 1, 1)
         self.main_canvas = sliceviewwidgets.Qt4Mpl2DCanvas(self.paintwidget)
@@ -137,7 +137,7 @@ class SliceViewWidget(QWidget):
         :param event:
         :return:
         """
-        print ('[DB] Released {} at x = {}, y = {}'.format(event.button, event.xdata, event.ydata))
+        print('[DB] Released {} at x = {}, y = {}'.format(event.button, event.xdata, event.ydata))
 
         self._mouse_pressed = 0
 
@@ -226,8 +226,8 @@ class SliceViewWidget(QWidget):
         try:
             triang = tri.Triangulation(vec_x, vec_y)
         except RuntimeError as run_err:
-            print ('[ERROR] vec X: {}'.format(vec_x))
-            print (vec_y)
+            print('[ERROR] vec X: {}'.format(vec_x))
+            print(vec_y)
             raise run_err
         interpolator = tri.LinearTriInterpolator(triang, vec_z)
         Xi, Yi = np.meshgrid(xi, yi)
@@ -242,7 +242,7 @@ class SliceViewWidget(QWidget):
 
         self._is_setup = True
         contour_plot = self.main_canvas.add_contour_plot(xi, yi, zi)
-        print ('[DB...BAT] Contour plot: {} of type {}'.format(contour_plot, type(contour_plot)))
+        print('[DB...BAT] Contour plot: {} of type {}'.format(contour_plot, type(contour_plot)))
         # self.ui.widget.main_canvas.add_scatter(vec_x, vec_y)
         # self.ui.widget.main_canvas._flush()
 
@@ -262,7 +262,7 @@ class SliceViewWidget(QWidget):
         :return:
         """
         if self._is_setup is False:
-            print ('[Warning] 2D slice view is not set up yet')
+            print('[Warning] 2D slice view is not set up yet')
             return None
 
         # print ('[DB...BAT] X dim: {}'.format(self._xi.shape))
@@ -311,6 +311,7 @@ class IndicatorManager(object):
     - 1: vertical. moving along X-direction. [x, x], [y_min, y_max];
     - 2: 2-way. moving in any direction. [x_min, x_max], [y, y], [x, x], [y_min, y_max].
     """
+
     def __init__(self, canvas):
         """
         :param canvas:

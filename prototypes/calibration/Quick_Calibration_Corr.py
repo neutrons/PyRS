@@ -1,24 +1,24 @@
 # Migrated from /HFIR/HB2B/shared/Quick_Calibration.py
 # Original can be found at ./Quick_Calibration_v3.py
-print ('Prototype Calibration: Quick_Calibration_v4')
-import numpy as np
-import time
-import os
-from scipy.optimize import minimize
+from matplotlib import pyplot as plt
+from mantid.api import AnalysisDataService as mtd
+from mantid.simpleapi import CreateWorkspace, FitPeaks
+from pyrs.core import mask_util
+from pyrs.core import reductionengine
+from pyqr.utilities import calibration_file_io
+from pyrs.core import reduce_hb2b_pyrs
+import lmfit
+import math
+import itertools
 from scipy.optimize import least_squares
+from scipy.optimize import minimize
+import os
+import time
+import numpy as np
+print('Prototype Calibration: Quick_Calibration_v4')
 # from scipy.optimize import minimize
 # from scipy.optimize import basinhopping
-import itertools
-import math
-import lmfit
 
-from pyrs.core import reduce_hb2b_pyrs
-from pyqr.utilities import calibration_file_io
-from pyrs.core import reductionengine
-from pyrs.core import mask_util
-from mantid.simpleapi import CreateWorkspace, FitPeaks
-from mantid.api import AnalysisDataService as mtd
-from matplotlib import pyplot as plt
 
 class GlobalParameter(object):
     global_curr_sequence = 0
@@ -58,7 +58,6 @@ def peaks_alignment_score(x, engine, hb2b_setup, two_theta, roi_vec_set, plot=Fa
     :param plot:
     :return:
     """
-
 
     peak_centers = '17.5,24.5,30.25,35.2,39.4,43.2,50.0,53.5,56.4,59.45'
     fit_windows = '16,19,23,26,29,32,33,37,38,41,42,44.5,49.1,51.5,51.5,55,55,58,58,61'
@@ -100,11 +99,11 @@ def peaks_alignment_score(x, engine, hb2b_setup, two_theta, roi_vec_set, plot=Fa
         fitted_ws = 'fitted_peaks_{:02}'.format(i_roi)
 
         # Define Mask
-        Mask = np.zeros_like( Eta_val )
+        Mask = np.zeros_like(Eta_val)
         if abs(roi_vec_set[i_roi]) == roi_vec_set[i_roi]:
-            index = np.where( (Eta_val < (roi_vec_set[i_roi]+5) ) == ( Eta_val > (roi_vec_set[i_roi]-5 ) ))[0]
+            index = np.where((Eta_val < (roi_vec_set[i_roi]+5)) == (Eta_val > (roi_vec_set[i_roi]-5)))[0]
         else:
-            index = np.where( (Eta_val > (roi_vec_set[i_roi]-5) ) == ( Eta_val < (roi_vec_set[i_roi]+5 ) ))[0]
+            index = np.where((Eta_val > (roi_vec_set[i_roi]-5)) == (Eta_val < (roi_vec_set[i_roi]+5)))[0]
 
         Mask[index] = 1.
 
@@ -143,7 +142,7 @@ def peaks_alignment_score(x, engine, hb2b_setup, two_theta, roi_vec_set, plot=Fa
                 # 1 failed to fit
                 residual_sq[p_index] = 100 ** 2
             else:
-                residual_sq[p_index] = ( (pos_pos_i - neg_pos_i) ** 2 )
+                residual_sq[p_index] = ((pos_pos_i - neg_pos_i) ** 2)
         # END-FOR
 
         if residual is None:
@@ -167,7 +166,7 @@ def peaks_alignment_score(x, engine, hb2b_setup, two_theta, roi_vec_set, plot=Fa
 
     for roi_i in range(num_reduced_set):
         index_i = roi_i + 1
-        print ('subplot: {}, {}, {}'.format(num_rows, 2, index_i))
+        print('subplot: {}, {}, {}'.format(num_rows, 2, index_i))
         ax2 = plt.subplot(num_rows, 2, index_i)
         ax2.plot(reduced_data_set[roi_i][0][0], reduced_data_set[roi_i][0][1], color='black')
         ax2.plot(mtd[reduced_data_set[roi_i][3]].readX(0), mtd[reduced_data_set[roi_i][3]].readY(0), color='red')
@@ -183,10 +182,10 @@ def peaks_alignment_score(x, engine, hb2b_setup, two_theta, roi_vec_set, plot=Fa
     # print ('Parameters:     {}'.format(x))
     # print ('Fitted Peaks +: {}'.format(mtd[P30_Fit].readY(0)))
     # print ('Fitted Peaks -: {}'.format(mtd[N30_Fit].readY(0)))
-    print ('Residual      = {}'.format(norm_cost))
+    print('Residual      = {}'.format(norm_cost))
 
     if ScalarReturn:
-        return np.sum( residual )
+        return np.sum(residual)
     else:
         return residual
 
@@ -218,7 +217,8 @@ def main():
         calibration = [-7.86738387e-05, 9.18988206e-05, -5.55805387e-05, -1.44470481e-01,
                        -6.45203851e-01, 1.33199903e+00]
 
-        calibration = [ 6.03052044e-05, -5.21351130e-04,  2.45533336e-04,  7.71328703e-01, -5.45174980e-01,  1.24916005e+00]
+        calibration = [6.03052044e-05, -5.21351130e-04,  2.45533336e-04,
+                       7.71328703e-01, -5.45174980e-01,  1.24916005e+00]
         # reduction engine
         engine = reductionengine.HB2BReductionManager()
         test_data_id = engine.load_data(data_file_name=test_file_name, target_dimension=2048,
@@ -227,7 +227,7 @@ def main():
         roi_vec_list = [30, -30, 10, -10]
         peaks_alignment_score(calibration, engine, instrument, two_theta, roi_vec_list, plot=True)
 
-        print ('RESULT EXAMINATION IS OVER')
+        print('RESULT EXAMINATION IS OVER')
 
     else:
         t_start = time.time()
@@ -240,11 +240,11 @@ def main():
         instrument = calibration_file_io.import_instrument_setup(idf_name)
 
         start_calibration = [-3.90985615e-05, -2.72036598e-04, 3.91642084e-04, 5.99667751e-03,
-                                 -8.15624721e-01, 1.42673120e+00]
+                             -8.15624721e-01, 1.42673120e+00]
 
         roi_vec_list = [30, -30, 10, -10]
 
-        start_calibration = np.array( [0.00026239, 0.0055485, 0.00048748, 0.00130224, -0.00025911, -0.0006577] )
+        start_calibration = np.array([0.00026239, 0.0055485, 0.00048748, 0.00130224, -0.00025911, -0.0006577])
 
         #out = minimize(peaks_alignment_score, start_calibration, args=(engine, instrument, two_theta, roi_vec_list, False, True), method='L-BFGS-B', jac=None, bounds=None, tol=None, callback=None, options={'disp': None, 'maxcor': 10, 'ftol': 2.220446049250313e-05, 'gtol': 1e-03, 'eps': 1e-03, 'maxfun': 2, 'maxiter': 2, 'iprint': -1, 'maxls': 20})
         t_stop1 = time.time()
@@ -252,7 +252,8 @@ def main():
         #out2 = minimize(peaks_alignment_score, out.x, args=(engine, instrument, two_theta, roi_vec_list, False, True), method='L-BFGS-B', jac=None, bounds=None, tol=None, callback=None, options={'disp': None, 'maxcor': 10, 'ftol': 2.220446049250313e-09, 'gtol': 1e-05, 'eps': 1e-07, 'maxfun': 2, 'maxiter': 2, 'iprint': -1, 'maxls': 20})
         t_stop2 = time.time()
 
-        out3 = least_squares(peaks_alignment_score, start_calibration, jac='2-point', bounds=([-.1, -.1, -.1, -np.pi, -np.pi, -np.pi], [.1, .1, .1, np.pi, np.pi, np.pi]), method='trf', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', f_scale=1.0, diff_step=None, tr_solver=None, tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0, args=(engine, instrument, two_theta, roi_vec_list, False, False), kwargs={})
+        out3 = least_squares(peaks_alignment_score, start_calibration, jac='2-point', bounds=([-.1, -.1, -.1, -np.pi, -np.pi, -np.pi], [.1, .1, .1, np.pi, np.pi, np.pi]), method='trf', ftol=1e-08, xtol=1e-08, gtol=1e-08,
+                             x_scale=1.0, loss='linear', f_scale=1.0, diff_step=None, tr_solver=None, tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0, args=(engine, instrument, two_theta, roi_vec_list, False, False), kwargs={})
 
 #        out3 = least_squares(peaks_alignment_score, out2.x, jac='2-point', bounds=([-.1, -.1, -.1, -np.pi, -np.pi, -np.pi], [.1, .1, .1, np.pi, np.pi, np.pi]), method='trf', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', f_scale=1.0, diff_step=None, tr_solver=None, tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0, args=(engine, instrument, two_theta, roi_vec_list, False, False), kwargs={})
 
@@ -263,10 +264,10 @@ def main():
 #                         xtol=1e-15, ftol=1e-12, gtol=1e-12, maxfev=30000, epsfcn=1e-2)
 
         t_stop = time.time()
-        print ('Global Refine: {}'.format(t_stop1 - t_start))
-        print ('Local Refine: {}'.format(t_stop2 - t_start))
-        print ('Total Time: {}'.format(t_stop - t_start))
-        print (out3.x)
+        print('Global Refine: {}'.format(t_stop1 - t_start))
+        print('Local Refine: {}'.format(t_stop2 - t_start))
+        print('Total Time: {}'.format(t_stop - t_start))
+        print(out3.x)
 
         peaks_alignment_score(out3.x, engine, instrument, two_theta, roi_vec_list, True, True)
 
@@ -274,5 +275,6 @@ def main():
     # END-IF-ELSE
 
     return
+
 
 main()

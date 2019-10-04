@@ -1,20 +1,19 @@
 # Migrated from /HFIR/HB2B/shared/Quick_Calibration.py
 # Original can be found at .../tests/Quick_Calibration_v2.py and ./Quick_Calibration_v2.py
-print ('Prototype Calibration: Quick_Calibration_v3')
-import numpy as np
-import time
-import os
-from scipy.optimize import leastsq
-from scipy.optimize import minimize
-from scipy.optimize import basinhopping
-
-from pyrs.core import reduce_hb2b_pyrs
-from pyqr.utilities import calibration_file_io
-from pyrs.core import reduction_manager
-from pyrs.core import mask_util
-from mantid.simpleapi import CreateWorkspace, FitPeaks
-from mantid.api import AnalysisDataService as mtd
 from matplotlib import pyplot as plt
+from mantid.api import AnalysisDataService as mtd
+from mantid.simpleapi import CreateWorkspace, FitPeaks
+from pyrs.core import mask_util
+from pyrs.core import reduction_manager
+from pyqr.utilities import calibration_file_io
+from pyrs.core import reduce_hb2b_pyrs
+from scipy.optimize import basinhopping
+from scipy.optimize import minimize
+from scipy.optimize import leastsq
+import os
+import time
+import numpy as np
+print('Prototype Calibration: Quick_Calibration_v3')
 
 
 class GlobalParameter(object):
@@ -134,10 +133,10 @@ def CostFunction(x, engine, hb2b_setup, two_theta, positive_roi_vec, negative_ro
         plt.savefig('Round{:010}.png'.format(GlobalParameter.global_curr_sequence))
         GlobalParameter.global_curr_sequence += 1
 
-    print ('Parameters:     {}'.format(x))
-    print ('Fitted Peaks +: {}'.format(mtd[P30_Fit].readY(0)))
-    print ('Fitted Peaks -: {}'.format(mtd[N30_Fit].readY(0)))
-    print ('Residual      = {}'.format(residual.sum()))
+    print('Parameters:     {}'.format(x))
+    print('Fitted Peaks +: {}'.format(mtd[P30_Fit].readY(0)))
+    print('Fitted Peaks -: {}'.format(mtd[N30_Fit].readY(0)))
+    print('Residual      = {}'.format(residual.sum()))
 
     return residual
 # This is main!!!
@@ -182,7 +181,7 @@ def main():
 
         CostFunction(calibration, engine, instrument, two_theta, roi_vec_pos, roi_vec_neg, plot=True)
 
-        print ('RESULT EXAMINATION IS OVER')
+        print('RESULT EXAMINATION IS OVER')
 
     else:
         t_start = time.time()
@@ -204,9 +203,9 @@ def main():
                          xtol=1e-15, maxfev=3000, epsfcn=1e-2)
 
         t_stop = time.time()
-        print ('Total Time: {}'.format(t_stop - t_start))
-        print (DE_Res[0])
-        print (DE_Res[1])
+        print('Total Time: {}'.format(t_stop - t_start))
+        print(DE_Res[0])
+        print(DE_Res[1])
 
         DD = 0.0
         D_Shift = 0
@@ -219,5 +218,6 @@ def main():
     # END-IF-ELSE
 
     return
+
 
 main()

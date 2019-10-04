@@ -28,7 +28,7 @@ def main(argv):
     try:
         param_dict = script_helper.process_arguments(argv, args_def_dict)
     except RuntimeError as run_err:
-        print ('Failed to parse inputs due to {}'.format(run_err))
+        print('Failed to parse inputs due to {}'.format(run_err))
         return
 
     # In case of help
@@ -52,7 +52,7 @@ def main(argv):
     # Calibration init: import ROI/Mask files
     mask_file_list = parse_mask_files(param_dict['masks'])
     if len(mask_file_list) < 2:
-        print ('For X-ray case, user must specify at least 2 masks')
+        print('For X-ray case, user must specify at least 2 masks')
         sys.exit(-1)
 
     # TODO - to be continued
