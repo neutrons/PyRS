@@ -3,13 +3,8 @@
 from pyrs.core import pyrscore
 import sys
 import os
-import pyrs.interface
 from pyrs.interface import strainstresscalwindow
-import pyrs.core
-try:
-    from PyQt5.QtWidgets import QApplication
-except ImportError:
-    from PyQt4.QtGui import QApplication
+from qtpy.QtWidgets import QApplication
 
 
 def test_main_2d(test_dir):

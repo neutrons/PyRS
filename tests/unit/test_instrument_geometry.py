@@ -3,7 +3,6 @@
 # This script to read in a TIFF file or SPICE-compatible binary file
 from pyrs.core import pyrscore
 from pyrs.core import reduce_hb2b_pyrs
-from pyrs.utilities import file_utilities
 import os
 import matplotlib.pyplot as plt
 from mantid.simpleapi import LoadSpiceXML2DDet, Transpose, AddSampleLog, LoadInstrument, ConvertSpectrumAxis, ResampleX

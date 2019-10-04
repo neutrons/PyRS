@@ -5,6 +5,7 @@ import os
 import numpy
 from pyrs.core import pyrscore
 from pyrs.core import instrument_geometry
+import pytest
 from matplotlib import pyplot as plt
 
 """
@@ -80,32 +81,7 @@ TODO - Time consuming unit test: compare reduced data between Mantid and PyRS
 """
 
 
-def assert_diff_delta(value1, value2, delta):
-    """
-    Check whether 2 values are close enough
-    :param value1:
-    :param value2:
-    :param delta:
-    :return:
-    """
-    if type(value1) != type(value2):
-        raise AssertionError('{} and {} are of different type {} and {}'
-                             ''.format(value1, value2, type(value1), type(value2)))
-
-    if isinstance(value1, numpy.ndarray):
-        if value1.shape != value2.shape:
-            raise AssertionError('{} and {} are of different shape {} and {}'
-                                 ''.format(value1, value2, value1.shape, value2.shape))
-        diff = value1 - value2
-        norm_diff = numpy.sqrt(numpy.sum(diff**2))
-        if norm_diff >= delta:
-            raise AssertionError('{} and {} are not same considering tolerance {}'
-                                 ''.format(value1, value2, delta))
-
-    return
-
-
-class ReductionTest(object):
+class TestReduction(object):
     """
     Reduction Tester
     """
@@ -158,7 +134,7 @@ class ReductionTest(object):
         for pixel_id in GoldDataXrayNoShift.keys():
             # print ('Test pixel {} position'.format(pixel_id))
             pixel_pos = pixel_pos_array[pixel_id]
-            assert_diff_delta(pixel_pos, GoldDataXrayNoShift[pixel_id], 0.000001)
+            numpy.testing.assert_allclose(pixel_pos, GoldDataXrayNoShift[pixel_id], atol=0.000001)
         # END-FOR
 
         # Visual report
@@ -193,7 +169,7 @@ class ReductionTest(object):
         # Test a subset of pixels' positions
         for pixel_id in GoldDataXrayWithShift.keys():
             pixel_pos = pixel_pos_array[pixel_id]
-            assert_diff_delta(pixel_pos, GoldDataXrayWithShift[pixel_id], 0.000001)
+            numpy.testing.assert_allclose(pixel_pos, GoldDataXrayWithShift[pixel_id], atol=0.000001)
         # END-FOR
 
         # Visual report
@@ -309,7 +285,7 @@ def main():
     :return:
     """
     # Create data
-    tester = ReductionTest('tests/testdata/Hidra_XRay_LaB6_10kev_35deg.hdf')
+    tester = TestReduction('tests/testdata/Hidra_XRay_LaB6_10kev_35deg.hdf')
 
     # Test basic reduction
     tester.test_reduce_data_basic()

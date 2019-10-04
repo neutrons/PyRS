@@ -2,16 +2,11 @@
 # In order to test GUI for manual_reduction analysis
 from pyrs.core import pyrscore
 import sys
-import pyrs.interface
 from pyrs.interface import manualreductionwindow
-import pyrs.core
-try:
-    from PyQt5.QtWidgets import QApplication
-except ImportError:
-    from PyQt4.QtGui import QApplication
+from qtpy.QtWidgets import QApplication
 
 
-def test_hzb_data(reduction_window):
+def xtest_hzb_data(reduction_window):
     """
 
     :param reduction_window:
@@ -37,7 +32,7 @@ def test_hzb_data(reduction_window):
     return
 
 
-def test_main():
+def xtest_main():
     """
     test main
     """
