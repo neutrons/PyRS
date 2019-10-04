@@ -115,20 +115,23 @@ class Gaussian(PeakParametersConverter):
         heights = param_value_array[height_index, :, 0]
         peak_center_index = peak_center_index[peak_center_index, :, 0]
 
+        return
 
+    def cal_intensity(self, height, sigma):
+        """ Calculate peak intensity (intensities)
+        I = H * Sigma * sqrt(2 * PI)
 
-
-
-    def get_intensity(self):
-        """
-
+        getParameter("Height") * getParameter("Sigma") * sqrt(2.0 * M_PI);
         Returns
         -------
         Float/ndarray, Float/ndarray
             peak intensity and fitting error
         """
+        intensity = np.sqrt(2. * np.pi) * height * sigma
 
-    def get_height(self):
+        return intensity
+
+    def cal_height(self):
         """
 
         Returns
@@ -136,18 +139,27 @@ class Gaussian(PeakParametersConverter):
         Float/ndarray, Float/ndarray
             peak height and fitting error
         """
+        raise RuntimeError('Peak height is native ')
 
-        return
-
-    def get_fwhm(self):
+    def cal_fwhm(self, sigma):
         """
+        Calculate FWHM from sigma
+        FWHM = 2.0 * sqrt(2.0 * ln(2)) * sigma
+
+        Parameters
+        ----------
+        sigma: float or ndarray
+            Sigma
 
         Returns
         -------
         Float/ndarray, Float/ndarray
             peak FWHM and fitting error
+
         """
-        return
+        fwhm = 2. * np.sqrt(2. * np.log(2.)) * sigma
+
+        return fwhm
 
     def get_mixing(self):
         """
@@ -200,16 +212,26 @@ class PseudoVoigt(PeakParametersConverter):
             peak intensity and fitting error
         """
 
-    def get_height(self):
+    def cal_height(self, intensity, fwhm, mixing):
         """
+        intensity =  m_height / 2. / (1 + (sqrt(M_PI * M_LN2) - 1) * eta) * (M_PI * gamma)
+        -->
+        height = 2 *  (1 + (sqrt(M_PI * M_LN2) - 1) * eta) * intensity / (M_PI * gamma)
+
+        Parameters
+        ----------
+        intensity
+        fwhm
+        mixing
 
         Returns
         -------
         Float/ndarray, Float/ndarray
             peak height and fitting error
         """
+        height = 2. * intensity * (1 + (np.sqrt(np.pi * np.log(2)) - 1) * mixing) / (np.pi * fwhm)
 
-        return
+        return height
 
     def get_fwhm(self):
         """
