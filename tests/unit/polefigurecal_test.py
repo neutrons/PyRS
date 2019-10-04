@@ -48,6 +48,8 @@ def test_pole_figure_calculation():
 
     # export
     rs_core.save_pole_figure(data_key, None, '/tmp/polefiguretest.mtex', 'mtex')
+    assert os.path.exists('/tmp/polefiguretest.mtex')
+    os.unlink('/tmp/polefiguretest.mtex')
 
 
 if __name__ == '__main__':

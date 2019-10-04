@@ -344,6 +344,7 @@ def compare_reduced_masked(angle, calibrated, pixel_number):
     return
 
 
+# TODO parameterize this whole crazy thing
 if __name__ == '__main__':
     """ main
     """
