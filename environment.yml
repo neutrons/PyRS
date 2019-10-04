@@ -2,6 +2,7 @@ name: PyRS
 dependencies:
 - configparser
 - mantid-workbench
+- pandas
 - psutil
 - python
 - setuptools

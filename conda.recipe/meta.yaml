@@ -15,6 +15,7 @@ requirements:
   build:
     - configparser
     - mantid-workbench
+    - pandas
     - psutil
     - python
     - setuptools
@@ -22,6 +23,7 @@ requirements:
   run:
     - configparser
     - mantid-workbench
+    - pandas
     - psutil
     - python
 
