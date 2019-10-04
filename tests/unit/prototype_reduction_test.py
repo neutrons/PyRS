@@ -8,9 +8,8 @@ import matplotlib.pyplot as plt
 from mantid.simpleapi import LoadSpiceXML2DDet, Transpose, AddSampleLog, LoadInstrument, ConvertSpectrumAxis, ResampleX
 from mantid.simpleapi import CreateWorkspace, ConvertToPointData, SaveNexusProcessed, Multiply
 from mantid.api import AnalysisDataService as mtd
-from pyrs.utilities import file_utilities
+from pyrs.core.mask_util import load_mantid_mask
 import time
-from pyrs.core import rs_scan_io
 
 
 # TODO - NIGHT - Continue to verify the cases for all masks!
@@ -280,7 +279,7 @@ def create_mask(mantid_mask_xml, pixel_number, is_mask):
     :param pixel_number: total pixel number
     :return:
     """
-    masking_array = file_utilities.load_mantid_mask(pixel_number, mantid_mask_xml, is_mask)
+    masking_array = load_mantid_mask(pixel_number, mantid_mask_xml, is_mask)
 
     mask_ws_name = os.path.basename(mantid_mask_xml).split('.')[0]
 

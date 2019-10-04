@@ -7,10 +7,6 @@ import pyrs.interface
 from pyrs.interface import fitpeakswindow
 import pyrs.core
 from pyrs.core.polefigurecalculator import PoleFigureCalculator
-try:
-    from PyQt5.QtWidgets import QApplication
-except ImportError:
-    from PyQt4.QtGui import QApplication
 
 # default testing directory is ..../PyRS/
 print(os.getcwd())

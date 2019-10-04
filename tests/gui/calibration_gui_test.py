@@ -2,13 +2,8 @@
 # In order to test the peak fit window (GUI)
 from pyrs.core import pyrscore
 import sys
-import pyrs.interface
 from pyrs.interface import calibrationwindow
-import pyrs.core
-try:
-    from PyQt5.QtWidgets import QApplication
-except ImportError:
-    from PyQt4.QtGui import QApplication
+from qtpy.QtWidgets import QApplication
 
 
 def test_main():

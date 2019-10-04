@@ -1,5 +1,5 @@
 #!/usr/bin/python
-from pyrs.core import rs_scan_io
+from pyrs.utilities import rs_scan_io
 import os
 import matplotlib.pyplot as plt
 import numpy

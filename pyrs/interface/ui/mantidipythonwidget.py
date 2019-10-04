@@ -30,6 +30,7 @@ home_dir = os.path.expanduser('~')
 # Monkeypatch!
 RegexLexer.get_tokens_unprocessed_unpatched = RegexLexer.get_tokens_unprocessed
 
+from qtpy.QtWidgets import QApplication
 try:
     # This is PyQt5 compatible
     from qtconsole.rich_ipython_widget import RichIPythonWidget
@@ -40,11 +41,6 @@ except ImportError as import_err:
     from IPython.qt.console.rich_ipython_widget import RichIPythonWidget
     from IPython.qt.inprocess import QtInProcessKernelManager
     print('mantidipythonwidget: import PyQt4')
-
-try:
-    from PyQt5.QtWidgets import QApplication
-except ImportError:
-    from PyQt4.QtGui import QApplication
 
 
 def our_run_code(self, code_obj, result=None):

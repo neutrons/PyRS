@@ -8,10 +8,6 @@ from pyqr.utilities import calibration_file_io
 from pyrs.core import reduction_manager
 from pyrs.core import mask_util
 import numpy
-try:
-    from PyQt5.QtWidgets import QApplication
-except ImportError:
-    from PyQt4.QtGui import QApplication
 import random
 from matplotlib import pyplot as plt
 
