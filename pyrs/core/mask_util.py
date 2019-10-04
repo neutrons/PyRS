@@ -72,8 +72,8 @@ def load_mantid_mask(pixel_number, mantid_mask_xml, is_mask):
         masked_specs += end_detid - start_detid + 1
     # END-FOR
 
-    print ('[DB...CHECK] Masked spectra = {}, Sum of masking array = {}'
-           ''.format(masked_specs, sum(masking_array)))
+    print('[DB...CHECK] Masked spectra = {}, Sum of masking array = {}'
+          ''.format(masked_specs, sum(masking_array)))
 
     return masking_array
 

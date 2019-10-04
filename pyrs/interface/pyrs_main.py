@@ -13,7 +13,7 @@ import manualreductionwindow
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
 except (AttributeError, ImportError):
-    _fromUtf8 = lambda s: s
+    def _fromUtf8(s): return s
 
 
 class WorkspacesView(QMainWindow):
@@ -72,6 +72,7 @@ class PyRSLauncher(QMainWindow):
     """
     The main window launched for PyRS
     """
+
     def __init__(self):
         """
         initialization

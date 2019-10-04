@@ -16,6 +16,7 @@ class SliceViewer(QMainWindow):
     """
     prototype of slicer viewer
     """
+
     def __init__(self, parent):
         """
         slice viewer
@@ -63,7 +64,6 @@ def import_h5_array(file_name):
             x = data_set[:, 0]
             y = data_set[:, 1]
             z = data_set[:, 2]
-
 
     h5file.close()
 

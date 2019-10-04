@@ -16,6 +16,7 @@ class TextureAnalysisWindow(QMainWindow):
     """
     GUI window for texture analysis
     """
+
     def __init__(self, parent):
         """
         initialization
@@ -329,11 +330,11 @@ class TextureAnalysisWindow(QMainWindow):
 
         # get fit range
         fit_range = self.ui.graphicsView_fitSetup.get_x_limit()
-        print ('[DB...BAT] Fit range: {0}'.format(fit_range))
+        print('[DB...BAT] Fit range: {0}'.format(fit_range))
 
         # call the core's method to fit peaks
         det_id_list = self._core.get_detector_ids(data_key)
-        print ('[INFO] Detector ID list: {0}'.format(det_id_list))
+        print('[INFO] Detector ID list: {0}'.format(det_id_list))
         for det_id in det_id_list:
             self._core.fit_peaks((data_key, det_id), scan_log_index,
                                  peak_function, bkgd_function, fit_range)
@@ -373,8 +374,8 @@ class TextureAnalysisWindow(QMainWindow):
                 chi2_i = chi2_dict[det_id][scan_log_index]
                 self.ui.tableView_poleFigureParams.set_intensity(row_index, intensity_i, chi2_i)
             except IndexError as index_error:
-                print (intensity_dict[det_id])
-                print (chi2_dict[det_id])
+                print(intensity_dict[det_id])
+                print(chi2_dict[det_id])
                 raise RuntimeError('Unable to get intensity/chi2 of detector {} scan log index {} due to {}'
                                    ''.format(det_id, scan_log_index, index_error))
 
@@ -471,7 +472,7 @@ class TextureAnalysisWindow(QMainWindow):
         # plot
         if isinstance(vec_x, tuple):
             # TODO - 20180820 - It is tricky to have selected log indexed X
-            print ('[CRITICAL/ERROR] Not Implemented Yet! Contact Developer!')
+            print('[CRITICAL/ERROR] Not Implemented Yet! Contact Developer!')
         elif isinstance(vec_y, tuple):
             # log indexes:
             vec_x, vec_y = vec_y
@@ -549,7 +550,7 @@ class TextureAnalysisWindow(QMainWindow):
 
         if isinstance(nxs_file_name_set, tuple):
             nxs_file_name = str(nxs_file_name_set[0])
-            print ('[DB...BAT] Filter: {0}'.format(nxs_file_name_set[1]))
+            print('[DB...BAT] Filter: {0}'.format(nxs_file_name_set[1]))
         else:
             nxs_file_name = str(nxs_file_name_set)
 
@@ -587,10 +588,6 @@ class TextureAnalysisWindow(QMainWindow):
 
         self.ui.graphicsView_contour.plot_pole_figure(vec_alpha, vec_beta, vec_intensity)
 
-
-
-
-
         return
 
     def do_quit(self):
@@ -619,7 +616,7 @@ class TextureAnalysisWindow(QMainWindow):
             # re-plot
             self.do_plot_diff_data()
         except ValueError:
-            print ('[WARNING] Current value {0} cannot be forwarded'.format(self.ui.lineEdit_scanNumbers.text()))
+            print('[WARNING] Current value {0} cannot be forwarded'.format(self.ui.lineEdit_scanNumbers.text()))
 
         return
 
@@ -640,7 +637,7 @@ class TextureAnalysisWindow(QMainWindow):
             # re-plot
             self.do_plot_diff_data()
         except ValueError:
-            print ('[WARNING] Current value {0} cannot be moved backward'.format(self.ui.lineEdit_scanNumbers.text()))
+            print('[WARNING] Current value {0} cannot be moved backward'.format(self.ui.lineEdit_scanNumbers.text()))
 
         return
 

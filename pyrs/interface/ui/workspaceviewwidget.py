@@ -330,13 +330,13 @@ class WorkspaceViewWidget(QWidget):
         else:
             # do something else
             plot_args = script[4:]
-            print ('[DB...BAT] arguments: {}'.format(plot_args))
+            print('[DB...BAT] arguments: {}'.format(plot_args))
             plot_args = plot_args.strip()
             if plot_args.startswith('('):
                 plot_args = plot_args[1:]
             if plot_args.endswith(')'):
                 plot_args = plot_args[:-1]
-            print ('[DB...BAT] Processed arguments: {}'.format(plot_args))
+            print('[DB...BAT] Processed arguments: {}'.format(plot_args))
 
             # split to terms
             arg_terms = plot_args.split(',')
@@ -394,7 +394,7 @@ class WorkspaceViewWidget(QWidget):
         :param diff_set:
         :return:
         """
-        print ('Workspace set differece: {}'.format(diff_set))
+        print('Workspace set differece: {}'.format(diff_set))
 
         # TODO/NOW/ISSUE/51 - 20181214 - Implement!
 

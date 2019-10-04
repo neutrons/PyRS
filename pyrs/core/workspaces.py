@@ -13,6 +13,7 @@ class HidraWorkspace(object):
     - container for fitted peaks' parameters
     - container for instrument information
     """
+
     def __init__(self, name='hidradata'):
         """
         initialization
@@ -99,9 +100,9 @@ class HidraWorkspace(object):
         try:
             vec_2theta = hidra_file.get_diffraction_2theta_vector()
         except KeyError as key_err:
-            print ('[INFO] Unable to load 2theta vector from HidraProject file due to {}.'
-                   'It is very likely that no reduced data is recorded.'
-                   ''.format(key_err))
+            print('[INFO] Unable to load 2theta vector from HidraProject file due to {}.'
+                  'It is very likely that no reduced data is recorded.'
+                  ''.format(key_err))
             return
         # TRY-CATCH
         self._2theta_vec = vec_2theta[:]
@@ -109,7 +110,7 @@ class HidraWorkspace(object):
         # initialize data set for reduced diffraction patterns
         num_spec = len(hidra_file.get_sub_runs())
         diff_mask_list = hidra_file.get_diffraction_masks()
-        print ('[DB...BAT...TEST#81] Masks of diffraction data in HidraProjectFile: {}'.format(diff_mask_list))
+        print('[DB...BAT...TEST#81] Masks of diffraction data in HidraProjectFile: {}'.format(diff_mask_list))
         for mask_name in diff_mask_list:
             if mask_name == 'main':
                 mask_name = None
@@ -125,8 +126,8 @@ class HidraWorkspace(object):
                                                                                          sub_run=None)
         # END-FOR (mask)
 
-        print ('[INFO] Loaded diffraction data from {} includes : {}'
-               ''.format(self._project_file_name, self._diff_data_set.keys()))
+        print('[INFO] Loaded diffraction data from {} includes : {}'
+              ''.format(self._project_file_name, self._diff_data_set.keys()))
 
         return
 
@@ -364,7 +365,7 @@ class HidraWorkspace(object):
         :return: vector of integer or float in the same order as sub run number
         """
         if sample_log_name == rs_project_file.HidraConstants.SUB_RUNS and \
-                        sample_log_name not in self._sample_log_dict.keys():
+                sample_log_name not in self._sample_log_dict.keys():
             return self.get_sub_runs()
 
         checkdatatypes.check_string_variable('Sample log name', sample_log_name,
@@ -451,7 +452,7 @@ class HidraWorkspace(object):
         checkdatatypes.check_int_variable('Sub run number', sub_run, (1, None))
         if mask_id is not None:
             checkdatatypes.check_string_variable('Mask ID', mask_id)
-            print ('L667: Mask ID: "{}"'.format(mask_id))
+            print('L667: Mask ID: "{}"'.format(mask_id))
 
         # check status
 

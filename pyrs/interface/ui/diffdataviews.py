@@ -12,6 +12,7 @@ class Diffraction2DPlot(MplGraphicsPolarView):
     """
     General 2D plot view for diffraction data set
     """
+
     def __init__(self, parent):
         """
         initialization
@@ -33,7 +34,7 @@ class Diffraction2DPlot(MplGraphicsPolarView):
         mplgraphicsviewpolar.check_1D_array(vec_alpha)
 
         # clear the image
-        print ('[DB...BAT] Plot pole figure for {0} data points!'.format(len(vec_alpha)))
+        print('[DB...BAT] Plot pole figure for {0} data points!'.format(len(vec_alpha)))
         # self._myCanvas.axes.clear()
 
         # project vector to XY plane, i.e., convert alpha (phi) azimuthal angle to r
@@ -62,6 +63,7 @@ class DetectorView(MplGraphicsView2D):
     """
     Detector view
     """
+
     def __init__(self, parent):
         """
         init
@@ -98,6 +100,7 @@ class DiffContourView(MplGraphicsView2D):
     """
     Diffraction contour viewer
     """
+
     def __init__(self, parent):
         """
         initialization
@@ -119,6 +122,7 @@ class GeneralDiffDataView(MplGraphicsView1D):
     """
     generalized diffraction view
     """
+
     def __init__(self, parent):
         """ Initialization
         :param parent:
@@ -212,6 +216,7 @@ class PeakFitSetupView(MplFitPlottingWidget):
     """
     Matplotlib graphics view to set up peak fitting
     """
+
     def __init__(self, parent):
         """
         Graphics view for peak fitting setup
@@ -318,13 +323,13 @@ class PeakFitSetupView(MplFitPlottingWidget):
         # check condition
         if len(self._diff_reference_list) > 1:
             # very confusion to plot model
-            print ('There are more than 1 raw data plot.  It is very confusing to plot model.'
-                   '\n FYI current diffraction data references: {0}'.format(self._diff_reference_list))
+            print('There are more than 1 raw data plot.  It is very confusing to plot model.'
+                  '\n FYI current diffraction data references: {0}'.format(self._diff_reference_list))
             raise RuntimeError('There are more than 1 raw data plot.  It is very confusing to plot model.')
 
         # remove previous model
         if self._last_model_reference is not None:
-            print ('[DB...BAT] About to remove last reference: {0}'.format(self._last_model_reference))
+            print('[DB...BAT] About to remove last reference: {0}'.format(self._last_model_reference))
             self.remove_line(row_index=0, col_index=0, line_id=self._last_model_reference)
             self._last_model_reference = None
 
@@ -355,6 +360,7 @@ class SampleSliceView(slice_view_widget.SliceViewWidget):
     """
     2D contour view for sliced sample
     """
+
     def __init__(self, parent):
         """
         initialization
@@ -371,6 +377,7 @@ class GeomCalibrationView(MplGraphicsView1D):
     """
     """
     LineColor = ['black', 'red', 'blue', 'orange', 'grey']
+
     def __init__(self, parent):
         MplGraphicsView1D.__init__(self, parent, row_size=1, col_size=1, tool_bar=True)
 

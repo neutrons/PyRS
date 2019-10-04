@@ -29,7 +29,6 @@ def main():
     # TODO ... ...        - Thus, how to form the raw data is still UNDER DISCUSSION
     # TODO ... ..         - Solution: Add these 7 reduced set to 7 masked reduced data set with proper tag and meta data for detector center/out of plane angle
 
-
     return
 
 

@@ -17,7 +17,7 @@ dx = (Xf - X0)/float(num_col)
 dy = (Yf - Y0)/float(num_row)
 dz = (Zf - Z0)/float(num_layer)
 
-print (dx, dy, dz)
+print(dx, dy, dz)
 
 data_set = list()
 for k in range(num_layer):
@@ -35,6 +35,7 @@ data_set = np.array(data_set)
 print data_set
 print data_set.shape
 
+
 def get_height(x, y, z):
     """
 
@@ -43,9 +44,10 @@ def get_height(x, y, z):
     :param z:
     :return:
     """
-    h = np.sin(x/float(Xf-X0) * 2 * np.pi / 180) + 1 / (y + 1)**2. - 2.* np.exp(-(z-15)**2/15)
+    h = np.sin(x/float(Xf-X0) * 2 * np.pi / 180) + 1 / (y + 1)**2. - 2. * np.exp(-(z-15)**2/15)
 
     return h
+
 
 def get_width(x, y, z):
     """
@@ -61,8 +63,9 @@ def get_width(x, y, z):
 
     return vec_w
 
+
 vec_height = get_height(data_set[:, 0], data_set[:, 1], data_set[:, 2])
-print (vec_height, '\n', vec_height.shape)
+print(vec_height, '\n', vec_height.shape)
 
 vec_width = get_width(data_set[:, 0], data_set[:, 1], data_set[:, 2])
 print vec_width
@@ -71,8 +74,8 @@ print vec_width
 wbuf = '# {0:12}{1:12}{2:12}{3:12}{4:12}\n'.format('X', 'Y', 'Z', 'Height', 'Width')
 for index in range(len(data_set)):
     wbuf += '{0:-12}{1:-12}{2:-12}  {3:12}{4:12}\n'.format(data_set[index, 0], data_set[index, 1], data_set[index, 2],
-                                                      '{0:.5f}'.format(vec_height[index]),
-                                                      '{0:.5f}'.format(vec_width[index]))
+                                                           '{0:.5f}'.format(vec_height[index]),
+                                                           '{0:.5f}'.format(vec_width[index]))
 
 print wbuf
 

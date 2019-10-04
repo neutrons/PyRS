@@ -12,6 +12,7 @@ class RsPeakFitEngine(object):
     """
     virtual peak fit engine
     """
+
     def __init__(self, sub_run_list, data_set_list, ref_id):
         """
         initialization

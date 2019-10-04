@@ -51,7 +51,7 @@ def main(argv):
 
 if __name__ == '__main__':
     # Main application
-    print ('Test Peak Fit GUI')
+    print('Test Peak Fit GUI')
     app = main(sys.argv)
 
     # this must be here!

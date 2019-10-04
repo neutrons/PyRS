@@ -81,7 +81,7 @@ def study_mantid_peak_fitting():
     # debug mode is disabled
     # find the directory for file
     dir_name = rs_scan_io.get_temp_directory()
-    print ('[DEBUG-INFO] Mantid fit debugging data files will be written to {0}'.format(dir_name))
+    print('[DEBUG-INFO] Mantid fit debugging data files will be written to {0}'.format(dir_name))
 
     # workspace for data
     base_name = self._reference_id.replace('.', '_') + '_' + peak_function_name

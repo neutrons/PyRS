@@ -9,6 +9,7 @@ class GridSearchCalibration(object):
     """
     Calibrate by grid searching algorithm using Brute Force or Monte Carlo random walk
     """
+
     def __init__(self, hb2b_instrument):
         """
         Initialization
@@ -33,8 +34,6 @@ class GridSearchCalibration(object):
             # calculate the standard deviation
             std_dev_i = blabla
 
-
-
     def _estimate_calculation_time(self, num_rot_x_inter, num_rot_y_inter, num_rot_z_inter, num_shift_x_iter,
                                    num_shift_y_iter, num_shift_z_iter):
         """
@@ -48,7 +47,7 @@ class GridSearchCalibration(object):
         :return:
         """
         est_time = num_shift_z_iter * num_shift_y_iter * num_shift_x_iter * num_rot_z_inter * \
-                   num_rot_y_inter * num_rot_x_inter * self._instrument_reducer.get_estimated_reduction_time
+            num_rot_y_inter * num_rot_x_inter * self._instrument_reducer.get_estimated_reduction_time
 
         return est_time
 
@@ -139,7 +138,6 @@ class GridSearchCalibration(object):
 
                                 # calculate the cost
                                 cost_i = self._calculate_cost(record=True)
-
 
         return
 

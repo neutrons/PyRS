@@ -1,4 +1,4 @@
-#pylint: disable=C0103,R0904
+# pylint: disable=C0103,R0904
 # N(DAV)TableWidget
 from __future__ import (absolute_import, division, print_function)
 from six.moves import range
@@ -200,7 +200,6 @@ class NTableWidget(QTableWidget):
         # END-FOR(i_col)
 
         return True, ret_msg
-
 
     def get_cell_value(self, row_index, col_index, allow_blank=False):
         """

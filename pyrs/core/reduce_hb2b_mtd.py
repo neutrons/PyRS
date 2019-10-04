@@ -11,6 +11,7 @@ from pyrs.utilities import calibration_file_io
 #from pyrs.core.calibration_file_io import ResidualStressInstrumentCalibration
 from pyrs.core.instrument_geometry import AnglerCameraDetectorShift as ResidualStressInstrumentCalibration
 
+
 def histogram_data(raw_vec_x, raw_vec_y, target_vec_2theta):
     """
     histogram again a set of point data (this is a backup solution)
@@ -56,6 +57,7 @@ def histogram_data(raw_vec_x, raw_vec_y, target_vec_2theta):
 class MantidHB2BReduction(object):
     """ Reducing the data using Mantid algorithm
     """
+
     def __init__(self, idf_file_name):
         """
         initialization
@@ -90,7 +92,7 @@ class MantidHB2BReduction(object):
         :param test_mode: test mode.... cannot give out correct result
         :return: workspace in unit 2theta and transposed to 1-spectrum workspace (handler)
         """
-        print ('[DB...BAT] Report: Convert raw to 2theta')
+        print('[DB...BAT] Report: Convert raw to 2theta')
 
         # check input
         checkdatatypes.check_string_variable('Input raw data workspace name', det_counts_ws_name)
@@ -99,8 +101,8 @@ class MantidHB2BReduction(object):
 
         # convert to 2theta - counts
         matrix_ws = ADS.retrieve(det_counts_ws_name)
-        print ('[DB...BAT] Raw workspace: number of histograms = {}, Unit = {}'
-               ''.format(matrix_ws.getNumberHistograms(), matrix_ws.getAxis(0).getUnit().unitID()))
+        print('[DB...BAT] Raw workspace: number of histograms = {}, Unit = {}'
+              ''.format(matrix_ws.getNumberHistograms(), matrix_ws.getAxis(0).getUnit().unitID()))
 
         two_theta_ws_name = '{}_2theta'.format(det_counts_ws_name)
 
@@ -110,9 +112,9 @@ class MantidHB2BReduction(object):
         # convert from N-spectra-single element to 1-spectrum-N-element
         two_theta_ws = Transpose(InputWorkspace=two_theta_ws_name, OutputWorkspace=two_theta_ws_name,
                                  EnableLogging=False)
-        print ('[DB.....BAT.....PROBLEM] Reduced 2theta workspace {}: num histograms = {}, sum(Y) = {}\nY: {}'
-               ''.format(det_counts_ws_name, two_theta_ws.getNumberHistograms(), two_theta_ws.readY(0).sum(),
-                         two_theta_ws.readY(0)))
+        print('[DB.....BAT.....PROBLEM] Reduced 2theta workspace {}: num histograms = {}, sum(Y) = {}\nY: {}'
+              ''.format(det_counts_ws_name, two_theta_ws.getNumberHistograms(), two_theta_ws.readY(0).sum(),
+                        two_theta_ws.readY(0)))
 
         return two_theta_ws
 
@@ -140,14 +142,14 @@ class MantidHB2BReduction(object):
 
         else:
             # full list of pixels' positions
-            print ('[L125] Number of spectra in {} is {}'.format(self._data_ws_name, num_dets))
+            print('[L125] Number of spectra in {} is {}'.format(self._data_ws_name, num_dets))
             pos_array = numpy.ndarray(shape=(num_dets, 3), dtype='float')
 
             t0 = time.time()
             for iws in range(num_dets):
                 pos_array[iws] = workspace.getDetector(iws).getPos()
             tf = time.time()
-            print ('[L134] Time to build array of all detectors positions: {}'.format(tf - t0))
+            print('[L134] Time to build array of all detectors positions: {}'.format(tf - t0))
         # END-IF
 
         return pos_array
@@ -165,12 +167,13 @@ class MantidHB2BReduction(object):
         # Process input arguments
         matrix_ws_name = self._data_ws_name
         two_theta_min, two_theta_max = two_theta_range
-        num_2theta_bins = numpy.arange(two_theta_min, two_theta_max, two_theta_step).shape[0] - 1  # TODO FIXME - NOW NOW TONIGHT - #72 2-theta range is a myth!!!
+        # TODO FIXME - NOW NOW TONIGHT - #72 2-theta range is a myth!!!
+        num_2theta_bins = numpy.arange(two_theta_min, two_theta_max, two_theta_step).shape[0] - 1
         target_vec_2theta = None
 
         # convert with Axis ordered
         theta_ws = self.convert_from_raw_to_2theta(matrix_ws_name, test_mode=False)  # order Axis
-        print ('[L158] (Half) reduced workspace (theta): {}'.format(theta_ws.name()))
+        print('[L158] (Half) reduced workspace (theta): {}'.format(theta_ws.name()))
 
         # mask if required
         mask = None   # TODO FIXME #72 - mask = self._det_mask_vec
@@ -238,8 +241,8 @@ class MantidHB2BReduction(object):
 
             t3 = time.time()
 
-            print ('[STAT] Create workspace: {}\n\tSort: {}\n\tResampleX: {}'
-                   ''.format(t1 - t0, t2 - t0, t3 - t0))
+            print('[STAT] Create workspace: {}\n\tSort: {}\n\tResampleX: {}'
+                  ''.format(t1 - t0, t2 - t0, t3 - t0))
 
             vec_2theta = binned.readX(0)
             vec_y = binned.readY(0)
@@ -249,7 +252,7 @@ class MantidHB2BReduction(object):
             # use numpy histogram
             raw_2theta = raw_data_ws.readX(0)
             raw_counts = raw_data_ws.readY(0)
-            print ('bins = {}'.format(num_bins))
+            print('bins = {}'.format(num_bins))
             vec_y, vec_2theta = numpy.histogram(raw_2theta, bins=num_bins, range=(two_theta_min, two_theta_max),
                                                 weights=raw_counts)
 
@@ -276,8 +279,8 @@ class MantidHB2BReduction(object):
         # END-IF-ELSE
 
         # do some study on the workspace dimension
-        print ('[DB...BAT] 2theta range: {}, {}; 2theta-size = {}, Y-size = {}'
-               ''.format(vec_2theta[0], vec_2theta[-1], len(vec_2theta), len(vec_y)))
+        print('[DB...BAT] 2theta range: {}, {}; 2theta-size = {}, Y-size = {}'
+              ''.format(vec_2theta[0], vec_2theta[-1], len(vec_2theta), len(vec_y)))
 
         # GeneratePythonScript(InputWorkspace=reduced_ws, Filename='reduce_mantid.py')
         # file_util.save_mantid_nexus(workspace_name=matrix_ws_name, file_name='debugmantid.nxs')
@@ -304,7 +307,8 @@ class MantidHB2BReduction(object):
 
         # load instrument
         if cal_ref_id is not None:
-            self._set_geometry_calibration(matrix_ws_name, self.calibration_manager.get_geometry_calibration(cal_ref_id))
+            self._set_geometry_calibration(
+                matrix_ws_name, self.calibration_manager.get_geometry_calibration(cal_ref_id))
 
         LoadInstrument(Workspace=matrix_ws_name, InstrumentName='HB2B', RewriteSpectraMap=True)
 
@@ -316,7 +320,6 @@ class MantidHB2BReduction(object):
                   NumberBins=num_bins, EnableLogging=False)
 
         # TODO - 20181204 - Refer to "WANDPowderReduction" - ASAP(0)
-
 
         return vec_2theta, vec_y, vec_e
 
@@ -483,7 +486,7 @@ class MantidHB2BReduction(object):
         # TODO - FUTURE - add_theta shall be a variable set up according to how the workspace is constructed
         add_2theta = True
         if add_2theta:
-            print ('[INFO] 2theta degree = {}'.format(two_theta_value))
+            print('[INFO] 2theta degree = {}'.format(two_theta_value))
             AddSampleLog(Workspace=self._data_ws_name, LogName='2theta',
                          LogText='{}'.format(two_theta_value),  # arm_length-DEFAULT_ARM_LENGTH),
                          LogType='Number Series', LogUnit='meter',
@@ -539,7 +542,6 @@ class MantidHB2BReduction(object):
         :param mask_vector:
         :return:
         """
-
 
     def reduce_rs_nexus(self, nexus_name, auto_mapping_check, output_dir, do_calibration,
                         allow_calibration_unavailable):
@@ -753,7 +755,6 @@ class MantidHB2BReduction(object):
         # END-IF-TRY
 
         return
-
 
     def set_2theta_resolution(self, delta_two_theta):
         """

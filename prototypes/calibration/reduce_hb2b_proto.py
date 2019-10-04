@@ -2,6 +2,7 @@
 # NOTE : script is for prototyping with MantidPlot
 import os
 
+
 def print_position(workspace):
     det_id_list = [0, 1023, 1023*1024, 1024*1024-1, 511*1024+511]
     # Lower left, upper left, lower right, upper right, lower-left-middle
@@ -9,6 +10,7 @@ def print_position(workspace):
         print workspace.getDetector(det_id).getPos()
 
     return
+
 
 def test_direct_beam(idf_name):
     """
@@ -146,6 +148,7 @@ def test_rotate_2theta_90_flip_5(idf_name):
 
     return
 
+
 def test_rotate_2theta_45_flip_5(idf_name):
     """
     """
@@ -218,9 +221,9 @@ if True:
 # test_direct_beam(idf_name)
 test_rotate_2theta(idf_name_v4)
 # test_rotate_2theta_45(idf_name)
-#test_no_2theta_rotation_flip_5(idf_name_v4)
+# test_no_2theta_rotation_flip_5(idf_name_v4)
 #print ('\n')
-#test_rotate_2theta_90_flip_5(idf_name_v4)
+# test_rotate_2theta_90_flip_5(idf_name_v4)
 #print ('\n')
-#test_rotate_2theta_45_flip_5(idf_name_v4)
+# test_rotate_2theta_45_flip_5(idf_name_v4)
 # Similar to WANDPowderReduction

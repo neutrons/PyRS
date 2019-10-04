@@ -109,6 +109,7 @@ class ReductionTest(object):
     """
     Reduction Tester
     """
+
     def __init__(self, input_file_name):
         """
         Init
@@ -161,8 +162,8 @@ class ReductionTest(object):
         # END-FOR
 
         # Visual report
-        print ("*************************\nNo Shift Reduction Passed (Golden Xray Data)\n"
-               "*************************")
+        print("*************************\nNo Shift Reduction Passed (Golden Xray Data)\n"
+              "*************************")
 
         plt.plot(vec_x, vec_y)
 
@@ -196,8 +197,8 @@ class ReductionTest(object):
         # END-FOR
 
         # Visual report
-        print ("***************************\nShifted Geometry Reduction Passed (Golden Xray Data)\n"
-               "***************************")
+        print("***************************\nShifted Geometry Reduction Passed (Golden Xray Data)\n"
+              "***************************")
 
         # Plot
         vec_2theta = data_set[0]
@@ -249,7 +250,7 @@ class ReductionTest(object):
                                                            mask_file_name=None,
                                                            geometry_calibration=test_shift)
         mantid_engine = self._reduction_controller.reduction_manager.get_last_reduction_engine()
-        print ('[TEST] Engine name: {}'.format(mantid_engine))
+        print('[TEST] Engine name: {}'.format(mantid_engine))
         mantid_pixel_positions = mantid_engine.get_pixel_positions(is_matrix=False, corner_center=True)
 
         # Test with pyrs engine
@@ -281,12 +282,12 @@ class ReductionTest(object):
                 is_wrong = True
         # END-FOR
         if is_wrong:
-            print ('***********************\nFailure: Reduction Engine Consistency Test\n'
-                   '***********************')
-            print (err_msg)
+            print('***********************\nFailure: Reduction Engine Consistency Test\n'
+                  '***********************')
+            print(err_msg)
         else:
-            print ('***********************\nPassed: Reduction Engine Consistency Test\n'
-                   '***********************')
+            print('***********************\nPassed: Reduction Engine Consistency Test\n'
+                  '***********************')
         return
 
     def set_mask_files(self, masks_list_file_name):

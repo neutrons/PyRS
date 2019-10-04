@@ -2,6 +2,7 @@
 # NOTE : script is for prototyping with MantidPlot
 import os
 
+
 def print_position(workspace):
     det_id_list = [0, 1023, 1023*1024, 1024*1024-1, 511*1024+511]
     # Lower left, upper left, lower right, upper right, lower-left-middle
@@ -35,8 +36,9 @@ def convert_to_2theta(ws_name):
 
     return
 
-#---------------------------------------------------------------------------
-wavelength = 1.E5 # kev
+
+# ---------------------------------------------------------------------------
+wavelength = 1.E5  # kev
 wavelength = 1.296  # A
 Beam_Center_X = 0.000805
 Beam_Center_Y = -0.006026
@@ -70,7 +72,6 @@ def test_rotate_2theta(idf_name):
     print_position(mtd[output_ws_name])
 
     return output_ws_name
-
 
 
 # Set up

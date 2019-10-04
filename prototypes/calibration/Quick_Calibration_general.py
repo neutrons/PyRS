@@ -1,22 +1,21 @@
 # Migrated from /HFIR/HB2B/shared/Quick_Calibration.py
 # Original can be found at ./Quick_Calibration_v3.py
-print ('Prototype Calibration: Quick_Calibration_v4')
-import numpy as np
-import time
-import os
+from matplotlib import pyplot as plt
+from mantid.api import AnalysisDataService as mtd
+from mantid.simpleapi import CreateWorkspace, FitPeaks
+from pyrs.core import mask_util
+from pyrs.core import reduction_manager
+from pyqr.utilities import calibration_file_io
+from pyrs.core import reduce_hb2b_pyrs
+import math
+import itertools
 from scipy.optimize import leastsq
+import os
+import time
+import numpy as np
+print('Prototype Calibration: Quick_Calibration_v4')
 # from scipy.optimize import minimize
 # from scipy.optimize import basinhopping
-import itertools
-import math
-
-from pyrs.core import reduce_hb2b_pyrs
-from pyqr.utilities import calibration_file_io
-from pyrs.core import reduction_manager
-from pyrs.core import mask_util
-from mantid.simpleapi import CreateWorkspace, FitPeaks
-from mantid.api import AnalysisDataService as mtd
-from matplotlib import pyplot as plt
 
 
 class GlobalParameter(object):
@@ -148,7 +147,7 @@ def peaks_alignment_score(x, engine, hb2b_setup, two_theta, roi_vec_set, plot=Fa
 
     for roi_i in range(num_reduced_set):
         index_i = roi_i + 1
-        print ('subplot: {}, {}, {}'.format(num_rows, 2, index_i))
+        print('subplot: {}, {}, {}'.format(num_rows, 2, index_i))
         ax2 = plt.subplot(num_rows, 2, index_i)
         ax2.plot(reduced_data_set[roi_i][0][0], reduced_data_set[roi_i][0][1], color='black')
         ax2.plot(mtd[reduced_data_set[roi_i][3]].readX(0), mtd[reduced_data_set[roi_i][3]].readY(0), color='red')
@@ -163,7 +162,7 @@ def peaks_alignment_score(x, engine, hb2b_setup, two_theta, roi_vec_set, plot=Fa
     # print ('Parameters:     {}'.format(x))
     # print ('Fitted Peaks +: {}'.format(mtd[P30_Fit].readY(0)))
     # print ('Fitted Peaks -: {}'.format(mtd[N30_Fit].readY(0)))
-    print ('Residual      = {}'.format(norm_cost))
+    print('Residual      = {}'.format(norm_cost))
 
     return residual
 # This is main!!!
@@ -231,7 +230,7 @@ def main():
         roi_vec_list = [roi_vec_pos, roi_vec_neg, roi_p10_vec, roi_n10_vec]
         peaks_alignment_score(calibration, engine, instrument, two_theta, roi_vec_list, plot=True)
 
-        print ('RESULT EXAMINATION IS OVER')
+        print('RESULT EXAMINATION IS OVER')
 
     else:
         t_start = time.time()
@@ -271,9 +270,9 @@ def main():
                          xtol=1e-15, maxfev=3000, epsfcn=1e-2)
 
         t_stop = time.time()
-        print ('Total Time: {}'.format(t_stop - t_start))
-        print (DE_Res[0])
-        print (DE_Res[1])
+        print('Total Time: {}'.format(t_stop - t_start))
+        print(DE_Res[0])
+        print(DE_Res[1])
 
         DD = 0.0
         D_Shift = 0
@@ -286,5 +285,6 @@ def main():
     # END-IF-ELSE
 
     return
+
 
 main()

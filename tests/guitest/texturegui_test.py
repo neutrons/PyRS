@@ -59,9 +59,10 @@ def main(argv):
         _app = QApplication(sys.argv)
     return _app
 
+
 if __name__ == '__main__':
     # Main application
-    print ('Test Texture Analysis GUI')
+    print('Test Texture Analysis GUI')
     app = main(sys.argv)
 
     # this must be here!
