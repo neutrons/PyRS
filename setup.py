@@ -67,8 +67,6 @@ if __name__ == "__main__":
     main
     """
     scripts = ['scripts/pyrsplot',
-               'tests/guitest/peakfitgui_test.py',
-               'tests/guitest/manualreduction_test.py',
                'scripts/convert_nexus_to_hidra.py',
                'scripts/pyrscalibration.py',
                'scripts/reduce_HB2B.py',
@@ -76,20 +74,22 @@ if __name__ == "__main__":
                'scripts/convert_raw_data.py']
 
 
-    test_scripts = ['tests/unittest/pyrs_core_test.py',
-                    'tests/unittest/reduction_test.py',  # beta version
-                    'tests/unittest/fit_peaks_test.py',  # beta version
-                    'tests/unittest/utilities_test.py',
-                    'tests/unittest/polefigurecal_test.py',
-                    'tests/unittest/straincalculationtest.py',
-                    'tests/guitest/texturegui_test.py',
-                    'tests/guitest/strainstressgui_test.py',
-                    'tests/guitest/calibration_gui_test.py',
-                    #'tests/unittest/test_reduced_hb2b.py',
-                    'tests/unittest/reduction_study.py',
-                    #'tests/unittest/instrument_geometry_test.py',
-                    'tests/unittest/reduction_study.py',
-                    'tests/unittest/compare_reduction_engines_test.py']
+    test_scripts = ['tests/unit/pyrs_core_test.py',
+                    'tests/gui/peakfitgui_test.py',
+                    'tests/gui/manualreduction_test.py',
+                    'tests/unit/reduction_test.py',  # beta version
+                    'tests/unit/fit_peaks_test.py',  # beta version
+                    'tests/unit/utilities_test.py',
+                    'tests/unit/polefigurecal_test.py',
+                    'tests/unit/straincalculationtest.py',
+                    'tests/gui/texturegui_test.py',
+                    'tests/gui/strainstressgui_test.py',
+                    'tests/gui/calibration_gui_test.py',
+                    #'tests/unit/test_reduced_hb2b.py',
+                    'tests/unit/reduction_study.py',
+                    #'tests/unit/instrument_geometry_test.py',
+                    'tests/unit/reduction_study.py',
+                    'tests/unit/compare_reduction_engines_test.py']
     print(test_scripts)
     scripts.extend(test_scripts)
     print(scripts)
@@ -114,6 +114,7 @@ if __name__ == "__main__":
         package_data={'': ['*.ui']},
         scripts=scripts,
         #scripts=["scripts/pyrsplot", "tests/unittest/pyrs_core_test.py", "tests/guitest/peakfitgui_test.py"],
+        setup_requires=['pytest-runner'],
         cmdclass=versioneer.get_cmdclass(),
     )
 

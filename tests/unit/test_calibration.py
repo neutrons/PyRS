@@ -7,16 +7,7 @@ import sys
 import pyrs.interface
 from pyrs.interface import fitpeakswindow
 import pyrs.core
-# try:
-#     from PyQt5.QtWidgets import QApplication
-# except ImportError:
-#     from PyQt4.QtGui import QApplication
-
-# default testing directory is ..../PyRS/
-print(os.getcwd())
-# therefore it is not too hard to locate testing data
-test_data = 'tests/testdata/BD_Data_Log.hdf5'
-print('Data file {0} exists? : {1}'.format(test_data, os.path.exists(test_data)))
+import pytest
 
 
 def test_xray_geometry_calibration():
@@ -26,12 +17,11 @@ def test_xray_geometry_calibration():
     # Initialize core/controller
     controller = pyrscore.PyRsCore()
 
+    # pre-requisite is that the data file exists
+    test_data = os.path.join(os.getcwd(), 'tests', 'data', 'BD_Data_Log.hdf5')
+    assert os.path.exists('tests/testdata/Hidra_XRay_LaB6_10kev_35deg.hdf'), 'File does not exist'
+
     # Load data
-    try:
-        assert os.path.exists('tests/testdata/Hidra_XRay_LaB6_10kev_35deg.hdf')
-    except AssertionError as err:
-        raise AssertionError('File tests/testdata/Hidra_XRay_LaB6_10kev_35deg.hdf does not exist. '
-                             'Current directory: {}'.format(os.getcwd()))
     controller.load_hidra_project(hidra_h5_name='tests/testdata/Hidra_XRay_LaB6_10kev_35deg.hdf',
                                   project_name='system_test_xray')
 

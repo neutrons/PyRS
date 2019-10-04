@@ -1,13 +1,6 @@
-try:
-    from PyQt5.QtWidgets import QDialog, QMainWindow, QApplication, QVBoxLayout
-    from PyQt5.QtCore import pyqtSignal
-    from PyQt5 import QtGui
-except ImportError:
-    from PyQt4.QtGui import QDialog, QMainWindow, QApplication
-    from PyQt4.QtCore import pyqtSignal
-
+from qtpy.QtWidgets import QApplication, QMainWindow
 import sys
-from pyrs.interface.ui import uitest_test_slice_view
+from . import uitest_test_slice_view  # TODO this is broken
 import h5py
 import numpy as np
 import matplotlib.tri as tri

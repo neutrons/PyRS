@@ -2,12 +2,6 @@
 from pyrs.core import pyrscore
 import os
 
-# default testing directory is ..../PyRS/
-print(os.getcwd())
-# therefore it is not too hard to locate testing data
-test_data = 'tests/testdata/BD_Data_Log.hdf5'
-print('Data file {0} exists? : {1}'.format(test_data, os.path.exists(test_data)))
-
 
 def test_main():
     """
@@ -15,6 +9,10 @@ def test_main():
     :return:
     """
     rs_core = pyrscore.PyRsCore()
+
+    # pre-requisite is that the data file exists
+    test_data = os.path.join(os.getcwd(), 'tests', 'data', 'BD_Data_Log.hdf5')
+    assert os.path.exists(test_data), 'File does not exist'
 
     # load data
     data_key, message = rs_core.load_hidra_project(test_data)
