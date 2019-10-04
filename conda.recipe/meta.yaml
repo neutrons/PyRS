@@ -14,26 +14,20 @@ build:
 requirements:
   build:
     - configparser
-    - mantid-total-scattering-python-wrapper
     - mantid-workbench
-    - periodictable
     - psutil
     - python
     - setuptools
-    - simplejson
 
   run:
     - configparser
-    - mantid-total-scattering-python-wrapper
     - mantid-workbench
-    - periodictable
     - psutil
     - python
-    - simplejson
 
 test:
   imports:
-    - PyRS
+    - pyrs
 
 about:
   home: https://github.com/neutrons/PyRS
