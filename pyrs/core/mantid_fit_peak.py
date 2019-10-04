@@ -14,6 +14,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
     """
     peak fitting engine class for mantid
     """
+
     def __init__(self, workspace, mask_name):
         """ Initialization to set up the workspace for fitting
         :param workspace: Hidra workspace to get the diffraction peaks from
@@ -67,14 +68,14 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         self._center_of_mass_ws_name = '{0}_COM'.format(self._mantid_workspace_name)
         com_ws = CreateWorkspace(DataX=peak_center_vec[:, 0], DataY=peak_center_vec[:, 0],
                                  NSpec=num_spectra, OutputWorkspace=self._center_of_mass_ws_name)
-        print ('[INFO] Center of Mass Workspace: {0} Number of spectra = {1}'
-               ''.format(self._center_of_mass_ws_name, com_ws.getNumberHistograms()))
+        print('[INFO] Center of Mass Workspace: {0} Number of spectra = {1}'
+              ''.format(self._center_of_mass_ws_name, com_ws.getNumberHistograms()))
 
         self._highest_point_ws_name = '{0}_HighestPoints'.format(self._mantid_workspace_name)
         high_ws = CreateWorkspace(DataX=peak_center_vec[:, 1], DataY=peak_center_vec[:, 1],
                                   NSpec=num_spectra, OutputWorkspace=self._highest_point_ws_name)
-        print ('[INFO] Highest Point Workspace: {0} Number of spectra = {1}'
-               ''.format(self._highest_point_ws_name, high_ws.getNumberHistograms()))
+        print('[INFO] Highest Point Workspace: {0} Number of spectra = {1}'
+              ''.format(self._highest_point_ws_name, high_ws.getNumberHistograms()))
 
         self._peak_center_vec = peak_center_vec
 
@@ -180,9 +181,9 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
                       'PseudoVoigt': ('FWHM', 1.0),
                       'Voigt': ('LorentzFWHM, GaussianFWHM', '0.1, 0.7')}
 
-        print ('[DB...BAT] Peak function: {}'.format(peak_function_name))
-        print ('[DB...BAT] Param names:   {}'.format(width_dict[peak_function_name][0]))
-        print ('[DB...BAT] Param values:  {}'.format(width_dict[peak_function_name][1]))
+        print('[DB...BAT] Peak function: {}'.format(peak_function_name))
+        print('[DB...BAT] Param names:   {}'.format(width_dict[peak_function_name][0]))
+        print('[DB...BAT] Param values:  {}'.format(width_dict[peak_function_name][1]))
 
         # Get peak center workspace
         self.calculate_center_of_mass()
@@ -318,7 +319,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
             spec_vec = good_fit_indexes[0]
         else:
             # all
-            print (chi2_vec)
+            print(chi2_vec)
             spec_vec = np.arange(chi2_vec.shape[0])
 
         return spec_vec, chi2_vec
@@ -510,7 +511,6 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
     #     param_vec = np.array(param_list)
     #
     #     return log_index_vec, param_vec
-
 
     def get_function_parameter_names(self):
         """

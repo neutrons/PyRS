@@ -1,21 +1,22 @@
-#pylint: disable=invalid-name,too-many-public-methods,too-many-arguments,non-parent-init-called,R0902,too-many-branches,C0302
+# pylint: disable=invalid-name,too-many-public-methods,too-many-arguments,non-parent-init-called,R0902,too-many-branches,C0302
 """
 Graphics class with matplotlib backend specific for advanced 1D plot
 """
+from matplotlib.figure import Figure
+import matplotlib
 import numpy as np
-try:
-    from PyQt5.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
-    from PyQt5.QtCore import pyqtSignal
+from qtpy.QtCore import Signal
+from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
+from qtpy import PYQT4, PYQT5
+
+
+if PYQT5:
     from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
-except (ImportError, RuntimeError) as err:
-    print ('[INFO] Import PyQt4. Unable to importing PyQt5. Details: {0}'.format(err))
-    from PyQt4.QtGui import QWidget, QSizePolicy, QVBoxLayout
-    from PyQt4.QtCore import pyqtSignal
+elif PYQT4:
     from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
-import matplotlib
-from matplotlib.figure import Figure
+
 
 MplLineStyles = ['-', '--', '-.', ':', 'None', ' ', '']
 MplLineMarkers = [
@@ -60,6 +61,7 @@ class MplGraphicsView1D(QWidget):
     1. specific for 1-D data
     2.
     """
+
     def __init__(self, parent, row_size=None, col_size=None, tool_bar=True):
         """Initialization
         :param parent:
@@ -619,7 +621,7 @@ class MplGraphicsView1D(QWidget):
         self.clear_all_lines(include_right=False)
 
         # set the subplots
-        print ('[DB...BAT] Set subplot: {}, {}'.format(row_size, col_size))
+        print('[DB...BAT] Set subplot: {}, {}'.format(row_size, col_size))
         self._myCanvas.set_subplots(row_size, col_size)
 
         # reset PlotDict: make the right-axis open.
@@ -664,7 +666,7 @@ class MplGraphicsView1D(QWidget):
                                            vec_y=vec_y, label=None)  # let callee to determine label
 
         self._myCanvas.update_plot_line(row_index, col_index, ikey, is_main, vec_x, vec_y, line_style, line_color, marker,
-                                               marker_color)
+                                        marker_color)
 
         return
 
@@ -673,6 +675,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
     """  A customized Qt widget for matplotlib figure.
     It can be used to replace GraphicsView of QtGui
     """
+
     def __init__(self, parent, row_size=None, col_size=None):
         """Initialization
         :param parent:
@@ -714,7 +717,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
             self.set_subplots(row_size, col_size)
 
         # Set size policy to be able to expanding and resizable with frame
-        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding,QSizePolicy.Expanding)
+        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
 
         return
@@ -1091,7 +1094,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         """
         # FIXME : make it work for multiple axes!
         x_lim = self.axes_main[0, 0].get_xlim()
-        print ('x limit: {0}'.format(x_lim))
+        print('x limit: {0}'.format(x_lim))
         return x_lim
 
     def getYLimit(self):
@@ -1571,10 +1574,10 @@ class MyNavigationToolbar(NavigationToolbar2):
 
     # This defines a signal called 'home_button_pressed' that takes 1 boolean
     # argument for being in zoomed state or not
-    home_button_pressed = pyqtSignal()
+    home_button_pressed = Signal()
 
     # This defines a signal called 'canvas_zoom_released'
-    canvas_zoom_released = pyqtSignal(matplotlib.backend_bases.MouseEvent)
+    canvas_zoom_released = Signal(matplotlib.backend_bases.MouseEvent)
 
     def __init__(self, parent, canvas):
         """ Initialization
@@ -1684,7 +1687,7 @@ class MyNavigationToolbar(NavigationToolbar2):
         """
         NavigationToolbar2.release_zoom(self, event)
 
-        print (type(event))
+        print(type(event))
 
         self.canvas_zoom_released.emit(event)
 

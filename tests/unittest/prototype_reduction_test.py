@@ -10,7 +10,7 @@ from mantid.simpleapi import CreateWorkspace, ConvertToPointData, SaveNexusProce
 from mantid.api import AnalysisDataService as mtd
 from pyrs.utilities import file_utilities
 import time
-from pyrs.core import scandataio
+from pyrs.core import rs_scan_io
 
 
 # TODO - NIGHT - Continue to verify the cases for all masks!
@@ -50,48 +50,48 @@ def load_instrument(hb2b_builder, arm_length, two_theta=0., center_shift_x=0., c
 
         # set up sample logs
         # cal::arm
-        print ('Arm length correction  = {}'.format(arm_length - XRAY_ARM_LENGTH))
+        print('Arm length correction  = {}'.format(arm_length - XRAY_ARM_LENGTH))
         AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::arm', LogText='{}'.format(arm_length - XRAY_ARM_LENGTH),
                      LogType='Number Series', LogUnit='meter',
                      NumberType='Double')
         #
         # cal::2theta
-        print ('HB2B 2-theta = {}    (opposite to Mantid 2theta)'.format(two_theta))
+        print('HB2B 2-theta = {}    (opposite to Mantid 2theta)'.format(two_theta))
         AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::2theta', LogText='{}'.format(-two_theta),
                      LogType='Number Series', LogUnit='degree',
                      NumberType='Double')
         #
         # cal::deltax
-        print ('Shift X = {}'.format(center_shift_x))
+        print('Shift X = {}'.format(center_shift_x))
         AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::deltax', LogText='{}'.format(center_shift_x),
                      LogType='Number Series', LogUnit='meter',
                      NumberType='Double')
         #
         # cal::deltay
-        print ('Shift Y = {}'.format(center_shift_y))
+        print('Shift Y = {}'.format(center_shift_y))
         AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::deltay', LogText='{}'.format(center_shift_y),
                      LogType='Number Series', LogUnit='meter',
                      NumberType='Double')
 
         # cal::flip
-        print ('Rotation X = {}'.format(rot_x_flip))
+        print('Rotation X = {}'.format(rot_x_flip))
         AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::flip', LogText='{}'.format(rot_x_flip),
                      LogType='Number Series', LogUnit='degree',
                      NumberType='Double')
 
         # cal::roty
-        print ('Rotation Y = {}'.format(rot_y_flip))
+        print('Rotation Y = {}'.format(rot_y_flip))
         AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::roty', LogText='{}'.format(rot_y_flip),
                      LogType='Number Series', LogUnit='degree',
                      NumberType='Double')
 
         # cal::spin
-        print ('Rotation Z = {}'.format(rot_z_spin))
+        print('Rotation Z = {}'.format(rot_z_spin))
         AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::spin', LogText='{}'.format(rot_z_spin),
                      LogType='Number Series', LogUnit='degree',
                      NumberType='Double')
 
-        print ('Load instrument file : {}'.format(idf_name))
+        print('Load instrument file : {}'.format(idf_name))
         LoadInstrument(Workspace=raw_data_ws_name,
                        Filename=idf_name,
                        InstrumentName='HB2B', RewriteSpectraMap='True')
@@ -111,14 +111,14 @@ def load_instrument(hb2b_builder, arm_length, two_theta=0., center_shift_x=0., c
             pos_python = pixel_matrix[index_i, index_j]
             index1d = index_i + pixel_number * index_j
             pos_mantid = workspace.getDetector(index1d).getPos()
-            print ('({}, {} / {}):   {:10s}   -   {:10s}    =   {:10s}'
-                   ''.format(index_i, index_j, index1d, 'PyRS', 'Mantid', 'Diff'))
+            print('({}, {} / {}):   {:10s}   -   {:10s}    =   {:10s}'
+                  ''.format(index_i, index_j, index1d, 'PyRS', 'Mantid', 'Diff'))
             diff_sq = 0.
             for i in range(3):
                 diff_sq += (float(pos_python[i] - pos_mantid[i])) ** 2
-                print ('dir {}:  {:10f}   -   {:10f}    =   {:10f}'
-                       ''.format(i, float(pos_python[i]), float(pos_mantid[i]),
-                                 float(pos_python[i] - pos_mantid[i])))
+                print('dir {}:  {:10f}   -   {:10f}    =   {:10f}'
+                      ''.format(i, float(pos_python[i]), float(pos_mantid[i]),
+                                float(pos_python[i] - pos_mantid[i])))
             # END-FOR
             if diff_sq > 1.E-6:
                 raise RuntimeError('Mantid PyRS mismatch!')
@@ -229,8 +229,8 @@ def reduce_to_2theta(hb2b_builder, pixel_matrix, hb2b_data_ws_name, counts_vec, 
     ConvertToPointData(InputWorkspace=pyrs_reduced_name, OutputWorkspace=pyrs_reduced_name)
 
     time_pyrs_post = time.time()
-    print ('PyRS Pure Python Reduction: Reduction Time = {}, Mantid post process time = {}'
-           ''.format(time_pyrs_mid - time_pyrs_start, time_pyrs_post - time_pyrs_mid))
+    print('PyRS Pure Python Reduction: Reduction Time = {}, Mantid post process time = {}'
+          ''.format(time_pyrs_mid - time_pyrs_start, time_pyrs_post - time_pyrs_mid))
 
     SaveNexusProcessed(InputWorkspace=pyrs_reduced_name, Filename='{}.nxs'.format(pyrs_reduced_name),
                        Title='PyRS reduced: {}'.format(hb2b_data_ws_name))
@@ -263,7 +263,7 @@ def reduce_to_2theta(hb2b_builder, pixel_matrix, hb2b_data_ws_name, counts_vec, 
         plt.plot(mantid_ws.readX(0), mantid_ws.readY(0), color='blue', label='Mantid')
 
         diff_y_vec = histogram - mantid_ws.readY(0)
-        print ('Min/Max Diff = {} , {}'.format(min(diff_y_vec), max(diff_y_vec)))
+        print('Min/Max Diff = {} , {}'.format(min(diff_y_vec), max(diff_y_vec)))
     # END-IF
 
     plt.plot(bin_edgets[:-1], histogram, color='red', label='Pure Python')
@@ -330,7 +330,7 @@ def main(argv):
         for mask_xml in mask_xml_list:
             if 'Chi_0' in mask_xml:
                 is_mask = True
-                print ('mask {} with is_mask = True'.format(mask_xml))
+                print('mask {} with is_mask = True'.format(mask_xml))
             else:
                 is_mask = False
             mask_array, mask_ws_name = create_mask(mask_xml, pixel_length ** 2, is_mask)

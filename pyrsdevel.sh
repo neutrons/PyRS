@@ -1,19 +1,19 @@
 #!/bin/sh
-python setup.py pyuic
 python setup.py build
 
-CMDS=''
-for file in "$@"
-do
-  CMDS="$CMDS $file"
-done
+# set the mantidpython to use - default to system installed nightly
+if [ $1 ]; then
+    MANTIDPYTHON="$1"
+else
+    MANTIDPYTHON=mantidpythonnightly
+fi
 
-# Set mantid path on different platform
-MANTIDLOCALPATH=/home/wzz/Mantid_Project/builds/mantid-python2/bin/
-MANTIDMACPATH=/Users/wzz/MantidBuild/debug/bin/
-MANTIDSNSDEBUGPATH=/opt/mantidnightly/bin/  # NIGHTLY for latest Pseudo-voigt
-MANTIDPATH=$MANTIDMACPATH:$MANTIDLOCALPATH:$MANTIDSNSDEBUGPATH
-PYTHONPATH=$MANTIDPATH:$PYTHONPATH
-PYRSPATH=build/lib.linux-x86_64-2.7/:build/lib/
+# check that a valid mantidpython was specified
+if [ ! $(command -v $MANTIDPYTHON) ]; then
+    echo "Failed to find mantidpython \"$MANTIDPYTHON\""
+    exit -1
+fi
 
-PYTHONPATH=$PYRSPATH:$PYTHONPATH build/scripts-2.7/pyrsplot $CMD 
+# let people know what is going on and launch it
+echo "Using \"$(which $MANTIDPYTHON)\""
+PYTHONPATH=`pwd`/build/lib $MANTIDPYTHON --classic build/scripts-2.7/pyrsplot

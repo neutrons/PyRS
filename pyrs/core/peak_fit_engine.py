@@ -16,6 +16,7 @@ class PeakFitEngine(object):
     """
     Virtual peak fit engine
     """
+
     def __init__(self, workspace, mask_name):
         """
         initialization
@@ -84,7 +85,7 @@ class PeakFitEngine(object):
                 try:
                     peak_i_d_j = wl * 0.5 / math.sin(peak_i_2theta_j * 0.5 * math.pi / 180.)
                 except ZeroDivisionError as zero_err:
-                    print ('Peak(i) @ {}'.format(peak_i_2theta_j))
+                    print('Peak(i) @ {}'.format(peak_i_2theta_j))
                     raise zero_err
                 self._peak_center_d_vec[sb_index][0] = peak_i_d_j
         # END-FOR
@@ -99,7 +100,7 @@ class PeakFitEngine(object):
         hidra_file = rs_project_file.HydraProjectFile(file_name, rs_project_file.HydraProjectFileMode.READWRITE)
 
         param_names = self.get_peak_param_names(self._peak_function_name, is_effective=False)
-        print ('[DB...BAT] Parameter names: {}'.format(param_names))
+        print('[DB...BAT] Parameter names: {}'.format(param_names))
 
         # Get parameter values
         sub_run_vec, chi2_vec, param_names, param_matrix = self.get_fitted_params(param_names, including_error=True)

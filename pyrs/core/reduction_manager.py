@@ -22,6 +22,7 @@ class HB2BReductionManager(object):
     2. It can always compare the results between 2 reduction engines
     3. It shall provide an API to calibration optimization
     """
+
     def __init__(self):
         """ initialization
         """
@@ -330,7 +331,7 @@ class HB2BReductionManager(object):
         else:
             det_pos_shift = None
         # END-IF-ELSE
-        print ('[DB...BAT] Det Position Shift: {}'.format(det_pos_shift))
+        print('[DB...BAT] Det Position Shift: {}'.format(det_pos_shift))
 
         # TODO - TONIGHT NOW #72 - How to embed mask information???
         if sub_run_list is None:
@@ -366,8 +367,8 @@ class HB2BReductionManager(object):
 
         # Retrieve two theta and L2 from loaded workspace
         two_theta = workspace.get_2theta(sub_run)
-        print ('[INFO] User specified 2theta = {} is converted to Mantid 2theta = {}'
-               ''.format(two_theta, -two_theta))
+        print('[INFO] User specified 2theta = {} is converted to Mantid 2theta = {}'
+              ''.format(two_theta, -two_theta))
         two_theta = -two_theta
         l2 = workspace.get_l2(sub_run)
 
@@ -403,7 +404,7 @@ class HB2BReductionManager(object):
         bin_edges = data_set[0]
         hist = data_set[1]
 
-        print ('[DB...BAT] vec X shape = {}, vec Y shape = {}'.format(bin_edges.shape, hist.shape))
+        print('[DB...BAT] vec X shape = {}, vec Y shape = {}'.format(bin_edges.shape, hist.shape))
 
         # record
         workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_edges, hist)

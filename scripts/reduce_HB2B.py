@@ -17,6 +17,7 @@ class ReductionApp(object):
     """
     Data reduction application
     """
+
     def __init__(self):
         """
         initialization
@@ -130,7 +131,7 @@ class ReductionApp(object):
 
         # instrument file
         if instrument_file is not None:
-            print ('instrument file: {}'.format(instrument_file))
+            print('instrument file: {}'.format(instrument_file))
             # TODO - #84 - Implement
 
         # calibration file
@@ -155,7 +156,7 @@ class ReductionApp(object):
         vec_x, vec_y = self._reduction_engine.get_reduced_data()
 
         if vec_x.shape[0] > vec_y.shape[0]:
-            print ('Shape: vec x = {}, vec y = {}'.format(vec_x.shape, vec_y.shape))
+            print('Shape: vec x = {}, vec y = {}'.format(vec_x.shape, vec_y.shape))
             # TODO - TONIGHT 3 - shift half bin of X to point data
             plt.plot(vec_x[:-1], vec_y)
         else:
@@ -276,14 +277,14 @@ def print_help():
     print help information
     :return:
     """
-    print ('Auto-reducing HB2B: {} [NeXus File Name] [Target Directory] [--instrument=xray_setup.txt]'
-           '[--calibration=xray_calib.txt] [--mask=mask.h5] [--engine=engine]'.format(argv[0]))
-    print ('--instrument:   instrument configuration file overriding embedded (arm, pixel number and size')
-    print ('--calibration:  instrument geometry calibration file overriding embedded')
-    print ('--mask:         masking file (PyRS hdf5 format) or mask name')
-    print ('--engine:       mantid or pyrs.  default is pyrs')
-    print ('--viewraw:      viewing raw data with an option to mask (NO reduction)')
-    print ('--')
+    print('Auto-reducing HB2B: {} [NeXus File Name] [Target Directory] [--instrument=xray_setup.txt]'
+          '[--calibration=xray_calib.txt] [--mask=mask.h5] [--engine=engine]'.format(argv[0]))
+    print('--instrument:   instrument configuration file overriding embedded (arm, pixel number and size')
+    print('--calibration:  instrument geometry calibration file overriding embedded')
+    print('--mask:         masking file (PyRS hdf5 format) or mask name')
+    print('--engine:       mantid or pyrs.  default is pyrs')
+    print('--viewraw:      viewing raw data with an option to mask (NO reduction)')
+    print('--')
 
 
 if __name__ == '__main__':

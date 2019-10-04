@@ -1,11 +1,7 @@
-try:
-    from PyQt5.QtWidgets import QDialog, QMainWindow
-    from PyQt5.QtCore import pyqtSignal
-    from PyQt5.uic import loadUi as load_ui
-except ImportError:
-    from PyQt4.QtGui import QDialog, QMainWindow
-    from PyQt4.QtCore import pyqtSignal
-    from PyQt4.uic import loadUi as load_ui
+from pyrs.utilities import load_ui
+from qtpy.QtCore import Signal
+from qtpy.QtWidgets import QDialog, QMainWindow
+
 from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.rstables import GridAlignmentTable, GridsStatisticsTable, ParamValueGridTable,\
     ParamValueMapAnalysisTable, MismatchedGridsTable, StrainStressValueTable
@@ -18,7 +14,7 @@ import os
 class CreateNewSessionDialog(QDialog):
     """ Create a new strain/stress session dialog
     """
-    NewSessionSignal = pyqtSignal(str, bool, bool, name='new session signal')
+    NewSessionSignal = Signal(str, bool, bool, name='new session signal')
 
     def __init__(self, parent):
         """
@@ -91,6 +87,7 @@ class ExportGridSliceSetupDialog(QDialog):
     Set up slicing (coordinate) direction and value
     Example: Y = 0 +/- 0.01
     """
+
     def __init__(self, parent):
         """
         initialization
@@ -127,6 +124,7 @@ class ExportGridSliceSetupDialog(QDialog):
 class GridAlignmentCheckTablesView(QMainWindow):
     """ A set of tables in order to check grid alignment in order to set up the final grids
     """
+
     def __init__(self, parent):
         """ Initialization
         :param parent:
@@ -245,7 +243,7 @@ class GridAlignmentCheckTablesView(QMainWindow):
         """
         # get parameter name and direction
         param_name = str(self.ui.comboBox_parameterNamesAnalysis.currentText())
-        print ('[DB...BAT] parameter index : {}'.format(self.ui.comboBox_parameterNamesAnalysis.currentIndex()))
+        print('[DB...BAT] parameter index : {}'.format(self.ui.comboBox_parameterNamesAnalysis.currentIndex()))
         ss_dir = str(self.ui.comboBox_ssDirection.currentText())
 
         # get value: returned list spec can be found in both rctables and strain stress calculator
@@ -409,7 +407,7 @@ class GridAlignmentCheckTablesView(QMainWindow):
 
         # reset
         self.ui.tableView_matchedGrids.remove_all_rows()
-        for igrid  in range(len(matched_grid_scan_list)):
+        for igrid in range(len(matched_grid_scan_list)):
             row_items = [igrid, matched_grid_scan_list[igrid]['e11'], matched_grid_scan_list[igrid]['e22']]
             if 'e33' in matched_grid_scan_list[igrid]:
                 row_items.append(matched_grid_scan_list[igrid]['e22'])
@@ -453,6 +451,7 @@ class GridAlignmentCheckTablesView(QMainWindow):
 class StrainStressGridSetup(QDialog):
     """ Strain and stress calculation grids setup dialog
     """
+
     def __init__(self, parent):
         """ initialization
         :param parent:
@@ -546,9 +545,9 @@ class StrainStressGridSetup(QDialog):
                 for grid_dir in self._plot_grid_dimensions[item].keys():  # X, Y, Z
                     values = list()
                     for e_dir in self._exp_grid_dimensions[item].keys():  # e11/e22/e33
-                        print (item, e_dir, grid_dir)
-                        print (self._exp_grid_dimensions.keys())
-                        print (self._exp_grid_dimensions['min'].keys())
+                        print(item, e_dir, grid_dir)
+                        print(self._exp_grid_dimensions.keys())
+                        print(self._exp_grid_dimensions['min'].keys())
                         values.append(self._exp_grid_dimensions[item][e_dir][grid_dir])
                     # END-FOR
                     if item != 'min':
@@ -664,8 +663,8 @@ class StrainStressGridSetup(QDialog):
     def set_user_grids_flag(self, state=True):
         """
         set the status to be user specified grids or not
-        :param state: 
-        :return: 
+        :param state:
+        :return:
         """
         checkdatatypes.check_bool_variable('Flag for user specified grid', state)
         self._is_user_specified_grids = state
@@ -697,7 +696,7 @@ class StrainStressGridSetup(QDialog):
             for coord_i in ['X', 'Y', 'Z']:
                 line_edit_name = 'lineEdit_{}{}Min'.format(dir_i, coord_i)
                 line_edit = getattr(self.ui, line_edit_name)
-                print (stat_dict['min'][dir_i])
+                print(stat_dict['min'][dir_i])
                 line_edit.setText('{}'.format(stat_dict['min'][dir_i][coord_i]))
             # END-FOR
         # END-FOR
@@ -732,6 +731,7 @@ class StrainStressGridSetup(QDialog):
 class StrainStressTableView(QMainWindow):
     """ A window to show the table of calculated strain and stress
     """
+
     def __init__(self, parent):
         """
         initialization

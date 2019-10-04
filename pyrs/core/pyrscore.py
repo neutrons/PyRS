@@ -17,10 +17,12 @@ SUPPORTED_PEAK_TYPES = ['PseudoVoigt', 'Gaussian', 'Voigt']  # 'Lorentzian': No 
 
 
 # TODO - #84 TONIGHT - Clean all the methods for new API of workspace and etc.
+# TODO - #94 URGENT - Resolve conflict ASAP
 class PyRsCore(object):
     """
     PyRS core
     """
+
     def __init__(self):
         """
         initialization
@@ -141,6 +143,96 @@ class PyRsCore(object):
 
         return
 
+<<<<<<< HEAD
+=======
+    def get_pole_figure_values(self, data_key, detector_id_list, max_cost):
+        """ API method to get the (N, 3) array for pole figures
+        :param data_key:
+        :param detector_id_list:
+        :param max_cost:
+        :return:
+        """
+        pole_figure_calculator = self._pole_figure_calculator_dict[data_key]
+        assert isinstance(pole_figure_calculator, polefigurecalculator.PoleFigureCalculator),\
+            'Pole figure calculator type mismatched. Input is of type {0} but expected as {1}.' \
+            ''.format(type(pole_figure_calculator), 'polefigurecalculator.PoleFigureCalculato')
+
+        if detector_id_list is None:
+            detector_id_list = pole_figure_calculator.get_detector_ids()
+        else:
+            checkdatatypes.check_list('Detector ID list', detector_id_list)
+
+        # get all the pole figure vectors
+        vec_alpha = None
+        vec_beta = None
+        vec_intensity = None
+        for det_id in detector_id_list:
+            print('[DB...BAt] Get pole figure from detector {0}'.format(det_id))
+            # get_pole_figure returned 2 tuple.  we need the second one as an array for alpha, beta, intensity
+            sub_array = pole_figure_calculator.get_pole_figure_vectors(det_id, max_cost)[1]
+            vec_alpha_i = sub_array[:, 0]
+            vec_beta_i = sub_array[:, 1]
+            vec_intensity_i = sub_array[:, 2]
+
+            print('Det {} # data points = {}'.format(det_id, len(sub_array)))
+            # print ('alpha: {0}'.format(vec_alpha_i))
+
+            if vec_alpha is None:
+                vec_alpha = vec_alpha_i
+                vec_beta = vec_beta_i
+                vec_intensity = vec_intensity_i
+            else:
+                vec_alpha = numpy.concatenate((vec_alpha, vec_alpha_i), axis=0)
+                vec_beta = numpy.concatenate((vec_beta, vec_beta_i), axis=0)
+                vec_intensity = numpy.concatenate((vec_intensity, vec_intensity_i), axis=0)
+            # END-IF-ELSE
+            print('Updated alpha: size = {0}: {1}'.format(len(vec_alpha), vec_alpha))
+        # END-FOR
+
+        return vec_alpha, vec_beta, vec_intensity
+
+    def get_pole_figure_value(self, data_key, detector_id, log_index):
+        """
+        get pole figure value of a certain measurement identified by data key and log index
+        :param data_key:
+        :param detector_id
+        :param log_index:
+        :return:
+        """
+        checkdatatypes.check_int_variable('Scan log #', log_index, (0, None))
+
+        alpha, beta = self._last_pole_figure_calculator.get_pole_figure_1_pt(detector_id, log_index)
+
+        # log_index_list, pole_figures = self._last_pole_figure_calculator.get_pole_figure_vectors(detector_id, max_cost=None)
+        # if len(pole_figures) < log_index + 1:
+        #     alpha = 0
+        #     beta = 0
+        # else:
+        #     try:
+        #         alpha = pole_figures[log_index][0]
+        #         beta = pole_figures[log_index][1]
+        #     except ValueError as val_err:
+        #         raise RuntimeError('Given detector {0} scan log index {1} of data IDed as {2} is out of range as '
+        #                            '({3}, {4})  (error = {5})'
+        #                            ''.format(detector_id, log_index, data_key, 0, len(pole_figures), val_err))
+        # # END-IF-ELSE
+
+        return alpha, beta
+
+    @staticmethod
+    def _check_data_key(data_key_set):
+        if isinstance(data_key_set, tuple) and len(data_key_set) == 2:
+            data_key, sub_key = data_key_set
+        elif isinstance(data_key_set, tuple):
+            raise RuntimeError('Wrong!')
+        else:
+            data_key = data_key_set
+            checkdatatypes.check_string_variable('Data reference ID', data_key)
+            sub_key = None
+
+        return data_key, sub_key
+
+>>>>>>> origin/master
     def fit_peaks(self, project_name, sub_run_list, peak_type, background_type, peaks_fitting_setup):
         """
         Fit a single peak on each diffraction pattern selected from client-specified
@@ -193,7 +285,7 @@ class PyRsCore(object):
 
         # Fit peaks
         peak_tags = sorted(peaks_fitting_setup.keys())
-        print ('[INFO] Fitting peak: {}'.format(peak_tags))
+        print('[INFO] Fitting peak: {}'.format(peak_tags))
 
         error_message = ''
         for peak_tag_i in peak_tags:
@@ -214,7 +306,7 @@ class PyRsCore(object):
                 error_message += 'Failed to fit (tag) {} due to {}\n'.format(peak_tag_i, run_err)
         # END-FOR
 
-        print ('[ERROR] {}'.format(error_message))
+        print('[ERROR] {}'.format(error_message))
 
         return
 
@@ -268,7 +360,7 @@ class PyRsCore(object):
         peak_optimizer = mantid_fit_peak.MantidPeakFitEngine(scan_index_list, diff_data_list, ref_id=ref_id)
 
         # observed COM and highest Y value data point
-        print ('[DB...BAT] Fit Engine w/ Key: {0}'.format(data_key_set))
+        print('[DB...BAT] Fit Engine w/ Key: {0}'.format(data_key_set))
         peak_optimizer.calculate_center_of_mass()
         # fit peaks
         peak_optimizer.fit_peaks(peak_type, background_type, fit_range, None)
@@ -296,7 +388,7 @@ class PyRsCore(object):
         if fit_session_name in self._optimizer_dict:
             # with data key
             optimizer = self._optimizer_dict[fit_session_name]
-            print ('Return optimizer in dictionary: {0}'.format(optimizer))
+            print('Return optimizer in dictionary: {0}'.format(optimizer))
         else:
             # data key exist but optimizer does not: could be not been fitted yet
             raise RuntimeError('Unable to find optimizer related to data with reference ID {0} of type {1}.'
@@ -421,6 +513,7 @@ class PyRsCore(object):
 
         return param_names, param_data
 
+<<<<<<< HEAD
     # NOTE: Deprecated and replaced by get_fitted_params()
     # def get_peak_fit_param_value(self, project_name, param_name, max_cost):
     #     """
@@ -507,6 +600,91 @@ class PyRsCore(object):
     #     return fit_param_value_dict
 
     # TODO - 84 NOW - Rename!
+=======
+    # TODO - TONIGHT NOW - Need to migrate to new get_fitted_params
+    def get_peak_fit_param_value(self, project_name, param_name, max_cost):
+        """
+        get a specific parameter's fitted value
+        :param project_name:
+        :param param_name:
+        :param max_cost: if not None, then filter out the bad (with large cost) fitting
+        :return: 3-tuple
+        """
+        # Get peak fitting controller
+        if project_name in self._optimizer_dict:
+            # if it does exist
+            peak_fitter = self._optimizer_dict[project_name]
+        else:
+            raise RuntimeError('{} not exist'.format(project_name))
+
+        if max_cost is None:
+            sub_run_vec, chi2_vec, param_vec = peak_fitter.get_fitted_params([param_name], False)
+        else:
+            sub_run_vec, chi2_vec, param_vec = peak_fitter.get_fitted_params([param_name], False, max_chi2=max_cost)
+
+        return sub_run_vec, chi2_vec, param_vec
+
+    def get_peak_fit_param_value_error(self, data_key, param_name, max_cost):
+        """ Get a specific peak parameter's fitting value with error
+        :param data_key:
+        :param param_name:
+        :param max_cost:
+        :return: 2-tuple: (1) (n, ) for sub runs (2) array as (n, 2) such that [i, 0] is value and [i, 1] is error
+        """
+        # check input
+        fit_engine = self._get_optimizer(data_key)
+
+        if max_cost is None:
+            sub_run_vec, param_error_vec = fit_engine.get_fitted_params(param_name,  inlcuding_error=True)
+        else:
+            sub_run_vec, param_error_vec = fit_engine.get_good_fitted_params(
+                param_name, max_cost, inlcuding_error=True)
+
+        return sub_run_vec, param_error_vec
+
+    # TODO FIXME - TONIGHT NOW - This method shall be migrated to newer API to get parameter values
+    def get_peak_fit_params_in_dict(self, data_key):
+        """
+        export the complete set of peak parameters fitted to a dictionary
+        :param data_key:
+        :return:
+        """
+        # check input
+        optimizer = self._get_optimizer(None)  # TODO FIXME - #80 - Need a new mechanism for data key!
+
+        # get names, detector IDs (for check) & log indexes
+        param_names = optimizer.get_function_parameter_names()
+        if False:
+            # TODO FIXME - #80 - Need to think of how to deal with mask (aka detector ID)
+            detector_ids = self.get_detector_ids(data_key)
+            print('[DB...BAT] Detector IDs = {}'.format(detector_ids))
+            if detector_ids is not None:
+                raise NotImplementedError('Multiple-detector ID case has not been considered yet. '
+                                          'Contact developer for this issue.')
+
+        # Get peak parameters value
+        sub_run_vec, chi2_vec, params_values_matrix = self.get_peak_fit_param_value(data_key, param_names,
+                                                                                    max_cost=None)
+
+        # init dictionary
+        fit_param_value_dict = dict()
+
+        # set: this shall really good to be a pandas DataFrame or labelled numpy matrix  TODO FIXME #80+
+        for index in range(len(sub_run_vec)):
+            # get sub runs and chi2
+            sub_run_i = sub_run_vec[index]
+            chi2_i = chi2_vec[index]
+            fit_param_value_dict[sub_run_i] = {'cost': chi2_i}
+
+            for p_index in range(len(param_names)):
+                param_name = param_names[p_index]
+                fit_param_value_dict[sub_run_i][param_name] = params_values_matrix[p_index, index, 0]
+            # END-FOR
+        # END-FOR
+
+        return fit_param_value_dict
+
+>>>>>>> origin/master
     def get_peak_fit_scan_log_indexes(self, data_key):
         """
         get the scan log indexes from an optimizer
@@ -722,7 +900,7 @@ class PyRsCore(object):
         if mask_file_name:
             mask_info = self._reduction_manager.load_mask_file(mask_file_name)
             mask_id = mask_info[2]
-            print ('L650 Mask ID = {}'.format(mask_id))
+            print('L650 Mask ID = {}'.format(mask_id))
         else:
             mask_id = None
 
@@ -770,7 +948,7 @@ class PyRsCore(object):
         if self._curr_ss_session is None:
             raise RuntimeError('Current session is not named.')
         elif self._curr_ss_session not in self._ss_calculator_dict:
-            print ('[WARNING] Current strain/stress session does not exist.')
+            print('[WARNING] Current strain/stress session does not exist.')
             return
 
         ss_type_index = self._get_strain_stress_type_key(is_plane_strain, is_plane_stress)

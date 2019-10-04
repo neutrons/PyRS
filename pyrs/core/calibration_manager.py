@@ -9,13 +9,14 @@ class CalibrationManager(object):
     A class to handle all the calibration files
     calibration shall be related to date (run cycle), wave length and etc
     """
+
     def __init__(self,  calib_lookup_table_file=None):
         """
         initialization for calibration manager
         :param calib_lookup_table_file: calibration table file to in order not to scan the disk and save time
         """
         self._cal_dict = dict()  # dict[wavelength, date] = param_dict
-                                 # param_dict[motor position] = calibrated value
+        # param_dict[motor position] = calibrated value
 
         return
 

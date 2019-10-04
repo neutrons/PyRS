@@ -1,11 +1,8 @@
-try:
-    from PyQt5.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout
-    from PyQt5.uic import loadUi as load_ui
-except ImportError:
-    from PyQt4.QtGui import QMainWindow, QFileDialog, QVBoxLayout
-    from PyQt4.uic import loadUi as load_ui
+from qtpy.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout
+from pyrs.utilities import load_ui
+
 from pyrs.core.pyrscore import PyRsCore
-from pyrs.core import calibration_file_io
+from pyrs.utilities import calibration_file_io
 from ui.diffdataviews import DetectorView, GeneralDiffDataView
 import os
 import gui_helper
@@ -26,6 +23,7 @@ class ManualReductionWindow(QMainWindow):
     """
     GUI window for user to fit peaks
     """
+
     def __init__(self, parent):
         """
         initialization
@@ -244,7 +242,7 @@ class ManualReductionWindow(QMainWindow):
             gui_helper.pop_message(self, 'Failed to load project file {}: {}'.format(project_h5_name, run_err),
                                    None, 'error')
         else:
-            print ('Loaded {} to {}'.format(project_h5_name, self._project_data_id))
+            print('Loaded {} to {}'.format(project_h5_name, self._project_data_id))
         # END-TRY-EXCEPT
 
         return
@@ -253,7 +251,7 @@ class ManualReductionWindow(QMainWindow):
         """ Plot detector counts as 2D detector view view OR reduced data according to the tab that is current on
         :return:
         """
-        print ('[DB...BAT] Plotting tab index = {}'.format(self.ui.tabWidget_View.currentIndex()))
+        print('[DB...BAT] Plotting tab index = {}'.format(self.ui.tabWidget_View.currentIndex()))
 
         current_tab_index = self.ui.tabWidget_View.currentIndex()
         sub_run = int(self.ui.comboBox_sub_runs.currentText())
@@ -424,7 +422,8 @@ class ManualReductionWindow(QMainWindow):
             project_file_name = 'blabla.hdf5'
         except RuntimeError:
             gui_helper.pop_message(self, 'IPTS number shall be set to an integer.', message_type='error')
-            project_file_name = gui_helper.browse_file(self, 'Hidra Project File', os.getcwd(), 'hdf5 (*.hdf5)', False, False)
+            project_file_name = gui_helper.browse_file(
+                self, 'Hidra Project File', os.getcwd(), 'hdf5 (*.hdf5)', False, False)
 
         self.load_hydra_file(project_file_name)
 
@@ -470,8 +469,6 @@ class ManualReductionWindow(QMainWindow):
         # return if user cancels operation
         if bin_file == '':
             return
-
-
 
         return
 
@@ -520,7 +517,7 @@ class ManualReductionWindow(QMainWindow):
         """
         # TODO - #84 - Need try-catch
         # Load data file
-        print ('Loading ... {}'.format(project_file_name))
+        print('Loading ... {}'.format(project_file_name))
         project_name = os.path.basename(project_file_name).split('.')[0]
         self._core.load_hidra_project(project_file_name, project_name=project_name,
                                       load_detector_counts=True,
@@ -604,7 +601,7 @@ class ManualReductionWindow(QMainWindow):
         # set information
         det_2theta = self._core.reduction_manager.get_sample_logs_values(self._project_data_id,
                                                                          [HidraConstants.TWO_THETA])
-        det_2theta = det_2theta[0][ sub_run_number]
+        det_2theta = det_2theta[0][sub_run_number]
         info = 'sub-run: {}, 2theta = {}' \
                ''.format(sub_run_number, det_2theta)
 
@@ -645,4 +642,3 @@ class ManualReductionWindow(QMainWindow):
         self._core = pyrs_core
 
         return
-

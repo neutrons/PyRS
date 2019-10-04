@@ -12,6 +12,7 @@ class ScipyPeakFitEngine(RsPeakFitEngine):
     """
     peak fitting engine class for mantid
     """
+
     def __init__(self, data_set_list, ref_id):
         """
         initialization
@@ -99,7 +100,7 @@ class ScipyPeakFitEngine(RsPeakFitEngine):
                 x0 = [Pos, IA, f, 0.99]
             else:
                 x0 = [Pos, IA, f]
-            
+
             if background_function_name.split(' ')[0] == 'Linear':
                 x0.append(0)
                 x0.append(Data[0])
@@ -110,13 +111,13 @@ class ScipyPeakFitEngine(RsPeakFitEngine):
 
             result = leastsq(self.calculate_peak, x0,
                              args=(Data, TTH, peak_function_name, background_function_name.split(' ')[0]),
-                             full_output=True,ftol=1.e-15,  xtol=1.e-15)
+                             full_output=True, ftol=1.e-15,  xtol=1.e-15)
 
             M.append(result[0])
-        
+
         M = np.array(M)
-        print ('M is of shape {}'.format(M.shape))
-            
+        print('M is of shape {}'.format(M.shape))
+
         # process output
         # TODO: Clean!
 
@@ -140,16 +141,18 @@ class ScipyPeakFitEngine(RsPeakFitEngine):
             self.func_param_ws = pd.DataFrame(
                 data={'PeakCentre': M[:, 0], 'Amplitude': M[:, 1], 'FWHM': M[:, 2], 'chi2': 0})
         else:
-            self.func_param_ws = pd.DataFrame(data={'PeakCentre':M[:,0].T, 'Height': M[:,1], 'Sigma':M[:,2] / 2.3548, 'chi2':0})
+            self.func_param_ws = pd.DataFrame(
+                data={'PeakCentre': M[:, 0].T, 'Height': M[:, 1], 'Sigma': M[:, 2] / 2.3548, 'chi2': 0})
 
         # calculate patterns
         CalcPatts = []
         for log_index in range(self._data_workspace[2]):
-            CalcPatts.append(self.calculate_peak(M[log_index,:], self._data_workspace[1][log_index], self._data_workspace[0][log_index], peak_function_name, background_function_name.split(' ')[0], ReturnModel=True ))
+            CalcPatts.append(self.calculate_peak(M[log_index, :], self._data_workspace[1][log_index], self._data_workspace[0]
+                                                 [log_index], peak_function_name, background_function_name.split(' ')[0], ReturnModel=True))
 
         self.fitted_ws = np.array(CalcPatts)
-       
-        print ('[DB...BAT] function parameters keys: {}'.format(self.func_param_ws.keys))
+
+        print('[DB...BAT] function parameters keys: {}'.format(self.func_param_ws.keys))
 
         return
 
@@ -183,7 +186,7 @@ class ScipyPeakFitEngine(RsPeakFitEngine):
 #        return self._data_workspace.getNumberHistograms()
 
         return self._data_workspace[2]
-    
+
     def get_fitted_params(self, param_name):
         """
 
@@ -203,7 +206,3 @@ class ScipyPeakFitEngine(RsPeakFitEngine):
 #            param_vec[row_index] = self.func_param_ws[param_name][row_index][0]
 
         return self.func_param_ws[param_name].values
-
-
-
-

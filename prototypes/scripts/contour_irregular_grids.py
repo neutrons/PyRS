@@ -22,7 +22,6 @@ def import_h5_array(file_name):
     return x, y, z
 
 
-
 if True:
     x, y, z = import_h5_array('/tmp/pyrs_test_ss/test.hdf5')
     print x.min(), x.max()
@@ -82,7 +81,7 @@ levels = [-1.5, -1, -0.5, 0, 0.5, 1]   # Level cannot solve the problem at all!
 ax1.contour(xi, yi, zi, levels, linewidths=0.5, colors='k')
 cntr1 = ax1.contourf(xi, yi, zi, 14, cmap="RdBu_r")
 # color bar
-fig.colorbar(cntr1, ax=ax1)  #, ticks=v)
+fig.colorbar(cntr1, ax=ax1)  # , ticks=v)
 # scatterings
 ax1.plot(x, y, 'ko', ms=3)
 ax1.axis((-200, 200, 0, 80))

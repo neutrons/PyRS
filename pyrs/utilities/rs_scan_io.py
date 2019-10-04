@@ -4,7 +4,7 @@ import h5py
 import math
 import numpy
 from shutil import copyfile
-from mantid.simpleapi import SaveNexusProcessed
+#from mantid.simpleapi import SaveNexusProcessed
 from mantid.api import AnalysisDataService
 
 
@@ -12,6 +12,7 @@ class DiffractionDataFile(object):
     """
     class to read and write reduced diffraction data file
     """
+
     def __init__(self):
         """
         initialization
@@ -123,11 +124,11 @@ class DiffractionDataFile(object):
         two_theta = instrument_group['2theta'].value
 
         # TODO - FIXME - TODAY 0 - Remove after testing is finished
-        print (counts)
-        print (type(counts))
+        print(counts)
+        print(type(counts))
 
-        print (two_theta)
-        print (type(two_theta))
+        print(two_theta)
+        print(type(two_theta))
 
         """
         [0 0 0 ..., 0 0 0]
@@ -277,7 +278,7 @@ class DiffractionDataFile(object):
             if 'Diffraction Data' not in scan_h5.keys():
                 raise RuntimeError(scan_h5.keys())
             diff_data_group = scan_h5['Diffraction Data']
-            print ('File: {0}'.format(file_name))
+            print('File: {0}'.format(file_name))
 
             # loop through the Logs
             h5_log_i = diff_data_group
@@ -295,7 +296,7 @@ class DiffractionDataFile(object):
                 if isinstance(item_i, numpy.ndarray):
                     # case for diffraction data
                     if item_name == 'Corrected Diffraction Data':
-                        print ('Item {0}: shape = {1}'.format(item_name, item_i.shape))
+                        print('Item {0}: shape = {1}'.format(item_name, item_i.shape))
                         # corrected 2theta and diffraction
                         if item_i.shape[2] != len(log_index_vec):
                             raise RuntimeError('File {0}: Corrected Diffraction Data ({1}) has different '
@@ -448,5 +449,3 @@ def save_hb2b_reduced_data(scan_index_dict, file_name):
     # END-FOR
 
     return
-
-

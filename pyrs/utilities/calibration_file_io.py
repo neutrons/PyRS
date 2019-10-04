@@ -78,7 +78,8 @@ def import_calibration_ascii_file(geometry_file_name):
         elif config_name == 'cal::rot_z':
             calibration_setup.rotation_z = config_value
         else:
-            raise RuntimeError('Instrument geometry setup item {} is not recognized and supported.'.format(config_name))
+            raise RuntimeError(
+                'Instrument geometry setup item {} is not recognized and supported.'.format(config_name))
 
     return calibration_setup
 
@@ -163,6 +164,7 @@ class ResidualStressCalibrationFile(object):
     """
     a dedicated file import/export
     """
+
     def __init__(self, cal_file_name=None, read_only=False):
         """
         initialization.
@@ -239,10 +241,6 @@ class ResidualStressCalibrationFile(object):
 # END-CLASS
 
 
-
-
-
-
 def update_calibration_info_file(cal_info_file, cal_info_table, append):
     """ Search archive in order to keep calibration up-to-date
     if in append mode, the additional information will be written to an existing calibration information hdf5 file
@@ -281,7 +279,3 @@ def update_calibration_info_file(cal_info_file, cal_info_table, append):
     cal_info_file.close()
 
     return
-
-
-
-

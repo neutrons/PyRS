@@ -1,22 +1,22 @@
 # Migrated from /HFIR/HB2B/shared/Quick_Calibration.py
-print ('Prototype Calibration: Quick_Calibration_v2')
+from matplotlib import pyplot as plt
+from mantid.api import AnalysisDataService as mtd
+from mantid.simpleapi import CreateWorkspace, FitPeaks
+from pyrs.core import mask_util
+from pyrs.core import reduction_manager
+from pyqr.utilities import calibration_file_io
+from pyrs.core import reduce_hb2b_pyrs
+from scipy.optimize import basinhopping
+from scipy.optimize import minimize
+from scipy.optimize import leastsq
+import numpy as np
+print('Prototype Calibration: Quick_Calibration_v2')
 # Original can be found at .../tests/Quick_Calibration_v2.py
 # TODO - TODAY 0 - Use pure-python reduction to replace Mantid reduction
-import numpy as np
-from scipy.optimize import leastsq
-from scipy.optimize import minimize
-from scipy.optimize import basinhopping
 
-from pyrs.core import reduce_hb2b_pyrs
-from pyrs.core import calibration_file_io
-from pyrs.core import reduction_manager
-from pyrs.core import mask_util
-from mantid.simpleapi import CreateWorkspace, FitPeaks
-from mantid.api import AnalysisDataService as mtd
-from matplotlib import pyplot as plt
 
-#----------------s-----------------------------------------------------------    
-wavelength = 1.E5 # kev
+# ----------------s-----------------------------------------------------------
+wavelength = 1.E5  # kev
 wavelength = 1.296  # A
 two_theta = 30.
 
@@ -52,7 +52,7 @@ def MinDifference_Chris(x):
     Error3 = (mtd[N30_Fit].extractY()[0] - mtd[P30_Fit].extractY()[0])
 
     print x
-    print  Error3 * Error3
+    print Error3 * Error3
     return (Error3 * Error3) * 1e8
 # This is main!!!
 
@@ -110,9 +110,9 @@ def MinDifference(x, engine, hb2b_setup, positive_roi_vec, negative_roi_vec):
         geom_calibration.rotation_z = x[5]
 
         positive_roi = convert_to_2theta(two_theta, hb2b_setup, positive_roi_vec, geom_calibration,
-                                            'positive_roi_ws')
+                                         'positive_roi_ws')
         negative_roi = convert_to_2theta(two_theta, hb2b_setup, negative_roi_vec, geom_calibration,
-                                            'negative_roi_ws')
+                                         'negative_roi_ws')
 
         # plt.plot(positive_roi[0], positive_roi[1], color='red')
         # plt.plot(negative_roi[0], negative_roi[1], color='green')
@@ -120,8 +120,6 @@ def MinDifference(x, engine, hb2b_setup, positive_roi_vec, negative_roi_vec):
 
     N30_Fit = 'Fit_N30'
     P30_Fit = 'Fit_P30'
-
-
 
     FitPeaks(InputWorkspace='positive_roi_ws', OutputWorkspace=N30_Fit, StartWorkspaceIndex=0,
              StopWorkspaceIndex=0, PeakCenters='17.5,24.5,30.25,35.2,39.4,43.2,53.5',
@@ -139,10 +137,10 @@ def MinDifference(x, engine, hb2b_setup, positive_roi_vec, negative_roi_vec):
 
     Error3 = (mtd[N30_Fit].extractY()[0] - mtd[P30_Fit].extractY()[0])
 
-    print ('Parameters:     {}'.format(x))
-    print ('Fitted Peaks +: {}'.format(mtd[P30_Fit].readY(0))) 
-    print ('Fitted Peaks -: {}'.format(mtd[N30_Fit].readY(0))) 
-    print ('Diff**2       = {}'.format(Error3 * Error3))
+    print('Parameters:     {}'.format(x))
+    print('Fitted Peaks +: {}'.format(mtd[P30_Fit].readY(0)))
+    print('Fitted Peaks -: {}'.format(mtd[N30_Fit].readY(0)))
+    print('Diff**2       = {}'.format(Error3 * Error3))
     return (Error3 * Error3) * 1e8
 # This is main!!!
 
@@ -218,7 +216,8 @@ def main():
         # 2theta
         two_theta = -35.  # TODO - TONIGHT 1 - Make this user specified value
 
-        calibration = [-2.28691912e-04, 3.42766839e-06, -1.99762398e-03, -5.59805308e-02, -8.32593462e-01, 7.66556036e-04]
+        calibration = [-2.28691912e-04, 3.42766839e-06, -1.99762398e-03, -
+                       5.59805308e-02, -8.32593462e-01, 7.66556036e-04]
 
         arm_length_shift = calibration[2]
         center_shift_x = calibration[0]
@@ -226,7 +225,6 @@ def main():
         rot_x_flip = calibration[3]
         rot_y_flip = calibration[4]
         rot_z_spin = calibration[5]
-
 
         # reduction engine
         engine = reduction_manager.HB2BReductionManager()
@@ -250,20 +248,22 @@ def main():
         roi_vec_pos, mask_2theta, note = mask_util.load_pyrs_mask(pos_mask_h5)
         roi_vec_neg, mask_2thetA, notE = mask_util.load_pyrs_mask(neg_mask_h5)
         pos_2theta, pos_hist = pyrs_reducer.reduce_to_2theta_histogram(counts_array=engine.get_counts(curr_id),
-                                                                       mask=roi_vec_pos, x_range=(min_2theta, max_2theta),
+                                                                       mask=roi_vec_pos, x_range=(
+                                                                           min_2theta, max_2theta),
                                                                        num_bins=num_bins,
                                                                        is_point_data=True,
                                                                        use_mantid_histogram=False)
         neg_2theta, neg_hist = pyrs_reducer.reduce_to_2theta_histogram(counts_array=engine.get_counts(curr_id),
-                                                                       mask=roi_vec_neg, x_range=(min_2theta, max_2theta),
+                                                                       mask=roi_vec_neg, x_range=(
+                                                                           min_2theta, max_2theta),
                                                                        num_bins=num_bins,
                                                                        is_point_data=True,
                                                                        use_mantid_histogram=False)
         plt.plot(pos_2theta, pos_hist, color='red')
         plt.plot(neg_2theta, neg_hist, color='blue')
         plt.show()
-        
-        print ('RESULT EXAMINATION IS OVER')
+
+        print('RESULT EXAMINATION IS OVER')
 
     else:
         import time
@@ -286,9 +286,9 @@ def main():
                          xtol=1e-15, maxfev=3000, epsfcn=1e-2)
 
         t_stop = time.time()
-        print ('Total Time: {}'.format(t_stop - t_start))
-        print (DE_Res[0])
-        print (DE_Res[1])
+        print('Total Time: {}'.format(t_stop - t_start))
+        print(DE_Res[0])
+        print(DE_Res[1])
 
         DD = 0.0
         D_Shift = 0
@@ -301,5 +301,6 @@ def main():
     # END-IF-ELSE
 
     return
+
 
 main()

@@ -1,20 +1,20 @@
-#pylint: disable=invalid-name,too-many-public-methods,too-many-arguments,non-parent-init-called,R0902,too-many-branches,C0302
+# pylint: disable=invalid-name,too-many-public-methods,too-many-arguments,non-parent-init-called,R0902,too-many-branches,C0302
+import matplotlib.image
+from matplotlib.figure import Figure
 import os
 import numpy as np
 
-try:
-    from PyQt5.QtCore import pyqtSignal
-    from PyQt5.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
+from qtpy.QtCore import Signal
+from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
+from qtpy import PYQT5, PYQT4
+
+if PYQT5:
     from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
-except ImportError:
-    from PyQt4.QtGui import QWidget, QSizePolicy, QVBoxLayout
-    from PyQt4.QtCore import pyqtSignal
+elif PYQT4:
     from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
 
-from matplotlib.figure import Figure
-import matplotlib.image
 
 MplLineStyles = ['-', '--', '-.', ':', 'None', ' ', '']
 MplLineMarkers = [
@@ -60,6 +60,7 @@ class MplGraphicsView2D(QWidget):
 
     Note: Merged with HFIR_Powder_Reduction.MplFigureCAnvas
     """
+
     def __init__(self, parent):
         """ Initialization
         """
@@ -433,6 +434,7 @@ class Qt4Mpl2DCanvas(FigureCanvas):
     """  A customized Qt widget for matplotlib figure.
     It can be used to replace GraphicsView of QtGui
     """
+
     def __init__(self, parent):
         """  Initialization
         """
@@ -455,7 +457,7 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         self.setParent(parent)
 
         # Set size policy to be able to expanding and resizable with frame
-        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding,QSizePolicy.Expanding)
+        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
 
         # Variables to manage all lines/subplot
@@ -589,12 +591,12 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         # show image
         self._imagePlot = self.axes.imshow(array2d, extent=[xmin, xmax, ymin, ymax], interpolation='none')
 
-        print (self._imagePlot, type(self._imagePlot))
+        print(self._imagePlot, type(self._imagePlot))
 
         # set y ticks as an option:
         if yticklabels is not None:
             # it will always label the first N ticks even image is zoomed in
-            print ("[FIXME]: The way to set up the Y-axis ticks is wrong!")
+            print("[FIXME]: The way to set up the Y-axis ticks is wrong!")
             self.axes.set_yticklabels(yticklabels)
 
         # explicitly set aspect ratio of the image
@@ -887,10 +889,10 @@ class MyNavigationToolbar(NavigationToolbar2):
 
     # This defines a signal called 'home_button_pressed' that takes 1 boolean
     # argument for being in zoomed state or not
-    home_button_pressed = pyqtSignal()
+    home_button_pressed = Signal()
 
     # This defines a signal called 'canvas_zoom_released'
-    canvas_zoom_released = pyqtSignal()
+    canvas_zoom_released = Signal()
 
     def __init__(self, parent, canvas):
         """ Initialization

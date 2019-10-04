@@ -8,8 +8,8 @@ def test_main():
     test main
     :return:
     """
-    print (gui_helper.parse_integers('3, 4, 5'))
-    print (gui_helper.parse_integers('3:5, 4:10, 19'))
+    print(gui_helper.parse_integers('3, 4, 5'))
+    print(gui_helper.parse_integers('3:5, 4:10, 19'))
 
     try:
         int_list = gui_helper.parse_integers('3.2, 4')

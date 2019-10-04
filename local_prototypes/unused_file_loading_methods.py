@@ -1,5 +1,7 @@
 
 # From reduction_manager.py
+
+
 def load_data(self, data_file_name, sub_run=None, target_dimension=None, load_to_workspace=True):
     """
     Load data set and
@@ -52,6 +54,7 @@ class ScanDataHolder(object):
     """
     holder for a single scan data which contains diffraction data and sample logs
     """
+
     def __init__(self, file_name, diff_data_dict, sample_log_dict):
         """
 

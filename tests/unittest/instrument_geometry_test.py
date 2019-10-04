@@ -50,48 +50,48 @@ def load_instrument(hb2b_builder, arm_length_shift, two_theta=0., center_shift_x
 
         # set up sample logs
         # cal::arm
-        print ('Arm length correction  = {}'.format(arm_length_shift))
+        print('Arm length correction  = {}'.format(arm_length_shift))
         AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::arm', LogText='{}'.format(arm_length_shift),
                      LogType='Number Series', LogUnit='meter',
                      NumberType='Double')
         #
         # cal::2theta
-        print ('HB2B 2-theta = {}    (opposite to Mantid 2theta)'.format(two_theta))
+        print('HB2B 2-theta = {}    (opposite to Mantid 2theta)'.format(two_theta))
         AddSampleLog(Workspace=raw_data_ws_name, LogName='2theta', LogText='{}'.format(-two_theta),
                      LogType='Number Series', LogUnit='degree',
                      NumberType='Double')
         #
         # cal::deltax
-        print ('Shift X = {}'.format(center_shift_x))
+        print('Shift X = {}'.format(center_shift_x))
         AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::deltax', LogText='{}'.format(center_shift_x),
                      LogType='Number Series', LogUnit='meter',
                      NumberType='Double')
         #
         # cal::deltay
-        print ('Shift Y = {}'.format(center_shift_y))
+        print('Shift Y = {}'.format(center_shift_y))
         AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::deltay', LogText='{}'.format(center_shift_y),
                      LogType='Number Series', LogUnit='meter',
                      NumberType='Double')
-                     
+
         # cal::flip
-        print ('Rotation X = {}'.format(rot_x_flip))
+        print('Rotation X = {}'.format(rot_x_flip))
         AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::flip', LogText='{}'.format(rot_x_flip),
                      LogType='Number Series', LogUnit='degree',
                      NumberType='Double')
 
         # cal::roty
-        print ('Rotation Y = {}'.format(rot_y_flip))
+        print('Rotation Y = {}'.format(rot_y_flip))
         AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::roty', LogText='{}'.format(rot_y_flip),
                      LogType='Number Series', LogUnit='degree',
                      NumberType='Double')
 
         # cal::spin
-        print ('Rotation Z = {}'.format(rot_z_spin))
+        print('Rotation Z = {}'.format(rot_z_spin))
         AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::spin', LogText='{}'.format(rot_z_spin),
                      LogType='Number Series', LogUnit='degree',
                      NumberType='Double')
 
-        print ('Load instrument file : {}'.format(idf_name))
+        print('Load instrument file : {}'.format(idf_name))
         LoadInstrument(Workspace=raw_data_ws_name,
                        Filename=idf_name,
                        InstrumentName='HB2B', RewriteSpectraMap='True')
@@ -111,14 +111,14 @@ def load_instrument(hb2b_builder, arm_length_shift, two_theta=0., center_shift_x
             pos_python = pixel_matrix[index_i, index_j]
             index1d = index_i + pixel_number * index_j
             pos_mantid = workspace.getDetector(index1d).getPos()
-            print ('({}, {} / {}):   {:10s}   -   {:10s}    =   {:10s}'
-                   ''.format(index_i, index_j, index1d, 'PyRS', 'Mantid', 'Diff'))
+            print('({}, {} / {}):   {:10s}   -   {:10s}    =   {:10s}'
+                  ''.format(index_i, index_j, index1d, 'PyRS', 'Mantid', 'Diff'))
             diff_sq = 0.
             for i in range(3):
                 diff_sq += (float(pos_python[i] - pos_mantid[i]))**2
-                print ('dir {}:  {:10f}   -   {:10f}    =   {:10f}'
-                       ''.format(i, float(pos_python[i]), float(pos_mantid[i]),
-                                 float(pos_python[i] - pos_mantid[i])))
+                print('dir {}:  {:10f}   -   {:10f}    =   {:10f}'
+                      ''.format(i, float(pos_python[i]), float(pos_mantid[i]),
+                                float(pos_python[i] - pos_mantid[i])))
             # END-FOR
             if diff_sq > 1.E-6:
                 raise RuntimeError('Mantid PyRS mismatch!')
@@ -145,7 +145,7 @@ def load_data_from_tif(raw_tiff_name, pixel_size=2048, rotate=True):
     # im = img_as_uint(np.array(ImageData))
     io.use_plugin('freeimage')
     image_2d_data = np.array(ImageData, dtype=np.int32)
-    print (image_2d_data.shape, type(image_2d_data), image_2d_data.min(), image_2d_data.max())
+    print(image_2d_data.shape, type(image_2d_data), image_2d_data.min(), image_2d_data.max())
     # image_2d_data.astype(np.uint32)
     image_2d_data.astype(np.float64)
     if rotate:
@@ -153,7 +153,8 @@ def load_data_from_tif(raw_tiff_name, pixel_size=2048, rotate=True):
 
     # Merge data if required
     if pixel_size == 1024:
-        counts_vec = image_2d_data[::2, ::2] + image_2d_data[::2, 1::2] + image_2d_data[1::2, ::2] + image_2d_data[1::2, 1::2]
+        counts_vec = image_2d_data[::2, ::2] + image_2d_data[::2, 1::2] + \
+            image_2d_data[1::2, ::2] + image_2d_data[1::2, 1::2]
         pixel_type = '1K'
         # print (DataR.shape, type(DataR))
     else:
@@ -162,7 +163,7 @@ def load_data_from_tif(raw_tiff_name, pixel_size=2048, rotate=True):
         pixel_type = '2K'
 
     counts_vec = counts_vec.reshape((pixel_size * pixel_size,))
-    print (counts_vec.min())
+    print(counts_vec.min())
 
     data_ws_name = os.path.basename(raw_tiff_name).split('.')[0] + '_{}'.format(pixel_type)
     CreateWorkspace(DataX=np.zeros((pixel_size**2,)), DataY=counts_vec, DataE=np.sqrt(counts_vec), NSpec=pixel_size**2,
@@ -220,7 +221,7 @@ def main(argv):
     else:
         raise RuntimeError('Wrong setup')
 
-    from pyrs.core import calibration_file_io
+    from pyqr.utilities import calibration_file_io
     xray_instrument = calibration_file_io.InstrumentSetup()
     xray_instrument.detector_rows = num_rows
     xray_instrument.detector_columns = num_columns
@@ -267,4 +268,3 @@ def main(argv):
 
 if __name__ == '__main__':
     main(['do it'])
-

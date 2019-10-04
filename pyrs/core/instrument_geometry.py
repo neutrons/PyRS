@@ -11,6 +11,7 @@ class HydraSetup(object):
     """
     A class to handle anything to do with HB2B (HYDRA) including geometry, wavelength and calibration
     """
+
     def __init__(self, l1, detector_setup):
         """ Initialization
         :param l1: L1 (from source to sample)
@@ -112,6 +113,7 @@ class AnglerCameraDetectorGeometry(object):
     """
     A class to handle and save instrument geometry setup
     """
+
     def __init__(self, num_rows, num_columns, pixel_size_x, pixel_size_y, arm_length, calibrated):
         """
         Initialization of instrument geometry setup for 1 angler camera
@@ -178,6 +180,7 @@ class AnglerCameraDetectorShift(object):
     """
     A class to handle and save instrument geometry calibration information
     """
+
     def __init__(self, shift_x, shift_y, shift_z, rotation_x, rotation_y, rotation_z):
         """
         initialize
@@ -337,4 +340,3 @@ if __name__ == '__main__':
     # Test main
     shift = AnglerCameraDetectorShift(0., 0., 0., 0., 0., 0.)
     shift.to_json('geometry_shift_template.json')
-

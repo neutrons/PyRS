@@ -94,6 +94,7 @@ class HydraProjectFile(object):
           - ...
 
     """
+
     def __init__(self, project_file_name, mode):
         """
         Initialization
@@ -206,7 +207,7 @@ class HydraProjectFile(object):
         checkdatatypes.check_string_variable('Log name', log_name)
 
         try:
-            print ('[DB...BAT] Add sample log: {}'.format(log_name))
+            print('[DB...BAT] Add sample log: {}'.format(log_name))
             self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS].create_dataset(
                 log_name, data=log_value_array)
         except RuntimeError as run_err:
@@ -289,7 +290,7 @@ class HydraProjectFile(object):
         """
         assert self._project_h5 is not None, 'cannot be None'
         self._project_h5.close()
-        print ('[INFO] File {} is closed'.format(self._file_name))
+        print('[INFO] File {} is closed'.format(self._file_name))
 
         return
 
@@ -423,17 +424,17 @@ class HydraProjectFile(object):
         get list of the sub runs
         :return:
         """
-        print (self._project_h5.keys())
-        print (self._file_name)
+        print(self._project_h5.keys())
+        print(self._file_name)
         sub_runs_str_list = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS][HidraConstants.SUB_RUNS].value
 
-        print ('[DB....BAT....] Sun runs: {}'.format(sub_runs_str_list))
+        print('[DB....BAT....] Sun runs: {}'.format(sub_runs_str_list))
 
         sub_run_list = [None] * len(sub_runs_str_list)
         for index, sub_run_str in enumerate(sub_runs_str_list):
             sub_run_list[index] = int(sub_run_str)
 
-        print ('[DB....BAT....] Sun runs: {}'.format(sub_run_list))
+        print('[DB....BAT....] Sun runs: {}'.format(sub_run_list))
 
         return sub_run_list
 
@@ -446,7 +447,7 @@ class HydraProjectFile(object):
         self._validate_write_operation()
 
         if verbose:
-            print ('Changes are saved to {0}; {0} will be closed right after.'.format(self._project_h5.filename))
+            print('Changes are saved to {0}; {0} will be closed right after.'.format(self._project_h5.filename))
 
         self._project_h5.close()
 
@@ -660,7 +661,7 @@ class HydraProjectFile(object):
         for mask_id in diff_data_set:
             # Get data
             diff_data_matrix_i = diff_data_set[mask_id]
-            print ('[INFO] Mask {} data set shape: {}'.format(mask_id, diff_data_matrix_i.shape))
+            print('[INFO] Mask {} data set shape: {}'.format(mask_id, diff_data_matrix_i.shape))
             # Check
             checkdatatypes.check_numpy_arrays('Diffraction data (matrix)', [diff_data_matrix_i], 2, False)
             if two_theta_vec.shape[0] != diff_data_matrix_i.shape[1]:
@@ -714,14 +715,14 @@ class HydraProjectFile(object):
         # create a new node if it does not exist
         sub_run_group_name = '{0:04}'.format(sub_run_number)
 
-        print ('[DB...BAT] sub group entry name in hdf: {}'.format(sub_run_group_name))
+        print('[DB...BAT] sub group entry name in hdf: {}'.format(sub_run_group_name))
 
         # check existing node or create a new node
-        print ('[DB...BAT] Diffraction node sub group/entries: {}'
-               ''.format( self._project_h5[HidraConstants.REDUCED_DATA].keys()))
+        print('[DB...BAT] Diffraction node sub group/entries: {}'
+              ''.format(self._project_h5[HidraConstants.REDUCED_DATA].keys()))
         if sub_run_group_name in self._project_h5[HidraConstants.REDUCED_DATA]:
             # sub-run node exist and check
-            print ('[DB...BAT] sub-group: {}'.format(sub_run_group_name))
+            print('[DB...BAT] sub-group: {}'.format(sub_run_group_name))
             diff_group = self._project_h5[HidraConstants.REDUCED_DATA][sub_run_group_name]
             if not (DiffractionUnit.TwoTheta in diff_group and DiffractionUnit.DSpacing in diff_group):
                 raise RuntimeError('Diffraction node for sub run {} exists but is not complete'.format(sub_run_number))

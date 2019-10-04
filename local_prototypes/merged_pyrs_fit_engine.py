@@ -12,6 +12,7 @@ class RsPeakFitEngine(object):
     """
     virtual peak fit engine
     """
+
     def __init__(self, sub_run_list, data_set_list, ref_id):
         """
         initialization
@@ -125,6 +126,3 @@ class RsPeakFitEngine(object):
 # In [21]: peak_fit_97['Chi2'] = 56.3
 #
 # In [22]: rwfile.close()
-
-
-

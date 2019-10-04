@@ -13,8 +13,8 @@ histogram_chi0 = project.get_diffraction_intensity_vector('Chi_0_68', 1)
 histogram_chi10 = project.get_diffraction_intensity_vector('Chi_10_50', 1)
 histogram_chi30 = project.get_diffraction_intensity_vector('Chi_30_76', 1)
 
-print (two_theta_vec.shape)
-print (histogram.shape)
+print(two_theta_vec.shape)
+print(histogram.shape)
 
 
 project.close()

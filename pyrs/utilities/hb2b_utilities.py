@@ -1,7 +1,7 @@
 # TODO - 20181130 - Implement this class
 # A module contains a set of static methods to provide instrument geometry and data archiving knowledge of HB2B
 import checkdatatypes
-import file_utilities
+import file_util
 
 
 def get_hb2b_raw_data(ipts_number, run_number):
@@ -38,7 +38,7 @@ def get_hydra_project_file(ipts_number, run_number):
     try:
         checkdatatypes.check_file_name(hydra_file_name, check_exist=True, check_writable=False, is_dir=False)
     except RuntimeError as run_error:
-        print ('[ERROR] Unable to find Hydra project file {} due to {}'.format(hydra_file_name, run_error))
+        print('[ERROR] Unable to find Hydra project file {} due to {}'.format(hydra_file_name, run_error))
         return None
 
     return hydra_file_name
@@ -83,4 +83,3 @@ def scan_calibration_in_archive():
     # END-FOR
 
     return calib_info_table
-

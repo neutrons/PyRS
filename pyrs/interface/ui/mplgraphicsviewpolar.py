@@ -1,20 +1,18 @@
-#pylint: disable=invalid-name,too-many-public-methods,too-many-arguments,non-parent-init-called,R0902,too-many-branches,C0302
+# pylint: disable=invalid-name,too-many-public-methods,too-many-arguments,non-parent-init-called,R0902,too-many-branches,C0302
+import matplotlib.image
+from matplotlib.figure import Figure
 import os
 import numpy as np
 
-try:
-    from PyQt5.QtCore import pyqtSignal
-    from PyQt5.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
+from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
+from qtpy import PYQT5, PYQT4
+
+if PYQT5:
     from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
-except ImportError:
-    from PyQt4.QtGui import QWidget, QSizePolicy, QVBoxLayout
-    from PyQt4.QtCore import pyqtSignal
+elif PYQT4:
     from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
-
-from matplotlib.figure import Figure
-import matplotlib.image
 
 
 class MplGraphicsPolarView(QWidget):
@@ -23,6 +21,7 @@ class MplGraphicsPolarView(QWidget):
 
     Note: Merged with HFIR_Powder_Reduction.MplFigureCAnvas
     """
+
     def __init__(self, parent):
         """ Initialization
         """
@@ -62,6 +61,7 @@ class Qt4MplPolarCanvas(FigureCanvas):
     """  A customized Qt widget for matplotlib figure.
     It can be used to replace GraphicsView of QtGui
     """
+
     def __init__(self, parent):
         """  Initialization
         """
@@ -130,7 +130,8 @@ class Qt4MplPolarCanvas(FigureCanvas):
 
         # create the mesh grid for contour plot
         # create 1D arrays for theta and r: beta/2
-        azimuths = np.radians(np.linspace(-theta_resolution/2., 360+theta_resolution/2., 360/theta_resolution+1))  # degree
+        azimuths = np.radians(np.linspace(-theta_resolution/2., 360 +
+                                          theta_resolution/2., 360/theta_resolution+1))  # degree
         # Chris change to non-linear spacing from alpha:  zeniths = np.arange(0, max_r+r_resolution, r_resolution)  # radius
         zeniths = np.tan(np.pi / 360. * np.arange(-r_resolution/2., max_r+r_resolution, r_resolution))  # radius
 
@@ -146,8 +147,8 @@ class Qt4MplPolarCanvas(FigureCanvas):
         r_ref_vec = mesh_r[0]
         theta_ref_vec = mesh_theta[:, 0]
 
-        print ('[DB...BAT] Plot pole figure:  Number of data points = {}, '
-               'Maximum intensity = {}'.format(num_pts, np.max(vec_values)))
+        print('[DB...BAT] Plot pole figure:  Number of data points = {}, '
+              'Maximum intensity = {}'.format(num_pts, np.max(vec_values)))
 
         for i in range(num_pts):
             r_i = vec_r[i]
@@ -161,8 +162,8 @@ class Qt4MplPolarCanvas(FigureCanvas):
                 index_theta = 0
             elif index_theta >= len(theta_ref_vec):
                 # out of boundary. it is not likely to happen
-                print ('[DB...BAT] Find an out-of-boundary theta {0} exceeding {1}'
-                       ''.format(theta_i, theta_ref_vec[-1]))
+                print('[DB...BAT] Find an out-of-boundary theta {0} exceeding {1}'
+                      ''.format(theta_i, theta_ref_vec[-1]))
                 index_theta -= 1
             else:
                 # theta is between two valid values: use the closer one
@@ -179,8 +180,8 @@ class Qt4MplPolarCanvas(FigureCanvas):
                 index_r = 0
             elif index_r >= len(r_ref_vec):
                 # out of upper boundary. it is not likely to happen
-                print ('[DB...BAT] Find an out-of-boundary r {0} exceeding {1}'
-                       ''.format(r_i, r_ref_vec[-1]))
+                print('[DB...BAT] Find an out-of-boundary r {0} exceeding {1}'
+                      ''.format(r_i, r_ref_vec[-1]))
                 index_r -= 1
             else:
                 # r is between two valid values: use the closer one
@@ -209,11 +210,12 @@ class Qt4MplPolarCanvas(FigureCanvas):
         return
     #
 
+
 def check_1D_array(vector):
     """
     check 1D array
-    :param vector: 
-    :return: 
+    :param vector:
+    :return:
     """
     assert isinstance(vector, np.ndarray), 'Input {0} must be a numpy ndarray but not a {1}.' \
                                            ''.format(vector, type(vector))

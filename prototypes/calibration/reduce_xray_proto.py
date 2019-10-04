@@ -1,6 +1,7 @@
-# TODO - ASAP - A script to reduce HB2B data 
+# TODO - ASAP - A script to reduce HB2B data
 # NOTE : script is for prototyping with MantidPlot
 import os
+
 
 def print_position(workspace):
     det_id_list = [0, 1023, 1023*1024, 1024*1024-1, 511*1024+511]
@@ -15,11 +16,11 @@ def convert_to_2theta(ws_name):
     """
     """
     num_bins = 1000
-    
+
     # duplicate for vanadium
     vanadium = CloneWorkspace(InputWorkspace=ws_name, OutputWorkspace='vanadium')
-   
-    # transfer to 2theta for data 
+
+    # transfer to 2theta for data
     ConvertSpectrumAxis(InputWorkspace=ws_name, OutputWorkspace=ws_name, Target='Theta')
     Transpose(InputWorkspace=ws_name, OutputWorkspace=ws_name)
     ResampleX(InputWorkspace=ws_name, OutputWorkspace=ws_name, NumberBins=num_bins, PreserveEvents=False)
@@ -30,13 +31,14 @@ def convert_to_2theta(ws_name):
     ConvertSpectrumAxis(InputWorkspace='vanadium', OutputWorkspace='vanadium', Target='Theta')
     Transpose(InputWorkspace='vanadium', OutputWorkspace='vanadium')
     ResampleX(InputWorkspace='vanadium', OutputWorkspace='vanadium', NumberBins=num_bins, PreserveEvents=False)
-    
+
     Divide(LHSWorkspace=ws_name, RHSWorkspace='vanadium', OutputWorkspace='reduced')
-  
+
     return
 
-#---------------------------------------------------------------------------    
-wavelength = 1.E5 # kev
+
+# ---------------------------------------------------------------------------
+wavelength = 1.E5  # kev
 wavelength = 1.296  # A
 Beam_Center_X = 0.000805
 Beam_Center_Y = -0.006026
@@ -56,7 +58,7 @@ def test_rotate_2theta(idf_name):
                  LogName='cal::deltax', LogText='{}'.format(Beam_Center_X), LogType='Number Series', LogUnit='meter', NumberType='Double')
     AddSampleLog(Workspace=output_ws_name,
                  LogName='cal::deltay', LogText='{}'.format(-Beam_Center_Y), LogType='Number Series', LogUnit='meter', NumberType='Double')
-    
+
     AddSampleLog(Workspace=output_ws_name,
                  LogName='cal::flip', LogText='0.0', LogType='Number Series', LogUnit='degree', NumberType='Double')
     AddSampleLog(Workspace=output_ws_name,
@@ -70,7 +72,6 @@ def test_rotate_2theta(idf_name):
     print_position(mtd[output_ws_name])
 
     return output_ws_name
-    
 
 
 # Set up

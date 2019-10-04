@@ -3,6 +3,7 @@
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 # import mantid algorithms, numpy and matplotlib
+import h5py
 from mantid.simpleapi import *
 
 import matplotlib.pyplot as plt
@@ -16,5 +17,4 @@ h5_name = os.path.join(root_path, 'tests/testdata/HZB_Raw_Project.hdf')
 print(h5_name)
 print(os.path.exists(h5_name))
 
-import h5py
 hydra_h5 = h5py.File(h5_name, 'r')

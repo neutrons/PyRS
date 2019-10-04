@@ -8,14 +8,9 @@ import os
 import numpy
 import ManualSlicerSetupDialog
 
-try:
-    from PyQt5 import QtCore as QtCore
-    from PyQt5.QtWidgets import QMainWindow, QButtonGroup, QFileDialog
-    from PyQt5.uic import loadUi as load_ui
-except ImportError:
-    from PyQt4 import QtCore as QtCore
-    from PyQt4.QtGui import QMainWindow, QButtonGroup, QFileDialog
-    from PyQt4.uic import loadUi as load_ui
+from pyqt import QtCore
+from pyqt.QtWidgets import QMainWindow, QButtonGroup, QFileDialog
+from pyrs.utilities import load_ui
 
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
@@ -38,6 +33,7 @@ class EventSlicerSetupWindow(QMainWindow):
     """ Class for general-puposed plot window
     """
     # class
+
     def __init__(self, parent=None):
         """ Initialization
         """
@@ -497,7 +493,6 @@ class EventSlicerSetupWindow(QMainWindow):
         # TODO/ISSUE/NEXT - make this work!
         # run_start_epoch = self.get_controller().get_run_start(run_number, epoch_time=True)
         # self.ui.label_runStartEpoch.setText('{0}'.format(run_start_epoch))
-
 
         return
 

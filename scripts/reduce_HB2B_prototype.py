@@ -3,7 +3,7 @@ import sys
 import os
 from pyrs.core import reduction_manager
 from pyrs.utilities import checkdatatypes
-from pyrs.core import calibration_file_io
+from pyqr.utilities import calibration_file_io
 from pyrs.core import mask_util
 from matplotlib import pyplot as plt
 
@@ -19,6 +19,7 @@ class PrototypeReductionApp(object):
     """
     Data reduction application
     """
+
     def __init__(self):
         """
         initialization
@@ -70,8 +71,8 @@ class PrototypeReductionApp(object):
                                                               load_to_workspace=False)
 
         counts_vec = self._reduction_engine.get_counts(data_id)
-        print ('Counts vec:', counts_vec)
-        print ('Counts shape:', counts_vec.shape)
+        print('Counts vec:', counts_vec)
+        print('Counts shape:', counts_vec.shape)
 
         return counts_vec
 
@@ -86,7 +87,6 @@ class PrototypeReductionApp(object):
         return masked_counts_vec
 
     def plot_detector_counts(self):
-
 
         return
 
@@ -209,7 +209,7 @@ class PrototypeReductionApp(object):
         # load data
         data_id, two_th_tp = self._reduction_engine.load_data(data_file, target_dimension=2048,
                                                               load_to_workspace=use_mantid)
-        print ('2theta = {} (from {}) vs {} (from user)'.format(two_th_tp, data_file, two_theta))
+        print('2theta = {} (from {}) vs {} (from user)'.format(two_th_tp, data_file, two_theta))
 
         # load instrument
         if instrument_file.lower().endswith('.xml'):
@@ -241,7 +241,7 @@ class PrototypeReductionApp(object):
         vec_x, vec_y = self._reduction_engine.get_reduced_data()
 
         if vec_x.shape[0] > vec_y.shape[0]:
-            print ('Shape: vec x = {}, vec y = {}'.format(vec_x.shape, vec_y.shape))
+            print('Shape: vec x = {}, vec y = {}'.format(vec_x.shape, vec_y.shape))
             # TODO - TONIGHT 3 - shift half bin of X to point data
             plt.plot(vec_x[:-1], vec_y)
         else:
@@ -255,17 +255,17 @@ def main(argv):
     :param argv:
     :return:
     """
-    print ('args: ', argv)
+    print('args: ', argv)
 
     if len(argv) < 3:
-        print ('Auto-reducing HB2B: {} [NeXus File Name] [Target Directory] [--instrument=xray_setup.txt]'
-               '[--calibration=xray_calib.txt] [--mask=mask.h5] [--engine=engine]'.format(argv[0]))
-        print ('--instrument:   instrument configuration file (arm, pixel number and size')
-        print ('--2theta:       2theta value if input is not an EventNeXus file')
-        print ('--calibration:  instrument geometry calibration file')
-        print ('--mask:         masking file (PyRS hdf5 format)')
-        print ('--engine:       mantid or pyrs.  default is pyrs')
-        print ('--viewraw:      viewing raw data with an option to mask (NO reduction)')
+        print('Auto-reducing HB2B: {} [NeXus File Name] [Target Directory] [--instrument=xray_setup.txt]'
+              '[--calibration=xray_calib.txt] [--mask=mask.h5] [--engine=engine]'.format(argv[0]))
+        print('--instrument:   instrument configuration file (arm, pixel number and size')
+        print('--2theta:       2theta value if input is not an EventNeXus file')
+        print('--calibration:  instrument geometry calibration file')
+        print('--mask:         masking file (PyRS hdf5 format)')
+        print('--engine:       mantid or pyrs.  default is pyrs')
+        print('--viewraw:      viewing raw data with an option to mask (NO reduction)')
         sys.exit(-1)
 
     # parse input & check
@@ -310,8 +310,8 @@ def main(argv):
         # reduce from HB2B nexus file
         raise NotImplementedError('Not been implemented to reduce from NeXus file')
     else:
-        print ('For non Event NeXus file {}, instrument definition must be given '
-               'or file format is not supported!'.format(source_data_file))
+        print('For non Event NeXus file {}, instrument definition must be given '
+              'or file format is not supported!'.format(source_data_file))
         sys.exit(-1)
     # END-IF-ELSE
 

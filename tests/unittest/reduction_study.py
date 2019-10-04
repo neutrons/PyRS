@@ -4,7 +4,7 @@
 import os
 import sys
 from pyrs.core import reduce_hb2b_pyrs
-from pyrs.core import calibration_file_io
+from pyqr.utilities import calibration_file_io
 from pyrs.core import reduction_manager
 from pyrs.core import mask_util
 import numpy
@@ -16,7 +16,7 @@ import random
 from matplotlib import pyplot as plt
 
 # default testing directory is ..../PyRS/
-print ('Current Working Directory: {}'.format(os.getcwd()))
+print('Current Working Directory: {}'.format(os.getcwd()))
 test_data = 'tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5'
 if True:
     xray_2k_instrument_file = 'tests/testdata/xray_data/XRay_Definition_2K.txt'
@@ -25,14 +25,14 @@ elif False:  # IDF in test
     xray_2k_instrument_file = 'tests/testdata/xray_data/XRay_Definition_2K_Mod.txt'
     # xray_idf_name = 'tests/testdata/XRay_Definition_2K_Mod.xml'
 else:
-    print ('Wrong configuration!')
+    print('Wrong configuration!')
     sys.exit(-1)
 
 Mask_File = {0: 'tests/testdata/masks/Chi_0.hdf5',
              10: 'tests/testdata/masks/Chi_10.hdf5',
              20: 'tests/testdata/masks/Chi_20.hdf5',
              -10: 'tests/testdata/masks/Chi_Neg10.hdf5'}
-print ('Data file {0} exists? : {1}'.format(test_data, os.path.exists(test_data)))
+print('Data file {0} exists? : {1}'.format(test_data, os.path.exists(test_data)))
 
 
 def create_instrument_load_data(calibrated, pixel_number, use_mantid):
@@ -87,9 +87,9 @@ def reduce_data(mask_file, calibrated, pixel_number=2048):
 
     # load mask: mask file
     if mask_file is not None:
-        print ('Load masking file: {}'.format(mask_file))
+        print('Load masking file: {}'.format(mask_file))
         mask_vec, mask_2theta, note = mask_util.load_pyrs_mask(mask_file)
-        print ('Mask file {}: 2theta = {}'.format(mask_file, mask_2theta))
+        print('Mask file {}: 2theta = {}'.format(mask_file, mask_2theta))
     else:
         mask_vec = None
 
@@ -116,7 +116,7 @@ def reduce_data(mask_file, calibrated, pixel_number=2048):
     vec_dspace = vec_dspace[::-1]
     vec_y = pyrs_vec_y[::-1]
 
-    print ('DSpacing: range = ({}, {})'.format(vec_dspace.min(), vec_dspace.max()))
+    print('DSpacing: range = ({}, {})'.format(vec_dspace.min(), vec_dspace.max()))
     if mask_file:
         mask = os.path.basename(mask_file)
     else:
@@ -135,7 +135,7 @@ def reduce_data(mask_file, calibrated, pixel_number=2048):
                                                                 num_bins=num_bins)
 
     plt.plot(vec_d, vec_hist, color='red', label='PyRS: Mask {} Histogram by {}'
-                                                  ''.format(mask, 'numpy.histogram'))
+             ''.format(mask, 'numpy.histogram'))
     plt.legend()
     plt.show()
 
@@ -156,13 +156,13 @@ def main(argv):
     :return:
     """
     if len(argv) < 5:
-        print ('{} [File Name] [2theta] [ROI=NONE/File] [ENGINE=M(antid)/P(yRS)]\n'.format(sys.argv[0]))
+        print('{} [File Name] [2theta] [ROI=NONE/File] [ENGINE=M(antid)/P(yRS)]\n'.format(sys.argv[0]))
         sys.exit(0)
 
     # parse input
     file_name = argv[1]
     if not os.path.exists(file_name):
-        print ('File {} does not exist.'.format(file_name))
+        print('File {} does not exist.'.format(file_name))
         sys.exit(-1)
 
     two_theta = float(argv[2])
@@ -171,7 +171,7 @@ def main(argv):
         roi_file = None
     engine = argv[4][0].lower()
     if engine != 'm' and engine != 'p':
-        print ('ENGINE must be M or P')
+        print('ENGINE must be M or P')
         sys.exit(0)
 
     if engine == 'm':

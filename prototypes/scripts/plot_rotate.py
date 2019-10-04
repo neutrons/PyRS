@@ -12,14 +12,14 @@ print vec_y
 
 # first of all, the base transformation of the data points is needed
 base = pyplot.gca().transData
-print (type(base))
+print(type(base))
 rot = transforms.Affine2D().rotate_deg(270)
-print (type(rot))
+print(type(rot))
 
 # define transformed line
 # line = pyplot.plot(data, 'r--', transform= rot + base)
 # line = pyplot.plot(vec_x, vec_y)
-line = pyplot.plot(vec_x, vec_y, 'r--', transform= rot + base)
+line = pyplot.plot(vec_x, vec_y, 'r--', transform=rot + base)
 # or alternatively, use:
 # line.set_transform(rot + base)
 

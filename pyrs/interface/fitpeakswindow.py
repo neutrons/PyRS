@@ -1,9 +1,6 @@
-try:
-    from PyQt5.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout
-    from PyQt5.uic import loadUi as load_ui
-except ImportError:
-    from PyQt4.QtGui import QMainWindow, QFileDialog, QVBoxLayout
-    from PyQt4.uic import loadUi as load_ui
+from pyrs.utilities import load_ui
+from qtpy.QtWidgets import QVBoxLayout, QFileDialog, QMainWindow
+
 from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.diffdataviews import GeneralDiffDataView, DiffContourView
 from pyrs.interface.ui.rstables import FitResultTable
@@ -20,6 +17,7 @@ class FitPeaksWindow(QMainWindow):
     """
     GUI window for user to fit peaks
     """
+
     def __init__(self, parent):
         """
         initialization
@@ -317,7 +315,7 @@ class FitPeaksWindow(QMainWindow):
 
         # Get peak fitting range from the range of figure
         fit_range = self._ui_graphicsView_fitSetup.get_x_limit()
-        print ('[INFO] Peak fit range: {0}'.format(fit_range))
+        print('[INFO] Peak fit range: {0}'.format(fit_range))
 
         # Fit Peaks: It is better to fit all the peaks at the same time after testing
         guessed_peak_center = 0.5 * (fit_range[0] + fit_range[1])
@@ -334,7 +332,7 @@ class FitPeaksWindow(QMainWindow):
                                                                          effective_parameter=False)
         # TODO - #84+ - Need to implement the option as effective_parameter=True
 
-        print ('[DB...BAT...FITWINDOW....FIT] returned = {}, {}'.format(function_params, fit_values))
+        print('[DB...BAT...FITWINDOW....FIT] returned = {}, {}'.format(function_params, fit_values))
 
         self._sample_log_names_mutex = True
         curr_x_index = self.ui.comboBox_xaxisNames.currentIndex()
@@ -767,8 +765,8 @@ class FitPeaksWindow(QMainWindow):
         :param out_file_name:
         :return:
         """
-        print ('Plan to copy {} to {} and insert fit result'.format(self._curr_file_name,
-                                                                    out_file_name))
+        print('Plan to copy {} to {} and insert fit result'.format(self._curr_file_name,
+                                                                   out_file_name))
         # TODO FIXME - TONIGHT NOW - Fit the following method!
         # FIXME Temporarily disabled: self._core.save_peak_fit_result(self._curr_data_key, self._curr_file_name, out_file_name)
 

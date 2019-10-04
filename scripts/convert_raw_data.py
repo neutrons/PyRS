@@ -62,7 +62,7 @@ def save_to_h5(counts_array, detector_shape, two_theta, out_h5_name):
         writer.set_counts(counts_array, detector_shape)
         writer.save_rs_file(out_h5_name)
     except RuntimeError as run_err:
-        print ('[ERROR] Failed to save to HDF5: {}'.format(run_err))
+        print('[ERROR] Failed to save to HDF5: {}'.format(run_err))
         return False
 
     return True
@@ -75,7 +75,7 @@ def main(argv):
     :return:
     """
     if len(argv) < 4:
-        print ('Help\n{}  [Input File Name]   [Output File Name]   [2theta]'.format(argv[0]))
+        print('Help\n{}  [Input File Name]   [Output File Name]   [2theta]'.format(argv[0]))
         sys.exit(1)
 
     raw_file_name = argv[1]
@@ -87,8 +87,8 @@ def main(argv):
     elif raw_file_name.lower.endswith('bin'):
         raw_data_set, dimension = parse_spice_binary(raw_file_name)
     else:
-        print ('[ERROR] Input file {} of type {} is not supported (TIFF and .bin only)'
-               ''.format(raw_file_name, raw_file_name.split('.')[-1]))
+        print('[ERROR] Input file {} of type {} is not supported (TIFF and .bin only)'
+              ''.format(raw_file_name, raw_file_name.split('.')[-1]))
         sys.exit(-1)
 
     # export

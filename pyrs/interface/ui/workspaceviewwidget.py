@@ -5,16 +5,10 @@
 ########################################################################
 from mantidipythonwidget import MantidIPythonWidget
 import time
-try:
-    from PyQt5 import QtCore
-    from PyQt5.QtWidgets import QWidget
-    from PyQt5.QtWidgets import QVBoxLayout
-    from PyQt5.uic import loadUi as load_ui
-except ImportError:
-    from PyQt4 import QtCore
-    from PyQt4.QtGui import QWidget
-    from PyQt4.QtGui import QVBoxLayout
-    from PyQt4.uic import loadUi as load_ui
+
+from qtpy import QtCore
+from qtpy.QtWidgets import QWidget, QVBoxLayout
+from pyrs.utilities import load_ui
 
 from mplgraphicsview import MplGraphicsView
 import NTableWidget as baseTable
@@ -336,13 +330,13 @@ class WorkspaceViewWidget(QWidget):
         else:
             # do something else
             plot_args = script[4:]
-            print ('[DB...BAT] arguments: {}'.format(plot_args))
+            print('[DB...BAT] arguments: {}'.format(plot_args))
             plot_args = plot_args.strip()
             if plot_args.startswith('('):
                 plot_args = plot_args[1:]
             if plot_args.endswith(')'):
                 plot_args = plot_args[:-1]
-            print ('[DB...BAT] Processed arguments: {}'.format(plot_args))
+            print('[DB...BAT] Processed arguments: {}'.format(plot_args))
 
             # split to terms
             arg_terms = plot_args.split(',')
@@ -400,7 +394,7 @@ class WorkspaceViewWidget(QWidget):
         :param diff_set:
         :return:
         """
-        print ('Workspace set differece: {}'.format(diff_set))
+        print('Workspace set differece: {}'.format(diff_set))
 
         # TODO/NOW/ISSUE/51 - 20181214 - Implement!
 
@@ -717,6 +711,3 @@ class WorkspaceTableWidget(baseTable.NTableWidget):
             ws_name_list.append(ws_name)
 
         return ws_name_list
-
-
-

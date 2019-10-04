@@ -2,13 +2,8 @@
 import os
 import platform
 from pyrs.utilities import checkdatatypes
-try:
-    from PyQt5.QtWidgets import QDialog, QLineEdit, QFileDialog, QMessageBox, QVBoxLayout
-    is_qt4 = False
-except ImportError:
-    from PyQt4.QtGui import QDialog, QLineEdit, QFileDialog, QMessageBox, QVBoxLayout
-    from PyQt4 import QtCore
-    is_qt4 = True
+from qtpy.QtWidgets import QDialog, QLineEdit, QFileDialog, QMessageBox, QVBoxLayout
+from qtpy import QtCore
 
 
 def browse_dir(parent, caption, default_dir):
@@ -25,7 +20,7 @@ def browse_dir(parent, caption, default_dir):
 
     # get directory
     chosen_dir = QFileDialog.getExistingDirectory(parent, caption, default_dir)
-    print ('[DB...BAT] Chosen dir: {} of type {}'.format(chosen_dir, type(chosen_dir)))
+    print('[DB...BAT] Chosen dir: {} of type {}'.format(chosen_dir, type(chosen_dir)))
     chosen_dir = str(chosen_dir).strip()
 
     return chosen_dir
@@ -111,7 +106,7 @@ def get_save_file_name(parent, dir_name, caption, file_filter):
     if isinstance(file_info, tuple):
         file_name = str(file_info[0])
         file_filter = file_info[1]
-        print ('[DB...Save Pole Figure] File name: {0}, Filter = {1}'.format(file_name, file_filter))
+        print('[DB...Save Pole Figure] File name: {0}, Filter = {1}'.format(file_name, file_filter))
     else:
         file_name = str(file_info)
         file_filter = None

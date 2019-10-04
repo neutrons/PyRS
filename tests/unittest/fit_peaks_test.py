@@ -13,6 +13,7 @@ class PeakFittingTest(object):
     """
     Class to test peak fitting related classes and methods
     """
+
     def __init__(self, input_file_name):
         """ Initialization
         :param input_file_name: name of testing HIDRA project file
@@ -89,7 +90,7 @@ class PeakFittingTest(object):
                                                                               effective_parameter=True)
 
         # Print parameters
-        print ('sub-run = {}, peak width = {}'.format(3, peak_params_dict[3]['PeakWidth']))
+        print('sub-run = {}, peak width = {}'.format(3, peak_params_dict[3]['PeakWidth']))
 
         return
 
@@ -141,4 +142,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

@@ -1,44 +1,45 @@
 import h5py
 import numpy
 
+
 def load_raw_measurement_data(file_name):
-        """
-        Load raw data measured
-        :param file_name:
-        :return:
-        """
-        # checkdatatypes.check_file_name(file_name, check_exist=True)
+    """
+    Load raw data measured
+    :param file_name:
+    :return:
+    """
+    # checkdatatypes.check_file_name(file_name, check_exist=True)
 
-        # access sub tree
-        scan_h5 = h5py.File(file_name)
-        if 'raw' not in scan_h5.keys() or 'instrument' not in scan_h5.keys():
-            # TODO - TONIGHT 1 - better error message
-            raise RuntimeError(scan_h5.keys())
+    # access sub tree
+    scan_h5 = h5py.File(file_name)
+    if 'raw' not in scan_h5.keys() or 'instrument' not in scan_h5.keys():
+        # TODO - TONIGHT 1 - better error message
+        raise RuntimeError(scan_h5.keys())
 
-        # get diffraction data/counts
-        diff_data_group = scan_h5['raw']
+    # get diffraction data/counts
+    diff_data_group = scan_h5['raw']
 
-        # loop through the Logs
-        counts = diff_data_group['counts'].value
-        
-        # instrument
-        instrument_group = scan_h5['instrument']
-        two_theta = instrument_group['2theta'].value
-        
-        print (counts)
-        print (type(counts))
-        
-        print (two_theta)
-        print (type(two_theta))
-        
-        """
+    # loop through the Logs
+    counts = diff_data_group['counts'].value
+
+    # instrument
+    instrument_group = scan_h5['instrument']
+    two_theta = instrument_group['2theta'].value
+
+    print(counts)
+    print(type(counts))
+
+    print(two_theta)
+    print(type(two_theta))
+
+    """
         [0 0 0 ..., 0 0 0]
         <type 'numpy.ndarray'>
         35.0
         <type 'numpy.float64'>
         """
-        
-        return counts, two_theta
+
+    return counts, two_theta
 
 
 # From mask_util
@@ -70,7 +71,7 @@ def load_pyrs_mask(mask_h5):
         note = None
 
     return mask_vec, two_theta, note
-        
+
 
 file_name = 'tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5'
 mask_name = 'tests/testdata/masks/Chi_Neg30.hdf5'
@@ -92,32 +93,32 @@ raw = Transpose(raw)
 # Load instrument
 raw_data_ws_name = 'raw'
 AddSampleLog(Workspace=raw_data_ws_name, LogName='2theta', LogText='{}'.format(-two_theta),
-                     LogType='Number Series', LogUnit='degree',
-                     NumberType='Double')
+             LogType='Number Series', LogUnit='degree',
+             NumberType='Double')
 
 AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::arm', LogText='{}'.format(0),
-                     LogType='Number Series', LogUnit='meter',
-                     NumberType='Double')
+             LogType='Number Series', LogUnit='meter',
+             NumberType='Double')
 
 AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::deltax', LogText='{}'.format(0),
-                     LogType='Number Series', LogUnit='meter',
-                     NumberType='Double')
+             LogType='Number Series', LogUnit='meter',
+             NumberType='Double')
 
 AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::deltay', LogText='{}'.format(0),
-                     LogType='Number Series', LogUnit='meter',
-                     NumberType='Double')
-                     
+             LogType='Number Series', LogUnit='meter',
+             NumberType='Double')
+
 AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::flip', LogText='{}'.format(0),
-                     LogType='Number Series', LogUnit='degree',
-                     NumberType='Double')
+             LogType='Number Series', LogUnit='degree',
+             NumberType='Double')
 
 AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::roty', LogText='{}'.format(0),
-                     LogType='Number Series', LogUnit='degree',
-                     NumberType='Double')
+             LogType='Number Series', LogUnit='degree',
+             NumberType='Double')
 
 AddSampleLog(Workspace=raw_data_ws_name, LogName='cal::spin', LogText='{}'.format(0),
-                     LogType='Number Series', LogUnit='degree',
-                     NumberType='Double')
+             LogType='Number Series', LogUnit='degree',
+             NumberType='Double')
 
 LoadInstrument('raw', Filename='tests/testdata/XRay_Definition_2K.xml', RewriteSpectraMap=True)
 
@@ -125,4 +126,3 @@ LoadInstrument('raw', Filename='tests/testdata/XRay_Definition_2K.xml', RewriteS
 mask_ws = CreateWorkspace(DataX=vec_x, DataY=mask_vec, NSpec=1)
 mask_ws = Transpose(mask_ws)
 # raw_masked_ws = raw * mask_ws
-
