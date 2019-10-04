@@ -92,8 +92,10 @@ class HydraProjectFile(object):
         # check
         checkdatatypes.check_string_variable('Project file name', project_file_name)
         checkdatatypes.check_type('Project I/O mode', mode, HydraProjectFileMode)
-        if not os.path.exists(project_file_name):
-            raise RuntimeError('File "{}" does not exist'.format(project_file_name))
+
+        if mode == HydraProjectFileMode.READONLY or HydraProjectFileMode.READWRITE:
+            if not os.path.exists(project_file_name):
+                raise RuntimeError('File "{}" does not exist'.format(project_file_name))
 
         # open file for H5
         self._project_h5 = None
