@@ -1,12 +1,9 @@
 #!/usr/bin/python
 # Compare Mantid instrument builder and PyRS numpy-builder
 # This script to read in a TIFF file or SPICE-compatible binary file
-from pyrs.core import pyrscore
 from pyrs.core import reduce_hb2b_pyrs
 import os
-import matplotlib.pyplot as plt
-from mantid.simpleapi import LoadSpiceXML2DDet, Transpose, AddSampleLog, LoadInstrument, ConvertSpectrumAxis, ResampleX
-from mantid.simpleapi import CreateWorkspace, Multiply, SaveNexusProcessed
+from mantid.simpleapi import LoadSpiceXML2DDet, Transpose, AddSampleLog, LoadInstrument, CreateWorkspace
 from mantid.api import AnalysisDataService as mtd
 
 XRAY_ARM_LENGTH = 0.416
@@ -135,10 +132,9 @@ def load_data_from_tif(raw_tiff_name, pixel_size=2048, rotate=True):
     :param rotate:
     :return:
     """
-    from skimage import io, exposure, img_as_uint, img_as_float
+    from skimage import io
     from PIL import Image
     import numpy as np
-    import pylab as plt
 
     ImageData = Image.open(raw_tiff_name)
     # im = img_as_uint(np.array(ImageData))

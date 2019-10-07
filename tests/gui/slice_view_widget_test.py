@@ -2,9 +2,6 @@ from qtpy.QtWidgets import QApplication, QMainWindow
 import sys
 from . import uitest_test_slice_view  # TODO this is broken
 import h5py
-import numpy as np
-import matplotlib.tri as tri
-from pyrs.interface.ui.slice_view_widget import SliceViewWidget
 
 
 class SliceViewer(QMainWindow):

@@ -1,7 +1,6 @@
 # TODO - 20181130 - Implement this class
 # A module contains a set of static methods to provide instrument geometry and data archiving knowledge of HB2B
 import checkdatatypes
-import file_util
 
 
 def get_hb2b_raw_data(ipts_number, run_number):

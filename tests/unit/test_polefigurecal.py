@@ -2,11 +2,6 @@
 # In order to test the peak fit window (GUI)
 import os
 from pyrs.core import pyrscore
-import sys
-import pyrs.interface
-from pyrs.interface import fitpeakswindow
-import pyrs.core
-from pyrs.core.polefigurecalculator import PoleFigureCalculator
 
 # default testing directory is ..../PyRS/
 print(os.getcwd())

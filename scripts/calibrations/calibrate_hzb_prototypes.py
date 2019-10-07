@@ -1,8 +1,6 @@
 #!/user/bin/python
 # Template to calibrate HZB data with calibration algorithm 1
 import sys
-import os
-from pyrs.utilities import rs_project_file
 from pyrs.core import pyrscore
 from pyrs.utilities import script_helper
 

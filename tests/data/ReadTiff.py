@@ -6,10 +6,9 @@ Created on Wed Apr 25 16:40:26 2018
 @author: hcf
 """
 
-from skimage import io, exposure, img_as_uint, img_as_float
+from skimage import io
 from PIL import Image
 import numpy as np
-import pylab as plt
 
 ImageData = Image.open('./LaB6_10kev_0deg-00000.tif')
 #im = img_as_uint(np.array(ImageData))

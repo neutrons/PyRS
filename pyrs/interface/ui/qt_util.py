@@ -1,7 +1,6 @@
 # This module contains methods for PyQt UI files
 
-from qtpy import QtCore
-from qtpy.QtWidgets import QWidget, QVBoxLayout
+from qtpy.QtWidgets import QVBoxLayout
 
 
 def promote_widget(parent, ui_frame, widget_class):

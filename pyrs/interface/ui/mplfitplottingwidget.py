@@ -4,7 +4,7 @@
 
 from pyrs.interface.ui import mplgraphicsview1d
 from matplotlib.figure import Figure
-from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
+from qtpy.QtWidgets import QWidget, QVBoxLayout
 from qtpy import PYQT5, PYQT4
 
 if PYQT5:

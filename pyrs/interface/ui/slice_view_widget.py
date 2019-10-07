@@ -1,7 +1,7 @@
 import matplotlib.tri as tri
 import sliceviewwidgets
 import numpy as np
-from qtpy.QtWidgets import QGridLayout, QWidget, QSizePolicy, QVBoxLayout
+from qtpy.QtWidgets import QGridLayout, QWidget, QSizePolicy
 from qtpy import PYQT5, PYQT4
 
 if PYQT5:

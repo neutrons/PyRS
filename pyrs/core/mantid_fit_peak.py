@@ -3,11 +3,8 @@ from pyrs.core import mantid_helper
 from pyrs.utilities import checkdatatypes
 from pyrs.core import peak_fit_engine
 import numpy as np
-import os
-import math
 from mantid.api import AnalysisDataService
 from mantid.simpleapi import CreateWorkspace, FitPeaks
-from mantid.simpleapi import SaveNexusProcessed
 
 
 class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):

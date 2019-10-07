@@ -2,8 +2,6 @@ import pyrs.interface.pyrs_main
 from pyrs.utilities import load_ui
 from qtpy.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout, QHBoxLayout, QPushButton
 
-from pyrs.interface.ui import qt_util
-from pyrs.utilities import checkdatatypes
 import pyrs.core.pyrscore
 import os
 import gui_helper
