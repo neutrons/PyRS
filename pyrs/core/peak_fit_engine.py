@@ -1,6 +1,7 @@
 # This is the virtual base class as the fitting frame
 import numpy
 import math
+import scipy
 from pyrs.core import workspaces
 from pyrs.utilities import rs_project_file
 from pyrs.utilities import checkdatatypes
@@ -214,7 +215,8 @@ class PeakFitEngine(object):
                                                                                   max_chi2)
 
         # Convert
-        effective_param_value_array = converter.calculate_effective_parameters(effective_params_list, param_value_array)
+        effective_param_value_array = converter.calculate_effective_parameters(effective_params_list,
+                                                                               param_value_array)
 
         return sub_run_array, fit_cost_array, effective_param_value_array
 
@@ -306,7 +308,7 @@ def gaussian(x, a, sigma, x0):
     :param x0:
     :return:
     """
-    return a * numpy.exp(-((x - x0)/sigma)**2)
+    return a * numpy.exp(-((x - x0) / sigma)**2)
 
 
 def loranzian(x, a, sigma, x0):
@@ -331,7 +333,7 @@ def quadratic_background(x, b0, b1, b2, b3):
     :param b3:
     :return:
     """
-    return b0 + b1*x + b2*x**2 + b3*x**3
+    return b0 + b1 * x + b2 * x**2 + b3 * x**3
 
 
 def fit_peak(peak_func, vec_x, obs_vec_y, p0, p_range):

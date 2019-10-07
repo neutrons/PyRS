@@ -157,18 +157,24 @@ class PyRsCore(object):
         return data_key, sub_key
 
     def fit_peaks(self, project_name, sub_run_list, peak_type, background_type, peaks_fitting_setup):
-        """
-        Fit a single peak on each diffraction pattern selected from client-specified
+        """Fit a single peak on each diffraction pattern selected from client-specified
 
         Note:
         - peaks_info: consider use cases for multiple non-overlapped peaks fitting
 
-        :param project_name: Name of current project for loading, peak fitting and etc.
-        :param sub_run_list: None as the default as All;
-        :param peak_type:
-        :param background_type:
-        :param peaks_fitting_setup: dict containing peak information [peak tag] = {Center: xx, Range: [2theta1, 2theta2]}
-        :return:
+        Parameters
+        ----------
+        project_name: str
+            Name of current project for loading, peak fitting and etc.
+        sub_run_list: list or None
+            sub runs to fit peak. None is the default for fitting all sub runs
+        peak_type
+        background_type
+        peaks_fitting_setup: dict
+            dict containing peak information [peak tag] = {Center: xx, Range: [2theta1, 2theta2]}
+        Returns
+        -------
+        None
         """
         # Check input
         checkdatatypes.check_string_variable('Project name', project_name, allow_empty=False)
@@ -420,8 +426,7 @@ class PyRsCore(object):
             param_data[:, 0] = sub_run_vec
             param_data[:, 1] = chi2_vec
             for j in range(param_vec.shape[0]):
-                param_data[:, j+1] = param_vec[j, :, 0]   # data for all sub run
-
+                param_data[:, j + 1] = param_vec[j, :, 0]   # data for all sub run
         elif return_format == DataFrame:
             # pandas data frame
             # TODO - #84+ - Implement pandas DataFrame ASAP
@@ -470,7 +475,8 @@ class PyRsCore(object):
 
         alpha, beta = self._last_pole_figure_calculator.get_pole_figure_1_pt(detector_id, log_index)
 
-        # log_index_list, pole_figures = self._last_pole_figure_calculator.get_pole_figure_vectors(detector_id, max_cost=None)
+        # log_index_list, pole_figures = self._last_pole_figure_calculator.get_pole_figure_vectors
+        # (detector_id, max_cost=None)
         # if len(pole_figures) < log_index + 1:
         #     alpha = 0
         #     beta = 0
@@ -508,14 +514,14 @@ class PyRsCore(object):
         vec_beta = None
         vec_intensity = None
         for det_id in detector_id_list:
-            print ('[DB...BAt] Get pole figure from detector {0}'.format(det_id))
+            print('[DB...BAt] Get pole figure from detector {0}'.format(det_id))
             # get_pole_figure returned 2 tuple.  we need the second one as an array for alpha, beta, intensity
             sub_array = pole_figure_calculator.get_pole_figure_vectors(det_id, max_cost)[1]
             vec_alpha_i = sub_array[:, 0]
             vec_beta_i = sub_array[:, 1]
             vec_intensity_i = sub_array[:, 2]
 
-            print ('Det {} # data points = {}'.format(det_id, len(sub_array)))
+            print('Det {} # data points = {}'.format(det_id, len(sub_array)))
             # print ('alpha: {0}'.format(vec_alpha_i))
 
             if vec_alpha is None:
@@ -527,7 +533,7 @@ class PyRsCore(object):
                 vec_beta = numpy.concatenate((vec_beta, vec_beta_i), axis=0)
                 vec_intensity = numpy.concatenate((vec_intensity, vec_intensity_i), axis=0)
             # END-IF-ELSE
-            print ('Updated alpha: size = {0}: {1}'.format(len(vec_alpha), vec_alpha))
+            print('Updated alpha: size = {0}: {1}'.format(len(vec_alpha), vec_alpha))
         # END-FOR
 
         return vec_alpha, vec_beta, vec_intensity

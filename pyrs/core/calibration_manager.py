@@ -3,7 +3,7 @@ class CalibrationManager(object):
 
     calibration shall be related to date (run cycle), wave length and etc.
     """
-    def __init__(self,  calib_lookup_table_file=None):
+    def __init__(self, calib_lookup_table_file=None):
         """Initialization
 
         Initialization for calibration manager
