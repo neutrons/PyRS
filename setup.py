@@ -70,26 +70,7 @@ if __name__ == "__main__":
                'scripts/reduce_HB2B.py',
                'scripts/create_mask.py',
                'scripts/convert_raw_data.py']
-
-    test_scripts = ['tests/unit/pyrs_core_test.py',
-                    'tests/gui/peakfitgui_test.py',
-                    'tests/gui/manualreduction_test.py',
-                    'tests/unit/reduction_test.py',  # beta version
-                    'tests/unit/fit_peaks_test.py',  # beta version
-                    'tests/unit/utilities_test.py',
-                    'tests/unit/polefigurecal_test.py',
-                    'tests/unit/straincalculationtest.py',
-                    'tests/gui/texturegui_test.py',
-                    'tests/gui/strainstressgui_test.py',
-                    'tests/gui/calibration_gui_test.py',
-                    # 'tests/unit/test_reduced_hb2b.py',
-                    'tests/unit/reduction_study.py',
-                    # 'tests/unit/instrument_geometry_test.py',
-                    'tests/unit/reduction_study.py',
-                    'tests/unit/compare_reduction_engines_test.py']
-    print(test_scripts)
-    scripts.extend(test_scripts)
-    print(scripts)
+    #print(scripts)
     setup(
         name=NAME,
         description=find_meta("description"),
@@ -107,10 +88,9 @@ if __name__ == "__main__":
         classifiers=CLASSIFIERS,
         install_requires=INSTALL_REQUIRES,
         # from ours
-        package_dir={},  # {"": "src"},
+        package_dir={},
         package_data={'': ['*.ui']},
         scripts=scripts,
-        # scripts=["scripts/pyrsplot", "tests/unittest/pyrs_core_test.py", "tests/guitest/peakfitgui_test.py"],
         setup_requires=['pytest-runner'],
         cmdclass=versioneer.get_cmdclass(),
     )
