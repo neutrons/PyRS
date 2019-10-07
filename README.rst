@@ -3,5 +3,5 @@
 
 To start main window from analysis machine
 
-`$export PYTHONPATH=$PWD:$PYTHONPATH
-$ QT_API=pyqt python scripts/pyrsplot`
+`$ export PYTHONPATH=$PWD:$PYTHONPATH`
+`$ QT_API=pyqt python scripts/pyrsplot`
