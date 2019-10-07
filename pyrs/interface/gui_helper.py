@@ -1,8 +1,7 @@
 # a collection of helper methdos for GUI
-import os
 import platform
 from pyrs.utilities import checkdatatypes
-from qtpy.QtWidgets import QDialog, QLineEdit, QFileDialog, QMessageBox, QVBoxLayout
+from qtpy.QtWidgets import QLineEdit, QFileDialog, QMessageBox, QVBoxLayout
 from qtpy import QtCore
 
 

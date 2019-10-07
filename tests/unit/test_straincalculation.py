@@ -2,8 +2,6 @@
 # In order to test the core methods for peak fitting and thus strain/stress calculation
 import os
 from pyrs.core import pyrscore
-import sys
-import pyrs.core
 
 
 # default testing directory is ..../PyRS/

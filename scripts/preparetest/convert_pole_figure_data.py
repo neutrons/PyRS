@@ -7,9 +7,6 @@ Convert the "old" HB2B data, now used to pole figure, to new HydraProject format
 1. Run this script
 
 """
-from pyrs.utilities import rs_scan_io
-from pyrs.utilities import rs_project_file
-
 
 def main():
     """ Main to convert the data file to standard Hidra project format

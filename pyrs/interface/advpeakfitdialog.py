@@ -1,10 +1,9 @@
 from pyrs.utilities import load_ui
 from qtpy.QtCore import Signal
-from qtpy.QtWidgets import QDialog, QFileDialog, QMainWindow
+from qtpy.QtWidgets import QDialog, QMainWindow
 
 import os
 import gui_helper
-import numpy
 
 
 class SmartPeakFitControlDialog(QDialog):

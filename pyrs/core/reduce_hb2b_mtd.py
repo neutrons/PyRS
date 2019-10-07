@@ -2,13 +2,11 @@ import os
 import datetime
 import numpy
 from mantid.simpleapi import FilterEvents, LoadEventNexus, LoadInstrument, GenerateEventsFilter
-from mantid.simpleapi import ConvertSpectrumAxis, ResampleX, Transpose, AddSampleLog, GeneratePythonScript
+from mantid.simpleapi import ConvertSpectrumAxis, ResampleX, Transpose, AddSampleLog
 from mantid.simpleapi import SortXAxis, CreateWorkspace
 from mantid.api import AnalysisDataService as ADS
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities import file_util
-from pyrs.utilities import calibration_file_io
-#from pyrs.core.calibration_file_io import ResidualStressInstrumentCalibration
 from pyrs.core.instrument_geometry import AnglerCameraDetectorShift as ResidualStressInstrumentCalibration
 
 

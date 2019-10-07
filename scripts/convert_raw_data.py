@@ -1,5 +1,4 @@
 #!/usr/bin/python
-import h5py
 import sys
 from pyrs.utilities import file_util
 from pyrs.core import mantid_helper

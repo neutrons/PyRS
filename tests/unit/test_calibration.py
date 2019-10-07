@@ -3,11 +3,6 @@
 
 import os
 from pyrs.core import pyrscore
-import sys
-import pyrs.interface
-from pyrs.interface import fitpeakswindow
-import pyrs.core
-import pytest
 
 
 def test_xray_geometry_calibration():

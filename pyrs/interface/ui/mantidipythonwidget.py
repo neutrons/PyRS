@@ -3,7 +3,6 @@ from pygments.lexer import RegexLexer
 import threading
 import types
 import inspect
-import sys
 import os
 
 home_dir = os.path.expanduser('~')

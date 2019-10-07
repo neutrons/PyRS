@@ -1,11 +1,9 @@
 #!/user/bin/python
 # Test class and methods implemented for reduction from raw detector counts to diffraction data
-import sys
 import os
 import numpy
 from pyrs.core import pyrscore
 from pyrs.core import instrument_geometry
-import pytest
 from matplotlib import pyplot as plt
 
 """

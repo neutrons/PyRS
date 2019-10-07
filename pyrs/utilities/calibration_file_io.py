@@ -1,10 +1,6 @@
 # Class providing a series of static methods to work with files
-import os
-import platform
-import time
 from pyrs.utilities import checkdatatypes
 import h5py
-import numpy as np
 
 
 def import_calibration_info_file(cal_info_file):

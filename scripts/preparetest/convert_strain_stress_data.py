@@ -2,9 +2,7 @@
 # System (library) test for classes and methods that will be used to calculate strain and stress
 import os
 import sys
-from pyrs.core import pyrscore
 from pyrs.utilities import rs_project_file
-from pyrs.core import strain_stress_calculator
 from pyrs.utilities import rs_scan_io
 
 

@@ -3,7 +3,6 @@ from qtpy.QtWidgets import QMainWindow, QSizePolicy, QWidget, QLabel, QMenuBar, 
 from pyrs.utilities import load_ui
 
 from pyrs.core import pyrscore
-import os
 import fitpeakswindow
 import textureanalysiswindow
 import strainstresscalwindow

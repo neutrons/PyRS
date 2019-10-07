@@ -1,12 +1,11 @@
 #!/usr/bin/python
 # a script to read in a TIFF file, mask it optionally and reduce to 2theta
 # output shall be in ProcessedNeXus file for mantid to import
-from pyrs.core import pyrscore
 from pyrs.core import reduce_hb2b_pyrs
 from pyrs.utilities import file_utilities
 import os
 import matplotlib.pyplot as plt
-from mantid.simpleapi import LoadSpiceXML2DDet, Transpose, AddSampleLog, LoadInstrument, ConvertSpectrumAxis, ResampleX
+from mantid.simpleapi import Transpose, AddSampleLog, LoadInstrument, ConvertSpectrumAxis, ResampleX
 from mantid.simpleapi import CreateWorkspace, Multiply, SaveNexusProcessed
 from mantid.api import AnalysisDataService as mtd
 
@@ -217,10 +216,8 @@ def load_data_from_tif(raw_tiff_name, pixel_size=2048, rotate=True):
     :param rotate:
     :return:
     """
-    from skimage import io, exposure, img_as_uint, img_as_float
-    from PIL import Image
+    From PIL import Image
     import numpy as np
-    import pylab as plt
 
     ImageData = Image.open(raw_tiff_name)
     # im = img_as_uint(np.array(ImageData))

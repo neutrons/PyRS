@@ -1,10 +1,8 @@
-import os
 from pyrs.utilities import checkdatatypes
 import h5py
 import math
 import numpy
 from shutil import copyfile
-#from mantid.simpleapi import SaveNexusProcessed
 from mantid.api import AnalysisDataService
 
 

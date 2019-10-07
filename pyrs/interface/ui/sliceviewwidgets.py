@@ -608,7 +608,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
 
         # prototype ...
         import numpy
-        from matplotlib import transforms, pyplot
+        from matplotlib import transforms
 
         vec_x = numpy.arange(0, 150, 1)
         vec_y = numpy.sin(vec_x)  # * numpy.pi / 180.)
