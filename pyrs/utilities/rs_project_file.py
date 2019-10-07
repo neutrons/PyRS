@@ -23,6 +23,18 @@ class HidraConstants(object):
     TWO_THETA = '2Theta'
     L2 = 'L2'
 
+    MONO = 'monochromator setting'
+    WAVELENGTH = 'wave length'
+
+    # Efficiency
+    DETECTOR_EFF = 'efficiency calibration'
+    RUN = 'run number'
+
+    # Masks
+    MASK = 'mask'  # main entry name of mask
+    DETECTOR_MASK = 'detector'
+    SOLID_ANGLE_MASK = 'solid angle'
+
     # constants about peak fitting
     PEAK_PROFILE = 'peak profile'
     PEAKS = 'peaks'  # main entry for fitted peaks' parameters
@@ -148,6 +160,12 @@ class HydraProjectFile(object):
         geometry_group = instrument.create_group('geometry setup')
         geometry_group.create_group('detector')
         geometry_group.create_group('wave length')
+        geometry_group.create_group(HidraConstants.DETECTOR_EFF)
+
+        # mask entry and 2 sub entries
+        mask_entry = self._project_h5.create_group(HidraConstants.MASK)
+        mask_entry.create_group(HidraConstants.DETECTOR_MASK)
+        mask_entry.create_group(HidraConstants.SOLID_ANGLE_MASK)
 
         # peaks
         self._project_h5.create_group('peaks')
@@ -200,6 +218,74 @@ class HydraProjectFile(object):
             raise RuntimeError('Unable to add log {} due to {}'.format(log_name, run_err))
 
         return
+
+    def add_mask_detector_array(self, mask_name, mask_array):
+        """ Add the a mask array to Hidra file
+        :param mask_name: String, name of mask for reference
+        :param mask_array: numpy ndarray (N, ), masks, 0 for masking, 1 for ROI
+        :return: None
+        """
+        if mask_name in self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK]:
+            # delete the existing mask
+            del self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK][mask_name]
+
+        # add new detector mask (array)
+        self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK].create_dataset(mask_name,
+                                                                                           data=mask_array)
+
+        return
+
+    def get_mask_detector_array(self, mask_name):
+        """ Get the mask from hidra project file (.h5) in the form of numpy array
+        :exception RuntimeError:
+        :param mask_name:
+        :return:
+        """
+        try:
+            mask_array = self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK][mask_name]
+        except KeyError as key_err:
+            raise RuntimeError('Detector mask {} does not exist.  Available masks are {}. FYI: {}'
+                               ''.format(mask_name,
+                                         self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK].keys(),
+                                         key_err))
+
+        return mask_array
+
+    def add_mask_solid_angle(self, mask_name, solid_angle_bin_edges):
+        """
+        Add mask in the form of solid angle
+        Location: ..../main entry/mask/solid angle/
+        data will be a range of solid angles and number of patterns to generate.
+        example solid angle range = -8, 8, number of pattern = 3
+
+        :param mask_name:
+        :param solid_angle_bin_edges: numpy 1D array as s0, s1, s2, ...
+        :return:
+        """
+        # Clean previously set if name exists
+        if mask_name in self._project_h5[HidraConstants.MASK][HidraConstants.SOLID_ANGLE_MASK]:
+            del self._project_h5[HidraConstants.MASK][HidraConstants.SOLID_ANGLE_MASK][mask_name]
+
+        # Add new mask in
+        solid_angle_entry = self._project_h5[HidraConstants.MASK][HidraConstants.SOLID_ANGLE_MASK]
+        solid_angle_entry.create_dataset(mask_name, data=solid_angle_bin_edges)
+
+        return
+
+    def get_mask_solid_angle(self, mask_name):
+        """Get the masks in the form of solid angle bin edges
+        :param mask_name:
+        :return:
+        """
+        try:
+            mask_array = self._project_h5[HidraConstants.MASK][HidraConstants.SOLID_ANGLE_MASK][mask_name]
+        except KeyError as key_err:
+            raise RuntimeError('Detector mask {} does not exist.  Available masks are {}. FYI: {}'
+                               ''.format(mask_name,
+                                         self._project_h5[HidraConstants.MASK][HidraConstants.SOLID_ANGLE_MASK].keys(),
+                                         key_err))
+
+        return mask_array
 
     def close(self):
         """
@@ -441,24 +527,96 @@ class HydraProjectFile(object):
         return
 
     def get_wave_lengths(self):
-        """ Get wave length
-        :return:
         """
-        # TODO - #84 - Implement ASAP
+        Get calibrated wave length
+        Returns
+        -------
+        Float or None
+            Calibrated wave length or No wave length ever set
+        """
+        # Init wave length
+        wl = None
 
-        return dict()
+        # Get the node
+        try:
+            mono_node = self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.MONO]
+            if HidraConstants.WAVELENGTH in mono_node:
+                wl = self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.MONO][HidraConstants.WAVELENGTH].value
+                if wl.shape[0] == 0:
+                    # empty numpy array: no data
+                    wl = None
+                elif wl.shape[0] == 1:
+                    # 1 calibrated wave length
+                    wl = wl[0]
+                else:
+                    # not supported
+                    raise RuntimeError('There are more than 1 wave length registered')
+                    # END-IF
+        except KeyError:
+            # monochromator node does not exist
+            print('[ERROR] Node {} does not exist in HiDRA project file {}'
+                  ''.format(HidraConstants.MONO, self._file_name))
+        # END
+
+        return wl
 
     def set_wave_length(self, wave_length):
-        """ Set wave length
+        """ Set the calibrated wave length
+        Location:
+          .../instrument/monochromator setting/ ... .../
+        Note:
+        - same wave length to all sub runs
+        - only calibrated wave length in project file
+        - raw wave length comes from a table with setting
         :param wave_length: wave length in A
-        :return:
+        :return: None
         """
         checkdatatypes.check_float_variable('Wave length', wave_length, (0, 1000))
 
-        # TODO - #81 TODO - Where and how to store wave length?
+        wl_entry = self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.MONO]
+        wl_entry.create_dataset(HidraConstants.WAVELENGTH, data=numpy.array([wave_length]))
 
-        # set value
-        self._project_h5[HidraConstants.INSTRUMENT]
+        return
+
+    def get_efficiency_correction(self):
+        """
+        Set detector efficiency correction measured from vanadium (efficiency correction)
+        Returns
+        -------
+        numpy ndarray
+            Efficiency array
+        """
+        calib_run_number = \
+            self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.DETECTOR_EFF].attrs[HidraConstants.RUN]
+
+        det_eff_array =\
+            self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.DETECTOR_EFF]['{}'.format(calib_run_number)]
+
+        return det_eff_array
+
+    def set_efficiency_correction(self, calib_run_number, eff_array):
+        """ Set detector efficiency correction measured from vanadium (efficiency correction)
+        Location: ... /main entry/calibration/efficiency:
+        Data: numpy array with 1024**2...
+        Attribute: add the run number created from to the attribute
+        Parameters
+        ----------
+        calib_run_number : integer
+            Run number where the efficiency calibration comes from
+        eff_array : numpy ndarray (1D)
+            Detector (pixel) efficiency
+
+        Returns
+        -------
+        None
+        """
+        # Add attribute
+        self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.DETECTOR_EFF].attrs[HidraConstants.RUN] = \
+            calib_run_number
+
+        # Set data
+        self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.DETECTOR_EFF].create_dataset(
+            '{}'.format(calib_run_number), data=eff_array)
 
         return
 
