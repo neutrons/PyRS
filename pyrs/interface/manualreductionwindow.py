@@ -376,7 +376,8 @@ class ManualReductionWindow(QMainWindow):
         for sub_run_number in sub_run_list:
             tth_i = self._core.reduction_manager.get_sub_run_2theta(self._project_data_id, sub_run_number)
             try:
-                # TODO FIXME - #84 - This is completely broken + GUI test
+                # TODO FIXME - URGENT/NOW - This is completely broken + GUI test
+                # TODO ...   - refer to reduce_HB2B script
                 self._core.reduction_manager.reduce_to_2theta_histogram(data_id=self._project_data_id,
                                                                         sub_run=sub_run_number,
                                                                         two_theta=tth_i,

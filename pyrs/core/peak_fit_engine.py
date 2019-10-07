@@ -82,11 +82,11 @@ class PeakFitEngine(object):
             # calculate peak position and propagating fitting error
             for sub_index in range(2):
                 peak_i_2theta_j = params_vec[0][sb_index][0]
-                try:
+                if wl:
                     peak_i_d_j = wl * 0.5 / math.sin(peak_i_2theta_j * 0.5 * math.pi / 180.)
-                except ZeroDivisionError as zero_err:
-                    print('Peak(i) @ {}'.format(peak_i_2theta_j))
-                    raise zero_err
+                else:
+                    # case for None or zero
+                    peak_i_d_j = -1  # return a non-physical number
                 self._peak_center_d_vec[sb_index][0] = peak_i_d_j
         # END-FOR
 
