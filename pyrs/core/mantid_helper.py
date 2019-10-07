@@ -1,11 +1,6 @@
-from mantid.api import AnalysisDataService as mtd
-from mantid.simpleapi import LoadSpiceXML2DDet, Transpose
+from mantid.simpleapi import mtd, CreateWorkspace, Transpose
 from pyrs.utilities import checkdatatypes
 from pyrs.core import workspaces
-
-import mantid
-from mantid.simpleapi import FitPeaks, CreateWorkspace
-from mantid.api import AnalysisDataService
 
 
 def generate_mantid_workspace(hidra_workspace, workspace_name, mask_id=None):

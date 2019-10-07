@@ -9,7 +9,6 @@ from pyrs.core import reduce_hb2b_mtd
 from pyrs.core import reduce_hb2b_pyrs
 from pyrs.utilities import rs_project_file
 from pyrs.core import instrument_geometry
-from mantid.simpleapi import CreateWorkspace, LoadSpiceXML2DDet, Transpose, LoadEventNexus, ConvertToMatrixWorkspace
 
 # TODO - FIXME - Issue #72 : Clean up
 

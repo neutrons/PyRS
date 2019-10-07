@@ -1,4 +1,4 @@
-from qtpy.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout
+from qtpy.QtWidgets import QMainWindow, QVBoxLayout
 from pyrs.utilities import load_ui
 
 from pyrs.core.pyrscore import PyRsCore
@@ -6,7 +6,6 @@ from pyrs.utilities import calibration_file_io
 from ui.diffdataviews import DetectorView, GeneralDiffDataView
 import os
 import gui_helper
-import numpy
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.rs_project_file import HidraConstants
 from pyrs.interface.ui import rstables

@@ -20,7 +20,6 @@ from math import sqrt
 from pyrs.utilities import checkdatatypes
 from pyrs.core import mask_util
 import os
-import numpy
 from matplotlib import pyplot as plt
 
 

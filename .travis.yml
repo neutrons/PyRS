@@ -73,7 +73,7 @@ script:
   # - conda install -c marshallmcdonnell mantid-total-scattering-python-wrapper
 
   # lint the code and generate an error if a warning is introduced
-  - flake8 .
+  - flake8 . --count
   - pylint --disable=C pyrs tests prototypes scripts local_prototypes
   - python -c "import mantid"
   - python -c "import qtpy"

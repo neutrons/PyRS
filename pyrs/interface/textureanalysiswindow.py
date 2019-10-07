@@ -4,7 +4,6 @@ from pyrs.utilities import load_ui
 from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.rstables import PoleFigureTable
 from pyrs.interface.ui.diffdataviews import PeakFitSetupView, GeneralDiffDataView, Diffraction2DPlot
-from pyrs.utilities import checkdatatypes
 import pyrs.core.pyrscore
 import os
 import gui_helper

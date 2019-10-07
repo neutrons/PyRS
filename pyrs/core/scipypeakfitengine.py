@@ -1,6 +1,5 @@
 # Peak fitting engine by calling mantid
 # Set up the testing environment for PyVDrive commands
-import os
 from scipy.optimize import leastsq
 import pandas as pd
 import numpy as np

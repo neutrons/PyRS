@@ -1,11 +1,9 @@
 # image_file = '/home/wzz/Projects/PyRS/tests/testdata/LaB6_10kev_35deg-00004_Rotated.tif'
 # two_theta = 35.
 
-import os
-import pylab as plt
 import numpy as np
 from PIL import Image
-from skimage import io, exposure, img_as_uint, img_as_float
+from skimage import io
 image_file = 'LaB6_10kev_0deg-00000_Rotated.tif'
 two_theta = 0.
 

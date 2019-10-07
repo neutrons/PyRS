@@ -1,7 +1,5 @@
 # pylint: disable=invalid-name,too-many-public-methods,too-many-arguments,non-parent-init-called,R0902,too-many-branches,C0302
-import matplotlib.image
 from matplotlib.figure import Figure
-import os
 import numpy as np
 
 from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout

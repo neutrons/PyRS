@@ -12,7 +12,6 @@ Note: most of the methods to parse HZB data are copied from script convert_hzb_d
 2. Run this script
 """
 from pyrs.utilities import rs_project_file
-import sys
 import os
 from pyrs.utilities import file_util
 from pyrs.utilities import rs_project_file

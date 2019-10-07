@@ -8,15 +8,11 @@ Convert the synchrotron raw data to test
 Note: most of the methods to parse HZB data are copied from script pyrscalibration.py
 """
 from pyrs.utilities import rs_project_file
-import sys
-import os
-from pyrs.utilities import file_util
 from pyrs.utilities import rs_project_file
 import numpy
-from skimage import io, exposure, img_as_uint, img_as_float
+from skimage import io
 from PIL import Image
 import numpy as np
-import pylab as plt
 
 
 def load_data_from_tif(raw_tiff_name, pixel_size=2048, rotate=True):

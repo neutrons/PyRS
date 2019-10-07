@@ -1,12 +1,8 @@
 #!/user/bin/python
 # Test class and methods implemented for peak fitting
-import os
 import numpy
 from pyrs.core import pyrscore
-from pyrs.core import instrument_geometry
-from pyrs.utilities import script_helper
 from matplotlib import pyplot as plt
-from pyrs.utilities import rs_project_file
 
 
 class PeakFittingTest(object):

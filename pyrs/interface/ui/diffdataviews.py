@@ -1,7 +1,6 @@
 from mplgraphicsview1d import MplGraphicsView1D
 from mplgraphicsview2d import MplGraphicsView2D
 from mplgraphicsviewpolar import MplGraphicsPolarView
-from mplgraphicsview import MplGraphicsView
 import numpy as np
 import mplgraphicsviewpolar
 import slice_view_widget

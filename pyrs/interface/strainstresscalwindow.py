@@ -1,4 +1,4 @@
-from qtpy.QtWidgets import QMainWindow, QFileDialog
+from qtpy.QtWidgets import QMainWindow
 from pyrs.utilities import load_ui
 
 from pyrs.interface.ui import qt_util
@@ -8,7 +8,6 @@ import pyrs.core.pyrscore
 import os
 import gui_helper
 import numpy
-import platform
 import dialogs
 import datetime
 

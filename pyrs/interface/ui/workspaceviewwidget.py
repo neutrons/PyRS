@@ -15,7 +15,6 @@ import NTableWidget as baseTable
 from pyrs.interface.ui.mantidipythonwidget import MantidIPythonWidget
 
 from mantid.api import AnalysisDataService
-import mantid.simpleapi
 import os
 
 try:
