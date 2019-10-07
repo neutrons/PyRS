@@ -71,7 +71,6 @@ if __name__ == "__main__":
                'scripts/create_mask.py',
                'scripts/convert_raw_data.py']
 
-
     test_scripts = ['tests/unit/pyrs_core_test.py',
                     'tests/gui/peakfitgui_test.py',
                     'tests/gui/manualreduction_test.py',
@@ -83,9 +82,9 @@ if __name__ == "__main__":
                     'tests/gui/texturegui_test.py',
                     'tests/gui/strainstressgui_test.py',
                     'tests/gui/calibration_gui_test.py',
-                    #'tests/unit/test_reduced_hb2b.py',
+                    # 'tests/unit/test_reduced_hb2b.py',
                     'tests/unit/reduction_study.py',
-                    #'tests/unit/instrument_geometry_test.py',
+                    # 'tests/unit/instrument_geometry_test.py',
                     'tests/unit/reduction_study.py',
                     'tests/unit/compare_reduction_engines_test.py']
     print(test_scripts)
@@ -111,7 +110,7 @@ if __name__ == "__main__":
         package_dir={},  # {"": "src"},
         package_data={'': ['*.ui']},
         scripts=scripts,
-        #scripts=["scripts/pyrsplot", "tests/unittest/pyrs_core_test.py", "tests/guitest/peakfitgui_test.py"],
+        # scripts=["scripts/pyrsplot", "tests/unittest/pyrs_core_test.py", "tests/guitest/peakfitgui_test.py"],
         setup_requires=['pytest-runner'],
         cmdclass=versioneer.get_cmdclass(),
     )
