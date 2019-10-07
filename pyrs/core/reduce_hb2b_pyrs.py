@@ -3,8 +3,11 @@ import numpy as np
 import numpy
 from pyrs.core import instrument_geometry
 from pyrs.utilities import checkdatatypes
-from mantid.simpleapi import CreateWorkspace, SortXAxis, ResampleX
+from mantid.simpleapi import CreateWorkspace
+from mantid.simpleapi import ResampleX
+from mantid.simpleapi import SortXAxis
 import time
+import math
 
 
 class ResidualStressInstrument(object):
@@ -175,30 +178,15 @@ class ResidualStressInstrument(object):
             det_pos_norm_matrix = np.sqrt(self._pixel_matrix[:][:, :, 0] ** 2 +
                                           self._pixel_matrix[:][:, :, 1] ** 2 +
                                           self._pixel_matrix[:][:, :, 2] ** 2)
-            # normalize pixel position for diffraction angle
-            # for i_dir in range(3):
-            ##     des_pos_array[:, :, i_dir] /= det_pos_norm_matrix
-
-            # convert to  2theta in degree
-            # diff_angle_cos_matrix = des_pos_array[:, :, 0] * k_in_vec[0] + des_pos_array[:, :, 1] * k_in_vec[1] + \
-            ##                         des_pos_array[:, :, 2] * k_in_vec[2]
-            ## twotheta_matrix = np.arccos(diff_angle_cos_matrix) * 180 / np.pi
             twotheta_matrix = np.arccos(det_pos_array[:, :, 2] / det_pos_norm_matrix) * 180 / np.pi
             return_value = twotheta_matrix
         else:
             # (N x M) x 3 array
             # convert detector positions array to 2theta array
             # normalize the detector position 2D array
+            des_pos_array = self._pixel_matrix
             det_pos_norm_array = np.sqrt(des_pos_array[:, 0] ** 2 +
                                          des_pos_array[:, 1] ** 2 + des_pos_array[:, 2] ** 2)
-            # normalize pixel position for diffraction angle
-            # for i_dir in range(3):
-            ##     des_pos_array[:, i_dir] /= det_pos_norm_array
-
-            # convert to  2theta in degree
-            # diff_angle_cos_array = des_pos_array[:, 0] * k_in_vec[0] + des_pos_array[:, 1] * k_in_vec[1] + \
-            ##                        des_pos_array[:, 2] * k_in_vec[2]
-            ## twotheta_array = np.arccos(diff_angle_cos_array) * 180 / np.pi
             twotheta_array = np.arccos(det_pos_array[:, 2] / det_pos_norm_array) * 180 / np.pi
             return_value = twotheta_array
         # END-IF-ELSE
@@ -224,7 +212,7 @@ class ResidualStressInstrument(object):
             # N x M x 3 array
             # convert detector position matrix to 2theta
 
-            eta_matrix = 180. - np.arctan2(det_pos_array[:, :, 1],  det_pos_array[:, :, 0]) * 180 / np.pi
+            eta_matrix = 180. - np.arctan2(det_pos_array[:, :, 1], det_pos_array[:, :, 0]) * 180 / np.pi
             eta_temp = eta_matrix.reshape(-1)
             index = np.where(eta_temp > 180.)[0]
             eta_temp[index] -= 360
@@ -236,7 +224,7 @@ class ResidualStressInstrument(object):
             # convert detector positions array to 2theta array
             # normalize the detector position 2D array
 
-            eta_array = 180. - np.arctan2(det_pos_array[:, 1],  det_pos_array[:, 0]) * 180 / np.pi
+            eta_array = 180. - np.arctan2(det_pos_array[:, 1], det_pos_array[:, 0]) * 180 / np.pi
             index = np.where(eta_array > 180.)[0]
             eta_array[index] -= 360
 
@@ -326,7 +314,7 @@ class ResidualStressInstrument(object):
 
         if dimension == 1:
             m, n = self._pixel_2theta_matrix.shape
-            two_theta_values = self._pixel_2theta_matrix.reshape((m*n,))
+            two_theta_values = self._pixel_2theta_matrix.reshape((m * n,))
         else:
             two_theta_values = self._pixel_2theta_matrix[:, :]
 
@@ -457,13 +445,20 @@ class PyHB2BReduction(object):
         return
 
     def get_pixel_positions(self, is_matrix=False, corner_center=False):
-        """
-        return the pixel matrix of the instrument built
-        :param is_matrix: flag to output pixels in matrix. Otherwise, 1D array in order of pixel IDs
-        :return:
-        """
-        import math
+        """Get pixels' positions
 
+        Return the pixel matrix of the instrument built
+
+        Parameters
+        ----------
+        is_matrix: boolean
+            flag to output pixels in matrix. Otherwise, 1D array in order of pixel IDs
+        corner_center
+
+        Returns
+        -------
+
+        """
         if is_matrix:
             pixel_array = self._instrument.get_pixel_matrix()
         else:
@@ -590,7 +585,6 @@ class PyHB2BReduction(object):
 
         return two_theta_vector, intensity_vector
 
-    # TODO - TEST 0 -
     def reduce_to_dspacing_histogram(self, counts_array, mask, num_bins, x_range=None,
                                      export_point_data=True, use_mantid_histogram=False):
         """
@@ -695,8 +689,8 @@ class PyHB2BReduction(object):
         # Sort X-axis
         temp_ws = SortXAxis(InputWorkspace='prototype', OutputWorkspace='prot_sorted', Ordering='Ascending',
                             IgnoreHistogramValidation=True)
-        temp_vec_y = temp_ws.readY(0)
-        print('[DEBUG] After SortXAxis: Y-range = ({}, {})'.format(temp_vec_y.min(), temp_vec_y.max()))
+        # temp_vec_y = temp_ws.readY(0)
+        # print('[DEBUG] After SortXAxis: Y-range = ({}, {})'.format(temp_vec_y.min(), temp_vec_y.max()))
         t2 = time.time()
 
         # Resample
@@ -752,14 +746,8 @@ class PyHB2BReduction(object):
             # Create an all 1 vector
             vec_one = numpy.zeros(shape=vec_counts.shape) + 1
             # Histograms
-            # TODO FIXME - TONIGHT - NOW
-            #
-            #   File "/home/wzz/Projects/PyRS/build/lib.linux-x86_64-2.7/pyrs/core/reduce_hb2b_pyrs.py", line 653, in histogram_by_numpy
-            #   hist_bin, bin_edges2 = np.histogram(pixel_2theta_array, bins=num_bins, range=x_range, weights=vec_one)
-            #   UnboundLocalError: local variable 'num_bins' referenced before assignment
-            #
-            #
-            hist_bin, bin_edges2 = np.histogram(pixel_2theta_array, bins=two_theta_vec, weights=vec_one)
+            ret_hist = np.histogram(pixel_2theta_array, bins=two_theta_vec, weights=vec_one)
+            hist_bin = ret_hist[0]
 
             # Normalize with cautious to avoid zero number of bins on any X
             if False:

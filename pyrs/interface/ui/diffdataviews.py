@@ -83,14 +83,33 @@ class DetectorView(MplGraphicsView2D):
 
         return
 
-    def plot_detector_view(self, sub_run_number, raw_counts):
-        """
-        :param raw_counts: 1D array
-        :return:
+    def plot_detector_view(self, detector_counts, info_tuple):
+        """Plot detector counts on 2D view
+
+        Parameters
+        ----------
+        detector_counts: ndarray (N, )
+            counts in 1D
+        info_tuple
+
+        Returns
+        -------
+
         """
         # TODO - #84 - Make it real!
+        sub_run_number, mask_id = info_tuple
+        title = 'Sub run {}, Mask: {}'.format(sub_run_number, mask_id)
+        print('[DEBUG]: {}'.format(title))
 
-        self._myCanvas.add_image_file('tests/testdata/Lab6_45-00130_Rotated.tif')
+        # print(detector_counts)
+        # print(type(detector_counts))
+        # print(detector_counts.shape)
+
+        image_size = np.sqrt(detector_counts.shape[0])
+        counts2d = detector_counts.reshape(image_size, image_size)
+
+        # Rotate 90 degree to match the view: IT COULD BE WRONG!
+        self.add_2d_plot(np.rot90(counts2d), 0, image_size, 0, image_size)
 
         return
 
@@ -260,6 +279,11 @@ class PeakFitSetupView(MplFitPlottingWidget):
         vec_y = diff_data_set[1]
 
         ref_id = self.plot_data(data_set=(vec_x, vec_y), color='red', line_label='model')
+
+        if residual_set is not None:
+            # vec_x = residual_set[0]
+            # diff_y = residual_set[1]
+            self._myCanvas.add_plot_lower_axis(residual_set)
 
         return
 

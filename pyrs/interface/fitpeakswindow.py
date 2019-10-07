@@ -182,7 +182,7 @@ class FitPeaksWindow(QMainWindow):
         # Load file as an option
         if self.ui.checkBox_autoLoad.isChecked():
             try:
-                self.do_load_hydra_file(from_browse=True)
+                self.do_load_hydra_file(hydra_project_file=None)
             except RuntimeError as run_err:
                 gui_helper.pop_message(self, 'Failed to load {}'.format(hydra_file_name),
                                        str(run_err), 'error')
@@ -677,17 +677,22 @@ class FitPeaksWindow(QMainWindow):
         :param param_name:
         :return:
         """
+        from pyrs.utilities.rs_project_file import HidraConstants
+
         # get data key
         if self._project_name is None:
             gui_helper.pop_message(self, 'No data loaded', 'error')
             return
 
-        sub_run_vec, chi2_vec, param_value_2darray = self._core.get_peak_fit_param_value(self._project_name,
-                                                                                         param_name,
-                                                                                         max_cost=1E5)
-        print('DB...BAT: chi2 shape = {}, param values shape = {}'.format(chi2_vec.shape,
-                                                                          param_value_2darray.shape))
-        return sub_run_vec, param_value_2darray[0]
+        param_names, param_data = self._core.get_peak_fitting_result(self._project_name, return_format=dict,
+                                                                     effective_parameter=False)
+
+        print('[DB...BAT] Param Names: {}'.format(param_names))
+        sub_run_vec = param_data[HidraConstants.SUB_RUNS]
+        param_value_2darray = param_data[param_name]
+        print('[DB...BAT] 2D array shape: {}'.format(param_value_2darray.shape))
+
+        return sub_run_vec, param_value_2darray[:, 0]
 
     def get_meta_sample_data(self, name):
         """

@@ -1,6 +1,7 @@
 # This is the virtual base class as the fitting frame
 import numpy
 import math
+import scipy
 from pyrs.core import workspaces
 from pyrs.utilities import rs_project_file
 from pyrs.utilities import checkdatatypes
@@ -82,11 +83,11 @@ class PeakFitEngine(object):
             # calculate peak position and propagating fitting error
             for sub_index in range(2):
                 peak_i_2theta_j = params_vec[0][sb_index][0]
-                try:
+                if wl:
                     peak_i_d_j = wl * 0.5 / math.sin(peak_i_2theta_j * 0.5 * math.pi / 180.)
-                except ZeroDivisionError as zero_err:
-                    print('Peak(i) @ {}'.format(peak_i_2theta_j))
-                    raise zero_err
+                else:
+                    # case for None or zero
+                    peak_i_d_j = -1  # return a non-physical number
                 self._peak_center_d_vec[sb_index][0] = peak_i_d_j
         # END-FOR
 
@@ -214,7 +215,8 @@ class PeakFitEngine(object):
                                                                                   max_chi2)
 
         # Convert
-        effective_param_value_array = converter.calculate_effective_parameters(effective_params_list, param_value_array)
+        effective_param_value_array = converter.calculate_effective_parameters(effective_params_list,
+                                                                               param_value_array)
 
         return sub_run_array, fit_cost_array, effective_param_value_array
 
@@ -306,7 +308,7 @@ def gaussian(x, a, sigma, x0):
     :param x0:
     :return:
     """
-    return a * numpy.exp(-((x - x0)/sigma)**2)
+    return a * numpy.exp(-((x - x0) / sigma)**2)
 
 
 def loranzian(x, a, sigma, x0):
@@ -331,7 +333,7 @@ def quadratic_background(x, b0, b1, b2, b3):
     :param b3:
     :return:
     """
-    return b0 + b1*x + b2*x**2 + b3*x**3
+    return b0 + b1 * x + b2 * x**2 + b3 * x**3
 
 
 def fit_peak(peak_func, vec_x, obs_vec_y, p0, p_range):

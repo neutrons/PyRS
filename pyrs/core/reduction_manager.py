@@ -375,7 +375,7 @@ class HB2BReductionManager(object):
         if use_mantid_engine:
             # Mantid reduction engine
             reduction_engine = reduce_hb2b_mtd.MantidHB2BReduction(self._mantid_idf)
-            data_ws_name = reduction_engine.set_experimental_data(two_theta, l2, raw_count_vec)
+            reduction_engine.set_experimental_data(two_theta, l2, raw_count_vec)
             reduction_engine.build_instrument(geometry_calibration)
         else:
             # PyRS reduction engine
@@ -391,9 +391,8 @@ class HB2BReductionManager(object):
 
         # Reduce
         # TODO - TONIGHT NOW #72 - Make this method call happy!
-        num_bins = 500
         two_theta_range = (10, 60)
-        two_theta_step = 50./500.
+        two_theta_step = 50. / 500.
         data_set = reduction_engine.reduce_to_2theta_histogram(two_theta_range, two_theta_step,
                                                                apply_mask=True,
                                                                is_point_data=True,

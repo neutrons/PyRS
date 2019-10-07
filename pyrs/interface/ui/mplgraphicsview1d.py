@@ -829,7 +829,8 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
                 raise NotImplementedError('Input y_err must be either None or numpy.array.')
 
         if len(vec_x) != len(vec_y):
-            raise NotImplementedError('Input vec_x and vec_y must have same size.')
+            raise NotImplementedError('Input vec_x (shape: {}) and vec_y (shape: {}) must have same size.'
+                                      ''.format(vec_x.shape, vec_y.shape))
         if plot_error is True and len(y_err) != len(vec_x):
             raise NotImplementedError('Input vec_x, vec_y and y_error must have same size.')
 

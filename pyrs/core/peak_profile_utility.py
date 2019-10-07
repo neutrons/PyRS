@@ -109,15 +109,22 @@ class Gaussian(PeakParametersConverter):
             p' = number of effective parameters , n = number of sub runs
         """
         height_index = effective_params_list.index('Height')
-        peak_center_index = effective_params_list.index('PeakCentre')
+        # peak_center_index = effective_params_list.index('PeakCentre')
         sigma_index = effective_params_list.index('Sigma')
 
         heights = param_value_array[height_index, :, 0]
-        peak_center_index = peak_center_index[peak_center_index, :, 0]
+        sigmas = param_value_array[sigma_index, :, 0]
+        # peak_center_index = peak_center_index[peak_center_index, :, 0]
+
+        # calculate FWHM
+        self.cal_fwhm(param_value_array[sigma_index])
+        # calculate intensity
+        self.cal_intensity(heights, sigmas)
 
         return
 
-    def cal_intensity(self, height, sigma):
+    @staticmethod
+    def cal_intensity(height, sigma):
         """ Calculate peak intensity (intensities)
         I = H * Sigma * sqrt(2 * PI)
 
@@ -141,7 +148,8 @@ class Gaussian(PeakParametersConverter):
         """
         raise RuntimeError('Peak height is native ')
 
-    def cal_fwhm(self, sigma):
+    @staticmethod
+    def cal_fwhm(sigma):
         """
         Calculate FWHM from sigma
         FWHM = 2.0 * sqrt(2.0 * ln(2)) * sigma
@@ -326,4 +334,3 @@ class Voigt(PeakParametersConverter):
         """
 
         return
-
