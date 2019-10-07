@@ -98,8 +98,10 @@ class ManualReductionWindow(QMainWindow):
         init setup widgets
         :return:
         """
+        # Event slicer type is set to log value as default
         self.ui.radioButton_chopByLogValue.setChecked(True)
 
+        # Set up data table
         self.ui.rawDataTable.setup()
 
         return
@@ -430,10 +432,12 @@ class ManualReductionWindow(QMainWindow):
         return
 
     def event_change_slice_type(self):
-        """ Handle the event as the event slicing type is changed
-        :return:
+        """Handle the event as the event slicing type is changed
+
+        Returns
+        -------
+        None
         """
-        # TODO - ASAP - Clean
         # TODO - ASAP - Set default radio button
         disable_time_slice = True
         disable_value_slice = True
@@ -446,6 +450,9 @@ class ManualReductionWindow(QMainWindow):
             disable_value_slice = False
         else:
             disable_adv_slice = False
+
+        print('[DEBUG] Event filtering mode: Time slicer = {}, Value slicer = {}, Adv. Slicer = {}'
+              ''.format(not disable_time_slice, not disable_value_slice, not disable_adv_slice))
 
         # enable/disable group
         # FIXME TODO - ASAP - use setTabEnabled(index, false)
@@ -589,7 +596,7 @@ class ManualReductionWindow(QMainWindow):
 
         try:
             two_theta_array, diff_array = self._core.reduction_manager.get_reduced_diffraction_data(
-                self._project_data_id,  sub_run_number, mask_id)
+                self._project_data_id, sub_run_number, mask_id)
             if two_theta_array is None:
                 raise NotImplementedError('2theta array is not supposed to be None.')
         except RuntimeError as run_err:
@@ -608,7 +615,7 @@ class ManualReductionWindow(QMainWindow):
         # plot diffraction data
         # TODO - #84 - Add 'info' to plot!
         self.ui.graphicsView_1DPlot.plot_diffraction(two_theta_array, diff_array, '2theta',
-                                                     'intensity', True)
+                                                     'intensity', line_label=info, keep_prev=False)
 
         return
 
