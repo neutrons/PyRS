@@ -147,4 +147,3 @@ if __name__ == '__main__':
     test_detector_efficiency(False)
 
     test_monochromator_setup(False)
->>>>>>> d774ee11c1baa96256262734cebfe30fb5d0b43b
