@@ -1,6 +1,9 @@
-from mantid.simpleapi import mtd, CreateWorkspace, Transpose
-from pyrs.utilities import checkdatatypes
+from mantid.simpleapi import CreateWorkspace
+from mantid.simpleapi import mtd
+from mantid.simpleapi import Transpose
+import os
 from pyrs.core import workspaces
+from pyrs.utilities import checkdatatypes
 
 
 def generate_mantid_workspace(hidra_workspace, workspace_name, mask_id=None):
@@ -37,14 +40,12 @@ def get_data_y(ws_name, transpose):
                       will be transposed for exporting data
     :return:
     """
-    workspace = retrieve_workspace(ws_name, True)
-
     if transpose == 1:
         ws_name_temp = '{}_transposed'.format(ws_name)
         if not workspace_exists(ws_name):
             Transpose(InputWorkspace=ws_name, OutputWorkspace=ws_name_temp)
         transpose_ws = retrieve_workspace(ws_name_temp)
-        data_y = workspace.readY(0)
+        data_y = transpose_ws.readY(0)
     else:
         raise NotImplementedError('It has not been implemented to read 1 X N array')
 
@@ -68,30 +69,35 @@ def retrieve_workspace(ws_name, throw=True):
     return mtd.retrieve(ws_name)
 
 
-def study_mantid_peak_fitting():
+def study_mantid_peak_fitting(workspace_name, peak_window_ws_name, center_of_mass_ws_name,
+                              peak_function_name, info):
     """
     Save the workspaces used or output from Mantid FitPeaks
     :return:
     """
+    from pyrs.utilities import file_util
+
     # debug mode is disabled
     # find the directory for file
-    dir_name = rs_scan_io.get_temp_directory()
+    dir_name = file_util.get_temp_directory()
     print('[DEBUG-INFO] Mantid fit debugging data files will be written to {0}'.format(dir_name))
 
     # workspace for data
-    base_name = self._reference_id.replace('.', '_') + '_' + peak_function_name
+    base_name = workspace_name + '_' + peak_function_name
     raw_file_name = os.path.join(dir_name, '{0}_data.nxs'.format(base_name))
-    rs_scan_io.save_mantid_nexus(self._workspace_name, raw_file_name,
-                                 title='raw data for {0}'.format(self._reference_id))
+    file_util.save_mantid_nexus(workspace_name, raw_file_name,
+                                title='raw data for {0}'.format(info))
 
     # peak window workspace
     fit_window_name = os.path.join(dir_name, '{0}_fit_window.nxs'.format(base_name))
-    rs_scan_io.save_mantid_nexus(peak_window_ws_name, fit_window_name, title='Peak fit window workspace')
+    file_util.save_mantid_nexus(peak_window_ws_name, fit_window_name, title='Peak fit window workspace')
 
     # peak center workspace
     peak_center_file_name = os.path.join(dir_name, '{0}_peak_center.nxs'.format(base_name))
-    rs_scan_io.save_mantid_nexus(self._center_of_mass_ws_name, peak_center_file_name,
-                                 title='Peak center (center of mass) workspace')
+    file_util.save_mantid_nexus(center_of_mass_ws_name, peak_center_file_name,
+                                title='Peak center (center of mass) workspace')
+
+    return
 
 
 def workspace_exists(ws_name):

@@ -1,11 +1,13 @@
 class CalibrationManager(object):
-    """
-    A class to handle all the calibration files
+    """A class to handle all the calibration files
+
     calibration shall be related to date (run cycle), wave length and etc.
     """
     def __init__(self,  calib_lookup_table_file=None):
-        """
+        """Initialization
+
         Initialization for calibration manager
+
         Parameters
         ----------
         calib_lookup_table_file: str
@@ -17,8 +19,10 @@ class CalibrationManager(object):
         return
 
     def get_calibration(self, ipts_number, run_number):
-        """
-        Get calibration in memory
+        """Get calibration
+
+        Check whether any calibration (instance) loaded
+
         Parameters
         ----------
         ipts_number
@@ -28,12 +32,13 @@ class CalibrationManager(object):
         -------
         None
         """
-
         return
 
     def locate_calibration_file(self, ipts_number, run_number):
-        """
+        """Locate calibration file
+
         Locate calibration file in the /HFIR/HB2B/shared/
+
         Parameters
         ----------
         ipts_number
@@ -46,8 +51,10 @@ class CalibrationManager(object):
         return
 
     def show_calibration_table(self):
-        """
+        """Show calibration result
+
         Show calibration result in a table
+
         Returns
         -------
         None

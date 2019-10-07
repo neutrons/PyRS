@@ -48,14 +48,14 @@ class StrainStress(object):
         # calculate strain
         sum_diagonal_strain = 0.
         for index in [0, 1, 2]:
-            self._epsilon[index, index] = (self._peak_position_matrix[index, index] - d0)/d0
+            self._epsilon[index, index] = (self._peak_position_matrix[index, index] - d0) / d0
             sum_diagonal_strain += self._epsilon[index, index]
 
         # calculate stress
         for i in range(3):
             for j in range(3):
-                self._sigma[i, j] = young_e/(1 + poisson_nu) * \
-                    (self._epsilon[i, j] + poisson_nu / (1 - 2*poisson_nu) * sum_diagonal_strain)
+                self._sigma[i, j] = young_e / (1 + poisson_nu) * \
+                    (self._epsilon[i, j] + poisson_nu / (1 - 2 * poisson_nu) * sum_diagonal_strain)
             # END-j
         # END-i
 
@@ -72,14 +72,14 @@ class StrainStress(object):
         # calculate strain
         sum_diagonal_strain = 0.
         for index in [0, 1]:
-            self._epsilon[index, index] = (self._peak_position_matrix[index, index] - d0)/d0
+            self._epsilon[index, index] = (self._peak_position_matrix[index, index] - d0) / d0
             sum_diagonal_strain += self._epsilon[index, index]
 
         # calculate stress
         for i in range(3):
             for j in range(3):
-                self._sigma[i, j] = young_e/(1 + poisson_nu) * \
-                    (self._epsilon[i, j] + poisson_nu / (1 - 2*poisson_nu) * sum_diagonal_strain)
+                self._sigma[i, j] = young_e / (1 + poisson_nu) * \
+                    (self._epsilon[i, j] + poisson_nu / (1 - 2 * poisson_nu) * sum_diagonal_strain)
             # END-j
         # END-i
 
@@ -95,17 +95,17 @@ class StrainStress(object):
         """
         sum_diagonal_strain = 0.
         for index in [0, 1]:
-            self._epsilon[index, index] = (self._peak_position_matrix[index, index] - d0)/d0
+            self._epsilon[index, index] = (self._peak_position_matrix[index, index] - d0) / d0
             sum_diagonal_strain += self._epsilon[index, index]
 
-        self._epsilon[2, 2] = poisson_nu/(poisson_nu-1) * sum_diagonal_strain
+        self._epsilon[2, 2] = poisson_nu / (poisson_nu - 1) * sum_diagonal_strain
         sum_diagonal_strain += self._epsilon[2, 2]
 
         # calculate stress
         for i in range(3):
             for j in range(3):
-                self._sigma[i, j] = young_e/(1 + poisson_nu) * \
-                    (self._epsilon[i, j] + poisson_nu / (1 - 2*poisson_nu) * sum_diagonal_strain)
+                self._sigma[i, j] = young_e / (1 + poisson_nu) * \
+                    (self._epsilon[i, j] + poisson_nu / (1 - 2 * poisson_nu) * sum_diagonal_strain)
             # END-j
         # END-i
 
@@ -634,7 +634,7 @@ class StrainStressCalculator(object):
             pass
 
         # locate the range of X within tolerance/resolution for searching with Y
-        i_start, i_stop = search_neighborhood(sorted_positions, 0, len(sorted_positions)-1, i_middle, 0, resolution)
+        i_start, i_stop = search_neighborhood(sorted_positions, 0, len(sorted_positions) - 1, i_middle, 0, resolution)
         orig_start = i_start
         orig_stop = i_stop
         i_middle = None
@@ -987,7 +987,8 @@ class StrainStressCalculator(object):
 
         return self._workflow_tracker
 
-    def export_2d_slice(self, param_name, is_grid_raw, ss_direction, slice_dir, slice_pos, slice_resolution, file_name):
+    def export_2d_slice(self, param_name, is_grid_raw, ss_direction, slice_dir, slice_pos, slice_resolution,
+                        file_name):
         """
         export a 2D slice from either raw grids from experiments or grids aligned
         :param param_name:
@@ -1072,7 +1073,7 @@ class StrainStressCalculator(object):
             for i_coord in range(3):
                 param_grid_array[i_grid][i_coord] = grid_pos[i_coord]
             # parameter value
-            scan_log_index = self._matched_grid_vector[ss_direction][grid_pos]
+            # scan_log_index = self._matched_grid_vector[ss_direction][grid_pos]
             param_value = self._matched_grid_vector
             param_grid_array[i_grid][3] = param_value
         # END-FOR

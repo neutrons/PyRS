@@ -131,7 +131,7 @@ class HidraWorkspace(object):
 
         return
 
-    def _load_instrument(self,  hidra_file):
+    def _load_instrument(self, hidra_file):
         """ Load instrument setup from HIDRA file
         :param hidra_file: HIDRA project file instance
         :return:
@@ -476,7 +476,8 @@ class HidraWorkspace(object):
 
         # Check array shape
         if self._diff_data_set[mask_id].shape[1] != hist.shape[0]:
-            raise RuntimeError('blabla')  # TODO - TONGIHT NOW #72 - Better error message
+            raise RuntimeError('Histogram (shape: {}) to set does not match data diffraction data set defined in'
+                               'worksapce (shape: {})'.format(hist.shape[0], self._diff_data_set[mask_id].shape[1]))
 
         # Set Y
         spec_id = self._sub_run_to_spectrum[sub_run]

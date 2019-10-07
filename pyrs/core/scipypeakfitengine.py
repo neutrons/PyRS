@@ -1,15 +1,16 @@
-# Peak fitting engine by calling mantid
-# Set up the testing environment for PyVDrive commands
-from scipy.optimize import leastsq
+from pyrs.core.peak_fit_engine import PeakFitEngine
 import pandas as pd
+from scipy.optimize import leastsq
 import numpy as np
-from pyrs_fit_engine import RsPeakFitEngine
 from pyrs.utilities import checkdatatypes
 
 
-class ScipyPeakFitEngine(RsPeakFitEngine):
-    """
-    peak fitting engine class for mantid
+class ScipyPeakFitEngine(PeakFitEngine):
+    """peak fitting engine class for mantid
+
+    Peak fitting engine by calling mantid
+    Set up the testing environment for PyVDrive commands
+
     """
 
     def __init__(self, data_set_list, ref_id):
@@ -19,6 +20,8 @@ class ScipyPeakFitEngine(RsPeakFitEngine):
         :param ref_id:
         :param
         """
+        self.fitted_ws = None
+
         super(ScipyPeakFitEngine, self).__init__(data_set_list, ref_id)
 
         return
@@ -91,9 +94,9 @@ class ScipyPeakFitEngine(RsPeakFitEngine):
             MaxIndex = np.where(np.max(Data) == Data)[0][0]
 
             Pos = TTH[MaxIndex]
-            LL = np.where((Pos-1.) < TTH)[0][0]
-            UL = np.where((Pos+1.) > TTH)[0][-1:][0]
-            IA = np.sum(Data[LL:UL]) * (TTH[1]-TTH[0])
+            LL = np.where((Pos - 1.) < TTH)[0][0]
+            UL = np.where((Pos + 1.) > TTH)[0][-1:][0]
+            IA = np.sum(Data[LL:UL]) * (TTH[1] - TTH[0])
             f = IA / Data[MaxIndex]
             if peak_function_name == 'PseudoVoigt':
                 x0 = [Pos, IA, f, 0.99]
@@ -110,7 +113,7 @@ class ScipyPeakFitEngine(RsPeakFitEngine):
 
             result = leastsq(self.calculate_peak, x0,
                              args=(Data, TTH, peak_function_name, background_function_name.split(' ')[0]),
-                             full_output=True, ftol=1.e-15,  xtol=1.e-15)
+                             full_output=True, ftol=1.e-15, xtol=1.e-15)
 
             M.append(result[0])
 
@@ -124,11 +127,13 @@ class ScipyPeakFitEngine(RsPeakFitEngine):
         #
         #     self.peak_pos_ws = M[0]
         #     if peak_function_name == 'PseudoVoigt':
-        #         self.func_param_ws = pd.DataFrame.from_records([{'PeakCentre':M[0], 'Height': M[1], 'FWHM':M[2], 'Mixing':M[3]}])
+        #         self.func_param_ws = pd.DataFrame.from_records([{'PeakCentre':M[0],
+        #              'Height': M[1], 'FWHM':M[2], 'Mixing':M[3]}])
         #     else:
         #         self.func_param_ws = pd.DataFrame.from_records([{'PeakCentre':M[0], 'Height': M[1], 'FWHM':M[2]}])
         #     CalcPatts = []
-        #     CalcPatts.append(self.calculate_peak(M[:], self._data_workspace[1], self._data_workspace[0], peak_function_name, background_function_name.split(' ')[0], ReturnModel=True ))
+        #     CalcPatts.append(self.calculate_peak(M[:], self._data_workspace[1], self._data_workspace[0],
+        #                   peak_function_name, background_function_name.split(' ')[0], ReturnModel=True ))
         # else:
 
         # create pandas data frame
@@ -146,8 +151,11 @@ class ScipyPeakFitEngine(RsPeakFitEngine):
         # calculate patterns
         CalcPatts = []
         for log_index in range(self._data_workspace[2]):
-            CalcPatts.append(self.calculate_peak(M[log_index, :], self._data_workspace[1][log_index], self._data_workspace[0]
-                                                 [log_index], peak_function_name, background_function_name.split(' ')[0], ReturnModel=True))
+            CalcPatts.append(self.calculate_peak(M[log_index, :], self._data_workspace[1][log_index],
+                                                 self._data_workspace[0]
+                                                 [log_index],
+                                                 peak_function_name, background_function_name.split(' ')[0],
+                                                 ReturnModel=True))
 
         self.fitted_ws = np.array(CalcPatts)
 
