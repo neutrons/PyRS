@@ -201,7 +201,7 @@ def main(argv):
     :return:
     """
     if len(argv) < 3:
-        print_help()
+        print_help(argv)
         sys.exit(-1)
 
     # parse input & check

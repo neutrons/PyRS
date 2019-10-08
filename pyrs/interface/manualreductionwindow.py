@@ -34,7 +34,8 @@ class ManualReductionWindow(QMainWindow):
         self._core = None
         self._currIPTSNumber = None
         self._currExpNumber = None
-        self._project_data_id = None
+        self._hydra_workspace = None  # HiDRA worksapce instance if any file loaded
+        self._project_data_id = None  # Project name for reference (str)
         self._project_file_name = None   # last loaded project file
         self._output_dir = None
 
@@ -373,30 +374,18 @@ class ManualReductionWindow(QMainWindow):
                 return
         # END-IF-ELSE
 
-        # form a message
-        message = 'Reduced.... \n'
-        for sub_run_number in sub_run_list:
-            tth_i = self._core.reduction_manager.get_sub_run_2theta(self._project_data_id, sub_run_number)
-            try:
-                # TODO FIXME - URGENT/NOW - This is completely broken + GUI test
-                # TODO ...   - refer to reduce_HB2B script
-                self._core.reduction_manager.reduce_to_2theta_histogram(data_id=self._project_data_id,
-                                                                        sub_run=sub_run_number,
-                                                                        two_theta=tth_i,
-                                                                        use_mantid_engine=False,
-                                                                        mask=None)
-            except RuntimeError as run_err:
-                message += 'Sub-run: {}... Failed: {}\n'.format(sub_run_number, run_err)
-            else:
-                message += 'Sub-run: {}\n'.format(sub_run_number)
+        # Reduce data
+        # TODO FIXME - Urgent - Mask and calibration is not implemented at all!
+        self._core.reduction_manager.reduce_diffraction_data(self._project_data_id,
+                                                             apply_calibrated_geometry=None,
+                                                             bin_size_2theta=0.05,
+                                                             use_pyrs_engine=True,
+                                                             mask=None,
+                                                             sub_run_list=sub_run_list)
 
-            """ This is for future IPTS/Run system
-            message += 'Sub-run: {}\n'.format(self._currIPTSNumber, run_number,
-                                              '/HFIR/HB2B/IPTS-{}/nexus/HB2B_{}.nxs.h5'
-                                              ''.format(self._currIPTSNumber, run_number))
-            """
-        # END-FOR
-        self.ui.plainTextEdit_message.setPlainText(message)
+        # Update table
+        for sub_run in sub_run_list:
+            self.ui.rawDataTable.update_reduction_state(sub_run, True)
 
         return
 
@@ -522,16 +511,20 @@ class ManualReductionWindow(QMainWindow):
         :param project_file_name:
         :return:
         """
-        # TODO - #84 - Need try-catch
         # Load data file
-        print('Loading ... {}'.format(project_file_name))
         project_name = os.path.basename(project_file_name).split('.')[0]
-        self._core.load_hidra_project(project_file_name, project_name=project_name,
-                                      load_detector_counts=True,
-                                      load_diffraction=True)
-        self._project_file_name = project_file_name
+        try:
+            self._hydra_workspace = self._core.load_hidra_project(project_file_name, project_name=project_name,
+                                                                  load_detector_counts=True, load_diffraction=True)
+        except (RuntimeError, IOError) as load_err:
+            self._hydra_workspace = None
+            gui_helper.pop_message(self, 'Loading {} failed'.format(project_file_name),
+                                   detailed_message='{}'.format(load_err),
+                                   message_type='error')
+            return
 
-        # populate the sub-runs
+        # Set value for the loaded project
+        self._project_file_name = project_file_name
         self._project_data_id = project_name
 
         # Fill sub runs to self.ui.comboBox_sub_runs

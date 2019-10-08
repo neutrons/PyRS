@@ -735,33 +735,52 @@ class RawDataTable(NTableWidget.NTableWidget):
         """
         super(RawDataTable, self).__init__(parent)
 
+        # Dictionary to hold some information
+        self._sub_run_row_map = dict()  # [sub run] = row number
+
         return
 
     def add_subruns_info(self, meta_data_array, clear_table=True):
+        """Add information of sub runs to the table
+
+        Parameters
+        ----------
+        meta_data_array
+        clear_table: boolean
+            Flag to clear the table before adding rows
+
+        Returns
+        -------
+
+        """
         if clear_table:
             self.remove_all_rows()
 
+        # Get sub runs
         num_sub_runs = len(meta_data_array[0])
 
-        for row in range(5):
+        for row in range(num_sub_runs):
             sub_run_i = meta_data_array[0][row]
             two_theta_i = meta_data_array[1][sub_run_i]
-
-            self.add_raw_sub_run(sub_run_i, two_theta_i)
+            self._add_raw_sub_run(sub_run_i, two_theta_i)
+        # END-FOR
 
         return
 
-    def add_raw_sub_run(self, sub_run_number, two_theta):
+    def _add_raw_sub_run(self, sub_run_number, two_theta):
         """
         Add raw data for one sub run
         :param sub_run_number:
         :param two_theta:
         :return:
         """
-        print('[DB...BAT] Add ... {}, {}'.format(sub_run_number, two_theta))
         success, error_msg = self.append_row([sub_run_number, two_theta, False])
-        if not success:
-            print('[ERROR] Unable to append row due to {}'.format(error_msg))
+        if success:
+            # register
+            row_number = self.rowCount() - 1
+            self._sub_run_row_map[sub_run_number] = row_number
+        else:
+            print ('[ERROR] Unable to append row due to {}'.format(error_msg))
 
         return
 
@@ -771,6 +790,27 @@ class RawDataTable(NTableWidget.NTableWidget):
         :return:
         """
         self.init_setup(self.TableSetupList)
+
+        return
+
+    def update_reduction_state(self, sub_run_index, reduced):
+        """Update a sub run's reduction state
+
+        Parameters
+        ----------
+        sub_run_index: integer
+            sub run index
+        reduced: boolean
+            status
+
+        Returns
+        -------
+        None
+        """
+        if sub_run_index not in self._sub_run_row_map:
+            raise RuntimeError('Sub run {} has never been added to table'.format(sub_run_index))
+        # Update
+        self.update_cell_value(self._sub_run_row_map[sub_run_index], 2, reduced)
 
         return
 
