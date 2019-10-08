@@ -32,7 +32,7 @@ class HB2BReductionManager(object):
         # workspace name or array vector
         self._curr_workspace = None
         self._curr_session_name = None
-        self._session_dict = dict()  # ID = workspace, counts vector
+        self._session_dict = dict()  # [Project name/ID] = workspace / counts vector
 
         # Reduction engine
         self._last_reduction_engine = None

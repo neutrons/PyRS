@@ -377,13 +377,8 @@ class FitPeaksWindow(QMainWindow):
 
         # plot the model and difference
         if sub_run_list is None:
-            scan_log_index = 0
-            # FIXME This case is not likely to occur
-        # FIXME - TODO - self.do_plot_diff_data()
-
-        # plot the contour
-        # TODO - #84+ - Implement this! Plot contour for what????
-        # self.ui.graphicsView_contourView
+            sub_run_number = 1
+            self.plot_diff_data(sub_run_number, True)
 
         return
 
@@ -724,11 +719,19 @@ class FitPeaksWindow(QMainWindow):
         return value_vector
 
     def plot_diff_data(self, sub_run_number, plot_model):
-        """ Plot a set of diffraction data (one scan log index) and plot its fitted data
-        :return:
+        """Plot a set of diffraction data (one scan log index) and plot its fitted data
+
+        Parameters
+        ----------
+        sub_run_number: int
+            sub run number
+        plot_model: boolean
+            Flag to plot model with diffraction data or not
+
+        Returns
+        -------
+        None
         """
-        # TODO FIXME - #84: TypeError: get_diffraction_data() got an unexpected keyword argument 'data_key'
-        # ..... UNIT TEST!
         # get experimental data and plot
         diff_data_set = self._core.get_diffraction_data(session_name=self._project_name,
                                                         sub_run=sub_run_number,
@@ -773,7 +776,8 @@ class FitPeaksWindow(QMainWindow):
         print('Plan to copy {} to {} and insert fit result'.format(self._curr_file_name,
                                                                    out_file_name))
         # TODO FIXME - TONIGHT NOW - Fit the following method!
-        # FIXME Temporarily disabled: self._core.save_peak_fit_result(self._curr_data_key, self._curr_file_name, out_file_name)
+        # FIXME Temporarily disabled:
+        # self._core.save_peak_fit_result(self._curr_data_key, self._curr_file_name, out_file_name)
 
         return
 

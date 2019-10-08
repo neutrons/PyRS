@@ -162,7 +162,7 @@ class GeneralDiffDataView(MplGraphicsView1D):
         """
         return self._current_x_axis_name
 
-    def plot_diffraction(self, vec_x, vec_y, x_label, y_label, keep_prev=True):
+    def plot_diffraction(self, vec_x, vec_y, x_label, y_label, line_label=None, keep_prev=True):
         """ plot figure in scatter-style
         :param vec_x:
         :param vec_y:
@@ -181,7 +181,8 @@ class GeneralDiffDataView(MplGraphicsView1D):
 
         # plot data in a scattering plot with auto re-scale
         ref_id = self.add_plot(vec_x, vec_y, line_style='-', marker=None,
-                               color='red', x_label=x_label, y_label=y_label)
+                               color='red', x_label=x_label, y_label=y_label,
+                               label=line_label)
         # TODO - 20181101 - Enable after auto_scale is fixed: self.auto_rescale()
 
         self._line_reference_list.append(ref_id)

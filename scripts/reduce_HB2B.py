@@ -4,6 +4,8 @@ import os
 from pyrs.core import reduction_manager
 from pyrs.utilities import checkdatatypes
 from pyrs.core import mask_util
+from pyrs.utilities import calibration_file_io
+from pyrs.utilities import rs_project_file
 from matplotlib import pyplot as plt
 
 # This is the final version of command line script to reduce HB2B data
@@ -135,15 +137,17 @@ class ReductionApp(object):
             # TODO - #84 - Implement
 
         # calibration file
+        geometry_calibration = False
         if calibration_file is not None:
-            # TODO - #84 - parse calibration file or already a calibration object
-            blabla()
+            geometry_calibration =\
+                calibration_file_io.import_calibration_ascii_file(geometry_file_name=calibration_file)
+        # END-IF
 
         # mask
         if mask is not None:
-            blabla()
+            raise NotImplementedError('It has not been decided how to parse mask to auto reduction script')
 
-        self._reduction_manager.reduce_diffraction_data(self._session, apply_calibrated_geometry=False,
+        self._reduction_manager.reduce_diffraction_data(self._session, apply_calibrated_geometry=geometry_calibration,
                                                         bin_size_2theta=0.05,
                                                         use_pyrs_engine=not self._use_mantid_engine,
                                                         mask=None,
@@ -163,13 +167,28 @@ class ReductionApp(object):
             plt.plot(vec_x, vec_y)
         plt.show()
 
-    def save_diffraction_data(self):
+    def save_diffraction_data(self, output_file_name=None):
+        """Save reduced diffraction data to Hidra project file
+        Parameters
+        ----------
+        output_file_name: None or str
+            if None, then append result to the input file
+        Returns
+        -------
 
-        from pyrs.utilities import rs_project_file
+        """
+        # Determine output file name and writing mode
+        if output_file_name is None or output_file_name == self._hydra_file_name:
+            file_name = self._hydra_file_name
+            mode = rs_project_file.HydraProjectFileMode.READWRITE
+        else:
+            file_name = output_file_name
+            mode = rs_project_file.HydraProjectFileMode.OVERWRITE
 
-        out_file = rs_project_file.HydraProjectFile(self._hydra_file_name,
-                                                    rs_project_file.HydraProjectFileMode.READWRITE)
+        # Generate project file instance
+        out_file = rs_project_file.HydraProjectFile(file_name, mode)
 
+        # Write & close
         self._hydra_ws.save_reduced_diffraction_data(out_file)
 
         return
@@ -182,7 +201,7 @@ def main(argv):
     :return:
     """
     if len(argv) < 3:
-        print_help()
+        print_help(argv)
         sys.exit(-1)
 
     # parse input & check
@@ -227,7 +246,8 @@ def main(argv):
                             sub_runs=sub_run_list)
 
         # save
-        reducer.save_diffraction_data()
+        out_file_name = os.path.join(output_dir, os.path.basename(project_data_file))
+        reducer.save_diffraction_data(out_file_name)
 
     # END-IF-ELSE
 
@@ -272,7 +292,7 @@ def parse_inputs(arg_list):
     return arg_options
 
 
-def print_help():
+def print_help(argv):
     """
     print help information
     :return:
@@ -285,6 +305,8 @@ def print_help():
     print('--engine:       mantid or pyrs.  default is pyrs')
     print('--viewraw:      viewing raw data with an option to mask (NO reduction)')
     print('--')
+
+    return
 
 
 if __name__ == '__main__':
