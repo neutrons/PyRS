@@ -343,7 +343,7 @@ class IndicatorManager(object):
         :param y_pos:
         :return:
         """
-        x_min, x_max = self._canvas.getXLimit()
+        x_min, x_max = self._canvas.get_x_limits()
         y_min, y_max = self._canvas.getYLimit()
 
         # horizontal

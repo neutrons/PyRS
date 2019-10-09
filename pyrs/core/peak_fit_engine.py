@@ -5,12 +5,7 @@ import scipy
 from pyrs.core import workspaces
 from pyrs.utilities import rs_project_file
 from pyrs.utilities import checkdatatypes
-
-NATIVE_PEAK_PARAMETERS = {'Gaussian': ['Height', 'PeakCentre', 'Sigma', 'A0', 'A1'],
-                          'PseudoVoigt': ['Mixing', 'Intensity', 'PeakCentre', 'FWHM', 'A0', 'A1'],
-                          'Voigt': ['LorentzAmp', 'LorentzPos', 'LorentzFWHM', 'GaussianFWHM',
-                                    'A0', 'A1']}
-EFFECTIVE_PEAK_PARAMETERS = ['Center', 'Height', 'FWHM', 'A0', 'A1']
+from pyrs.core import peak_profile_utility
 
 
 class PeakFitEngine(object):
@@ -104,10 +99,10 @@ class PeakFitEngine(object):
         print('[DB...BAT] Parameter names: {}'.format(param_names))
 
         # Get parameter values
-        sub_run_vec, chi2_vec, param_names, param_matrix = self.get_fitted_params(param_names, including_error=True)
+        sub_run_vec, cost_vec, params_array = self.get_fitted_params(param_names, including_error=True)
 
-        hidra_file.set_peak_fit_result(peak_tag, self._peak_function_name, param_names, sub_run_vec, chi2_vec,
-                                       param_matrix)
+        hidra_file.set_peak_fit_result(peak_tag, self._peak_function_name, param_names, sub_run_vec, cost_vec,
+                                       params_array)
 
         return
 
@@ -129,7 +124,7 @@ class PeakFitEngine(object):
                           cal_center_d):
         return
 
-    def get_calculated_peak(self, scan_log_index):
+    def get_calculated_peak(self, sub_run_number):
         """
         get the calculated peak's value
         :return:
@@ -247,17 +242,18 @@ class PeakFitEngine(object):
 
         if is_effective:
             # Effective parameters
-            param_names = EFFECTIVE_PEAK_PARAMETERS[:]
+            param_names = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS[:]
             if peak_function == 'PseudoVoigt':
                 param_names.append('Mixing')
 
         else:
             # Native parameters
             try:
-                param_names = NATIVE_PEAK_PARAMETERS[peak_function][:]
+                param_names = peak_profile_utility.NATIVE_PEAK_PARAMETERS[peak_function][:]
             except KeyError as key_err:
                 raise RuntimeError('Peak type {} not supported.  The supported peak functions are {}.  FYI: {}'
-                                   ''.format(peak_function, NATIVE_PEAK_PARAMETERS.keys(), key_err))
+                                   ''.format(peak_function,
+                                             peak_profile_utility.NATIVE_PEAK_PARAMETERS.keys(), key_err))
 
         return param_names
 
@@ -281,22 +277,7 @@ class PeakFitEngine(object):
         """
         # TODO - 20180727 - Implement!
 
-# In [17]: log97entry.create_group('peak_fit')
-# Out[17]: <HDF5 group "/Diffraction Data/Log 97/peak_fit" (0 members)>
-#
-# In [18]: peak_fit_97 = log
-# %logoff     %logon      %logstart   %logstate   %logstop    log97entry  log98entry
-#
-# In [18]: peak_fit_97 = log97entry['peak_fit']
-#
-# In [19]: peak_fit_97['type'
-#    ....: ] = 'Gaussian'
-#
-# In [20]: peak_fit_97['Height'] = 45.0
-#
-# In [21]: peak_fit_97['Chi2'] = 56.3
-#
-# In [22]: rwfile.close()
+
 
 
 def gaussian(x, a, sigma, x0):
