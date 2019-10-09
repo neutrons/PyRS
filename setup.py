@@ -77,6 +77,7 @@ if __name__ == "__main__":
         license=find_meta("license"),
         url=find_meta("url"),
         version=versioneer.get_version(),
+        cmdclass=versioneer.get_cmdclass(),
         author=find_meta("author"),
         author_email=find_meta("email"),
         maintainer=find_meta("author"),
@@ -92,7 +93,8 @@ if __name__ == "__main__":
         package_data={'': ['*.ui']},
         scripts=scripts,
         setup_requires=['pytest-runner'],
-        cmdclass=versioneer.get_cmdclass(),
+        # tests_require=setup_args['install_requires'] + setup_args['tests_require'],
+        test_suite='tests'
     )
 
     print ('Scripts compiled: {0}'.format(scripts))
