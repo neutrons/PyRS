@@ -1,16 +1,8 @@
-# pylint: disable=invalid-name,too-many-public-methods,too-many-arguments,non-parent-init-called,R0902,too-many-branches,C0302
 from matplotlib.figure import Figure
 import numpy as np
 
 from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
-from qtpy import PYQT5, PYQT4
-
-if PYQT5:
-    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
-elif PYQT4:
-    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
+from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
 
 
 class MplGraphicsPolarView(QWidget):
@@ -130,7 +122,8 @@ class Qt4MplPolarCanvas(FigureCanvas):
         # create 1D arrays for theta and r: beta/2
         azimuths = np.radians(np.linspace(-theta_resolution/2., 360 +
                                           theta_resolution/2., 360/theta_resolution+1))  # degree
-        # Chris change to non-linear spacing from alpha:  zeniths = np.arange(0, max_r+r_resolution, r_resolution)  # radius
+        # Chris change to non-linear spacing from alpha:
+        #        zeniths = np.arange(0, max_r+r_resolution, r_resolution)  # radius
         zeniths = np.tan(np.pi / 360. * np.arange(-r_resolution/2., max_r+r_resolution, r_resolution))  # radius
 
         # convert to meshgrid

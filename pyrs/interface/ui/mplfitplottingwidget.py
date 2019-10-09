@@ -3,16 +3,10 @@
 # plus a tool bar
 
 from pyrs.interface.ui import mplgraphicsview1d
+from pyrs.interface.ui.mplgraphicsview1d import MyNavigationToolbar
 from matplotlib.figure import Figure
 from qtpy.QtWidgets import QWidget, QVBoxLayout
-from qtpy import PYQT5, PYQT4
-
-if PYQT5:
-    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
-elif PYQT4:
-    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
+from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
 
 
 class MplFitPlottingWidget(QWidget):
@@ -28,7 +22,7 @@ class MplFitPlottingWidget(QWidget):
 
         # set up UI and widgets
         self._myCanvas = QtMplFitCanvas(self)
-        self._myToolBar = mplgraphicsview1d.MyNavigationToolbar(self, self._myCanvas)
+        self._myToolBar = MyNavigationToolbar(self, self._myCanvas)
 
         # set up layout
         self._vBox = QVBoxLayout(self)

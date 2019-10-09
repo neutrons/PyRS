@@ -1,4 +1,3 @@
-# pylint: disable=invalid-name,too-many-public-methods,too-many-arguments,non-parent-init-called,R0902,too-many-branches,C0302
 import matplotlib.image
 from matplotlib.figure import Figure
 import os
@@ -6,14 +5,8 @@ import numpy as np
 
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
-from qtpy import PYQT4, PYQT5
-
-if PYQT5:
-    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
-elif PYQT4:
-    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
+from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
+from mantidqt.MPLwidgets import NavigationToolbar2QT as NavigationToolbar2
 
 
 MplLineStyles = ['-', '--', '-.', ':', 'None', ' ', '']
@@ -871,7 +864,7 @@ class MplGraphicsView(QWidget):
             self._myCanvas.remove_plot_1d(plot_id)
         except RuntimeError as run_err:
             raise RuntimeError('Failed to remove indicator ID = {0} with plot ID = {1} due to {2}'.format(
-                indicator_id, plot_id, run_err))
+                indicator_key, plot_id, run_err))
         self._myIndicatorsManager.delete(indicator_key)
 
         return
@@ -1392,10 +1385,8 @@ class Qt4MplCanvas(FigureCanvas):
         self._flush()
 
     def addImage(self, imagefilename):
-        """ Add an image by file
+        """Add an image by file
         """
-        #import matplotlib.image as mpimg
-
         # set aspect to auto mode
         self.axes.set_aspect('auto')
 
@@ -1417,7 +1408,7 @@ class Qt4MplCanvas(FigureCanvas):
         return
 
     def clear_all_1d_plots(self):
-        """ Remove all lines from the canvas
+        """Remove all lines from the canvas
         """
         for ikey in self._lineDict.keys():
             plot = self._lineDict[ikey]

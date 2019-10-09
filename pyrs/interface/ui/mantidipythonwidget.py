@@ -1,9 +1,10 @@
-from mantid.api import AnalysisDataService as mtd
+from mantid.simpleapi import mtd
 from pygments.lexer import RegexLexer
 import threading
 import types
 import inspect
 import os
+from qtpy.QtWidgets import QApplication
 
 home_dir = os.path.expanduser('~')
 # # NOTE: This is the entry point to define the path to Mantid
@@ -29,7 +30,6 @@ home_dir = os.path.expanduser('~')
 # Monkeypatch!
 RegexLexer.get_tokens_unprocessed_unpatched = RegexLexer.get_tokens_unprocessed
 
-from qtpy.QtWidgets import QApplication
 try:
     # This is PyQt5 compatible
     from qtconsole.rich_ipython_widget import RichIPythonWidget

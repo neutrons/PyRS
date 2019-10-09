@@ -376,7 +376,8 @@ class LogGraphicsView(mplgraphicsview1d.MplGraphicsView1D):
         # check status
         if self._mouseLeftButtonHold:
             # mouse button is hold with a picker is selected
-            assert self._currentSelectedPicker is not None, 'In mouse-left-button-hold mode, a picker must be selected.'
+            assert self._currentSelectedPicker is not None, \
+                'In mouse-left-button-hold mode, a picker must be selected.'
 
             # check whether the selected picker can move
             print '[DB...BAT] Left limit = ', self._leftPickerLimit, ', Range = ', self._pickerRange

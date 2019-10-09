@@ -1,4 +1,3 @@
-# pylint: disable=invalid-name,too-many-public-methods,too-many-arguments,non-parent-init-called,R0902,too-many-branches,C0302
 """
 Graphics class with matplotlib backend specific for advanced 1D plot
 """
@@ -7,15 +6,8 @@ import matplotlib
 import numpy as np
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
-from qtpy import PYQT4, PYQT5
-
-
-if PYQT5:
-    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
-elif PYQT4:
-    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
+from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
+from mantidqt.MPLwidgets import NavigationToolbar2QT as NavigationToolbar2
 
 
 MplLineStyles = ['-', '--', '-.', ':', 'None', ' ', '']
@@ -124,7 +116,8 @@ class MplGraphicsView1D(QWidget):
         if is_main:
             # from main plot
             if (row_index, col_index) not in self._myMainPlotDict:
-                raise RuntimeError('Main plot does not have subplot ({0}, {1})'.format(row_index, col_index))
+                raise RuntimeError('Main plot does not have subplot '
+                                   '({0}, {1})'.format(row_index, col_index))
             y_min = self._myMainPlotDict[row_index, col_index][line_id][3]
             y_max = self._myMainPlotDict[row_index, col_index][line_id][4]
         else:
@@ -652,8 +645,8 @@ class MplGraphicsView1D(QWidget):
         return
 
     # TODO/NOW - How to deal with label!!!
-    def update_line(self, row_index, col_index, ikey, is_main, vec_x=None, vec_y=None, line_style=None, line_color=None,
-                    marker=None, marker_color=None):
+    def update_line(self, row_index, col_index, ikey, is_main, vec_x=None, vec_y=None,
+                    line_style=None, line_color=None, marker=None, marker_color=None):
         """ Update a line, including value, line style, color, marker and etc.
         Update a line, including value, line style, color, marker and etc.
         The line is indicated by its key
@@ -685,8 +678,8 @@ class MplGraphicsView1D(QWidget):
                                            line_id=ikey, remove_line=False,
                                            vec_y=vec_y, label=None)  # let callee to determine label
 
-        self._myCanvas.update_plot_line(row_index, col_index, ikey, is_main, vec_x, vec_y, line_style, line_color, marker,
-                                        marker_color)
+        self._myCanvas.update_plot_line(row_index, col_index, ikey, is_main, vec_x, vec_y,
+                                        line_style, line_color, marker, marker_color)
 
         return
 
@@ -871,10 +864,13 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         # color must be RGBA (4-tuple)
         if plot_error is False:
             # return: list of matplotlib.lines.Line2D object
-            r = self.axes_main[row_index, col_index].plot(vec_x, vec_y, color=color, marker=marker, markersize=4,
-                                                          linestyle=line_style, label=label, linewidth=line_width)
+            r = self.axes_main[row_index, col_index].plot(vec_x, vec_y, color=color,
+                                                          marker=marker, markersize=4,
+                                                          linestyle=line_style, label=label,
+                                                          linewidth=line_width)
         else:
-            r = self.self.axes_main[row_index, col_index].errorbar(vec_x, vec_y, yerr=y_err, color=color, marker=marker,
+            r = self.self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
+                                                                   yerr=y_err, color=color, marker=marker,
                                                                    linestyle=line_style, label=label,
                                                                    linewidth=line_width)
 

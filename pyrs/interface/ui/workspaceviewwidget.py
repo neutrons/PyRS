@@ -3,8 +3,7 @@
 # General-purposed plotting window
 #
 ########################################################################
-from mantidipythonwidget import MantidIPythonWidget
-import time
+import datetime
 
 from qtpy import QtCore
 from qtpy.QtWidgets import QWidget, QVBoxLayout
@@ -14,7 +13,7 @@ from mplgraphicsview import MplGraphicsView
 import NTableWidget as baseTable
 from pyrs.interface.ui.mantidipythonwidget import MantidIPythonWidget
 
-from mantid.api import AnalysisDataService
+from mantid.api import mtd
 import os
 
 try:
@@ -293,11 +292,6 @@ class WorkspaceViewWidget(QWidget):
         return is_reserved
 
     def exec_command_clear(self, script):
-        """
-
-        :param script:
-        :return:
-        """
         # TODO - NIGHT - Make it better looking
         if terms[1] == 'clear':
             # clear canvas
@@ -370,7 +364,7 @@ class WorkspaceViewWidget(QWidget):
                 # too many
                 return False, 'More than 2 arguments is not supported for command plot'
 
-            if not AnalysisDataService.doesExist(ws_name):
+            if not mtd.doesExist(ws_name):
                 return False, 'Workspace {} ({}) does not exist.'.format(ws_name, type(ws_name))
 
             try:
@@ -403,14 +397,14 @@ class WorkspaceViewWidget(QWidget):
         """ Refresh workspace in the memory
         :return:
         """
-        workspace_names = AnalysisDataService.getObjectNames()
+        workspace_names = mtd.getObjectNames()
 
         self.ui.tableWidget_dataStructure.remove_all_rows()
         error_message = ''
         for ws_name in workspace_names:
             try:
                 # get workspace and its type
-                workspace = AnalysisDataService.retrieve(ws_name)
+                workspace = mtd.retrieve(ws_name)
                 ws_type = workspace.id()
                 # find out workspace information
                 ws_info = ''
@@ -453,11 +447,11 @@ class WorkspaceViewWidget(QWidget):
 
         try:
             main_window.get_reserved_commands
-        except AttributeError as att_err:
+        except AttributeError:
             # TODO - FUTURE - Expand VDRIVE-like command
             return
-            # raise AttributeError('Parent window does not have required method get_reserved_command. FYI: {0}'
-            #                      ''.format(att_err))
+            # raise AttributeError('Parent window does not have required method get_reserved_command.') \
+            #       from attr_error
 
         reserved_command_list = main_window.get_reserved_commands()
         self.Reserved_Command_List.extend(reserved_command_list)
@@ -467,14 +461,7 @@ class WorkspaceViewWidget(QWidget):
     def write_message(self, message_body, is_history_view=False, is_cmd_success=None):
         """
         write a message to the plain text edit
-        :param message_body:
-        :param is_history_view:
-        :return:
         """
-        # TODO - NIGHT - clean!
-        import datetime
-        cur_time = time.time()
-
         text = '{}:\n{}\n'.format(datetime.datetime.now(), message_body)
 
         if is_history_view:
@@ -550,7 +537,7 @@ class WorkspaceGraphicView(MplGraphicsView):
         # TODO           2. Use auto color
         # TODO           3. Use over-plot to compare
         # TODO           4. Change tab: ui.tabWidget_table_view
-        # FIXME   -      This is a dirty shortcut because it is not suppose to access AnalysisDataService at this level
+        # FIXME   -      This is a dirty shortcut because it is not suppose to access mtd at this level
 
         # form bank IDs
         if bank_id is None:
@@ -577,9 +564,9 @@ class WorkspaceGraphicView(MplGraphicsView):
             self._update_data_range(vec_x, vec_y)
         # END-FOR
 
-        # # ws = AnalysisDataService.retrieve(workspace_name)
+        # # ws = mtd.retrieve(workspace_name)
         # # mantid.simpleapi.ConvertToPointData(InputWorkspace=ws, OutputWorkspace='temp_ws')
-        # # point_ws = AnalysisDataService.retrieve('temp_ws')
+        # # point_ws = mtd.retrieve('temp_ws')
         #
         # # get X and Y
         # vec_x = point_ws.readX(0)

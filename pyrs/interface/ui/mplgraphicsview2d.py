@@ -1,4 +1,3 @@
-# pylint: disable=invalid-name,too-many-public-methods,too-many-arguments,non-parent-init-called,R0902,too-many-branches,C0302
 import matplotlib.image
 from matplotlib.figure import Figure
 import os
@@ -6,14 +5,8 @@ import numpy as np
 
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
-from qtpy import PYQT5, PYQT4
-
-if PYQT5:
-    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
-elif PYQT4:
-    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
+from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
+from mantidqt.MPLwidgets import NavigationToolbar2QT as NavigationToolbar2
 
 
 MplLineStyles = ['-', '--', '-.', ':', 'None', ' ', '']
@@ -131,37 +124,26 @@ class MplGraphicsView2D(QWidget):
         elif plot_type == 'image file':
             self._myCanvas.add_image_file()
         elif plot_type == 'scatter':
-            blabla
+            raise NotImplementedError('plot_type="scatter" has not been implemented')
         else:
-            blabla
+            raise RuntimeError('Do not know how to add_2d_plot(..., plot_type="{}")'.format(plot_type))
 
         self._hasImage = True
 
-        return
-
     def has_image_on_canvas(self):
-        """
-        blabla
-        @return:
-        """
         # TODO/ASAP
         return self._hasImage
 
     def update_2d_plot(self):
-        """
-
-        @return:
-        """
         pass
 
     def canvas(self):
-        """ Get the canvas
-        :return:
+        """Get the canvas
         """
         return self._myCanvas
 
     def clear_canvas(self):
-        """ Clear canvas
+        """Clear canvas
         """
         # clear all the records
         # to-be-filled
@@ -174,23 +156,18 @@ class MplGraphicsView2D(QWidget):
         return r
 
     def draw(self):
-        """ Draw to commit the change
+        """Draw to commit the change
         """
         return self._myCanvas.draw()
 
     def evt_toolbar_home(self):
-        """
-
-        @return:
-        """
         # turn off zoom mode
         self._isZoomed = False
 
         return
 
     def evt_view_updated(self):
-        """ Event handling as canvas size updated
-        :return:
+        """Event handling as canvas size updated
         """
         # # update the indicator
         # new_x_range = self.getXLimit()
@@ -206,8 +183,7 @@ class MplGraphicsView2D(QWidget):
         return
 
     def evt_zoom_released(self):
-        """ event for zoom is release
-        @return:
+        """event for zoom is release
         """
         # record home XY limit if it is never zoomed
         if self._isZoomed is False:
@@ -221,18 +197,18 @@ class MplGraphicsView2D(QWidget):
         return
 
     def getLastPlotIndexKey(self):
-        """ Get ...
+        """Get ...
         """
         return self._myCanvas.getLastPlotIndexKey()
 
     def getXLimit(self):
-        """ Get limit of Y-axis
+        """Get limit of Y-axis
         :return: 2-tuple as xmin, xmax
         """
         return self._myCanvas.getXLimit()
 
     def getYLimit(self):
-        """ Get limit of Y-axis
+        """Get limit of Y-axis
         """
         return self._myCanvas.getYLimit()
 
@@ -617,10 +593,8 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         return
 
     def add_image_file(self, imagefilename):
-        """ Add an image by file
+        """Add an image by file
         """
-        #import matplotlib.image as mpimg
-
         # set aspect to auto mode
         self.axes.set_aspect('auto')
 
