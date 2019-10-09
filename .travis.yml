@@ -74,7 +74,7 @@ script:
 
   # lint the code and generate an error if a warning is introduced
   - flake8 . --count
-  - pylint --disable=C pyrs tests prototypes scripts local_prototypes
+  - pylint --disable=C pyrs tests prototypes scripts
   - python -c "import mantid"
   - python -c "import qtpy"
   - python -c "import mantidqt"
