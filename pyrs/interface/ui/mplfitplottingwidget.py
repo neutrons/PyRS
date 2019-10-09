@@ -2,11 +2,11 @@
 # It consists of 2 plots (top one for experimental data and model, bottom one for residual, aka difference)
 # plus a tool bar
 
-from pyrs.interface.ui import mplgraphicsview1d
 from pyrs.interface.ui.mplgraphicsview1d import MyNavigationToolbar
 from matplotlib.figure import Figure
 from qtpy.QtWidgets import QWidget, QVBoxLayout
 from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
+from pyrs.interface.ui.mplconstants import MplBasicColors
 
 
 class MplFitPlottingWidget(QWidget):
@@ -45,10 +45,10 @@ class MplFitPlottingWidget(QWidget):
         get the next available color
         :return:
         """
-        color = mplgraphicsview1d.MplBasicColors[0]
+        color = MplBasicColors[0]
 
         self._curr_color_index += 1
-        if self._curr_color_index >= len(mplgraphicsview1d.MplBasicColors):
+        if self._curr_color_index >= len(MplBasicColors):
             self._curr_color_index = 0
 
         return color

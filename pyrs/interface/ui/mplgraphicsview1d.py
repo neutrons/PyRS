@@ -8,50 +8,12 @@ from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
 from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
 from mantidqt.MPLwidgets import NavigationToolbar2QT as NavigationToolbar2
-
-
-MplLineStyles = ['-', '--', '-.', ':', 'None', ' ', '']
-MplLineMarkers = [
-    ". (point         )",
-    "* (star          )",
-    "x (x             )",
-    "o (circle        )",
-    "s (square        )",
-    "D (diamond       )",
-    ", (pixel         )",
-    "v (triangle_down )",
-    "^ (triangle_up   )",
-    "< (triangle_left )",
-    "> (triangle_right)",
-    "1 (tri_down      )",
-    "2 (tri_up        )",
-    "3 (tri_left      )",
-    "4 (tri_right     )",
-    "8 (octagon       )",
-    "p (pentagon      )",
-    "h (hexagon1      )",
-    "H (hexagon2      )",
-    "+ (plus          )",
-    "d (thin_diamond  )",
-    "| (vline         )",
-    "_ (hline         )",
-    "None (nothing    )"]
-
-# Note: in colors, "white" is removed
-MplBasicColors = [
-    "black",
-    "red",
-    "blue",
-    "green",
-    "cyan",
-    "magenta",
-    "yellow"]
+from pyrs.interface.ui.mplconstants import MplBasicColors, MplLineMarkers, MplLineStyles
 
 
 class MplGraphicsView1D(QWidget):
     """ A combined graphics view including matplotlib canvas and a navigation tool bar
     1. specific for 1-D data
-    2.
     """
 
     def __init__(self, parent, row_size=None, col_size=None, tool_bar=True):

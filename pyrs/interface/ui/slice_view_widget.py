@@ -2,16 +2,7 @@ import matplotlib.tri as tri
 import sliceviewwidgets
 import numpy as np
 from qtpy.QtWidgets import QGridLayout, QWidget, QSizePolicy
-
-
-MplBasicColors = [
-    "black",
-    "red",
-    "blue",
-    "green",
-    "cyan",
-    "magenta",
-    "yellow"]
+from pyrs.interface.ui.mplconstants import MplBasicColors
 
 
 class SliceViewWidget(QWidget):
