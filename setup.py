@@ -94,7 +94,7 @@ if __name__ == "__main__":
         scripts=scripts,
         setup_requires=['pytest-runner'],
         # tests_require=setup_args['install_requires'] + setup_args['tests_require'],
-        test_suite='tests'
+        # test_suite='tests'
     )
 
     print ('Scripts compiled: {0}'.format(scripts))
