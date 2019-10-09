@@ -27,7 +27,7 @@ class HB2BReductionManager(object):
         """
         # # calibration manager
         # self._calibration_manager = calibration_file_io.CalibrationManager()
-        # self._geometry_calibration = calibration_file_io.ResidualStressInstrumentCalibration()
+        # self._geometry_calibration = instrument_geometry.AnglerCameraDetectorShift
 
         # workspace name or array vector
         self._curr_workspace = None

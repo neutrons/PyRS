@@ -278,8 +278,6 @@ class PeakFitEngine(object):
         # TODO - 20180727 - Implement!
 
 
-
-
 def gaussian(x, a, sigma, x0):
     """
     Gaussian with linear background

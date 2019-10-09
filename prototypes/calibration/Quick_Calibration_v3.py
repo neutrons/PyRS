@@ -5,6 +5,7 @@ from mantid.api import AnalysisDataService as mtd
 from mantid.simpleapi import CreateWorkspace, FitPeaks
 from pyrs.core import mask_util
 from pyrs.core import reduction_manager
+from pyrs.core.instrument_geometry import AnglerCameraDetectorShift
 from pyqr.utilities import calibration_file_io
 from pyrs.core import reduce_hb2b_pyrs
 from scipy.optimize import basinhopping
@@ -56,7 +57,7 @@ def CostFunction(x, engine, hb2b_setup, two_theta, positive_roi_vec, negative_ro
     :return:
     """
     # Reduce
-    geom_calibration = calibration_file_io.ResidualStressInstrumentCalibration()
+    geom_calibration = AnglerCameraDetectorShift()
     geom_calibration.center_shift_x = x[0]
     geom_calibration.center_shift_y = x[1]
     geom_calibration.center_shift_z = x[2]

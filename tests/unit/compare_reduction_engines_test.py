@@ -7,6 +7,7 @@ from pyrs.core import reduce_hb2b_pyrs
 from pyrs.utilities import calibration_file_io
 from pyrs.core import reduction_manager
 from pyrs.core import mask_util
+from pyrs.core.instrument_geometry import AnglerCameraDetectorShift
 import time
 import numpy
 import random
@@ -87,7 +88,7 @@ def create_instrument_load_data(instrument, calibrated, pixel_number):
         rot_x_flip = rot_y_flip = rot_z_spin = 0.
     # END-IF: arbitrary calibration
 
-    test_calibration = calibration_file_io.ResidualStressInstrumentCalibration()
+    test_calibration = AnglerCameraDetectorShift()
     test_calibration.center_shift_x = center_shift_x
     test_calibration.center_shift_y = center_shift_y
     test_calibration.center_shift_z = arm_length_shift

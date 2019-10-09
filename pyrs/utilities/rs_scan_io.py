@@ -260,7 +260,6 @@ class DiffractionDataFile(object):
         file_name_list.sort()
 
         # prepare the data structures
-        num_logs = len(file_name_list)
         sample_logs_set = dict()
         diff_data_dict_set = dict()
 

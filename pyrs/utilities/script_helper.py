@@ -84,8 +84,10 @@ def parse_arguments(argv, opt_operation_list):
         opts, args = getopt.getopt(argv, short_list_string, long_list)
     except getopt.GetoptError as get_err:
         """
-        [DB...BAT] Short name list: i:m:o:b:h:; Long name list: ['input=', 'masks=', 'instrument=', 'output=', 'binsize=', 'help']
-        Failed to parse inputs due to Unable to get-opt from input arguments (['-h']) due to option -h requires argument
+        [DB...BAT] Short name list: i:m:o:b:h:;
+                                  Long name list: ['input=', 'masks=', 'instrument=', 'output=', 'binsize=', 'help']
+        Failed to parse inputs due to Unable to get-opt from input arguments
+                                  (['-h']) due to option -h requires argument
         """
         raise RuntimeError('Unable to get-opt from input arguments ({}) due to {}'
                            ''.format(argv, get_err))

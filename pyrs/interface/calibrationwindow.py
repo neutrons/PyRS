@@ -3,6 +3,7 @@ from pyrs.utilities import load_ui
 from qtpy.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout, QHBoxLayout, QPushButton
 
 import pyrs.core.pyrscore
+from pyrs.core.instrument_geometry import AnglerCameraDetectorShift
 import os
 import gui_helper
 from ui import diffdataviews
@@ -402,7 +403,7 @@ class InstrumentCalibrationWindow(QMainWindow):
 
         # reduce masks
         from pyqr.utilities import calibration_file_io
-        geom_calibration = calibration_file_io.ResidualStressInstrumentCalibration()
+        geom_calibration = AnglerCameraDetectorShift()
         geom_calibration.center_shift_x = cal_shift_x
         geom_calibration.center_shift_y = cal_shift_y
         geom_calibration.center_shift_z = cal_shift_z

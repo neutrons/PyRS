@@ -6,6 +6,6 @@ __email__ = 'zhouw@ornl.gov'
 
 __license__ = "The MIT License (MIT)"
 
-from ._version import get_versions
+from ._version import get_versions  # noqa: E402
 __version__ = get_versions()['version']
 del get_versions

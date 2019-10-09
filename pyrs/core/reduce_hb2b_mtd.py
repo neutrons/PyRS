@@ -7,7 +7,7 @@ from mantid.simpleapi import SortXAxis, CreateWorkspace
 from mantid.api import AnalysisDataService as ADS
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities import file_util
-from pyrs.core.instrument_geometry import AnglerCameraDetectorShift as ResidualStressInstrumentCalibration
+from pyrs.core.instrument_geometry import AnglerCameraDetectorShift
 
 
 def histogram_data(raw_vec_x, raw_vec_y, target_vec_2theta):
@@ -74,7 +74,7 @@ class MantidHB2BReduction(object):
         self._detector_counts = None
         self._detector_mask = None
 
-        # calibration: an instance of ResidualStressInstrumentCalibration
+        # calibration: an instance of AnglerCameraDetectorShift
         self._instrument_calibration = None
 
         # TODO - FUTURE - Need to find out which one, resolution or number of bins, is more essential
@@ -679,8 +679,8 @@ class MantidHB2BReduction(object):
         :param calibration:
         :return:
         """
-        assert isinstance(calibration, ResidualStressInstrumentCalibration),\
-            'Instrument-calibration instance {} must be of ResidualStressInstrumentCalibration, but not an instance ' \
+        assert isinstance(calibration, AnglerCameraDetectorShift),\
+            'Instrument-calibration instance {} must be of AnglerCameraDetectorShift, but not an instance ' \
             'of type {}'.format(calibration, type(calibration))
 
         self._instrument_calibration = calibration

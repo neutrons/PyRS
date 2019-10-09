@@ -5,7 +5,7 @@ from pyqr.utilities import calibration_file_io
 from pyrs.core import reduction_manager
 from pyrs.core import mask_util
 from scipy.optimize import leastsq
-
+from pyrs.core.instrument_geometry import AnglerCameraDetectorShift
 
 # TODO - NIGHT - Use pure-python reduction to replace Mantid reduction
 
@@ -114,7 +114,7 @@ def create_instrument(test_data_file, calibrated, pixel_number):
         rot_z_spin = 2.0 * (random.random() - 0.5) * 2.0
     # END-IF: arbitrary calibration
 
-    test_calibration = calibration_file_io.ResidualStressInstrumentCalibration()
+    test_calibration = AnglerCameraDetectorShift()
     test_calibration.center_shift_x = center_shift_x
     test_calibration.center_shift_y = center_shift_y
     test_calibration.center_shift_z = arm_length_shift

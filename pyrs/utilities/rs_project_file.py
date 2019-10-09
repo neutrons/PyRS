@@ -431,7 +431,9 @@ class HydraProjectFile(object):
         """
         print(self._project_h5.keys())
         print(self._file_name)
-        sub_runs_str_list = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS][HidraConstants.SUB_RUNS].value
+        # coded a little wacky to be less than 120 characters across
+        sub_runs_str_list = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS]
+        sub_runs_str_list = sub_runs_str_list[HidraConstants.SUB_RUNS].value
 
         print('[DB....BAT....] Sun runs: {}'.format(sub_runs_str_list))
 

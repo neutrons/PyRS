@@ -4,8 +4,7 @@ import os
 import h5py
 import checkdatatypes
 import platform
-from mantid.api import AnalysisDataService
-from mantid.simpleapi import AnalysisDataService, SaveNexusProcessed
+from mantid.simpleapi import mtd, CreateWorkspace, SaveNexusProcessed
 from skimage import io
 from PIL import Image
 import numpy as np
@@ -31,7 +30,7 @@ def export_md_array_hdf5(md_array, sliced_dir_list, file_name):
         # delete selected columns: axis=1
         checkdatatypes.check_list('Sliced directions', sliced_dir_list)
         try:
-            md_array = numpy.delete(md_array, sliced_dir_list, 1)  # axis = 1
+            md_array = np.delete(md_array, sliced_dir_list, 1)  # axis = 1
         except ValueError as val_err:
             raise RuntimeError('Unable to delete column {} of input numpy 2D array due to {}'
                                ''.format(sliced_dir_list, val_err))
@@ -134,8 +133,8 @@ def load_gray_scale_tif(raw_tiff_name, pixel_size=2048, rotate=True):
 
     if False:
         data_ws_name = os.path.basename(raw_tiff_name).split('.')[0] + '_{}'.format(pixel_type)
-        CreateWorkspace(DataX=np.zeros((pixel_size**2,)), DataY=counts_vec, DataE=np.sqrt(counts_vec), NSpec=pixel_size**2,
-                        OutputWorkspace=data_ws_name, VerticalAxisUnit='SpectraNumber')
+        CreateWorkspace(DataX=np.zeros((pixel_size**2,)), DataY=counts_vec, DataE=np.sqrt(counts_vec),
+                        NSpec=pixel_size**2, OutputWorkspace=data_ws_name, VerticalAxisUnit='SpectraNumber')
 
     # return data_ws_name, counts_vec
 
@@ -157,14 +156,14 @@ def save_mantid_nexus(workspace_name, file_name, title=''):
 
     # check workspace
     checkdatatypes.check_string_variable('Workspace name', workspace_name)
-    if AnalysisDataService.doesExist(workspace_name):
+    if mtd.doesExist(workspace_name):
         SaveNexusProcessed(InputWorkspace=workspace_name,
                            Filename=file_name,
                            Title=title)
     else:
         raise RuntimeError('Workspace {0} does not exist in Analysis data service. Available '
                            'workspaces are {1}.'
-                           ''.format(workspace_name, AnalysisDataService.getObjectNames()))
+                           ''.format(workspace_name, mtd.getObjectNames()))
 
     # END-IF-ELSE
 

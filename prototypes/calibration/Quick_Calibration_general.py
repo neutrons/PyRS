@@ -7,6 +7,7 @@ from pyrs.core import mask_util
 from pyrs.core import reduction_manager
 from pyqr.utilities import calibration_file_io
 from pyrs.core import reduce_hb2b_pyrs
+from pyrs.core.instrument_geometry import AnglerCameraDetectorShift
 import math
 import itertools
 from scipy.optimize import leastsq
@@ -73,7 +74,7 @@ def peaks_alignment_score(x, engine, hb2b_setup, two_theta, roi_vec_set, plot=Fa
         num_reduced_set = len(roi_vec_set)
 
     # convert the input X array (to be refined) to geometry calibration values
-    geom_calibration = calibration_file_io.ResidualStressInstrumentCalibration()
+    geom_calibration = AnglerCameraDetectorShift()
     geom_calibration.center_shift_x = x[0]
     geom_calibration.center_shift_y = x[1]
     geom_calibration.center_shift_z = x[2]
