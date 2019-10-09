@@ -19,6 +19,7 @@ requirements:
     - psutil
     - python
     - setuptools
+    - pytest-runner
 
   run:
     - configparser
