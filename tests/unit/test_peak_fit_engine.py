@@ -1,8 +1,7 @@
 import numpy as np
-import pytest
 from pyrs.core.mantid_fit_peak import MantidPeakFitEngine
 from pyrs.core.workspaces import HidraWorkspace
-from pyrs.core.peak_fit_engine import EFFECTIVE_PEAK_PARAMETERS
+from pyrs.core.peak_profile_utility import EFFECTIVE_PEAK_PARAMETERS
 
 
 def generate_test_gaussian(vec_x, peak_center, peak_range):
@@ -19,6 +18,7 @@ def generate_test_gaussian(vec_x, peak_center, peak_range):
         vector of Y containing Gaussian, peak center, peak range
     """
 
+    return
 
 
 def generate_hydra_workspace(peak_profile_type):

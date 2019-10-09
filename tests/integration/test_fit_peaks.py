@@ -48,7 +48,7 @@ class PeakFittingTest(object):
         """ Test fitting with Gaussian
         :return:
         """
-        peak_info_dict = {'Fe111': {'Center', 84., 'Range', [70., 95]}}
+        peak_info_dict = {'Fe111': {'Center': 84., 'Range': [70., 95]}}
 
         # Fit peaks
         self._reduction_controller.fit_peaks(self._project_name, sub_run_list=None,
@@ -57,14 +57,14 @@ class PeakFittingTest(object):
 
         return
 
-    def show_fit_result(self):
+    def show_fit_result(self, show_effective_params):
         """ Get the fit results and plot
         :return:
         """
         # TODO - #81 NOW - Implement get_peak_fitting_result()
         peak_name_list, peak_params_matrix = \
             self._reduction_controller.get_peak_fitting_result(self._project_name, return_format=numpy.ndarray,
-                                                               effective_parameter=False)
+                                                               effective_parameter=show_effective_params)
         # Plot peak width
         sub_run_vec = peak_params_matrix[:, 0]
         peak_width = peak_params_matrix[:, 5]  # rs_project_file.HidraConstants.Peak_FWHM for pandas output
@@ -112,19 +112,22 @@ def main():
 
     # Fit
     tester.fit_pseudo_voigt()
-
     # Show fit result
-    tester.show_fit_result()
+    tester.show_fit_result(False)
+
+    return
+
+    # fit for gaussian
+    tester.fit_gaussian()
+
+    tester.show_fit_result(True)
+
+
+
 
     # save
     # TODO FIXME - exception/broken
     # tester.save_fit_result(test_project_file_name, 'Si111')
-
-
-
-    # fit for gaussian
-    # tester.fit_gaussian()
-    # tester.show_fit_result()
 
     # TODO - #81 NOW - More tests
     # 1. get the best fit and plot
