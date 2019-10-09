@@ -529,7 +529,7 @@ class MplGraphicsView(QWidget):
         if master_line is not None:
             raise RuntimeError('Implement how to use master_line ASAP.')
 
-        x_min, x_max = self._myCanvas.getXLimit()
+        x_min, x_max = self._myCanvas.get_x_limits()
         if x is None:
             x = (x_min + x_max) * 0.5
         else:
@@ -569,7 +569,7 @@ class MplGraphicsView(QWidget):
         else:
             assert isinstance(y, float)
 
-        x_min, x_max = self._myCanvas.getXLimit()
+        x_min, x_max = self._myCanvas.get_x_limits()
 
         # For color
         if color is None:
@@ -601,7 +601,7 @@ class MplGraphicsView(QWidget):
         """
         # For indicator line's position
         if x is None:
-            x_min, x_max = self._myCanvas.getXLimit()
+            x_min, x_max = self._myCanvas.get_x_limits()
             x = (x_min + x_max) * 0.5
         else:
             assert isinstance(x, float)
@@ -786,21 +786,16 @@ class MplGraphicsView(QWidget):
 
         return
 
-    def getPlot(self):
-        """
-        """
-        return self._myCanvas.getPlot()
-
     def getLastPlotIndexKey(self):
         """ Get ...
         """
-        return self._myCanvas.getLastPlotIndexKey()
+        return self._myCanvas.get_last_plot_index()
 
     def getXLimit(self):
         """ Get limit of Y-axis
         :return: 2-tuple as xmin, xmax
         """
-        return self._myCanvas.getXLimit()
+        return self._myCanvas.get_x_limits()
 
     def getYLimit(self):
         """ Get limit of Y-axis
@@ -1045,7 +1040,7 @@ class MplGraphicsView(QWidget):
         """ Get a list of line/marker color and marker style combination
         as default to add more and more line to plot
         """
-        return self._myCanvas.getDefaultColorMarkerComboList()
+        return self._myCanvas.get_default_color_marker_combinations()
 
     def getNextLineMarkerColorCombo(self):
         """ As auto line's marker and color combo list is used,

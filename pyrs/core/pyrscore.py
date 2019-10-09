@@ -95,53 +95,60 @@ class PyRsCore(object):
 
         return
 
-    # TODO FIXME - This method is broken due to new API
-    def calculate_pole_figure(self, data_key, detector_id_list):
-        """ API method to calculate pole figure by a specified data key
-        :param data_key:
-        :param detector_id_list:
-        :return:
+    def calculate_pole_figure(self, project_name, solid_angles):
+        """Calculate pole figure
+
+        Previous API: data_key, detector_id_list
+
+        Returns
+        -------
+
         """
-        # check input
-        checkdatatypes.check_string_variable('Data key/ID', data_key)
-        if detector_id_list is None:
-            detector_id_list = self.get_detector_ids(data_key)
-        else:
-            checkdatatypes.check_list('Detector IDs', detector_id_list)
+        # Check
+        if project_name not in self._pole_figure_calculator_dict:
+            raise KeyError('{} does not exist. Available: {}'
+                           ''.format(project_name, self._pole_figure_calculator_dict.keys()))
 
-        # get peak intensities from fitting
-        # peak_intensities = self.get_peak_intensities(data_key, detector_id_list)
-
-        # initialize pole figure
-        self._last_pole_figure_calculator = polefigurecalculator.PoleFigureCalculator()
-        self._pole_figure_calculator_dict[data_key] = self._last_pole_figure_calculator
-
-        # set up pole figure logs and get it
-        log_names = [('2theta', '2theta'),
-                     ('omega', 'omega'),
-                     ('chi', 'chi'),
-                     ('phi', 'phi')]
-
-        for det_id in detector_id_list:
-            # get intensity and log value
-            log_values = self.data_center.get_scan_index_logs_values((data_key, det_id), log_names)
-
-            try:
-                optimizer = self._get_optimizer((data_key, det_id))
-                peak_intensities = optimizer.get_peak_intensities()
-            except AttributeError as att:
-                raise RuntimeError('Unable to get peak intensities. Check whether peaks have been fit.  FYI: {}'
-                                   ''.format(att))
-            fit_info_dict = optimizer.get_peak_fit_parameters()
-
-            # add value to pole figure calculate
-            self._last_pole_figure_calculator.add_input_data_set(det_id, peak_intensities, fit_info_dict, log_values)
-        # END-FOR
-
-        # do calculation
-        self._last_pole_figure_calculator.calculate_pole_figure(detector_id_list)
-
-        return
+        raise NotImplementedError('Project {} of solid angles {} need to be implemented soon!'
+                                  ''.format(project_name, solid_angles))
+        # # check input
+        # checkdatatypes.check_string_variable('Data key/ID', data_key)
+        # if detector_id_list is None:
+        #     detector_id_list = self.get_detector_ids(data_key)
+        # else:
+        #     checkdatatypes.check_list('Detector IDs', detector_id_list)
+        #
+        # # get peak intensities from fitting
+        # # peak_intensities = self.get_peak_intensities(data_key, detector_id_list)
+        #
+        # # initialize pole figure
+        # self._last_pole_figure_calculator = polefigurecalculator.PoleFigureCalculator()
+        # self._pole_figure_calculator_dict[data_key] = self._last_pole_figure_calculator
+        #
+        # # set up pole figure logs and get it
+        # log_names = [('2theta', '2theta'),
+        #              ('omega', 'omega'),
+        #              ('chi', 'chi'),
+        #              ('phi', 'phi')]
+        #
+        # for det_id in detector_id_list:
+        #     # get intensity and log value
+        #     log_values = self.data_center.get_scan_index_logs_values((data_key, det_id), log_names)
+        #
+        #     try:
+        #         optimizer = self._get_optimizer((data_key, det_id))
+        #         peak_intensities = optimizer.get_peak_intensities()
+        #     except AttributeError as att:
+        #         raise RuntimeError('Unable to get peak intensities. Check whether peaks have been fit.  FYI: {}'
+        #                            ''.format(att))
+        #     fit_info_dict = optimizer.get_peak_fit_parameters()
+        #
+        #     # add value to pole figure calculate
+        #     self._last_pole_figure_calculator.add_input_data_set(det_id, peak_intensities, fit_info_dict, log_values)
+        # # END-FOR
+        #
+        # # do calculation
+        # self._last_pole_figure_calculator.calculate_pole_figure(detector_id_list)
 
     @staticmethod
     def _check_data_key(data_key_set):
@@ -239,74 +246,6 @@ class PyRsCore(object):
         print('[ERROR] {}'.format(error_message))
 
         return
-
-    # TODO FIXME - NOW - Broken now
-    def fit_peaks_old(self, data_key_set, scan_index, peak_type, background_type, fit_range):
-        """
-        fit a single peak of a measurement in a multiple-log scan
-        :param data_key_set:
-        :param scan_index:
-        :param peak_type:
-        :param background_type:
-        :param fit_range
-        :return: reference ID
-        """
-        # Check inputs
-        if isinstance(data_key_set, tuple) and len(data_key_set) == 2:
-            data_key, sub_key = data_key_set
-        elif isinstance(data_key_set, tuple):
-            raise RuntimeError('Wrong!')
-        else:
-            data_key = data_key_set
-            checkdatatypes.check_string_variable('Data reference ID', data_key)
-            sub_key = None
-
-        checkdatatypes.check_string_variable('Peak type', peak_type)
-        checkdatatypes.check_string_variable('Background type', background_type)
-
-        # get scan indexes
-        if scan_index is None:
-            scan_index_list = self._data_manager.get_scan_range(data_key, sub_key)
-        elif isinstance(scan_index, int):
-            # check range
-            scan_index_list = [scan_index]
-        elif isinstance(scan_index, list):
-            scan_index_list = scan_index
-        else:
-            raise RuntimeError('Scan index ({0}) is not supported.'.format(scan_index))
-
-        # get data
-        diff_data_list = list()
-        # TODO - FUTURE - sun run will be used to replace log_index
-        for log_index in scan_index_list:
-            diff_data = self._data_manager.get_diffraction_intensity_vector(data_key_set, log_index)
-            diff_data_list.append(diff_data)
-        # END-FOR
-
-        if sub_key is None:
-            ref_id = '{0}'.format(data_key)
-        else:
-            ref_id = '{0}_{1}'.format(data_key, sub_key)
-        peak_optimizer = mantid_fit_peak.MantidPeakFitEngine(scan_index_list, diff_data_list, ref_id=ref_id)
-
-        # observed COM and highest Y value data point
-        print('[DB...BAT] Fit Engine w/ Key: {0}'.format(data_key_set))
-        peak_optimizer.calculate_center_of_mass()
-        # fit peaks
-        peak_optimizer.fit_peaks(peak_type, background_type, fit_range, None)
-
-        # convert peak center to d-spacing
-        if sub_key is None:
-            wave_length_vec = self.data_center.get_sample_log_values(data_key, sample_log_name='Wavelength')
-        else:
-            # texture analysis case
-            wave_length_vec = self.data_center.get_sample_log_values((data_key, sub_key), sample_log_name='Wavelength')
-        peak_optimizer.calculate_peak_position_d(wave_length=wave_length_vec)
-
-        self._last_optimizer = peak_optimizer
-        self._optimizer_dict[data_key_set] = self._last_optimizer
-
-        return ref_id
 
     def _get_optimizer(self, fit_session_name):
         """
