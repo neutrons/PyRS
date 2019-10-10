@@ -41,7 +41,7 @@ class HidraWorkspace(object):
         self._instrument_geometry_shift = None  # geometry shift
 
         # sample logs
-        self._sample_log_dict = dict()  # sample logs
+        self._sample_log_dict = dict()  # sample logs: [log name][sub run] = value
 
         # raw Hidra project file
         self._project_file_name = None
@@ -501,19 +501,44 @@ class HidraWorkspace(object):
 
         return
 
-    def save_experimental_data(self, hidra_project):
-        """
-        Save experimental data including raw counts and sample logs
-        :param hidra_project:
-        :return:
+    def save_experimental_data(self, hidra_project, sub_runs=None):
+        """Save experimental data including raw counts and sample logs
+
+        Parameters
+        ----------
+        hidra_project: HydraProjectFile
+            reference to a HyDra project file
+        sub_runs: None or list/ndarray(1D)
+            None for exporting all or the specified sub runs
+        Returns
+        -------
+        None
         """
         # Raw counts
         for sub_run_i in self._raw_counts.keys():
-            hidra_project.add_raw_counts(sub_run_i, self._raw_counts[sub_run_i])
+            if sub_runs is None or sub_run_i in sub_runs:
+                hidra_project.add_raw_counts(sub_run_i, self._raw_counts[sub_run_i])
 
         # Sample logs
         for log_name in self._sample_log_dict.keys():
-            hidra_project.add_experiment_log(log_name, self._sample_log_dict[log_name])
+            # Convert dict of value to numpy array
+            log_val_dict = self._sample_log_dict[log_name]
+            # get sub run number
+            if sub_runs is None:
+                sub_runs = log_val_dict.keys()
+            sub_runs = sorted(sub_runs)
+            num_sub_runs = len(sub_runs)
+            log_array = numpy.ndarray(shape=(num_sub_runs, ), dtype=type(log_val_dict.values()[0]))
+            for i_sub in range(num_sub_runs):
+                log_array[i_sub] = log_val_dict[sub_runs[i_sub]]
+            # add to project file
+            hidra_project.add_experiment_log(log_name, log_array)
+        # END-FOR
+
+        # Add sub run to experiment log
+        if rs_project_file.HidraConstants.SUB_RUNS not in self._sample_log_dict.keys():
+            hidra_project.add_experiment_log(rs_project_file.HidraConstants.SUB_RUNS,
+                                             numpy.array(sub_runs))
 
         return
 

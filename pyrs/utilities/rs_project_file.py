@@ -372,9 +372,14 @@ class HydraProjectFile(object):
         return instrument_setup
 
     def get_logs(self):
-        """
+        """Get sample logs
+
         Retrieve all the (sample) logs from Hidra project file
-        :return:
+
+        Returns
+        -------
+        dict
+            sample logs as dict of dict. example: dict[log name][sub run number] = log value
         """
         # Get the group
         logs_group = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS]
@@ -486,8 +491,18 @@ class HydraProjectFile(object):
         detector_group.create_dataset('pixel dimension', data=numpy.array(pixel_dimension))
 
         # wave length
-        wavelength_group = instrument_group['geometry setup']['wave length']
-        wavelength_group.create_dataset('wavelength', data=numpy.array([instrument_setup.get_wavelength(None, False)]))
+        wavelength_group = instrument_group[HidraConstants.GEOMETRY_SETUP][HidraConstants.WAVELENGTH]
+        try:
+            wl = instrument_setup.get_wavelength(None)
+        except (NotImplementedError, RuntimeError) as run_err:
+            # No wave length from workspace: do nothing
+            print('[ERROR] {}'.format(run_err))
+            wl = None
+
+        # Set wave length
+        if wl is not None:
+            wavelength_group.create_dataset('Calibrated', data=numpy.array([wl]))
+
 
         return
 
