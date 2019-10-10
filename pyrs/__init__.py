@@ -4,7 +4,7 @@ __url__ = 'https://github.com/neutrons/PyRS'
 __author__ = 'W.Zhou'
 __email__ = 'zhouw@ornl.gov'
 
-__license__ = "The MIT License (MIT)"
+__license__ = 'GNU GENERAL PUBLIC LICENSE'
 
 from ._version import get_versions  # noqa: E402
 __version__ = get_versions()['version']
