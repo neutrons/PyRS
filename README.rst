@@ -1,5 +1,5 @@
-.. image:: https://travis-ci.org/conda-forge/staged-recipes.svg?branch=master
-    :target: https://travis-ci.org/conda-forge/staged-recipes
+.. image:: https://travis-ci.org/neutrons/PyRS.svg?branch=master
+    :target: https://travis-ci.org/neutrons/PyRS
 
 To start main window from analysis machine
 
