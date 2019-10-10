@@ -501,18 +501,27 @@ class HidraWorkspace(object):
 
         return
 
-    def save_experimental_data(self, hidra_project):
-        """
-        Save experimental data including raw counts and sample logs
-        :param hidra_project:
-        :return:
+    def save_experimental_data(self, hidra_project, sub_runs=None):
+        """Save experimental data including raw counts and sample logs
+
+        Parameters
+        ----------
+        hidra_project: HydraProjectFile
+            reference to a HyDra project file
+        sub_runs: None or list/ndarray(1D)
+            None for exporting all or the specified sub runs
+        Returns
+        -------
+        None
         """
         # Raw counts
         for sub_run_i in self._raw_counts.keys():
-            hidra_project.add_raw_counts(sub_run_i, self._raw_counts[sub_run_i])
+            if sub_runs is None or sub_run_i in sub_runs:
+                hidra_project.add_raw_counts(sub_run_i, self._raw_counts[sub_run_i])
 
         # Sample logs
         for log_name in self._sample_log_dict.keys():
+            print('{}'.format(type(self._sample_log_dict[log_name])))
             hidra_project.add_experiment_log(log_name, self._sample_log_dict[log_name])
 
         return
