@@ -688,6 +688,29 @@ class PyRsCore(object):
 
         return
 
+    def slice_data(self, even_nexus, splicer_id):
+        """Event split a NeXus file
+
+        Reference: PyVDRive
+                    status, message = self.get_controller().slice_data(raw_file_name, self._currSlicerKey,
+                                                           reduce_data=False,
+                                                           vanadium=None,
+                                                           save_chopped_nexus=False,
+                                                           output_dir=os.getcwd(),
+                                                           export_log_type='loadframe')
+
+        Parameters
+        ----------
+        even_nexus
+        splicer_id: str
+            ID to locate an event slicer (splitter) which has been set up
+        Returns
+        -------
+
+        """
+        # TODO - Implement method
+        raise NotImplementedError('Implement this ASAP')
+
     @property
     def supported_peak_types(self):
         """

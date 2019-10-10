@@ -30,8 +30,7 @@ class WorkspacesView(QMainWindow):
         QMainWindow.__init__(self)
 
         # set up
-        if is_qt_4:
-            self.setObjectName(_fromUtf8("MainWindow"))
+        self.setObjectName(_fromUtf8("MainWindow"))
         self.resize(1600, 1200)
         self.centralwidget = QWidget(self)
         self.centralwidget.setObjectName(_fromUtf8("centralwidget"))

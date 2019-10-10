@@ -160,11 +160,13 @@ def parse_float(float_str):
     :return:
     """
     if isinstance(float_str, QLineEdit):
+        # Input is QLineEdit
         float_str = str(float_str.text())
-    elif is_qt4 and isinstance(float_str, QtCore.QString):
+    elif isinstance(float_str, QtCore.QString):
         # There is no QString in PyQt5
         float_str = str(float_str)
     else:
+        # Input has to be string
         checkdatatypes.check_string_variable('Integer string', float_str)
 
     try:
@@ -181,14 +183,14 @@ def parse_integer(int_str):
     :param int_str:
     :return:
     """
-    if isinstance(int_str, str):
-        pass
-    elif isinstance(int_str, QLineEdit):
+    if isinstance(int_str, QLineEdit):
+        # QLineEdit: get the string out of it
         int_str = str(int_str.text())
-    elif is_qt4 and isinstance(int_str, QtCore.QString):
-        # There is no QString in PyQt5
+    elif isinstance(int_str, QtCore.QString):
+        # QString: convert it
         int_str = str(int_str)
     else:
+        # Then it has to be a string
         checkdatatypes.check_string_variable('Integer string', int_str)
 
     try:
@@ -388,5 +390,6 @@ def pop_message(parent, message, detailed_message=None, message_type='error'):
     msg_box.setStandardButtons(QMessageBox.Ok)
 
     ret_val = msg_box.exec_()
+    print('Message box return value: {}'.format(ret_val))
 
     return

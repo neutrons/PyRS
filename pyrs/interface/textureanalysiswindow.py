@@ -123,14 +123,14 @@ class TextureAnalysisWindow(QMainWindow):
         """
         try:
             ipts_number = gui_helper.parse_integer(self.ui.lineEdit_iptsNumber)
-            exp_number = gui_helper.parse_integer(self.ui.lineEdit_expNumber)
+            run_number = gui_helper.parse_integer(self.ui.lineEdit_expNumber)
         except RuntimeError as run_err:
             gui_helper.pop_message(self, 'Unable to parse IPTS or Exp due to {0}'.format(run_err))
             return None
 
         # TODO - NEED TO FIND OUT HOW TO DEFINE hdf FROM IPTS and EXP
 
-        return '/HFIR/HB2B/'
+        return '/HFIR/HB2B/IPTS-{}/shared/reduced/HB2B_{}.hdf'.format(ipts_number, run_number)
 
     def do_cal_pole_figure(self):
         """
@@ -221,12 +221,13 @@ class TextureAnalysisWindow(QMainWindow):
         new_file_list = list()
         # TODO FIXME - 20180930 - count number of files loaded successfully and unsuccessfullly and decided
         # TODO                    fail or go on!
+        error_msg = ''
         for ifile, file_name in enumerate(hdf_name_list):
             try:
                 det_id = int(file_name.split('[')[1].split(']')[0])
             except IndexError as err:
-                # TODO - error message!
-                pass
+                error_msg += 'Unable to retrieve detector ID from file {} due to {}\n' \
+                             ''.format(file_name, err)
             else:
                 new_file_list.append((det_id, str(file_name)))
         # END-FOR
@@ -234,6 +235,10 @@ class TextureAnalysisWindow(QMainWindow):
         # auto load
         if self.ui.checkBox_autoLoad.isChecked():
             self.load_h5_scans(new_file_list)
+
+        # Error message
+        if error_msg != '':
+            gui_helper.pop_message(self, 'Loading error', error_msg, 'error')
 
         return
 
