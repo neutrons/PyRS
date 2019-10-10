@@ -1,7 +1,6 @@
 # This is the virtual base class as the fitting frame
 import numpy
 import math
-import scipy
 from pyrs.core import workspaces
 from pyrs.utilities import rs_project_file
 from pyrs.utilities import checkdatatypes
