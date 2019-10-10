@@ -41,7 +41,7 @@ class HidraWorkspace(object):
         self._instrument_geometry_shift = None  # geometry shift
 
         # sample logs
-        self._sample_log_dict = dict()  # sample logs
+        self._sample_log_dict = dict()  # sample logs: [log name][sub run] = value
 
         # raw Hidra project file
         self._project_file_name = None
@@ -521,8 +521,24 @@ class HidraWorkspace(object):
 
         # Sample logs
         for log_name in self._sample_log_dict.keys():
-            print('{}'.format(type(self._sample_log_dict[log_name])))
-            hidra_project.add_experiment_log(log_name, self._sample_log_dict[log_name])
+            # Convert dict of value to numpy array
+            log_val_dict = self._sample_log_dict[log_name]
+            # get sub run number
+            if sub_runs is None:
+                sub_runs = log_val_dict.keys()
+            sub_runs = sorted(sub_runs)
+            num_sub_runs = len(sub_runs)
+            log_array = numpy.ndarray(shape=(num_sub_runs, ), dtype=type(log_val_dict.values()[0]))
+            for i_sub in range(num_sub_runs):
+                log_array[i_sub] = log_val_dict[sub_runs[i_sub]]
+            # add to project file
+            hidra_project.add_experiment_log(log_name, log_array)
+        # END-FOR
+
+        # Add sub run to experiment log
+        if rs_project_file.HidraConstants.SUB_RUNS not in self._sample_log_dict.keys():
+            hidra_project.add_experiment_log(rs_project_file.HidraConstants.SUB_RUNS,
+                                             numpy.array(sub_runs))
 
         return
 

@@ -1,5 +1,7 @@
 from pyrs.core import workspaces
 from pyrs.utilities import rs_project_file
+from pyrs.core import instrument_geometry
+import os
 
 
 def test_rw_raw():
@@ -9,7 +11,7 @@ def test_rw_raw():
     -------
 
     """
-    raw_project_name = '/home/wzz/Projects/PyRS/tests/testdata/HZB_Raw_Project.hdf'
+    raw_project_name = os.path.join(os.getcwd(), 'tests/data/HZB_Raw_Project.hdf')
 
     # Read to workspace
     source_project = rs_project_file.HydraProjectFile(raw_project_name,
@@ -24,10 +26,12 @@ def test_rw_raw():
     target_project = rs_project_file.HydraProjectFile('HZB_HiDra_Test.hdf',
                                                       rs_project_file.HydraProjectFileMode.OVERWRITE)
     # Experiment data
-    source_workspace.save_experimental_data(target_project)
+    source_workspace.save_experimental_data(target_project, sub_runs=range(1, 41))
 
     # Instrument
-    target_project.set_instrument_geometry(source_workspace.get_instrument_setup())
+    detector_setup = source_workspace.get_instrument_setup()
+    instrument_setup = instrument_geometry.HydraSetup(l1=1.0, detector_setup=detector_setup)
+    target_project.set_instrument_geometry(instrument_setup)
 
     # Save
     target_project.save_hydra_project(True)
