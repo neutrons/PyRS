@@ -2,14 +2,7 @@ import matplotlib.tri as tri
 import sliceviewwidgets
 import numpy as np
 from qtpy.QtWidgets import QGridLayout, QWidget, QSizePolicy
-from qtpy import PYQT5, PYQT4
-
-if PYQT5:
-    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
-elif PYQT4:
-    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
+from pyrs.interface.ui.mplconstants import MplBasicColors
 
 
 class SliceViewWidget(QWidget):

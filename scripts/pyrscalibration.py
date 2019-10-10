@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 from mantid.simpleapi import Transpose, AddSampleLog, LoadInstrument, ConvertSpectrumAxis, ResampleX
 from mantid.simpleapi import CreateWorkspace, Multiply, SaveNexusProcessed
 from mantid.api import AnalysisDataService as mtd
+from PIL import Image
+import numpy as np
 
 
 def load_instrument(hb2b_builder, arm_length, two_theta=0., center_shift_x=0., center_shift_y=0.,
@@ -216,9 +218,6 @@ def load_data_from_tif(raw_tiff_name, pixel_size=2048, rotate=True):
     :param rotate:
     :return:
     """
-    From PIL import Image
-    import numpy as np
-
     ImageData = Image.open(raw_tiff_name)
     # im = img_as_uint(np.array(ImageData))
     io.use_plugin('freeimage')

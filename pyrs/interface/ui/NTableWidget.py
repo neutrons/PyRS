@@ -483,9 +483,10 @@ class NTableWidget(QTableWidget):
             if isinstance(target_value, str) and value_i == target_value:
                 # in case of string
                 self.update_cell_value(i_row, self._colIndexSelect, True)
-            elif (isinstance(target_value, float) or isinstance(target_value, int)) and abs(value_i - target_value) < value_tolerance:
-                # in case of integer or float, then test with consideration of tolerance
-                self.update_cell_value(i_row, self._colIndexSelect, True)
+            elif (isinstance(target_value, float) or isinstance(target_value, int)):
+                if abs(value_i - target_value) < value_tolerance:
+                    # in case of integer or float, then test with consideration of tolerance
+                    self.update_cell_value(i_row, self._colIndexSelect, True)
         # END-FOR
 
         return

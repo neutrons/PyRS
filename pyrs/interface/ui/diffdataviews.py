@@ -411,7 +411,8 @@ class GeomCalibrationView(MplGraphicsView1D):
 
     def plot_data(self, vec_x, vec_y, mask_id):
 
-        line_id = self.add_plot(vec_x, vec_y, row_index=0, col_index=0, color=self.LineColor[mask_id], x_label='2theta',
+        line_id = self.add_plot(vec_x, vec_y, row_index=0, col_index=0,
+                                color=self.LineColor[mask_id], x_label='2theta',
                                 label='Mask {}'.format(mask_id), show_legend=True)
         if mask_id in self._mask_line_dict:
             self.remove_line(0, 0, self._mask_line_dict[mask_id])

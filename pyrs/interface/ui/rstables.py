@@ -149,7 +149,7 @@ class FitResultTable(NTableWidget.NTableWidget):
                 if item_value is not None:
                     try:
                         self.update_cell_value(row_number, col_num, item_value)
-                    except TypeError as type_err:
+                    except TypeError:
                         print('Cell @ {}, {} of value {} cannot be updated'.format(row_number, col_num, item_value))
         else:
             status, err_msg = self.append_row(row_value_list=this_value_list)
@@ -195,7 +195,8 @@ class FitResultTable(NTableWidget.NTableWidget):
 class GridsStatisticsTable(NTableWidget.NTableWidget):
     """ Table for grid statistics
     """
-    TableSetupList = [('Item', 'str'),   # include min x, max x, num x, avg resolution x, ... (for y) .. (for z)... # data points
+    # include min x, max x, num x, avg resolution x, ... (for y) .. (for z)... # data points
+    TableSetupList = [('Item', 'str'),
                       ('e11', 'float'),
                       ('e22', 'float'),
                       ('e33', 'float')]

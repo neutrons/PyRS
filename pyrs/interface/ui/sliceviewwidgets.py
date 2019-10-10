@@ -3,14 +3,7 @@ import matplotlib.image
 from matplotlib.figure import Figure
 import numpy as np
 from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
-from qtpy import PYQT5, PYQT4
-
-if PYQT5:
-    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
-elif PYQT4:
-    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
+from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
 
 
 class Mpl2DGraph(QWidget):
@@ -303,10 +296,8 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         return
 
     def add_image_file(self, imagefilename):
-        """ Add an image by file
+        """Add an image by file
         """
-        #import matplotlib.image as mpimg
-
         # set aspect to auto mode
         self.axes.set_aspect('auto')
 
@@ -607,17 +598,15 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         self._is_rotated = rotate
 
         # prototype ...
-        import numpy
-        from matplotlib import transforms
 
-        vec_x = numpy.arange(0, 150, 1)
-        vec_y = numpy.sin(vec_x)  # * numpy.pi / 180.)
+        vec_x = np.arange(0, 150, 1)
+        vec_y = np.sin(vec_x)  # * np.pi / 180.)
 
         # first of all, the base transformation of the data points is needed
         # base = pyplot.gca().transData
         if rotate:
-            base = self.axes_main[0, 0].transData
-            rot = transforms.Affine2D().rotate_deg(270)
+            # base = self.axes_main[0, 0].transData
+            # rot = transforms.Affine2D().rotate_deg(270)
             # output = self.axes_main[0, 0].plot(vec_x, vec_y, 'r--', transform=rot + base)
             output = self.axes_main[0, 0].plot(vec_y, vec_x)
         else:
