@@ -17,6 +17,7 @@ requirements:
     - mantid-workbench
     - pandas
     - psutil
+    - pylint
     - python
     - setuptools
     - pytest-runner
