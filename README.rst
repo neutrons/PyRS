@@ -3,6 +3,19 @@
 
 To start main window from analysis machine
 
-`$ export PYTHONPATH=$PWD:$PYTHONPATH`
+.. code-block::
 
-`$ QT_API=pyqt python scripts/pyrsplot`
+   $ PYTHONPATH=$PWD:$PYTHONPATH QT_API=pyqt python scripts/pyrsplot
+
+To develop
+
+.. code-block::
+
+   $ pyrsdev.sh
+   
+To run the tests
+
+
+.. code-block::
+
+   $ pyrstest.sh
