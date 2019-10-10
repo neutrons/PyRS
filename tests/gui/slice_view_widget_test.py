@@ -1,6 +1,6 @@
 from qtpy.QtWidgets import QApplication, QMainWindow
 import sys
-from . import uitest_test_slice_view  # TODO this is broken
+# from . import uitest_test_slice_view  # TODO this is broken
 import h5py
 
 
