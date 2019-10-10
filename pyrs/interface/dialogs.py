@@ -115,7 +115,9 @@ class ExportGridSliceSetupDialog(QDialog):
             slice_value = float(self.ui.lineEdit_value.text())
             resolution = float(self.ui.lineEdit_resolution.text())
         except ValueError as value_err:
-            raise RuntimeError('Unable to parse position to slice at')
+            raise RuntimeError('Unable to parse position to slice at {} with resolution {} due to {}'
+                               ''.format(self.ui.lineEdit_value.text(), self.ui.lineEdit_resolution.text(),
+                                         value_err))
 
         return slice_dir, slice_value, resolution
 # END-DEF-CLASS
@@ -302,9 +304,10 @@ class GridAlignmentCheckTablesView(QMainWindow):
             user_grid_value_vec = \
                 self._core.strain_stress_calculator.get_user_grid_param_values(ss_direction=ss_dir,
                                                                                param_name=param_name)
-            self.ui.tableView_gridAlignment.set_grids_values(self._core.strain_stress_calculator.get_strain_stress_grid(),
+            grid_values = self._core.strain_stress_calculator.get_strain_stress_grid(),
+            self.ui.tableView_gridAlignment.set_grids_values(grid_values,
                                                              {'e11': user_grid_value_vec})
-            break
+        # END-FOR
 
         return
 

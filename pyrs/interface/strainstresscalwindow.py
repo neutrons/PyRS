@@ -111,7 +111,8 @@ class StrainStressCalculationWindow(QMainWindow):
         # mutex
         self._load_file_radio_mutex = False
         self._d0_type_mutex = False
-        self._auto_plot_mutex = False  # Flag to control the event handler to load and plot peak parameter/strain/stress
+        # Flag to control the event handler to load and plot peak parameter/strain/stress
+        self._auto_plot_mutex = False
         self._sync_grid_xyz_name_mutex = False  # Flag to control the event ...
         self._strain_stress_type_mutex = False
 
@@ -381,30 +382,6 @@ class StrainStressCalculationWindow(QMainWindow):
         self.ui.label_sliderValue.setText('{:.3f}'.format(slider_value))
 
         return slider_value
-
-    def plot_peak_parameter(self):
-        """
-
-        :return:
-        """
-        # TODO - 20181010 - Refactor!
-        # convert (map or interpolate) peak positions from experiments to output
-        center_d_vector = \
-            self._core.strain_stress_calculator.align_peak_parameter_on_grids(grids_vector=grid_array,
-                                                                              parameter='center_d',
-                                                                              scan_log_map_vector=mapping_array)
-
-        # show the align grids report???
-        if show_aligned_grid:
-            self.do_show_aligned_grid()
-            self._grid_alignment_table_view.set_aligned_grids_info(grid_array, mapping_array)
-            self._grid_alignment_table_view.set_peak_parameter_names(
-                self._core.strain_stress_calculator.get_peak_parameter_names())
-            self._grid_alignment_table_view.set_aligned_parameter_value(grid_array, center_d_vector)
-            self._grid_alignment_table_view.show_tab(1)
-        # END-IF (show aligned grid)
-
-        return self._grid_alignment_table_view
 
     def do_browse_e11_file(self):
         """ browse LD raw file
@@ -1062,15 +1039,16 @@ class StrainStressCalculationWindow(QMainWindow):
         # if is_raw_grid:
         #     # parameter value on raw grids
         #     # get value
-        #     grid_param_dict = self._core.strain_stress_calculator.get_raw_grid_param_values(ss_direction, param_name)
+        #     grid_param_dict = self._core.strain_stress_calculator.get_raw_grid_param_values(ss_direction,
+        #                                                                           param_name)
         #     # convert to a 2D array (grid position vector) and a 1D array (parameter value)
-        #     self._slice_view_exp_grid_vec, self._slice_view_exp_value_vec = self._convert_grid_dict_to_vectors(ss_direction,
-        #                                                                                                        grid_param_dict)
+        #     self._slice_view_exp_grid_vec, self._slice_view_exp_value_vec =
+        #              self._convert_grid_dict_to_vectors(ss_direction, grid_param_dict)
         # else:
         #     # mapped/interpolated parameter value on output strain/stress grid
         #     self._slice_view_exp_grid_vec = self._core.strain_stress_calculator.get_strain_stress_grid()
-        #     self._slice_view_exp_value_vec = self._core.strain_stress_calculator.get_user_grid_param_values(ss_direction,
-        #                                                                                                     param_name)
+        #     self._slice_view_exp_value_vec =
+        #               self._core.strain_stress_calculator.get_user_grid_param_values(ss_direction, param_name)
         # # END-IF-ELSE
         #
         # # set up slier slider
@@ -1092,9 +1070,11 @@ class StrainStressCalculationWindow(QMainWindow):
         #
         # # plot
         # RESOLUTION = 1  # TODO - 20180905 - Need to be configurable
+        # resolution_x = (vec_x.max() - vec_x.min())/RESOLUTION
+        # resolution_y = (vec_y.max() - vec_y.min())/RESOLUTION1072
         # self.ui.graphicsView_sliceView.plot_contour_interpolate(vec_x, vec_y, vec_z,
-        #                                                         contour_resolution=(vec_x.max() - vec_x.min())/RESOLUTION,
-        #                                                         contour_resolution_y=(vec_y.max() - vec_y.min())/RESOLUTION,
+        #                                                         contour_resolution=resoltion_x,
+        #                                                         contour_resolution_y=resolution_y,
         #                                                         flush=True)
         # self.ui.graphicsView_sliceView.plot_scatter(vec_x, vec_y, flush=True)
         #

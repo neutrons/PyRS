@@ -346,7 +346,10 @@ class InstrumentCalibrationWindow(QMainWindow):
                 self.ui.lineEdit_maskFile.setText('{}'.format(curr_mask_file))
         # END-IF
 
-        mask_id = self.load_mask_file(curr_mask_file)
+        try:
+            self.load_mask_file(curr_mask_file)
+        except RuntimeError:
+            pass
 
         return
 
@@ -402,7 +405,6 @@ class InstrumentCalibrationWindow(QMainWindow):
         #                                              cal_wave_length)
 
         # reduce masks
-        from pyqr.utilities import calibration_file_io
         geom_calibration = AnglerCameraDetectorShift()
         geom_calibration.center_shift_x = cal_shift_x
         geom_calibration.center_shift_y = cal_shift_y
@@ -425,6 +427,10 @@ class InstrumentCalibrationWindow(QMainWindow):
             """
             vec_x, vec_y = self._core.reduction_manager.get_reduced_data()
             self.ui.graphicsView_calibration.plot_data(vec_x, vec_y, self._mask_subplot_dict[mask_id])
+
+        if cal_wave_length:
+            # TODO - Need to implement how to calibrate wave length
+            raise NotImplementedError('Implement ASAP')
 
         return
 
