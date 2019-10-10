@@ -34,7 +34,7 @@ install:
 
     # Conda config - behavior and channel setup
   - conda config --set always_yes yes --set changeps1 no --set anaconda_upload no
-  - conda config --add channels conda-forge --add channels marshallmcdonnell --add channels mantid --add channels mantid/label/nightly --add channels defaults
+  - conda config --add channels conda-forge --add channels mantid --add channels mantid/label/nightly --add channels defaults
 
     # Install mamba
   - conda install mamba -c conda-forge
@@ -70,7 +70,6 @@ script:
     sleep 3
   # - source activate PyRS_env
   # - conda install -c mantid/label/nightly mantid-workbench=4.0.20190416.1125
-  # - conda install -c marshallmcdonnell mantid-total-scattering-python-wrapper
 
   # lint the code and generate an error if a warning is introduced
   - flake8 . --count
