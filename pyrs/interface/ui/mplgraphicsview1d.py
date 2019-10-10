@@ -210,7 +210,7 @@ class MplGraphicsView1D(QWidget):
             # plot to the right axis
             line_key = self._myCanvas.add_right_plot(row_index=row_index, col_index=col_index,
                                                      x=vec_x, y=vec_y, y_label=y_label,
-                                                     color=color, label=label,  marker=marker,
+                                                     color=color, label=label, marker=marker,
                                                      line_style=line_style, linewidth=line_width)
             # initialize right axes
             if (row_index, col_index) not in self._myRightPlotDict:
@@ -234,7 +234,6 @@ class MplGraphicsView1D(QWidget):
 
         return line_key
 
-    # TODO - TEST
     def auto_rescale(self, row_index=None, col_index=None, percent_room=0.05,
                      lower_y_boundary=None, upper_y_boundary=None):
         """
@@ -1438,9 +1437,9 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         num_markers = len(MplLineMarkers)
         num_colors = len(MplBasicColors)
 
-        for i in xrange(num_markers):
+        for i in range(num_markers):
             marker = MplLineMarkers[i]
-            for j in xrange(num_colors):
+            for j in range(num_colors):
                 color = MplBasicColors[j]
                 combo_list.append((marker, color))
             # ENDFOR (j)
@@ -1452,7 +1451,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         """ A dirty hack to flush the image
         """
         w, h = self.get_width_height()
-        self.resize(w+1, h)
+        self.resize(w + 1, h)
         self.resize(w, h)
 
         return

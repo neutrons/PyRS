@@ -97,9 +97,9 @@ class FitResultTable(NTableWidget.NTableWidget):
 
         # # Set up column width
         self.setColumnWidth(0, 60)
-        for col_index in range(1, len(self._column_names)-1):
+        for col_index in range(1, len(self._column_names) - 1):
             self.setColumnWidth(col_index, 80)
-        self.setColumnWidth(len(self._column_names)-1, 120)
+        self.setColumnWidth(len(self._column_names) - 1, 120)
 
         # Set up the column index for start, stop and select
         # self._colIndexIndex = self.TableSetupList.index(('sub-runs', 'int'))
@@ -108,15 +108,29 @@ class FitResultTable(NTableWidget.NTableWidget):
 
         return
 
-    def set_fit_summary(self, row_number, ordered_param_list, param_dict,  write_error=False,
+    def set_fit_summary(self, row_number, ordered_param_list, param_dict, write_error=False,
                         peak_profile='not set'):
         """
+
+        Parameters
+        ----------
+        row_number: int
+            row number
+        ordered_param_list:
+        param_dict
+        write_error
+        peak_profile
+
+        Returns
+        -------
+
+        """
+        """
         Set the fitting result, i.e., peak parameters' value to a row
-        :param row_number: row number
+        :param row_number:
         :param ordered_param_list: parameters names list with the same order as table columns
         :param param_dict: dictionary containing peak parameter values
         :param write_error: Flag to write out error or value
-        :return:
         """
         # Init list to append
         this_value_list = list()
@@ -781,7 +795,7 @@ class RawDataTable(NTableWidget.NTableWidget):
             row_number = self.rowCount() - 1
             self._sub_run_row_map[sub_run_number] = row_number
         else:
-            print ('[ERROR] Unable to append row due to {}'.format(error_msg))
+            print('[ERROR] Unable to append row due to {}'.format(error_msg))
 
         return
 

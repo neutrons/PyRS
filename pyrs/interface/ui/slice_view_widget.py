@@ -175,7 +175,8 @@ class SliceViewWidget(QWidget):
         :param dir_tuple:
         :return:
         """
-        contour_plot = self.main_canvas.add_contour_plot(vec_x, vec_y, matrix_z)
+        # Add contour plot.  Question: how about the previous one?
+        self.main_canvas.add_contour_plot(vec_x, vec_y, matrix_z)  # returns a contour plot reference but not used
 
         self.main_canvas.set_title(info, 'red')
         self.main_canvas.set_xlabel(dir_tuple[0])

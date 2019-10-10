@@ -1,9 +1,9 @@
-import time
 import matplotlib.image
 from matplotlib.figure import Figure
 import numpy as np
 from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
 from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
+import time
 
 
 class Mpl2DGraph(QWidget):
@@ -211,13 +211,12 @@ class Qt4Mpl2DCanvas(FigureCanvas):
                                                                                            time_f - time_s))
 
         labels = [item.get_text() for item in self.axes.get_yticklabels()]
-        print '[DB...BAT] Number of Y labels = ', len(labels), ', Number of Y = ', len(vec_y)
 
         # TODO/ISSUE/NOW: how to make this part more flexible
-        if len(labels) == 2*len(vec_y) - 1:
+        if len(labels) == 2 * len(vec_y) - 1:
             new_labels = [''] * len(labels)
             for i in range(len(vec_y)):
-                new_labels[i*2] = '%d' % int(vec_y[i])
+                new_labels[i * 2] = '%d' % int(vec_y[i])
             self.axes.set_yticklabels(new_labels)
         # END-IF
 
@@ -398,7 +397,7 @@ class Qt4Mpl2DCanvas(FigureCanvas):
     def getLastPlotIndexKey(self):
         """ Get the index/key of the last added line
         """
-        return self._lineIndex-1
+        return self._lineIndex - 1
 
     def getPlot(self):
         """ reture figure's axes to expose the matplotlib figure to PyQt client
@@ -467,7 +466,7 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         assert isinstance(title, str), 'Title must be a string but not a {0}.'.format(type(title))
         assert isinstance(color, str), 'Color must be a string but not a {0}.'.format(type(color))
 
-        print '[DB...BAT] Set {0} in color {1} as the figure\'s title.'.format(title, color)
+        print('[DB...BAT] Set {0} in color {1} as the figure\'s title.'.format(title, color))
         self.setWindowTitle(title)
         self.fig.set_label(title)
 
@@ -494,7 +493,7 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         """ A dirty hack to flush the image
         """
         w, h = self.get_width_height()
-        self.resize(w+1, h)
+        self.resize(w + 1, h)
         self.resize(w, h)
 
         return

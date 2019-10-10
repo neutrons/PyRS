@@ -201,7 +201,7 @@ class WorkspaceViewWidget(QWidget):
         # get command name
         command = script.split(',')[0]
 
-        print '[INFO] Executing reserved command: {}'.format(script)
+        print('[INFO] Executing reserved command: {}'.format(script))
 
         if command.startswith('plot'):
             status, exec_message = self.exec_command_plot(script)
@@ -292,12 +292,24 @@ class WorkspaceViewWidget(QWidget):
         return is_reserved
 
     def exec_command_clear(self, script):
-        # TODO - NIGHT - Make it better looking
+        """Execute command "clear" to clear the graphic view
+
+        Parameters
+        ----------
+        script
+
+        Returns
+        -------
+
+        """
+        terms = script.split()
         if terms[1] == 'clear':
             # clear canvas
             # TODO - 20181213 - Create a new reserved command
             self.ui.graphicsView_general.clear_all_lines()
             return_message = ''
+        else:
+            return_message = 'Command {} is not for clearing'.format(script)
 
         return return_message
 
@@ -688,8 +700,6 @@ class WorkspaceTableWidget(baseTable.NTableWidget):
         :return:
         """
         selected_rows = self.get_selected_rows(True)
-
-        print '[DB...BAT] selected rows: ', selected_rows
 
         ws_name_list = list()
         for i_row in selected_rows:

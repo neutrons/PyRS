@@ -247,7 +247,7 @@ class PeakFitSetupView(MplFitPlottingWidget):
         self._diff_reference_list = list()
         self._last_diff_reference = None  # last diffraction (raw) line ID
         self._last_model_reference = None  # last model diffraction (raw) line ID
-        self._last_fit_diff_reference = None  # TODO
+        self._last_fit_diff_reference = None  # Last plot's reference for fitting residual
 
         #
         self._auto_color = True
@@ -273,13 +273,23 @@ class PeakFitSetupView(MplFitPlottingWidget):
         return
 
     def plot_model_data(self, diff_data_set, model_label, residual_set):
-        """ Plot fitting model
-        :param diff_data_set:
+        """Plot model data from fitting
+
+        Parameters
+        ----------
+        diff_data_set
+        model_label
+        residual_set
+
+        Returns
+        -------
+        None
         """
         vec_x = diff_data_set[0]
         vec_y = diff_data_set[1]
 
         ref_id = self.plot_data(data_set=(vec_x, vec_y), color='red', line_label='model')
+        self._last_model_reference = ref_id
 
         if residual_set is not None:
             # vec_x = residual_set[0]
@@ -334,7 +344,7 @@ class PeakFitSetupView(MplFitPlottingWidget):
         fit_diff_vec = diff_data_set[1] - model_data_set[1]
 
         # plot
-        self._last_fit_diff_reference = self._myCanvas.add_plot_lower_axis(diff_data_set[0])
+        self._last_fit_diff_reference = self._myCanvas.add_plot_lower_axis(fit_diff_vec)
 
         return
 

@@ -102,7 +102,6 @@ class LogGraphicsView(mplgraphicsview1d.MplGraphicsView1D):
                 try:
                     distance = x - array[left_index]
                 except TypeError as type_err:
-                    print '[DB...BAT] x = {0}, array = {1}'.format(x, array)
                     raise type_err
             else:
                 dist_left = x - array[left_index]
@@ -380,7 +379,6 @@ class LogGraphicsView(mplgraphicsview1d.MplGraphicsView1D):
                 'In mouse-left-button-hold mode, a picker must be selected.'
 
             # check whether the selected picker can move
-            print '[DB...BAT] Left limit = ', self._leftPickerLimit, ', Range = ', self._pickerRange
             left_bound = self._leftPickerLimit + self._pickerRange
             right_bound = self._rightPickerLimit - self._pickerRange
             if left_bound < self._currMousePosX < right_bound:
@@ -447,14 +445,14 @@ class LogGraphicsView(mplgraphicsview1d.MplGraphicsView1D):
             # left most indicator. set the boundary to data's min X
             self._leftPickerLimit = x_min - self._pickerRange
         else:
-            self._leftPickerLimit = picker_pos_list[pos_index-1]
+            self._leftPickerLimit = picker_pos_list[pos_index - 1]
 
         # determine the right boundary
         if pos_index == len(picker_pos_list) - 1:
             # right most indicator. set the boundary to data's max X
             self._rightPickerLimit = x_max + self._pickerRange
         else:
-            self._rightPickerLimit = picker_pos_list[pos_index+1]
+            self._rightPickerLimit = picker_pos_list[pos_index + 1]
 
         return
 
@@ -623,7 +621,7 @@ class LogGraphicsView(mplgraphicsview1d.MplGraphicsView1D):
         for i_seg in range(num_seg_to_show):
             # get start time and stop time
             x_start = vec_times[i_seg]
-            x_stop = vec_times[i_seg+1]
+            x_stop = vec_times[i_seg + 1]
             color_index = vec_target_ws[i_seg]
 
             # get start time and stop time's index
@@ -631,8 +629,8 @@ class LogGraphicsView(mplgraphicsview1d.MplGraphicsView1D):
             i_stop = (np.abs(vec_x - x_stop)).argmin()
             if i_start == i_stop:
                 # empty!
-                print '[DB...WARNING] Range: %d to %d  (%f to %f) cannot generate any vector. ' \
-                      '' % (i_start, i_stop, vec_x[i_start], vec_x[i_stop])
+                print('[WARNING] Range: %d to %d  (%f to %f) cannot generate any vector.'
+                      '' % (i_start, i_stop, vec_x[i_start], vec_x[i_stop]))
                 continue
             elif i_start > i_stop:
                 raise RuntimeError('It is impossible to have start index {0} > stop index {1}'

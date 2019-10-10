@@ -438,10 +438,10 @@ class MplGraphicsView(QWidget):
         """
         # check whether the input is empty
         if len(vec_y) == 0:
-            print '[WARNING] Input is an empty vector set'
+            print('[WARNING] Input is an empty vector set')
             return False
         elif len(vec_x) == len(vec_y) + 1:
-            print '[WARNING] Histogram mode.  Plot may not be precise.'
+            print('[WARNING] Histogram mode.  Plot may not be precise.')
         elif len(vec_x) != len(vec_y):
             RuntimeError('X vector has a different size {} to Y vector\'s {}.'
                          .format(len(vec_x), len(vec_y)))
@@ -1257,7 +1257,7 @@ class Qt4MplCanvas(FigureCanvas):
             self._lineDict[line_key] = r[0]
             self._lineIndex += 1
         else:
-            print "Impoooooooooooooooosible!"
+            raise RuntimeError('It is not possible to have multiple return from axis.plot()')
 
         # Flush/commit
         self.draw()
@@ -1283,8 +1283,8 @@ class Qt4MplCanvas(FigureCanvas):
         # set y ticks as an option:
         if yticklabels is not None:
             # it will always label the first N ticks even image is zoomed in
-            print "--------> [FixMe]: The way to set up the Y-axis ticks is wrong!"
-            # self.axes.set_yticklabels(yticklabels)
+            print("[FIXME]: The way to set up the Y-axis ticks is wrong!")
+            # Wrong: self.axes.set_yticklabels(yticklabels)
 
         # explicitly set aspect ratio of the image
         self.axes.set_aspect('auto')
@@ -1324,13 +1324,12 @@ class Qt4MplCanvas(FigureCanvas):
         contour_plot = self.axes.contourf(grid_x, grid_y, matrix_z, 100)
 
         labels = [item.get_text() for item in self.axes.get_yticklabels()]
-        print '[DB...BAT] Number of Y labels = ', len(labels), ', Number of Y = ', len(vec_y)
 
         # TODO/ISSUE/55: how to make this part more powerful
-        if len(labels) == 2*len(vec_y) - 1:
+        if len(labels) == 2 * len(vec_y) - 1:
             new_labels = [''] * len(labels)
             for i in range(len(vec_y)):
-                new_labels[i*2] = '%d' % int(vec_y[i])
+                new_labels[i * 2] = '%d' % int(vec_y[i])
             self.axes.set_yticklabels(new_labels)
 
         # explicitly set aspect ratio of the image
@@ -1381,8 +1380,8 @@ class Qt4MplCanvas(FigureCanvas):
                 try:
                     self.axes.lines.remove(plot)
                 except ValueError as e:
-                    print "[Error] Plot %s is not in axes.lines which has %d lines. Error mesage: %s" % (
-                        str(plot), len(self.axes.lines), str(e))
+                    print("[Error] Plot %s is not in axes.lines which has %d lines. Error mesage: %s" % (
+                        str(plot), len(self.axes.lines), str(e)))
                 del self._lineDict[ikey]
             else:
                 # error bar
@@ -1447,7 +1446,7 @@ class Qt4MplCanvas(FigureCanvas):
     def getLastPlotIndexKey(self):
         """ Get the index/key of the last added line
         """
-        return self._lineIndex-1
+        return self._lineIndex - 1
 
     def getPlot(self):
         """ reture figure's axes to expose the matplotlib figure to PyQt client
@@ -1545,7 +1544,7 @@ class Qt4MplCanvas(FigureCanvas):
         assert isinstance(title, str), 'Title must be a string but not a {0}.'.format(type(title))
         assert isinstance(color, str), 'Color must be a string but not a {0}.'.format(type(color))
 
-        print '[DB...BAT] Set {0} in color {1} as the figure\'s title.'.format(title, color)
+        print('[DB...BAT] Set {0} in color {1} as the figure\'s title.'.format(title, color))
         self.setWindowTitle(title)
 
         self.draw()
@@ -1613,7 +1612,7 @@ class Qt4MplCanvas(FigureCanvas):
         """
         line = self._lineDict[ikey]
         if line is None:
-            print '[ERROR] Line (key = %d) is None. Unable to update' % ikey
+            print('[ERROR] Line (key = %d) is None. Unable to update' % ikey)
             return
 
         if vecx is not None and vecy is not None:
@@ -1683,9 +1682,9 @@ class Qt4MplCanvas(FigureCanvas):
         num_markers = len(MplLineMarkers)
         num_colors = len(MplBasicColors)
 
-        for i in xrange(num_markers):
+        for i in range(num_markers):
             marker = MplLineMarkers[i]
-            for j in xrange(num_colors):
+            for j in range(num_colors):
                 color = MplBasicColors[j]
                 combo_list.append((marker, color))
             # ENDFOR (j)
@@ -1697,7 +1696,7 @@ class Qt4MplCanvas(FigureCanvas):
         """ A dirty hack to flush the image
         """
         w, h = self.get_width_height()
-        self.resize(w+1, h)
+        self.resize(w + 1, h)
         self.resize(w, h)
 
         return
@@ -1839,8 +1838,6 @@ class MyNavigationToolbar(NavigationToolbar2):
         else:
             # into pan mode
             self._myMode = MyNavigationToolbar.NAVIGATION_MODE_PAN
-
-        print 'PANNED'
 
         return
 

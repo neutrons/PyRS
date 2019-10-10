@@ -90,11 +90,9 @@ class MantidIPythonWidget(RichIPythonWidget):
         # Figure out the full path to the mantidplotrc.py file and then %run it
         from os import path
         mantidplotpath = path.split(path.dirname(__file__))[0]  # It's the directory above this one
-        print '[....]  mantid plot path: ', mantidplotpath
         mantidplotrc = path.join(mantidplotpath, 'mantidplotrc.py')
         shell = kernel.shell
         shell.run_line_magic('run', mantidplotrc)
-        print '[DB...BAUnderstand]: shell run: ', mantidplotrc
 
         # These 3 lines replace the run_code method of IPython's InteractiveShell class (of which the
         # shell variable is a derived instance) with our method defined above. The original method
