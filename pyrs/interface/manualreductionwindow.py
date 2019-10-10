@@ -9,6 +9,7 @@ import gui_helper
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.rs_project_file import HidraConstants
 from pyrs.interface.ui import rstables
+import slicersetupwindow
 
 
 # TODO LIST - #84 - 1. UI: change segments to masks
@@ -80,6 +81,9 @@ class ManualReductionWindow(QMainWindow):
 
         # TODO - ASAP - Load Instrument
         # actionLoad_Instrument
+
+        # Child windows
+        self._slice_setup_window = None
 
         # menu operation
         self.ui.actionLoad_Image.triggered.connect(self.event_load_image)
@@ -224,8 +228,12 @@ class ManualReductionWindow(QMainWindow):
         return
 
     def do_launch_slice_setup(self):
-        # TODO - 20181009 - Need to refine
-        import slicersetupwindow
+        """Launch event slicing setup dialog
+
+        Returns
+        -------
+        None
+        """
         self._slice_setup_window = slicersetupwindow.EventSlicerSetupWindow(self)
         self._slice_setup_window.show()
         return
@@ -353,8 +361,20 @@ class ManualReductionWindow(QMainWindow):
         return
 
     def do_quit(self):
-        #
+        """Quit manual reduction window
+
+        Returns
+        -------
+        None
+        """
+        # Close child windows if exists
+        if self._slice_setup_window:
+            self._slice_setup_window.close()
+
+        # This window
         self.close()
+
+        return
 
     def do_reduce_batch_runs(self):
         """
