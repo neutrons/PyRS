@@ -179,7 +179,7 @@ class NTableWidget(QTableWidget):
             ret_msg = ''
 
         # Set values
-        for i_col in xrange(min(len(row_value_list), self.columnCount())):
+        for i_col in range(min(len(row_value_list), self.columnCount())):
             if type_list[i_col] == 'checkbox':
                 # special case: check box
                 self.set_check_box(row_number, i_col, row_value_list[i_col])
@@ -331,7 +331,7 @@ class NTableWidget(QTableWidget):
 
         # loop over all the rows
         row_index_list = list()
-        for i_row in xrange(self.rowCount()):
+        for i_row in range(self.rowCount()):
             # check status
             is_checked = self.get_cell_value(i_row, index_status)
             if is_checked == status:
@@ -389,7 +389,7 @@ class NTableWidget(QTableWidget):
         :return:
         """
         num_rows = self.rowCount()
-        for i_row in xrange(1, num_rows+1):
+        for i_row in range(1, num_rows + 1):
             self.removeRow(num_rows - i_row)
 
         return

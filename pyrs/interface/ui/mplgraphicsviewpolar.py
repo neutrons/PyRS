@@ -87,7 +87,7 @@ class Qt4MplPolarCanvas(FigureCanvas):
         """ A dirty hack to flush the image
         """
         w, h = self.get_width_height()
-        self.resize(w+1, h)
+        self.resize(w + 1, h)
         self.resize(w, h)
 
         return
@@ -120,11 +120,11 @@ class Qt4MplPolarCanvas(FigureCanvas):
 
         # create the mesh grid for contour plot
         # create 1D arrays for theta and r: beta/2
-        azimuths = np.radians(np.linspace(-theta_resolution/2., 360 +
-                                          theta_resolution/2., 360/theta_resolution+1))  # degree
+        azimuths = np.radians(np.linspace(-theta_resolution * 0.5, 360 +
+                                          theta_resolution * 0.5, 360 / theta_resolution + 1))  # degree
         # Chris change to non-linear spacing from alpha:
         #        zeniths = np.arange(0, max_r+r_resolution, r_resolution)  # radius
-        zeniths = np.tan(np.pi / 360. * np.arange(-r_resolution/2., max_r+r_resolution, r_resolution))  # radius
+        zeniths = np.tan(np.pi / 360. * np.arange(-r_resolution * 0.5, max_r + r_resolution, r_resolution))  # radius
 
         # convert to meshgrid
         mesh_r, mesh_theta = np.meshgrid(zeniths, azimuths)
@@ -158,7 +158,7 @@ class Qt4MplPolarCanvas(FigureCanvas):
                 index_theta -= 1
             else:
                 # theta is between two valid values: use the closer one
-                left_theta = theta_ref_vec[index_theta-1]
+                left_theta = theta_ref_vec[index_theta - 1]
                 right_theta = theta_ref_vec[index_theta]
                 if theta_i - left_theta < right_theta - theta_i:
                     index_theta -= 1
@@ -176,7 +176,7 @@ class Qt4MplPolarCanvas(FigureCanvas):
                 index_r -= 1
             else:
                 # r is between two valid values: use the closer one
-                left_r = r_ref_vec[index_r-1]
+                left_r = r_ref_vec[index_r - 1]
                 right_r = r_ref_vec[index_r]
                 if r_i - left_r < right_r - r_i:
                     index_r -= 1
