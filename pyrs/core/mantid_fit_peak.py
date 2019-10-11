@@ -106,6 +106,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
         return center_ws
 
+    # TODO - #89 - Cleanup
     def fit_peaks(self, sub_run_range, peak_function_name, background_function_name, peak_center, peak_range,
                   cal_center_d):
         """Fit peaks
@@ -140,6 +141,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         checkdatatypes.check_string_variable('Background function name', background_function_name,
                                              ['Linear', 'Flat', 'Quadratic'])
         checkdatatypes.check_series('(To fit) sub runs range', sub_run_range, None, 2)
+        checkdatatypes.check_tuple('Peak range', peak_range, 2)
 
         self._fit_peaks_checks(sub_run_range, peak_function_name, background_function_name, peak_center, peak_range,
                                cal_center_d)
@@ -207,6 +209,19 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         # SaveNexusProcessed(InputWorkspace=peak_center_ws, Filename='/tmp/position.nxs')
         # SaveNexusProcessed(InputWorkspace=peak_window_ws_name, Filename='/tmp/peakwindow.nxs')
 
+        # TODO FIXME #89 - Make the difference between peak profiles
+        if False:
+            print("{}".format(width_dict[peak_function_name][0]))  #, 'Mixing'))
+            print("{}".format(width_dict[peak_function_name][1]))  #, '0.5'))
+        elif False:
+            peak_param_names = "{}, {}".format(width_dict[peak_function_name][0], 'Mixing')
+            peak_param_values = "{}, {}".format(width_dict[peak_function_name][1], '0.5')
+        else:
+            # Gaussian
+            peak_param_names = "{}".format(width_dict[peak_function_name][0], 'Mixing')
+            peak_param_values = "{}".format(width_dict[peak_function_name][1], '0.5')
+        # END-IF
+
         # Fit peak by Mantid.FitPeaks
         r = FitPeaks(InputWorkspace=self._mantid_workspace_name,
                      PeakCentersWorkspace=peak_center_ws,
@@ -218,8 +233,8 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
                      FindBackgroundSigma=1,
                      HighBackground=False,
                      ConstrainPeakPositions=False,
-                     PeakParameterNames="{}, {}".format(width_dict[peak_function_name][0], 'Mixing'),
-                     PeakParameterValues="{}, {}".format(width_dict[peak_function_name][1], '0.5'),
+                     PeakParameterNames=peak_param_names,
+                     PeakParameterValues=peak_param_values,
                      RawPeakParameters=True,
                      OutputWorkspace=r_positions_ws_name,
                      OutputPeakParametersWorkspace=r_param_table_name,

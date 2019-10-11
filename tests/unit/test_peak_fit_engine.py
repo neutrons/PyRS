@@ -112,8 +112,9 @@ def generate_hydra_workspace(peak_profile_type):
     # Add background
     vec_y = generate_test_background(vec_x, vec_y)
 
-    for i in range(vec_x.shape[0]):
-        print('{}   {}'.format(vec_x[i], vec_y[i]))
+    # Print out the test data
+    # for i in range(vec_x.shape[0]):
+    #     print('{}   {}'.format(vec_x[i], vec_y[i]))
 
     # Add diffraction pattern
     test_workspace.set_sub_runs([1])
@@ -121,7 +122,7 @@ def generate_hydra_workspace(peak_profile_type):
                                                 bin_edges=vec_x,
                                                 hist=vec_y)
 
-    return test_workspace, peak_center, peak_range
+    return test_workspace, peak_center, (peak_center - peak_range, peak_center + peak_center)
 
 
 def test_gaussian():
