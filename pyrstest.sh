@@ -17,5 +17,5 @@ fi
 # let people know what is going on and launch it
 echo "Using \"$(which $MANTIDPYTHON)\""
 # tests/QuickCalibration.py Doesn't appear to be a test
-PYTHONPATH=`pwd`/build/lib $MANTIDPYTHON --classic -m pytest -vv tests/unit
+PYTHONPATH=`pwd`/build/lib $MANTIDPYTHON --classic -m pytest -vv --verbose tests/unit/test_peak_fit_engine.py 
 # tests/gui core dumps

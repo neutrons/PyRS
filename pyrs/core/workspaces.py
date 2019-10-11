@@ -455,6 +455,8 @@ class HidraWorkspace(object):
             print('L667: Mask ID: "{}"'.format(mask_id))
 
         # check status
+        if self._sub_run_to_spectrum is None:
+            raise RuntimeError('Sub run - spectrum map has not been set up yet!')
 
         # Set 2-theta (X)
         if self._2theta_vec is None:
@@ -498,6 +500,25 @@ class HidraWorkspace(object):
 
         # Set
         self._sample_log_dict[log_name] = log_value_array
+
+        return
+
+    def set_sub_runs(self, sub_runs):
+        """Set sub runs to this workspace
+
+        Including create the sub run and spectrum map
+
+        Parameters
+        ----------
+        sub_runs: list
+            list of integers as sub runs
+        Returns
+        -------
+
+        """
+        sub_runs = sorted(sub_runs)
+
+        self._create_subrun_spectrum_map(sub_runs)
 
         return
 

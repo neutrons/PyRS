@@ -9,7 +9,6 @@ import gui_helper
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.rs_project_file import HidraConstants
 from pyrs.interface.ui import rstables
-import slicersetupwindow
 
 
 # TODO LIST - #84 - 1. UI: change segments to masks
@@ -234,9 +233,10 @@ class ManualReductionWindow(QMainWindow):
         -------
         None
         """
-        self._slice_setup_window = slicersetupwindow.EventSlicerSetupWindow(self)
-        self._slice_setup_window.show()
-        return
+        # from pyrs.interface import slicersetupwindow
+        # self._slice_setup_window = slicersetupwindow.EventSlicerSetupWindow(self)
+        # self._slice_setup_window.show()
+        raise NotImplementedError('Slicer setup window has not implemented.')
 
     def do_load_project_h5(self):
         """ Load project file in HDF5 format
