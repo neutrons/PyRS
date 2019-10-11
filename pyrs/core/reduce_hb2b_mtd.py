@@ -6,7 +6,6 @@ from mantid.simpleapi import ConvertSpectrumAxis, ResampleX, Transpose, AddSampl
 from mantid.simpleapi import SortXAxis, CreateWorkspace
 from mantid.api import AnalysisDataService as ADS
 from pyrs.utilities import checkdatatypes
-from pyrs.utilities import file_util
 from pyrs.core.instrument_geometry import AnglerCameraDetectorShift
 from pyrs.core import mantid_helper
 
@@ -217,7 +216,8 @@ class MantidHB2BReduction(object):
                 raise AssertionError('In this case, target vector X shall be obtained from')
             else:
                 raw_data_ws = theta_ws
-                vec_2theta, vec_y, vec_e = histogram_data(raw_data_ws.readX(0), raw_data_ws.readY(0), target_vec_2theta)
+                vec_2theta, vec_y, vec_e = histogram_data(raw_data_ws.readX(0), raw_data_ws.readY(0),
+                                                          target_vec_2theta)
         elif True:
             # experimenting to use SortXAxis, (modified) ResampleX
             import time

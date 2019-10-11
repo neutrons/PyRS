@@ -55,7 +55,12 @@ def is_calibration_dir(cal_sub_dir_name):
                                    is_dir=True, description='Directory for calibration files')
 
     dir_base_name = os.path.basename(cal_sub_dir_name)
-    return dir_base_name in hb2b_setup
+
+    print('[TO BE IMPLEMENTED SOON] Not sure how to examine {} is a valid calibration dir.'.format(dir_base_name))
+
+    # dir_base_name in hb2b_setup
+
+    return False
 
 
 def scan_calibration_in_archive():

@@ -472,9 +472,11 @@ class PyHB2BReduction(object):
                 # num detectors
                 num_dets = pixel_array.shape[0]
 
-                l = int(math.sqrt(num_dets))
-                for i_pos, pos_tuple in enumerate([(0, 0), (0, l - 1), (l - 1, 0), (l - 1, l - 1), (l / 2, l / 2)]):
-                    i_ws = pos_tuple[0] * l + pos_tuple[1]
+                linear_size = int(math.sqrt(num_dets))
+                for i_pos, pos_tuple in enumerate([(0, 0), (0, linear_size - 1),
+                                                   (linear_size - 1, 0), (linear_size - 1, linear_size - 1),
+                                                   (linear_size / 2, linear_size / 2)]):
+                    i_ws = pos_tuple[0] * linear_size + pos_tuple[1]
                     pos_array[i_pos] = pixel_array[i_ws]
                 # END-FOR
 
@@ -687,8 +689,8 @@ class PyHB2BReduction(object):
         t1 = time.time()
 
         # Sort X-axis
-        temp_ws = SortXAxis(InputWorkspace='prototype', OutputWorkspace='prot_sorted', Ordering='Ascending',
-                            IgnoreHistogramValidation=True)
+        SortXAxis(InputWorkspace='prototype', OutputWorkspace='prot_sorted', Ordering='Ascending',
+                  IgnoreHistogramValidation=True)
         # temp_vec_y = temp_ws.readY(0)
         # print('[DEBUG] After SortXAxis: Y-range = ({}, {})'.format(temp_vec_y.min(), temp_vec_y.max()))
         t2 = time.time()

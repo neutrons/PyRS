@@ -4,7 +4,6 @@ from pyrs.core import instrument_geometry
 from pyrs.utilities import file_util
 from pyrs.core import peak_fit_factory
 from pyrs.utilities.rs_project_file import HidraConstants
-import mantid_fit_peak
 import strain_stress_calculator
 import reduction_manager
 import polefigurecalculator
