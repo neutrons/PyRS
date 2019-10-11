@@ -108,7 +108,25 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
     def fit_peaks(self, sub_run_range, peak_function_name, background_function_name, peak_center, peak_range,
                   cal_center_d):
-        """ Fit peaks with option to calculate peak center in d-spacing
+        """Fit peaks
+
+        Fit peaks given from sub run range and with option to calculate peak center in d-spacing
+
+        Parameters
+        ----------
+        sub_run_range: tuple
+            first sub run, last sub run (included)
+        peak_function_name
+        background_function_name
+        peak_center
+        peak_range
+        cal_center_d
+
+        Returns
+        -------
+
+        """
+        """
         :param peak_function_name:
         :param background_function_name:
         :param peak_center: 1 of (1) string (center wksp), (2) wksp, (3) vector of float (4) single float

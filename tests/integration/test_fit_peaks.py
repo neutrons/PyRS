@@ -3,6 +3,7 @@
 import numpy
 from pyrs.core import pyrscore
 from matplotlib import pyplot as plt
+import pytest
 
 
 class PeakFittingTest(object):
@@ -133,6 +134,9 @@ def main():
 
     return
 
+def test_hello_world():
+    print('Hello World')
+
 
 if __name__ == '__main__':
-    main()
+    pytest.main()

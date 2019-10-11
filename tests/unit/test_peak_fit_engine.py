@@ -2,6 +2,7 @@ import numpy as np
 from pyrs.core.mantid_fit_peak import MantidPeakFitEngine
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.core.peak_profile_utility import EFFECTIVE_PEAK_PARAMETERS, pseudo_voigt
+import pytest
 
 
 def generate_test_gaussian(vec_x, peak_center, peak_range):
@@ -22,8 +23,6 @@ def generate_test_gaussian(vec_x, peak_center, peak_range):
 
     # calculate Gaussian
     vec_y = 10. * np.exp(-(vec_x - peak_center)**2 / sigma**2)
-    for i in range(vec_x.shape[0]):
-        print('{}   {}'.format(vec_x[i], vec_y[i]))
 
     # Add noise
     noise = (np.random.random_sample(vec_x.shape[0]) - 0.5) * 2.0
@@ -73,7 +72,7 @@ def generate_test_background(vec_x, vec_y):
     ndarray, float
         vector of Y with background
     """
-    a0 = 3.5
+    a0 = 35
     a1 = -0.3
 
     background = a1 * vec_x + a0
@@ -96,7 +95,7 @@ def generate_hydra_workspace(peak_profile_type):
     test_workspace = HidraWorkspace('test')
 
     # Generate vector X
-    vec_x = np.arange(100) * 0.1 + 75.  # from 75 to 85 degree
+    vec_x = np.arange(500) * 0.1 * 0.2 + 75.  # from 75 to 85 degree
     # Determine peak range and center
     peak_center = 0.5 * (vec_x[0] + vec_x[-1])
     data_range = vec_x[-1] - vec_x[0]
@@ -113,7 +112,11 @@ def generate_hydra_workspace(peak_profile_type):
     # Add background
     vec_y = generate_test_background(vec_x, vec_y)
 
+    for i in range(vec_x.shape[0]):
+        print('{}   {}'.format(vec_x[i], vec_y[i]))
+
     # Add diffraction pattern
+    test_workspace.set_sub_runs([1])
     test_workspace.set_reduced_diffraction_data(1, mask_id=None,
                                                 bin_edges=vec_x,
                                                 hist=vec_y)
@@ -134,7 +137,7 @@ def test_gaussian():
     fit_engine = MantidPeakFitEngine(gaussian_workspace, mask_name=None)
 
     # Fit
-    fit_engine.fit_peaks(sub_run_range=[1],
+    fit_engine.fit_peaks(sub_run_range=(1, 1),
                          peak_function_name='Gaussian',
                          background_function_name='Linear',
                          peak_center=peak_center,
@@ -151,7 +154,7 @@ def test_gaussian():
     return
 
 
-def test_pseudo_voigt():
+def next_test_pseudo_voigt():
     """
     Test fitting single Pseudo-voigt peak with background
     Returns
@@ -179,3 +182,6 @@ def test_pseudo_voigt():
     assert sub_runs.shape == (1, )
 
     return
+
+if __name__ == '__main__':
+    pytest.main()
