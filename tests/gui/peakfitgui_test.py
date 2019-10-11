@@ -6,7 +6,7 @@ from pyrs.interface import fitpeakswindow
 from qtpy.QtWidgets import QApplication
 
 
-def xtest_main():
+def main_test():
     """
     Test main for fitting peaks
     """
@@ -50,7 +50,7 @@ if __name__ == '__main__':
     app = main(sys.argv)
 
     # this must be here!
-    test_window = test_main()
+    test_window = main_test()
     # I cannot close it!  test_window.close()
 
     app.exec_()

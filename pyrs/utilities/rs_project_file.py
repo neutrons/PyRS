@@ -503,7 +503,6 @@ class HydraProjectFile(object):
         if wl is not None:
             wavelength_group.create_dataset('Calibrated', data=numpy.array([wl]))
 
-
         return
 
     def set_instrument_calibration(self):

@@ -2,7 +2,6 @@
 import platform
 from pyrs.utilities import checkdatatypes
 from qtpy.QtWidgets import QLineEdit, QFileDialog, QMessageBox, QVBoxLayout
-from qtpy import QtCore
 
 
 def browse_dir(parent, caption, default_dir):
@@ -162,9 +161,6 @@ def parse_float(float_str):
     if isinstance(float_str, QLineEdit):
         # Input is QLineEdit
         float_str = str(float_str.text())
-    elif isinstance(float_str, QtCore.QString):
-        # There is no QString in PyQt5
-        float_str = str(float_str)
     else:
         # Input has to be string
         checkdatatypes.check_string_variable('Integer string', float_str)
@@ -186,9 +182,6 @@ def parse_integer(int_str):
     if isinstance(int_str, QLineEdit):
         # QLineEdit: get the string out of it
         int_str = str(int_str.text())
-    elif isinstance(int_str, QtCore.QString):
-        # QString: convert it
-        int_str = str(int_str)
     else:
         # Then it has to be a string
         checkdatatypes.check_string_variable('Integer string', int_str)

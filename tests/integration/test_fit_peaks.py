@@ -115,15 +115,10 @@ def main():
     # Show fit result
     tester.show_fit_result(False)
 
-    return
-
     # fit for gaussian
     tester.fit_gaussian()
 
     tester.show_fit_result(True)
-
-
-
 
     # save
     # TODO FIXME - exception/broken

@@ -1,6 +1,7 @@
 from mantid.simpleapi import CreateWorkspace
 from mantid.simpleapi import mtd
 from mantid.simpleapi import Transpose
+from mantid.simpleapi import AddSampleLog
 import os
 from pyrs.core import workspaces
 from pyrs.utilities import checkdatatypes
@@ -50,6 +51,40 @@ def get_data_y(ws_name, transpose):
         raise NotImplementedError('It has not been implemented to read 1 X N array')
 
     return data_y
+
+
+def get_log_value(workspace, log_name):
+    """
+    get log value from workspace
+    :param workspace:
+    :param log_name:
+    :return:
+    """
+    try:
+        sample_log_property = workspace.run().getProperty(log_name)
+    except KeyError:
+        raise RuntimeError('Workspace {} does not have property {}'.format(workspace, log_name))
+
+    log_value = sample_log_property.value()
+
+    return log_value
+
+
+def set_log_value(workspace, log_name, log_value, unit='meter'):
+    """
+    set a value to a workspace's sample logs
+    :param workspace:
+    :param log_name:
+    :param log_value:
+    :param unit:
+    :return:
+    """
+    AddSampleLog(Workspace=workspace, LogName=log_name,
+                 LogText='{}'.format(log_value),
+                 LogType='Number Series', LogUnit=unit,
+                 NumberType='Double')
+
+    return
 
 
 def retrieve_workspace(ws_name, throw=True):

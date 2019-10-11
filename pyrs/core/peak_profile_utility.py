@@ -432,6 +432,13 @@ class Voigt(PeakParametersConverter):
                                           param_value_array.shape[2]),
                                    dtype=float)
 
+        # Calculate effective parameters
+        # ... ...
+
+        # Optionally propagate the uncertainties
+        if include_error:
+            pass
+
         # TODO - Implement the main body ASAP
         raise NotImplementedError('ASAP')
 

@@ -672,8 +672,6 @@ class FitPeaksWindow(QMainWindow):
         :param param_name:
         :return:
         """
-        from pyrs.utilities.rs_project_file import HidraConstants
-
         # get data key
         if self._project_name is None:
             gui_helper.pop_message(self, 'No data loaded', 'error')
