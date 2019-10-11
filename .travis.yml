@@ -73,7 +73,7 @@ script:
 
   # lint the code and generate an error if a warning is introduced
   - flake8 . --count
-  - python -m pylint --disable=C pyrs scripts tests --extension-pkg-whitelist=mantid,numpy,qtpy
+  - python -m pylint --disable=C --disable=fixme --disable=no-name-in-module --ignore pyrs/_version.py pyrs scripts tests
   # run some basic import tests to confirm things are working
   - python -c "import mantid"
   - python -c "import qtpy"
