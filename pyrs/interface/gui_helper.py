@@ -2,7 +2,6 @@
 import platform
 from pyrs.utilities import checkdatatypes
 from qtpy.QtWidgets import QLineEdit, QFileDialog, QMessageBox, QVBoxLayout
-from qtpy import QtCore
 
 
 def browse_dir(parent, caption, default_dir):

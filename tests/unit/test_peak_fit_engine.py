@@ -179,5 +179,3 @@ def test_pseudo_voigt():
     assert sub_runs.shape == (1, )
 
     return
-
-
