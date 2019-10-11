@@ -120,7 +120,7 @@ def check_float_variable(var_name, variable, value_range):
     :return:
     """
     check_string_variable('var_name', var_name)
-    assert isinstance(variable, float) or isinstance(variable, int), '{0} {1} must be a float but not a {2}'\
+    assert isinstance(variable, (float, int)), '{0} {1} must be a float but not a {2}'\
         .format(var_name, variable, type(variable))
 
     if value_range is not None:
@@ -177,7 +177,7 @@ def check_numpy_arrays(var_name, variables, dimension, check_same_shape):
         variables = [variables]
         check_same_shape = False
     else:
-        assert isinstance(variables, list) or isinstance(variables, tuple),\
+        assert isinstance(variables, (list, tuple)),\
             'Variable {} (shall be an numpy arrays) {} must be given in form of numpy array, ' \
             'list or tuple but not {}'.format(var_name, variables, type(variables))
 
@@ -215,7 +215,7 @@ def check_series(var_name, variable, allowed_type=None, size=None):
     """
     check_string_variable('Variable name', var_name)
 
-    assert isinstance(variable, list) or isinstance(variable, tuple) or isinstance(variable, numpy.ndarray),\
+    assert isinstance(variable, (list, tuple, numpy.ndarray)),\
         '{} {} must be a list or tuple but not a {}'.format(var_name, variable, type(variable))
 
     # check size
@@ -255,10 +255,8 @@ def check_string_variable(var_name, variable, allowed_values=None, allow_empty=T
     assert isinstance(var_name, str), 'Variable name {0} must be a string but not a {1}'\
         .format(var_name, type(var_name))
 
-    assert isinstance(variable, str) or isinstance(variable, unicode), '{0} {1} must be a string or unicode' \
-                                                                       'but not a {2}' \
-                                                                       ''.format(var_name, variable,
-                                                                                 type(variable))
+    assert isinstance(variable, (str, unicode)), '{0} {1} must be a string or unicode but not a {2}' \
+                                                 ''.format(var_name, variable, type(variable))
 
     if isinstance(allowed_values, list):
         if variable not in allowed_values:

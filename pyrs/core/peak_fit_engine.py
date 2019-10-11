@@ -25,6 +25,9 @@ class PeakFitEngine(object):
         self._hd_workspace = workspace  # hd == HiDra
         self._mask_name = mask_name
 
+        # wave length information
+        self._wavelength_dict = None
+
         # for fitted result
         self._peak_center_vec = None  # 2D vector for observed center of mass and highest data point
         self._peak_center_d_vec = None  # 1D vector for calculated center in d-spacing
@@ -76,7 +79,7 @@ class PeakFitEngine(object):
 
             # calculate peak position and propagating fitting error
             for sub_index in range(2):
-                peak_i_2theta_j = params_vec[0][sb_index][0]
+                peak_i_2theta_j = params_vec[0][sb_index][sub_index]
                 if wl:
                     peak_i_d_j = wl * 0.5 / math.sin(peak_i_2theta_j * 0.5 * math.pi / 180.)
                 else:
@@ -198,7 +201,6 @@ class PeakFitEngine(object):
             p = number of parameters , n = number of sub runs, 2 containing fitting error
         """
         # Create native -> effective parameters converter
-        from pyrs.core import peak_profile_utility
         print('[DB...BAT] Current peak function: {}'.format(self._peak_function_name))
         converter = peak_profile_utility.get_effective_parameters_converter(self._peak_function_name)
 

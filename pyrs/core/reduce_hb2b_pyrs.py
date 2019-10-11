@@ -519,7 +519,6 @@ class PyHB2BReduction(object):
     def get_eta_Values(self):
         return self._instrument.get_eta_values(dimension=1)
 
-    # TODO TEST - #72
     def reduce_to_2theta_histogram(self, two_theta_range, two_theta_step, apply_mask,
                                    is_point_data=True, normalize_pixel_bin=True, use_mantid_histogram=False):
         """ Reduce the previously added detector raw counts to 2theta histogram (i.e., diffraction pattern)
