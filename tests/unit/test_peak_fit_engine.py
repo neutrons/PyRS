@@ -121,7 +121,7 @@ def generate_hydra_workspace(peak_profile_type):
                                                 bin_edges=vec_x,
                                                 hist=vec_y)
 
-    return test_workspace, peak_center, peak_range
+    return test_workspace, peak_center, (peak_center - peak_range, peak_center + peak_center)
 
 
 def test_gaussian():
