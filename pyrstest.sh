@@ -1,9 +1,8 @@
 #!/bin/sh
-python setup.py build
-
 # set the mantidpython to use - default to system installed nightly
-if [ $1 ]; then
+if [ -n "$1" ] && [ $(command -v $1) ]; then
     MANTIDPYTHON="$1"
+    shift
 else
     MANTIDPYTHON=mantidpythonnightly
 fi
@@ -14,8 +13,8 @@ if [ ! $(command -v $MANTIDPYTHON) ]; then
     exit -1
 fi
 
+$MANTIDPYTHON setup.py build
+
 # let people know what is going on and launch it
 echo "Using \"$(which $MANTIDPYTHON)\""
-# tests/QuickCalibration.py Doesn't appear to be a test
-PYTHONPATH=`pwd`/build/lib $MANTIDPYTHON --classic -m pytest -vv
-# tests/gui core dumps
+PYTHONPATH=`pwd`/build/lib $MANTIDPYTHON --classic -m pytest -vv $@

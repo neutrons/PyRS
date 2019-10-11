@@ -1,8 +1,6 @@
 #!/bin/sh
-python setup.py build
-
 # set the mantidpython to use - default to system installed nightly
-if [ $1 ]; then
+if [ -n "$1" ] && [ $(command -v $1) ]; then
     MANTIDPYTHON="$1"
 else
     MANTIDPYTHON=mantidpythonnightly
@@ -13,6 +11,8 @@ if [ ! $(command -v $MANTIDPYTHON) ]; then
     echo "Failed to find mantidpython \"$MANTIDPYTHON\""
     exit -1
 fi
+
+$MANTIDPYTHON setup.py build
 
 # let people know what is going on and launch it
 echo "Using \"$(which $MANTIDPYTHON)\""
