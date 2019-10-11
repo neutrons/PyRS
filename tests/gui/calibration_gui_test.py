@@ -6,7 +6,7 @@ from pyrs.interface import calibrationwindow
 from qtpy.QtWidgets import QApplication
 
 
-def xtest_main():
+def main_test():
     """
     test main
     """
@@ -58,11 +58,10 @@ def main(argv):
 
 if __name__ == '__main__':
     # Main application
-    print('Test Peak Fit GUI')
-    #app = main(sys.argv)
+    app = main(sys.argv)
 
     # this must be here!
-    test_window = test_main()
+    test_window = main_test()
     # I cannot close it!  test_window.close()
 
     app.exec_()

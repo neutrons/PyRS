@@ -32,7 +32,7 @@ def xtest_hzb_data(reduction_window):
     return
 
 
-def xtest_main():
+def main_test():
     """
     test main
     """
@@ -43,7 +43,7 @@ def xtest_main():
     manual_reduction_window.show()
 
     # Test 1
-    test_hzb_data(manual_reduction_window)
+    # test_hzb_data(manual_reduction_window)
 
     #
     # # set up IPTS and run number
@@ -83,7 +83,7 @@ if __name__ == '__main__':
     app = main(sys.argv)
 
     # this must be here!
-    test_window = test_main()
+    test_window = main_test()
     # I cannot close it!  test_window.close()
 
     app.exec_()

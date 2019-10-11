@@ -144,7 +144,8 @@ def test_main(test_dir):
     #               'Resolution': {'Y': None, 'X': None, 'Z': None},
     #               'Min': {'Y': None, 'X': -140.0, 'Z': None}}
     #
-    # grid_info_window = ss_window.align_user_grids(direction='e22', user_define_flag=False, grids_setup_dict=setup_dict,
+    # grid_info_window = ss_window.align_user_grids(direction='e22',
+    #                                               user_define_flag=False, grids_setup_dict=setup_dict,
     #                                               show_aligned_grid=True)
     #
     # # work on grid (alignment) window
@@ -251,7 +252,8 @@ def test_main_plane_stress(test_dir):
     #               'Resolution': {'Y': None, 'X': None, 'Z': None},
     #               'Min': {'Y': None, 'X': -140.0, 'Z': None}}
     #
-    # grid_info_window = ss_window.align_user_grids(direction='e22', user_define_flag=False, grids_setup_dict=setup_dict,
+    # grid_info_window = ss_window.align_user_grids(
+    #       direction='e22', user_define_flag=False, grids_setup_dict=setup_dict,
     #                                               show_aligned_grid=True)
     #
     # # work on grid (alignment) window
@@ -263,7 +265,8 @@ def test_main_plane_stress(test_dir):
     # # set to d_center
     # grid_info_window.ui.comboBox_parameterNamesAnalysis.setCurrentIndex(2)
     # assert str(grid_info_window.ui.comboBox_parameterNamesAnalysis.currentText()) == 'center_d',\
-    #     'Shall be center_d but not {}'.format(str(grid_info_window.ui.comboBox_parameterNamesAnalysis.currentText()))
+    #     'Shall be center_d but not {}'\
+    #     ''.format(str(grid_info_window.ui.comboBox_parameterNamesAnalysis.currentText()))
     # # load raw, plot, map and plot
     # grid_info_window.do_load_params_raw_grid()
     # grid_info_window.do_load_params_raw_grid()

@@ -3,7 +3,6 @@ import h5py
 import math
 import numpy
 from shutil import copyfile
-from mantid.api import AnalysisDataService
 
 
 class DiffractionDataFile(object):
