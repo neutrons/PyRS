@@ -25,6 +25,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
         # Create Mantid workspace: generate a workspace with all sub runs!!!
         mantid_workspace = mantid_helper.generate_mantid_workspace(workspace, mask_name)
+        # the Mandid workspace and HiDRA workspace have consistent spectrum/sub run map.
         self._mantid_workspace_name = mantid_workspace.name()
 
         # wave length
@@ -119,21 +120,15 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
             first sub run, last sub run (included)
         peak_function_name
         background_function_name
-        peak_center
-        peak_range
+        peak_center: str / Mantid Workspace2D / ndarray / float
+            Center workspace name, Center workspace, peak centers for each spectrum, peak center (universal)
+        peak_range:
+            Peak range
         cal_center_d
 
         Returns
         -------
 
-        """
-        """
-        :param peak_function_name:
-        :param background_function_name:
-        :param peak_center: 1 of (1) string (center wksp), (2) wksp, (3) vector of float (4) single float
-        :param peak_range:
-        :param wave_length_array:
-        :return:
         """
         # Check inputs
         checkdatatypes.check_string_variable('Peak function name', peak_function_name,
@@ -210,16 +205,17 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         # SaveNexusProcessed(InputWorkspace=peak_window_ws_name, Filename='/tmp/peakwindow.nxs')
 
         # TODO FIXME #89 - Make the difference between peak profiles
-        if False:
-            print("{}".format(width_dict[peak_function_name][0]))  #, 'Mixing'))
-            print("{}".format(width_dict[peak_function_name][1]))  #, '0.5'))
-        elif False:
+        if self._peak_function_name == 'Gaussian':
+            # Gaussian
+            peak_param_names = "{}".format(width_dict[peak_function_name][0])
+            peak_param_values = "{}".format(width_dict[peak_function_name][1])
+        elif self._peak_function_name == 'PseudoVoigt':
             peak_param_names = "{}, {}".format(width_dict[peak_function_name][0], 'Mixing')
             peak_param_values = "{}, {}".format(width_dict[peak_function_name][1], '0.5')
         else:
-            # Gaussian
-            peak_param_names = "{}".format(width_dict[peak_function_name][0], 'Mixing')
-            peak_param_values = "{}".format(width_dict[peak_function_name][1], '0.5')
+            raise RuntimeError('Peak function {} is not supported for pre-set guessed starting value'
+                               ''.format(self._peak_function_name))
+
         # END-IF
 
         # Fit peak by Mantid.FitPeaks
@@ -283,24 +279,18 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         ndarray, ndarray
             vector X, vector Y
         """
-        """
-
-        :param sub_run:
-        :return:
-        """
         if self._model_matrix_ws is None:
             raise RuntimeError('There is no fitting result!')
 
         # Check sub run: just a positive integer
-        checkdatatypes.check_int_variable('Scan log index', sub_run, (0, None))
+        checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
 
         # Convert to workspace
-        #
-        raise NotImplementedError('Need a map from sub run to workspace indexes!!!')
-        ws_index = self._
+        ws_index = self._hd_workspace.get_spectrum_index(sub_run)
 
-        vec_x = self._model_matrix_ws.readX(sub_run)
-        vec_y = self._model_matrix_ws.readY(sub_run)
+        # Get data
+        vec_x = self._model_matrix_ws.readX(ws_index)
+        vec_y = self._model_matrix_ws.readY(ws_index)
 
         return vec_x, vec_y
 

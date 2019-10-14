@@ -302,7 +302,7 @@ class PseudoVoigt(PeakParametersConverter):
             p' = number of effective parameters , n = number of sub runs
         """
         # Check whether error is included or not: flag to include error in the output
-        include_error = param_value_array.shape[3] == 2
+        include_error = param_value_array.shape[2] == 2
 
         # Output array
         eff_value_array = np.zeros(shape=(len(EFFECTIVE_PEAK_PARAMETERS), param_value_array.shape[1],
@@ -359,10 +359,10 @@ class PseudoVoigt(PeakParametersConverter):
 
     @staticmethod
     def cal_height(intensity, fwhm, mixing):
-        """
-        intensity =  m_height / 2. / (1 + (sqrt(M_PI * M_LN2) - 1) * eta) * (M_PI * gamma)
-        -->
-        height = 2 *  (1 + (sqrt(M_PI * M_LN2) - 1) * eta) * intensity / (M_PI * gamma)
+        """Calculate peak height from I(intensity), Gamma (fwhm) and eta (mixing)
+
+        According to Mantid doc:
+        h = 2 * I * (1 + ((pi * ln 2)^(1/2) - 1) * eta) / (pi * Gamma)
 
         Parameters
         ----------
@@ -383,6 +383,15 @@ class PseudoVoigt(PeakParametersConverter):
     def cal_height_error(height, intensity, intensity_error, fwhm, fwhm_error, mixing, mixing_error):
         """Calculate propagated error of peak height
 
+        Note: 's' is used for uncertainty/error
+        - s_i : sigma_I
+        - s_g : sigma_Gamma (sigma_FWHM)
+        - s_e : sigma_eta (mixing)
+        - s_h : sigma_height (output)
+
+        s_h^2 = (partial h()/partial I)^2 s_i^2 + (partial h()/partial Gamma)^2 s_g^2
+              + (partial h()/partial eta)^2 s_e^2
+
         Parameters
         ----------
         height
@@ -398,9 +407,24 @@ class PseudoVoigt(PeakParametersConverter):
         Float/ndarray
             Peak height fitting error
         """
-        # TODO - ASAP
+        # FIXME - all the terms shall get SQUARED!
+        # Partial derivative to intensity
+        # partial h()/partial I = 2. * (1 + (np.sqrt(np.pi * np.log(2)) - 1) * mixing) / (np.pi * fwhm)
+        #                       = (2 * np.pi) * (1 + F1 * mixing) / fwhm
+        # ... ...
 
-        return None
+        # Partial derivative to FWHM
+        # partial h()/partial G = -2. * intensity * (1 + (np.sqrt(np.pi * np.log(2)) - 1) * mixing) / (np.pi * fwhm^2)
+        # ... ...
+
+        # Partial derivative to Eta
+        # partial h()/partial eta = 2 * I * ((pi * ln 2)^(1/2) - 1) / (pi * Gamma)
+        # ... ...
+
+        # sum
+        s_h2 = 1**2 + 2**2 + 3**2
+
+        return np.sqrt(s_h2)
 
 
 class Voigt(PeakParametersConverter):

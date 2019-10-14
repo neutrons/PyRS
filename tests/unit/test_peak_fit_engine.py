@@ -3,6 +3,7 @@ from pyrs.core.mantid_fit_peak import MantidPeakFitEngine
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.core.peak_profile_utility import pseudo_voigt, NATIVE_BACKGROUND_PARAMETERS, NATIVE_PEAK_PARAMETERS
 import pytest
+from matplotlib import pyplot as plt
 
 
 def generate_test_gaussian(vec_x, peak_center, peak_range):
@@ -54,8 +55,6 @@ def generate_test_pseudovoigt(vec_x, peak_center, peak_range):
 
     # calculate Gaussian
     vec_y = pseudo_voigt(vec_x, peak_intensity, fwhm, mixing, peak_center)
-    for i in range(vec_x.shape[0]):
-        print('{}   {}'.format(vec_x[i], vec_y[i]))
 
     # Add noise
     noise = (np.random.random_sample(vec_x.shape[0]) - 0.5) * 2.0
@@ -129,7 +128,7 @@ def generate_hydra_workspace(peak_profile_type):
     return test_workspace, peak_center, (peak_center - peak_range, peak_center + peak_center)
 
 
-def test_gaussian():
+def passed_test_gaussian():
     """
     Test fitting single Gaussian peak with background
     Returns
@@ -149,34 +148,41 @@ def test_gaussian():
                          peak_range=peak_range,
                          cal_center_d=False)
 
+    # Get model (from fitted parameters) against each other
+    model_x, model_y = fit_engine.get_calculated_peak(1)
+    data_x, data_y = gaussian_workspace.get_reduced_diffraction_data(1, None)
+    plt.plot(data_x, data_y, label='Test Gaussian')
+    plt.plot(model_x, model_y, label='Fitted Gaussian')
+    assert data_x.shape == model_x.shape
+    assert data_y.shape == model_y.shape
+
+    # Test the fitted parameters
     # Read data
     eff_param_list, sub_runs, fit_costs, effective_param_values =\
         fit_engine.get_fitted_effective_params(True)
 
-    # Plot against each other
-    model_x, model_y = fit_engine.get_calculated_peak(1)
-    data_x, data_y = gaussian_workspace.get_reduced_diffraction_data(1, None)
-    from matplotlib import pyplot as plt
-    plt.plot(data_x, data_y, label='Test Gaussian')
-    plt.plot(model_x, model_y, label='Fitted Gaussian')
-    plt.plot()
-
-    # Read data again
+    # Read data again for raw data
     native_params = NATIVE_PEAK_PARAMETERS['Gaussian'][:]
     native_params.extend(NATIVE_BACKGROUND_PARAMETERS['Linear'])
     sub_runs2, fit_cost2, param_values = fit_engine.get_fitted_params(native_params, True)
 
     # Test
-    assert sub_runs.shape == (1, )
+    assert sub_runs.shape == (1, ) == sub_runs2.shape
+    assert np.allclose(fit_cost2, fit_costs, 0.0000001)
 
     # Effective paramter list: ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
+    assert effective_param_values[0, 0, 0] == param_values[1, 0, 0]   # center
 
-    assert fit_costs[0] < 0.1, 'Fit cost (chi2 = {}) is too large'.format(fit_costs[0])
+    # fit goodness
+    assert fit_costs[0] < 0.5, 'Fit cost (chi2 = {}) is too large'.format(fit_costs[0])
+
+    # If everything is correct, optionally show the result
+    plt.show()
 
     return
 
 
-def next_test_pseudo_voigt():
+def test_pseudo_voigt():
     """
     Test fitting single Pseudo-voigt peak with background
     Returns
@@ -189,20 +195,44 @@ def next_test_pseudo_voigt():
     fit_engine = MantidPeakFitEngine(gaussian_workspace, mask_name=None)
 
     # Fit
-    fit_engine.fit_peaks(sub_run_range=[1],
+    fit_engine.fit_peaks(sub_run_range=(1, 1),
                          peak_function_name='PseudoVoigt',
                          background_function_name='Linear',
                          peak_center=peak_center,
                          peak_range=peak_range,
                          cal_center_d=False)
 
+    # Get model (from fitted parameters) against each other
+    model_x, model_y = fit_engine.get_calculated_peak(1)
+    data_x, data_y = gaussian_workspace.get_reduced_diffraction_data(1, None)
+    plt.plot(data_x, data_y, label='Test PseudoVoigt')
+    plt.plot(model_x, model_y, label='Fitted PseudoVoigt')
+    assert data_x.shape == model_x.shape
+    assert data_y.shape == model_y.shape
+
+    # Test the fitted parameters
     # Read data
-    eff_param_list_copy, sub_runs, fit_costs, effective_param_values =\
+    eff_param_list, sub_runs, fit_costs, effective_param_values =\
         fit_engine.get_fitted_effective_params(True)
 
+    # Read data again for raw data
+    native_params = NATIVE_PEAK_PARAMETERS['Gaussian'][:]
+    native_params.extend(NATIVE_BACKGROUND_PARAMETERS['Linear'])
+    sub_runs2, fit_cost2, param_values = fit_engine.get_fitted_params(native_params, True)
 
     # Test
-    assert sub_runs.shape == (1, )
+    assert sub_runs.shape == (1, ) == sub_runs2.shape
+    assert np.allclose(fit_cost2, fit_costs, 0.0000001)
+
+    # Effective paramter list: ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
+    assert effective_param_values[0, 0, 0] == param_values[1, 0, 0]   # center
+
+    # fit goodness
+    assert fit_costs[0] < 0.5, 'Fit cost (chi2 = {}) is too large'.format(fit_costs[0])
+
+    # If everything is correct, optionally show the result
+    plt.show()
+
 
     return
 
