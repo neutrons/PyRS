@@ -271,15 +271,33 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         return self._peak_center_vec
 
     def get_calculated_peak(self, sub_run):
+        """Get the "model" peak, calculated from fitted parameters
+
+        Parameters
+        ----------
+        sub_run: int
+            sub run number
+
+        Returns
+        -------
+        ndarray, ndarray
+            vector X, vector Y
         """
-        get the model (calculated) peak of a certain scan
+        """
+
         :param sub_run:
         :return:
         """
         if self._model_matrix_ws is None:
             raise RuntimeError('There is no fitting result!')
 
-        checkdatatypes.check_int_variable('Scan log index', sub_run, (0, self._model_matrix_ws.getNumberHistograms()))
+        # Check sub run: just a positive integer
+        checkdatatypes.check_int_variable('Scan log index', sub_run, (0, None))
+
+        # Convert to workspace
+        #
+        raise NotImplementedError('Need a map from sub run to workspace indexes!!!')
+        ws_index = self._
 
         vec_x = self._model_matrix_ws.readX(sub_run)
         vec_y = self._model_matrix_ws.readY(sub_run)

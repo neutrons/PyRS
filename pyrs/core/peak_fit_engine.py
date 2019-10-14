@@ -178,15 +178,13 @@ class PeakFitEngine(object):
 
         return sub_runs_vec, fit_cost_vec, param_value_array
 
-    def get_fitted_effective_params(self, effective_params_list, including_error, max_chi2=1.E20):
+    def get_fitted_effective_params(self, including_error, max_chi2=1.E20):
         """
         Get the effective peak parameters including
         peak position, peak height, peak intensity, FWHM and Mixing
 
         Parameters
         ----------
-        effective_params_list: list of string
-            effective parameter names
         including_error: boolean
             returned will include fitting error
         max_chi2: float
@@ -194,7 +192,8 @@ class PeakFitEngine(object):
 
         Returns
         -------
-        ndarray, ndarray, ndarray
+        list, ndarray, ndarray, ndarray
+            list of string: effective parameter names
             (n,) for sub run numbers
             (n,) for fitting cost
             (p, n, 1) or (p, n, 2) for fitted parameters value,
@@ -206,15 +205,16 @@ class PeakFitEngine(object):
 
         # Get raw peak parameters
         param_name_list = converter.get_native_peak_param_names()
+        param_name_list.extend(converter.get_native_background_names())
         sub_run_array, fit_cost_array, param_value_array = self.get_fitted_params(param_name_list,
                                                                                   including_error,
                                                                                   max_chi2)
 
         # Convert
-        effective_param_value_array = converter.calculate_effective_parameters(effective_params_list,
-                                                                               param_value_array)
+        effective_params_list, effective_param_value_array =\
+            converter.calculate_effective_parameters(param_name_list, param_value_array)
 
-        return sub_run_array, fit_cost_array, effective_param_value_array
+        return effective_params_list, sub_run_array, fit_cost_array, effective_param_value_array
 
     def get_number_scans(self):
         """ Get number of scans in input data to fit
