@@ -227,7 +227,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
                      StartWorkspaceIndex=start_spectrum,
                      StopWorkspaceIndex=end_spectrum,
                      FindBackgroundSigma=1,
-                     HighBackground=False,
+                     HighBackground=True,
                      ConstrainPeakPositions=False,
                      PeakParameterNames=peak_param_names,
                      PeakParameterValues=peak_param_values,
