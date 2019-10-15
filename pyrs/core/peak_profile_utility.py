@@ -407,22 +407,27 @@ class PseudoVoigt(PeakParametersConverter):
         Float/ndarray
             Peak height fitting error
         """
+        # Define a factor
+        mixing_factor = np.sqrt(np.pi * np.log(2)) - 1
+        two_inv_pi = 2. / np.pi
+
         # FIXME - all the terms shall get SQUARED!
         # Partial derivative to intensity
         # partial h()/partial I = 2. * (1 + (np.sqrt(np.pi * np.log(2)) - 1) * mixing) / (np.pi * fwhm)
-        #                       = (2 * np.pi) * (1 + F1 * mixing) / fwhm
-        # ... ...
+        #                       = (2 / np.pi) * (1 + F1 * mixing) / fwhm
+        part_h_part_i = two_inv_pi * (1 + mixing_factor * mixing) / fwhm
 
         # Partial derivative to FWHM
         # partial h()/partial G = -2. * intensity * (1 + (np.sqrt(np.pi * np.log(2)) - 1) * mixing) / (np.pi * fwhm^2)
-        # ... ...
+        part_h_part_gamma = -two_inv_pi * intensity * (1 + mixing_factor * mixing) / fwhm**2
 
         # Partial derivative to Eta
         # partial h()/partial eta = 2 * I * ((pi * ln 2)^(1/2) - 1) / (pi * Gamma)
-        # ... ...
+        part_h_part_eta = two_inv_pi * intensity * mixing_factor / fwhm
 
         # sum
-        s_h2 = 1**2 + 2**2 + 3**2
+        s_h2 = (part_h_part_i * intensity_error)**2 + (part_h_part_gamma * fwhm_error)**2 \
+               + (part_h_part_eta * mixing_factor)**2
 
         return np.sqrt(s_h2)
 
@@ -468,6 +473,7 @@ class Voigt(PeakParametersConverter):
         eff_value_array = np.zeros(shape=(len(EFFECTIVE_PEAK_PARAMETERS), param_value_array.shape[1],
                                           param_value_array.shape[2]),
                                    dtype=float)
+        assert eff_value_array
 
         # Calculate effective parameters
         # ... ...
