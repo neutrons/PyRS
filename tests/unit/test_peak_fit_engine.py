@@ -50,7 +50,7 @@ def generate_test_pseudovoigt(vec_x, peak_center, peak_range):
     """
     # Set FWHM
     fwhm = peak_range / 6.
-    peak_intensity = 10.
+    peak_intensity = 100.
     mixing = 0.75  # more Gaussian than Lorentzian
 
     # calculate Gaussian
@@ -109,6 +109,7 @@ def generate_hydra_workspace(peak_profile_type):
         vec_y = generate_test_gaussian(vec_x, peak_center, peak_range)
     elif peak_profile_type.lower() == 'pseudovoigt':
         vec_y = generate_test_pseudovoigt(vec_x, peak_center, peak_range)
+        peak_range *= 2  # PV requires larger fitting range
     else:
         raise NotImplementedError('Peak profile {} is not supported to generate testing workspace')
 
@@ -128,7 +129,7 @@ def generate_hydra_workspace(peak_profile_type):
     return test_workspace, peak_center, (peak_center - peak_range, peak_center + peak_center)
 
 
-def passed_test_gaussian():
+def test_gaussian():
     """
     Test fitting single Gaussian peak with background
     Returns
@@ -177,7 +178,7 @@ def passed_test_gaussian():
     assert fit_costs[0] < 0.5, 'Fit cost (chi2 = {}) is too large'.format(fit_costs[0])
 
     # If everything is correct, optionally show the result
-    plt.show()
+    # plt.show()
 
     return
 
@@ -216,25 +217,29 @@ def test_pseudo_voigt():
         fit_engine.get_fitted_effective_params(True)
 
     # Read data again for raw data
-    native_params = NATIVE_PEAK_PARAMETERS['Gaussian'][:]
+    native_params = NATIVE_PEAK_PARAMETERS['PseudoVoigt'][:]
     native_params.extend(NATIVE_BACKGROUND_PARAMETERS['Linear'])
     sub_runs2, fit_cost2, param_values = fit_engine.get_fitted_params(native_params, True)
+    print('Ordered native parameters: {}'.format(native_params))
 
     # Test
     assert sub_runs.shape == (1, ) == sub_runs2.shape
     assert np.allclose(fit_cost2, fit_costs, 0.0000001)
 
-    # Effective paramter list: ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
-    assert effective_param_values[0, 0, 0] == param_values[1, 0, 0]   # center
+    # Effective parameter list: ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
+    # Native parameters: ['Mixing', 'Intensity', 'PeakCentre', 'FWHM', 'A0', 'A1']
+    assert effective_param_values[4, 0, 0] == param_values[0, 0, 0]  # mixing
+    assert effective_param_values[0, 0, 0] == param_values[2, 0, 0]  # center
+    assert effective_param_values[2, 0, 0] == param_values[1, 0, 0]  # intensity
 
     # fit goodness
     assert fit_costs[0] < 0.5, 'Fit cost (chi2 = {}) is too large'.format(fit_costs[0])
 
     # If everything is correct, optionally show the result
-    plt.show()
-
+    # plt.show()
 
     return
 
 if __name__ == '__main__':
     pytest.main()
+    plt.show()
