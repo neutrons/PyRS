@@ -124,6 +124,36 @@ class PeakFitEngine(object):
     @staticmethod
     def _fit_peaks_checks(sub_run_range, peak_function_name, background_function_name, peak_center, peak_range,
                           cal_center_d):
+        """Check parameters used to fit peaks
+
+        Parameters
+        ----------
+        sub_run_range : 2-tuple
+            range of sub runs including the last run specified
+        peak_function_name : str
+            name of peak function
+        background_function_name :
+            name of background function
+        peak_center: float or numpy ndarray
+            peak centers
+        peak_range:
+        cal_center_d : boolean
+            flag to calculate d-spacing of fitted peaks
+
+        Returns
+        -------
+        None
+        """
+        checkdatatypes.check_tuple('Sub run numbers range', sub_run_range, 2)
+        checkdatatypes.check_string_variable('Peak function name', peak_function_name,
+                                             allowed_values=['Gaussian', 'Voigt', 'PseudoVoigt', 'Lorentzian'])
+        checkdatatypes.check_string_variable('Background function name', background_function_name,
+                                             allowed_values=['Linear', 'Flat', 'Quadratic'])
+        checkdatatypes.check_bool_variable('Flag to calculate peak center in d-spacing', cal_center_d)
+        if not isinstance(peak_center, float or numpy.ndarray):
+            raise AssertionError('Peak center {} must be float or numpy array'.format(peak_center))
+        checkdatatypes.check_tuple('Peak range', peak_range, 2)
+
         return
 
     def get_calculated_peak(self, sub_run_number):
@@ -136,7 +166,7 @@ class PeakFitEngine(object):
     def get_fit_cost(self, max_chi2):
         raise NotImplementedError('This is virtual')
 
-    def _get_fitted_parameters_value(self, spectrum_index_vec, parameter_name_list, parameter_value_matrix):
+    def _get_fitted_parameters_value(self, spectrum_index_vec, parameter_name_list, param_value_array):
         raise NotImplementedError('This is virtual')
 
     def get_fitted_params(self, param_name_list, including_error, max_chi2=1.E20):
@@ -178,15 +208,13 @@ class PeakFitEngine(object):
 
         return sub_runs_vec, fit_cost_vec, param_value_array
 
-    def get_fitted_effective_params(self, effective_params_list, including_error, max_chi2=1.E20):
+    def get_fitted_effective_params(self, including_error, max_chi2=1.E20):
         """
         Get the effective peak parameters including
         peak position, peak height, peak intensity, FWHM and Mixing
 
         Parameters
         ----------
-        effective_params_list: list of string
-            effective parameter names
         including_error: boolean
             returned will include fitting error
         max_chi2: float
@@ -194,7 +222,8 @@ class PeakFitEngine(object):
 
         Returns
         -------
-        ndarray, ndarray, ndarray
+        list, ndarray, ndarray, ndarray
+            list of string: effective parameter names
             (n,) for sub run numbers
             (n,) for fitting cost
             (p, n, 1) or (p, n, 2) for fitted parameters value,
@@ -206,15 +235,16 @@ class PeakFitEngine(object):
 
         # Get raw peak parameters
         param_name_list = converter.get_native_peak_param_names()
+        param_name_list.extend(converter.get_native_background_names())
         sub_run_array, fit_cost_array, param_value_array = self.get_fitted_params(param_name_list,
                                                                                   including_error,
                                                                                   max_chi2)
 
         # Convert
-        effective_param_value_array = converter.calculate_effective_parameters(effective_params_list,
-                                                                               param_value_array)
+        effective_params_list, effective_param_value_array =\
+            converter.calculate_effective_parameters(param_name_list, param_value_array)
 
-        return sub_run_array, fit_cost_array, effective_param_value_array
+        return effective_params_list, sub_run_array, fit_cost_array, effective_param_value_array
 
     def get_number_scans(self):
         """ Get number of scans in input data to fit
