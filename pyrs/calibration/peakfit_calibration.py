@@ -90,7 +90,8 @@ class PeakFitCalibration(object):
             #reduced_data_set[i_tth] = [None] * num_reduced_set 
             # load instrument: as it changes
             pyrs_reducer = reduce_hb2b_pyrs.PyHB2BReduction(self._instrument, x[6] )
-            pyrs_reducer.build_instrument_prototype( -1.* self._engine.get_log_value( '2Theta' )[i_tth], x[0], x[1], x[2], x[3], x[4], x[5] )
+            pyrs_reducer.build_instrument_prototype( -1.* self._engine.get_log_value( '2Theta' )[i_tth], \
+                                                    self._instrument._arm_length, x[0], x[1], x[2], x[3], x[4], x[5] )
             pyrs_reducer._detector_counts = self._engine.get_raw_counts( i_tth )
 
             DetectorAngle   = self._engine.get_log_value( '2Theta' )[i_tth]
@@ -174,7 +175,7 @@ class PeakFitCalibration(object):
 
         return (residual)
 
-    def peak_alignment_wavelength(self, x, roi_vec_set=None  ):
+    def peak_alignment_wavelength(self, x ):
         """ Cost function for peaks alignment to determine wavelength
         :param x:
         :param engine:
@@ -186,8 +187,8 @@ class PeakFitCalibration(object):
         :return:
         """
 
-        self.check_alignment_inputs(roi_vec_set)
-
+        #self.check_alignment_inputs(roi_vec_set)
+        roi_vec_set     = None
         paramVec        = np.copy( self._calib )
         paramVec[6]     = x[0]
 
@@ -290,7 +291,7 @@ class PeakFitCalibration(object):
 
         out = least_squares(self.peak_alignment_wavelength, initalGuess, jac='2-point', bounds=([self._calib[6]-.05], [self._calib[6]+.05]), method='dogbox', \
                                 ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', f_scale=1.0, diff_step=None, tr_solver='exact', \
-                                tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0, args=( None ), kwargs={})
+                                tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0, args=( ), kwargs={})
 
         self.set_wavelength( out )
 
@@ -380,7 +381,7 @@ class PeakFitCalibration(object):
         self._calib[6] = out.x[0]
         self._calibstatus = out.status
 
-        J   = Final.jac
+        J   = out.jac
         cov = np.linalg.inv(J.T.dot(J))
         var = np.sqrt(np.diagonal(cov))
 

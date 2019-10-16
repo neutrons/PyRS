@@ -422,7 +422,7 @@ class PyHB2BReduction(object):
 
         return
 
-    def build_instrument_prototype(self, two_theta, arm_length_shift, center_shift_x, center_shift_y,
+    def build_instrument_prototype(self, two_theta, arm_length, arm_length_shift, center_shift_x, center_shift_y,
                                    rot_x_flip, rot_y_flip, rot_z_spin):
         """
         build an instrument
@@ -440,7 +440,8 @@ class PyHB2BReduction(object):
         calibration = instrument_geometry.AnglerCameraDetectorShift(
             arm_length_shift, center_shift_x, center_shift_y, rot_x_flip, rot_y_flip, rot_z_spin)
 
-        self._instrument.build_instrument(two_theta, instrument_calibration=calibration)
+        self._instrument.build_instrument(two_theta=two_theta, l2=arm_length,
+                                          instrument_calibration=calibration)
 
         return
 

@@ -1,5 +1,8 @@
 # Migrated from /HFIR/HB2B/shared/Quick_Calibration.py
 # Original can be found at ./Quick_Calibration_v3.py
+# Renamed from  ./prototypes/calibration/Quick_Calibration_Class.py
+
+import pytest
 print ('Prototype Calibration: Quick_Calibration_v4')
 import numpy as np
 import time
@@ -11,11 +14,10 @@ from pyrs.core import calibration_file_io
 from pyrs.utilities import rs_project_file
 
 
-
-def main():
+def test_main():
     # Set up
     # reduction engine
-    project_file_name = 'tests/testdata/HB2B_000000.hdf5' 
+    project_file_name = 'tests/testdata/HB2B_000.hdf5'
     engine = rs_project_file.HydraProjectFile(project_file_name,
                                                            mode=rs_project_file.HydraProjectFileMode.READONLY)
     
@@ -30,7 +32,7 @@ def main():
     HB2B        = instrument_geometry.AnglerCameraDetectorGeometry( instrument.detector_rows, instrument.detector_columns, instrument.pixel_size_x, instrument.pixel_size_y, instrument.arm_length, False )
 
     CalibrationObject = peakfit_calibration.PeakFitCalibration( HB2B, engine )
-    CalibrationObject.FullCalibration() 
+    CalibrationObject.CalibrateWavelength()
     CalibrationObject.write_calibration()
 
     t_stop = time.time()
@@ -39,4 +41,5 @@ def main():
 
     return
 
-main()
+if __name__ == '__main__':
+    pytest.main()
