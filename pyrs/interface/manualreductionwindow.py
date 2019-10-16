@@ -1,19 +1,17 @@
-try:
-    from PyQt5.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout
-    from PyQt5.uic import loadUi as load_ui
-except ImportError:
-    from PyQt4.QtGui import QMainWindow, QFileDialog, QVBoxLayout
-    from PyQt4.uic import loadUi as load_ui
+from qtpy.QtWidgets import QMainWindow, QVBoxLayout
+from pyrs.utilities import load_ui
+
 from pyrs.core.pyrscore import PyRsCore
-from pyrs.core import calibration_file_io
+from pyrs.utilities import calibration_file_io
 from ui.diffdataviews import DetectorView, GeneralDiffDataView
 import os
 import gui_helper
-import numpy
 from pyrs.utilities import checkdatatypes
+from pyrs.utilities.rs_project_file import HidraConstants
+from pyrs.interface.ui import rstables
 
 
-# TODO LIST - #72 - 1. UI: change segments to masks
+# TODO LIST - #84 - 1. UI: change segments to masks
 # TODO              2. UI: add solid angle input
 # TODO              3. UI: add option to use reduced data from input project file
 # TODO              4. Implement plot method for reduced data
@@ -24,6 +22,7 @@ class ManualReductionWindow(QMainWindow):
     """
     GUI window for user to fit peaks
     """
+
     def __init__(self, parent):
         """
         initialization
@@ -35,9 +34,10 @@ class ManualReductionWindow(QMainWindow):
         self._core = None
         self._currIPTSNumber = None
         self._currExpNumber = None
-        self._project_data_id = None
+        self._hydra_workspace = None  # HiDRA worksapce instance if any file loaded
+        self._project_data_id = None  # Project name for reference (str)
+        self._project_file_name = None   # last loaded project file
         self._output_dir = None
-        self._curr_project_name = None   # last loaded project file
 
         # mutexes
         self._plot_run_numbers_mutex = False
@@ -51,7 +51,7 @@ class ManualReductionWindow(QMainWindow):
         self._promote_widgets()
 
         # set up the event handling
-        self.ui.pushButton_setIPTSNumber.clicked.connect(self.do_set_ipts_exp)
+        self.ui.pushButton_loadProjectFile.clicked.connect(self.do_load_hidra_projec_file)
         self.ui.pushButton_browseOutputDir.clicked.connect(self.do_browse_output_dir)
         self.ui.pushButton_setCalibrationFile.clicked.connect(self.do_browse_calibration_file)
 
@@ -62,12 +62,14 @@ class ManualReductionWindow(QMainWindow):
         self.ui.pushButton_chopReduce.clicked.connect(self.do_chop_reduce_run)
 
         self.ui.pushButton_launchAdvSetupWindow.clicked.connect(self.do_launch_slice_setup)
-        self.ui.pushButton_plotDetView.clicked.connect(self.do_plot_det_counts)
+        self.ui.pushButton_plotDetView.clicked.connect(self.do_plot)
 
         # radio button operation
         self.ui.radioButton_chopByTime.toggled.connect(self.event_change_slice_type)
         self.ui.radioButton_chopByLogValue.toggled.connect(self.event_change_slice_type)
         self.ui.radioButton_chopAdvanced.toggled.connect(self.event_change_slice_type)
+
+        self.ui.actionQuit.triggered.connect(self.do_quit)
 
         # event handling for combobox
         # self.ui.comboBox_sub_runs.currentIndexChanged.connect(self.event_new_run_to_plot)
@@ -78,6 +80,9 @@ class ManualReductionWindow(QMainWindow):
 
         # TODO - ASAP - Load Instrument
         # actionLoad_Instrument
+
+        # Child windows
+        self._slice_setup_window = None
 
         # menu operation
         self.ui.actionLoad_Image.triggered.connect(self.event_load_image)
@@ -97,7 +102,11 @@ class ManualReductionWindow(QMainWindow):
         init setup widgets
         :return:
         """
+        # Event slicer type is set to log value as default
         self.ui.radioButton_chopByLogValue.setChecked(True)
+
+        # Set up data table
+        self.ui.rawDataTable.setup()
 
         return
 
@@ -117,6 +126,10 @@ class ManualReductionWindow(QMainWindow):
         self.ui.frame_detectorView.setLayout(curr_layout)
         self.ui.graphicsView_detectorView = DetectorView(self)
         curr_layout.addWidget(self.ui.graphicsView_detectorView)
+
+        # Sub run information table
+        self.ui.rawDataTable = rstables.RawDataTable(self)
+        gui_helper.promote_widget(self.ui.frame_subRunInfoTable, self.ui.rawDataTable)
 
         return
 
@@ -214,11 +227,16 @@ class ManualReductionWindow(QMainWindow):
         return
 
     def do_launch_slice_setup(self):
-        # TODO - 20181009 - Need to refine
-        import slicersetupwindow
-        self._slice_setup_window = slicersetupwindow.EventSlicerSetupWindow(self)
-        self._slice_setup_window.show()
-        return
+        """Launch event slicing setup dialog
+
+        Returns
+        -------
+        None
+        """
+        # from pyrs.interface import slicersetupwindow
+        # self._slice_setup_window = slicersetupwindow.EventSlicerSetupWindow(self)
+        # self._slice_setup_window.show()
+        raise NotImplementedError('Slicer setup window has not implemented.')
 
     def do_load_project_h5(self):
         """ Load project file in HDF5 format
@@ -229,60 +247,61 @@ class ManualReductionWindow(QMainWindow):
                                                  save_file=False)
 
         try:
-            # TODO FIXME - #72 - Error!
-            data_handler = self._core.reduction_manager.load_hidra_project(project_h5_name, blabla)
+            self.load_hydra_file(project_h5_name)
         except RuntimeError as run_err:
             gui_helper.pop_message(self, 'Failed to load project file {}: {}'.format(project_h5_name, run_err),
                                    None, 'error')
         else:
-            print ('Loaded {} to {}'.format(project_h5_name, data_handler))
-
-            # populate the sub-runs
-            self._set_sub_runs(data_handler)
-            self._project_data_id = data_handler
-            self._curr_project_name = project_h5_name
+            print('Loaded {} to {}'.format(project_h5_name, self._project_data_id))
         # END-TRY-EXCEPT
 
         return
 
-    def do_plot_det_counts(self):
-        """ Plot detector counts as 2D detector view view
+    def do_plot(self):
+        """ Plot detector counts as 2D detector view view OR reduced data according to the tab that is current on
         :return:
         """
-        # FIXME - Need to separate these 2 plotting method: detector view vs reduced data
-        # plot detector view
+        print('[DB...BAT] Plotting tab index = {}'.format(self.ui.tabWidget_View.currentIndex()))
+
+        current_tab_index = self.ui.tabWidget_View.currentIndex()
         sub_run = int(self.ui.comboBox_sub_runs.currentText())
-        count_vec = self._core.reduction_manager.get_sub_run_detector_counts(self._project_data_id, sub_run)
-        two_theta = self._core.reduction_manager.get_sub_run_2theta(self._project_data_id, sub_run)
 
-        # set information
-        info = 'Sub-run: {}, 2theta = {}, Det size = {}'.format(sub_run, two_theta, count_vec.shape[0])
-        self.ui.lineEdit_detViewInfo.setText(info)
-
-        # plot
-        self.ui.graphicsView_detectorView.plot_counts(count_vec)
-
-        # plot reduced data
-        # TODO CHECK - #72 - API???
-        vec_x, vec_y = self._core.reduction_manager.get_diffraction_pattern(self._project_data_id,
-                                                                            sub_run)
-        if vec_x is not None:
-            self.ui.graphicsView_1DPlot.plot_diffraction(vec_x, vec_y, '2theta', 'intensity', False)
+        if current_tab_index == 0:
+            # raw view
+            self.plot_detector_counts(sub_run, mask_id=None)
+        elif current_tab_index == 1:
+            # reduced view
+            self.plot_reduced_data(sub_run, mask_id=None)
+        else:
+            raise NotImplementedError('Tab {} with index {} is not defined'
+                                      ''.format(self.ui.tabWidget_View.name(), current_tab_index))
 
         return
 
-    def _set_sub_runs(self, data_id):
+    def _set_sub_runs(self):
         """ set the sub runs to comboBox_sub_runs
-        :param data_id:
         :return:
         """
-        sub_runs = self._core.reduction_manager.get_sub_runs(data_id)
+        # sub_runs = self._core.reduction_manager.get_sub_runs(data_id)
+        #
+        # self.ui.comboBox_sub_runs.clear()
+        # for sub_run in sorted(sub_runs):
+        #     self.ui.comboBox_sub_runs.addItem('{:04}'.format(sub_run))
+        #
+        #
+        # """
+        # """
+        # #
+        sub_runs = self._core.reduction_manager.get_sub_runs(self._project_data_id)
+        sub_runs.sort()
 
+        # set sub runs: lock and release
+        self._mutexPlotRuns = True
+        # clear and set
         self.ui.comboBox_sub_runs.clear()
-        for sub_run in sorted(sub_runs):
+        for sub_run in sub_runs:
             self.ui.comboBox_sub_runs.addItem('{:04}'.format(sub_run))
-
-        self.ui.comboBox_sub_runs.setCurrentIndex(0)
+        self._mutexPlotRuns = False
 
         return
 
@@ -341,17 +360,19 @@ class ManualReductionWindow(QMainWindow):
 
         return
 
-    def _plot_data(self):
-        """
+    def do_quit(self):
+        """Quit manual reduction window
 
-        :return:
+        Returns
+        -------
+        None
         """
-        print ('[WARNING] Not Implemented')
-        # TODO - 20181006 - Implement ASAP
+        # Close child windows if exists
+        if self._slice_setup_window:
+            self._slice_setup_window.close()
 
-        # self.ui.comboBox_plotSelection
-        #
-        # self.ui.graphicsView_1DPlot.plot_
+        # This window
+        self.close()
 
         return
 
@@ -373,28 +394,18 @@ class ManualReductionWindow(QMainWindow):
                 return
         # END-IF-ELSE
 
-        # form a message
-        message = 'Reduced.... \n'
-        for sub_run_number in sub_run_list:
-            tth_i = self._core.reduction_manager.get_sub_run_2theta(self._project_data_id, sub_run_number)
-            try:
-                self._core.reduction_manager.reduce_to_2theta_histogram(data_id=self._project_data_id,
-                                                                        sub_run=sub_run_number,
-                                                                        two_theta=tth_i,
-                                                                        use_mantid_engine=False,
-                                                                        mask=None)
-            except RuntimeError as run_err:
-                message += 'Sub-run: {}... Failed: {}\n'.format(sub_run_number, run_err)
-            else:
-                message += 'Sub-run: {}\n'.format(sub_run_number)
+        # Reduce data
+        # TODO FIXME - Urgent - Mask and calibration is not implemented at all!
+        self._core.reduction_manager.reduce_diffraction_data(self._project_data_id,
+                                                             apply_calibrated_geometry=None,
+                                                             bin_size_2theta=0.05,
+                                                             use_pyrs_engine=True,
+                                                             mask=None,
+                                                             sub_run_list=sub_run_list)
 
-            """ This is for future IPTS/Run system
-            message += 'Sub-run: {}\n'.format(self._currIPTSNumber, run_number,
-                                              '/HFIR/HB2B/IPTS-{}/nexus/HB2B_{}.nxs.h5'
-                                              ''.format(self._currIPTSNumber, run_number))
-            """
-        # END-FOR
-        self.ui.plainTextEdit_message.setPlainText(message)
+        # Update table
+        for sub_run in sub_run_list:
+            self.ui.rawDataTable.update_reduction_state(sub_run, True)
 
         return
 
@@ -402,14 +413,14 @@ class ManualReductionWindow(QMainWindow):
         """Save project
         :return:
         """
-        output_project_name = os.path.join(self._output_dir, os.path.basename(self._curr_project_name))
-        if output_project_name != self._curr_project_name:
+        output_project_name = os.path.join(self._output_dir, os.path.basename(self._project_file_name))
+        if output_project_name != self._project_file_name:
             import shutil
-            shutil.copyfile(self._curr_project_name, output_project_name)
+            shutil.copyfile(self._project_file_name, output_project_name)
 
         self._core.reduction_manager.save_project(self._project_data_id, output_project_name)
 
-    def do_set_ipts_exp(self):
+    def do_load_hidra_projec_file(self):
         """
         set IPTS number
         :return:
@@ -419,17 +430,23 @@ class ManualReductionWindow(QMainWindow):
             exp_number = gui_helper.parse_integer(str(self.ui.lineEdit_expNumber.text()))
             self._currIPTSNumber = ipts_number
             self._currExpNumber = exp_number
-            self._core.reduction_manager.set_ipts_exp_number(ipts_number, exp_number)
+            project_file_name = 'blabla.hdf5'
         except RuntimeError:
             gui_helper.pop_message(self, 'IPTS number shall be set to an integer.', message_type='error')
+            project_file_name = gui_helper.browse_file(
+                self, 'Hidra Project File', os.getcwd(), 'hdf5 (*.hdf5)', False, False)
+
+        self.load_hydra_file(project_file_name)
 
         return
 
     def event_change_slice_type(self):
-        """ Handle the event as the event slicing type is changed
-        :return:
+        """Handle the event as the event slicing type is changed
+
+        Returns
+        -------
+        None
         """
-        # TODO - ASAP - Clean
         # TODO - ASAP - Set default radio button
         disable_time_slice = True
         disable_value_slice = True
@@ -442,6 +459,9 @@ class ManualReductionWindow(QMainWindow):
             disable_value_slice = False
         else:
             disable_adv_slice = False
+
+        print('[DEBUG] Event filtering mode: Time slicer = {}, Value slicer = {}, Adv. Slicer = {}'
+              ''.format(not disable_time_slice, not disable_value_slice, not disable_adv_slice))
 
         # enable/disable group
         # FIXME TODO - ASAP - use setTabEnabled(index, false)
@@ -456,6 +476,8 @@ class ManualReductionWindow(QMainWindow):
         Load image binary file (as HFIR SPICE binary standard)
         :return:
         """
+        gui_helper.pop_message(self, 'Tell me', 'What do you want from me!', 'error')
+
         bin_file = gui_helper.browse_file(self, caption='Select a SPICE Image Binary File',
                                           default_dir=self._core.working_dir,
                                           file_filter='Binary (*.bin)', file_list=False, save_file=False)
@@ -463,17 +485,6 @@ class ManualReductionWindow(QMainWindow):
         # return if user cancels operation
         if bin_file == '':
             return
-
-        print ('[DB...BAT] Select {} to load: ... '.format(bin_file))
-
-        # TODO - ASAP - Move the following to correct place
-        import mantid
-
-        # bin_file_name = '/home/wzz/Projects/PyRS/tests/testdata/LaB6_10kev_35deg-00004_Rotated.bin'
-
-        ws_name = 'testws'
-
-        LoadSpiceXML2DDet(Filename=bin_file_name, OutputWorkspace=ws_name, LoadInstrument=False)
 
         return
 
@@ -512,6 +523,132 @@ class ManualReductionWindow(QMainWindow):
 
         self._plot_sliced_mutex = False
 
+        return
+
+    def load_hydra_file(self, project_file_name):
+        """
+        Load Hidra project file to the core
+        :param project_file_name:
+        :return:
+        """
+        # Load data file
+        project_name = os.path.basename(project_file_name).split('.')[0]
+        try:
+            self._hydra_workspace = self._core.load_hidra_project(project_file_name, project_name=project_name,
+                                                                  load_detector_counts=True, load_diffraction=True)
+        except (RuntimeError, IOError) as load_err:
+            self._hydra_workspace = None
+            gui_helper.pop_message(self, 'Loading {} failed'.format(project_file_name),
+                                   detailed_message='{}'.format(load_err),
+                                   message_type='error')
+            return
+
+        # Set value for the loaded project
+        self._project_file_name = project_file_name
+        self._project_data_id = project_name
+
+        # Fill sub runs to self.ui.comboBox_sub_runs
+        self._set_sub_runs()
+
+        # Set to first sub run and plot
+        self.ui.comboBox_sub_runs.setCurrentIndex(0)
+
+        # Fill in self.ui.frame_subRunInfoTable
+        meta_data_array = self._core.reduction_manager.get_sample_logs_values(self._project_data_id,
+                                                                              [HidraConstants.SUB_RUNS,
+                                                                               HidraConstants.TWO_THETA])
+        self.ui.rawDataTable.add_subruns_info(meta_data_array, clear_table=True)
+
+        return
+
+    def plot_detector_counts(self, sub_run_number, mask_id):
+        """
+        Plot detector counts on the detector view
+        :param sub_run_number:  sub run number (integer)
+        :param mask_id: Mask ID (string) or None
+        :return:
+        """
+        # Check inputs
+        checkdatatypes.check_int_variable('Sub run number', sub_run_number, (0, None))
+
+        # Get the detector counts
+        detector_counts_array = self._core.reduction_manager.get_detector_counts(self._project_data_id,
+                                                                                 sub_run_number)
+
+        # set information
+        det_2theta_dict = self._core.reduction_manager.get_sample_logs_values(self._project_data_id,
+                                                                              [HidraConstants.TWO_THETA])[0]
+        det_2theta = det_2theta_dict[sub_run_number]
+        info = 'sub-run: {}, 2theta = {}' \
+               ''.format(sub_run_number, det_2theta)
+
+        # If mask ID is not None
+        if mask_id is not None:
+            # Get mask in array and do a AND operation to detector counts (array)
+            mask_array = self._core.reduction_manager.get_mask_array(self._curr_project_name, mask_id)
+            detector_counts_array *= mask_array
+            info += ', mask ID = {}'.format(mask_id)
+
+        # Set information
+        self.ui.lineEdit_detViewInfo.setText(info)
+
+        # Plot
+        self.ui.graphicsView_detectorView.plot_detector_view(detector_counts_array, (sub_run_number, mask_id))
+
+        return
+
+    def plot_reduced_data(self, sub_run_number, mask_id):
+        """
+        Plot reduced data
+        :param sub_run_number: sub run number (integer)
+        :param mask_id: Mask ID (string) or None
+        :return:
+        """
+        # Check inputs
+        checkdatatypes.check_int_variable('Sub run number', sub_run_number, (0, None))
+
+        try:
+            two_theta_array, diff_array = self._core.reduction_manager.get_reduced_diffraction_data(
+                self._project_data_id, sub_run_number, mask_id)
+            if two_theta_array is None:
+                raise NotImplementedError('2theta array is not supposed to be None.')
+        except RuntimeError as run_err:
+            gui_helper.pop_message(self, 'Unable to retrieve reduced data',
+                                   'For sub run {} due to {}'.format(sub_run_number, run_err),
+                                   'error')
+            return
+
+        # set information
+        det_2theta = self._core.reduction_manager.get_sample_logs_values(self._project_data_id,
+                                                                         [HidraConstants.TWO_THETA])
+        det_2theta = det_2theta[0][sub_run_number]
+        info = 'sub-run: {}, 2theta = {}' \
+               ''.format(sub_run_number, det_2theta)
+
+        # plot diffraction data
+        # TODO - #84 - Add 'info' to plot!
+        self.ui.graphicsView_1DPlot.plot_diffraction(two_theta_array, diff_array, '2theta',
+                                                     'intensity', line_label=info, keep_prev=False)
+
+        return
+
+    def reduce_sub_runs(self, sub_runs):
+        """
+
+        :param sub_runs:
+        :return:
+        """
+        # TODO - #84 - Need mask, calibration, and etc.
+
+        self._core.reduce_diffraction_data(session_name=self._project_data_id,
+                                           two_theta_step=0.1,
+                                           pyrs_engine=True,
+                                           mask_file_name=None,
+                                           geometry_calibration=None,
+                                           sub_run_list=sub_runs)
+
+        return
+
     def setup_window(self, pyrs_core):
         """
         set up the manual reduction window from its parent
@@ -525,4 +662,3 @@ class ManualReductionWindow(QMainWindow):
         self._core = pyrs_core
 
         return
-

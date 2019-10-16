@@ -1,13 +1,9 @@
-try:
-    from PyQt5.QtWidgets import QMainWindow, QFileDialog
-    from PyQt5.uic import loadUi as load_ui
-except ImportError:
-    from PyQt4.QtGui import QMainWindow, QFileDialog
-    from PyQt4.uic import loadUi as load_ui
+from qtpy.QtWidgets import QMainWindow, QFileDialog
+from pyrs.utilities import load_ui
+
 from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.rstables import PoleFigureTable
 from pyrs.interface.ui.diffdataviews import PeakFitSetupView, GeneralDiffDataView, Diffraction2DPlot
-from pyrs.utilities import checkdatatypes
 import pyrs.core.pyrscore
 import os
 import gui_helper
@@ -19,6 +15,7 @@ class TextureAnalysisWindow(QMainWindow):
     """
     GUI window for texture analysis
     """
+
     def __init__(self, parent):
         """
         initialization
@@ -126,14 +123,14 @@ class TextureAnalysisWindow(QMainWindow):
         """
         try:
             ipts_number = gui_helper.parse_integer(self.ui.lineEdit_iptsNumber)
-            exp_number = gui_helper.parse_integer(self.ui.lineEdit_expNumber)
+            run_number = gui_helper.parse_integer(self.ui.lineEdit_expNumber)
         except RuntimeError as run_err:
             gui_helper.pop_message(self, 'Unable to parse IPTS or Exp due to {0}'.format(run_err))
             return None
 
         # TODO - NEED TO FIND OUT HOW TO DEFINE hdf FROM IPTS and EXP
 
-        return '/HFIR/HB2B/'
+        return '/HFIR/HB2B/IPTS-{}/shared/reduced/HB2B_{}.hdf'.format(ipts_number, run_number)
 
     def do_cal_pole_figure(self):
         """
@@ -224,12 +221,13 @@ class TextureAnalysisWindow(QMainWindow):
         new_file_list = list()
         # TODO FIXME - 20180930 - count number of files loaded successfully and unsuccessfullly and decided
         # TODO                    fail or go on!
+        error_msg = ''
         for ifile, file_name in enumerate(hdf_name_list):
             try:
                 det_id = int(file_name.split('[')[1].split(']')[0])
             except IndexError as err:
-                # TODO - error message!
-                pass
+                error_msg += 'Unable to retrieve detector ID from file {} due to {}\n' \
+                             ''.format(file_name, err)
             else:
                 new_file_list.append((det_id, str(file_name)))
         # END-FOR
@@ -237,6 +235,10 @@ class TextureAnalysisWindow(QMainWindow):
         # auto load
         if self.ui.checkBox_autoLoad.isChecked():
             self.load_h5_scans(new_file_list)
+
+        # Error message
+        if error_msg != '':
+            gui_helper.pop_message(self, 'Loading error', error_msg, 'error')
 
         return
 
@@ -279,8 +281,8 @@ class TextureAnalysisWindow(QMainWindow):
             self.ui.comboBox_detectorID.addItem(str(det_id))
 
         # get the sample logs
-        sample_log_names = self._core.data_center.get_sample_logs_list((data_key, det_id_list[0]),
-                                                                       can_plot=True)
+        sample_log_names = self._core.data_center.get_sample_logs_names((data_key, det_id_list[0]),
+                                                                        can_plot=True)
 
         self._sample_log_names_mutex = True
         self.ui.comboBox_xaxisNames.clear()
@@ -332,11 +334,11 @@ class TextureAnalysisWindow(QMainWindow):
 
         # get fit range
         fit_range = self.ui.graphicsView_fitSetup.get_x_limit()
-        print ('[DB...BAT] Fit range: {0}'.format(fit_range))
+        print('[DB...BAT] Fit range: {0}'.format(fit_range))
 
         # call the core's method to fit peaks
         det_id_list = self._core.get_detector_ids(data_key)
-        print ('[INFO] Detector ID list: {0}'.format(det_id_list))
+        print('[INFO] Detector ID list: {0}'.format(det_id_list))
         for det_id in det_id_list:
             self._core.fit_peaks((data_key, det_id), scan_log_index,
                                  peak_function, bkgd_function, fit_range)
@@ -376,8 +378,8 @@ class TextureAnalysisWindow(QMainWindow):
                 chi2_i = chi2_dict[det_id][scan_log_index]
                 self.ui.tableView_poleFigureParams.set_intensity(row_index, intensity_i, chi2_i)
             except IndexError as index_error:
-                print (intensity_dict[det_id])
-                print (chi2_dict[det_id])
+                print(intensity_dict[det_id])
+                print(chi2_dict[det_id])
                 raise RuntimeError('Unable to get intensity/chi2 of detector {} scan log index {} due to {}'
                                    ''.format(det_id, scan_log_index, index_error))
 
@@ -474,7 +476,7 @@ class TextureAnalysisWindow(QMainWindow):
         # plot
         if isinstance(vec_x, tuple):
             # TODO - 20180820 - It is tricky to have selected log indexed X
-            print ('[CRITICAL/ERROR] Not Implemented Yet! Contact Developer!')
+            print('[CRITICAL/ERROR] Not Implemented Yet! Contact Developer!')
         elif isinstance(vec_y, tuple):
             # log indexes:
             vec_x, vec_y = vec_y
@@ -552,7 +554,7 @@ class TextureAnalysisWindow(QMainWindow):
 
         if isinstance(nxs_file_name_set, tuple):
             nxs_file_name = str(nxs_file_name_set[0])
-            print ('[DB...BAT] Filter: {0}'.format(nxs_file_name_set[1]))
+            print('[DB...BAT] Filter: {0}'.format(nxs_file_name_set[1]))
         else:
             nxs_file_name = str(nxs_file_name_set)
 
@@ -590,10 +592,6 @@ class TextureAnalysisWindow(QMainWindow):
 
         self.ui.graphicsView_contour.plot_pole_figure(vec_alpha, vec_beta, vec_intensity)
 
-
-
-
-
         return
 
     def do_quit(self):
@@ -622,7 +620,7 @@ class TextureAnalysisWindow(QMainWindow):
             # re-plot
             self.do_plot_diff_data()
         except ValueError:
-            print ('[WARNING] Current value {0} cannot be forwarded'.format(self.ui.lineEdit_scanNumbers.text()))
+            print('[WARNING] Current value {0} cannot be forwarded'.format(self.ui.lineEdit_scanNumbers.text()))
 
         return
 
@@ -643,7 +641,7 @@ class TextureAnalysisWindow(QMainWindow):
             # re-plot
             self.do_plot_diff_data()
         except ValueError:
-            print ('[WARNING] Current value {0} cannot be moved backward'.format(self.ui.lineEdit_scanNumbers.text()))
+            print('[WARNING] Current value {0} cannot be moved backward'.format(self.ui.lineEdit_scanNumbers.text()))
 
         return
 

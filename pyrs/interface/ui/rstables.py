@@ -1,6 +1,7 @@
 # Module containing extended TableWidgets for PyRS project
 import NTableWidget
 from pyrs.utilities import checkdatatypes
+import numpy
 
 
 class FitResultTable(NTableWidget.NTableWidget):
@@ -60,7 +61,7 @@ class FitResultTable(NTableWidget.NTableWidget):
 
     def reset_table(self, peak_param_names):
         """ Reset table. Parameters other than peak fitting will be handled by setup()
-        :param peak_param_names:
+        :param peak_param_names: List of peak parameters names
         :return:
         """
         # Completely clear the previously written table
@@ -82,63 +83,93 @@ class FitResultTable(NTableWidget.NTableWidget):
         # create table columns dynamically
         self.TableSetupList = list()
 
-        self.TableSetupList.append(('sub-run', 'int'))
+        # self.TableSetupList.append(('sub-run', 'int'))
         for param_name in peak_param_names:
             self.TableSetupList.append((param_name, 'float'))
-        self.TableSetupList.append(('C.O.M', 'float'))
+        # self.TableSetupList.append(('C.O.M', 'float'))
         self.TableSetupList.append(('Profile', 'string'))
 
         self._column_names = [item[0] for item in self.TableSetupList]
 
         # reset table
         self.init_setup(self.TableSetupList)
+        print('[DB...BAT] Init setup table columns: {}'.format(self.TableSetupList))
 
         # # Set up column width
         self.setColumnWidth(0, 60)
-        for col_index in range(1, len(self._column_names)-1):
+        for col_index in range(1, len(self._column_names) - 1):
             self.setColumnWidth(col_index, 80)
-        self.setColumnWidth(len(self._column_names)-1, 120)
+        self.setColumnWidth(len(self._column_names) - 1, 120)
 
         # Set up the column index for start, stop and select
-        self._colIndexIndex = self.TableSetupList.index(('sub-run', 'int'))
-        self._colIndexCoM = self.TableSetupList.index(('C.O.M', 'float'))
-        self._colIndexProfile = self.TableSetupList.index(('Profile', 'string'))
+        # self._colIndexIndex = self.TableSetupList.index(('sub-runs', 'int'))
+        # self._colIndexCoM = self.TableSetupList.index(('C.O.M', 'float'))
+        # self._colIndexProfile = self.TableSetupList.index(('Profile', 'string'))
 
         return
 
-    def set_fit_summary(self, row_number, param_dict, write_error=False):
+    def set_fit_summary(self, row_number, ordered_param_list, param_dict, write_error=False,
+                        peak_profile='not set'):
         """
-        Set the fitting summary
-        :param row_number: row number
-        :param param_dict:
-        :return:
-        """
-        import numpy
 
+        Parameters
+        ----------
+        row_number: int
+            row number
+        ordered_param_list:
+        param_dict
+        write_error
+        peak_profile
+
+        Returns
+        -------
+
+        """
+        """
+        Set the fitting result, i.e., peak parameters' value to a row
+        :param row_number:
+        :param ordered_param_list: parameters names list with the same order as table columns
+        :param param_dict: dictionary containing peak parameter values
+        :param write_error: Flag to write out error or value
+        """
+        # Init list to append
         this_value_list = list()
-        for column_item in self._column_names:
-            if column_item in param_dict:
-                value_i = param_dict[column_item][row_number]
-                if isinstance(value_i, numpy.ndarray):
-                    if write_error and value_i.shape[0] > 1:
-                        value_i = value_i[1]
-                    else:
-                        value_i = value_i[0]
-                # END-IF in case of numpy array
-                this_value_list.append(value_i)
-            else:
-                this_value_list.append(None)
+
+        # Set values
+        for param_name in ordered_param_list:
+            # Get numpy array of this parameter
+            param_value_vec = param_dict[param_name]
+            assert isinstance(param_value_vec, numpy.ndarray), 'Parameter value must be given by array'
+            # Get value
+            value_i = param_dict[param_name][row_number]
+            # value_i can be float or numpy array
+            if isinstance(value_i, numpy.ndarray):
+                if write_error and value_i.shape[0] > 1:
+                    # Output is the error
+                    value_i = value_i[1]
+                else:
+                    # Output is the value
+                    value_i = value_i[0]
+            # END-IF in case of numpy array
+
+            this_value_list.append(value_i)
         # END-FOR
+
+        # Last: peak profile
+        this_value_list.append(peak_profile)
 
         if row_number < self.rowCount():
             for col_num, item_value in enumerate(this_value_list):
                 if item_value is not None:
                     try:
                         self.update_cell_value(row_number, col_num, item_value)
-                    except TypeError as type_err:
-                        print ('Cell @ {}, {} of value {} cannot be updated'.format(row_number, col_num, item_value))
+                    except TypeError:
+                        print('Cell @ {}, {} of value {} cannot be updated'.format(row_number, col_num, item_value))
         else:
-            self.append_row(row_value_list=this_value_list)
+            status, err_msg = self.append_row(row_value_list=this_value_list)
+            if not status:
+                print('[ERROR] {}'.format(err_msg))
+        # END-IF-ELSE
 
         return
 
@@ -178,7 +209,8 @@ class FitResultTable(NTableWidget.NTableWidget):
 class GridsStatisticsTable(NTableWidget.NTableWidget):
     """ Table for grid statistics
     """
-    TableSetupList = [('Item', 'str'),   # include min x, max x, num x, avg resolution x, ... (for y) .. (for z)... # data points
+    # include min x, max x, num x, avg resolution x, ... (for y) .. (for z)... # data points
+    TableSetupList = [('Item', 'str'),
                       ('e11', 'float'),
                       ('e22', 'float'),
                       ('e33', 'float')]
@@ -702,6 +734,100 @@ class PoleFigureTable(NTableWidget.NTableWidget):
 
         return
 # END-DEF-CLASS()
+
+
+class RawDataTable(NTableWidget.NTableWidget):
+    """
+    A table to contain raw data information to review for reduction
+    """
+    TableSetupList = [('sub-run', 'int'),
+                      ('2theta', 'float'),
+                      ('reduced', 'bool')]
+
+    def __init__(self, parent):
+        """ Initialization
+        :param parent:
+        """
+        super(RawDataTable, self).__init__(parent)
+
+        # Dictionary to hold some information
+        self._sub_run_row_map = dict()  # [sub run] = row number
+
+        return
+
+    def add_subruns_info(self, meta_data_array, clear_table=True):
+        """Add information of sub runs to the table
+
+        Parameters
+        ----------
+        meta_data_array
+        clear_table: boolean
+            Flag to clear the table before adding rows
+
+        Returns
+        -------
+
+        """
+        if clear_table:
+            self.remove_all_rows()
+
+        # Get sub runs
+        num_sub_runs = len(meta_data_array[0])
+
+        for row in range(num_sub_runs):
+            sub_run_i = meta_data_array[0][row]
+            two_theta_i = meta_data_array[1][sub_run_i]
+            self._add_raw_sub_run(sub_run_i, two_theta_i)
+        # END-FOR
+
+        return
+
+    def _add_raw_sub_run(self, sub_run_number, two_theta):
+        """
+        Add raw data for one sub run
+        :param sub_run_number:
+        :param two_theta:
+        :return:
+        """
+        success, error_msg = self.append_row([sub_run_number, two_theta, False])
+        if success:
+            # register
+            row_number = self.rowCount() - 1
+            self._sub_run_row_map[sub_run_number] = row_number
+        else:
+            print('[ERROR] Unable to append row due to {}'.format(error_msg))
+
+        return
+
+    def setup(self):
+        """
+        Init setup
+        :return:
+        """
+        self.init_setup(self.TableSetupList)
+
+        return
+
+    def update_reduction_state(self, sub_run_index, reduced):
+        """Update a sub run's reduction state
+
+        Parameters
+        ----------
+        sub_run_index: integer
+            sub run index
+        reduced: boolean
+            status
+
+        Returns
+        -------
+        None
+        """
+        if sub_run_index not in self._sub_run_row_map:
+            raise RuntimeError('Sub run {} has never been added to table'.format(sub_run_index))
+        # Update
+        self.update_cell_value(self._sub_run_row_map[sub_run_index], 2, reduced)
+
+        return
 
 
 class StrainStressValueTable(NTableWidget.NTableWidget):

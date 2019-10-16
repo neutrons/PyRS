@@ -8,14 +8,9 @@ import os
 import numpy
 import ManualSlicerSetupDialog
 
-try:
-    from PyQt5 import QtCore as QtCore
-    from PyQt5.QtWidgets import QMainWindow, QButtonGroup, QFileDialog
-    from PyQt5.uic import loadUi as load_ui
-except ImportError:
-    from PyQt4 import QtCore as QtCore
-    from PyQt4.QtGui import QMainWindow, QButtonGroup, QFileDialog
-    from PyQt4.uic import loadUi as load_ui
+from pyqt import QtCore
+from pyqt.QtWidgets import QMainWindow, QButtonGroup, QFileDialog
+from pyrs.utilities import load_ui
 
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
@@ -38,6 +33,7 @@ class EventSlicerSetupWindow(QMainWindow):
     """ Class for general-puposed plot window
     """
     # class
+
     def __init__(self, parent=None):
         """ Initialization
         """
@@ -323,12 +319,9 @@ class EventSlicerSetupWindow(QMainWindow):
 
         assert isinstance(self._currSlicerKey, str), 'Slicer key %s must be a string but not %s.' \
                                                      '' % (str(self._currSlicerKey), type(self._currSlicerKey))
-        status, message = self.get_controller().slice_data(run_number, self._currSlicerKey,
-                                                           reduce_data=to_reduce_gsas,
-                                                           vanadium=None,
-                                                           save_chopped_nexus=to_save_nexus,
-                                                           output_dir=output_dir,
-                                                           export_log_type='loadframe')
+
+        # TODO - slice data has not been implemented yet
+        status, message = self.get_controller().slice_data(raw_file_name, self._currSlicerKey)
         if status:
             gui_helper.pop_message(self, message, message_type='information')
         else:
@@ -352,7 +345,7 @@ class EventSlicerSetupWindow(QMainWindow):
         # import slicers from a file: True, (ref_run, run_start, segment_list)
         status, ret_obj = self.get_controller().import_data_slicers(slicer_file_name)
         if status:
-            ref_run, run_start, slicer_list = reb_obj
+            ref_run, run_start, slicer_list = ret_obj
         else:
             err_msg = str(ret_obj)
             gui_helper.pop_message(self, err_msg, message_type='error')
@@ -498,7 +491,6 @@ class EventSlicerSetupWindow(QMainWindow):
         # run_start_epoch = self.get_controller().get_run_start(run_number, epoch_time=True)
         # self.ui.label_runStartEpoch.setText('{0}'.format(run_start_epoch))
 
-
         return
 
     def do_load_next_log(self):
@@ -508,7 +500,8 @@ class EventSlicerSetupWindow(QMainWindow):
         # get current index of the combo box and find out the next
         current_index = self.ui.comboBox_logNames.currentIndex()
         max_index = self.ui.comboBox_logNames.size()
-        # TODO/TODO/FIXME/FIXME - logNames.size() may not a correction method to find total number of entries of a combo box
+        # TODO/TODO/FIXME/FIXME - logNames.size() may not a correction method
+        #                         to find total number of entries of a combo box
         next_index = (current_index + 1) % int(max_index)
 
         # advance to the next one
@@ -654,7 +647,8 @@ class EventSlicerSetupWindow(QMainWindow):
             try:
                 status, ret_obj = self.get_controller().gen_data_slicer_sample_log(self._currRunNumber,
                                                                                    log_name, log_value_step,
-                                                                                   start_time, stop_time, min_log_value,
+                                                                                   start_time, stop_time,
+                                                                                   min_log_value,
                                                                                    max_log_value,
                                                                                    value_change_direction)
                 if status:

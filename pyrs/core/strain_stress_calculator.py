@@ -2,12 +2,14 @@ import numpy
 import math
 import pyrs.utilities.checkdatatypes
 from scipy.interpolate import griddata
+from pyrs.utilities import rs_scan_io
 
 
 class StrainStress(object):
     """
     class to take a calculate strain
     """
+
     def __init__(self, peak_pos_matrix, d0, young_modulus, poisson_ratio, is_plane_train, is_plane_stress):
         """
 
@@ -46,14 +48,14 @@ class StrainStress(object):
         # calculate strain
         sum_diagonal_strain = 0.
         for index in [0, 1, 2]:
-            self._epsilon[index, index] = (self._peak_position_matrix[index, index] - d0)/d0
+            self._epsilon[index, index] = (self._peak_position_matrix[index, index] - d0) / d0
             sum_diagonal_strain += self._epsilon[index, index]
 
         # calculate stress
         for i in range(3):
             for j in range(3):
-                self._sigma[i, j] = young_e/(1 + poisson_nu) * \
-                                    (self._epsilon[i, j] + poisson_nu / (1 - 2*poisson_nu) * sum_diagonal_strain)
+                self._sigma[i, j] = young_e / (1 + poisson_nu) * \
+                    (self._epsilon[i, j] + poisson_nu / (1 - 2 * poisson_nu) * sum_diagonal_strain)
             # END-j
         # END-i
 
@@ -70,14 +72,14 @@ class StrainStress(object):
         # calculate strain
         sum_diagonal_strain = 0.
         for index in [0, 1]:
-            self._epsilon[index, index] = (self._peak_position_matrix[index, index] - d0)/d0
+            self._epsilon[index, index] = (self._peak_position_matrix[index, index] - d0) / d0
             sum_diagonal_strain += self._epsilon[index, index]
 
         # calculate stress
         for i in range(3):
             for j in range(3):
-                self._sigma[i, j] = young_e/(1 + poisson_nu) * \
-                                    (self._epsilon[i, j] + poisson_nu / (1 - 2*poisson_nu) * sum_diagonal_strain)
+                self._sigma[i, j] = young_e / (1 + poisson_nu) * \
+                    (self._epsilon[i, j] + poisson_nu / (1 - 2 * poisson_nu) * sum_diagonal_strain)
             # END-j
         # END-i
 
@@ -93,17 +95,17 @@ class StrainStress(object):
         """
         sum_diagonal_strain = 0.
         for index in [0, 1]:
-            self._epsilon[index, index] = (self._peak_position_matrix[index, index] - d0)/d0
+            self._epsilon[index, index] = (self._peak_position_matrix[index, index] - d0) / d0
             sum_diagonal_strain += self._epsilon[index, index]
 
-        self._epsilon[2, 2] = poisson_nu/(poisson_nu-1) * sum_diagonal_strain
+        self._epsilon[2, 2] = poisson_nu / (poisson_nu - 1) * sum_diagonal_strain
         sum_diagonal_strain += self._epsilon[2, 2]
 
         # calculate stress
         for i in range(3):
             for j in range(3):
-                self._sigma[i, j] = young_e/(1 + poisson_nu) * \
-                                    (self._epsilon[i, j] + poisson_nu / (1 - 2*poisson_nu) * sum_diagonal_strain)
+                self._sigma[i, j] = young_e / (1 + poisson_nu) * \
+                    (self._epsilon[i, j] + poisson_nu / (1 - 2 * poisson_nu) * sum_diagonal_strain)
             # END-j
         # END-i
 
@@ -224,7 +226,7 @@ class StrainStressCalculator(object):
         self._is_saved = False
 
         # file loader (static kind of)
-        self._file_io = scandataio.DiffractionDataFile()
+        self._file_io = rs_scan_io.DiffractionDataFile()
 
         # strain stress parameters
         self._d0 = None
@@ -484,12 +486,12 @@ class StrainStressCalculator(object):
             # END-IF
         # END-FOR
 
-        print ('[INFO] Matched Grids Points (For Strain/Stress Calculation): {}'
-               ''.format(len(self._matched_grid_scans_list)))
+        print('[INFO] Matched Grids Points (For Strain/Stress Calculation): {}'
+              ''.format(len(self._matched_grid_scans_list)))
         for dir_i in self._direction_list:
             unmatched_counts_i = len(self._sample_positions_dict[dir_i]) - len(self._matched_grid_scans_list)
-            print ('[INFO] Numbers of grids at direction {} not matched with other directions: {}'
-                   ''.format(dir_i, unmatched_counts_i))
+            print('[INFO] Numbers of grids at direction {} not matched with other directions: {}'
+                  ''.format(dir_i, unmatched_counts_i))
 
         return
 
@@ -632,7 +634,7 @@ class StrainStressCalculator(object):
             pass
 
         # locate the range of X within tolerance/resolution for searching with Y
-        i_start, i_stop = search_neighborhood(sorted_positions, 0, len(sorted_positions)-1, i_middle, 0, resolution)
+        i_start, i_stop = search_neighborhood(sorted_positions, 0, len(sorted_positions) - 1, i_middle, 0, resolution)
         orig_start = i_start
         orig_stop = i_stop
         i_middle = None
@@ -767,7 +769,8 @@ class StrainStressCalculator(object):
                     err_msg = '{}-th (of total {}) sample position point: '.format(ipt, num_sample_points)
                     for dir_i in self._direction_list:
                         err_msg += '{} @ {}; '.format(dir_i, self._sample_positions_dict[dir_i][ipt])
-                    err_msg += ' with maximum distance {} over specified resolution {}'.format(max_distance, resolution)
+                    err_msg += ' with maximum distance {} over specified resolution {}'.format(
+                        max_distance, resolution)
                     info = err_msg
                     break
             # END-FOR
@@ -841,7 +844,7 @@ class StrainStressCalculator(object):
         for i_dir, ss_dir in enumerate(self._direction_list):
             # create the vector
             if 'center_d' in self._peak_param_dict[ss_dir]:
-                print ('[DB...BAT] Peak center in d is pre-calculated')
+                print('[DB...BAT] Peak center in d is pre-calculated')
                 continue
             # else:
             #     print ('[DB...BAT] {}'.format(self._peak_param_dict[ss_dir].keys()))
@@ -912,7 +915,7 @@ class StrainStressCalculator(object):
         """
         # prepare the data structure
         num_grids = len(self._matched_grid_scans_list)
-        print ('Number of grids: {}'.format(num_grids))
+        print('Number of grids: {}'.format(num_grids))
         strain_matrix_vec = numpy.ndarray(shape=(num_grids, 3, 3), dtype='float')
         stress_matrix_vec = numpy.ndarray(shape=(num_grids, 3, 3), dtype='float')
         self._matched_grid_vector = numpy.ndarray(shape=(num_grids, 3), dtype='float')
@@ -953,7 +956,7 @@ class StrainStressCalculator(object):
         self._strain_matrix_vec = strain_matrix_vec
         self._stress_matrix_vec = stress_matrix_vec
 
-        print ('[DB..BAT] Strain/Stress calculated: \n{}\n{}'.format(strain_matrix_vec, stress_matrix_vec))
+        print('[DB..BAT] Strain/Stress calculated: \n{}\n{}'.format(strain_matrix_vec, stress_matrix_vec))
 
         return strain_matrix_vec, stress_matrix_vec
 
@@ -984,7 +987,8 @@ class StrainStressCalculator(object):
 
         return self._workflow_tracker
 
-    def export_2d_slice(self, param_name, is_grid_raw, ss_direction, slice_dir, slice_pos, slice_resolution, file_name):
+    def export_2d_slice(self, param_name, is_grid_raw, ss_direction, slice_dir, slice_pos, slice_resolution,
+                        file_name):
         """
         export a 2D slice from either raw grids from experiments or grids aligned
         :param param_name:
@@ -996,7 +1000,7 @@ class StrainStressCalculator(object):
         :param file_name:
         :return:
         """
-        print (param_name, is_grid_raw, ss_direction, slice_dir, slice_pos, slice_resolution, file_name)
+        print(param_name, is_grid_raw, ss_direction, slice_dir, slice_pos, slice_resolution, file_name)
         # check inputs
         pyrs.utilities.checkdatatypes.check_bool_variable('Flag to show whether the grids are raw experimental ones',
                                                           is_grid_raw)
@@ -1011,7 +1015,7 @@ class StrainStressCalculator(object):
         sliced_grid_array = self.slice_md_data(param_grid_array, slice_dir, slice_pos, slice_resolution)
 
         # export result to hdf5
-        scandataio.export_md_array_hdf5(sliced_grid_array, [slice_dir], file_name)
+        rs_scan_io.export_md_array_hdf5(sliced_grid_array, [slice_dir], file_name)
 
         return
 
@@ -1069,7 +1073,7 @@ class StrainStressCalculator(object):
             for i_coord in range(3):
                 param_grid_array[i_grid][i_coord] = grid_pos[i_coord]
             # parameter value
-            scan_log_index = self._matched_grid_vector[ss_direction][grid_pos]
+            # scan_log_index = self._matched_grid_vector[ss_direction][grid_pos]
             param_value = self._matched_grid_vector
             param_grid_array[i_grid][3] = param_value
         # END-FOR
@@ -1159,7 +1163,7 @@ class StrainStressCalculator(object):
                 min_i = self._grid_statistics_dict['min'][ss_dir][coord_dir]
                 max_i = self._grid_statistics_dict['max'][ss_dir][coord_dir]
                 num_pt = self._grid_statistics_dict['num_indv_values'][ss_dir][coord_dir]
-                res_i = (max_i - min_i) /float(num_pt)
+                res_i = (max_i - min_i) / float(num_pt)
                 score_i += res_i
             # END-FOR
             if score_i < finest_score:
@@ -1280,10 +1284,10 @@ class StrainStressCalculator(object):
     @staticmethod
     def interpolate3d(exp_grid_pos_vector, param_value_vector, target_position_vector):
         """ interpolate a value in a 3D system
-        :param exp_grid_pos_vector: 
-        :param param_value_vector: 
+        :param exp_grid_pos_vector:
+        :param param_value_vector:
         :param target_position_vector:
-        :return: 
+        :return:
         """
         # check inputs
         # print ('[DB...BAT] Experimental grid position vector: type = {}'.format(type(exp_grid_pos_vector)))

@@ -24,7 +24,7 @@ def load_mantid_mask(pixel_number, mantid_mask_xml, is_mask):
     :return: a vector
     """
     checkdatatypes.check_file_name(mantid_mask_xml, True, False, False, 'Mantid XML mask file')
-    checkdatatypes.check_int_variable('(Total) pixel number', pixel_number, (1024**2, 2048**2+1))
+    checkdatatypes.check_int_variable('(Total) pixel number', pixel_number, (1024**2, 2048**2 + 1))
 
     # load file to lines
     mask_file = open(mantid_mask_xml, 'r')
@@ -65,15 +65,15 @@ def load_mantid_mask(pixel_number, mantid_mask_xml, is_mask):
                                ''.format(end_detid, pixel_number))
         # mask or ROI
         if is_mask:
-            masking_array[start_detid:end_detid+1] = 0.
+            masking_array[start_detid:end_detid + 1] = 0.
         else:
-            masking_array[start_detid:end_detid+1] = 1.
+            masking_array[start_detid:end_detid + 1] = 1.
         # stat
         masked_specs += end_detid - start_detid + 1
     # END-FOR
 
-    print ('[DB...CHECK] Masked spectra = {}, Sum of masking array = {}'
-           ''.format(masked_specs, sum(masking_array)))
+    print('[DB...CHECK] Masked spectra = {}, Sum of masking array = {}'
+          ''.format(masked_specs, sum(masking_array)))
 
     return masking_array
 
@@ -110,7 +110,7 @@ def load_pyrs_mask(mask_h5):
     return mask_vec, two_theta, note
 
 
-def save_mantid_mask(mask_vec,  h5_name, two_theta, note):
+def save_mantid_mask(mask_vec, h5_name, two_theta, note):
     """
     Save a mask vector to
     :param mask_vec:

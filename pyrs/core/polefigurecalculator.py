@@ -33,7 +33,7 @@ def matrix_mul_vector(matrix, vector):
         try:
             out_vec[i_row] = numpy.sum(matrix[i_row] * vector)
         except ValueError as val_err:
-            print ('[ERROR] Row {0} from matrix: {1}; Vector : {2}'.format(i_row, matrix[i_row, :][0], vector))
+            print('[ERROR] Row {0} from matrix: {1}; Vector : {2}'.format(i_row, matrix[i_row, :][0], vector))
             raise val_err
 
     return out_vec
@@ -101,8 +101,8 @@ def cal_rotation_matrix_x(angle, is_degree, use_matrix):
                                         [0, -numpy.sin(angle), numpy.cos(angle)]], dtype='float')
     else:
         rotation_matrix = numpy.array([[1., 0, 0],
-                                        [0, numpy.cos(angle), numpy.sin(angle)],
-                                        [0, -numpy.sin(angle), numpy.cos(angle)]])
+                                       [0, numpy.cos(angle), numpy.sin(angle)],
+                                       [0, -numpy.sin(angle), numpy.cos(angle)]])
 
     return rotation_matrix
 
@@ -160,6 +160,7 @@ class PoleFigureCalculator(object):
     A calculator for Pole Figure.
     It has the memory and result for the last time it is called to calculate
     """
+
     def __init__(self):
         """
         initialization
@@ -449,7 +450,7 @@ class PoleFigureCalculator(object):
         if vec_q_prime1[2] >= 0:
             beta = math.acos(numpy.dot(vec_q_prime1, vec_q1.transpose())) * 180. / numpy.pi - 90
         else:
-            beta = 270. - math.acos(numpy.dot( vec_q_prime1, vec_q1.transpose())) * 180. / numpy.pi
+            beta = 270. - math.acos(numpy.dot(vec_q_prime1, vec_q1.transpose())) * 180. / numpy.pi
 
         alpha = math.acos(numpy.dot(vec_q_prime2, vec_q2.transpose())) * 180. / numpy.pi
 
@@ -485,14 +486,14 @@ def export_arrays_to_ascii(pole_figure_array_dict, detector_id_list, file_name):
     :param file_name:
     :param detector_id_list: selected the detector IDs for pole figure
     :param pole_figure_array_dict:
-    :return: 
+    :return:
     """
     # check input types
     checkdatatypes.check_dict('Pole figure array dictionary', pole_figure_array_dict)
     checkdatatypes.check_list('Detector ID list', detector_id_list)
 
-    print ('[INFO] Export Pole Figure Arrays To ASCII:\nKeys: {0}\nValues[0]: {1}'
-           ''.format(pole_figure_array_dict.keys(), pole_figure_array_dict.values()[0]))
+    print('[INFO] Export Pole Figure Arrays To ASCII:\nKeys: {0}\nValues[0]: {1}'
+          ''.format(pole_figure_array_dict.keys(), pole_figure_array_dict.values()[0]))
 
     # combine
     pole_figure_array_list = list()
@@ -542,8 +543,8 @@ def export_to_mtex(pole_figure_array_dict, detector_id_list, file_name, header):
     # writing data
     pf_keys = sorted(pole_figure_array_dict.keys())
     for pf_key in pf_keys:
-        print ('[STUDY ]Pole figure key = {}.  It is in detector ID list {} = {}'
-               ''.format(pf_key, detector_id_list, pf_key in detector_id_list))
+        print('[STUDY ]Pole figure key = {}.  It is in detector ID list {} = {}'
+              ''.format(pf_key, detector_id_list, pf_key in detector_id_list))
         if pf_key not in detector_id_list:
             raise NotImplementedError('The data structure of pole figure array is not clear. '
                                       'Find out how detector IDs are involved.')
@@ -572,7 +573,7 @@ def does_numpy_support_matmul():
     np_version_main = int(np_version.split('.')[0])
     np_version_second = int(np_version.split('.')[1])
 
-    print (np_version_main, np_version_second)
+    print(np_version_main, np_version_second)
 
     if np_version_main > 1 or np_version_second >= 10:
         numpy.matmul
@@ -592,4 +593,4 @@ def test_rotate():
     phi = 60.00
 
     a, b = pf_cal.rotate_project_q(two_theta, omega, chi, phi)
-    print (a, b)
+    print(a, b)

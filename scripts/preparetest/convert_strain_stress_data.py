@@ -2,9 +2,7 @@
 # System (library) test for classes and methods that will be used to calculate strain and stress
 import os
 import sys
-from pyrs.core import pyrscore
 from pyrs.utilities import rs_project_file
-from pyrs.core import strain_stress_calculator
 from pyrs.utilities import rs_scan_io
 
 
@@ -20,8 +18,8 @@ def contain_strain_stress_main():
     dir_file[3] = 'tests/temp/16-1_TD.cor_Log.gaussian.hdf5'
     for dir_i in [1, 2, 3]:
         if not os.path.exists(dir_file[dir_i]):
-            print ('[ERROR] File {} does not exist.  Current working directory: {}'
-                   ''.format(dir_file[dir_i], os.getcwd()))
+            print('[ERROR] File {} does not exist.  Current working directory: {}'
+                  ''.format(dir_file[dir_i], os.getcwd()))
             sys.exit(-1)
     # END-FOR
 
@@ -34,7 +32,6 @@ def contain_strain_stress_main():
         diff_data_dict, sample_log_list = rs_scan_io.load_rs_file(dir_file[1])
         # TODO - FUTURE - Continue from here
 
-
     # set up the combo box for 3 directions
     sample_logs_list = self._core.strain_stress_calculator.get_sample_logs_names(direction, to_set=False)
 
@@ -45,4 +42,3 @@ def contain_strain_stress_main():
 
 if __name__ == '__main__':
     contain_strain_stress_main()
-

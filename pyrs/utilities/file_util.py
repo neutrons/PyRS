@@ -4,9 +4,8 @@ import os
 import h5py
 import checkdatatypes
 import platform
-from mantid.api import AnalysisDataService
-from mantid.simpleapi import AnalysisDataService, SaveNexusProcessed
-from skimage import io, exposure, img_as_uint, img_as_float
+from mantid.simpleapi import mtd, CreateWorkspace, SaveNexusProcessed
+from skimage import io
 from PIL import Image
 import numpy as np
 import pandas as pd
@@ -31,7 +30,7 @@ def export_md_array_hdf5(md_array, sliced_dir_list, file_name):
         # delete selected columns: axis=1
         checkdatatypes.check_list('Sliced directions', sliced_dir_list)
         try:
-            md_array = numpy.delete(md_array, sliced_dir_list, 1)  # axis = 1
+            md_array = np.delete(md_array, sliced_dir_list, 1)  # axis = 1
         except ValueError as val_err:
             raise RuntimeError('Unable to delete column {} of input numpy 2D array due to {}'
                                ''.format(sliced_dir_list, val_err))
@@ -84,7 +83,7 @@ def load_rgb_tif(rgb_tiff_name, convert_to_1d):
 
     if convert_to_1d:
         gray_array = gray_array.flatten(order='F')
-    print ('{}: Max counts = {}, Mean counts = {}'.format(rgb_tiff_name, gray_array.max(), gray_array.mean()))
+    print('{}: Max counts = {}, Mean counts = {}'.format(rgb_tiff_name, gray_array.max(), gray_array.mean()))
 
     return gray_array
 
@@ -111,8 +110,7 @@ def load_gray_scale_tif(raw_tiff_name, pixel_size=2048, rotate=True):
     #
     # gray = (0.299 * ra + 0.587 * ga + 0.114 * ba)
 
-
-    print (image_2d_data.shape, type(image_2d_data), image_2d_data.min(), image_2d_data.max())
+    print(image_2d_data.shape, type(image_2d_data), image_2d_data.min(), image_2d_data.max())
     # image_2d_data.astype(np.uint32)
     image_2d_data.astype(np.float64)
     if rotate:
@@ -121,7 +119,8 @@ def load_gray_scale_tif(raw_tiff_name, pixel_size=2048, rotate=True):
     # TODO - TONIGHT 1 - Better to split the part below to other methods
     # Merge/compress data if required
     if pixel_size == 1024:
-        counts_vec = image_2d_data[::2, ::2] + image_2d_data[::2, 1::2] + image_2d_data[1::2, ::2] + image_2d_data[1::2, 1::2]
+        counts_vec = image_2d_data[::2, ::2] + image_2d_data[::2, 1::2] + \
+            image_2d_data[1::2, ::2] + image_2d_data[1::2, 1::2]
         pixel_type = '1K'
         # print (DataR.shape, type(DataR))
     else:
@@ -130,14 +129,14 @@ def load_gray_scale_tif(raw_tiff_name, pixel_size=2048, rotate=True):
         pixel_type = '2K'
 
     counts_vec = counts_vec.reshape((pixel_size * pixel_size,))
-    print (counts_vec.min())
+    print(counts_vec.min())
 
     if False:
         data_ws_name = os.path.basename(raw_tiff_name).split('.')[0] + '_{}'.format(pixel_type)
-        CreateWorkspace(DataX=np.zeros((pixel_size**2,)), DataY=counts_vec, DataE=np.sqrt(counts_vec), NSpec=pixel_size**2,
-                        OutputWorkspace=data_ws_name, VerticalAxisUnit='SpectraNumber')
+        CreateWorkspace(DataX=np.zeros((pixel_size**2,)), DataY=counts_vec, DataE=np.sqrt(counts_vec),
+                        NSpec=pixel_size**2, OutputWorkspace=data_ws_name, VerticalAxisUnit='SpectraNumber')
 
-    #return data_ws_name, counts_vec
+    # return data_ws_name, counts_vec
 
     return image_2d_data
 
@@ -157,14 +156,14 @@ def save_mantid_nexus(workspace_name, file_name, title=''):
 
     # check workspace
     checkdatatypes.check_string_variable('Workspace name', workspace_name)
-    if AnalysisDataService.doesExist(workspace_name):
+    if mtd.doesExist(workspace_name):
         SaveNexusProcessed(InputWorkspace=workspace_name,
                            Filename=file_name,
                            Title=title)
     else:
         raise RuntimeError('Workspace {0} does not exist in Analysis data service. Available '
                            'workspaces are {1}.'
-                           ''.format(workspace_name, AnalysisDataService.getObjectNames()))
+                           ''.format(workspace_name, mtd.getObjectNames()))
 
     # END-IF-ELSE
 

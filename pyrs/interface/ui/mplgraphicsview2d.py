@@ -1,57 +1,12 @@
-#pylint: disable=invalid-name,too-many-public-methods,too-many-arguments,non-parent-init-called,R0902,too-many-branches,C0302
+import matplotlib.image
+from matplotlib.figure import Figure
 import os
 import numpy as np
 
-try:
-    from PyQt5.QtCore import pyqtSignal
-    from PyQt5.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
-    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
-except ImportError:
-    from PyQt4.QtGui import QWidget, QSizePolicy, QVBoxLayout
-    from PyQt4.QtCore import pyqtSignal
-    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
-
-from matplotlib.figure import Figure
-import matplotlib.image
-
-MplLineStyles = ['-', '--', '-.', ':', 'None', ' ', '']
-MplLineMarkers = [
-    ". (point         )",
-    "* (star          )",
-    "x (x             )",
-    "o (circle        )",
-    "s (square        )",
-    "D (diamond       )",
-    ", (pixel         )",
-    "v (triangle_down )",
-    "^ (triangle_up   )",
-    "< (triangle_left )",
-    "> (triangle_right)",
-    "1 (tri_down      )",
-    "2 (tri_up        )",
-    "3 (tri_left      )",
-    "4 (tri_right     )",
-    "8 (octagon       )",
-    "p (pentagon      )",
-    "h (hexagon1      )",
-    "H (hexagon2      )",
-    "+ (plus          )",
-    "d (thin_diamond  )",
-    "| (vline         )",
-    "_ (hline         )",
-    "None (nothing    )"]
-
-# Note: in colors, "white" is removed
-MplBasicColors = [
-    "black",
-    "red",
-    "blue",
-    "green",
-    "cyan",
-    "magenta",
-    "yellow"]
+from qtpy.QtCore import Signal
+from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
+from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
+from mantidqt.MPLwidgets import NavigationToolbar2QT as NavigationToolbar2
 
 
 class MplGraphicsView2D(QWidget):
@@ -60,6 +15,7 @@ class MplGraphicsView2D(QWidget):
 
     Note: Merged with HFIR_Powder_Reduction.MplFigureCAnvas
     """
+
     def __init__(self, parent):
         """ Initialization
         """
@@ -130,37 +86,26 @@ class MplGraphicsView2D(QWidget):
         elif plot_type == 'image file':
             self._myCanvas.add_image_file()
         elif plot_type == 'scatter':
-            blabla
+            raise NotImplementedError('plot_type="scatter" has not been implemented')
         else:
-            blabla
+            raise RuntimeError('Do not know how to add_2d_plot(..., plot_type="{}")'.format(plot_type))
 
         self._hasImage = True
 
-        return
-
     def has_image_on_canvas(self):
-        """
-        blabla
-        @return:
-        """
         # TODO/ASAP
         return self._hasImage
 
     def update_2d_plot(self):
-        """
-
-        @return:
-        """
         pass
 
     def canvas(self):
-        """ Get the canvas
-        :return:
+        """Get the canvas
         """
         return self._myCanvas
 
     def clear_canvas(self):
-        """ Clear canvas
+        """Clear canvas
         """
         # clear all the records
         # to-be-filled
@@ -173,23 +118,18 @@ class MplGraphicsView2D(QWidget):
         return r
 
     def draw(self):
-        """ Draw to commit the change
+        """Draw to commit the change
         """
         return self._myCanvas.draw()
 
     def evt_toolbar_home(self):
-        """
-
-        @return:
-        """
         # turn off zoom mode
         self._isZoomed = False
 
         return
 
     def evt_view_updated(self):
-        """ Event handling as canvas size updated
-        :return:
+        """Event handling as canvas size updated
         """
         # # update the indicator
         # new_x_range = self.getXLimit()
@@ -205,8 +145,7 @@ class MplGraphicsView2D(QWidget):
         return
 
     def evt_zoom_released(self):
-        """ event for zoom is release
-        @return:
+        """event for zoom is release
         """
         # record home XY limit if it is never zoomed
         if self._isZoomed is False:
@@ -220,18 +159,18 @@ class MplGraphicsView2D(QWidget):
         return
 
     def getLastPlotIndexKey(self):
-        """ Get ...
+        """Get ...
         """
         return self._myCanvas.getLastPlotIndexKey()
 
     def getXLimit(self):
-        """ Get limit of Y-axis
+        """Get limit of Y-axis
         :return: 2-tuple as xmin, xmax
         """
         return self._myCanvas.getXLimit()
 
     def getYLimit(self):
-        """ Get limit of Y-axis
+        """Get limit of Y-axis
         """
         return self._myCanvas.getYLimit()
 
@@ -433,6 +372,7 @@ class Qt4Mpl2DCanvas(FigureCanvas):
     """  A customized Qt widget for matplotlib figure.
     It can be used to replace GraphicsView of QtGui
     """
+
     def __init__(self, parent):
         """  Initialization
         """
@@ -455,7 +395,7 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         self.setParent(parent)
 
         # Set size policy to be able to expanding and resizable with frame
-        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding,QSizePolicy.Expanding)
+        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
 
         # Variables to manage all lines/subplot
@@ -546,13 +486,13 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         contour_plot = self.axes.contourf(grid_x, grid_y, matrix_z, 100)
 
         labels = [item.get_text() for item in self.axes.get_yticklabels()]
-        print '[DB...BAT] Number of Y labels = ', len(labels), ', Number of Y = ', len(vec_y)
 
+        # Set the Y-axis ticks
         # TODO/ISSUE/NOW: how to make this part more flexible
-        if len(labels) == 2*len(vec_y) - 1:
+        if len(labels) == 2 * len(vec_y) - 1:
             new_labels = [''] * len(labels)
             for i in range(len(vec_y)):
-                new_labels[i*2] = '%d' % int(vec_y[i])
+                new_labels[i * 2] = '%d' % int(vec_y[i])
             self.axes.set_yticklabels(new_labels)
         # END-IF
 
@@ -589,12 +529,12 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         # show image
         self._imagePlot = self.axes.imshow(array2d, extent=[xmin, xmax, ymin, ymax], interpolation='none')
 
-        print (self._imagePlot, type(self._imagePlot))
+        print(self._imagePlot, type(self._imagePlot))
 
         # set y ticks as an option:
         if yticklabels is not None:
             # it will always label the first N ticks even image is zoomed in
-            print ("[FIXME]: The way to set up the Y-axis ticks is wrong!")
+            print("[FIXME]: The way to set up the Y-axis ticks is wrong!")
             self.axes.set_yticklabels(yticklabels)
 
         # explicitly set aspect ratio of the image
@@ -615,10 +555,8 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         return
 
     def add_image_file(self, imagefilename):
-        """ Add an image by file
+        """Add an image by file
         """
-        #import matplotlib.image as mpimg
-
         # set aspect to auto mode
         self.axes.set_aspect('auto')
 
@@ -718,7 +656,7 @@ class Qt4Mpl2DCanvas(FigureCanvas):
     def getLastPlotIndexKey(self):
         """ Get the index/key of the last added line
         """
-        return self._lineIndex-1
+        return self._lineIndex - 1
 
     def getPlot(self):
         """ reture figure's axes to expose the matplotlib figure to PyQt client
@@ -801,7 +739,6 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         assert isinstance(title, str), 'Title must be a string but not a {0}.'.format(type(title))
         assert isinstance(color, str), 'Color must be a string but not a {0}.'.format(type(color))
 
-        print '[DB...BAT] Set {0} in color {1} as the figure\'s title.'.format(title, color)
         self.setWindowTitle(title)
 
         self.draw()
@@ -829,7 +766,7 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         """ A dirty hack to flush the image
         """
         w, h = self.get_width_height()
-        self.resize(w+1, h)
+        self.resize(w + 1, h)
         self.resize(w, h)
 
         return
@@ -887,10 +824,10 @@ class MyNavigationToolbar(NavigationToolbar2):
 
     # This defines a signal called 'home_button_pressed' that takes 1 boolean
     # argument for being in zoomed state or not
-    home_button_pressed = pyqtSignal()
+    home_button_pressed = Signal()
 
     # This defines a signal called 'canvas_zoom_released'
-    canvas_zoom_released = pyqtSignal()
+    canvas_zoom_released = Signal()
 
     def __init__(self, parent, canvas):
         """ Initialization
@@ -971,8 +908,6 @@ class MyNavigationToolbar(NavigationToolbar2):
         else:
             # into pan mode
             self._myMode = MyNavigationToolbar.NAVIGATION_MODE_PAN
-
-        print 'PANNED'
 
         return
 

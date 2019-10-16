@@ -69,7 +69,7 @@ def main(argv):
     try:
         param_dict = script_helper.process_arguments(argv, args_def_list)
     except RuntimeError as run_err:
-        print ('Failed to parse inputs due to {}'.format(run_err))
+        print('Failed to parse inputs due to {}'.format(run_err))
         return
 
     # In case of help
@@ -91,10 +91,10 @@ def main(argv):
     if 'masksfiles' in param_dict:
         mask_file_list = parse_mask_files(param_dict['masksfiles'])
         if len(mask_file_list) < 2:
-            print ('For X-ray case, user must specify at least 2 masks')
+            print('For X-ray case, user must specify at least 2 masks')
             sys.exit(-1)
     else:
-        print ('[ERROR] X-ray-calibration algorithm requires Masks')
+        print('[ERROR] X-ray-calibration algorithm requires Masks')
         sys.exit(-1)
 
     # Last test before calibration start: reduce by mask
@@ -110,5 +110,5 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    print (sys.argv)
+    print(sys.argv)
     main(sys.argv)

@@ -1,57 +1,13 @@
-#pylint: disable=invalid-name,too-many-public-methods,too-many-arguments,non-parent-init-called,R0902,too-many-branches,C0302
+import matplotlib.image
+from matplotlib.figure import Figure
 import os
 import numpy as np
 
-try:
-    from PyQt5.QtCore import pyqtSignal
-    from PyQt5.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
-    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
-except ImportError:
-    from PyQt4.QtGui import QWidget, QSizePolicy, QVBoxLayout
-    from PyQt4.QtCore import pyqtSignal
-    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
-
-from matplotlib.figure import Figure
-import matplotlib.image
-
-MplLineStyles = ['-', '--', '-.', ':', 'None', ' ', '']
-MplLineMarkers = [
-    ". (point         )",
-    "* (star          )",
-    "x (x             )",
-    "o (circle        )",
-    "s (square        )",
-    "D (diamond       )",
-    ", (pixel         )",
-    "v (triangle_down )",
-    "^ (triangle_up   )",
-    "< (triangle_left )",
-    "> (triangle_right)",
-    "1 (tri_down      )",
-    "2 (tri_up        )",
-    "3 (tri_left      )",
-    "4 (tri_right     )",
-    "8 (octagon       )",
-    "p (pentagon      )",
-    "h (hexagon1      )",
-    "H (hexagon2      )",
-    "+ (plus          )",
-    "d (thin_diamond  )",
-    "| (vline         )",
-    "_ (hline         )",
-    "None (nothing    )"]
-
-# Note: in colors, "white" is removed
-MplBasicColors = [
-    "black",
-    "red",
-    "blue",
-    "green",
-    "cyan",
-    "magenta",
-    "yellow"]
+from qtpy.QtCore import Signal
+from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
+from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
+from mantidqt.MPLwidgets import NavigationToolbar2QT as NavigationToolbar2
+from pyrs.interface.ui.mplconstants import MplBasicColors, MplLineMarkers, MplLineStyles
 
 
 class IndicatorManager(object):
@@ -62,6 +18,7 @@ class IndicatorManager(object):
     - 1: vertical. moving along X-direction. [x, x], [y_min, y_max];
     - 2: 2-way. moving in any direction. [x_min, x_max], [y, y], [x, x], [y_min, y_max].
     """
+
     def __init__(self):
         """
 
@@ -368,6 +325,7 @@ class MplGraphicsView(QWidget):
 
     Note: Merged with HFIR_Powder_Reduction.MplFigureCanvas
     """
+
     def __init__(self, parent, plot_name_list=None):
         """ Initialization
         """
@@ -480,10 +438,10 @@ class MplGraphicsView(QWidget):
         """
         # check whether the input is empty
         if len(vec_y) == 0:
-            print '[WARNING] Input is an empty vector set'
+            print('[WARNING] Input is an empty vector set')
             return False
         elif len(vec_x) == len(vec_y) + 1:
-            print '[WARNING] Histogram mode.  Plot may not be precise.'
+            print('[WARNING] Histogram mode.  Plot may not be precise.')
         elif len(vec_x) != len(vec_y):
             RuntimeError('X vector has a different size {} to Y vector\'s {}.'
                          .format(len(vec_x), len(vec_y)))
@@ -527,7 +485,7 @@ class MplGraphicsView(QWidget):
         if master_line is not None:
             raise RuntimeError('Implement how to use master_line ASAP.')
 
-        x_min, x_max = self._myCanvas.getXLimit()
+        x_min, x_max = self._myCanvas.get_x_limits()
         if x is None:
             x = (x_min + x_max) * 0.5
         else:
@@ -567,7 +525,7 @@ class MplGraphicsView(QWidget):
         else:
             assert isinstance(y, float)
 
-        x_min, x_max = self._myCanvas.getXLimit()
+        x_min, x_max = self._myCanvas.get_x_limits()
 
         # For color
         if color is None:
@@ -599,7 +557,7 @@ class MplGraphicsView(QWidget):
         """
         # For indicator line's position
         if x is None:
-            x_min, x_max = self._myCanvas.getXLimit()
+            x_min, x_max = self._myCanvas.get_x_limits()
             x = (x_min + x_max) * 0.5
         else:
             assert isinstance(x, float)
@@ -784,21 +742,16 @@ class MplGraphicsView(QWidget):
 
         return
 
-    def getPlot(self):
-        """
-        """
-        return self._myCanvas.getPlot()
-
     def getLastPlotIndexKey(self):
         """ Get ...
         """
-        return self._myCanvas.getLastPlotIndexKey()
+        return self._myCanvas.get_last_plot_index()
 
     def getXLimit(self):
         """ Get limit of Y-axis
         :return: 2-tuple as xmin, xmax
         """
-        return self._myCanvas.getXLimit()
+        return self._myCanvas.get_x_limits()
 
     def getYLimit(self):
         """ Get limit of Y-axis
@@ -873,7 +826,8 @@ class MplGraphicsView(QWidget):
         try:
             self._myCanvas.remove_plot_1d(plot_id)
         except RuntimeError as run_err:
-            raise RuntimeError('Failed to remove indicator ID = {0} with plot ID = {1} due to {2}'.format(indicator_id, plot_id, run_err))
+            raise RuntimeError('Failed to remove indicator ID = {0} with plot ID = {1} due to {2}'.format(
+                indicator_key, plot_id, run_err))
         self._myIndicatorsManager.delete(indicator_key)
 
         return
@@ -1042,7 +996,7 @@ class MplGraphicsView(QWidget):
         """ Get a list of line/marker color and marker style combination
         as default to add more and more line to plot
         """
-        return self._myCanvas.getDefaultColorMarkerComboList()
+        return self._myCanvas.get_default_color_marker_combinations()
 
     def getNextLineMarkerColorCombo(self):
         """ As auto line's marker and color combo list is used,
@@ -1110,6 +1064,7 @@ class Qt4MplCanvas(FigureCanvas):
     """  A customized Qt widget for matplotlib figure.
     It can be used to replace GraphicsView of QtGui
     """
+
     def __init__(self, parent):
         """  Initialization
         """
@@ -1133,7 +1088,7 @@ class Qt4MplCanvas(FigureCanvas):
         self.setParent(parent)
 
         # Set size policy to be able to expanding and resizable with frame
-        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding,QSizePolicy.Expanding)
+        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
 
         # Variables to manage all lines/subplot
@@ -1302,7 +1257,7 @@ class Qt4MplCanvas(FigureCanvas):
             self._lineDict[line_key] = r[0]
             self._lineIndex += 1
         else:
-            print "Impoooooooooooooooosible!"
+            raise RuntimeError('It is not possible to have multiple return from axis.plot()')
 
         # Flush/commit
         self.draw()
@@ -1328,8 +1283,8 @@ class Qt4MplCanvas(FigureCanvas):
         # set y ticks as an option:
         if yticklabels is not None:
             # it will always label the first N ticks even image is zoomed in
-            print "--------> [FixMe]: The way to set up the Y-axis ticks is wrong!"
-            #self.axes.set_yticklabels(yticklabels)
+            print("[FIXME]: The way to set up the Y-axis ticks is wrong!")
+            # Wrong: self.axes.set_yticklabels(yticklabels)
 
         # explicitly set aspect ratio of the image
         self.axes.set_aspect('auto')
@@ -1369,13 +1324,12 @@ class Qt4MplCanvas(FigureCanvas):
         contour_plot = self.axes.contourf(grid_x, grid_y, matrix_z, 100)
 
         labels = [item.get_text() for item in self.axes.get_yticklabels()]
-        print '[DB...BAT] Number of Y labels = ', len(labels), ', Number of Y = ', len(vec_y)
 
         # TODO/ISSUE/55: how to make this part more powerful
-        if len(labels) == 2*len(vec_y) - 1:
+        if len(labels) == 2 * len(vec_y) - 1:
             new_labels = [''] * len(labels)
             for i in range(len(vec_y)):
-                new_labels[i*2] = '%d' % int(vec_y[i])
+                new_labels[i * 2] = '%d' % int(vec_y[i])
             self.axes.set_yticklabels(new_labels)
 
         # explicitly set aspect ratio of the image
@@ -1393,10 +1347,8 @@ class Qt4MplCanvas(FigureCanvas):
         self._flush()
 
     def addImage(self, imagefilename):
-        """ Add an image by file
+        """Add an image by file
         """
-        #import matplotlib.image as mpimg
-
         # set aspect to auto mode
         self.axes.set_aspect('auto')
 
@@ -1418,7 +1370,7 @@ class Qt4MplCanvas(FigureCanvas):
         return
 
     def clear_all_1d_plots(self):
-        """ Remove all lines from the canvas
+        """Remove all lines from the canvas
         """
         for ikey in self._lineDict.keys():
             plot = self._lineDict[ikey]
@@ -1428,8 +1380,8 @@ class Qt4MplCanvas(FigureCanvas):
                 try:
                     self.axes.lines.remove(plot)
                 except ValueError as e:
-                    print "[Error] Plot %s is not in axes.lines which has %d lines. Error mesage: %s" % (
-                        str(plot), len(self.axes.lines), str(e))
+                    print("[Error] Plot %s is not in axes.lines which has %d lines. Error mesage: %s" % (
+                        str(plot), len(self.axes.lines), str(e)))
                 del self._lineDict[ikey]
             else:
                 # error bar
@@ -1494,7 +1446,7 @@ class Qt4MplCanvas(FigureCanvas):
     def getLastPlotIndexKey(self):
         """ Get the index/key of the last added line
         """
-        return self._lineIndex-1
+        return self._lineIndex - 1
 
     def getPlot(self):
         """ reture figure's axes to expose the matplotlib figure to PyQt client
@@ -1592,7 +1544,7 @@ class Qt4MplCanvas(FigureCanvas):
         assert isinstance(title, str), 'Title must be a string but not a {0}.'.format(type(title))
         assert isinstance(color, str), 'Color must be a string but not a {0}.'.format(type(color))
 
-        print '[DB...BAT] Set {0} in color {1} as the figure\'s title.'.format(title, color)
+        print('[DB...BAT] Set {0} in color {1} as the figure\'s title.'.format(title, color))
         self.setWindowTitle(title)
 
         self.draw()
@@ -1660,7 +1612,7 @@ class Qt4MplCanvas(FigureCanvas):
         """
         line = self._lineDict[ikey]
         if line is None:
-            print '[ERROR] Line (key = %d) is None. Unable to update' % ikey
+            print('[ERROR] Line (key = %d) is None. Unable to update' % ikey)
             return
 
         if vecx is not None and vecy is not None:
@@ -1730,9 +1682,9 @@ class Qt4MplCanvas(FigureCanvas):
         num_markers = len(MplLineMarkers)
         num_colors = len(MplBasicColors)
 
-        for i in xrange(num_markers):
+        for i in range(num_markers):
             marker = MplLineMarkers[i]
-            for j in xrange(num_colors):
+            for j in range(num_colors):
                 color = MplBasicColors[j]
                 combo_list.append((marker, color))
             # ENDFOR (j)
@@ -1744,7 +1696,7 @@ class Qt4MplCanvas(FigureCanvas):
         """ A dirty hack to flush the image
         """
         w, h = self.get_width_height()
-        self.resize(w+1, h)
+        self.resize(w + 1, h)
         self.resize(w, h)
 
         return
@@ -1802,10 +1754,10 @@ class MyNavigationToolbar(NavigationToolbar2):
 
     # This defines a signal called 'home_button_pressed' that takes 1 boolean
     # argument for being in zoomed state or not
-    home_button_pressed = pyqtSignal()
+    home_button_pressed = Signal()
 
     # This defines a signal called 'canvas_zoom_released'
-    canvas_zoom_released = pyqtSignal()
+    canvas_zoom_released = Signal()
 
     def __init__(self, parent, canvas):
         """ Initialization
@@ -1886,8 +1838,6 @@ class MyNavigationToolbar(NavigationToolbar2):
         else:
             # into pan mode
             self._myMode = MyNavigationToolbar.NAVIGATION_MODE_PAN
-
-        print 'PANNED'
 
         return
 

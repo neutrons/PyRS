@@ -81,7 +81,7 @@ def main(argv):
     try:
         param_dict = script_helper.process_arguments(argv, args_def_list)
     except RuntimeError as run_err:
-        print ('Failed to parse inputs due to {}'.format(run_err))
+        print('Failed to parse inputs due to {}'.format(run_err))
         return
 
     # In case of help
@@ -130,5 +130,5 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    print (sys.argv)
+    print(sys.argv)
     main(sys.argv)

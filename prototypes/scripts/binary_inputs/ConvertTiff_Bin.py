@@ -19,8 +19,8 @@ def convert_to_spice_binary(option='1k'):
     for name in glob.glob('*_Rotated.tif'):
         # read data
         image_data = mping.imread(name)
-        print ('Working on {} of shape {} with value in range ({}, {})'.format(name, image_data.shape,
-                                                                               np.min(image_data), np.max(image_data)))
+        print('Working on {} of shape {} with value in range ({}, {})'.format(name, image_data.shape,
+                                                                              np.min(image_data), np.max(image_data)))
 
         # optionally convert the data 1K from 2K
         if option.count('1k'):
@@ -58,6 +58,6 @@ def convert_to_spice_binary(option='1k'):
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
-        print ('{} option\noption: (1) 1k  (2) raw  (3) mask_1k  (4) mask_raw'.format(sys.argv[0]))
+        print('{} option\noption: (1) 1k  (2) raw  (3) mask_1k  (4) mask_raw'.format(sys.argv[0]))
     else:
         convert_to_spice_binary(sys.argv[1])

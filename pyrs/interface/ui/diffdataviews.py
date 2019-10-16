@@ -1,7 +1,6 @@
 from mplgraphicsview1d import MplGraphicsView1D
 from mplgraphicsview2d import MplGraphicsView2D
 from mplgraphicsviewpolar import MplGraphicsPolarView
-from mplgraphicsview import MplGraphicsView
 import numpy as np
 import mplgraphicsviewpolar
 import slice_view_widget
@@ -12,6 +11,7 @@ class Diffraction2DPlot(MplGraphicsPolarView):
     """
     General 2D plot view for diffraction data set
     """
+
     def __init__(self, parent):
         """
         initialization
@@ -33,7 +33,7 @@ class Diffraction2DPlot(MplGraphicsPolarView):
         mplgraphicsviewpolar.check_1D_array(vec_alpha)
 
         # clear the image
-        print ('[DB...BAT] Plot pole figure for {0} data points!'.format(len(vec_alpha)))
+        print('[DB...BAT] Plot pole figure for {0} data points!'.format(len(vec_alpha)))
         # self._myCanvas.axes.clear()
 
         # project vector to XY plane, i.e., convert alpha (phi) azimuthal angle to r
@@ -62,6 +62,7 @@ class DetectorView(MplGraphicsView2D):
     """
     Detector view
     """
+
     def __init__(self, parent):
         """
         init
@@ -82,14 +83,33 @@ class DetectorView(MplGraphicsView2D):
 
         return
 
-    def plot_detector_view(self, raw_counts):
-        """
-        :param raw_counts: 1D array
-        :return:
-        """
-        # TODO - 20181117 - Make it real!
+    def plot_detector_view(self, detector_counts, info_tuple):
+        """Plot detector counts on 2D view
 
-        self._myCanvas.add_image_file('tests/testdata/Lab6_45-00130_Rotated.tif')
+        Parameters
+        ----------
+        detector_counts: ndarray (N, )
+            counts in 1D
+        info_tuple
+
+        Returns
+        -------
+
+        """
+        # TODO - #84 - Make it real!
+        sub_run_number, mask_id = info_tuple
+        title = 'Sub run {}, Mask: {}'.format(sub_run_number, mask_id)
+        print('[DEBUG]: {}'.format(title))
+
+        # print(detector_counts)
+        # print(type(detector_counts))
+        # print(detector_counts.shape)
+
+        image_size = np.sqrt(detector_counts.shape[0])
+        counts2d = detector_counts.reshape(image_size, image_size)
+
+        # Rotate 90 degree to match the view: IT COULD BE WRONG!
+        self.add_2d_plot(np.rot90(counts2d), 0, image_size, 0, image_size)
 
         return
 
@@ -98,6 +118,7 @@ class DiffContourView(MplGraphicsView2D):
     """
     Diffraction contour viewer
     """
+
     def __init__(self, parent):
         """
         initialization
@@ -119,6 +140,7 @@ class GeneralDiffDataView(MplGraphicsView1D):
     """
     generalized diffraction view
     """
+
     def __init__(self, parent):
         """ Initialization
         :param parent:
@@ -140,7 +162,7 @@ class GeneralDiffDataView(MplGraphicsView1D):
         """
         return self._current_x_axis_name
 
-    def plot_diffraction(self, vec_x, vec_y, x_label, y_label, keep_prev=True):
+    def plot_diffraction(self, vec_x, vec_y, x_label, y_label, line_label=None, keep_prev=True):
         """ plot figure in scatter-style
         :param vec_x:
         :param vec_y:
@@ -159,7 +181,8 @@ class GeneralDiffDataView(MplGraphicsView1D):
 
         # plot data in a scattering plot with auto re-scale
         ref_id = self.add_plot(vec_x, vec_y, line_style='-', marker=None,
-                               color='red', x_label=x_label, y_label=y_label)
+                               color='red', x_label=x_label, y_label=y_label,
+                               label=line_label)
         # TODO - 20181101 - Enable after auto_scale is fixed: self.auto_rescale()
 
         self._line_reference_list.append(ref_id)
@@ -212,6 +235,7 @@ class PeakFitSetupView(MplFitPlottingWidget):
     """
     Matplotlib graphics view to set up peak fitting
     """
+
     def __init__(self, parent):
         """
         Graphics view for peak fitting setup
@@ -223,10 +247,54 @@ class PeakFitSetupView(MplFitPlottingWidget):
         self._diff_reference_list = list()
         self._last_diff_reference = None  # last diffraction (raw) line ID
         self._last_model_reference = None  # last model diffraction (raw) line ID
-        self._last_fit_diff_reference = None  # TODO
+        self._last_fit_diff_reference = None  # Last plot's reference for fitting residual
 
         #
         self._auto_color = True
+
+        return
+
+    def plot_experiment_data(self, diff_data_set, data_reference):
+        """
+        plot a diffraction data
+        :param diff_data_set: 2-tuple for vector X and vector Y
+        :param data_reference: reference name for the data to plot for presentation purpose
+        :return:
+        """
+        # parse the data
+        vec_x = diff_data_set[0]
+        vec_y = diff_data_set[1]
+
+        ref_id = self.plot_data(data_set=(vec_x, vec_y), color='black', line_label=data_reference)
+
+        self._diff_reference_list.append(ref_id)
+        self._last_diff_reference = ref_id
+
+        return
+
+    def plot_model_data(self, diff_data_set, model_label, residual_set):
+        """Plot model data from fitting
+
+        Parameters
+        ----------
+        diff_data_set
+        model_label
+        residual_set
+
+        Returns
+        -------
+        None
+        """
+        vec_x = diff_data_set[0]
+        vec_y = diff_data_set[1]
+
+        ref_id = self.plot_data(data_set=(vec_x, vec_y), color='red', line_label='model')
+        self._last_model_reference = ref_id
+
+        if residual_set is not None:
+            # vec_x = residual_set[0]
+            # diff_y = residual_set[1]
+            self._myCanvas.add_plot_lower_axis(residual_set)
 
         return
 
@@ -276,7 +344,7 @@ class PeakFitSetupView(MplFitPlottingWidget):
         fit_diff_vec = diff_data_set[1] - model_data_set[1]
 
         # plot
-        self._last_fit_diff_reference = self._myCanvas.add_plot_lower_axis(diff_data_set[0])
+        self._last_fit_diff_reference = self._myCanvas.add_plot_lower_axis(fit_diff_vec)
 
         return
 
@@ -289,13 +357,13 @@ class PeakFitSetupView(MplFitPlottingWidget):
         # check condition
         if len(self._diff_reference_list) > 1:
             # very confusion to plot model
-            print ('There are more than 1 raw data plot.  It is very confusing to plot model.'
-                   '\n FYI current diffraction data references: {0}'.format(self._diff_reference_list))
+            print('There are more than 1 raw data plot.  It is very confusing to plot model.'
+                  '\n FYI current diffraction data references: {0}'.format(self._diff_reference_list))
             raise RuntimeError('There are more than 1 raw data plot.  It is very confusing to plot model.')
 
         # remove previous model
         if self._last_model_reference is not None:
-            print ('[DB...BAT] About to remove last reference: {0}'.format(self._last_model_reference))
+            print('[DB...BAT] About to remove last reference: {0}'.format(self._last_model_reference))
             self.remove_line(row_index=0, col_index=0, line_id=self._last_model_reference)
             self._last_model_reference = None
 
@@ -326,6 +394,7 @@ class SampleSliceView(slice_view_widget.SliceViewWidget):
     """
     2D contour view for sliced sample
     """
+
     def __init__(self, parent):
         """
         initialization
@@ -342,6 +411,7 @@ class GeomCalibrationView(MplGraphicsView1D):
     """
     """
     LineColor = ['black', 'red', 'blue', 'orange', 'grey']
+
     def __init__(self, parent):
         MplGraphicsView1D.__init__(self, parent, row_size=1, col_size=1, tool_bar=True)
 
@@ -351,7 +421,8 @@ class GeomCalibrationView(MplGraphicsView1D):
 
     def plot_data(self, vec_x, vec_y, mask_id):
 
-        line_id = self.add_plot(vec_x, vec_y, row_index=0, col_index=0, color=self.LineColor[mask_id], x_label='2theta',
+        line_id = self.add_plot(vec_x, vec_y, row_index=0, col_index=0,
+                                color=self.LineColor[mask_id], x_label='2theta',
                                 label='Mask {}'.format(mask_id), show_legend=True)
         if mask_id in self._mask_line_dict:
             self.remove_line(0, 0, self._mask_line_dict[mask_id])

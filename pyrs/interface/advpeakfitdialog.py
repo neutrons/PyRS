@@ -1,14 +1,9 @@
-try:
-    from PyQt5.QtWidgets import QDialog, QFileDialog, QMainWindow
-    from PyQt5.QtCore import pyqtSignal
-    from PyQt5.uic import loadUi as load_ui
-except ImportError:
-    from PyQt4.QtGui import QDialog, QFileDialog, QMainWindow
-    from PyQt4.QtCore import pyqtSignal
-    from PyQt4.uic import loadUi as load_ui
+from pyrs.utilities import load_ui
+from qtpy.QtCore import Signal
+from qtpy.QtWidgets import QDialog, QMainWindow
+
 import os
 import gui_helper
-import numpy
 
 
 class SmartPeakFitControlDialog(QDialog):
@@ -16,7 +11,7 @@ class SmartPeakFitControlDialog(QDialog):
     GUI window for user to fit peaks
     """
 
-    FitPeakSignal = pyqtSignal(list, name='Smart Peak Fit Signal')
+    FitPeakSignal = Signal(list, name='Smart Peak Fit Signal')
 
     def __init__(self, parent):
         """
@@ -80,7 +75,7 @@ class SmartPeakFitControlDialog(QDialog):
         for peak_name, combo_box_i in [('Gaussian', self.ui.comboBox_guassian),
                                        ('PseudoVoigt', self.ui.comboBox_peudovoigt),
                                        ('Voigt', self.ui.comboBox_voigt),
-                                        ('Lorentzian', self.ui.comboBox_lorentzian)]:
+                                       ('Lorentzian', self.ui.comboBox_lorentzian)]:
             order_i_str = str(combo_box_i.currentText())
             if order_i_str.lower() == 'not used':
                 continue

@@ -8,14 +8,21 @@ from pyrs.utilities import checkdatatypes
 
 
 class HydraSetup(object):
+    """A class to work with instrument geometry calculation
+
+    Handle anything to do with HB2B (HYDRA) including geometry, wavelength and calibration
+
     """
-    A class to handle anything to do with HB2B (HYDRA) including geometry, wavelength and calibration
-    """
+
     def __init__(self, l1, detector_setup):
-        """ Initialization
-        :param l1: L1 (from source to sample)
-        :param detector_setup: (AnglerCameraDetectorGeometry) detector geometry setup
-        :param wavelength: (float) wavelength
+        """Initialization
+
+        Initialization HB2B instrument setup
+
+        Parameters
+        ----------
+        l1
+        detector_setup
         """
         # check inputs
         checkdatatypes.check_type('Detector geometry setup', detector_setup, AnglerCameraDetectorGeometry)
@@ -25,7 +32,7 @@ class HydraSetup(object):
         self._single_wave_length = None
 
         self._geometry_shift = None
-        self._wave_length_shift = 0.
+        self._calibrated_wave_length = None
 
         # calibration state
         self._calibration_applied = False
@@ -33,40 +40,50 @@ class HydraSetup(object):
         return
 
     def get_instrument_geometry(self, calibrated):
-        """
+        """Get instrument geometry parameters
 
-        :param calibrated:
-        :return:
+        Get HB2B geometry setup, raw or calibrated optionally
+
+        Parameters
+        ----------
+        calibrated
+
+        Returns
+        -------
+        GeometrySetup
+            Geometry setup parameters
         """
         if calibrated and self._geometry_shift is not None:
             return self._geometry_setup.apply_shift(self._geometry_shift)
 
         return self._geometry_setup
 
-    def get_wavelength(self, wave_length_tag, calibrated):
-        """
-        Get wave length
-        :param wave_length_tag: user tag (as 111, 222) for wave length. None for single wave length
-        :param calibrated:
-        :return:
-        """
-        w_l = None
+    def get_wavelength(self, wave_length_tag):
+        """Get wave length
 
-        if calibrated:
-            return self._wave_length_shift + self._wave_length
-        elif wave_length_tag is None:
-            w_l = self._single_wave_length
-        else:
-            w_l = self._engineer_wave_length[wave_length_tag]
+        Get wave length for only calibrated
 
-        return w_l
+        Parameters
+        ----------
+        wave_length_tag: str
+            user tag (as 111, 222) for wave length. None for single wave length
+
+        Returns
+        -------
+        float
+            wave length in A
+        """
+        if wave_length_tag is not None:
+            raise NotImplementedError('Need use case to re-define the method')
+
+        return self._calibrated_wave_length
 
     def get_wavelength_shift(self):
         """
 
         :return:
         """
-        return self._wave_length_shift
+        return self._calibrated_wave_length
 
     @property
     def name(self):
@@ -112,6 +129,7 @@ class AnglerCameraDetectorGeometry(object):
     """
     A class to handle and save instrument geometry setup
     """
+
     def __init__(self, num_rows, num_columns, pixel_size_x, pixel_size_y, arm_length, calibrated):
         """
         Initialization of instrument geometry setup for 1 angler camera
@@ -178,6 +196,7 @@ class AnglerCameraDetectorShift(object):
     """
     A class to handle and save instrument geometry calibration information
     """
+
     def __init__(self, shift_x, shift_y, shift_z, rotation_x, rotation_y, rotation_z):
         """
         initialize
@@ -337,4 +356,3 @@ if __name__ == '__main__':
     # Test main
     shift = AnglerCameraDetectorShift(0., 0., 0., 0., 0., 0.)
     shift.to_json('geometry_shift_template.json')
-
