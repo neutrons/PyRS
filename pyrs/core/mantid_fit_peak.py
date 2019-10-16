@@ -131,13 +131,6 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
         """
         # Check inputs
-        checkdatatypes.check_string_variable('Peak function name', peak_function_name,
-                                             ['Gaussian', 'Voigt', 'PseudoVoigt', 'Lorentzian'])
-        checkdatatypes.check_string_variable('Background function name', background_function_name,
-                                             ['Linear', 'Flat', 'Quadratic'])
-        checkdatatypes.check_series('(To fit) sub runs range', sub_run_range, None, 2)
-        checkdatatypes.check_tuple('Peak range', peak_range, 2)
-
         self._fit_peaks_checks(sub_run_range, peak_function_name, background_function_name, peak_center, peak_range,
                                cal_center_d)
 

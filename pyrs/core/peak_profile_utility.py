@@ -214,16 +214,6 @@ class Gaussian(PeakParametersConverter):
 
         return intensity_error
 
-    def cal_height(self):
-        """
-
-        Returns
-        -------
-        Float/ndarray, Float/ndarray
-            peak height and fitting error
-        """
-        raise RuntimeError('Peak height is native ')
-
     @staticmethod
     def cal_fwhm(sigma):
         """
@@ -337,8 +327,7 @@ class PseudoVoigt(PeakParametersConverter):
         # Error propagation
         if include_error:
             # Calculate effective parameter value
-            heights_error = self.cal_height_error(heights,
-                                                  param_value_array[intensity_index, :, 0],
+            heights_error = self.cal_height_error(param_value_array[intensity_index, :, 0],
                                                   param_value_array[intensity_index, :, 1],
                                                   param_value_array[fwhm_index, :, 0],
                                                   param_value_array[fwhm_index, :, 1],
@@ -380,7 +369,7 @@ class PseudoVoigt(PeakParametersConverter):
         return height
 
     @staticmethod
-    def cal_height_error(height, intensity, intensity_error, fwhm, fwhm_error, mixing, mixing_error):
+    def cal_height_error(intensity, intensity_error, fwhm, fwhm_error, mixing, mixing_error):
         """Calculate propagated error of peak height
 
         Note: 's' is used for uncertainty/error
@@ -426,8 +415,8 @@ class PseudoVoigt(PeakParametersConverter):
         part_h_part_eta = two_inv_pi * intensity * mixing_factor / fwhm
 
         # sum
-        s_h2 = (part_h_part_i * intensity_error)**2 + (part_h_part_gamma * fwhm_error)**2 \
-               + (part_h_part_eta * mixing_factor)**2
+        s_h2 = (part_h_part_i * intensity_error)**2 + (part_h_part_gamma * fwhm_error)**2 + \
+               (part_h_part_eta * mixing_error)**2
 
         return np.sqrt(s_h2)
 
