@@ -1,17 +1,15 @@
-import os
 from pyrs.utilities import checkdatatypes
 import h5py
 import math
 import numpy
 from shutil import copyfile
-from mantid.simpleapi import SaveNexusProcessed
-from mantid.api import AnalysisDataService
 
 
 class DiffractionDataFile(object):
     """
     class to read and write reduced diffraction data file
     """
+
     def __init__(self):
         """
         initialization
@@ -123,11 +121,11 @@ class DiffractionDataFile(object):
         two_theta = instrument_group['2theta'].value
 
         # TODO - FIXME - TODAY 0 - Remove after testing is finished
-        print (counts)
-        print (type(counts))
+        print(counts)
+        print(type(counts))
 
-        print (two_theta)
-        print (type(two_theta))
+        print(two_theta)
+        print(type(two_theta))
 
         """
         [0 0 0 ..., 0 0 0]
@@ -261,7 +259,6 @@ class DiffractionDataFile(object):
         file_name_list.sort()
 
         # prepare the data structures
-        num_logs = len(file_name_list)
         sample_logs_set = dict()
         diff_data_dict_set = dict()
 
@@ -277,7 +274,7 @@ class DiffractionDataFile(object):
             if 'Diffraction Data' not in scan_h5.keys():
                 raise RuntimeError(scan_h5.keys())
             diff_data_group = scan_h5['Diffraction Data']
-            print ('File: {0}'.format(file_name))
+            print('File: {0}'.format(file_name))
 
             # loop through the Logs
             h5_log_i = diff_data_group
@@ -295,7 +292,7 @@ class DiffractionDataFile(object):
                 if isinstance(item_i, numpy.ndarray):
                     # case for diffraction data
                     if item_name == 'Corrected Diffraction Data':
-                        print ('Item {0}: shape = {1}'.format(item_name, item_i.shape))
+                        print('Item {0}: shape = {1}'.format(item_name, item_i.shape))
                         # corrected 2theta and diffraction
                         if item_i.shape[2] != len(log_index_vec):
                             raise RuntimeError('File {0}: Corrected Diffraction Data ({1}) has different '
@@ -397,56 +394,4 @@ class DiffractionDataFile(object):
         self._det_shape = detector_shape
 
         return
-
 # END-DEF-CLASS (DiffractionDataFile)
-
-
-# TODO - This shall be a method in DiffractionDataFile
-def save_hb2b_reduced_data(scan_index_dict, file_name):
-    """
-    save HB2B reduced data
-    :param scan_index_dict: dict[scan index] = ws_name (for sample logs), data set (vec 2theta, vec y, vec e)
-    :param file_name:
-    :return:
-    """
-    def get_sample_logs(ws_name):
-        """
-        get all the sample logs from input workspace
-        :param ws_name:
-        :return: dict  (dict[log name] = log value)
-        """
-        workspace = AnalysisDataService.retrieve(ws_name)
-        log_dict = dict()
-        for prop_i in workspace.run().getProperties():
-            name_i = prop_i.name
-            value_i = prop_i.value
-            if isinstance(value_i, int) or isinstance(value_i, float):
-                log_dict[name_i] = float(value_i)
-            elif isinstance(value_i, numpy.ndarray):
-                if value_i.shape[0] == 1:
-                    log_dict[name_i] = value_i[0]
-                else:
-                    print('[WARNING] Log {} has {} items.  Need to talk with client for this issue.'
-                          ''.format(value_i, value_i.shape))
-                # END-IF-ELSE
-            # END-IF-ELSE
-        # END-FOR
-
-        return log_dict
-    # END-DEF (get sample logs)
-
-    checkdatatypes.check_dict('Scan index data/workspace', scan_index_dict)
-    checkdatatypes.check_file_name(file_name, False, True, False, description='Output reduced hdf5 file')
-
-    for scan_index in sorted(scan_index_dict.keys()):
-        print('[DB...BAT] Writing scan-index {}'.format(scan_index))
-
-        ws_name, data_set = scan_index_dict[scan_index]
-        sample_log_dict = get_sample_logs(ws_name)
-
-        write_entry(scan_index, data_set, sample_log_dict)
-    # END-FOR
-
-    return
-
-

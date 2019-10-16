@@ -1,10 +1,7 @@
 # Class providing a series of static methods to work with files
-import os
-import platform
-import time
 from pyrs.utilities import checkdatatypes
+from pyrs.core.instrument_geometry import AnglerCameraDetectorShift
 import h5py
-import numpy as np
 
 
 def import_calibration_info_file(cal_info_file):
@@ -48,7 +45,7 @@ def import_calibration_ascii_file(geometry_file_name):
     checkdatatypes.check_file_name(geometry_file_name, True, False, False, 'Geometry configuration file in ASCII')
 
     # init output
-    calibration_setup = ResidualStressInstrumentCalibration()
+    calibration_setup = AnglerCameraDetectorShift()
 
     calibration_file = open(geometry_file_name, 'r')
     geom_lines = calibration_file.readlines()
@@ -78,7 +75,8 @@ def import_calibration_ascii_file(geometry_file_name):
         elif config_name == 'cal::rot_z':
             calibration_setup.rotation_z = config_value
         else:
-            raise RuntimeError('Instrument geometry setup item {} is not recognized and supported.'.format(config_name))
+            raise RuntimeError(
+                'Instrument geometry setup item {} is not recognized and supported.'.format(config_name))
 
     return calibration_setup
 
@@ -103,7 +101,8 @@ def import_instrument_setup(instrument_ascii_file):
     setup_lines = instr_file.readlines()
     instr_file.close()
 
-    instrument = InstrumentSetup()
+    raise RuntimeError('Need method to create an "InstrumentSetup"')
+    instrument = None  # TODO should be: instrument = InstrumentSetup()
     for line in setup_lines:
         line = line.strip()
 
@@ -163,6 +162,7 @@ class ResidualStressCalibrationFile(object):
     """
     a dedicated file import/export
     """
+
     def __init__(self, cal_file_name=None, read_only=False):
         """
         initialization.
@@ -171,7 +171,7 @@ class ResidualStressCalibrationFile(object):
         """
         # init some parameters
         self._h5_file = None  # HDF5 handler
-        self._geometry_calibration = ResidualStressInstrumentCalibration()
+        self._geometry_calibration = AnglerCameraDetectorShift()
         self._calibration_date = ''
 
         # check
@@ -212,8 +212,7 @@ class ResidualStressCalibrationFile(object):
         """
         if self._h5_file:
             self._h5_file.close()
-
-        return
+        self._h5_file = None
 
     def retrieve_calibration_date(self):
         """ get the starting date of the calibration shall be applied
@@ -228,19 +227,13 @@ class ResidualStressCalibrationFile(object):
 
         # TODO - 20181210 - Need a prototype file to continue
         self._geometry_calibration.two_theta0 = calib_param_entry['2theta0'].values[0]
-        self._geometry_calibration.center_shift_x = blabla
-        # blabla
+        raise NotImplementedError('Functionality for setting "center_shift_x" does not exist')
+        # self._geometry_calibration.center_shift_x = blabla
 
         # get the date from the calibration file inside?
 
-        return
-
 
 # END-CLASS
-
-
-
-
 
 
 def update_calibration_info_file(cal_info_file, cal_info_table, append):
@@ -269,7 +262,9 @@ def update_calibration_info_file(cal_info_file, cal_info_table, append):
     # write to file
     for wavelength_entry in cal_info_table:
         if wavelength_entry not in cal_info_file:
-            cal_info_file[wavelength_entry] = whatever
+            # TODO fix this
+            # cal_info_file[wavelength_entry] = whatever
+            raise RuntimeError('encountered unknown wavelength_entry: {}'.format(wavelength_entry))
 
         for cal_date in cal_info_table[wavelength_entry]:
             cal_file_name = cal_info_table[wavelength_entry][cal_date]
@@ -281,7 +276,3 @@ def update_calibration_info_file(cal_info_file, cal_info_table, append):
     cal_info_file.close()
 
     return
-
-
-
-

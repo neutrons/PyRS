@@ -1,19 +1,19 @@
 #!/bin/sh
-python setup.py pyuic
-python setup.py build
+# set the mantidpython to use - default to system installed nightly
+if [ -n "$1" ] && [ $(command -v $1) ]; then
+    MANTIDPYTHON="$1"
+else
+    MANTIDPYTHON=mantidpythonnightly
+fi
 
-CMDS=''
-for file in "$@"
-do
-  CMDS="$CMDS $file"
-done
+# check that a valid mantidpython was specified
+if [ ! $(command -v $MANTIDPYTHON) ]; then
+    echo "Failed to find mantidpython \"$MANTIDPYTHON\""
+    exit -1
+fi
 
-MANTIDLOCALPATH=/home/wzz/Mantid_Project/debug/bin/
-MANTIDMACPATH=/Users/wzz/MantidBuild/debug-stable/bin/
-MANTIDSNSDEBUGPATH=/opt/Mantid/bin/
-MANTIDPATH=$MANTIDMACPATH:$MANTIDLOCALPATH:$MANTIDSNSDEBUGPATH
-PYTHONPATH=$MANTIDPATH:$PYTHONPATH
-echo $PYTHONPATH
-PYRSPATH=build/lib.linux-x86_64-2.7/:build/lib/
+$MANTIDPYTHON setup.py build
 
-PYTHONPATH=$PYRSPATH:$PYTHONPATH build/scripts-2.7/pyrsplot $CMD 
+# let people know what is going on and launch it
+echo "Using \"$(which $MANTIDPYTHON)\""
+PYTHONPATH=`pwd`/build/lib $MANTIDPYTHON --classic build/scripts-2.7/pyrsplot

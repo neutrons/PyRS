@@ -1,24 +1,18 @@
 # This is a special widget for plotting fit result.
 # It consists of 2 plots (top one for experimental data and model, bottom one for residual, aka difference)
 # plus a tool bar
-try:
-    from PyQt5.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
-    from PyQt5.QtCore import pyqtSignal
-    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
-except (ImportError, RuntimeError) as err:
-    print ('[INFO] Import PyQt4. Unable to importing PyQt5. Details: {0}'.format(err))
-    from PyQt4.QtGui import QWidget, QSizePolicy, QVBoxLayout
-    from PyQt4.QtCore import pyqtSignal
-    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
+
+from pyrs.interface.ui.mplgraphicsview1d import MyNavigationToolbar
 from matplotlib.figure import Figure
-from pyrs.interface.ui import mplgraphicsview1d
+from qtpy.QtWidgets import QWidget, QVBoxLayout
+from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
+from pyrs.interface.ui.mplconstants import MplBasicColors
 
 
 class MplFitPlottingWidget(QWidget):
     """ Specially implemented widget for showing data against fitted model along with residual (difference)
     """
+
     def __init__(self, parent):
         """
         initialization
@@ -28,7 +22,7 @@ class MplFitPlottingWidget(QWidget):
 
         # set up UI and widgets
         self._myCanvas = QtMplFitCanvas(self)
-        self._myToolBar = mplgraphicsview1d.MyNavigationToolbar(self, self._myCanvas)
+        self._myToolBar = MyNavigationToolbar(self, self._myCanvas)
 
         # set up layout
         self._vBox = QVBoxLayout(self)
@@ -51,10 +45,10 @@ class MplFitPlottingWidget(QWidget):
         get the next available color
         :return:
         """
-        color = mplgraphicsview1d.MplBasicColors[0]
+        color = MplBasicColors[0]
 
         self._curr_color_index += 1
-        if self._curr_color_index >= len(mplgraphicsview1d.MplBasicColors):
+        if self._curr_color_index >= len(MplBasicColors):
             self._curr_color_index = 0
 
         return color
@@ -221,6 +215,7 @@ class QtMplFitCanvas(FigureCanvas):
     """ Canvas containing 2 vertical plots and 1 tool bar
 
     """
+
     def __init__(self, parent):
         """ initialization for a canvas with 2 sub plots
         :param parent:
@@ -455,4 +450,3 @@ class QtMplFitCanvas(FigureCanvas):
         # END-IF
 
         return
-

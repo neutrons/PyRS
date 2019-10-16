@@ -1,65 +1,21 @@
-#pylint: disable=invalid-name,too-many-public-methods,too-many-arguments,non-parent-init-called,R0902,too-many-branches,C0302
 """
 Graphics class with matplotlib backend specific for advanced 1D plot
 """
-import numpy as np
-try:
-    from PyQt5.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
-    from PyQt5.QtCore import pyqtSignal
-    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
-except (ImportError, RuntimeError) as err:
-    print ('[INFO] Import PyQt4. Unable to importing PyQt5. Details: {0}'.format(err))
-    from PyQt4.QtGui import QWidget, QSizePolicy, QVBoxLayout
-    from PyQt4.QtCore import pyqtSignal
-    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
-import matplotlib
 from matplotlib.figure import Figure
-
-MplLineStyles = ['-', '--', '-.', ':', 'None', ' ', '']
-MplLineMarkers = [
-    ". (point         )",
-    "* (star          )",
-    "x (x             )",
-    "o (circle        )",
-    "s (square        )",
-    "D (diamond       )",
-    ", (pixel         )",
-    "v (triangle_down )",
-    "^ (triangle_up   )",
-    "< (triangle_left )",
-    "> (triangle_right)",
-    "1 (tri_down      )",
-    "2 (tri_up        )",
-    "3 (tri_left      )",
-    "4 (tri_right     )",
-    "8 (octagon       )",
-    "p (pentagon      )",
-    "h (hexagon1      )",
-    "H (hexagon2      )",
-    "+ (plus          )",
-    "d (thin_diamond  )",
-    "| (vline         )",
-    "_ (hline         )",
-    "None (nothing    )"]
-
-# Note: in colors, "white" is removed
-MplBasicColors = [
-    "black",
-    "red",
-    "blue",
-    "green",
-    "cyan",
-    "magenta",
-    "yellow"]
+import matplotlib
+import numpy as np
+from qtpy.QtCore import Signal
+from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
+from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
+from mantidqt.MPLwidgets import NavigationToolbar2QT as NavigationToolbar2
+from pyrs.interface.ui.mplconstants import MplBasicColors, MplLineMarkers, MplLineStyles
 
 
 class MplGraphicsView1D(QWidget):
     """ A combined graphics view including matplotlib canvas and a navigation tool bar
     1. specific for 1-D data
-    2.
     """
+
     def __init__(self, parent, row_size=None, col_size=None, tool_bar=True):
         """Initialization
         :param parent:
@@ -82,12 +38,9 @@ class MplGraphicsView1D(QWidget):
 
         # for right plot
         self._myRightPlotDict = dict()
-        # self._myRightPlotDict[0, 0] = dict()
-        # FIXME - It is not clear how to use this dictionary
-        self._statRightPlotDict = dict()
 
         # auto line's maker+color list
-        self._myLineMarkerColorList = []
+        self._myLineMarkerColorList = list()
         self._myLineMarkerColorIndex = 0
         self.setAutoLineMarkerColorCombo()
 
@@ -125,7 +78,8 @@ class MplGraphicsView1D(QWidget):
         if is_main:
             # from main plot
             if (row_index, col_index) not in self._myMainPlotDict:
-                raise RuntimeError('Main plot does not have subplot ({0}, {1})'.format(row_index, col_index))
+                raise RuntimeError('Main plot does not have subplot '
+                                   '({0}, {1})'.format(row_index, col_index))
             y_min = self._myMainPlotDict[row_index, col_index][line_id][3]
             y_max = self._myMainPlotDict[row_index, col_index][line_id][4]
         else:
@@ -209,16 +163,22 @@ class MplGraphicsView1D(QWidget):
         return
 
     def add_arrow(self, start_x, start_y, stop_x, stop_y):
-        """
+        """Add a row
 
-        :param start_x:
-        :param start_y:
-        :param stop_x:
-        :param stop_y:
-        :return:
+        Add an arrow from (start_x, start_y) pointing to (stop_x, stop_y)
+        Parameters
+        ----------
+        start_x
+        start_y
+        stop_x
+        stop_y
+
+        Returns
+        -------
+        None
         """
-        # FIXME - BROKEN! TODO/LATER
-        self._myCanvas.add_arrow(start_x, start_y, stop_x, stop_y)
+        # Add default to (0, 0) figure
+        self._myCanvas.add_arrow(0, 0, start_x, start_y, stop_x, stop_y)
 
         return
 
@@ -250,7 +210,7 @@ class MplGraphicsView1D(QWidget):
             # plot to the right axis
             line_key = self._myCanvas.add_right_plot(row_index=row_index, col_index=col_index,
                                                      x=vec_x, y=vec_y, y_label=y_label,
-                                                     color=color, label=label,  marker=marker,
+                                                     color=color, label=label, marker=marker,
                                                      line_style=line_style, linewidth=line_width)
             # initialize right axes
             if (row_index, col_index) not in self._myRightPlotDict:
@@ -285,7 +245,6 @@ class MplGraphicsView1D(QWidget):
         :param upper_y_boundary:
         :return:
         """
-        # TODO FIXME - 20181101 - This is a broken method.  Fix it!
         if row_index is not None and col_index is not None:
             # check
             assert isinstance(row_index, int), 'row index {0} must be an integer but not a {1}' \
@@ -331,7 +290,8 @@ class MplGraphicsView1D(QWidget):
                 upper_y = upper_y_boundary
 
             # set limit
-            self._myCanvas.set_y_limits(row_index, col_index, lower_y, upper_y, apply_change=True)
+            is_main = True  # Need to extend to right axis plot
+            self._myCanvas.set_y_limits(row_index, col_index, is_main, lower_y, upper_y, apply_change=True)
         # END-FOR
 
         return
@@ -442,6 +402,8 @@ class MplGraphicsView1D(QWidget):
         :param event: event instance
         :return:
         """
+        assert event is not None
+
         # record home XY limit if it is never zoomed
         if self._isZoomed is False:
             self._homeXYLimit = list(self.get_x_limit())
@@ -453,29 +415,22 @@ class MplGraphicsView1D(QWidget):
 
         return
 
-    def getPlot(self):
-        """
-        """
-        return self._myCanvas.getPlot()
-
-    def getLastPlotIndexKey(self):
-        """ Get ...
-        """
-        return self._myCanvas.getLastPlotIndexKey()
-
     def get_label_x(self, row_index=0, col_index=0):
-        """
-
+        """Get X-axis label
         :param row_index:
         :param col_index:
         :return:
         """
-        # TODO blabla
         return self._myCanvas.axes_main[row_index, col_index].get_xlabel()
 
     def get_x_limit(self):
-        # TODO
-        return self._myCanvas.getXLimit()
+        """Get X-axis current limit
+        Returns
+        -------
+        (float, float)
+            x min, x max
+        """
+        return self._myCanvas.get_x_limits()
 
     def get_y_limit(self):
         """ Get limit of Y-axis
@@ -484,19 +439,25 @@ class MplGraphicsView1D(QWidget):
 
     def remove_line(self, row_index, col_index, line_id):
         """ Remove a line
-        :param line_id:
-        :return:
+
+        Remove a line in a specified sub figure and line index
+
+        Parameters
+        ----------
+        row_index
+        col_index
+        line_id
+
+        Returns
+        -------
+        None
         """
-        # remove line
+        # remove line by auto-determine the line is on the main side or right side
         is_on_main = self._myCanvas.remove_plot_1d(row_index, col_index, line_id, apply_change=True)
 
         # remove the records
-        self._update_plot_line_information(row_index, col_index, line_id=line_id, is_main=is_on_main, remove_line=True)
-
-        # if line_id in self._statMainPlotDict:
-        #     del self._statMainPlotDict[line_id]
-        # else:
-        #     del self._statRightPlotDict[line_id]
+        self._update_plot_line_information(row_index, col_index, line_id=line_id, is_main=is_on_main,
+                                           remove_line=True)
 
         return
 
@@ -515,28 +476,43 @@ class MplGraphicsView1D(QWidget):
         """
         return self._myCanvas.subplot_indexes
 
-    def getLineStyleList(self):
-        """
-        """
-        return MplLineStyles
+    @staticmethod
+    def get_supported_line_styles():
+        """Get all the supported line styles
 
-    def getLineMarkerList(self):
+        Returns
+        -------
+        List(str)
         """
-        """
-        return MplLineMarkers
+        return MplLineStyles[:]
 
-    def getLineBasicColorList(self):
-        """
-        """
-        return MplBasicColors
+    @staticmethod
+    def get_supported_line_markers():
+        """Get all the supported line markers
 
-    def getDefaultColorMarkerComboList(self):
+        Returns
+        -------
+        List(str)
+        """
+        return MplLineMarkers[:]
+
+    @staticmethod
+    def get_supported_line_colors():
+        """Get all the supported but not limited to colors for lines
+
+        Returns
+        -------
+        List(str)
+        """
+        return MplBasicColors[:]
+
+    def get_default_color_marker_combinations(self):
         """ Get a list of line/marker color and marker style combination
         as default to add more and more line to plot
         """
-        return self._myCanvas.getDefaultColorMarkerComboList()
+        return self._myCanvas.get_built_in_color_marker_combinations()
 
-    def getNextLineMarkerColorCombo(self):
+    def get_next_color_marker_combination(self):
         """ As auto line's marker and color combo list is used,
         get the NEXT marker/color combo
         """
@@ -619,7 +595,7 @@ class MplGraphicsView1D(QWidget):
         self.clear_all_lines(include_right=False)
 
         # set the subplots
-        print ('[DB...BAT] Set subplot: {}, {}'.format(row_size, col_size))
+        print('[DB...BAT] Set subplot: {}, {}'.format(row_size, col_size))
         self._myCanvas.set_subplots(row_size, col_size)
 
         # reset PlotDict: make the right-axis open.
@@ -630,8 +606,8 @@ class MplGraphicsView1D(QWidget):
         return
 
     # TODO/NOW - How to deal with label!!!
-    def update_line(self, row_index, col_index, ikey, is_main, vec_x=None, vec_y=None, line_style=None, line_color=None,
-                    marker=None, marker_color=None):
+    def update_line(self, row_index, col_index, ikey, is_main, vec_x=None, vec_y=None,
+                    line_style=None, line_color=None, marker=None, marker_color=None):
         """ Update a line, including value, line style, color, marker and etc.
         Update a line, including value, line style, color, marker and etc.
         The line is indicated by its key
@@ -663,8 +639,8 @@ class MplGraphicsView1D(QWidget):
                                            line_id=ikey, remove_line=False,
                                            vec_y=vec_y, label=None)  # let callee to determine label
 
-        self._myCanvas.update_plot_line(row_index, col_index, ikey, is_main, vec_x, vec_y, line_style, line_color, marker,
-                                               marker_color)
+        self._myCanvas.update_plot_line(row_index, col_index, ikey, is_main, vec_x, vec_y,
+                                        line_style, line_color, marker, marker_color)
 
         return
 
@@ -673,6 +649,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
     """  A customized Qt widget for matplotlib figure.
     It can be used to replace GraphicsView of QtGui
     """
+
     def __init__(self, parent, row_size=None, col_size=None):
         """Initialization
         :param parent:
@@ -695,13 +672,13 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         # right axes
         self._rightLineDict = dict()
 
-        # line index: single index for both main and right plot
-        self._lineIndex = 0
+        # count of lines ever plot on the canvas. the newly added line's index is line_count - 1
+        self._line_count = 0
 
         # legend and color bar
         self._legendStatusDict = dict()
         self._legendRightStatusDict = dict()
-        self._legendFontSize = 8
+        self._legend_font_size = 8
 
         # data structure for sub plots
         self._numSubPlots = 0
@@ -714,7 +691,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
             self.set_subplots(row_size, col_size)
 
         # Set size policy to be able to expanding and resizable with frame
-        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding,QSizePolicy.Expanding)
+        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
 
         return
@@ -783,7 +760,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         ec = 'k'
 
         # check
-        self._check_subplot_index(row_index, col_index)
+        self._check_subplot_index(row_index, col_index, is_main=True)
 
         # do it
         self.axes_main[row_index, col_index].arrrow(start_x, start_y, stop_x, stop_y, head_width, head_length, fc, ec)
@@ -826,7 +803,8 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
                 raise NotImplementedError('Input y_err must be either None or numpy.array.')
 
         if len(vec_x) != len(vec_y):
-            raise NotImplementedError('Input vec_x and vec_y must have same size.')
+            raise NotImplementedError('Input vec_x (shape: {}) and vec_y (shape: {}) must have same size.'
+                                      ''.format(vec_x.shape, vec_y.shape))
         if plot_error is True and len(y_err) != len(vec_x):
             raise NotImplementedError('Input vec_x, vec_y and y_error must have same size.')
 
@@ -847,10 +825,13 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         # color must be RGBA (4-tuple)
         if plot_error is False:
             # return: list of matplotlib.lines.Line2D object
-            r = self.axes_main[row_index, col_index].plot(vec_x, vec_y, color=color, marker=marker, markersize=4,
-                                                          linestyle=line_style, label=label, linewidth=line_width)
+            r = self.axes_main[row_index, col_index].plot(vec_x, vec_y, color=color,
+                                                          marker=marker, markersize=4,
+                                                          linestyle=line_style, label=label,
+                                                          linewidth=line_width)
         else:
-            r = self.self.axes_main[row_index, col_index].errorbar(vec_x, vec_y, yerr=y_err, color=color, marker=marker,
+            r = self.self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
+                                                                   yerr=y_err, color=color, marker=marker,
                                                                    linestyle=line_style, label=label,
                                                                    linewidth=line_width)
 
@@ -862,10 +843,10 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
             self._setup_legend(row_index, col_index, is_main=True)
 
         # Register
-        line_key = self._lineIndex
+        line_key = self._line_count
         if len(r) == 1:
             self._mainLineDict[row_index, col_index][line_key] = r[0]
-            self._lineIndex += 1
+            self._line_count += 1
         else:
             msg = 'Return from plot is a %d-tuple: %s.. \n' % (len(r), r)
             for i_r in range(len(r)):
@@ -939,10 +920,10 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         self._setup_legend(row_index, col_index, is_main=False)
 
         # Register
-        line_id = self._lineIndex  # share the line ID counter with main axis
+        line_id = self._line_count  # share the line ID counter with main axis
         if len(plot_info) == 1:
             self._rightLineDict[row_index, col_index][line_id] = plot_info[0]
-            self._lineIndex += 1
+            self._line_count += 1
         else:
             msg = 'Return from plot is a %d-tuple: %s.. \n' % (len(plot_info), plot_info)
             for i_r in range(len(plot_info)):
@@ -1066,39 +1047,45 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
 
         """
         # minimum legend font size is 2! return if it already uses the smallest font size.
-        if self._legendFontSize <= 2:
+        if self._legend_font_size <= 2:
             return
 
-        self._legendFontSize -= 1
-        self._setup_legend(font_size=self._legendFontSize)
+        self._legend_font_size -= 1
+        self._setup_legend(row_index=0, col_index=0, font_size=self._legend_font_size)
 
         self.draw()
 
         return
 
-    def getLastPlotIndexKey(self):
+    def get_last_plot_index(self):
         """ Get the index/key of the last added line
         """
-        return self._lineIndex-1
+        return self._line_count - 1
 
-    def getPlot(self):
-        """ reture figure's axes to expose the matplotlib figure to PyQt client
-        """
-        return self.axes
+    def get_x_limits(self):
+        """Get X-axis limits for sub-plot (0, 0)
 
-    def getXLimit(self):
-        """ Get limit of Y-axis
+        Returns
+        -------
+        float, float
         """
-        # FIXME : make it work for multiple axes!
         x_lim = self.axes_main[0, 0].get_xlim()
-        print ('x limit: {0}'.format(x_lim))
+
         return x_lim
 
-    def getYLimit(self):
-        """ Get limit of Y-axis
+    def getYLimit(self, row_index=0, col_index=0):
+        """Get Y-axis limit
+
+        Parameters
+        ----------
+        row_index
+        col_index
+
+        Returns
+        -------
+        float, float
         """
-        # FIXME : make it work for multiple axes!
-        return self.axes_main[0, 0].get_ylim()
+        return self.axes_main[row_index, col_index, col_index].get_ylim()
 
     def hide_legend(self, row_number, col_number, is_main, is_right):
         """ Hide the legend if it is not None
@@ -1140,14 +1127,12 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         Returns:
 
         """
-        # FIXME/NOW - Change API
-        self._legendFontSize += 1
-
-        self._setup_legend(font_size=self._legendFontSize)
-
+        # Increase
+        self._legend_font_size += 1
+        # Reset
+        self._setup_legend(row_index=0, col_index=0, font_size=self._legend_font_size)
+        # Draw
         self.draw()
-
-        raise NotImplementedError('ASAP')
 
         return
 
@@ -1290,7 +1275,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
             # unable to locate plot key
             raise RuntimeError('Line with ID %s is not recorded.' % plot_key)
 
-        self._setup_legend(row_index, col_index, location='best', font_size=self._legendFontSize, is_main=is_on_main)
+        self._setup_legend(row_index, col_index, location='best', font_size=self._legend_font_size, is_main=is_on_main)
 
         # Draw
         if apply_change:
@@ -1313,7 +1298,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
             if self.axes_main[row_number, col_number].legend() is not None:
                 # set visible to be True and re-draw
                 # self.axes.legend().set_visible(True)
-                self._setup_legend(row_number, col_number, font_size=self._legendFontSize,
+                self._setup_legend(row_number, col_number, font_size=self._legend_font_size,
                                    is_main=True)
 
                 # set flag on
@@ -1326,7 +1311,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
             if self.axes_right[row_number, col_number].legend() is not None:
                 # set visible to be True and re-draw
                 # self.axes.legend().set_visible(True)
-                self._setup_legend(row_number, col_number, font_size=self._legendFontSize,
+                self._setup_legend(row_number, col_number, font_size=self._legend_font_size,
                                    is_main=False)
 
                 # set flag on
@@ -1443,22 +1428,8 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
 
         return line.get_xdata(), line.get_ydata()
 
-    def getLineStyleList(self):
-        """
-        """
-        return MplLineStyles
-
-    def getLineMarkerList(self):
-        """
-        """
-        return MplLineMarkers
-
-    def getLineBasicColorList(self):
-        """
-        """
-        return MplBasicColors
-
-    def getDefaultColorMarkerComboList(self):
+    @staticmethod
+    def get_built_in_color_marker_combinations():
         """ Get a list of line/marker color and marker style combination
         as default to add more and more line to plot
         """
@@ -1466,9 +1437,9 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         num_markers = len(MplLineMarkers)
         num_colors = len(MplBasicColors)
 
-        for i in xrange(num_markers):
+        for i in range(num_markers):
             marker = MplLineMarkers[i]
-            for j in xrange(num_colors):
+            for j in range(num_colors):
                 color = MplBasicColors[j]
                 combo_list.append((marker, color))
             # ENDFOR (j)
@@ -1480,7 +1451,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         """ A dirty hack to flush the image
         """
         w, h = self.get_width_height()
-        self.resize(w+1, h)
+        self.resize(w + 1, h)
         self.resize(w, h)
 
         return
@@ -1571,10 +1542,10 @@ class MyNavigationToolbar(NavigationToolbar2):
 
     # This defines a signal called 'home_button_pressed' that takes 1 boolean
     # argument for being in zoomed state or not
-    home_button_pressed = pyqtSignal()
+    home_button_pressed = Signal()
 
     # This defines a signal called 'canvas_zoom_released'
-    canvas_zoom_released = pyqtSignal(matplotlib.backend_bases.MouseEvent)
+    canvas_zoom_released = Signal(matplotlib.backend_bases.MouseEvent)
 
     def __init__(self, parent, canvas):
         """ Initialization
@@ -1684,7 +1655,7 @@ class MyNavigationToolbar(NavigationToolbar2):
         """
         NavigationToolbar2.release_zoom(self, event)
 
-        print (type(event))
+        print(type(event))
 
         self.canvas_zoom_released.emit(event)
 

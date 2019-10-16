@@ -1,14 +1,7 @@
 # a collection of helper methdos for GUI
-import os
 import platform
 from pyrs.utilities import checkdatatypes
-try:
-    from PyQt5.QtWidgets import QDialog, QLineEdit, QFileDialog, QMessageBox
-    is_qt4 = False
-except ImportError:
-    from PyQt4.QtGui import QDialog, QLineEdit, QFileDialog, QMessageBox
-    from PyQt4 import QtCore
-    is_qt4 = True
+from qtpy.QtWidgets import QLineEdit, QFileDialog, QMessageBox, QVBoxLayout
 
 
 def browse_dir(parent, caption, default_dir):
@@ -25,7 +18,7 @@ def browse_dir(parent, caption, default_dir):
 
     # get directory
     chosen_dir = QFileDialog.getExistingDirectory(parent, caption, default_dir)
-    print ('[DB...BAT] Chosen dir: {} of type {}'.format(chosen_dir, type(chosen_dir)))
+    print('[DB...BAT] Chosen dir: {} of type {}'.format(chosen_dir, type(chosen_dir)))
     chosen_dir = str(chosen_dir).strip()
 
     return chosen_dir
@@ -111,7 +104,7 @@ def get_save_file_name(parent, dir_name, caption, file_filter):
     if isinstance(file_info, tuple):
         file_name = str(file_info[0])
         file_filter = file_info[1]
-        print ('[DB...Save Pole Figure] File name: {0}, Filter = {1}'.format(file_name, file_filter))
+        print('[DB...Save Pole Figure] File name: {0}, Filter = {1}'.format(file_name, file_filter))
     else:
         file_name = str(file_info)
         file_filter = None
@@ -166,11 +159,10 @@ def parse_float(float_str):
     :return:
     """
     if isinstance(float_str, QLineEdit):
+        # Input is QLineEdit
         float_str = str(float_str.text())
-    elif is_qt4 and isinstance(float_str, QtCore.QString):
-        # There is no QString in PyQt5
-        float_str = str(float_str)
     else:
+        # Input has to be string
         checkdatatypes.check_string_variable('Integer string', float_str)
 
     try:
@@ -187,14 +179,11 @@ def parse_integer(int_str):
     :param int_str:
     :return:
     """
-    if isinstance(int_str, str):
-        pass
-    elif isinstance(int_str, QLineEdit):
+    if isinstance(int_str, QLineEdit):
+        # QLineEdit: get the string out of it
         int_str = str(int_str.text())
-    elif is_qt4 and isinstance(int_str, QtCore.QString):
-        # There is no QString in PyQt5
-        int_str = str(int_str)
     else:
+        # Then it has to be a string
         checkdatatypes.check_string_variable('Integer string', int_str)
 
     try:
@@ -276,6 +265,20 @@ def parse_integers(int_list_string):
     int_list.sort()
 
     return int_list
+
+
+def promote_widget(frame_widget, promoted_widget):
+    """
+    Add a promoted widget to a QFrame in the main window
+    :param frame_widget:
+    :param promoted_widget:
+    :return:
+    """
+    curr_layout = QVBoxLayout()
+    frame_widget.setLayout(curr_layout)
+    curr_layout.addWidget(promoted_widget)
+
+    return
 
 
 def get_boolean_from_dialog(window_title, message):
@@ -380,5 +383,6 @@ def pop_message(parent, message, detailed_message=None, message_type='error'):
     msg_box.setStandardButtons(QMessageBox.Ok)
 
     ret_val = msg_box.exec_()
+    print('Message box return value: {}'.format(ret_val))
 
     return

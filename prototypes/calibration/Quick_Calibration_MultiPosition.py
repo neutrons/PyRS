@@ -1,30 +1,32 @@
 # Migrated from /HFIR/HB2B/shared/Quick_Calibration.py
 # Original can be found at ./Quick_Calibration_v3.py
-print ('Prototype Calibration: Quick_Calibration_v4')
-import numpy as np
-import time
-import os
-from scipy.optimize import minimize
+from matplotlib import pyplot as plt
+from mantid.api import AnalysisDataService as mtd
+from mantid.simpleapi import CreateWorkspace, FitPeaks
+from pyrs.core import mask_util
+from pyrs.core import reductionengine
+from pyqr.utilities import calibration_file_io
+from pyrs.core import instrument_geometry
+from pyrs.core import reduce_hb2b_pyrs
+from pyrs.core import pyrscore
+import lmfit
+import math
+import itertools
 from scipy.optimize import least_squares
+from scipy.optimize import minimize
+import os
+import time
+import numpy as np
+print('Prototype Calibration: Quick_Calibration_v4')
 # from scipy.optimize import minimize
 # from scipy.optimize import basinhopping
-import itertools
-import math
-import lmfit
 
-from pyrs.core import pyrscore
-from pyrs.core import reduce_hb2b_pyrs
-from pyrs.core import instrument_geometry
-from pyrs.core import calibration_file_io
-from pyrs.core import reductionengine
-from pyrs.core import mask_util
-from mantid.simpleapi import CreateWorkspace, FitPeaks
-from mantid.api import AnalysisDataService as mtd
-from matplotlib import pyplot as plt
 
 colors = ['black', 'red', 'blue', 'green', 'yellow']
 
-dSpace = np.array( [4.156826, 2.93931985, 2.39994461, 2.078413, 1.8589891, 1.69701711, 1.46965993, 1.38560867, 1.3145038, 1.2533302, 1.19997231, 1.1528961, 1.11095848, 1.0392065, 1.00817839, 0.97977328, 0.95364129, 0.92949455, 0.9070938, 0.88623828, 0.84850855, 0.8313652, 0.81522065, 0.79998154, 0.77190321, 0.75892912, 0.73482996] )
+dSpace = np.array([4.156826, 2.93931985, 2.39994461, 2.078413, 1.8589891, 1.69701711, 1.46965993, 1.38560867, 1.3145038, 1.2533302, 1.19997231, 1.1528961, 1.11095848,
+                   1.0392065, 1.00817839, 0.97977328, 0.95364129, 0.92949455, 0.9070938, 0.88623828, 0.84850855, 0.8313652, 0.81522065, 0.79998154, 0.77190321, 0.75892912, 0.73482996])
+
 
 from lmfit.models import LinearModel, GaussianModel
 
@@ -39,12 +41,13 @@ class GlobalParameter(object):
     def __init__(self):
         return
 
+
 def check_alignment_inputs(roi_vec_set, two_theta):
     """ Check inputs for alignment routine for required formating
     :param roi_vec_set: list/array of ROI/mask vector
     :param two_theta:
     :return: num_reduced_set, two_theta, num_two_theta
-    """    
+    """
     # check
     assert isinstance(roi_vec_set, list), 'must be list'
     if len(roi_vec_set) < 2:
@@ -52,35 +55,37 @@ def check_alignment_inputs(roi_vec_set, two_theta):
     else:
         num_reduced_set = len(roi_vec_set)
 
-    if not isinstance(two_theta, list): two_theta = [ two_theta ]
+    if not isinstance(two_theta, list):
+        two_theta = [two_theta]
 
     return (num_reduced_set, two_theta)
 
-def get_alignment_residual(x, engine, hb2b_setup, two_theta, roi_vec_set ):
+
+def get_alignment_residual(x, engine, hb2b_setup, two_theta, roi_vec_set):
     """ Cost function for peaks alignment to determine wavelength
     :param x: list/array of detector shift/rotation and neutron wavelength values
     :x[0]: shift_x, x[1]: shift_y, x[2]: shift_z, x[3]: rot_x, x[4]: rot_y, x[5]: rot_z, x[6]: wavelength
     :param engine:
-    :param hb2b_setup: HB2B class containing instrument definitions 
+    :param hb2b_setup: HB2B class containing instrument definitions
     :param two_theta: list/array of detector positions
     :param roi_vec_set: list/array of ROI/mask vector
     :return:
-    """    
+    """
 
     GlobalParameter.global_curr_sequence += 1
 
-    residual = np.array( [] )
-    resNone  = 0.
+    residual = np.array([])
+    resNone = 0.
 
-    TTH_Calib   = np.arcsin( x[6] / 2. / dSpace ) * 360. / np.pi
-    TTH_Calib   = TTH_Calib[ ~np.isnan( TTH_Calib ) ]
+    TTH_Calib = np.arcsin(x[6] / 2. / dSpace) * 360. / np.pi
+    TTH_Calib = TTH_Calib[~np.isnan(TTH_Calib)]
 
     background = LinearModel()
     for i_tth in range( len( two_theta ) ):
         #reduced_data_set[i_tth] = [None] * num_reduced_set 
         # load instrument: as it changes
-        pyrs_reducer = reduce_hb2b_pyrs.PyHB2BReduction(hb2b_setup, x[6] )
-        pyrs_reducer.build_instrument_prototype(two_theta[i_tth], x[0], x[1], x[2], x[3], x[4], x[5] )
+        pyrs_reducer = reduce_hb2b_pyrs.PyHB2BReduction(hb2b_setup, x[6])
+        pyrs_reducer.build_instrument_prototype(two_theta[i_tth], x[0], x[1], x[2], x[3], x[4], x[5])
 
         DetectorAngle   = np.abs( two_theta[i_tth] )
         mintth  = DetectorAngle-8.0
@@ -90,8 +95,8 @@ def get_alignment_residual(x, engine, hb2b_setup, two_theta, roi_vec_set ):
         maxEta  = np.max( Eta_val )-2
         minEta  = np.min( Eta_val )+2
 
-        peak_centers    = ''
-        fit_windows     = '' 
+        peak_centers = ''
+        fit_windows = ''
 
         FitModel        = lmfit.Model( BackGround )
         pars1           = FitModel.make_params( p0=100, p1=1, p2=0.01 )
@@ -114,7 +119,8 @@ def get_alignment_residual(x, engine, hb2b_setup, two_theta, roi_vec_set ):
 #        peak_centers = peak_centers[:-1]
 #        fit_windows = fit_windows[:-1]
 
-        if peak_centers == '':residual = np.concatenate([residual, np.array( [20000] ) ])
+        if peak_centers == '':
+            residual = np.concatenate([residual, np.array([20000])])
 
         else:
             # reduce data
@@ -128,7 +134,7 @@ def get_alignment_residual(x, engine, hb2b_setup, two_theta, roi_vec_set ):
             ax1 = plt.subplot(num_rows, 1, num_rows)
             ax1.margins(0.05)  # Default margin is 0.05, value 0 means fit
 
-            for i_roi in range( eta_roi_vec.shape[0] ):
+            for i_roi in range(len(roi_vec_set)):
                 ws_name_i = 'reduced_data_{:02}'.format(i_roi)
                 out_peak_pos_ws = 'peaks_positions_{:02}'.format(i_roi)
                 fitted_ws = 'fitted_peaks_{:02}'.format(i_roi)
@@ -185,16 +191,6 @@ def get_alignment_residual(x, engine, hb2b_setup, two_theta, roi_vec_set ):
     #            print ( CalibPeaks - mtd[ out_peak_pos_ws ].readY(0)  )
     #            print ( "\n\n\n\n\n\n" )
 
-#                for p_index in range( len(mtd[ out_peak_pos_ws ].readY(0)) ):
-#                    fitted_pos_i = mtd[ out_peak_pos_ws ].readY(0)[p_index]
-#
-#                    if fitted_pos_i < 0.:
-#                        residual_sq = 1000
-#                    else:
-#                        residual_sq = ( 100.0 * np.abs(fitted_pos_i - CalibPeaks[p_index]) )
-#                        resNone += fitted_pos_i - CalibPeaks[p_index]
-#
-#                    residual = np.concatenate([residual, np.array( [residual_sq] ) ])
 
             # plot
 
@@ -211,21 +207,22 @@ def get_alignment_residual(x, engine, hb2b_setup, two_theta, roi_vec_set ):
 
     norm_cost = residual.sum() / (len( roi_vec_set )*len(two_theta))
 
-    print ( "\n\n\n" )
-    print ('Residual      = {}'.format(norm_cost))
-    print ('Residual      = {}'.format(resNone))
-    print ( "\n\n\n" )
+    print("\n\n\n")
+    print('Residual      = {}'.format(norm_cost))
+    print('Residual      = {}'.format(resNone))
+    print("\n\n\n")
 
     return (residual)
 
+
 def convert_to_2theta(engine, pyrs_reducer, roi_vec, ws_name, curr_id, min_2theta=16., max_2theta=61., num_bins=1800):
     # reduce data
-    TTHStep     = (max_2theta - min_2theta) / num_bins
-    pyrs_reducer.set_mask( roi_vec )
+    TTHStep = (max_2theta - min_2theta) / num_bins
+    pyrs_reducer.set_mask(roi_vec)
     pyrs_reducer._detector_counts = engine.get_counts(curr_id)
 
     vec_2theta, vec_hist = pyrs_reducer.reduce_to_2theta_histogram((min_2theta, max_2theta), TTHStep, True,
-                                   is_point_data=True, normalize_pixel_bin=True, use_mantid_histogram=False)
+                                                                   is_point_data=True, normalize_pixel_bin=True, use_mantid_histogram=False)
 
     #CreateWorkspace(DataX=vec_2theta, DataY=vec_hist, DataE=np.sqrt(vec_hist), NSpec=1,
     #                OutputWorkspace=ws_name)
@@ -233,7 +230,7 @@ def convert_to_2theta(engine, pyrs_reducer, roi_vec, ws_name, curr_id, min_2thet
     return vec_2theta, vec_hist
 
 
-def peak_alignment_wavelength( x, engine, hb2b_setup, two_theta, roi_vec_set, detectorCalib, ScalarReturn=False ):
+def peak_alignment_wavelength(x, engine, hb2b_setup, two_theta, roi_vec_set, detectorCalib, ScalarReturn=False):
     """ Cost function for peaks alignment to determine wavelength
     :param x:
     :param engine:
@@ -247,18 +244,19 @@ def peak_alignment_wavelength( x, engine, hb2b_setup, two_theta, roi_vec_set, de
 
     num_reduced_set, two_theta = check_alignment_inputs(roi_vec_set, two_theta)
 
-    paramVec        = np.zeros(7)
-    paramVec[0:6]   = detectorCalib
-    paramVec[6]     = x[0]
+    paramVec = np.zeros(7)
+    paramVec[0:6] = detectorCalib
+    paramVec[6] = x[0]
 
-    residual = get_alignment_residual(paramVec, engine, hb2b_setup, two_theta, roi_vec_set )
+    residual = get_alignment_residual(paramVec, engine, hb2b_setup, two_theta, roi_vec_set)
 
     if ScalarReturn:
-        return np.sum( residual )
+        return np.sum(residual)
     else:
         return residual
 
-def peak_alignment_shift( x, engine, hb2b_setup, two_theta, roi_vec_set, detectorRotation=[0,0,0], Wavelength=1.452, ScalarReturn=False ):
+
+def peak_alignment_shift(x, engine, hb2b_setup, two_theta, roi_vec_set, detectorRotation=[0, 0, 0], Wavelength=1.452, ScalarReturn=False):
     """ Cost function for peaks alignment to determine detector shift
     :param x:
     :param engine:
@@ -272,23 +270,24 @@ def peak_alignment_shift( x, engine, hb2b_setup, two_theta, roi_vec_set, detecto
 
     num_reduced_set, two_theta = check_alignment_inputs(roi_vec_set, two_theta)
 
-    paramVec        = np.zeros(7)
-    paramVec[0:3]   = x[:]
-    paramVec[3:6]   = detectorRotation
-    paramVec[6]     = Wavelength
+    paramVec = np.zeros(7)
+    paramVec[0:3] = x[:]
+    paramVec[3:6] = detectorRotation
+    paramVec[6] = Wavelength
 
-    print ('\n\n\n\n\n')
-    print (paramVec)
-    print ('\n\n\n\n\n')
+    print('\n\n\n\n\n')
+    print(paramVec)
+    print('\n\n\n\n\n')
 
-    residual = get_alignment_residual(paramVec, engine, hb2b_setup, two_theta, roi_vec_set )
+    residual = get_alignment_residual(paramVec, engine, hb2b_setup, two_theta, roi_vec_set)
 
     if ScalarReturn:
-        return np.sum( residual )
+        return np.sum(residual)
     else:
         return residual
 
-def peak_alignment_rotation( x, engine, hb2b_setup, two_theta, roi_vec_set, detectorShift=[0,0,0], Wavelength=1.452, ScalarReturn=False ):
+
+def peak_alignment_rotation(x, engine, hb2b_setup, two_theta, roi_vec_set, detectorShift=[0, 0, 0], Wavelength=1.452, ScalarReturn=False):
     """ Cost function for peaks alignment to determine detector rotation
     :param x:
     :param engine:
@@ -301,17 +300,18 @@ def peak_alignment_rotation( x, engine, hb2b_setup, two_theta, roi_vec_set, dete
     """
     num_reduced_set, two_theta = check_alignment_inputs(roi_vec_set, two_theta)
 
-    paramVec        = np.zeros(7)
-    paramVec[0:3]   = detectorShift
-    paramVec[3:6]   = x[:]
-    paramVec[6]     = Wavelength
+    paramVec = np.zeros(7)
+    paramVec[0:3] = detectorShift
+    paramVec[3:6] = x[:]
+    paramVec[6] = Wavelength
 
-    residual = get_alignment_residual(paramVec, engine, hb2b_setup, two_theta, roi_vec_set )
+    residual = get_alignment_residual(paramVec, engine, hb2b_setup, two_theta, roi_vec_set)
 
     if ScalarReturn:
-        return np.sum( residual )
+        return np.sum(residual)
     else:
         return residual
+
 
 def peaks_alignment_all(x, engine, hb2b_setup, two_theta, roi_vec_set, plot=False, ScalarReturn=False):
     """ Cost function for peaks alignment to determine wavelength and detector shift and rotation
@@ -326,10 +326,10 @@ def peaks_alignment_all(x, engine, hb2b_setup, two_theta, roi_vec_set, plot=Fals
 
     num_reduced_set, two_theta = check_alignment_inputs(roi_vec_set, two_theta)
 
-    residual = get_alignment_residual(x, engine, hb2b_setup, two_theta, roi_vec_set )
+    residual = get_alignment_residual(x, engine, hb2b_setup, two_theta, roi_vec_set)
 
     if ScalarReturn:
-        return np.sum( residual )
+        return np.sum(residual)
     else:
         return residual
 
@@ -352,39 +352,39 @@ def main():
     test_file_name6 = 'tests/testdata/SimulatedData_65.tiff'
 #    test_file_name = 'tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5'
 
-
     # reduction engine
-    DataSets    = []
-    two_theta   = []
+    DataSets = []
+    two_theta = []
     TTHS = np.arange(60, 65.1, 1)
-    engine      = reductionengine.HB2BReductionManager()    
-    TTHS = np.array( [56., 60.0, 65., 70., 81.] )
+    engine = reductionengine.HB2BReductionManager()
+    TTHS = np.array([56., 60.0, 65., 70., 81.])
 
     for TTH in TTHS:
-        engine.load_data(data_file_name='tests/testdata/SimulatedData_%.0f.tiff'%TTH, target_dimension=1024,
-                                    load_to_workspace=False)
-        DataSets.append( 'SimulatedData_%.0f'%TTH )
-        two_theta.append( -1* TTH )
+        engine.load_data(data_file_name='tests/testdata/SimulatedData_%.0f.tiff' % TTH, target_dimension=1024,
+                         load_to_workspace=False)
+        DataSets.append('SimulatedData_%.0f' % TTH)
+        two_theta.append(-1 * TTH)
 
     # instrument geometry
     idf_name = 'tests/testdata/xray_data/XRay_Definition_2K.txt'
-    idf_name = 'tests/testdata/xray_data/XRay_Definition_1K.txt'      
+    idf_name = 'tests/testdata/xray_data/XRay_Definition_1K.txt'
 
     t_start = time.time()
 
     # instrument
-    instrument  = calibration_file_io.import_instrument_setup(idf_name)
+    instrument = calibration_file_io.import_instrument_setup(idf_name)
 
-    HB2B        = instrument_geometry.AnglerCameraDetectorGeometry( instrument.detector_rows, instrument.detector_columns, instrument.pixel_size_x, instrument.pixel_size_y, instrument.arm_length, False )
+    HB2B = instrument_geometry.AnglerCameraDetectorGeometry(
+        instrument.detector_rows, instrument.detector_columns, instrument.pixel_size_x, instrument.pixel_size_y, instrument.arm_length, False)
 
 #        roi_vec_list = [30, -30, 20, -20, 10, -10]
     roi_vec_list = [5, 2, 0, -2, -5]
     roi_vec_list = [5, 0, -5]
 
-    start_calibration = np.array( [0.0] * 7, dtype = np.float)
-    start_calibration[6] =  1.452
+    start_calibration = np.array([0.0] * 7, dtype=np.float)
+    start_calibration[6] = 1.452
 
-    GlobalParameter.global_curr_sequence = 0  
+    GlobalParameter.global_curr_sequence = 0
 
     t_stop1 = time.time()
     t_stop2 = time.time()
@@ -427,5 +427,6 @@ def main():
 
 
     return
+
 
 main()

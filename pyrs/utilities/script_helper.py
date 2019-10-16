@@ -32,14 +32,14 @@ def convert_opt_operations(opt_opts):
             if len(long_name_i) < 2:
                 raise RuntimeError('Long name {} in {} is not allowed. At least 2 letters'
                                    ''.format(long_name_i, t4))
-            opt_dict['--{}'.format(long_name_i)] = target_name_i, type_i  #, default_i, mandatory_i
+            opt_dict['--{}'.format(long_name_i)] = target_name_i, type_i  # , default_i, mandatory_i
 
         # short opt name
         if short_name_i is not None:
             if len(short_name_i) != 1:
                 raise RuntimeError('Short name {} in {} is not allowed. 1 and only 1 letter'
                                    ''.format(short_name_i, t4))
-            opt_dict['-{}'.format(short_name_i)] = target_name_i, type_i  #, default_i, mandatory_i
+            opt_dict['-{}'.format(short_name_i)] = target_name_i, type_i  # , default_i, mandatory_i
 
         # Mandatory
         if mandatory_i:
@@ -77,16 +77,12 @@ def parse_arguments(argv, opt_operation_list):
     long_list.append('help')
     short_list_string += 'h'
 
-    print ('[DB...BAT] Short name list: {}; Long name list: {}'.format(short_list_string, long_list))
+    print('[DB...BAT] Short name list: {}; Long name list: {}'.format(short_list_string, long_list))
     # Example: "hdi:o:l:g:G:r:R:"
 
     try:
         opts, args = getopt.getopt(argv, short_list_string, long_list)
     except getopt.GetoptError as get_err:
-        """
-        [DB...BAT] Short name list: i:m:o:b:h:; Long name list: ['input=', 'masks=', 'instrument=', 'output=', 'binsize=', 'help']
-        Failed to parse inputs due to Unable to get-opt from input arguments (['-h']) due to option -h requires argument
-        """
         raise RuntimeError('Unable to get-opt from input arguments ({}) due to {}'
                            ''.format(argv, get_err))
 
@@ -113,7 +109,7 @@ def process_arguments(argv_list,  opt_operation_list):
 
     # user does not have any valid inputs
     if len(command_opts) == 0:
-        print ('Run "{0} -h" or {0} --help" for help'.format(command_args[0]))
+        print('Run "{0} -h" or {0} --help" for help'.format(command_args[0]))
         return None
 
     # Read each input
@@ -124,8 +120,8 @@ def process_arguments(argv_list,  opt_operation_list):
             arguments_dict['help'] = True
         elif opt_i not in opt_operate_dict:
             # None supported
-            print ('[WARNING] User input argument {} is not supported. Supported keys are {}'
-                   ''.format(opt_i, opt_operate_dict.keys()))
+            print('[WARNING] User input argument {} is not supported. Supported keys are {}'
+                  ''.format(opt_i, opt_operate_dict.keys()))
         else:
             # parse
             param_name_i, type_i = opt_operate_dict[opt_i]
@@ -177,7 +173,7 @@ def print_helper(arg_info_dict):
     # END-FOR
 
     # print on screen
-    print (help_str)
+    print(help_str)
 
     return help_str
 

@@ -7,9 +7,6 @@ Convert the "old" HB2B data, now used to pole figure, to new HydraProject format
 1. Run this script
 
 """
-from pyrs.utilities import rs_scan_io
-from pyrs.utilities import rs_project_file
-
 
 def main():
     """ Main to convert the data file to standard Hidra project format
@@ -28,7 +25,6 @@ def main():
     # TODO FIXME - #72    - HIDRA may have a different workflow to generate the reduced data sets across the detector
     # TODO ... ...        - Thus, how to form the raw data is still UNDER DISCUSSION
     # TODO ... ..         - Solution: Add these 7 reduced set to 7 masked reduced data set with proper tag and meta data for detector center/out of plane angle
-
 
     return
 

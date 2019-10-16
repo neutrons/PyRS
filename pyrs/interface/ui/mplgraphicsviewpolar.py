@@ -1,20 +1,8 @@
-#pylint: disable=invalid-name,too-many-public-methods,too-many-arguments,non-parent-init-called,R0902,too-many-branches,C0302
-import os
+from matplotlib.figure import Figure
 import numpy as np
 
-try:
-    from PyQt5.QtCore import pyqtSignal
-    from PyQt5.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
-    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
-except ImportError:
-    from PyQt4.QtGui import QWidget, QSizePolicy, QVBoxLayout
-    from PyQt4.QtCore import pyqtSignal
-    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
-
-from matplotlib.figure import Figure
-import matplotlib.image
+from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
+from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
 
 
 class MplGraphicsPolarView(QWidget):
@@ -23,6 +11,7 @@ class MplGraphicsPolarView(QWidget):
 
     Note: Merged with HFIR_Powder_Reduction.MplFigureCAnvas
     """
+
     def __init__(self, parent):
         """ Initialization
         """
@@ -62,6 +51,7 @@ class Qt4MplPolarCanvas(FigureCanvas):
     """  A customized Qt widget for matplotlib figure.
     It can be used to replace GraphicsView of QtGui
     """
+
     def __init__(self, parent):
         """  Initialization
         """
@@ -97,7 +87,7 @@ class Qt4MplPolarCanvas(FigureCanvas):
         """ A dirty hack to flush the image
         """
         w, h = self.get_width_height()
-        self.resize(w+1, h)
+        self.resize(w + 1, h)
         self.resize(w, h)
 
         return
@@ -130,9 +120,11 @@ class Qt4MplPolarCanvas(FigureCanvas):
 
         # create the mesh grid for contour plot
         # create 1D arrays for theta and r: beta/2
-        azimuths = np.radians(np.linspace(-theta_resolution/2., 360+theta_resolution/2., 360/theta_resolution+1))  # degree
-        # Chris change to non-linear spacing from alpha:  zeniths = np.arange(0, max_r+r_resolution, r_resolution)  # radius
-        zeniths = np.tan(np.pi / 360. * np.arange(-r_resolution/2., max_r+r_resolution, r_resolution))  # radius
+        azimuths = np.radians(np.linspace(-theta_resolution * 0.5, 360 +
+                                          theta_resolution * 0.5, 360 / theta_resolution + 1))  # degree
+        # Chris change to non-linear spacing from alpha:
+        #        zeniths = np.arange(0, max_r+r_resolution, r_resolution)  # radius
+        zeniths = np.tan(np.pi / 360. * np.arange(-r_resolution * 0.5, max_r + r_resolution, r_resolution))  # radius
 
         # convert to meshgrid
         mesh_r, mesh_theta = np.meshgrid(zeniths, azimuths)
@@ -146,8 +138,8 @@ class Qt4MplPolarCanvas(FigureCanvas):
         r_ref_vec = mesh_r[0]
         theta_ref_vec = mesh_theta[:, 0]
 
-        print ('[DB...BAT] Plot pole figure:  Number of data points = {}, '
-               'Maximum intensity = {}'.format(num_pts, np.max(vec_values)))
+        print('[DB...BAT] Plot pole figure:  Number of data points = {}, '
+              'Maximum intensity = {}'.format(num_pts, np.max(vec_values)))
 
         for i in range(num_pts):
             r_i = vec_r[i]
@@ -161,12 +153,12 @@ class Qt4MplPolarCanvas(FigureCanvas):
                 index_theta = 0
             elif index_theta >= len(theta_ref_vec):
                 # out of boundary. it is not likely to happen
-                print ('[DB...BAT] Find an out-of-boundary theta {0} exceeding {1}'
-                       ''.format(theta_i, theta_ref_vec[-1]))
+                print('[DB...BAT] Find an out-of-boundary theta {0} exceeding {1}'
+                      ''.format(theta_i, theta_ref_vec[-1]))
                 index_theta -= 1
             else:
                 # theta is between two valid values: use the closer one
-                left_theta = theta_ref_vec[index_theta-1]
+                left_theta = theta_ref_vec[index_theta - 1]
                 right_theta = theta_ref_vec[index_theta]
                 if theta_i - left_theta < right_theta - theta_i:
                     index_theta -= 1
@@ -179,12 +171,12 @@ class Qt4MplPolarCanvas(FigureCanvas):
                 index_r = 0
             elif index_r >= len(r_ref_vec):
                 # out of upper boundary. it is not likely to happen
-                print ('[DB...BAT] Find an out-of-boundary r {0} exceeding {1}'
-                       ''.format(r_i, r_ref_vec[-1]))
+                print('[DB...BAT] Find an out-of-boundary r {0} exceeding {1}'
+                      ''.format(r_i, r_ref_vec[-1]))
                 index_r -= 1
             else:
                 # r is between two valid values: use the closer one
-                left_r = r_ref_vec[index_r-1]
+                left_r = r_ref_vec[index_r - 1]
                 right_r = r_ref_vec[index_r]
                 if r_i - left_r < right_r - r_i:
                     index_r -= 1
@@ -209,11 +201,12 @@ class Qt4MplPolarCanvas(FigureCanvas):
         return
     #
 
+
 def check_1D_array(vector):
     """
     check 1D array
-    :param vector: 
-    :return: 
+    :param vector:
+    :return:
     """
     assert isinstance(vector, np.ndarray), 'Input {0} must be a numpy ndarray but not a {1}.' \
                                            ''.format(vector, type(vector))

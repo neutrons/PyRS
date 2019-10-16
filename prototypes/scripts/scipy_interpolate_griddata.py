@@ -19,7 +19,7 @@ value_vec = np.array([5., 6., 7., 8])
 
 grid_x, grid_y = 1.51, 2.01
 v_int = griddata(system2d, value_vec, (grid_x, grid_y), method='nearest')
-print v_int 
+print v_int
 
 
 # Test for the 3D system
@@ -42,4 +42,4 @@ system3d[3, 2] = 0.0
 
 grid_x, grid_y, grid_z = 1.3000, 2.20000, 0.00000
 v_int = griddata(system3d, value_vec, (grid_x, grid_y, grid_z), method='nearest')
-print v_int 
+print v_int

@@ -1,13 +1,9 @@
 import pyrs.interface.pyrs_main
-try:
-    from PyQt5.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout, QHBoxLayout, QPushButton
-    from PyQt5.uic import loadUi as load_ui
-except ImportError:
-    from PyQt4.QtGui import QMainWindow, QFileDialog, QVBoxLayout, QHBoxLayout, QPushButton
-    from PyQt4.uic import loadUi as load_ui
-from pyrs.interface.ui import qt_util
-from pyrs.utilities import checkdatatypes
+from pyrs.utilities import load_ui
+from qtpy.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout, QHBoxLayout, QPushButton
+
 import pyrs.core.pyrscore
+from pyrs.core.instrument_geometry import AnglerCameraDetectorShift
 import os
 import gui_helper
 from ui import diffdataviews
@@ -20,6 +16,7 @@ class InstrumentCalibrationWindow(QMainWindow):
     """
     GUI window to calculate strain and stress with simple visualization
     """
+
     def __init__(self, parent, pyrs_core):
         """
         initialization
@@ -52,7 +49,7 @@ class InstrumentCalibrationWindow(QMainWindow):
 
         self.ui.pushButton_loadMask.clicked.connect(self.do_load_mask)
         self.ui.pushButton_reduce.clicked.connect(self.do_reduce_data)
-       
+
         self.ui.pushButton_calibrateGeometry.clicked.connect(self.do_calibrate_geometry)
 
         # decrease button associated line edits dictionary
@@ -323,7 +320,7 @@ class InstrumentCalibrationWindow(QMainWindow):
         """
         # get the current mask file
         curr_mask_file = gui_helper.parse_line_edit(self.ui.lineEdit_maskFile, str, False, 'Masking file')
-        print ('[DB...BAT] Parsed line edit value: {} of type {}'.format(curr_mask_file, type(curr_mask_file)))
+        print('[DB...BAT] Parsed line edit value: {} of type {}'.format(curr_mask_file, type(curr_mask_file)))
 
         # whether it has been loaded
         if curr_mask_file in self._core.reduction_manager.get_loaded_mask_files():
@@ -349,7 +346,10 @@ class InstrumentCalibrationWindow(QMainWindow):
                 self.ui.lineEdit_maskFile.setText('{}'.format(curr_mask_file))
         # END-IF
 
-        mask_id = self.load_mask_file(curr_mask_file)
+        try:
+            self.load_mask_file(curr_mask_file)
+        except RuntimeError:
+            pass
 
         return
 
@@ -405,8 +405,7 @@ class InstrumentCalibrationWindow(QMainWindow):
         #                                              cal_wave_length)
 
         # reduce masks
-        from pyrs.core import calibration_file_io
-        geom_calibration = calibration_file_io.ResidualStressInstrumentCalibration()
+        geom_calibration = AnglerCameraDetectorShift()
         geom_calibration.center_shift_x = cal_shift_x
         geom_calibration.center_shift_y = cal_shift_y
         geom_calibration.center_shift_z = cal_shift_z
@@ -428,6 +427,10 @@ class InstrumentCalibrationWindow(QMainWindow):
             """
             vec_x, vec_y = self._core.reduction_manager.get_reduced_data()
             self.ui.graphicsView_calibration.plot_data(vec_x, vec_y, self._mask_subplot_dict[mask_id])
+
+        if cal_wave_length:
+            # TODO - Need to implement how to calibrate wave length
+            raise NotImplementedError('Implement ASAP')
 
         return
 

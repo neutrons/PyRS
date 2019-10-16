@@ -8,15 +8,11 @@ Convert the synchrotron raw data to test
 Note: most of the methods to parse HZB data are copied from script pyrscalibration.py
 """
 from pyrs.utilities import rs_project_file
-import sys
-import os
-from pyrs.utilities import file_util
 from pyrs.utilities import rs_project_file
 import numpy
-from skimage import io, exposure, img_as_uint, img_as_float
+from skimage import io
 from PIL import Image
 import numpy as np
-import pylab as plt
 
 
 def load_data_from_tif(raw_tiff_name, pixel_size=2048, rotate=True):
@@ -31,7 +27,7 @@ def load_data_from_tif(raw_tiff_name, pixel_size=2048, rotate=True):
     # im = img_as_uint(np.array(ImageData))
     io.use_plugin('freeimage')
     image_2d_data = np.array(ImageData, dtype=np.int32)
-    print (image_2d_data.shape, type(image_2d_data), image_2d_data.min(), image_2d_data.max())
+    print(image_2d_data.shape, type(image_2d_data), image_2d_data.min(), image_2d_data.max())
     # image_2d_data.astype(np.uint32)
     image_2d_data.astype(np.float64)
     if rotate:
@@ -39,7 +35,8 @@ def load_data_from_tif(raw_tiff_name, pixel_size=2048, rotate=True):
 
     # Merge data if required
     if pixel_size == 1024:
-        counts_vec = image_2d_data[::2, ::2] + image_2d_data[::2, 1::2] + image_2d_data[1::2, ::2] + image_2d_data[1::2, 1::2]
+        counts_vec = image_2d_data[::2, ::2] + image_2d_data[::2, 1::2] + \
+            image_2d_data[1::2, ::2] + image_2d_data[1::2, 1::2]
         pixel_type = '1K'
         # print (DataR.shape, type(DataR))
     else:
@@ -48,7 +45,7 @@ def load_data_from_tif(raw_tiff_name, pixel_size=2048, rotate=True):
         pixel_type = '2K'
 
     counts_vec = counts_vec.reshape((pixel_size * pixel_size,))
-    print ('Minimum counts (on pixels) = ', counts_vec.min())
+    print('Minimum counts (on pixels) = ', counts_vec.min())
 
     return counts_vec, pixel_type
 

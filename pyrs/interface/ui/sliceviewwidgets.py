@@ -1,17 +1,8 @@
-try:
-    from PyQt5.QtCore import pyqtSignal
-    from PyQt5.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
-    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar2
-except ImportError:
-    from PyQt4.QtGui import QWidget, QSizePolicy, QVBoxLayout
-    from PyQt4.QtCore import pyqtSignal
-    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
-
-import numpy as np
-from matplotlib.figure import Figure
 import matplotlib.image
+from matplotlib.figure import Figure
+import numpy as np
+from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout
+from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
 import time
 
 
@@ -21,6 +12,7 @@ class Mpl2DGraph(QWidget):
 
     Note: Merged with HFIR_Powder_Reduction.MplFigureCAnvas
     """
+
     def __init__(self, parent):
         """ Initialization
         """
@@ -136,6 +128,7 @@ class Qt4Mpl2DCanvas(FigureCanvas):
     """  A customized Qt widget for matplotlib figure.
     It can be used to replace GraphicsView of QtGui
     """
+
     def __init__(self, parent):
         """  Initialization
         """
@@ -205,7 +198,7 @@ class Qt4Mpl2DCanvas(FigureCanvas):
 
         # Do plot: resolution on Z axis (color bar is set to 100)
         time_s = time.time()
-        print ('[DB...BAT] Contour Plot Starting time (float) = {}'.format(time_s))
+        print('[DB...BAT] Contour Plot Starting time (float) = {}'.format(time_s))
 
         self.axes.clear()
         if False:
@@ -214,17 +207,16 @@ class Qt4Mpl2DCanvas(FigureCanvas):
             contour_plot = self.axes.contourf(vec_x, vec_y, matrix_z, 50, cmap="RdBu_r")
 
         time_f = time.time()
-        print ('[DB...BAT] Stopping time (float) = {}.  Used {} second for plotting'.format(time_f,
-                                                                                            time_f - time_s))
+        print('[DB...BAT] Stopping time (float) = {}.  Used {} second for plotting'.format(time_f,
+                                                                                           time_f - time_s))
 
         labels = [item.get_text() for item in self.axes.get_yticklabels()]
-        print '[DB...BAT] Number of Y labels = ', len(labels), ', Number of Y = ', len(vec_y)
 
         # TODO/ISSUE/NOW: how to make this part more flexible
-        if len(labels) == 2*len(vec_y) - 1:
+        if len(labels) == 2 * len(vec_y) - 1:
             new_labels = [''] * len(labels)
             for i in range(len(vec_y)):
-                new_labels[i*2] = '%d' % int(vec_y[i])
+                new_labels[i * 2] = '%d' % int(vec_y[i])
             self.axes.set_yticklabels(new_labels)
         # END-IF
 
@@ -277,12 +269,12 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         # show image
         self._imagePlot = self.axes.imshow(array2d, extent=[xmin, xmax, ymin, ymax], interpolation='none')
 
-        print (self._imagePlot, type(self._imagePlot))
+        print(self._imagePlot, type(self._imagePlot))
 
         # set y ticks as an option:
         if yticklabels is not None:
             # it will always label the first N ticks even image is zoomed in
-            print ("[FIXME]: The way to set up the Y-axis ticks is wrong!")
+            print("[FIXME]: The way to set up the Y-axis ticks is wrong!")
             self.axes.set_yticklabels(yticklabels)
 
         # explicitly set aspect ratio of the image
@@ -303,10 +295,8 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         return
 
     def add_image_file(self, imagefilename):
-        """ Add an image by file
+        """Add an image by file
         """
-        #import matplotlib.image as mpimg
-
         # set aspect to auto mode
         self.axes.set_aspect('auto')
 
@@ -407,7 +397,7 @@ class Qt4Mpl2DCanvas(FigureCanvas):
     def getLastPlotIndexKey(self):
         """ Get the index/key of the last added line
         """
-        return self._lineIndex-1
+        return self._lineIndex - 1
 
     def getPlot(self):
         """ reture figure's axes to expose the matplotlib figure to PyQt client
@@ -476,7 +466,7 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         assert isinstance(title, str), 'Title must be a string but not a {0}.'.format(type(title))
         assert isinstance(color, str), 'Color must be a string but not a {0}.'.format(type(color))
 
-        print '[DB...BAT] Set {0} in color {1} as the figure\'s title.'.format(title, color)
+        print('[DB...BAT] Set {0} in color {1} as the figure\'s title.'.format(title, color))
         self.setWindowTitle(title)
         self.fig.set_label(title)
 
@@ -503,7 +493,7 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         """ A dirty hack to flush the image
         """
         w, h = self.get_width_height()
-        self.resize(w+1, h)
+        self.resize(w + 1, h)
         self.resize(w, h)
 
         return
@@ -513,6 +503,7 @@ class Mpl1DGraph(QWidget):
     """
     Simple matplotlib 1D plot
     """
+
     def __init__(self, parent):
         """Initialization
         :param parent:ns
@@ -560,6 +551,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
     """  A customized Qt widget for matplotlib figure.
     It can be used to replace GraphicsView of QtGui
     """
+
     def __init__(self, parent, row_size=None, col_size=None, rotate=False):
         """Initialization
         :param parent:
@@ -605,17 +597,15 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         self._is_rotated = rotate
 
         # prototype ...
-        import numpy
-        from matplotlib import transforms, pyplot
 
-        vec_x = numpy.arange(0, 150, 1)
-        vec_y = numpy.sin(vec_x)  # * numpy.pi / 180.)
+        vec_x = np.arange(0, 150, 1)
+        vec_y = np.sin(vec_x)  # * np.pi / 180.)
 
         # first of all, the base transformation of the data points is needed
         # base = pyplot.gca().transData
         if rotate:
-            base = self.axes_main[0, 0].transData
-            rot = transforms.Affine2D().rotate_deg(270)
+            # base = self.axes_main[0, 0].transData
+            # rot = transforms.Affine2D().rotate_deg(270)
             # output = self.axes_main[0, 0].plot(vec_x, vec_y, 'r--', transform=rot + base)
             output = self.axes_main[0, 0].plot(vec_y, vec_x)
         else:

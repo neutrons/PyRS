@@ -34,6 +34,7 @@ def check_dict(var_name, dict_var):
 def check_file_name(file_name, check_exist=True, check_writable=False, is_dir=False, description=''):
     """
     check whether an input file name is a string and whether it is a file or a file can be written to
+    :exception RuntimeError: file does not meet the requirement
     :param file_name:
     :param check_exist:
     :param check_writable:
@@ -44,7 +45,7 @@ def check_file_name(file_name, check_exist=True, check_writable=False, is_dir=Fa
     assert isinstance(file_name, str), 'Input file name {0}  must be a string but not a {1}.' \
                                        ''.format(file_name, type(file_name))
     assert isinstance(description, str), 'Input file description {} must be a string but not a {}' \
-                                  ''.format(description, type(description))
+                                         ''.format(description, type(description))
 
     # set note
     if len(description) == 0:
@@ -96,11 +97,11 @@ def check_int_variable(var_name, variable, value_range):
 
         min_val = value_range[0]
         max_val = value_range[1]
-        assert min_val is None or isinstance(min_val, int), 'Minimum value {0} of value range {1} must be either None' \
-                                                            ' or integer but not {2}' \
+        assert min_val is None or isinstance(min_val, int), 'Minimum value {0} of value range {1} must be either' \
+                                                            ' None or integer but not {2}' \
                                                             ''.format(min_val, value_range, type(min_val))
-        assert max_val is None or isinstance(max_val, int), 'Maximum value {0} of value range {1} must be either None' \
-                                                            ' or integer but not {2}' \
+        assert max_val is None or isinstance(max_val, int), 'Maximum value {0} of value range {1} must be either' \
+                                                            ' None or integer but not {2}' \
                                                             ''.format(max_val, value_range, type(max_val))
         if (min_val is not None and variable < min_val) or (max_val is not None and variable >= max_val):
             raise ValueError('{0} (= {1}) is out of range [{2}, {3})'.format(var_name, variable, min_val, max_val))
@@ -119,7 +120,7 @@ def check_float_variable(var_name, variable, value_range):
     :return:
     """
     check_string_variable('var_name', var_name)
-    assert isinstance(variable, float) or isinstance(variable, int), '{0} {1} must be a float but not a {2}'\
+    assert isinstance(variable, (float, int)), '{0} {1} must be a float but not a {2}'\
         .format(var_name, variable, type(variable))
 
     if value_range is not None:
@@ -163,11 +164,11 @@ def check_list(var_name, variable, allowed_values=None):
 
 def check_numpy_arrays(var_name, variables, dimension, check_same_shape):
     """ check numpy array or numpy arrays
-    :param var_name: 
-    :param variables: 
+    :param var_name:
+    :param variables:
     :param dimension: None for not checking dimension; Otherwise, a tuple can be compared with numpy.ndarray.shape
     :param check_same_shape:
-    :return: 
+    :return:
     """
     check_string_variable('Variable name', var_name)
     check_bool_variable('Flag to check arrays having same shape', check_same_shape)
@@ -176,14 +177,14 @@ def check_numpy_arrays(var_name, variables, dimension, check_same_shape):
         variables = [variables]
         check_same_shape = False
     else:
-        assert isinstance(variables, list) or isinstance(variables, tuple),\
+        assert isinstance(variables, (list, tuple)),\
             'Variable {} (shall be an numpy arrays) {} must be given in form of numpy array, ' \
             'list or tuple but not {}'.format(var_name, variables, type(variables))
 
     for index, variable in enumerate(variables):
         # check whether each variable is a numpy array with desired dimension
-        assert isinstance(variable, numpy.ndarray), '{0}-th element of variable {1} ({2}) must be an ndarray but not ' \
-                                                    'a {3}'.format(index, var_name, variable, type(variable))
+        assert isinstance(variable, numpy.ndarray), '{0}-th element of variable {1} ({2}) must be an ndarray but not' \
+                                                    ' a {3}'.format(index, var_name, variable, type(variable))
         if dimension is not None:
             check_int_variable('ndarray dimension for {0}'.format(var_name), dimension, [0, None])
             assert len(variable.shape) == dimension, '{0}-th ndarray of variable {1} must be of {2}-dimension but ' \
@@ -214,7 +215,7 @@ def check_series(var_name, variable, allowed_type=None, size=None):
     """
     check_string_variable('Variable name', var_name)
 
-    assert isinstance(variable, list) or isinstance(variable, tuple) or isinstance(variable, numpy.ndarray),\
+    assert isinstance(variable, (list, tuple, numpy.ndarray)),\
         '{} {} must be a list or tuple but not a {}'.format(var_name, variable, type(variable))
 
     # check size
@@ -254,10 +255,8 @@ def check_string_variable(var_name, variable, allowed_values=None, allow_empty=T
     assert isinstance(var_name, str), 'Variable name {0} must be a string but not a {1}'\
         .format(var_name, type(var_name))
 
-    assert isinstance(variable, str) or isinstance(variable, unicode), '{0} {1} must be a string or unicode' \
-                                                                       'but not a {2}' \
-                                                                       ''.format(var_name, variable,
-                                                                                 type(variable))
+    assert isinstance(variable, (str, unicode)), '{0} {1} must be a string or unicode but not a {2}' \
+                                                 ''.format(var_name, variable, type(variable))
 
     if isinstance(allowed_values, list):
         if variable not in allowed_values:

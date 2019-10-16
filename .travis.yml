@@ -1,0 +1,99 @@
+language: python
+dist: trusty
+
+services:
+  - xvfb
+
+cache:
+  directories:
+    - $HOME/.cache/pip
+
+matrix:
+  include:
+  - os: linux
+    env: CONDA=2.7
+  #- os: linux
+  #  env: CONDA=3.6
+
+before_install:
+- |
+  # Install conda
+  "/sbin/start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile --background --exec /usr/bin/Xvfb -- :99 -ac -screen 0 1280x1024x16"
+  if [ "$TRAVIS_OS_NAME" = "linux" ]; then export CXX=g++-4.8 CC=gcc-4.8; fi
+  if [ "$TRAVIS_OS_NAME" = "linux" ]; then OS=Linux-x86_64; else OS=MacOSX-x86_64; fi
+  wget -O miniconda.sh https://repo.continuum.io/miniconda/Miniconda${CONDA:0:1}-latest-$OS.sh
+  bash miniconda.sh -b -p $HOME/miniconda
+  export PATH="$HOME/miniconda/bin:$PATH"
+  conda init bash
+
+install:
+    # Setup conda activate/deactivate commands
+  - conda init bash
+  - source $(conda info --root)/etc/profile.d/conda.sh
+  - conda info --root
+
+    # Conda config - behavior and channel setup
+  - conda config --set always_yes yes --set changeps1 no --set anaconda_upload no
+  - conda config --add channels conda-forge --add channels mantid --add channels mantid/label/nightly --add channels defaults
+
+    # Install mamba
+  - conda install mamba -c conda-forge
+  - mamba update mamba -c conda-forge
+  - mamba info -a
+
+    # BUILD: Create PyRS build environment
+  - mamba create -q -n PyRS_build python=$CONDA conda-build=3.17 conda-verify
+  - conda activate PyRS_build
+  - mamba build conda.recipe
+  - export PKG_FILE=$(mamba build conda.recipe --output)
+  - conda activate
+
+script:
+    # TEST: Create test environment and test build
+  - mamba create -q -n PyRS_test python=$CONDA flake8 pylint conda-build=3.17 anaconda-client pytest pytest-qt pytest-mpl
+  - mamba info --envs
+  - conda activate PyRS_test
+  - mkdir -p ${CONDA_PREFIX}/conda-bld/linux-64/
+  - cp ${PKG_FILE} ${CONDA_PREFIX}/conda-bld/linux-64/
+  - ls ${CONDA_PREFIX}/conda-bld
+  - ls ${CONDA_PREFIX}/conda-bld/linux-64
+  - conda index ${CONDA_PREFIX}/conda-bld
+  - mamba install -c ${CONDA_PREFIX}/conda-bld PyRS
+
+  - |
+    # Mantid pre-requiste - create a properties file that turns off network access
+    mkdir ~/.mantid
+    echo "CheckMantidVersion.OnStartup=0" > ~/.mantid/Mantid.user.properties
+    echo "UpdateInstrumentDefinitions.OnStartup=0" >> ~/.mantid/Mantid.user.properties
+    echo "usagereports.enabled=0" >> ~/.mantid/Mantid.user.properties
+    export DISPLAY=:99.0
+    sleep 3
+  # - source activate PyRS_env
+  # - conda install -c mantid/label/nightly mantid-workbench=4.0.20190416.1125
+
+  # lint the code and generate an error if a warning is introduced
+  - flake8 . --count
+  - python -m pylint --disable=C --disable=fixme --disable=no-name-in-module --ignore pyrs/_version.py pyrs scripts tests
+  # run some basic import tests to confirm things are working
+  - python -c "import mantid"
+  - python -c "import qtpy"
+  - python -c "import mantidqt"
+
+  # mantid workbench tests
+  - xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum mantidworkbench --help
+  - echo "import time;time.sleep(5)" > workbenchshutdown.py
+  - xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum mantidworkbench -q -x workbenchshutdown.py
+
+  # run PyRS tests
+  - xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum pytest --mpl tests --disable-pytest-warnings
+  #- xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum PyRS --version
+
+#deploy:
+# # Deploy conda package to Anaconda.org https://anaconda.org/PyRS-diffraction/PyRS
+# - provider: script
+#   script: cd conda.recipe && chmod +x anaconda_upload.sh && ./anaconda_upload.sh ${PKG_FILE}
+#   skip_cleanup: true
+#   skip_existing: true
+#   on:
+#     branch: master
+#     tags: true

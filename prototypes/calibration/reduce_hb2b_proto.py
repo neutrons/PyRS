@@ -1,6 +1,7 @@
-# TODO - ASAP - A script to reduce HB2B data 
+# TODO - ASAP - A script to reduce HB2B data
 # NOTE : script is for prototyping with MantidPlot
 import os
+
 
 def print_position(workspace):
     det_id_list = [0, 1023, 1023*1024, 1024*1024-1, 511*1024+511]
@@ -10,6 +11,7 @@ def print_position(workspace):
 
     return
 
+
 def test_direct_beam(idf_name):
     """
     """
@@ -18,7 +20,7 @@ def test_direct_beam(idf_name):
     CloneWorkspace(InputWorkspace='hb2b', OutputWorkspace=output_ws_name)
     AddSampleLog(Workspace=output_ws_name,
                  LogName='cal::arm', LogText='0.04', LogType='Number Series', LogUnit='meter', NumberType='Double')
-    
+
     # Load instrument
     LoadInstrument(Workspace=output_ws_name, Filename=idf_name, RewriteSpectraMap=True)
     # print output
@@ -41,7 +43,7 @@ def test_rotate_2theta(idf_name):
                  LogName='cal::deltax', LogText='0.0', LogType='Number Series', LogUnit='meter', NumberType='Double')
     AddSampleLog(Workspace=output_ws_name,
                  LogName='cal::deltay', LogText='0.0', LogType='Number Series', LogUnit='meter', NumberType='Double')
-    
+
     AddSampleLog(Workspace=output_ws_name,
                  LogName='cal::flip', LogText='0.0', LogType='Number Series', LogUnit='degree', NumberType='Double')
     AddSampleLog(Workspace=output_ws_name,
@@ -71,7 +73,7 @@ def test_rotate_2theta_45(idf_name):
                  LogName='cal::deltax', LogText='0.0', LogType='Number Series', LogUnit='meter', NumberType='Double')
     AddSampleLog(Workspace=output_ws_name,
                  LogName='cal::deltay', LogText='0.0', LogType='Number Series', LogUnit='meter', NumberType='Double')
-    
+
     AddSampleLog(Workspace=output_ws_name,
                  LogName='cal::flip', LogText='0.0', LogType='Number Series', LogUnit='degree', NumberType='Double')
     AddSampleLog(Workspace=output_ws_name,
@@ -85,7 +87,7 @@ def test_rotate_2theta_45(idf_name):
     print_position(mtd[output_ws_name])
 
     return
-    
+
 
 def test_no_2theta_rotation_flip_5(idf_name):
     """
@@ -101,7 +103,7 @@ def test_no_2theta_rotation_flip_5(idf_name):
                  LogName='cal::deltax', LogText='0.0', LogType='Number Series', LogUnit='meter', NumberType='Double')
     AddSampleLog(Workspace=output_ws_name,
                  LogName='cal::deltay', LogText='0.0', LogType='Number Series', LogUnit='meter', NumberType='Double')
-    
+
     AddSampleLog(Workspace=output_ws_name,
                  LogName='cal::flip', LogText='5.0', LogType='Number Series', LogUnit='degree', NumberType='Double')
     AddSampleLog(Workspace=output_ws_name,
@@ -115,7 +117,7 @@ def test_no_2theta_rotation_flip_5(idf_name):
     print_position(mtd[output_ws_name])
 
     return
-    
+
 
 def test_rotate_2theta_90_flip_5(idf_name):
     """
@@ -131,7 +133,7 @@ def test_rotate_2theta_90_flip_5(idf_name):
                  LogName='cal::deltax', LogText='0.0', LogType='Number Series', LogUnit='meter', NumberType='Double')
     AddSampleLog(Workspace=output_ws_name,
                  LogName='cal::deltay', LogText='0.0', LogType='Number Series', LogUnit='meter', NumberType='Double')
-    
+
     AddSampleLog(Workspace=output_ws_name,
                  LogName='cal::flip', LogText='5.0', LogType='Number Series', LogUnit='degree', NumberType='Double')
     AddSampleLog(Workspace=output_ws_name,
@@ -145,7 +147,8 @@ def test_rotate_2theta_90_flip_5(idf_name):
     print_position(mtd[output_ws_name])
 
     return
-    
+
+
 def test_rotate_2theta_45_flip_5(idf_name):
     """
     """
@@ -160,7 +163,7 @@ def test_rotate_2theta_45_flip_5(idf_name):
                  LogName='cal::deltax', LogText='0.0', LogType='Number Series', LogUnit='meter', NumberType='Double')
     AddSampleLog(Workspace=output_ws_name,
                  LogName='cal::deltay', LogText='0.0', LogType='Number Series', LogUnit='meter', NumberType='Double')
-    
+
     AddSampleLog(Workspace=output_ws_name,
                  LogName='cal::flip', LogText='5.0', LogType='Number Series', LogUnit='degree', NumberType='Double')
     AddSampleLog(Workspace=output_ws_name,
@@ -180,7 +183,7 @@ def convert_to_2theta(ws_name):
     """
     """
     num_bins = 100
-    
+
     ConvertSpectrumAxis(InputWorkspace=ws_name, OutputWorkspace=ws_name, Target='Theta')
     Transpose(InputWorkspace=ws_name, OutputWorkspace=ws_name)
 
@@ -193,9 +196,9 @@ def convert_to_2theta(ws_name):
     ConvertSpectrumAxis(InputWorkspace='vanadium', OutputWorkspace='vanadium', Target='Theta')
     Transpose(InputWorkspace='vanadium', OutputWorkspace='vanadium')
     ResampleX(InputWorkspace='vanadium', OutputWorkspace='vanadium', NumberBins=num_bins, PreserveEvents=False)
-    
+
     Divide(LHSWorkspace='data2theta2', RHSWorkspace='vanadium', OutputWorkspace='reduced')
-    
+
 
 # Set up
 # data file
@@ -218,9 +221,9 @@ if True:
 # test_direct_beam(idf_name)
 test_rotate_2theta(idf_name_v4)
 # test_rotate_2theta_45(idf_name)
-#test_no_2theta_rotation_flip_5(idf_name_v4)
+# test_no_2theta_rotation_flip_5(idf_name_v4)
 #print ('\n')
-#test_rotate_2theta_90_flip_5(idf_name_v4)
+# test_rotate_2theta_90_flip_5(idf_name_v4)
 #print ('\n')
-#test_rotate_2theta_45_flip_5(idf_name_v4)
+# test_rotate_2theta_45_flip_5(idf_name_v4)
 # Similar to WANDPowderReduction

@@ -1,16 +1,6 @@
 #!/bin/sh
 python setup.py pyuic
 python setup.py build
-echo "Not used /home/wzz/Mantid_Project/builds/debug-master/bin/"
-MANTIDLOCALPATH=/home/wzz/Mantid_Project/debug/bin/
-MANTIDMACPATH=/Users/wzz/MantidBuild/debug/bin/
-# MANTIDSNSDEBUGPATH=/SNS/users/wzz/Mantid_Project/builds/debug/bin/
-MANTIDSNSDEBUGPATH=/opt/mantidnightly/bin/  # NIGHTLY for latest Pseudo-voigt
-MANTIDPATH=$MANTIDMACPATH:$MANTIDLOCALPATH:$MANTIDSNSDEBUGPATH
-PYTHONPATH=$MANTIDPATH:$PYTHONPATH
-echo "PYTHON PATH"
-echo $PYTHONPATH
-echo
 
 if [ $1 ]; then
     CMD=$1
@@ -18,6 +8,13 @@ else
     CMD=
     echo "1: peak fit, 2: HZB, 3: XRay, 4: manual reduction, 5: instrument geometry calibration"
 fi
+
+MANTIDLOCALPATH=/home/wzz/Mantid_Project/builds/mantid-python2/bin/
+MANTIDMACPATH=/Users/wzz/MantidBuild/debug/bin/
+MANTIDSNSDEBUGPATH=/opt/mantidnightly/bin/  # NIGHTLY for latest Pseudo-voigt
+MANTIDPATH=$MANTIDMACPATH:$MANTIDLOCALPATH:$MANTIDSNSDEBUGPATH
+PYTHONPATH=$MANTIDPATH:$PYTHONPATH
+PYRSPATH=build/lib.linux-x86_64-2.7/:build/lib/
 
 if [ "$1" = "1" ]
 then 

@@ -7,7 +7,7 @@
 # Case 2:
 #   - Input: Mantid XML ROI/Masking file(s)
 #   - Task:  Generating masking/ROI according to input or binary operation between inputs
-# 
+#
 # Output:
 #   - numpy array binary or hdf5
 #
@@ -20,13 +20,13 @@ from math import sqrt
 from pyrs.utilities import checkdatatypes
 from pyrs.core import mask_util
 import os
-import numpy
 from matplotlib import pyplot as plt
 
 
 class MaskProcessApp(object):
     """ Application class to process mask
     """
+
     def __init__(self, num_pixels=2048**2):
         """ Initialization as number of pixel
         :param num_pixels:
@@ -149,9 +149,9 @@ class MaskProcessApp(object):
         checkdatatypes.check_string_variable('Mask operation', operation, ['and', 'or'])
 
         mask_vec_1 = self._mask_array_dict[mask_id1]
-        print ('[INFO] {}: Dimension = {}'.format(mask_id1, mask_vec_1.shape))
+        print('[INFO] {}: Dimension = {}'.format(mask_id1, mask_vec_1.shape))
         mask_vec_2 = self._mask_array_dict[mask_id2]
-        print ('[INFO] {}: Dimension = {}'.format(mask_id2, mask_vec_2.shape))
+        print('[INFO] {}: Dimension = {}'.format(mask_id2, mask_vec_2.shape))
 
         # AND operation
         if operation == 'and':
@@ -190,8 +190,8 @@ class MaskProcessApp(object):
         num_pixels = mask_vec.shape[0]
 
         num_masked = num_pixels - mask_vec.sum()
-        print ('{}: Pixel number = {}, Number of masked pixels = {}: {}% are Masked.'
-               ''.format(mask_id, mask_vec.shape[0], num_masked, num_masked * 100. / num_pixels))
+        print('{}: Pixel number = {}, Number of masked pixels = {}: {}% are Masked.'
+              ''.format(mask_id, mask_vec.shape[0], num_masked, num_masked * 100. / num_pixels))
 
         # convert to 2D
         linear_size = int(sqrt(num_pixels))
@@ -211,7 +211,7 @@ def main(argv):
     :return:
     """
     if len(argv) == 1:
-        print ('Generate masks (HDF5)\n> {} --help'.format(argv[0]))
+        print('Generate masks (HDF5)\n> {} --help'.format(argv[0]))
         sys.exit(-1)
 
     # set up default init value
@@ -219,7 +219,7 @@ def main(argv):
 
     # parse inputs
     for iarg, arg_i in enumerate(argv):
-        print (iarg, arg_i)
+        print(iarg, arg_i)
 
     result = parse_input_arguments(sys.argv[1:])
     if result is None:
@@ -231,7 +231,7 @@ def main(argv):
     mask_processor = MaskProcessApp(num_pixels)
 
     # import files
-    print ('[DB...BAT] ROI files (flag2): {}'.format(roi_file_list))
+    print('[DB...BAT] ROI files (flag2): {}'.format(roi_file_list))
     for roi_file in roi_file_list:
         mask_processor.import_roi_file(roi_file)
     for mask_file in mask_file_list:
@@ -244,7 +244,7 @@ def main(argv):
     if operation is None:
         # not defined... just convert XML to h5
         if len(mask_id_list) > 1:
-            print ('Convert to HDF5 can only take 1 file a time')
+            print('Convert to HDF5 can only take 1 file a time')
 
         mask_id = mask_id_list[0]
         if note is None:
@@ -256,7 +256,7 @@ def main(argv):
     elif operation == 'reverse':
         mask_id_list = mask_processor.get_mask_ids()
         if len(mask_id_list) > 1:
-            print ('Reverse mask operation can only take 1 file a time')
+            print('Reverse mask operation can only take 1 file a time')
 
         mask_id = mask_id_list[0]
         new_mask_id = mask_processor.reverse(mask_id)
@@ -269,7 +269,7 @@ def main(argv):
 
     elif operation == 'and' or operation == 'or':
         if len(mask_id_list) < 2:
-            print ('[ERROR] Unable to do binary operation to a single mask/ROI')
+            print('[ERROR] Unable to do binary operation to a single mask/ROI')
 
         binary_mask_id = mask_processor.operate_mask_binary(mask_id_list[0], mask_id_list[1], operation)
         for i in range(2, len(mask_id_list)):
@@ -280,7 +280,7 @@ def main(argv):
         mask_processor.show_mask(binary_mask_id)
 
     else:
-        print ('[ERROR] Operation {} is not supported'.format(operation))
+        print('[ERROR] Operation {} is not supported'.format(operation))
         sys.exit(-1)
 
     return
@@ -291,7 +291,7 @@ def print_help():
     print helping information
     :return:
     """
-    print ('<executable> --roi=1.xml --mask=2.xml --operation=and --output=/tmp/newmask.ht --note=New_Mask_1_2')
+    print('<executable> --roi=1.xml --mask=2.xml --operation=and --output=/tmp/newmask.ht --note=New_Mask_1_2')
 
     return
 
@@ -334,14 +334,14 @@ def parse_input_arguments(argv):
         elif arg_name == '--2theta':
             two_theta = float(arg_value)
         else:
-            print ('[ERROR] Argument {} is not supported.'.format(arg_name))
+            print('[ERROR] Argument {} is not supported.'.format(arg_name))
             sys.exit(-1)
     # END-FOR
 
     if is_help:
         return None
 
-    print ('[DB...BAT] ROI files: {}'.format(roi_file_list))
+    print('[DB...BAT] ROI files: {}'.format(roi_file_list))
 
     return roi_file_list, mask_file_list, operation, two_theta, note, out_file_name
 

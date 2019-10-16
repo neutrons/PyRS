@@ -4,7 +4,6 @@ from pyrs.utilities import checkdatatypes
 from pyrs.utilities import rs_project_file
 
 
-# TODO - #80 - Overall quality
 class HidraWorkspace(object):
     """
     This workspace is the central data structure to manage all the raw and/or processed data.
@@ -14,6 +13,7 @@ class HidraWorkspace(object):
     - container for fitted peaks' parameters
     - container for instrument information
     """
+
     def __init__(self, name='hidradata'):
         """
         initialization
@@ -41,7 +41,7 @@ class HidraWorkspace(object):
         self._instrument_geometry_shift = None  # geometry shift
 
         # sample logs
-        self._sample_log_dict = dict()  # sample logs
+        self._sample_log_dict = dict()  # sample logs: [log name][sub run] = value
 
         # raw Hidra project file
         self._project_file_name = None
@@ -97,13 +97,20 @@ class HidraWorkspace(object):
         checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
 
         # get 2theta value
-        vec_2theta = hidra_file.get_diffraction_2theta_vector()
+        try:
+            vec_2theta = hidra_file.get_diffraction_2theta_vector()
+        except KeyError as key_err:
+            print('[INFO] Unable to load 2theta vector from HidraProject file due to {}.'
+                  'It is very likely that no reduced data is recorded.'
+                  ''.format(key_err))
+            return
+        # TRY-CATCH
         self._2theta_vec = vec_2theta[:]
 
         # initialize data set for reduced diffraction patterns
         num_spec = len(hidra_file.get_sub_runs())
         diff_mask_list = hidra_file.get_diffraction_masks()
-        print ('[DB...BAT...TEST#81] Masks of diffraction data in HidraProjectFile: {}'.format(diff_mask_list))
+        print('[DB...BAT...TEST#81] Masks of diffraction data in HidraProjectFile: {}'.format(diff_mask_list))
         for mask_name in diff_mask_list:
             if mask_name == 'main':
                 mask_name = None
@@ -119,15 +126,14 @@ class HidraWorkspace(object):
                                                                                          sub_run=None)
         # END-FOR (mask)
 
-        print ('[INFO] Loaded diffraction data from {} includes : {}'
-               ''.format(self._project_file_name, self._diff_data_set.keys()))
+        print('[INFO] Loaded diffraction data from {} includes : {}'
+              ''.format(self._project_file_name, self._diff_data_set.keys()))
 
         return
 
-    def _load_instrument(self,  hidra_file):
-        """
-        Load instrument setup from HIDRA file
-        :param hidra_file:
+    def _load_instrument(self, hidra_file):
+        """ Load instrument setup from HIDRA file
+        :param hidra_file: HIDRA project file instance
         :return:
         """
         # Check
@@ -139,8 +145,10 @@ class HidraWorkspace(object):
         return
 
     def _load_sample_logs(self, hidra_file):
-        """ Load sample logs
-        :param hidra_file:
+        """ Load sample logs.
+        Note: this method can clear all the sample logs added previously. But it is not
+            an issue in the real use cases.
+        :param hidra_file:  HIDRA project file instance
         :return:
         """
         checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
@@ -151,30 +159,51 @@ class HidraWorkspace(object):
         return
 
     def _load_wave_length(self, hidra_file):
-        """
-        Load wave length
-        :param hidra_file:
+        """ Load wave length
+        :param hidra_file:  HIDRA project file instance
         :return:
         """
         checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
 
-        # TODO - #81 - Implement wave length storage in HidraProjectFile!
+        # reset the wave length (dictionary) from HIDRA project file
+        self._wave_length_dict = hidra_file.get_wave_lengths()
 
         return
 
     def get_2theta(self, sub_run):
         """ Get 2theta value from sample log
         This is a special one
-        :param sub_run:
+        :param sub_run: sub run number (integer)
         :return: float number as 2theta
         """
+        checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
         try:
-            two_theta = self._sample_log_dict['2Theta'][sub_run]
+            two_theta = self._sample_log_dict[rs_project_file.HidraConstants.TWO_THETA][sub_run]
         except KeyError as key_err:
             raise RuntimeError('Unable to retrieve 2theta value from {} due to {}'
                                .format(sub_run, key_err))
 
         return two_theta
+
+    def get_l2(self, sub_run):
+        """ Get L2 for a specific sub run
+        :param sub_run: sub run number (integer)
+        :return: L2 or None (i.e., using default L2)
+        """
+        checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
+
+        if rs_project_file.HidraConstants.L2 in self._sample_log_dict:
+            # L2 is a valid sample log: get L2
+            try:
+                l2 = self._sample_log_dict[rs_project_file.HidraConstants.L2][sub_run]
+            except KeyError as key_err:
+                raise RuntimeError('Unable to retrieve L2 value for {} due to {}. Available sun runs are {}'
+                                   .format(sub_run, key_err, self._sample_log_dict[rs_project_file.HidraConstants.L2]))
+        else:
+            # L2 might be unchanged
+            l2 = None
+
+        return l2
 
     def get_instrument_setup(self):
         """ Get the handler to instrument setup
@@ -195,7 +224,7 @@ class HidraWorkspace(object):
 
         return self._raw_counts[sub_run]
 
-    def get_subruns(self):
+    def get_sub_runs(self):
         """ Get sub runs that loaded to this workspace
         :return: list of sorted sub runs
         """
@@ -300,7 +329,7 @@ class HidraWorkspace(object):
     def get_reduced_diffraction_data(self, sub_run, mask_id=None):
         """
         get data set of a single diffraction pattern
-        :param sub_run:
+        :param sub_run: sub run number (integer)
         :param mask_id: None (as default main) or ID as a String
         :return:
         """
@@ -335,18 +364,27 @@ class HidraWorkspace(object):
         :param sample_log_name:
         :return: vector of integer or float in the same order as sub run number
         """
+        if sample_log_name == rs_project_file.HidraConstants.SUB_RUNS and \
+                sample_log_name not in self._sample_log_dict.keys():
+            return self.get_sub_runs()
+
         checkdatatypes.check_string_variable('Sample log name', sample_log_name,
                                              self._sample_log_dict.keys())
 
         return self._sample_log_dict[sample_log_name].copy()
 
-    def get_spectrum(self, sub_run):
+    def get_spectrum_index(self, sub_run):
         """
-        Get spectrum (index) from sub run
-        :param sub_run:
+        Get spectrum (index) from sub run number
+        :param sub_run: sub run number (integer)
         :return:
         """
-        # TODO - #81 - Doc & robustness
+        checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
+
+        if sub_run not in self._sub_run_to_spectrum:
+            raise KeyError('Sub run {} does not exist in spectrum/sub run map.  Available sub runs are {}'
+                           ''.format(sub_run, self._sub_run_to_spectrum.keys()))
+
         return self._sub_run_to_spectrum[sub_run]
 
     def get_sub_runs_from_spectrum(self, spectra):
@@ -365,7 +403,7 @@ class HidraWorkspace(object):
 
     def has_raw_data(self, sub_run):
         """ Check whether a raw file that has been loaded
-        :param sub_run:
+        :param sub_run: sub run number (integer)
         :return:
         """
         checkdatatypes.check_int_variable('Sub run', sub_run, (1, None))
@@ -375,7 +413,7 @@ class HidraWorkspace(object):
     def has_sample_log(self, sample_log_name):
         """
         check whether a certain sample log exists in the workspace (very likely loaded from file)
-        :param sample_log_name:
+        :param sample_log_name: sample log name
         :return:
         """
         # Check inputs
@@ -384,6 +422,23 @@ class HidraWorkspace(object):
         has_log = sample_log_name in self._sample_log_dict
 
         return has_log
+
+    def set_raw_counts(self, sub_run_number, counts):
+        """
+        Set the raw counts to
+        :param sub_run_number: integer for sub run number
+        :param counts: ndarray of detector counts
+        :return:
+        """
+        # Check inputs
+        checkdatatypes.check_int_variable('Sub run number', sub_run_number, (1, None))
+        checkdatatypes.check_numpy_arrays('Counts', [counts], dimension=None,
+                                          check_same_shape=False)
+
+        # Set
+        self._raw_counts[sub_run_number] = counts
+
+        return
 
     def set_reduced_diffraction_data(self, sub_run, mask_id, bin_edges, hist):
         """ Set reduced diffraction data to workspace
@@ -397,9 +452,11 @@ class HidraWorkspace(object):
         checkdatatypes.check_int_variable('Sub run number', sub_run, (1, None))
         if mask_id is not None:
             checkdatatypes.check_string_variable('Mask ID', mask_id)
-            print ('L667: Mask ID: "{}"'.format(mask_id))
+            print('L667: Mask ID: "{}"'.format(mask_id))
 
         # check status
+        if self._sub_run_to_spectrum is None:
+            raise RuntimeError('Sub run - spectrum map has not been set up yet!')
 
         # Set 2-theta (X)
         if self._2theta_vec is None:
@@ -421,7 +478,8 @@ class HidraWorkspace(object):
 
         # Check array shape
         if self._diff_data_set[mask_id].shape[1] != hist.shape[0]:
-            raise RuntimeError('blabla')  # TODO - TONGIHT NOW #72 - Better error message
+            raise RuntimeError('Histogram (shape: {}) to set does not match data diffraction data set defined in'
+                               'worksapce (shape: {})'.format(hist.shape[0], self._diff_data_set[mask_id].shape[1]))
 
         # Set Y
         spec_id = self._sub_run_to_spectrum[sub_run]
@@ -429,9 +487,85 @@ class HidraWorkspace(object):
 
         return
 
+    def set_sample_log(self, log_name, log_value_array):
+        """
+        Set sample log value for each sub run, i.e., average value in each sub run
+        :param log_name:
+        :param log_value_array:
+        :return:
+        """
+        # Check inputs
+        checkdatatypes.check_string_variable('Log name', log_name)
+        checkdatatypes.check_numpy_arrays('Log value ', [log_value_array], 1, False)
+
+        # Set
+        self._sample_log_dict[log_name] = log_value_array
+
+        return
+
+    def set_sub_runs(self, sub_runs):
+        """Set sub runs to this workspace
+
+        Including create the sub run and spectrum map
+
+        Parameters
+        ----------
+        sub_runs: list
+            list of integers as sub runs
+        Returns
+        -------
+
+        """
+        sub_runs = sorted(sub_runs)
+
+        self._create_subrun_spectrum_map(sub_runs)
+
+        return
+
+    def save_experimental_data(self, hidra_project, sub_runs=None):
+        """Save experimental data including raw counts and sample logs
+
+        Parameters
+        ----------
+        hidra_project: HydraProjectFile
+            reference to a HyDra project file
+        sub_runs: None or list/ndarray(1D)
+            None for exporting all or the specified sub runs
+        Returns
+        -------
+        None
+        """
+        # Raw counts
+        for sub_run_i in self._raw_counts.keys():
+            if sub_runs is None or sub_run_i in sub_runs:
+                hidra_project.add_raw_counts(sub_run_i, self._raw_counts[sub_run_i])
+
+        # Sample logs
+        for log_name in self._sample_log_dict.keys():
+            # Convert dict of value to numpy array
+            log_val_dict = self._sample_log_dict[log_name]
+            # get sub run number
+            if sub_runs is None:
+                sub_runs = log_val_dict.keys()
+            sub_runs = sorted(sub_runs)
+            num_sub_runs = len(sub_runs)
+            log_array = numpy.ndarray(shape=(num_sub_runs, ), dtype=type(log_val_dict.values()[0]))
+            for i_sub in range(num_sub_runs):
+                log_array[i_sub] = log_val_dict[sub_runs[i_sub]]
+            # add to project file
+            hidra_project.add_experiment_log(log_name, log_array)
+        # END-FOR
+
+        # Add sub run to experiment log
+        if rs_project_file.HidraConstants.SUB_RUNS not in self._sample_log_dict.keys():
+            hidra_project.add_experiment_log(rs_project_file.HidraConstants.SUB_RUNS,
+                                             numpy.array(sub_runs))
+
+        return
+
     def save_reduced_diffraction_data(self, hidra_project):
         """ Export reduced diffraction data to project
-        :param hidra_project:
+        :param hidra_project: HidraProjectFile instance
         :return:
         """
         checkdatatypes.check_type('HIDRA project file', hidra_project, rs_project_file.HydraProjectFile)
@@ -480,7 +614,7 @@ class HidraWorkspace(object):
         :return:
         """
         # Get the sub runs
-        sub_runs = self.get_subruns()
+        sub_runs = self.get_sub_runs()
 
         if isinstance(wave_length, float):
             # single wave length value
