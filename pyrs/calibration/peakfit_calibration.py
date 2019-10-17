@@ -260,8 +260,8 @@ class PeakFitCalibration(object):
 
         if return_scalar:
             return np.sum(residual)
-        else:
-            return residual
+
+        return residual
 
     def peak_alignment_rotation(self, x, roi_vec_set=None, return_scalar=False):
         """ Cost function for peaks alignment to determine detector rotation
@@ -279,8 +279,8 @@ class PeakFitCalibration(object):
 
         if return_scalar:
             return np.sum(residual)
-        else:
-            return residual
+
+        return residual
 
     def peaks_alignment_all(self, x, roi_vec_set=None, return_scalar=False):
         """ Cost function for peaks alignment to determine wavelength and detector shift and rotation
@@ -294,8 +294,8 @@ class PeakFitCalibration(object):
 
         if return_scalar:
             return np.sum(residual)
-        else:
-            return residual
+
+        return residual
 
     def singleEval(self, x=None, roi_vec_set=None, return_scalar=False):
         """ Cost function for peaks alignment to determine wavelength and detector shift and rotation
