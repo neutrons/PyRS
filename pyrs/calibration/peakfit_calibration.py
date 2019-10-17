@@ -424,11 +424,25 @@ class PeakFitCalibration(object):
         CalibData.update( {'Status': self._calibstatus } )
         
         import json
-        Year, Month, Day, Hour, Min = time.localtime()[0:5]
+        # Year, Month, Day, Hour, Min = time.localtime()[0:5]
         Mono =  ['Si333', 'Si511', 'Si422', 'Si331', 'Si400', 'Si311', 'Si220'][ self._engine.get_log_value( 'MonoSetting' )[0] ]
-        with open('/HFIR/HB2B/shared/CAL/%s/HB2B_CAL_%s.json'%( Mono, time.strftime('%Y-%m-%dT%H:%M', time.localtime() )), 'w') as outfile:
-            json.dump(CalibData, outfile)
 
+        import os
+        if os.access('/HFIR/HB2B/shared', os.W_OK):
+            file_name = '/HFIR/HB2B/shared/CAL/%s/HB2B_CAL_%s.json'%( Mono, time.strftime('%Y-%m-%dT%H:%M', time.localtime() ))
+        else:
+            file_name = os.path.join(os.getcwd(), 'HB2B_CAL_{}_{}.json'
+                                                  ''.format(Mono, time.strftime('%Y-%m-%dT%H:%M', time.localtime())))
+
+        with open(file_name, 'w') as outfile:
+            json.dump(CalibData, outfile)
+        print('[INFO] Calibration file is written to {}'.format(file_name))
+
+        import filecmp
+        if filecmp.cmp('tests/data/HB2B_CAL_Si333.json', file_name):
+            os.remove(file_name)
+        else:
+            assert False
 
         return
 
