@@ -5,6 +5,8 @@
 
 import pytest
 import time
+import os
+import filecmp
 from pyrs.calibration import peakfit_calibration
 from pyrs.utilities import calibration_file_io
 from pyrs.utilities import rs_project_file
@@ -32,10 +34,19 @@ def test_main():
 
     calibrator = peakfit_calibration.PeakFitCalibration(hb2b, engine)
     calibrator.calibrate_wave_length()
+
+    # write out
+    file_name = os.path.join(os.getcwd(), 'HB2B_CAL_Test.json')
     calibrator.write_calibration()
 
     t_stop = time.time()
     print('Total Time: {}'.format(t_stop - t_start))
+
+    # Compare output file with gold file for test
+    if filecmp.cmp('data/HB2B_CAL_Si333.json', file_name):
+        os.remove(file_name)
+    else:
+        assert False, 'Test output {} is different from gold file {}'.format(file_name, 'data/HB2B_CAL_Si333.json')
 
     return
 

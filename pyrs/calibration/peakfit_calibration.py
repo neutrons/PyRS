@@ -500,7 +500,18 @@ class PeakFitCalibration(object):
 
         return
 
-    def write_calibration(self):
+    def write_calibration(self, file_name=None):
+        """Write the calibration to a Json file
+
+        Parameters
+        ----------
+        file_name: str or None
+            output Json file name.  If None, write to /HFIR/HB2B/shared/CAL/
+
+        Returns
+        -------
+        None
+        """
 
         CalibData = dict(zip(['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda'], self._calib))
         CalibData.update(dict(zip(['error_Shift_x', 'error_Shift_y', 'error_Shift_z', 'error_Rot_x', 'error_Rot_y',
@@ -516,17 +527,11 @@ class PeakFitCalibration(object):
                                                                      time.strftime('%Y-%m-%dT%H:%M',
                                                                                    time.localtime()))
         else:
-            file_name = os.path.join(os.getcwd(), 'HB2B_CAL_{}_{}.json'
-                                                  ''.format(Mono, time.strftime('%Y-%m-%dT%H:%M', time.localtime())))
+            raise IOError('User does not privilege to write to {}'.format('/HFIR/HB2B/shared'))
 
         with open(file_name, 'w') as outfile:
             json.dump(CalibData, outfile)
         print('[INFO] Calibration file is written to {}'.format(file_name))
-
-        if filecmp.cmp('tests/data/HB2B_CAL_Si333.json', file_name):
-            os.remove(file_name)
-        else:
-            assert False
 
         return
 
