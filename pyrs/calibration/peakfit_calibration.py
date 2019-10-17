@@ -537,5 +537,3 @@ class PeakFitCalibration(object):
         print('[INFO] Calibration file is written to {}'.format(file_name))
 
         return
-
-

@@ -25,7 +25,7 @@ def test_main():
     engine = rs_project_file.HydraProjectFile(project_file_name, mode=rs_project_file.HydraProjectFileMode.READONLY)
 
     # instrument geometry
-    idf_name = 'tests/data/XRay_Definition_1K.txt'
+    idf_name = 'data/XRay_Definition_1K.txt'
 
     t_start = time.time()
 
@@ -37,7 +37,7 @@ def test_main():
 
     # write out
     file_name = os.path.join(os.getcwd(), 'HB2B_CAL_Test.json')
-    calibrator.write_calibration()
+    calibrator.write_calibration(file_name)
 
     t_stop = time.time()
     print('Total Time: {}'.format(t_stop - t_start))
