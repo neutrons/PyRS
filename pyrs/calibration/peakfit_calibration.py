@@ -3,19 +3,19 @@ import time
 import glob
 import dateutil.parser
 import json
-import filecmp
 import os
 from scipy.optimize import least_squares
-
 from pyrs.core import reduce_hb2b_pyrs
 from matplotlib import pyplot as plt
+from lmfit.models import GaussianModel
+from lmfit import Model
 
 colors = ['black', 'red', 'blue', 'green', 'yellow']
 
-dSpace = np.array([4.156826, 2.93931985, 2.39994461, 2.078413, 1.8589891, 1.69701711, 1.46965993, 1.38560867, 1.3145038, 1.2533302, 1.19997231, 1.1528961, 1.11095848, 1.0392065, 1.00817839, 0.97977328, 0.95364129, 0.92949455, 0.9070938, 0.88623828, 0.84850855, 0.8313652, 0.81522065, 0.79998154, 0.77190321, 0.75892912, 0.73482996] )
-
-from lmfit.models import GaussianModel
-from lmfit import Model
+dSpace = np.array([4.156826, 2.93931985, 2.39994461, 2.078413, 1.8589891, 1.69701711, 1.46965993,
+                   1.38560867, 1.3145038, 1.2533302, 1.19997231, 1.1528961, 1.11095848, 1.0392065,
+                   1.00817839, 0.97977328, 0.95364129, 0.92949455, 0.9070938, 0.88623828, 0.84850855,
+                   0.8313652, 0.81522065, 0.79998154, 0.77190321, 0.75892912, 0.73482996])
 
 
 def quadratic_background(x, p0, p1, p2):
@@ -73,15 +73,15 @@ class PeakFitCalibration(object):
     def check_alignment_inputs(roi_vec_set):
         """ Check inputs for alignment routine for required formating
         :param roi_vec_set: list/array of ROI/mask vector
-        :return: 
-        """    
+        :return:
+        """
         # check
         if roi_vec_set is not None:
             assert isinstance(roi_vec_set, list), 'must be list'
             if len(roi_vec_set) < 2:
                 raise RuntimeError('User must specify more than 1 ROI/MASK vector')
 
-        return 
+        return
 
     @staticmethod
     def convert_to_2theta(pyrs_reducer, roi_vec, min_2theta=16., max_2theta=61., num_bins=1800):
@@ -115,7 +115,7 @@ class PeakFitCalibration(object):
         :x[0]: shift_x, x[1]: shift_y, x[2]: shift_z, x[3]: rot_x, x[4]: rot_y, x[5]: rot_z, x[6]: wavelength
         :param roi_vec_set: list/array of ROI/mask vector
         :return:
-        """    
+        """
 
         GlobalParameter.global_curr_sequence += 1
 
@@ -127,7 +127,7 @@ class PeakFitCalibration(object):
 
         # background = LinearModel()
 
-        for i_tth in range( self._engine.get_log_value('2Theta').shape[0]):
+        for i_tth in range(self._engine.get_log_value('2Theta').shape[0]):
             # reduced_data_set[i_tth] = [None] * num_reduced_set
             # load instrument: as it changes
             pyrs_reducer = reduce_hb2b_pyrs.PyHB2BReduction(self._instrument, x[6])
@@ -146,7 +146,7 @@ class PeakFitCalibration(object):
 
             FitModel = Model(quadratic_background)
             pars1 = FitModel.make_params(p0=100, p1=1, p2=0.01)
-            
+
             Peaks = list()
             CalibPeaks = two_theta_calib[np.where((two_theta_calib > mintth) == (two_theta_calib < maxtth))[0]]
             for ipeak in range(len(CalibPeaks)):
@@ -160,7 +160,7 @@ class PeakFitCalibration(object):
                     pars1['g%d_center' % ipeak].set(value=CalibPeaks[ipeak], min=CalibPeaks[ipeak] - 2,
                                                     max=CalibPeaks[ipeak] + 2)
                     pars1['g%d_sigma' % ipeak].set(value=0.5, min=1e-1, max=1.5)
-                    pars1['g%d_amplitude'%ipeak].set(value=50., min=10, max=1e6)
+                    pars1['g%d_amplitude' % ipeak].set(value=50., min=10, max=1e6)
 
             if roi_vec_set is None:
                 eta_roi_vec = np.arange(minEta, maxEta + 0.2, 2)
@@ -171,7 +171,7 @@ class PeakFitCalibration(object):
             ax1 = plt.subplot(num_rows, 1, num_rows)
             ax1.margins(0.05)  # Default margin is 0.05, value 0 means fit
 
-            for i_roi in range( eta_roi_vec.shape[0] ):
+            for i_roi in range(eta_roi_vec.shape[0]):
                 # ws_name_i = 'reduced_data_{:02}'.format(i_roi)
                 # out_peak_pos_ws = 'peaks_positions_{:02}'.format(i_roi)
                 # fitted_ws = 'fitted_peaks_{:02}'.format(i_roi)
@@ -203,21 +203,21 @@ class PeakFitCalibration(object):
                                                                   Fitresult.params['p1'].value,
                                                                   Fitresult.params['p2'].value))
                 ax1.plot(reduced_i[0], reduced_i[1], color=colors[i_roi % 5])
-                
+
                 for index_i in range(len(Peaks)):
                     ax2 = plt.subplot(num_rows, 2, index_i+1)
                     ax2.plot(reduced_i[0], reduced_i[1], 'x', color='black')
                     ax2.plot(reduced_i[0], Fitresult.best_fit, color='red')
                     ax2.plot([CalibPeaks[index_i], CalibPeaks[index_i]],
                              [backgroundShift, backgroundShift + Fitresult.params['g0_amplitude'].value],
-                             'k', linewidth = 2)
+                             'k', linewidth=2)
                     ax2.set_xlim([CalibPeaks[index_i]-1.5, CalibPeaks[index_i] + 1.5])
                 # END-FOR
 
             plt.savefig('./FitFigures/Round{:010}_{:02}.png'.format(GlobalParameter.global_curr_sequence, i_tth))
             plt.clf()
         # END-FOR(tth)
-        
+
         print ("\n")
         print ('Iteration      {}'.format(GlobalParameter.global_curr_sequence))
         print ('RMSE         = {}'
@@ -235,7 +235,7 @@ class PeakFitCalibration(object):
         """
         # self.check_alignment_inputs(roi_vec_set)
         roi_vec_set = None
-        paramVec = np.copy( self._calib )
+        paramVec = np.copy(self._calib)
         paramVec[6] = x[0]
 
         return self.get_alignment_residual(paramVec, roi_vec_set)
@@ -275,7 +275,7 @@ class PeakFitCalibration(object):
         paramVec = np.copy(self._calib)
         paramVec[3:6] = x[:]
 
-        residual = self.get_alignment_residual(paramVec, roi_vec_set )
+        residual = self.get_alignment_residual(paramVec, roi_vec_set)
 
         if return_scalar:
             return np.sum(residual)
@@ -327,7 +327,7 @@ class PeakFitCalibration(object):
 
         """
 
-        GlobalParameter.global_curr_sequence = 0  
+        GlobalParameter.global_curr_sequence = 0
 
         if initial_guess is None:
             initial_guess = self.get_wavelength()
@@ -342,7 +342,7 @@ class PeakFitCalibration(object):
 
         return
 
-    def CalibrateShift( self, initalGuess=None):
+    def CalibrateShift(self, initalGuess=None):
 
         GlobalParameter.global_curr_sequence = 0
 
@@ -350,7 +350,7 @@ class PeakFitCalibration(object):
             initalGuess = self.get_shift()
 
         out = least_squares(self.peak_alignment_shift, initalGuess, jac='2-point',
-                            bounds=([-.05, -.05, -.05], [ .05, .05, .05]), method='dogbox',
+                            bounds=([-.05, -.05, -.05], [.05, .05, .05]), method='dogbox',
                             ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear',
                             f_scale=1.0, diff_step=None, tr_solver='exact', tr_options={},
                             jac_sparsity=None, max_nfev=None, verbose=0, args=(None, False), kwargs={})
@@ -359,15 +359,15 @@ class PeakFitCalibration(object):
 
         return
 
-    def CalibrateRotation( self, initalGuess=None ):
+    def CalibrateRotation(self, initalGuess=None):
 
-        GlobalParameter.global_curr_sequence = 0  
+        GlobalParameter.global_curr_sequence = 0
 
         if initalGuess is None:
             initalGuess = self.get_rotation()
 
         out = least_squares(self.peak_alignment_rotation, initalGuess, jac='3-point',
-                            bounds=([ -np.pi/20, -np.pi/20, -np.pi/20], [  np.pi/20, np.pi/20, np.pi/20]),
+                            bounds=([-np.pi/20, -np.pi/20, -np.pi/20], [np.pi/20, np.pi/20, np.pi/20]),
                             method='dogbox', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear',
                             f_scale=1.0, diff_step=None,
                             tr_solver=None, tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0,
@@ -379,7 +379,7 @@ class PeakFitCalibration(object):
 
     def FullCalibration(self, initalGuess=None):
 
-        GlobalParameter.global_curr_sequence = 0  
+        GlobalParameter.global_curr_sequence = 0
 
         if initalGuess is None:
             initalGuess = self.get_calib()
@@ -390,7 +390,7 @@ class PeakFitCalibration(object):
                             method='dogbox', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0,
                             loss='linear', f_scale=1.0, diff_step=None, tr_solver='exact', tr_options={},
                             jac_sparsity=None, max_nfev=None, verbose=0,
-                            args=( None, False ), kwargs={})
+                            args=(None, False), kwargs={})
 
         self.set_calibration(out)
 
@@ -408,7 +408,7 @@ class PeakFitCalibration(object):
     def get_wavelength(self):
         return np.array([self._calib[6]])
 
-    def set_shift( self, out):
+    def set_shift(self, out):
         self._calib[0:3] = out.x
         self._calibstatus = out.status
 
@@ -418,9 +418,9 @@ class PeakFitCalibration(object):
 
         self._caliberr[0:3] = var
 
-        return 
+        return
 
-    def set_rotation( self, out):
+    def set_rotation(self, out):
         self._calib[3:6] = out.x
         self._calibstatus = out.status
 
@@ -430,7 +430,7 @@ class PeakFitCalibration(object):
 
         self._caliberr[3:6] = var
 
-        return 
+        return
 
     def set_wavelength(self, out):
         """See wave length to calibration data
@@ -452,7 +452,7 @@ class PeakFitCalibration(object):
 
         self._caliberr[6] = var
 
-        return 
+        return
 
     def set_calibration(self, out):
         """Set calibration to calibration data structure
@@ -474,7 +474,7 @@ class PeakFitCalibration(object):
 
         self._caliberr = var
 
-        return 
+        return
 
     def get_archived_calibration(self):
         """Get calibration from archived JSON file
@@ -512,22 +512,25 @@ class PeakFitCalibration(object):
         -------
         None
         """
-
-        CalibData = dict(zip(['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda'], self._calib))
+        CalibData = dict(zip(['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda'],
+                             self._calib))
         CalibData.update(dict(zip(['error_Shift_x', 'error_Shift_y', 'error_Shift_z', 'error_Rot_x', 'error_Rot_y',
                                    'error_Rot_z', 'error_Lambda'], self._caliberr)))
         CalibData.update({'Status': self._calibstatus})
 
         # Year, Month, Day, Hour, Min = time.localtime()[0:5]
-        mono_setting_index = self._engine.get_log_value( 'MonoSetting' )[0]
+        mono_setting_index = self._engine.get_log_value('MonoSetting')[0]
         Mono = ['Si333', 'Si511', 'Si422', 'Si331', 'Si400', 'Si311', 'Si220'][mono_setting_index]
 
-        if os.access('/HFIR/HB2B/shared', os.W_OK):
-            file_name = '/HFIR/HB2B/shared/CAL/%s/HB2B_CAL_%s.json'%(Mono,
-                                                                     time.strftime('%Y-%m-%dT%H:%M',
-                                                                                   time.localtime()))
-        else:
-            raise IOError('User does not privilege to write to {}'.format('/HFIR/HB2B/shared'))
+        if file_name is None:
+            # default case: write to archive
+            if os.access('/HFIR/HB2B/shared', os.W_OK):
+                file_name = '/HFIR/HB2B/shared/CAL/%s/HB2B_CAL_%s.json' % (Mono,
+                                                                           time.strftime('%Y-%m-%dT%H:%M',
+                                                                                         time.localtime()))
+            else:
+                raise IOError('User does not privilege to write to {}'.format('/HFIR/HB2B/shared'))
+        # END-IF
 
         with open(file_name, 'w') as outfile:
             json.dump(CalibData, outfile)

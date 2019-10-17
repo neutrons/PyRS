@@ -745,34 +745,8 @@ class PyHB2BReduction(object):
 
         # Optionally to normalize by number of pixels (sampling points) in the 2theta bin
         if norm_bins:
-            hist_bin = np.histogram(pixel_2theta_array[np.where( vec_counts > .5 )[0] ], bins=two_theta_vec )[0]
-
-#            # Normalize with cautious to avoid zero number of bins on any X
-#            if False:
-#                # FIXME TODO - #72 - Remove this as next works
-#                for ibin in range(hist_bin.shape[0]):
-#                    if hist_bin[ibin] < 1.E-4:  # zero
-#                        hist_bin[ibin] = 1.E10  # doesn't matter how big it is
-#                # END-FOR
-#            else:
-#                # Shall be a better operation with numpy
-#                hist_bin[numpy.where(hist_bin < 0.1)] += 1
-            # NOTE: Chris modified this part... 
-            # TODO: Clean up!
-            # # ret_hist = np.histogram(pixel_2theta_array, bins=two_theta_vec, weights=vec_one)
-            # # hist_bin = ret_hist[0]
-
-            # # # Normalize with cautious to avoid zero number of bins on any X
-            # # if False:
-            # #     # FIXME TODO - #72 - Remove this as next works
-            # #     for ibin in range(hist_bin.shape[0]):
-            # #         if hist_bin[ibin] < 1.E-4:  # zero
-            # #             hist_bin[ibin] = 1.E10  # doesn't matter how big it is
-            # #     # END-FOR
-            # # else:
-            # #     # Shall be a better operation with numpy
-            # #     hist_bin[numpy.where(hist_bin < 0.1)] += 1
-
+            hist_bin = np.histogram(pixel_2theta_array[np.where(vec_counts > .5)[0]],
+                                    bins=two_theta_vec)[0]
             hist /= hist_bin  # normalize
         # END-IF
 

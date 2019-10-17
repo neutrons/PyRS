@@ -21,9 +21,9 @@ def test_main():
     """
     # Set up
     # reduction engine
-    project_file_name = 'tests/data/HB2B_000.hdf5'
+    project_file_name = 'data/HB2B_000.hdf5'
     engine = rs_project_file.HydraProjectFile(project_file_name, mode=rs_project_file.HydraProjectFileMode.READONLY)
-    
+
     # instrument geometry
     idf_name = 'tests/data/XRay_Definition_1K.txt'
 
