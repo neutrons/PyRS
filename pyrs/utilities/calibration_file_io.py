@@ -1,6 +1,6 @@
 # Class providing a series of static methods to work with files
 from pyrs.utilities import checkdatatypes
-from pyrs.core.instrument_geometry import AnglerCameraDetectorShift
+from pyrs.core.instrument_geometry import AnglerCameraDetectorShift, AnglerCameraDetectorGeometry
 import h5py
 
 
@@ -82,8 +82,8 @@ def import_calibration_ascii_file(geometry_file_name):
 
 
 def import_instrument_setup(instrument_ascii_file):
-    """
-    Import instrument file in ASCII format
+    """Import instrument file in ASCII format
+
     Example:
       # comment
       arm = xxx  meter
@@ -91,8 +91,17 @@ def import_instrument_setup(instrument_ascii_file):
       columns = 2048
       pixel_size_x = 0.00
       pixel_size_y = 0.00
-    :param instrument_ascii_file:
-    :return:
+
+    Parameters
+    ----------
+    instrument_ascii_file : str
+        instrument file in plain ASCII format
+
+    Returns
+    -------
+    AnglerCameraDetectorGeometry
+        Instrument geometry setup for HB2B
+
     """
     checkdatatypes.check_file_name(instrument_ascii_file, False, True, False,
                                    'Instrument definition ASCII file')
@@ -101,8 +110,10 @@ def import_instrument_setup(instrument_ascii_file):
     setup_lines = instr_file.readlines()
     instr_file.close()
 
-    raise RuntimeError('Need method to create an "InstrumentSetup"')
-    instrument = None  # TODO should be: instrument = InstrumentSetup()
+    # Init
+    arm_length = detector_rows = detector_columns = pixel_size_x = pixel_size_y = None
+
+    # Parse each line
     for line in setup_lines:
         line = line.strip()
 
@@ -115,18 +126,25 @@ def import_instrument_setup(instrument_ascii_file):
         arg_value = terms[1]
 
         if arg_name == 'arm':
-            instrument.arm_length = float(arg_value)
+            arm_length = float(arg_value)
         elif arg_name == 'rows':
-            instrument.detector_rows = int(arg_value)
+            detector_rows = int(arg_value)
         elif arg_name == 'columns':
-            instrument.detector_columns = int(arg_value)
+            detector_columns = int(arg_value)
         elif arg_name == 'pixel_size_x':
-            instrument.pixel_size_x = float(arg_value)
+            pixel_size_x = float(arg_value)
         elif arg_name == 'pixel_size_y':
-            instrument.pixel_size_y = float(arg_value)
+            pixel_size_y = float(arg_value)
         else:
             raise RuntimeError('Argument {} is not recognized'.format(arg_name))
     # END-FOR
+
+    instrument = AnglerCameraDetectorGeometry(num_rows=detector_rows,
+                                              num_columns=detector_columns,
+                                              pixel_size_x=pixel_size_x,
+                                              pixel_size_y=pixel_size_y,
+                                              arm_length=arm_length,
+                                              calibrated=False)
 
     return instrument
 

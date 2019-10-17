@@ -6,7 +6,6 @@
 import pytest
 import time
 from pyrs.calibration import peakfit_calibration
-from pyrs.core import instrument_geometry
 from pyrs.utilities import calibration_file_io
 from pyrs.utilities import rs_project_file
 
@@ -29,11 +28,7 @@ def test_main():
     t_start = time.time()
 
     # instrument
-    instrument = calibration_file_io.import_instrument_setup(idf_name)
-
-    hb2b = instrument_geometry.AnglerCameraDetectorGeometry(instrument.detector_rows, instrument.detector_columns,
-                                                            instrument.pixel_size_x, instrument.pixel_size_y,
-                                                            instrument.arm_length, False)
+    hb2b = calibration_file_io.import_instrument_setup(idf_name)
 
     calibrator = peakfit_calibration.PeakFitCalibration(hb2b, engine)
     calibrator.CalibrateWavelength()
