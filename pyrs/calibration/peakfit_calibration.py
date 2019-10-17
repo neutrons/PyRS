@@ -14,8 +14,25 @@ dSpace = np.array( [4.156826, 2.93931985, 2.39994461, 2.078413, 1.8589891, 1.697
 from lmfit.models import LinearModel, GaussianModel
 from lmfit import Model
 
-def BackGround(x, p0, p1, p2):
-    """a line"""
+
+def quadratic_background(x, p0, p1, p2):
+    """Quadratic background
+
+    Y = p2 * x**2 + p1 * x + p0
+
+    Parameters
+    ----------
+    x: float or ndarray
+        x value
+    p0: float
+    p1: float
+    p2: float
+
+    Returns
+    -------
+    float or numpy array
+        background
+    """
     return p2*x*x + p1*x + p0
 
 
@@ -25,44 +42,67 @@ class GlobalParameter(object):
     def __init__(self):
         return
 
+
 class PeakFitCalibration(object):
     """
     Calibrate by grid searching algorithm using Brute Force or Monte Carlo random walk
     """
-    def __init__(self, hb2b_instrument, HiDRA_Data ):
+    def __init__(self, hb2b_instrument, hidra_data):
         """
         Initialization
         """
 
-        self._instrument    = hb2b_instrument
-        self._engine        = HiDRA_Data
-        self._calib         = np.array( 7*[0], dtype=np.float )
-        self._caliberr      = np.array( 7*[ -1 ], dtype=np.float )
-        self._calib[6]      = np.array( [1.452, 1.452, 1.540, 1.731, 1.886, 2.275, 2.667 ] )[ self._engine.get_log_value( 'MonoSetting' )[0] ]
-        self._calibstatus   = -1
+        self._instrument = hb2b_instrument
+        self._engine = hidra_data
+        # calibration
+        self._calib = np.array(7 * [0], dtype=np.float)
+        # calibration error
+        self._caliberr = np.array(7 * [-1], dtype=np.float)
+        self._calib[6] = \
+            np.array([1.452, 1.452, 1.540, 1.731, 1.886, 2.275, 2.667])[self._engine.get_log_value('MonoSetting')[0]]
+        self._calibstatus = -1
 
         GlobalParameter.global_curr_sequence = 0
 
         return
-        
-    def check_alignment_inputs(self, roi_vec_set):
+
+    @staticmethod
+    def check_alignment_inputs(roi_vec_set):
         """ Check inputs for alignment routine for required formating
         :param roi_vec_set: list/array of ROI/mask vector
         :return: 
         """    
         # check
-        if type(roi_vec_set) != type( None ):
+        if roi_vec_set is not None:
             assert isinstance(roi_vec_set, list), 'must be list'
-            if len(roi_vec_set) < 2:raise RuntimeError('User must specify more than 1 ROI/MASK vector')
+            if len(roi_vec_set) < 2:
+                raise RuntimeError('User must specify more than 1 ROI/MASK vector')
 
         return 
 
-    def convert_to_2theta(self, pyrs_reducer, roi_vec, min_2theta=16., max_2theta=61., num_bins=1800):
+    @staticmethod
+    def convert_to_2theta(pyrs_reducer, roi_vec, min_2theta=16., max_2theta=61., num_bins=1800):
+        """Convert data, with ROI, to 2theta
+
+        Parameters
+        ----------
+        pyrs_reducer
+        roi_vec
+        min_2theta
+        max_2theta
+        num_bins
+
+        Returns
+        -------
+        ndarray, ndarray
+            2theta, intensity
+        """
         # reduce data
-        TTHStep     = (max_2theta - min_2theta) / num_bins
-        pyrs_reducer.set_mask( roi_vec )
-        vec_2theta, vec_hist = pyrs_reducer.reduce_to_2theta_histogram((min_2theta, max_2theta), TTHStep, True,
-                                       is_point_data=True, normalize_pixel_bin=True, use_mantid_histogram=False)
+        two_theta_step = (max_2theta - min_2theta) / num_bins
+        pyrs_reducer.set_mask(roi_vec)
+        vec_2theta, vec_hist = pyrs_reducer.reduce_to_2theta_histogram((min_2theta, max_2theta), two_theta_step, True,
+                                                                       is_point_data=True, normalize_pixel_bin=True,
+                                                                       use_mantid_histogram=False)
 
         return vec_2theta, vec_hist
 
@@ -78,102 +118,114 @@ class PeakFitCalibration(object):
 
         GlobalParameter.global_curr_sequence += 1
 
-        residual = np.array( [] )
-        resNone  = 0.
+        residual = np.array([])
+        # resNone = 0.
 
-        TTH_Calib   = np.arcsin( x[6] / 2. / dSpace ) * 360. / np.pi
-        TTH_Calib   = TTH_Calib[ ~np.isnan( TTH_Calib ) ]
+        two_theta_calib = np.arcsin(x[6] / 2. / dSpace) * 360. / np.pi
+        two_theta_calib = two_theta_calib[~np.isnan(two_theta_calib)]
 
-        background = LinearModel()
+        # background = LinearModel()
 
-        for i_tth in range( self._engine.get_log_value( '2Theta' ).shape[0] ):
-            #reduced_data_set[i_tth] = [None] * num_reduced_set 
+        for i_tth in range( self._engine.get_log_value('2Theta').shape[0]):
+            # reduced_data_set[i_tth] = [None] * num_reduced_set
             # load instrument: as it changes
-            pyrs_reducer = reduce_hb2b_pyrs.PyHB2BReduction(self._instrument, x[6] )
-            pyrs_reducer.build_instrument_prototype( -1.* self._engine.get_log_value( '2Theta' )[i_tth], \
-                                                    self._instrument._arm_length, x[0], x[1], x[2], x[3], x[4], x[5] )
-            pyrs_reducer._detector_counts = self._engine.get_raw_counts( i_tth )
+            pyrs_reducer = reduce_hb2b_pyrs.PyHB2BReduction(self._instrument, x[6])
+            pyrs_reducer.build_instrument_prototype(-1. * self._engine.get_log_value('2Theta')[i_tth],
+                                                    self._instrument._arm_length,
+                                                    x[0], x[1], x[2], x[3], x[4], x[5])
+            pyrs_reducer._detector_counts = self._engine.get_raw_counts(i_tth)
 
-            DetectorAngle   = self._engine.get_log_value( '2Theta' )[i_tth]
-            mintth  = DetectorAngle-8.0
-            maxtth  = DetectorAngle+8.7
+            DetectorAngle = self._engine.get_log_value('2Theta')[i_tth]
+            mintth = DetectorAngle-8.0
+            maxtth = DetectorAngle+8.7
 
             Eta_val = pyrs_reducer.get_eta_Values()
-            maxEta  = np.max( Eta_val )-2
-            minEta  = np.min( Eta_val )+2
+            maxEta = np.max(Eta_val) - 2
+            minEta = np.min(Eta_val) + 2
 
-            FitModel        = Model( BackGround )
-            pars1           = FitModel.make_params( p0=100, p1=1, p2=0.01 )
+            FitModel = Model(quadratic_background)
+            pars1 = FitModel.make_params(p0=100, p1=1, p2=0.01)
             
-            Peaks           = []
-            CalibPeaks      = TTH_Calib[ np.where( (TTH_Calib > mintth) == (TTH_Calib < maxtth) )[0] ]
-            for ipeak in range( len( CalibPeaks ) ):
+            Peaks = list()
+            CalibPeaks = two_theta_calib[np.where((two_theta_calib > mintth) == (two_theta_calib < maxtth))[0]]
+            for ipeak in range(len(CalibPeaks)):
                 if (CalibPeaks[ipeak] > mintth) and (CalibPeaks[ipeak] < maxtth):
 
-                    Peaks.append( ipeak )
-                    PeakModel = GaussianModel(prefix='g%d_'%ipeak)
+                    Peaks.append(ipeak)
+                    PeakModel = GaussianModel(prefix='g%d_' % ipeak)
                     FitModel += PeakModel
 
                     pars1.update(PeakModel.make_params())
-                    pars1['g%d_center'%ipeak].set(value=CalibPeaks[ipeak], min=CalibPeaks[ipeak]-2, max=CalibPeaks[ipeak]+2)
-                    pars1['g%d_sigma'%ipeak].set(value=0.5, min=1e-1, max=1.5)
+                    pars1['g%d_center' % ipeak].set(value=CalibPeaks[ipeak], min=CalibPeaks[ipeak] - 2,
+                                                    max=CalibPeaks[ipeak] + 2)
+                    pars1['g%d_sigma' % ipeak].set(value=0.5, min=1e-1, max=1.5)
                     pars1['g%d_amplitude'%ipeak].set(value=50., min=10, max=1e6)
 
+            if roi_vec_set is None:
+                eta_roi_vec = np.arange(minEta, maxEta + 0.2, 2)
+            else:
+                eta_roi_vec = np.array(roi_vec_set)
 
-            if type( roi_vec_set ) == type( None ): eta_roi_vec = np.arange( minEta, maxEta+0.2, 2 )
-            else: eta_roi_vec = np.array( roi_vec_set )
-
-            num_rows = 1 + len( Peaks )  / 2 + len( Peaks )  % 2
+            num_rows = 1 + len(Peaks) / 2 + len(Peaks) % 2
             ax1 = plt.subplot(num_rows, 1, num_rows)
             ax1.margins(0.05)  # Default margin is 0.05, value 0 means fit
 
             for i_roi in range( eta_roi_vec.shape[0] ):
-                ws_name_i = 'reduced_data_{:02}'.format(i_roi)
-                out_peak_pos_ws = 'peaks_positions_{:02}'.format(i_roi)
-                fitted_ws = 'fitted_peaks_{:02}'.format(i_roi)
+                # ws_name_i = 'reduced_data_{:02}'.format(i_roi)
+                # out_peak_pos_ws = 'peaks_positions_{:02}'.format(i_roi)
+                # fitted_ws = 'fitted_peaks_{:02}'.format(i_roi)
 
                 # Define Mask
-                Mask = np.zeros_like( Eta_val )
+                Mask = np.zeros_like(Eta_val)
                 if abs(eta_roi_vec[i_roi]) == eta_roi_vec[i_roi]:
-                    index = np.where( (Eta_val < (eta_roi_vec[i_roi]+1) ) == ( Eta_val > (eta_roi_vec[i_roi]-1 ) ))[0]
+                    index = np.where((Eta_val < (eta_roi_vec[i_roi]+1)) == (Eta_val > (eta_roi_vec[i_roi] - 1)))[0]
                 else:
-                    index = np.where( (Eta_val > (eta_roi_vec[i_roi]-1) ) == ( Eta_val < (eta_roi_vec[i_roi]+1 ) ))[0]
+                    index = np.where((Eta_val > (eta_roi_vec[i_roi]-1)) == (Eta_val < (eta_roi_vec[i_roi] + 1)))[0]
 
                 Mask[index] = 1.
 
                 # reduce
-                reduced_i   = self.convert_to_2theta(pyrs_reducer, Mask, min_2theta=mintth, max_2theta=maxtth, num_bins=720 )
+                reduced_i = self.convert_to_2theta(pyrs_reducer, Mask, min_2theta=mintth, max_2theta=maxtth,
+                                                   num_bins=720)
 
                 # fit peaks
-                Fitresult   = FitModel.fit(reduced_i[1], pars1, x=reduced_i[0])
+                Fitresult = FitModel.fit(reduced_i[1], pars1, x=reduced_i[0])
 
                 for p_index in Peaks:
-                    residual = np.concatenate([residual, np.array( [( 100.0 * ( Fitresult.params['g%d_center'%p_index].value- CalibPeaks[p_index]) )] ) ])
+                    residual = np.concatenate([residual,
+                                               np.array([(100.0 * (Fitresult.params['g%d_center' % p_index].value -
+                                                                   CalibPeaks[p_index]))])])
 
-            # plot results
-
-                backgroundShift = np.average( BackGround( reduced_i[0], Fitresult.params[ 'p0' ].value, Fitresult.params[ 'p1' ].value, Fitresult.params[ 'p2' ].value ) )
+                # plot results
+                backgroundShift = np.average(quadratic_background(reduced_i[0],
+                                                                  Fitresult.params['p0'].value,
+                                                                  Fitresult.params['p1'].value,
+                                                                  Fitresult.params['p2'].value))
                 ax1.plot(reduced_i[0], reduced_i[1], color=colors[i_roi % 5])
                 
-                for index_i in range(len(Peaks) ):
+                for index_i in range(len(Peaks)):
                     ax2 = plt.subplot(num_rows, 2, index_i+1)
-                    ax2.plot( reduced_i[0], reduced_i[1], 'x', color='black')
-                    ax2.plot( reduced_i[0], Fitresult.best_fit, color='red')
-                    ax2.plot( [CalibPeaks[index_i], CalibPeaks[index_i]], [backgroundShift, backgroundShift+Fitresult.params[ 'g0_amplitude' ].value], 'k', linewidth=2)
-                    ax2.set_xlim( [CalibPeaks[index_i]-1.5, CalibPeaks[index_i]+1.5] )
-
+                    ax2.plot(reduced_i[0], reduced_i[1], 'x', color='black')
+                    ax2.plot(reduced_i[0], Fitresult.best_fit, color='red')
+                    ax2.plot([CalibPeaks[index_i], CalibPeaks[index_i]],
+                             [backgroundShift, backgroundShift + Fitresult.params['g0_amplitude'].value],
+                             'k', linewidth = 2)
+                    ax2.set_xlim([CalibPeaks[index_i]-1.5, CalibPeaks[index_i] + 1.5])
+                # END-FOR
 
             plt.savefig('./FitFigures/Round{:010}_{:02}.png'.format(GlobalParameter.global_curr_sequence, i_tth))
             plt.clf()
-
+        # END-FOR(tth)
         
-        print ( "\n" )
-        print ('Iteration  {}'.format( GlobalParameter.global_curr_sequence ) )
-        print ('RMSE         = {}'.format( np.sqrt( residual.sum()**2 / (len( eta_roi_vec )*self._engine.get_log_value( '2Theta' ).shape[0]) ) ) )
-        print ('Residual Sum = {}'.format( np.sum( residual ) / 100. ) )
-        print ( "\n" )
+        print ("\n")
+        print ('Iteration      {}'.format(GlobalParameter.global_curr_sequence))
+        print ('RMSE         = {}'
+               ''.format(np.sqrt(residual.sum()**2 / (len(eta_roi_vec) *
+                                                      self._engine.get_log_value('2Theta').shape[0]))))
+        print ('Residual Sum = {}'.format(np.sum(residual) / 100.))
+        print ("\n")
 
-        return (residual)
+        return residual
 
     def peak_alignment_wavelength(self, x ):
         """ Cost function for peaks alignment to determine wavelength
@@ -186,11 +238,10 @@ class PeakFitCalibration(object):
         :param ScalarReturn:
         :return:
         """
-
-        #self.check_alignment_inputs(roi_vec_set)
-        roi_vec_set     = None
-        paramVec        = np.copy( self._calib )
-        paramVec[6]     = x[0]
+        # self.check_alignment_inputs(roi_vec_set)
+        roi_vec_set = None
+        paramVec = np.copy( self._calib )
+        paramVec[6] = x[0]
 
         return self.get_alignment_residual(paramVec, roi_vec_set )
 
@@ -205,11 +256,10 @@ class PeakFitCalibration(object):
         :param ScalarReturn:
         :return:
         """
-
         self.check_alignment_inputs(roi_vec_set)
 
-        paramVec        = np.copy( self._calib )
-        paramVec[0:3]   = x[:]
+        paramVec = np.copy(self._calib)
+        paramVec[0:3] = x[:]
 
         print ('\n')
         print (paramVec)
@@ -235,13 +285,13 @@ class PeakFitCalibration(object):
         """
         self.check_alignment_inputs(roi_vec_set)
 
-        paramVec        = np.copy( self._calib )
-        paramVec[3:6]   = x[:]
+        paramVec = np.copy(self._calib)
+        paramVec[3:6] = x[:]
 
         residual = self.get_alignment_residual(paramVec, roi_vec_set )
 
         if ScalarReturn:
-            return np.sum( residual )
+            return np.sum(residual)
         else:
             return residual
 
@@ -255,7 +305,6 @@ class PeakFitCalibration(object):
         :param plot:
         :return:
         """
-
         self.check_alignment_inputs(roi_vec_set)
 
         residual = self.get_alignment_residual(x, roi_vec_set )
@@ -275,7 +324,6 @@ class PeakFitCalibration(object):
         :param plot:
         :return:
         """
-
         GlobalParameter.global_curr_sequence = -10
 
         if type(x) == type(None): residual = self.get_alignment_residual(self._calib, roi_vec_set )
