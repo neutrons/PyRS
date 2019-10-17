@@ -31,7 +31,7 @@ def test_main():
     hb2b = calibration_file_io.import_instrument_setup(idf_name)
 
     calibrator = peakfit_calibration.PeakFitCalibration(hb2b, engine)
-    calibrator.CalibrateWavelength()
+    calibrator.calibrate_wave_length()
     calibrator.write_calibration()
 
     t_stop = time.time()
