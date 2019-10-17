@@ -30,7 +30,7 @@ fi
 
 if [ "$1" = "111" ] || [ "$1" = "prototype" ] ; then
     echo "Protyping calibration"
-    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./prototypes/calibration/Quick_Calibration_Corr_Scipy.py
+    PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./prototypes/calibration/Quick_Calibration_Class.py
 fi
 
 if [ "$1" = "22" ] || [ "$1" = "prototype" ] ; then

@@ -104,7 +104,7 @@ def main():
     Test main
     :return:
     """
-    test_project_file_name = 'tests/testdata/Hydra_16-1_cor_log.hdf5'
+    test_project_file_name = 'data/Hydra_16-1_cor_log.hdf5'
 
     # TODO - #81 NOW - Find wave length and put to a proper place in both Hidra project file and Hidra workspace
 

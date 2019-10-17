@@ -422,7 +422,7 @@ class PyHB2BReduction(object):
 
         return
 
-    def build_instrument_prototype(self, two_theta, arm_length_shift, center_shift_x, center_shift_y,
+    def build_instrument_prototype(self, two_theta, arm_length, arm_length_shift, center_shift_x, center_shift_y,
                                    rot_x_flip, rot_y_flip, rot_z_spin):
         """
         build an instrument
@@ -440,7 +440,8 @@ class PyHB2BReduction(object):
         calibration = instrument_geometry.AnglerCameraDetectorShift(
             arm_length_shift, center_shift_x, center_shift_y, rot_x_flip, rot_y_flip, rot_z_spin)
 
-        self._instrument.build_instrument(two_theta, instrument_calibration=calibration)
+        self._instrument.build_instrument(two_theta=two_theta, l2=arm_length,
+                                          instrument_calibration=calibration)
 
         return
 
@@ -579,7 +580,7 @@ class PyHB2BReduction(object):
             # use numpy.histogram
             two_theta_vector, intensity_vector = self.histogram_by_numpy(pixel_2theta_array, vec_counts,
                                                                          two_theta_vector,
-                                                                         is_point_data, True)
+                                                                         is_point_data, normalize_pixel_bin)
 
         # Record
         self._reduced_diffraction_data = two_theta_vector, intensity_vector
@@ -744,23 +745,8 @@ class PyHB2BReduction(object):
 
         # Optionally to normalize by number of pixels (sampling points) in the 2theta bin
         if norm_bins:
-            # Create an all 1 vector
-            vec_one = numpy.zeros(shape=vec_counts.shape) + 1
-            # Histograms
-            ret_hist = np.histogram(pixel_2theta_array, bins=two_theta_vec, weights=vec_one)
-            hist_bin = ret_hist[0]
-
-            # Normalize with cautious to avoid zero number of bins on any X
-            if False:
-                # FIXME TODO - #72 - Remove this as next works
-                for ibin in range(hist_bin.shape[0]):
-                    if hist_bin[ibin] < 1.E-4:  # zero
-                        hist_bin[ibin] = 1.E10  # doesn't matter how big it is
-                # END-FOR
-            else:
-                # Shall be a better operation with numpy
-                hist_bin[numpy.where(hist_bin < 0.1)] += 1
-
+            hist_bin = np.histogram(pixel_2theta_array[np.where(vec_counts > .5)[0]],
+                                    bins=two_theta_vec)[0]
             hist /= hist_bin  # normalize
         # END-IF
 

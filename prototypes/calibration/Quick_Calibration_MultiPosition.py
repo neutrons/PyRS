@@ -28,6 +28,13 @@ dSpace = np.array([4.156826, 2.93931985, 2.39994461, 2.078413, 1.8589891, 1.6970
                    1.0392065, 1.00817839, 0.97977328, 0.95364129, 0.92949455, 0.9070938, 0.88623828, 0.84850855, 0.8313652, 0.81522065, 0.79998154, 0.77190321, 0.75892912, 0.73482996])
 
 
+from lmfit.models import LinearModel, GaussianModel
+
+def BackGround(x, p0, p1, p2):
+    """a line"""
+    return p2*x*x + p1*x + p0
+
+
 class GlobalParameter(object):
     global_curr_sequence = 0
 
@@ -73,30 +80,44 @@ def get_alignment_residual(x, engine, hb2b_setup, two_theta, roi_vec_set):
     TTH_Calib = np.arcsin(x[6] / 2. / dSpace) * 360. / np.pi
     TTH_Calib = TTH_Calib[~np.isnan(TTH_Calib)]
 
-    for i_tth in range(len(two_theta)):
-        #reduced_data_set[i_tth] = [None] * num_reduced_set
+    background = LinearModel()
+    for i_tth in range( len( two_theta ) ):
+        #reduced_data_set[i_tth] = [None] * num_reduced_set 
         # load instrument: as it changes
         pyrs_reducer = reduce_hb2b_pyrs.PyHB2BReduction(hb2b_setup, x[6])
         pyrs_reducer.build_instrument_prototype(two_theta[i_tth], x[0], x[1], x[2], x[3], x[4], x[5])
 
-        DetectorAngle = np.abs(two_theta[i_tth])
+        DetectorAngle   = np.abs( two_theta[i_tth] )
+        mintth  = DetectorAngle-8.0
+        maxtth  = DetectorAngle+8.8
 
         Eta_val = pyrs_reducer.get_eta_Values()
-        TTH_val = pyrs_reducer.generate_2theta_histogram_vector(None, 0.01, None)
-        maxtth = np.max(TTH_val)
-        mintth = np.min(TTH_val)
+        maxEta  = np.max( Eta_val )-2
+        minEta  = np.min( Eta_val )+2
 
         peak_centers = ''
         fit_windows = ''
 
-        CalibPeaks = TTH_Calib[np.where((TTH_Calib > DetectorAngle-8) == (TTH_Calib < DetectorAngle+8))[0]]
-        for ipeak in CalibPeaks:
-            if (ipeak > mintth) and (ipeak < maxtth):
-                peak_centers += '%.4f,' % ipeak
-                fit_windows += '%.4f,%.4f,' % (ipeak-1, ipeak+1)
+        FitModel        = lmfit.Model( BackGround )
+        pars1           = FitModel.make_params( p0=100, p1=1, p2=0.01 )
+        
+        Peaks           = []
+        CalibPeaks      = TTH_Calib[ np.where( (TTH_Calib > mintth) == (TTH_Calib < maxtth) )[0] ]
+        for ipeak in range( len( CalibPeaks ) ):
+            if (CalibPeaks[ipeak] > mintth) and (CalibPeaks[ipeak] < maxtth):
+                peak_centers+='%.4f,'%CalibPeaks[ipeak]
+                fit_windows+='%.4f,%.4f,'%(CalibPeaks[ipeak]-1, CalibPeaks[ipeak]+1)
+                Peaks.append( ipeak )
+                PeakModel = GaussianModel(prefix='g%d_'%ipeak)
+                FitModel += PeakModel
 
-        peak_centers = peak_centers[:-1]
-        fit_windows = fit_windows[:-1]
+                pars1.update(PeakModel.make_params())
+                pars1['g%d_center'%ipeak].set(value=CalibPeaks[ipeak], min=CalibPeaks[ipeak]-2, max=CalibPeaks[ipeak]+2)
+                pars1['g%d_sigma'%ipeak].set(value=0.5, min=1e-3, max=1.0)
+                pars1['g%d_amplitude'%ipeak].set(value=50., min=0, max=1e6)
+
+#        peak_centers = peak_centers[:-1]
+#        fit_windows = fit_windows[:-1]
 
         if peak_centers == '':
             residual = np.concatenate([residual, np.array([20000])])
@@ -104,10 +125,13 @@ def get_alignment_residual(x, engine, hb2b_setup, two_theta, roi_vec_set):
         else:
             # reduce data
 
-            num_rows = 1 + len(roi_vec_set) / 2 + len(roi_vec_set) % 2
+  
+#            for i_roi in range( len( roi_vec_set ) ):
+            print ( minEta, maxEta )
+            eta_roi_vec = np.arange( minEta, maxEta+0.2, 2 )
 
+            num_rows = 1 + len( Peaks )  / 2 + len( Peaks )  % 2
             ax1 = plt.subplot(num_rows, 1, num_rows)
-
             ax1.margins(0.05)  # Default margin is 0.05, value 0 means fit
 
             for i_roi in range(len(roi_vec_set)):
@@ -116,26 +140,50 @@ def get_alignment_residual(x, engine, hb2b_setup, two_theta, roi_vec_set):
                 fitted_ws = 'fitted_peaks_{:02}'.format(i_roi)
 
                 # Define Mask
-                Mask = np.zeros_like(Eta_val)
-                if abs(roi_vec_set[i_roi]) == roi_vec_set[i_roi]:
-                    index = np.where((Eta_val < (roi_vec_set[i_roi]+5)) == (Eta_val > (roi_vec_set[i_roi]-5)))[0]
+                Mask = np.zeros_like( Eta_val )
+                if abs(eta_roi_vec[i_roi]) == eta_roi_vec[i_roi]:
+                    index = np.where( (Eta_val < (eta_roi_vec[i_roi]+1) ) == ( Eta_val > (eta_roi_vec[i_roi]-1 ) ))[0]
                 else:
-                    index = np.where((Eta_val > (roi_vec_set[i_roi]-5)) == (Eta_val < (roi_vec_set[i_roi]+5)))[0]
+                    index = np.where( (Eta_val > (eta_roi_vec[i_roi]-1) ) == ( Eta_val < (eta_roi_vec[i_roi]+1 ) ))[0]
 
                 Mask[index] = 1.
 
                 # reduce
-                reduced_i = convert_to_2theta(engine, pyrs_reducer, Mask, ws_name_i, 'SimulatedData_%d' % np.abs(
-                    DetectorAngle), min_2theta=mintth, max_2theta=maxtth, num_bins=750)
+                reduced_i   = convert_to_2theta(engine, pyrs_reducer, Mask, ws_name_i, 'SimulatedData_%d'%np.abs(DetectorAngle), min_2theta=mintth, max_2theta=maxtth, num_bins=400 )
+                Fitresult   = FitModel.fit(reduced_i[1], pars1, x=reduced_i[0])
+
+#                print ('\n\n\n' )
+                for p_index in Peaks:
+                    residual_sq = ( 100.0 * ( Fitresult.params['g%d_center'%p_index].value- CalibPeaks[p_index]) )**2
+                    resNone += Fitresult.params['g%d_center'%p_index].value - CalibPeaks[p_index]
+#                    print( Fitresult.params['g%d_center'%p_index].value, CalibPeaks[p_index], Fitresult.params['g%d_center'%p_index] - CalibPeaks[p_index] )
+                    residual = np.concatenate([residual, np.array( [residual_sq] ) ])
+
+#                print ('\n\n\n' )
+            # plot
+
+                backgroundShift = np.average( BackGround( reduced_i[0], Fitresult.params[ 'p0' ].value, Fitresult.params[ 'p1' ].value, Fitresult.params[ 'p2' ].value ) )
+                ax1.plot(reduced_i[0], reduced_i[1], color=colors[i_roi % 5])
+                
+                for index_i in range(1, len(Peaks)+1):
+                    ax2 = plt.subplot(num_rows, 2, index_i)
+                    ax2.plot( reduced_i[0], reduced_i[1], 'x', color='black')
+                    ax2.plot( reduced_i[0], Fitresult.best_fit, color='red')
+                    ax2.plot( [CalibPeaks[p_index], CalibPeaks[p_index]], [backgroundShift, backgroundShift+Fitresult.params[ 'g0_amplitude' ].value], 'k', linewidth=2)
+                    ax2.set_xlim( [CalibPeaks[p_index]-1.5, CalibPeaks[p_index]+1.5] )
+
+
+            plt.savefig('./FitFigures/Round{:010}_{:02}.png'.format(GlobalParameter.global_curr_sequence, i_tth))
+            plt.clf()
 
                 # fit peaks
-                FitPeaks(InputWorkspace=ws_name_i, OutputWorkspace=out_peak_pos_ws,
-                         StartWorkspaceIndex=0, StopWorkspaceIndex=0,
-                         PeakCenters=peak_centers,
-                         FitWindowBoundaryList=fit_windows,
-                         FittedPeaksWorkspace=fitted_ws,
-                         OutputPeakParametersWorkspace='hb2b_rotate_p30deg_reduced_FITS',  # FIXME - need to give a good name too
-                         OutputParameterFitErrorsWorkspace='hb2b_rotate_p30deg_reduced_Errors')
+#                FitPeaks(InputWorkspace=ws_name_i, OutputWorkspace=out_peak_pos_ws,
+#                         StartWorkspaceIndex=0, StopWorkspaceIndex=0,
+#                         PeakCenters=peak_centers,
+#                         FitWindowBoundaryList=fit_windows,
+#                         FittedPeaksWorkspace=fitted_ws,
+#                         OutputPeakParametersWorkspace='hb2b_rotate_p30deg_reduced_FITS',  # FIXME - need to give a good name too
+#                         OutputParameterFitErrorsWorkspace='hb2b_rotate_p30deg_reduced_Errors')
 
     #            print ( "\n\n\n\n\n\n" )
     #            print ( mtd[ out_peak_pos_ws ].readY(0) )
@@ -143,31 +191,21 @@ def get_alignment_residual(x, engine, hb2b_setup, two_theta, roi_vec_set):
     #            print ( CalibPeaks - mtd[ out_peak_pos_ws ].readY(0)  )
     #            print ( "\n\n\n\n\n\n" )
 
-                for p_index in range(len(mtd[out_peak_pos_ws].readY(0))):
-                    fitted_pos_i = mtd[out_peak_pos_ws].readY(0)[p_index]
-
-                    if fitted_pos_i < 0.:
-                        residual_sq = 1000
-                    else:
-                        residual_sq = (100.0 * np.abs(fitted_pos_i - CalibPeaks[p_index]))
-                        resNone += fitted_pos_i - CalibPeaks[p_index]
-
-                    residual = np.concatenate([residual, np.array([residual_sq])])
 
             # plot
 
-                ax1.plot(reduced_i[0], reduced_i[1], color=colors[i_roi % 5])
-                index_i = i_roi + 1
-                ax2 = plt.subplot(num_rows, 2, index_i)
-                ax2.plot(reduced_i[0], reduced_i[1], color='black')
-                ax2.plot(mtd[fitted_ws].readX(0), mtd[fitted_ws].readY(0), color='red')
+#                ax1.plot(reduced_i[0], reduced_i[1], color=colors[i_roi % 5])
+#                index_i = i_roi + 1
+#                ax2 = plt.subplot(num_rows, 2, index_i)
+#                ax2.plot(reduced_i[0], reduced_i[1], color='black')
+#                ax2.plot(mtd[fitted_ws].readX(0), mtd[fitted_ws].readY(0), color='red')
+#
+#
+#            plt.savefig('Round{:010}_{:02}.png'.format(GlobalParameter.global_curr_sequence, i_tth))
+#            plt.clf()
 
-            plt.savefig('Round{:010}_{:02}.png'.format(GlobalParameter.global_curr_sequence, i_tth))
-            plt.clf()
 
-    c_n_2 = math.factorial(len(roi_vec_set)*len(two_theta)) / (math.factorial(2)
-                                                               * math.factorial(len(roi_vec_set)*len(two_theta) - 2))
-    norm_cost = residual.sum() / c_n_2
+    norm_cost = residual.sum() / (len( roi_vec_set )*len(two_theta))
 
     print("\n\n\n")
     print('Residual      = {}'.format(norm_cost))
@@ -186,8 +224,8 @@ def convert_to_2theta(engine, pyrs_reducer, roi_vec, ws_name, curr_id, min_2thet
     vec_2theta, vec_hist = pyrs_reducer.reduce_to_2theta_histogram((min_2theta, max_2theta), TTHStep, True,
                                                                    is_point_data=True, normalize_pixel_bin=True, use_mantid_histogram=False)
 
-    CreateWorkspace(DataX=vec_2theta, DataY=vec_hist, DataE=np.sqrt(vec_hist), NSpec=1,
-                    OutputWorkspace=ws_name)
+    #CreateWorkspace(DataX=vec_2theta, DataY=vec_hist, DataE=np.sqrt(vec_hist), NSpec=1,
+    #                OutputWorkspace=ws_name)
 
     return vec_2theta, vec_hist
 
@@ -348,60 +386,45 @@ def main():
 
     GlobalParameter.global_curr_sequence = 0
 
-    #out = minimize(peaks_alignment_all, start_calibration, args=(engine, HB2B, two_theta, roi_vec_list, False, True, 1.452), method='L-BFGS-B', jac=None, bounds=None, tol=None, callback=None, options={'disp': None, 'maxcor': 10, 'ftol': 2.220446049250313e-05, 'gtol': 1e-03, 'eps': 1e-03, 'maxfun': 100, 'maxiter': 100, 'iprint': -1, 'maxls': 20})
     t_stop1 = time.time()
-
-    #out2 = minimize(peaks_alignment_all, out.x, args=(engine, HB2B, two_theta, roi_vec_list, False, True, 1.452), method='L-BFGS-B', jac=None, bounds=None, tol=None, callback=None, options={'disp': None, 'maxcor': 10, 'ftol': 2.220446049250313e-09, 'gtol': 1e-05, 'eps': 1e-07, 'maxfun': 100, 'maxiter': 100, 'iprint': -1, 'maxls': 20})
     t_stop2 = time.time()
 
-    #start_calibration = np.array( [0.0] * 3, dtype = np.float)
+    start_calibration = np.array( [0.0] * 3, dtype = np.float)
 
-    #out = minimize(peak_alignment_shift, start_calibration, args=(engine, HB2B, two_theta, roi_vec_list, [0, 0, 0], 1.452, True), method='L-BFGS-B', jac=None, bounds=([-.1, .1], [-.1, .1], [ -.1, .1 ] ), tol=None, callback=None, options={'disp': None, 'maxcor': 10, 'ftol': 2.220446049250313e-05, 'gtol': 1e-03, 'eps': 1e-03, 'maxfun': 100, 'maxiter': 100, 'iprint': -1, 'maxls': 20})
+    #out = minimize(peak_alignment_shift, start_calibration, args=(engine, HB2B, two_theta, roi_vec_list, [0, 0, 0], 1.452, True), method='L-BFGS-B', jac=None, bounds=([-.05, .05], [-.05, .05], [ -.05, .05 ] ), tol=None, callback=None, options={'disp': None, 'maxcor': 10, 'ftol': 2.220446049250313e-05, 'gtol': 1e-03, 'eps': 1e-03, 'maxfun': 100, 'maxiter': 100, 'iprint': -1, 'maxls': 20})
 
-#    out1 = least_squares(peak_alignment_shift, out.x, jac='2-point', bounds=([-.1, -.1, -.1 ], [ .1, .1, .1 ]), method='trf', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', f_scale=1.0, diff_step=None, tr_solver=None, tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0, args=(engine, HB2B, two_theta, roi_vec_list, [0, 0, 0], 1.452, False), kwargs={})
+    peak_alignment_shift( start_calibration, engine, HB2B, two_theta, roi_vec_list, [0, 0, 0], 1.452, False )
+    out1 = least_squares(peak_alignment_shift, start_calibration, jac='3-point', bounds=([-.05, -.05, -.05 ], [ .05, .05, .05 ]), method='dogbox', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', f_scale=1.0, diff_step=None, tr_solver=None, tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0, args=(engine, HB2B, two_theta, roi_vec_list, [0, 0, 0], 1.452, False), kwargs={})
 
-#    start_calibration = np.array( [0.0] * 3, dtype = np.float)
-#    out2 = least_squares(peak_alignment_rotation, start_calibration, jac='2-point', bounds=([ -np.pi, -np.pi, -np.pi], [  np.pi, np.pi, np.pi, ]), method='trf', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', f_scale=1.0, diff_step=None, tr_solver=None, tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0, args=(engine, HB2B, two_theta, roi_vec_list, out1.x, 1.452, False ), kwargs={})
+    start_calibration = np.array( [0.0] * 3, dtype = np.float)
+    out20 = minimize(peak_alignment_rotation, start_calibration, args=(engine, HB2B, two_theta, roi_vec_list, out1.x, 1.452, True), method='L-BFGS-B', jac=None, bounds=([-.05, .05], [-.05, .05], [ -.05, .05 ] ), tol=None, callback=None, options={'disp': None, 'maxcor': 10, 'ftol': 2.220446049250313e-05, 'gtol': 1e-03, 'eps': 1e-03, 'maxfun': 100, 'maxiter': 100, 'iprint': -1, 'maxls': 20})
 
-    start_calibration = np.array([0.0] * 7, dtype=np.float)
+    out2 = least_squares(peak_alignment_rotation, start_calibration, jac='3-point', bounds=([ -np.pi/20, -np.pi/20, -np.pi/20], [  np.pi/20, np.pi/20, np.pi/20 ]), method='dogbox', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', f_scale=1.0, diff_step=None, tr_solver=None, tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0, args=(engine, HB2B, two_theta, roi_vec_list, out1.x, 1.452, False ), kwargs={})
+
+#    start_calibration = np.array( [0.0] * 7, dtype = np.float)
 #    start_calibration[0:3]  = out1.x
 #    start_calibration[3:6]  = out2.x
-    start_calibration[6] = 1.452
+#    start_calibration[6]    =  1.452
 
-    out3 = least_squares(peaks_alignment_all, start_calibration, jac='2-point', bounds=([-.1, -.1, -.1, -np.pi, -np.pi, -np.pi, 1.4], [.1, .1, .1, np.pi, np.pi, np.pi, 1.5]), method='trf', ftol=1e-08, xtol=1e-08, gtol=1e-08,
-                         x_scale=1.0, loss='linear', f_scale=1.0, diff_step=None, tr_solver=None, tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0, args=(engine, HB2B, two_theta, roi_vec_list, False, False), kwargs={})
-
-    #out3 = least_squares(peaks_alignment_all, out2.x, jac='2-point', bounds=([-.1, -.1, -.1, -np.pi, -np.pi, -np.pi ], [.1, .1, .1, np.pi, np.pi, np.pi]), method='trf', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', f_scale=1.0, diff_step=None, tr_solver=None, tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0, args=(engine, HB2B, two_theta, roi_vec_list, False, False, 1.452), kwargs={})
+    out3 = least_squares(peaks_alignment_all, start_calibration, jac='3-point', bounds=([-.05, -.05, -.05, -np.pi/20, -np.pi/20, -np.pi/20, 1.4], [ .05, .05, .05, np.pi/20, np.pi/20, np.pi/20, 1.5]), method='dogbox', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', f_scale=1.0, diff_step=None, tr_solver=None, tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0, args=(engine, HB2B, two_theta, roi_vec_list, False, False), kwargs={})
 
     t_stop = time.time()
-    print('Global Refine: {}'.format(t_stop1 - t_start))
-    print('Local Refine: {}'.format(t_stop2 - t_start))
-    print('Total Time: {}'.format(t_stop - t_start))
-    print(out3.x)
+    print ('Global Refine: {}'.format(t_stop1 - t_start))
+    print ('Local Refine: {}'.format(t_stop2 - t_start))
+    print ('Total Time: {}'.format(t_stop - t_start))
 
-    with open('SimulatedData_Calibration.txt', 'w') as fOUT:
-        fOUT.write('# Detector Calibration\n')
-        fOUT.write('Shift_x: %.8f\n' % out3.x[0])
-        fOUT.write('Shift_y: %.8f\n' % out3.x[1])
-        fOUT.write('Shift_z: %.8f\n' % out3.x[2])
-        fOUT.write('Rot_x: %.8f\n' % out3.x[3])
-        fOUT.write('Rot_y: %.8f\n' % out3.x[4])
-        fOUT.write('Rot_z: %.8f\n' % out3.x[5])
-        if start_calibration.shape[0] == 7:
-            fOUT.write('Lambda: %.8f\n' % out3.x[6])
+    print ( out1.x )
+    print ( out3.x )
 
-    if start_calibration.shape[0] == 7:
-        CalibData = dict(zip(['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda'], out3.x))
-    else:
-        CalibData = dict(zip(['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z'], out3.x))
+#    if start_calibration.shape[0] == 7:CalibData = dict( zip( ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda'], out3.x ) )
+#    else: CalibData = dict( zip( ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z'], out3.x ) )
+    
+#    import json
+#    Year, Month, Day, Hour, Min = time.localtime()[0:5]
+#    Mono = 'Si511'
+#    with open('/HFIR/HB2B/shared/CAL/%s/HB2B_CAL_%d%d%d%d%d.json'%( Mono, Year, Month, Day, Hour, Min), 'w') as outfile:
+#        json.dump(CalibData, outfile)
 
-    import json
-    with open('Calibration.txt', 'w') as outfile:
-        json.dump(CalibData, outfile)
-#        peaks_alignment_score(out3.x, engine, instrument, two_theta, roi_vec_list, True, True)
-
-    # DE_Res = leastsq(MinDifference, [-1], xtol=1e-15, maxfev=3000)
-# END-IF-ELSE
 
     return
 
