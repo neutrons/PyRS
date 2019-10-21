@@ -44,7 +44,7 @@ def test_calibration_json():
     calib_file = 'data/???.json'
 
     # Import file
-    calib_obj = calibration_file_io.import_calibration_json_file(calib_file)
+    calib_obj = calibration_file_io.read_calibration_json_file(calib_file)
 
     # Verify result
     assert_delta(calib_obj, whatever, 'error message')

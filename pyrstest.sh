@@ -17,4 +17,4 @@ $MANTIDPYTHON setup.py build
 
 # let people know what is going on and launch it
 echo "Using \"$(which $MANTIDPYTHON)\""
-PYTHONPATH=`pwd`/build/lib $MANTIDPYTHON --classic -m pytest -vv $@
+PYTHONPATH=`pwd`/build/lib $MANTIDPYTHON --classic -m pytest -vv -r w $@

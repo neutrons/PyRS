@@ -57,10 +57,12 @@ class PeakFitCalibration(object):
 
         self._instrument = hb2b_instrument
         self._engine = hidra_data
-        # calibration
+        # calibration: numpy array. size as 7 for ... [6] for wave length
         self._calib = np.array(7 * [0], dtype=np.float)
-        # calibration error
+        # calibration error: numpy array. size as 7 for ...
         self._caliberr = np.array(7 * [-1], dtype=np.float)
+
+        # Set wave length
         self._calib[6] = \
             np.array([1.452, 1.452, 1.540, 1.731, 1.886, 2.275, 2.667])[self._engine.get_log_value('MonoSetting')[0]]
         self._calibstatus = -1

@@ -2,6 +2,8 @@
 from pyrs.utilities import checkdatatypes
 from pyrs.core.instrument_geometry import AnglerCameraDetectorShift, AnglerCameraDetectorGeometry
 import h5py
+import os
+import json
 
 
 def import_calibration_info_file(cal_info_file):
@@ -32,7 +34,8 @@ def import_calibration_info_file(cal_info_file):
     return cal_info_table
 
 
-def import_calibration_json_file(calibration_file_name):
+# TODO - #86 - It requires to redesign the outputs for further export
+def read_calibration_json_file(calibration_file_name):
     """Import calibration file in json format
 
     Parameters
@@ -44,7 +47,30 @@ def import_calibration_json_file(calibration_file_name):
     AnglerCameraDetectorShift
         detector position shifts as the calibration result
     """
-    blabla
+    """
+    Assumed result
+    {u'Lambda': 1.452,
+    u'Rot_x': 0.0,
+    u'Rot_y': 0.0,
+     u'Rot_z': 0.0,
+    u'Shift_x': 0.0,
+    u'Shift_y': 0.0,
+    u'Shift_z': 0.0,
+    u'Status': 3,
+    u'error_Lambda': 1.0829782933282927e-07,
+    u'error_Rot_x': -1.0,
+    u'error_Rot_y': -1.0,
+    u'error_Rot_z': -1.0,
+    u'error_Shift_x': -1.0,
+    u'error_Shift_y': -1.0,
+    u'error_Shift_z': -1.0}
+    """
+    with open(calibration_file_name, 'r') as calib_file:
+        calib_dict = json.load(calib_file)
+
+    assert calib_dict
+
+    return
 
 
 def import_calibration_ascii_file(geometry_file_name):
@@ -187,6 +213,32 @@ def write_calibration_ascii_file(two_theta, arm_length, calib_config, note, geom
     out_file = open(geom_file_name, 'w')
     out_file.write(wbuf)
     out_file.close()
+
+    return
+
+
+# TODO - #86 - Migrate to correct one! - Test for integration and unit
+def write_calibration(calib_array, calib_error_array, calib_status, file_name=None):
+    """Write the calibration to a Json file
+
+    Parameters
+    ----------
+    file_name: str or None
+        output Json file name.  If None, write to /HFIR/HB2B/shared/CAL/
+
+    Returns
+    -------
+    None
+    """
+    CalibData = dict(zip(['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda'],
+                         calib_array))
+    CalibData.update(dict(zip(['error_Shift_x', 'error_Shift_y', 'error_Shift_z', 'error_Rot_x', 'error_Rot_y',
+                               'error_Rot_z', 'error_Lambda'], calib_error_array)))
+    CalibData.update({'Status': calib_status})
+
+    with open(file_name, 'w') as outfile:
+        json.dump(CalibData, outfile)
+    print('[INFO] Calibration file is written to {}'.format(file_name))
 
     return
 
