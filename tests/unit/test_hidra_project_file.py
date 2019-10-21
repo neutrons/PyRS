@@ -1,10 +1,14 @@
+#
 """
 Test for reading and writing components to HiDRA project file
 """
 from pyrs.utilities import rs_project_file
 import os
 import numpy as np
+import pytest
 
+
+# TODO - #87 - REMOVE flag 'remove_test_file'
 
 def test_mask(remove_test_file):
     """
@@ -141,9 +145,16 @@ def test_monochromator_setup(remove_test_file):
     return
 
 
+# TODO - #89 - Peak fitting result R/W
+def test_peak_fitting_result_io():
+    """
+
+    Returns
+    -------
+
+    """
+    return
+
+
 if __name__ == '__main__':
-    test_mask(False)
-
-    test_detector_efficiency(False)
-
-    test_monochromator_setup(False)
+    pytest.main()
