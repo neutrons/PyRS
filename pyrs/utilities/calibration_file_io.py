@@ -32,6 +32,21 @@ def import_calibration_info_file(cal_info_file):
     return cal_info_table
 
 
+def import_calibration_json_file(calibration_file_name):
+    """Import calibration file in json format
+
+    Parameters
+    ----------
+    calibration_file_name
+
+    Returns
+    -------
+    AnglerCameraDetectorShift
+        detector position shifts as the calibration result
+    """
+    blabla
+
+
 def import_calibration_ascii_file(geometry_file_name):
     """
     import geometry set up file

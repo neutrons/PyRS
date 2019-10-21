@@ -276,8 +276,10 @@ class TestReduction(object):
 
         return mask_xml_list
 
+    # END-DEF
 
-def main():
+
+def test_main():
     """
     Main for test
     :return:
@@ -301,4 +303,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    pytest.main()

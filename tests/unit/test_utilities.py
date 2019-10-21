@@ -1,9 +1,10 @@
 #!/usr/bin/python
 # Test utilities methods without GUI
 from pyrs.interface import gui_helper
+import pytest
 
 
-def test_main():
+def test_parse_integers():
     """
     test main
     :return:
@@ -20,4 +21,4 @@ def test_main():
 
 
 if __name__ == '__main__':
-    test_main()
+    pytest.main()
