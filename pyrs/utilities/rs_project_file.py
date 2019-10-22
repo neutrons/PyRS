@@ -427,7 +427,13 @@ class HydraProjectFile(object):
         checkdatatypes.check_int_variable('sun run', sub_run, (0, None))
 
         sub_run_str = '{:04}'.format(sub_run)
-        counts = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SUB_RUNS][sub_run_str]['counts'].value
+        try:
+            counts = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SUB_RUNS][sub_run_str]['counts'].value
+        except KeyError as key_error:
+            err_msg = 'Unable to access sub run {} with key {}: {}\nAvailable runs are: {}' \
+                      ''.format(sub_run, sub_run_str, key_error,
+                                self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SUB_RUNS].keys())
+            raise KeyError(err_msg)
 
         return counts
 
