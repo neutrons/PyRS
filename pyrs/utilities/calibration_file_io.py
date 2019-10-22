@@ -34,25 +34,14 @@ def import_calibration_info_file(cal_info_file):
     return cal_info_table
 
 
-# TODO - #86 - It requires to redesign the outputs for further export
 def read_calibration_json_file(calibration_file_name):
     """Import calibration file in json format
 
-    Parameters
-    ----------
-    calibration_file_name
-
-    Returns
-    -------
-    AnglerCameraDetectorShift
-        detector position shifts as the calibration result
-    """
-    """
-    Assumed result
+    Example:  input JSON
     {u'Lambda': 1.452,
     u'Rot_x': 0.0,
     u'Rot_y': 0.0,
-     u'Rot_z': 0.0,
+    u'Rot_z': 0.0,
     u'Shift_x': 0.0,
     u'Shift_y': 0.0,
     u'Shift_z': 0.0,
@@ -64,13 +53,57 @@ def read_calibration_json_file(calibration_file_name):
     u'error_Shift_x': -1.0,
     u'error_Shift_y': -1.0,
     u'error_Shift_z': -1.0}
+
+    Parameters
+    ----------
+    calibration_file_name
+
+    Returns
+    -------
+    AnglerCameraDetectorShift, AnglerCameraDetectorShift, float, float
+        detector position shifts as the calibration result,detector position shifts error from fitting
+
     """
+
+    # Check input
+    checkdatatypes.check_file_name(calibration_file_name, True, False, False, 'Calibration JSON file')
+
+    # Parse JSON file
     with open(calibration_file_name, 'r') as calib_file:
         calib_dict = json.load(calib_file)
+    if calib_dict is None:
+        raise RuntimeError('Failed to load JSON calibration file {}'.format(calibration_file_name))
 
-    assert calib_dict
+    # Convert dictionary to AnglerCameraDetectorShift
+    try:
+        shift = AnglerCameraDetectorShift(shift_x=calib_dict['Shift_x'],
+                                          shift_y=calib_dict['Shift_y'],
+                                          shift_z=calib_dict['Shift_z'],
+                                          rotation_x=calib_dict['Rot_x'],
+                                          rotation_y=calib_dict['Rot_y'],
+                                          rotation_z=calib_dict['Rot_z'])
+    except KeyError as key_error:
+        raise RuntimeError('Missing key parameter from JSON file {}: {}'.format(calibration_file_name, key_error))
 
-    return
+    # shift error
+    try:
+        shift_error = AnglerCameraDetectorShift(shift_x=calib_dict['error_Shift_x'],
+                                                shift_y=calib_dict['error_Shift_y'],
+                                                shift_z=calib_dict['error_Shift_z'],
+                                                rotation_x=calib_dict['error_Rot_x'],
+                                                rotation_y=calib_dict['error_Rot_y'],
+                                                rotation_z=calib_dict['error_Rot_z'])
+    except KeyError as key_error:
+        raise RuntimeError('Missing key parameter from JSON file {}: {}'.format(calibration_file_name, key_error))
+
+    # Wave length
+    try:
+        wave_length = calib_dict['Lambda']
+        wave_length_error = calib_dict['error_Lambda']
+    except KeyError as key_error:
+        raise RuntimeError('Missing key parameter from JSON file {}: {}'.format(calibration_file_name, key_error))
+
+    return shift, shift_error, wave_length, wave_length_error
 
 
 def import_calibration_ascii_file(geometry_file_name):
@@ -86,7 +119,7 @@ def import_calibration_ascii_file(geometry_file_name):
     checkdatatypes.check_file_name(geometry_file_name, True, False, False, 'Geometry configuration file in ASCII')
 
     # init output
-    calibration_setup = AnglerCameraDetectorShift()
+    calibration_setup = AnglerCameraDetectorShift(0, 0, 0, 0, 0, 0)
 
     calibration_file = open(geometry_file_name, 'r')
     geom_lines = calibration_file.readlines()
@@ -217,27 +250,37 @@ def write_calibration_ascii_file(two_theta, arm_length, calib_config, note, geom
     return
 
 
-# TODO - #86 - Migrate to correct one! - Test for integration and unit
-def write_calibration(calib_array, calib_error_array, calib_status, file_name=None):
-    """Write the calibration to a Json file
+def write_calibration_to_json(shifts_array, shifts_error_array, calibration_status, file_name=None):
+    """Write geometry and wave length calibration to a JSON file
 
     Parameters
     ----------
-    file_name: str or None
-        output Json file name.  If None, write to /HFIR/HB2B/shared/CAL/
+    shifts_array: ndarray
+        7 elements as Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda'
+    shifts_error_array: ndarray
+        7 elements as error_Shift_x', 'error_Shift_y', 'error_Shift_z', 'error_Rot_x', 'error_Rot_y',
+        'error_Rot_z', 'error_Lambda
+    calibration_status: int
+        calibration status
+    file_name: str
+        output Json file name
 
     Returns
     -------
     None
     """
-    CalibData = dict(zip(['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda'],
-                         calib_array))
-    CalibData.update(dict(zip(['error_Shift_x', 'error_Shift_y', 'error_Shift_z', 'error_Rot_x', 'error_Rot_y',
-                               'error_Rot_z', 'error_Lambda'], calib_error_array)))
-    CalibData.update({'Status': calib_status})
+    # Check inputs
+    checkdatatypes.check_file_name(file_name, False, True, False, 'Output JSON calibration file')
+
+    # Create calibration dictionary
+    calibration_dict = dict(zip(['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda'],
+                            shifts_array))
+    calibration_dict.update(dict(zip(['error_Shift_x', 'error_Shift_y', 'error_Shift_z', 'error_Rot_x', 'error_Rot_y',
+                            'error_Rot_z', 'error_Lambda'], shifts_error_array)))
+    calibration_dict.update({'Status': calibration_status})
 
     with open(file_name, 'w') as outfile:
-        json.dump(CalibData, outfile)
+        json.dump(calibration_dict, outfile)
     print('[INFO] Calibration file is written to {}'.format(file_name))
 
     return
