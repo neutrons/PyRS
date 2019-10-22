@@ -21,6 +21,7 @@ requirements:
     - python
     - setuptools
     - pytest-runner
+    - lmfit
 
   run:
     - configparser
@@ -28,6 +29,7 @@ requirements:
     - pandas
     - psutil
     - python
+    - lmfit
 
 test:
   imports:
