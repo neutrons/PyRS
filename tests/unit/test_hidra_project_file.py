@@ -17,7 +17,7 @@ def test_mask():
     None
     """
     # Generate a HiDRA project file
-    test_project_file = rs_project_file.HydraProjectFile('test.hdf',
+    test_project_file = rs_project_file.HydraProjectFile('test_mask.hdf',
                                                          rs_project_file.HydraProjectFileMode.OVERWRITE)
 
     # Create a detector mask
@@ -127,7 +127,7 @@ def next_test_monochromator_setup():
 
 
 # TODO - #89 - Peak fitting result R/W
-def test_peak_fitting_result_io():
+def X_test_peak_fitting_result_io():
     """
 
     Returns
