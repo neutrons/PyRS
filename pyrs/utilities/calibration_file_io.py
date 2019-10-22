@@ -60,8 +60,9 @@ def read_calibration_json_file(calibration_file_name):
 
     Returns
     -------
-    AnglerCameraDetectorShift, AnglerCameraDetectorShift, float, float
+    AnglerCameraDetectorShift, AnglerCameraDetectorShift, float, float, int
         detector position shifts as the calibration result,detector position shifts error from fitting
+        status
 
     """
 
@@ -101,9 +102,16 @@ def read_calibration_json_file(calibration_file_name):
         wave_length = calib_dict['Lambda']
         wave_length_error = calib_dict['error_Lambda']
     except KeyError as key_error:
-        raise RuntimeError('Missing key parameter from JSON file {}: {}'.format(calibration_file_name, key_error))
+        raise RuntimeError('Missing wave length related parameter from JSON file {}: {}'
+                           ''.format(calibration_file_name, key_error))
 
-    return shift, shift_error, wave_length, wave_length_error
+    # Calibration status
+    try:
+        status = calib_dict['Status']
+    except KeyError as key_error:
+        raise RuntimeError('Missing status parameter from JSON file {}: {}'.format(calibration_file_name, key_error))
+
+    return shift, shift_error, wave_length, wave_length_error, status
 
 
 def import_calibration_ascii_file(geometry_file_name):
@@ -250,34 +258,33 @@ def write_calibration_ascii_file(two_theta, arm_length, calib_config, note, geom
     return
 
 
-def write_calibration_to_json(shifts_array, shifts_error_array, calibration_status, file_name=None):
+def write_calibration_to_json(shifts, shifts_error, wave_length, wave_lenngth_error,
+                              calibration_status, file_name=None):
     """Write geometry and wave length calibration to a JSON file
 
     Parameters
     ----------
-    shifts_array: ndarray
-        7 elements as Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda'
-    shifts_error_array: ndarray
-        7 elements as error_Shift_x', 'error_Shift_y', 'error_Shift_z', 'error_Rot_x', 'error_Rot_y',
-        'error_Rot_z', 'error_Lambda
-    calibration_status: int
-        calibration status
-    file_name: str
-        output Json file name
 
     Returns
     -------
     None
     """
+    from pyrs.core.instrument_geometry import AnglerCameraDetectorShift
     # Check inputs
     checkdatatypes.check_file_name(file_name, False, True, False, 'Output JSON calibration file')
+    assert isinstance(shifts, AnglerCameraDetectorShift)
+    assert isinstance(shifts_error, AnglerCameraDetectorShift)
 
     # Create calibration dictionary
-    calibration_dict = dict(zip(['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda'],
-                            shifts_array))
-    calibration_dict.update(dict(zip(['error_Shift_x', 'error_Shift_y', 'error_Shift_z', 'error_Rot_x', 'error_Rot_y',
-                            'error_Rot_z', 'error_Lambda'], shifts_error_array)))
+    calibration_dict = shifts.convert_to_dict()
+    calibration_dict['Lambda'] = wave_length
+
+    calibration_dict.update(shifts_error.convert_error_to_dict())
+    calibration_dict['error_Lambda'] = wave_lenngth_error
+
     calibration_dict.update({'Status': calibration_status})
+
+    print('DICTIONARY:\n{}'.format(calibration_dict))
 
     with open(file_name, 'w') as outfile:
         json.dump(calibration_dict, outfile)

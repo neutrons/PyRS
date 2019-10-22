@@ -502,6 +502,7 @@ class PeakFitCalibration(object):
 
         return
 
+    # TODO - #86 - Clean up!
     def write_calibration(self, file_name=None):
         """Write the calibration to a Json file
 
@@ -514,16 +515,27 @@ class PeakFitCalibration(object):
         -------
         None
         """
-        CalibData = dict(zip(['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda'],
-                             self._calib))
-        CalibData.update(dict(zip(['error_Shift_x', 'error_Shift_y', 'error_Shift_z', 'error_Rot_x', 'error_Rot_y',
-                                   'error_Rot_z', 'error_Lambda'], self._caliberr)))
-        CalibData.update({'Status': self._calibstatus})
+        from pyrs.core.instrument_geometry import AnglerCameraDetectorShift
+        #
+        # CalibData = dict(zip(['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda'],
+        #                      self._calib))
+        # CalibData.update(dict(zip(['error_Shift_x', 'error_Shift_y', 'error_Shift_z', 'error_Rot_x', 'error_Rot_y',
+        #                            'error_Rot_z', 'error_Lambda'], self._caliberr)))
+        # CalibData.update({'Status': self._calibstatus})
 
         # Year, Month, Day, Hour, Min = time.localtime()[0:5]
         mono_setting_index = self._engine.get_log_value('MonoSetting')[0]
         Mono = ['Si333', 'Si511', 'Si422', 'Si331', 'Si400', 'Si311', 'Si220'][mono_setting_index]
 
+        # Form AnglerCameraDetectorShift objects
+        cal_shift = AnglerCameraDetectorShift(self._calib[0], self._calib[1], self._calib[2], self._calib[3],
+                                              self._calib[4], self._calib[5])
+        cal_shift_error = AnglerCameraDetectorShift(self._caliberr[0], self._caliberr[1], self._caliberr[2],
+                                                    self._caliberr[3], self._caliberr[4], self._caliberr[5])
+        wl = self._calib[6]
+        wl_error = self._calib[6]
+
+        # Determine output file name
         if file_name is None:
             # default case: write to archive
             if os.access('/HFIR/HB2B/shared', os.W_OK):
@@ -534,8 +546,12 @@ class PeakFitCalibration(object):
                 raise IOError('User does not privilege to write to {}'.format('/HFIR/HB2B/shared'))
         # END-IF
 
-        with open(file_name, 'w') as outfile:
-            json.dump(CalibData, outfile)
-        print('[INFO] Calibration file is written to {}'.format(file_name))
+        from pyrs.utilities.calibration_file_io import write_calibration_to_json
+
+        write_calibration_to_json(cal_shift, cal_shift_error, wl, wl_error, self._calibstatus, file_name)
+
+        # with open(file_name, 'w') as outfile:
+        #     json.dump(CalibData, outfile)
+        # print('[INFO] Calibration file is written to {}'.format(file_name))
 
         return

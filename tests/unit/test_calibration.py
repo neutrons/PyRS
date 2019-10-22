@@ -23,14 +23,16 @@ def test_calibration_json_io():
         calib_dict = json.load(f)
 
     # Load to Shift object
-    test_shifts = calibration_file_io.read_calibration_json_file(gold_calib_file)
+    test_shifts, test_shifts_error, wl, wl_error, status = calibration_file_io.read_calibration_json_file(
+        gold_calib_file)
 
     # Export again
     # use ordinal current time to avoid pre-existed test file
     now = datetime.datetime.now()
     test_calib_file = 'test_calib_{}.json'.format(now.toordinal())
 
-    calibration_file_io.export_calibration_json_file(test_shifts, test_calib_file)
+    calibration_file_io.write_calibration_to_json(test_shifts, test_shifts_error, wl, wl_error, status,
+                                                  test_calib_file)
     assert os.path.exists(test_calib_file), 'blabla'
 
     # Check file existing or not
