@@ -9,6 +9,8 @@ from pyrs.core import reduce_hb2b_pyrs
 from matplotlib import pyplot as plt
 from lmfit.models import GaussianModel
 from lmfit import Model
+from pyrs.utilities.calibration_file_io import write_calibration_to_json
+
 
 colors = ['black', 'red', 'blue', 'green', 'yellow']
 
@@ -535,7 +537,7 @@ class PeakFitCalibration(object):
         cal_shift_error = AnglerCameraDetectorShift(self._caliberr[0], self._caliberr[1], self._caliberr[2],
                                                     self._caliberr[3], self._caliberr[4], self._caliberr[5])
         wl = self._calib[6]
-        wl_error = self._calib[6]
+        wl_error = self._caliberr[6]
 
         # Determine output file name
         if file_name is None:
@@ -547,8 +549,6 @@ class PeakFitCalibration(object):
             else:
                 raise IOError('User does not privilege to write to {}'.format('/HFIR/HB2B/shared'))
         # END-IF
-
-        from pyrs.utilities.calibration_file_io import write_calibration_to_json
 
         write_calibration_to_json(cal_shift, cal_shift_error, wl, wl_error, self._calibstatus, file_name)
 
