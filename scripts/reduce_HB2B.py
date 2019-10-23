@@ -15,16 +15,27 @@ from matplotlib import pyplot as plt
 # TODO - #84 - Overall docs & type checks
 
 
+def _mask_detectors(counts_vec, mask_file=None):
+    # ignoring returns two_theta and note
+    mask_vec, _, _ = mask_util.load_pyrs_mask(mask_file)
+    if counts_vec.shape != mask_vec.shape:
+        raise RuntimeError('Counts vector and mask vector has different shpae')
+
+    masked_counts_vec = counts_vec * mask_vec
+
+    return masked_counts_vec
+
+
 class ReductionApp(object):
     """
     Data reduction application
     """
 
-    def __init__(self):
+    def __init__(self, use_mantid_engine=False):
         """
         initialization
         """
-        self._use_mantid_engine = False
+        self._use_mantid_engine = use_mantid_engine
         self._reduction_manager = reduction_manager.HB2BReductionManager()
         self._hydra_ws = None   # HidraWorkspace used for reduction
 
@@ -42,10 +53,11 @@ class ReductionApp(object):
         :return:
         """
         if configuration_file.lower().endswith('.h5'):
+            # this returns a dict
             geometry_config = calibration_file_io.import_calibration_info_file(configuration_file)
         else:
-            returns = calibration_file_io.import_calibration_ascii_file(configuration_file)
-            geometry_config = returns
+            # this returns a AnglerCameraDetectorShift
+            geometry_config = calibration_file_io.import_calibration_ascii_file(configuration_file)
 
         return geometry_config
 
@@ -70,28 +82,12 @@ class ReductionApp(object):
         return
 
     def load_project_file(self, data_file):
-        """
-
-        :param data_file:
-        :return:
-        """
-
         # load data: from raw counts to reduced data
         self._hydra_ws = self._reduction_manager.load_hidra_project(data_file, True, True, True)
 
         self._hydra_file_name = data_file
 
         return
-
-    def mask_detectors(self, counts_vec, mask_file):
-
-        mask_vec, two_theta, note = mask_util.load_pyrs_mask(mask_file)
-        if counts_vec.shape != mask_vec.shape:
-            raise RuntimeError('Counts vector and mask vector has different shpae')
-
-        masked_counts_vec = counts_vec * mask_vec
-
-        return masked_counts_vec
 
     def plot_detector_counts(self, sub_run, mask):
         """ Plot detector counts in 2D
@@ -100,14 +96,14 @@ class ReductionApp(object):
         :return:
         """
         # Get counts (array)
-        counts_vec = self.get_detector_counts(sub_run)
+        counts_vec = self.get_detector_counts(sub_run)  # TODO this method doesn't exist!
 
         if mask and os.path.exists(mask):
             # mask file
-            counts_vec = self.mask_detectors(counts_vec, mask_file=mask)
+            counts_vec = _mask_detectors(counts_vec, mask_file=mask)
         elif mask is not None:
             # mask ID
-            counts_vec = self.mask_detectors(counts_vec, mask_id=mask)
+            counts_vec = _mask_detectors(counts_vec, mask_id=mask)  # TODO mask_id is a non-existant parameter
         # pass otherwise
 
         # Reshape the 1D vector for plotting
@@ -118,12 +114,7 @@ class ReductionApp(object):
         return
 
     def reduce_data(self, sub_runs, instrument_file, calibration_file, mask):
-        """ Reduce data from HidraWorkspace
-        :param sub_runs:
-        :param instrument_file:
-        :param calibration_file:
-        :param mask:
-        :return:
+        """Reduce data from HidraWorkspace
         """
         # Check inputs
         if sub_runs is None:
@@ -136,7 +127,8 @@ class ReductionApp(object):
             print('instrument file: {}'.format(instrument_file))
             # TODO - #84 - Implement
 
-        # calibration file
+        # calibration file - WARNING the access to the calibration is radically different
+        # depending on the value of this thing that is named like it is a bool
         geometry_calibration = False
         if calibration_file is not None:
             geometry_calibration =\
@@ -156,8 +148,7 @@ class ReductionApp(object):
         return
 
     def plot_reduced_data(self):
-
-        vec_x, vec_y = self._reduction_engine.get_reduced_data()
+        vec_x, vec_y = self._reduction_engine.get_reduced_data()  # TODO this method doesn't exist
 
         if vec_x.shape[0] > vec_y.shape[0]:
             print('Shape: vec x = {}, vec y = {}'.format(vec_x.shape, vec_y.shape))
@@ -193,15 +184,17 @@ class ReductionApp(object):
 
         return
 
+######################################################################
+# Command line code
+######################################################################
 
-def main(argv):
+
+def _main(argv):
     """
     main body
-    :param argv:
-    :return:
     """
     if len(argv) < 3:
-        print_help(argv)
+        _print_help(argv[0])
         sys.exit(-1)
 
     # parse input & check
@@ -212,32 +205,30 @@ def main(argv):
     inputs_option_dict = parse_inputs(argv[3:])
 
     # call for reduction
-    reducer = ReductionApp()
-
-    if inputs_option_dict['engine'] == 'mantid':
-        reducer.use_mantid_engine = True
-    else:
-        reducer.use_mantid_engine = False
+    reducer = ReductionApp(bool(inputs_option_dict['engine'] == 'mantid'))
 
     # Load Hidra project file
     reducer.load_project_file(project_data_file)
 
+    # sub run
+    if inputs_option_dict['subrun'] is None:
+        sub_run_list = None
+    else:
+        sub_run_list = [inputs_option_dict['subrun']]
+
     # Process data
     if inputs_option_dict['no reduction']:
+        # interpret None to be first subrun
+        if sub_run_list is None:
+            sub_run_list = [0]
         # plot raw detector counts without reduction but possibly with masking
-        reducer.plot_detector_counts(mask=inputs_option_dict['mask'])
+        reducer.plot_detector_counts(sub_run=sub_run_list[0], mask=inputs_option_dict['mask'])
     else:
         # reduce data
         # collect information
         user_instrument = inputs_option_dict['instrument']
         user_calibration = inputs_option_dict['calibration']
         mask = inputs_option_dict['mask']
-
-        # sub run
-        if inputs_option_dict['subrun'] is None:
-            sub_run_list = None
-        else:
-            sub_run_list = [inputs_option_dict['subrun']]
 
         # reduce
         reducer.reduce_data(instrument_file=user_instrument,
@@ -249,16 +240,10 @@ def main(argv):
         out_file_name = os.path.join(output_dir, os.path.basename(project_data_file))
         reducer.save_diffraction_data(out_file_name)
 
-    # END-IF-ELSE
-
-    return
-
 
 def parse_inputs(arg_list):
     """
     parse input argument
-    :param arg_list:
-    :return:
     """
     # TODO - #84 - Try to use argparser (https://docs.python.org/3/library/argparse.html) to replace
     arg_options = {'instrument': None,
@@ -292,10 +277,9 @@ def parse_inputs(arg_list):
     return arg_options
 
 
-def print_help(argv):
+def _print_help(argv):
     """
     print help information
-    :return:
     """
     print('Auto-reducing HB2B: {} [NeXus File Name] [Target Directory] [--instrument=xray_setup.txt]'
           '[--calibration=xray_calib.txt] [--mask=mask.h5] [--engine=engine]'.format(argv[0]))
@@ -306,8 +290,6 @@ def print_help(argv):
     print('--viewraw:      viewing raw data with an option to mask (NO reduction)')
     print('--')
 
-    return
-
 
 if __name__ == '__main__':
-    main(sys.argv)
+    _main(sys.argv)
