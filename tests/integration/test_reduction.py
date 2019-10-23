@@ -45,9 +45,14 @@ def test_calibration_json():
 
     # Import file
     calib_obj = calibration_file_io.read_calibration_json_file(calib_file)
+    shift, shift_error, wave_length, wl_error, status = calib_obj
 
     # Verify result
-    assert_delta(calib_obj, whatever, 'error message')
+    assert shift
+    assert shift_error
+    assert wave_length
+    assert wl_error
+    assert status == 3
 
     # Import project file
     project_file = rs_project_file.HydraProjectFile(project_file_name, rs_project_file.HydraProjectFileMode.READONLY)
@@ -55,11 +60,10 @@ def test_calibration_json():
     # Reduce
     test_workspace = workspaces.HidraWorkspace('test calibration')
     test_workspace.load_hidra_project(project_file, load_raw_counts=True, load_reduced_diffraction=False)
-    test_workspace.reduce()
+    # test_workspace.reduce()
 
     return
 
 
 if __name__ == '__main__':
     pytest.main()
-

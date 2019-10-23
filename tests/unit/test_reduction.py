@@ -5,6 +5,7 @@ import numpy
 from pyrs.core import pyrscore
 from pyrs.core import instrument_geometry
 from matplotlib import pyplot as plt
+import pytest
 
 """
 Instrument geometry test result (X-ray): 5 corners and quick!  NO SHIFT
@@ -68,14 +69,6 @@ dir 2:    0.383609
 dir 0:   -0.225684
 dir 1:   -0.052016
 dir 2:    0.494570
-"""
-
-"""
-TODO - Time consuming unit test: compare geometry between Mantid and PyRS
-"""
-
-"""
-TODO - Time consuming unit test: compare reduced data between Mantid and PyRS
 """
 
 

@@ -2,7 +2,6 @@
 from pyrs.utilities import checkdatatypes
 from pyrs.core.instrument_geometry import AnglerCameraDetectorShift, AnglerCameraDetectorGeometry
 import h5py
-import os
 import json
 
 
@@ -232,12 +231,19 @@ def import_instrument_setup(instrument_ascii_file):
 
 
 def write_calibration_ascii_file(two_theta, arm_length, calib_config, note, geom_file_name):
-    """ write a geometry ascii file as standard
-    :param two_theta:
-    :param arm_length:
-    :param geom_file_name:
-    :param note:
-    :return:
+    """Write a geometry ascii file as standard
+
+    Parameters
+    ----------
+    two_theta
+    arm_length
+    calib_config
+    note
+    geom_file_name
+
+    Returns
+    -------
+
     """
     checkdatatypes.check_file_name(geom_file_name, False, True, False, 'Output geometry configuration file in ASCII')
 
@@ -269,7 +275,6 @@ def write_calibration_to_json(shifts, shifts_error, wave_length, wave_lenngth_er
     -------
     None
     """
-    from pyrs.core.instrument_geometry import AnglerCameraDetectorShift
     # Check inputs
     checkdatatypes.check_file_name(file_name, False, True, False, 'Output JSON calibration file')
     assert isinstance(shifts, AnglerCameraDetectorShift)
@@ -306,7 +311,7 @@ class ResidualStressCalibrationFile(object):
         """
         # init some parameters
         self._h5_file = None  # HDF5 handler
-        self._geometry_calibration = AnglerCameraDetectorShift()
+        self._geometry_calibration = AnglerCameraDetectorShift(0, 0, 0, 0, 0, 0)
         self._calibration_date = ''
 
         # check

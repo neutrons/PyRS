@@ -216,8 +216,10 @@ class PeakFitCalibration(object):
                     ax2.set_xlim([CalibPeaks[index_i]-1.5, CalibPeaks[index_i] + 1.5])
                 # END-FOR
 
-            plt.savefig('./FitFigures/Round{:010}_{:02}.png'.format(GlobalParameter.global_curr_sequence, i_tth))
-            plt.clf()
+            # Optionally save the least square figure of this round for further reference
+            if os.path.exists('FitFigures'):
+                plt.savefig('./FitFigures/Round{:010}_{:02}.png'.format(GlobalParameter.global_curr_sequence, i_tth))
+                plt.clf()
         # END-FOR(tth)
 
         print ("\n")

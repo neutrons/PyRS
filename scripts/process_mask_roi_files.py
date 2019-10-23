@@ -1,5 +1,6 @@
 # Import mantid mask files (in XML format), do operation on them if necessary and save to HDF5
 import sys
+from pyrs.core.mask_util import load_mantid_mask
 
 
 def parse_inputs(input_args):
@@ -41,6 +42,39 @@ def parse_inputs(input_args):
     return roi_list, mask_list, operation, h5_name, linear_pixel_size
 
 
+def show_info(message):
+    print(message)
+
+
+def binary_operation_and(mask_array_list):
+    assert mask_array_list
+    # TODO - Implement
+    return mask_array_list[0]
+
+
+def binary_operation_or(mask_array_list):
+    # TODO - Implement
+    return mask_array_list[0]
+
+
+def export_masking_array(mask_array, out_file_name):
+    """Export the masking array to an external file
+
+    Parameters
+    ----------
+    mask_array
+    out_file_name
+
+    Returns
+    -------
+
+    """
+    with open(out_file_name, 'w') as out_file:
+        out_file.write(mask_array)
+
+    return
+
+
 def main(argv):
     """
 
@@ -56,10 +90,10 @@ def main(argv):
     # parse ROI and mask XML (Mantid) files
     mask_array_list = list()
     for roi_xml in roi_xml_list:
-        masking_array = file_utilities.load_mantid_mask(square_det_size, roi_xml, False)
+        masking_array = load_mantid_mask(square_det_size, roi_xml, False)
         mask_array_list.append(masking_array)
     for mask_xml in mask_xml_list:
-        masking_array = file_utilities.load_mantid_mask(square_det_size, mask_xml, True)
+        masking_array = load_mantid_mask(square_det_size, mask_xml, True)
         mask_array_list.append(masking_array)
 
     if mask_operation == 'INFO':
@@ -71,6 +105,9 @@ def main(argv):
             result_mask_array = binary_operation_and(mask_array_list)
         elif mask_operation == 'OR':
             result_mask_array = binary_operation_or(mask_array_list)
+        else:
+            raise RuntimeError('Mask operation {} is not supported'
+                               ''.format(mask_operation))
 
         if out_h5_name is not None:
             export_masking_array(out_h5_name)

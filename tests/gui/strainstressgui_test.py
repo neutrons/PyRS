@@ -5,15 +5,17 @@ import sys
 import os
 from pyrs.interface import strainstresscalwindow
 from qtpy.QtWidgets import QApplication
+import pytest
 
 
-def test_main_2d(test_dir):
+def test_main_2d():
     """
     test main for the old 2D data in order to test other feature
     :param test_dir:
     :return:
     """
     # set up window and link to call
+    test_dir = os.getcwd()
     ss_window = strainstresscalwindow.StrainStressCalculationWindow(None)
     pyrs_core = pyrscore.PyRsCore()
     pyrs_core.working_dir = test_dir
@@ -84,10 +86,12 @@ def test_main_2d(test_dir):
     return ss_window
 
 
-def test_main(test_dir):
+def test_main():
     """
     test main
     """
+    test_dir = os.getcwd()
+
     # set up window and link to call
     pyrs_core = pyrscore.PyRsCore()
     pyrs_core.working_dir = test_dir
@@ -193,12 +197,13 @@ def test_main(test_dir):
     return ss_window
 
 
-def test_main_plane_stress(test_dir):
+def test_main_plane_stress():
     """
     test calculation and visualization for plane stress
-    :param test_dir:
     :return:
     """
+    test_dir = os.getcwd()
+
     # set up window and link to call
     ss_window = strainstresscalwindow.StrainStressCalculationWindow(None)
     pyrs_core = pyrscore.PyRsCore()
@@ -317,19 +322,16 @@ if __name__ == '__main__':
     app = main(sys.argv)
 
     # this must be here!
-    test_dir = '/tmp/pyrs_test_ss'
-    if os.path.exists(test_dir) is False:
-        os.mkdir(test_dir)
     case = 0
     if case == 0:
         # full 3D grid
-        test_window = test_main(test_dir=test_dir)
+        test_window = test_main()
     elif case == 1:
         # simplified 2D grid
-        test_window = test_main_2d(test_dir=test_dir)
+        test_window = test_main_2d()
     elif case == 2:
         # Plane stress on 3D grids
-        test_window = test_main_plane_stress(test_dir=test_dir)
+        test_window = test_main_plane_stress()
     else:
         raise NotImplementedError('No test main')
 
