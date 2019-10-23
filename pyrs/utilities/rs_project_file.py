@@ -39,7 +39,8 @@ class HidraConstants(object):
     PEAK_PROFILE = 'peak profile'
     PEAKS = 'peaks'  # main entry for fitted peaks' parameters
     PEAK_FIT_CHI2 = 'chi2'
-    PEAK_PARAMS = 'parameters'
+    PEAK_PARAMS = 'parameters'  # peak parameter values
+    PEAK_PARAM_NAMS = 'parameter names'  # peak parameter names
     PEAK_COM = 'C.O.M'  # peak's center of mass
 
 
@@ -517,15 +518,28 @@ class HydraProjectFile(object):
         return
 
     def set_peak_fit_result(self, peak_tag, peak_profile, peak_param_names, sub_run_vec, chi2_vec, peak_params):
-        """
-        Set the peak fitting results to project file
-        :param peak_tag:
-        :param peak_profile:
-        :param peak_param_names:
-        :param sub_run_vec:
-        :param chi2_vec:
-        :param peak_params:
-        :return:
+        """Set the peak fitting results to project file.
+
+        The tree structure for fitted peak in all sub runs is defined as
+        - peaks
+            - [peak-tag]
+                - attr/'peak profile'
+                - chi2
+                -
+
+        Parameters
+        ----------
+        peak_tag
+        peak_profile
+        peak_param_names
+        sub_run_vec
+        chi2_vec
+        peak_params
+
+        Returns
+        -------
+        None
+
         """
         # Check inputs and file status
         self._validate_write_operation()
@@ -538,14 +552,17 @@ class HydraProjectFile(object):
         peak_main_group = self._project_h5[HidraConstants.PEAKS]
 
         if peak_tag not in peak_main_group:
+            # create peak-tag entry if it does not exist
             single_peak_entry = peak_main_group.create_group(peak_tag)
         else:
+            # if peak-tag entry, get the reference to the entry
             single_peak_entry = peak_main_group[peak_tag]
 
         # Attributes
         self.set_attributes(single_peak_entry, HidraConstants.PEAK_PROFILE, peak_profile)
 
         single_peak_entry.create_dataset(HidraConstants.SUB_RUNS, data=sub_run_vec)
+        single_peak_entry.create_dataset(HidraConstants.PEAK_PARAM_NAMES, data=peak_param_names)
         single_peak_entry.create_dataset(HidraConstants.PEAK_FIT_CHI2, data=chi2_vec)
         single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS, data=peak_params)
 
