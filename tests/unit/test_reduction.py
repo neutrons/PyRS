@@ -205,7 +205,7 @@ class TestReduction(object):
         :return:
         """
         # Test with mantid engine
-        idf_xml = 'tests/testdata/xray_data/XRAY_Definition_20190521_1342.xml'
+        idf_xml = 'data/xray_data/XRAY_Definition_20190521_1342.xml'
         self._reduction_controller.reduction_manager.set_mantid_idf(idf_xml)
         if False:
             test_shift = False
@@ -257,15 +257,17 @@ class TestReduction(object):
                   '***********************')
         return
 
-    def set_mask_files(self, masks_list_file_name):
+    @staticmethod
+    def set_mask_files(masks_list_file_name):
         """
         Read an ASCII file containing a list of masks
         :param masks_list_file_name:
         :return:
         """
-        temp_list = ['Chi_0_Mask.xml', 'Chi_10_Mask.xml',
-                     'Chi_20_Mask.xml', 'Chi_30_Mask.xml', 'NegZ_Mask.xml']
-        mask_xml_list = [os.path.join('tests/testdata/masks', xml_name) for xml_name in temp_list]
+        if masks_list_file_name is None:
+            masks_list_file_name = ['Chi_0_Mask.xml', 'Chi_10_Mask.xml',
+                                    'Chi_20_Mask.xml', 'Chi_30_Mask.xml', 'NegZ_Mask.xml']
+        mask_xml_list = [os.path.join('data', xml_name) for xml_name in masks_list_file_name]
 
         return mask_xml_list
 
