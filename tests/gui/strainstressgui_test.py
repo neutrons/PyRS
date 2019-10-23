@@ -8,7 +8,7 @@ from qtpy.QtWidgets import QApplication
 import pytest
 
 
-def test_main_2d():
+def gui_test_main_2d():
     """
     test main for the old 2D data in order to test other feature
     :param test_dir:
@@ -86,7 +86,7 @@ def test_main_2d():
     return ss_window
 
 
-def test_main():
+def gui_test_main():
     """
     test main
     """
@@ -197,7 +197,7 @@ def test_main():
     return ss_window
 
 
-def test_main_plane_stress():
+def gui_test_main_plane_stress():
     """
     test calculation and visualization for plane stress
     :return:
@@ -306,7 +306,7 @@ def test_main_plane_stress():
     return ss_window
 
 
-def main(argv):
+def gui_main():
     """
     """
     if QApplication.instance():
@@ -317,23 +317,24 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    # Main application
-    print('Test Strain/Stress GUI')
-    app = main(sys.argv)
-
-    # this must be here!
-    case = 0
-    if case == 0:
-        # full 3D grid
-        test_window = test_main()
-    elif case == 1:
-        # simplified 2D grid
-        test_window = test_main_2d()
-    elif case == 2:
-        # Plane stress on 3D grids
-        test_window = test_main_plane_stress()
-    else:
-        raise NotImplementedError('No test main')
-
-    # I cannot close it!  test_window.close()
-    app.exec_()
+    # # Main application
+    # print('Test Strain/Stress GUI')
+    # app = main(sys.argv)
+    #
+    # # this must be here!
+    # case = 0
+    # if case == 0:
+    #     # full 3D grid
+    #     test_window = test_main()
+    # elif case == 1:
+    #     # simplified 2D grid
+    #     test_window = test_main_2d()
+    # elif case == 2:
+    #     # Plane stress on 3D grids
+    #     test_window = test_main_plane_stress()
+    # else:
+    #     raise NotImplementedError('No test main')
+    #
+    # # I cannot close it!  test_window.close()
+    # app.exec_()
+    pytest.main()
