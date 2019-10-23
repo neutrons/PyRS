@@ -1,34 +1,54 @@
 #!/usr/bin/python
-# System (library) test for classes and methods that will be used in instrument geometry calibration
-
+# Unit test for classes and methods that will be used in instrument geometry calibration
 import os
-from pyrs.core import pyrscore
+import pytest
+from pyrs.utilities import calibration_file_io
+import json
+import datetime
 
 
-def test_xray_geometry_calibration():
-    """ System test on classes and methods to calibrate XRAY instrument geometry
-    :return:
+def test_calibration_json_io():
+    """Test the calibration file (in Json format) I/O methods
+
+    Returns
+    -------
+    None
     """
-    # Initialize core/controller
-    controller = pyrscore.PyRsCore()
+    # Set test data
+    gold_calib_file = 'data/HB2B_CAL_Si333.json'
+    assert os.path.exists(gold_calib_file), 'Test calibration file {} does not exist'.format(gold_calib_file)
 
-    # pre-requisite is that the data file exists
-    test_data = os.path.join(os.getcwd(), 'tests', 'data', 'BD_Data_Log.hdf5')
-    assert os.path.exists('tests/testdata/Hidra_XRay_LaB6_10kev_35deg.hdf'), 'File does not exist'
+    # Import for future test
+    with open(gold_calib_file, 'r') as f:
+        calib_dict = json.load(f)
 
-    # Load data
-    controller.load_hidra_project(hidra_h5_name='tests/testdata/Hidra_XRay_LaB6_10kev_35deg.hdf',
-                                  project_name='system_test_xray')
+    # Load to Shift object
+    test_shifts, test_shifts_error, wl, wl_error, status = calibration_file_io.read_calibration_json_file(
+        gold_calib_file)
 
-    # Calibrate
-    # (1) Reduce data
-    controller.reduce_diffraction_data('system_test_xray', two_theta_step=0.01, pyrs_engine=True)
+    # Export again
+    # use ordinal current time to avoid pre-existed test file
+    now = datetime.datetime.now()
+    test_calib_file = 'test_calib_{}.json'.format(now.toordinal())
 
-    # (2) Calibrate
-    # TODO - To be implemented soon
+    calibration_file_io.write_calibration_to_json(test_shifts, test_shifts_error, wl, wl_error, status,
+                                                  test_calib_file)
+    assert os.path.exists(test_calib_file), 'blabla'
+
+    # Check file existing or not
+
+    # Read again and test
+    with open(test_calib_file, 'r') as t:
+        test_calib_dict = json.load(t)
+
+    # compare
+    if calib_dict == test_calib_dict:
+        os.remove(test_calib_file)
+    else:
+        raise AssertionError('blabla')
 
     return
 
 
 if __name__ == '__main__':
-    test_xray_geometry_calibration()
+    pytest.main()

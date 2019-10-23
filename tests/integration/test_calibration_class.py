@@ -7,9 +7,47 @@ import pytest
 import time
 import os
 import filecmp
+import json
 from pyrs.calibration import peakfit_calibration
 from pyrs.utilities import calibration_file_io
 from pyrs.utilities import rs_project_file
+
+
+def print_out_json_diff(json_file1_name, json_file2_name):
+    """Print out the difference of two JSON files
+
+    Parameters
+    ----------
+    json_file1_name
+    json_file2_name
+
+    Returns
+    -------
+
+    """
+    # Load file 1
+    with open(json_file1_name, 'r') as json1:
+        json_dict1 = json.load(json1)
+
+    # Load file 2
+    with open(json_file2_name, 'r') as json2:
+        json_dict2 = json.load(json2)
+
+    # Output difference
+    if set(json_dict1.keys()) != set(json_dict2.keys()):
+        # Compare keys
+        print('[JSON Keys are different]\n{}: {}\n{}: {}'
+              ''.format(json_file1_name, sorted(json_dict1.keys()),
+                        json_file2_name, sorted(json_dict2.keys())))
+
+    else:
+        # Compare values
+        keys = sorted(json_dict1.keys())
+        print('[JSON Value are different]\nField\t{}\t{}'.format(json_file1_name, json_file2_name))
+        for k in keys:
+            print('{}\t{}\t{}'.format(k, json_dict1[k], json_dict2[k]))
+
+    return
 
 
 def test_main():
@@ -36,6 +74,8 @@ def test_main():
     calibrator.calibrate_wave_length()
 
     # write out
+    if os.path.exists('HB2B_CAL_Test.json'):
+        os.remove('HB2B_CAL_Test.json')
     file_name = os.path.join(os.getcwd(), 'HB2B_CAL_Test.json')
     calibrator.write_calibration(file_name)
 
@@ -46,6 +86,7 @@ def test_main():
     if filecmp.cmp('data/HB2B_CAL_Si333.json', file_name):
         os.remove(file_name)
     else:
+        print_out_json_diff('data/HB2B_CAL_Si333.json', 'HB2B_CAL_Test.json')
         assert False, 'Test output {} is different from gold file {}'.format(file_name, 'data/HB2B_CAL_Si333.json')
 
     return

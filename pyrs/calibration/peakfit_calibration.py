@@ -9,6 +9,8 @@ from pyrs.core import reduce_hb2b_pyrs
 from matplotlib import pyplot as plt
 from lmfit.models import GaussianModel
 from lmfit import Model
+from pyrs.utilities.calibration_file_io import write_calibration_to_json
+
 
 colors = ['black', 'red', 'blue', 'green', 'yellow']
 
@@ -57,10 +59,12 @@ class PeakFitCalibration(object):
 
         self._instrument = hb2b_instrument
         self._engine = hidra_data
-        # calibration
+        # calibration: numpy array. size as 7 for ... [6] for wave length
         self._calib = np.array(7 * [0], dtype=np.float)
-        # calibration error
+        # calibration error: numpy array. size as 7 for ...
         self._caliberr = np.array(7 * [-1], dtype=np.float)
+
+        # Set wave length
         self._calib[6] = \
             np.array([1.452, 1.452, 1.540, 1.731, 1.886, 2.275, 2.667])[self._engine.get_log_value('MonoSetting')[0]]
         self._calibstatus = -1
@@ -214,8 +218,10 @@ class PeakFitCalibration(object):
                     ax2.set_xlim([CalibPeaks[index_i]-1.5, CalibPeaks[index_i] + 1.5])
                 # END-FOR
 
-            plt.savefig('./FitFigures/Round{:010}_{:02}.png'.format(GlobalParameter.global_curr_sequence, i_tth))
-            plt.clf()
+            # Optionally save the least square figure of this round for further reference
+            if os.path.exists('FitFigures'):
+                plt.savefig('./FitFigures/Round{:010}_{:02}.png'.format(GlobalParameter.global_curr_sequence, i_tth))
+                plt.clf()
         # END-FOR(tth)
 
         print ("\n")
@@ -500,6 +506,7 @@ class PeakFitCalibration(object):
 
         return
 
+    # TODO - #86 - Clean up!
     def write_calibration(self, file_name=None):
         """Write the calibration to a Json file
 
@@ -512,16 +519,27 @@ class PeakFitCalibration(object):
         -------
         None
         """
-        CalibData = dict(zip(['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda'],
-                             self._calib))
-        CalibData.update(dict(zip(['error_Shift_x', 'error_Shift_y', 'error_Shift_z', 'error_Rot_x', 'error_Rot_y',
-                                   'error_Rot_z', 'error_Lambda'], self._caliberr)))
-        CalibData.update({'Status': self._calibstatus})
+        from pyrs.core.instrument_geometry import AnglerCameraDetectorShift
+        #
+        # CalibData = dict(zip(['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda'],
+        #                      self._calib))
+        # CalibData.update(dict(zip(['error_Shift_x', 'error_Shift_y', 'error_Shift_z', 'error_Rot_x', 'error_Rot_y',
+        #                            'error_Rot_z', 'error_Lambda'], self._caliberr)))
+        # CalibData.update({'Status': self._calibstatus})
 
         # Year, Month, Day, Hour, Min = time.localtime()[0:5]
         mono_setting_index = self._engine.get_log_value('MonoSetting')[0]
         Mono = ['Si333', 'Si511', 'Si422', 'Si331', 'Si400', 'Si311', 'Si220'][mono_setting_index]
 
+        # Form AnglerCameraDetectorShift objects
+        cal_shift = AnglerCameraDetectorShift(self._calib[0], self._calib[1], self._calib[2], self._calib[3],
+                                              self._calib[4], self._calib[5])
+        cal_shift_error = AnglerCameraDetectorShift(self._caliberr[0], self._caliberr[1], self._caliberr[2],
+                                                    self._caliberr[3], self._caliberr[4], self._caliberr[5])
+        wl = self._calib[6]
+        wl_error = self._caliberr[6]
+
+        # Determine output file name
         if file_name is None:
             # default case: write to archive
             if os.access('/HFIR/HB2B/shared', os.W_OK):
@@ -532,8 +550,10 @@ class PeakFitCalibration(object):
                 raise IOError('User does not privilege to write to {}'.format('/HFIR/HB2B/shared'))
         # END-IF
 
-        with open(file_name, 'w') as outfile:
-            json.dump(CalibData, outfile)
-        print('[INFO] Calibration file is written to {}'.format(file_name))
+        write_calibration_to_json(cal_shift, cal_shift_error, wl, wl_error, self._calibstatus, file_name)
+
+        # with open(file_name, 'w') as outfile:
+        #     json.dump(CalibData, outfile)
+        # print('[INFO] Calibration file is written to {}'.format(file_name))
 
         return

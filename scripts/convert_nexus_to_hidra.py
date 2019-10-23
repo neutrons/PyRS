@@ -125,7 +125,7 @@ class NeXusConvertingApp(object):
         :return: dictionary: key = sub run number (integer), value = workspace name (string)
         """
         # Load data
-        event_ws = LoadEventNexus(Filename=self._nexus_name, OutputWorkspace=self._event_ws_name)
+        LoadEventNexus(Filename=self._nexus_name, OutputWorkspace=self._event_ws_name)
 
         # Generate splitters by sample log 'scan_index'.  real sub run starts with scan_index == 1
         split_ws_name = 'Splitter_{}'.format(self._nexus_name)

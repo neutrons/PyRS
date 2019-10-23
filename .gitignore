@@ -51,6 +51,11 @@ coverage.xml
 *.mo
 *.pot
 
+# Local prototyptes and tests
+prototypes/temp/
+prototypes/binary_inputs/
+tests/temp
+
 # Django stuff:
 *.log
 local_settings.py

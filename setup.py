@@ -66,7 +66,6 @@ if __name__ == "__main__":
     """
     scripts = ['scripts/pyrsplot',
                'scripts/convert_nexus_to_hidra.py',
-               'scripts/pyrscalibration.py',
                'scripts/reduce_HB2B.py',
                'scripts/create_mask.py',
                'scripts/convert_raw_data.py']

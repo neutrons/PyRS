@@ -283,15 +283,32 @@ class AnglerCameraDetectorShift(object):
         """
         geometry_shift_dict = dict()
 
-        geometry_shift_dict['shift x'] = self._center_shift_x
-        geometry_shift_dict['shift y'] = self._center_shift_y
-        geometry_shift_dict['shift z'] = self._center_shift_z
-        geometry_shift_dict['rotation x'] = self._rotation_x
-        geometry_shift_dict['rotation y'] = self._rotation_y
-        geometry_shift_dict['rotation z'] = self._rotation_z
+        geometry_shift_dict['Shift_x'] = self._center_shift_x
+        geometry_shift_dict['Shift_y'] = self._center_shift_y
+        geometry_shift_dict['Shift_z'] = self._center_shift_z
+        geometry_shift_dict['Rot_x'] = self._rotation_x
+        geometry_shift_dict['Rot_y'] = self._rotation_y
+        geometry_shift_dict['Rot_z'] = self._rotation_z
 
         return geometry_shift_dict
 
+    def convert_error_to_dict(self):
+        """
+        Convert instrument geometry calibration to a dictionary if this shift is shift error
+        :return:
+        """
+        geometry_shift_dict = dict()
+
+        geometry_shift_dict['error_Shift_x'] = self._center_shift_x
+        geometry_shift_dict['error_Shift_y'] = self._center_shift_y
+        geometry_shift_dict['error_Shift_z'] = self._center_shift_z
+        geometry_shift_dict['error_Rot_x'] = self._rotation_x
+        geometry_shift_dict['error_Rot_y'] = self._rotation_y
+        geometry_shift_dict['error_Rot_z'] = self._rotation_z
+
+        return geometry_shift_dict
+
+    # TODO - #86 - Synchronize with convert_to_dict
     def set_from_dict(self, geometry_shift_dict):
         """ Set geometry shift parameters from a dictionary, which may miss some parameters
         :param geometry_shift_dict:
@@ -313,6 +330,10 @@ class AnglerCameraDetectorShift(object):
         if 'rotation z' in geometry_shift_dict:
             self._rotation_z = geometry_shift_dict['rotation z']
 
+        return
+
+    # TODO - #86 - Synchronize with convert_to_dict and implement
+    def set_from_dict_error(self):
         return
 
     def to_json(self, file_name):

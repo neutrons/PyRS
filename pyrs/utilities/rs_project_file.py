@@ -158,10 +158,12 @@ class HydraProjectFile(object):
         # instrument
         instrument = self._project_h5.create_group(HidraConstants.INSTRUMENT)
         instrument.create_group(HidraConstants.CALIBRATION)
+        # geometry
         geometry_group = instrument.create_group('geometry setup')
         geometry_group.create_group('detector')
         geometry_group.create_group('wave length')
-        geometry_group.create_group(HidraConstants.DETECTOR_EFF)
+        # detector (pixel) efficiency
+        instrument.create_group(HidraConstants.DETECTOR_EFF)
 
         # mask entry and 2 sub entries
         mask_entry = self._project_h5.create_group(HidraConstants.MASK)
@@ -425,7 +427,13 @@ class HydraProjectFile(object):
         checkdatatypes.check_int_variable('sun run', sub_run, (0, None))
 
         sub_run_str = '{:04}'.format(sub_run)
-        counts = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SUB_RUNS][sub_run_str]['counts'].value
+        try:
+            counts = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SUB_RUNS][sub_run_str]['counts'].value
+        except KeyError as key_error:
+            err_msg = 'Unable to access sub run {} with key {}: {}\nAvailable runs are: {}' \
+                      ''.format(sub_run, sub_run_str, key_error,
+                                self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SUB_RUNS].keys())
+            raise KeyError(err_msg)
 
         return counts
 
@@ -627,6 +635,8 @@ class HydraProjectFile(object):
         -------
         None
         """
+        #
+
         # Add attribute
         self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.DETECTOR_EFF].attrs[HidraConstants.RUN] = \
             calib_run_number

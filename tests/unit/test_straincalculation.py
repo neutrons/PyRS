@@ -1,12 +1,13 @@
-#!/usr/bin/python
 # In order to test the core methods for peak fitting and thus strain/stress calculation
 import os
 from pyrs.core import pyrscore
+import pytest
 
 
 # default testing directory is ..../PyRS/
 print(os.getcwd())
 # therefore it is not too hard to locate testing data
+# TODO: convert BD_Data_Log.hdf5 to Hidra_BD_Data.hdf
 test_data = 'tests/testdata/BD_Data_Log.hdf5'
 print('Data file {0} exists? : {1}'.format(test_data, os.path.exists(test_data)))
 
@@ -34,7 +35,7 @@ def create_test_data(rs_core, src_data_set, target_data_set):
     return
 
 
-def test_strain_calculation():
+def modify_test_strain_calculation():
     """
     main testing body to test the workflow to calculate strain
     :return:
@@ -102,7 +103,7 @@ def test_strain_calculation():
     return
 
 
-def test_copy_from_unconstrained_to_plane():
+def modify_test_copy_from_unconstrained_to_plane():
     """
     testing the use case such that the user copy a strain/stress calculator to another one
     :return:
@@ -148,7 +149,7 @@ def test_copy_from_unconstrained_to_plane():
     return
 
 
-def test_strain_stress_user_defined_grid():
+def modify_test_strain_stress_user_defined_grid():
     """
     Same as test_strain_calculation but using user-defined strain/stress grid
     :return:
@@ -204,7 +205,7 @@ def test_strain_stress_user_defined_grid():
     return
 
 
-def test_plane_strain():
+def modify_test_plane_strain():
     """
     Same as test_strain_calculation but using plane strain
     :return:
@@ -253,10 +254,13 @@ def test_plane_strain():
     strain_vec, stress_vec = rs_core.strain_stress_calculator.execute(ss_grid_vec=grids,
                                                                       peak_pos_d_vec=center_d_vec)
 
+    assert strain_vec
+    assert stress_vec
+
     return
 
 
-def test_plane_stress():
+def modify_test_plane_stress():
     """
     Same as test_strain_calculation but using plane stress
     :return:
@@ -305,16 +309,13 @@ def test_plane_stress():
     strain_vec, stress_vec = rs_core.strain_stress_calculator.execute(ss_grid_vec=grids,
                                                                       peak_pos_d_vec=center_d_vec)
 
+    assert strain_vec
+    assert stress_vec
+
     return
 
 
 if __name__ == '__main__':
     """ main
     """
-    if False:
-        test_strain_calculation()
-    if True:
-        test_copy_from_unconstrained_to_plane()
-    if False:
-        test_plane_strain()
-        test_plane_stress()
+    pytest.main()

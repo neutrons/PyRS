@@ -11,7 +11,7 @@ def test_rw_raw():
     -------
 
     """
-    raw_project_name = os.path.join(os.getcwd(), 'tests/data/HZB_Raw_Project.hdf')
+    raw_project_name = os.path.join(os.getcwd(), 'data/HZB_Raw_Project.hdf')
 
     # Read to workspace
     source_project = rs_project_file.HydraProjectFile(raw_project_name,

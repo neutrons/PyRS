@@ -4,22 +4,20 @@ Test for reading and writing components to HiDRA project file
 from pyrs.utilities import rs_project_file
 import os
 import numpy as np
+import datetime
+from pyrs.core import peak_profile_utility
+import pytest
 
 
-def test_mask(remove_test_file):
-    """
-    Test methods to read and write mask file
-    Parameters
-    ----------
-    remove_test_file : bool
-        Flag to remove temporary testing file
+def test_mask():
+    """Test methods to read and write mask file
 
     Returns
     -------
     None
     """
     # Generate a HiDRA project file
-    test_project_file = rs_project_file.HydraProjectFile('test.hdf',
+    test_project_file = rs_project_file.HydraProjectFile('test_mask.hdf',
                                                          rs_project_file.HydraProjectFileMode.OVERWRITE)
 
     # Create a detector mask
@@ -41,7 +39,7 @@ def test_mask(remove_test_file):
     test_project_file.save_hydra_project(True)
 
     # Open file again
-    verify_project_file = rs_project_file.HydraProjectFile('test.hdf',
+    verify_project_file = rs_project_file.HydraProjectFile('test_mask.hdf',
                                                            rs_project_file.HydraProjectFileMode.READONLY)
 
     # Read detector mask & compare
@@ -53,26 +51,21 @@ def test_mask(remove_test_file):
     assert np.allclose(solid_mask, verify_solid_mask, 1.E-2)
 
     # Clean
-    if remove_test_file:
-        os.remove('test.hdf')
+    os.remove('test_mask.hdf')
 
     return
 
 
-def test_detector_efficiency(remove_test_file):
+def test_detector_efficiency():
     """
     Test methods to read and write detector efficiency
-    Parameters
-    ----------
-    remove_test_file :  bool
-        Flag to remove temporary testing file
 
     Returns
     -------
     None
     """
     # Generate a HiDRA project file
-    test_project_file = rs_project_file.HydraProjectFile('efficient_testing.hdf',
+    test_project_file = rs_project_file.HydraProjectFile('test_efficient.hdf',
                                                          rs_project_file.HydraProjectFileMode.OVERWRITE)
 
     # Create a detector efficiency array
@@ -86,7 +79,7 @@ def test_detector_efficiency(remove_test_file):
     test_project_file.close()
 
     # Open file again
-    verify_project_file = rs_project_file.HydraProjectFile('efficient_testing.hdf',
+    verify_project_file = rs_project_file.HydraProjectFile('test_efficient.hdf',
                                                            rs_project_file.HydraProjectFileMode.READONLY)
 
     # Read detector efficiency & compare
@@ -96,21 +89,14 @@ def test_detector_efficiency(remove_test_file):
     assert np.allclose(efficient_array, verify_eff_array, rtol=1E-12)
 
     # Clean
-    if remove_test_file:
-        os.remove('efficient_testing.hdf')
+    os.remove('test_efficient.hdf')
 
     return
 
 
-def test_monochromator_setup(remove_test_file):
+def next_test_monochromator_setup():
     """
     Test methods to read and write monochromator setup including
-    - calibrated wave length
-    - monochromator setting
-    Parameters
-    ----------
-    remove_test_file :  bool
-        Flag to remove temporary testing file
 
     Returns
     -------
@@ -135,15 +121,63 @@ def test_monochromator_setup(remove_test_file):
     # Read calibrated wave length & compare
 
     # Clean
-    if remove_test_file:
-        os.remove('')
+    os.remove('')
+
+    return
+
+
+# TODO - #89 - Peak fitting result R/W
+def X_test_peak_fitting_result_io():
+    """
+
+    Returns
+    -------
+
+    """
+    # Generate a unique test file
+    now = datetime.datetime.now()
+    test_file_name = 'test_peak_io_{}.hdf'.format(now.toordinal())
+
+    # Generate a HiDRA project file
+    test_project_file = rs_project_file.HydraProjectFile(test_file_name,
+                                                         rs_project_file.HydraProjectFileMode.OVERWRITE)
+
+    # Create a ND array for output parameters
+    test_params_array = np.zeros((3, len(peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS)), float)
+    for i in range(3):
+        for j in range(len(peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS)):
+            test_params_array[i, j] = 2**i + 0.1 * 3**j
+    # END-FOR
+
+    # Add test data to output
+    test_project_file.set_peak_fit_result(peak_tag='test fake',
+                                          peak_profile='PseudoVoigt',
+                                          peak_param_names=peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS,
+                                          sub_run_vec=np.array([1, 2, 3]),
+                                          chi2_vec=np.array([0.323, 0.423, 0.523]),
+                                          peak_params=test_params_array)
+
+    test_project_file.save_hydra_project(False)
+
+    # Check
+    assert os.path.exists(test_file_name), 'Test project file for peak fitting result {} cannot be found.' \
+                                           ''.format(test_file_name)
+    print('[INFO] Peak parameter test project file: {}'.format(test_file_name))
+
+    # Import
+    verify_project_file = rs_project_file.HydraProjectFile(test_file_name,
+                                                           rs_project_file.HydraProjectFileMode.READONLY)
+    assert verify_project_file
+
+    # TODO - NEXT Need to make the result to work
+    # peaks = verify_project_file.get_peak_fit_result(peak_tag='test fake')
+
+    # Then compare....
+
+    os.remove(test_file_name)
 
     return
 
 
 if __name__ == '__main__':
-    test_mask(False)
-
-    test_detector_efficiency(False)
-
-    test_monochromator_setup(False)
+    pytest.main()

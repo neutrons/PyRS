@@ -240,6 +240,7 @@ def test_pseudo_voigt():
 
     return
 
+
 if __name__ == '__main__':
     pytest.main()
     plt.show()
