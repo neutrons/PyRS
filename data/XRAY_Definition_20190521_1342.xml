@@ -1,0 +1,71 @@
+<?xml version='1.0' encoding='ASCII'?>
+<instrument xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.mantidproject.org/IDF/1.0" last-modified="2019-05-21 13:42:49.263742" name="XRAY" valid-from="2018-12-01 00:00:01" valid-to="2100-10-20 23:59:59" xsi:schemaLocation="http://www.mantidproject.org/IDF/1.0 http://schema.mantidproject.org/IDF/1.0/IDFSchema.xsd">
+  <!--Created by Wenduo Zhou-->
+  <!--SOURCE-->
+  <component type="moderator">
+    <location z="-2.678898"/>
+  </component>
+  <type is="Source" name="moderator"/>
+  <!--SAMPLE-->
+  <component type="sample-position">
+    <location x="0.0" y="0.0" z="0.0"/>
+  </component>
+  <type is="SamplePos" name="sample-position"/>
+  <!--PANEL-->
+  <component idfillbyfirst="x" idstart="1" idstepbyrow="2048" type="arm">
+    <location name="bank1">
+      <parameter name="p-position">
+        <value val="0.0"/>
+      </parameter>
+      <parameter name="r-position">
+        <value val="0.0"/>
+      </parameter>
+      <parameter name="roty">
+        <logfile eq="value+0.0" id="2theta"/>
+      </parameter>
+      <parameter name="t-position">
+        <value val="0.0"/>
+      </parameter>
+    </location>
+  </component>
+  <type name="arm">
+    <component type="panel">
+      <location>
+        <parameter name="rotx">
+          <logfile eq="value+0.0" id="cal::flip"/>
+        </parameter>
+        <parameter name="roty">
+          <logfile eq="value+0.0" id="cal::roty"/>
+        </parameter>
+        <parameter name="rotz">
+          <logfile eq="value+0.0" id="cal::spin"/>
+        </parameter>
+        <parameter name="z">
+          <logfile eq="value+0.416" id="cal::arm"/>
+        </parameter>
+      </location>
+    </component>
+  </type>
+  <type name="panel">
+    <component type="shiftpanel">
+      <location>
+        <parameter name="x">
+          <logfile eq="value" id="cal::deltax"/>
+        </parameter>
+        <parameter name="y">
+          <logfile eq="value" id="cal::deltay"/>
+        </parameter>
+      </location>
+    </component>
+  </type>
+  <type is="rectangular_detector" name="shiftpanel" type="pixel" xpixels="2048" xstart="0.2047" xstep="-0.0002" ypixels="2048" ystart="-0.2047" ystep="0.0002"/>
+  <type is="detector" name="pixel">
+    <cuboid id="pixel-shape">
+      <left-front-bottom-point x="0.0001" y="-0.0001" z="0"/>
+      <left-front-top-point x="0.0001" y="0.0001" z="0"/>
+      <left-back-bottom-point x="0.0001" y="-0.0001" z="-0.0001"/>
+      <right-front-bottom-point x="-0.0001" y="-0.0001" z="0"/>
+    </cuboid>
+    <algebra val="pixel-shape"/>
+  </type>
+</instrument>

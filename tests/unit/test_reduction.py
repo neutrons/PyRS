@@ -205,7 +205,7 @@ class TestReduction(object):
         :return:
         """
         # Test with mantid engine
-        idf_xml = 'data/xray_data/XRAY_Definition_20190521_1342.xml'
+        idf_xml = 'data/XRAY_Definition_20190521_1342.xml'
         self._reduction_controller.reduction_manager.set_mantid_idf(idf_xml)
         if False:
             test_shift = False
