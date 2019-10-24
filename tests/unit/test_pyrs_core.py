@@ -20,11 +20,11 @@ def test_main():
     assert test_hd_ws
 
     # Get sub runs
-    sub_runs = rs_core.reduction_manager.get_sub_runs('test core')
+    sub_runs = rs_core.reduction_service.get_sub_runs('test core')
     assert sub_runs
 
     # Get sample logs
-    log_names = rs_core.reduction_manager.get_sample_logs_names('test core', None)
+    log_names = rs_core.reduction_service.get_sample_logs_names('test core', None)
     assert isinstance(log_names, list)
 
     return

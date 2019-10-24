@@ -148,7 +148,7 @@ class ManualReductionWindow(QMainWindow):
         self.ui.lineEdit_calibratonFile.setText(calibration_file)
 
         # set to core
-        self._core.reduction_manager.set_calibration_file(calibration_file)
+        self._core.reduction_service.set_calibration_file(calibration_file)
 
         return
 
@@ -170,7 +170,7 @@ class ManualReductionWindow(QMainWindow):
 
         # set
         instrument = calibration_file_io.import_instrument_setup(idf_name)
-        self._core.reduction_manager.set_instrument(instrument)
+        self._core.reduction_service.set_instrument(instrument)
 
         return
 
@@ -183,7 +183,7 @@ class ManualReductionWindow(QMainWindow):
                                            default_dir=os.path.expanduser('~'))
         if output_dir != '':
             self.ui.lineEdit_outputDir.setText(output_dir)
-            self._core.reduction_manager.set_output_dir(output_dir)
+            self._core.reduction_service.set_output_dir(output_dir)
             self._output_dir = output_dir
 
         return
@@ -205,21 +205,21 @@ class ManualReductionWindow(QMainWindow):
         # END-IF-ELSE
 
         try:
-            data_key = self._core.reduction_manager.chop_data()
+            data_key = self._core.reduction_service.chop_data()
         except RuntimeError as run_err:
             gui_helper.pop_message(self, message='Unable to slice data', detailed_message=str(run_err),
                                    message_type='error')
             return
 
         try:
-            self._core.reduction_manager.reduced_chopped_data(data_key)
+            self._core.reduction_service.reduced_chopped_data(data_key)
         except RuntimeError as run_err:
             gui_helper.pop_message(self, message='Failed to reduce sliced data', detailed_message=str(run_err),
                                    message_type='error')
             return
 
         # fill the run numbers to plot selection
-        self._setup_plot_selection(append_mode=False, item_list=self._core.reduction_manager.get_chopped_names())
+        self._setup_plot_selection(append_mode=False, item_list=self._core.reduction_service.get_chopped_names())
 
         # plot
         self._plot_data()
@@ -292,7 +292,7 @@ class ManualReductionWindow(QMainWindow):
         # """
         # """
         # #
-        sub_runs = self._core.reduction_manager.get_sub_runs(self._project_data_id)
+        sub_runs = self._core.reduction_service.get_sub_runs(self._project_data_id)
         sub_runs.sort()
 
         # set sub runs: lock and release
@@ -384,7 +384,7 @@ class ManualReductionWindow(QMainWindow):
         # get (sub) run numbers
         sub_runs_str = str(self.ui.lineEdit_runNumbersList.text()).strip().lower()
         if sub_runs_str == 'all':
-            sub_run_list = self._core.reduction_manager.get_sub_runs(self._project_data_id)
+            sub_run_list = self._core.reduction_service.get_sub_runs(self._project_data_id)
         else:
             try:
                 sub_run_list = gui_helper.parse_integers(sub_runs_str)
@@ -396,7 +396,7 @@ class ManualReductionWindow(QMainWindow):
 
         # Reduce data
         # TODO FIXME - Urgent - Mask and calibration is not implemented at all!
-        self._core.reduction_manager.reduce_diffraction_data(self._project_data_id,
+        self._core.reduction_service.reduce_diffraction_data(self._project_data_id,
                                                              apply_calibrated_geometry=None,
                                                              bin_size_2theta=0.05,
                                                              use_pyrs_engine=True,
@@ -418,7 +418,7 @@ class ManualReductionWindow(QMainWindow):
             import shutil
             shutil.copyfile(self._project_file_name, output_project_name)
 
-        self._core.reduction_manager.save_project(self._project_data_id, output_project_name)
+        self._core.reduction_service.save_project(self._project_data_id, output_project_name)
 
     def do_load_hidra_projec_file(self):
         """
@@ -496,16 +496,16 @@ class ManualReductionWindow(QMainWindow):
             return
 
         curr_run_number = int(str(self.ui.comboBox_runs.currentText()))
-        if not self._core.reduction_manager.has_run_reduced(curr_run_number):
+        if not self._core.reduction_service.has_run_reduced(curr_run_number):
             return
 
-        is_chopped = self._core.reduction_manager.is_chopped_run(curr_run_number)
+        is_chopped = self._core.reduction_service.is_chopped_run(curr_run_number)
 
         # set the sliced box
         self._plot_sliced_mutex = True
         self.ui.comboBox_slicedRuns.clear()
         if is_chopped:
-            sliced_segment_list = self._core.reduction_manager.get_chopped_names(curr_run_number)
+            sliced_segment_list = self._core.reduction_service.get_chopped_names(curr_run_number)
             for segment in sorted(sliced_segment_list):
                 self.ui.comboBox_slicedRuns.addItem('{}'.format(segment))
         else:
@@ -554,7 +554,7 @@ class ManualReductionWindow(QMainWindow):
         self.ui.comboBox_sub_runs.setCurrentIndex(0)
 
         # Fill in self.ui.frame_subRunInfoTable
-        meta_data_array = self._core.reduction_manager.get_sample_logs_values(self._project_data_id,
+        meta_data_array = self._core.reduction_service.get_sample_logs_values(self._project_data_id,
                                                                               [HidraConstants.SUB_RUNS,
                                                                                HidraConstants.TWO_THETA])
         self.ui.rawDataTable.add_subruns_info(meta_data_array, clear_table=True)
@@ -572,11 +572,11 @@ class ManualReductionWindow(QMainWindow):
         checkdatatypes.check_int_variable('Sub run number', sub_run_number, (0, None))
 
         # Get the detector counts
-        detector_counts_array = self._core.reduction_manager.get_detector_counts(self._project_data_id,
+        detector_counts_array = self._core.reduction_service.get_detector_counts(self._project_data_id,
                                                                                  sub_run_number)
 
         # set information
-        det_2theta_dict = self._core.reduction_manager.get_sample_logs_values(self._project_data_id,
+        det_2theta_dict = self._core.reduction_service.get_sample_logs_values(self._project_data_id,
                                                                               [HidraConstants.TWO_THETA])[0]
         det_2theta = det_2theta_dict[sub_run_number]
         info = 'sub-run: {}, 2theta = {}' \
@@ -585,7 +585,7 @@ class ManualReductionWindow(QMainWindow):
         # If mask ID is not None
         if mask_id is not None:
             # Get mask in array and do a AND operation to detector counts (array)
-            mask_array = self._core.reduction_manager.get_mask_array(self._curr_project_name, mask_id)
+            mask_array = self._core.reduction_service.get_mask_array(self._curr_project_name, mask_id)
             detector_counts_array *= mask_array
             info += ', mask ID = {}'.format(mask_id)
 
@@ -608,7 +608,7 @@ class ManualReductionWindow(QMainWindow):
         checkdatatypes.check_int_variable('Sub run number', sub_run_number, (0, None))
 
         try:
-            two_theta_array, diff_array = self._core.reduction_manager.get_reduced_diffraction_data(
+            two_theta_array, diff_array = self._core.reduction_service.get_reduced_diffraction_data(
                 self._project_data_id, sub_run_number, mask_id)
             if two_theta_array is None:
                 raise NotImplementedError('2theta array is not supposed to be None.')
@@ -619,7 +619,7 @@ class ManualReductionWindow(QMainWindow):
             return
 
         # set information
-        det_2theta = self._core.reduction_manager.get_sample_logs_values(self._project_data_id,
+        det_2theta = self._core.reduction_service.get_sample_logs_values(self._project_data_id,
                                                                          [HidraConstants.TWO_THETA])
         det_2theta = det_2theta[0][sub_run_number]
         info = 'sub-run: {}, 2theta = {}' \

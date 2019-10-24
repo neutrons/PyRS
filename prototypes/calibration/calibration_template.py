@@ -100,7 +100,7 @@ def main(argv):
                                              pyrs_engine=True)
 
     # get handler on reduciton engine
-    reduction_engine = calib_controller.reduction_manager.get_last_reduction_engine()
+    reduction_engine = calib_controller.reduction_service.get_last_reduction_engine()
     # Get pixels
     pixel_pos_array = reduction_engine.get_pixel_positions(is_matrix=False)  # (N, 3) array
     pixel_2theta_array = reduction_engine.instrument.get_pixels_2theta(dimension=1)  # (N, ) array
