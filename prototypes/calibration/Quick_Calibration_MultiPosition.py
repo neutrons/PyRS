@@ -12,7 +12,10 @@ from pyrs.core import pyrscore
 import lmfit
 import math
 import itertools
-from scipy.optimize import least_squares
+try:
+    from scipy.optimize import least_squares
+except ImportError:
+    from scipy.optimize import leastsq as least_squares  # for older scipy
 from scipy.optimize import minimize
 import os
 import time
@@ -82,7 +85,7 @@ def get_alignment_residual(x, engine, hb2b_setup, two_theta, roi_vec_set):
 
     background = LinearModel()
     for i_tth in range( len( two_theta ) ):
-        #reduced_data_set[i_tth] = [None] * num_reduced_set 
+        #reduced_data_set[i_tth] = [None] * num_reduced_set
         # load instrument: as it changes
         pyrs_reducer = reduce_hb2b_pyrs.PyHB2BReduction(hb2b_setup, x[6])
         pyrs_reducer.build_instrument_prototype(two_theta[i_tth], x[0], x[1], x[2], x[3], x[4], x[5])
@@ -100,7 +103,7 @@ def get_alignment_residual(x, engine, hb2b_setup, two_theta, roi_vec_set):
 
         FitModel        = lmfit.Model( BackGround )
         pars1           = FitModel.make_params( p0=100, p1=1, p2=0.01 )
-        
+
         Peaks           = []
         CalibPeaks      = TTH_Calib[ np.where( (TTH_Calib > mintth) == (TTH_Calib < maxtth) )[0] ]
         for ipeak in range( len( CalibPeaks ) ):
@@ -125,7 +128,7 @@ def get_alignment_residual(x, engine, hb2b_setup, two_theta, roi_vec_set):
         else:
             # reduce data
 
-  
+
 #            for i_roi in range( len( roi_vec_set ) ):
             print ( minEta, maxEta )
             eta_roi_vec = np.arange( minEta, maxEta+0.2, 2 )
@@ -164,7 +167,7 @@ def get_alignment_residual(x, engine, hb2b_setup, two_theta, roi_vec_set):
 
                 backgroundShift = np.average( BackGround( reduced_i[0], Fitresult.params[ 'p0' ].value, Fitresult.params[ 'p1' ].value, Fitresult.params[ 'p2' ].value ) )
                 ax1.plot(reduced_i[0], reduced_i[1], color=colors[i_roi % 5])
-                
+
                 for index_i in range(1, len(Peaks)+1):
                     ax2 = plt.subplot(num_rows, 2, index_i)
                     ax2.plot( reduced_i[0], reduced_i[1], 'x', color='black')
@@ -418,7 +421,7 @@ def main():
 
 #    if start_calibration.shape[0] == 7:CalibData = dict( zip( ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda'], out3.x ) )
 #    else: CalibData = dict( zip( ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z'], out3.x ) )
-    
+
 #    import json
 #    Year, Month, Day, Hour, Min = time.localtime()[0:5]
 #    Mono = 'Si511'

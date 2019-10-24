@@ -40,7 +40,7 @@ def test_calibration_json():
     None
     """
     # Get simulated test data
-    project_file_name = 'data/HB2B_000.hdf5'
+    project_file_name = 'data/HB2B_000.h5'
     calib_file = 'data/HB2B_CAL_Si333.json'
 
     # Import file

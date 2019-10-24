@@ -11,7 +11,10 @@ from pyrs.core import reduce_hb2b_pyrs
 import lmfit
 import math
 import itertools
-from scipy.optimize import least_squares
+try:
+    from scipy.optimize import least_squares
+except ImportError:
+    from scipy.optimize import leastsq as least_squares  # for older scipy
 from scipy.optimize import minimize
 import os
 import time

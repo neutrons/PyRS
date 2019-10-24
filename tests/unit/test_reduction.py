@@ -280,7 +280,7 @@ def test_main():
     :return:
     """
     # Create data
-    tester = TestReduction('data/Hidra_XRay_LaB6_10kev_35deg.hdf')
+    tester = TestReduction('data/Hidra_XRay_LaB6_10kev_35deg.h5')
 
     # Test basic reduction
     tester.test_reduce_data_basic()

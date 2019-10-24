@@ -4,13 +4,15 @@ import glob
 import dateutil.parser
 import json
 import os
-from scipy.optimize import least_squares
 from pyrs.core import reduce_hb2b_pyrs
 from matplotlib import pyplot as plt
 from lmfit.models import GaussianModel
 from lmfit import Model
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
-
+try:
+    from scipy.optimize import least_squares
+except ImportError:
+    from scipy.optimize import leastsq as least_squares  # for older scipy
 
 colors = ['black', 'red', 'blue', 'green', 'yellow']
 

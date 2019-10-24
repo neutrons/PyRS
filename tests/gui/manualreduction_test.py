@@ -13,7 +13,7 @@ def xtest_hzb_data(reduction_window):
     :return:
     """
     # Load HZB data
-    hzb_hidra_name = 'tests/testdata/HZB_Raw_Project.hdf'
+    hzb_hidra_name = 'tests/testdata/HZB_Raw_Project.h5'
     reduction_window.load_hydra_file(hzb_hidra_name)
 
     # Plot raw data
@@ -48,7 +48,7 @@ def main_test():
     #
     # # set up IPTS and run number
     # manual_reduction_window.ui.lineEdit_iptsNumber.setText('12345')
-    # manual_reduction_window.ui.lineEdit_calibratonFile.setText('test/whatever.hdf5')
+    # manual_reduction_window.ui.lineEdit_calibratonFile.setText('test/whatever.h5')
     #
     # # test the strip view
     # if False:

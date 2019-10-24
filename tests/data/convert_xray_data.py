@@ -79,7 +79,7 @@ def main():
     :return:
     """
     raw_tif_name = 'tests/testdata/LaB6_10kev_35deg-00004_Rotated.tif'
-    output_file_name = 'tests/testdata/Hidra_XRay_LaB6_10kev_35deg.hdf'
+    output_file_name = 'tests/testdata/Hidra_XRay_LaB6_10kev_35deg.h5'
 
     # Load raw data from image
     xray_count_vec, xray_det_type = load_data_from_tif(raw_tif_name)
