@@ -9,11 +9,8 @@ from pyrs.utilities import rs_project_file
 from matplotlib import pyplot as plt
 
 # This is the final version of command line script to reduce HB2B data
-# including
-# 1.
 
 # TODO - #84 - Overall docs & type checks
-
 
 def _mask_detectors(counts_vec, mask_file=None):
     # ignoring returns two_theta and note
@@ -117,7 +114,7 @@ class ReductionApp(object):
         """Reduce data from HidraWorkspace
         """
         # Check inputs
-        if sub_runs is None:
+        if sub_runs is None or not bool(sub_runs):  # None or empty list
             sub_runs = self._hydra_ws.get_sub_runs()
         else:
             checkdatatypes.check_list('Sub runs', sub_runs)
@@ -189,107 +186,53 @@ class ReductionApp(object):
 ######################################################################
 
 
-def _main(argv):
+def _main(options):
     """
     main body
     """
-    if len(argv) < 3:
-        _print_help(argv[0])
-        sys.exit(-1)
-
-    # parse input & check
-    project_data_file = argv[1]
-    output_dir = argv[2]
-
-    # parse the other options
-    inputs_option_dict = parse_inputs(argv[3:])
-
     # call for reduction
-    reducer = ReductionApp(bool(inputs_option_dict['engine'] == 'mantid'))
+    reducer = ReductionApp(bool(options.engine == 'mantid'))
 
     # Load Hidra project file
-    reducer.load_project_file(project_data_file)
-
-    # sub run
-    if inputs_option_dict['subrun'] is None:
-        sub_run_list = None
-    else:
-        sub_run_list = [inputs_option_dict['subrun']]
+    reducer.load_project_file(options.nexus)
 
     # Process data
-    if inputs_option_dict['no reduction']:
+    if options.viewraw:
         # interpret None to be first subrun
         if sub_run_list is None:
             sub_run_list = [0]
         # plot raw detector counts without reduction but possibly with masking
-        reducer.plot_detector_counts(sub_run=sub_run_list[0], mask=inputs_option_dict['mask'])
+        reducer.plot_detector_counts(sub_run=sub_run_list[0], mask=options.mask)
     else:
-        # reduce data
-        # collect information
-        user_instrument = inputs_option_dict['instrument']
-        user_calibration = inputs_option_dict['calibration']
-        mask = inputs_option_dict['mask']
-
         # reduce
-        reducer.reduce_data(instrument_file=user_instrument,
-                            calibration_file=user_calibration,
-                            mask=mask,
-                            sub_runs=sub_run_list)
+        reducer.reduce_data(instrument_file=options.instrument,
+                            calibration_file=options.calibration,
+                            mask=options.mask,
+                            sub_runs=options.subruns)
 
         # save
-        out_file_name = os.path.join(output_dir, os.path.basename(project_data_file))
+        out_file_name = os.path.join(options.outputdir, os.path.basename(project_data_file))
         reducer.save_diffraction_data(out_file_name)
 
 
-def parse_inputs(arg_list):
-    """
-    parse input argument
-    """
-    # TODO - #84 - Try to use argparser (https://docs.python.org/3/library/argparse.html) to replace
-    arg_options = {'instrument': None,
-                   'calibration': None,
-                   'mask': None,    # no masks
-                   'engine': 'pyrs',
-                   'no reduction': False,
-                   'subrun': None,  # all sub runs
-                   '2theta': None   # auto 2theta
-                   }
-
-    for arg_i in arg_list:
-        terms = arg_i.split('=')
-        arg_name_i = terms[0].strip().lower()
-        arg_value_i = terms[1].strip()
-
-        if arg_name_i == '--instrument':
-            arg_options['instrument'] = arg_value_i
-        elif arg_name_i == '--calibration':
-            arg_options['calibration'] = arg_value_i
-        elif arg_name_i == '--mask':
-            arg_options['mask'] = arg_value_i
-        elif arg_name_i == '--viewraw':
-            arg_options['no reduction'] = bool(int(arg_value_i))
-        elif arg_name_i == '--subrun':
-            arg_options['subrun'] = int(arg_value_i)
-        else:
-            raise RuntimeError('Argument {} is not recognized and not supported.'.format(arg_name_i))
-    # END-FOR
-
-    return arg_options
-
-
-def _print_help(argv):
-    """
-    print help information
-    """
-    print('Auto-reducing HB2B: {} [NeXus File Name] [Target Directory] [--instrument=xray_setup.txt]'
-          '[--calibration=xray_calib.txt] [--mask=mask.h5] [--engine=engine]'.format(argv[0]))
-    print('--instrument:   instrument configuration file overriding embedded (arm, pixel number and size')
-    print('--calibration:  instrument geometry calibration file overriding embedded')
-    print('--mask:         masking file (PyRS hdf5 format) or mask name')
-    print('--engine:       mantid or pyrs.  default is pyrs')
-    print('--viewraw:      viewing raw data with an option to mask (NO reduction)')
-    print('--')
-
-
 if __name__ == '__main__':
-    _main(sys.argv)
+    from argparse import ArgumentParser
+    parser = ArgumentParser(description='Script for auto-reducing HB2B')
+    parser.add_argument('nexus', help='Input NeXus file name')
+    parser.add_argument('outputdir', help='Target directory')
+    parser.add_argument('--instrument', nargs='?', default=None,
+                        help='instrument configuration file overriding embedded (arm, pixel number and size)')
+    parser.add_argument('--calibration', nargs='?', default=None,
+                        help='instrument geometry calibration file overriding embedded')
+    parser.add_argument('--mask', nargs='?', default=None,
+                        help='masking file (PyRS hdf5 format) or mask name')
+    parser.add_argument('--engine', choices=['mantid', 'pyrs'], default='pyrs',
+                        help='reduction engine (default=%(default)s)')
+    parser.add_argument('--viewraw', action='store_true',
+                        help='viewing raw data with an option to mask (NO reduction)')
+    parser.add_argument('--subrun', default=list(), nargs='*', type=int,
+                        help='something about subruns (default is all runs)') # TODO
+    # TODO question - there used to be an option 2theta=None which wasn't connected to anything
+    options = parser.parse_args()
+
+    _main(options)
