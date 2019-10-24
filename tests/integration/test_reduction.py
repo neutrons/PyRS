@@ -5,33 +5,6 @@ import numpy as np
 import pytest
 
 
-def assert_delta(exp_value, test_value, delta_value, param_name):
-    """Check whether two values are close enough.
-
-    Exception: AssertionError
-
-    Parameters
-    ----------
-    exp_value: float/ndarray
-        expected value
-    test_value: float/ndarray
-        test value
-    delta_value: float/ndarray
-        allowed difference
-    param_name: str
-        parameter name
-
-    Returns
-    -------
-    None
-    """
-    if np.abs(exp_value - test_value) < delta_value:
-        raise AssertionError('Parameter {} value {} is different from expected value {} beyond allowed value {}'
-                             ''.format(param_name, test_value, exp_value, delta_value))
-
-    return
-
-
 def test_calibration_json():
     """Test reduce data with calibration file (.json)
 
@@ -66,4 +39,4 @@ def test_calibration_json():
 
 
 if __name__ == '__main__':
-    pytest.main()
+    pytest.main([__file__])

@@ -2,6 +2,7 @@ from pyrs.core import workspaces
 from pyrs.utilities import rs_project_file
 from pyrs.core import instrument_geometry
 import os
+import pytest
 
 
 def test_rw_raw():
@@ -40,6 +41,4 @@ def test_rw_raw():
 
 
 if __name__ == '__main__':
-    """
-    """
-    test_rw_raw()
+    pytest.main([__file__])
