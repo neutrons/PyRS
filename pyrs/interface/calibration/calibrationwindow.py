@@ -5,8 +5,8 @@ from qtpy.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout, QHBoxLayout, Q
 import pyrs.core.pyrscore
 from pyrs.core.instrument_geometry import AnglerCameraDetectorShift
 import os
-import gui_helper
-from ui import diffdataviews
+import pyrs.interface.gui_helper
+from pyrs.interface.ui import diffdataviews
 
 # setup of constants
 SLICE_VIEW_RESOLUTION = 0.0001
@@ -174,9 +174,9 @@ class InstrumentCalibrationWindow(QMainWindow):
 
         # get current value
         try:
-            curr_value = gui_helper.parse_line_edit(value_edit, float, throw_if_blank=False)
+            curr_value = pyrs.interface.gui_helper.parse_line_edit(value_edit, float, throw_if_blank=False)
         except RuntimeError as run_err:
-            gui_helper.pop_message(self, '{}'.format(run_err))
+            pyrs.interface.gui_helper.pop_message(self, '{}'.format(run_err))
             curr_value = None
         # default
         if curr_value is None:
@@ -185,11 +185,11 @@ class InstrumentCalibrationWindow(QMainWindow):
 
         # resolution
         try:
-            resolution = gui_helper.parse_line_edit(resolution_edit, float,
-                                                    throw_if_blank=False,
-                                                    edit_name='Resolution')
+            resolution = pyrs.interface.gui_helper.parse_line_edit(resolution_edit, float,
+                                                                   throw_if_blank=False,
+                                                                   edit_name='Resolution')
         except RuntimeError as run_err:
-            gui_helper.pop_message(self, '{}'.format(run_err))
+            pyrs.interface.gui_helper.pop_message(self, '{}'.format(run_err))
             resolution = None
 
         if resolution is None:
@@ -230,9 +230,9 @@ class InstrumentCalibrationWindow(QMainWindow):
 
         # get current value
         try:
-            curr_value = gui_helper.parse_line_edit(value_edit, float, throw_if_blank=False)
+            curr_value = pyrs.interface.gui_helper.parse_line_edit(value_edit, float, throw_if_blank=False)
         except RuntimeError as run_err:
-            gui_helper.pop_message(self, '{}'.format(run_err))
+            pyrs.interface.gui_helper.pop_message(self, '{}'.format(run_err))
             curr_value = None
         # default
         if curr_value is None:
@@ -240,11 +240,11 @@ class InstrumentCalibrationWindow(QMainWindow):
             value_edit.setText('{}'.format(curr_value))
         # resolution
         try:
-            resolution = gui_helper.parse_line_edit(resolution_edit, float,
-                                                    throw_if_blank=False,
-                                                    edit_name='Resolution')
+            resolution = pyrs.interface.gui_helper.parse_line_edit(resolution_edit, float,
+                                                                   throw_if_blank=False,
+                                                                   edit_name='Resolution')
         except RuntimeError as run_err:
-            gui_helper.pop_message(self, '{}'.format(run_err))
+            pyrs.interface.gui_helper.pop_message(self, '{}'.format(run_err))
             resolution = None
 
         if resolution is None:
@@ -283,8 +283,8 @@ class InstrumentCalibrationWindow(QMainWindow):
         :return:
         """
         # try: IPTS and run (regular way)
-        ipts_number = gui_helper.parse_line_edit(self.ui.lineEdit_iptsNumber, int, False, 'IPTS  number', None)
-        run_number = gui_helper.parse_line_edit(self.ui.lineEdit_runNumber, int, False, 'Run number', None)
+        ipts_number = pyrs.interface.gui_helper.parse_line_edit(self.ui.lineEdit_iptsNumber, int, False, 'IPTS  number', None)
+        run_number = pyrs.interface.gui_helper.parse_line_edit(self.ui.lineEdit_runNumber, int, False, 'Run number', None)
 
         if ipts_number is None or run_number is None:
             # load data file directory
@@ -310,8 +310,8 @@ class InstrumentCalibrationWindow(QMainWindow):
             self._curr_data_id, two_theta = self._core.reduction_manager.load_data(file_name, target_dimension=2048,
                                                                                    load_to_workspace=False)
         except RuntimeError as run_err:
-            gui_helper.pop_message(self, message_type='error', message='Unable to load data {}'.format(file_name),
-                                   detailed_message='{}'.format(run_err))
+            pyrs.interface.gui_helper.pop_message(self, message_type='error', message='Unable to load data {}'.format(file_name),
+                                                  detailed_message='{}'.format(run_err))
 
         return
 
@@ -319,13 +319,13 @@ class InstrumentCalibrationWindow(QMainWindow):
         """ Load mask file
         """
         # get the current mask file
-        curr_mask_file = gui_helper.parse_line_edit(self.ui.lineEdit_maskFile, str, False, 'Masking file')
+        curr_mask_file = pyrs.interface.gui_helper.parse_line_edit(self.ui.lineEdit_maskFile, str, False, 'Masking file')
         print('[DB...BAT] Parsed line edit value: {} of type {}'.format(curr_mask_file, type(curr_mask_file)))
 
         # whether it has been loaded
         if curr_mask_file in self._core.reduction_manager.get_loaded_mask_files():
-            gui_helper.pop_message(self, message='Mask {} has been loaded', message_type='info',
-                                   detailed_message='If need to load a new mask, clear the file name in editor')
+            pyrs.interface.gui_helper.pop_message(self, message='Mask {} has been loaded', message_type='info',
+                                                  detailed_message='If need to load a new mask, clear the file name in editor')
             return
 
         # get mask
@@ -360,9 +360,9 @@ class InstrumentCalibrationWindow(QMainWindow):
             self.ui.plainTextEdit_maskList.appendPlainText('{}: 2theta = {}, note = {}\n'
                                                            ''.format(mask_file_name, two_theta, note))
         except RuntimeError as run_err:
-            gui_helper.pop_message(self, message='Unable to load {}'.format(mask_file_name),
-                                   message_type='error',
-                                   detailed_message='{}'.format(run_err))
+            pyrs.interface.gui_helper.pop_message(self, message='Unable to load {}'.format(mask_file_name),
+                                                  message_type='error',
+                                                  detailed_message='{}'.format(run_err))
             return
 
         # update UI
@@ -378,23 +378,23 @@ class InstrumentCalibrationWindow(QMainWindow):
         :return:
         """
         try:
-            cal_shift_x = gui_helper.parse_line_edit(self.ui.lineEdit_centerX, float, False, 'Center X', default=0.)
-            cal_shift_y = gui_helper.parse_line_edit(self.ui.lineEdit_centerY, float, False, 'Center Y', default=0.)
-            cal_shift_z = gui_helper.parse_line_edit(self.ui.lineEdit_centerZ, float, False, 'Center Z', default=0.)
-            cal_rot_x = gui_helper.parse_line_edit(self.ui.lineEdit_rotationX, float, False, 'Rotation X', default=0.)
-            cal_rot_y = gui_helper.parse_line_edit(self.ui.lineEdit_rotationY, float, False, 'Rotation Y', default=0.)
-            cal_rot_z = gui_helper.parse_line_edit(self.ui.lineEdit_rotationZ, float, False, 'Rotation Z', default=0.)
-            cal_wave_length = gui_helper.parse_line_edit(self.ui.lineEdit_wavelength, float, False, 'Rotation Z',
-                                                         default=1.)
+            cal_shift_x = pyrs.interface.gui_helper.parse_line_edit(self.ui.lineEdit_centerX, float, False, 'Center X', default=0.)
+            cal_shift_y = pyrs.interface.gui_helper.parse_line_edit(self.ui.lineEdit_centerY, float, False, 'Center Y', default=0.)
+            cal_shift_z = pyrs.interface.gui_helper.parse_line_edit(self.ui.lineEdit_centerZ, float, False, 'Center Z', default=0.)
+            cal_rot_x = pyrs.interface.gui_helper.parse_line_edit(self.ui.lineEdit_rotationX, float, False, 'Rotation X', default=0.)
+            cal_rot_y = pyrs.interface.gui_helper.parse_line_edit(self.ui.lineEdit_rotationY, float, False, 'Rotation Y', default=0.)
+            cal_rot_z = pyrs.interface.gui_helper.parse_line_edit(self.ui.lineEdit_rotationZ, float, False, 'Rotation Z', default=0.)
+            cal_wave_length = pyrs.interface.gui_helper.parse_line_edit(self.ui.lineEdit_wavelength, float, False, 'Rotation Z',
+                                                                        default=1.)
         except RuntimeError as run_err:
-            gui_helper.pop_message(self, 'Unable to parse calibration value', str(run_err), 'error')
+            pyrs.interface.gui_helper.pop_message(self, 'Unable to parse calibration value', str(run_err), 'error')
             return
 
         # get data file
         try:
-            two_theta = gui_helper.parse_line_edit(self.ui.lineEdit_2theta, float, True, 'Two theta', default=None)
+            two_theta = pyrs.interface.gui_helper.parse_line_edit(self.ui.lineEdit_2theta, float, True, 'Two theta', default=None)
         except RuntimeError as run_err:
-            gui_helper.pop_message(self, '2-theta error', str(run_err), 'error')
+            pyrs.interface.gui_helper.pop_message(self, '2-theta error', str(run_err), 'error')
             return
 
         # load instrument
@@ -454,7 +454,7 @@ class InstrumentCalibrationWindow(QMainWindow):
         :return:
         """
         def set_refine_entry(line_edit, check_box, name):
-            init_value = gui_helper.parse_line_edit(line_edit, float, True, name)
+            init_value = pyrs.interface.gui_helper.parse_line_edit(line_edit, float, True, name)
             is_to_refine = check_box.isChecked()
             return init_value, is_to_refine
 

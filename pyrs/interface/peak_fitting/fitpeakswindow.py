@@ -7,9 +7,9 @@ from pyrs.interface.ui.rstables import FitResultTable
 from pyrs.utilities import hb2b_utilities
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.rs_project_file import HidraConstants
-import advpeakfitdialog
+import pyrs.interface.advpeakfitdialog
 import os
-import gui_helper
+import pyrs.interface.gui_helper
 import numpy
 
 
@@ -126,10 +126,10 @@ class FitPeaksWindow(QMainWindow):
         :return:
         """
         try:
-            ipts_number = gui_helper.parse_integer(self.ui.lineEdit_iptsNumber)
-            exp_number = gui_helper.parse_integer(self.ui.lineEdit_expNumber)
+            ipts_number = pyrs.interface.gui_helper.parse_integer(self.ui.lineEdit_iptsNumber)
+            exp_number = pyrs.interface.gui_helper.parse_integer(self.ui.lineEdit_expNumber)
         except RuntimeError as run_err:
-            gui_helper.pop_message(self, 'Unable to parse IPTS or Exp due to {0}'.format(run_err))
+            pyrs.interface.gui_helper.pop_message(self, 'Unable to parse IPTS or Exp due to {0}'.format(run_err))
             return None
 
         # Locate default saved HidraProject data
@@ -168,8 +168,8 @@ class FitPeaksWindow(QMainWindow):
         if hydra_file_name is None:
             # No default Hidra file: browse the file
             file_filter = 'HDF (*.hdf);H5 (*.h5)'
-            hydra_file_name = gui_helper.browse_file(self, 'HIDRA Project File', os.getcwd(), file_filter,
-                                                     file_list=False, save_file=False)
+            hydra_file_name = pyrs.interface.gui_helper.browse_file(self, 'HIDRA Project File', os.getcwd(), file_filter,
+                                                                    file_list=False, save_file=False)
 
             if hydra_file_name is None:
                 # use cancel
@@ -184,8 +184,8 @@ class FitPeaksWindow(QMainWindow):
             try:
                 self.do_load_hydra_file(hydra_project_file=None)
             except RuntimeError as run_err:
-                gui_helper.pop_message(self, 'Failed to load {}'.format(hydra_file_name),
-                                       str(run_err), 'error')
+                pyrs.interface.gui_helper.pop_message(self, 'Failed to load {}'.format(hydra_file_name),
+                                                      str(run_err), 'error')
         # END-IF
 
         return
@@ -196,7 +196,7 @@ class FitPeaksWindow(QMainWindow):
         :return:
         """
         if self._advanced_fit_dialog is None:
-            self._advanced_fit_dialog = advpeakfitdialog.SmartPeakFitControlDialog(self)
+            self._advanced_fit_dialog = pyrs.interface.advpeakfitdialog.SmartPeakFitControlDialog(self)
 
         self._advanced_fit_dialog.show()
 
@@ -223,8 +223,8 @@ class FitPeaksWindow(QMainWindow):
             # Record data key and next
             self._curr_file_name = hydra_project_file
         except (RuntimeError, TypeError) as run_err:
-            gui_helper.pop_message(self, 'Unable to load {}'.format(hydra_project_file), detailed_message=str(run_err),
-                                   message_type='error')
+            pyrs.interface.gui_helper.pop_message(self, 'Unable to load {}'.format(hydra_project_file), detailed_message=str(run_err),
+                                                  message_type='error')
             return
 
         # Edit information on the UI for user to visualize
@@ -288,7 +288,7 @@ class FitPeaksWindow(QMainWindow):
         if len(int_string_list) == 0 or not self.ui.fit_selected.isChecked():
             sub_run_list = None  # not set and thus default for all
         else:
-            sub_run_list = gui_helper.parse_integers(int_string_list)
+            sub_run_list = pyrs.interface.gui_helper.parse_integers(int_string_list)
 
         return sub_run_list
 
@@ -455,9 +455,9 @@ class FitPeaksWindow(QMainWindow):
         :return:
         """
         # gather the information
-        scan_log_index_list = gui_helper.parse_integers(str(self.ui.lineEdit_scanNumbers.text()))
+        scan_log_index_list = pyrs.interface.gui_helper.parse_integers(str(self.ui.lineEdit_scanNumbers.text()))
         if len(scan_log_index_list) == 0:
-            gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
+            pyrs.interface.gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
 
         # possibly clean the previous
         # keep_prev = self.ui.checkBox_keepPrevPlot.isChecked()
@@ -475,7 +475,7 @@ class FitPeaksWindow(QMainWindow):
         # END-FOR
 
         if len(err_msg) > 0:
-            gui_helper.pop_message(self, err_msg, message_type='error')
+            pyrs.interface.gui_helper.pop_message(self, err_msg, message_type='error')
 
         return
 
@@ -484,12 +484,12 @@ class FitPeaksWindow(QMainWindow):
         It is assumed that al the scan log indexes are consecutive
         :return:
         """
-        scan_log_index_list = gui_helper.parse_integers(str(self.ui.lineEdit_scanNumbers.text()))
+        scan_log_index_list = pyrs.interface.gui_helper.parse_integers(str(self.ui.lineEdit_scanNumbers.text()))
         last_log_index = int(self.ui.label_logIndexMax.text())
         if len(scan_log_index_list) == 0:
-            gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
+            pyrs.interface.gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
         elif len(scan_log_index_list) > 1:
-            gui_helper.pop_message(self, 'There are too many scans for "next"', 'error')
+            pyrs.interface.gui_helper.pop_message(self, 'There are too many scans for "next"', 'error')
         elif scan_log_index_list[0] == last_log_index:
             # last log index: no operation
             return
@@ -501,7 +501,7 @@ class FitPeaksWindow(QMainWindow):
         except RuntimeError as run_err:
             # self.plot_diff_data(next_scan_log - 1, True)
             err_msg = 'Unable to plot next scan {} due to {}'.format(next_scan_log, run_err)
-            gui_helper.pop_message(self, err_msg, message_type='error')
+            pyrs.interface.gui_helper.pop_message(self, err_msg, message_type='error')
         else:
             self.ui.lineEdit_scanNumbers.setText('{}'.format(next_scan_log))
 
@@ -512,11 +512,11 @@ class FitPeaksWindow(QMainWindow):
         It is assumed that al the scan log indexes are consecutive
         :return:
         """
-        scan_log_index_list = gui_helper.parse_integers(str(self.ui.lineEdit_scanNumbers.text()))
+        scan_log_index_list = pyrs.interface.gui_helper.parse_integers(str(self.ui.lineEdit_scanNumbers.text()))
         if len(scan_log_index_list) == 0:
-            gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
+            pyrs.interface.gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
         elif len(scan_log_index_list) > 1:
-            gui_helper.pop_message(self, 'There are too many scans for "next"', 'error')
+            pyrs.interface.gui_helper.pop_message(self, 'There are too many scans for "next"', 'error')
         elif scan_log_index_list[0] == 0:
             # first one: no operation
             return
@@ -528,7 +528,7 @@ class FitPeaksWindow(QMainWindow):
         except RuntimeError as run_err:
             # self.plot_diff_data(next_scan_log + 1, True)
             err_msg = 'Unable to plot previous scan {} due to {}'.format(prev_scan_log_index, run_err)
-            gui_helper.pop_message(self, err_msg, message_type='error')
+            pyrs.interface.gui_helper.pop_message(self, err_msg, message_type='error')
         else:
             self.ui.lineEdit_scanNumbers.setText('{}'.format(prev_scan_log_index))
         return
@@ -558,10 +558,10 @@ class FitPeaksWindow(QMainWindow):
         elif y_axis_name in self._function_param_name_set and x_axis_name == HidraConstants.SUB_RUNS:
             vec_x, vec_y = self.get_function_parameter_data(y_axis_name)
         elif x_axis_name in self._function_param_name_set or y_axis_name in self._function_param_name_set:
-            gui_helper.pop_message(self, 'It has not considered how to plot 2 function parameters '
+            pyrs.interface.gui_helper.pop_message(self, 'It has not considered how to plot 2 function parameters '
                                          '{} and {} against each other'
                                          ''.format(x_axis_name, y_axis_name),
-                                   message_type='error')
+                                                  message_type='error')
             return
         else:
             vec_x = self.get_meta_sample_data(x_axis_name)
@@ -580,11 +580,11 @@ class FitPeaksWindow(QMainWindow):
         """ export the peaks to another file
         :return:
         """
-        out_file_name = gui_helper.browse_file(self,
-                                               caption='Choose a file to save fitted peaks to',
-                                               default_dir=self._core.working_dir,
-                                               file_filter='HDF (*.hdf5)',
-                                               save_file=True)
+        out_file_name = pyrs.interface.gui_helper.browse_file(self,
+                                                              caption='Choose a file to save fitted peaks to',
+                                                              default_dir=self._core.working_dir,
+                                                              file_filter='HDF (*.hdf5)',
+                                                              save_file=True)
 
         self.save_fit_result(out_file_name)
 
@@ -595,18 +595,18 @@ class FitPeaksWindow(QMainWindow):
         save fit result
         :return:
         """
-        file_name = gui_helper.browse_file(self, 'Select file to save fit result', default_dir=self._core.working_dir,
-                                           file_filter='HDF (*.hdf5);;CSV (*.csv)', file_list=False,
-                                           save_file=True)
+        file_name = pyrs.interface.gui_helper.browse_file(self, 'Select file to save fit result', default_dir=self._core.working_dir,
+                                                          file_filter='HDF (*.hdf5);;CSV (*.csv)', file_list=False,
+                                                          save_file=True)
 
         if file_name.lower().endswith('hdf5') or file_name.lower().endswith('hdf') or file_name.lower().endswith('h5'):
             self.save_fit_result(out_file_name=file_name)
         elif file_name.lower().endswith('csv') or file_name.endswith('dat'):
             self.export_fit_result(file_name)
         else:
-            gui_helper.pop_message(self, message='Input file {} has an unsupported posfix.'.format(file_name),
-                                   detailed_message='Supported are hdf5, h5, hdf, csv and dat',
-                                   message_type='error')
+            pyrs.interface.gui_helper.pop_message(self, message='Input file {} has an unsupported posfix.'.format(file_name),
+                                                  detailed_message='Supported are hdf5, h5, hdf, csv and dat',
+                                                  message_type='error')
 
         return
 
@@ -663,7 +663,7 @@ class FitPeaksWindow(QMainWindow):
         except RuntimeError as run_err:
             err_msg = 'Smart peak fitting with order {} failed due to {}' \
                       ''.format(peak_profiles_order, run_err)
-            gui_helper.pop_message(self, err_msg, 'error')
+            pyrs.interface.gui_helper.pop_message(self, err_msg, 'error')
 
         return
 
@@ -674,7 +674,7 @@ class FitPeaksWindow(QMainWindow):
         """
         # get data key
         if self._project_name is None:
-            gui_helper.pop_message(self, 'No data loaded', 'error')
+            pyrs.interface.gui_helper.pop_message(self, 'No data loaded', 'error')
             return
 
         param_names, param_data = self._core.get_peak_fitting_result(self._project_name, return_format=dict,
@@ -696,7 +696,7 @@ class FitPeaksWindow(QMainWindow):
         """
         # get data key
         if self._project_name is None:
-            gui_helper.pop_message(self, 'No data loaded', 'error')
+            pyrs.interface.gui_helper.pop_message(self, 'No data loaded', 'error')
             return
 
         sample_log_names = self._core.reduction_manager.get_sample_logs_names(self._project_name, True)

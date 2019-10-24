@@ -3,9 +3,9 @@ from pyrs.utilities import load_ui
 
 from pyrs.core.pyrscore import PyRsCore
 from pyrs.utilities import calibration_file_io
-from ui.diffdataviews import DetectorView, GeneralDiffDataView
+from pyrs.interface.ui.diffdataviews import DetectorView, GeneralDiffDataView
 import os
-import gui_helper
+import pyrs.interface.gui_helper
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.rs_project_file import HidraConstants
 from pyrs.interface.ui import rstables
@@ -129,7 +129,7 @@ class ManualReductionWindow(QMainWindow):
 
         # Sub run information table
         self.ui.rawDataTable = rstables.RawDataTable(self)
-        gui_helper.promote_widget(self.ui.frame_subRunInfoTable, self.ui.rawDataTable)
+        pyrs.interface.gui_helper.promote_widget(self.ui.frame_subRunInfoTable, self.ui.rawDataTable)
 
         return
 
@@ -137,9 +137,9 @@ class ManualReductionWindow(QMainWindow):
         """ Browse and set up calibration file
         :return:
         """
-        calibration_file = gui_helper.browse_file(self, caption='Choose and set up the calibration file',
-                                                  default_dir=self._core.working_dir, file_filter='hdf5 (*hdf)',
-                                                  file_list=False, save_file=False)
+        calibration_file = pyrs.interface.gui_helper.browse_file(self, caption='Choose and set up the calibration file',
+                                                                 default_dir=self._core.working_dir, file_filter='hdf5 (*hdf)',
+                                                                 file_list=False, save_file=False)
         if calibration_file is None or calibration_file == '':
             # operation canceled
             return
@@ -160,7 +160,7 @@ class ManualReductionWindow(QMainWindow):
         idf_name = str(self.ui.lineEdit_idfName.text()).strip()
         if idf_name == '' or not os.path.exists(idf_name):
             # browse IDF and set
-            idf_name = gui_helper.browse_file(self, 'Instrument definition file', os.getcwd(),
+            idf_name = pyrs.interface.gui_helper.browse_file(self, 'Instrument definition file', os.getcwd(),
                                               'Text (*.txt);;XML (*.xml)', False, False)
             if len(idf_name) == 0:
                 return   # user cancels operation
@@ -179,8 +179,8 @@ class ManualReductionWindow(QMainWindow):
         browse and set output directory
         :return:
         """
-        output_dir = gui_helper.browse_dir(self, caption='Output directory for reduced data',
-                                           default_dir=os.path.expanduser('~'))
+        output_dir = pyrs.interface.gui_helper.browse_dir(self, caption='Output directory for reduced data',
+                                                          default_dir=os.path.expanduser('~'))
         if output_dir != '':
             self.ui.lineEdit_outputDir.setText(output_dir)
             self._core.reduction_manager.set_output_dir(output_dir)
@@ -207,15 +207,15 @@ class ManualReductionWindow(QMainWindow):
         try:
             data_key = self._core.reduction_manager.chop_data()
         except RuntimeError as run_err:
-            gui_helper.pop_message(self, message='Unable to slice data', detailed_message=str(run_err),
-                                   message_type='error')
+            pyrs.interface.gui_helper.pop_message(self, message='Unable to slice data', detailed_message=str(run_err),
+                                                  message_type='error')
             return
 
         try:
             self._core.reduction_manager.reduced_chopped_data(data_key)
         except RuntimeError as run_err:
-            gui_helper.pop_message(self, message='Failed to reduce sliced data', detailed_message=str(run_err),
-                                   message_type='error')
+            pyrs.interface.gui_helper.pop_message(self, message='Failed to reduce sliced data', detailed_message=str(run_err),
+                                                  message_type='error')
             return
 
         # fill the run numbers to plot selection
@@ -242,15 +242,15 @@ class ManualReductionWindow(QMainWindow):
         """ Load project file in HDF5 format
         :return:
         """
-        project_h5_name = gui_helper.browse_file(self, 'HIDRA Project File', os.getcwd(),
-                                                 file_filter='*.hdf5;;*.h5', file_list=False,
-                                                 save_file=False)
+        project_h5_name = pyrs.interface.gui_helper.browse_file(self, 'HIDRA Project File', os.getcwd(),
+                                                                file_filter='*.hdf5;;*.h5', file_list=False,
+                                                                save_file=False)
 
         try:
             self.load_hydra_file(project_h5_name)
         except RuntimeError as run_err:
-            gui_helper.pop_message(self, 'Failed to load project file {}: {}'.format(project_h5_name, run_err),
-                                   None, 'error')
+            pyrs.interface.gui_helper.pop_message(self, 'Failed to load project file {}: {}'.format(project_h5_name, run_err),
+                                                  None, 'error')
         else:
             print('Loaded {} to {}'.format(project_h5_name, self._project_data_id))
         # END-TRY-EXCEPT
@@ -387,9 +387,9 @@ class ManualReductionWindow(QMainWindow):
             sub_run_list = self._core.reduction_manager.get_sub_runs(self._project_data_id)
         else:
             try:
-                sub_run_list = gui_helper.parse_integers(sub_runs_str)
+                sub_run_list = pyrs.interface.gui_helper.parse_integers(sub_runs_str)
             except RuntimeError as run_err:
-                gui_helper.pop_message(self, 'Failed to parse integer list',
+                pyrs.interface.gui_helper.pop_message(self, 'Failed to parse integer list',
                                        '{}'.format(run_err), 'error')
                 return
         # END-IF-ELSE
@@ -426,14 +426,14 @@ class ManualReductionWindow(QMainWindow):
         :return:
         """
         try:
-            ipts_number = gui_helper.parse_integer(str(self.ui.lineEdit_iptsNumber.text()))
-            exp_number = gui_helper.parse_integer(str(self.ui.lineEdit_expNumber.text()))
+            ipts_number = pyrs.interface.gui_helper.parse_integer(str(self.ui.lineEdit_iptsNumber.text()))
+            exp_number = pyrs.interface.gui_helper.parse_integer(str(self.ui.lineEdit_expNumber.text()))
             self._currIPTSNumber = ipts_number
             self._currExpNumber = exp_number
             project_file_name = 'blabla.hdf5'
         except RuntimeError:
-            gui_helper.pop_message(self, 'IPTS number shall be set to an integer.', message_type='error')
-            project_file_name = gui_helper.browse_file(
+            pyrs.interface.gui_helper.pop_message(self, 'IPTS number shall be set to an integer.', message_type='error')
+            project_file_name = pyrs.interface.gui_helper.browse_file(
                 self, 'Hidra Project File', os.getcwd(), 'hdf5 (*.hdf5)', False, False)
 
         self.load_hydra_file(project_file_name)
@@ -476,11 +476,11 @@ class ManualReductionWindow(QMainWindow):
         Load image binary file (as HFIR SPICE binary standard)
         :return:
         """
-        gui_helper.pop_message(self, 'Tell me', 'What do you want from me!', 'error')
+        pyrs.interface.gui_helper.pop_message(self, 'Tell me', 'What do you want from me!', 'error')
 
-        bin_file = gui_helper.browse_file(self, caption='Select a SPICE Image Binary File',
-                                          default_dir=self._core.working_dir,
-                                          file_filter='Binary (*.bin)', file_list=False, save_file=False)
+        bin_file = pyrs.interface.gui_helper.browse_file(self, caption='Select a SPICE Image Binary File',
+                                                         default_dir=self._core.working_dir,
+                                                         file_filter='Binary (*.bin)', file_list=False, save_file=False)
 
         # return if user cancels operation
         if bin_file == '':
@@ -538,9 +538,9 @@ class ManualReductionWindow(QMainWindow):
                                                                   load_detector_counts=True, load_diffraction=True)
         except (RuntimeError, IOError) as load_err:
             self._hydra_workspace = None
-            gui_helper.pop_message(self, 'Loading {} failed'.format(project_file_name),
-                                   detailed_message='{}'.format(load_err),
-                                   message_type='error')
+            pyrs.interface.gui_helper.pop_message(self, 'Loading {} failed'.format(project_file_name),
+                                                  detailed_message='{}'.format(load_err),
+                                                  message_type='error')
             return
 
         # Set value for the loaded project
@@ -613,7 +613,7 @@ class ManualReductionWindow(QMainWindow):
             if two_theta_array is None:
                 raise NotImplementedError('2theta array is not supposed to be None.')
         except RuntimeError as run_err:
-            gui_helper.pop_message(self, 'Unable to retrieve reduced data',
+            pyrs.interface.gui_helper.pop_message(self, 'Unable to retrieve reduced data',
                                    'For sub run {} due to {}'.format(sub_run_number, run_err),
                                    'error')
             return

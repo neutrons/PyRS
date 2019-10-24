@@ -2,7 +2,7 @@
 # In order to test GUI for texture analysis
 from pyrs.core import pyrscore
 import sys
-from pyrs.interface import textureanalysiswindow
+from pyrs.interface.texture_analysis import textureanalysiswindow
 from qtpy.QtWidgets import QApplication
 
 
