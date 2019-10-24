@@ -11,7 +11,7 @@ def test_rw_raw():
     -------
 
     """
-    raw_project_name = os.path.join(os.getcwd(), 'data/HZB_Raw_Project.hdf')
+    raw_project_name = os.path.join(os.getcwd(), 'data/HZB_Raw_Project.h5')
 
     # Read to workspace
     source_project = rs_project_file.HydraProjectFile(raw_project_name,
@@ -23,7 +23,7 @@ def test_rw_raw():
                                         load_reduced_diffraction=False)
 
     # Export
-    target_project = rs_project_file.HydraProjectFile('HZB_HiDra_Test.hdf',
+    target_project = rs_project_file.HydraProjectFile('HZB_HiDra_Test.h5',
                                                       rs_project_file.HydraProjectFileMode.OVERWRITE)
     # Experiment data
     source_workspace.save_experimental_data(target_project, sub_runs=range(1, 41))
