@@ -378,6 +378,22 @@
              </widget>
             </item>
             <item>
+             <widget class="QFrame" name="frame_subRunInfoTable">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="frameShape">
+               <enum>QFrame::StyledPanel</enum>
+              </property>
+              <property name="frameShadow">
+               <enum>QFrame::Raised</enum>
+              </property>
+             </widget>
+            </item>
+            <item>
              <widget class="QLineEdit" name="lineEdit_runNumbersList">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
@@ -408,22 +424,6 @@
              </widget>
             </item>
            </layout>
-          </item>
-          <item>
-           <widget class="QFrame" name="frame_subRunInfoTable">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="frameShape">
-             <enum>QFrame::StyledPanel</enum>
-            </property>
-            <property name="frameShadow">
-             <enum>QFrame::Raised</enum>
-            </property>
-           </widget>
           </item>
          </layout>
         </widget>
@@ -865,7 +865,7 @@
     <property name="title">
      <string>File</string>
     </property>
-    <addaction name="actionCreate_Project_File"/>
+    <addaction name="actionLoad_nexus_file"/>
     <addaction name="actionLoad_Project_File"/>
     <addaction name="actionLoad_Image"/>
     <addaction name="separator"/>
@@ -921,7 +921,7 @@
     <string>Load Project File ...</string>
    </property>
   </action>
-  <action name="actionCreate_Project_File">
+  <action name="actionLoad_nexus_file">
    <property name="text">
     <string>Load NeXus File ...</string>
    </property>

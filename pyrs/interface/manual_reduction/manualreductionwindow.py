@@ -9,7 +9,7 @@ import pyrs.interface.gui_helper
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.rs_project_file import HidraConstants
 from pyrs.interface.ui import rstables
-
+from pyrs.interface.manual_reduction.event_handler import EventHandler
 
 # TODO LIST - #84 - 1. UI: change segments to masks
 # TODO              2. UI: add solid angle input
@@ -85,6 +85,10 @@ class ManualReductionWindow(QMainWindow):
         self._slice_setup_window = None
 
         # menu operation
+
+        # load NeXus
+        self.ui.actionLoad_nexus_file.triggered.connect(self.load_nexus_file)
+
         self.ui.actionLoad_Image.triggered.connect(self.event_load_image)
         # Load project file (*.h5)
         self.ui.actionLoad_Project_File.triggered.connect(self.do_load_project_h5)
@@ -132,6 +136,10 @@ class ManualReductionWindow(QMainWindow):
         pyrs.interface.gui_helper.promote_widget(self.ui.frame_subRunInfoTable, self.ui.rawDataTable)
 
         return
+
+    def load_nexus_file(self):
+        o_handler = EventHandler(parent=self)
+        o_handler.load_nexus_file()
 
     def do_browse_calibration_file(self):
         """ Browse and set up calibration file
