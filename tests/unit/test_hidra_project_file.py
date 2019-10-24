@@ -126,9 +126,8 @@ def next_test_monochromator_setup():
     return
 
 
-# TODO - #89 - Peak fitting result R/W
-def X_test_peak_fitting_result_io():
-    """
+def test_peak_fitting_result_io():
+    """Test peak fitting result's writing and reading
 
     Returns
     -------
@@ -167,14 +166,12 @@ def X_test_peak_fitting_result_io():
     # Import
     verify_project_file = rs_project_file.HydraProjectFile(test_file_name,
                                                            rs_project_file.HydraProjectFileMode.READONLY)
-    assert verify_project_file
 
     # TODO - NEXT Need to make the result to work
-    # peaks = verify_project_file.get_peak_fit_result(peak_tag='test fake')
+    peaks = verify_project_file.get_peak_fit_result(peak_tag='test fake')
 
     # Then compare....
-
-    os.remove(test_file_name)
+    # os.remove(test_file_name)
 
     return
 
