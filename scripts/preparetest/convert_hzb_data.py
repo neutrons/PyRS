@@ -114,7 +114,7 @@ def main():
     :return:
     """
     hzb_summary_name = '/SNS/users/wzz/Projects/HB2B/Quasi_HB2B_Calibration/calibration.xlsx'
-    output_file_name = 'tests/testdata/HZB_Raw_Project.hdf'
+    output_file_name = 'tests/testdata/HZB_Raw_Project.h5'
     exp_data_dir = '/SNS/users/wzz/Projects/HB2B/Quasi_HB2B_Calibration/'  # raw HZB TIFF exp data directory
 
     # parse EXCEL spread sheet
