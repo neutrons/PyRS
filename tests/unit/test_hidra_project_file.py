@@ -168,11 +168,10 @@ def test_peak_fitting_result_io():
                                                            rs_project_file.HydraProjectFileMode.READONLY)
 
     # TODO - NEXT Need to make the result to work
-    # peaks = verify_project_file.get_peak_fit_result(peak_tag='test fake')
+    peaks = verify_project_file.get_peak_fit_result(peak_tag='test fake')
 
     # Then compare....
-
-    os.remove(test_file_name)
+    # os.remove(test_file_name)
 
     return
 

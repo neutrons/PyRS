@@ -40,7 +40,7 @@ class HidraConstants(object):
     PEAKS = 'peaks'  # main entry for fitted peaks' parameters
     PEAK_FIT_CHI2 = 'chi2'
     PEAK_PARAMS = 'parameters'  # peak parameter values
-    PEAK_PARAM_NAMS = 'parameter names'  # peak parameter names
+    PEAK_PARAM_NAMES = 'parameter names'  # peak parameter names
     PEAK_COM = 'C.O.M'  # peak's center of mass
 
 
