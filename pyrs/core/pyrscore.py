@@ -4,9 +4,9 @@ from pyrs.core import instrument_geometry
 from pyrs.utilities import file_util
 from pyrs.core import peak_fit_factory
 from pyrs.utilities.rs_project_file import HidraConstants
-import strain_stress_calculator
-import reduction_manager
-import polefigurecalculator
+from pyrs.core import strain_stress_calculator
+from pyrs.core import reduction_manager
+from pyrs.core import polefigurecalculator
 import os
 import numpy
 from pandas import DataFrame
@@ -15,33 +15,23 @@ from pandas import DataFrame
 SUPPORTED_PEAK_TYPES = ['PseudoVoigt', 'Gaussian', 'Voigt']  # 'Lorentzian': No a profile of HB2B
 
 
-# TODO - #84 TONIGHT - Clean all the methods for new API of workspace and etc.
-# TODO - #94 URGENT - Resolve conflict ASAP
 class PyRsCore(object):
     """
     PyRS core
     """
-
     def __init__(self):
         """
         initialization
         """
-        # declaration of class members
-        self._reduction_manager = reduction_manager.HB2BReductionManager()
+        # Declare services
+        # reduction service
+        self._reduction_service = reduction_manager.HB2BReductionManager()
 
-        # working environment
-        if os.path.exists('tests/testdata/'):
-            self._working_dir = 'tests/testdata/'
-        else:
-            self._working_dir = os.getcwd()
-
-        # These are for peak fitting and etc.
-        # TODO - AFTER #72 - Better to refactor!
-        self._last_optimizer = None  # None or RsPeakFitEngine/MantidPeakFitEngine instance
-
-        # container for optimizers
-        self._peak_fit_controller = None
-        self._optimizer_dict = dict()
+        # peak fitting service
+        # last/current peak fitting controller
+        # None or RsPeakFitEngine/MantidPeakFitEngine instance
+        self._peak_fit_controller = None  # current peak fitting controller,
+        self._peak_fitting_dict = dict()  # dict of peak fitting controller. key = tag, value = peak fit controller
 
         # pole figure calculation
         self._pole_figure_calculator_dict = dict()
@@ -52,12 +42,15 @@ class PyRsCore(object):
         self._curr_ss_session = None
         self._curr_ss_type = None
 
+        # Working environment
+        self._working_dir = None
+
         return
 
     @property
-    def peak_fitting_controller(self):
+    def peak_fitting_service(self):
         """
-        return handler to current peak fitting controller
+        return handler to current/last peak fitting controller
         :return:
         """
         return self._peak_fit_controller
@@ -79,7 +72,11 @@ class PyRsCore(object):
         get working directory
         :return:
         """
-        return self._working_dir
+        w_dir = self._working_dir
+        if w_dir is None:
+            w_dir = os.getcwd()
+
+        return w_dir
 
     @working_dir.setter
     def working_dir(self, user_dir):
@@ -103,66 +100,10 @@ class PyRsCore(object):
         -------
 
         """
-        # Check
-        if project_name not in self._pole_figure_calculator_dict:
-            raise KeyError('{} does not exist. Available: {}'
-                           ''.format(project_name, self._pole_figure_calculator_dict.keys()))
-
         raise NotImplementedError('Project {} of solid angles {} need to be implemented soon!'
                                   ''.format(project_name, solid_angles))
-        # # check input
-        # checkdatatypes.check_string_variable('Data key/ID', data_key)
-        # if detector_id_list is None:
-        #     detector_id_list = self.get_detector_ids(data_key)
-        # else:
-        #     checkdatatypes.check_list('Detector IDs', detector_id_list)
-        #
-        # # get peak intensities from fitting
-        # # peak_intensities = self.get_peak_intensities(data_key, detector_id_list)
-        #
-        # # initialize pole figure
-        # self._last_pole_figure_calculator = polefigurecalculator.PoleFigureCalculator()
-        # self._pole_figure_calculator_dict[data_key] = self._last_pole_figure_calculator
-        #
-        # # set up pole figure logs and get it
-        # log_names = [('2theta', '2theta'),
-        #              ('omega', 'omega'),
-        #              ('chi', 'chi'),
-        #              ('phi', 'phi')]
-        #
-        # for det_id in detector_id_list:
-        #     # get intensity and log value
-        #     log_values = self.data_center.get_scan_index_logs_values((data_key, det_id), log_names)
-        #
-        #     try:
-        #         optimizer = self._get_optimizer((data_key, det_id))
-        #         peak_intensities = optimizer.get_peak_intensities()
-        #     except AttributeError as att:
-        #         raise RuntimeError('Unable to get peak intensities. Check whether peaks have been fit.  FYI: {}'
-        #                            ''.format(att))
-        #     fit_info_dict = optimizer.get_peak_fit_parameters()
-        #
-        #     # add value to pole figure calculate
-        #     self._last_pole_figure_calculator.add_input_data_set(det_id, peak_intensities, fit_info_dict, log_values)
-        # # END-FOR
-        #
-        # # do calculation
-        # self._last_pole_figure_calculator.calculate_pole_figure(detector_id_list)
 
-    @staticmethod
-    def _check_data_key(data_key_set):
-        if isinstance(data_key_set, tuple) and len(data_key_set) == 2:
-            data_key, sub_key = data_key_set
-        elif isinstance(data_key_set, tuple):
-            raise RuntimeError('Wrong!')
-        else:
-            data_key = data_key_set
-            checkdatatypes.check_string_variable('Data reference ID', data_key)
-            sub_key = None
-
-        return data_key, sub_key
-
-    def fit_peaks(self, project_name, sub_run_list, peak_type, background_type, peaks_fitting_setup):
+    def fit_peaks(self, fit_tag, sub_run_list, peak_type, background_type, peaks_fitting_setup):
         """Fit a single peak on each diffraction pattern selected from client-specified
 
         Note:
@@ -170,7 +111,7 @@ class PyRsCore(object):
 
         Parameters
         ----------
-        project_name: str
+        fit_tag: str
             Name of current project for loading, peak fitting and etc.
         sub_run_list: list or None
             sub runs to fit peak. None is the default for fitting all sub runs
@@ -183,17 +124,17 @@ class PyRsCore(object):
         None
         """
         # Check input
-        checkdatatypes.check_string_variable('Project name', project_name, allow_empty=False)
+        checkdatatypes.check_string_variable('Project name', fit_tag, allow_empty=False)
 
         # Get peak fitting controller
-        if project_name in self._optimizer_dict:
+        if fit_tag in self._peak_fitting_dict:
             # if it does exist
-            self._peak_fit_controller = self._optimizer_dict[project_name]
+            self._peak_fit_controller = self._peak_fitting_dict[fit_tag]
             workspace = self._peak_fit_controller.get_hidra_workspace()
         else:
             # create a new one
             # get workspace
-            workspace = self.reduction_manager.get_hidra_workspace(project_name)
+            workspace = self.reduction_service.get_hidra_workspace(fit_tag)
             # create a controller from factory
             self._peak_fit_controller = peak_fit_factory.PeakFitEngineFactory.getInstance('Mantid')(
                 workspace, None)
@@ -203,7 +144,7 @@ class PyRsCore(object):
                 self._peak_fit_controller.set_wavelength(wave_length_dict)
 
             # add to dictionary
-            self._optimizer_dict[project_name] = self._peak_fit_controller
+            self._peak_fitting_dict[fit_tag] = self._peak_fit_controller
         # END-IF-ELSE
 
         # Check Inputs
@@ -246,22 +187,22 @@ class PyRsCore(object):
 
         return
 
-    def _get_optimizer(self, fit_session_name):
+    def _get_peak_fitting_controller(self, fit_tag):
         """
         get optimizer.
         raise exception if optimizer to return is None
-        :param fit_session_name:
+        :param fit_tag:
         :return:
         """
-        if fit_session_name in self._optimizer_dict:
+        if fit_tag in self._peak_fitting_dict:
             # with data key
-            optimizer = self._optimizer_dict[fit_session_name]
+            optimizer = self._peak_fitting_dict[fit_tag]
             print('Return optimizer in dictionary: {0}'.format(optimizer))
         else:
             # data key exist but optimizer does not: could be not been fitted yet
             raise RuntimeError('Unable to find optimizer related to data with reference ID {0} of type {1}.'
                                'Current keys are {2}.'
-                               ''.format(fit_session_name, type(fit_session_name), self._optimizer_dict.keys()))
+                               ''.format(fit_tag, type(fit_tag), self._peak_fitting_dict.keys()))
 
         return optimizer
 
@@ -289,7 +230,7 @@ class PyRsCore(object):
         :param mask: String as mask ID for reduced diffraction data
         :return: tuple: vec_2theta, vec_intensit
         """
-        diff_data_set = self._reduction_manager.get_reduced_diffraction_data(session_name, sub_run, mask)
+        diff_data_set = self._reduction_service.get_reduced_diffraction_data(session_name, sub_run, mask)
 
         return diff_data_set
 
@@ -304,12 +245,11 @@ class PyRsCore(object):
         checkdatatypes.check_string_variable('Project/session name', session_name, allow_empty=False)
 
         # get data key
-        optimizer = self._get_optimizer(session_name)
+        optimizer = self._get_peak_fitting_controller(session_name)
         data_set = optimizer.get_calculated_peak(sub_run)
 
         return data_set
 
-    # TODO - #81 - Code quality
     def get_peak_fitting_result(self, project_name, return_format, effective_parameter):
         """ Get peak fitting result
         Note: this provides a convenient method to retrieve information
@@ -319,9 +259,9 @@ class PyRsCore(object):
         :return:
         """
         # Get peak fitting controller
-        if project_name in self._optimizer_dict:
+        if project_name in self._peak_fitting_dict:
             # if it does exist
-            peak_fitter = self._optimizer_dict[project_name]
+            peak_fitter = self._peak_fitting_dict[project_name]
         else:
             raise RuntimeError('{} not exist'.format(project_name))
 
@@ -386,7 +326,7 @@ class PyRsCore(object):
         :param data_key:
         :return:
         """
-        optimizer = self._get_optimizer(data_key)
+        optimizer = self._get_peak_fitting_controller(data_key)
 
         return optimizer.get_observed_peaks_centers()[:, 0]
 
@@ -396,7 +336,7 @@ class PyRsCore(object):
         :param data_key_pair:
         :return: a dictionary (key = detector ID) of dictionary (key = scan index, value = peak intensity)
         """
-        optimizer = self._get_optimizer(data_key_pair)
+        optimizer = self._get_peak_fitting_controller(data_key_pair)
         peak_intensities = optimizer.get_peak_intensities()
 
         return peak_intensities
@@ -409,26 +349,10 @@ class PyRsCore(object):
         :param log_index:
         :return:
         """
-        checkdatatypes.check_int_variable('Scan log #', log_index, (0, None))
-
-        alpha, beta = self._last_pole_figure_calculator.get_pole_figure_1_pt(detector_id, log_index)
-
-        # log_index_list, pole_figures = self._last_pole_figure_calculator.get_pole_figure_vectors
-        # (detector_id, max_cost=None)
-        # if len(pole_figures) < log_index + 1:
-        #     alpha = 0
-        #     beta = 0
-        # else:
-        #     try:
-        #         alpha = pole_figures[log_index][0]
-        #         beta = pole_figures[log_index][1]
-        #     except ValueError as val_err:
-        #         raise RuntimeError('Given detector {0} scan log index {1} of data IDed as {2} is out of range as '
-        #                            '({3}, {4})  (error = {5})'
-        #                            ''.format(detector_id, log_index, data_key, 0, len(pole_figures), val_err))
-        # # END-IF-ELSE
-
-        return alpha, beta
+        assert self
+        print('[ERROR] Pole figure from {} at detector ID {}/{} is not implemented'
+              ''.format(data_key, detector_id, log_index))
+        return None, None
 
     def get_pole_figure_values(self, data_key, detector_id_list, max_cost):
         """ API method to get the (N, 3) array for pole figures
@@ -486,10 +410,10 @@ class PyRsCore(object):
         :return: HidraWorkspace instance
         """
         # Initialize session
-        self._reduction_manager.init_session(project_name)
+        self._reduction_service.init_session(project_name)
 
         # Load project
-        ws = self._reduction_manager.load_hidra_project(hidra_h5_name, False, load_detector_counts, load_diffraction)
+        ws = self._reduction_service.load_hidra_project(hidra_h5_name, False, load_detector_counts, load_diffraction)
 
         return ws
 
@@ -499,7 +423,7 @@ class PyRsCore(object):
         :param file_name:
         :return:
         """
-        self.reduction_manager.save_reduced_diffraction(project_name, file_name)
+        self.reduction_service.save_reduced_diffraction(project_name, file_name)
 
         return
 
@@ -527,13 +451,14 @@ class PyRsCore(object):
         if project_name is None:
             optimizer = self._peak_fit_controller
         else:
-            optimizer = self._optimizer_dict[project_name]
+            optimizer = self._peak_fitting_dict[project_name]
 
         optimizer.export_fit_result(hidra_file_name, peak_tag)
 
         return
 
-    def save_pole_figure(self, data_key, detectors, file_name, file_type):
+    @staticmethod
+    def save_pole_figure(data_key, detectors, file_name, file_type):
         """
         save pole figure/export pole figure
         :param data_key:
@@ -542,15 +467,8 @@ class PyRsCore(object):
         :param file_type:
         :return:
         """
-        checkdatatypes.check_string_variable('Data key', data_key)
-
-        if data_key in self._pole_figure_calculator_dict:
-            self._pole_figure_calculator_dict[data_key].export_pole_figure(detectors, file_name, file_type)
-        else:
-            raise RuntimeError('Data key {0} is not calculated for pole figure.  Current data keys contain {1}'
-                               ''.format(data_key, self._pole_figure_calculator_dict.keys()))
-
-        return
+        raise NotImplementedError('{}/{}/{}/{} need to be implemented'
+                                  ''.format(data_key, detectors, file_name, file_type))
 
     def new_strain_stress_session(self, session_name, is_plane_stress, is_plane_strain):
         """ Create a new strain/stress session by initializing a new StrainStressCalculator instance
@@ -583,7 +501,7 @@ class PyRsCore(object):
         """
         # Mask file
         if mask_file_name:
-            mask_info = self._reduction_manager.load_mask_file(mask_file_name)
+            mask_info = self._reduction_service.load_mask_file(mask_file_name)
             mask_id = mask_info[2]
             print('L650 Mask ID = {}'.format(mask_id))
         else:
@@ -609,19 +527,19 @@ class PyRsCore(object):
                                ''.format(geometry_calibration, type(geometry_calibration)))
         # END-IF-ELSE
 
-        self._reduction_manager.reduce_diffraction_data(session_name, apply_calibration,
+        self._reduction_service.reduce_diffraction_data(session_name, apply_calibration,
                                                         two_theta_step, pyrs_engine,
                                                         mask_id, sub_run_list)
 
         return
 
     @property
-    def reduction_manager(self):
+    def reduction_service(self):
         """
         get the reference to reduction engine
         :return:
         """
-        return self._reduction_manager
+        return self._reduction_service
 
     def reset_strain_stress(self, is_plane_strain, is_plane_stress):
         """ reset the strain and stress calculation due to change of type
@@ -663,7 +581,7 @@ class PyRsCore(object):
         :return:
         """
         # Check
-        optimizer = self._get_optimizer(data_key)
+        optimizer = self._get_peak_fitting_controller(data_key)
 
         # get the workspace name
         try:

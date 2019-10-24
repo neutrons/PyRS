@@ -110,7 +110,7 @@ class TestReduction(object):
                                                            0.005, True, None)
 
         # get handler on reduciton engine
-        reduction_engine = self._reduction_controller.reduction_manager.get_last_reduction_engine()
+        reduction_engine = self._reduction_controller.reduction_service.get_last_reduction_engine()
         # pixels
         pixel_pos_array = reduction_engine.get_pixel_positions(is_matrix=False)
         pixel_2theta_array = reduction_engine.instrument.get_pixels_2theta(dimension=1)
@@ -153,7 +153,7 @@ class TestReduction(object):
                                                                    mask=None)
 
         # Get the detectors' position
-        reduction_engine = self._reduction_controller.reduction_manager.get_last_reduction_engine()
+        reduction_engine = self._reduction_controller.reduction_service.get_last_reduction_engine()
         pixel_pos_array = reduction_engine.get_pixel_positions(is_matrix=False)
 
         # Test a subset of pixels' positions
@@ -206,7 +206,7 @@ class TestReduction(object):
         """
         # Test with mantid engine
         idf_xml = 'data/XRAY_Definition_20190521_1342.xml'
-        self._reduction_controller.reduction_manager.set_mantid_idf(idf_xml)
+        self._reduction_controller.reduction_service.set_mantid_idf(idf_xml)
         if False:
             test_shift = False
         else:
@@ -216,7 +216,7 @@ class TestReduction(object):
                                                            pyrs_engine=False,
                                                            mask_file_name=None,
                                                            geometry_calibration=test_shift)
-        mantid_engine = self._reduction_controller.reduction_manager.get_last_reduction_engine()
+        mantid_engine = self._reduction_controller.reduction_service.get_last_reduction_engine()
         print('[TEST] Engine name: {}'.format(mantid_engine))
         mantid_pixel_positions = mantid_engine.get_pixel_positions(is_matrix=False, corner_center=True)
 
@@ -226,7 +226,7 @@ class TestReduction(object):
                                                            pyrs_engine=True,
                                                            mask_file_name=None,
                                                            geometry_calibration=test_shift)
-        reduction_engine = self._reduction_controller.reduction_manager.get_last_reduction_engine()
+        reduction_engine = self._reduction_controller.reduction_service.get_last_reduction_engine()
         # pixels
         pyrs_pixel_positions = reduction_engine.get_pixel_positions(is_matrix=False, corner_center=True)
 
