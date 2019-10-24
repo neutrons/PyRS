@@ -517,6 +517,49 @@ class HydraProjectFile(object):
     def set_instrument_calibration(self):
         return
 
+    def get_peak_tags(self):
+        """Get all the tags of peaks with parameters stored in HiDRA project
+
+        Returns
+        -------
+        list
+            list of string for all the peak tags
+
+        """
+        # Get main group
+        peak_main_group = self._project_h5[HidraConstants.PEAKS]
+
+        return peak_main_group.keys()
+
+    def get_peak_parameters(self, peak_tag):
+        """Get the parameters related to a peak
+
+        The parameters including
+        (1) peak profile (2) sub runs (3) chi2 (4) parameter names (5) parameter values
+
+        Returns
+        -------
+        str, ndarray, ndarray, ndarray, ndarray
+            peak profile, sub runs corresponding to parameter chi2 and values,
+              chi2 for each sub run, parameter names, parameter values
+        """
+        # Get main group
+        peak_main_group = self._project_h5[HidraConstants.PEAKS]
+
+        # Get peak entry
+        if peak_tag not in peak_main_group.keys():
+            raise RuntimeError('Peak tag {} cannot be found'.format(peak_tag))
+        peak_entry = peak_main_group[peak_tag]
+
+        # Get all the attribute and data
+        profile = peak_entry.attrs[HidraConstants.PEAK_PROFILE]
+        sub_run_array = peak_entry[HidraConstants.SUB_RUNS]
+        chi2_array = peak_entry[HidraConstants.PEAK_FIT_CHI2]
+        param_names = peak_entry[HidraConstants.PEAK_PARAM_NAMES]
+        param_values = peak_entry[HidraConstants.PEAK_PARAMS]
+
+        return profile, sub_run_array, chi2_array, param_names, param_values
+
     def set_peak_fit_result(self, peak_tag, peak_profile, peak_param_names, sub_run_vec, chi2_vec, peak_params):
         """Set the peak fitting results to project file.
 

@@ -167,11 +167,31 @@ def test_peak_fitting_result_io():
     verify_project_file = rs_project_file.HydraProjectFile(test_file_name,
                                                            rs_project_file.HydraProjectFileMode.READONLY)
 
-    # TODO - NEXT Need to make the result to work
-    peaks = verify_project_file.get_peak_fit_result(peak_tag='test fake')
+    # get the tags
+    peak_tags = verify_project_file.get_peak_tags()
+    assert 'test fake' in peak_tags
+    assert len(peak_tags) == 1
 
-    # Then compare....
-    # os.remove(test_file_name)
+    # get the parameter of certain
+    peak_info = verify_project_file.get_peak_parameters('test fake')
+
+    # peak profile
+    assert peak_info[0] == 'PseudoVoigt'
+
+    # sub runs
+    assert np.allclose(peak_info[1], np.array([1, 2, 3]))
+
+    # chi2
+    assert np.allclose(peak_info[2], np.array([0.323, 0.423, 0.523]), 1.E-5)
+
+    # parameter names
+    assert list(peak_info[3]) == peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS
+
+    # parameter values
+    assert np.allclose(peak_info[4], test_params_array, 1E-12)
+
+    # Clean
+    os.remove(test_file_name)
 
     return
 
