@@ -12,7 +12,7 @@ def test_main():
     rs_core = pyrscore.PyRsCore()
 
     # pre-requisite is that the data file exists
-    test_data = 'data/Hydra_16-1_cor_log.hdf5'
+    test_data = 'data/Hidra_16-1_cor_log.hdf5'
     assert os.path.exists(test_data), 'File {} does not exist'.format(test_data)
 
     # load data
