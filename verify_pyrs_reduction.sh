@@ -1,8 +1,7 @@
-```#! /usr/bin/env bash
+#! /usr/bin/env bash
 set -epu
 
 # Running the setup.py scripts
-python setup.py pyuic
 python setup.py build
 
 # Setting script-wide scoped variables.
@@ -48,7 +47,7 @@ if [[ $# -ge 1 ]]; then
 else
     func_help_message
     exit 1
-fi 
+fi
 
 echo "User option: $1"
 
@@ -96,7 +95,7 @@ case "${CMD}" in
         PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/reduce_HB2B.py $TestArgs2
         TestArgs="--roi=tests/testdata/masks/Chi_0_Mask.xml --output=Chi_0.hdf5 --operation=reverse --2theta=35."
         TestArgs1=" ./tests/testdata/LaB6_10kev_35deg-00004_Rotated.tif ./tests/temp/ --mask=tests/testdata/masks/Chi_0.hdf5 --viewraw=1"
-    
+
         # Mantid reduction engine
         TestArgs2=" ./tests/testdata/LaB6_10kev_35deg-00004_Rotated.tif ./tests/temp/ --mask=tests/testdata/masks/Chi_0.hdf5 --viewraw=0 --instrument=tests/testdata/XRay_Definition_2K.xml --2theta=-35."
         # TestArgs2=" ./tests/testdata/LaB6_10kev_35deg-00004_Rotated.tif ./tests/temp/ --viewraw=0 --instrument=tests/testdata/XRay_Definition_2K.xml --2theta=-35."
@@ -108,8 +107,8 @@ case "${CMD}" in
         # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 11
         # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 12
         # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH ./build/scripts-2.7/compare_reduction_engines_test.py 13
-    
-    
+
+
         echo "Testing Reduction with ROI around solid angle +35 degree"
         TestArgsMantid=" ./tests/testdata/LaB6_10kev_35deg-00004_Rotated.h5 ./tests/temp/ --viewraw=1  --instrument=tests/testdata/XRay_Definition_2K.xml --2theta=35."
         TestArgsPyRS=" ./tests/testdata/LaB6_10kev_35deg-00004_Rotated.h5 ./tests/temp/ --viewraw=1  --instrument=tests/testdata/XRay_Definition_2K.txt --2theta=35."
@@ -126,4 +125,3 @@ case "${CMD}" in
       # PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./build/scripts-2.7/reduction_study.py tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5 35. tests/testdata/masks/Chi_20.hdf5 pyrs
       PYTHONPATH=build/lib:build/lib.linux-x86_64-2.7:$PYTHONPATH python ./build/scripts-2.7/reduction_study.py tests/testdata/LaB6_10kev_35deg-00004_Rotated_TIF.h5 35. None pyrs;;
 esac
-```
