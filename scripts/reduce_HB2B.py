@@ -1,5 +1,4 @@
 #!/usr/bin/python
-import sys
 import os
 from pyrs.core import reduction_manager
 from pyrs.utilities import checkdatatypes
@@ -179,8 +178,6 @@ class ReductionApp(object):
         # Write & close
         self._hydra_ws.save_reduced_diffraction_data(out_file)
 
-        return
-
 ######################################################################
 # Command line code
 ######################################################################
@@ -199,10 +196,10 @@ def _main(options):
     # Process data
     if options.viewraw:
         # interpret None to be first subrun
-        if sub_run_list is None:
-            sub_run_list = [0]
+        if not options.subruns:
+            options.subruns = [0]
         # plot raw detector counts without reduction but possibly with masking
-        reducer.plot_detector_counts(sub_run=sub_run_list[0], mask=options.mask)
+        reducer.plot_detector_counts(sub_run=options.subruns[0], mask=options.mask)
     else:
         # reduce
         reducer.reduce_data(instrument_file=options.instrument,
@@ -211,14 +208,14 @@ def _main(options):
                             sub_runs=options.subruns)
 
         # save
-        out_file_name = os.path.join(options.outputdir, os.path.basename(project_data_file))
+        out_file_name = os.path.join(options.outputdir, os.path.basename(options.nexus))
         reducer.save_diffraction_data(out_file_name)
 
 
 if __name__ == '__main__':
     from argparse import ArgumentParser
     parser = ArgumentParser(description='Script for auto-reducing HB2B')
-    parser.add_argument('nexus', help='Input NeXus file name')
+    parser.add_argument('nexus', help='Input NeXus file name')  # TODO this is actually a project file, is it only in-place?
     parser.add_argument('outputdir', help='Target directory')
     parser.add_argument('--instrument', nargs='?', default=None,
                         help='instrument configuration file overriding embedded (arm, pixel number and size)')
@@ -230,9 +227,9 @@ if __name__ == '__main__':
                         help='reduction engine (default=%(default)s)')
     parser.add_argument('--viewraw', action='store_true',
                         help='viewing raw data with an option to mask (NO reduction)')
-    parser.add_argument('--subrun', default=list(), nargs='*', type=int,
+    parser.add_argument('--subruns', default=list(), nargs='*', type=int,
                         help='something about subruns (default is all runs)') # TODO
-    # TODO question - there used to be an option 2theta=None which wasn't connected to anything
+
     options = parser.parse_args()
 
     _main(options)
