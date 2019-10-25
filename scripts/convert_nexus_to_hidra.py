@@ -1,12 +1,10 @@
 #!/usr/bin/python
-import sys
 import os
-import argparse
 import numpy
 from pyrs.utilities import rs_project_file
 from pyrs.core import workspaces
 from pyrs.utilities import checkdatatypes
-from mantid.simpleapi import GenerateEventsFilter, LoadEventNexus, FilterEvents
+from mantid.simpleapi import mtd, GenerateEventsFilter, LoadEventNexus, FilterEvents
 
 """
 Convert HB2B NeXus file to Hidra project file for further reduction
@@ -56,22 +54,21 @@ class NeXusConvertingApp(object):
         sub_run_index = 0
         for sub_run in sorted(self._sub_run_workspace_dict.keys()):
             # counts
-            event_ws_i = self._sub_run_workspace_dict[sub_run]
+            event_ws_i = mtd[str(self._sub_run_workspace_dict[sub_run])]
             counts_i = event_ws_i.extractY()
             self._hydra_workspace.set_raw_counts(sub_run, counts_i)
 
             # sample logs
-            for log_property in event_ws_i.getProperties():
-                name = log_property.name
-                log_value = self._calculate_log_mean_value(log_property)
+            runObj = event_ws_i.run()
+            for log_name in runObj.keys():
+                log_value, log_dtype = self._get_log_value_and_type(runObj, log_name)
 
                 # if the entry for this log is not created, create it!
-                if name not in sample_log_dict:
-                    sample_log_dict[name] = numpy.ndarray(shape=(log_array_size, ),
-                                                          dtype=get_type(log_value))
-                # END-OF
+                if log_name not in sample_log_dict:
+                    sample_log_dict[log_name] = numpy.ndarray(shape=(log_array_size, ),
+                                                              dtype=log_dtype)
 
-                sample_log_dict[name][sub_run_index] = log_value
+                sample_log_dict[log_name][sub_run_index] = log_value
             # END-FOR
 
             sub_run_index += 1
@@ -80,8 +77,6 @@ class NeXusConvertingApp(object):
         # Add the sample logs
         for log_name in sample_log_dict:
             self._hydra_workspace.set_sample_log(log_name, sample_log_dict[log_name])
-
-        return
 
     def save(self, output_dir):
         """
@@ -98,26 +93,25 @@ class NeXusConvertingApp(object):
         hydra_file = rs_project_file.HydraProjectFile(out_file_name, rs_project_file.HydraProjectFileMode.OVERWRITE)
         self._hydra_workspace.save_experimental_data(hydra_file)
 
-        return
-
     @staticmethod
-    def _calculate_log_mean_value(log_property):
+    def _get_log_value_and_type(runObj, name):
         """
         Calculate the mean value of the sample log "within" the sub run time range
         :param log_property: Mantid run property
         :return:
         """
-        # Single value
 
-        # Time series property
-
-        sample_log_times = log_property.times
-        sample_log_value = log_property.value
-
-        # TODO - FIXME - #84+ - Make this correct!
-        log_mean_value = sample_log_value.mean()
-
-        return log_mean_value
+        property = runObj.getProperty(name)
+        log_dtype = property.dtype()
+        try:
+            # gets time average (if TimeSeriesProperty) or single value
+            return runObj.getPropertyAsSingleValue(name), log_dtype
+        except ValueError:
+            # if the value is a string, just return it
+            if isinstance(property.value, str):
+                return property.value, log_dtype
+            else:
+                raise RuntimeError('Cannot convert "{}" to a single value'.format(name))
 
     def _split_sub_runs(self):
         """
@@ -164,64 +158,18 @@ class NeXusConvertingApp(object):
         return sub_run_ws_dict
 
 
-def parse_inputs(argv):
-    """
-    Parse inputs
-    :param argv:
-    :return: dictionary or None
-    """
-    # Define parser
-    parser = argparse.ArgumentParser(description='Convert HB2B data to Hidra Project File')
-    parser.add_argument('nexus', metavar='-n', type=str, help='name of nexus file')
-    parser.add_argument('output', metavar='-o', type=str, help='Path to output directory')
-
-    # Parse
-    args = parser.parse_args()
-
-    print('Args: {}'.format(args))
-
-    return args
-
-
-def get_type(value):
-    """
-    Get the numpy dtype for the input value if it is not a numpy
-    :param value: any value
-    :return: string for numpy data type
-    """
-    if type(value) == int:
-        dtype = 'int'
-    elif type(value) == str:
-        dtype = 'object'
-    else:
-        dtype = 'float'
-
-    return dtype
-
-
-def main(argv):
-    """
-    Main
-    :param argv:
-    :return:
-    """
-    input_dict = parse_inputs(argv)
-    if input_dict is None:
-        sys.exit(-1)
-
-    try:
-        nexus_file = input_dict['nexus']
-        output_dir = input_dict['output']
-
-        converter = NeXusConvertingApp(nexus_file)
-        converter.convert()
-        converter.save(output_dir)
-
-    except KeyError as key_err:
-        print('Unable to convert NeXus to Hidra project due to {}'.format(key_err))
-
-    return
+def main(options):
+    converter = NeXusConvertingApp(options.nexus)
+    converter.convert()
+    converter.save(options.outputdir)
 
 
 if __name__ == '__main__':
-    main(sys.argv)
+    from argparse import ArgumentParser
+    parser = ArgumentParser(description='Convert HB2B data to Hidra Project File')
+    parser.add_argument('nexus', help='name of nexus file')
+    parser.add_argument('outputdir', help='Path to output directory')
+
+    options = parser.parse_args()
+
+    main(options)
