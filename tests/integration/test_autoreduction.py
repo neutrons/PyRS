@@ -1,5 +1,6 @@
 import os
 from pyrs.core.nexus_conversion import NeXusConvertingApp
+from pyrs.core.powder_pattern import ReductionApp
 import pytest
 
 nexusfile = 'tests/testdata/LaB6_10kev_35deg-00004_Rotated.h5'
@@ -25,12 +26,16 @@ def test_nexus_to_project():
     # TODO add more tests
 
     # extract the powder patterns and add them to the project file
-    '''
     reducer = ReductionApp(use_mantid_engine=False)
-    reducer.load_project_file(nexusfile)
+    # TODO should add versions for testing arguments:
+    # instrument_file, calibration_file, mask, sub_runs
+    reducer.load_project_file(projectfile)
     reducer.reduce_data()
-    reducer.save_diffraction_data('/tmp/dummyprojectfile.h5')
-    '''
+    reducer.save_diffraction_data(projectfile)
+
+    # tests for the created file
+    assert os.path.exists(projectfile)
+    # TODO add more tests
 
 if __name__ == '__main__':
     pytest.main([__file__])
