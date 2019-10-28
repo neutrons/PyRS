@@ -77,19 +77,21 @@ class NeXusConvertingApp(object):
         for log_name in sample_log_dict:
             self._hydra_workspace.set_sample_log(log_name, sample_log_dict[log_name])
 
-    def save(self, output_dir):
+    def save(self, projectfile):
         """
         Save workspace to Hidra project file
-        :param output_dir:
-        :return:
         """
-        checkdatatypes.check_file_name(output_dir, True, True, True, 'Output directory for converted Hidra project'
-                                                                     'file')
+        projectfile = os.path.abspath(projectfile)  # confirm absolute path to make logs more readable
+        checkdatatypes.check_file_name(projectfile, check_exists=False, check_writable=True, is_dir=False,
+                                       description='Converted Hidra project file')
 
-        # Save
-        out_file_name = os.path.join(output_dir, os.path.basename(self._nexus_name).split('.')[0] +
-                                     '.hdf')
-        hydra_file = rs_project_file.HydraProjectFile(out_file_name, rs_project_file.HydraProjectFileMode.OVERWRITE)
+        # remove file if it already exists
+        if os.path.exists(projectfile):
+            print('Projectfile "{}" exists, removing previous version'.format(projectfile))
+            os.remove(projectfile)
+
+        # save
+        hydra_file = rs_project_file.HydraProjectFile(projectfile, rs_project_file.HydraProjectFileMode.OVERWRITE)
         self._hydra_workspace.save_experimental_data(hydra_file)
 
     @staticmethod

@@ -74,8 +74,6 @@ def check_file_name(file_name, check_exist=True, check_writable=False, is_dir=Fa
     assert os.path.isdir(file_name) == is_dir, 'Path {0} shall {1} be a directory and it is {2}.' \
                                                ''.format(file_name, os.path.isdir(file_name), is_dir)
 
-    return
-
 
 def check_int_variable(var_name, variable, value_range):
     """
@@ -262,7 +260,7 @@ def check_string_variable(var_name, variable, allowed_values=None, allow_empty=T
         if variable not in allowed_values:
             if len(variable) == 0:
                 err_msg = '{} (as an EMPTY STRING) is not found in allowed value list {}' \
-                          ''.format(var_name, variable, allowed_values)
+                          ''.format(var_name, allowed_values)
             else:
                 err_msg = '{} {} is not found in allowed value list {}' \
                           ''.format(var_name, variable, allowed_values)

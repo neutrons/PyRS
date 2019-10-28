@@ -1,11 +1,17 @@
 #!/usr/bin/python
+import os
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 
 
 def main(options):
     converter = NeXusConvertingApp(options.nexus)
     converter.convert()
-    converter.save(options.outputdir)
+
+    # generate output filename from input nexus file name
+    projectfile = os.path.basename(options.nexus).split('.')[0] + '.h5'
+    projectfile = os.path.join(options.outputdir, projectfile)
+
+    converter.save(projectfile)
 
 
 if __name__ == '__main__':
