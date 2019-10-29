@@ -7,7 +7,7 @@ from pyrs.core import instrument_geometry
 from matplotlib import pyplot as plt
 import pytest
 
-HEADLESS = 'DISPLAY' not in os.environ or not os.environ['DISPLAY']
+ON_TRAVIS = os.environ.get('TRAVIS', False)
 
 """
 Instrument geometry test result (X-ray): 5 corners and quick!  NO SHIFT
@@ -131,7 +131,7 @@ class TestReduction(object):
         print("*************************\nNo Shift Reduction Passed (Golden Xray Data)\n"
               "*************************")
 
-        if not HEADLESS:
+        if not ON_TRAVIS:
             plt.plot(vec_x, vec_y)
 
     def test_reduce_data_geometry_shift(self):
@@ -166,7 +166,7 @@ class TestReduction(object):
               "***************************")
 
         # Plot
-        if not HEADLESS:
+        if not ON_TRAVIS:
             vec_2theta = data_set[0]
             vec_intensity = data_set[1]
             plt.plot(vec_2theta, vec_intensity, color='red')
@@ -281,7 +281,7 @@ def test_main():
     # Engine comparison
     tester.test_reduction_engines_consistent()
 
-    if not HEADLESS:
+    if not ON_TRAVIS:
         plt.show()
 
 

@@ -85,7 +85,7 @@ script:
   - xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum mantidworkbench -q -x workbenchshutdown.py
 
   # run PyRS tests
-  - pytest tests --disable-pytest-warnings -vv -r w
+  - xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum pytest --mpl tests --disable-pytest-warnings -vv -r w
   #- xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum PyRS --version
 
 #deploy:
