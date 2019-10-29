@@ -76,13 +76,17 @@ class NeXusConvertingApp(object):
         # Add the sample logs
         for log_name in sample_log_dict:
             self._hydra_workspace.set_sample_log(log_name, sample_log_dict[log_name])
+        # add sub runs as a special sample log
+        if rs_project_file.HidraConstants.SUB_RUNS not in sample_log_dict:
+            sub_runs = numpy.array(sorted(self._sub_run_workspace_dict.keys()))
+            self._hydra_workspace.set_sample_log(rs_project_file.HidraConstants.SUB_RUNS, sub_runs)
 
     def save(self, projectfile):
         """
         Save workspace to Hidra project file
         """
         projectfile = os.path.abspath(projectfile)  # confirm absolute path to make logs more readable
-        checkdatatypes.check_file_name(projectfile, check_exists=False, check_writable=True, is_dir=False,
+        checkdatatypes.check_file_name(projectfile, check_exist=False, check_writable=True, is_dir=False,
                                        description='Converted Hidra project file')
 
         # remove file if it already exists

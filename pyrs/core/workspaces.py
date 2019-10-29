@@ -543,17 +543,9 @@ class HidraWorkspace(object):
         # Sample logs
         for log_name in self._sample_log_dict.keys():
             # Convert dict of value to numpy array
-            log_val_dict = self._sample_log_dict[log_name]
-            # get sub run number
-            if sub_runs is None:
-                sub_runs = log_val_dict.keys()
-            sub_runs = sorted(sub_runs)
-            num_sub_runs = len(sub_runs)
-            log_array = numpy.ndarray(shape=(num_sub_runs, ), dtype=type(log_val_dict.values()[0]))
-            for i_sub in range(num_sub_runs):
-                log_array[i_sub] = log_val_dict[sub_runs[i_sub]]
+            log_val_array = self._sample_log_dict[log_name]
             # add to project file
-            hidra_project.add_experiment_log(log_name, log_array)
+            hidra_project.add_experiment_log(log_name, log_val_array)
         # END-FOR
 
         # Add sub run to experiment log
