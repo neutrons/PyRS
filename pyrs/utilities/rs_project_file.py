@@ -220,6 +220,9 @@ class HydraProjectFile(object):
                 log_name, data=log_value_array)
         except RuntimeError as run_err:
             raise RuntimeError('Unable to add log {} due to {}'.format(log_name, run_err))
+        except TypeError as type_err:
+            raise RuntimeError('Failed to add log {} with value {} of type {}: {}'
+                               ''.format(log_name, log_value_array, type(log_value_array), type_err))
 
         return
 
