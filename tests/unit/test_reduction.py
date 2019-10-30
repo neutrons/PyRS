@@ -4,10 +4,7 @@ import os
 import numpy
 from pyrs.core import pyrscore
 from pyrs.core import instrument_geometry
-from matplotlib import pyplot as plt
 import pytest
-
-ON_TRAVIS = os.environ.get('TRAVIS', False)
 
 """
 Instrument geometry test result (X-ray): 5 corners and quick!  NO SHIFT
@@ -131,9 +128,6 @@ class TestReduction(object):
         print("*************************\nNo Shift Reduction Passed (Golden Xray Data)\n"
               "*************************")
 
-        if not ON_TRAVIS:
-            plt.plot(vec_x, vec_y)
-
     def test_reduce_data_geometry_shift(self):
         """ Test reduction (PyRS engine) classes and methods with calibration/instrument shift
         :return:
@@ -164,12 +158,6 @@ class TestReduction(object):
         # Visual report
         print("***************************\nShifted Geometry Reduction Passed (Golden Xray Data)\n"
               "***************************")
-
-        # Plot
-        if not ON_TRAVIS:
-            vec_2theta = data_set[0]
-            vec_intensity = data_set[1]
-            plt.plot(vec_2theta, vec_intensity, color='red')
 
     def test_reduce_data_calibration_more_format(self):
         """
@@ -280,9 +268,6 @@ def test_main():
 
     # Engine comparison
     tester.test_reduction_engines_consistent()
-
-    if not ON_TRAVIS:
-        plt.show()
 
 
 if __name__ == '__main__':
