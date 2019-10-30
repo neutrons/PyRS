@@ -359,10 +359,18 @@ class HidraWorkspace(object):
         return vec_2theta, vec_intensity
 
     def get_sample_log_values(self, sample_log_name):
-        """
-        Get ONE INDIVIDUAL sample log's values as a vector
-        :param sample_log_name:
-        :return: vector of integer or float in the same order as sub run number
+        """Get ONE INDIVIDUAL sample log's values as a vector
+
+        Parameters
+        ----------
+        sample_log_name : str
+            sample_log_name
+
+        Returns
+        -------
+        ndarray
+            sample log values ordered by sub run numbers
+
         """
         if sample_log_name == rs_project_file.HidraConstants.SUB_RUNS and \
                 sample_log_name not in self._sample_log_dict.keys():
@@ -371,7 +379,14 @@ class HidraWorkspace(object):
         checkdatatypes.check_string_variable('Sample log name', sample_log_name,
                                              self._sample_log_dict.keys())
 
-        return self._sample_log_dict[sample_log_name].copy()
+        # Convert dictionary to arrays
+        tuple_list = zip(self._sample_log_dict[sample_log_name].keys(),
+                         self._sample_log_dict[sample_log_name].values())
+        tuple_list.sort()
+        # prototype: a, b = zip(*listt)
+        log_value_array = numpy.array(zip(*tuple_list)[1])
+
+        return log_value_array
 
     def get_spectrum_index(self, sub_run):
         """
@@ -523,7 +538,7 @@ class HidraWorkspace(object):
         return
 
     def save_experimental_data(self, hidra_project, sub_runs=None):
-        """Save experimental data including raw counts and sample logs
+        """Save experimental data including raw counts and sample logs to HiDRA project file
 
         Parameters
         ----------
@@ -574,18 +589,6 @@ class HidraWorkspace(object):
         """
         return self._sample_log_dict.keys()
 
-    def sample_log_values(self, sample_log_name):
-        """
-        get sample log value
-        :param sample_log_name:
-        :return:
-        """
-        checkdatatypes.check_string_variable('Sample log name', sample_log_name)
-        if sample_log_name not in self._sample_log_dict:
-            raise RuntimeError('Sample log {0} cannot be found.'.format(sample_log_name))
-
-        return self._sample_log_dict[sample_log_name]
-
     @property
     def sample_logs_for_plot(self):
         """ Get names of sample logs that can be plotted, i.e., the log values are integer or float
@@ -593,8 +596,9 @@ class HidraWorkspace(object):
         """
         sample_logs = list()
         for sample_log_name in self._sample_log_dict.keys():
-            sample_log_value = self._sample_log_dict[sample_log_name]
-            if sample_log_value.dtype != object:
+            sample_log_value = self._sample_log_dict[sample_log_name].values()[0]
+            # only int and float can be plot
+            if isinstance(sample_log_value, int) or isinstance(sample_log_value, float):
                 sample_logs.append(sample_log_name)
 
         return sorted(sample_logs)

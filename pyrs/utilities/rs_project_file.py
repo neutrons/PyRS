@@ -380,7 +380,8 @@ class HydraProjectFile(object):
     def get_logs(self):
         """Get sample logs
 
-        Retrieve all the (sample) logs from Hidra project file
+        Retrieve all the (sample) logs from Hidra project file.
+        Raw information retrieved from rs project file is numpy arrays
 
         Returns
         -------
@@ -416,7 +417,18 @@ class HydraProjectFile(object):
         return logs_value_set
 
     def get_log_value(self, log_name):
-        assert self._project_h5 is not None, 'blabla'
+        """Get a log's value
+
+        Parameters
+        ----------
+        log_name
+
+        Returns
+        -------
+        ndarray or single value
+
+        """
+        assert self._project_h5 is not None, 'Project HDF5 is not loaded yet'
 
         log_value = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS][log_name]
 
