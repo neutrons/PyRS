@@ -114,6 +114,8 @@ class NeXusConvertingApp(object):
             # if the value is a string, just return it
             if isinstance(log_property.value, str):
                 return log_property.value, log_dtype
+            elif isinstance(log_property.value, list):
+                return log_property.value[0], log_dtype
             else:
                 raise RuntimeError('Cannot convert "{}" to a single value'.format(name))
 
