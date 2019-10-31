@@ -377,7 +377,7 @@ class HydraProjectFile(object):
 
         return instrument_setup
 
-    def get_logs(self):
+    def get_logs_as_dict(self):
         """Get sample logs
 
         Retrieve all the (sample) logs from Hidra project file.
