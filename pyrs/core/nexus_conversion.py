@@ -6,7 +6,7 @@ from mantid.simpleapi import mtd, GenerateEventsFilter, LoadEventNexus, FilterEv
 import numpy
 import os
 from pyrs.core import workspaces
-#from pyrs.core import instrument_geometry
+from pyrs.core import instrument_geometry
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities import rs_project_file
 
@@ -82,7 +82,7 @@ class NeXusConvertingApp(object):
 
         # Add the sample logs
         for log_name in sample_log_dict:
-            self._hydra_workspace.set_sample_log(log_name, sub_runs, sample_log_dict[log_name])
+             self._hydra_workspace.set_sample_log(log_name, sub_runs, sample_log_dict[log_name])
 
         return
 
@@ -101,6 +101,10 @@ class NeXusConvertingApp(object):
 
         # save
         hydra_file = rs_project_file.HydraProjectFile(projectfile, rs_project_file.HydraProjectFileMode.OVERWRITE)
+
+        # initalize instrument
+        Detector = instrument_geometry.AnglerCameraDetectorGeometry( 1024, 1024, 0.0003, 0.0003, 0.985, False )
+        hydra_file.set_instrument_geometry( instrument_geometry.HydraSetup( Detector ) )
 
         self._hydra_workspace.save_experimental_data(hydra_file)
 

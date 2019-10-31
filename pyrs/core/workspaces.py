@@ -26,6 +26,7 @@ class HidraWorkspace(object):
         # spectra-sub run mapper
         self._sub_run_to_spectrum = None  # [sub-run] = spectrum, spectrum: 0 - ... continuous
         self._spectrum_to_sub_run = None  # [spectrum] = sub-run
+        self._sub_run_array = None  # array of sub runs
 
         # wave length
         self._wave_length_dict = None
@@ -70,6 +71,12 @@ class HidraWorkspace(object):
         for spec_id, sub_run in enumerate(sorted(sub_run_list)):
             self._sub_run_to_spectrum[sub_run] = spec_id
             self._spectrum_to_sub_run[spec_id] = sub_run
+
+        # Set another
+        if isinstance(sub_run_list, list):
+            self._sub_run_array = numpy.array(sub_run_list)
+        else:
+            self._sub_run_array = sub_run_list[:]
 
         return
 
@@ -152,8 +159,17 @@ class HidraWorkspace(object):
         """
         checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
 
-        # Get special values
-        self._sample_log_dict = hidra_file.get_logs()
+        sub_runs, log_dict = hidra_file.get_sample_logs()
+
+        # Set sub runs
+        if self._sub_run_array is None:
+            self.set_sub_runs(sub_runs)
+        else:
+            numpy.testing.assert_allclose(sub_runs, self._sub_run_array, rtol=1e-10)
+
+        # Set each sample log individually
+        for log_name in log_dict:
+            self.set_sample_log(log_name, sub_runs, log_dict[log_name])
 
         return
 
@@ -357,11 +373,20 @@ class HidraWorkspace(object):
                                ''.format(mask_id, self._diff_data_set.keys()))
         return vec_2theta, vec_intensity
 
-    def get_sample_log_values(self, sample_log_name):
-        """
-        Get ONE INDIVIDUAL sample log's values as a vector
-        :param sample_log_name:
-        :return: vector of integer or float in the same order as sub run number
+    def get_sample_log_values(self, sample_log_name, sub_runs=None):
+        """Get ONE INDIVIDUAL sample log's values as a vector
+
+        Parameters
+        ----------
+        sample_log_name : str
+            sample_log_name
+        sub_runs : list or ndarray or None
+            None for all log values, List/ndarray for selected sub runs
+        Returns
+        -------
+        ndarray
+            sample log values ordered by sub run numbers with given sub runs or all sub runs
+
         """
         if sample_log_name == rs_project_file.HidraConstants.SUB_RUNS and \
                 sample_log_name not in self._sample_log_dict.keys():
@@ -370,7 +395,23 @@ class HidraWorkspace(object):
         checkdatatypes.check_string_variable('Sample log name', sample_log_name,
                                              self._sample_log_dict.keys())
 
-        return self._sample_log_dict[sample_log_name].copy()
+        # Convert dictionary to arrays
+        if sub_runs is None:
+            # all sub runs' values ordered by sub run number
+            tuple_list = zip(self._sample_log_dict[sample_log_name].keys(),
+                             self._sample_log_dict[sample_log_name].values())
+            tuple_list.sort()
+            # prototype: a, b = zip(*listt)
+            log_value_array = numpy.array(zip(*tuple_list)[1])
+        else:
+            # selected sub runs
+            log_value_array = numpy.ndarray(shape=(len(sub_runs),),
+                                            dtype=type(self._sample_log_dict[sample_log_name][sub_runs[0]]))
+            for isr in range(len(sub_runs)):
+                log_value_array[isr] = self._sample_log_dict[sample_log_name][sub_runs[isr]]
+        # END-IF-ELSE
+
+        return log_value_array
 
     def get_spectrum_index(self, sub_run):
         """
@@ -486,19 +527,30 @@ class HidraWorkspace(object):
 
         return
 
-    def set_sample_log(self, log_name, log_value_array):
-        """
-        Set sample log value for each sub run, i.e., average value in each sub run
-        :param log_name:
-        :param log_value_array:
-        :return:
+    def set_sample_log(self, log_name, sub_runs, log_value_array):
+        """Set sample log value for each sub run, i.e., average value in each sub run
+
+        Parameters
+        ----------
+        log_name : str
+            sample log name
+        sub_runs: ndarray
+            sub runs with same shape as log_value_array
+        log_value_array : ndarray
+            log values
+
+        Returns
+        -------
+        None
         """
         # Check inputs
         checkdatatypes.check_string_variable('Log name', log_name)
-        checkdatatypes.check_numpy_arrays('Log value ', [log_value_array], 1, False)
+        checkdatatypes.check_numpy_arrays('Sub runs and log values', [sub_runs, log_value_array], 1, True)
 
-        # Set
-        self._sample_log_dict[log_name] = log_value_array
+        # Set sub runs and log value to dictionary
+        self._sample_log_dict[log_name] = dict()
+        for sub_run, log_value in zip(sub_runs, log_value_array):
+            self._sample_log_dict[log_name][sub_run] = log_value
 
         return
 
@@ -524,7 +576,9 @@ class HidraWorkspace(object):
 
     def save_experimental_data(self, hidra_project, sub_runs=None):
         """Save experimental data including raw counts and sample logs to HiDRA project file
+
         Export (aka save) raw detector counts and sample logs from this HidraWorkspace to a HiDRA project file
+
         Parameters
         ----------
         hidra_project: HydraProjectFile
@@ -535,7 +589,6 @@ class HidraWorkspace(object):
         -------
         None
         """
-
         # Raw counts
         for sub_run_i in self._raw_counts.keys():
             if sub_runs is None or sub_run_i in sub_runs:
@@ -543,7 +596,6 @@ class HidraWorkspace(object):
             else:
                 print('[WARNING] sub run {} is not exported to {}'
                       ''.format(sub_run_i, hidra_project.name))
-
             # END-IF-ELSE
         # END-FOR
 
@@ -557,7 +609,6 @@ class HidraWorkspace(object):
         else:
             # same thing
             sub_runs_array = sub_runs
-
         hidra_project.add_experiment_log(rs_project_file.HidraConstants.SUB_RUNS, sub_runs_array)
 
         # Add regular ample logs
@@ -572,10 +623,10 @@ class HidraWorkspace(object):
 
             # Add log value to project file
             hidra_project.add_experiment_log(log_name, sample_log_value)
-
         # END-FOR
 
         return
+
 
     def save_reduced_diffraction_data(self, hidra_project):
         """ Export reduced diffraction data to project
@@ -596,18 +647,6 @@ class HidraWorkspace(object):
         """
         return self._sample_log_dict.keys()
 
-    def sample_log_values(self, sample_log_name):
-        """
-        get sample log value
-        :param sample_log_name:
-        :return:
-        """
-        checkdatatypes.check_string_variable('Sample log name', sample_log_name)
-        if sample_log_name not in self._sample_log_dict:
-            raise RuntimeError('Sample log {0} cannot be found.'.format(sample_log_name))
-
-        return self._sample_log_dict[sample_log_name]
-
     @property
     def sample_logs_for_plot(self):
         """ Get names of sample logs that can be plotted, i.e., the log values are integer or float
@@ -615,8 +654,9 @@ class HidraWorkspace(object):
         """
         sample_logs = list()
         for sample_log_name in self._sample_log_dict.keys():
-            sample_log_value = self._sample_log_dict[sample_log_name]
-            if sample_log_value.dtype != object:
+            sample_log_value = self._sample_log_dict[sample_log_name].values()[0]
+            # only int and float can be plot
+            if isinstance(sample_log_value, int) or isinstance(sample_log_value, float):
                 sample_logs.append(sample_log_name)
 
         return sorted(sample_logs)

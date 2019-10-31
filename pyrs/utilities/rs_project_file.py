@@ -177,10 +177,6 @@ class HydraProjectFile(object):
         # reduced data
         self._project_h5.create_group(HidraConstants.REDUCED_DATA)
 
-        # initalize instrument
-        Detector = instrument_geometry.AnglerCameraDetectorGeometry( 1024, 1024, 0.0003, 0.0003, 0.985, False )
-        hydra_file.set_instrument_geometry( instrument_geometry.HydraSetup( Detector ) )
-
         return
 
     @property
