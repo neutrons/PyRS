@@ -4,7 +4,7 @@ import os
 import numpy
 from pyrs.core import pyrscore
 from pyrs.core import instrument_geometry
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 import pytest
 
 ON_TRAVIS = os.environ.get('TRAVIS', False)
