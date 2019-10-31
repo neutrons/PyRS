@@ -199,7 +199,8 @@ class HydraProjectFile(object):
         # create group
         scan_i_group = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SUB_RUNS].create_group(
             '{:04}'.format(sub_run_number))
-        scan_i_group.create_dataset('counts', data=counts_array)
+        print ( counts_array.shape )
+        scan_i_group.create_dataset('counts', data=counts_array.reshape(-1) )
 
         return
 

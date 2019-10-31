@@ -538,7 +538,7 @@ class PyHB2BReduction(object):
         # Get the data (each pixel's 2theta and counts)
         pixel_2theta_array = self._instrument.get_pixels_2theta(1)
         checkdatatypes.check_numpy_arrays('Two theta and detector counts array',
-                                          [pixel_2theta_array, self._detector_counts], 1,
+                                          [pixel_2theta_array, self._detector_counts], None,
                                           check_same_shape=True)  # optional check
         if pixel_2theta_array.shape[0] != self._detector_counts.shape[0]:
             raise RuntimeError('Detector pixel position array ({}) does not match detector counts array ({})'
@@ -647,7 +647,7 @@ class PyHB2BReduction(object):
         :return:
         """
         checkdatatypes.check_float_variable('2-theta', two_theta, (-180, 180))
-        checkdatatypes.check_numpy_arrays('Detector (raw) counts', [raw_count_vec], 1, False)
+        checkdatatypes.check_numpy_arrays('Detector (raw) counts', [raw_count_vec], None, False)
         if l2 is not None:
             checkdatatypes.check_float_variable('L2', l2, (1.E-2, None))
 
