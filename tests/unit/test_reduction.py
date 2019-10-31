@@ -132,7 +132,8 @@ class TestReduction(object):
               "*************************")
 
         if not ON_TRAVIS:
-            plt.plot(vec_x, vec_y)
+            pass
+            # plt.plot(vec_x, vec_y)
 
     def test_reduce_data_geometry_shift(self):
         """ Test reduction (PyRS engine) classes and methods with calibration/instrument shift
@@ -167,9 +168,10 @@ class TestReduction(object):
 
         # Plot
         if not ON_TRAVIS:
-            vec_2theta = data_set[0]
-            vec_intensity = data_set[1]
-            plt.plot(vec_2theta, vec_intensity, color='red')
+            pass
+            # vec_2theta = data_set[0]
+            # vec_intensity = data_set[1]
+            # plt.plot(vec_2theta, vec_intensity, color='red')
 
     def test_reduce_data_calibration_more_format(self):
         """
