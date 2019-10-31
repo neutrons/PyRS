@@ -73,13 +73,17 @@ class NeXusConvertingApp(object):
             sub_run_index += 1
         # END-FOR
 
-        # Add the sample logs
-        for log_name in sample_log_dict:
-            self._hydra_workspace.set_sample_log(log_name, sample_log_dict[log_name])
-        # add sub runs as a special sample log
+        # Set sub runs to HidraWorkspace.  It may not to be a proper sample log
         if rs_project_file.HidraConstants.SUB_RUNS not in sample_log_dict:
             sub_runs = numpy.array(sorted(self._sub_run_workspace_dict.keys()))
-            self._hydra_workspace.set_sample_log(rs_project_file.HidraConstants.SUB_RUNS, sub_runs)
+            self._hydra_workspace.set_sub_runs(sub_runs)
+            # self._hydra_workspace.set_sample_log(rs_project_file.HidraConstants.SUB_RUNS, sub_runs)
+
+        # Add the sample logs
+        for log_name in sample_log_dict:
+            self._hydra_workspace.set_sample_log(log_name, sub_runs, sample_log_dict[log_name])
+
+        return
 
     def save(self, projectfile):
         """
