@@ -7,6 +7,8 @@ from pyrs.core import instrument_geometry
 from matplotlib import pyplot as plt
 import pytest
 
+ON_TRAVIS = os.environ.get('TRAVIS', False)
+
 """
 Instrument geometry test result (X-ray): 5 corners and quick!  NO SHIFT
 [-0.07092737 -0.2047      0.45817835]
@@ -76,7 +78,6 @@ class TestReduction(object):
     """
     Reduction Tester
     """
-
     def __init__(self, input_file_name):
         """
         Init
@@ -87,8 +88,6 @@ class TestReduction(object):
         # Load data
         self._project_name = 'calibration xray'
         self._reduction_controller.load_hidra_project(input_file_name, project_name=self._project_name)
-
-        return
 
     @staticmethod
     def generate_testing_geometry_shift():
@@ -132,9 +131,8 @@ class TestReduction(object):
         print("*************************\nNo Shift Reduction Passed (Golden Xray Data)\n"
               "*************************")
 
-        plt.plot(vec_x, vec_y)
-
-        return
+        if not ON_TRAVIS:
+            plt.plot(vec_x, vec_y)
 
     def test_reduce_data_geometry_shift(self):
         """ Test reduction (PyRS engine) classes and methods with calibration/instrument shift
@@ -168,11 +166,10 @@ class TestReduction(object):
               "***************************")
 
         # Plot
-        vec_2theta = data_set[0]
-        vec_intensity = data_set[1]
-        plt.plot(vec_2theta, vec_intensity, color='red')
-
-        return
+        if not ON_TRAVIS:
+            vec_2theta = data_set[0]
+            vec_intensity = data_set[1]
+            plt.plot(vec_2theta, vec_intensity, color='red')
 
     def test_reduce_data_calibration_more_format(self):
         """
@@ -197,8 +194,6 @@ class TestReduction(object):
                                                            mask_file_name=None,
                                                            geometry_calibration=True)
 
-        return
-
     def test_reduction_engines_consistent(self):
         """ Compare detector positions and reduced diffraction data between
         Mantid and PyRS reduction engine
@@ -207,10 +202,7 @@ class TestReduction(object):
         # Test with mantid engine
         idf_xml = 'data/XRAY_Definition_20190521_1342.xml'
         self._reduction_controller.reduction_service.set_mantid_idf(idf_xml)
-        if False:
-            test_shift = False
-        else:
-            test_shift = self.generate_testing_geometry_shift()
+        test_shift = self.generate_testing_geometry_shift()
         self._reduction_controller.reduce_diffraction_data(self._project_name,
                                                            two_theta_step=0.004,
                                                            pyrs_engine=False,
@@ -255,7 +247,6 @@ class TestReduction(object):
         else:
             print('***********************\nPassed: Reduction Engine Consistency Test\n'
                   '***********************')
-        return
 
     @staticmethod
     def set_mask_files(masks_list_file_name):
@@ -270,8 +261,6 @@ class TestReduction(object):
         mask_xml_list = [os.path.join('data', xml_name) for xml_name in masks_list_file_name]
 
         return mask_xml_list
-
-    # END-DEF
 
 
 def test_main():
@@ -292,10 +281,9 @@ def test_main():
     # Engine comparison
     tester.test_reduction_engines_consistent()
 
-    plt.show()
-
-    return
+    if not ON_TRAVIS:
+        plt.show()
 
 
 if __name__ == '__main__':
-    pytest.main()
+    pytest.main([__file__])
