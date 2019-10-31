@@ -6,6 +6,7 @@ from mantid.simpleapi import mtd, GenerateEventsFilter, LoadEventNexus, FilterEv
 import numpy
 import os
 from pyrs.core import workspaces
+from pyrs.core import instrument_geometry
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities import rs_project_file
 
@@ -81,7 +82,7 @@ class NeXusConvertingApp(object):
             sub_runs = numpy.array(sorted(self._sub_run_workspace_dict.keys()))
             self._hydra_workspace.set_sample_log(rs_project_file.HidraConstants.SUB_RUNS, sub_runs)
 
-    def save(self, projectfile):
+    def save(self, projectfile, instrument=None):
         """
         Save workspace to Hidra project file
         """
@@ -96,6 +97,7 @@ class NeXusConvertingApp(object):
 
         # save
         hydra_file = rs_project_file.HydraProjectFile(projectfile, rs_project_file.HydraProjectFileMode.OVERWRITE)
+
         self._hydra_workspace.save_experimental_data(hydra_file)
 
     @staticmethod

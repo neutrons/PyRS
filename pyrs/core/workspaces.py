@@ -3,7 +3,6 @@ import numpy
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities import rs_project_file
 
-
 class HidraWorkspace(object):
     """
     This workspace is the central data structure to manage all the raw and/or processed data.
@@ -37,7 +36,7 @@ class HidraWorkspace(object):
         self._diff_data_set = dict()  # [mask id] = ndarray: shape=(n, m), n: number of sub-run, m: number of of 2theta
 
         # instrument
-        self._instrument_setup = None
+        self._instrument_setup = None 
         self._instrument_geometry_shift = None  # geometry shift
 
         # sample logs
@@ -558,15 +557,18 @@ class HidraWorkspace(object):
 #            hidra_project.add_experiment_log(log_name, log_array)
             hidra_project.add_experiment_log(log_name, sub_runs)
             print(log_name, sub_runs )
-            log_val_array = self._sample_log_dict[log_name]
+
+            #log_val_array = self._sample_log_dict[log_name]
             # add to project file
-            hidra_project.add_experiment_log(log_name, log_val_array)
+            #hidra_project.add_experiment_log(log_name, log_val_array)
+
         # END-FOR
 
         # Add sub run to experiment log
         if rs_project_file.HidraConstants.SUB_RUNS not in self._sample_log_dict.keys():
             hidra_project.add_experiment_log(rs_project_file.HidraConstants.SUB_RUNS,
-                                             numpy.arange(1, len(sub_runs)+1 )
+                                             numpy.arange(1, num_sub_runs + 1))
+#                                             numpy.array(sub_runs))
 
         return
 
