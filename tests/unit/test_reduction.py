@@ -282,7 +282,8 @@ def test_main():
     tester.test_reduction_engines_consistent()
 
     if not ON_TRAVIS:
-        plt.show()
+        pass
+        # plt.show()
 
 
 if __name__ == '__main__':
