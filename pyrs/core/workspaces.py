@@ -407,7 +407,7 @@ class HidraWorkspace(object):
         else:
             # selected sub runs
             log_value_array = numpy.ndarray(shape=(len(sub_runs),),
-                                            dtype=type(self._sample_log_dict[sample_log_name[sub_runs[0]]]))
+                                            dtype=type(self._sample_log_dict[sample_log_name][sub_runs[0]]))
             for isr in range(len(sub_runs)):
                 log_value_array[isr] = self._sample_log_dict[sample_log_name][sub_runs[isr]]
         # END-IF-ELSE
