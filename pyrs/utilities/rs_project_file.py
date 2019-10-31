@@ -224,6 +224,9 @@ class HydraProjectFile(object):
                 log_name, data=log_value_array)
         except RuntimeError as run_err:
             raise RuntimeError('Unable to add log {} due to {}'.format(log_name, run_err))
+        except TypeError as type_err:
+            raise RuntimeError('Failed to add log {} with value {} of type {}: {}'
+                               ''.format(log_name, log_value_array, type(log_value_array), type_err))
 
         return
 
@@ -378,15 +381,18 @@ class HydraProjectFile(object):
 
         return instrument_setup
 
-    def get_logs(self):
+    # TODO - TEST - Signature changed...
+    def get_sample_logs(self):
         """Get sample logs
 
-        Retrieve all the (sample) logs from Hidra project file
+        Retrieve all the (sample) logs from Hidra project file.
+        Raw information retrieved from rs project file is numpy arrays
 
         Returns
         -------
-        dict
-            sample logs as dict of dict. example: dict[log name][sub run number] = log value
+        ndarray, dict
+            ndarray : 1D array for sub runs
+            dict : dict[sample log name] for sample logs in ndarray
         """
         # Get the group
         logs_group = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS]
@@ -403,21 +409,33 @@ class HydraProjectFile(object):
 
             # get array
             log_value_vec = logs_group[log_name].value
-            if log_value_vec.shape != sub_runs.shape:
-                raise RuntimeError('Sample log {} does not match sub runs'.format(log_name))
-
-            log_value_dict = dict()
-            for s_index in range(sub_runs.shape[0]):
-                log_value_dict[sub_runs[s_index]] = log_value_vec[s_index]
-            # END-FOR
-
-            logs_value_set[log_name] = log_value_dict
+            logs_value_set[log_name] = log_value_vec
+            # if log_value_vec.shape != sub_runs.shape:
+            #     raise RuntimeError('Sample log {} does not match sub runs'.format(log_name))
+            #
+            # log_value_dict = dict()
+            # for s_index in range(sub_runs.shape[0]):
+            #     log_value_dict[sub_runs[s_index]] = log_value_vec[s_index]
+            # # END-FOR
+            #
+            # logs_value_set[log_name] = log_value_dict
         # END-FOR
 
-        return logs_value_set
+        return sub_runs, logs_value_set
 
     def get_log_value(self, log_name):
-        assert self._project_h5 is not None, 'blabla'
+        """Get a log's value
+
+        Parameters
+        ----------
+        log_name
+
+        Returns
+        -------
+        ndarray or single value
+
+        """
+        assert self._project_h5 is not None, 'Project HDF5 is not loaded yet'
 
         log_value = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS][log_name]
 
