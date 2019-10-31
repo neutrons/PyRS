@@ -27,6 +27,7 @@ class HidraWorkspace(object):
         # spectra-sub run mapper
         self._sub_run_to_spectrum = None  # [sub-run] = spectrum, spectrum: 0 - ... continuous
         self._spectrum_to_sub_run = None  # [spectrum] = sub-run
+        self._sub_run_array = None  # array of sub runs
 
         # wave length
         self._wave_length_dict = None
@@ -71,6 +72,12 @@ class HidraWorkspace(object):
         for spec_id, sub_run in enumerate(sorted(sub_run_list)):
             self._sub_run_to_spectrum[sub_run] = spec_id
             self._spectrum_to_sub_run[spec_id] = sub_run
+
+        # Set another
+        if isinstance(sub_run_list, list):
+            self._sub_run_array = numpy.array(sub_run_list)
+        else:
+            self._sub_run_array = sub_run_list[:]
 
         return
 
@@ -153,8 +160,17 @@ class HidraWorkspace(object):
         """
         checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
 
-        # Get special values
-        self._sample_log_dict = hidra_file.get_logs_as_dict()
+        sub_runs, log_dict = hidra_file.get_sample_logs()
+
+        # Set sub runs
+        if self._sub_run_array is None:
+            self.set_sub_runs(sub_runs)
+        else:
+            numpy.testing.assert_allclose(sub_runs, self._sub_run_array, rtol=1e-10)
+
+        # Set each sample log individually
+        for log_name in log_dict:
+            self.set_sample_log(log_name, sub_runs, log_dict[log_name])
 
         return
 

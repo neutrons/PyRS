@@ -377,7 +377,8 @@ class HydraProjectFile(object):
 
         return instrument_setup
 
-    def get_logs_as_dict(self):
+    # TODO - TEST - Signature changed...
+    def get_sample_logs(self):
         """Get sample logs
 
         Retrieve all the (sample) logs from Hidra project file.
@@ -385,8 +386,9 @@ class HydraProjectFile(object):
 
         Returns
         -------
-        dict
-            sample logs as dict of dict. example: dict[log name][sub run number] = log value
+        ndarray, dict
+            ndarray : 1D array for sub runs
+            dict : dict[sample log name] for sample logs in ndarray
         """
         # Get the group
         logs_group = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS]
@@ -403,18 +405,19 @@ class HydraProjectFile(object):
 
             # get array
             log_value_vec = logs_group[log_name].value
-            if log_value_vec.shape != sub_runs.shape:
-                raise RuntimeError('Sample log {} does not match sub runs'.format(log_name))
-
-            log_value_dict = dict()
-            for s_index in range(sub_runs.shape[0]):
-                log_value_dict[sub_runs[s_index]] = log_value_vec[s_index]
-            # END-FOR
-
-            logs_value_set[log_name] = log_value_dict
+            logs_value_set[log_name] = log_value_vec
+            # if log_value_vec.shape != sub_runs.shape:
+            #     raise RuntimeError('Sample log {} does not match sub runs'.format(log_name))
+            #
+            # log_value_dict = dict()
+            # for s_index in range(sub_runs.shape[0]):
+            #     log_value_dict[sub_runs[s_index]] = log_value_vec[s_index]
+            # # END-FOR
+            #
+            # logs_value_set[log_name] = log_value_dict
         # END-FOR
 
-        return logs_value_set
+        return sub_runs, logs_value_set
 
     def get_log_value(self, log_name):
         """Get a log's value
