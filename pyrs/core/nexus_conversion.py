@@ -6,7 +6,7 @@ from mantid.simpleapi import mtd, GenerateEventsFilter, LoadEventNexus, FilterEv
 import numpy
 import os
 from pyrs.core import workspaces
-from pyrs.core import instrument_geometry
+#from pyrs.core import instrument_geometry
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities import rs_project_file
 

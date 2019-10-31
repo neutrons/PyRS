@@ -14,7 +14,7 @@ class HydraSetup(object):
 
     """
 
-    def __init__(self, l1, detector_setup):
+    def __init__(self, detector_setup):
         """Initialization
 
         Initialization HB2B instrument setup
