@@ -118,7 +118,7 @@ def check_float_variable(var_name, variable, value_range):
     :return:
     """
     check_string_variable('var_name', var_name)
-    assert isinstance(variable, (float, numpy.float32, numpy.float)), '{0} {1} must be a float but not a {2}'\
+    assert isinstance(variable, (float, int, numpy.float32, numpy.float)), '{0} {1} must be a float but not a {2}'\
         .format(var_name, variable, type(variable))
 
     if value_range is not None:
@@ -169,7 +169,6 @@ def check_numpy_arrays(var_name, variables, dimension, check_same_shape):
     :return:
     """
 
-
     check_string_variable('Variable name', var_name)
     check_bool_variable('Flag to check arrays having same shape', check_same_shape)
 
@@ -183,8 +182,8 @@ def check_numpy_arrays(var_name, variables, dimension, check_same_shape):
 
     for index, variable in enumerate(variables):
 
-        #print( '##########' )
-        #print( variable.shape ) 
+        print( '##########' )
+        print( variable.shape ) 
         # check whether each variable is a numpy array with desired dimension
         assert isinstance(variable, numpy.ndarray), '{0}-th element of variable {1} ({2}) must be an ndarray but not' \
                                                     ' a {3}'.format(index, var_name, variable, type(variable))
