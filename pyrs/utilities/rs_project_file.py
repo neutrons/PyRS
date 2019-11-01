@@ -350,7 +350,8 @@ class HydraProjectFile(object):
         :return:
         """
         masks = self._project_h5[HidraConstants.REDUCED_DATA].keys()
-        masks.remove('2Theta')
+        if '2Theta' in masks:masks.remove('2Theta')
+        if '2theta' in masks:masks.remove('2theta')
 
         return masks
 
@@ -773,7 +774,7 @@ class HydraProjectFile(object):
             diff_data_matrix_i = diff_data_set[mask_id]
             print('[INFO] Mask {} data set shape: {}'.format(mask_id, diff_data_matrix_i.shape))
             # Check
-            checkdatatypes.check_numpy_arrays('Diffraction data (matrix)', [diff_data_matrix_i], 2, False)
+            checkdatatypes.check_numpy_arrays('Diffraction data (matrix)', [diff_data_matrix_i], None, False)
             if two_theta_vec.shape[0] != diff_data_matrix_i.shape[1]:
                 raise RuntimeError('Length of 2theta vector ({}) is different from intensities ({})'
                                    ''.format(two_theta_vec.shape, diff_data_matrix_i.shape))

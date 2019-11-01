@@ -391,9 +391,15 @@ class HB2BReductionManager(object):
 
         # Reduce
         # TODO - TONIGHT NOW #72 - Make this method call happy!
-        two_theta_range = (10, 60)
-        two_theta_step = 50. / 500.
-        data_set = reduction_engine.reduce_to_2theta_histogram(two_theta_range, two_theta_step,
+        if isinstance( min_2theta, type(None) ): min_2theta = abs(two_theta) - 10.
+        if isinstance( max_2theta, type(None) ): max_2theta = abs(two_theta) + 10.
+        if isinstance( resolution_2theta, type(None) ): resolution_2theta = (max_2theta - min_2theta) / 1000.
+
+
+        #two_theta_range = (10, 60)
+        #two_theta_step = 50. / 500.
+
+        data_set = reduction_engine.reduce_to_2theta_histogram( (min_2theta,max_2theta), resolution_2theta,
                                                                apply_mask=True,
                                                                is_point_data=True,
                                                                normalize_pixel_bin=True,

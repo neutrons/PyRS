@@ -182,8 +182,6 @@ def check_numpy_arrays(var_name, variables, dimension, check_same_shape):
 
     for index, variable in enumerate(variables):
 
-        print( '##########' )
-        print( variable.shape ) 
         # check whether each variable is a numpy array with desired dimension
         assert isinstance(variable, numpy.ndarray), '{0}-th element of variable {1} ({2}) must be an ndarray but not' \
                                                     ' a {3}'.format(index, var_name, variable, type(variable))

@@ -136,7 +136,7 @@ class ReductionApp(object):
             raise NotImplementedError('It has not been decided how to parse mask to auto reduction script')
 
         self._reduction_manager.reduce_diffraction_data(self._session, apply_calibrated_geometry=geometry_calibration,
-                                                        bin_size_2theta=0.05,
+                                                        bin_size_2theta=0.02,
                                                         use_pyrs_engine=not self._use_mantid_engine,
                                                         mask=None,
                                                         sub_run_list=sub_runs)
