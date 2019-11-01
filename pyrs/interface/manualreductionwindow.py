@@ -554,10 +554,11 @@ class ManualReductionWindow(QMainWindow):
         self.ui.comboBox_sub_runs.setCurrentIndex(0)
 
         # Fill in self.ui.frame_subRunInfoTable
-        meta_data_array = self._core.reduction_service.get_sample_logs_values(self._project_data_id,
-                                                                              [HidraConstants.SUB_RUNS,
-                                                                               HidraConstants.TWO_THETA])
-        self.ui.rawDataTable.add_subruns_info(meta_data_array, clear_table=True)
+        # TODO FIXME SOON! - Well define output from get_sample_logs_values!
+        # meta_data_array = self._core.reduction_service.get_sample_logs_values(self._project_data_id,
+        #                                                                       [HidraConstants.SUB_RUNS,
+        #                                                                        HidraConstants.TWO_THETA])
+        # self.ui.rawDataTable.add_subruns_info(meta_data_array, clear_table=True)
 
         return
 
@@ -576,9 +577,9 @@ class ManualReductionWindow(QMainWindow):
                                                                                  sub_run_number)
 
         # set information
-        det_2theta_dict = self._core.reduction_service.get_sample_logs_values(self._project_data_id,
-                                                                              [HidraConstants.TWO_THETA])[0]
-        det_2theta = det_2theta_dict[sub_run_number]
+        det_2theta = self._core.reduction_service.get_sample_log_value(self._project_data_id,
+                                                                       HidraConstants.TWO_THETA,
+                                                                       sub_run_number)
         info = 'sub-run: {}, 2theta = {}' \
                ''.format(sub_run_number, det_2theta)
 
@@ -619,14 +620,13 @@ class ManualReductionWindow(QMainWindow):
             return
 
         # set information
-        det_2theta = self._core.reduction_service.get_sample_logs_values(self._project_data_id,
-                                                                         [HidraConstants.TWO_THETA])
-        det_2theta = det_2theta[0][sub_run_number]
+        det_2theta = self._core.reduction_service.get_sample_log_value(self._project_data_id,
+                                                                       HidraConstants.TWO_THETA,
+                                                                       sub_run_number)
         info = 'sub-run: {}, 2theta = {}' \
                ''.format(sub_run_number, det_2theta)
 
         # plot diffraction data
-        # TODO - #84 - Add 'info' to plot!
         self.ui.graphicsView_1DPlot.plot_diffraction(two_theta_array, diff_array, '2theta',
                                                      'intensity', line_label=info, keep_prev=False)
 

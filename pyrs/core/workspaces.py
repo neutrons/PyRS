@@ -373,6 +373,12 @@ class HidraWorkspace(object):
                                ''.format(mask_id, self._diff_data_set.keys()))
         return vec_2theta, vec_intensity
 
+    def get_sample_log_value(self, sample_log_name, sub_run=None):
+        checkdatatypes.check_string_variable('Sample log name', sample_log_name,
+                                             self._sample_log_dict.keys())
+
+        return self._sample_log_dict[sample_log_name][sub_run]
+
     def get_sample_log_values(self, sample_log_name, sub_runs=None):
         """Get ONE INDIVIDUAL sample log's values as a vector
 
