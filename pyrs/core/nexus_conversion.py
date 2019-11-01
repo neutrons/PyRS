@@ -162,7 +162,6 @@ class NeXusConvertingApp(object):
         output_ws_names = split_returns.OutputWorkspaceNames
         sub_run_ws_dict = dict()   # [sub run number] = workspace name
         for ws_name in output_ws_names:
-            print(ws_name)
             try:
                 sub_run_number = int(ws_name.split('_')[-1])
                 if sub_run_number > 0 and len(output_ws_names) > 2:
@@ -174,5 +173,4 @@ class NeXusConvertingApp(object):
                 pass
         # END-FOR
 
-        print(sub_run_ws_dict)
         return sub_run_ws_dict
