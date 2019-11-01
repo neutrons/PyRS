@@ -10,8 +10,6 @@ from pyrs.core import reduce_hb2b_pyrs
 from pyrs.utilities import rs_project_file
 from pyrs.core import instrument_geometry
 
-# TODO - FIXME - Issue #72 : Clean up
-
 
 class HB2BReductionManager(object):
     """
@@ -391,11 +389,12 @@ class HB2BReductionManager(object):
 
         # Reduce
         # TODO - TONIGHT NOW #72 - Make this method call happy!
-        if isinstance( min_2theta, type(None) ): min_2theta = abs(two_theta) - 10.
-        if isinstance( max_2theta, type(None) ): max_2theta = abs(two_theta) + 10.
-        if isinstance( resolution_2theta, type(None) ): resolution_2theta = (max_2theta - min_2theta) / 1000.
-
-
+        if isinstance(min_2theta, type(None)):
+            min_2theta = abs(two_theta) - 10.
+        if isinstance(max_2theta, type(None)):
+            max_2theta = abs(two_theta) + 10.
+        if isinstance(resolution_2theta, type(None)):
+            resolution_2theta = (max_2theta - min_2theta) / 1000.
         #two_theta_range = (10, 60)
         #two_theta_step = 50. / 500.
 

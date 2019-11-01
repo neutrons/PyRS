@@ -22,7 +22,7 @@ def test_nexus_to_project(nexusfile, projectfile):
     converter.save(projectfile)
 
     # tests for the created file
-    assert os.path.exists(projectfile)
+    assert os.path.exists(projectfile), 'Project file {} does not exist'.format(projectfile)
     # TODO add more tests
 
     # extract the powder patterns and add them to the project file
@@ -30,7 +30,7 @@ def test_nexus_to_project(nexusfile, projectfile):
     # TODO should add versions for testing arguments:
     # instrument_file, calibration_file, mask, sub_runs
     reducer.load_project_file(projectfile)
-    reducer.reduce_data()
+    reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None)
     reducer.save_diffraction_data(projectfile)
 
     # tests for the created file
