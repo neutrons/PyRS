@@ -33,7 +33,6 @@ def test_calibration_json():
     # Reduce
     test_workspace = workspaces.HidraWorkspace('test calibration')
     test_workspace.load_hidra_project(project_file, load_raw_counts=True, load_reduced_diffraction=False)
-    # test_workspace.reduce()
 
     return
 
