@@ -3,14 +3,14 @@ from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
 import pytest
 
-nexusfile = 'tests/testdata/LaB6_10kev_35deg-00004_Rotated.h5'
-nexusfile = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_439.nxs.h5'
 
-
-@pytest.mark.skipif((not os.path.exists(nexusfile)),
-                    reason='File "{}" does not exist'.format(nexusfile))
-def test_nexus_to_project():
-    projectfile = '/tmp/HB2B_439.h5'
+@pytest.mark.parametrize('nexusfile, projectfile',
+                         [('/HFIR/HB2B/IPTS-22731/nexus/HB2B_439.nxs.h5', 'HB2B_439.h5'),
+                          ('/HFIR/HB2B/IPTS-22731/nexus/HB2B_938.nxs.h5', 'HB2B_938.h5')],
+                         ids=('HB2B_439', 'HB2B_938'))
+def test_nexus_to_project(nexusfile, projectfile):
+    if not os.path.exists(nexusfile):
+        pytest.skip('File "{}" does not exist'.format(nexusfile))
 
     # remove the project file if it currently exists
     if os.path.exists(projectfile):
