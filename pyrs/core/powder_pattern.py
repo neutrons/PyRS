@@ -85,32 +85,20 @@ class ReductionApp(object):
 
         return
 
-    def plot_detector_counts(self, sub_run, mask):
-        """ Plot detector counts in 2D
-        :param sub_run: integer for the sub run number
-        :param mask: None (no mask), mask file or mask ID in file
-        :return:
-        """
-        # Get counts (array)
-        counts_vec = self.get_detector_counts(sub_run)  # TODO this method doesn't exist!
-
-        if mask and os.path.exists(mask):
-            # mask file
-            counts_vec = _mask_detectors(counts_vec, mask_file=mask)
-        elif mask is not None:
-            # mask ID
-            counts_vec = _mask_detectors(counts_vec, mask_id=mask)  # TODO mask_id is a non-existant parameter
-        # pass otherwise
-
-        # Reshape the 1D vector for plotting
-        counts_matrix = counts_vec.reshape((2048, 2048))
-        plt.imshow(counts_matrix)
-        plt.show()
-
-        return
-
-    def reduce_data(self, sub_runs, instrument_file, calibration_file, mask):
+    def reduce_data(self, sub_runs, instrument_file, calibration_file, mask, van_file=None):
         """Reduce data from HidraWorkspace
+
+        Parameters
+        ----------
+        sub_runs
+        instrument_file
+        calibration_file
+        mask
+        van_file
+
+        Returns
+        -------
+
         """
         # Check inputs
         if sub_runs is None or not bool(sub_runs):  # None or empty list
@@ -135,11 +123,19 @@ class ReductionApp(object):
         if mask is not None:
             raise NotImplementedError('It has not been decided how to parse mask to auto reduction script')
 
-        self._reduction_manager.reduce_diffraction_data(self._session, apply_calibrated_geometry=geometry_calibration,
+        # Vanadium
+        if van_file is not None:
+            van_array = self._reduction_manager.load_vanadium(van_file)
+        else:
+            van_array = None
+
+        self._reduction_manager.reduce_diffraction_data(self._session,
+                                                        apply_calibrated_geometry=geometry_calibration,
                                                         bin_size_2theta=0.02,
                                                         use_pyrs_engine=not self._use_mantid_engine,
                                                         mask=None,
-                                                        sub_run_list=sub_runs)
+                                                        sub_run_list=sub_runs,
+                                                        apply_vanadium_calibration=van_array)
 
         return
 

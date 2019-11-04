@@ -1,6 +1,7 @@
 # Reduction engine including slicing
 import os
 import random
+import numpy as np
 from pyrs.utilities import checkdatatypes
 from pyrs.core import workspaces
 from pyrs.utilities import calibration_file_io
@@ -39,6 +40,9 @@ class HB2BReductionManager(object):
         self._mantid_idf = None
 
         # TODO - FUTURE - Whether a reduction engine can be re-used or stored???
+
+        # Vanadium
+        self._van_ws = None
 
         # (default) number of bins
         self._num_bins = 2500
@@ -266,6 +270,62 @@ class HB2BReductionManager(object):
 
         return two_theta, note, mask_id
 
+    def load_vanadium(self, van_project_file):
+        """Load vanadium from HiDRA project file
+
+        Parameters
+        ----------
+        van_project_file
+
+        Returns
+        -------
+        ~numpy.narray
+            1D array as vanadium counts
+
+        """
+        self._van_ws = workspaces.HidraWorkspace(name=van_project_file)
+
+        # PyRS HDF5
+        project_h5_file = rs_project_file.HydraProjectFile(van_project_file,
+                                                           mode=rs_project_file.HydraProjectFileMode.READONLY)
+
+        # Load
+        self._van_ws.load_hidra_project(project_h5_file,
+                                        load_raw_counts=True,
+                                        load_reduced_diffraction=False)
+
+        # Close project file
+        project_h5_file.close()
+
+        # Process the vanadium counts
+        sub_runs = self._van_ws.get_sub_runs()
+        assert len(sub_runs) == 1, 'There shall be more than 1 sub run in vanadium project file'
+
+        # get vanadium data
+        van_array = self._van_ws.get_detector_counts(sub_runs[0])
+        # statistic
+        print('[INFO] Vanadium {} Counts: min = {}, max = {}, average = {}'
+              ''.format(van_project_file, np.min(van_array), np.max(van_array), np.average(van_array)))
+
+        count_range = [0, 2, 5, 10, 20, 30, 40, 50, 60, 80, 150, 300]
+        per_count = 0
+        pixel_count = 0
+        for irange in range(len(count_range) - 1):
+            threshold_min = count_range[irange]
+            threshold_max = count_range[irange + 1]
+            good_van_array = van_array[(van_array >= threshold_min) & (van_array < threshold_max)]
+            print('[INFO] {} <= ... < {}: pixels number = {}  Percentage = {}'
+                  ''.format(threshold_min, threshold_max,  good_van_array.size,
+                            good_van_array.size * 1. / van_array.size))
+            pixel_count += good_van_array.size
+            per_count += good_van_array.size * 1. / van_array.size
+        # END-FOR
+
+        # Mask out zero count
+        van_array[van_array < 3] = np.nan
+
+        return van_array
+
     def get_loaded_mask_files(self):
         """
         Get the list of file names (full path) that have been loaded
@@ -304,11 +364,28 @@ class HB2BReductionManager(object):
         return
 
     def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, bin_size_2theta, use_pyrs_engine, mask,
-                                sub_run_list):
-        """ Reduce ALL sub runs in a workspace from detector counts to diffraction data
-        :param session_name:
-        :param apply_calibrated_geometry: 3 options (1) user-provided AnglerCameraDetectorShift
+                                sub_run_list, apply_vanadium_calibration=False):
+        """Reduce ALL sub runs in a workspace from detector counts to diffraction data
+
+        Parameters
+        ----------
+        session_name
+        apply_calibrated_geometry : ~AnglerCameraDetectorShift or bool
+            3 options (1) user-provided AnglerCameraDetectorShift
                                           (2) True (use the one in workspace) (3) False (no calibration)
+        bin_size_2theta
+        use_pyrs_engine
+        mask
+        sub_run_list
+        apply_vanadium_calibration
+
+        Returns
+        -------
+
+        """
+        """
+        :param session_name:
+        :param apply_calibrated_geometry:
         :param bin_size_2theta:
         :param use_pyrs_engine:
         :param mask:  mask ID or mask vector
@@ -344,6 +421,21 @@ class HB2BReductionManager(object):
         # END-IF-ELSE
         print('[DB...BAT] Det Position Shift: {}'.format(det_pos_shift))
 
+        # Vanadium run
+        if apply_vanadium_calibration is False or apply_vanadium_calibration is None:
+            van_counts_array = None
+        elif apply_vanadium_calibration is True:
+            van_counts_array = self._van_ws.get_detector_counts(self._van_ws.get_sub_runs()[0])
+        else:
+            van_counts_array = apply_vanadium_calibration
+        if isinstance(van_counts_array, np.ndarray):
+            # Mask out zero count
+            van_counts_array[van_counts_array < 3] = np.nan
+            max_count = np.max(van_counts_array)
+            eff_array = max_count * 1. / van_counts_array
+        else:
+            eff_array = None
+
         # TODO - TONIGHT NOW #72 - How to embed mask information???
         if sub_run_list is None:
             sub_run_list = workspace.get_sub_runs()
@@ -351,7 +443,8 @@ class HB2BReductionManager(object):
             self.reduce_sub_run_diffraction(workspace, sub_run, det_pos_shift,
                                             use_mantid_engine=not use_pyrs_engine,
                                             mask_vec_id=(mask_id, mask_vec),
-                                            resolution_2theta=bin_size_2theta)
+                                            resolution_2theta=bin_size_2theta,
+                                            eff_array=eff_array)
         # END-FOR
 
         return
