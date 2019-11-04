@@ -6,8 +6,11 @@ import pytest
 
 @pytest.mark.parametrize('nexusfile, projectfile',
                          [('/HFIR/HB2B/IPTS-22731/nexus/HB2B_439.nxs.h5', 'HB2B_439.h5'),
-                          ('/HFIR/HB2B/IPTS-22731/nexus/HB2B_938.nxs.h5', 'HB2B_938.h5')],
-                         ids=('HB2B_439', 'HB2B_938'))
+                          # A good peak
+                          ('/HFIR/HB2B/IPTS-22731/nexus/HB2B_938.nxs.h5', 'HB2B_938.h5'),
+                          # Vanadium
+                          ('/HFIR/HB2B/IPTS-22731/nexus/HB2B_931.nxs.h5', 'HB2B_931.h5')],
+                         ids=('HB2B_439', 'HB2B_938', 'HB2B_931'))
 def test_nexus_to_project(nexusfile, projectfile):
     if not os.path.exists(nexusfile):
         pytest.skip('File "{}" does not exist'.format(nexusfile))
