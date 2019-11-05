@@ -159,15 +159,20 @@ class PeakFitCalibration(object):
         
         x0          = []
         ParamNames  = []
+        LL, UL      = [],[]
+        
         for pkey in list( Params.keys() ):
-            x0.append( Params[ pkey ] )
+            x0.append( Params[ pkey ][0] )
+            LL.append( Params[ pkey ][1] )
+            UL.append( Params[ pkey ][2] )   
+            
             ParamNames.append( pkey )
             
         if UseLSQ:            
             out = leastsq(residual, x0, args=(x, y, ParamNames, NumPeaks), Dfun=None, ftol=1e-8, xtol=1e-8, gtol=1e-8, maxfev=0, factor=1.0)
             returnSetup = [dict( zip( out[0], ParamNames) ), CalcPatt( x, y, dict( zip( out[0], ParamNames) ), NumPeaks ) ]
         else:
-            out = least_squares(residual, x0, method='dogbox', ftol=1e-8, xtol=1e-8, gtol=1e-8, \
+            out = least_squares(residual, x0, bounds=[LL, UL], method='dogbox', ftol=1e-8, xtol=1e-8, gtol=1e-8, \
                             f_scale=1.0, max_nfev=None, args=(x, y, ParamNames, NumPeaks) )
             returnSetup = [dict( zip( out.x, ParamNames) ), CalcPatt( x, y, dict( zip( out.x, ParamNames) ), NumPeaks ) ]
 
