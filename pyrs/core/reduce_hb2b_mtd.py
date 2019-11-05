@@ -155,7 +155,8 @@ class MantidHB2BReduction(object):
         return pos_array
 
     def reduce_to_2theta_histogram(self, two_theta_range, two_theta_step,
-                                   apply_mask, is_point_data, normalize_pixel_bin, use_mantid_histogram):
+                                   apply_mask, is_point_data, normalize_pixel_bin, use_mantid_histogram,
+                                   efficiency_correction=None):
         """ Reduce the raw matrix workspace, with instrument already loaded, to 2theta
         :param matrix_ws_name:
         :param two_theta_min:

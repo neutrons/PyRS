@@ -74,15 +74,15 @@ class NeXusConvertingApp(object):
             sub_run_index += 1
         # END-FOR
 
-        # Set sub runs to HidraWorkspace.  It may not to be a proper sample log
-        if rs_project_file.HidraConstants.SUB_RUNS not in sample_log_dict:
-            sub_runs = numpy.array(sorted(self._sub_run_workspace_dict.keys()))
-            self._hydra_workspace.set_sub_runs(sub_runs)
-            # self._hydra_workspace.set_sample_log(rs_project_file.HidraConstants.SUB_RUNS, sub_runs)
+        # Set sub runs to HidraWorkspace
+        sub_runs = numpy.array(sorted(self._sub_run_workspace_dict.keys()))
+        self._hydra_workspace.set_sub_runs(sub_runs)
 
         # Add the sample logs
         for log_name in sample_log_dict:
-             self._hydra_workspace.set_sample_log(log_name, sub_runs, sample_log_dict[log_name])
+            if log_name == rs_project_file.HidraConstants.SUB_RUNS:
+                continue  # skip 'SUB_RUNS'
+            self._hydra_workspace.set_sample_log(log_name, sub_runs, sample_log_dict[log_name])
 
         return
 
@@ -102,9 +102,12 @@ class NeXusConvertingApp(object):
         # save
         hydra_file = rs_project_file.HydraProjectFile(projectfile, rs_project_file.HydraProjectFileMode.OVERWRITE)
 
-        # initalize instrument
-        Detector = instrument_geometry.AnglerCameraDetectorGeometry( 1024, 1024, 0.0003, 0.0003, 0.985, False )
-        hydra_file.set_instrument_geometry( instrument_geometry.HydraSetup( Detector ) )
+        # initialize instrument: hard code!
+        if instrument is None:
+            instrument = instrument_geometry.AnglerCameraDetectorGeometry(1024, 1024, 0.0003, 0.0003, 0.985, False)
+
+        # Set geometry
+        hydra_file.set_instrument_geometry(instrument_geometry.HydraSetup(instrument))
 
         self._hydra_workspace.save_experimental_data(hydra_file)
 

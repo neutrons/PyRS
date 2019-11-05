@@ -31,7 +31,7 @@ def test_rw_raw():
 
     # Instrument
     detector_setup = source_workspace.get_instrument_setup()
-    instrument_setup = instrument_geometry.HydraSetup(l1=1.0, detector_setup=detector_setup)
+    instrument_setup = instrument_geometry.HydraSetup(detector_setup=detector_setup)
     target_project.set_instrument_geometry(instrument_setup)
 
     # Save

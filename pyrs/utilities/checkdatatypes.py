@@ -86,7 +86,7 @@ def check_int_variable(var_name, variable, value_range):
     :return:
     """
     check_string_variable('var_name', var_name)
-    assert isinstance(variable, (int, numpy.int8, numpy.int16) ), '{0} {1} must be an integer but not a {2}'\
+    assert isinstance(variable, (int, numpy.int8, numpy.int16)), '{0} {1} must be an integer but not a {2}'\
         .format(var_name, variable, type(variable))
 
     if value_range is not None:

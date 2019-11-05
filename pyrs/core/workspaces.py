@@ -3,6 +3,7 @@ import numpy
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities import rs_project_file
 
+
 class HidraWorkspace(object):
     """
     This workspace is the central data structure to manage all the raw and/or processed data.
@@ -37,7 +38,7 @@ class HidraWorkspace(object):
         self._diff_data_set = dict()  # [mask id] = ndarray: shape=(n, m), n: number of sub-run, m: number of of 2theta
 
         # instrument
-        self._instrument_setup = None 
+        self._instrument_setup = None
         self._instrument_geometry_shift = None  # geometry shift
 
         # sample logs
@@ -195,8 +196,10 @@ class HidraWorkspace(object):
         try:
             two_theta = self._sample_log_dict[rs_project_file.HidraConstants.TWO_THETA][sub_run]
         except KeyError as key_err:
-            raise RuntimeError('Unable to retrieve 2theta value from {} due to {}'
-                               .format(sub_run, key_err))
+            raise RuntimeError('Unable to retrieve 2theta value ({}) from sub run {} due to missing key {}.'
+                               'Available sample logs are {}'
+                               .format(rs_project_file.HidraConstants.TWO_THETA,
+                                       sub_run, key_err, self._sample_log_dict.keys()))
 
         return two_theta
 
@@ -579,7 +582,6 @@ class HidraWorkspace(object):
 
         return
 
-
     def save_experimental_data(self, hidra_project, sub_runs=None):
         """Save experimental data including raw counts and sample logs to HiDRA project file
 
@@ -632,7 +634,6 @@ class HidraWorkspace(object):
         # END-FOR
 
         return
-
 
     def save_reduced_diffraction_data(self, hidra_project):
         """ Export reduced diffraction data to project
