@@ -303,10 +303,10 @@ class HB2BReductionManager(object):
 
         # get vanadium data
         van_array = self._van_ws.get_detector_counts(sub_runs[0])
-        # statistic
+
+        # DEBUG: do statistic
         print('[INFO] Vanadium {} Counts: min = {}, max = {}, average = {}'
               ''.format(van_project_file, np.min(van_array), np.max(van_array), np.average(van_array)))
-
         count_range = [0, 2, 5, 10, 20, 30, 40, 50, 60, 80, 150, 300]
         per_count = 0
         pixel_count = 0
@@ -322,7 +322,11 @@ class HB2BReductionManager(object):
         # END-FOR
 
         # Mask out zero count
+        print('[DEBUG] VANADIUM Before Mask: {}\n\t# of NaN = {}'
+              ''.format(van_array, np.where(np.isnan(van_array))[0].size))
         van_array[van_array < 3] = np.nan
+        print('[DEBUG] VANADIUM After  Mask: {}\n\t# of NaN = {}'
+              ''.format(van_array, np.where(np.isnan(van_array))[0].size))
 
         return van_array
 
@@ -429,8 +433,13 @@ class HB2BReductionManager(object):
         if isinstance(van_counts_array, np.ndarray):
             # Mask out zero count
             van_counts_array[van_counts_array < 3] = np.nan
-            max_count = np.max(van_counts_array)
+            max_count = np.max(van_counts_array[~np.isnan(van_counts_array)])
+            print('[DEBUG] VANADIUM: {}\n\t# of NaN = {}\tMax count = {}'
+                  ''.format(van_counts_array, np.where(np.isnan(van_counts_array))[0].size,
+                            max_count))
             eff_array = max_count * 1. / van_counts_array
+            print('[DEBUG] Detector efficiency factor: {}\tNumber of NaN = {}'
+                  ''.format(eff_array, np.where(np.isnan(eff_array))[0].size))
         else:
             eff_array = None
 

@@ -722,11 +722,27 @@ class PyHB2BReduction(object):
 
     @staticmethod
     def histogram_by_numpy(pixel_2theta_array, vec_counts, two_theta_vec, is_point_data, norm_bins):
-        """
-        Histogram a data set (X, Y) by numpy histogram algorithm
+        """Histogram a data set (X, Y) by numpy histogram algorithm
+
         Assumption:
         1. pixel_2theta_array[i] and vec_counts[i] correspond to the same detector pixel
-        :param pixel_2theta_array: 2theta array for each pixel
+
+        Parameters
+        ----------
+        pixel_2theta_array : ~numpy.ndarray
+            2theta (1D) array for each pixel
+        vec_counts
+        two_theta_vec
+        is_point_data
+        norm_bins
+
+        Returns
+        -------
+
+        """
+        """
+
+        :param pixel_2theta_array:
         :param vec_counts: array for vector counts
         :param x_range: 2-theta range
         :param num_bins: number of bins
@@ -735,25 +751,27 @@ class PyHB2BReduction(object):
                           by the number of pixels fall into this 2theta range
         :return:
         """
+        # Check inputs
         checkdatatypes.check_numpy_arrays('Pixel 2theta array, pixel counts array',
                                           [pixel_2theta_array, vec_counts],
                                           1, True)
 
+        # Exclude NaN regions
+        masked_pixels = (np.isnan(vec_counts)) | (np.isinf(vec_counts))
+
+        pixel_2theta_array = pixel_2theta_array[~masked_pixels]
+        vec_counts = vec_counts[~masked_pixels]
+
         # Call numpy to histogram
-        # TODO - NOW NOW #72 - Try bins = two_theta_vector
-        if False:
-            x_range, num_bins = two_theta_vec
-            hist, bin_edges = np.histogram(pixel_2theta_array, bins=num_bins, range=x_range, weights=vec_counts)
-        else:
-            hist, bin_edges = np.histogram(pixel_2theta_array, bins=two_theta_vec, weights=vec_counts)
-            # from matplotlib import pyplot as plt
-            # plt.plot(bin_edges[1:], hist)
-            # plt.show()
+        hist, bin_edges = np.histogram(pixel_2theta_array, bins=two_theta_vec, weights=vec_counts)
 
         # Optionally to normalize by number of pixels (sampling points) in the 2theta bin
         if norm_bins:
-            hist_bin = np.histogram(pixel_2theta_array[np.where(vec_counts > .5)[0]],
-                                    bins=two_theta_vec)[0]
+            # Get the number of pixels in each bin
+            # hist_bin = np.histogram(pixel_2theta_array[np.where(vec_counts > .5)[0]],
+            #                         bins=two_theta_vec)[0]
+            hist_bin = np.histogram(pixel_2theta_array, bins=two_theta_vec)[0]
+            # Normalize
             hist /= hist_bin  # normalize
         # END-IF
 
