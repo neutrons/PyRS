@@ -196,8 +196,10 @@ class HidraWorkspace(object):
         try:
             two_theta = self._sample_log_dict[rs_project_file.HidraConstants.TWO_THETA][sub_run]
         except KeyError as key_err:
-            raise RuntimeError('Unable to retrieve 2theta value from {} due to {}'
-                               .format(sub_run, key_err))
+            raise RuntimeError('Unable to retrieve 2theta value ({}) from sub run {} due to missing key {}.'
+                               'Available sample logs are {}'
+                               .format(rs_project_file.HidraConstants.TWO_THETA,
+                                       sub_run, key_err, self._sample_log_dict.keys()))
 
         return two_theta
 

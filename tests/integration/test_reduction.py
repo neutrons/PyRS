@@ -1,7 +1,6 @@
 from pyrs.utilities import rs_project_file
 from pyrs.utilities import calibration_file_io
 from pyrs.core import workspaces
-import numpy as np
 import pytest
 
 

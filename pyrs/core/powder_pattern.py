@@ -1,14 +1,9 @@
-import os
 from pyrs.core import reduction_manager
 from pyrs.utilities import checkdatatypes
 from pyrs.core import mask_util
 from pyrs.utilities import calibration_file_io
 from pyrs.utilities import rs_project_file
 from matplotlib import pyplot as plt
-
-# This is the final version of command line script to reduce HB2B data
-
-# TODO - #84 - Overall docs & type checks
 
 
 def _mask_detectors(counts_vec, mask_file=None):
