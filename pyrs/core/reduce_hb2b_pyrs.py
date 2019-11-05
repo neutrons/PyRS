@@ -521,7 +521,8 @@ class PyHB2BReduction(object):
         return self._instrument.get_eta_values(dimension=1)
 
     def reduce_to_2theta_histogram(self, two_theta_range, two_theta_step, apply_mask,
-                                   is_point_data=True, normalize_pixel_bin=True, use_mantid_histogram=False):
+                                   is_point_data=True, normalize_pixel_bin=True, use_mantid_histogram=False,
+                                   efficiency_correction=None):
         """ Reduce the previously added detector raw counts to 2theta histogram (i.e., diffraction pattern)
         :param two_theta_range: range of 2theta for histogram
         :param two_theta_step: step size of two theta
@@ -529,6 +530,7 @@ class PyHB2BReduction(object):
         :param is_point_data: Flag whether the output is point data (numbers of X and Y are same)
         :param normalize_pixel_bin: normalize the number of pixels in each 2theta histogram bin
         :param use_mantid_histogram: Flag to use Mantid (algorithm ResampleX) to do histogram
+        :param efficiency_correction:
         :return: 2-tuple (2-theta vector, counts in histogram)
         """
         # Get two-theta-histogram vector
@@ -545,6 +547,11 @@ class PyHB2BReduction(object):
                                ''.format(pixel_2theta_array.shape, self._detector_counts.shape))
         # Convert count type
         vec_counts = self._detector_counts.astype('float64')
+        if efficiency_correction is not None:
+            checkdatatypes.check_numpy_arrays('Vector counts, Efficiency', [vec_counts, efficiency_correction],
+                                              dimension=1, check_same_shape=True)
+            vec_counts *= efficiency_correction
+        # END-FOR
 
         print('[INFO] PyRS.Instrument: pixels 2theta range: ({}, {}) vs 2theta histogram range: ({}, {})'
               ''.format(pixel_2theta_array.min(), pixel_2theta_array.max(), two_theta_vector.min(),

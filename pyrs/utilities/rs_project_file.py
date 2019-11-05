@@ -188,8 +188,18 @@ class HydraProjectFile(object):
         return self._project_h5.name
 
     def add_raw_counts(self, sub_run_number, counts_array):
-        """ add raw detector counts collected in a single scan/Pt
-        :return:
+        """Add raw detector counts collected in a single scan/Pt
+
+        Parameters
+        ----------
+        sub_run_number : int
+            sub run number
+        counts_array : ~numpy.ndarray
+            detector counts
+
+        Returns
+        -------
+
         """
         # check
         assert self._project_h5 is not None, 'cannot be None'
@@ -199,8 +209,7 @@ class HydraProjectFile(object):
         # create group
         scan_i_group = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SUB_RUNS].create_group(
             '{:04}'.format(sub_run_number))
-        print ( counts_array.shape )
-        scan_i_group.create_dataset('counts', data=counts_array.reshape(-1) )
+        scan_i_group.create_dataset('counts', data=counts_array.reshape(-1))
 
         return
 
@@ -350,8 +359,10 @@ class HydraProjectFile(object):
         :return:
         """
         masks = self._project_h5[HidraConstants.REDUCED_DATA].keys()
-        if '2Theta' in masks:masks.remove('2Theta')
-        if '2theta' in masks:masks.remove('2theta')
+        if '2Theta' in masks:
+            masks.remove('2Theta')
+        if '2theta' in masks:
+            masks.remove('2theta')
 
         return masks
 

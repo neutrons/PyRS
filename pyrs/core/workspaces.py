@@ -3,6 +3,7 @@ import numpy
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities import rs_project_file
 
+
 class HidraWorkspace(object):
     """
     This workspace is the central data structure to manage all the raw and/or processed data.
@@ -37,7 +38,7 @@ class HidraWorkspace(object):
         self._diff_data_set = dict()  # [mask id] = ndarray: shape=(n, m), n: number of sub-run, m: number of of 2theta
 
         # instrument
-        self._instrument_setup = None 
+        self._instrument_setup = None
         self._instrument_geometry_shift = None  # geometry shift
 
         # sample logs
@@ -579,7 +580,6 @@ class HidraWorkspace(object):
 
         return
 
-
     def save_experimental_data(self, hidra_project, sub_runs=None):
         """Save experimental data including raw counts and sample logs to HiDRA project file
 
@@ -632,7 +632,6 @@ class HidraWorkspace(object):
         # END-FOR
 
         return
-
 
     def save_reduced_diffraction_data(self, hidra_project):
         """ Export reduced diffraction data to project

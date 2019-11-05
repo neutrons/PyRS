@@ -363,7 +363,8 @@ class HB2BReductionManager(object):
 
         return
 
-    def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, bin_size_2theta, use_pyrs_engine, mask,
+    def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, bin_size_2theta,
+                                use_pyrs_engine, mask,
                                 sub_run_list, apply_vanadium_calibration=False):
         """Reduce ALL sub runs in a workspace from detector counts to diffraction data
 
@@ -373,23 +374,20 @@ class HB2BReductionManager(object):
         apply_calibrated_geometry : ~AnglerCameraDetectorShift or bool
             3 options (1) user-provided AnglerCameraDetectorShift
                                           (2) True (use the one in workspace) (3) False (no calibration)
-        bin_size_2theta
-        use_pyrs_engine
-        mask
-        sub_run_list
-        apply_vanadium_calibration
+        bin_size_2theta : float
+            2theta bin step
+        use_pyrs_engine : bool
+            flag to use PyRS engine; otherwise, use Mantid as diffraction pattern reduction engine
+        mask :
+            Mask
+        sub_run_list : List of None
+            sub runs
+        apply_vanadium_calibration : boolean or ~numpy.ndarray
 
         Returns
         -------
+        None
 
-        """
-        """
-        :param session_name:
-        :param apply_calibrated_geometry:
-        :param bin_size_2theta:
-        :param use_pyrs_engine:
-        :param mask:  mask ID or mask vector
-        :return:
         """
         # Get workspace
         if session_name is None:  # default as current session/workspace
@@ -451,8 +449,8 @@ class HB2BReductionManager(object):
 
     # NOTE: Refer to compare_reduction_engines_tst
     def reduce_sub_run_diffraction(self, workspace, sub_run, geometry_calibration, use_mantid_engine,
-                                   mask_vec_id,
-                                   min_2theta=None, max_2theta=None, resolution_2theta=None):
+                                   mask_vec_id, min_2theta=None, max_2theta=None, resolution_2theta=None,
+                                   eff_array=None):
         """
         Reduce import data (workspace or vector) to 2-theta ~ I
         Note: engine may not be reused because 2theta value may change among sub runs
@@ -464,6 +462,7 @@ class HB2BReductionManager(object):
         :param min_2theta: None or user specified
         :param max_2theta: None or user specified
         :param resolution_2theta: None or user specified
+        :param eff_array: None or ~numpy.ndarray
         :return:
         """
         # Get the raw data
@@ -495,21 +494,21 @@ class HB2BReductionManager(object):
             reduction_engine.set_mask(mask_vec)
 
         # Reduce
-        # TODO - TONIGHT NOW #72 - Make this method call happy!
+        # Set the 2theta range
         if isinstance(min_2theta, type(None)):
             min_2theta = abs(two_theta) - 10.
         if isinstance(max_2theta, type(None)):
             max_2theta = abs(two_theta) + 10.
         if isinstance(resolution_2theta, type(None)):
             resolution_2theta = (max_2theta - min_2theta) / 1000.
-        #two_theta_range = (10, 60)
-        #two_theta_step = 50. / 500.
 
-        data_set = reduction_engine.reduce_to_2theta_histogram( (min_2theta,max_2theta), resolution_2theta,
+        # Reduce
+        data_set = reduction_engine.reduce_to_2theta_histogram((min_2theta, max_2theta), resolution_2theta,
                                                                apply_mask=True,
                                                                is_point_data=True,
                                                                normalize_pixel_bin=True,
-                                                               use_mantid_histogram=False)
+                                                               use_mantid_histogram=False,
+                                                               efficiency_correction=eff_array)
 
         bin_edges = data_set[0]
         hist = data_set[1]
