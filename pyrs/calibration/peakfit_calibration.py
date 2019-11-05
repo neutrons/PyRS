@@ -163,9 +163,15 @@ class PeakFitCalibration(object):
             x0.append( Params[ pkey ] )
             ParamNames.append( pkey )
             
-        out = leastsq(residual, x0, args=(x, y, ParamNames, NumPeaks), Dfun=None, ftol=1e-8, xtol=1e-8, gtol=1e-8, maxfev=0, factor=1.0)
-        
-        return [dict( zip( out[0], ParamNames) ), CalcPatt( x, y, dict( zip( out[0], ParamNames) ), NumPeaks ) ]
+        if UseLSQ:            
+            out = leastsq(residual, x0, args=(x, y, ParamNames, NumPeaks), Dfun=None, ftol=1e-8, xtol=1e-8, gtol=1e-8, maxfev=0, factor=1.0)
+            returnSetup = [dict( zip( out[0], ParamNames) ), CalcPatt( x, y, dict( zip( out[0], ParamNames) ), NumPeaks ) ]
+        else:
+            out = least_squares(residual, x0, method='dogbox', ftol=1e-8, xtol=1e-8, gtol=1e-8, \
+                            f_scale=1.0, max_nfev=None, args=(x, y, ParamNames, NumPeaks) )
+            returnSetup = [dict( zip( out.x, ParamNames) ), CalcPatt( x, y, dict( zip( out.x, ParamNames) ), NumPeaks ) ]
+
+        return returnSetup
         
     def FitDetector(self, fun, x0, jac='2-point', bounds=[], method='trf', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', \
                     f_scale=1.0, diff_step=None, tr_solver=None, max_nfev=None, verbose=0, args=(), kwargs={}, \
