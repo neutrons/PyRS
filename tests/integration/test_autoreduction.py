@@ -40,8 +40,6 @@ def test_nexus_to_project(nexusfile, projectfile):
     assert os.path.exists(projectfile)
     # TODO add more tests
 
-    assert False
-
 
 @pytest.mark.parametrize('project_file, van_project_file, target_project_file',
                          [('data/HB2B_938.h5', 'data/HB2B_931.h5', 'HB2B_938_van.h5')],
@@ -75,8 +73,6 @@ def test_apply_vanadium(project_file, van_project_file, target_project_file):
     reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None,
                         van_file=van_project_file)
     reducer.save_diffraction_data(target_project_file)
-
-    assert 1 == 111
 
 if __name__ == '__main__':
     pytest.main([__file__])
