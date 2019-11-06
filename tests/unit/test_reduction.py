@@ -251,6 +251,7 @@ class TestReduction(object):
         return mask_xml_list
 
 
+@pytest.mark.xfail(strict=True)
 def test_main():
     """
     Main for test
