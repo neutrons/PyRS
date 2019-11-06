@@ -141,8 +141,7 @@ class TestReduction(object):
                                                            geometry_calibration=test_shift)
 
         # Get data and plot
-        data_set = self._reduction_controller.get_diffraction_data(self._project_name, sub_run=1,
-                                                                   mask=None)
+        self._reduction_controller.get_diffraction_data(self._project_name, sub_run=1, mask=None)
 
         # Get the detectors' position
         reduction_engine = self._reduction_controller.reduction_service.get_last_reduction_engine()
