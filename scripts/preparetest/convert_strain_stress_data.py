@@ -3,7 +3,6 @@
 import os
 import sys
 from pyrs.utilities import rs_project_file
-from pyrs.utilities import rs_scan_io
 
 
 def contain_strain_stress_main():
@@ -29,6 +28,7 @@ def contain_strain_stress_main():
     print(hidra_project_file)
 
     # Get parameters of sample logs
+    # from pyrs.utilities import rs_scan_io
     # TODO - continue to develop in a proper PR!
     # for dir_i in [1, 2, 3]:
     #     diff_data_dict, sample_log_list = rs_scan_io.load_rs_file(dir_file[1])

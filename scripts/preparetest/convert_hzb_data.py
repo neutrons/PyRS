@@ -11,7 +11,6 @@ Note: most of the methods to parse HZB data are copied from script convert_hzb_d
 1. Add PyRS path to python path (refer to pyrsdev.sh)
 2. Run this script
 """
-from pyrs.utilities import rs_project_file
 import os
 from pyrs.utilities import file_util
 from pyrs.utilities import rs_project_file
