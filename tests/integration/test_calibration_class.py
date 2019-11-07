@@ -1,17 +1,15 @@
 # Migrated from /HFIR/HB2B/shared/Quick_Calibration.py
 # Original can be found at ./Quick_Calibration_v3.py
 # Renamed from  ./prototypes/calibration/Quick_Calibration_Class.py
-# print ('Prototype Calibration: Quick_Calibration_v4')
-
 import pytest
 import time
 import os
 import filecmp
 import json
+from pyrs.utilities import calibration_file_io
+from pyrs.utilities import rs_project_file
 try:
     from pyrs.calibration import peakfit_calibration
-    from pyrs.utilities import calibration_file_io
-    from pyrs.utilities import rs_project_file
 except ImportError as e:
     peakfit_calibration = str(e)  # import failed exception explains why
 
@@ -53,6 +51,7 @@ def print_out_json_diff(json_file1_name, json_file2_name):
     return
 
 
+# On analysis cluster, it will fail due to lmfit is not supported
 @pytest.mark.skipif(isinstance(peakfit_calibration, str), reason=peakfit_calibration)
 def test_main():
     """Main test for the script
