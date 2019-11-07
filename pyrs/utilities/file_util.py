@@ -39,8 +39,6 @@ def export_md_array_hdf5(md_array, sliced_dir_list, file_name):
     return
 
 
-
-
 def load_rgb_tif(rgb_tiff_name, convert_to_1d):
     """
     Load TIFF file in RGB mode and convert to grey scale
