@@ -74,5 +74,6 @@ def test_apply_vanadium(project_file, van_project_file, target_project_file):
                         van_file=van_project_file)
     reducer.save_diffraction_data(target_project_file)
 
+
 if __name__ == '__main__':
     pytest.main([__file__])

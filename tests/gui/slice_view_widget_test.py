@@ -1,12 +1,11 @@
 from qtpy.QtWidgets import QApplication, QMainWindow
 import sys
-# from . import uitest_test_slice_view  # TODO this is broken
 import h5py
+from pyrs.interface.ui.slice_view_widget import SliceViewWidget
 
 
 class SliceViewer(QMainWindow):
-    """
-    prototype of slicer viewer
+    """This is to test the self-defined widget SliceViewWidget
     """
 
     def __init__(self, parent):
@@ -17,8 +16,9 @@ class SliceViewer(QMainWindow):
         super(SliceViewer, self).__init__(parent)
 
         # set up UI
-        self.ui = uitest_test_slice_view.Ui_MainWindow()
-        self.ui.setupUi(self)
+        # self.ui = uitest_test_slice_view.Ui_MainWindow()
+        # self.ui.setupUi(self)
+        self.ui.widget = SliceViewWidget(None)
 
         # tweak
         # _layout = QVBoxLayout()

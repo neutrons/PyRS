@@ -9,7 +9,6 @@ from pyrs.core import reduction_manager
 from pyrs.core import polefigurecalculator
 import os
 import numpy
-from pandas import DataFrame
 
 # Define Constants
 SUPPORTED_PEAK_TYPES = ['PseudoVoigt', 'Gaussian', 'Voigt']  # 'Lorentzian': No a profile of HB2B
@@ -305,10 +304,6 @@ class PyRsCore(object):
             param_data[:, 1] = chi2_vec
             for j in range(param_vec.shape[0]):
                 param_data[:, j + 1] = param_vec[j, :, 0]   # data for all sub run
-        elif return_format == DataFrame:
-            # pandas data frame
-            # TODO - #84+ - Implement pandas DataFrame ASAP
-            raise NotImplementedError('ASAP')
 
         else:
             # Not supported case
