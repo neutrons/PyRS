@@ -5,6 +5,7 @@ import numpy
 import os
 from pyrs.utilities import file_util
 from pyrs.utilities import rs_project_file
+import pandas as pd
 
 
 def parse_hzb_tiff(tiff_file_name):
@@ -18,6 +19,18 @@ def parse_hzb_tiff(tiff_file_name):
     counts_array = file_util.load_rgb_tif(tiff_file_name, True)
 
     return counts_array
+
+
+def load_excel_file(excel_file):
+    """ Load EXCEL file
+    Note: Excel file is closed after read (99%)
+    :param excel_file: name of Excel file
+    :return: pandas instance (pandas.core.frame.DataFrame)
+    """
+    # use pandas to load
+    df = pd.read_excel(excel_file)
+
+    return df
 
 
 def import_hzb_summary(summary_excel):
@@ -36,7 +49,7 @@ def import_hzb_summary(summary_excel):
     :return:
     """
     # load data
-    summary_pandas_data = file_util.load_excel_file(summary_excel)
+    summary_pandas_data = load_excel_file(summary_excel)
 
     # get list of interested items
     scan_index_array = numpy.array(summary_pandas_data['Index'])
