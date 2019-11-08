@@ -5,7 +5,6 @@ import dateutil.parser
 import json
 import os
 from pyrs.core import reduce_hb2b_pyrs
-from matplotlib import pyplot as plt
 
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
 try:
@@ -188,7 +187,7 @@ class PeakFitCalibration(object):
                     kwargs={}, full_output=0, col_deriv=0, maxfev=0):
 
         if UseLSQ:
-            if type(max_nfev) == type(None):
+            if max_nfev is None:
                 max_nfev = 0
             out = leastsq(self.peak_alignment_rotation, x0, args=args, Dfun=None, ftol=ftol, xtol=xtol, gtol=gtol,
                           maxfev=max_nfev, factor=f_scale)
@@ -269,7 +268,7 @@ class PeakFitCalibration(object):
             else:
                 eta_roi_vec = np.array(roi_vec_set)
 
-            num_rows = 1 + len(Peaks) / 2 + len(Peaks) % 2
+            # num_rows = 1 + len(Peaks) / 2 + len(Peaks) % 2
 #            ax1 = plt.subplot(num_rows, 1, num_rows)
 #            ax1.margins(0.05)  # Default margin is 0.05, value 0 means fit
 
@@ -301,10 +300,10 @@ class PeakFitCalibration(object):
                                                                    CalibPeaks[p_index]))])])
 
                 # plot results
-                backgroundShift = np.average(quadratic_background(reduced_i[0],
-                                                                  Fitresult[0]['p0'],
-                                                                  Fitresult[0]['p1'],
-                                                                  Fitresult[0]['p2']))
+                # backgroundShift = np.average(quadratic_background(reduced_i[0],
+                #                                                  Fitresult[0]['p0'],
+                #                                                  Fitresult[0]['p1'],
+                #                                                  Fitresult[0]['p2']))
 
 #                ax1.plot(reduced_i[0], reduced_i[1], color=colors[i_roi % 5])
 
