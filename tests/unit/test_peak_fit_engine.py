@@ -2,6 +2,7 @@ import numpy as np
 from pyrs.core.mantid_fit_peak import MantidPeakFitEngine
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.core.peak_profile_utility import pseudo_voigt, NATIVE_BACKGROUND_PARAMETERS, NATIVE_PEAK_PARAMETERS
+from pyrs.core.peak_profile_utility import Gaussian
 import pytest
 from matplotlib import pyplot as plt
 
@@ -235,8 +236,25 @@ def test_pseudo_voigt():
     # fit goodness
     assert fit_costs[0] < 0.5, 'Fit cost (chi2 = {}) is too large'.format(fit_costs[0])
 
-    # If everything is correct, optionally show the result
-    # plt.show()
+    return
+
+
+def test_gaussian_eff_parameters():
+    """Test the effective peak parameters calculation for Gaussian
+
+    :return:
+    """
+    # Test data:
+    # ....
+    sigma = 1.
+    height = 1.
+    fwhm = Gaussian.cal_fwhm(sigma)
+    intensity = Gaussian.cal_intensity(height, sigma)
+    exp_fwhm = 1.
+    exp_intensity = 1.
+
+    assert exp_fwhm == pytest.approx(fwhm, 1E-12)
+    assert exp_intensity == pytest.approx(intensity, 1E-12)
 
     return
 
