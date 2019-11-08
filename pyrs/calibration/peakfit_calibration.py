@@ -143,24 +143,25 @@ class PeakFitCalibration(object):
         return vec_2theta, vec_hist
 
     @staticmethod
-    def FitPeaks( x, y, Params, NumPeaks):
+    def FitPeaks( x, y, Params, Peak_Num):
 
-        def CalcPatt( x, y, PAR, NumPeaks ):
+        def CalcPatt( x, y, PAR, Peak_Num ):
             Model = np.zeros_like( x )
-            Model += quadratic_background( x, PAR['x0'], PAR['x1'], PAR['x2'] )
-            for ipeak in range( NumPeaks ):
+            Model += quadratic_background( x, PAR['p0'], PAR['p1'], PAR['p2'] )
+            for ipeak in Peak_Num:
                 Model += GaussianModel(x, PAR['g%d_center'%ipeak], PAR['g%d_sigma'%ipeak], PAR['g%d_amplitude'%ipeak] )
             return Model 
 
-        def residual( x0, x, y, ParamNames, NumPeaks):
-            PAR = dict( zip(x0, ParamNames) )
-            Model = CalcPatt( x, y, PAR, NumPeaks )    
+        def residual( x0, x, y, ParamNames, Peak_Num):
+            PAR = dict( zip(ParamNames, x0) )
+            Model = CalcPatt( x, y, PAR, Peak_Num )    
             return ( y-Model ) / np.sqrt( y )
         
         x0          = []
         ParamNames  = []
         LL, UL      = [],[]
         
+        Params['p0'] = [y[0], -np.inf, np.inf]
         for pkey in list( Params.keys() ):
             x0.append( Params[ pkey ][0] )
             LL.append( Params[ pkey ][1] )
@@ -169,12 +170,12 @@ class PeakFitCalibration(object):
             ParamNames.append( pkey )
             
         if UseLSQ:            
-            out = leastsq(residual, x0, args=(x, y, ParamNames, NumPeaks), Dfun=None, ftol=1e-8, xtol=1e-8, gtol=1e-8, maxfev=0, factor=1.0)
-            returnSetup = [dict( zip( out[0], ParamNames) ), CalcPatt( x, y, dict( zip( out[0], ParamNames) ), NumPeaks ) ]
+            out = leastsq(residual, x0, args=(x, y, ParamNames, Peak_Num), Dfun=None, ftol=1e-8, xtol=1e-8, gtol=1e-8, maxfev=0, factor=1.0)
+            returnSetup = [dict( zip( out[0], ParamNames) ), CalcPatt( x, y, dict( zip( out[0], ParamNames) ), Peak_Num ) ]
         else:
             out = least_squares(residual, x0, bounds=[LL, UL], method='dogbox', ftol=1e-8, xtol=1e-8, gtol=1e-8, \
-                            f_scale=1.0, max_nfev=None, args=(x, y, ParamNames, NumPeaks) )
-            returnSetup = [dict( zip( out.x, ParamNames) ), CalcPatt( x, y, dict( zip( out.x, ParamNames) ), NumPeaks ) ]
+                            f_scale=1.0, max_nfev=None, args=(x, y, ParamNames, Peak_Num) )
+            returnSetup = [dict( zip( ParamNames, out.x) ), CalcPatt( x, y, dict( zip( ParamNames, out.x) ), Peak_Num ) ]
 
         return returnSetup
         
@@ -232,11 +233,13 @@ class PeakFitCalibration(object):
 
 #            FitModel = Model(quadratic_background)
 #            pars1 = FitModel.make_params(p0=100, p1=1, p2=0.01)
-            pars1 = {'p0':100, 'p1':1, 'p2':0.01}
 
-            Peaks = list()
             CalibPeaks = two_theta_calib[np.where((two_theta_calib > mintth) == (two_theta_calib < maxtth))[0]]
             for ipeak in range(len(CalibPeaks)):
+                Peaks = []
+                pars1 = {}
+                pars1['p1'] = [0, -np.inf, np.inf] 
+                pars1['p2'] = [0, -np.inf, np.inf] 
                 if (CalibPeaks[ipeak] > mintth) and (CalibPeaks[ipeak] < maxtth):
 
                     Peaks.append(ipeak)
@@ -259,8 +262,8 @@ class PeakFitCalibration(object):
                 eta_roi_vec = np.array(roi_vec_set)
 
             num_rows = 1 + len(Peaks) / 2 + len(Peaks) % 2
-            ax1 = plt.subplot(num_rows, 1, num_rows)
-            ax1.margins(0.05)  # Default margin is 0.05, value 0 means fit
+#            ax1 = plt.subplot(num_rows, 1, num_rows)
+#            ax1.margins(0.05)  # Default margin is 0.05, value 0 means fit
 
             for i_roi in range(eta_roi_vec.shape[0]):
                 # ws_name_i = 'reduced_data_{:02}'.format(i_roi)
@@ -282,35 +285,43 @@ class PeakFitCalibration(object):
 
                 # fit peaks
 #                Fitresult = FitModel.fit(reduced_i[1], pars1, x=reduced_i[0])
-                Fitresult = self.FitPeaks(reduced_i[0], reduced_i[1], pars1, len(Peaks) )
+                Fitresult = self.FitPeaks(reduced_i[0], reduced_i[1], pars1, Peaks )
 
                 for p_index in Peaks:
+#                    residual = np.concatenate([residual,
+#                                               np.array([(100.0 * (Fitresult[0]['g%d_center' % p_index].value -
+#                                                                   CalibPeaks[p_index]))])])
                     residual = np.concatenate([residual,
-                                               np.array([(100.0 * (Fitresult[0]['g%d_center' % p_index].value -
+                                               np.array([(100.0 * (Fitresult[0]['g%d_center' % p_index] -
                                                                    CalibPeaks[p_index]))])])
 
                 # plot results
-                backgroundShift = np.average(quadratic_background(reduced_i[0],
-                                                                  Fitresult[0]['p0'].value,
-                                                                  Fitresult[0]['p1'].value,
-                                                                  Fitresult[0]['p2'].value))
-                
-                ax1.plot(reduced_i[0], reduced_i[1], color=colors[i_roi % 5])
+#                backgroundShift = np.average(quadratic_background(reduced_i[0],
+#                                                                  Fitresult[0]['p0'].value,
+#                                                                  Fitresult[0]['p1'].value,
+#                                                                  Fitresult[0]['p2'].value))
 
-                for index_i in range(len(Peaks)):
-                    ax2 = plt.subplot(num_rows, 2, index_i+1)
-                    ax2.plot(reduced_i[0], reduced_i[1], 'x', color='black')
-                    ax2.plot(reduced_i[0], Fitresult[1], color='red')
-                    ax2.plot([CalibPeaks[index_i], CalibPeaks[index_i]],
-                             [backgroundShift, backgroundShift + Fitresult.params['g0_amplitude'].value],
-                             'k', linewidth=2)
-                    ax2.set_xlim([CalibPeaks[index_i]-1.5, CalibPeaks[index_i] + 1.5])
+                backgroundShift = np.average(quadratic_background(reduced_i[0],
+                                                                  Fitresult[0]['p0'],
+                                                                  Fitresult[0]['p1'],
+                                                                  Fitresult[0]['p2']))
+                
+#                ax1.plot(reduced_i[0], reduced_i[1], color=colors[i_roi % 5])
+
+#                for index_i in range(len(Peaks)):
+#                    ax2 = plt.subplot(num_rows, 2, index_i+1)
+#                    ax2.plot(reduced_i[0], reduced_i[1], 'x', color='black')
+#                    ax2.plot(reduced_i[0], Fitresult[1], color='red')
+#                    ax2.plot([CalibPeaks[index_i], CalibPeaks[index_i]],
+#                             [backgroundShift, backgroundShift + Fitresult.params['g0_amplitude'].value],
+#                             'k', linewidth=2)
+#                    ax2.set_xlim([CalibPeaks[index_i]-1.5, CalibPeaks[index_i] + 1.5])
                 # END-FOR
 
             # Optionally save the least square figure of this round for further reference
-            if os.path.exists('FitFigures'):
-                plt.savefig('./FitFigures/Round{:010}_{:02}.png'.format(GlobalParameter.global_curr_sequence, i_tth))
-                plt.clf()
+#            if os.path.exists('FitFigures'):
+#                plt.savefig('./FitFigures/Round{:010}_{:02}.png'.format(GlobalParameter.global_curr_sequence, i_tth))
+#                plt.clf()
         # END-FOR(tth)
 
         print ("\n")
