@@ -245,6 +245,16 @@ def test_gaussian_eff_parameters():
     :return:
     """
     # Test data:
+    """
+    Raw:
+    {'wsindex': 0, 'chi2': 0.001228202867446606, 'peakindex': 0, 'Height': 0.676468683375185,
+    'A1': -0.028871678306777383, 'A0': 4.370614112927266, 'PeakCentre': 92.90363366305505,
+    'Sigma': 0.20788180862724454}
+    Effective:
+    {'A0': 4.370614112927266, 'wsindex': 0, 'centre': 92.90363366305505, 'chi2': 0.001228202867446606,
+    'peakindex': 0, 'height': 0.676468683375185, 'A1': -0.028871678306777383, 'width': 0.48952424995272315,
+    'intensity': 0.3524959381046824}
+    """
     # ....
     sigma = 1.
     height = 1.
@@ -257,6 +267,26 @@ def test_gaussian_eff_parameters():
     assert exp_intensity == pytest.approx(intensity, 1E-12)
 
     return
+
+
+def test_pv_eff_parameters():
+    """
+
+    Returns
+    -------
+
+    """
+    # Test Case:
+    """
+    Raw:
+    {'wsindex': 0, 'chi2': 0.00108511156504155, 'peakindex': 0, 'A1': -0.027195270397136647,
+    'A0': 4.201135994827259, 'Intensity': 0.45705834149790703, 'Mixing': 0.23636114719871532,
+    'PeakCentre': 92.90427899142493, 'FWHM': 0.44181666416237664}
+    Eff:
+    {'A0': 4.201135994827259, 'wsindex': 0, 'centre': 92.90427899142493, 'chi2': 0.00108511156504155,
+    'peakindex': 0, 'height': 0.7326251617860263, 'A1': -0.027195270397136647, 'width': 0.44181666416237664,
+    'intensity': 0.45705834149790703}
+    """
 
 
 if __name__ == '__main__':
