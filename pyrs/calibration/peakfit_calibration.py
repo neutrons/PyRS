@@ -14,10 +14,7 @@ try:
 except ImportError:
     UseLSQ = True
     from scipy.optimize import leastsq  # for older scipy
-    
-    
-#from lmfit.models import GaussianModel
-#from lmfit import Model
+
 
 colors = ['black', 'red', 'blue', 'green', 'yellow']
 
@@ -27,8 +24,9 @@ dSpace = np.array([4.156826, 2.93931985, 2.39994461, 2.078413, 1.8589891, 1.6970
                    0.8313652, 0.81522065, 0.79998154, 0.77190321, 0.75892912, 0.73482996])
 
 
-def runCalib( ):
+def runCalib():
     return
+
 
 def quadratic_background(x, p0, p1, p2):
     """Quadratic background
@@ -50,10 +48,11 @@ def quadratic_background(x, p0, p1, p2):
     """
     return p2*x*x + p1*x + p0
 
-def GaussianModel( x, mu, sigma, Amp ):
+
+def GaussianModel(x, mu, sigma, Amp):
     """Gaussian Model
 
-    Y = Amp/(sigma * np.sqrt(2 * np.pi)) * np.exp( - (x - mu)**2 / (2 * sigma**2) )
+    Y = Amp/(sigma * np.sqrt(2 * np.pi)) * np.exp(- (x - mu)**2 / (2 * sigma**2))
 
     Parameters
     ----------
@@ -68,7 +67,8 @@ def GaussianModel( x, mu, sigma, Amp ):
     float or numpy array
         Peak
     """
-    return Amp/(sigma * np.sqrt(2 * np.pi)) * np.exp( - (x - mu)**2 / (2 * sigma**2) )
+    return Amp/(sigma * np.sqrt(2 * np.pi)) * np.exp(- (x - mu)**2 / (2 * sigma**2))
+
 
 class GlobalParameter(object):
     global_curr_sequence = 0
@@ -143,56 +143,61 @@ class PeakFitCalibration(object):
         return vec_2theta, vec_hist
 
     @staticmethod
-    def FitPeaks( x, y, Params, Peak_Num):
+    def FitPeaks(x, y, Params, Peak_Num):
 
-        def CalcPatt( x, y, PAR, Peak_Num ):
-            Model = np.zeros_like( x )
-            Model += quadratic_background( x, PAR['p0'], PAR['p1'], PAR['p2'] )
+        def CalcPatt(x, y, PAR, Peak_Num):
+            Model = np.zeros_like(x)
+            Model += quadratic_background(x, PAR['p0'], PAR['p1'], PAR['p2'])
             for ipeak in Peak_Num:
-                Model += GaussianModel(x, PAR['g%d_center'%ipeak], PAR['g%d_sigma'%ipeak], PAR['g%d_amplitude'%ipeak] )
+                Model += GaussianModel(x, PAR['g%d_center'%ipeak], PAR['g%d_sigma'%ipeak], PAR['g%d_amplitude'%ipeak])
             return Model 
 
-        def residual( x0, x, y, ParamNames, Peak_Num):
-            PAR = dict( zip(ParamNames, x0) )
-            Model = CalcPatt( x, y, PAR, Peak_Num )    
-            return ( y-Model ) / np.sqrt( y )
+        def residual(x0, x, y, ParamNames, Peak_Num):
+            PAR = dict(zip(ParamNames, x0))
+            Model = CalcPatt(x, y, PAR, Peak_Num)    
+            return (y-Model) / np.sqrt(y)
         
-        x0          = []
-        ParamNames  = []
-        LL, UL      = [],[]
+        x0 = list()
+        ParamNames = list()
+        LL, UL = [], []
         
         Params['p0'] = [y[0], -np.inf, np.inf]
-        for pkey in list( Params.keys() ):
-            x0.append( Params[ pkey ][0] )
-            LL.append( Params[ pkey ][1] )
-            UL.append( Params[ pkey ][2] )   
+        for pkey in list(Params.keys()):
+            x0.append(Params[pkey][0])
+            LL.append(Params[pkey][1])
+            UL.append(Params[pkey][2])   
             
-            ParamNames.append( pkey )
+            ParamNames.append(pkey)
             
         if UseLSQ:            
-            out = leastsq(residual, x0, args=(x, y, ParamNames, Peak_Num), Dfun=None, ftol=1e-8, xtol=1e-8, gtol=1e-8, maxfev=0, factor=1.0)
-            returnSetup = [dict( zip( out[0], ParamNames) ), CalcPatt( x, y, dict( zip( out[0], ParamNames) ), Peak_Num ) ]
+            out = leastsq(residual, x0, args=(x, y, ParamNames, Peak_Num), Dfun=None, ftol=1e-8, xtol=1e-8,
+                          gtol=1e-8, maxfev=0, factor=1.0)
+            returnSetup = [dict(zip(out[0], ParamNames)), CalcPatt(x, y, dict(zip(out[0], ParamNames)), Peak_Num)]
         else:
-            out = least_squares(residual, x0, bounds=[LL, UL], method='dogbox', ftol=1e-8, xtol=1e-8, gtol=1e-8, \
-                            f_scale=1.0, max_nfev=None, args=(x, y, ParamNames, Peak_Num) )
-            returnSetup = [dict( zip( ParamNames, out.x) ), CalcPatt( x, y, dict( zip( ParamNames, out.x) ), Peak_Num ) ]
+            out = least_squares(residual, x0, bounds=[LL, UL], method='dogbox', ftol=1e-8, xtol=1e-8, gtol=1e-8,
+                                f_scale=1.0, max_nfev=None, args=(x, y, ParamNames, Peak_Num))
+            returnSetup = [dict(zip(ParamNames, out.x)), CalcPatt(x, y, dict(zip(ParamNames, out.x)), Peak_Num)]
 
         return returnSetup
         
-    def FitDetector(self, fun, x0, jac='2-point', bounds=[], method='trf', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', \
-                    f_scale=1.0, diff_step=None, tr_solver=None, max_nfev=None, verbose=0, args=(), kwargs={}, \
-                    full_output=0, col_deriv=0, maxfev=0):
+    def FitDetector(self, fun, x0, jac='2-point', bounds=[], method='trf', ftol=1e-08, xtol=1e-08, gtol=1e-08,
+                    x_scale=1.0, loss='linear', \
+                    f_scale=1.0, diff_step=None, tr_solver=None, max_nfev=None, verbose=0, args=(),
+                    kwargs={}, full_output=0, col_deriv=0, maxfev=0):
         
         if UseLSQ:
             if type(max_nfev) == type(None):max_nfev=0
-            out = leastsq(self.peak_alignment_rotation, x0, args=args, Dfun=None, ftol=ftol, xtol=xtol, gtol=gtol, maxfev=max_nfev, factor=f_scale)
+            out = leastsq(self.peak_alignment_rotation, x0, args=args, Dfun=None, ftol=ftol, xtol=xtol, gtol=gtol,
+                          maxfev=max_nfev, factor=f_scale)
             
         else:
-            if len( bounds[0] ) != len( bounds[1] ):
+            if len(bounds[0]) != len(bounds[1]):
                 raise RuntimeError('User must specify bounds of equal length')
             
-            out = least_squares(self.peak_alignment_rotation, x0, jac=jac, bounds=bounds, method='dogbox', ftol=ftol, xtol=xtol, gtol=gtol, \
-                                x_scale=x_scale, loss=loss, f_scale=f_scale, diff_step=diff_step, tr_solver=tr_solver, max_nfev=max_nfev, args=args)
+            out = least_squares(self.peak_alignment_rotation, x0, jac=jac, bounds=bounds, method='dogbox',
+                                ftol=ftol, xtol=xtol, gtol=gtol, \
+                                x_scale=x_scale, loss=loss, f_scale=f_scale, diff_step=diff_step,
+                                tr_solver=tr_solver, max_nfev=max_nfev, args=args)
         
         return out
     
@@ -285,22 +290,14 @@ class PeakFitCalibration(object):
 
                 # fit peaks
 #                Fitresult = FitModel.fit(reduced_i[1], pars1, x=reduced_i[0])
-                Fitresult = self.FitPeaks(reduced_i[0], reduced_i[1], pars1, Peaks )
+                Fitresult = self.FitPeaks(reduced_i[0], reduced_i[1], pars1, Peaks)
 
                 for p_index in Peaks:
-#                    residual = np.concatenate([residual,
-#                                               np.array([(100.0 * (Fitresult[0]['g%d_center' % p_index].value -
-#                                                                   CalibPeaks[p_index]))])])
                     residual = np.concatenate([residual,
                                                np.array([(100.0 * (Fitresult[0]['g%d_center' % p_index] -
                                                                    CalibPeaks[p_index]))])])
 
                 # plot results
-#                backgroundShift = np.average(quadratic_background(reduced_i[0],
-#                                                                  Fitresult[0]['p0'].value,
-#                                                                  Fitresult[0]['p1'].value,
-#                                                                  Fitresult[0]['p2'].value))
-
                 backgroundShift = np.average(quadratic_background(reduced_i[0],
                                                                   Fitresult[0]['p0'],
                                                                   Fitresult[0]['p1'],
