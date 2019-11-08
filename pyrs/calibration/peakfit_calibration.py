@@ -81,6 +81,7 @@ class PeakFitCalibration(object):
     """
     Calibrate by grid searching algorithm using Brute Force or Monte Carlo random walk
     """
+
     def __init__(self, hb2b_instrument, hidra_data):
         """
         Initialization
@@ -101,7 +102,7 @@ class PeakFitCalibration(object):
         GlobalParameter.global_curr_sequence = 0
 
         return
-    
+
     @staticmethod
     def check_alignment_inputs(roi_vec_set):
         """ Check inputs for alignment routine for required formating
@@ -149,27 +150,28 @@ class PeakFitCalibration(object):
             Model = np.zeros_like(x)
             Model += quadratic_background(x, PAR['p0'], PAR['p1'], PAR['p2'])
             for ipeak in Peak_Num:
-                Model += GaussianModel(x, PAR['g%d_center'%ipeak], PAR['g%d_sigma'%ipeak], PAR['g%d_amplitude'%ipeak])
-            return Model 
+                Model += GaussianModel(x, PAR['g%d_center' % ipeak], PAR['g%d_sigma' %
+                                                                         ipeak], PAR['g%d_amplitude' % ipeak])
+            return Model
 
         def residual(x0, x, y, ParamNames, Peak_Num):
             PAR = dict(zip(ParamNames, x0))
-            Model = CalcPatt(x, y, PAR, Peak_Num)    
+            Model = CalcPatt(x, y, PAR, Peak_Num)
             return (y-Model) / np.sqrt(y)
-        
+
         x0 = list()
         ParamNames = list()
         LL, UL = [], []
-        
+
         Params['p0'] = [y[0], -np.inf, np.inf]
         for pkey in list(Params.keys()):
             x0.append(Params[pkey][0])
             LL.append(Params[pkey][1])
-            UL.append(Params[pkey][2])   
-            
+            UL.append(Params[pkey][2])
+
             ParamNames.append(pkey)
-            
-        if UseLSQ:            
+
+        if UseLSQ:
             out = leastsq(residual, x0, args=(x, y, ParamNames, Peak_Num), Dfun=None, ftol=1e-8, xtol=1e-8,
                           gtol=1e-8, maxfev=0, factor=1.0)
             returnSetup = [dict(zip(out[0], ParamNames)), CalcPatt(x, y, dict(zip(out[0], ParamNames)), Peak_Num)]
@@ -179,28 +181,29 @@ class PeakFitCalibration(object):
             returnSetup = [dict(zip(ParamNames, out.x)), CalcPatt(x, y, dict(zip(ParamNames, out.x)), Peak_Num)]
 
         return returnSetup
-        
+
     def FitDetector(self, fun, x0, jac='2-point', bounds=[], method='trf', ftol=1e-08, xtol=1e-08, gtol=1e-08,
-                    x_scale=1.0, loss='linear', \
+                    x_scale=1.0, loss='linear',
                     f_scale=1.0, diff_step=None, tr_solver=None, max_nfev=None, verbose=0, args=(),
                     kwargs={}, full_output=0, col_deriv=0, maxfev=0):
-        
+
         if UseLSQ:
-            if type(max_nfev) == type(None):max_nfev=0
+            if type(max_nfev) == type(None):
+                max_nfev = 0
             out = leastsq(self.peak_alignment_rotation, x0, args=args, Dfun=None, ftol=ftol, xtol=xtol, gtol=gtol,
                           maxfev=max_nfev, factor=f_scale)
-            
+
         else:
             if len(bounds[0]) != len(bounds[1]):
                 raise RuntimeError('User must specify bounds of equal length')
-            
+
             out = least_squares(self.peak_alignment_rotation, x0, jac=jac, bounds=bounds, method='dogbox',
-                                ftol=ftol, xtol=xtol, gtol=gtol, \
+                                ftol=ftol, xtol=xtol, gtol=gtol,
                                 x_scale=x_scale, loss=loss, f_scale=f_scale, diff_step=diff_step,
                                 tr_solver=tr_solver, max_nfev=max_nfev, args=args)
-        
+
         return out
-    
+
     def get_alignment_residual(self, x, roi_vec_set=None):
         """ Cost function for peaks alignment to determine wavelength
         :param x: list/array of detector shift/rotation and neutron wavelength values
@@ -243,8 +246,8 @@ class PeakFitCalibration(object):
             for ipeak in range(len(CalibPeaks)):
                 Peaks = []
                 pars1 = {}
-                pars1['p1'] = [0, -np.inf, np.inf] 
-                pars1['p2'] = [0, -np.inf, np.inf] 
+                pars1['p1'] = [0, -np.inf, np.inf]
+                pars1['p2'] = [0, -np.inf, np.inf]
                 if (CalibPeaks[ipeak] > mintth) and (CalibPeaks[ipeak] < maxtth):
 
                     Peaks.append(ipeak)
@@ -257,7 +260,7 @@ class PeakFitCalibration(object):
 #                    pars1['g%d_sigma' % ipeak].set(value=0.5, min=1e-1, max=1.5)
 #                    pars1['g%d_amplitude' % ipeak].set(value=50., min=10, max=1e6)
                     pars1['g%d_center' % ipeak] = [CalibPeaks[ipeak], CalibPeaks[ipeak] - 2,
-                                                    CalibPeaks[ipeak] + 2]
+                                                   CalibPeaks[ipeak] + 2]
                     pars1['g%d_sigma' % ipeak] = [0.5, 1e-1, 1.5]
                     pars1['g%d_amplitude' % ipeak] = [50., 10, 1e6]
 
@@ -302,7 +305,7 @@ class PeakFitCalibration(object):
                                                                   Fitresult[0]['p0'],
                                                                   Fitresult[0]['p1'],
                                                                   Fitresult[0]['p2']))
-                
+
 #                ax1.plot(reduced_i[0], reduced_i[1], color=colors[i_roi % 5])
 
 #                for index_i in range(len(Peaks)):
@@ -321,13 +324,13 @@ class PeakFitCalibration(object):
 #                plt.clf()
         # END-FOR(tth)
 
-        print ("\n")
-        print ('Iteration      {}'.format(GlobalParameter.global_curr_sequence))
-        print ('RMSE         = {}'
-               ''.format(np.sqrt(residual.sum()**2 / (len(eta_roi_vec) *
-                                                      self._engine.get_log_value('2Theta').shape[0]))))
-        print ('Residual Sum = {}'.format(np.sum(residual) / 100.))
-        print ("\n")
+        print("\n")
+        print('Iteration      {}'.format(GlobalParameter.global_curr_sequence))
+        print('RMSE         = {}'
+              ''.format(np.sqrt(residual.sum()**2 / (len(eta_roi_vec) *
+                                                     self._engine.get_log_value('2Theta').shape[0]))))
+        print('Residual Sum = {}'.format(np.sum(residual) / 100.))
+        print("\n")
 
         return residual
 
@@ -355,9 +358,9 @@ class PeakFitCalibration(object):
         paramVec = np.copy(self._calib)
         paramVec[0:3] = x[:]
 
-        print ('\n')
-        print (paramVec)
-        print ('\n')
+        print('\n')
+        print(paramVec)
+        print('\n')
 
         residual = self.get_alignment_residual(paramVec, roi_vec_set)
 
