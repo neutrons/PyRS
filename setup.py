@@ -65,7 +65,6 @@ if __name__ == "__main__":
     main
     """
     scripts = ['scripts/pyrsplot',
-               'scripts/convert_nexus_to_hidra.py',
                'scripts/reduce_HB2B.py',
                'scripts/create_mask.py',
                'scripts/convert_raw_data.py']
@@ -82,7 +81,7 @@ if __name__ == "__main__":
         maintainer_email=find_meta("email"),
         keywords=KEYWORDS,
         long_description=read("README.rst"),
-        packages=find_packages(),
+        packages=find_packages(exclude=['tests', 'tests.*']),
         zip_safe=False,
         classifiers=CLASSIFIERS,
         install_requires=INSTALL_REQUIRES,
@@ -92,5 +91,5 @@ if __name__ == "__main__":
         scripts=scripts,
         setup_requires=['pytest-runner'],
         # tests_require=setup_args['install_requires'] + setup_args['tests_require'],
-        # test_suite='tests'
+        test_suite='tests'
     )
