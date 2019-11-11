@@ -572,9 +572,9 @@ class HydraProjectFile(object):
 
         Returns
         -------
-        str, ndarray, ndarray, ndarray, ndarray
-            peak profile, sub runs corresponding to parameter chi2 and values,
-              chi2 for each sub run, parameter names, parameter values
+        str, str, ndarray, ndarray, ndarray
+            peak profile, background type, sub runs corresponding to parameter chi2 and values,
+              parameter values including Chi2, parameter errors
         """
         # Get main group
         peak_main_group = self._project_h5[HidraConstants.PEAKS]
@@ -586,12 +586,12 @@ class HydraProjectFile(object):
 
         # Get all the attribute and data
         profile = peak_entry.attrs[HidraConstants.PEAK_PROFILE]
+        background = peak_entry.attrs[HidraConstants.BACKGROUND_TYPE]
         sub_run_array = peak_entry[HidraConstants.SUB_RUNS]
-        chi2_array = peak_entry[HidraConstants.PEAK_FIT_CHI2]
-        param_names = peak_entry[HidraConstants.PEAK_PARAM_NAMES]
-        param_values = peak_entry[HidraConstants.PEAK_PARAMS]
+        param_values = peak_entry[HidraConstants.PEAK_PARAMS].value
+        error_values = peak_entry[HidraConstants.PEAK_PARAMS_ERROR].value
 
-        return profile, sub_run_array, chi2_array, param_names, param_values
+        return profile, background, sub_run_array, param_values, error_values
 
     def set_peak_fit_result(self, peak_tag, peak_profile, background_type, sub_run_vec, param_value_array,
                             param_error_array):

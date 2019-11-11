@@ -258,8 +258,11 @@ def test_gaussian_eff_parameters():
     fwhm = Gaussian.cal_fwhm(sigma)
     intensity = Gaussian.cal_intensity(height, sigma)
 
-    assert exp_fwhm == pytest.approx(fwhm, 1E-10), 'FWHM wrong'
-    assert exp_intensity == pytest.approx(intensity, 1E-10), 'Intensity wrong'
+    # assert exp_fwhm == pytest.approx(fwhm, 1E-10), 'FWHM wrong'
+    # assert exp_intensity == pytest.approx(intensity, 1E-10), 'Intensity wrong'
+    assert abs(exp_fwhm - fwhm) < 1E-10, 'FWHM: {} - {} = {} > 1E-10'.format(exp_fwhm, fwhm, exp_fwhm - fwhm)
+    assert abs(exp_intensity - intensity) < 1E-10, 'Intensity: {} - {} = {} > 1e-10' \
+                                                   ''.format(exp_intensity, intensity, exp_intensity - intensity)
 
     return
 
@@ -284,7 +287,8 @@ def test_pv_eff_parameters():
     test_height = PseudoVoigt.cal_height(intensity, fwhm, mixing)
 
     # Verify
-    assert test_height == pytest.approx(exp_height, 1E-10), 'Peak height does not match'
+    assert abs(test_height - exp_height) < 1E-10, 'Peak height: {} - {} = {} > 1e-10' \
+                                                  ''.format(exp_height, test_height, exp_height - test_height)
 
     return
 

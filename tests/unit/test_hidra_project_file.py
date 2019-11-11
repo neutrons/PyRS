@@ -9,6 +9,18 @@ from pyrs.core import peak_profile_utility
 import pytest
 
 
+def assert_allclose_structured_numpy_arrays(expected, calculated):
+    if expected.dtype.names != calculated.dtype.names:
+        raise AssertionError('{} and {} do not match'.format(expected.dtype.names, calculated.dtype.names))
+
+    for name in expected.dtype.names:
+        if not np.allclose(expected[name], calculated[name], atol=1E-10):
+            raise AssertionError('{}: Not same\nExpected: {}\nCalculated: {}'
+                                 ''.format(name, expected[name], calculated[name]))
+
+    return
+
+
 def test_mask():
     """Test methods to read and write mask file
 
@@ -142,19 +154,28 @@ def test_peak_fitting_result_io():
                                                          rs_project_file.HydraProjectFileMode.OVERWRITE)
 
     # Create a ND array for output parameters
-    test_params_array = np.zeros((3, len(peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS)), float)
+    data_type = list()
+    for param_name in peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS:
+        data_type.append((param_name, np.float32))
+    test_error_array = np.zeros(3, dtype=data_type)
+    data_type.append((rs_project_file.HidraConstants.PEAK_FIT_CHI2, np.float32))
+    test_params_array = np.zeros(3, dtype=data_type)
+
     for i in range(3):
-        for j in range(len(peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS)):
-            test_params_array[i, j] = 2**i + 0.1 * 3**j
+        # sub run
+        for j, par_name in enumerate(peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS):
+            test_params_array[par_name][i] = 2**i + 0.1 * 3**j
+            test_error_array[par_name][i] = np.sqrt(abs(test_params_array[par_name][i]))
     # END-FOR
+    test_params_array[rs_project_file.HidraConstants.PEAK_FIT_CHI2] = np.array([0.323, 0.423, 0.523])
 
     # Add test data to output
     test_project_file.set_peak_fit_result(peak_tag='test fake',
                                           peak_profile='PseudoVoigt',
-                                          peak_param_names=peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS,
+                                          background_type='Linear',
                                           sub_run_vec=np.array([1, 2, 3]),
-                                          chi2_vec=np.array([0.323, 0.423, 0.523]),
-                                          peak_params=test_params_array)
+                                          param_value_array=test_params_array,
+                                          param_error_array=test_error_array)
 
     test_project_file.save_hydra_project(False)
 
@@ -177,18 +198,19 @@ def test_peak_fitting_result_io():
 
     # peak profile
     assert peak_info[0] == 'PseudoVoigt'
+    assert peak_info[1] == 'Linear'
 
     # sub runs
-    assert np.allclose(peak_info[1], np.array([1, 2, 3]))
-
-    # chi2
-    assert np.allclose(peak_info[2], np.array([0.323, 0.423, 0.523]), 1.E-5)
-
-    # parameter names
-    assert list(peak_info[3]) == peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS
+    assert np.allclose(peak_info[2], np.array([1, 2, 3]))
 
     # parameter values
-    assert np.allclose(peak_info[4], test_params_array, 1E-12)
+    # print('DEBUG:\n  Expected: {}\n  Found: {}'.format(test_params_array, peak_info[3]))
+    assert_allclose_structured_numpy_arrays(test_params_array, peak_info[3])
+    # np.testing.assert_allclose(peak_info[3], test_params_array, atol=1E-12)
+
+    # parameter values
+    # assert np.allclose(peak_info[4], test_error_array, 1E-12)
+    assert_allclose_structured_numpy_arrays(test_error_array, peak_info[4])
 
     # Clean
     os.remove(test_file_name)
