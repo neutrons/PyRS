@@ -167,7 +167,7 @@ def test_peak_fitting_result_io():
             test_params_array[par_name][i] = 2**i + 0.1 * 3**j
             test_error_array[par_name][i] = np.sqrt(abs(test_params_array[par_name][i]))
     # END-FOR
-    chi2_array =  np.array([0.323, 0.423, 0.523])
+    chi2_array = np.array([0.323, 0.423, 0.523])
     test_params_array[rs_project_file.HidraConstants.PEAK_FIT_CHI2] = chi2_array
 
     # Add test data to output

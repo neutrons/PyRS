@@ -310,4 +310,3 @@ class PeakFitEngine(object):
         self._wavelength_dict = wavelengths
 
         return
-

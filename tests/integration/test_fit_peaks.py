@@ -168,11 +168,9 @@ def test_main(project_file_name, peak_file_name, peak_type, peak_info):
 
 
 @pytest.mark.parametrize('project_file_name, csv_file_name',
-                         [# A good peak
-                          ('/HFIR/HB2B/IPTS-22731/nexus/HB2B_938.nxs.h5', 'HB2B_938.h5'),
-                         ],
-                         ids=['HB2B_938X'])
-def skip_test_write_csv(project_file_name, csv_file_name):
+                         [('data/HB2B_938_peak.h5', 'HB2B_938.h5')],
+                         ids=['HB2B_938CSV'])
+def test_write_csv(project_file_name, csv_file_name):
     """
 
     Returns
