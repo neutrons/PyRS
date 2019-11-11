@@ -3,7 +3,7 @@ from pyrs.utilities import checkdatatypes
 from pyrs.core import instrument_geometry
 from pyrs.utilities import file_util
 from pyrs.core import peak_fit_factory
-from pyrs.utilities.rs_project_file import HidraConstants
+from pyrs.utilities.rs_project_file import HidraConstants, HydraProjectFile, HydraProjectFileMode
 from pyrs.core import strain_stress_calculator
 from pyrs.core import reduction_manager
 from pyrs.core import polefigurecalculator
@@ -102,6 +102,20 @@ class PyRsCore(object):
         raise NotImplementedError('Project {} of solid angles {} need to be implemented soon!'
                                   ''.format(project_name, solid_angles))
 
+    def create_fit_engine_instance(self, fit_tag):
+        # get workspace
+        workspace = self.reduction_service.get_hidra_workspace(fit_tag)
+        # create a controller from factory
+        self._peak_fitting_dict[fit_tag] = peak_fit_factory.PeakFitEngineFactory.getInstance('Mantid')(workspace,
+                                                                                                       None)
+        # set wave length: TODO - #81+ - shall be a way to use calibrated or non-calibrated
+        wave_length_dict = workspace.get_wave_length(calibrated=False, throw_if_not_set=False)
+        if wave_length_dict is not None:
+            self._peak_fitting_dict[fit_tag].set_wavelength(wave_length_dict)
+            # self._peak_fit_controller.set_wavelength(wave_length_dict)
+
+        return workspace
+
     def fit_peaks(self, fit_tag, sub_run_list, peak_type, background_type, peaks_fitting_setup):
         """Fit a single peak on each diffraction pattern selected from client-specified
 
@@ -125,26 +139,35 @@ class PyRsCore(object):
         # Check input
         checkdatatypes.check_string_variable('Project name', fit_tag, allow_empty=False)
 
-        # Get peak fitting controller
-        if fit_tag in self._peak_fitting_dict:
-            # if it does exist
-            self._peak_fit_controller = self._peak_fitting_dict[fit_tag]
-            workspace = self._peak_fit_controller.get_hidra_workspace()
-        else:
-            # create a new one
-            # get workspace
-            workspace = self.reduction_service.get_hidra_workspace(fit_tag)
-            # create a controller from factory
-            self._peak_fit_controller = peak_fit_factory.PeakFitEngineFactory.getInstance('Mantid')(
-                workspace, None)
-            # set wave length: TODO - #81+ - shall be a way to use calibrated or non-calibrated
-            wave_length_dict = workspace.get_wave_length(calibrated=False, throw_if_not_set=False)
-            if wave_length_dict is not None:
-                self._peak_fit_controller.set_wavelength(wave_length_dict)
+        # Create new one if it does not exist
+        if fit_tag not in self._peak_fitting_dict:
+            self.create_fit_engine_instance(fit_tag)
 
-            # add to dictionary
-            self._peak_fitting_dict[fit_tag] = self._peak_fit_controller
-        # END-IF-ELSE
+        # Get controller by 'fitting tag' and set it to current peak_fit_controller
+        self._peak_fit_controller = self._peak_fitting_dict[fit_tag]
+        workspace = self._peak_fit_controller.get_hidra_workspace()
+
+        # FIXME - Temporarily left as reference.  Delete as soon as all tests are passed
+        # # Get peak fitting controller
+        # if fit_tag in self._peak_fitting_dict:
+        #     # if it does exist
+        #     self._peak_fit_controller = self._peak_fitting_dict[fit_tag]
+        #     workspace = self._peak_fit_controller.get_hidra_workspace()
+        # else:
+        #     # create a new one
+        #     # get workspace
+        #     workspace = self.reduction_service.get_hidra_workspace(fit_tag)
+        #     # create a controller from factory
+        #     self._peak_fit_controller = peak_fit_factory.PeakFitEngineFactory.getInstance('Mantid')(
+        #         workspace, None)
+        #     # set wave length: TODO - #81+ - shall be a way to use calibrated or non-calibrated
+        #     wave_length_dict = workspace.get_wave_length(calibrated=False, throw_if_not_set=False)
+        #     if wave_length_dict is not None:
+        #         self._peak_fit_controller.set_wavelength(wave_length_dict)
+        #
+        #     # add to dictionary
+        #     self._peak_fitting_dict[fit_tag] = self._peak_fit_controller
+        # # END-IF-ELSE
 
         # Check Inputs
         checkdatatypes.check_dict('Peak fitting (information) parameters', peaks_fitting_setup)
@@ -178,6 +201,7 @@ class PyRsCore(object):
             try:
                 self._peak_fit_controller.fit_peaks(sub_run_range, peak_type, background_type, peak_center, peak_range,
                                                     cal_center_d=True)
+
             except RuntimeError as run_err:
                 error_message += 'Failed to fit (tag) {} due to {}\n'.format(peak_tag_i, run_err)
         # END-FOR
@@ -436,19 +460,16 @@ class PyRsCore(object):
         -------
 
         """
-        """ Save peak fit result to file with original data
-        :param data_key:
-        :param src_rs_file_name:
-        :param target_rs_file_name:
-        :return:
-        """
-        # TODO - #81 - Doc!
+        # TODO - #81 - (1) Doc!  (2) Need to track whether this file is open or closed (3) RW mode
         if project_name is None:
             optimizer = self._peak_fit_controller
         else:
             optimizer = self._peak_fitting_dict[project_name]
 
-        optimizer.export_fit_result(hidra_file_name, peak_tag)
+        # Assuming the file is to write as new
+        hidra_project_file = HydraProjectFile(hidra_file_name, HydraProjectFileMode.OVERWRITE)
+        optimizer.export_to_hydra_project(hidra_project_file, peak_tag)
+        hidra_project_file.close()
 
         return
 

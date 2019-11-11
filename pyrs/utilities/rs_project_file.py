@@ -40,8 +40,10 @@ class HidraConstants(object):
     PEAKS = 'peaks'  # main entry for fitted peaks' parameters
     PEAK_FIT_CHI2 = 'chi2'
     PEAK_PARAMS = 'parameters'  # peak parameter values
+    PEAK_PARAMS_ERROR = 'fitting error'  # peak parameters' fitting error
     PEAK_PARAM_NAMES = 'parameter names'  # peak parameter names
     PEAK_COM = 'C.O.M'  # peak's center of mass
+    BACKGROUND_TYPE = 'background type'
 
 
 class HydraProjectFileMode(Enum):
@@ -320,7 +322,13 @@ class HydraProjectFile(object):
         Get the (reduced) diffraction data's 2-theta vector
         :return:
         """
-        two_theta_vec = self._project_h5[HidraConstants.REDUCED_DATA][HidraConstants.TWO_THETA].value
+        if HidraConstants.TWO_THETA not in self._project_h5[HidraConstants.REDUCED_DATA]:
+            # FIXME - This is a patch for 'legacy' data.  It will be removed after codes are stable
+            tth_key = '2Theta'
+        else:
+            tth_key = HidraConstants.TWO_THETA
+
+        two_theta_vec = self._project_h5[HidraConstants.REDUCED_DATA][tth_key].value
 
         return two_theta_vec
 
@@ -359,10 +367,15 @@ class HydraProjectFile(object):
         :return:
         """
         masks = self._project_h5[HidraConstants.REDUCED_DATA].keys()
+
+        # Clean up data entry '2theta' (or '2Theta')
+        if HidraConstants.TWO_THETA in masks:
+            masks.remove(HidraConstants.TWO_THETA)
+
+        # FIXME - Remove when Hidra-16_Log.h5 is fixed with correction entry name as '2theta'
+        # (aka HidraConstants.TWO_THETA)
         if '2Theta' in masks:
             masks.remove('2Theta')
-        if '2theta' in masks:
-            masks.remove('2theta')
 
         return masks
 
@@ -390,7 +403,6 @@ class HydraProjectFile(object):
 
         return instrument_setup
 
-    # TODO - TEST - Signature changed...
     def get_sample_logs(self):
         """Get sample logs
 
@@ -419,16 +431,6 @@ class HydraProjectFile(object):
             # get array
             log_value_vec = logs_group[log_name].value
             logs_value_set[log_name] = log_value_vec
-            # if log_value_vec.shape != sub_runs.shape:
-            #     raise RuntimeError('Sample log {} does not match sub runs'.format(log_name))
-            #
-            # log_value_dict = dict()
-            # for s_index in range(sub_runs.shape[0]):
-            #     log_value_dict[sub_runs[s_index]] = log_value_vec[s_index]
-            # # END-FOR
-            #
-            # logs_value_set[log_name] = log_value_dict
-        # END-FOR
 
         return sub_runs, logs_value_set
 
@@ -570,9 +572,10 @@ class HydraProjectFile(object):
 
         Returns
         -------
-        str, ndarray, ndarray, ndarray, ndarray
-            peak profile, sub runs corresponding to parameter chi2 and values,
-              chi2 for each sub run, parameter names, parameter values
+        str, str, ndarray, ndarray, ndarray, ndarray
+            peak profile, background type, sub runs corresponding to parameter chi2 and values,
+              fitting cose (chi2) array,
+              parameter values (may include Chi2), parameter errors
         """
         # Get main group
         peak_main_group = self._project_h5[HidraConstants.PEAKS]
@@ -584,31 +587,42 @@ class HydraProjectFile(object):
 
         # Get all the attribute and data
         profile = peak_entry.attrs[HidraConstants.PEAK_PROFILE]
+        background = peak_entry.attrs[HidraConstants.BACKGROUND_TYPE]
         sub_run_array = peak_entry[HidraConstants.SUB_RUNS]
         chi2_array = peak_entry[HidraConstants.PEAK_FIT_CHI2]
-        param_names = peak_entry[HidraConstants.PEAK_PARAM_NAMES]
-        param_values = peak_entry[HidraConstants.PEAK_PARAMS]
+        param_values = peak_entry[HidraConstants.PEAK_PARAMS].value
+        error_values = peak_entry[HidraConstants.PEAK_PARAMS_ERROR].value
 
-        return profile, sub_run_array, chi2_array, param_names, param_values
+        return profile, background, sub_run_array, chi2_array, param_values, error_values
 
-    def set_peak_fit_result(self, peak_tag, peak_profile, peak_param_names, sub_run_vec, chi2_vec, peak_params):
+    def set_peak_fit_result(self, peak_tag, peak_profile, background_type, sub_run_vec, fit_cost_array,
+                            param_value_array, param_error_array):
         """Set the peak fitting results to project file.
 
         The tree structure for fitted peak in all sub runs is defined as
         - peaks
             - [peak-tag]
                 - attr/'peak profile'
-                - chi2
-                -
+                - sub runs
+                - parameter values
+                - parameter fitting error
 
         Parameters
         ----------
-        peak_tag
-        peak_profile
-        peak_param_names
-        sub_run_vec
-        chi2_vec
-        peak_params
+        peak_tag : str
+            peak tag
+        peak_profile : str
+            peak function name
+        background_type : str
+            background function
+        sub_run_vec : ~numpy.ndarray
+            sub run number
+        fit_cost_array :  ~numpy.ndarray
+            fitting cost (chi2)
+        param_value_array : ~numpy.ndarray
+            structured numpy array for peak + background (fitted) value
+        param_error_array : ~numpy.ndarray
+            structured numpy array for peak + background fitting error
 
         Returns
         -------
@@ -620,7 +634,7 @@ class HydraProjectFile(object):
 
         checkdatatypes.check_string_variable('Peak tag', peak_tag)
         checkdatatypes.check_string_variable('Peak profile', peak_profile)
-        checkdatatypes.check_list('Peak parameter names', peak_param_names)
+        checkdatatypes.check_string_variable('Background type', background_type)
 
         # access or create node for peak with given tag
         peak_main_group = self._project_h5[HidraConstants.PEAKS]
@@ -634,11 +648,12 @@ class HydraProjectFile(object):
 
         # Attributes
         self.set_attributes(single_peak_entry, HidraConstants.PEAK_PROFILE, peak_profile)
+        self.set_attributes(single_peak_entry, HidraConstants.BACKGROUND_TYPE, background_type)
 
         single_peak_entry.create_dataset(HidraConstants.SUB_RUNS, data=sub_run_vec)
-        single_peak_entry.create_dataset(HidraConstants.PEAK_PARAM_NAMES, data=peak_param_names)
-        single_peak_entry.create_dataset(HidraConstants.PEAK_FIT_CHI2, data=chi2_vec)
-        single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS, data=peak_params)
+        single_peak_entry.create_dataset(HidraConstants.PEAK_FIT_CHI2, data=fit_cost_array)
+        single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS, data=param_value_array)
+        single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS_ERROR, data=param_error_array)
 
         return
 

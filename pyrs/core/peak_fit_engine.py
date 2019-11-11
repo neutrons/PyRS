@@ -3,8 +3,8 @@ import numpy
 import math
 from pyrs.core import workspaces
 from pyrs.utilities import rs_project_file
-from pyrs.utilities import checkdatatypes
 from pyrs.core import peak_profile_utility
+from pyrs.utilities import checkdatatypes
 
 
 class PeakFitEngine(object):
@@ -34,6 +34,12 @@ class PeakFitEngine(object):
 
         # Peak function
         self._peak_function_name = None
+        self._background_function_name = None
+        self._fit_cost_array = None
+        self._peak_params_value_array = None
+        self._peak_params_error_array = None
+        # shall be a structured numpy array
+        # columns are peak and background parameters names, rows are index corresponding to sorted run numbers
 
         return
 
@@ -90,21 +96,27 @@ class PeakFitEngine(object):
 
         return
 
-    def export_fit_result(self, file_name, peak_tag):
-        """
-        export fit result for all the peaks
-        :return: a dictionary of fitted peak information
-        """
-        hidra_file = rs_project_file.HydraProjectFile(file_name, rs_project_file.HydraProjectFileMode.READWRITE)
+    def export_to_hydra_project(self, hydra_project_file, peak_tag):
+        """Export fit result from this fitting engine instance to Hydra project file
 
-        param_names = self.get_peak_param_names(self._peak_function_name, is_effective=False)
-        print('[DB...BAT] Parameter names: {}'.format(param_names))
+        Parameters
+        ----------
+        hydra_project_file
+        peak_tag
+
+        Returns
+        -------
+
+        """
+        # Check input
+        checkdatatypes.check_type('Hidra project file', hydra_project_file, rs_project_file.HydraProjectFile)
 
         # Get parameter values
-        sub_run_vec, cost_vec, params_array = self.get_fitted_params(param_names, including_error=True)
+        sub_run_vec = self._hd_workspace.get_sub_runs()
 
-        hidra_file.set_peak_fit_result(peak_tag, self._peak_function_name, param_names, sub_run_vec, cost_vec,
-                                       params_array)
+        hydra_project_file.set_peak_fit_result(peak_tag, self._peak_function_name, self._background_function_name,
+                                               sub_run_vec, self._fit_cost_array, self._peak_params_value_array,
+                                               self._peak_params_error_array)
 
         return
 
@@ -298,12 +310,3 @@ class PeakFitEngine(object):
         self._wavelength_dict = wavelengths
 
         return
-
-    def write_result(self):
-        """
-        write (append) the peak fitting result to input HDF5 for further data reduction such as
-        calculating stress/strain.
-        The file format shall be documented as a standard
-        :return:
-        """
-        # TODO - 20180727 - Implement!

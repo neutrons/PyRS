@@ -4,6 +4,12 @@ import numpy
 from pyrs.core import pyrscore
 from matplotlib import pyplot as plt
 import pytest
+from collections import namedtuple
+import os
+
+
+# Named tuple for peak information
+PeakInfo = namedtuple('PeakInfo', 'center left_bound right_bound tag')
 
 
 class PeakFittingTest(object):
@@ -29,6 +35,29 @@ class PeakFittingTest(object):
 
         return
 
+    def fit_peak(self, peak_profile, peak_info):
+        """Fit peak
+
+        Parameters
+        ----------
+        peak_profile
+        peak_info : ~collections.namedtuple
+
+        Returns
+        -------
+
+        """
+        # Convert input named tuple to pyrs dictionary
+        peak_info_dict = {peak_info.tag: {'Center': peak_info.center,
+                                          'Range': (peak_info.left_bound, peak_info.right_bound)}}
+
+        # Fit peak
+        self._reduction_controller.fit_peaks(self._project_name, sub_run_list=None,
+                                             peak_type=peak_profile, background_type='Linear',
+                                             peaks_fitting_setup=peak_info_dict)
+
+        return
+
     def fit_pseudo_voigt(self):
         """
         Fit pseudo-voigt peaks
@@ -37,8 +66,6 @@ class PeakFittingTest(object):
         peak_info_dict = {'Fe111': {'Center': 94.5, 'Range': [91., 97]}}
 
         # Fit peaks
-        # TODO - 84 NOW - Implement this
-        # use rs_project_file.HidraConstants.PEAK_PSEUDOVOIGT instead of random string
         self._reduction_controller.fit_peaks(self._project_name, sub_run_list=None,
                                              peak_type='PseudoVoigt', background_type='Linear',
                                              peaks_fitting_setup=peak_info_dict)
@@ -99,38 +126,62 @@ class PeakFittingTest(object):
         return
 
 
-def main():
-    """
-    Test main
-    :return:
-    """
-    test_project_file_name = 'data/Hydra_16-1_cor_log.h5'
+@pytest.mark.parametrize('project_file_name, peak_file_name, peak_type, peak_info',
+                         [
+                             # NSFR2 peak
+                             ('data/Hidra_16-1_cor_log.h5', 'Hidra_16-1_cor_log_peak.h5', 'Gaussian',
+                              PeakInfo(94.5, 91, 97, 'Fe111')),
+                             # A good peak in HB2B commission
+                             ('data/HB2B_938.h5', 'HB2B_938_peak.h5', 'PseudoVoigt',
+                              PeakInfo(95.5, 91, 97, 'Si111')),
+                         ],
+                         ids=('FakeHB2B', 'HB2B_938'))
+def test_main(project_file_name, peak_file_name, peak_type, peak_info):
+    """Test peak fitting
 
-    # TODO - #81 NOW - Find wave length and put to a proper place in both Hidra project file and Hidra workspace
+    Parameters
+    ----------
+    project_file_name : str
+        Hidra project file containing reduced diffraction 2theta pattern
+    peak_file_name : str
+        Hidra project file containing peaks
+    peak_type : str
+        Peak profile type: [gaussian, pseudovoigt]
+    peak_info: namedtuple
+        center, left_bound, right_bound
 
+    Returns
+    -------
+    None
+
+    """
     # Create tester
-    tester = PeakFittingTest(test_project_file_name)
+    tester = PeakFittingTest(project_file_name)
 
-    # Fit
-    tester.fit_pseudo_voigt()
-    # Show fit result
-    tester.show_fit_result(False)
+    # Fit peak
+    tester.fit_peak(peak_type, peak_info)
 
-    # fit for gaussian
-    tester.fit_gaussian()
+    # save to project file
+    tester.save_fit_result(peak_file_name, peak_info.tag)
 
-    tester.show_fit_result(True)
+    return
 
-    # save
-    # TODO FIXME - exception/broken
-    # tester.save_fit_result(test_project_file_name, 'Si111')
 
-    # TODO - #81 NOW - More tests
-    # 1. get the best fit and plot
-    # 2. get the worst fit and plot
-    # 3. plot all peak center
-    # 4. plot all mixing factor
-    # 5. plot all peak width
+@pytest.mark.parametrize('project_file_name, csv_file_name',
+                         [('data/HB2B_938_peak.h5', 'HB2B_938.h5')],
+                         ids=['HB2B_938CSV'])
+def test_write_csv(project_file_name, csv_file_name):
+    """
+
+    Returns
+    -------
+
+    """
+    # Load project file
+    assert os.path.exists(project_file_name)
+
+    # Output CSV file
+    assert isinstance(csv_file_name, str)
 
     return
 
