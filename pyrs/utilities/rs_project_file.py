@@ -322,7 +322,13 @@ class HydraProjectFile(object):
         Get the (reduced) diffraction data's 2-theta vector
         :return:
         """
-        two_theta_vec = self._project_h5[HidraConstants.REDUCED_DATA][HidraConstants.TWO_THETA].value
+        if HidraConstants.TWO_THETA not in self._project_h5[HidraConstants.REDUCED_DATA]:
+            # FIXME - This is a patch for 'legacy' data.  It will be removed after codes are stable
+            tth_key = '2Theta'
+        else:
+            tth_key = HidraConstants.TWO_THETA
+
+        two_theta_vec = self._project_h5[HidraConstants.REDUCED_DATA][tth_key].value
 
         return two_theta_vec
 
@@ -361,10 +367,15 @@ class HydraProjectFile(object):
         :return:
         """
         masks = self._project_h5[HidraConstants.REDUCED_DATA].keys()
+
+        # Clean up data entry '2theta' (or '2Theta')
+        if HidraConstants.TWO_THETA in masks:
+            masks.remove(HidraConstants.TWO_THETA)
+
+        # FIXME - Remove when Hidra-16_Log.h5 is fixed with correction entry name as '2theta'
+        # (aka HidraConstants.TWO_THETA)
         if '2Theta' in masks:
             masks.remove('2Theta')
-        if '2theta' in masks:
-            masks.remove('2theta')
 
         return masks
 
@@ -392,7 +403,6 @@ class HydraProjectFile(object):
 
         return instrument_setup
 
-    # TODO - TEST - Signature changed...
     def get_sample_logs(self):
         """Get sample logs
 
@@ -421,16 +431,6 @@ class HydraProjectFile(object):
             # get array
             log_value_vec = logs_group[log_name].value
             logs_value_set[log_name] = log_value_vec
-            # if log_value_vec.shape != sub_runs.shape:
-            #     raise RuntimeError('Sample log {} does not match sub runs'.format(log_name))
-            #
-            # log_value_dict = dict()
-            # for s_index in range(sub_runs.shape[0]):
-            #     log_value_dict[sub_runs[s_index]] = log_value_vec[s_index]
-            # # END-FOR
-            #
-            # logs_value_set[log_name] = log_value_dict
-        # END-FOR
 
         return sub_runs, logs_value_set
 

@@ -3,7 +3,7 @@ from pyrs.utilities import checkdatatypes
 from pyrs.core import instrument_geometry
 from pyrs.utilities import file_util
 from pyrs.core import peak_fit_factory
-from pyrs.utilities.rs_project_file import HidraConstants
+from pyrs.utilities.rs_project_file import HidraConstants, HydraProjectFile, HydraProjectFileMode
 from pyrs.core import strain_stress_calculator
 from pyrs.core import reduction_manager
 from pyrs.core import polefigurecalculator
@@ -460,19 +460,16 @@ class PyRsCore(object):
         -------
 
         """
-        """ Save peak fit result to file with original data
-        :param data_key:
-        :param src_rs_file_name:
-        :param target_rs_file_name:
-        :return:
-        """
-        # TODO - #81 - Doc!
+        # TODO - #81 - (1) Doc!  (2) Need to track whether this file is open or closed (3) RW mode
         if project_name is None:
             optimizer = self._peak_fit_controller
         else:
             optimizer = self._peak_fitting_dict[project_name]
 
-        optimizer.export_to_hydra_project(hidra_file_name, peak_tag)
+        # Assuming the file is to write as new
+        hidra_project_file = HydraProjectFile(hidra_file_name, HydraProjectFileMode.OVERWRITE)
+        optimizer.export_to_hydra_project(hidra_project_file, peak_tag)
+        hidra_project_file.close()
 
         return
 

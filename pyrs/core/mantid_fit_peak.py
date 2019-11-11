@@ -138,6 +138,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
         # Set class variable
         self._peak_function_name = peak_function_name
+        self._background_function_name = background_function_name
 
         # Get workspace and gather some information
         mantid_ws = mantid_helper.retrieve_workspace(self._mantid_workspace_name, True)

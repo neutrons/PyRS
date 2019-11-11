@@ -212,7 +212,7 @@ class HB2BReductionManager(object):
     # TODO - #84 - load_calibrated_instrument IS NOT IMPLEMENTED YET!
     def load_hidra_project(self, project_file_name, load_calibrated_instrument, load_detectors_counts,
                            load_reduced_diffraction):
-        """ Load hidra project file
+        """ Load hidra project file and then CLOSE!
         :param project_file_name:
         :param load_calibrated_instrument:
         :param load_detectors_counts: Flag to load detector counts

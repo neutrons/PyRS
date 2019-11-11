@@ -5,6 +5,7 @@ from pyrs.core import pyrscore
 from matplotlib import pyplot as plt
 import pytest
 from collections import namedtuple
+import os
 
 
 # Named tuple for peak information
@@ -47,8 +48,8 @@ class PeakFittingTest(object):
 
         """
         # Convert input named tuple to pyrs dictionary
-        peak_info_dict = {peak_info.tag: {'Center': peak_info.center, 'Range': [peak_info.left_bound,
-                                                                                peak_info.right_bound]}}
+        peak_info_dict = {peak_info.tag: {'Center': peak_info.center,
+                                          'Range': (peak_info.left_bound, peak_info.right_bound)}}
 
         # Fit peak
         self._reduction_controller.fit_peaks(self._project_name, sub_run_list=None,
@@ -128,7 +129,7 @@ class PeakFittingTest(object):
 @pytest.mark.parametrize('project_file_name, peak_file_name, peak_type, peak_info',
                          [
                              # NSFR2 peak
-                             ('data/Hydra_16-1_cor_log.h5', 'Hydra_16-1_cor_log_peak.h5', 'Gaussian',
+                             ('data/Hidra_16-1_cor_log.h5', 'Hidra_16-1_cor_log_peak.h5', 'Gaussian',
                               PeakInfo(94.5, 91, 97, 'Fe111')),
                              # A good peak in HB2B commission
                              ('data/HB2B_938.h5', 'HB2B_938_peak.h5', 'PseudoVoigt',
@@ -179,8 +180,10 @@ def skip_test_write_csv(project_file_name, csv_file_name):
 
     """
     # Load project file
+    assert os.path.exists(project_file_name)
 
     # Output CSV file
+    assert isinstance(csv_file_name, str)
 
     return
 
