@@ -2,7 +2,7 @@ import numpy as np
 from pyrs.core.mantid_fit_peak import MantidPeakFitEngine
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.core.peak_profile_utility import pseudo_voigt, NATIVE_BACKGROUND_PARAMETERS, NATIVE_PEAK_PARAMETERS
-from pyrs.core.peak_profile_utility import Gaussian
+from pyrs.core.peak_profile_utility import Gaussian, PseudoVoigt
 import pytest
 from matplotlib import pyplot as plt
 
@@ -242,53 +242,53 @@ def test_pseudo_voigt():
 def test_gaussian_eff_parameters():
     """Test the effective peak parameters calculation for Gaussian
 
-    :return:
+    Returns
+    -------
+    None
+
     """
-    # Test data:
-    """
-    Raw:
-    {'wsindex': 0, 'chi2': 0.001228202867446606, 'peakindex': 0, 'Height': 0.676468683375185,
-    'A1': -0.028871678306777383, 'A0': 4.370614112927266, 'PeakCentre': 92.90363366305505,
-    'Sigma': 0.20788180862724454}
-    Effective:
-    {'A0': 4.370614112927266, 'wsindex': 0, 'centre': 92.90363366305505, 'chi2': 0.001228202867446606,
-    'peakindex': 0, 'height': 0.676468683375185, 'A1': -0.028871678306777383, 'width': 0.48952424995272315,
-    'intensity': 0.3524959381046824}
-    """
-    # ....
-    sigma = 1.
-    height = 1.
+    # Set raw value
+    sigma = 0.20788180862724454
+    height = 0.676468683375185
+    # Set gold value
+    exp_fwhm = 0.48952424995272315
+    exp_intensity = 0.3524959381046824
+
+    # Calculate effective parameters
     fwhm = Gaussian.cal_fwhm(sigma)
     intensity = Gaussian.cal_intensity(height, sigma)
-    exp_fwhm = 1.
-    exp_intensity = 1.
 
-    assert exp_fwhm == pytest.approx(fwhm, 1E-12)
-    assert exp_intensity == pytest.approx(intensity, 1E-12)
+    assert exp_fwhm == pytest.approx(fwhm, 1E-10), 'FWHM wrong'
+    assert exp_intensity == pytest.approx(intensity, 1E-10), 'Intensity wrong'
 
     return
 
 
 def test_pv_eff_parameters():
-    """
+    """Test the methods to calculate effective parameters for Pseudo-Voigt
 
     Returns
     -------
+    None
 
     """
-    # Test Case:
-    """
-    Raw:
-    {'wsindex': 0, 'chi2': 0.00108511156504155, 'peakindex': 0, 'A1': -0.027195270397136647,
-    'A0': 4.201135994827259, 'Intensity': 0.45705834149790703, 'Mixing': 0.23636114719871532,
-    'PeakCentre': 92.90427899142493, 'FWHM': 0.44181666416237664}
-    Eff:
-    {'A0': 4.201135994827259, 'wsindex': 0, 'centre': 92.90427899142493, 'chi2': 0.00108511156504155,
-    'peakindex': 0, 'height': 0.7326251617860263, 'A1': -0.027195270397136647, 'width': 0.44181666416237664,
-    'intensity': 0.45705834149790703}
-    """
+    # Set raw parameter values
+    intensity = 0.45705834149790703
+    fwhm = 0.44181666416237664
+    mixing = 0.23636114719871532
+
+    # Set the gold value
+    exp_height = 0.7326251617860263
+
+    # Calculate effective values
+    test_height = PseudoVoigt.cal_height(intensity, fwhm, mixing)
+
+    # Verify
+    assert test_height == pytest.approx(exp_height, 1E-10), 'Peak height does not match'
+
+    return
 
 
 if __name__ == '__main__':
     pytest.main()
-    plt.show()
+

@@ -40,8 +40,10 @@ class HidraConstants(object):
     PEAKS = 'peaks'  # main entry for fitted peaks' parameters
     PEAK_FIT_CHI2 = 'chi2'
     PEAK_PARAMS = 'parameters'  # peak parameter values
+    PEAK_PARAMS_ERROR = 'fitting error'  # peak parameters' fitting error
     PEAK_PARAM_NAMES = 'parameter names'  # peak parameter names
     PEAK_COM = 'C.O.M'  # peak's center of mass
+    BACKGROUND_TYPE = 'background type'
 
 
 class HydraProjectFileMode(Enum):
@@ -591,24 +593,32 @@ class HydraProjectFile(object):
 
         return profile, sub_run_array, chi2_array, param_names, param_values
 
-    def set_peak_fit_result(self, peak_tag, peak_profile, peak_param_names, sub_run_vec, chi2_vec, peak_params):
+    def set_peak_fit_result(self, peak_tag, peak_profile, background_type, sub_run_vec, param_value_array,
+                            param_error_array):
         """Set the peak fitting results to project file.
 
         The tree structure for fitted peak in all sub runs is defined as
         - peaks
             - [peak-tag]
                 - attr/'peak profile'
-                - chi2
-                -
+                - sub runs
+                - parameter values
+                - parameter fitting error
 
         Parameters
         ----------
-        peak_tag
-        peak_profile
-        peak_param_names
-        sub_run_vec
-        chi2_vec
-        peak_params
+        peak_tag : str
+            peak tag
+        peak_profile : str
+            peak function name
+        background_type : str
+            background function
+        sub_run_vec : ~numpy.ndarray
+            sub run number
+        param_value_array : ~numpy.ndarray
+            structured numpy array for peak + background (fitted) value
+        param_error_array : ~numpy.ndarray
+            structured numpy array for peak + background fitting error
 
         Returns
         -------
@@ -620,7 +630,7 @@ class HydraProjectFile(object):
 
         checkdatatypes.check_string_variable('Peak tag', peak_tag)
         checkdatatypes.check_string_variable('Peak profile', peak_profile)
-        checkdatatypes.check_list('Peak parameter names', peak_param_names)
+        checkdatatypes.check_string_variable('Background type', background_type)
 
         # access or create node for peak with given tag
         peak_main_group = self._project_h5[HidraConstants.PEAKS]
@@ -634,11 +644,11 @@ class HydraProjectFile(object):
 
         # Attributes
         self.set_attributes(single_peak_entry, HidraConstants.PEAK_PROFILE, peak_profile)
+        self.set_attributes(single_peak_entry, HidraConstants.BACKGROUND_TYPE, background_type)
 
         single_peak_entry.create_dataset(HidraConstants.SUB_RUNS, data=sub_run_vec)
-        single_peak_entry.create_dataset(HidraConstants.PEAK_PARAM_NAMES, data=peak_param_names)
-        single_peak_entry.create_dataset(HidraConstants.PEAK_FIT_CHI2, data=chi2_vec)
-        single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS, data=peak_params)
+        single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS, data=param_value_array)
+        single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS_ERROR, data=param_error_array)
 
         return
 
