@@ -286,25 +286,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
         self._peak_params_value_array = convert_from_table_to_arrays(self._fitted_function_param_table)
         self._peak_params_error_array = convert_from_table_to_arrays(self._fitted_function_error_table)
-
-        # # Table column names
-        # col_names = self._fitted_function_param_table.getColumnNames()
-        # num_sub_runs = self._fitted_function_param_table.rowCount()
-        #
-        # # Set the structured numpy array
-        # data_type_list = list()
-        # for param_name in col_names:
-        #     data_type_list.append((param_name, np.float32))
-        # self._peak_params_value_array = np.zeros(num_sub_runs, dtype=data_type_list)
-        # self._peak_params_error_array = np.zeros(num_sub_runs, dtype=data_type_list)
-        #
-        # # get fitted parameter value
-        # for col_index, param_name in enumerate(col_names):
-        #     # get value from column in value table
-        #     self._peak_params_value_array[param_name] = self._fitted_function_param_table.column(col_index)
-        #     # get value from column in error table
-        #     self._peak_params_error_array[param_name] = self._fitted_function_error_table.column(col_index)
-        # # END-FOR
+        self._fit_cost_array = self._peak_params_value_array['chi2']
 
         return
 

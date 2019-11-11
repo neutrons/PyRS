@@ -35,6 +35,7 @@ class PeakFitEngine(object):
         # Peak function
         self._peak_function_name = None
         self._background_function_name = None
+        self._fit_cost_array = None
         self._peak_params_value_array = None
         self._peak_params_error_array = None
         # shall be a structured numpy array
@@ -114,7 +115,7 @@ class PeakFitEngine(object):
         sub_run_vec = self._hd_workspace.get_sub_runs()
 
         hydra_project_file.set_peak_fit_result(peak_tag, self._peak_function_name, self._background_function_name,
-                                               sub_run_vec, self._peak_params_value_array,
+                                               sub_run_vec, self._fit_cost_array, self._peak_params_value_array,
                                                self._peak_params_error_array)
 
         return

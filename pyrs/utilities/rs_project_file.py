@@ -572,9 +572,10 @@ class HydraProjectFile(object):
 
         Returns
         -------
-        str, str, ndarray, ndarray, ndarray
+        str, str, ndarray, ndarray, ndarray, ndarray
             peak profile, background type, sub runs corresponding to parameter chi2 and values,
-              parameter values including Chi2, parameter errors
+              fitting cose (chi2) array,
+              parameter values (may include Chi2), parameter errors
         """
         # Get main group
         peak_main_group = self._project_h5[HidraConstants.PEAKS]
@@ -588,13 +589,14 @@ class HydraProjectFile(object):
         profile = peak_entry.attrs[HidraConstants.PEAK_PROFILE]
         background = peak_entry.attrs[HidraConstants.BACKGROUND_TYPE]
         sub_run_array = peak_entry[HidraConstants.SUB_RUNS]
+        chi2_array = peak_entry[HidraConstants.PEAK_FIT_CHI2]
         param_values = peak_entry[HidraConstants.PEAK_PARAMS].value
         error_values = peak_entry[HidraConstants.PEAK_PARAMS_ERROR].value
 
-        return profile, background, sub_run_array, param_values, error_values
+        return profile, background, sub_run_array, chi2_array, param_values, error_values
 
-    def set_peak_fit_result(self, peak_tag, peak_profile, background_type, sub_run_vec, param_value_array,
-                            param_error_array):
+    def set_peak_fit_result(self, peak_tag, peak_profile, background_type, sub_run_vec, fit_cost_array,
+                            param_value_array, param_error_array):
         """Set the peak fitting results to project file.
 
         The tree structure for fitted peak in all sub runs is defined as
@@ -615,6 +617,8 @@ class HydraProjectFile(object):
             background function
         sub_run_vec : ~numpy.ndarray
             sub run number
+        fit_cost_array :  ~numpy.ndarray
+            fitting cost (chi2)
         param_value_array : ~numpy.ndarray
             structured numpy array for peak + background (fitted) value
         param_error_array : ~numpy.ndarray
@@ -647,6 +651,7 @@ class HydraProjectFile(object):
         self.set_attributes(single_peak_entry, HidraConstants.BACKGROUND_TYPE, background_type)
 
         single_peak_entry.create_dataset(HidraConstants.SUB_RUNS, data=sub_run_vec)
+        single_peak_entry.create_dataset(HidraConstants.PEAK_FIT_CHI2, data=fit_cost_array)
         single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS, data=param_value_array)
         single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS_ERROR, data=param_error_array)
 

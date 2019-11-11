@@ -167,13 +167,15 @@ def test_peak_fitting_result_io():
             test_params_array[par_name][i] = 2**i + 0.1 * 3**j
             test_error_array[par_name][i] = np.sqrt(abs(test_params_array[par_name][i]))
     # END-FOR
-    test_params_array[rs_project_file.HidraConstants.PEAK_FIT_CHI2] = np.array([0.323, 0.423, 0.523])
+    chi2_array =  np.array([0.323, 0.423, 0.523])
+    test_params_array[rs_project_file.HidraConstants.PEAK_FIT_CHI2] = chi2_array
 
     # Add test data to output
     test_project_file.set_peak_fit_result(peak_tag='test fake',
                                           peak_profile='PseudoVoigt',
                                           background_type='Linear',
                                           sub_run_vec=np.array([1, 2, 3]),
+                                          fit_cost_array=chi2_array,
                                           param_value_array=test_params_array,
                                           param_error_array=test_error_array)
 
@@ -205,12 +207,12 @@ def test_peak_fitting_result_io():
 
     # parameter values
     # print('DEBUG:\n  Expected: {}\n  Found: {}'.format(test_params_array, peak_info[3]))
-    assert_allclose_structured_numpy_arrays(test_params_array, peak_info[3])
+    assert_allclose_structured_numpy_arrays(test_params_array, peak_info[4])
     # np.testing.assert_allclose(peak_info[3], test_params_array, atol=1E-12)
 
     # parameter values
     # assert np.allclose(peak_info[4], test_error_array, 1E-12)
-    assert_allclose_structured_numpy_arrays(test_error_array, peak_info[4])
+    assert_allclose_structured_numpy_arrays(test_error_array, peak_info[5])
 
     # Clean
     os.remove(test_file_name)
