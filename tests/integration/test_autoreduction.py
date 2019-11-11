@@ -20,8 +20,11 @@ def checkFileExists(filename, feedback):
         raise ValueError('Do not know how to give feedback={}'.format(feedback))
 
 
-def convertNeXusToProject(nexusfile, projectfile):
-    checkFileExists(nexusfile, feedback='assert')
+def convertNeXusToProject(nexusfile, projectfile, skippable):
+    if skippable:
+        checkFileExists(nexusfile, feedback='skip')
+    else:
+        checkFileExists(nexusfile, feedback='assert')
 
     # remove the project file if it currently exists
     if os.path.exists(projectfile):
@@ -55,7 +58,7 @@ def addPowderToProject(projectfile, use_mantid_engine=False):
                          ids=('HB2B_439', 'HB2B_931'))
 def test_nexus_to_project(nexusfile, projectfile):
     # convert the nexus file to a project file and do the "simple" checks
-    convertNeXusToProject(nexusfile, projectfile)
+    convertNeXusToProject(nexusfile, projectfile, skippable=True)
 
     # extract the powder patterns and add them to the project file
     addPowderToProject(projectfile, use_mantid_engine=False)
@@ -68,7 +71,7 @@ def test_nexus_to_subrun():
     nexusfile = 'data/HB2B_938.nxs.h5'  # A good peak
     projectfile = 'HB2B_938.h5'
 
-    convertNeXusToProject(nexusfile, projectfile)
+    convertNeXusToProject(nexusfile, projectfile, skippable=False)
 
     # TODO more specific checks
 
@@ -79,7 +82,7 @@ def test_nexus_to_powder():
     projectfile = 'HB2B_938.h5'
 
     # convert the nexus file to a project file and do the "simple" checks
-    convertNeXusToProject(nexusfile, projectfile)
+    convertNeXusToProject(nexusfile, projectfile, skippable=False)
 
     # extract the powder patterns and add them to the project file
     addPowderToProject(projectfile, use_mantid_engine=False)
