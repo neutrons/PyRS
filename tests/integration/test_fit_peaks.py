@@ -40,6 +40,7 @@ class PeakFittingTest(object):
         Parameters
         ----------
         peak_profile
+        peak_info : ~collections.namedtuple
 
         Returns
         -------
@@ -51,7 +52,7 @@ class PeakFittingTest(object):
 
         # Fit peak
         self._reduction_controller.fit_peaks(self._project_name, sub_run_list=None,
-                                             peak_type=peak_info, background_type='Linear',
+                                             peak_type=peak_profile, background_type='Linear',
                                              peaks_fitting_setup=peak_info_dict)
 
         return
@@ -130,7 +131,7 @@ class PeakFittingTest(object):
                              ('data/Hydra_16-1_cor_log.h5', 'Hydra_16-1_cor_log_peak.h5', 'Gaussian',
                               PeakInfo(94.5, 91, 97, 'Fe111')),
                              # A good peak in HB2B commission
-                             ('data/HB2B_938.nxs.h5', 'HB2B_938_peak.h5', 'PseudoVoigt',
+                             ('data/HB2B_938.h5', 'HB2B_938_peak.h5', 'PseudoVoigt',
                               PeakInfo(95.5, 91, 97, 'Si111')),
                          ],
                          ids=('FakeHB2B', 'HB2B_938'))
@@ -169,8 +170,8 @@ def test_main(project_file_name, peak_file_name, peak_type, peak_info):
                          [# A good peak
                           ('/HFIR/HB2B/IPTS-22731/nexus/HB2B_938.nxs.h5', 'HB2B_938.h5'),
                          ],
-                         ids='HB2B_938')
-def test_write_csv(project_file_name, csv_file_name):
+                         ids=['HB2B_938X'])
+def skip_test_write_csv(project_file_name, csv_file_name):
     """
 
     Returns
