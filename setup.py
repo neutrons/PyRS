@@ -66,8 +66,7 @@ if __name__ == "__main__":
     """
     scripts = ['scripts/pyrsplot',
                'scripts/reduce_HB2B.py',
-               'scripts/create_mask.py',
-               'scripts/convert_raw_data.py']
+               'scripts/create_mask.py']
     setup(
         name=NAME,
         description=find_meta("description"),
