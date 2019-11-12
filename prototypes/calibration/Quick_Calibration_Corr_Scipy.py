@@ -12,7 +12,10 @@ import lmfit
 import math
 import itertools
 from scipy.optimize import minimize
-from scipy.optimize import least_squares
+try:
+    from scipy.optimize import least_squares
+except ImportError:
+    from scipy.optimize import leastsq as least_squares  # for older scipy
 import os
 import time
 import numpy as np

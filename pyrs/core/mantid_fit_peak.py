@@ -114,6 +114,8 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
         Fit peaks given from sub run range and with option to calculate peak center in d-spacing
 
+        Note: method _set_profile_parameters_values_from_fitting() must be called at the end of fit_peaks()
+
         Parameters
         ----------
         sub_run_range: tuple
@@ -136,6 +138,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
         # Set class variable
         self._peak_function_name = peak_function_name
+        self._background_function_name = background_function_name
 
         # Get workspace and gather some information
         mantid_ws = mantid_helper.retrieve_workspace(self._mantid_workspace_name, True)
@@ -249,6 +252,41 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         if cal_center_d:
             # optionally to use calibrated wave length as default
             self.calculate_peak_position_d(wave_length=self._wavelength_vec)
+
+        # Set the fit result to private class structure numpy arrys
+        self._set_profile_parameters_values_from_fitting()
+
+        return
+
+    def _set_profile_parameters_values_from_fitting(self):
+        """Set (fitted) profile names from TableWorkspaces
+
+        Returns
+        -------
+
+        """
+        def convert_from_table_to_arrays(table_ws):
+            # Table column names
+            table_col_names = table_ws.getColumnNames()
+            num_sub_runs = table_ws.rowCount()
+
+            # Set the structured numpy array
+            data_type_list = list()
+            for param_name in table_col_names:
+                data_type_list.append((param_name, np.float32))
+
+            struct_array = np.zeros(num_sub_runs, dtype=data_type_list)
+
+            # get fitted parameter value
+            for col_index, param_name in enumerate(table_col_names):
+                # get value from column in value table
+                struct_array[param_name] = table_ws.column(col_index)
+
+            return struct_array
+
+        self._peak_params_value_array = convert_from_table_to_arrays(self._fitted_function_param_table)
+        self._peak_params_error_array = convert_from_table_to_arrays(self._fitted_function_error_table)
+        self._fit_cost_array = self._peak_params_value_array['chi2']
 
         return
 

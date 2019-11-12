@@ -18,12 +18,12 @@ def main():
     :return:
     """
     # Load source data in 'old' format
-    source_h5 = 'tests/testdata/16-1_TD.cor_Log.hdf5'
+    source_h5 = 'tests/testdata/16-1_TD.cor_Log.h5'
     reader = rs_scan_io.DiffractionDataFile()
     diff_data_dict, sample_logs = reader.load_rs_file(source_h5)
 
     # Create a Hydra project
-    target_project_file_name = 'tests/testdata/Hydra_16-1_cor_log.hdf5'
+    target_project_file_name = 'tests/testdata/Hydra_16-1_cor_log.h5'
     target_file = rs_project_file.HydraProjectFile(target_project_file_name,
                                                    rs_project_file.HydraProjectFileMode.OVERWRITE)
 

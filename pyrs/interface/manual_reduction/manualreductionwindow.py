@@ -5,7 +5,7 @@ from pyrs.core.pyrscore import PyRsCore
 from pyrs.utilities import calibration_file_io
 from pyrs.interface.ui.diffdataviews import DetectorView, GeneralDiffDataView
 import os
-import pyrs.interface.gui_helper
+from pyrs.interface import gui_helper
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.rs_project_file import HidraConstants
 from pyrs.interface.ui import rstables
@@ -133,7 +133,7 @@ class ManualReductionWindow(QMainWindow):
 
         # Sub run information table
         self.ui.rawDataTable = rstables.RawDataTable(self)
-        pyrs.interface.gui_helper.promote_widget(self.ui.frame_subRunInfoTable, self.ui.rawDataTable)
+        gui_helper.promote_widget(self.ui.frame_subRunInfoTable, self.ui.rawDataTable)
 
         return
 
@@ -157,7 +157,7 @@ class ManualReductionWindow(QMainWindow):
         """ Browse and set up calibration file
         :return:
         """
-        calibration_file = pyrs.interface.gui_helper.browse_file(self, caption='Choose and set up the calibration file',
+        calibration_file = gui_helper.browse_file(self, caption='Choose and set up the calibration file',
                                                                  default_dir=self._core.working_dir, file_filter='hdf5 (*hdf)',
                                                                  file_list=False, save_file=False)
         if calibration_file is None or calibration_file == '':
@@ -168,7 +168,7 @@ class ManualReductionWindow(QMainWindow):
         self.ui.lineEdit_calibratonFile.setText(calibration_file)
 
         # set to core
-        self._core.reduction_manager.set_calibration_file(calibration_file)
+        self._core.reduction_service.set_calibration_file(calibration_file)
 
         return
 
@@ -180,7 +180,7 @@ class ManualReductionWindow(QMainWindow):
         idf_name = str(self.ui.lineEdit_idfName.text()).strip()
         if idf_name == '' or not os.path.exists(idf_name):
             # browse IDF and set
-            idf_name = pyrs.interface.gui_helper.browse_file(self, 'Instrument definition file', os.getcwd(),
+            idf_name = gui_helper.browse_file(self, 'Instrument definition file', os.getcwd(),
                                               'Text (*.txt);;XML (*.xml)', False, False)
             if len(idf_name) == 0:
                 return   # user cancels operation
@@ -190,7 +190,7 @@ class ManualReductionWindow(QMainWindow):
 
         # set
         instrument = calibration_file_io.import_instrument_setup(idf_name)
-        self._core.reduction_manager.set_instrument(instrument)
+        self._core.reduction_service.set_instrument(instrument)
 
         return
 
@@ -199,11 +199,11 @@ class ManualReductionWindow(QMainWindow):
         browse and set output directory
         :return:
         """
-        output_dir = pyrs.interface.gui_helper.browse_dir(self, caption='Output directory for reduced data',
+        output_dir = gui_helper.browse_dir(self, caption='Output directory for reduced data',
                                                           default_dir=os.path.expanduser('~'))
         if output_dir != '':
             self.ui.lineEdit_outputDir.setText(output_dir)
-            self._core.reduction_manager.set_output_dir(output_dir)
+            self._core.reduction_service.set_output_dir(output_dir)
             self._output_dir = output_dir
 
         return
@@ -225,21 +225,21 @@ class ManualReductionWindow(QMainWindow):
         # END-IF-ELSE
 
         try:
-            data_key = self._core.reduction_manager.chop_data()
+            data_key = self._core.reduction_service.chop_data()
         except RuntimeError as run_err:
-            pyrs.interface.gui_helper.pop_message(self, message='Unable to slice data', detailed_message=str(run_err),
+            gui_helper.pop_message(self, message='Unable to slice data', detailed_message=str(run_err),
                                                   message_type='error')
             return
 
         try:
-            self._core.reduction_manager.reduced_chopped_data(data_key)
+            self._core.reduction_service.reduced_chopped_data(data_key)
         except RuntimeError as run_err:
-            pyrs.interface.gui_helper.pop_message(self, message='Failed to reduce sliced data', detailed_message=str(run_err),
+            gui_helper.pop_message(self, message='Failed to reduce sliced data', detailed_message=str(run_err),
                                                   message_type='error')
             return
 
         # fill the run numbers to plot selection
-        self._setup_plot_selection(append_mode=False, item_list=self._core.reduction_manager.get_chopped_names())
+        self._setup_plot_selection(append_mode=False, item_list=self._core.reduction_service.get_chopped_names())
 
         # plot
         self._plot_data()
@@ -294,7 +294,7 @@ class ManualReductionWindow(QMainWindow):
         # """
         # """
         # #
-        sub_runs = self._core.reduction_manager.get_sub_runs(self._project_data_id)
+        sub_runs = self._core.reduction_service.get_sub_runs(self._project_data_id)
         sub_runs.sort()
 
         # set sub runs: lock and release
@@ -386,19 +386,19 @@ class ManualReductionWindow(QMainWindow):
         # get (sub) run numbers
         sub_runs_str = str(self.ui.lineEdit_runNumbersList.text()).strip().lower()
         if sub_runs_str == 'all':
-            sub_run_list = self._core.reduction_manager.get_sub_runs(self._project_data_id)
+            sub_run_list = self._core.reduction_service.get_sub_runs(self._project_data_id)
         else:
             try:
-                sub_run_list = pyrs.interface.gui_helper.parse_integers(sub_runs_str)
+                sub_run_list = gui_helper.parse_integers(sub_runs_str)
             except RuntimeError as run_err:
-                pyrs.interface.gui_helper.pop_message(self, 'Failed to parse integer list',
+                gui_helper.pop_message(self, 'Failed to parse integer list',
                                        '{}'.format(run_err), 'error')
                 return
         # END-IF-ELSE
 
         # Reduce data
         # TODO FIXME - Urgent - Mask and calibration is not implemented at all!
-        self._core.reduction_manager.reduce_diffraction_data(self._project_data_id,
+        self._core.reduction_service.reduce_diffraction_data(self._project_data_id,
                                                              apply_calibrated_geometry=None,
                                                              bin_size_2theta=0.05,
                                                              use_pyrs_engine=True,
@@ -420,7 +420,7 @@ class ManualReductionWindow(QMainWindow):
             import shutil
             shutil.copyfile(self._project_file_name, output_project_name)
 
-        self._core.reduction_manager.save_project(self._project_data_id, output_project_name)
+        self._core.reduction_service.save_project(self._project_data_id, output_project_name)
 
     def do_load_hidra_projec_file(self):
         """
@@ -428,14 +428,14 @@ class ManualReductionWindow(QMainWindow):
         :return:
         """
         try:
-            ipts_number = pyrs.interface.gui_helper.parse_integer(str(self.ui.lineEdit_iptsNumber.text()))
-            exp_number = pyrs.interface.gui_helper.parse_integer(str(self.ui.lineEdit_expNumber.text()))
+            ipts_number = gui_helper.parse_integer(str(self.ui.lineEdit_iptsNumber.text()))
+            exp_number = gui_helper.parse_integer(str(self.ui.lineEdit_expNumber.text()))
             self._currIPTSNumber = ipts_number
             self._currExpNumber = exp_number
             project_file_name = 'blabla.hdf5'
         except RuntimeError:
-            pyrs.interface.gui_helper.pop_message(self, 'IPTS number shall be set to an integer.', message_type='error')
-            project_file_name = pyrs.interface.gui_helper.browse_file(
+            gui_helper.pop_message(self, 'IPTS number shall be set to an integer.', message_type='error')
+            project_file_name = gui_helper.browse_file(
                 self, 'Hidra Project File', os.getcwd(), 'hdf5 (*.hdf5)', False, False)
 
         self.load_hydra_file(project_file_name)
@@ -478,9 +478,9 @@ class ManualReductionWindow(QMainWindow):
         Load image binary file (as HFIR SPICE binary standard)
         :return:
         """
-        pyrs.interface.gui_helper.pop_message(self, 'Tell me', 'What do you want from me!', 'error')
+        gui_helper.pop_message(self, 'Tell me', 'What do you want from me!', 'error')
 
-        bin_file = pyrs.interface.gui_helper.browse_file(self, caption='Select a SPICE Image Binary File',
+        bin_file = gui_helper.browse_file(self, caption='Select a SPICE Image Binary File',
                                                          default_dir=self._core.working_dir,
                                                          file_filter='Binary (*.bin)', file_list=False, save_file=False)
 
@@ -498,16 +498,16 @@ class ManualReductionWindow(QMainWindow):
             return
 
         curr_run_number = int(str(self.ui.comboBox_runs.currentText()))
-        if not self._core.reduction_manager.has_run_reduced(curr_run_number):
+        if not self._core.reduction_service.has_run_reduced(curr_run_number):
             return
 
-        is_chopped = self._core.reduction_manager.is_chopped_run(curr_run_number)
+        is_chopped = self._core.reduction_service.is_chopped_run(curr_run_number)
 
         # set the sliced box
         self._plot_sliced_mutex = True
         self.ui.comboBox_slicedRuns.clear()
         if is_chopped:
-            sliced_segment_list = self._core.reduction_manager.get_chopped_names(curr_run_number)
+            sliced_segment_list = self._core.reduction_service.get_chopped_names(curr_run_number)
             for segment in sorted(sliced_segment_list):
                 self.ui.comboBox_slicedRuns.addItem('{}'.format(segment))
         else:
@@ -540,7 +540,7 @@ class ManualReductionWindow(QMainWindow):
     #                                                               load_detector_counts=True, load_diffraction=True)
     #     except (RuntimeError, IOError) as load_err:
     #         self._hydra_workspace = None
-    #         pyrs.interface.gui_helper.pop_message(self, 'Loading {} failed'.format(project_file_name),
+    #         gui_helper.pop_message(self, 'Loading {} failed'.format(project_file_name),
     #                                               detailed_message='{}'.format(load_err),
     #                                               message_type='error')
     #         return
@@ -574,20 +574,20 @@ class ManualReductionWindow(QMainWindow):
         checkdatatypes.check_int_variable('Sub run number', sub_run_number, (0, None))
 
         # Get the detector counts
-        detector_counts_array = self._core.reduction_manager.get_detector_counts(self._project_data_id,
+        detector_counts_array = self._core.reduction_service.get_detector_counts(self._project_data_id,
                                                                                  sub_run_number)
 
         # set information
-        det_2theta_dict = self._core.reduction_manager.get_sample_logs_values(self._project_data_id,
-                                                                              [HidraConstants.TWO_THETA])[0]
-        det_2theta = det_2theta_dict[sub_run_number]
+        det_2theta = self._core.reduction_service.get_sample_log_value(self._project_data_id,
+                                                                       HidraConstants.TWO_THETA,
+                                                                       sub_run_number)
         info = 'sub-run: {}, 2theta = {}' \
                ''.format(sub_run_number, det_2theta)
 
         # If mask ID is not None
         if mask_id is not None:
             # Get mask in array and do a AND operation to detector counts (array)
-            mask_array = self._core.reduction_manager.get_mask_array(self._curr_project_name, mask_id)
+            mask_array = self._core.reduction_service.get_mask_array(self._curr_project_name, mask_id)
             detector_counts_array *= mask_array
             info += ', mask ID = {}'.format(mask_id)
 
@@ -610,25 +610,24 @@ class ManualReductionWindow(QMainWindow):
         checkdatatypes.check_int_variable('Sub run number', sub_run_number, (0, None))
 
         try:
-            two_theta_array, diff_array = self._core.reduction_manager.get_reduced_diffraction_data(
+            two_theta_array, diff_array = self._core.reduction_service.get_reduced_diffraction_data(
                 self._project_data_id, sub_run_number, mask_id)
             if two_theta_array is None:
                 raise NotImplementedError('2theta array is not supposed to be None.')
         except RuntimeError as run_err:
-            pyrs.interface.gui_helper.pop_message(self, 'Unable to retrieve reduced data',
+            gui_helper.pop_message(self, 'Unable to retrieve reduced data',
                                    'For sub run {} due to {}'.format(sub_run_number, run_err),
                                    'error')
             return
 
         # set information
-        det_2theta = self._core.reduction_manager.get_sample_logs_values(self._project_data_id,
-                                                                         [HidraConstants.TWO_THETA])
-        det_2theta = det_2theta[0][sub_run_number]
+        det_2theta = self._core.reduction_service.get_sample_log_value(self._project_data_id,
+                                                                       HidraConstants.TWO_THETA,
+                                                                       sub_run_number)
         info = 'sub-run: {}, 2theta = {}' \
                ''.format(sub_run_number, det_2theta)
 
         # plot diffraction data
-        # TODO - #84 - Add 'info' to plot!
         self.ui.graphicsView_1DPlot.plot_diffraction(two_theta_array, diff_array, '2theta',
                                                      'intensity', line_label=info, keep_prev=False)
 

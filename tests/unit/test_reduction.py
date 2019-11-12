@@ -4,7 +4,6 @@ import os
 import numpy
 from pyrs.core import pyrscore
 from pyrs.core import instrument_geometry
-from matplotlib import pyplot as plt
 import pytest
 
 """
@@ -76,7 +75,6 @@ class TestReduction(object):
     """
     Reduction Tester
     """
-
     def __init__(self, input_file_name):
         """
         Init
@@ -87,8 +85,6 @@ class TestReduction(object):
         # Load data
         self._project_name = 'calibration xray'
         self._reduction_controller.load_hidra_project(input_file_name, project_name=self._project_name)
-
-        return
 
     @staticmethod
     def generate_testing_geometry_shift():
@@ -110,7 +106,7 @@ class TestReduction(object):
                                                            0.005, True, None)
 
         # get handler on reduciton engine
-        reduction_engine = self._reduction_controller.reduction_manager.get_last_reduction_engine()
+        reduction_engine = self._reduction_controller.reduction_service.get_last_reduction_engine()
         # pixels
         pixel_pos_array = reduction_engine.get_pixel_positions(is_matrix=False)
         pixel_2theta_array = reduction_engine.instrument.get_pixels_2theta(dimension=1)
@@ -132,10 +128,6 @@ class TestReduction(object):
         print("*************************\nNo Shift Reduction Passed (Golden Xray Data)\n"
               "*************************")
 
-        plt.plot(vec_x, vec_y)
-
-        return
-
     def test_reduce_data_geometry_shift(self):
         """ Test reduction (PyRS engine) classes and methods with calibration/instrument shift
         :return:
@@ -149,11 +141,10 @@ class TestReduction(object):
                                                            geometry_calibration=test_shift)
 
         # Get data and plot
-        data_set = self._reduction_controller.get_diffraction_data(self._project_name, sub_run=1,
-                                                                   mask=None)
+        self._reduction_controller.get_diffraction_data(self._project_name, sub_run=1, mask=None)
 
         # Get the detectors' position
-        reduction_engine = self._reduction_controller.reduction_manager.get_last_reduction_engine()
+        reduction_engine = self._reduction_controller.reduction_service.get_last_reduction_engine()
         pixel_pos_array = reduction_engine.get_pixel_positions(is_matrix=False)
 
         # Test a subset of pixels' positions
@@ -166,13 +157,6 @@ class TestReduction(object):
         # Visual report
         print("***************************\nShifted Geometry Reduction Passed (Golden Xray Data)\n"
               "***************************")
-
-        # Plot
-        vec_2theta = data_set[0]
-        vec_intensity = data_set[1]
-        plt.plot(vec_2theta, vec_intensity, color='red')
-
-        return
 
     def test_reduce_data_calibration_more_format(self):
         """
@@ -197,8 +181,6 @@ class TestReduction(object):
                                                            mask_file_name=None,
                                                            geometry_calibration=True)
 
-        return
-
     def test_reduction_engines_consistent(self):
         """ Compare detector positions and reduced diffraction data between
         Mantid and PyRS reduction engine
@@ -206,17 +188,14 @@ class TestReduction(object):
         """
         # Test with mantid engine
         idf_xml = 'data/XRAY_Definition_20190521_1342.xml'
-        self._reduction_controller.reduction_manager.set_mantid_idf(idf_xml)
-        if False:
-            test_shift = False
-        else:
-            test_shift = self.generate_testing_geometry_shift()
+        self._reduction_controller.reduction_service.set_mantid_idf(idf_xml)
+        test_shift = self.generate_testing_geometry_shift()
         self._reduction_controller.reduce_diffraction_data(self._project_name,
                                                            two_theta_step=0.004,
                                                            pyrs_engine=False,
                                                            mask_file_name=None,
                                                            geometry_calibration=test_shift)
-        mantid_engine = self._reduction_controller.reduction_manager.get_last_reduction_engine()
+        mantid_engine = self._reduction_controller.reduction_service.get_last_reduction_engine()
         print('[TEST] Engine name: {}'.format(mantid_engine))
         mantid_pixel_positions = mantid_engine.get_pixel_positions(is_matrix=False, corner_center=True)
 
@@ -226,7 +205,7 @@ class TestReduction(object):
                                                            pyrs_engine=True,
                                                            mask_file_name=None,
                                                            geometry_calibration=test_shift)
-        reduction_engine = self._reduction_controller.reduction_manager.get_last_reduction_engine()
+        reduction_engine = self._reduction_controller.reduction_service.get_last_reduction_engine()
         # pixels
         pyrs_pixel_positions = reduction_engine.get_pixel_positions(is_matrix=False, corner_center=True)
 
@@ -255,7 +234,6 @@ class TestReduction(object):
         else:
             print('***********************\nPassed: Reduction Engine Consistency Test\n'
                   '***********************')
-        return
 
     @staticmethod
     def set_mask_files(masks_list_file_name):
@@ -271,16 +249,15 @@ class TestReduction(object):
 
         return mask_xml_list
 
-    # END-DEF
 
-
+@pytest.mark.xfail(strict=True)
 def test_main():
     """
     Main for test
     :return:
     """
     # Create data
-    tester = TestReduction('data/Hidra_XRay_LaB6_10kev_35deg.hdf')
+    tester = TestReduction('data/Hidra_XRay_LaB6_10kev_35deg.h5')
 
     # Test basic reduction
     tester.test_reduce_data_basic()
@@ -292,10 +269,6 @@ def test_main():
     # Engine comparison
     tester.test_reduction_engines_consistent()
 
-    plt.show()
-
-    return
-
 
 if __name__ == '__main__':
-    pytest.main()
+    pytest.main([__file__])

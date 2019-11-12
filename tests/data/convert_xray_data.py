@@ -8,7 +8,6 @@ Convert the synchrotron raw data to test
 Note: most of the methods to parse HZB data are copied from script pyrscalibration.py
 """
 from pyrs.utilities import rs_project_file
-from pyrs.utilities import rs_project_file
 import numpy
 from skimage import io
 from PIL import Image
@@ -66,7 +65,7 @@ def generate_xray_instrument():
                                                                 arm_length=0.416,  # meter
                                                                 calibrated=False)
 
-    hzb = instrument_geometry.HydraSetup(l1=1.0, detector_setup=detector)  # single wave length
+    hzb = instrument_geometry.HydraSetup(detector_setup=detector)  # single wave length
     hzb.set_single_wavelength(wavelength)
 
     return hzb
@@ -79,7 +78,7 @@ def main():
     :return:
     """
     raw_tif_name = 'tests/testdata/LaB6_10kev_35deg-00004_Rotated.tif'
-    output_file_name = 'tests/testdata/Hidra_XRay_LaB6_10kev_35deg.hdf'
+    output_file_name = 'tests/testdata/Hidra_XRay_LaB6_10kev_35deg.h5'
 
     # Load raw data from image
     xray_count_vec, xray_det_type = load_data_from_tif(raw_tif_name)

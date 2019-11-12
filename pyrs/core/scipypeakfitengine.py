@@ -1,5 +1,4 @@
 from pyrs.core.peak_fit_engine import PeakFitEngine
-import pandas as pd
 from scipy.optimize import leastsq
 import numpy as np
 from pyrs.utilities import checkdatatypes
@@ -121,32 +120,19 @@ class ScipyPeakFitEngine(PeakFitEngine):
         print('M is of shape {}'.format(M.shape))
 
         # process output
-        # TODO: Clean!
-
-        # if self._data_workspace[0][1].shape[0] == 1:
-        #
-        #     self.peak_pos_ws = M[0]
-        #     if peak_function_name == 'PseudoVoigt':
-        #         self.func_param_ws = pd.DataFrame.from_records([{'PeakCentre':M[0],
-        #              'Height': M[1], 'FWHM':M[2], 'Mixing':M[3]}])
-        #     else:
-        #         self.func_param_ws = pd.DataFrame.from_records([{'PeakCentre':M[0], 'Height': M[1], 'FWHM':M[2]}])
-        #     CalcPatts = []
-        #     CalcPatts.append(self.calculate_peak(M[:], self._data_workspace[1], self._data_workspace[0],
-        #                   peak_function_name, background_function_name.split(' ')[0], ReturnModel=True ))
-        # else:
-
+        # TODO FIXME - pandas is disabled due to deployment conflict with numpy for Python2.7
+        #              Develop another data structure to replace pandas.DataFrame!
         # create pandas data frame
-        self.peak_pos_ws = M[:, 0]
-        if peak_function_name == 'PseudoVoigt':
-            self.func_param_ws = pd.DataFrame(
-                data={'PeakCentre': M[:, 0], 'Height': M[:, 1], 'FWHM': M[:, 2], 'Mixing': M[:, 3]})
-        elif peak_function_name == 'Lorentzian':
-            self.func_param_ws = pd.DataFrame(
-                data={'PeakCentre': M[:, 0], 'Amplitude': M[:, 1], 'FWHM': M[:, 2], 'chi2': 0})
-        else:
-            self.func_param_ws = pd.DataFrame(
-                data={'PeakCentre': M[:, 0].T, 'Height': M[:, 1], 'Sigma': M[:, 2] / 2.3548, 'chi2': 0})
+        # self.peak_pos_ws = M[:, 0]
+        # if peak_function_name == 'PseudoVoigt':
+        #     self.func_param_ws = pd.DataFrame(
+        #         data={'PeakCentre': M[:, 0], 'Height': M[:, 1], 'FWHM': M[:, 2], 'Mixing': M[:, 3]})
+        # elif peak_function_name == 'Lorentzian':
+        #     self.func_param_ws = pd.DataFrame(
+        #         data={'PeakCentre': M[:, 0], 'Amplitude': M[:, 1], 'FWHM': M[:, 2], 'chi2': 0})
+        # else:
+        #     self.func_param_ws = pd.DataFrame(
+        #         data={'PeakCentre': M[:, 0].T, 'Height': M[:, 1], 'Sigma': M[:, 2] / 2.3548, 'chi2': 0})
 
         # calculate patterns
         CalcPatts = []

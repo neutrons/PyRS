@@ -8,11 +8,6 @@ from mantid.simpleapi import mtd, CreateWorkspace, SaveNexusProcessed
 from skimage import io
 from PIL import Image
 import numpy as np
-import pandas as pd
-# from pandas import ExcelFile
-
-
-# Zoo of methods to work with raw data input and output of processed data
 
 
 def export_md_array_hdf5(md_array, sliced_dir_list, file_name):
@@ -42,20 +37,6 @@ def export_md_array_hdf5(md_array, sliced_dir_list, file_name):
     out_h5_file.close()
 
     return
-
-
-def load_excel_file(excel_file):
-    """ Load EXCEL file
-    Note: Excel file is closed after read (99%)
-    :param excel_file: name of Excel file
-    :return: pandas instance (pandas.core.frame.DataFrame)
-    """
-    checkdatatypes.check_file_name(excel_file, True, False, False, 'Excel file')
-
-    # use pandas to load
-    df = pd.read_excel(excel_file)
-
-    return df
 
 
 def load_rgb_tif(rgb_tiff_name, convert_to_1d):

@@ -232,12 +232,12 @@ class FitPeaksWindow(QMainWindow):
                                              ''.format(hydra_project_file, self._project_name))
 
         # Get the range of sub runs
-        sub_run_list = self._core.reduction_manager.get_sub_runs(self._project_name)
+        sub_run_list = self._core.reduction_service.get_sub_runs(self._project_name)
         self.ui.label_logIndexMin.setText(str(sub_run_list[0]))
         self.ui.label_logIndexMax.setText(str(sub_run_list[-1]))
 
         # Set the widgets about viewer: get the sample logs and add the combo boxes for plotting
-        sample_log_names = self._core.reduction_manager.get_sample_logs_names(self._project_name, can_plot=True)
+        sample_log_names = self._core.reduction_service.get_sample_logs_names(self._project_name, can_plot=True)
         self._set_sample_logs_for_plotting(sample_log_names)
 
         # plot first peak for default peak range
@@ -699,14 +699,14 @@ class FitPeaksWindow(QMainWindow):
             pyrs.interface.gui_helper.pop_message(self, 'No data loaded', 'error')
             return
 
-        sample_log_names = self._core.reduction_manager.get_sample_logs_names(self._project_name, True)
+        sample_log_names = self._core.reduction_service.get_sample_logs_names(self._project_name, True)
 
         if name == HidraConstants.SUB_RUNS:
             # sub run vector
-            value_vector = numpy.array(self._core.reduction_manager.get_sub_runs(self._project_name))
+            value_vector = numpy.array(self._core.reduction_service.get_sub_runs(self._project_name))
         elif name in sample_log_names:
             # sample log but not sub-runs
-            value_vector = self._core.reduction_manager.get_sample_log_values(self._project_name, name)
+            value_vector = self._core.reduction_service.get_sample_log_values(self._project_name, name)
         elif name == 'Center of mass':
             # center of mass is different????
             # TODO - #84 - Make sure of it!

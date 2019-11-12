@@ -1,35 +1,7 @@
 from pyrs.utilities import rs_project_file
 from pyrs.utilities import calibration_file_io
 from pyrs.core import workspaces
-import numpy as np
 import pytest
-
-
-def assert_delta(exp_value, test_value, delta_value, param_name):
-    """Check whether two values are close enough.
-
-    Exception: AssertionError
-
-    Parameters
-    ----------
-    exp_value: float/ndarray
-        expected value
-    test_value: float/ndarray
-        test value
-    delta_value: float/ndarray
-        allowed difference
-    param_name: str
-        parameter name
-
-    Returns
-    -------
-    None
-    """
-    if np.abs(exp_value - test_value) < delta_value:
-        raise AssertionError('Parameter {} value {} is different from expected value {} beyond allowed value {}'
-                             ''.format(param_name, test_value, exp_value, delta_value))
-
-    return
 
 
 def test_calibration_json():
@@ -40,7 +12,7 @@ def test_calibration_json():
     None
     """
     # Get simulated test data
-    project_file_name = 'data/HB2B_000.hdf5'
+    project_file_name = 'data/HB2B_000.h5'
     calib_file = 'data/HB2B_CAL_Si333.json'
 
     # Import file
@@ -60,10 +32,9 @@ def test_calibration_json():
     # Reduce
     test_workspace = workspaces.HidraWorkspace('test calibration')
     test_workspace.load_hidra_project(project_file, load_raw_counts=True, load_reduced_diffraction=False)
-    # test_workspace.reduce()
 
     return
 
 
 if __name__ == '__main__':
-    pytest.main()
+    pytest.main([__file__])

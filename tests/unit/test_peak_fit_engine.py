@@ -2,6 +2,7 @@ import numpy as np
 from pyrs.core.mantid_fit_peak import MantidPeakFitEngine
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.core.peak_profile_utility import pseudo_voigt, NATIVE_BACKGROUND_PARAMETERS, NATIVE_PEAK_PARAMETERS
+from pyrs.core.peak_profile_utility import Gaussian, PseudoVoigt
 import pytest
 from matplotlib import pyplot as plt
 
@@ -235,12 +236,62 @@ def test_pseudo_voigt():
     # fit goodness
     assert fit_costs[0] < 0.5, 'Fit cost (chi2 = {}) is too large'.format(fit_costs[0])
 
-    # If everything is correct, optionally show the result
-    # plt.show()
+    return
+
+
+def test_gaussian_eff_parameters():
+    """Test the effective peak parameters calculation for Gaussian
+
+    Returns
+    -------
+    None
+
+    """
+    # Set raw value
+    sigma = 0.20788180862724454
+    height = 0.676468683375185
+    # Set gold value
+    exp_fwhm = 0.48952424995272315
+    exp_intensity = 0.3524959381046824
+
+    # Calculate effective parameters
+    fwhm = Gaussian.cal_fwhm(sigma)
+    intensity = Gaussian.cal_intensity(height, sigma)
+
+    # assert exp_fwhm == pytest.approx(fwhm, 1E-10), 'FWHM wrong'
+    # assert exp_intensity == pytest.approx(intensity, 1E-10), 'Intensity wrong'
+    assert abs(exp_fwhm - fwhm) < 1E-10, 'FWHM: {} - {} = {} > 1E-10'.format(exp_fwhm, fwhm, exp_fwhm - fwhm)
+    assert abs(exp_intensity - intensity) < 1E-10, 'Intensity: {} - {} = {} > 1e-10' \
+                                                   ''.format(exp_intensity, intensity, exp_intensity - intensity)
+
+    return
+
+
+def test_pv_eff_parameters():
+    """Test the methods to calculate effective parameters for Pseudo-Voigt
+
+    Returns
+    -------
+    None
+
+    """
+    # Set raw parameter values
+    intensity = 0.45705834149790703
+    fwhm = 0.44181666416237664
+    mixing = 0.23636114719871532
+
+    # Set the gold value
+    exp_height = 0.7326251617860263
+
+    # Calculate effective values
+    test_height = PseudoVoigt.cal_height(intensity, fwhm, mixing)
+
+    # Verify
+    assert abs(test_height - exp_height) < 1E-10, 'Peak height: {} - {} = {} > 1e-10' \
+                                                  ''.format(exp_height, test_height, exp_height - test_height)
 
     return
 
 
 if __name__ == '__main__':
     pytest.main()
-    plt.show()
