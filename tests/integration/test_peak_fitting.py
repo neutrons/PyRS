@@ -266,18 +266,28 @@ def test_convert_peaks_centers_to_dspacing():
 @pytest.mark.parametrize('project_file_name, csv_file_name',
                          [('data/HB2B_938_peak.h5', 'HB2B_938.h5')],
                          ids=['HB2B_938CSV'])
-def skip_test_write_csv(project_file_name, csv_file_name):
-    """
+def test_write_csv(project_file_name, csv_file_name):
+    """Test the method to export CSV file
 
     Returns
     -------
 
     """
     # Load project file
-    assert os.path.exists(project_file_name)
+    assert os.path.exists(project_file_name), 'Project file {} does not exist'.format(project_file_name)
+
+    # Create calibration control
+    controller = pyrscore.PyRsCore()
+
+    controller.load_hidra_project(project_file_name, project_name='csv.{}'.format(project_file_name),
+                                  load_detector_counts=False, load_diffraction=False, load_peaks=True)
+
+    # Check tag
+    peak_tags = controller.get_peak_tags()
+    assert True
 
     # Output CSV file
-    assert isinstance(csv_file_name, str)
+    controller.export_summary(peak_tags[0], csv_file_name)
 
     return
 
