@@ -163,7 +163,7 @@ class PeakFitCalibration(object):
         LL, UL = [], []
 
         Params['p0'] = [y[0], -np.inf, np.inf]
-        ParamNames.append('p0')
+
         for pkey in list(Params.keys()):
             x0.append(Params[pkey][0])
             LL.append(Params[pkey][1])
@@ -174,7 +174,7 @@ class PeakFitCalibration(object):
         if UseLSQ:
             out = leastsq(residual, x0, args=(x, y, ParamNames, Peak_Num), Dfun=None, ftol=1e-8, xtol=1e-8,
                           gtol=1e-8, maxfev=0, factor=1.0)
-            returnSetup = [dict(zip(out[0], ParamNames)), CalcPatt(x, y, dict(zip(out[0], ParamNames)), Peak_Num)]
+            returnSetup = [dict(zip(ParamNames, out[0])), CalcPatt(x, y, dict(zip(ParamNames, out[0])), Peak_Num)]
         else:
             out = least_squares(residual, x0, bounds=[LL, UL], method='dogbox', ftol=1e-8, xtol=1e-8, gtol=1e-8,
                                 f_scale=1.0, max_nfev=None, args=(x, y, ParamNames, Peak_Num))
@@ -193,6 +193,10 @@ class PeakFitCalibration(object):
             out = leastsq(self.peak_alignment_rotation, x0, args=args, Dfun=None, ftol=ftol, xtol=xtol, gtol=gtol,
                           maxfev=max_nfev, factor=f_scale, full_output=1)
 
+            print(out)
+            print([out[0], out[1], out[-1:][0]])
+            return [out[0], out[1], out[-1:][0]]
+
         else:
             if len(bounds[0]) != len(bounds[1]):
                 raise RuntimeError('User must specify bounds of equal length')
@@ -202,7 +206,9 @@ class PeakFitCalibration(object):
                                 x_scale=x_scale, loss=loss, f_scale=f_scale, diff_step=diff_step,
                                 tr_solver=tr_solver, max_nfev=max_nfev, args=args)
 
-        return out
+            return [out.x, np.linalg.inv(out.jac.T.dot(J)), out.status]
+
+        
 
     def get_alignment_residual(self, x, roi_vec_set=None):
         """ Cost function for peaks alignment to determine wavelength
@@ -550,11 +556,13 @@ class PeakFitCalibration(object):
         -------
 
         """
-        self._calib[6] = out.x[0]
-        self._calibstatus = out.status
 
-        J = out.jac
-        cov = np.linalg.inv(J.T.dot(J))
+	print( out[0] )
+
+        self._calib[6] = out[0]
+        self._calibstatus = out[2]
+
+        cov = out[1]
         var = np.sqrt(np.diagonal(cov))
 
         self._caliberr[6] = var
