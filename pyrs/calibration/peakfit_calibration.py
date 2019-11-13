@@ -163,6 +163,7 @@ class PeakFitCalibration(object):
         LL, UL = [], []
 
         Params['p0'] = [y[0], -np.inf, np.inf]
+        ParamNames.append('p0')
         for pkey in list(Params.keys()):
             x0.append(Params[pkey][0])
             LL.append(Params[pkey][1])
