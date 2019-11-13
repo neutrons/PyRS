@@ -249,7 +249,7 @@ class PeakFitCalibration(object):
                 pars1['p1'] = [0, -np.inf, np.inf]
                 pars1['p2'] = [0, -np.inf, np.inf]
                 if (CalibPeaks[ipeak] > mintth) and (CalibPeaks[ipeak] < maxtth):
-
+                    print(ipeak)
                     Peaks.append(ipeak)
 #                    PeakModel = GaussianModel(prefix='g%d_' % ipeak)
 #                    FitModel += PeakModel
