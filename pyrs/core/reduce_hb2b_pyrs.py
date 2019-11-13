@@ -518,6 +518,13 @@ class PyHB2BReduction(object):
         return vec_2theta
 
     def get_eta_Values(self):
+        """Get solid angle values for each pixel
+
+        Returns
+        -------
+        numpy.ndarray
+
+        """
         return self._instrument.get_eta_values(dimension=1)
 
     def reduce_to_2theta_histogram(self, two_theta_range, two_theta_step, apply_mask,
