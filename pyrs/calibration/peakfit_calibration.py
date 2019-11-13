@@ -190,7 +190,7 @@ class PeakFitCalibration(object):
             if max_nfev is None:
                 max_nfev = 0
             out = leastsq(self.peak_alignment_rotation, x0, args=args, Dfun=None, ftol=ftol, xtol=xtol, gtol=gtol,
-                          maxfev=max_nfev, factor=f_scale)
+                          maxfev=max_nfev, factor=f_scale, full_output=1)
 
         else:
             if len(bounds[0]) != len(bounds[1]):
@@ -437,11 +437,12 @@ class PeakFitCalibration(object):
         if initial_guess is None:
             initial_guess = self.get_wavelength()
 
-        out = least_squares(self.peak_alignment_wavelength, initial_guess, jac='2-point',
+        out = self.FitDetector( self.peak_alignment_wavelength, initial_guess, jac='2-point',
                             bounds=([self._calib[6]-.05], [self._calib[6]+.05]), method='dogbox',
                             ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', f_scale=1.0,
                             diff_step=None, tr_solver='exact',
-                            tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0, args=(), kwargs={})
+                            tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0, args=(), kwargs={} )
+
 
         self.set_wavelength(out)
 
@@ -454,7 +455,7 @@ class PeakFitCalibration(object):
         if initalGuess is None:
             initalGuess = self.get_shift()
 
-        out = least_squares(self.peak_alignment_shift, initalGuess, jac='2-point',
+        out = self.FitDetector(self.peak_alignment_shift, initalGuess, jac='2-point',
                             bounds=([-.05, -.05, -.05], [.05, .05, .05]), method='dogbox',
                             ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear',
                             f_scale=1.0, diff_step=None, tr_solver='exact', tr_options={},
@@ -471,7 +472,7 @@ class PeakFitCalibration(object):
         if initalGuess is None:
             initalGuess = self.get_rotation()
 
-        out = least_squares(self.peak_alignment_rotation, initalGuess, jac='3-point',
+        out = self.FitDetector(self.peak_alignment_rotation, initalGuess, jac='3-point',
                             bounds=([-np.pi/20, -np.pi/20, -np.pi/20], [np.pi/20, np.pi/20, np.pi/20]),
                             method='dogbox', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear',
                             f_scale=1.0, diff_step=None,
@@ -489,7 +490,7 @@ class PeakFitCalibration(object):
         if initalGuess is None:
             initalGuess = self.get_calib()
 
-        out = least_squares(self.peaks_alignment_all, initalGuess, jac='3-point',
+        out = self.FitDetector(self.peaks_alignment_all, initalGuess, jac='3-point',
                             bounds=([-.05, -.05, -.05, -np.pi/20, -np.pi/20, -np.pi/20, 1.4],
                                     [.05, .05, .05, np.pi/20, np.pi/20, np.pi/20, 1.5]),
                             method='dogbox', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0,
