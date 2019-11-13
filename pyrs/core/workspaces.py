@@ -409,6 +409,10 @@ class HidraWorkspace(object):
     def get_sample_log_values(self, sample_log_name, sub_runs=None):
         """Get ONE INDIVIDUAL sample log's values as a vector
 
+        Exceptions
+        ----------
+        RuntimeError : if sample log name not in sample_log_dict
+
         Parameters
         ----------
         sample_log_name : str
