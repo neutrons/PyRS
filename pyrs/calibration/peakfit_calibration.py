@@ -182,7 +182,7 @@ class PeakFitCalibration(object):
         return returnSetup
 
     def FitDetector(self, fun, x0, jac='2-point', bounds=[], method='trf', ftol=1e-08, xtol=1e-08, gtol=1e-08,
-                    x_scale=1.0, loss='linear',
+                    x_scale=1.0, loss='linear',tr_options={},
                     f_scale=1.0, diff_step=None, tr_solver=None, max_nfev=None, verbose=0, args=(),
                     kwargs={}, full_output=0, col_deriv=0, maxfev=0):
 
