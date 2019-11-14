@@ -97,7 +97,7 @@ class PeakFitEngine(object):
         return
 
     def export_to_hydra_project(self, hydra_project_file, peak_tag):
-        """Export fit result from this fitting engine instance to Hydra project file
+        """Export fit result from this fitting engine instance to Hidra project file
 
         Parameters
         ----------

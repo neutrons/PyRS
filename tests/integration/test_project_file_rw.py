@@ -1,6 +1,6 @@
 from pyrs.core import workspaces
 from pyrs.utilities.rs_project_file import HidraProjectFile, HidraProjectFileMode
-from pyrs.core import instrument_geometry
+from pyrs.core.instrument_geometry import HidraSetup
 import os
 import pytest
 
@@ -29,7 +29,7 @@ def test_rw_raw():
 
     # Instrument
     detector_setup = source_workspace.get_instrument_setup()
-    instrument_setup = instrument_geometry.HydraSetup(detector_setup=detector_setup)
+    instrument_setup = HidraSetup(detector_setup=detector_setup)
     target_project.set_instrument_geometry(instrument_setup)
 
     # Save

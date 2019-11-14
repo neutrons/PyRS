@@ -12,6 +12,7 @@ Note: most of the methods to parse HZB data are copied from script convert_hzb_d
 2. Run this script
 """
 import os
+from pyrs.core.instrument_geometry import HidraSetup
 from pyrs.utilities import file_util
 from pyrs.utilities.rs_project_file import HidraConstants, HidraProjectFile, HidraProjectFileMode
 import numpy
@@ -100,7 +101,7 @@ def generate_hzb_instrument():
                                                                 arm_length=arm_length,
                                                                 calibrated=False)
 
-    hzb = instrument_geometry.HydraSetup(l1=1.0, detector_setup=detector)  # single wave length
+    hzb = HidraSetup(l1=1.0, detector_setup=detector)  # single wave length
     hzb.set_single_wavelength(wavelength)
 
     return hzb

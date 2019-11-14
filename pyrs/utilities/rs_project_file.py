@@ -2,7 +2,7 @@
 import os
 import h5py
 import checkdatatypes
-from pyrs.core import instrument_geometry
+from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSetup
 from enum import Enum
 import numpy
 
@@ -127,7 +127,7 @@ class HidraProjectFile(object):
 
         else:
             # not supported
-            raise RuntimeError('Hydra project file I/O mode {} is not supported'.format(HidraProjectFileMode))
+            raise RuntimeError('Hidra project file I/O mode {} is not supported'.format(HidraProjectFileMode))
 
         # more class variables
         self._io_mode = mode
@@ -388,12 +388,12 @@ class HidraProjectFile(object):
         arm_length = detector_group['L2'].value
 
         # Initialize
-        instrument_setup = instrument_geometry.AnglerCameraDetectorGeometry(num_rows=num_rows,
-                                                                            num_columns=num_cols,
-                                                                            pixel_size_x=pixel_size_x,
-                                                                            pixel_size_y=pixel_size_y,
-                                                                            arm_length=arm_length,
-                                                                            calibrated=False)
+        instrument_setup = AnglerCameraDetectorGeometry(num_rows=num_rows,
+                                                        num_columns=num_cols,
+                                                        pixel_size_x=pixel_size_x,
+                                                        pixel_size_y=pixel_size_y,
+                                                        arm_length=arm_length,
+                                                        calibrated=False)
 
         return instrument_setup
 
@@ -509,7 +509,7 @@ class HidraProjectFile(object):
         """
         # check inputs
         self._validate_write_operation()
-        checkdatatypes.check_type('Instrument geometry setup', instrument_setup, instrument_geometry.HydraSetup)
+        checkdatatypes.check_type('Instrument geometry setup', instrument_setup, HidraSetup)
 
         # write value to instrument
         instrument_group = self._project_h5[HidraConstants.INSTRUMENT]

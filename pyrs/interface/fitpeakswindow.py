@@ -163,28 +163,28 @@ class FitPeaksWindow(QMainWindow):
         # Check
         self._check_core()
 
-        # Use IPTS and run number to get the default Hydra HDF
-        hydra_file_name = self._get_default_hdf()
-        if hydra_file_name is None:
+        # Use IPTS and run number to get the default Hidra HDF
+        hidra_file_name = self._get_default_hdf()
+        if hidra_file_name is None:
             # No default Hidra file: browse the file
             file_filter = 'HDF (*.hdf);H5 (*.h5)'
-            hydra_file_name = gui_helper.browse_file(self, 'HIDRA Project File', os.getcwd(), file_filter,
+            hidra_file_name = gui_helper.browse_file(self, 'HIDRA Project File', os.getcwd(), file_filter,
                                                      file_list=False, save_file=False)
 
-            if hydra_file_name is None:
+            if hidra_file_name is None:
                 # use cancel
                 return
         # END-IF
 
         # Add file name to line edit to show
-        self.ui.lineEdit_expFileName.setText(hydra_file_name)
+        self.ui.lineEdit_expFileName.setText(hidra_file_name)
 
         # Load file as an option
         if self.ui.checkBox_autoLoad.isChecked():
             try:
-                self.do_load_hydra_file(hydra_project_file=None)
+                self.do_load_hydra_file(hidra_project_file=None)
             except RuntimeError as run_err:
-                gui_helper.pop_message(self, 'Failed to load {}'.format(hydra_file_name),
+                gui_helper.pop_message(self, 'Failed to load {}'.format(hidra_file_name),
                                        str(run_err), 'error')
         # END-IF
 
