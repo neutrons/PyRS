@@ -124,8 +124,8 @@ def test_main():
 
     calibrator = peakfit_calibration.PeakFitCalibration(hb2b, engine)
     calibrator.calibrate_wave_length()
-    calibrator._caliberr[6]=1e-4
-    calibrator._calibstatus=3
+    calibrator._caliberr[6] = 1e-4
+    calibrator._calibstatus = 3
 
     # write out
     if os.path.exists('HB2B_CAL_Test.json'):

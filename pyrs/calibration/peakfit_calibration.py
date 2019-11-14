@@ -185,7 +185,7 @@ class PeakFitCalibration(object):
     def FitDetector(self, fun, x0, jac='2-point', bounds=[], method='trf', ftol=1e-08, xtol=1e-08, gtol=1e-08,
                     x_scale=1.0, loss='linear', tr_options={}, jac_sparsity=None,
                     f_scale=1.0, diff_step=None, tr_solver=None, max_nfev=None, verbose=0, args=(),
-                    kwargs={} ):
+                    kwargs={}):
 
         if UseLSQ:
             if max_nfev is None:
@@ -203,21 +203,18 @@ class PeakFitCalibration(object):
                 raise RuntimeError('User must specify bounds of equal length')
 
             out = least_squares(self.peak_alignment_rotation, x0, jac=jac, bounds=bounds, method=method,
-                                ftol=ftol, xtol=xtol, gtol=gtol, tr_options=tr_options, 
-                                jac_sparsity=jac_sparsity, x_scale=x_scale, loss=loss, f_scale=f_scale, 
+                                ftol=ftol, xtol=xtol, gtol=gtol, tr_options=tr_options,
+                                jac_sparsity=jac_sparsity, x_scale=x_scale, loss=loss, f_scale=f_scale,
                                 diff_step=diff_step, tr_solver=tr_solver, max_nfev=max_nfev, args=args)
 
             J = out.jac
-            print np.max( J.T.dot(J).shape )
-            if np.sum( J.T.dot(J) ) < 1e-8:
-                var = -2 * np.zeros_like( J.T.dot(J) )
+            if np.sum(J.T.dot(J)) < 1e-8:
+                var = -2 * np.zeros_like(J.T.dot(J))
             else:
                 cov = np.linalg.inv(J.T.dot(J))
                 var = np.sqrt(np.diagonal(cov))
 
             return [out.x, var, out.status]
-
-        
 
     def get_alignment_residual(self, x, roi_vec_set=None):
         """ Cost function for peaks alignment to determine wavelength
@@ -453,12 +450,11 @@ class PeakFitCalibration(object):
         if initial_guess is None:
             initial_guess = self.get_wavelength()
 
-        out = self.FitDetector( self.peak_alignment_wavelength, initial_guess, jac='2-point',
-                            bounds=([self._calib[6]-.05], [self._calib[6]+.05]), method='dogbox',
-                            ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', f_scale=1.0,
-                            diff_step=None, tr_solver='exact',
-                            tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0, args=(), kwargs={} )
-
+        out = self.FitDetector(self.peak_alignment_wavelength, initial_guess, jac='2-point',
+                               bounds=([self._calib[6]-.05], [self._calib[6]+.05]), method='dogbox',
+                               ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', f_scale=1.0,
+                               diff_step=None, tr_solver='exact',
+                               tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0, args=(), kwargs={})
 
         self.set_wavelength(out)
 
@@ -472,10 +468,10 @@ class PeakFitCalibration(object):
             initalGuess = self.get_shift()
 
         out = self.FitDetector(self.peak_alignment_shift, initalGuess, jac='2-point',
-                            bounds=([-.05, -.05, -.05], [.05, .05, .05]), method='dogbox',
-                            ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear',
-                            f_scale=1.0, diff_step=None, tr_solver='exact', tr_options={},
-                            jac_sparsity=None, max_nfev=None, verbose=0, args=(None, False), kwargs={})
+                               bounds=([-.05, -.05, -.05], [.05, .05, .05]), method='dogbox',
+                               ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear',
+                               f_scale=1.0, diff_step=None, tr_solver='exact', tr_options={},
+                               jac_sparsity=None, max_nfev=None, verbose=0, args=(None, False), kwargs={})
 
         self.set_shift(out)
 
@@ -489,11 +485,11 @@ class PeakFitCalibration(object):
             initalGuess = self.get_rotation()
 
         out = self.FitDetector(self.peak_alignment_rotation, initalGuess, jac='3-point',
-                            bounds=([-np.pi/20, -np.pi/20, -np.pi/20], [np.pi/20, np.pi/20, np.pi/20]),
-                            method='dogbox', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear',
-                            f_scale=1.0, diff_step=None,
-                            tr_solver=None, tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0,
-                            args=(None, False), kwargs={})
+                               bounds=([-np.pi/20, -np.pi/20, -np.pi/20], [np.pi/20, np.pi/20, np.pi/20]),
+                               method='dogbox', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear',
+                               f_scale=1.0, diff_step=None,
+                               tr_solver=None, tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0,
+                               args=(None, False), kwargs={})
 
         self.set_rotation(out)
 
@@ -507,12 +503,12 @@ class PeakFitCalibration(object):
             initalGuess = self.get_calib()
 
         out = self.FitDetector(self.peaks_alignment_all, initalGuess, jac='3-point',
-                            bounds=([-.05, -.05, -.05, -np.pi/20, -np.pi/20, -np.pi/20, 1.4],
-                                    [.05, .05, .05, np.pi/20, np.pi/20, np.pi/20, 1.5]),
-                            method='dogbox', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0,
-                            loss='linear', f_scale=1.0, diff_step=None, tr_solver='exact', tr_options={},
-                            jac_sparsity=None, max_nfev=None, verbose=0,
-                            args=(None, False), kwargs={})
+                               bounds=([-.05, -.05, -.05, -np.pi/20, -np.pi/20, -np.pi/20, 1.4],
+                                       [.05, .05, .05, np.pi/20, np.pi/20, np.pi/20, 1.5]),
+                               method='dogbox', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0,
+                               loss='linear', f_scale=1.0, diff_step=None, tr_solver='exact', tr_options={},
+                               jac_sparsity=None, max_nfev=None, verbose=0,
+                               args=(None, False), kwargs={})
 
         self.set_calibration(out)
 
