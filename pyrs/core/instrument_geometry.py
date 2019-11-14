@@ -111,8 +111,7 @@ class HydraSetup(object):
         :param calibration:
         :return:
         """
-
-        return
+        pass
 
 
 class AnglerCameraDetectorGeometry(object):
