@@ -8,7 +8,7 @@ from pyrs.utilities import calibration_file_io
 from pyrs.core import mask_util
 from pyrs.core import reduce_hb2b_mtd
 from pyrs.core import reduce_hb2b_pyrs
-from pyrs.utilities import rs_project_file
+from pyrs.utilities.rs_project_file import HydraProjectFile, HidraProjectFileMode
 from pyrs.core import instrument_geometry
 
 
@@ -227,8 +227,7 @@ class HB2BReductionManager(object):
             raise RuntimeError('Call init_session to create a ReductionWorkspace')
 
         # PyRS HDF5
-        project_h5_file = rs_project_file.HydraProjectFile(project_file_name,
-                                                           mode=rs_project_file.HydraProjectFileMode.READWRITE)
+        project_h5_file = HydraProjectFile(project_file_name, mode=HidraProjectFileMode.READWRITE)
 
         # Load
         self._curr_workspace.load_hidra_project(project_h5_file,
@@ -286,8 +285,7 @@ class HB2BReductionManager(object):
         self._van_ws = workspaces.HidraWorkspace(name=van_project_file)
 
         # PyRS HDF5
-        project_h5_file = rs_project_file.HydraProjectFile(van_project_file,
-                                                           mode=rs_project_file.HydraProjectFileMode.READONLY)
+        project_h5_file = HydraProjectFile(van_project_file, mode=HidraProjectFileMode.READONLY)
 
         # Load
         self._van_ws.load_hidra_project(project_h5_file,
@@ -567,10 +565,10 @@ class HB2BReductionManager(object):
 
         # Open
         if os.path.exists(output_name):
-            io_mode = rs_project_file.HydraProjectFileMode.READWRITE
+            io_mode = HidraProjectFileMode.READWRITE
         else:
-            io_mode = rs_project_file.HydraProjectFileMode.OVERWRITE
-        project_file = rs_project_file.HydraProjectFile(output_name, io_mode)
+            io_mode = HidraProjectFileMode.OVERWRITE
+        project_file = HydraProjectFile(output_name, io_mode)
 
         # Save
         workspace.save_reduced_diffraction_data(project_file)

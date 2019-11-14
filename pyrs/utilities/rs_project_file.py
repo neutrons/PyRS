@@ -46,7 +46,7 @@ class HidraConstants(object):
     BACKGROUND_TYPE = 'background type'
 
 
-class HydraProjectFileMode(Enum):
+class HidraProjectFileMode(Enum):
     """
     Enumerate for file access mode
     """
@@ -95,9 +95,9 @@ class HydraProjectFile(object):
         """
         # check
         checkdatatypes.check_string_variable('Project file name', project_file_name)
-        checkdatatypes.check_type('Project I/O mode', mode, HydraProjectFileMode)
+        checkdatatypes.check_type('Project I/O mode', mode, HidraProjectFileMode)
 
-        if mode in [HydraProjectFileMode.READONLY, HydraProjectFileMode.READWRITE]:
+        if mode in [HidraProjectFileMode.READONLY, HidraProjectFileMode.READWRITE]:
             if not os.path.exists(project_file_name):
                 raise RuntimeError('File "{}" does not exist for mode {}'
                                    ''.format(project_file_name, mode))
@@ -107,19 +107,19 @@ class HydraProjectFile(object):
         self._is_writable = False
         self._file_name = project_file_name
 
-        if mode == HydraProjectFileMode.READONLY:
+        if mode == HidraProjectFileMode.READONLY:
             # read: check file existing?
             checkdatatypes.check_file_name(project_file_name, True, False, False, 'Read-only Project file')
             self._project_h5 = h5py.File(project_file_name, mode='r')
 
-        elif mode == HydraProjectFileMode.OVERWRITE:
+        elif mode == HidraProjectFileMode.OVERWRITE:
             # write
             checkdatatypes.check_file_name(project_file_name, False, True, False, 'Write-only project file')
             self._is_writable = True
             self._project_h5 = h5py.File(project_file_name, mode='w')
             self._init_project()
 
-        elif mode == HydraProjectFileMode.READWRITE:
+        elif mode == HidraProjectFileMode.READWRITE:
             # append (read and write)
             checkdatatypes.check_file_name(project_file_name, True, True, False, '(Append-mode) project file')
             self._is_writable = True
@@ -127,7 +127,7 @@ class HydraProjectFile(object):
 
         else:
             # not supported
-            raise RuntimeError('Hydra project file I/O mode {} is not supported'.format(HydraProjectFileMode))
+            raise RuntimeError('Hydra project file I/O mode {} is not supported'.format(HidraProjectFileMode))
 
         # more class variables
         self._io_mode = mode
@@ -880,7 +880,7 @@ class HydraProjectFile(object):
         :exception: run time exception
         :return:
         """
-        if self._io_mode == HydraProjectFileMode.READONLY:
+        if self._io_mode == HidraProjectFileMode.READONLY:
             raise RuntimeError('Project file {} is set to read-only by user'.format(self._project_h5.name))
 
         return

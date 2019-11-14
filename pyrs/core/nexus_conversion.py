@@ -8,7 +8,7 @@ import os
 from pyrs.core import workspaces
 from pyrs.core import instrument_geometry
 from pyrs.utilities import checkdatatypes
-from pyrs.utilities import rs_project_file
+from pyrs.utilities.rs_project_file import HidraConstants, HydraProjectFile, HidraProjectFileMode
 
 
 class NeXusConvertingApp(object):
@@ -80,7 +80,7 @@ class NeXusConvertingApp(object):
 
         # Add the sample logs
         for log_name in sample_log_dict:
-            if log_name == rs_project_file.HidraConstants.SUB_RUNS:
+            if log_name == HidraConstants.SUB_RUNS:
                 continue  # skip 'SUB_RUNS'
             self._hydra_workspace.set_sample_log(log_name, sub_runs, sample_log_dict[log_name])
 
@@ -100,7 +100,7 @@ class NeXusConvertingApp(object):
             os.remove(projectfile)
 
         # save
-        hydra_file = rs_project_file.HydraProjectFile(projectfile, rs_project_file.HydraProjectFileMode.OVERWRITE)
+        hydra_file = HydraProjectFile(projectfile, HidraProjectFileMode.OVERWRITE)
 
         # initialize instrument: hard code!
         if instrument is None:
