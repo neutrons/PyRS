@@ -768,14 +768,23 @@ class HydraProjectFile(object):
 
         return
 
-    def set_reduced_diffraction_data_set(self, two_theta_vec, diff_data_set):
-        """ Set the reduced diffraction data (set)
-        :param two_theta_vec:
-        :param diff_data_set: dictionary
-        :return:
+    def set_reduced_diffraction_data_set(self, two_theta_array, diff_data_set):
+        """Set the reduced diffraction data (set)
+
+        Parameters
+        ----------
+        two_theta_array : numppy.ndarray
+            2D array for 2-theta vector, which could be various to each other among sub runs
+        diff_data_set : dict
+            dictionary of 2D arrays for reduced diffraction patterns' intensities
+
+        Returns
+        -------
+        None
+
         """
         # Check input
-        checkdatatypes.check_numpy_arrays('Two theta vector', [two_theta_vec], 1, False)
+        checkdatatypes.check_numpy_arrays('Two theta vector', [two_theta_array], 2, False)
         checkdatatypes.check_dict('Diffraction data set', diff_data_set)
 
         # Retrieve diffraction group
@@ -785,14 +794,14 @@ class HydraProjectFile(object):
         if HidraConstants.TWO_THETA in diff_group.keys():
             # over write data
             try:
-                diff_group[HidraConstants.TWO_THETA][...] = two_theta_vec
+                diff_group[HidraConstants.TWO_THETA][...] = two_theta_array
             except TypeError:
                 # usually two theta vector size changed
                 del diff_group[HidraConstants.TWO_THETA]
-                diff_group.create_dataset(HidraConstants.TWO_THETA, data=two_theta_vec)
+                diff_group.create_dataset(HidraConstants.TWO_THETA, data=two_theta_array)
         else:
             # new data
-            diff_group.create_dataset(HidraConstants.TWO_THETA, data=two_theta_vec)
+            diff_group.create_dataset(HidraConstants.TWO_THETA, data=two_theta_array)
 
         # Add Diffraction data
         for mask_id in diff_data_set:
@@ -801,9 +810,9 @@ class HydraProjectFile(object):
             print('[INFO] Mask {} data set shape: {}'.format(mask_id, diff_data_matrix_i.shape))
             # Check
             checkdatatypes.check_numpy_arrays('Diffraction data (matrix)', [diff_data_matrix_i], None, False)
-            if two_theta_vec.shape[0] != diff_data_matrix_i.shape[1]:
+            if two_theta_array.shape != diff_data_matrix_i.shape:
                 raise RuntimeError('Length of 2theta vector ({}) is different from intensities ({})'
-                                   ''.format(two_theta_vec.shape, diff_data_matrix_i.shape))
+                                   ''.format(two_theta_array.shape, diff_data_matrix_i.shape))
             # Set name for default mask
             if mask_id is None:
                 data_name = HidraConstants.REDUCED_MAIN

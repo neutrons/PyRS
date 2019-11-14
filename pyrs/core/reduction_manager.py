@@ -519,10 +519,10 @@ class HB2BReductionManager(object):
         if min_2theta >= max_2theta:
             raise RuntimeError('Diffraction 2theta range ({}, {})is incorrect.'
                                'Given information: detector arm 2theta = {}, 2theta range = {}'
-                               ''.format())
+                               ''.format(min_2theta, max_2theta, two_theta, default_two_theta_range))
         # Determine 2theta resolution
-        if isinstance(resolution_2theta, type(None)):
-            resolution_2theta = (max_2theta - min_2theta) / 1000.
+        if resolution_2theta is None:
+            resolution_2theta = (max_2theta - min_2theta) / num_bins
 
         # Set up reduction engine and also
         if use_mantid_engine:
@@ -543,12 +543,6 @@ class HB2BReductionManager(object):
             reduction_engine.set_mask(mask_vec)
 
         # Reduce
-
-        adfasdf
-        afasdfsd
-
-
-        # Reduce
         data_set = reduction_engine.reduce_to_2theta_histogram((min_2theta, max_2theta), resolution_2theta,
                                                                apply_mask=True,
                                                                is_point_data=True,
@@ -556,13 +550,11 @@ class HB2BReductionManager(object):
                                                                use_mantid_histogram=False,
                                                                efficiency_correction=eff_array)
 
-        bin_edges = data_set[0]
+        bin_centers = data_set[0]
         hist = data_set[1]
 
-        print('[DB...BAT] vec X shape = {}, vec Y shape = {}'.format(bin_edges.shape, hist.shape))
-
         # record
-        workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_edges, hist)
+        workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_centers, hist)
         self._last_reduction_engine = reduction_engine
 
         return

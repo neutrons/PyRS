@@ -34,7 +34,7 @@ class HidraWorkspace(object):
         self._wave_length_calibrated_dict = None
 
         # diffraction
-        self._2theta_vec = None  # ndarray.  shape = (m, ) m = number of 2theta
+        self._2theta_matrix = None  # ndarray.  shape = (m, ) m = number of 2theta
         self._diff_data_set = dict()  # [mask id] = ndarray: shape=(n, m), n: number of sub-run, m: number of of 2theta
 
         # instrument
@@ -112,7 +112,7 @@ class HidraWorkspace(object):
                   ''.format(key_err))
             return
         # TRY-CATCH
-        self._2theta_vec = vec_2theta[:]
+        self._2theta_matrix = vec_2theta[:]
 
         # initialize data set for reduced diffraction patterns
         num_spec = len(hidra_file.get_sub_runs())
@@ -333,7 +333,7 @@ class HidraWorkspace(object):
             checkdatatypes.check_string_variable('Mask ID', mask_id)
 
         # Vector 2theta
-        vec_2theta = self._2theta_vec.copy()
+        vec_2theta = self._2theta_matrix.copy()
 
         try:
             intensity_matrix = self._diff_data_set[mask_id].copy()
@@ -365,7 +365,7 @@ class HidraWorkspace(object):
         spec_index = self._sub_run_to_spectrum[sub_run]
 
         # Vector 2theta
-        vec_2theta = self._2theta_vec.copy()
+        vec_2theta = self._2theta_matrix.copy()
 
         # Vector intensity
         try:
@@ -489,50 +489,64 @@ class HidraWorkspace(object):
 
         return
 
-    def set_reduced_diffraction_data(self, sub_run, mask_id, bin_edges, hist):
+    def set_reduced_diffraction_data(self, sub_run, mask_id, two_theta_array, intensity_array):
         """ Set reduced diffraction data to workspace
         :param sub_run:
         :param mask_id: None (no mask) or String (with mask indexed by this string)
-        :param bin_edges:
-        :param hist:
+        :param two_theta_array:
+        :param intensity_array:
         :return:
         """
-        # Check inputs
-        checkdatatypes.check_int_variable('Sub run number', sub_run, (1, None))
-        if mask_id is not None:
-            checkdatatypes.check_string_variable('Mask ID', mask_id)
-            print('L667: Mask ID: "{}"'.format(mask_id))
-
-        # check status
+        # Check status of reducer whether sub run number and spectrum are initialized
         if self._sub_run_to_spectrum is None:
             raise RuntimeError('Sub run - spectrum map has not been set up yet!')
 
-        # Set 2-theta (X)
-        if self._2theta_vec is None:
-            # First time set up
-            # Set X
-            self._2theta_vec = bin_edges.copy()
+        # Check inputs
+        # sub run number valid or not
+        checkdatatypes.check_int_variable('Sub run number', sub_run, (1, None))
+        if mask_id is not None:
+            checkdatatypes.check_string_variable('Mask ID', mask_id)
+        # two theta array and intensity array shall match on size
+        if two_theta_array.shape != intensity_array.shape:
+            raise RuntimeError('Two theta array (bin centers) must have same dimension as intensity array. '
+                               'Now they are {} and {}'.format(two_theta_array.shape, intensity_array.shape))
 
-        elif self._2theta_vec.shape != bin_edges.shape:
-            # Need to check if previously set
-            raise RuntimeError('2theta vector are different between parent method set {} and '
-                               'reduction engine returned {}'.format(self._2theta_vec.shape, bin_edges.shape))
-        # END-IF-ELSE
+        # Set 2-theta 2D array
+        if self._2theta_matrix is None or len(self._2theta_matrix.shape) != 2:
+            # First time set up or legacy from input file: create the 2D array
+            num_sub_runs = len(self._sub_run_to_spectrum)
+            self._2theta_matrix = numpy.ndarray(shape=(num_sub_runs, two_theta_array.shape[0]),
+                                                dtype=intensity_array.dtype)
+        # END-IF
 
-        # Initialize Y with mask
-
+        # Set intensity data set (matrix) if not initialized yet
         if mask_id not in self._diff_data_set:
             num_sub_runs = len(self._sub_run_to_spectrum)
-            self._diff_data_set[mask_id] = numpy.ndarray(shape=(num_sub_runs, hist.shape[0]), dtype=hist.dtype)
+            self._diff_data_set[mask_id] = numpy.ndarray(shape=(num_sub_runs, intensity_array.shape[0]),
+                                                         dtype=intensity_array.dtype)
+        # END-IF
 
-        # Check array shape
-        if self._diff_data_set[mask_id].shape[1] != hist.shape[0]:
-            raise RuntimeError('Histogram (shape: {}) to set does not match data diffraction data set defined in'
-                               'worksapce (shape: {})'.format(hist.shape[0], self._diff_data_set[mask_id].shape[1]))
-
-        # Set Y
+        # Get spectrum index from sub run number
         spec_id = self._sub_run_to_spectrum[sub_run]
-        self._diff_data_set[mask_id][spec_id] = hist
+
+        # Another sanity check on the size of 2theta and intensity
+        print(self._2theta_matrix.shape)
+        print(self._diff_data_set[mask_id].shape)
+        if self._2theta_matrix.shape[1] != two_theta_array.shape[0] \
+                or self._diff_data_set[mask_id].shape[1] != intensity_array.shape[0]:
+            # Need to check if previously set
+            raise RuntimeError('2theta vector are different between parent method set {} and '
+                               'reduction engine returned {} OR '
+                               'Histogram (shape: {}) to set does not match data diffraction data set defined in '
+                               'worksapce (shape: {})'.format(self._2theta_matrix.shape, two_theta_array.shape,
+                                                              intensity_array.shape[0],
+                                                              self._diff_data_set[mask_id].shape[1]))
+        # END-IF-ELSE
+
+        # Set 2theta array
+        self._2theta_matrix[spec_id] = two_theta_array
+        # Set intensity
+        self._diff_data_set[mask_id][spec_id] = intensity_array
 
         return
 
@@ -642,7 +656,7 @@ class HidraWorkspace(object):
         """
         checkdatatypes.check_type('HIDRA project file', hidra_project, rs_project_file.HydraProjectFile)
 
-        hidra_project.set_reduced_diffraction_data_set(self._2theta_vec, self._diff_data_set)
+        hidra_project.set_reduced_diffraction_data_set(self._2theta_matrix, self._diff_data_set)
 
         return
 
