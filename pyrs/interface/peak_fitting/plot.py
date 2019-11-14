@@ -70,3 +70,80 @@ class Plot:
                 self.parent._ui_graphicsView_fitSetup.plot_model_data(diff_data_set=model_data_set,
                                                                       model_label='',
                                                                       residual_set=residual_data_set)
+
+    def plot_scan(self, is_next=True):
+        """ plot the next or previous scan (log index)
+        """
+        scan_log_index_list = parse_integers(str(self.parent.ui.lineEdit_scanNumbers.text()))
+        if len(scan_log_index_list) == 0:
+            pop_message(self, 'There is not scan-log index input', 'error')
+        elif len(scan_log_index_list) > 1:
+            pop_message(self, 'There are too many scans for "next"', 'error')
+        elif scan_log_index_list[0] == (int(self.parent.ui.label_logIndexMax.text()) if is_next else 0):
+            # if we are trying to plot the next, we check relative to the last_log_index, otherwise 0
+            return
+
+        coeff = 1 if is_next else -1
+        scan_log = scan_log_index_list[0] + coeff
+        try:
+            self.parent._ui_graphicsView_fitSetup.reset_viewer()
+            self.plot_diff_and_fitted_data(scan_log, True)
+        except RuntimeError as run_err:
+            mess = "next" if is_next else "previous"
+            err_msg = 'Unable to plot {} scan {} due to {}'.format(mess, scan_log, run_err)
+            pop_message(self, err_msg, message_type='error')
+        else:
+            self.parent.ui.lineEdit_scanNumbers.setText('{}'.format(scan_log))
+
+
+    def plot_next_scan(self):
+        """ plot the next scan (log index)
+        It is assumed that al the scan log indexes are consecutive
+        """
+        self.plot_scan(is_next=True)
+        # scan_log_index_list = parse_integers(str(self.parent.ui.lineEdit_scanNumbers.text()))
+        # last_log_index = int(self.parent.ui.label_logIndexMax.text())
+        # if len(scan_log_index_list) == 0:
+        #     pop_message(self, 'There is not scan-log index input', 'error')
+        # elif len(scan_log_index_list) > 1:
+        #     pop_message(self, 'There are too many scans for "next"', 'error')
+        # elif scan_log_index_list[0] == last_log_index:
+        #     # last log index: no operation
+        #     return
+        #
+        # next_scan_log = scan_log_index_list[0] + 1
+        # try:
+        #     self.parent._ui_graphicsView_fitSetup.reset_viewer()
+        #     self.plot_diff_and_fitted_data(next_scan_log, True)
+        # except RuntimeError as run_err:
+        #     # self.plot_diff_data(next_scan_log - 1, True)
+        #     err_msg = 'Unable to plot next scan {} due to {}'.format(next_scan_log, run_err)
+        #     pop_message(self, err_msg, message_type='error')
+        # else:
+        #     self.parent.ui.lineEdit_scanNumbers.setText('{}'.format(next_scan_log))
+
+    def plot_prev_scan(self):
+        """ plot the previous scan (log index)
+        It is assumed that al the scan log indexes are consecutive
+        """
+        self.plot_scan(is_next=False)
+        # scan_log_index_list = parse_integers(str(self.parent.ui.lineEdit_scanNumbers.text()))
+        # if len(scan_log_index_list) == 0:
+        #     pop_message(self, 'There is not scan-log index input', 'error')
+        # elif len(scan_log_index_list) > 1:
+        #     pop_message(self, 'There are too many scans for "next"', 'error')
+        # elif scan_log_index_list[0] == 0:
+        #     # first one: no operation
+        #     return
+        #
+        # prev_scan_log_index = scan_log_index_list[0] - 1
+        # try:
+        #     self.parent._ui_graphicsView_fitSetup.reset_viewer()
+        #     self.plot_diff_and_fitted_data(prev_scan_log_index, True)
+        # except RuntimeError as run_err:
+        #     # self.plot_diff_data(next_scan_log + 1, True)
+        #     err_msg = 'Unable to plot previous scan {} due to {}'.format(prev_scan_log_index, run_err)
+        #     pop_message(self, err_msg, message_type='error')
+        # else:
+        #     self.parent.ui.lineEdit_scanNumbers.setText('{}'.format(prev_scan_log_index))
+        # return

@@ -8,13 +8,14 @@ from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.diffdataviews import GeneralDiffDataView, DiffContourView
 from pyrs.interface.ui.rstables import FitResultTable
 from pyrs.interface.ui.diffdataviews import PeakFitSetupView
-from pyrs.utilities import checkdatatypes
+# from pyrs.utilities import checkdatatypes
 from pyrs.utilities.rs_project_file import HidraConstants
 import pyrs.interface.advpeakfitdialog
 import pyrs.interface.gui_helper
 from pyrs.interface.peak_fitting.event_handler import EventHandler
 from pyrs.interface.peak_fitting.plot import Plot
 from pyrs.interface.peak_fitting.fit import Fit
+from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
 
 
 class FitPeaksWindow(QMainWindow):
@@ -48,6 +49,7 @@ class FitPeaksWindow(QMainWindow):
         # set up UI
         ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', 'peakfitwindow.ui'))
         self.ui = load_ui(ui_path, baseinstance=self)
+
         # promote
         self.ui.graphicsView_fitResult = qt_util.promote_widget(self, self.ui.graphicsView_fitResult_frame,
                                                                 GeneralDiffDataView)
@@ -67,8 +69,8 @@ class FitPeaksWindow(QMainWindow):
         self.ui.pushButton_loadHDF.clicked.connect(self.load_hidra_file)
         self.ui.pushButton_browseHDF.clicked.connect(self.do_browse_hdf)
         self.ui.pushButton_plotPeaks.clicked.connect(self.plot_diff_data)
-        self.ui.pushButton_plotPreviousScan.clicked.connect(self.do_plot_prev_scan)
-        self.ui.pushButton_plotNextScan.clicked.connect(self.do_plot_next_scan)
+        self.ui.pushButton_plotPreviousScan.clicked.connect(self.plot_prev_scan)
+        self.ui.pushButton_plotNextScan.clicked.connect(self.plot_next_scan)
         self.ui.pushButton_fitPeaks.clicked.connect(self.fit_peaks)
         self.ui.pushButton_saveFitResult.clicked.connect(self.do_save_fit)
 
@@ -98,6 +100,9 @@ class FitPeaksWindow(QMainWindow):
         # TODO - 20181124 - Make this table's column flexible!
         self.ui.tableView_fitSummary.setup(peak_param_names=list())
 
+        o_gui = GuiUtilities(parent=self)
+        o_gui.enabled_fitting_widgets(False)
+
 
     # Menu event handler
     def load_hidra_file(self):
@@ -111,6 +116,40 @@ class FitPeaksWindow(QMainWindow):
     def fit_peaks(self):
         o_fit = Fit(parent=self)
         o_fit.fit_peaks()
+
+    def plot_next_scan(self):
+        o_plot = Plot(parent=self)
+        o_plot.plot_next_scan()
+
+    def plot_prev_scan(self):
+        o_plot = Plot(parent=self)
+        o_plot.plot_prev_scan()
+
+    # """ plot the previous scan (log index)
+    # It is assumed that al the scan log indexes are consecutive
+    # :return:
+    # """
+    # scan_log_index_list = pyrs.interface.gui_helper.parse_integers(str(self.ui.lineEdit_scanNumbers.text()))
+    # if len(scan_log_index_list) == 0:
+    #     pyrs.interface.gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
+    # elif len(scan_log_index_list) > 1:
+    #     pyrs.interface.gui_helper.pop_message(self, 'There are too many scans for "next"', 'error')
+    # elif scan_log_index_list[0] == 0:
+    #     # first one: no operation
+    #     return
+    #
+    # prev_scan_log_index = scan_log_index_list[0] - 1
+    # try:
+    #     self._ui_graphicsView_fitSetup.reset_viewer()
+    #     self.plot_diff_data(prev_scan_log_index, True)
+    # except RuntimeError as run_err:
+    #     # self.plot_diff_data(next_scan_log + 1, True)
+    #     err_msg = 'Unable to plot previous scan {} due to {}'.format(prev_scan_log_index, run_err)
+    #     pyrs.interface.gui_helper.pop_message(self, err_msg, message_type='error')
+    # else:
+    #     self.ui.lineEdit_scanNumbers.setText('{}'.format(prev_scan_log_index))
+    # return
+
 
 
     def _promote_peak_fit_setup(self):
@@ -470,59 +509,60 @@ class FitPeaksWindow(QMainWindow):
     #
     #     return
 
-    def do_plot_next_scan(self):
-        """ plot the next scan (log index)
-        It is assumed that al the scan log indexes are consecutive
-        :return:
-        """
-        scan_log_index_list = pyrs.interface.gui_helper.parse_integers(str(self.ui.lineEdit_scanNumbers.text()))
-        last_log_index = int(self.ui.label_logIndexMax.text())
-        if len(scan_log_index_list) == 0:
-            pyrs.interface.gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
-        elif len(scan_log_index_list) > 1:
-            pyrs.interface.gui_helper.pop_message(self, 'There are too many scans for "next"', 'error')
-        elif scan_log_index_list[0] == last_log_index:
-            # last log index: no operation
-            return
+    #def do_plot_next_scan(self):
 
-        next_scan_log = scan_log_index_list[0] + 1
-        try:
-            self._ui_graphicsView_fitSetup.reset_viewer()
-            self.plot_diff_data(next_scan_log, True)
-        except RuntimeError as run_err:
-            # self.plot_diff_data(next_scan_log - 1, True)
-            err_msg = 'Unable to plot next scan {} due to {}'.format(next_scan_log, run_err)
-            pyrs.interface.gui_helper.pop_message(self, err_msg, message_type='error')
-        else:
-            self.ui.lineEdit_scanNumbers.setText('{}'.format(next_scan_log))
+        # """ plot the next scan (log index)
+        # It is assumed that al the scan log indexes are consecutive
+        # :return:
+        # """
+        # scan_log_index_list = pyrs.interface.gui_helper.parse_integers(str(self.ui.lineEdit_scanNumbers.text()))
+        # last_log_index = int(self.ui.label_logIndexMax.text())
+        # if len(scan_log_index_list) == 0:
+        #     pyrs.interface.gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
+        # elif len(scan_log_index_list) > 1:
+        #     pyrs.interface.gui_helper.pop_message(self, 'There are too many scans for "next"', 'error')
+        # elif scan_log_index_list[0] == last_log_index:
+        #     # last log index: no operation
+        #     return
+        #
+        # next_scan_log = scan_log_index_list[0] + 1
+        # try:
+        #     self._ui_graphicsView_fitSetup.reset_viewer()
+        #     self.plot_diff_data(next_scan_log, True)
+        # except RuntimeError as run_err:
+        #     # self.plot_diff_data(next_scan_log - 1, True)
+        #     err_msg = 'Unable to plot next scan {} due to {}'.format(next_scan_log, run_err)
+        #     pyrs.interface.gui_helper.pop_message(self, err_msg, message_type='error')
+        # else:
+        #     self.ui.lineEdit_scanNumbers.setText('{}'.format(next_scan_log))
+        #
+        # return
 
-        return
-
-    def do_plot_prev_scan(self):
-        """ plot the previous scan (log index)
-        It is assumed that al the scan log indexes are consecutive
-        :return:
-        """
-        scan_log_index_list = pyrs.interface.gui_helper.parse_integers(str(self.ui.lineEdit_scanNumbers.text()))
-        if len(scan_log_index_list) == 0:
-            pyrs.interface.gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
-        elif len(scan_log_index_list) > 1:
-            pyrs.interface.gui_helper.pop_message(self, 'There are too many scans for "next"', 'error')
-        elif scan_log_index_list[0] == 0:
-            # first one: no operation
-            return
-
-        prev_scan_log_index = scan_log_index_list[0] - 1
-        try:
-            self._ui_graphicsView_fitSetup.reset_viewer()
-            self.plot_diff_data(prev_scan_log_index, True)
-        except RuntimeError as run_err:
-            # self.plot_diff_data(next_scan_log + 1, True)
-            err_msg = 'Unable to plot previous scan {} due to {}'.format(prev_scan_log_index, run_err)
-            pyrs.interface.gui_helper.pop_message(self, err_msg, message_type='error')
-        else:
-            self.ui.lineEdit_scanNumbers.setText('{}'.format(prev_scan_log_index))
-        return
+    #def do_plot_prev_scan(self):
+        # """ plot the previous scan (log index)
+        # It is assumed that al the scan log indexes are consecutive
+        # :return:
+        # """
+        # scan_log_index_list = pyrs.interface.gui_helper.parse_integers(str(self.ui.lineEdit_scanNumbers.text()))
+        # if len(scan_log_index_list) == 0:
+        #     pyrs.interface.gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
+        # elif len(scan_log_index_list) > 1:
+        #     pyrs.interface.gui_helper.pop_message(self, 'There are too many scans for "next"', 'error')
+        # elif scan_log_index_list[0] == 0:
+        #     # first one: no operation
+        #     return
+        #
+        # prev_scan_log_index = scan_log_index_list[0] - 1
+        # try:
+        #     self._ui_graphicsView_fitSetup.reset_viewer()
+        #     self.plot_diff_data(prev_scan_log_index, True)
+        # except RuntimeError as run_err:
+        #     # self.plot_diff_data(next_scan_log + 1, True)
+        #     err_msg = 'Unable to plot previous scan {} due to {}'.format(prev_scan_log_index, run_err)
+        #     pyrs.interface.gui_helper.pop_message(self, err_msg, message_type='error')
+        # else:
+        #     self.ui.lineEdit_scanNumbers.setText('{}'.format(prev_scan_log_index))
+        # return
 
     def do_plot_meta_data(self):
         """

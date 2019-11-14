@@ -18,14 +18,14 @@
     <item row="2" column="0">
      <layout class="QGridLayout" name="gridLayout_3">
       <item row="0" column="0">
-       <widget class="QLabel" name="label_4">
+       <widget class="QLabel" name="label_sub_runs">
         <property name="text">
          <string>Sub runs</string>
         </property>
        </widget>
       </item>
       <item row="1" column="0">
-       <widget class="QLabel" name="label_7">
+       <widget class="QLabel" name="label_functions">
         <property name="text">
          <string>Functions</string>
         </property>
@@ -139,7 +139,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QLabel" name="label_8">
+         <widget class="QLabel" name="label_min">
           <property name="text">
            <string>min: </string>
           </property>
@@ -169,7 +169,7 @@
          </spacer>
         </item>
         <item>
-         <widget class="QLabel" name="label_10">
+         <widget class="QLabel" name="label_max">
           <property name="text">
            <string>max:</string>
           </property>
@@ -525,7 +525,7 @@
      <x>0</x>
      <y>0</y>
      <width>1561</width>
-     <height>25</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

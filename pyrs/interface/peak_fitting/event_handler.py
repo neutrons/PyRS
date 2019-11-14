@@ -7,6 +7,8 @@ from pyrs.utilities import hb2b_utilities
 from pyrs.utilities.check_data_types import check_string_variable
 from pyrs.interface.peak_fitting.plot import Plot
 from pyrs.interface.peak_fitting.fit import Fit
+from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
+
 
 class EventHandler:
 
@@ -38,6 +40,10 @@ class EventHandler:
         if self.parent.ui.checkBox_autoLoad.isChecked():
             try:
                 self.load_hidra_file(hydra_project_file=None)
+
+                # enabled all fitting widgets
+                o_gui = GuiUtilities(parent=self.parent)
+                o_gui.enabled_fitting_widgets(True)
             except RuntimeError as run_err:
                 pop_message(self, 'Failed to load {}'.format(hydra_file_name),
                                                       str(run_err), 'error')
@@ -120,10 +126,18 @@ class EventHandler:
             self.parent.ui.tableView_fitSummary.remove_all_rows()
         self.parent.ui.tableView_fitSummary.init_exp(sub_run_list)
 
-        # Auto fit for all the peaks
-        if self.parent.ui.checkBox_autoFit.isChecked():
-            o_fit = Fit(parent=self.parent)
-            o_fit.fit_peaks(all_sub_runs=True)
+        try:
+            # Auto fit for all the peaks
+            if self.parent.ui.checkBox_autoFit.isChecked():
+                o_fit = Fit(parent=self.parent)
+                o_fit.fit_peaks(all_sub_runs=True)
+        except (AttributeError) as err:
+            pop_message(self, 'some errors during fitting!', detailed_message=str(err),
+                        message_type='warning')
+
+        # enabled all fitting widgets
+        o_gui = GuiUtilities(parent=self.parent)
+        o_gui.enabled_fitting_widgets(True)
 
     def _set_sample_logs_for_plotting(self, sample_log_names):
         """ There are 2 combo boxes containing sample logs' names for plotting.  Clear the existing ones
@@ -144,4 +158,5 @@ class EventHandler:
             self.parent.ui.comboBox_yaxisNames.addItem(sample_log)
             self.parent._sample_log_name_set.add(sample_log)
         self.parent._sample_log_names_mutex = False
+
 
