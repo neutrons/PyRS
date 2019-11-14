@@ -23,9 +23,9 @@ def generate_mantid_workspace(hidra_workspace, workspace_name, mask_id=None):
     else:
         checkdatatypes.check_string_variable('Workspace name', workspace_name)
 
-    two_theta_array, data_y_matrix = hidra_workspace.get_reduced_diffraction_data_set(mask_id)
+    two_theta_matrix, data_y_matrix = hidra_workspace.get_reduced_diffraction_data_set(mask_id)
 
-    matrix_ws = CreateWorkspace(DataX=two_theta_array,
+    matrix_ws = CreateWorkspace(DataX=two_theta_matrix,
                                 DataY=data_y_matrix,
                                 NSpec=data_y_matrix.shape[0],
                                 OutputWorkspace=workspace_name)

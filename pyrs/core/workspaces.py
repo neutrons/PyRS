@@ -105,19 +105,30 @@ class HidraWorkspace(object):
 
         # get 2theta value
         try:
-            vec_2theta = hidra_file.get_diffraction_2theta_vector()
+            vec_2theta = hidra_file.get_diffraction_2theta_array()
         except KeyError as key_err:
             print('[INFO] Unable to load 2theta vector from HidraProject file due to {}.'
                   'It is very likely that no reduced data is recorded.'
                   ''.format(key_err))
             return
         # TRY-CATCH
-        self._2theta_matrix = vec_2theta[:]
+
+        # Get number of spectra
+        num_spec = len(hidra_file.get_sub_runs())
+
+        # Promote to 2theta from vector to array
+        if len(vec_2theta.shape) == 1:
+            # convert from 1D array to 2D
+            tth_size = vec_2theta.shape[0]
+            matrix_2theta = numpy.repeat(vec_2theta.reshape(1, tth_size), num_spec, axis=0)
+        else:
+            matrix_2theta = vec_2theta
+
+        # Set value
+        self._2theta_matrix = numpy.copy(matrix_2theta)
 
         # initialize data set for reduced diffraction patterns
-        num_spec = len(hidra_file.get_sub_runs())
         diff_mask_list = hidra_file.get_diffraction_masks()
-        print('[DB...BAT...TEST#81] Masks of diffraction data in HidraProjectFile: {}'.format(diff_mask_list))
         for mask_name in diff_mask_list:
             if mask_name == 'main':
                 mask_name = None
@@ -321,9 +332,21 @@ class HidraWorkspace(object):
         return self._instrument_geometry_shift
 
     def get_reduced_diffraction_data_set(self, mask_id=None):
-        """ Get the full data set (matrix) of reduced diffraction pattern in 2theta unit
-        :param mask_id: None (as default main) or ID as a String
-        :return:
+        """Get reduced diffraction data set including 2theta and intensities
+
+        Get the full data set (matrix) of reduced diffraction pattern in 2theta unit
+
+        Parameters
+        ----------
+        mask_id : str or None
+            None (as default main) or ID as a String
+
+        Returns
+        -------
+        ndarray, ndarray
+            2theta in 2D array
+            intensities in 2D array
+
         """
         # Check
         if mask_id is None:
@@ -333,7 +356,7 @@ class HidraWorkspace(object):
             checkdatatypes.check_string_variable('Mask ID', mask_id)
 
         # Vector 2theta
-        vec_2theta = self._2theta_matrix.copy()
+        matrix_2theta = self._2theta_matrix.copy()
 
         try:
             intensity_matrix = self._diff_data_set[mask_id].copy()
@@ -342,7 +365,7 @@ class HidraWorkspace(object):
                                'The available masks are {}'
                                ''.format(mask_id, self._diff_data_set.keys()))
 
-        return vec_2theta, intensity_matrix
+        return matrix_2theta, intensity_matrix
 
     def get_reduced_diffraction_data(self, sub_run, mask_id=None):
         """
@@ -365,7 +388,7 @@ class HidraWorkspace(object):
         spec_index = self._sub_run_to_spectrum[sub_run]
 
         # Vector 2theta
-        vec_2theta = self._2theta_matrix.copy()
+        vec_2theta = self._2theta_matrix[spec_index][:]
 
         # Vector intensity
         try:
@@ -530,8 +553,6 @@ class HidraWorkspace(object):
         spec_id = self._sub_run_to_spectrum[sub_run]
 
         # Another sanity check on the size of 2theta and intensity
-        print(self._2theta_matrix.shape)
-        print(self._diff_data_set[mask_id].shape)
         if self._2theta_matrix.shape[1] != two_theta_array.shape[0] \
                 or self._diff_data_set[mask_id].shape[1] != intensity_array.shape[0]:
             # Need to check if previously set

@@ -317,10 +317,15 @@ class HydraProjectFile(object):
 
         return
 
-    def get_diffraction_2theta_vector(self):
-        """
-        Get the (reduced) diffraction data's 2-theta vector
-        :return:
+    def get_diffraction_2theta_array(self):
+        """Get the (reduced) diffraction data's 2-theta vector
+
+        Returns
+        -------
+        numpy.ndarray
+            1D vector for unified 2theta vector for all sub runs
+            2D array for possibly various 2theta vector for each
+
         """
         if HidraConstants.TWO_THETA not in self._project_h5[HidraConstants.REDUCED_DATA]:
             # FIXME - This is a patch for 'legacy' data.  It will be removed after codes are stable

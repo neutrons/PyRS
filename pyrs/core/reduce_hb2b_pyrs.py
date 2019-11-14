@@ -544,7 +544,8 @@ class PyHB2BReduction(object):
         two_theta_vector = self.generate_2theta_histogram_vector(
             two_theta_range[0], two_theta_step, two_theta_range[1])
 
-        # Get the data (each pixel's 2theta and counts)
+        # Get the data (each pixel's 2theta and counts): the 2theta value is the absolute diffraction angle
+        # that disregards the real 2theta value in the instrument coordinate system
         pixel_2theta_array = self._instrument.get_pixels_2theta(1)
         checkdatatypes.check_numpy_arrays('Two theta and detector counts array',
                                           [pixel_2theta_array, self._detector_counts], None,
@@ -552,6 +553,7 @@ class PyHB2BReduction(object):
         if pixel_2theta_array.shape[0] != self._detector_counts.shape[0]:
             raise RuntimeError('Detector pixel position array ({}) does not match detector counts array ({})'
                                ''.format(pixel_2theta_array.shape, self._detector_counts.shape))
+
         # Convert count type
         vec_counts = self._detector_counts.astype('float64')
         if efficiency_correction is not None:

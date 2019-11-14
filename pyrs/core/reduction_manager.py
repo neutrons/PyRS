@@ -510,12 +510,12 @@ class HB2BReductionManager(object):
         # Convert 2-theta from DAS convention to Mantid/PyRS convention
         print('[INFO] User specified 2theta = {} is converted to Mantid 2theta = {}'
               ''.format(two_theta, -two_theta))
-        two_theta = -two_theta
+        mantid_two_theta = -two_theta
 
         # Determine the 2theta range
         if min_2theta is None or max_2theta is None:
-            min_2theta = two_theta - 0.5 * default_two_theta_range
-            max_2theta = two_theta + 0.5 * default_two_theta_range
+            min_2theta = abs(two_theta) - 0.5 * default_two_theta_range
+            max_2theta = abs(two_theta) + 0.5 * default_two_theta_range
         if min_2theta >= max_2theta:
             raise RuntimeError('Diffraction 2theta range ({}, {})is incorrect.'
                                'Given information: detector arm 2theta = {}, 2theta range = {}'
@@ -528,12 +528,12 @@ class HB2BReductionManager(object):
         if use_mantid_engine:
             # Mantid reduction engine
             reduction_engine = reduce_hb2b_mtd.MantidHB2BReduction(self._mantid_idf)
-            reduction_engine.set_experimental_data(two_theta, l2, raw_count_vec)
+            reduction_engine.set_experimental_data(mantid_two_theta, l2, raw_count_vec)
             reduction_engine.build_instrument(geometry_calibration)
         else:
             # PyRS reduction engine
             reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
-            reduction_engine.set_experimental_data(two_theta, l2, raw_count_vec)
+            reduction_engine.set_experimental_data(mantid_two_theta, l2, raw_count_vec)
             reduction_engine.build_instrument(geometry_calibration)
         # END-IF
 
