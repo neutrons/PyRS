@@ -132,8 +132,6 @@ class ReductionApp(object):
                                                         sub_run_list=sub_runs,
                                                         apply_vanadium_calibration=van_array)
 
-        return
-
     def plot_reduced_data(self):
         vec_x, vec_y = self._reduction_engine.get_reduced_data()  # TODO this method doesn't exist
 
