@@ -1,7 +1,7 @@
 """
 Test for reading and writing components to HiDRA project file
 """
-from pyrs.utilities.rs_project_file import HidraConstants, HydraProjectFile, HidraProjectFileMode
+from pyrs.utilities.rs_project_file import HidraConstants, HidraProjectFile, HidraProjectFileMode
 import os
 import numpy as np
 import datetime
@@ -29,7 +29,7 @@ def test_mask():
     None
     """
     # Generate a HiDRA project file
-    test_project_file = HydraProjectFile('test_mask.hdf', HidraProjectFileMode.OVERWRITE)
+    test_project_file = HidraProjectFile('test_mask.hdf', HidraProjectFileMode.OVERWRITE)
 
     # Create a detector mask
     pixel_mask = np.zeros(shape=(1024**2,), dtype='int')
@@ -50,7 +50,7 @@ def test_mask():
     test_project_file.save_hydra_project(True)
 
     # Open file again
-    verify_project_file = HydraProjectFile('test_mask.hdf', HidraProjectFileMode.READONLY)
+    verify_project_file = HidraProjectFile('test_mask.hdf', HidraProjectFileMode.READONLY)
 
     # Read detector mask & compare
     verify_pixel_mask = verify_project_file.get_mask_detector_array('test')
@@ -75,7 +75,7 @@ def test_detector_efficiency():
     None
     """
     # Generate a HiDRA project file
-    test_project_file = HydraProjectFile('test_efficient.hdf', HidraProjectFileMode.OVERWRITE)
+    test_project_file = HidraProjectFile('test_efficient.hdf', HidraProjectFileMode.OVERWRITE)
 
     # Create a detector efficiency array
     mock_test_run_number = 12345
@@ -88,7 +88,7 @@ def test_detector_efficiency():
     test_project_file.close()
 
     # Open file again
-    verify_project_file = HydraProjectFile('test_efficient.hdf', HidraProjectFileMode.READONLY)
+    verify_project_file = HidraProjectFile('test_efficient.hdf', HidraProjectFileMode.READONLY)
 
     # Read detector efficiency & compare
     verify_eff_array = verify_project_file.get_efficiency_correction()
@@ -146,7 +146,7 @@ def test_peak_fitting_result_io():
     test_file_name = 'test_peak_io_{}.hdf'.format(now.toordinal())
 
     # Generate a HiDRA project file
-    test_project_file = HydraProjectFile(test_file_name, HidraProjectFileMode.OVERWRITE)
+    test_project_file = HidraProjectFile(test_file_name, HidraProjectFileMode.OVERWRITE)
 
     # Create a ND array for output parameters
     data_type = list()
@@ -182,7 +182,7 @@ def test_peak_fitting_result_io():
     print('[INFO] Peak parameter test project file: {}'.format(test_file_name))
 
     # Import
-    verify_project_file = HydraProjectFile(test_file_name, HidraProjectFileMode.READONLY)
+    verify_project_file = HidraProjectFile(test_file_name, HidraProjectFileMode.READONLY)
 
     # get the tags
     peak_tags = verify_project_file.get_peak_tags()

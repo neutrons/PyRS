@@ -2,7 +2,7 @@ from pyrs.core import reduction_manager
 from pyrs.utilities import checkdatatypes
 from pyrs.core import mask_util
 from pyrs.utilities import calibration_file_io
-from pyrs.utilities.rs_project_file import HydraProjectFile, HidraProjectFileMode
+from pyrs.utilities.rs_project_file import HidraProjectFile, HidraProjectFileMode
 from matplotlib import pyplot as plt
 
 
@@ -162,7 +162,7 @@ class ReductionApp(object):
             mode = HidraProjectFileMode.OVERWRITE
 
         # Generate project file instance
-        out_file = HydraProjectFile(file_name, mode)
+        out_file = HidraProjectFile(file_name, mode)
 
         # Write & close
         self._hydra_ws.save_reduced_diffraction_data(out_file)

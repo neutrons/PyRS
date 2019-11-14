@@ -6,7 +6,7 @@ import time
 import os
 import json
 from pyrs.utilities import calibration_file_io
-from pyrs.utilities.rs_project_file import HydraProjectFile, HidraProjectFileMode
+from pyrs.utilities.rs_project_file import HidraProjectFile, HidraProjectFileMode
 try:
     from pyrs.calibration import peakfit_calibration
 except ImportError as e:
@@ -112,7 +112,7 @@ def test_main():
     # Set up
     # reduction engine
     project_file_name = 'data/HB2B_000.h5'
-    engine = HydraProjectFile(project_file_name, mode=HidraProjectFileMode.READONLY)
+    engine = HidraProjectFile(project_file_name, mode=HidraProjectFileMode.READONLY)
 
     # instrument geometry
     idf_name = 'data/XRay_Definition_1K.txt'

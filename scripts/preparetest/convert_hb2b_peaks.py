@@ -9,7 +9,7 @@ Convert the "old" HB2B data, now used to test peak fitting, to new HydraProject 
 """
 import numpy
 from pyrs.utilities import rs_scan_io
-from pyrs.utilities.rs_project_file import HydraProjectFile, HidraProjectFileMode
+from pyrs.utilities.rs_project_file import HidraProjectFile, HidraProjectFileMode
 
 
 def main():
@@ -24,7 +24,7 @@ def main():
 
     # Create a Hydra project
     target_project_file_name = 'tests/testdata/Hydra_16-1_cor_log.h5'
-    target_file = HydraProjectFile(target_project_file_name, HidraProjectFileMode.OVERWRITE)
+    target_file = HidraProjectFile(target_project_file_name, HidraProjectFileMode.OVERWRITE)
 
     # Create sub runs
     target_file.set_sub_runs(sorted(diff_data_dict.keys()))

@@ -7,7 +7,7 @@ Convert the synchrotron raw data to test
 
 Note: most of the methods to parse HZB data are copied from script pyrscalibration.py
 """
-from pyrs.utilities.rs_project_file import HidraConstants, HydraProjectFile, HidraProjectFileMode
+from pyrs.utilities.rs_project_file import HidraConstants, HidraProjectFile, HidraProjectFileMode
 import numpy
 from skimage import io
 from PIL import Image
@@ -84,7 +84,7 @@ def main():
     xray_count_vec, xray_det_type = load_data_from_tif(raw_tif_name)
 
     # start project file
-    project_file = HydraProjectFile(output_file_name, mode=HidraProjectFileMode.OVERWRITE)
+    project_file = HidraProjectFile(output_file_name, mode=HidraProjectFileMode.OVERWRITE)
 
     # add comments
     project_file.set_information({'Raw Data File': raw_tif_name, 'Detector Type': xray_det_type})

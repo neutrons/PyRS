@@ -13,7 +13,7 @@ Note: most of the methods to parse HZB data are copied from script convert_hzb_d
 """
 import os
 from pyrs.utilities import file_util
-from pyrs.utilities.rs_project_file import HidraConstants, HydraProjectFile, HidraProjectFileMode
+from pyrs.utilities.rs_project_file import HidraConstants, HidraProjectFile, HidraProjectFileMode
 import numpy
 
 
@@ -120,7 +120,7 @@ def main():
     exp_summary_dict, exp_logs_dict = import_hzb_summary(hzb_summary_name)
 
     # start project file
-    project_file = HydraProjectFile(output_file_name, mode=HidraProjectFileMode.OVERWRITE)
+    project_file = HidraProjectFile(output_file_name, mode=HidraProjectFileMode.OVERWRITE)
 
     # parse and add counts
     sub_run_list = exp_summary_dict.keys()

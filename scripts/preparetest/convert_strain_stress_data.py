@@ -2,7 +2,7 @@
 # System (library) test for classes and methods that will be used to calculate strain and stress
 import os
 import sys
-from pyrs.utilities.rs_project_file import HydraProjectFile, HidraProjectFileMode
+from pyrs.utilities.rs_project_file import HidraProjectFile, HidraProjectFileMode
 
 
 def contain_strain_stress_main():
@@ -23,7 +23,7 @@ def contain_strain_stress_main():
     # END-FOR
 
     # Start a new project
-    hidra_project_file = HydraProjectFile('tests/testdata/strain_stress_test.hdf5',
+    hidra_project_file = HidraProjectFile('tests/testdata/strain_stress_test.hdf5',
                                           HidraProjectFileMode.READONLY)
     print(hidra_project_file)
 

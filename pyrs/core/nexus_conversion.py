@@ -8,7 +8,7 @@ import os
 from pyrs.core import workspaces
 from pyrs.core import instrument_geometry
 from pyrs.utilities import checkdatatypes
-from pyrs.utilities.rs_project_file import HidraConstants, HydraProjectFile, HidraProjectFileMode
+from pyrs.utilities.rs_project_file import HidraConstants, HidraProjectFile, HidraProjectFileMode
 
 
 class NeXusConvertingApp(object):
@@ -100,7 +100,7 @@ class NeXusConvertingApp(object):
             os.remove(projectfile)
 
         # save
-        hydra_file = HydraProjectFile(projectfile, HidraProjectFileMode.OVERWRITE)
+        hydra_file = HidraProjectFile(projectfile, HidraProjectFileMode.OVERWRITE)
 
         # initialize instrument: hard code!
         if instrument is None:
