@@ -207,6 +207,8 @@ class PeakFitCalibration(object):
                                 tr_solver=tr_solver, max_nfev=max_nfev, args=args)
 
             J = out.jac
+            print '_______##############'
+            print J.shape
             if np.max( J.shape ) > 1:
                 cov = np.linalg.inv(J.T.dot(J))
             else:
