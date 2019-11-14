@@ -470,7 +470,10 @@ class HidraProjectFile(object):
         self._log.debug(self._file_name)
         # coded a little wacky to be less than 120 characters across
         sub_runs_str_list = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS]
-        sub_runs_str_list = sub_runs_str_list[HidraConstants.SUB_RUNS].value
+        if HidraConstants.SUB_RUNS in sub_runs_str_list:
+            sub_runs_str_list = sub_runs_str_list[HidraConstants.SUB_RUNS].value
+        else:
+            sub_runs_str_list = []
 
         self._log.debug('.... Sub runs: {}'.format(sub_runs_str_list))
 

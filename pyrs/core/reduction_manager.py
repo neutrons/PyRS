@@ -206,7 +206,8 @@ class HB2BReductionManager(object):
 
     # TODO - #84 - load_calibrated_instrument IS NOT IMPLEMENTED YET!
     def load_hidra_project(self, project_file_name, load_calibrated_instrument, load_detectors_counts,
-                           load_reduced_diffraction):
+                           load_reduced_diffraction,
+                           load_peaks):
         """ Load hidra project file and then CLOSE!
         :param project_file_name:
         :param load_calibrated_instrument:
@@ -234,7 +235,8 @@ class HB2BReductionManager(object):
         # Load
         self._curr_workspace.load_hidra_project(project_h5_file,
                                                 load_raw_counts=load_detectors_counts,
-                                                load_reduced_diffraction=load_reduced_diffraction)
+                                                load_reduced_diffraction=load_reduced_diffraction,
+                                                load_peaks=load_peaks)
 
         # Close
         project_h5_file.close()
