@@ -62,17 +62,6 @@ class DiffractionUnit(Enum):
     TwoTheta = '2theta'
     DSpacing = 'dSpacing'
 
-    @classmethod
-    def unit(cls, unit):
-        """
-        Get the unit in String
-        :return:
-        """
-        if unit == DiffractionUnit.TwoTheta:
-            return '2theta'
-
-        return 'dSpacing'
-
 
 class HydraProjectFile(object):
     """ Read and/or write an HB2B project to an HDF5 with entries for detector counts, sample logs, reduced data,
@@ -880,8 +869,8 @@ class HydraProjectFile(object):
         else:
             # create new node: parent, child-2theta, child-dspacing
             diff_group = self._project_h5[HidraConstants.REDUCED_DATA].create_group(sub_run_group_name)
-            diff_group.create_group(DiffractionUnit.unit(DiffractionUnit.TwoTheta))
-            diff_group.create_group(DiffractionUnit.unit(DiffractionUnit.DSpacing))
+            diff_group.create_group(str(DiffractionUnit.TwoTheta))
+            diff_group.create_group(str(DiffractionUnit.DSpacing))
 
         return diff_group
 
