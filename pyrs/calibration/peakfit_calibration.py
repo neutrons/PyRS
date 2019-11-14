@@ -185,7 +185,7 @@ class PeakFitCalibration(object):
     def FitDetector(self, fun, x0, jac='2-point', bounds=[], method='trf', ftol=1e-08, xtol=1e-08, gtol=1e-08,
                     x_scale=1.0, loss='linear', tr_options={}, jac_sparsity=None,
                     f_scale=1.0, diff_step=None, tr_solver=None, max_nfev=None, verbose=0, args=(),
-                    kwargs={}, full_output=0, col_deriv=0, maxfev=0):
+                    kwargs={} ):
 
         if UseLSQ:
             if max_nfev is None:
@@ -193,28 +193,29 @@ class PeakFitCalibration(object):
             out = leastsq(self.peak_alignment_rotation, x0, args=args, Dfun=None, ftol=ftol, xtol=xtol, gtol=gtol,
                           maxfev=max_nfev, factor=f_scale, full_output=1)
 
-            print(out)
-            print([out[0], out[1], out[-1:][0]])
-            return [out[0], out[1], out[-1:][0]]
+            cov = out[1]
+            var = np.sqrt(np.diagonal(cov))
+
+            return [out[0], var, out[-1:][0]]
 
         else:
             if len(bounds[0]) != len(bounds[1]):
                 raise RuntimeError('User must specify bounds of equal length')
 
-            out = least_squares(self.peak_alignment_rotation, x0, jac=jac, bounds=bounds, method='dogbox',
-                                ftol=ftol, xtol=xtol, gtol=gtol,
-                                x_scale=x_scale, loss=loss, f_scale=f_scale, diff_step=diff_step,
-                                tr_solver=tr_solver, max_nfev=max_nfev, args=args)
+            out = least_squares(self.peak_alignment_rotation, x0, jac=jac, bounds=bounds, method=method,
+                                ftol=ftol, xtol=xtol, gtol=gtol, tr_options=tr_options, 
+                                jac_sparsity=jac_sparsity, x_scale=x_scale, loss=loss, f_scale=f_scale, 
+                                diff_step=diff_step, tr_solver=tr_solver, max_nfev=max_nfev, args=args)
 
             J = out.jac
-            print '_______##############'
-            print J.shape
-            if np.max( J.shape ) > 1:
-                cov = np.linalg.inv(J.T.dot(J))
+            print np.max( J.T.dot(J).shape )
+            if np.sum( J.T.dot(J) ) < 1e-8:
+                var = -2 * np.zeros_like( J.T.dot(J) )
             else:
-                cov = J.T.dot(J) 
+                cov = np.linalg.inv(J.T.dot(J))
+                var = np.sqrt(np.diagonal(cov))
 
-            return [out.x, cov, out.status]
+            return [out.x, var, out.status]
 
         
 
@@ -532,22 +533,14 @@ class PeakFitCalibration(object):
     def set_shift(self, out):
         self._calib[0:3] = out[0]
         self._calibstatus = out[2]
-
-        cov = out[1]
-        var = np.sqrt(np.diagonal(cov))
-
-        self._caliberr[0:3] = var
+        self._caliberr[0:3] = out[1]
 
         return
 
     def set_rotation(self, out):
         self._calib[3:6] = out[0]
         self._calibstatus = out[2]
-
-        cov = out[1]
-        var = np.sqrt(np.diagonal(cov))
-
-        self._caliberr[3:6] = var
+        self._caliberr[3:6] = out[1]
 
         return
 
@@ -565,11 +558,7 @@ class PeakFitCalibration(object):
 
         self._calib[6] = out[0]
         self._calibstatus = out[2]
-
-        cov = out[1]
-        var = np.sqrt(np.diagonal(cov))
-
-        self._caliberr[6] = var
+        self._caliberr[6] = out[1]
 
         return
 
@@ -586,11 +575,7 @@ class PeakFitCalibration(object):
         """
         self._calib = out[0]
         self._calibstatus = out[2]
-
-        cov = out[1]
-        var = np.sqrt(np.diagonal(cov))
-
-        self._caliberr = var
+        self._caliberr = out[1]
 
         return
 
