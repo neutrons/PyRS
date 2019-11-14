@@ -449,7 +449,7 @@ class HB2BReductionManager(object):
         for sub_run in sub_run_list:
             self.reduce_sub_run_diffraction(workspace, sub_run, det_pos_shift,
                                             use_mantid_engine=not use_pyrs_engine,
-                                            mask_vec_id=(mask_id, mask_vec),
+                                            mask_vec_tuple=(mask_id, mask_vec),
                                             resolution_2theta=bin_size_2theta,
                                             eff_array=eff_array)
         # END-FOR
@@ -458,54 +458,84 @@ class HB2BReductionManager(object):
 
     # NOTE: Refer to compare_reduction_engines_tst
     def reduce_sub_run_diffraction(self, workspace, sub_run, geometry_calibration, use_mantid_engine,
-                                   mask_vec_id, min_2theta=None, max_2theta=None, resolution_2theta=None,
+                                   mask_vec_tuple, min_2theta=None, max_2theta=None, default_two_theta_range=20,
+                                   resolution_2theta=None, num_bins=1000,
                                    eff_array=None):
-        """
-        Reduce import data (workspace or vector) to 2-theta ~ I
-        Note: engine may not be reused because 2theta value may change among sub runs
-        :param workspace:
-        :param sub_run: integer for sub run number in workspace to reduce
-        :param use_mantid_engine: Flag to use Mantid engine
-        :param mask_vec_id: 2-tuple (String as ID, None or vector for Mask)
-        :param geometry_calibration: instrument_geometry.AnglerCameraDetectorShift instance
-        :param min_2theta: None or user specified
-        :param max_2theta: None or user specified
-        :param resolution_2theta: None or user specified
-        :param eff_array: None or ~numpy.ndarray
-        :return:
+        """Reduce import data (workspace or vector) to 2-theta ~ I
+
+        The binning of 2theta is linear in range (min, max) with given resolution
+
+        1. 2-theta range:
+            If nothing is given, then the default range is from detector arm's 2theta value
+           going up and down with half of default_two_theta_range
+        2. 2-theta resolution/step size:
+            If 2theta resolution is not given, num_bins will be used to determine resolution with 2-theta range;
+            Otherwise, use resolution
+
+        Parameters
+        ----------
+        workspace : HidraWorkspace
+            workspace with detector counts and position
+        sub_run : integer
+            sub run number in workspace to reduce
+        geometry_calibration : instrument_geometry.AnglerCameraDetectorShift
+            instrument geometry to calculate diffraction pattern
+        use_mantid_engine : boolean
+            flag to use Mantid as reduction engine which is rarely used
+        mask_vec_tuple : tuple (str, numpy.ndarray)
+            mask ID and 1D array for masking (1 to keep, 0 to mask out)
+        min_2theta : float or None
+            min 2theta
+        max_2theta : float or None
+            max 2theta
+        default_two_theta_range : float or None
+            range of 2theta if min or max 2theta is not given
+        resolution_2theta : float or None
+            2theta resolution/step
+        num_bins : int
+            number of bins
+        eff_array :numpy.ndarray or None
+            detector efficiencies
+
+        Returns
+        -------
+
         """
         # Get the raw data
         raw_count_vec = workspace.get_detector_counts(sub_run)
 
-        # Retrieve two theta and L2 from loaded workspace
+        # Retrieve 2-theta and L2 from loaded workspace (DAS)
         two_theta = workspace.get_2theta(sub_run)
+        l2 = workspace.get_l2(sub_run)
+        # Convert 2-theta from DAS convention to Mantid/PyRS convention
         print('[INFO] User specified 2theta = {} is converted to Mantid 2theta = {}'
               ''.format(two_theta, -two_theta))
-        two_theta = -two_theta
-        l2 = workspace.get_l2(sub_run)
+        mantid_two_theta = -two_theta
+
+        # Determine the 2theta range
+        if min_2theta is None or max_2theta is None:
+            min_2theta = abs(two_theta) - 0.5 * default_two_theta_range
+            max_2theta = abs(two_theta) + 0.5 * default_two_theta_range
+        if min_2theta >= max_2theta:
+            raise RuntimeError('Diffraction 2theta range ({}, {})is incorrect.'
+                               'Given information: detector arm 2theta = {}, 2theta range = {}'
+                               ''.format(min_2theta, max_2theta, two_theta, default_two_theta_range))
+        # Determine 2theta resolution
+        if resolution_2theta is None:
+            resolution_2theta = (max_2theta - min_2theta) / num_bins
 
         # Set up reduction engine and also
         if use_mantid_engine:
             reduction_engine = reduce_hb2b_mtd.MantidHB2BReduction(self._mantid_idf)
         else:
             reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
-
-        reduction_engine.set_experimental_data(two_theta, l2, raw_count_vec)
+        reduction_engine.set_experimental_data(mantid_two_theta, l2, raw_count_vec)
         reduction_engine.build_instrument(geometry_calibration)
 
-        # Mask
-        mask_id, mask_vec = mask_vec_id
+        # Apply mask
+        mask_id, mask_vec = mask_vec_tuple
         if mask_vec is not None:
             reduction_engine.set_mask(mask_vec)
-
-        # Reduce
-        # Set the 2theta range
-        if isinstance(min_2theta, type(None)):
-            min_2theta = abs(two_theta) - 10.
-        if isinstance(max_2theta, type(None)):
-            max_2theta = abs(two_theta) + 10.
-        if isinstance(resolution_2theta, type(None)):
-            resolution_2theta = (max_2theta - min_2theta) / 1000.
 
         # Reduce
         data_set = reduction_engine.reduce_to_2theta_histogram((min_2theta, max_2theta), resolution_2theta,
@@ -515,13 +545,11 @@ class HB2BReductionManager(object):
                                                                use_mantid_histogram=False,
                                                                efficiency_correction=eff_array)
 
-        bin_edges = data_set[0]
+        bin_centers = data_set[0]
         hist = data_set[1]
 
-        print('[DB...BAT] vec X shape = {}, vec Y shape = {}'.format(bin_edges.shape, hist.shape))
-
         # record
-        workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_edges, hist)
+        workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_centers, hist)
         self._last_reduction_engine = reduction_engine
 
         return
