@@ -529,7 +529,7 @@ class HB2BReductionManager(object):
             reduction_engine = reduce_hb2b_mtd.MantidHB2BReduction(self._mantid_idf)
         else:
             reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
-        reduction_engine.set_experimental_data(two_theta, l2, raw_count_vec)
+        reduction_engine.set_experimental_data(mantid_two_theta, l2, raw_count_vec)
         reduction_engine.build_instrument(geometry_calibration)
 
         # Apply mask
