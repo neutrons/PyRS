@@ -6,6 +6,7 @@ from matplotlib import pyplot as plt
 import pytest
 from collections import namedtuple
 import os
+import shutil
 
 
 # Named tuple for peak information
@@ -118,10 +119,25 @@ class PeakFittingTest(object):
 
         return
 
-    def save_fit_result(self, out_file_name, peak_tag):
+    def save_fit_result(self, src_project_file, out_file_name, peak_tag):
+        """Save peak fitting result to project file with previous
+
+        Parameters
+        ----------
+        src_project_file
+        out_file_name
+        peak_tag
+
+        Returns
+        -------
+
+        """
+        # Copy the source file to output file
+        if src_project_file is not None:
+            shutil.copy(src_project_file, out_file_name)
 
         # Save result with default value on file name to import from and export to
-        self._reduction_controller.save_peak_fit_result(self._project_name, out_file_name, peak_tag)
+        self._reduction_controller.save_peak_fit_result(self._project_name, out_file_name, peak_tag, overwrite=False)
 
         return
 
@@ -162,7 +178,7 @@ def test_main(project_file_name, peak_file_name, peak_type, peak_info):
     tester.fit_peak(peak_type, peak_info)
 
     # save to project file
-    tester.save_fit_result(peak_file_name, peak_info.tag)
+    tester.save_fit_result(project_file_name, peak_file_name, peak_info.tag)
 
     return
 

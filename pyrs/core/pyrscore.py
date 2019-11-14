@@ -446,29 +446,41 @@ class PyRsCore(object):
 
         return
 
-    def save_peak_fit_result(self, project_name, hidra_file_name, peak_tag):
+    def save_peak_fit_result(self, project_name, hidra_file_name, peak_tag, overwrite=True):
         """ Save the result from peak fitting to HiDRA project file
         Parameters
         ----------
-        project_name: String
+        project_name: str
             name of peak fitting session
         hidra_file_name: String
             project file to export peaks fitting result to
-        peak_tag
+        peak_tag : str
+            peak tag
+        overwrite: bool
+            Flag to append to an existing file or overwrite it
 
         Returns
         -------
 
         """
-        # TODO - #81 - (1) Doc!  (2) Need to track whether this file is open or closed (3) RW mode
         if project_name is None:
             optimizer = self._peak_fit_controller
         else:
             optimizer = self._peak_fitting_dict[project_name]
 
-        # Assuming the file is to write as new
-        hidra_project_file = HydraProjectFile(hidra_file_name, HydraProjectFileMode.OVERWRITE)
+        # Determine the file IO mode
+        if os.path.exists(hidra_file_name) and overwrite is False:
+            # file exists and user does not want overwrite: READWRITE mode
+            file_mode = HydraProjectFileMode.READWRITE
+        else:
+            # starting as a new file
+            file_mode = HydraProjectFileMode.OVERWRITE
+
+        # Create HiDRA project file
+        hidra_project_file = HydraProjectFile(hidra_file_name, file_mode)
+        # Export peaks
         optimizer.export_to_hydra_project(hidra_project_file, peak_tag)
+        # Close
         hidra_project_file.close()
 
         return
