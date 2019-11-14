@@ -206,7 +206,10 @@ class PeakFitCalibration(object):
                                 x_scale=x_scale, loss=loss, f_scale=f_scale, diff_step=diff_step,
                                 tr_solver=tr_solver, max_nfev=max_nfev, args=args)
 
-            return [out.x, np.linalg.inv(out.jac.T.dot(J)), out.status]
+            J = out.jac
+            cov = np.linalg.inv(J.T.dot(J))
+
+            return [out.x, cov, out.status]
 
         
 
@@ -522,11 +525,10 @@ class PeakFitCalibration(object):
         return np.array([self._calib[6]])
 
     def set_shift(self, out):
-        self._calib[0:3] = out.x
-        self._calibstatus = out.status
+        self._calib[0:3] = out[0]
+        self._calibstatus = out[2]
 
-        J = out.jac
-        cov = np.linalg.inv(J.T.dot(J))
+        cov = out[1]
         var = np.sqrt(np.diagonal(cov))
 
         self._caliberr[0:3] = var
@@ -534,11 +536,10 @@ class PeakFitCalibration(object):
         return
 
     def set_rotation(self, out):
-        self._calib[3:6] = out.x
-        self._calibstatus = out.status
+        self._calib[3:6] = out[0]
+        self._calibstatus = out[2]
 
-        J = out.jac
-        cov = np.linalg.inv(J.T.dot(J))
+        cov = out[1]
         var = np.sqrt(np.diagonal(cov))
 
         self._caliberr[3:6] = var
@@ -556,8 +557,6 @@ class PeakFitCalibration(object):
         -------
 
         """
-
-	print( out[0] )
 
         self._calib[6] = out[0]
         self._calibstatus = out[2]
@@ -580,11 +579,10 @@ class PeakFitCalibration(object):
         -------
 
         """
-        self._calib = out.x
-        self._calibstatus = out.status
+        self._calib = out[0]
+        self._calibstatus = out[2]
 
-        J = out.jac
-        cov = np.linalg.inv(J.T.dot(J))
+        cov = out[1]
         var = np.sqrt(np.diagonal(cov))
 
         self._caliberr = var
