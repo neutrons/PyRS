@@ -62,12 +62,10 @@ class FitPeaksWindow(QMainWindow):
         self._promote_peak_fit_setup()
 
         self._init_widgets()
-        # init some widgets
-        self.ui.checkBox_autoLoad.setChecked(True)
 
         # set up handling
         self.ui.pushButton_loadHDF.clicked.connect(self.load_hidra_file)
-        self.ui.pushButton_browseHDF.clicked.connect(self.do_browse_hdf)
+        self.ui.pushButton_browseHDF.clicked.connect(self.browse_hdf)
         self.ui.pushButton_plotPeaks.clicked.connect(self.plot_diff_data)
         self.ui.pushButton_plotPreviousScan.clicked.connect(self.plot_prev_scan)
         self.ui.pushButton_plotNextScan.clicked.connect(self.plot_next_scan)
@@ -105,6 +103,12 @@ class FitPeaksWindow(QMainWindow):
 
 
     # Menu event handler
+    def browse_hdf(self):
+        """ Browse Hidra project HDF file
+        """
+        o_handler = EventHandler(parent=self)
+        o_handler.browse_and_load_hdf()
+
     def load_hidra_file(self):
         o_handler = EventHandler(parent=self)
         o_handler.load_hidra_file()
@@ -125,38 +129,9 @@ class FitPeaksWindow(QMainWindow):
         o_plot = Plot(parent=self)
         o_plot.plot_prev_scan()
 
-    # """ plot the previous scan (log index)
-    # It is assumed that al the scan log indexes are consecutive
-    # :return:
-    # """
-    # scan_log_index_list = pyrs.interface.gui_helper.parse_integers(str(self.ui.lineEdit_scanNumbers.text()))
-    # if len(scan_log_index_list) == 0:
-    #     pyrs.interface.gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
-    # elif len(scan_log_index_list) > 1:
-    #     pyrs.interface.gui_helper.pop_message(self, 'There are too many scans for "next"', 'error')
-    # elif scan_log_index_list[0] == 0:
-    #     # first one: no operation
-    #     return
-    #
-    # prev_scan_log_index = scan_log_index_list[0] - 1
-    # try:
-    #     self._ui_graphicsView_fitSetup.reset_viewer()
-    #     self.plot_diff_data(prev_scan_log_index, True)
-    # except RuntimeError as run_err:
-    #     # self.plot_diff_data(next_scan_log + 1, True)
-    #     err_msg = 'Unable to plot previous scan {} due to {}'.format(prev_scan_log_index, run_err)
-    #     pyrs.interface.gui_helper.pop_message(self, err_msg, message_type='error')
-    # else:
-    #     self.ui.lineEdit_scanNumbers.setText('{}'.format(prev_scan_log_index))
-    # return
-
 
 
     def _promote_peak_fit_setup(self):
-        """
-
-        :return:
-        """
         # 2D detector view
         curr_layout = QVBoxLayout()
         self.ui.frame_PeakView.setLayout(curr_layout)
@@ -164,32 +139,6 @@ class FitPeaksWindow(QMainWindow):
 
         curr_layout.addWidget(self._ui_graphicsView_fitSetup)
 
-        return
-
-    # def _check_core(self):
-    #     """
-    #     check whether PyRs.Core has been set to this window
-    #     :return:
-    #     """
-    #     if self._core is None:
-    #         raise RuntimeError('Not set up yet!')
-
-    # def _get_default_hdf(self):
-    #     """
-    #     use IPTS and Exp to determine
-    #     :return:
-    #     """
-    #     try:
-    #         ipts_number = pyrs.interface.gui_helper.parse_integer(self.ui.lineEdit_iptsNumber)
-    #         exp_number = pyrs.interface.gui_helper.parse_integer(self.ui.lineEdit_expNumber)
-    #     except RuntimeError as run_err:
-    #         pyrs.interface.gui_helper.pop_message(self, 'Unable to parse IPTS or Exp due to {0}'.format(run_err))
-    #         return None
-    #
-    #     # Locate default saved HidraProject data
-    #     archive_data = hb2b_utilities.get_hb2b_raw_data(ipts_number, exp_number)
-    #
-    #     return archive_data
 
     def _init_widgets(self):
         """
@@ -198,7 +147,6 @@ class FitPeaksWindow(QMainWindow):
         """
         self.ui.pushButton_loadHDF.setEnabled(False)
         self.ui.checkBox_autoFit.setChecked(True)
-        self.ui.checkBox_autoLoad.setChecked(True)
 
         # combo boxes
         self.ui.comboBox_2dPlotChoice.clear()
@@ -210,11 +158,6 @@ class FitPeaksWindow(QMainWindow):
 
         return
 
-    def do_browse_hdf(self):
-        """ Browse Hidra project HDF file
-        """
-        o_handler = EventHandler(parent=self)
-        o_handler.browse_hdf()
 
 
 
@@ -229,64 +172,6 @@ class FitPeaksWindow(QMainWindow):
             self._advanced_fit_dialog = pyrs.interface.advpeakfitdialog.SmartPeakFitControlDialog(self)
 
         self._advanced_fit_dialog.show()
-
-        return
-
-    # def do_load_hydra_file(self, hydra_project_file=None):
-    #     """ Load Hidra project file
-    #     :return: None
-    #     """
-    #     self._check_core()
-    #
-    #     # Get file
-    #     if hydra_project_file is None:
-    #         hydra_project_file = str(self.ui.lineEdit_expFileName.text())
-    #     else:
-    #         checkdatatypes.check_string_variable(hydra_project_file)
-    #
-    #     # load file
-    #     try:
-    #         self._project_name = os.path.basename(hydra_project_file).split('.')[0]
-    #         self._core.load_hidra_project(hydra_project_file, project_name=self._project_name,
-    #                                       load_detector_counts=False,
-    #                                       load_diffraction=True)
-    #         # Record data key and next
-    #         self._curr_file_name = hydra_project_file
-    #     except (RuntimeError, TypeError) as run_err:
-    #         pyrs.interface.gui_helper.pop_message(self, 'Unable to load {}'.format(hydra_project_file), detailed_message=str(run_err),
-    #                                               message_type='error')
-    #         return
-    #
-    #     # Edit information on the UI for user to visualize
-    #     self.ui.label_loadedFileInfo.setText('Loaded {}; Project name: {}'
-    #                                          ''.format(hydra_project_file, self._project_name))
-    #
-    #     # Get the range of sub runs
-    #     sub_run_list = self._core.reduction_service.get_sub_runs(self._project_name)
-    #     self.ui.label_logIndexMin.setText(str(sub_run_list[0]))
-    #     self.ui.label_logIndexMax.setText(str(sub_run_list[-1]))
-    #
-    #     # Set the widgets about viewer: get the sample logs and add the combo boxes for plotting
-    #     sample_log_names = self._core.reduction_service.get_sample_logs_names(self._project_name, can_plot=True)
-    #     self._set_sample_logs_for_plotting(sample_log_names)
-    #
-    #     # plot first peak for default peak range
-    #     self.ui.lineEdit_scanNumbers.setText('1')
-    #     self.do_plot_diff_data(plot_model=False)
-    #
-    #     # reset the plot
-    #     self.ui.graphicsView_fitResult.reset_viewer()
-    #
-    #     # Set the table
-    #     if self.ui.tableView_fitSummary.rowCount() > 0:
-    #         self.ui.tableView_fitSummary.remove_all_rows()
-    #     self.ui.tableView_fitSummary.init_exp(sub_run_list)
-    #
-    #     # Auto fit for all the peaks
-    #     if self.ui.checkBox_autoFit.isChecked():
-    #         self.do_fit_peaks(all_sub_runs=True)
-    #
-    #     return
 
     def _set_sample_logs_for_plotting(self, sample_log_names):
         """ There are 2 combo boxes containing sample logs' names for plotting.  Clear the existing ones
@@ -308,138 +193,6 @@ class FitPeaksWindow(QMainWindow):
             self._sample_log_name_set.add(sample_log)
         self._sample_log_names_mutex = False
 
-        return
-
-    # def _parse_sub_runs(self):
-    #     """ Parse sub run numbers specified in lineEdit_scanNumbers
-    #     :return: List (of integers) or None
-    #     """
-    #     int_string_list = str(self.ui.lineEdit_scanNumbers.text()).strip()
-    #     if len(int_string_list) == 0 or not self.ui.fit_selected.isChecked():
-    #         sub_run_list = None  # not set and thus default for all
-    #     else:
-    #         sub_run_list = pyrs.interface.gui_helper.parse_integers(int_string_list)
-    #
-    #     return sub_run_list
-
-    # def do_fit_peaks(self, all_sub_runs=False):
-    #     """ Fit peaks either all peaks or selected peaks
-    #     The workflow includes
-    #     1. parse sub runs, peak and background type
-    #     2. fit peaks
-    #     3. show the fitting result in table
-    #     4. plot the peak in first sub runs that is fit
-    #     :param all_sub_runs: Flag to fit peaks of all sub runs without checking
-    #     :return:
-    #     """
-    #     # Get the sub runs to fit or all the peaks
-    #     if self.ui.checkBox_fitSubRuns.isChecked() and not all_sub_runs:
-    #         # Parse sub runs specified in lineEdit_scanNumbers
-    #         sub_run_list = self._parse_sub_runs()
-    #     else:
-    #         sub_run_list = None
-    #
-    #     # Get peak function and background function
-    #     peak_function = str(self.ui.comboBox_peakType.currentText())
-    #     bkgd_function = str(self.ui.comboBox_backgroundType.currentText())
-    #
-    #     # Get peak fitting range from the range of figure
-    #     fit_range = self._ui_graphicsView_fitSetup.get_x_limit()
-    #     print('[INFO] Peak fit range: {0}'.format(fit_range))
-    #
-    #     # Fit Peaks: It is better to fit all the peaks at the same time after testing
-    #     guessed_peak_center = 0.5 * (fit_range[0] + fit_range[1])
-    #     peak_info_dict = {'Peak 1': {'Center': guessed_peak_center, 'Range': fit_range}}
-    #     self._core.fit_peaks(self._project_name, sub_run_list,
-    #                          peak_type=peak_function,
-    #                          background_type=bkgd_function,
-    #                          peaks_fitting_setup=peak_info_dict)
-    #
-    #     # Process fitted peaks
-    #     # TEST - #84 - This shall be reviewed!
-    #     function_params, fit_values = self._core.get_peak_fitting_result(self._project_name,
-    #                                                                      return_format=dict,
-    #                                                                      effective_parameter=False)
-    #     # TODO - #84+ - Need to implement the option as effective_parameter=True
-    #
-    #     print('[DB...BAT...FITWINDOW....FIT] returned = {}, {}'.format(function_params, fit_values))
-    #
-    #     self._sample_log_names_mutex = True
-    #     curr_x_index = self.ui.comboBox_xaxisNames.currentIndex()
-    #     curr_y_index = self.ui.comboBox_yaxisNames.currentIndex()
-    #     # add fitted parameters by resetting and build from the copy of fit parameters
-    #     self.ui.comboBox_xaxisNames.clear()
-    #     self.ui.comboBox_yaxisNames.clear()
-    #     # add sample logs (names)
-    #     for sample_log_name in self._sample_log_names:
-    #         self.ui.comboBox_xaxisNames.addItem(sample_log_name)
-    #         self.ui.comboBox_yaxisNames.addItem(sample_log_name)
-    #     # add function parameters (names)
-    #     for param_name in function_params:
-    #         self.ui.comboBox_xaxisNames.addItem(param_name)
-    #         self.ui.comboBox_yaxisNames.addItem(param_name)
-    #         self._function_param_name_set.add(param_name)
-    #     # add observed parameters
-    #     self.ui.comboBox_xaxisNames.addItem('Center of mass')
-    #     self.ui.comboBox_yaxisNames.addItem('Center of mass')
-    #     # keep current selected item unchanged
-    #     size_x = len(self._sample_log_names) + len(self._function_param_name_set) + 2  # log index and center of mass
-    #     size_y = len(self._sample_log_names) + len(self._function_param_name_set) + 1  # center of mass
-    #     if curr_x_index < size_x:
-    #         # keep current set up
-    #         self.ui.comboBox_xaxisNames.setCurrentIndex(curr_x_index)
-    #     else:
-    #         # original one does not exist: reset to first/log index
-    #         self.ui.comboBox_xaxisNames.setCurrentIndex(0)
-    #
-    #     # release the mutex: because re-plot is required anyway
-    #     self._sample_log_names_mutex = False
-    #
-    #     # plot Y
-    #     if curr_y_index >= size_y:
-    #         # out of boundary: use the last one (usually something about peak)
-    #         curr_y_index = size_y - 1
-    #     self.ui.comboBox_yaxisNames.setCurrentIndex(curr_y_index)
-    #
-    #     # Show fitting result in Table
-    #     # TODO - could add an option to show native or effective peak parameters
-    #     self._show_fit_result_table(peak_function, function_params, fit_values, is_effective=False)
-    #
-    #     # plot the model and difference
-    #     if sub_run_list is None:
-    #         sub_run_number = 1
-    #         self.plot_diff_data(sub_run_number, True)
-    #
-    #     return
-
-    # def _show_fit_result_table(self, peak_function, peak_param_names, peak_param_dict, is_effective):
-    #     """ Set up the table containing fit result
-    #     :param peak_function: name of peak function
-    #     :param peak_param_names: name of the parameters for the order of columns
-    #     :param peak_param_dict: parameter names
-    #     :param is_effective: Flag for the parameter to be shown as effective (True) or native (False)
-    #     :return:
-    #     """
-    #     # Add peaks' centers of mass to the output table
-    #     peak_param_names.append(HidraConstants.PEAK_COM)
-    #     com_vec = self._core.get_peak_center_of_mass(self._project_name)
-    #     peak_param_dict[HidraConstants.PEAK_COM] = com_vec
-    #
-    #     # Initialize the table by resetting the column names
-    #     self.ui.tableView_fitSummary.reset_table(peak_param_names)
-    #
-    #     # Get sub runs for rows in the table
-    #     sub_run_vec = peak_param_dict[HidraConstants.SUB_RUNS]
-    #
-    #     # Add rows to the table for parameter information
-    #     for row_index in range(sub_run_vec.shape[0]):
-    #         # Set fit result
-    #         self.ui.tableView_fitSummary.set_fit_summary(row_index, peak_param_names, peak_param_dict,
-    #                                                      write_error=False,
-    #                                                      peak_profile=peak_function)
-    #     # END-FOR
-    #
-    #     return
 
     def do_make_movie(self):
         """
@@ -469,7 +222,6 @@ class FitPeaksWindow(QMainWindow):
         # TODO - 20180809 - Pop the following command
         # TODO - continue - command to pop: ffmpeg -r 24 -framerate 8 -pattern_type glob -i '*_fit.png' out.mp4
 
-        return
 
     def do_plot_2d_data(self):
         """
@@ -478,36 +230,6 @@ class FitPeaksWindow(QMainWindow):
         """
         # TODO - #84 - Implement this method
         return
-
-    # def do_plot_diff_data(self, plot_model=True):
-    #     """
-    #     plot diffraction data
-    #     :return:
-    #     """
-    #     # gather the information
-    #     scan_log_index_list = pyrs.interface.gui_helper.parse_integers(str(self.ui.lineEdit_scanNumbers.text()))
-    #     if len(scan_log_index_list) == 0:
-    #         pyrs.interface.gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
-    #
-    #     # possibly clean the previous
-    #     # keep_prev = self.ui.checkBox_keepPrevPlot.isChecked()
-    #     # if keep_prev is False:
-    #     self._ui_graphicsView_fitSetup.reset_viewer()
-    #
-    #     # get data and plot
-    #     err_msg = ''
-    #     plot_model = len(scan_log_index_list) == 1 and plot_model
-    #     for scan_log_index in scan_log_index_list:
-    #         try:
-    #             self.plot_diff_data(scan_log_index, plot_model)
-    #         except RuntimeError as run_err:
-    #             err_msg += '{0}\n'.format(run_err)
-    #     # END-FOR
-    #
-    #     if len(err_msg) > 0:
-    #         pyrs.interface.gui_helper.pop_message(self, err_msg, message_type='error')
-    #
-    #     return
 
     def do_plot_meta_data(self):
         """
@@ -691,44 +413,6 @@ class FitPeaksWindow(QMainWindow):
             value_vector = None
 
         return value_vector
-
-    # def plot_diff_data(self, sub_run_number, plot_model):
-    #     """Plot a set of diffraction data (one scan log index) and plot its fitted data
-    #
-    #     Parameters
-    #     ----------
-    #     sub_run_number: int
-    #         sub run number
-    #     plot_model: boolean
-    #         Flag to plot model with diffraction data or not
-    #
-    #     Returns
-    #     -------
-    #     None
-    #     """
-    #     # get experimental data and plot
-    #     diff_data_set = self._core.get_diffraction_data(session_name=self._project_name,
-    #                                                     sub_run=sub_run_number,
-    #                                                     mask=None)
-    #
-    #     data_set_label = 'Scan {0}'.format(sub_run_number)
-    #
-    #     # Plot experimental data
-    #     self._ui_graphicsView_fitSetup.plot_experiment_data(diff_data_set=diff_data_set, data_reference=data_set_label)
-    #
-    #     # Plot fitted model data
-    #     if plot_model:
-    #         model_data_set = self._core.get_modeled_data(session_name=self._project_name,
-    #                                                      sub_run=sub_run_number)
-    #         if model_data_set is not None:
-    #             residual_y_vec = diff_data_set[1] - model_data_set[1]
-    #             residual_data_set = [diff_data_set[0], residual_y_vec]
-    #             self._ui_graphicsView_fitSetup.plot_model_data(diff_data_set=model_data_set, model_label='',
-    #                                                            residual_set=residual_data_set)
-    #         # END-if
-    #     # END-IF-ELSE
-    #
-    #     return
 
     def save_data_for_mantid(self, data_key, file_name):
         """

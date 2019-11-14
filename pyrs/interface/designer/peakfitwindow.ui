@@ -299,16 +299,6 @@
          </widget>
         </item>
         <item>
-         <widget class="QCheckBox" name="checkBox_autoLoad">
-          <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If chcked, file will be loaded automatically with Browsing the file&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
-          <property name="text">
-           <string>Auto Load</string>
-          </property>
-         </widget>
-        </item>
-        <item>
          <widget class="QCheckBox" name="checkBox_autoFit">
           <property name="toolTip">
            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If specified as True, then after the file is loaded, all the peaks will be fit with default peak profile and background function automatically.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>

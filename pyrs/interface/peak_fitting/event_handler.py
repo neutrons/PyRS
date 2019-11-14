@@ -15,38 +15,40 @@ class EventHandler:
     def __init__(self, parent=None):
         self.parent = parent
 
-    def browse_hdf(self):
+    def browse_and_load_hdf(self):
 
         # Check
         self._check_core()
 
         # Use IPTS and run number to get the default Hydra HDF
-        hydra_file_name = self._get_default_hdf()
-        if hydra_file_name is None:
+
+        ## FIXME maybe recover auto name of hidra file
+        # hydra_file_name = self._get_default_hdf()
+        hidra_file_name = None
+        if hidra_file_name is None:
             # No default Hidra file: browse the file
             file_filter = 'HDF (*.hdf);H5 (*.h5)'
-            hydra_file_name = browse_file(self.parent, 'HIDRA Project File',
+            hidra_file_name = browse_file(self.parent, 'HIDRA Project File',
                                           os.getcwd(), file_filter,
                                           file_list=False, save_file=False)
 
-            if hydra_file_name is None:
+            if hidra_file_name is None:
                 # user clicked CANCEL
                 return
 
         # Add file name to line edit to show
-        self.parent.ui.lineEdit_expFileName.setText(hydra_file_name)
+        self.parent.ui.lineEdit_expFileName.setText(hidra_file_name)
 
         # Load file as an option
-        if self.parent.ui.checkBox_autoLoad.isChecked():
-            try:
-                self.load_hidra_file(hydra_project_file=None)
+        try:
+            self.load_hidra_file(hydra_project_file=hidra_file_name)
 
-                # enabled all fitting widgets
-                o_gui = GuiUtilities(parent=self.parent)
-                o_gui.enabled_fitting_widgets(True)
-            except RuntimeError as run_err:
-                pop_message(self, 'Failed to load {}'.format(hydra_file_name),
-                                                      str(run_err), 'error')
+            # enabled all fitting widgets
+            o_gui = GuiUtilities(parent=self.parent)
+            o_gui.enabled_fitting_widgets(True)
+        except RuntimeError as run_err:
+            pop_message(self, 'Failed to load {}'.format(hidra_file_name),
+                                                  str(run_err), 'error')
 
     def _check_core(self):
         """
@@ -77,7 +79,6 @@ class EventHandler:
         """ Load Hidra project file
         :return: None
         """
-        self._check_core()
 
         # Get file
         if hydra_project_file is None:
@@ -97,6 +98,10 @@ class EventHandler:
             pop_message(self, 'Unable to load {}'.format(hydra_project_file), detailed_message=str(run_err),
                                                   message_type='error')
             return
+
+
+
+        return
 
         # Edit information on the UI for user to visualize
         self.parent.ui.label_loadedFileInfo.setText('Loaded {}; Project name: {}'
