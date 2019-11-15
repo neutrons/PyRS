@@ -1,7 +1,6 @@
 # This is rs_scan_io.DiffractionFile's 2.0 version
-import os
 import h5py
-import checkdatatypes
+from pyrs.utilities import checkdatatypes
 from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSetup
 from enum import Enum
 import numpy
@@ -56,6 +55,9 @@ class HidraProjectFileMode(Enum):
     READWRITE = 'a'  # read and write
     OVERWRITE = 'w'  # new file
 
+    def __str__(self):
+        return self.value
+
 
 def _getFileMode(mode):
     '''
@@ -71,6 +73,9 @@ class DiffractionUnit(Enum):
     '''Enumeration for diffraction data's unit (2theta or d-spacing)'''
     TwoTheta = '2theta'
     DSpacing = 'dSpacing'
+
+    def __str__(self):
+        return self.value
 
 
 class HidraProjectFile(object):
@@ -103,47 +108,43 @@ class HidraProjectFile(object):
         :param mode: I/O mode
         """
         # convert the mode to the enum
-        mode = _getFileMode(mode)
+        self._io_mode = _getFileMode(mode)
 
         # check the file
         if not project_file_name:
             raise RuntimeError('Must supply a filename')
-        project_file_name = str(project_file_name)  # force it to be a string
-        if mode == HidraProjectFileMode.READONLY and not os.path.exists(project_file_name):
-            raise RuntimeError('File "{}" does not exist for reading'
-                               ''.format(project_file_name, mode))
+        self._file_name = str(project_file_name)  # force it to be a string
+        self._checkFileAccess()
 
-        # open file for H5
-        self._project_h5 = None
-        self._is_writable = False
-        self._file_name = project_file_name
-
-        if mode == HidraProjectFileMode.READONLY:
-            # read: check file existing?
-            checkdatatypes.check_file_name(project_file_name, True, False, False, 'Read-only Project file')
-            self._project_h5 = h5py.File(project_file_name, mode='r')
-
-        elif mode == HidraProjectFileMode.OVERWRITE:
-            # write
-            checkdatatypes.check_file_name(project_file_name, False, True, False, 'Write-only project file')
-            self._is_writable = True
-            self._project_h5 = h5py.File(project_file_name, mode='w')
+        # open the file using h5py
+        self._project_h5 = h5py.File(self._file_name, mode=str(self._io_mode))
+        if self._io_mode == HidraProjectFileMode.OVERWRITE:
             self._init_project()
 
-        elif mode == HidraProjectFileMode.READWRITE:
-            # append (read and write)
-            checkdatatypes.check_file_name(project_file_name, True, True, False, '(Append-mode) project file')
-            self._is_writable = True
-            self._project_h5 = h5py.File(project_file_name, mode='a')
+    def __del__(self):
+        self.close()
 
-        else:
-            # not supported
+    def _checkFileAccess(self):
+        '''Verify the file has the correct acces permissions and set the value of ``self._is_writable``
+        '''
+        # prepare the call to check the file permissions
+        check_exist = ((self._io_mode == HidraProjectFileMode.READONLY) or
+                       (self._io_mode == HidraProjectFileMode.READWRITE))
+        self._is_writable = (not self._io_mode == HidraProjectFileMode.READONLY)
+
+        # create a custom message based on requested access mode
+        if self._io_mode == HidraProjectFileMode.READONLY:
+            description = 'Read-only project file'
+        elif self._io_mode == HidraProjectFileMode.OVERWRITE:
+            description = 'Write-only project file'
+        elif self._io_mode == HidraProjectFileMode.READWRITE:
+            description = 'Append-mode project file'
+        else:  # this should never happen
             raise RuntimeError('Hidra project file I/O mode {} is not supported'.format(HidraProjectFileMode))
 
-        # more class variables
-        self._io_mode = mode
-
-        return
+        # do the check
+        checkdatatypes.check_file_name(self._file_name, check_exist, self._is_writable, is_dir=False,
+                                       description=description)
 
     def _init_project(self):
         """
@@ -307,15 +308,14 @@ class HidraProjectFile(object):
         return mask_array
 
     def close(self):
-        """
-        Close file without checking whether the file can be written or not
-        :return:
-        """
-        assert self._project_h5 is not None, 'cannot be None'
-        self._project_h5.close()
-        print('[INFO] File {} is closed'.format(self._file_name))
-
-        return
+        '''
+        Close the file without checking whether the file can be written or not. This can
+        be called multiple times without issue.
+        '''
+        if self._project_h5 is not None:
+            self._project_h5.close()
+            self._project_h5 = None  #
+            print('[INFO] File {} is closed'.format(self._file_name))
 
     def get_diffraction_2theta_array(self):
         """Get the (reduced) diffraction data's 2-theta vector
@@ -508,9 +508,7 @@ class HidraProjectFile(object):
         if verbose:
             print('Changes are saved to {0}; {0} will be closed right after.'.format(self._project_h5.filename))
 
-        self._project_h5.close()
-
-        return
+        self.close()
 
     def set_instrument_geometry(self, instrument_setup):
         """
@@ -549,11 +547,6 @@ class HidraProjectFile(object):
         # Set wave length
         if wl is not None:
             wavelength_group.create_dataset('Calibrated', data=numpy.array([wl]))
-
-        return
-
-    def set_instrument_calibration(self):
-        return
 
     def get_peak_tags(self):
         """Get all the tags of peaks with parameters stored in HiDRA project
