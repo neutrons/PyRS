@@ -33,7 +33,7 @@ def test_rw_raw():
     target_project.set_instrument_geometry(instrument_setup)
 
     # Save
-    target_project.save_hydra_project(True)
+    target_project.save(True)
 
     return
 

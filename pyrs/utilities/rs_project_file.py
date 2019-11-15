@@ -297,6 +297,18 @@ class HidraProjectFile(object):
             self._project_h5 = None  #
             print('[INFO] File {} is closed'.format(self._file_name))
 
+    def save(self, verbose=False):
+        """
+        convert all the information about project to HDF file.
+        As the data has been written to h5.File instance already, the only thing left is to close the file
+        """
+        self._validate_write_operation()
+
+        if verbose:
+            print('Changes are saved to {0}. File is now closed.'.format(self._project_h5.filename))
+
+        self.close()
+
     def get_diffraction_2theta_array(self):
         """Get the (reduced) diffraction data's 2-theta vector
 
@@ -473,19 +485,6 @@ class HidraProjectFile(object):
         print('[DB....BAT....] Sun runs: {}'.format(sub_run_list))
 
         return sub_run_list
-
-    def save_hydra_project(self, verbose=False):
-        """
-        convert all the information about project to HDF file.
-        As the data has been written to h5.File instance already, the only thing left is to close the file
-        :return:
-        """
-        self._validate_write_operation()
-
-        if verbose:
-            print('Changes are saved to {0}; {0} will be closed right after.'.format(self._project_h5.filename))
-
-        self.close()
 
     def set_instrument_geometry(self, instrument_setup):
         """
@@ -823,7 +822,7 @@ class HidraProjectFile(object):
         Validate whether a writing operation is allowed for this file
         :exception: RuntimeError
         """
-        if self._io_mode == HidraProjectFileMode.READONLY:
+        if not self._is_writable:
             raise RuntimeError('Project file {} is set to read-only by user'.format(self._project_h5.name))
 
     @staticmethod

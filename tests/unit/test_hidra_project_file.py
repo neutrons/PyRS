@@ -47,7 +47,7 @@ def test_mask():
     test_project_file.add_mask_solid_angle('test', solid_mask)
 
     # Close file
-    test_project_file.save_hydra_project(True)
+    test_project_file.save(True)
 
     # Open file again
     verify_project_file = HidraProjectFile('test_mask.hdf', HidraProjectFileMode.READONLY)
@@ -174,7 +174,7 @@ def test_peak_fitting_result_io():
                                           param_value_array=test_params_array,
                                           param_error_array=test_error_array)
 
-    test_project_file.save_hydra_project(False)
+    test_project_file.save(False)
 
     # Check
     assert os.path.exists(test_file_name), 'Test project file for peak fitting result {} cannot be found.' \

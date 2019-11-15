@@ -52,7 +52,7 @@ def main():
     target_file.set_reduced_diffraction_data_set(two_theta_vector, {None: diff_data_matrix})
 
     # Save
-    target_file.save_hydra_project(verbose=True)
+    target_file.save(verbose=True)
 
     return
 
