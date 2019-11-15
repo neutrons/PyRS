@@ -80,28 +80,19 @@ class EventHandler:
         :return: None
         """
 
-        # Get file
-        if hydra_project_file is None:
-            hydra_project_file = str(self.parent.ui.lineEdit_expFileName.text())
-        else:
-            check_string_variable(hydra_project_file)
-
         # load file
         try:
             self.parent._project_name = os.path.basename(hydra_project_file).split('.')[0]
-            self.parent._core.load_hidra_project(hydra_project_file, project_name=self.parent._project_name,
-                                          load_detector_counts=False,
-                                          load_diffraction=True)
+            self.parent._core.load_hidra_project(hydra_project_file,
+                                                 project_name=self.parent._project_name,
+                                                 load_detector_counts=False,
+                                                 load_diffraction=True)
             # Record data key and next
             self.parent._curr_file_name = hydra_project_file
         except (RuntimeError, TypeError) as run_err:
-            pop_message(self, 'Unable to load {}'.format(hydra_project_file), detailed_message=str(run_err),
-                                                  message_type='error')
-            return
-
-
-
-        return
+            pop_message(self, 'Unable to load {}'.format(hydra_project_file),
+                        detailed_message=str(run_err),
+                        message_type='error')
 
         # Edit information on the UI for user to visualize
         self.parent.ui.label_loadedFileInfo.setText('Loaded {}; Project name: {}'
@@ -131,14 +122,14 @@ class EventHandler:
             self.parent.ui.tableView_fitSummary.remove_all_rows()
         self.parent.ui.tableView_fitSummary.init_exp(sub_run_list)
 
-        try:
-            # Auto fit for all the peaks
-            if self.parent.ui.checkBox_autoFit.isChecked():
-                o_fit = Fit(parent=self.parent)
-                o_fit.fit_peaks(all_sub_runs=True)
-        except (AttributeError) as err:
-            pop_message(self, 'some errors during fitting!', detailed_message=str(err),
-                        message_type='warning')
+        # try:
+        #     # Auto fit for all the peaks
+        #     if self.parent.ui.checkBox_autoFit.isChecked():
+        #         o_fit = Fit(parent=self.parent)
+        #         o_fit.fit_peaks(all_sub_runs=True)
+        # except (AttributeError) as err:
+        #     pop_message(self, 'some errors during fitting!', detailed_message=str(err),
+        #                 message_type='warning')
 
         # enabled all fitting widgets
         o_gui = GuiUtilities(parent=self.parent)
