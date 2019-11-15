@@ -2,7 +2,7 @@
 import os
 import h5py
 import checkdatatypes
-from pyrs.core import instrument_geometry
+from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSetup
 from enum import Enum
 import numpy
 
@@ -46,7 +46,7 @@ class HidraConstants(object):
     BACKGROUND_TYPE = 'background type'
 
 
-class HydraProjectFileMode(Enum):
+class HidraProjectFileMode(Enum):
     """
     Enumerate for file access mode
     """
@@ -62,19 +62,8 @@ class DiffractionUnit(Enum):
     TwoTheta = '2theta'
     DSpacing = 'dSpacing'
 
-    @classmethod
-    def unit(cls, unit):
-        """
-        Get the unit in String
-        :return:
-        """
-        if unit == DiffractionUnit.TwoTheta:
-            return '2theta'
 
-        return 'dSpacing'
-
-
-class HydraProjectFile(object):
+class HidraProjectFile(object):
     """ Read and/or write an HB2B project to an HDF5 with entries for detector counts, sample logs, reduced data,
     fitted peaks and etc.
     All the import/export information will be buffered in order to avoid exception during operation
@@ -106,9 +95,9 @@ class HydraProjectFile(object):
         """
         # check
         checkdatatypes.check_string_variable('Project file name', project_file_name)
-        checkdatatypes.check_type('Project I/O mode', mode, HydraProjectFileMode)
+        checkdatatypes.check_type('Project I/O mode', mode, HidraProjectFileMode)
 
-        if mode in [HydraProjectFileMode.READONLY, HydraProjectFileMode.READWRITE]:
+        if mode in [HidraProjectFileMode.READONLY, HidraProjectFileMode.READWRITE]:
             if not os.path.exists(project_file_name):
                 raise RuntimeError('File "{}" does not exist for mode {}'
                                    ''.format(project_file_name, mode))
@@ -118,19 +107,19 @@ class HydraProjectFile(object):
         self._is_writable = False
         self._file_name = project_file_name
 
-        if mode == HydraProjectFileMode.READONLY:
+        if mode == HidraProjectFileMode.READONLY:
             # read: check file existing?
             checkdatatypes.check_file_name(project_file_name, True, False, False, 'Read-only Project file')
             self._project_h5 = h5py.File(project_file_name, mode='r')
 
-        elif mode == HydraProjectFileMode.OVERWRITE:
+        elif mode == HidraProjectFileMode.OVERWRITE:
             # write
             checkdatatypes.check_file_name(project_file_name, False, True, False, 'Write-only project file')
             self._is_writable = True
             self._project_h5 = h5py.File(project_file_name, mode='w')
             self._init_project()
 
-        elif mode == HydraProjectFileMode.READWRITE:
+        elif mode == HidraProjectFileMode.READWRITE:
             # append (read and write)
             checkdatatypes.check_file_name(project_file_name, True, True, False, '(Append-mode) project file')
             self._is_writable = True
@@ -138,7 +127,7 @@ class HydraProjectFile(object):
 
         else:
             # not supported
-            raise RuntimeError('Hydra project file I/O mode {} is not supported'.format(HydraProjectFileMode))
+            raise RuntimeError('Hidra project file I/O mode {} is not supported'.format(HidraProjectFileMode))
 
         # more class variables
         self._io_mode = mode
@@ -399,12 +388,12 @@ class HydraProjectFile(object):
         arm_length = detector_group['L2'].value
 
         # Initialize
-        instrument_setup = instrument_geometry.AnglerCameraDetectorGeometry(num_rows=num_rows,
-                                                                            num_columns=num_cols,
-                                                                            pixel_size_x=pixel_size_x,
-                                                                            pixel_size_y=pixel_size_y,
-                                                                            arm_length=arm_length,
-                                                                            calibrated=False)
+        instrument_setup = AnglerCameraDetectorGeometry(num_rows=num_rows,
+                                                        num_columns=num_cols,
+                                                        pixel_size_x=pixel_size_x,
+                                                        pixel_size_y=pixel_size_y,
+                                                        arm_length=arm_length,
+                                                        calibrated=False)
 
         return instrument_setup
 
@@ -520,7 +509,7 @@ class HydraProjectFile(object):
         """
         # check inputs
         self._validate_write_operation()
-        checkdatatypes.check_type('Instrument geometry setup', instrument_setup, instrument_geometry.HydraSetup)
+        checkdatatypes.check_type('Instrument geometry setup', instrument_setup, HidraSetup)
 
         # write value to instrument
         instrument_group = self._project_h5[HidraConstants.INSTRUMENT]
@@ -880,8 +869,8 @@ class HydraProjectFile(object):
         else:
             # create new node: parent, child-2theta, child-dspacing
             diff_group = self._project_h5[HidraConstants.REDUCED_DATA].create_group(sub_run_group_name)
-            diff_group.create_group(DiffractionUnit.unit(DiffractionUnit.TwoTheta))
-            diff_group.create_group(DiffractionUnit.unit(DiffractionUnit.DSpacing))
+            diff_group.create_group(str(DiffractionUnit.TwoTheta))
+            diff_group.create_group(str(DiffractionUnit.DSpacing))
 
         return diff_group
 
@@ -891,7 +880,7 @@ class HydraProjectFile(object):
         :exception: run time exception
         :return:
         """
-        if self._io_mode == HydraProjectFileMode.READONLY:
+        if self._io_mode == HidraProjectFileMode.READONLY:
             raise RuntimeError('Project file {} is set to read-only by user'.format(self._project_h5.name))
 
         return

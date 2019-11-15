@@ -1,6 +1,6 @@
 from pyrs.core import workspaces
-from pyrs.utilities import rs_project_file
-from pyrs.core import instrument_geometry
+from pyrs.utilities.rs_project_file import HidraProjectFile, HidraProjectFileMode
+from pyrs.core.instrument_geometry import HidraSetup
 import os
 import pytest
 
@@ -15,8 +15,7 @@ def test_rw_raw():
     raw_project_name = os.path.join(os.getcwd(), 'data/HZB_Raw_Project.h5')
 
     # Read to workspace
-    source_project = rs_project_file.HydraProjectFile(raw_project_name,
-                                                      rs_project_file.HydraProjectFileMode.READONLY)
+    source_project = HidraProjectFile(raw_project_name, HidraProjectFileMode.READONLY)
 
     # To the workspace
     source_workspace = workspaces.HidraWorkspace('Source HZB')
@@ -24,14 +23,13 @@ def test_rw_raw():
                                         load_reduced_diffraction=False)
 
     # Export
-    target_project = rs_project_file.HydraProjectFile('HZB_HiDra_Test.h5',
-                                                      rs_project_file.HydraProjectFileMode.OVERWRITE)
+    target_project = HidraProjectFile('HZB_HiDra_Test.h5', HidraProjectFileMode.OVERWRITE)
     # Experiment data
     source_workspace.save_experimental_data(target_project, sub_runs=range(1, 41))
 
     # Instrument
     detector_setup = source_workspace.get_instrument_setup()
-    instrument_setup = instrument_geometry.HydraSetup(detector_setup=detector_setup)
+    instrument_setup = HidraSetup(detector_setup=detector_setup)
     target_project.set_instrument_geometry(instrument_setup)
 
     # Save

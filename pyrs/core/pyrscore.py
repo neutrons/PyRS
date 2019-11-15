@@ -3,7 +3,7 @@ from pyrs.utilities import checkdatatypes
 from pyrs.core import instrument_geometry
 from pyrs.utilities import file_util
 from pyrs.core import peak_fit_factory
-from pyrs.utilities.rs_project_file import HidraConstants, HydraProjectFile, HydraProjectFileMode
+from pyrs.utilities.rs_project_file import HidraConstants, HidraProjectFile, HidraProjectFileMode
 from pyrs.core import strain_stress_calculator
 from pyrs.core import reduction_manager
 from pyrs.core import polefigurecalculator
@@ -471,13 +471,13 @@ class PyRsCore(object):
         # Determine the file IO mode
         if os.path.exists(hidra_file_name) and overwrite is False:
             # file exists and user does not want overwrite: READWRITE mode
-            file_mode = HydraProjectFileMode.READWRITE
+            file_mode = HidraProjectFileMode.READWRITE
         else:
             # starting as a new file
-            file_mode = HydraProjectFileMode.OVERWRITE
+            file_mode = HidraProjectFileMode.OVERWRITE
 
         # Create HiDRA project file
-        hidra_project_file = HydraProjectFile(hidra_file_name, file_mode)
+        hidra_project_file = HidraProjectFile(hidra_file_name, file_mode)
         # Export peaks
         optimizer.export_to_hydra_project(hidra_project_file, peak_tag)
         # Close

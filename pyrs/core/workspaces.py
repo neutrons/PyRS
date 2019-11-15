@@ -86,7 +86,7 @@ class HidraWorkspace(object):
         :param hidra_file:
         :return:
         """
-        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
+        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HidraProjectFile)
 
         for sub_run_i in sorted(self._sub_run_to_spectrum.keys()):
             counts_vec_i = hidra_file.get_raw_counts(sub_run_i)
@@ -101,7 +101,7 @@ class HidraWorkspace(object):
         :return:
         """
         # Check inputs
-        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
+        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HidraProjectFile)
 
         # get 2theta value
         try:
@@ -155,7 +155,7 @@ class HidraWorkspace(object):
         :return:
         """
         # Check
-        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
+        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HidraProjectFile)
 
         # Get values
         self._instrument_setup = hidra_file.get_instrument_geometry()
@@ -169,7 +169,7 @@ class HidraWorkspace(object):
         :param hidra_file:  HIDRA project file instance
         :return:
         """
-        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
+        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HidraProjectFile)
 
         sub_runs, log_dict = hidra_file.get_sample_logs()
 
@@ -190,7 +190,7 @@ class HidraWorkspace(object):
         :param hidra_file:  HIDRA project file instance
         :return:
         """
-        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
+        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HidraProjectFile)
 
         # reset the wave length (dictionary) from HIDRA project file
         self._wave_length_dict = hidra_file.get_wave_lengths()
@@ -300,7 +300,7 @@ class HidraWorkspace(object):
         :return:
         """
         # Check input
-        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HydraProjectFile)
+        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HidraProjectFile)
         self._project_file_name = hidra_file.name
 
         # create the spectrum map
@@ -624,7 +624,7 @@ class HidraWorkspace(object):
 
         Parameters
         ----------
-        hidra_project: HydraProjectFile
+        hidra_project: HidraProjectFile
             reference to a HyDra project file
         sub_runs: None or list/ndarray(1D)
             None for exporting all or the specified sub runs
@@ -675,7 +675,7 @@ class HidraWorkspace(object):
         :param hidra_project: HidraProjectFile instance
         :return:
         """
-        checkdatatypes.check_type('HIDRA project file', hidra_project, rs_project_file.HydraProjectFile)
+        checkdatatypes.check_type('HIDRA project file', hidra_project, rs_project_file.HidraProjectFile)
 
         hidra_project.set_reduced_diffraction_data_set(self._2theta_matrix, self._diff_data_set)
 

@@ -7,7 +7,8 @@ Convert the synchrotron raw data to test
 
 Note: most of the methods to parse HZB data are copied from script pyrscalibration.py
 """
-from pyrs.utilities import rs_project_file
+from pyrs.utilities.rs_project_file import HidraConstants, HidraProjectFile, HidraProjectFileMode
+from pyrs.core.instrument_geometry import HidraSetup
 import numpy
 from skimage import io
 from PIL import Image
@@ -65,7 +66,7 @@ def generate_xray_instrument():
                                                                 arm_length=0.416,  # meter
                                                                 calibrated=False)
 
-    hzb = instrument_geometry.HydraSetup(detector_setup=detector)  # single wave length
+    hzb = HidraSetup(detector_setup=detector)  # single wave length
     hzb.set_single_wavelength(wavelength)
 
     return hzb
@@ -84,8 +85,7 @@ def main():
     xray_count_vec, xray_det_type = load_data_from_tif(raw_tif_name)
 
     # start project file
-    project_file = rs_project_file.HydraProjectFile(output_file_name,
-                                                    mode=rs_project_file.HydraProjectFileMode.OVERWRITE)
+    project_file = HidraProjectFile(output_file_name, mode=HidraProjectFileMode.OVERWRITE)
 
     # add comments
     project_file.set_information({'Raw Data File': raw_tif_name, 'Detector Type': xray_det_type})
@@ -95,8 +95,8 @@ def main():
 
     # add sample log data & sub runs
     # for log_name in ['sub-run', '2Theta']
-    project_file.add_experiment_log(rs_project_file.HidraConstants.SUB_RUNS, numpy.array([1]))
-    project_file.add_experiment_log(rs_project_file.HidraConstants.TWO_THETA, numpy.array([35.]))
+    project_file.add_experiment_log(HidraConstants.SUB_RUNS, numpy.array([1]))
+    project_file.add_experiment_log(HidraConstants.TWO_THETA, numpy.array([35.]))
 
     # add instrument information
     instrument_setup = generate_xray_instrument()
