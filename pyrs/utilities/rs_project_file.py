@@ -47,24 +47,34 @@ class HidraConstants(object):
 
 
 class HidraProjectFileMode(Enum):
-    """
-    Enumerate for file access mode
-    """
-    READONLY = 1   # read-only
-    READWRITE = 2  # read and write
-    OVERWRITE = 3  # new file
+    '''
+    Enumeration for file access mode
+
+    These values match the strings of :py:obj:`h5py.File`
+    '''
+    READONLY = 'r'   # read-only
+    READWRITE = 'a'  # read and write
+    OVERWRITE = 'w'  # new file
+
+
+def _getFileMode(mode):
+    '''
+    Private function to convert anything into :py:obj:`HidraProjectFileMode`
+    '''
+    if mode in HidraProjectFileMode:
+        return mode
+    else:
+        return HidraProjectFileMode[str(mode)]
 
 
 class DiffractionUnit(Enum):
-    """
-    Enumerate for diffraction data's unit (2theta or d-spacing)
-    """
+    '''Enumeration for diffraction data's unit (2theta or d-spacing)'''
     TwoTheta = '2theta'
     DSpacing = 'dSpacing'
 
 
 class HidraProjectFile(object):
-    """ Read and/or write an HB2B project to an HDF5 with entries for detector counts, sample logs, reduced data,
+    '''Read and/or write an HB2B project to an HDF5 with entries for detector counts, sample logs, reduced data,
     fitted peaks and etc.
     All the import/export information will be buffered in order to avoid exception during operation
 
@@ -84,23 +94,24 @@ class HidraProjectFile(object):
         - mask_B
           - sub-run
           - ...
+    '''
 
-    """
-
-    def __init__(self, project_file_name, mode):
+    def __init__(self, project_file_name, mode=HidraProjectFileMode.READONLY):
         """
         Initialization
         :param project_file_name: project file name
         :param mode: I/O mode
         """
-        # check
-        checkdatatypes.check_string_variable('Project file name', project_file_name)
-        checkdatatypes.check_type('Project I/O mode', mode, HidraProjectFileMode)
+        # convert the mode to the enum
+        mode = _getFileMode(mode)
 
-        if mode in [HidraProjectFileMode.READONLY, HidraProjectFileMode.READWRITE]:
-            if not os.path.exists(project_file_name):
-                raise RuntimeError('File "{}" does not exist for mode {}'
-                                   ''.format(project_file_name, mode))
+        # check the file
+        if not project_file_name:
+            raise RuntimeError('Must supply a filename')
+        project_file_name = str(project_file_name)  # force it to be a string
+        if mode == HidraProjectFileMode.READONLY and not os.path.exists(project_file_name):
+            raise RuntimeError('File "{}" does not exist for reading'
+                               ''.format(project_file_name, mode))
 
         # open file for H5
         self._project_h5 = None
