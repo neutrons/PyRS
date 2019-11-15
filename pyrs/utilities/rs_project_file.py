@@ -1,9 +1,10 @@
 # This is rs_scan_io.DiffractionFile's 2.0 version
+from enum import Enum
 import h5py
+import numpy
+import os
 from pyrs.utilities import checkdatatypes
 from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSetup
-from enum import Enum
-import numpy
 
 
 class HidraConstants(object):
@@ -121,9 +122,6 @@ class HidraProjectFile(object):
         if self._io_mode == HidraProjectFileMode.OVERWRITE:
             self._init_project()
 
-    def __del__(self):
-        self.close()
-
     def _checkFileAccess(self):
         '''Verify the file has the correct acces permissions and set the value of ``self._is_writable``
         '''
@@ -142,6 +140,9 @@ class HidraProjectFile(object):
         else:  # this should never happen
             raise RuntimeError('Hidra project file I/O mode {} is not supported'.format(HidraProjectFileMode))
 
+        # convert the filename to an absolute path so error messages are clearer
+        self._file_name = os.path.abspath(self._file_name)
+
         # do the check
         checkdatatypes.check_file_name(self._file_name, check_exist, self._is_writable, is_dir=False,
                                        description=description)
@@ -149,7 +150,6 @@ class HidraProjectFile(object):
     def _init_project(self):
         """
         initialize the current opened project file from scratch by opening it
-        :return:
         """
         assert self._project_h5 is not None, 'cannot be None'
         assert self._is_writable, 'must be writable'
@@ -180,13 +180,13 @@ class HidraProjectFile(object):
         # reduced data
         self._project_h5.create_group(HidraConstants.REDUCED_DATA)
 
-        return
+    def __del__(self):
+        self.close()
 
     @property
     def name(self):
         """
         File name on HDD
-        :return:
         """
         return self._project_h5.name
 
@@ -199,10 +199,6 @@ class HidraProjectFile(object):
             sub run number
         counts_array : ~numpy.ndarray
             detector counts
-
-        Returns
-        -------
-
         """
         # check
         assert self._project_h5 is not None, 'cannot be None'
@@ -214,13 +210,10 @@ class HidraProjectFile(object):
             '{:04}'.format(sub_run_number))
         scan_i_group.create_dataset('counts', data=counts_array.reshape(-1))
 
-        return
-
     def add_experiment_log(self, log_name, log_value_array):
         """ add information about the experiment including scan indexes, sample logs, 2theta and etc
         :param log_name: name of the sample log
         :param log_value_array:
-        :return:
         """
         # check
         assert self._project_h5 is not None, 'cannot be None'
@@ -237,13 +230,10 @@ class HidraProjectFile(object):
             raise RuntimeError('Failed to add log {} with value {} of type {}: {}'
                                ''.format(log_name, log_value_array, type(log_value_array), type_err))
 
-        return
-
     def add_mask_detector_array(self, mask_name, mask_array):
         """ Add the a mask array to Hidra file
         :param mask_name: String, name of mask for reference
         :param mask_array: numpy ndarray (N, ), masks, 0 for masking, 1 for ROI
-        :return: None
         """
         if mask_name in self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK]:
             # delete the existing mask
@@ -253,13 +243,9 @@ class HidraProjectFile(object):
         self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK].create_dataset(mask_name,
                                                                                            data=mask_array)
 
-        return
-
     def get_mask_detector_array(self, mask_name):
         """ Get the mask from hidra project file (.h5) in the form of numpy array
         :exception RuntimeError:
-        :param mask_name:
-        :return:
         """
         try:
             mask_array = self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK][mask_name]
@@ -278,9 +264,7 @@ class HidraProjectFile(object):
         data will be a range of solid angles and number of patterns to generate.
         example solid angle range = -8, 8, number of pattern = 3
 
-        :param mask_name:
         :param solid_angle_bin_edges: numpy 1D array as s0, s1, s2, ...
-        :return:
         """
         # Clean previously set if name exists
         if mask_name in self._project_h5[HidraConstants.MASK][HidraConstants.SOLID_ANGLE_MASK]:
@@ -290,12 +274,8 @@ class HidraProjectFile(object):
         solid_angle_entry = self._project_h5[HidraConstants.MASK][HidraConstants.SOLID_ANGLE_MASK]
         solid_angle_entry.create_dataset(mask_name, data=solid_angle_bin_edges)
 
-        return
-
     def get_mask_solid_angle(self, mask_name):
         """Get the masks in the form of solid angle bin edges
-        :param mask_name:
-        :return:
         """
         try:
             mask_array = self._project_h5[HidraConstants.MASK][HidraConstants.SOLID_ANGLE_MASK][mask_name]
@@ -369,7 +349,6 @@ class HidraProjectFile(object):
     def get_diffraction_masks(self):
         """
         Get the list of masks
-        :return:
         """
         masks = self._project_h5[HidraConstants.REDUCED_DATA].keys()
 
@@ -460,7 +439,6 @@ class HidraProjectFile(object):
     def get_raw_counts(self, sub_run):
         """
         get the raw detector counts
-        :return:
         """
         assert self._project_h5 is not None, 'blabla'
         checkdatatypes.check_int_variable('sun run', sub_run, (0, None))
@@ -479,7 +457,6 @@ class HidraProjectFile(object):
     def get_sub_runs(self):
         """
         get list of the sub runs
-        :return:
         """
         print(self._project_h5.keys())
         print(self._file_name)
@@ -513,8 +490,6 @@ class HidraProjectFile(object):
     def set_instrument_geometry(self, instrument_setup):
         """
         Add instrument geometry and wave length information to project file
-        :param instrument_setup:
-        :return:
         """
         # check inputs
         self._validate_write_operation()
@@ -621,11 +596,6 @@ class HidraProjectFile(object):
             structured numpy array for peak + background (fitted) value
         param_error_array : ~numpy.ndarray
             structured numpy array for peak + background fitting error
-
-        Returns
-        -------
-        None
-
         """
         # Check inputs and file status
         self._validate_write_operation()
@@ -652,8 +622,6 @@ class HidraProjectFile(object):
         single_peak_entry.create_dataset(HidraConstants.PEAK_FIT_CHI2, data=fit_cost_array)
         single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS, data=param_value_array)
         single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS_ERROR, data=param_error_array)
-
-        return
 
     def get_wave_lengths(self):
         """
@@ -705,8 +673,6 @@ class HidraProjectFile(object):
         wl_entry = self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.MONO]
         wl_entry.create_dataset(HidraConstants.WAVELENGTH, data=numpy.array([wave_length]))
 
-        return
-
     def get_efficiency_correction(self):
         """
         Set detector efficiency correction measured from vanadium (efficiency correction)
@@ -734,13 +700,7 @@ class HidraProjectFile(object):
             Run number where the efficiency calibration comes from
         eff_array : numpy ndarray (1D)
             Detector (pixel) efficiency
-
-        Returns
-        -------
-        None
         """
-        #
-
         # Add attribute
         self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.DETECTOR_EFF].attrs[HidraConstants.RUN] = \
             calib_run_number
@@ -749,13 +709,9 @@ class HidraProjectFile(object):
         self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.DETECTOR_EFF].create_dataset(
             '{}'.format(calib_run_number), data=eff_array)
 
-        return
-
     def set_information(self, info_dict):
         """
         set project information to attributes
-        :param info_dict:
-        :return:
         """
         # check and validate
         checkdatatypes.check_dict('Project file general information', info_dict)
@@ -763,8 +719,6 @@ class HidraProjectFile(object):
 
         for info_name in info_dict:
             self._project_h5.attrs[info_name] = info_dict[info_name]
-
-        return
 
     def set_reduced_diffraction_data_set(self, two_theta_array, diff_data_set):
         """Set the reduced diffraction data (set)
@@ -775,11 +729,6 @@ class HidraProjectFile(object):
             2D array for 2-theta vector, which could be various to each other among sub runs
         diff_data_set : dict
             dictionary of 2D arrays for reduced diffraction patterns' intensities
-
-        Returns
-        -------
-        None
-
         """
         # Check input
         checkdatatypes.check_numpy_arrays('Two theta vector', [two_theta_array], 2, False)
@@ -830,14 +779,9 @@ class HidraProjectFile(object):
             else:
                 # new
                 diff_group.create_dataset(data_name, data=diff_data_matrix_i)
-        # END-FOR
-
-        return
 
     def set_sub_runs(self, sub_runs):
         """ Set sub runs to sample log entry
-        :param sub_runs:
-        :return:
         """
         if isinstance(sub_runs, list):
             sub_runs = numpy.array(sub_runs)
@@ -847,14 +791,10 @@ class HidraProjectFile(object):
         sample_log_entry = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS]
         sample_log_entry.create_dataset(HidraConstants.SUB_RUNS, data=sub_runs)
 
-        return
-
     def _create_diffraction_node(self, sub_run_number):
         """ Create a node to record diffraction data
         It will check if such node already exists
         :exception: RuntimeError is raised if such 'sub run' node exists but not correct
-        :param sub_run_number:
-        :return:
         """
         # create a new node if it does not exist
         sub_run_group_name = '{0:04}'.format(sub_run_number)
@@ -881,25 +821,16 @@ class HidraProjectFile(object):
     def _validate_write_operation(self):
         """
         Validate whether a writing operation is allowed for this file
-        :exception: run time exception
-        :return:
+        :exception: RuntimeError
         """
         if self._io_mode == HidraProjectFileMode.READONLY:
             raise RuntimeError('Project file {} is set to read-only by user'.format(self._project_h5.name))
-
-        return
 
     @staticmethod
     def set_attributes(h5_group, attribute_name, attribute_value):
         """
         Set attribute to a group
-        :param h5_group:
-        :param attribute_name:
-        :param attribute_value:
-        :return:
         """
         checkdatatypes.check_string_variable('Attribute name', attribute_name)
 
         h5_group.attrs[attribute_name] = attribute_value
-
-        return
