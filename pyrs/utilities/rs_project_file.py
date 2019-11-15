@@ -1,6 +1,7 @@
 # This is rs_scan_io.DiffractionFile's 2.0 version
 from enum import Enum
 import h5py
+from mantid.kernel import Logger
 import numpy
 import os
 from pyrs.utilities import checkdatatypes
@@ -108,6 +109,9 @@ class HidraProjectFile(object):
         :param project_file_name: project file name
         :param mode: I/O mode
         """
+        # configure logging for this class
+        self._log = Logger(__name__)
+
         # convert the mode to the enum
         self._io_mode = _getFileMode(mode)
 
@@ -221,7 +225,7 @@ class HidraProjectFile(object):
         checkdatatypes.check_string_variable('Log name', log_name)
 
         try:
-            print('[DB...BAT] Add sample log: {}'.format(log_name))
+            self._log.debug('Add sample log: {}'.format(log_name))
             self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS].create_dataset(
                 log_name, data=log_value_array)
         except RuntimeError as run_err:
@@ -295,7 +299,7 @@ class HidraProjectFile(object):
         if self._project_h5 is not None:
             self._project_h5.close()
             self._project_h5 = None  #
-            print('[INFO] File {} is closed'.format(self._file_name))
+            self._log.information('File {} is closed'.format(self._file_name))
 
     def save(self, verbose=False):
         """
@@ -305,7 +309,7 @@ class HidraProjectFile(object):
         self._validate_write_operation()
 
         if verbose:
-            print('Changes are saved to {0}. File is now closed.'.format(self._project_h5.filename))
+            self._log.information('Changes are saved to {0}. File is now closed.'.format(self._project_h5.filename))
 
         self.close()
 
@@ -470,19 +474,19 @@ class HidraProjectFile(object):
         """
         get list of the sub runs
         """
-        print(self._project_h5.keys())
-        print(self._file_name)
+        self._log.debug(str(self._project_h5.keys()))
+        self._log.debug(self._file_name)
         # coded a little wacky to be less than 120 characters across
         sub_runs_str_list = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS]
         sub_runs_str_list = sub_runs_str_list[HidraConstants.SUB_RUNS].value
 
-        print('[DB....BAT....] Sun runs: {}'.format(sub_runs_str_list))
+        self._log.debug('.... Sub runs: {}'.format(sub_runs_str_list))
 
         sub_run_list = [None] * len(sub_runs_str_list)
         for index, sub_run_str in enumerate(sub_runs_str_list):
             sub_run_list[index] = int(sub_run_str)
 
-        print('[DB....BAT....] Sun runs: {}'.format(sub_run_list))
+        self._log.debug('.... Sub runs: {}'.format(sub_run_list))
 
         return sub_run_list
 
@@ -515,7 +519,7 @@ class HidraProjectFile(object):
             wl = instrument_setup.get_wavelength(None)
         except (NotImplementedError, RuntimeError) as run_err:
             # No wave length from workspace: do nothing
-            print('[ERROR] {}'.format(run_err))
+            self._log.error(str(run_err))
             wl = None
 
         # Set wave length
@@ -650,8 +654,8 @@ class HidraProjectFile(object):
                     # END-IF
         except KeyError:
             # monochromator node does not exist
-            print('[ERROR] Node {} does not exist in HiDRA project file {}'
-                  ''.format(HidraConstants.MONO, self._file_name))
+            self._log.error('Node {} does not exist in HiDRA project file {}'
+                            ''.format(HidraConstants.MONO, self._file_name))
         # END
 
         return wl
@@ -753,7 +757,7 @@ class HidraProjectFile(object):
         for mask_id in diff_data_set:
             # Get data
             diff_data_matrix_i = diff_data_set[mask_id]
-            print('[INFO] Mask {} data set shape: {}'.format(mask_id, diff_data_matrix_i.shape))
+            self._log.information('Mask {} data set shape: {}'.format(mask_id, diff_data_matrix_i.shape))
             # Check
             checkdatatypes.check_numpy_arrays('Diffraction data (matrix)', [diff_data_matrix_i], None, False)
             if two_theta_array.shape != diff_data_matrix_i.shape:
@@ -798,14 +802,14 @@ class HidraProjectFile(object):
         # create a new node if it does not exist
         sub_run_group_name = '{0:04}'.format(sub_run_number)
 
-        print('[DB...BAT] sub group entry name in hdf: {}'.format(sub_run_group_name))
+        self._log.debug('sub group entry name in hdf: {}'.format(sub_run_group_name))
 
         # check existing node or create a new node
-        print('[DB...BAT] Diffraction node sub group/entries: {}'
-              ''.format(self._project_h5[HidraConstants.REDUCED_DATA].keys()))
+        self._log.debug('Diffraction node sub group/entries: {}'
+                        ''.format(self._project_h5[HidraConstants.REDUCED_DATA].keys()))
         if sub_run_group_name in self._project_h5[HidraConstants.REDUCED_DATA]:
             # sub-run node exist and check
-            print('[DB...BAT] sub-group: {}'.format(sub_run_group_name))
+            self._log('sub-group: {}'.format(sub_run_group_name))
             diff_group = self._project_h5[HidraConstants.REDUCED_DATA][sub_run_group_name]
             if not (DiffractionUnit.TwoTheta in diff_group and DiffractionUnit.DSpacing in diff_group):
                 raise RuntimeError('Diffraction node for sub run {} exists but is not complete'.format(sub_run_number))
