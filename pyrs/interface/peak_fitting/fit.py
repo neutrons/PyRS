@@ -1,6 +1,6 @@
 from pyrs.interface.peak_fitting.utilities import Utilities
 from pyrs.interface.peak_fitting.plot import Plot
-
+from pyrs.interface.gui_helper import pop_message
 from pyrs.utilities.rs_project_file import HidraConstants
 
 
@@ -45,9 +45,14 @@ class Fit:
 
         # Process fitted peaks
         # TEST - #84 - This shall be reviewed!
-        function_params, fit_values = self.parent._core.get_peak_fitting_result(self.parent._project_name,
-                                                                                return_format=dict,
-                                                                                effective_parameter=False)
+        try:
+            function_params, fit_values = self.parent._core.get_peak_fitting_result(self.parent._project_name,
+                                                                                    return_format=dict,
+                                                                                    effective_parameter=False)
+        except AttributeError as err:
+            pop_message(self, 'Zoom in/out to only show peak to fit!', "", "error")
+            return
+
         # TODO - #84+ - Need to implement the option as effective_parameter=True
 
         print('[DB...BAT...FITWINDOW....FIT] returned = {}, {}'.format(function_params, fit_values))

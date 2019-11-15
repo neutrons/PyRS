@@ -28,3 +28,16 @@ class GuiUtilities:
     def enabled_list_widgets(self, list_widgets=[], enabled=True):
         for _widget in list_widgets:
             _widget.setEnabled(enabled)
+
+    def check_prev_next_sub_runs_widgets(self):
+
+        enabled_next = True
+        enabled_prev = True
+
+        if (str(self.parent.ui.lineEdit_scanNumbers.text()) == str(self.parent.ui.label_logIndexMin.text())):
+            enabled_prev = False
+        elif (str(self.parent.ui.lineEdit_scanNumbers.text()) == str(self.parent.ui.label_logIndexMax.text())):
+            enabled_next = False
+
+        self.parent.ui.pushButton_plotNextScan.setEnabled(enabled_next)
+        self.parent.ui.pushButton_plotPreviousScan.setEnabled(enabled_prev)

@@ -1,5 +1,6 @@
 from pyrs.interface.gui_helper import parse_integers
 from pyrs.interface.gui_helper import pop_message
+from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
 
 
 class Plot:
@@ -13,7 +14,11 @@ class Plot:
         :return:
         """
         # gather the information
-        scan_log_index_list = parse_integers(str(self.parent.ui.lineEdit_scanNumbers.text()))
+        try:
+            scan_log_index_list = parse_integers(str(self.parent.ui.lineEdit_scanNumbers.text()))
+        except RuntimeError as run_err:
+            pop_message(self, "Unable to parse the string", message_type='error')
+
         if len(scan_log_index_list) == 0:
             pop_message(self, 'There is not scan-log index input', 'error')
 
@@ -34,6 +39,8 @@ class Plot:
 
         if len(err_msg) > 0:
             pop_message(self, err_msg, message_type='error')
+
+
 
     def plot_diff_and_fitted_data(self, sub_run_number, plot_model):
         """Plot a set of diffraction data (one scan log index) and plot its fitted data
@@ -60,16 +67,16 @@ class Plot:
         self.parent._ui_graphicsView_fitSetup.plot_experiment_data(diff_data_set=diff_data_set,
                                                                    data_reference=data_set_label)
 
-        # Plot fitted model data
-        if plot_model:
-            model_data_set = self.parent._core.get_modeled_data(session_name=self.parent._project_name,
-                                                                sub_run=sub_run_number)
-            if model_data_set is not None:
-                residual_y_vec = diff_data_set[1] - model_data_set[1]
-                residual_data_set = [diff_data_set[0], residual_y_vec]
-                self.parent._ui_graphicsView_fitSetup.plot_model_data(diff_data_set=model_data_set,
-                                                                      model_label='',
-                                                                      residual_set=residual_data_set)
+        # # Plot fitted model data
+        # if plot_model:
+        #     model_data_set = self.parent._core.get_modeled_data(session_name=self.parent._project_name,
+        #                                                         sub_run=sub_run_number)
+        #     if model_data_set is not None:
+        #         residual_y_vec = diff_data_set[1] - model_data_set[1]
+        #         residual_data_set = [diff_data_set[0], residual_y_vec]
+        #         self.parent._ui_graphicsView_fitSetup.plot_model_data(diff_data_set=model_data_set,
+        #                                                               model_label='',
+        #                                                               residual_set=residual_data_set)
 
     def plot_scan(self, is_next=True):
         """ plot the next or previous scan (log index)
@@ -95,55 +102,18 @@ class Plot:
         else:
             self.parent.ui.lineEdit_scanNumbers.setText('{}'.format(scan_log))
 
+        o_gui = GuiUtilities(parent=self.parent)
+        o_gui.check_prev_next_sub_runs_widgets()
+
 
     def plot_next_scan(self):
         """ plot the next scan (log index)
         It is assumed that al the scan log indexes are consecutive
         """
         self.plot_scan(is_next=True)
-        # scan_log_index_list = parse_integers(str(self.parent.ui.lineEdit_scanNumbers.text()))
-        # last_log_index = int(self.parent.ui.label_logIndexMax.text())
-        # if len(scan_log_index_list) == 0:
-        #     pop_message(self, 'There is not scan-log index input', 'error')
-        # elif len(scan_log_index_list) > 1:
-        #     pop_message(self, 'There are too many scans for "next"', 'error')
-        # elif scan_log_index_list[0] == last_log_index:
-        #     # last log index: no operation
-        #     return
-        #
-        # next_scan_log = scan_log_index_list[0] + 1
-        # try:
-        #     self.parent._ui_graphicsView_fitSetup.reset_viewer()
-        #     self.plot_diff_and_fitted_data(next_scan_log, True)
-        # except RuntimeError as run_err:
-        #     # self.plot_diff_data(next_scan_log - 1, True)
-        #     err_msg = 'Unable to plot next scan {} due to {}'.format(next_scan_log, run_err)
-        #     pop_message(self, err_msg, message_type='error')
-        # else:
-        #     self.parent.ui.lineEdit_scanNumbers.setText('{}'.format(next_scan_log))
 
     def plot_prev_scan(self):
         """ plot the previous scan (log index)
         It is assumed that al the scan log indexes are consecutive
         """
         self.plot_scan(is_next=False)
-        # scan_log_index_list = parse_integers(str(self.parent.ui.lineEdit_scanNumbers.text()))
-        # if len(scan_log_index_list) == 0:
-        #     pop_message(self, 'There is not scan-log index input', 'error')
-        # elif len(scan_log_index_list) > 1:
-        #     pop_message(self, 'There are too many scans for "next"', 'error')
-        # elif scan_log_index_list[0] == 0:
-        #     # first one: no operation
-        #     return
-        #
-        # prev_scan_log_index = scan_log_index_list[0] - 1
-        # try:
-        #     self.parent._ui_graphicsView_fitSetup.reset_viewer()
-        #     self.plot_diff_and_fitted_data(prev_scan_log_index, True)
-        # except RuntimeError as run_err:
-        #     # self.plot_diff_data(next_scan_log + 1, True)
-        #     err_msg = 'Unable to plot previous scan {} due to {}'.format(prev_scan_log_index, run_err)
-        #     pop_message(self, err_msg, message_type='error')
-        # else:
-        #     self.parent.ui.lineEdit_scanNumbers.setText('{}'.format(prev_scan_log_index))
-        # return

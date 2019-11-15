@@ -4,9 +4,7 @@ from pyrs.interface.gui_helper import pop_message
 from pyrs.interface.gui_helper import parse_integer
 from pyrs.interface.gui_helper import browse_file
 from pyrs.utilities import hb2b_utilities
-from pyrs.utilities.check_data_types import check_string_variable
 from pyrs.interface.peak_fitting.plot import Plot
-from pyrs.interface.peak_fitting.fit import Fit
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
 
 
@@ -49,6 +47,9 @@ class EventHandler:
         except RuntimeError as run_err:
             pop_message(self, 'Failed to load {}'.format(hidra_file_name),
                                                   str(run_err), 'error')
+
+        o_gui = GuiUtilities(parent=self.parent)
+        o_gui.check_prev_next_sub_runs_widgets()
 
     def _check_core(self):
         """
