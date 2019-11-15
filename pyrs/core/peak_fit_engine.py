@@ -114,9 +114,9 @@ class PeakFitEngine(object):
         # Get parameter values
         sub_run_vec = self._hd_workspace.get_sub_runs()
 
-        hydra_project_file.set_peak_fit_result(peak_tag, self._peak_function_name, self._background_function_name,
-                                               sub_run_vec, self._fit_cost_array, self._peak_params_value_array,
-                                               self._peak_params_error_array)
+        hydra_project_file.write_peak_fit_result(peak_tag, self._peak_function_name, self._background_function_name,
+                                                 sub_run_vec, self._fit_cost_array, self._peak_params_value_array,
+                                                 self._peak_params_error_array)
 
         return
 

@@ -192,7 +192,7 @@ class HidraProjectFile(object):
         """
         return self._project_h5.name
 
-    def add_raw_counts(self, sub_run_number, counts_array):
+    def append_raw_counts(self, sub_run_number, counts_array):
         """Add raw detector counts collected in a single scan/Pt
 
         Parameters
@@ -212,7 +212,7 @@ class HidraProjectFile(object):
             '{:04}'.format(sub_run_number))
         scan_i_group.create_dataset('counts', data=counts_array.reshape(-1))
 
-    def add_experiment_log(self, log_name, log_value_array):
+    def append_experiment_log(self, log_name, log_value_array):
         """ add information about the experiment including scan indexes, sample logs, 2theta and etc
         :param log_name: name of the sample log
         :param log_value_array:
@@ -232,7 +232,7 @@ class HidraProjectFile(object):
             raise RuntimeError('Failed to add log {} with value {} of type {}: {}'
                                ''.format(log_name, log_value_array, type(log_value_array), type_err))
 
-    def add_mask_detector_array(self, mask_name, mask_array):
+    def write_mask_detector_array(self, mask_name, mask_array):
         """ Add the a mask array to Hidra file
         :param mask_name: String, name of mask for reference
         :param mask_array: numpy ndarray (N, ), masks, 0 for masking, 1 for ROI
@@ -245,7 +245,7 @@ class HidraProjectFile(object):
         self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK].create_dataset(mask_name,
                                                                                            data=mask_array)
 
-    def get_mask_detector_array(self, mask_name):
+    def read_mask_detector_array(self, mask_name):
         """ Get the mask from hidra project file (.h5) in the form of numpy array
         :exception RuntimeError:
         """
@@ -259,7 +259,7 @@ class HidraProjectFile(object):
 
         return mask_array
 
-    def add_mask_solid_angle(self, mask_name, solid_angle_bin_edges):
+    def write_mask_solid_angle(self, mask_name, solid_angle_bin_edges):
         """
         Add mask in the form of solid angle
         Location: ..../main entry/mask/solid angle/
@@ -276,7 +276,7 @@ class HidraProjectFile(object):
         solid_angle_entry = self._project_h5[HidraConstants.MASK][HidraConstants.SOLID_ANGLE_MASK]
         solid_angle_entry.create_dataset(mask_name, data=solid_angle_bin_edges)
 
-    def get_mask_solid_angle(self, mask_name):
+    def read_mask_solid_angle(self, mask_name):
         """Get the masks in the form of solid angle bin edges
         """
         try:
@@ -311,7 +311,7 @@ class HidraProjectFile(object):
 
         self.close()
 
-    def get_diffraction_2theta_array(self):
+    def read_diffraction_2theta_array(self):
         """Get the (reduced) diffraction data's 2-theta vector
 
         Returns
@@ -331,7 +331,7 @@ class HidraProjectFile(object):
 
         return two_theta_vec
 
-    def get_diffraction_intensity_vector(self, mask_id, sub_run):
+    def read_diffraction_intensity_vector(self, mask_id, sub_run):
         """ Get the (reduced) diffraction data's intensity
         :param mask_id:
         :param sub_run: If sub run = None: ...
@@ -349,7 +349,7 @@ class HidraProjectFile(object):
             reduced_diff_hist = self._project_h5[HidraConstants.REDUCED_DATA][mask_id].value
         else:
             # specific one sub run
-            sub_run_list = self.get_sub_runs()
+            sub_run_list = self.read_sub_runs()
             sub_run_index = sub_run_list.index(sub_run)
 
             if mask_id is None:
@@ -360,7 +360,7 @@ class HidraProjectFile(object):
 
         return reduced_diff_hist
 
-    def get_diffraction_masks(self):
+    def read_diffraction_masks(self):
         """
         Get the list of masks
         """
@@ -377,7 +377,7 @@ class HidraProjectFile(object):
 
         return masks
 
-    def get_instrument_geometry(self):
+    def read_instrument_geometry(self):
         """
         Get instrument geometry parameters
         :return: an instance of instrument_geometry.InstrumentSetup
@@ -401,7 +401,7 @@ class HidraProjectFile(object):
 
         return instrument_setup
 
-    def get_sample_logs(self):
+    def read_sample_logs(self):
         """Get sample logs
 
         Retrieve all the (sample) logs from Hidra project file.
@@ -432,7 +432,7 @@ class HidraProjectFile(object):
 
         return sub_runs, logs_value_set
 
-    def get_log_value(self, log_name):
+    def read_log_value(self, log_name):
         """Get a log's value
 
         Parameters
@@ -442,7 +442,6 @@ class HidraProjectFile(object):
         Returns
         -------
         ndarray or single value
-
         """
         assert self._project_h5 is not None, 'Project HDF5 is not loaded yet'
 
@@ -450,7 +449,7 @@ class HidraProjectFile(object):
 
         return log_value
 
-    def get_raw_counts(self, sub_run):
+    def read_raw_counts(self, sub_run):
         """
         get the raw detector counts
         """
@@ -468,7 +467,7 @@ class HidraProjectFile(object):
 
         return counts
 
-    def get_sub_runs(self):
+    def read_sub_runs(self):
         """
         get list of the sub runs
         """
@@ -488,7 +487,7 @@ class HidraProjectFile(object):
 
         return sub_run_list
 
-    def set_instrument_geometry(self, instrument_setup):
+    def write_instrument_geometry(self, instrument_setup):
         """
         Add instrument geometry and wave length information to project file
         """
@@ -524,7 +523,7 @@ class HidraProjectFile(object):
         if wl is not None:
             wavelength_group.create_dataset('Calibrated', data=numpy.array([wl]))
 
-    def get_peak_tags(self):
+    def read_peak_tags(self):
         """Get all the tags of peaks with parameters stored in HiDRA project
 
         Returns
@@ -538,7 +537,7 @@ class HidraProjectFile(object):
 
         return peak_main_group.keys()
 
-    def get_peak_parameters(self, peak_tag):
+    def read_peak_parameters(self, peak_tag):
         """Get the parameters related to a peak
 
         The parameters including
@@ -569,8 +568,8 @@ class HidraProjectFile(object):
 
         return profile, background, sub_run_array, chi2_array, param_values, error_values
 
-    def set_peak_fit_result(self, peak_tag, peak_profile, background_type, sub_run_vec, fit_cost_array,
-                            param_value_array, param_error_array):
+    def write_peak_fit_result(self, peak_tag, peak_profile, background_type, sub_run_vec, fit_cost_array,
+                              param_value_array, param_error_array):
         """Set the peak fitting results to project file.
 
         The tree structure for fitted peak in all sub runs is defined as
@@ -624,7 +623,7 @@ class HidraProjectFile(object):
         single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS, data=param_value_array)
         single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS_ERROR, data=param_error_array)
 
-    def get_wave_lengths(self):
+    def read_wavelengths(self):
         """
         Get calibrated wave length
         Returns
@@ -658,7 +657,7 @@ class HidraProjectFile(object):
 
         return wl
 
-    def set_wave_length(self, wave_length):
+    def write_wavelength(self, wave_length):
         """ Set the calibrated wave length
         Location:
           .../instrument/monochromator setting/ ... .../
@@ -674,7 +673,7 @@ class HidraProjectFile(object):
         wl_entry = self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.MONO]
         wl_entry.create_dataset(HidraConstants.WAVELENGTH, data=numpy.array([wave_length]))
 
-    def get_efficiency_correction(self):
+    def read_efficiency_correction(self):
         """
         Set detector efficiency correction measured from vanadium (efficiency correction)
         Returns
@@ -690,7 +689,7 @@ class HidraProjectFile(object):
 
         return det_eff_array
 
-    def set_efficiency_correction(self, calib_run_number, eff_array):
+    def write_efficiency_correction(self, calib_run_number, eff_array):
         """ Set detector efficiency correction measured from vanadium (efficiency correction)
         Location: ... /main entry/calibration/efficiency:
         Data: numpy array with 1024**2...
@@ -710,7 +709,7 @@ class HidraProjectFile(object):
         self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.DETECTOR_EFF].create_dataset(
             '{}'.format(calib_run_number), data=eff_array)
 
-    def set_information(self, info_dict):
+    def write_information(self, info_dict):
         """
         set project information to attributes
         """
@@ -721,7 +720,7 @@ class HidraProjectFile(object):
         for info_name in info_dict:
             self._project_h5.attrs[info_name] = info_dict[info_name]
 
-    def set_reduced_diffraction_data_set(self, two_theta_array, diff_data_set):
+    def write_reduced_diffraction_data_set(self, two_theta_array, diff_data_set):
         """Set the reduced diffraction data (set)
 
         Parameters
@@ -781,7 +780,7 @@ class HidraProjectFile(object):
                 # new
                 diff_group.create_dataset(data_name, data=diff_data_matrix_i)
 
-    def set_sub_runs(self, sub_runs):
+    def write_sub_runs(self, sub_runs):
         """ Set sub runs to sample log entry
         """
         if isinstance(sub_runs, list):

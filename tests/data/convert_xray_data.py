@@ -88,19 +88,19 @@ def main():
     project_file = HidraProjectFile(output_file_name, mode=HidraProjectFileMode.OVERWRITE)
 
     # add comments
-    project_file.set_information({'Raw Data File': raw_tif_name, 'Detector Type': xray_det_type})
+    project_file.write_information({'Raw Data File': raw_tif_name, 'Detector Type': xray_det_type})
 
     # parse and add counts: only 1 sub run
-    project_file.add_raw_counts(sub_run_number=1, counts_array=xray_count_vec)
+    project_file.append_raw_counts(sub_run_number=1, counts_array=xray_count_vec)
 
     # add sample log data & sub runs
     # for log_name in ['sub-run', '2Theta']
-    project_file.add_experiment_log(HidraConstants.SUB_RUNS, numpy.array([1]))
-    project_file.add_experiment_log(HidraConstants.TWO_THETA, numpy.array([35.]))
+    project_file.append_experiment_log(HidraConstants.SUB_RUNS, numpy.array([1]))
+    project_file.append_experiment_log(HidraConstants.TWO_THETA, numpy.array([35.]))
 
     # add instrument information
     instrument_setup = generate_xray_instrument()
-    project_file.set_instrument_geometry(instrument_setup)
+    project_file.write_instrument_geometry(instrument_setup)
 
     # save
     project_file.close()

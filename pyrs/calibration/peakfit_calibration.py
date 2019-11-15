@@ -95,12 +95,10 @@ class PeakFitCalibration(object):
 
         # Set wave length
         self._calib[6] = \
-            np.array([1.452, 1.452, 1.540, 1.731, 1.886, 2.275, 2.667])[self._engine.get_log_value('MonoSetting')[0]]
+            np.array([1.452, 1.452, 1.540, 1.731, 1.886, 2.275, 2.667])[self._engine.read_log_value('MonoSetting')[0]]
         self._calibstatus = -1
 
         GlobalParameter.global_curr_sequence = 0
-
-        return
 
     @staticmethod
     def check_alignment_inputs(roi_vec_set):
@@ -234,16 +232,16 @@ class PeakFitCalibration(object):
 
         # background = LinearModel()
 
-        for i_tth in range(self._engine.get_log_value('2Theta').shape[0]):
+        for i_tth in range(self._engine.read_log_value('2Theta').shape[0]):
             # reduced_data_set[i_tth] = [None] * num_reduced_set
             # load instrument: as it changes
             pyrs_reducer = reduce_hb2b_pyrs.PyHB2BReduction(self._instrument, x[6])
-            pyrs_reducer.build_instrument_prototype(-1. * self._engine.get_log_value('2Theta')[i_tth],
+            pyrs_reducer.build_instrument_prototype(-1. * self._engine.read_log_value('2Theta')[i_tth],
                                                     self._instrument._arm_length,
                                                     x[0], x[1], x[2], x[3], x[4], x[5])
-            pyrs_reducer._detector_counts = self._engine.get_raw_counts(i_tth)
+            pyrs_reducer._detector_counts = self._engine.read_raw_counts(i_tth)
 
-            DetectorAngle = self._engine.get_log_value('2Theta')[i_tth]
+            DetectorAngle = self._engine.read_log_value('2Theta')[i_tth]
             mintth = DetectorAngle-8.0
             maxtth = DetectorAngle+8.7
 
@@ -340,7 +338,7 @@ class PeakFitCalibration(object):
         print('Iteration      {}'.format(GlobalParameter.global_curr_sequence))
         print('RMSE         = {}'
               ''.format(np.sqrt(residual.sum()**2 / (len(eta_roi_vec) *
-                                                     self._engine.get_log_value('2Theta').shape[0]))))
+                                                     self._engine.read_log_value('2Theta').shape[0]))))
         print('Residual Sum = {}'.format(np.sum(residual) / 100.))
         print("\n")
 
@@ -585,13 +583,13 @@ class PeakFitCalibration(object):
         None
         """
         # Monochromator setting
-        mono_setting_index = self._engine.get_log_value('MonoSetting')[0]
+        mono_setting_index = self._engine.read_log_value('MonoSetting')[0]
         mono_setting = ['Si333', 'Si511', 'Si422', 'Si331', 'Si400', 'Si311', 'Si220'][mono_setting_index]
 
         for files in glob.glob('/HFIR/HB2B/shared/CAL/{}/*.json'.format(mono_setting)):
             # get date
             datetime = files.split('.json')[0].split('_CAL_')[1]
-            if dateutil.parser.parse(datetime) < dateutil.parser.parse(self._engine.get_log_value('MonoSetting')[0]):
+            if dateutil.parser.parse(datetime) < dateutil.parser.parse(self._engine.read_log_value('MonoSetting')[0]):
                 CalibData = json.read(files)
                 keys = ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda']
                 for i in range(len(keys)):
@@ -621,7 +619,7 @@ class PeakFitCalibration(object):
         # CalibData.update({'Status': self._calibstatus})
 
         # Year, Month, Day, Hour, Min = time.localtime()[0:5]
-        mono_setting_index = self._engine.get_log_value('MonoSetting')[0]
+        mono_setting_index = self._engine.read_log_value('MonoSetting')[0]
         Mono = ['Si333', 'Si511', 'Si422', 'Si331', 'Si400', 'Si311', 'Si220'][mono_setting_index]
 
         # Form AnglerCameraDetectorShift objects

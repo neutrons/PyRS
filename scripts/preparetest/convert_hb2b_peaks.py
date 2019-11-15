@@ -27,7 +27,7 @@ def main():
     target_file = HidraProjectFile(target_project_file_name, HidraProjectFileMode.OVERWRITE)
 
     # Create sub runs
-    target_file.set_sub_runs(sorted(diff_data_dict.keys()))
+    target_file.write_sub_runs(sorted(diff_data_dict.keys()))
 
     # Add (reduced) diffraction data
     two_theta_vector = None
@@ -49,7 +49,7 @@ def main():
     # END-FOR
 
     # Add data
-    target_file.set_reduced_diffraction_data_set(two_theta_vector, {None: diff_data_matrix})
+    target_file.write_reduced_diffraction_data_set(two_theta_vector, {None: diff_data_matrix})
 
     # Save
     target_file.save(verbose=True)
