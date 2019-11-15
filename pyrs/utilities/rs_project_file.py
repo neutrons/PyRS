@@ -60,15 +60,13 @@ class HidraProjectFileMode(Enum):
     def __str__(self):
         return self.value
 
-
-def _getFileMode(mode):
-    '''
-    Private function to convert anything into :py:obj:`HidraProjectFileMode`
-    '''
-    if mode in HidraProjectFileMode:
-        return mode
-    else:
-        return HidraProjectFileMode[str(mode)]
+    @staticmethod
+    def getMode(mode):
+        '''Private function to convert anything into :py:obj:`HidraProjectFileMode`'''
+        if mode in HidraProjectFileMode:
+            return mode
+        else:
+            return HidraProjectFileMode[str(mode)]
 
 
 class DiffractionUnit(Enum):
@@ -113,7 +111,7 @@ class HidraProjectFile(object):
         self._log = Logger(__name__)
 
         # convert the mode to the enum
-        self._io_mode = _getFileMode(mode)
+        self._io_mode = HidraProjectFileMode.getMode(mode)
 
         # check the file
         if not project_file_name:
