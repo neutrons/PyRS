@@ -202,34 +202,34 @@ class FitPeaksWindow(QMainWindow):
 
         return
 
-    def do_load_hydra_file(self, hydra_project_file=None):
+    def do_load_hydra_file(self, hidra_project_file=None):
         """ Load Hidra project file
         :return: None
         """
         self._check_core()
 
         # Get file
-        if hydra_project_file is None:
-            hydra_project_file = str(self.ui.lineEdit_expFileName.text())
+        if hidra_project_file is None:
+            hidra_project_file = str(self.ui.lineEdit_expFileName.text())
         else:
-            checkdatatypes.check_string_variable(hydra_project_file)
+            checkdatatypes.check_string_variable(hidra_project_file)
 
         # load file
         try:
-            self._project_name = os.path.basename(hydra_project_file).split('.')[0]
-            self._core.load_hidra_project(hydra_project_file, project_name=self._project_name,
+            self._project_name = os.path.basename(hidra_project_file).split('.')[0]
+            self._core.load_hidra_project(hidra_project_file, project_name=self._project_name,
                                           load_detector_counts=False,
                                           load_diffraction=True)
             # Record data key and next
-            self._curr_file_name = hydra_project_file
+            self._curr_file_name = hidra_project_file
         except (RuntimeError, TypeError) as run_err:
-            gui_helper.pop_message(self, 'Unable to load {}'.format(hydra_project_file), detailed_message=str(run_err),
+            gui_helper.pop_message(self, 'Unable to load {}'.format(hidra_project_file), detailed_message=str(run_err),
                                    message_type='error')
             return
 
         # Edit information on the UI for user to visualize
         self.ui.label_loadedFileInfo.setText('Loaded {}; Project name: {}'
-                                             ''.format(hydra_project_file, self._project_name))
+                                             ''.format(hidra_project_file, self._project_name))
 
         # Get the range of sub runs
         sub_run_list = self._core.reduction_service.get_sub_runs(self._project_name)
