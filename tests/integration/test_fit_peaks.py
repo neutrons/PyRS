@@ -141,15 +141,14 @@ class PeakFittingTest(object):
 
         return
 
+# TODO - Add a new test for strain/stress data (goal is to generate light-weight HiDRA file)
+
 
 @pytest.mark.parametrize('project_file_name, peak_file_name, peak_type, peak_info',
-                         [
-                             # NSFR2 peak
-                             ('data/Hidra_16-1_cor_log.h5', 'Hidra_16-1_cor_log_peak.h5', 'Gaussian',
-                              PeakInfo(94.5, 91, 97, 'Fe111')),
-                             # A good peak in HB2B commission
-                             ('data/HB2B_938.h5', 'HB2B_938_peak.h5', 'PseudoVoigt',
-                              PeakInfo(95.5, 91, 97, 'Si111')),
+                         [('data/Hidra_16-1_cor_log.h5', 'Hidra_16-1_cor_log_peak.h5', 'Gaussian',
+                           PeakInfo(94.5, 91, 97, 'Fe111')),  # NSFR2 peak
+                          ('data/HB2B_938.h5', 'HB2B_938_peak.h5', 'PseudoVoigt',
+                           PeakInfo(95.5, 91, 97, 'Si111')),  # From commission
                          ],
                          ids=('FakeHB2B', 'HB2B_938'))
 def test_main(project_file_name, peak_file_name, peak_type, peak_info):
