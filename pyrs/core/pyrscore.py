@@ -410,8 +410,7 @@ class PyRsCore(object):
 
         return vec_alpha, vec_beta, vec_intensity
 
-    def load_hidra_project(self, hidra_h5_name, project_name, load_detector_counts=True, load_diffraction=False,
-                           load_peaks=False):
+    def load_hidra_project(self, hidra_h5_name, project_name, load_detector_counts=True, load_diffraction=False):
         """
         Load a HIDRA project file
         :param hidra_h5_name: name of HIDRA project file in HDF5 format
@@ -427,8 +426,7 @@ class PyRsCore(object):
         ws = self._reduction_service.load_hidra_project(project_file_name=hidra_h5_name,
                                                         load_calibrated_instrument=False,
                                                         load_detectors_counts=load_detector_counts,
-                                                        load_reduced_diffraction=load_diffraction,
-                                                        load_peaks=load_peaks)
+                                                        load_reduced_diffraction=load_diffraction)
 
         return ws
 

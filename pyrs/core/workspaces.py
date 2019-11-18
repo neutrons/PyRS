@@ -248,7 +248,7 @@ class HidraWorkspace(object):
 
         return wave_length_dict
 
-    def load_hidra_project(self, hidra_file, load_raw_counts, load_reduced_diffraction, load_peaks):
+    def load_hidra_project(self, hidra_file, load_raw_counts, load_reduced_diffraction):
         """
         Load HIDRA project file
         :param hidra_file: HIDRA project file instance (not file name)
@@ -277,8 +277,6 @@ class HidraWorkspace(object):
 
         # load the wave length
         self._load_wave_length(hidra_file)
-
-        self._load_peaks(hidra_file)
 
     def get_detector_shift(self):
         """
