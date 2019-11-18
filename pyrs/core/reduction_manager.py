@@ -140,7 +140,7 @@ class HB2BReductionManager(object):
         return log_values
 
     # TODO - #84 - Better
-    # TODO - #84 - Implement
+    # TODO - #84 - Implement: can_plot
     def get_sample_logs_names(self, session_name, can_plot):
         """
         Get the names of all sample logs in the workspace
@@ -227,7 +227,14 @@ class HB2BReductionManager(object):
             raise RuntimeError('Call init_session to create a ReductionWorkspace')
 
         # PyRS HDF5
-        project_h5_file = HidraProjectFile(project_file_name, mode=HidraProjectFileMode.READWRITE)
+        # Check permission of file to determine the RW mode of HidraProject file
+        if os.access(project_file_name, os.W_OK):
+            # Read/Write: Append mode
+            file_mode = HidraProjectFileMode.READWRITE
+        else:
+            # Read only
+            file_mode = HidraProjectFileMode.READONLY
+        project_h5_file = HidraProjectFile(project_file_name, mode=file_mode)
 
         # Load
         self._curr_workspace.load_hidra_project(project_h5_file,
