@@ -13,6 +13,30 @@ import gui_helper
 import numpy
 
 
+# TEST - 1. If IPTS is given but run number is not, go to IPTS shared directory
+# TODO - 2. If project file is readonly, accept it but give a warning ???
+# TEST - 3. Auto fit will be turned off as default
+# TODO - 4. Enable the lower-right figure to plot contour plot of all the data
+# TODO - 5. Upper right corner plot shall support plot peak parameters from multiple peaks along sub runs
+# FIXME - 1. auto fitting error stack
+"""
+Traceback (most recent call last):
+  File "/SNS/users/wzz/Projects/PyRS/build/lib/pyrs/interface/fitpeakswindow.py", line 185, in do_browse_hdf
+    self.do_load_hydra_file(hidra_project_file=None)
+  File "/SNS/users/wzz/Projects/PyRS/build/lib/pyrs/interface/fitpeakswindow.py", line 257, in do_load_hydra_file
+    self.do_fit_peaks(all_sub_runs=True)
+  File "/SNS/users/wzz/Projects/PyRS/build/lib/pyrs/interface/fitpeakswindow.py", line 332, in do_fit_peaks
+    effective_parameter=False)
+  File "/SNS/users/wzz/Projects/PyRS/build/lib/pyrs/core/pyrscore.py", line 300, in get_peak_fitting_result
+    sub_run_vec, chi2_vec, param_vec = peak_fitter.get_fitted_params(param_names, including_error=True)
+  File "/SNS/users/wzz/Projects/PyRS/build/lib/pyrs/core/peak_fit_engine.py", line 204, in get_fitted_params
+    spec_index_vec, fit_cost_vec = self.get_fit_cost(max_chi2)
+  File "/SNS/users/wzz/Projects/PyRS/build/lib/pyrs/core/mantid_fit_peak.py", line 376, in get_fit_cost
+    col_names = self._fitted_function_param_table.getColumnNames()
+AttributeError: 'NoneType' object has no attribute 'getColumnNames'
+"""
+
+
 class FitPeaksWindow(QMainWindow):
     """
     GUI window for user to fit peaks
@@ -121,16 +145,26 @@ class FitPeaksWindow(QMainWindow):
             raise RuntimeError('Not set up yet!')
 
     def _get_default_hdf(self):
-        """
-        use IPTS and Exp to determine
-        :return:
+        """Use IPTS and Run number to determine the
+
+        Returns
+        -------
+        None or str
+            If IPTS is not given, return None
+            If run number is given, return file name; otherwise, return shared directory
+
         """
         try:
             ipts_number = gui_helper.parse_integer(self.ui.lineEdit_iptsNumber)
-            exp_number = gui_helper.parse_integer(self.ui.lineEdit_expNumber)
         except RuntimeError as run_err:
-            gui_helper.pop_message(self, 'Unable to parse IPTS or Exp due to {0}'.format(run_err))
+            gui_helper.pop_message(self, 'Unable to parse IPTS number due to {0}'.format(run_err))
             return None
+
+        try:
+            exp_number = gui_helper.parse_integer(self.ui.lineEdit_expNumber)
+        except RuntimeError:
+            ipts_shared_dir = '/HFIR/HB2B/IPTS-{}/shared/'.format(ipts_number)
+            return ipts_shared_dir
 
         # Locate default saved HidraProject data
         archive_data = hb2b_utilities.get_hb2b_raw_data(ipts_number, exp_number)
@@ -143,7 +177,7 @@ class FitPeaksWindow(QMainWindow):
         :return:
         """
         self.ui.pushButton_loadHDF.setEnabled(False)
-        self.ui.checkBox_autoFit.setChecked(True)
+        self.ui.checkBox_autoFit.setChecked(False)
         self.ui.checkBox_autoLoad.setChecked(True)
 
         # combo boxes
@@ -165,10 +199,14 @@ class FitPeaksWindow(QMainWindow):
 
         # Use IPTS and run number to get the default Hidra HDF
         hidra_file_name = self._get_default_hdf()
-        if hidra_file_name is None:
+        if hidra_file_name is None or hidra_file_name.endswith('.h5') is False:
             # No default Hidra file: browse the file
-            file_filter = 'HDF (*.hdf);H5 (*.h5)'
-            hidra_file_name = gui_helper.browse_file(self, 'HIDRA Project File', os.getcwd(), file_filter,
+            file_filter = 'HDF5 (*.h5);;HDF (*.hdf)'
+            if hidra_file_name is None:
+                default_dir = os.getcwd()
+            else:
+                default_dir = hidra_file_name
+            hidra_file_name = gui_helper.browse_file(self, 'HIDRA Project File', default_dir, file_filter,
                                                      file_list=False, save_file=False)
 
             if hidra_file_name is None:
@@ -202,34 +240,34 @@ class FitPeaksWindow(QMainWindow):
 
         return
 
-    def do_load_hydra_file(self, hydra_project_file=None):
+    def do_load_hydra_file(self, hidra_project_file=None):
         """ Load Hidra project file
         :return: None
         """
         self._check_core()
 
         # Get file
-        if hydra_project_file is None:
-            hydra_project_file = str(self.ui.lineEdit_expFileName.text())
+        if hidra_project_file is None:
+            hidra_project_file = str(self.ui.lineEdit_expFileName.text())
         else:
-            checkdatatypes.check_string_variable(hydra_project_file)
+            checkdatatypes.check_string_variable('HiDRA project file', hidra_project_file, allow_empty=False)
 
         # load file
         try:
-            self._project_name = os.path.basename(hydra_project_file).split('.')[0]
-            self._core.load_hidra_project(hydra_project_file, project_name=self._project_name,
+            self._project_name = os.path.basename(hidra_project_file).split('.')[0]
+            self._core.load_hidra_project(hidra_project_file, project_name=self._project_name,
                                           load_detector_counts=False,
                                           load_diffraction=True)
             # Record data key and next
-            self._curr_file_name = hydra_project_file
+            self._curr_file_name = hidra_project_file
         except (RuntimeError, TypeError) as run_err:
-            gui_helper.pop_message(self, 'Unable to load {}'.format(hydra_project_file), detailed_message=str(run_err),
+            gui_helper.pop_message(self, 'Unable to load {}'.format(hidra_project_file), detailed_message=str(run_err),
                                    message_type='error')
             return
 
         # Edit information on the UI for user to visualize
         self.ui.label_loadedFileInfo.setText('Loaded {}; Project name: {}'
-                                             ''.format(hydra_project_file, self._project_name))
+                                             ''.format(hidra_project_file, self._project_name))
 
         # Get the range of sub runs
         sub_run_list = self._core.reduction_service.get_sub_runs(self._project_name)
@@ -264,6 +302,8 @@ class FitPeaksWindow(QMainWindow):
         :param sample_log_names:
         :return:
         """
+        from pyrs.utilities.rs_project_file import HidraConstants
+
         self._sample_log_names_mutex = True
         self.ui.comboBox_xaxisNames.clear()
         self.ui.comboBox_yaxisNames.clear()
@@ -272,8 +312,14 @@ class FitPeaksWindow(QMainWindow):
         self._sample_log_names = list(set(sample_log_names))
         self._sample_log_names.sort()
 
+        # Add sub run number as the first item
+        self.ui.comboBox_xaxisNames.addItem(HidraConstants.SUB_RUNS)
+
         for sample_log in sample_log_names:
-            self.ui.comboBox_xaxisNames.addItem(sample_log)
+            # Add item to the X-axis combo boxes but 'sub-runs'
+            if sample_log != HidraConstants.SUB_RUNS:
+                self.ui.comboBox_xaxisNames.addItem(sample_log)
+            # Add item to the Y-axis combo boxes
             self.ui.comboBox_yaxisNames.addItem(sample_log)
             self._sample_log_name_set.add(sample_log)
         self._sample_log_names_mutex = False
@@ -330,19 +376,23 @@ class FitPeaksWindow(QMainWindow):
         function_params, fit_values = self._core.get_peak_fitting_result(self._project_name,
                                                                          return_format=dict,
                                                                          effective_parameter=False)
-        # TODO - #84+ - Need to implement the option as effective_parameter=True
 
         print('[DB...BAT...FITWINDOW....FIT] returned = {}, {}'.format(function_params, fit_values))
 
+        # TODO - The code below is duplicate with those in 'do_load_hydra_file()': refactor!
+        # Rest the sample logs name in the upper-right plot's combo boxes
         self._sample_log_names_mutex = True
         curr_x_index = self.ui.comboBox_xaxisNames.currentIndex()
         curr_y_index = self.ui.comboBox_yaxisNames.currentIndex()
         # add fitted parameters by resetting and build from the copy of fit parameters
         self.ui.comboBox_xaxisNames.clear()
         self.ui.comboBox_yaxisNames.clear()
+        # add sub-runs first:
+        self.ui.comboBox_xaxisNames.addItem(HidraConstants.SUB_RUNS)
         # add sample logs (names)
         for sample_log_name in self._sample_log_names:
-            self.ui.comboBox_xaxisNames.addItem(sample_log_name)
+            if sample_log_name != HidraConstants.SUB_RUNS:
+                self.ui.comboBox_xaxisNames.addItem(sample_log_name)
             self.ui.comboBox_yaxisNames.addItem(sample_log_name)
         # add function parameters (names)
         for param_name in function_params:
@@ -553,17 +603,21 @@ class FitPeaksWindow(QMainWindow):
         if x_axis_name == '' and y_axis_name == '':
             return
 
-        if x_axis_name in self._function_param_name_set and y_axis_name == HidraConstants.SUB_RUNS:
-            vec_y, vec_x = self.get_function_parameter_data(x_axis_name)
-        elif y_axis_name in self._function_param_name_set and x_axis_name == HidraConstants.SUB_RUNS:
+        if x_axis_name == HidraConstants.SUB_RUNS and y_axis_name in self._function_param_name_set:
+            # Plot regular X as sub runs and Y as function parameters
             vec_x, vec_y = self.get_function_parameter_data(y_axis_name)
-        elif x_axis_name in self._function_param_name_set or y_axis_name in self._function_param_name_set:
+        elif y_axis_name == HidraConstants.SUB_RUNS and x_axis_name in self._function_param_name_set:
+            # Plot X-axis as arbitrary peak parameters and Y as sub runs
+            vec_y, vec_x = self.get_function_parameter_data(x_axis_name)
+        elif x_axis_name in self._function_param_name_set and y_axis_name in self._function_param_name_set:
+            # Both x and y are peak parameters:
             gui_helper.pop_message(self, 'It has not considered how to plot 2 function parameters '
                                          '{} and {} against each other'
                                          ''.format(x_axis_name, y_axis_name),
                                    message_type='error')
             return
         else:
+            # Both X and Y are in sample logs including 'sub-runs'
             vec_x = self.get_meta_sample_data(x_axis_name)
             vec_y = self.get_meta_sample_data(y_axis_name)
         # END-IF-ELSE
@@ -572,6 +626,7 @@ class FitPeaksWindow(QMainWindow):
             raise RuntimeError('{} or {} cannot be None ({}, {})'
                                ''.format(x_axis_name, y_axis_name, vec_x, vec_y))
 
+        # Plot as scattering plot
         self.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y, x_axis_name, y_axis_name)
 
         return
@@ -706,7 +761,7 @@ class FitPeaksWindow(QMainWindow):
             value_vector = numpy.array(self._core.reduction_service.get_sub_runs(self._project_name))
         elif name in sample_log_names:
             # sample log but not sub-runs
-            value_vector = self._core.reduction_service.get_sample_log_values(self._project_name, name)
+            value_vector = self._core.reduction_service.get_sample_log_value(self._project_name, name)
         elif name == 'Center of mass':
             # center of mass is different????
             # TODO - #84 - Make sure of it!
