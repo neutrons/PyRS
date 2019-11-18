@@ -1,6 +1,6 @@
 #!/usr/bin/python
 """"
-Convert the "old" HB2B data, now used to test peak fitting, to new HydraProject format
+Convert the "old" HB2B data, now used to test peak fitting, to new HidraProject format
 
 *How to run*
 1. Add PyRS path to python path (refer to pyrsdev.sh)
@@ -9,7 +9,7 @@ Convert the "old" HB2B data, now used to test peak fitting, to new HydraProject 
 """
 import numpy
 from pyrs.utilities import rs_scan_io
-from pyrs.utilities import rs_project_file
+from pyrs.utilities.rs_project_file import HidraProjectFile, HidraProjectFileMode
 
 
 def main():
@@ -22,13 +22,12 @@ def main():
     reader = rs_scan_io.DiffractionDataFile()
     diff_data_dict, sample_logs = reader.load_rs_file(source_h5)
 
-    # Create a Hydra project
+    # Create a Hidra project
     target_project_file_name = 'tests/testdata/Hydra_16-1_cor_log.h5'
-    target_file = rs_project_file.HydraProjectFile(target_project_file_name,
-                                                   rs_project_file.HydraProjectFileMode.OVERWRITE)
+    target_file = HidraProjectFile(target_project_file_name, HidraProjectFileMode.OVERWRITE)
 
     # Create sub runs
-    target_file.set_sub_runs(sorted(diff_data_dict.keys()))
+    target_file.write_sub_runs(sorted(diff_data_dict.keys()))
 
     # Add (reduced) diffraction data
     two_theta_vector = None
@@ -50,10 +49,10 @@ def main():
     # END-FOR
 
     # Add data
-    target_file.set_reduced_diffraction_data_set(two_theta_vector, {None: diff_data_matrix})
+    target_file.write_reduced_diffraction_data_set(two_theta_vector, {None: diff_data_matrix})
 
     # Save
-    target_file.save_hydra_project(verbose=True)
+    target_file.save(verbose=True)
 
     return
 

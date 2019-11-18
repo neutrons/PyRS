@@ -124,8 +124,8 @@ def generate_hydra_workspace(peak_profile_type):
     # Add diffraction pattern
     test_workspace.set_sub_runs([1])
     test_workspace.set_reduced_diffraction_data(1, mask_id=None,
-                                                bin_edges=vec_x,
-                                                hist=vec_y)
+                                                two_theta_array=vec_x,
+                                                intensity_array=vec_y)
 
     return test_workspace, peak_center, (peak_center - peak_range, peak_center + peak_center)
 

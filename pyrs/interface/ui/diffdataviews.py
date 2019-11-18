@@ -99,13 +99,13 @@ class DetectorView(MplGraphicsView2D):
         # TODO - #84 - Make it real!
         sub_run_number, mask_id = info_tuple
         title = 'Sub run {}, Mask: {}'.format(sub_run_number, mask_id)
-        print('[DEBUG]: {}'.format(title))
+        self.set_title(title)
 
-        # print(detector_counts)
-        # print(type(detector_counts))
-        # print(detector_counts.shape)
+        image_size = int(np.sqrt(detector_counts.shape[0]))
+        if image_size * image_size != detector_counts.shape[0]:
+            raise RuntimeError('Detector with {} counts cannot convert to a 2D view without further information'
+                               ''.format(detector_counts.shape))
 
-        image_size = np.sqrt(detector_counts.shape[0])
         counts2d = detector_counts.reshape(image_size, image_size)
 
         # Rotate 90 degree to match the view: IT COULD BE WRONG!

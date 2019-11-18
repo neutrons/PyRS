@@ -375,7 +375,7 @@ class ResidualStressInstrument(object):
 
         return pixel_pos_array
 
-    def set_wave_length(self, w_l):
+    def set_wavelength(self, w_l):
         self._wave_length = w_l
 
 
@@ -391,7 +391,7 @@ class PyHB2BReduction(object):
         self._instrument = ResidualStressInstrument(instrument)
 
         if wave_length is not None:
-            self._instrument.set_wave_length(wave_length)
+            self._instrument.set_wavelength(wave_length)
 
         self._detector_2theta = None
         self._detector_l2 = None
@@ -518,6 +518,13 @@ class PyHB2BReduction(object):
         return vec_2theta
 
     def get_eta_Values(self):
+        """Get solid angle values for each pixel
+
+        Returns
+        -------
+        numpy.ndarray
+
+        """
         return self._instrument.get_eta_values(dimension=1)
 
     def reduce_to_2theta_histogram(self, two_theta_range, two_theta_step, apply_mask,
@@ -537,7 +544,8 @@ class PyHB2BReduction(object):
         two_theta_vector = self.generate_2theta_histogram_vector(
             two_theta_range[0], two_theta_step, two_theta_range[1])
 
-        # Get the data (each pixel's 2theta and counts)
+        # Get the data (each pixel's 2theta and counts): the 2theta value is the absolute diffraction angle
+        # that disregards the real 2theta value in the instrument coordinate system
         pixel_2theta_array = self._instrument.get_pixels_2theta(1)
         checkdatatypes.check_numpy_arrays('Two theta and detector counts array',
                                           [pixel_2theta_array, self._detector_counts], None,
@@ -545,6 +553,7 @@ class PyHB2BReduction(object):
         if pixel_2theta_array.shape[0] != self._detector_counts.shape[0]:
             raise RuntimeError('Detector pixel position array ({}) does not match detector counts array ({})'
                                ''.format(pixel_2theta_array.shape, self._detector_counts.shape))
+
         # Convert count type
         vec_counts = self._detector_counts.astype('float64')
         if efficiency_correction is not None:

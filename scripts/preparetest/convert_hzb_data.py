@@ -12,8 +12,9 @@ Note: most of the methods to parse HZB data are copied from script convert_hzb_d
 2. Run this script
 """
 import os
+from pyrs.core.instrument_geometry import HidraSetup
 from pyrs.utilities import file_util
-from pyrs.utilities import rs_project_file
+from pyrs.utilities.rs_project_file import HidraConstants, HidraProjectFile, HidraProjectFileMode
 import numpy
 
 
@@ -68,7 +69,7 @@ def import_hzb_summary(summary_excel):
     # create a dictionary of dictionary for the information
     summary_dict = dict()
     for item_index in range(len(tiff_files)):
-        scan_i_dict = {rs_project_file.HidraConstants.TWO_THETA: two_theta_array[item_index],
+        scan_i_dict = {HidraConstants.TWO_THETA: two_theta_array[item_index],
                        'Tiff': tiff_files[item_index],
                        'Monitor': monitor_array[item_index],
                        'L2': l2_array[item_index]}
@@ -78,8 +79,8 @@ def import_hzb_summary(summary_excel):
         summary_dict[scan_index_array[item_index]] = scan_i_dict
     # END-FOR
 
-    return summary_dict, {rs_project_file.HidraConstants.SUB_RUNS: scan_index_array,
-                          rs_project_file.HidraConstants.TWO_THETA: two_theta_array,
+    return summary_dict, {HidraConstants.SUB_RUNS: scan_index_array,
+                          HidraConstants.TWO_THETA: two_theta_array,
                           'Monitor': monitor_array, 'L2': l2_array}
 
 
@@ -100,7 +101,7 @@ def generate_hzb_instrument():
                                                                 arm_length=arm_length,
                                                                 calibrated=False)
 
-    hzb = instrument_geometry.HydraSetup(l1=1.0, detector_setup=detector)  # single wave length
+    hzb = HidraSetup(l1=1.0, detector_setup=detector)  # single wave length
     hzb.set_single_wavelength(wavelength)
 
     return hzb
@@ -120,8 +121,7 @@ def main():
     exp_summary_dict, exp_logs_dict = import_hzb_summary(hzb_summary_name)
 
     # start project file
-    project_file = rs_project_file.HydraProjectFile(output_file_name,
-                                                    mode=rs_project_file.HydraProjectFileMode.OVERWRITE)
+    project_file = HidraProjectFile(output_file_name, mode=HidraProjectFileMode.OVERWRITE)
 
     # parse and add counts
     sub_run_list = exp_summary_dict.keys()
@@ -129,24 +129,21 @@ def main():
         tiff_name = exp_summary_dict[sub_run_i]['Tiff']
         counts_array = parse_hzb_tiff(os.path.join(exp_data_dir, tiff_name))
         # print (counts_array.min(), counts_array.max(), (numpy.where(counts_array > 0.5)[0]).shape)
-        project_file.add_raw_counts(sub_run_i, counts_array)
+        project_file.append_raw_counts(sub_run_i, counts_array)
     # END-FOR
 
     # add sample log data & sub runs
-    for log_name in [rs_project_file.HidraConstants.SUB_RUNS, rs_project_file.HidraConstants.TWO_THETA,
-                     'Monitor', 'L2']:
-        project_file.add_experiment_log(log_name, exp_logs_dict[log_name])
+    for log_name in [HidraConstants.SUB_RUNS, HidraConstants.TWO_THETA, 'Monitor', 'L2']:
+        project_file.append_experiment_log(log_name, exp_logs_dict[log_name])
     # END-FOR
     # project_file.add_experiment_information('sub-run', sub_run_list)
 
     # add instrument information
     hzb_instrument_setup = generate_hzb_instrument()
-    project_file.set_instrument_geometry(hzb_instrument_setup)
+    project_file.write_instrument_geometry(hzb_instrument_setup)
 
     # save
     project_file.close()
-
-    return
 
 
 if __name__ == '__main__':

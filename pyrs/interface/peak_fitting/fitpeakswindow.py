@@ -410,7 +410,7 @@ class FitPeaksWindow(QMainWindow):
             value_vector = numpy.array(self._core.reduction_service.get_sub_runs(self._project_name))
         elif name in sample_log_names:
             # sample log but not sub-runs
-            value_vector = self._core.reduction_service.get_sample_log_values(self._project_name, name)
+            value_vector = self._core.reduction_service.get_sample_log_value(self._project_name, name)
         elif name == 'Center of mass':
             # center of mass is different????
             # TODO - #84 - Make sure of it!

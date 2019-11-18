@@ -97,7 +97,7 @@ class PeakFitEngine(object):
         return
 
     def export_to_hydra_project(self, hydra_project_file, peak_tag):
-        """Export fit result from this fitting engine instance to Hydra project file
+        """Export fit result from this fitting engine instance to Hidra project file
 
         Parameters
         ----------
@@ -109,14 +109,14 @@ class PeakFitEngine(object):
 
         """
         # Check input
-        checkdatatypes.check_type('Hidra project file', hydra_project_file, rs_project_file.HydraProjectFile)
+        checkdatatypes.check_type('Hidra project file', hydra_project_file, rs_project_file.HidraProjectFile)
 
         # Get parameter values
         sub_run_vec = self._hd_workspace.get_sub_runs()
 
-        hydra_project_file.set_peak_fit_result(peak_tag, self._peak_function_name, self._background_function_name,
-                                               sub_run_vec, self._fit_cost_array, self._peak_params_value_array,
-                                               self._peak_params_error_array)
+        hydra_project_file.write_peak_fit_result(peak_tag, self._peak_function_name, self._background_function_name,
+                                                 sub_run_vec, self._fit_cost_array, self._peak_params_value_array,
+                                                 self._peak_params_error_array)
 
         return
 

@@ -6,9 +6,9 @@ from mantid.simpleapi import mtd, GenerateEventsFilter, LoadEventNexus, FilterEv
 import numpy
 import os
 from pyrs.core import workspaces
-from pyrs.core import instrument_geometry
+from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSetup
 from pyrs.utilities import checkdatatypes
-from pyrs.utilities import rs_project_file
+from pyrs.utilities.rs_project_file import HidraConstants, HidraProjectFile, HidraProjectFileMode
 
 
 class NeXusConvertingApp(object):
@@ -80,7 +80,7 @@ class NeXusConvertingApp(object):
 
         # Add the sample logs
         for log_name in sample_log_dict:
-            if log_name == rs_project_file.HidraConstants.SUB_RUNS:
+            if log_name == HidraConstants.SUB_RUNS:
                 continue  # skip 'SUB_RUNS'
             self._hydra_workspace.set_sample_log(log_name, sub_runs, sample_log_dict[log_name])
 
@@ -100,14 +100,14 @@ class NeXusConvertingApp(object):
             os.remove(projectfile)
 
         # save
-        hydra_file = rs_project_file.HydraProjectFile(projectfile, rs_project_file.HydraProjectFileMode.OVERWRITE)
+        hydra_file = HidraProjectFile(projectfile, HidraProjectFileMode.OVERWRITE)
 
         # initialize instrument: hard code!
         if instrument is None:
-            instrument = instrument_geometry.AnglerCameraDetectorGeometry(1024, 1024, 0.0003, 0.0003, 0.985, False)
+            instrument = AnglerCameraDetectorGeometry(1024, 1024, 0.0003, 0.0003, 0.985, False)
 
         # Set geometry
-        hydra_file.set_instrument_geometry(instrument_geometry.HydraSetup(instrument))
+        hydra_file.write_instrument_geometry(HidraSetup(instrument))
 
         self._hydra_workspace.save_experimental_data(hydra_file)
 

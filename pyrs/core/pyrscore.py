@@ -3,7 +3,7 @@ from pyrs.utilities import checkdatatypes
 from pyrs.core import instrument_geometry
 from pyrs.utilities import file_util
 from pyrs.core import peak_fit_factory
-from pyrs.utilities.rs_project_file import HidraConstants, HydraProjectFile, HydraProjectFileMode
+from pyrs.utilities.rs_project_file import HidraConstants, HidraProjectFile, HidraProjectFileMode
 from pyrs.core import strain_stress_calculator
 from pyrs.core import reduction_manager
 from pyrs.core import polefigurecalculator
@@ -109,7 +109,7 @@ class PyRsCore(object):
         self._peak_fitting_dict[fit_tag] = peak_fit_factory.PeakFitEngineFactory.getInstance('Mantid')(workspace,
                                                                                                        None)
         # set wave length: TODO - #81+ - shall be a way to use calibrated or non-calibrated
-        wave_length_dict = workspace.get_wave_length(calibrated=False, throw_if_not_set=False)
+        wave_length_dict = workspace.get_wavelength(calibrated=False, throw_if_not_set=False)
         if wave_length_dict is not None:
             self._peak_fitting_dict[fit_tag].set_wavelength(wave_length_dict)
             # self._peak_fit_controller.set_wavelength(wave_length_dict)
@@ -161,7 +161,7 @@ class PyRsCore(object):
         #     self._peak_fit_controller = peak_fit_factory.PeakFitEngineFactory.getInstance('Mantid')(
         #         workspace, None)
         #     # set wave length: TODO - #81+ - shall be a way to use calibrated or non-calibrated
-        #     wave_length_dict = workspace.get_wave_length(calibrated=False, throw_if_not_set=False)
+        #     wave_length_dict = workspace.get_wavelength(calibrated=False, throw_if_not_set=False)
         #     if wave_length_dict is not None:
         #         self._peak_fit_controller.set_wavelength(wave_length_dict)
         #
@@ -446,29 +446,41 @@ class PyRsCore(object):
 
         return
 
-    def save_peak_fit_result(self, project_name, hidra_file_name, peak_tag):
+    def save_peak_fit_result(self, project_name, hidra_file_name, peak_tag, overwrite=True):
         """ Save the result from peak fitting to HiDRA project file
         Parameters
         ----------
-        project_name: String
+        project_name: str
             name of peak fitting session
         hidra_file_name: String
             project file to export peaks fitting result to
-        peak_tag
+        peak_tag : str
+            peak tag
+        overwrite: bool
+            Flag to append to an existing file or overwrite it
 
         Returns
         -------
 
         """
-        # TODO - #81 - (1) Doc!  (2) Need to track whether this file is open or closed (3) RW mode
         if project_name is None:
             optimizer = self._peak_fit_controller
         else:
             optimizer = self._peak_fitting_dict[project_name]
 
-        # Assuming the file is to write as new
-        hidra_project_file = HydraProjectFile(hidra_file_name, HydraProjectFileMode.OVERWRITE)
+        # Determine the file IO mode
+        if os.path.exists(hidra_file_name) and overwrite is False:
+            # file exists and user does not want overwrite: READWRITE mode
+            file_mode = HidraProjectFileMode.READWRITE
+        else:
+            # starting as a new file
+            file_mode = HidraProjectFileMode.OVERWRITE
+
+        # Create HiDRA project file
+        hidra_project_file = HidraProjectFile(hidra_file_name, file_mode)
+        # Export peaks
         optimizer.export_to_hydra_project(hidra_project_file, peak_tag)
+        # Close
         hidra_project_file.close()
 
         return

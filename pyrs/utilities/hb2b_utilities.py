@@ -39,7 +39,7 @@ def get_hydra_project_file(ipts_number, run_number):
     try:
         checkdatatypes.check_file_name(hydra_file_name, check_exist=True, check_writable=False, is_dir=False)
     except RuntimeError as run_error:
-        print('[ERROR] Unable to find Hydra project file {} due to {}'.format(hydra_file_name, run_error))
+        print('[ERROR] Unable to find Hidra project file {} due to {}'.format(hydra_file_name, run_error))
         return None
 
     return hydra_file_name
