@@ -13,6 +13,30 @@ import gui_helper
 import numpy
 
 
+# TEST - 1. If IPTS is given but run number is not, go to IPTS shared directory
+# TODO - 2. If project file is readonly, accept it but give a warning ???
+# TEST - 3. Auto fit will be turned off as default
+# TODO - 4. Enable the lower-right figure to plot contour plot of all the data
+# TODO - 5. Upper right corner plot shall support plot peak parameters from multiple peaks along sub runs
+# FIXME - 1. auto fitting error stack
+"""
+Traceback (most recent call last):
+  File "/SNS/users/wzz/Projects/PyRS/build/lib/pyrs/interface/fitpeakswindow.py", line 185, in do_browse_hdf
+    self.do_load_hydra_file(hidra_project_file=None)
+  File "/SNS/users/wzz/Projects/PyRS/build/lib/pyrs/interface/fitpeakswindow.py", line 257, in do_load_hydra_file
+    self.do_fit_peaks(all_sub_runs=True)
+  File "/SNS/users/wzz/Projects/PyRS/build/lib/pyrs/interface/fitpeakswindow.py", line 332, in do_fit_peaks
+    effective_parameter=False)
+  File "/SNS/users/wzz/Projects/PyRS/build/lib/pyrs/core/pyrscore.py", line 300, in get_peak_fitting_result
+    sub_run_vec, chi2_vec, param_vec = peak_fitter.get_fitted_params(param_names, including_error=True)
+  File "/SNS/users/wzz/Projects/PyRS/build/lib/pyrs/core/peak_fit_engine.py", line 204, in get_fitted_params
+    spec_index_vec, fit_cost_vec = self.get_fit_cost(max_chi2)
+  File "/SNS/users/wzz/Projects/PyRS/build/lib/pyrs/core/mantid_fit_peak.py", line 376, in get_fit_cost
+    col_names = self._fitted_function_param_table.getColumnNames()
+AttributeError: 'NoneType' object has no attribute 'getColumnNames'
+"""
+
+
 class FitPeaksWindow(QMainWindow):
     """
     GUI window for user to fit peaks
@@ -121,16 +145,26 @@ class FitPeaksWindow(QMainWindow):
             raise RuntimeError('Not set up yet!')
 
     def _get_default_hdf(self):
-        """
-        use IPTS and Exp to determine
-        :return:
+        """Use IPTS and Run number to determine the
+
+        Returns
+        -------
+        None or str
+            If IPTS is not given, return None
+            If run number is given, return file name; otherwise, return shared directory
+
         """
         try:
             ipts_number = gui_helper.parse_integer(self.ui.lineEdit_iptsNumber)
-            exp_number = gui_helper.parse_integer(self.ui.lineEdit_expNumber)
         except RuntimeError as run_err:
-            gui_helper.pop_message(self, 'Unable to parse IPTS or Exp due to {0}'.format(run_err))
+            gui_helper.pop_message(self, 'Unable to parse IPTS number due to {0}'.format(run_err))
             return None
+
+        try:
+            exp_number = gui_helper.parse_integer(self.ui.lineEdit_expNumber)
+        except RuntimeError as run_errH:
+            ipts_shared_dir = 'HFIR/HB2B/IPTS-{}/shared/'.format(ipts_number)
+            return ipts_shared_dir
 
         # Locate default saved HidraProject data
         archive_data = hb2b_utilities.get_hb2b_raw_data(ipts_number, exp_number)
@@ -143,7 +177,7 @@ class FitPeaksWindow(QMainWindow):
         :return:
         """
         self.ui.pushButton_loadHDF.setEnabled(False)
-        self.ui.checkBox_autoFit.setChecked(True)
+        self.ui.checkBox_autoFit.setChecked(False)
         self.ui.checkBox_autoLoad.setChecked(True)
 
         # combo boxes
@@ -165,10 +199,14 @@ class FitPeaksWindow(QMainWindow):
 
         # Use IPTS and run number to get the default Hidra HDF
         hidra_file_name = self._get_default_hdf()
-        if hidra_file_name is None:
+        if hidra_file_name is None or os.path.isdir(hidra_file_name):
             # No default Hidra file: browse the file
-            file_filter = 'HDF (*.hdf);H5 (*.h5)'
-            hidra_file_name = gui_helper.browse_file(self, 'HIDRA Project File', os.getcwd(), file_filter,
+            file_filter = 'HDF5 (*.h5);HDF (*.hdf)'
+            if hidra_file_name is None:
+                default_dir = os.getcwd()
+            else:
+                default_dir = hidra_file_name
+            hidra_file_name = gui_helper.browse_file(self, 'HIDRA Project File', default_dir, file_filter,
                                                      file_list=False, save_file=False)
 
             if hidra_file_name is None:
@@ -212,7 +250,7 @@ class FitPeaksWindow(QMainWindow):
         if hidra_project_file is None:
             hidra_project_file = str(self.ui.lineEdit_expFileName.text())
         else:
-            checkdatatypes.check_string_variable(hidra_project_file)
+            checkdatatypes.check_string_variable('HiDRA project file', hidra_project_file, allow_empty=False)
 
         # load file
         try:
