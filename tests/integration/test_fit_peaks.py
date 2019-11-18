@@ -32,7 +32,7 @@ class PeakFittingTest(object):
                                                               load_diffraction=True)
 
         # set wave length
-        hd_ws.set_wave_length(1.071, False)
+        hd_ws.set_wavelength(1.071, False)
 
         return
 

@@ -574,7 +574,7 @@ class HB2BReductionManager(object):
         workspace.save_reduced_diffraction_data(project_file)
 
         # Close
-        project_file.save_hydra_project()
+        project_file.save()
 
         return
 

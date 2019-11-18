@@ -89,7 +89,7 @@ class HidraWorkspace(object):
         checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HidraProjectFile)
 
         for sub_run_i in sorted(self._sub_run_to_spectrum.keys()):
-            counts_vec_i = hidra_file.get_raw_counts(sub_run_i)
+            counts_vec_i = hidra_file.read_raw_counts(sub_run_i)
             self._raw_counts[sub_run_i] = counts_vec_i
         # END-FOR
 
@@ -105,7 +105,7 @@ class HidraWorkspace(object):
 
         # get 2theta value
         try:
-            vec_2theta = hidra_file.get_diffraction_2theta_array()
+            vec_2theta = hidra_file.read_diffraction_2theta_array()
         except KeyError as key_err:
             print('[INFO] Unable to load 2theta vector from HidraProject file due to {}.'
                   'It is very likely that no reduced data is recorded.'
@@ -114,7 +114,7 @@ class HidraWorkspace(object):
         # TRY-CATCH
 
         # Get number of spectra
-        num_spec = len(hidra_file.get_sub_runs())
+        num_spec = len(hidra_file.read_sub_runs())
 
         # Promote to 2theta from vector to array
         if len(vec_2theta.shape) == 1:
@@ -128,7 +128,7 @@ class HidraWorkspace(object):
         self._2theta_matrix = numpy.copy(matrix_2theta)
 
         # initialize data set for reduced diffraction patterns
-        diff_mask_list = hidra_file.get_diffraction_masks()
+        diff_mask_list = hidra_file.read_diffraction_masks()
         for mask_name in diff_mask_list:
             if mask_name == 'main':
                 mask_name = None
@@ -140,8 +140,8 @@ class HidraWorkspace(object):
             # force to None
             if mask_name == 'main':
                 mask_name = None
-            self._diff_data_set[mask_name] = hidra_file.get_diffraction_intensity_vector(mask_id=mask_name,
-                                                                                         sub_run=None)
+            self._diff_data_set[mask_name] = hidra_file.read_diffraction_intensity_vector(mask_id=mask_name,
+                                                                                          sub_run=None)
         # END-FOR (mask)
 
         print('[INFO] Loaded diffraction data from {} includes : {}'
@@ -158,7 +158,7 @@ class HidraWorkspace(object):
         checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HidraProjectFile)
 
         # Get values
-        self._instrument_setup = hidra_file.get_instrument_geometry()
+        self._instrument_setup = hidra_file.read_instrument_geometry()
 
         return
 
@@ -171,7 +171,7 @@ class HidraWorkspace(object):
         """
         checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HidraProjectFile)
 
-        sub_runs, log_dict = hidra_file.get_sample_logs()
+        sub_runs, log_dict = hidra_file.read_sample_logs()
 
         # Set sub runs
         if self._sub_run_array is None:
@@ -193,7 +193,7 @@ class HidraWorkspace(object):
         checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HidraProjectFile)
 
         # reset the wave length (dictionary) from HIDRA project file
-        self._wave_length_dict = hidra_file.get_wave_lengths()
+        self._wave_length_dict = hidra_file.read_wavelengths()
 
         return
 
@@ -263,7 +263,7 @@ class HidraWorkspace(object):
 
         return sub_runs
 
-    def get_wave_length(self, calibrated, throw_if_not_set):
+    def get_wavelength(self, calibrated, throw_if_not_set):
         """ Get the wave length from the workspace
         :param calibrated: Flag for returning calibrated wave length
         :param throw_if_not_set: Flag to throw an exception if relative wave length (dict) is not set
@@ -304,7 +304,7 @@ class HidraWorkspace(object):
         self._project_file_name = hidra_file.name
 
         # create the spectrum map
-        sub_run_list = hidra_file.get_sub_runs()
+        sub_run_list = hidra_file.read_sub_runs()
         self._create_subrun_spectrum_map(sub_run_list)
 
         # load raw detector counts and load instrument
@@ -635,7 +635,7 @@ class HidraWorkspace(object):
         # Raw counts
         for sub_run_i in self._raw_counts.keys():
             if sub_runs is None or sub_run_i in sub_runs:
-                hidra_project.add_raw_counts(sub_run_i, self._raw_counts[sub_run_i])
+                hidra_project.append_raw_counts(sub_run_i, self._raw_counts[sub_run_i])
             else:
                 print('[WARNING] sub run {} is not exported to {}'
                       ''.format(sub_run_i, hidra_project.name))
@@ -652,7 +652,7 @@ class HidraWorkspace(object):
         else:
             # same thing
             sub_runs_array = sub_runs
-        hidra_project.add_experiment_log(rs_project_file.HidraConstants.SUB_RUNS, sub_runs_array)
+        hidra_project.append_experiment_log(rs_project_file.HidraConstants.SUB_RUNS, sub_runs_array)
 
         # Add regular ample logs
         for log_name in self._sample_log_dict.keys():
@@ -665,10 +665,8 @@ class HidraWorkspace(object):
                                                           sub_runs=sub_runs)
 
             # Add log value to project file
-            hidra_project.add_experiment_log(log_name, sample_log_value)
+            hidra_project.append_experiment_log(log_name, sample_log_value)
         # END-FOR
-
-        return
 
     def save_reduced_diffraction_data(self, hidra_project):
         """ Export reduced diffraction data to project
@@ -677,9 +675,7 @@ class HidraWorkspace(object):
         """
         checkdatatypes.check_type('HIDRA project file', hidra_project, rs_project_file.HidraProjectFile)
 
-        hidra_project.set_reduced_diffraction_data_set(self._2theta_matrix, self._diff_data_set)
-
-        return
+        hidra_project.write_reduced_diffraction_data_set(self._2theta_matrix, self._diff_data_set)
 
     @property
     def sample_log_names(self):
@@ -703,7 +699,7 @@ class HidraWorkspace(object):
 
         return sorted(sample_logs)
 
-    def set_wave_length(self, wave_length, calibrated):
+    def set_wavelength(self, wave_length, calibrated):
         """ Set wave length which could be either a float (uniform) or a dictionary
         :param wave_length:
         :param calibrated: Flag for calibrated wave length

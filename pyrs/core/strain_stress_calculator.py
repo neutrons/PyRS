@@ -1527,7 +1527,7 @@ class StrainStressCalculator(object):
     #
     #     return
 
-    # def set_wave_length(self, wave_length):
+    # def set_wavelength(self, wave_length):
     #     """
     #
     #     :param wave_length:

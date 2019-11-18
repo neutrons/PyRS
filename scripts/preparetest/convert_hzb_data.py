@@ -129,23 +129,21 @@ def main():
         tiff_name = exp_summary_dict[sub_run_i]['Tiff']
         counts_array = parse_hzb_tiff(os.path.join(exp_data_dir, tiff_name))
         # print (counts_array.min(), counts_array.max(), (numpy.where(counts_array > 0.5)[0]).shape)
-        project_file.add_raw_counts(sub_run_i, counts_array)
+        project_file.append_raw_counts(sub_run_i, counts_array)
     # END-FOR
 
     # add sample log data & sub runs
     for log_name in [HidraConstants.SUB_RUNS, HidraConstants.TWO_THETA, 'Monitor', 'L2']:
-        project_file.add_experiment_log(log_name, exp_logs_dict[log_name])
+        project_file.append_experiment_log(log_name, exp_logs_dict[log_name])
     # END-FOR
     # project_file.add_experiment_information('sub-run', sub_run_list)
 
     # add instrument information
     hzb_instrument_setup = generate_hzb_instrument()
-    project_file.set_instrument_geometry(hzb_instrument_setup)
+    project_file.write_instrument_geometry(hzb_instrument_setup)
 
     # save
     project_file.close()
-
-    return
 
 
 if __name__ == '__main__':

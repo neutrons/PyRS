@@ -375,7 +375,7 @@ class ResidualStressInstrument(object):
 
         return pixel_pos_array
 
-    def set_wave_length(self, w_l):
+    def set_wavelength(self, w_l):
         self._wave_length = w_l
 
 
@@ -391,7 +391,7 @@ class PyHB2BReduction(object):
         self._instrument = ResidualStressInstrument(instrument)
 
         if wave_length is not None:
-            self._instrument.set_wave_length(wave_length)
+            self._instrument.set_wavelength(wave_length)
 
         self._detector_2theta = None
         self._detector_l2 = None

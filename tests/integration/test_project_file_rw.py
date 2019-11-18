@@ -30,10 +30,10 @@ def test_rw_raw():
     # Instrument
     detector_setup = source_workspace.get_instrument_setup()
     instrument_setup = HidraSetup(detector_setup=detector_setup)
-    target_project.set_instrument_geometry(instrument_setup)
+    target_project.write_instrument_geometry(instrument_setup)
 
     # Save
-    target_project.save_hydra_project(True)
+    target_project.save(True)
 
     return
 

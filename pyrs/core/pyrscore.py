@@ -109,7 +109,7 @@ class PyRsCore(object):
         self._peak_fitting_dict[fit_tag] = peak_fit_factory.PeakFitEngineFactory.getInstance('Mantid')(workspace,
                                                                                                        None)
         # set wave length: TODO - #81+ - shall be a way to use calibrated or non-calibrated
-        wave_length_dict = workspace.get_wave_length(calibrated=False, throw_if_not_set=False)
+        wave_length_dict = workspace.get_wavelength(calibrated=False, throw_if_not_set=False)
         if wave_length_dict is not None:
             self._peak_fitting_dict[fit_tag].set_wavelength(wave_length_dict)
             # self._peak_fit_controller.set_wavelength(wave_length_dict)
@@ -161,7 +161,7 @@ class PyRsCore(object):
         #     self._peak_fit_controller = peak_fit_factory.PeakFitEngineFactory.getInstance('Mantid')(
         #         workspace, None)
         #     # set wave length: TODO - #81+ - shall be a way to use calibrated or non-calibrated
-        #     wave_length_dict = workspace.get_wave_length(calibrated=False, throw_if_not_set=False)
+        #     wave_length_dict = workspace.get_wavelength(calibrated=False, throw_if_not_set=False)
         #     if wave_length_dict is not None:
         #         self._peak_fit_controller.set_wavelength(wave_length_dict)
         #
