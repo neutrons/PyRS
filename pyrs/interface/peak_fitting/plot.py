@@ -35,7 +35,6 @@ class Plot:
                 self.plot_diff_and_fitted_data(scan_log_index, plot_model)
             except RuntimeError as run_err:
                 err_msg += '{0}\n'.format(run_err)
-        # END-FOR
 
         if len(err_msg) > 0:
             pop_message(self, err_msg, message_type='error')
@@ -67,16 +66,17 @@ class Plot:
         self.parent._ui_graphicsView_fitSetup.plot_experiment_data(diff_data_set=diff_data_set,
                                                                    data_reference=data_set_label)
 
-        # # Plot fitted model data
-        # if plot_model:
-        #     model_data_set = self.parent._core.get_modeled_data(session_name=self.parent._project_name,
-        #                                                         sub_run=sub_run_number)
-        #     if model_data_set is not None:
-        #         residual_y_vec = diff_data_set[1] - model_data_set[1]
-        #         residual_data_set = [diff_data_set[0], residual_y_vec]
-        #         self.parent._ui_graphicsView_fitSetup.plot_model_data(diff_data_set=model_data_set,
-        #                                                               model_label='',
-        #                                                               residual_set=residual_data_set)
+        # Plot fitted model data
+        if plot_model:
+            model_data_set = self.parent._core.get_modeled_data(session_name=self.parent._project_name,
+                                                                sub_run=sub_run_number)
+
+        # if model_data_set is not None:
+        #     residual_y_vec = diff_data_set[1] - model_data_set[1]
+        #     residual_data_set = [diff_data_set[0], residual_y_vec]
+        #     self.parent._ui_graphicsView_fitSetup.plot_model_data(diff_data_set=model_data_set,
+        #                                                           model_label='',
+        #                                                           residual_set=residual_data_set)
 
     def plot_scan(self, is_next=True):
         """ plot the next or previous scan (log index)
