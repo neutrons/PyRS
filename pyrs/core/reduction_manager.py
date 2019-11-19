@@ -46,7 +46,7 @@ class HB2BReductionManager(object):
         self._van_ws = None
 
         # (default) number of bins
-        self._num_bins = 2500
+        self._num_bins = 720
 
         # masks
         self._loaded_mask_files = list()
@@ -417,8 +417,8 @@ class HB2BReductionManager(object):
         return van_counts_array
 
     def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, num_bins,
-                                use_pyrs_engine, mask, sub_run_list,
-                                vanadium_counts=None):
+                                use_pyrs_engine, mask, sub_run_list, vanadium_counts=None,
+                                eta_step=None, eta_min=None, eta_max=None):
         """Reduce ALL sub runs in a workspace from detector counts to diffraction data
 
         Parameters
@@ -438,6 +438,12 @@ class HB2BReductionManager(object):
         vanadium_counts : None or ~numpy.ndarray
             vanadium counts of each detector pixels for normalization
             If vanadium duration is recorded, the vanadium counts are normalized by its duration in seconds
+        eta_step : float
+            angular step size for out-of-plane reduction
+        eta_min : float
+            min angle for out-of-plane reduction
+        eta_max : float
+            max angle for out-of-plane reduction
 
         Returns
         -------
@@ -497,13 +503,19 @@ class HB2BReductionManager(object):
                                             mask_vec_tuple=(mask_id, mask_vec),
                                             num_bins=num_bins,
                                             sub_run_duration=duration_i,
-                                            vanadium_counts=vanadium_counts)
+                                            vanadium_counts=vanadium_counts,
+                                            eta_step=eta_step,
+                                            eta_min=eta_min,
+                                            eta_max=eta_max)
+
         # END-FOR (sub run)
 
     # NOTE: Refer to compare_reduction_engines_tst
     def reduce_sub_run_diffraction(self, workspace, sub_run, geometry_calibration, use_mantid_engine,
-                                   mask_vec_tuple, min_2theta=None, max_2theta=None,
-                                   num_bins=1000, sub_run_duration=None, vanadium_counts=None):
+                                   mask_vec_tuple, min_2theta=None, max_2theta=None, default_two_theta_range=20,
+                                   num_bins=1000, sub_run_duration=None, vanadium_counts=None,
+                                   eta_step=None, eta_min=None, eta_max=None):
+
         """Reduce import data (workspace or vector) to 2-theta ~ I
 
         The binning of 2theta is linear in range (min, max) with given resolution
@@ -548,6 +560,12 @@ class HB2BReductionManager(object):
         vanadium_counts : numpy.ndarray or None
             detector pixels' vanadium for efficiency and normalization.
             If vanadium duration is recorded, the vanadium counts are normalized by its duration in seconds
+        eta_step : float
+            angular step size for out-of-plane reduction
+        eta_min : float
+            min angle for out-of-plane reduction
+        eta_max : float
+            max angle for out-of-plane reduction
 
         Returns
         -------
@@ -574,11 +592,58 @@ class HB2BReductionManager(object):
         else:
             reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
 
-        # Histogram
-        bin_centers, hist = self.convert_counts_to_diffraction(reduction_engine, l2, mantid_two_theta,
-                                                               geometry_calibration, raw_count_vec,
-                                                               (min_2theta, max_2theta),
-                                                               num_bins, mask_vec, vanadium_counts)
+        # Define setup for out-of-plane reduction
+        if eta_step is not None:
+            eta_val = reduction_engine.get_eta_value()
+            if eta_min is None:
+                eta_min = -9.0
+            if eta_max is None:
+                eta_max = 9.0
+
+            if eta_min < 0:
+                eta_roi_start = 0
+            else:
+                eta_roi_start = eta_min
+
+            Upper = np.arange(eta_roi_start, eta_max - eta_step / 2., eta_step)
+
+            if eta_min < 0:
+                Lower = np.arange(-1 * eta_step, eta_min + eta_step / 2., -1 * eta_step)
+            else:
+                Lower = np.array([])
+
+            eta_roi_vec = np.concatenate((Upper, Lower))
+
+#            eta_roi_vec = np.arange(eta_min, eta_max + eta_step/10., eta_step)
+
+            if mask_vec is not None:
+                mask_vec_index = np.where(mask_vec == 1)[0]
+
+        else:
+            eta_roi_vec = np.array([0])
+            eta_step = 50
+
+        for eta_cent in eta_roi_vec:
+            if eta_roi_vec.shape[0] != 1:
+                mask_id = 'eta_{}'.format(eta_cent)
+                Mask = np.zeros_like(eta_val)
+                if abs(eta_cent) == eta_cent:
+                    index = np.where((eta_val < (eta_cent + eta_step / 2.)) ==
+                                     (eta_val > (eta_cent - eta_step / 2.)))[0]
+                else:
+                    index = np.where((eta_val > (eta_cent + eta_step / 2.)) ==
+                                     (eta_val < (eta_cent - eta_step / 2.)))[0]
+
+                Mask[index] = 1.
+
+                if mask_vec is not None:
+                    Mask[mask_vec_index] = 1.
+
+            # Histogram
+            bin_centers, hist = self.convert_counts_to_diffraction(reduction_engine, l2, mantid_two_theta,
+                                                                   geometry_calibration, raw_count_vec,
+                                                                   (min_2theta, max_2theta),
+                                                                   num_bins, Mask, vanadium_counts)
 
         # reduction_engine.set_experimental_data(mantid_two_theta, l2, raw_count_vec)
         # reduction_engine.build_instrument(geometry_calibration)
@@ -669,6 +734,7 @@ class HB2BReductionManager(object):
                                                                is_point_data=True,
                                                                use_mantid_histogram=False,
                                                                vanadium_counts_array=vanadium_array)
+
         bin_centers = data_set[0]
         hist = data_set[1]
 

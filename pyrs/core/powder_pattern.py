@@ -128,9 +128,9 @@ class ReductionApp(object):
         # set the workspace to self
         self._hydra_ws = hd_workspace
 
-    def reduce_data(self, sub_runs, instrument_file, calibration_file, mask, van_file=None, num_bins=1000):
+    def reduce_data(self, sub_runs, instrument_file, calibration_file, mask, van_file=None, num_bins=1000,
+                    eta_step=None, eta_min=None, eta_max=None):
         """Reduce data from HidraWorkspace
-
         Parameters
         ----------
         sub_runs : List or None
@@ -143,10 +143,14 @@ class ReductionApp(object):
             HiDRA project file containing vanadium counts or event NeXus file
         num_bins : int
             number of bins
-
+        eta_step : float
+            angular step size for out-of-plane reduction
+        eta_min : float
+            min angle for out-of-plane reduction
+        eta_max : float
+            max angle for out-of-plane reduction
         Returns
         -------
-
         """
         # Check inputs
         if sub_runs is None or not bool(sub_runs):  # None or empty list
@@ -181,6 +185,7 @@ class ReductionApp(object):
             # no vanadium
             van_array = None
 
+        # Reduce data with no out-of-plane mask applied
         self._reduction_manager.reduce_diffraction_data(self._session,
                                                         apply_calibrated_geometry=geometry_calibration,
                                                         num_bins=num_bins,
@@ -188,6 +193,19 @@ class ReductionApp(object):
                                                         mask=mask,
                                                         sub_run_list=sub_runs,
                                                         vanadium_counts=van_array)
+
+        # Reduce data with out-of-plane mask applied
+        if eta_step is not None:
+            self._reduction_manager.reduce_diffraction_data(self._session,
+                                                            apply_calibrated_geometry=geometry_calibration,
+                                                            num_bins=num_bins,
+                                                            use_pyrs_engine=not self._use_mantid_engine,
+                                                            mask=mask,
+                                                            sub_run_list=sub_runs,
+                                                            vanadium_counts=van_array,
+                                                            eta_step=eta_step,
+                                                            eta_min=eta_min,
+                                                            eta_max=eta_max)
 
     def plot_reduced_data(self, sub_run_number=None):
 
