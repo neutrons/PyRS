@@ -133,6 +133,26 @@ class PeakFitEngine(object):
         """
         raise NotImplementedError('Virtual base class member method fit_peaks()')
 
+    # TODO NEW - Implement
+    def fit_multiple_peaks(self, sub_run_range, peak_function_name, background_function_name,
+                           peak_center_list, peak_range_list, cal_center_d):
+        """Fit multiple peaks
+
+        Parameters
+        ----------
+        sub_run_range
+        peak_function_name
+        background_function_name
+        peak_center_list
+        peak_range_list
+        cal_center_d
+
+        Returns
+        -------
+        List of ~pyrs.core.peak_collection.PeakCollection
+
+        """
+
     @staticmethod
     def _fit_peaks_checks(sub_run_range, peak_function_name, background_function_name, peak_center, peak_range,
                           cal_center_d):

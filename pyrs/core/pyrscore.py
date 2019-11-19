@@ -116,7 +116,7 @@ class PyRsCore(object):
 
         return workspace
 
-    def fit_peaks(self, fit_tag, sub_run_list, peak_type, background_type, peaks_fitting_setup):
+    def fit_peaks(self, data_tag, sub_run_list, peak_type, background_type, peaks_fitting_setup):
         """Fit a single peak on each diffraction pattern selected from client-specified
 
         Note:
@@ -124,7 +124,7 @@ class PyRsCore(object):
 
         Parameters
         ----------
-        fit_tag: str
+        data_tag: str
             Name of current project for loading, peak fitting and etc.
         sub_run_list: list or None
             sub runs to fit peak. None is the default for fitting all sub runs
@@ -137,37 +137,15 @@ class PyRsCore(object):
         None
         """
         # Check input
-        checkdatatypes.check_string_variable('Project name', fit_tag, allow_empty=False)
+        checkdatatypes.check_string_variable('Project name', data_tag, allow_empty=False)
 
         # Create new one if it does not exist
-        if fit_tag not in self._peak_fitting_dict:
-            self.create_fit_engine_instance(fit_tag)
+        if data_tag not in self._peak_fitting_dict:
+            self.create_fit_engine_instance(data_tag)
 
         # Get controller by 'fitting tag' and set it to current peak_fit_controller
-        self._peak_fit_controller = self._peak_fitting_dict[fit_tag]
+        self._peak_fit_controller = self._peak_fitting_dict[data_tag]
         workspace = self._peak_fit_controller.get_hidra_workspace()
-
-        # FIXME - Temporarily left as reference.  Delete as soon as all tests are passed
-        # # Get peak fitting controller
-        # if fit_tag in self._peak_fitting_dict:
-        #     # if it does exist
-        #     self._peak_fit_controller = self._peak_fitting_dict[fit_tag]
-        #     workspace = self._peak_fit_controller.get_hidra_workspace()
-        # else:
-        #     # create a new one
-        #     # get workspace
-        #     workspace = self.reduction_service.get_hidra_workspace(fit_tag)
-        #     # create a controller from factory
-        #     self._peak_fit_controller = peak_fit_factory.PeakFitEngineFactory.getInstance('Mantid')(
-        #         workspace, None)
-        #     # set wave length: TODO - #81+ - shall be a way to use calibrated or non-calibrated
-        #     wave_length_dict = workspace.get_wavelength(calibrated=False, throw_if_not_set=False)
-        #     if wave_length_dict is not None:
-        #         self._peak_fit_controller.set_wavelength(wave_length_dict)
-        #
-        #     # add to dictionary
-        #     self._peak_fitting_dict[fit_tag] = self._peak_fit_controller
-        # # END-IF-ELSE
 
         # Check Inputs
         checkdatatypes.check_dict('Peak fitting (information) parameters', peaks_fitting_setup)
