@@ -777,7 +777,6 @@ class PyHB2BReduction(object):
         pixel_2theta_array = pixel_2theta_array[mask_zero_pixels]
         vec_counts = vec_counts[mask_zero_pixels]
 
-
         # Call numpy to histogram
         hist, bin_edges = np.histogram(pixel_2theta_array, bins=two_theta_vec, weights=vec_counts)
 
