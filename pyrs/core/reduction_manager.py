@@ -45,7 +45,7 @@ class HB2BReductionManager(object):
         self._van_ws = None
 
         # (default) number of bins
-        self._num_bins = 2500
+        self._num_bins = 720
 
         # masks
         self._loaded_mask_files = list()
@@ -432,7 +432,7 @@ class HB2BReductionManager(object):
             van_counts_array = apply_vanadium_calibration
         if isinstance(van_counts_array, np.ndarray):
             # Mask out zero count
-            van_counts_array[van_counts_array < 3] = np.nan
+            van_counts_array[van_counts_array < 1] = np.nan
             max_count = np.max(van_counts_array[~np.isnan(van_counts_array)])
             print('[DEBUG] VANADIUM: {}\n\t# of NaN = {}\tMax count = {}'
                   ''.format(van_counts_array, np.where(np.isnan(van_counts_array))[0].size,
@@ -505,7 +505,7 @@ class HB2BReductionManager(object):
         if isinstance(max_2theta, type(None)):
             max_2theta = abs(two_theta) + 10.
         if isinstance(resolution_2theta, type(None)):
-            resolution_2theta = (max_2theta - min_2theta) / 1000.
+            resolution_2theta = (max_2theta - min_2theta) / 720.
 
         # Reduce
         data_set = reduction_engine.reduce_to_2theta_histogram((min_2theta, max_2theta), resolution_2theta,
