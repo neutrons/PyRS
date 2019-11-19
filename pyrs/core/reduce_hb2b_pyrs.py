@@ -777,9 +777,9 @@ class PyHB2BReduction(object):
         # Optionally to normalize by number of pixels (sampling points) in the 2theta bin
         if norm_bins:
             # Get the number of pixels in each bin
-            # hist_bin = np.histogram(pixel_2theta_array[np.where(vec_counts > .5)[0]],
-            #                         bins=two_theta_vec)[0]
-            hist_bin = np.histogram(pixel_2theta_array, bins=two_theta_vec)[0]
+            hist_bin = np.histogram(pixel_2theta_array[np.where(vec_counts > .5)[0]],
+                                    bins=two_theta_vec)[0]
+            #hist_bin = np.histogram(pixel_2theta_array, bins=two_theta_vec)[0]
             # Normalize
             hist /= hist_bin  # normalize
         # END-IF
