@@ -771,15 +771,22 @@ class PyHB2BReduction(object):
         pixel_2theta_array = pixel_2theta_array[~masked_pixels]
         vec_counts = vec_counts[~masked_pixels]
 
+        # Exclude pixels with 0 counts
+        mask_zero_pixels = np.where(vec_counts > .5)[0]
+
+        pixel_2theta_array = pixel_2theta_array[mask_zero_pixels]
+        vec_counts = vec_counts[mask_zero_pixels]
+
+
         # Call numpy to histogram
         hist, bin_edges = np.histogram(pixel_2theta_array, bins=two_theta_vec, weights=vec_counts)
 
         # Optionally to normalize by number of pixels (sampling points) in the 2theta bin
         if norm_bins:
             # Get the number of pixels in each bin
-            hist_bin = np.histogram(pixel_2theta_array[np.where(vec_counts > .5)[0]],
-                                    bins=two_theta_vec)[0]
-            #hist_bin = np.histogram(pixel_2theta_array, bins=two_theta_vec)[0]
+            # hist_bin = np.histogram(pixel_2theta_array[np.where(vec_counts > .5)[0]],
+            #                         bins=two_theta_vec)[0]
+            hist_bin = np.histogram(pixel_2theta_array, bins=two_theta_vec)[0]
             # Normalize
             hist /= hist_bin  # normalize
         # END-IF
