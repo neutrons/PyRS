@@ -262,7 +262,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
         # Set the fit result to private class structure numpy arrays
         # Get sub runs considering fitting only being applied to a sub set of sub runs
-        sub_runs = sub_run_array[np.where((sub_run_array >= start_sub_run ) & (sub_run_array <= end_sub_run))]
+        sub_runs = sub_run_array[np.where((sub_run_array >= start_sub_run) & (sub_run_array <= end_sub_run))]
         fitted_peak = self._set_profile_parameters_values_from_fitting(peak_tag, sub_runs, peak_function_name,
                                                                        background_function_name)
 
@@ -322,7 +322,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
     # FIXME - Abstract to base class and re-implement
     @staticmethod
-    def get_observed_peaks_centers(self):
+    def get_observed_peaks_centers():
         """
         get center of mass vector and X value vector corresponding to maximum Y value
         :return:
@@ -371,58 +371,58 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         """
         return self._mantid_workspace_name
 
-    def _get_fitted_parameters_value(self, spec_index_vec, param_name_list, param_value_array):
-        """
-        Get fitted peak parameters' value
-        :param spec_index_vec:
-        :param param_name_list:
-        :param param_value_array: a (p, s, e) array: p = param_name_list.size, s = sub runs size, e = 1 or 2
-        :return:
-        """
-        # table column names
-        col_names = self._fitted_function_param_table.getColumnNames()
+    # def _get_fitted_parameters_value(self, spec_index_vec, param_name_list, param_value_array):
+    #     """
+    #     Get fitted peak parameters' value
+    #     :param spec_index_vec:
+    #     :param param_name_list:
+    #     :param param_value_array: a (p, s, e) array: p = param_name_list.size, s = sub runs size, e = 1 or 2
+    #     :return:
+    #     """
+    #     # table column names
+    #     col_names = self._fitted_function_param_table.getColumnNames()
+    #
+    #     # get fitted parameter value
+    #     for out_index, param_name in enumerate(param_name_list):
+    #         # get value from column
+    #         if param_name in col_names:
+    #             param_col_index = col_names.index(param_name)
+    #             param_vec = np.array(self._fitted_function_param_table.column(param_col_index))
+    #         elif param_name == 'center_d':
+    #             param_vec = self._peak_center_d_vec[:, 0]
+    #         else:
+    #             raise RuntimeError('Peak parameter {} does not exist. Available parameters are {} and center_d'
+    #                                ''.format(param_name, col_names))
+    #         # set value
+    #         param_value_array[out_index, :, 0] = param_vec[spec_index_vec]
+    #     # END-FOR
+    #
+    #     return
 
-        # get fitted parameter value
-        for out_index, param_name in enumerate(param_name_list):
-            # get value from column
-            if param_name in col_names:
-                param_col_index = col_names.index(param_name)
-                param_vec = np.array(self._fitted_function_param_table.column(param_col_index))
-            elif param_name == 'center_d':
-                param_vec = self._peak_center_d_vec[:, 0]
-            else:
-                raise RuntimeError('Peak parameter {} does not exist. Available parameters are {} and center_d'
-                                   ''.format(param_name, col_names))
-            # set value
-            param_value_array[out_index, :, 0] = param_vec[spec_index_vec]
-        # END-FOR
-
-        return
-
-    def get_fit_cost(self, max_chi2):
-        """ Get the peak function cost
-        :param max_chi2:
-        :return:
-        """
-        # Get chi2 column
-        col_names = self._fitted_function_param_table.getColumnNames()
-        chi2_col_index = col_names.index('chi2')
-
-        # Get chi2 from table workspace (native return is List)
-        chi2_vec = np.array(self._fitted_function_param_table.column(chi2_col_index))  # form to np.ndarray
-
-        # Filter out the sub runs/spectra with large chi^2
-        if max_chi2 is not None and max_chi2 < 1.E20:
-            # selected
-            good_fit_indexes = np.where(chi2_vec < max_chi2)
-            chi2_vec = chi2_vec[good_fit_indexes]
-            spec_vec = good_fit_indexes[0]
-        else:
-            # all
-            print(chi2_vec)
-            spec_vec = np.arange(chi2_vec.shape[0])
-
-        return spec_vec, chi2_vec
+    # def get_fit_cost(self, max_chi2):
+    #     """ Get the peak function cost
+    #     :param max_chi2:
+    #     :return:
+    #     """
+    #     # Get chi2 column
+    #     col_names = self._fitted_function_param_table.getColumnNames()
+    #     chi2_col_index = col_names.index('chi2')
+    #
+    #     # Get chi2 from table workspace (native return is List)
+    #     chi2_vec = np.array(self._fitted_function_param_table.column(chi2_col_index))  # form to np.ndarray
+    #
+    #     # Filter out the sub runs/spectra with large chi^2
+    #     if max_chi2 is not None and max_chi2 < 1.E20:
+    #         # selected
+    #         good_fit_indexes = np.where(chi2_vec < max_chi2)
+    #         chi2_vec = chi2_vec[good_fit_indexes]
+    #         spec_vec = good_fit_indexes[0]
+    #     else:
+    #         # all
+    #         print(chi2_vec)
+    #         spec_vec = np.arange(chi2_vec.shape[0])
+    #
+    #     return spec_vec, chi2_vec
 
     def get_scan_indexes(self):
         """

@@ -171,13 +171,7 @@ def test_peak_fitting_result_io():
     peaks.set_peak_fitting_values('PseudoVoigt', 'Linear', np.array([1, 2, 3]), test_params_array, test_error_array,
                                   chi2_array)
 
-    # test_project_file.write_peak_fit_result(peak_tag='test fake',
-    #                                         peak_profile='PseudoVoigt',
-    #                                         background_type='Linear',
-    #                                         sub_run_vec=np.array([1, 2, 3]),
-    #                                         fit_cost_array=chi2_array,
-    #                                         param_value_array=test_params_array,
-    #                                         param_error_array=test_error_array)
+    test_project_file.write_peak_fit_result(peaks)
 
     test_project_file.save(False)
 

@@ -142,11 +142,11 @@ class PeakFittingTest(object):
         return
 
 
-@pytest.mark.parametrize('source_project_file, output_project_file, peak_type, peak_info',
-                         [('data/HB2B_1017.h5', 'HB2B_1017_2Peaks.h5', 'PseudoVoigt',
-                           [PeakInfo(81., 78., 83., 'LeftPeak'), PeakInfo(85., 83., 87., 'RightPeak')])],
-                         ids=['HB2B1017PeakFit'])
-def test_fit_2peaks(source_project_file, output_project_file, peak_type, peak_info_list):
+# @pytest.mark.parametrize('source_project_file, output_project_file, peak_type, peak_info',
+#                          [('data/HB2B_1017.h5', 'HB2B_1017_2Peaks.h5', 'PseudoVoigt',
+#                            [PeakInfo(81., 78., 83., 'LeftPeak'), PeakInfo(85., 83., 87., 'RightPeak')])],
+#                          ids=['HB2B1017PeakFit'])
+def broken_test_fit_2peaks(source_project_file, output_project_file, peak_type, peak_info_list):
     """Performance test on data with multiple peaks on multiple sub runs
 
     Also on the 'real' situation that some peaks do not even exist on some sub runs
@@ -174,7 +174,7 @@ def test_fit_2peaks(source_project_file, output_project_file, peak_type, peak_in
     tester.fit_peak(peak_type, peak_info_list[1])
 
     # save to project file
-    # tester.save_(source_project_file, output_project_file, peak_info.tag)
+    tester.save_fit_result(source_project_file, output_project_file, peak_info_list[0].tag)
 
     return
 
@@ -183,7 +183,7 @@ def test_fit_2peaks(source_project_file, output_project_file, peak_type, peak_in
                          [('/HFIR/HB2B/IPTS-22731/shared/ProjectFiles/HB2B_1065.h5', 'HB2B_1065_Peak.h5',
                            'PseudoVoigt', PeakInfo(90.5, 89.9, 91.6, '311'))],
                          ids=['HB2B1065PeakExport'])
-def test_fit_2peaks(source_project_file, output_project_file, peak_type, peak_info):
+def skip_test_fit_2peaks(source_project_file, output_project_file, peak_type, peak_info):
     """Performance test on data with multiple peaks and/or sub runs
 
     This also tends to ddd a new test for strain/stress data (goal is to generate light-weight HiDRA file)
@@ -215,7 +215,6 @@ def test_fit_2peaks(source_project_file, output_project_file, peak_type, peak_in
     return
 
 
-
 @pytest.mark.parametrize('project_file_name, peak_file_name, peak_type, peak_info',
                          [('data/Hidra_16-1_cor_log.h5', 'Hidra_16-1_cor_log_peak.h5', 'Gaussian',
                            PeakInfo(94.5, 91, 97, 'Fe111')),  # NSFR2 peak
@@ -223,7 +222,7 @@ def test_fit_2peaks(source_project_file, output_project_file, peak_type, peak_in
                            PeakInfo(95.5, 91, 97, 'Si111')),  # From commission
                          ],
                          ids=('FakeHB2B', 'HB2B_938'))
-def skip_test_main(project_file_name, peak_file_name, peak_type, peak_info):
+def test_main(project_file_name, peak_file_name, peak_type, peak_info):
     """Test peak fitting
 
     Parameters

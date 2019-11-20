@@ -177,8 +177,8 @@ class PyRsCore(object):
 
             # fit peak
             try:
-                self._peak_fit_controller.fit_peaks(sub_run_range, peak_type, background_type, peak_center, peak_range,
-                                                    cal_center_d=True)
+                self._peak_fit_controller.fit_peaks(peak_tag_i, sub_run_range, peak_type, background_type,
+                                                    peak_center, peak_range, cal_center_d=True)
 
             except RuntimeError as run_err:
                 error_message += 'Failed to fit (tag) {} due to {}\n'.format(peak_tag_i, run_err)
@@ -272,10 +272,10 @@ class PyRsCore(object):
         # Get the parameter values
         if effective_parameter:
             # Retrieve effective peak parameters
-            sub_run_vec, chi2_vec, param_vec = peak_fitter.get_fitted_effective_params(param_names,
-                                                                                       including_error=True)
+            sub_run_vec, chi2_vec, param_vec = peak_fitter.get_effective_parameters_values(param_names,
+                                                                                           including_error=True)
         else:
-            sub_run_vec, chi2_vec, param_vec = peak_fitter.get_fitted_params(param_names, including_error=True)
+            sub_run_vec, chi2_vec, param_vec = peak_fitter.get_parameters_values(param_names, including_error=True)
 
         if return_format == dict:
             # The output format is a dictionary for each parameter including sub-run

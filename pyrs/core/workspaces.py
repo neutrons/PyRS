@@ -254,14 +254,19 @@ class HidraWorkspace(object):
         return self._raw_counts[sub_run]
 
     def get_sub_runs(self):
-        """ Get sub runs that loaded to this workspace
-        :return: list of sorted sub runs
+        """Get sub runs that loaded to this workspace
+
+        Returns
+        -------
+        numpy.ndarray
+            1D array for sorted sub runs
+
         """
         sub_runs = sorted(self._sub_run_to_spectrum.keys())
         if len(sub_runs) == 0:
             raise RuntimeError('Sub run - spectrum map has not been built')
 
-        return sub_runs
+        return numpy.array(sub_runs)
 
     def get_wavelength(self, calibrated, throw_if_not_set):
         """ Get the wave length from the workspace

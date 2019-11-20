@@ -49,55 +49,65 @@ class PeakFitEngine(object):
         return
 
     def calculate_peak_position_d(self, wave_length):
-        """ Calculate peak positions in d-spacing
+        """Calculate peak positions in d-spacing
+
         Output: result will be saved to self._peak_center_d_vec
+
         Parameters
         ----------
-        wave_length: float or numpy.ndarray(dtype=float)
+        wave_length : float or numpy.ndarray(dtype=float)
             uniform wave length or wave length for each sub run
+
         Returns
         -------
         None
+
         """
-        # TODO/FIXME - #80+ - Must have a better way than try and guess
-        try:
-            r = self.get_fitted_params(param_name_list=['PeakCentre'], including_error=True)
-        except KeyError:
-            r = self.get_fitted_params(param_name_list=['centre'], including_error=True)
-        sub_run_vec = r[0]
-        params_vec = r[2]
+        # TODO/FIXME - BROKEN! - Must have a better way than try and guess
+        # Assumption: This is a private method working from the workspace directory
+        #          OR This is a public method that will not be called within FitPeaks() with peak tag
 
-        # Other parameters
-        num_sub_runs = sub_run_vec.shape[0]
+        print(wave_length)
+        print(self._peak_collection_dict.keys())
 
-        # Process wave length
-        if isinstance(wave_length, numpy.ndarray):
-            assert wave_length.shape[0] == num_sub_runs
-            various_wl = True
-            wl = 0
-        else:
-            various_wl = False
-            wl = wave_length
-
-        # init vector for peak center in d-spacing with error
-        self._peak_center_d_vec = numpy.ndarray((params_vec.shape[1], 2), params_vec.dtype)
-
-        for sb_index in range(num_sub_runs):
-            # convert to d-spacing: both fitted value and fitting error
-            # set wave length if various to sub runs
-            if various_wl:
-                wl = wave_length[sb_index]
-
-            # calculate peak position and propagating fitting error
-            for sub_index in range(2):
-                peak_i_2theta_j = params_vec[0][sb_index][sub_index]
-                if wl:
-                    peak_i_d_j = wl * 0.5 / math.sin(peak_i_2theta_j * 0.5 * math.pi / 180.)
-                else:
-                    # case for None or zero
-                    peak_i_d_j = -1  # return a non-physical number
-                self._peak_center_d_vec[sb_index][0] = peak_i_d_j
-        # END-FOR
+        # try:
+        #     r = self.get_fitted_params(peak_tag, param_name_list=['PeakCentre'], including_error=True)
+        # except KeyError:
+        #     r = self.get_fitted_params(peak_tag, param_name_list=['centre'], including_error=True)
+        # sub_run_vec = r[0]
+        # params_vec = r[2]
+        #
+        # # Other parameters
+        # num_sub_runs = sub_run_vec.shape[0]
+        #
+        # # Process wave length
+        # if isinstance(wave_length, numpy.ndarray):
+        #     assert wave_length.shape[0] == num_sub_runs
+        #     various_wl = True
+        #     wl = 0
+        # else:
+        #     various_wl = False
+        #     wl = wave_length
+        #
+        # # init vector for peak center in d-spacing with error
+        # self._peak_center_d_vec = numpy.ndarray((params_vec.shape[1], 2), params_vec.dtype)
+        #
+        # for sb_index in range(num_sub_runs):
+        #     # convert to d-spacing: both fitted value and fitting error
+        #     # set wave length if various to sub runs
+        #     if various_wl:
+        #         wl = wave_length[sb_index]
+        #
+        #     # calculate peak position and propagating fitting error
+        #     for sub_index in range(2):
+        #         peak_i_2theta_j = params_vec[0][sb_index][sub_index]
+        #         if wl:
+        #             peak_i_d_j = wl * 0.5 / math.sin(peak_i_2theta_j * 0.5 * math.pi / 180.)
+        #         else:
+        #             # case for None or zero
+        #             peak_i_d_j = -1  # return a non-physical number
+        #         self._peak_center_d_vec[sb_index][0] = peak_i_d_j
+        # # END-FOR
 
         return
 
@@ -149,25 +159,26 @@ class PeakFitEngine(object):
         """
         raise NotImplementedError('Virtual base class member method fit_peaks()')
 
-    # TODO NEW - Implement
-    def fit_multiple_peaks(self, sub_run_range, peak_function_name, background_function_name,
-                           peak_center_list, peak_range_list, cal_center_d):
-        """Fit multiple peaks
-
-        Parameters
-        ----------
-        sub_run_range
-        peak_function_name
-        background_function_name
-        peak_center_list
-        peak_range_list
-        cal_center_d
-
-        Returns
-        -------
-        List of ~pyrs.core.peak_collection.PeakCollection
-
-        """
+    # # TODO NEW - Implement
+    # def fit_multiple_peaks(self, sub_run_range, peak_function_name, background_function_name,
+    #                        peak_center_list, peak_range_list, cal_center_d):
+    #     """Fit multiple peaks
+    #
+    #     Parameters
+    #     ----------
+    #     sub_run_range
+    #     peak_function_name
+    #     background_function_name
+    #     peak_center_list
+    #     peak_range_list
+    #     cal_center_d
+    #
+    #     Returns
+    #     -------
+    #     List of ~pyrs.core.peak_collection.PeakCollection
+    #
+    #     """
+    #     return
 
     @staticmethod
     def _fit_peaks_checks(sub_run_range, peak_function_name, background_function_name, peak_center, peak_range,
@@ -211,89 +222,6 @@ class PeakFitEngine(object):
         """
         raise NotImplementedError('Virtual base class member method get_calculated_peak()')
 
-    def get_fit_cost(self, max_chi2):
-        raise NotImplementedError('This is virtual')
-
-    def _get_fitted_parameters_value(self, spectrum_index_vec, parameter_name_list, param_value_array):
-        raise NotImplementedError('This is virtual')
-
-    def get_fitted_params(self, param_name_list, including_error, max_chi2=1.E20):
-        """ Get specified parameters' fitted value and optionally error with optionally filtered value
-        :param param_name_list:
-        :param including_error:
-        :param max_chi2: Default is including all.
-        :return: 3-tuple: (1) (n, ) vector for sub run number (2) costs
-                          (3) (p, n, 1) or (p, n, 2) vector for parameter values
-                            and
-                            optionally fitting error: p = number of parameters , n = number of sub runs
-        """
-        # Deal with multiple default
-        if max_chi2 is None:
-            max_chi2 = 1.E20
-
-        # Check inputs
-        checkdatatypes.check_list('Function parameters', param_name_list)
-        checkdatatypes.check_bool_variable('Flag to output fitting error', including_error)
-        checkdatatypes.check_float_variable('Maximum cost chi^2', max_chi2, (1, None))
-
-        # Get number of sub-runs meets the requirement
-        spec_index_vec, fit_cost_vec = self.get_fit_cost(max_chi2)
-
-        # init parameters
-        num_sub_runs = fit_cost_vec.shape[0]
-        num_params = len(param_name_list)
-        if including_error:
-            num_items = 2
-        else:
-            num_items = 1
-        param_value_array = numpy.zeros(shape=(num_params, num_sub_runs, num_items), dtype='float')
-
-        # Set values of parameters
-        self._get_fitted_parameters_value(spec_index_vec, param_name_list, param_value_array)
-
-        # Convert
-        sub_runs_vec = self._hd_workspace.get_sub_runs_from_spectrum(spec_index_vec)
-
-        return sub_runs_vec, fit_cost_vec, param_value_array
-
-    def get_fitted_effective_params(self, including_error, max_chi2=1.E20):
-        """
-        Get the effective peak parameters including
-        peak position, peak height, peak intensity, FWHM and Mixing
-
-        Parameters
-        ----------
-        including_error: boolean
-            returned will include fitting error
-        max_chi2: float
-            filtering with chi2
-
-        Returns
-        -------
-        list, ndarray, ndarray, ndarray
-            list of string: effective parameter names
-            (n,) for sub run numbers
-            (n,) for fitting cost
-            (p, n, 1) or (p, n, 2) for fitted parameters value,
-            p = number of parameters , n = number of sub runs, 2 containing fitting error
-        """
-        # Create native -> effective parameters converter
-        print('[DB...BAT] Current peak function: {}'.format(self._peak_function_name))
-        converter = peak_profile_utility.get_effective_parameters_converter(self._peak_function_name)
-
-        # Get raw peak parameters
-        param_name_list = converter.get_native_peak_param_names()
-        param_name_list.extend(converter.get_native_background_names())
-        sub_run_array, fit_cost_array, param_value_array = self.get_fitted_params(param_name_list,
-                                                                                  including_error,
-                                                                                  max_chi2)
-
-        # Convert
-        effective_params_list, effective_param_value_array =\
-            converter.calculate_effective_parameters(param_name_list, param_value_array)
-
-        return effective_params_list, sub_run_array, fit_cost_array, effective_param_value_array
-
     def get_number_scans(self):
         """ Get number of scans in input data to fit
         :return:
@@ -308,6 +236,9 @@ class PeakFitEngine(object):
         assert self._hd_workspace is not None, 'No HidraWorkspace has been set up.'
 
         return self._hd_workspace
+
+    def get_peaks(self, peak_tag):
+        return self._peak_collection_dict[peak_tag]
 
     def get_peak_param_names(self, peak_function, is_effective):
         """ Get the peak parameter names
