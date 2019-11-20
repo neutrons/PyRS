@@ -42,5 +42,5 @@ class LoadProjectFile:
         # Fill in self.ui.frame_subRunInfoTable
         meta_data_array = self.parent._core.reduction_manager.get_sample_logs_values(self.parent._project_data_id,
                                                                                      [HidraConstants.SUB_RUNS,
-                                                                                     HidraConstants.TWO_THETA])
+                                                                                      HidraConstants.TWO_THETA])
         self.parent.ui.rawDataTable.add_subruns_info(meta_data_array, clear_table=True)

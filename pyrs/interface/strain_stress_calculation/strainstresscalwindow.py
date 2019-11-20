@@ -659,8 +659,9 @@ class StrainStressCalculationWindow(QMainWindow):
         # check with current session
         if self._session_name is not None and session_name == self._session_name:
             pyrs.interface.gui_helper.pop_message(self, 'Invalid name for a new session',
-                                                  detailed_message='User specified new session name is same as previous '
-                                                  'session name {}'.format(session_name),
+                                                  detailed_message='User specified new session name '
+                                                                   'is same as previous '
+                                                                   'session name {}'.format(session_name),
                                                   message_type='error')
             return
         elif self._session_name is not None:
