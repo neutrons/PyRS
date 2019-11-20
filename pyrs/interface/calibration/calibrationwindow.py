@@ -186,8 +186,8 @@ class InstrumentCalibrationWindow(QMainWindow):
         # resolution
         try:
             resolution = gui_helper.parse_line_edit(resolution_edit, float,
-                                                                   throw_if_blank=False,
-                                                                   edit_name='Resolution')
+                                                    throw_if_blank=False,
+                                                    edit_name='Resolution')
         except RuntimeError as run_err:
             gui_helper.pop_message(self, '{}'.format(run_err))
             resolution = None
@@ -241,8 +241,8 @@ class InstrumentCalibrationWindow(QMainWindow):
         # resolution
         try:
             resolution = gui_helper.parse_line_edit(resolution_edit, float,
-                                                                   throw_if_blank=False,
-                                                                   edit_name='Resolution')
+                                                    throw_if_blank=False,
+                                                    edit_name='Resolution')
         except RuntimeError as run_err:
             gui_helper.pop_message(self, '{}'.format(run_err))
             resolution = None
@@ -311,7 +311,7 @@ class InstrumentCalibrationWindow(QMainWindow):
                                                                                    load_to_workspace=False)
         except RuntimeError as run_err:
             gui_helper.pop_message(self, message_type='error', message='Unable to load data {}'.format(file_name),
-                                                  detailed_message='{}'.format(run_err))
+                                   detailed_message='{}'.format(run_err))
 
         return
 
@@ -362,8 +362,8 @@ class InstrumentCalibrationWindow(QMainWindow):
                                                            ''.format(mask_file_name, two_theta, note))
         except RuntimeError as run_err:
             gui_helper.pop_message(self, message='Unable to load {}'.format(mask_file_name),
-                                                  message_type='error',
-                                                  detailed_message='{}'.format(run_err))
+                                   message_type='error',
+                                   detailed_message='{}'.format(run_err))
             return
 
         # update UI
@@ -386,7 +386,7 @@ class InstrumentCalibrationWindow(QMainWindow):
             cal_rot_y = gui_helper.parse_line_edit(self.ui.lineEdit_rotationY, float, False, 'Rotation Y', default=0.)
             cal_rot_z = gui_helper.parse_line_edit(self.ui.lineEdit_rotationZ, float, False, 'Rotation Z', default=0.)
             cal_wave_length = gui_helper.parse_line_edit(self.ui.lineEdit_wavelength, float, False, 'Rotation Z',
-                                                                        default=1.)
+                                                         default=1.)
         except RuntimeError as run_err:
             gui_helper.pop_message(self, 'Unable to parse calibration value', str(run_err), 'error')
             return

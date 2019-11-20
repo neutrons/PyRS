@@ -107,7 +107,6 @@ class FitPeaksWindow(QMainWindow):
         self.ui.checkBox_keepPrevPlot.setVisible(False)
         self.ui.checkBox_autoFit.setVisible(False)
 
-
     # Menu event handler
     def browse_hdf(self):
         """ Browse Hidra project HDF file
@@ -135,8 +134,6 @@ class FitPeaksWindow(QMainWindow):
         o_plot = Plot(parent=self)
         o_plot.plot_prev_scan()
 
-
-
     def _promote_peak_fit_setup(self):
         # 2D detector view
         curr_layout = QVBoxLayout()
@@ -144,7 +141,6 @@ class FitPeaksWindow(QMainWindow):
         self._ui_graphicsView_fitSetup = PeakFitSetupView(self)
 
         curr_layout.addWidget(self._ui_graphicsView_fitSetup)
-
 
     def _init_widgets(self):
         """
@@ -161,13 +157,6 @@ class FitPeaksWindow(QMainWindow):
 
         # check boxes
         self.ui.checkBox_autoSaveFitResult.setChecked(True)
-
-        return
-
-
-
-
-
 
     def do_launch_adv_fit(self):
         """
@@ -199,7 +188,6 @@ class FitPeaksWindow(QMainWindow):
             self._sample_log_name_set.add(sample_log)
         self._sample_log_names_mutex = False
 
-
     def do_make_movie(self):
         """
         plot all the fitted data for each scan log index and save the figure to PNG files
@@ -227,7 +215,6 @@ class FitPeaksWindow(QMainWindow):
 
         # TODO - 20180809 - Pop the following command
         # TODO - continue - command to pop: ffmpeg -r 24 -framerate 8 -pattern_type glob -i '*_fit.png' out.mp4
-
 
     def do_plot_2d_data(self):
         """
@@ -263,9 +250,9 @@ class FitPeaksWindow(QMainWindow):
             vec_x, vec_y = self.get_function_parameter_data(y_axis_name)
         elif x_axis_name in self._function_param_name_set or y_axis_name in self._function_param_name_set:
             pyrs.interface.gui_helper.pop_message(self, 'It has not considered how to plot 2 function parameters '
-                                         '{} and {} against each other'
-                                         ''.format(x_axis_name, y_axis_name),
-                                                  message_type='error')
+                                                        '{} and {} against each other'
+                                                        ''.format(x_axis_name, y_axis_name),
+                                                        message_type='error')
             return
         else:
             vec_x = self.get_meta_sample_data(x_axis_name)
@@ -299,8 +286,10 @@ class FitPeaksWindow(QMainWindow):
         save fit result
         :return:
         """
-        file_name = pyrs.interface.gui_helper.browse_file(self, 'Select file to save fit result', default_dir=self._core.working_dir,
-                                                          file_filter='HDF (*.hdf5);;CSV (*.csv)', file_list=False,
+        file_name = pyrs.interface.gui_helper.browse_file(self, 'Select file to save fit result',
+                                                          default_dir=self._core.working_dir,
+                                                          file_filter='HDF (*.hdf5);;CSV (*.csv)',
+                                                          file_list=False,
                                                           save_file=True)
 
         if file_name.lower().endswith('hdf5') or file_name.lower().endswith('hdf') or file_name.lower().endswith('h5'):
@@ -308,7 +297,8 @@ class FitPeaksWindow(QMainWindow):
         elif file_name.lower().endswith('csv') or file_name.endswith('dat'):
             self.export_fit_result(file_name)
         else:
-            pyrs.interface.gui_helper.pop_message(self, message='Input file {} has an unsupported posfix.'.format(file_name),
+            pyrs.interface.gui_helper.pop_message(self,
+                                                  message='Input file {} has an unsupported posfix.'.format(file_name),
                                                   detailed_message='Supported are hdf5, h5, hdf, csv and dat',
                                                   message_type='error')
 

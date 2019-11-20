@@ -25,8 +25,8 @@ class LoadProjectFile:
         except (RuntimeError, IOError) as load_err:
             self.parent._hydra_workspace = None
             pop_message(self.parent, 'Loading {} failed'.format(project_file_name),
-                                                  detailed_message='{}'.format(load_err),
-                                                  message_type='error')
+                        detailed_message='{}'.format(load_err),
+                        message_type='error')
             return
 
         # Set value for the loaded project
@@ -41,6 +41,6 @@ class LoadProjectFile:
 
         # Fill in self.ui.frame_subRunInfoTable
         meta_data_array = self.parent._core.reduction_manager.get_sample_logs_values(self.parent._project_data_id,
-                                                                              [HidraConstants.SUB_RUNS,
-                                                                               HidraConstants.TWO_THETA])
+                                                                                     [HidraConstants.SUB_RUNS,
+                                                                                     HidraConstants.TWO_THETA])
         self.parent.ui.rawDataTable.add_subruns_info(meta_data_array, clear_table=True)

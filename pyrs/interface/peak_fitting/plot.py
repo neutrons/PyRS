@@ -39,8 +39,6 @@ class Plot:
         if len(err_msg) > 0:
             pop_message(self, err_msg, message_type='error')
 
-
-
     def plot_diff_and_fitted_data(self, sub_run_number, plot_model):
         """Plot a set of diffraction data (one scan log index) and plot its fitted data
 
@@ -60,9 +58,6 @@ class Plot:
         diff_data_set = self.parent._core.get_diffraction_data(session_name=self.parent._project_name,
                                                                sub_run=sub_run_number,
                                                                mask=None)
-
-
-        print("in plot_diff_and_fitted_data")
 
         data_set_label = 'Scan {0}'.format(sub_run_number)
 
@@ -109,7 +104,6 @@ class Plot:
 
         o_gui = GuiUtilities(parent=self.parent)
         o_gui.check_prev_next_sub_runs_widgets()
-
 
     def plot_next_scan(self):
         """ plot the next scan (log index)

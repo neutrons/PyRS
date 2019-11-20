@@ -373,6 +373,7 @@ class PeakFitSetupView(MplFitPlottingWidget):
         # call to clean lines
         self.clear_canvas()
 
+
 class SampleSliceView(slice_view_widget.SliceViewWidget):
     """
     2D contour view for sliced sample

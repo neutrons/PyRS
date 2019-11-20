@@ -324,8 +324,6 @@ class QtMplFitCanvas(FigureCanvas):
                                             linestyle=line_style, linewidth=line_width)
 
         self._data_subplot.set_aspect('auto')
-        print("max value is : " )
-        print(np.nanmax(vec_y))
 
         real_max = np.nanmax(vec_y)
         max_value_with_offset = real_max + 0.1*real_max

@@ -582,7 +582,8 @@ class TextureAnalysisWindow(QMainWindow):
             except ValueError:
                 max_cost = 100.
                 self.ui.lineEdit_maxCost.setText('{}'.format(max_cost))
-                pyrs.interface.gui_helper.pop_message(self, '{} is not a recognized float'.format(max_cost_str), message_type='error')
+                pyrs.interface.gui_helper.pop_message(self, '{} is not a recognized float'.format(max_cost_str),
+                                                      message_type='error')
                 return
         # END-IF-ELSE
 

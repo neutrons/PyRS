@@ -512,7 +512,7 @@ class StrainStressCalculationWindow(QMainWindow):
         # current session is not canceled: ask user whether it is OK to delete and start a new one
         if self._curr_data_key is not None:
             continue_load = pyrs.interface.gui_helper.get_user_permit(caption='Current session shall be closed '
-                                                               'before new session is started.', )
+                                                                              'before new session is started.', )
             if continue_load is False:
                 return
         # END-IF (need to save)
@@ -531,13 +531,15 @@ class StrainStressCalculationWindow(QMainWindow):
             for dir_ss, file_name in [('E11', e11_file_name), ('E22', e22_file_name),
                                       ('E33', e33_file_name)]:
                 if file_name == '':
-                    pyrs.interface.gui_helper.pop_message(self, '{} file is not given'.format(dir_ss), message_type='error')
+                    pyrs.interface.gui_helper.pop_message(self,
+                                                          '{} file is not given'.format(dir_ss),
+                                                          message_type='error')
                     return
             # END-FOR
             if e11_file_name == e22_file_name or e22_file_name == e33_file_name or e11_file_name == e33_file_name:
                 pyrs.interface.gui_helper.pop_message(self, 'E11/E22/E33 have duplicates.',
                                                       detailed_message='E11/E22/E33 file names: {}, {} and {}'
-                                                        ''.format(e11_file_name, e22_file_name, e33_file_name),
+                                                      ''.format(e11_file_name, e22_file_name, e33_file_name),
                                                       message_type='error')
                 return
 
@@ -556,7 +558,9 @@ class StrainStressCalculationWindow(QMainWindow):
         # END-IF
 
         if not load_success:
-            pyrs.interface.gui_helper.pop_message(self, message='Not all files are loaded correctly', message_type='info')
+            pyrs.interface.gui_helper.pop_message(self,
+                                                  message='Not all files are loaded correctly',
+                                                  message_type='info')
             return
 
         # convert the peak centers to d-spacing
@@ -656,7 +660,7 @@ class StrainStressCalculationWindow(QMainWindow):
         if self._session_name is not None and session_name == self._session_name:
             pyrs.interface.gui_helper.pop_message(self, 'Invalid name for a new session',
                                                   detailed_message='User specified new session name is same as previous '
-                                                    'session name {}'.format(session_name),
+                                                  'session name {}'.format(session_name),
                                                   message_type='error')
             return
         elif self._session_name is not None:
@@ -804,7 +808,7 @@ class StrainStressCalculationWindow(QMainWindow):
             self._core.strain_stress_calculator.load_reduced_file(file_name=file_name, direction=direction)
         except RuntimeError as run_error:
             pyrs.interface.gui_helper.pop_message(self, message='Unable to load reduced HB2B diffraction file {} '
-                                                 'due to {}'.format(file_name, run_error))
+                                                  'due to {}'.format(file_name, run_error))
             return False
 
         # set up the combo box for 3 directions
@@ -1122,8 +1126,10 @@ class StrainStressCalculationWindow(QMainWindow):
         file_name = str(self.ui.lineEdit_outputFileName.text()).strip()
         if file_name == '':
             # file name is not defined
-            file_name = pyrs.interface.gui_helper.browse_file(self, 'Save Strain and Stress', self._core.working_dir,
-                                                              file_list=False, save_file=True, file_filter='CSV (*.csv)')
+            file_name = pyrs.interface.gui_helper.browse_file(self, 'Save Strain and Stress',
+                                                              self._core.working_dir,
+                                                              file_list=False, save_file=True,
+                                                              file_filter='CSV (*.csv)')
             if file_name == '' or file_name is None:
                 return
             else:
@@ -1133,7 +1139,8 @@ class StrainStressCalculationWindow(QMainWindow):
         try:
             self._core.strain_stress_calculator.save_strain_stress(file_name)
         except RuntimeError as run_err:
-            pyrs.interface.gui_helper.pop_message(self, message_type='error', message='Unable to save strain and stress',
+            pyrs.interface.gui_helper.pop_message(self, message_type='error',
+                                                  message='Unable to save strain and stress',
                                                   detailed_message=str(run_err))
 
         return

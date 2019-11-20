@@ -20,7 +20,7 @@ class EventHandler:
 
         # Use IPTS and run number to get the default Hydra HDF
 
-        ## FIXME maybe recover auto name of hidra file
+        # FIXME maybe recover auto name of hidra file
         # hydra_file_name = self._get_default_hdf()
         hidra_file_name = None
         if hidra_file_name is None:
@@ -46,7 +46,7 @@ class EventHandler:
             o_gui.enabled_fitting_widgets(True)
         except RuntimeError as run_err:
             pop_message(self, 'Failed to load {}'.format(hidra_file_name),
-                                                  str(run_err), 'error')
+                        str(run_err), 'error')
 
         o_gui = GuiUtilities(parent=self.parent)
         o_gui.check_prev_next_sub_runs_widgets()
@@ -155,5 +155,3 @@ class EventHandler:
             self.parent.ui.comboBox_yaxisNames.addItem(sample_log)
             self.parent._sample_log_name_set.add(sample_log)
         self.parent._sample_log_names_mutex = False
-
-

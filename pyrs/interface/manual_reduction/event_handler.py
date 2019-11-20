@@ -50,4 +50,3 @@ class EventHandler:
                         None, 'error')
         else:
             print('Loaded {} to {}'.format(project_h5_name, self._project_data_id))
-

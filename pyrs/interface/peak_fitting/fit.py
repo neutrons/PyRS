@@ -50,7 +50,7 @@ class Fit:
                                                                                     return_format=dict,
                                                                                     effective_parameter=False)
         except AttributeError as err:
-            pop_message(self, 'Zoom in/out to only show peak to fit!', "", "error")
+            pop_message(self, 'Zoom in/out to only show peak to fit!', err, "error")
             return
 
         # TODO - #84+ - Need to implement the option as effective_parameter=True
@@ -76,10 +76,12 @@ class Fit:
         self.parent.ui.comboBox_xaxisNames.addItem('Center of mass')
         self.parent.ui.comboBox_yaxisNames.addItem('Center of mass')
         # keep current selected item unchanged
-        size_x = len(self.parent._sample_log_names) + \
-                 len(self.parent._function_param_name_set) + 2  # log index and center of mass
-        size_y = len(self.parent._sample_log_names) + \
-                 len(self.parent._function_param_name_set) + 1  # center of mass
+
+        # log index and center of mass
+        size_x = len(self.parent._sample_log_names) + len(self.parent._function_param_name_set) + 2
+
+        # center of mass
+        size_y = len(self.parent._sample_log_names) + len(self.parent._function_param_name_set) + 1
 
         if curr_x_index < size_x:
             # keep current set up

@@ -21,7 +21,7 @@ class GuiUtilities:
                         self.parent.ui.checkBox_fitSubRuns,
                         self.parent.ui.checkBox_autoSaveFitResult,
                         self.parent.ui.pushButton_saveFitResult,
-                       ]
+                        ]
         self.enabled_list_widgets(list_widgets=list_widgets,
                                   enabled=enabled)
 

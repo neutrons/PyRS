@@ -19,6 +19,7 @@ from pyrs.interface.manual_reduction.event_handler import EventHandler
 # TODO              5. Implement method to reduce data
 # TODO              6. Add parameters for reducing data
 
+
 class ManualReductionWindow(QMainWindow):
     """
     GUI window for user to fit peaks
@@ -148,19 +149,13 @@ class ManualReductionWindow(QMainWindow):
         o_handler = EventHandler(parent=self)
         o_handler.load_project_file()
 
-
-
-
-
-
-
     def do_browse_calibration_file(self):
         """ Browse and set up calibration file
         :return:
         """
         calibration_file = gui_helper.browse_file(self, caption='Choose and set up the calibration file',
-                                                                 default_dir=self._core.working_dir, file_filter='hdf5 (*hdf)',
-                                                                 file_list=False, save_file=False)
+                                                  default_dir=self._core.working_dir, file_filter='hdf5 (*hdf)',
+                                                  file_list=False, save_file=False)
         if calibration_file is None or calibration_file == '':
             # operation canceled
             return
@@ -201,7 +196,7 @@ class ManualReductionWindow(QMainWindow):
         :return:
         """
         output_dir = gui_helper.browse_dir(self, caption='Output directory for reduced data',
-                                                          default_dir=os.path.expanduser('~'))
+                                           default_dir=os.path.expanduser('~'))
         if output_dir != '':
             self.ui.lineEdit_outputDir.setText(output_dir)
             self._core.reduction_service.set_output_dir(output_dir)
@@ -229,14 +224,14 @@ class ManualReductionWindow(QMainWindow):
             data_key = self._core.reduction_service.chop_data()
         except RuntimeError as run_err:
             gui_helper.pop_message(self, message='Unable to slice data', detailed_message=str(run_err),
-                                                  message_type='error')
+                                   message_type='error')
             return
 
         try:
             self._core.reduction_service.reduced_chopped_data(data_key)
         except RuntimeError as run_err:
             gui_helper.pop_message(self, message='Failed to reduce sliced data', detailed_message=str(run_err),
-                                                  message_type='error')
+                                   message_type='error')
             return
 
         # fill the run numbers to plot selection
@@ -258,7 +253,6 @@ class ManualReductionWindow(QMainWindow):
         # self._slice_setup_window = slicersetupwindow.EventSlicerSetupWindow(self)
         # self._slice_setup_window.show()
         raise NotImplementedError('Slicer setup window has not implemented.')
-
 
     def do_plot(self):
         """ Plot detector counts as 2D detector view view OR reduced data according to the tab that is current on
@@ -482,8 +476,8 @@ class ManualReductionWindow(QMainWindow):
         gui_helper.pop_message(self, 'Tell me', 'What do you want from me!', 'error')
 
         bin_file = gui_helper.browse_file(self, caption='Select a SPICE Image Binary File',
-                                                         default_dir=self._core.working_dir,
-                                                         file_filter='Binary (*.bin)', file_list=False, save_file=False)
+                                          default_dir=self._core.working_dir,
+                                          file_filter='Binary (*.bin)', file_list=False, save_file=False)
 
         # return if user cancels operation
         if bin_file == '':
