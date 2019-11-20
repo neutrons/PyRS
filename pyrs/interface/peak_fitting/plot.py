@@ -56,9 +56,13 @@ class Plot:
         None
         """
         # get experimental data and plot
+        # diff data set is [x_axis, y axis]
         diff_data_set = self.parent._core.get_diffraction_data(session_name=self.parent._project_name,
                                                                sub_run=sub_run_number,
                                                                mask=None)
+
+
+        print("in plot_diff_and_fitted_data")
 
         data_set_label = 'Scan {0}'.format(sub_run_number)
 
@@ -67,16 +71,17 @@ class Plot:
                                                                    data_reference=data_set_label)
 
         # Plot fitted model data
+        model_data_set = None
         if plot_model:
             model_data_set = self.parent._core.get_modeled_data(session_name=self.parent._project_name,
                                                                 sub_run=sub_run_number)
 
-        # if model_data_set is not None:
-        #     residual_y_vec = diff_data_set[1] - model_data_set[1]
-        #     residual_data_set = [diff_data_set[0], residual_y_vec]
-        #     self.parent._ui_graphicsView_fitSetup.plot_model_data(diff_data_set=model_data_set,
-        #                                                           model_label='',
-        #                                                           residual_set=residual_data_set)
+        if model_data_set is not None:
+            residual_y_vec = diff_data_set[1] - model_data_set[1]
+            residual_data_set = [diff_data_set[0], residual_y_vec]
+            self.parent._ui_graphicsView_fitSetup.plot_model_data(diff_data_set=model_data_set,
+                                                                  model_label='fit',
+                                                                  residual_set=residual_data_set)
 
     def plot_scan(self, is_next=True):
         """ plot the next or previous scan (log index)

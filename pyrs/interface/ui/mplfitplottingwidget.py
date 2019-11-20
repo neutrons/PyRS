@@ -4,6 +4,7 @@
 
 from pyrs.interface.ui.mplgraphicsview1d import MyNavigationToolbar
 from matplotlib.figure import Figure
+import numpy as np
 from qtpy.QtWidgets import QWidget, QVBoxLayout
 from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
 from pyrs.interface.ui.mplconstants import MplBasicColors
@@ -323,6 +324,12 @@ class QtMplFitCanvas(FigureCanvas):
                                             linestyle=line_style, linewidth=line_width)
 
         self._data_subplot.set_aspect('auto')
+        print("max value is : " )
+        print(np.nanmax(vec_y))
+
+        real_max = np.nanmax(vec_y)
+        max_value_with_offset = real_max + 0.1*real_max
+        self._data_subplot.set_ylim([0, max_value_with_offset])
 
         # set/update legend
         self._setup_legend()
