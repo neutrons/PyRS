@@ -17,11 +17,11 @@ def test_main():
 
     # load data
     test_hd_ws = rs_core.load_hidra_project(test_data, 'test core', False, True)
-    assert test_hd_ws
+    assert test_hd_ws is not None
 
     # Get sub runs
     sub_runs = rs_core.reduction_service.get_sub_runs('test core')
-    assert sub_runs
+    assert sub_runs is not None
 
     # Get sample logs
     log_names = rs_core.reduction_service.get_sample_logs_names('test core', None)

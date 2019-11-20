@@ -568,11 +568,39 @@ class HidraProjectFile(object):
 
         return profile, background, sub_run_array, chi2_array, param_values, error_values
 
-    def write_peak_fit_result(self, peak_tag, peak_profile, background_type, sub_run_vec, fit_cost_array,
-                              param_value_array, param_error_array):
+    # def write_peak_fit_result(self, peak_tag, peak_profile, background_type, sub_run_vec, fit_cost_array,
+    #                           param_value_array, param_error_array):
+    #    """Set the peak fitting results to project file.
+
+    #    The tree structure for fitted peak in all sub runs is defined as
+    #    - peaks
+    #        - [peak-tag]
+    #            - attr/'peak profile'
+    #            - sub runs
+    #            - parameter values
+    #            - parameter fitting error
+
+    #    Parameters
+    #    ----------
+    #    peak_tag : str
+    #        peak tag
+    #    peak_profile : str
+    #        peak function name
+    #    background_type : str
+    #        background function
+    #    sub_run_vec : ~numpy.ndarray
+    #        sub run number
+    #    fit_cost_array :  ~numpy.ndarray
+    #        fitting cost (chi2)
+    #    param_value_array : ~numpy.ndarray
+    #        structured numpy array for peak + background (fitted) value
+    #    param_error_array : ~numpy.ndarray
+    #        structured numpy array for peak + background fitting error
+    #    """
+    def write_peak_fit_result(self, fitted_peaks):
         """Set the peak fitting results to project file.
 
-        The tree structure for fitted peak in all sub runs is defined as
+         The tree structure for fitted peak in all sub runs is defined as
         - peaks
             - [peak-tag]
                 - attr/'peak profile'
@@ -582,23 +610,19 @@ class HidraProjectFile(object):
 
         Parameters
         ----------
-        peak_tag : str
-            peak tag
-        peak_profile : str
-            peak function name
-        background_type : str
-            background function
-        sub_run_vec : ~numpy.ndarray
-            sub run number
-        fit_cost_array :  ~numpy.ndarray
-            fitting cost (chi2)
-        param_value_array : ~numpy.ndarray
-            structured numpy array for peak + background (fitted) value
-        param_error_array : ~numpy.ndarray
-            structured numpy array for peak + background fitting error
+        fitted_peaks : pyrs.core.peak_collection.PeakCollection
+
+        Returns
+        -------
+
         """
         # Check inputs and file status
         self._validate_write_operation()
+
+        # Get value from peak collection
+        peak_tag = fitted_peaks.peak_tag
+        peak_profile = fitted_peaks.peak_profile
+        background_type = fitted_peaks.background_type
 
         checkdatatypes.check_string_variable('Peak tag', peak_tag)
         checkdatatypes.check_string_variable('Peak profile', peak_profile)
@@ -618,10 +642,10 @@ class HidraProjectFile(object):
         self.set_attributes(single_peak_entry, HidraConstants.PEAK_PROFILE, peak_profile)
         self.set_attributes(single_peak_entry, HidraConstants.BACKGROUND_TYPE, background_type)
 
-        single_peak_entry.create_dataset(HidraConstants.SUB_RUNS, data=sub_run_vec)
-        single_peak_entry.create_dataset(HidraConstants.PEAK_FIT_CHI2, data=fit_cost_array)
-        single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS, data=param_value_array)
-        single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS_ERROR, data=param_error_array)
+        single_peak_entry.create_dataset(HidraConstants.SUB_RUNS, data=fitted_peaks.sub_runs)
+        single_peak_entry.create_dataset(HidraConstants.PEAK_FIT_CHI2, data=fitted_peaks.fitting_costs)
+        single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS, data=fitted_peaks.parameters_values)
+        single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS_ERROR, data=fitted_peaks.parameters_errors)
 
     def read_wavelengths(self):
         """

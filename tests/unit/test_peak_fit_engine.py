@@ -143,7 +143,9 @@ def test_gaussian():
     fit_engine = MantidPeakFitEngine(gaussian_workspace, mask_name=None)
 
     # Fit
-    fit_engine.fit_peaks(sub_run_range=(1, 1),
+    m_tag = 'UnitTestGaussian'
+    fit_engine.fit_peaks(peak_tag=m_tag,
+                         sub_run_range=(1, 1),
                          peak_function_name='Gaussian',
                          background_function_name='Linear',
                          peak_center=peak_center,
@@ -160,20 +162,20 @@ def test_gaussian():
 
     # Test the fitted parameters
     # Read data
-    eff_param_list, sub_runs, fit_costs, effective_param_values =\
-        fit_engine.get_fitted_effective_params(True)
+    eff_param_list, sub_runs, fit_costs, effective_param_values, effective_param_errors =\
+        fit_engine.get_peaks(m_tag).get_effective_parameters_values()
 
     # Read data again for raw data
     native_params = NATIVE_PEAK_PARAMETERS['Gaussian'][:]
     native_params.extend(NATIVE_BACKGROUND_PARAMETERS['Linear'])
-    sub_runs2, fit_cost2, param_values = fit_engine.get_fitted_params(native_params, True)
+    sub_runs2, fit_cost2, param_values, param_errors = fit_engine.get_peaks(m_tag).get_parameters_values(native_params)
 
     # Test
     assert sub_runs.shape == (1, ) == sub_runs2.shape
     assert np.allclose(fit_cost2, fit_costs, 0.0000001)
 
     # Effective paramter list: ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
-    assert effective_param_values[0, 0, 0] == param_values[1, 0, 0]   # center
+    assert effective_param_values[0, 0] == param_values[1, 0]   # center
 
     # fit goodness
     assert fit_costs[0] < 0.5, 'Fit cost (chi2 = {}) is too large'.format(fit_costs[0])
@@ -197,7 +199,9 @@ def test_pseudo_voigt():
     fit_engine = MantidPeakFitEngine(gaussian_workspace, mask_name=None)
 
     # Fit
-    fit_engine.fit_peaks(sub_run_range=(1, 1),
+    peak_tag = 'UnitTestPseudoVoigt'
+    fit_engine.fit_peaks(peak_tag=peak_tag,
+                         sub_run_range=(1, 1),
                          peak_function_name='PseudoVoigt',
                          background_function_name='Linear',
                          peak_center=peak_center,
@@ -214,13 +218,14 @@ def test_pseudo_voigt():
 
     # Test the fitted parameters
     # Read data
-    eff_param_list, sub_runs, fit_costs, effective_param_values =\
-        fit_engine.get_fitted_effective_params(True)
+    eff_param_list, sub_runs, fit_costs, effective_param_values, effective_param_errors =\
+        fit_engine.get_peaks(peak_tag).get_effective_parameters_values()
 
     # Read data again for raw data
     native_params = NATIVE_PEAK_PARAMETERS['PseudoVoigt'][:]
     native_params.extend(NATIVE_BACKGROUND_PARAMETERS['Linear'])
-    sub_runs2, fit_cost2, param_values = fit_engine.get_fitted_params(native_params, True)
+    sub_runs2, fit_cost2, param_values, param_errors =\
+        fit_engine.get_peaks(peak_tag).get_parameters_values(native_params)
     print('Ordered native parameters: {}'.format(native_params))
 
     # Test
@@ -229,9 +234,9 @@ def test_pseudo_voigt():
 
     # Effective parameter list: ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
     # Native parameters: ['Mixing', 'Intensity', 'PeakCentre', 'FWHM', 'A0', 'A1']
-    assert effective_param_values[4, 0, 0] == param_values[0, 0, 0]  # mixing
-    assert effective_param_values[0, 0, 0] == param_values[2, 0, 0]  # center
-    assert effective_param_values[2, 0, 0] == param_values[1, 0, 0]  # intensity
+    assert effective_param_values[4, 0] == param_values[0, 0]  # mixing
+    assert effective_param_values[0, 0] == param_values[2, 0]  # center
+    assert effective_param_values[2, 0] == param_values[1, 0]  # intensity
 
     # fit goodness
     assert fit_costs[0] < 0.5, 'Fit cost (chi2 = {}) is too large'.format(fit_costs[0])
