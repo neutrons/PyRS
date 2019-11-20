@@ -12,7 +12,6 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
     """
     peak fitting engine class for mantid
     """
-
     def __init__(self, workspace, mask_name):
         """ Initialization to set up the workspace for fitting
         :param workspace: Hidra workspace to get the diffraction peaks from
@@ -318,7 +317,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         # Set to dictionary
         self._peak_collection_dict[peak_tag] = peak_object
 
-        return  peak_object
+        return peak_object
 
     # FIXME - Abstract to base class and re-implement
     @staticmethod

@@ -1,6 +1,5 @@
 # This is the virtual base class as the fitting frame
 import numpy
-import math
 from pyrs.core import workspaces
 from pyrs.utilities import rs_project_file
 from pyrs.core import peak_profile_utility

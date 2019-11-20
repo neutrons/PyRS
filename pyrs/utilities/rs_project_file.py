@@ -6,7 +6,6 @@ import numpy
 import os
 from pyrs.utilities import checkdatatypes
 from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSetup
-from pyrs.core.peak_collection import PeakCollection
 
 
 class HidraConstants(object):

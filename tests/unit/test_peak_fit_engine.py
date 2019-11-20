@@ -3,7 +3,6 @@ from pyrs.core.mantid_fit_peak import MantidPeakFitEngine
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.core.peak_profile_utility import pseudo_voigt, NATIVE_BACKGROUND_PARAMETERS, NATIVE_PEAK_PARAMETERS
 from pyrs.core.peak_profile_utility import Gaussian, PseudoVoigt
-from pyrs.core.peak_collection import PeakCollection
 import pytest
 from matplotlib import pyplot as plt
 
