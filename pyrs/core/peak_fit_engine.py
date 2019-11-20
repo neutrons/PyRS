@@ -28,16 +28,21 @@ class PeakFitEngine(object):
         # wave length information
         self._wavelength_dict = None
 
-        # for fitted result
-        self._peak_center_vec = None  # 2D vector for observed center of mass and highest data point
-        self._peak_center_d_vec = None  # 1D vector for calculated center in d-spacing
+        # Fitted peak parameters
+        self._peak_collection_dict = dict()   # key: peak tag, value: PeakCollection
 
+        # for fitted result
+        # self._peak_center_vec = None  # 2D vector for observed center of mass and highest data point
+        # self._peak_center_d_vec = None  # 1D vector for calculated center in d-spacing
+
+        # FIXME - These data structures are replaced by PeakCollection
         # Peak function
-        self._peak_function_name = None
-        self._background_function_name = None
-        self._fit_cost_array = None
-        self._peak_params_value_array = None
-        self._peak_params_error_array = None
+        # self._peak_function_name = None
+        # self._background_function_name = None
+        # self._fit_cost_array = None
+        # self._peak_params_value_array = None
+        # self._peak_params_error_array = None
+
         # shall be a structured numpy array
         # columns are peak and background parameters names, rows are index corresponding to sorted run numbers
 
@@ -101,7 +106,7 @@ class PeakFitEngine(object):
 
         Parameters
         ----------
-        hydra_project_file
+        hydra_project_file : pyrs.utilities.rs_project_file.HidraProjectFile
         peak_tag
 
         Returns
@@ -111,25 +116,36 @@ class PeakFitEngine(object):
         # Check input
         checkdatatypes.check_type('Hidra project file', hydra_project_file, rs_project_file.HidraProjectFile)
 
-        # Get parameter values
-        sub_run_vec = self._hd_workspace.get_sub_runs()
+        hydra_project_file.write_peak_fit_result(self._peak_collection_dict[peak_tag])
 
-        hydra_project_file.write_peak_fit_result(peak_tag, self._peak_function_name, self._background_function_name,
-                                                 sub_run_vec, self._fit_cost_array, self._peak_params_value_array,
-                                                 self._peak_params_error_array)
+        # Get parameter values
+        # sub_run_vec = self._hd_workspace.get_sub_runs()
+
+        # hydra_project_file.write_peak_fit_result(peak_tag, self._peak_function_name, self._background_function_name,
+        #                                          sub_run_vec, self._fit_cost_array, self._peak_params_value_array,
+        #                                          self._peak_params_error_array)
 
         return
 
-    def fit_peaks(self, sub_run_range, peak_function_name, background_function_name, peak_center, peak_range,
-                  cal_center_d):
-        """ Fit peaks with option to calculate peak center in d-spacing
-        :param sub_run_range: range of sub runs (including both end) to refine
-        :param peak_function_name:
-        :param background_function_name:
-        :param peak_center:
-        :param peak_range:
-        :param cal_center_d:
-        :return:
+    def fit_peaks(self, peak_tag, sub_run_range, peak_function_name, background_function_name, peak_center,
+                  peak_range, cal_center_d):
+        """Fit peaks with option to calculate peak center in d-spacing
+
+        Parameters
+        ----------
+        peak_tag
+        sub_run_range : 2-tuple
+            start sub run (None as first 1) and end sub run (None as last 1) for
+            range of sub runs (including both end) to refine
+        peak_function_name
+        background_function_name
+        peak_center
+        peak_range
+        cal_center_d
+
+        Returns
+        -------
+
         """
         raise NotImplementedError('Virtual base class member method fit_peaks()')
 
