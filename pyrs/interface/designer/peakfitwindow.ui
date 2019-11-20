@@ -18,14 +18,14 @@
     <item row="2" column="0">
      <layout class="QGridLayout" name="gridLayout_3">
       <item row="0" column="0">
-       <widget class="QLabel" name="label_4">
+       <widget class="QLabel" name="label_sub_runs">
         <property name="text">
          <string>Sub runs</string>
         </property>
        </widget>
       </item>
       <item row="1" column="0">
-       <widget class="QLabel" name="label_7">
+       <widget class="QLabel" name="label_functions">
         <property name="text">
          <string>Functions</string>
         </property>
@@ -122,7 +122,27 @@
       <item row="0" column="1">
        <layout class="QHBoxLayout" name="horizontalLayout_5">
         <item>
-         <widget class="QLineEdit" name="lineEdit_scanNumbers"/>
+         <widget class="QLineEdit" name="lineEdit_scanNumbers">
+          <property name="minimumSize">
+           <size>
+            <width>100</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>300</width>
+            <height>16777215</height>
+           </size>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_4">
+          <property name="text">
+           <string>(ex: 1,2,3)</string>
+          </property>
+         </widget>
         </item>
         <item>
          <widget class="QPushButton" name="pushButton_plotPreviousScan">
@@ -134,19 +154,37 @@
         <item>
          <widget class="QPushButton" name="pushButton_plotNextScan">
           <property name="text">
-           <string>|&gt;</string>
+           <string>&gt;|</string>
           </property>
          </widget>
         </item>
         <item>
-         <widget class="QLabel" name="label_8">
+         <widget class="QLabel" name="label_min">
+          <property name="maximumSize">
+           <size>
+            <width>50</width>
+            <height>16777215</height>
+           </size>
+          </property>
+          <property name="layoutDirection">
+           <enum>Qt::LeftToRight</enum>
+          </property>
           <property name="text">
            <string>min: </string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
           </property>
          </widget>
         </item>
         <item>
          <widget class="QLabel" name="label_logIndexMin">
+          <property name="maximumSize">
+           <size>
+            <width>50</width>
+            <height>16777215</height>
+           </size>
+          </property>
           <property name="text">
            <string>0</string>
           </property>
@@ -169,14 +207,29 @@
          </spacer>
         </item>
         <item>
-         <widget class="QLabel" name="label_10">
+         <widget class="QLabel" name="label_max">
+          <property name="maximumSize">
+           <size>
+            <width>50</width>
+            <height>16777215</height>
+           </size>
+          </property>
           <property name="text">
            <string>max:</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
           </property>
          </widget>
         </item>
         <item>
          <widget class="QLabel" name="label_logIndexMax">
+          <property name="maximumSize">
+           <size>
+            <width>50</width>
+            <height>16777215</height>
+           </size>
+          </property>
           <property name="text">
            <string>-1</string>
           </property>
@@ -295,16 +348,6 @@
          <widget class="QPushButton" name="pushButton_browseHDF">
           <property name="text">
            <string>Browse</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QCheckBox" name="checkBox_autoLoad">
-          <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If chcked, file will be loaded automatically with Browsing the file&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
-          <property name="text">
-           <string>Auto Load</string>
           </property>
          </widget>
         </item>
@@ -525,7 +568,7 @@
      <x>0</x>
      <y>0</y>
      <width>1561</width>
-     <height>25</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

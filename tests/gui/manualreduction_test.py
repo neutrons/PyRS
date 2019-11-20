@@ -2,7 +2,7 @@
 # In order to test GUI for manual_reduction analysis
 from pyrs.core import pyrscore
 import sys
-from pyrs.interface import manualreductionwindow
+from pyrs.interface.manual_reduction import manualreductionwindow
 from qtpy.QtWidgets import QApplication
 
 

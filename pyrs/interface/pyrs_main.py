@@ -3,10 +3,10 @@ from qtpy.QtWidgets import QMainWindow, QSizePolicy, QWidget, QLabel, QMenuBar, 
 from pyrs.utilities import load_ui
 
 from pyrs.core import pyrscore
-import fitpeakswindow
-import textureanalysiswindow
-import strainstresscalwindow
-import manualreductionwindow
+from pyrs.interface.peak_fitting import fitpeakswindow
+from pyrs.interface.texture_analysis import textureanalysiswindow
+from pyrs.interface.strain_stress_calculation import strainstresscalwindow
+from pyrs.interface.manual_reduction import manualreductionwindow
 
 # include this try/except block to remap QString needed when using IPython
 try:
@@ -116,7 +116,7 @@ class PyRSLauncher(QMainWindow):
 
         :return:
         """
-        import calibrationwindow
+        from pyrs.interface.calibration import calibrationwindow
         # core
         pyrs_core = pyrscore.PyRsCore()
 

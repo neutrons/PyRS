@@ -6,7 +6,7 @@ from pyrs.interface.ui.rstables import PoleFigureTable
 from pyrs.interface.ui.diffdataviews import PeakFitSetupView, GeneralDiffDataView, Diffraction2DPlot
 import pyrs.core.pyrscore
 import os
-import gui_helper
+import pyrs.interface.gui_helper
 import numpy
 import platform
 
@@ -112,7 +112,7 @@ class TextureAnalysisWindow(QMainWindow):
         if len(int_string_list) == 0:
             scan_log_index = None
         else:
-            scan_log_index = gui_helper.parse_integers(int_string_list)
+            scan_log_index = pyrs.interface.gui_helper.parse_integers(int_string_list)
 
         return scan_log_index
 
@@ -122,10 +122,10 @@ class TextureAnalysisWindow(QMainWindow):
         :return:
         """
         try:
-            ipts_number = gui_helper.parse_integer(self.ui.lineEdit_iptsNumber)
-            run_number = gui_helper.parse_integer(self.ui.lineEdit_expNumber)
+            ipts_number = pyrs.interface.gui_helper.parse_integer(self.ui.lineEdit_iptsNumber)
+            run_number = pyrs.interface.gui_helper.parse_integer(self.ui.lineEdit_expNumber)
         except RuntimeError as run_err:
-            gui_helper.pop_message(self, 'Unable to parse IPTS or Exp due to {0}'.format(run_err))
+            pyrs.interface.gui_helper.pop_message(self, 'Unable to parse IPTS or Exp due to {0}'.format(run_err))
             return None
 
         # TODO - NEED TO FIND OUT HOW TO DEFINE hdf FROM IPTS and EXP
@@ -141,9 +141,9 @@ class TextureAnalysisWindow(QMainWindow):
         try:
             self._core.calculate_pole_figure(data_key=self._data_key, detector_id_list=det_id_list)
         except RuntimeError as run_err:
-            gui_helper.pop_message(self, message='Failed to calculate pole figure',
-                                   detailed_message='{}'.format(run_err),
-                                   message_type='error')
+            pyrs.interface.gui_helper.pop_message(self, message='Failed to calculate pole figure',
+                                                  detailed_message='{}'.format(run_err),
+                                                  message_type='error')
             return
 
         # get result out and show in table
@@ -238,7 +238,7 @@ class TextureAnalysisWindow(QMainWindow):
 
         # Error message
         if error_msg != '':
-            gui_helper.pop_message(self, 'Loading error', error_msg, 'error')
+            pyrs.interface.gui_helper.pop_message(self, 'Loading error', error_msg, 'error')
 
         return
 
@@ -396,15 +396,15 @@ class TextureAnalysisWindow(QMainWindow):
         :return:
         """
         # gather the information
-        det_id = gui_helper.parse_integer(str(self.ui.comboBox_detectorIDsPlotPeak.currentText()))
-        scan_log_index_list = gui_helper.parse_integers(str(self.ui.lineEdit_scanNumbers.text()))
+        det_id = pyrs.interface.gui_helper.parse_integer(str(self.ui.comboBox_detectorIDsPlotPeak.currentText()))
+        scan_log_index_list = pyrs.interface.gui_helper.parse_integers(str(self.ui.lineEdit_scanNumbers.text()))
         det_id_list = [det_id] * len(scan_log_index_list)
         # else:
         #     if len(det_id_list) != len(scan_log_index_list):
         #         gui_helper.pop_message('Number of detectors and scans do not match!', 'error')
 
         if len(scan_log_index_list) == 0:
-            gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
+            pyrs.interface.gui_helper.pop_message(self, 'There is not scan-log index input', 'error')
             return
 
         # possibly clean the previous
@@ -446,7 +446,7 @@ class TextureAnalysisWindow(QMainWindow):
 
         if len(err_msg) > 0:
             raise RuntimeError(err_msg)
-            gui_helper.pop_message(self, err_msg, message_type='error')
+            pyrs.interface.gui_helper.pop_message(self, err_msg, message_type='error')
 
         return
 
@@ -520,9 +520,9 @@ class TextureAnalysisWindow(QMainWindow):
         else:
             file_filter = 'MTEX (*.jul);;ASCII (*.dat);;All Files (*.*)'
 
-        file_name = gui_helper.browse_file(self, caption='Save Pole Figure To ASCII File',
-                                           default_dir=self._core.working_dir, file_filter=file_filter,
-                                           file_list=False, save_file=True)
+        file_name = pyrs.interface.gui_helper.browse_file(self, caption='Save Pole Figure To ASCII File',
+                                                          default_dir=self._core.working_dir, file_filter=file_filter,
+                                                          file_list=False, save_file=True)
 
         # return/quit if action is cancelled
         if len(file_name) == 0:
@@ -582,7 +582,8 @@ class TextureAnalysisWindow(QMainWindow):
             except ValueError:
                 max_cost = 100.
                 self.ui.lineEdit_maxCost.setText('{}'.format(max_cost))
-                gui_helper.pop_message(self, '{} is not a recognized float'.format(max_cost_str), message_type='error')
+                pyrs.interface.gui_helper.pop_message(self, '{} is not a recognized float'.format(max_cost_str),
+                                                      message_type='error')
                 return
         # END-IF-ELSE
 
@@ -657,7 +658,7 @@ class TextureAnalysisWindow(QMainWindow):
         # get data key
         data_key = self._core.current_data_reference_id
         if data_key is None:
-            gui_helper.pop_message(self, 'No data loaded', 'error')
+            pyrs.interface.gui_helper.pop_message(self, 'No data loaded', 'error')
             return
 
         if name == 'Log Index':

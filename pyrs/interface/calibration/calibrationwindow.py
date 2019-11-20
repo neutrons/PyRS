@@ -5,8 +5,8 @@ from qtpy.QtWidgets import QMainWindow, QFileDialog, QVBoxLayout, QHBoxLayout, Q
 import pyrs.core.pyrscore
 from pyrs.core.instrument_geometry import AnglerCameraDetectorShift
 import os
-import gui_helper
-from ui import diffdataviews
+from pyrs.interface import gui_helper
+from pyrs.interface.ui import diffdataviews
 
 # setup of constants
 SLICE_VIEW_RESOLUTION = 0.0001
@@ -323,6 +323,7 @@ class InstrumentCalibrationWindow(QMainWindow):
         print('[DB...BAT] Parsed line edit value: {} of type {}'.format(curr_mask_file, type(curr_mask_file)))
 
         # whether it has been loaded
+
         if curr_mask_file in self._core.reduction_service.get_loaded_mask_files():
             gui_helper.pop_message(self, message='Mask {} has been loaded', message_type='info',
                                    detailed_message='If need to load a new mask, clear the file name in editor')

@@ -1,15 +1,16 @@
 from qtpy.QtWidgets import QMainWindow, QVBoxLayout
+import os
+
 from pyrs.utilities import load_ui
 
 from pyrs.core.pyrscore import PyRsCore
 from pyrs.utilities import calibration_file_io
-from ui.diffdataviews import DetectorView, GeneralDiffDataView
-import os
-import gui_helper
+from pyrs.interface.ui.diffdataviews import DetectorView, GeneralDiffDataView
+from pyrs.interface import gui_helper
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.rs_project_file import HidraConstants
 from pyrs.interface.ui import rstables
-
+from pyrs.interface.manual_reduction.event_handler import EventHandler
 
 # TODO LIST - #84 - 1. UI: change segments to masks
 # TODO              2. UI: add solid angle input
@@ -17,6 +18,7 @@ from pyrs.interface.ui import rstables
 # TODO              4. Implement plot method for reduced data
 # TODO              5. Implement method to reduce data
 # TODO              6. Add parameters for reducing data
+
 
 class ManualReductionWindow(QMainWindow):
     """
@@ -85,6 +87,10 @@ class ManualReductionWindow(QMainWindow):
         self._slice_setup_window = None
 
         # menu operation
+
+        # load NeXus
+        self.ui.actionLoad_nexus_file.triggered.connect(self.load_nexus_file)
+
         self.ui.actionLoad_Image.triggered.connect(self.event_load_image)
         # Load project file (*.h5)
         self.ui.actionLoad_Project_File.triggered.connect(self.do_load_project_h5)
@@ -132,6 +138,16 @@ class ManualReductionWindow(QMainWindow):
         gui_helper.promote_widget(self.ui.frame_subRunInfoTable, self.ui.rawDataTable)
 
         return
+
+    # Menu event handler
+
+    def load_nexus_file(self):
+        o_handler = EventHandler(parent=self)
+        o_handler.load_nexus_file()
+
+    def do_load_project_h5(self):
+        o_handler = EventHandler(parent=self)
+        o_handler.load_project_file()
 
     def do_browse_calibration_file(self):
         """ Browse and set up calibration file
@@ -237,25 +253,6 @@ class ManualReductionWindow(QMainWindow):
         # self._slice_setup_window = slicersetupwindow.EventSlicerSetupWindow(self)
         # self._slice_setup_window.show()
         raise NotImplementedError('Slicer setup window has not implemented.')
-
-    def do_load_project_h5(self):
-        """ Load project file in HDF5 format
-        :return:
-        """
-        project_h5_name = gui_helper.browse_file(self, 'HIDRA Project File', os.getcwd(),
-                                                 file_filter='*.hdf5;;*.h5', file_list=False,
-                                                 save_file=False)
-
-        try:
-            self.load_hydra_file(project_h5_name)
-        except RuntimeError as run_err:
-            gui_helper.pop_message(self, 'Failed to load project file {}: {}'.format(project_h5_name, run_err),
-                                   None, 'error')
-        else:
-            print('Loaded {} to {}'.format(project_h5_name, self._project_data_id))
-        # END-TRY-EXCEPT
-
-        return
 
     def do_plot(self):
         """ Plot detector counts as 2D detector view view OR reduced data according to the tab that is current on
@@ -525,42 +522,41 @@ class ManualReductionWindow(QMainWindow):
 
         return
 
-    def load_hydra_file(self, project_file_name):
-        """
-        Load Hidra project file to the core
-        :param project_file_name:
-        :return:
-        """
-        # Load data file
-        project_name = os.path.basename(project_file_name).split('.')[0]
-        try:
-            self._hydra_workspace = self._core.load_hidra_project(project_file_name, project_name=project_name,
-                                                                  load_detector_counts=True, load_diffraction=True)
-        except (RuntimeError, IOError) as load_err:
-            self._hydra_workspace = None
-            gui_helper.pop_message(self, 'Loading {} failed'.format(project_file_name),
-                                   detailed_message='{}'.format(load_err),
-                                   message_type='error')
-            return
-
-        # Set value for the loaded project
-        self._project_file_name = project_file_name
-        self._project_data_id = project_name
-
-        # Fill sub runs to self.ui.comboBox_sub_runs
-        self._set_sub_runs()
-
-        # Set to first sub run and plot
-        self.ui.comboBox_sub_runs.setCurrentIndex(0)
-
-        # Fill in self.ui.frame_subRunInfoTable
-        # TODO FIXME SOON! - Well define output from get_sample_logs_values!
-        # meta_data_array = self._core.reduction_service.get_sample_logs_values(self._project_data_id,
-        #                                                                       [HidraConstants.SUB_RUNS,
-        #                                                                        HidraConstants.TWO_THETA])
-        # self.ui.rawDataTable.add_subruns_info(meta_data_array, clear_table=True)
-
-        return
+    # def load_hydra_file(self, project_file_name):
+    #     """
+    #     Load Hidra project file to the core
+    #     :param project_file_name:
+    #     :return:
+    #     """
+    #     # Load data file
+    #     project_name = os.path.basename(project_file_name).split('.')[0]
+    #     try:
+    #         self._hydra_workspace = self._core.load_hidra_project(project_file_name, project_name=project_name,
+    #                                                               load_detector_counts=True, load_diffraction=True)
+    #     except (RuntimeError, IOError) as load_err:
+    #         self._hydra_workspace = None
+    #         gui_helper.pop_message(self, 'Loading {} failed'.format(project_file_name),
+    #                                               detailed_message='{}'.format(load_err),
+    #                                               message_type='error')
+    #         return
+    #
+    #     # Set value for the loaded project
+    #     self._project_file_name = project_file_name
+    #     self._project_data_id = project_name
+    #
+    #     # Fill sub runs to self.ui.comboBox_sub_runs
+    #     self._set_sub_runs()
+    #
+    #     # Set to first sub run and plot
+    #     self.ui.comboBox_sub_runs.setCurrentIndex(0)
+    #
+    #     # Fill in self.ui.frame_subRunInfoTable
+    #     meta_data_array = self._core.reduction_manager.get_sample_logs_values(self._project_data_id,
+    #                                                                           [HidraConstants.SUB_RUNS,
+    #                                                                            HidraConstants.TWO_THETA])
+    #     self.ui.rawDataTable.add_subruns_info(meta_data_array, clear_table=True)
+    #
+    #     return
 
     def plot_detector_counts(self, sub_run_number, mask_id):
         """

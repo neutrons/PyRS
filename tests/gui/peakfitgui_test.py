@@ -2,7 +2,7 @@
 # In order to test the peak fit window (GUI)
 from pyrs.core import pyrscore
 import sys
-from pyrs.interface import fitpeakswindow
+from pyrs.interface.peak_fitting import fitpeakswindow
 from qtpy.QtWidgets import QApplication
 
 
