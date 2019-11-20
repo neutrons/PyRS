@@ -30,25 +30,10 @@ class PeakFitEngine(object):
         # Fitted peak parameters
         self._peak_collection_dict = dict()   # key: peak tag, value: PeakCollection
 
-        # for fitted result
-        # self._peak_center_vec = None  # 2D vector for observed center of mass and highest data point
-        # self._peak_center_d_vec = None  # 1D vector for calculated center in d-spacing
-
-        # FIXME - These data structures are replaced by PeakCollection
-        # Peak function
-        # self._peak_function_name = None
-        # self._background_function_name = None
-        # self._fit_cost_array = None
-        # self._peak_params_value_array = None
-        # self._peak_params_error_array = None
-
-        # shall be a structured numpy array
-        # columns are peak and background parameters names, rows are index corresponding to sorted run numbers
-
         return
 
-    def calculate_peak_position_d(self, wave_length):
-        """Calculate peak positions in d-spacing
+    def calculate_peak_position_d(self, peak_tag, wave_length):
+        """Calculate peak positions in d-spacing after peak fitting is done
 
         Output: result will be saved to self._peak_center_d_vec
 
@@ -69,44 +54,44 @@ class PeakFitEngine(object):
         print(wave_length)
         print(self._peak_collection_dict.keys())
 
-        # try:
-        #     r = self.get_fitted_params(peak_tag, param_name_list=['PeakCentre'], including_error=True)
-        # except KeyError:
-        #     r = self.get_fitted_params(peak_tag, param_name_list=['centre'], including_error=True)
-        # sub_run_vec = r[0]
-        # params_vec = r[2]
-        #
-        # # Other parameters
-        # num_sub_runs = sub_run_vec.shape[0]
-        #
-        # # Process wave length
-        # if isinstance(wave_length, numpy.ndarray):
-        #     assert wave_length.shape[0] == num_sub_runs
-        #     various_wl = True
-        #     wl = 0
-        # else:
-        #     various_wl = False
-        #     wl = wave_length
-        #
-        # # init vector for peak center in d-spacing with error
-        # self._peak_center_d_vec = numpy.ndarray((params_vec.shape[1], 2), params_vec.dtype)
-        #
-        # for sb_index in range(num_sub_runs):
-        #     # convert to d-spacing: both fitted value and fitting error
-        #     # set wave length if various to sub runs
-        #     if various_wl:
-        #         wl = wave_length[sb_index]
-        #
-        #     # calculate peak position and propagating fitting error
-        #     for sub_index in range(2):
-        #         peak_i_2theta_j = params_vec[0][sb_index][sub_index]
-        #         if wl:
-        #             peak_i_d_j = wl * 0.5 / math.sin(peak_i_2theta_j * 0.5 * math.pi / 180.)
-        #         else:
-        #             # case for None or zero
-        #             peak_i_d_j = -1  # return a non-physical number
-        #         self._peak_center_d_vec[sb_index][0] = peak_i_d_j
-        # # END-FOR
+        try:
+            r = self.get_fitted_params(peak_tag, param_name_list=['PeakCentre'], including_error=True)
+        except KeyError:
+            r = self.get_fitted_params(peak_tag, param_name_list=['centre'], including_error=True)
+        sub_run_vec = r[0]
+        params_vec = r[2]
+
+        # Other parameters
+        num_sub_runs = sub_run_vec.shape[0]
+
+        # Process wave length
+        if isinstance(wave_length, numpy.ndarray):
+            assert wave_length.shape[0] == num_sub_runs
+            various_wl = True
+            wl = 0
+        else:
+            various_wl = False
+            wl = wave_length
+
+        # init vector for peak center in d-spacing with error
+        self._peak_center_d_vec = numpy.ndarray((params_vec.shape[1], 2), params_vec.dtype)
+
+        for sb_index in range(num_sub_runs):
+            # convert to d-spacing: both fitted value and fitting error
+            # set wave length if various to sub runs
+            if various_wl:
+                wl = wave_length[sb_index]
+
+            # calculate peak position and propagating fitting error
+            for sub_index in range(2):
+                peak_i_2theta_j = params_vec[0][sb_index][sub_index]
+                if wl:
+                    peak_i_d_j = wl * 0.5 / math.sin(peak_i_2theta_j * 0.5 * math.pi / 180.)
+                else:
+                    # case for None or zero
+                    peak_i_d_j = -1  # return a non-physical number
+                self._peak_center_d_vec[sb_index][0] = peak_i_d_j
+        # END-FOR
 
         return
 
@@ -127,17 +112,10 @@ class PeakFitEngine(object):
 
         hydra_project_file.write_peak_fit_result(self._peak_collection_dict[peak_tag])
 
-        # Get parameter values
-        # sub_run_vec = self._hd_workspace.get_sub_runs()
-
-        # hydra_project_file.write_peak_fit_result(peak_tag, self._peak_function_name, self._background_function_name,
-        #                                          sub_run_vec, self._fit_cost_array, self._peak_params_value_array,
-        #                                          self._peak_params_error_array)
-
         return
 
     def fit_peaks(self, peak_tag, sub_run_range, peak_function_name, background_function_name, peak_center,
-                  peak_range, cal_center_d):
+                  peak_range):
         """Fit peaks with option to calculate peak center in d-spacing
 
         Parameters
@@ -150,7 +128,6 @@ class PeakFitEngine(object):
         background_function_name
         peak_center
         peak_range
-        cal_center_d
 
         Returns
         -------
@@ -158,26 +135,26 @@ class PeakFitEngine(object):
         """
         raise NotImplementedError('Virtual base class member method fit_peaks()')
 
-    # # TODO NEW - Implement
-    # def fit_multiple_peaks(self, sub_run_range, peak_function_name, background_function_name,
-    #                        peak_center_list, peak_range_list, cal_center_d):
-    #     """Fit multiple peaks
-    #
-    #     Parameters
-    #     ----------
-    #     sub_run_range
-    #     peak_function_name
-    #     background_function_name
-    #     peak_center_list
-    #     peak_range_list
-    #     cal_center_d
-    #
-    #     Returns
-    #     -------
-    #     List of ~pyrs.core.peak_collection.PeakCollection
-    #
-    #     """
-    #     return
+    # TODO NEW - Implement
+    def fit_multiple_peaks(self, sub_run_range, peak_function_name, background_function_name,
+                           peak_center_list, peak_range_list, cal_center_d):
+        """Fit multiple peaks
+
+        Parameters
+        ----------
+        sub_run_range
+        peak_function_name
+        background_function_name
+        peak_center_list
+        peak_range_list
+        cal_center_d
+
+        Returns
+        -------
+        List of ~pyrs.core.peak_collection.PeakCollection
+
+        """
+        return
 
     @staticmethod
     def _fit_peaks_checks(sub_run_range, peak_function_name, background_function_name, peak_center, peak_range,
