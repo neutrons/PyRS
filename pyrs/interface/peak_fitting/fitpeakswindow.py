@@ -105,8 +105,7 @@ class FitPeaksWindow(QMainWindow):
 
         # see if we can get rid of those buttons
         self.ui.pushButton_plotPeaks.setVisible(False)
-        self.ui.checkBox_keepPrevPlot.setVisible(False)
-        self.ui.checkBox_autoFit.setVisible(False)
+        self.ui.checkBox_autoSaveFitResult.setVisible(False)
 
     # Menu event handler
     def browse_hdf(self):

@@ -13,14 +13,13 @@ class GuiUtilities:
                         self.parent.ui.label_max,
                         self.parent.ui.label_logIndexMin,
                         self.parent.ui.label_logIndexMax,
-                        self.parent.ui.checkBox_keepPrevPlot,
                         self.parent.ui.pushButton_plotPeaks,
                         self.parent.ui.comboBox_peakType,
                         self.parent.ui.comboBox_backgroundType,
                         self.parent.ui.pushButton_fitPeaks,
-                        self.parent.ui.checkBox_fitSubRuns,
-                        self.parent.ui.checkBox_autoSaveFitResult,
                         self.parent.ui.pushButton_saveFitResult,
+                        self.parent.ui.groupBox_FittingFunctions,
+                        self.parent.ui.groupBox_SubRuns,
                         ]
         self.enabled_list_widgets(list_widgets=list_widgets,
                                   enabled=enabled)
