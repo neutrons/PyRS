@@ -69,9 +69,9 @@ class FitPeaksWindow(QMainWindow):
         self.ui.lineEdit_scanNumbers.returnPressed.connect(self.plot_diff_data)
         self.ui.pushButton_browseHDF.clicked.connect(self.browse_hdf)
         self.ui.pushButton_plotPeaks.clicked.connect(self.plot_diff_data)
-        self.ui.pushButton_plotPreviousScan.clicked.connect(self.plot_prev_scan)
-        self.ui.pushButton_plotNextScan.clicked.connect(self.plot_next_scan)
+        # self.ui.pushButton_PlotNextScan.clicked.connect(self.plot_next_scan)
         self.ui.pushButton_fitPeaks.clicked.connect(self.fit_peaks)
+        self.ui.horizontalScrollBar_SubRuns.valueChanged.connect(self.)
         self.ui.pushButton_saveFitResult.clicked.connect(self.do_save_fit)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
@@ -126,13 +126,9 @@ class FitPeaksWindow(QMainWindow):
         o_fit = Fit(parent=self)
         o_fit.fit_peaks()
 
-    def plot_next_scan(self):
+    def plot_scan(self):
         o_plot = Plot(parent=self)
-        o_plot.plot_next_scan()
-
-    def plot_prev_scan(self):
-        o_plot = Plot(parent=self)
-        o_plot.plot_prev_scan()
+        o_plot.plot_scan()
 
     def _promote_peak_fit_setup(self):
         # 2D detector view
@@ -149,7 +145,6 @@ class FitPeaksWindow(QMainWindow):
         :return:
         """
         self.ui.pushButton_loadHDF.setEnabled(False)
-        self.ui.checkBox_autoFit.setChecked(True)
 
         # combo boxes
         self.ui.comboBox_2dPlotChoice.clear()

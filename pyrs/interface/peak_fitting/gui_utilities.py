@@ -4,21 +4,7 @@ class GuiUtilities:
         self.parent = parent
 
     def enabled_fitting_widgets(self, enabled=True):
-        list_widgets = [self.parent.ui.label_sub_runs,
-                        self.parent.ui.label_functions,
-                        self.parent.ui.lineEdit_scanNumbers,
-                        self.parent.ui.pushButton_plotPreviousScan,
-                        self.parent.ui.pushButton_plotNextScan,
-                        self.parent.ui.label_min,
-                        self.parent.ui.label_max,
-                        self.parent.ui.label_logIndexMin,
-                        self.parent.ui.label_logIndexMax,
-                        self.parent.ui.pushButton_plotPeaks,
-                        self.parent.ui.comboBox_peakType,
-                        self.parent.ui.comboBox_backgroundType,
-                        self.parent.ui.pushButton_fitPeaks,
-                        self.parent.ui.pushButton_saveFitResult,
-                        self.parent.ui.groupBox_FittingFunctions,
+        list_widgets = [self.parent.ui.groupBox_FittingFunctions,
                         self.parent.ui.groupBox_SubRuns,
                         ]
         self.enabled_list_widgets(list_widgets=list_widgets,
@@ -28,18 +14,18 @@ class GuiUtilities:
         for _widget in list_widgets:
             _widget.setEnabled(enabled)
 
-    def check_prev_next_sub_runs_widgets(self):
-
-        enabled_next = True
-        enabled_prev = True
-
-        if (str(self.parent.ui.lineEdit_scanNumbers.text()) == str(self.parent.ui.label_logIndexMin.text())):
-            enabled_prev = False
-        elif (str(self.parent.ui.lineEdit_scanNumbers.text()) == str(self.parent.ui.label_logIndexMax.text())):
-            enabled_next = False
-
-        self.parent.ui.pushButton_plotNextScan.setEnabled(enabled_next)
-        self.parent.ui.pushButton_plotPreviousScan.setEnabled(enabled_prev)
+    # def check_prev_next_sub_runs_widgets(self):
+    #
+    #     enabled_next = True
+    #     enabled_prev = True
+    #
+    #     if str(self.parent.ui.lineEdit_ScanNumbers.text()) == str(self.parent.ui.label_MinScanNumber.text()):
+    #         enabled_prev = False
+    #     elif str(self.parent.ui.lineEdit_ScanNumbers.text()) == str(self.parent.ui.label_MaxScanNumber.text()):
+    #         enabled_next = False
+    #
+    #     self.parent.ui.pushButton_PlotPreviousScan.setEnabled(enabled_prev)
+    #     self.parent.ui.pushButton_PlotNextScan.setEnabled(enabled_next)
 
     def enabled_data_fit_plot(self, enabled=True):
         self.parent._ui_graphicsView_fitSetup.setEnabled(enabled)
