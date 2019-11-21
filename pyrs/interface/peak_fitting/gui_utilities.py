@@ -14,19 +14,6 @@ class GuiUtilities:
         for _widget in list_widgets:
             _widget.setEnabled(enabled)
 
-    # def check_prev_next_sub_runs_widgets(self):
-    #
-    #     enabled_next = True
-    #     enabled_prev = True
-    #
-    #     if str(self.parent.ui.lineEdit_ScanNumbers.text()) == str(self.parent.ui.label_MinScanNumber.text()):
-    #         enabled_prev = False
-    #     elif str(self.parent.ui.lineEdit_ScanNumbers.text()) == str(self.parent.ui.label_MaxScanNumber.text()):
-    #         enabled_next = False
-    #
-    #     self.parent.ui.pushButton_PlotPreviousScan.setEnabled(enabled_prev)
-    #     self.parent.ui.pushButton_PlotNextScan.setEnabled(enabled_next)
-
     def enabled_data_fit_plot(self, enabled=True):
         self.parent._ui_graphicsView_fitSetup.setEnabled(enabled)
 
@@ -34,3 +21,18 @@ class GuiUtilities:
         self.parent.ui.horizontalScrollBar_SubRuns.setMaximum(max)
         self.parent.ui.horizontalScrollBar_SubRuns.setValue(1)
         self.parent.ui.horizontalScrollBar_SubRuns.setMinimum(1)
+
+    def check_subRuns_display_mode(self):
+        individual_radio_button_status = self.parent.ui.radioButton_individualSubRuns.isChecked()
+
+        list_ui_individual = [self.parent.ui.horizontalScrollBar_SubRuns,
+                              self.parent.ui.label_SubRunsValue]
+        list_ui_listruns = [self.parent.ui.label_listSubRunsHelp,
+                            self.parent.ui.lineEdit_listSubRuns]
+
+        self.enabled_list_widgets(list_widgets=list_ui_individual,
+                                  enabled=individual_radio_button_status)
+        self.enabled_list_widgets(list_widgets=list_ui_listruns,
+                                  enabled=(not individual_radio_button_status))
+
+

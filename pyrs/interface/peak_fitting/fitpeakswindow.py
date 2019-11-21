@@ -73,6 +73,8 @@ class FitPeaksWindow(QMainWindow):
         self.ui.pushButton_fitPeaks.clicked.connect(self.fit_peaks)
         self.ui.horizontalScrollBar_SubRuns.valueChanged.connect(self.plot_scan)
         self.ui.pushButton_saveFitResult.clicked.connect(self.do_save_fit)
+        self.ui.radioButton_individualSubRuns.clicked.connect(self.check_subRunsDisplayMode)
+        self.ui.radioButton_listSubRuns.clicked.connect(self.check_subRunsDisplayMode)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.actionSave_As.triggered.connect(self.do_save_as)
@@ -125,6 +127,10 @@ class FitPeaksWindow(QMainWindow):
     def fit_peaks(self):
         o_fit = Fit(parent=self)
         o_fit.fit_peaks()
+
+    def check_subRunsDisplayMode(self):
+        o_gui = GuiUtilities(parent=self)
+        o_gui.check_subRuns_display_mode()
 
     def plot_scan(self):
         o_plot = Plot(parent=self)

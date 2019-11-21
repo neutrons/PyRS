@@ -611,14 +611,14 @@
          <item row="1" column="1">
           <layout class="QHBoxLayout" name="horizontalLayout_6">
            <item>
-            <widget class="QLineEdit" name="lineEdit_3">
+            <widget class="QLineEdit" name="lineEdit_listSubRuns">
              <property name="enabled">
               <bool>false</bool>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QLabel" name="label_8">
+            <widget class="QLabel" name="label_listSubRunsHelp">
              <property name="enabled">
               <bool>false</bool>
              </property>
