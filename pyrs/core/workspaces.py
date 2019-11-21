@@ -171,19 +171,17 @@ class HidraWorkspace(object):
         """
         checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HidraProjectFile)
 
-        sub_runs, log_dict = hidra_file.read_sample_logs()
+        samplelogs = hidra_file.read_sample_logs()
 
         # Set sub runs
         if self._sub_run_array is None:
-            self.set_sub_runs(sub_runs)
+            self.set_sub_runs(samplelogs.subruns)
         else:
-            numpy.testing.assert_allclose(sub_runs, self._sub_run_array, rtol=1e-10)
+            numpy.testing.assert_allclose(samplelogs.subruns, self._sub_run_array, rtol=1e-10)
 
         # Set each sample log individually
-        for log_name in log_dict:
-            self.set_sample_log(log_name, sub_runs, log_dict[log_name])
-
-        return
+        for log_name in samplelogs:
+            self.set_sample_log(log_name, samplelogs.subruns, samplelogs[log_name])
 
     def _load_wave_length(self, hidra_file):
         """ Load wave length
@@ -735,5 +733,3 @@ class HidraWorkspace(object):
             self._wave_length_calibrated_dict = wl_dict
         else:
             self._wave_length_dict = wl_dict
-
-        return
