@@ -71,7 +71,7 @@ class FitPeaksWindow(QMainWindow):
         self.ui.pushButton_plotPeaks.clicked.connect(self.plot_diff_data)
         # self.ui.pushButton_PlotNextScan.clicked.connect(self.plot_next_scan)
         self.ui.pushButton_fitPeaks.clicked.connect(self.fit_peaks)
-        self.ui.horizontalScrollBar_SubRuns.valueChanged.connect(self.)
+        self.ui.horizontalScrollBar_SubRuns.valueChanged.connect(self.plot_scan)
         self.ui.pushButton_saveFitResult.clicked.connect(self.do_save_fit)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)

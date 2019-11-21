@@ -82,7 +82,7 @@ class Plot:
         """ plot the scan defined by the scroll bar or the text line according to radio button selected
         """
 
-        if self.parent.ui.radioButton_listSubRuns.isSelected():
+        if self.parent.ui.radioButton_listSubRuns.isChecked():
 
             pass
 
@@ -115,6 +115,5 @@ class Plot:
                 self.plot_diff_and_fitted_data(scan_value, True)
             except RuntimeError as run_err:
                 pass
-            else:
-                self.parent.ui.lineEdit_scanNumbers.setText('{}'.format(scan_log))
 
+            self.parent.ui.label_SubRunsValue.setText('{}'.format(scan_value))

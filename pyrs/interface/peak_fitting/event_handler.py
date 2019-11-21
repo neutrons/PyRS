@@ -101,7 +101,10 @@ class EventHandler:
                                                     .format(hydra_project_file, self.parent._project_name))
 
         # Get and set the range of sub runs
-        sub_run_list = self.get_and_set_subruns_limit()
+        sub_run_list = self.get_subruns_limit()
+
+        o_gui = GuiUtilities(parent=self.parent)
+        o_gui.initialize_fitting_slider(max=len(sub_run_list))
 
         # Set the widgets about viewer: get the sample logs and add the combo boxes for plotting
         sample_log_names = self.parent._core.reduction_service.get_sample_logs_names(self.parent._project_name,
@@ -132,15 +135,14 @@ class EventHandler:
         #                 message_type='warning')
 
         # enabled all fitting widgets
-        o_gui = GuiUtilities(parent=self.parent)
         o_gui.enabled_fitting_widgets(True)
 
-    def get_and_set_subruns_limit(self):
+    def get_subruns_limit(self):
         sub_run_list = self.parent._core.reduction_service.get_sub_runs(self.parent._project_name)
         # self.parent.ui.label_logIndexMin.setText(str(sub_run_list[0]))
         # self.parent.ui.label_logIndexMax.setText(str(sub_run_list[-1]))
-        self.parent.ui.label_MinScanNumber.setText(str(sub_run_list[0]))
-        self.parent.ui.label_MaxScanNumber.setText(str(sub_run_list[-1]))
+        # self.parent.ui.label_MinScanNumber.setText(str(sub_run_list[0]))
+        # self.parent.ui.label_MaxScanNumber.setText(str(sub_run_list[-1]))
         return sub_run_list
 
     def _set_sample_logs_for_plotting(self, sample_log_names):

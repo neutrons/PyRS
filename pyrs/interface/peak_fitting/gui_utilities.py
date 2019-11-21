@@ -29,3 +29,8 @@ class GuiUtilities:
 
     def enabled_data_fit_plot(self, enabled=True):
         self.parent._ui_graphicsView_fitSetup.setEnabled(enabled)
+
+    def initialize_fitting_slider(self, max=-1):
+        self.parent.ui.horizontalScrollBar_SubRuns.setMaximum(max)
+        self.parent.ui.horizontalScrollBar_SubRuns.setValue(1)
+        self.parent.ui.horizontalScrollBar_SubRuns.setMinimum(1)
