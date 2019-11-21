@@ -111,9 +111,6 @@ class EventHandler:
                                                                                      can_plot=True)
         self._set_sample_logs_for_plotting(sample_log_names)
 
-        # plot first peak for default peak range
-        self.parent.ui.lineEdit_scanNumbers.setText('1')
-
         o_plot = Plot(parent=self.parent)
         o_plot.plot_diff_data(plot_model=False)
 

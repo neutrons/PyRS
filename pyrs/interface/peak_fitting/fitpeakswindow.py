@@ -66,9 +66,9 @@ class FitPeaksWindow(QMainWindow):
 
         # set up handling
         self.ui.pushButton_loadHDF.clicked.connect(self.load_hidra_file)
-        self.ui.lineEdit_scanNumbers.returnPressed.connect(self.plot_diff_data)
+        # self.ui.lineEdit_scanNumbers.returnPressed.connect(self.plot_diff_data)
         self.ui.pushButton_browseHDF.clicked.connect(self.browse_hdf)
-        self.ui.pushButton_plotPeaks.clicked.connect(self.plot_diff_data)
+        # self.ui.pushButton_plotPeaks.clicked.connect(self.plot_diff_data)
         self.ui.lineEdit_listSubRuns.returnPressed.connect(self.plot_diff_data)
         self.ui.pushButton_fitPeaks.clicked.connect(self.fit_peaks)
         self.ui.horizontalScrollBar_SubRuns.valueChanged.connect(self.plot_scan)
@@ -103,10 +103,6 @@ class FitPeaksWindow(QMainWindow):
 
         o_gui = GuiUtilities(parent=self)
         o_gui.enabled_fitting_widgets(False)
-
-        # see if we can get rid of those buttons
-        self.ui.pushButton_plotPeaks.setVisible(False)
-        self.ui.checkBox_autoSaveFitResult.setVisible(False)
 
     # Menu event handler
     def browse_hdf(self):

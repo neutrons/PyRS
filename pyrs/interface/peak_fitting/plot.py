@@ -1,3 +1,5 @@
+import numpy as np
+
 from pyrs.interface.gui_helper import parse_integers
 from pyrs.interface.gui_helper import pop_message
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
@@ -26,6 +28,10 @@ class Plot:
         # keep_prev = self.ui.checkBox_keepPrevPlot.isChecked()
         # if keep_prev is False:
         self.parent._ui_graphicsView_fitSetup.reset_viewer()
+
+        if len(scan_log_index_list) == 1:
+            self.plot_scan(value=np.int(scan_log_index_list[0]))
+            return
 
         # get data and plot
         err_msg = ''
@@ -78,10 +84,14 @@ class Plot:
                                                                   model_label='fit',
                                                                   residual_set=residual_data_set)
 
-    def plot_scan(self):
+    def plot_scan(self, value=None):
         """ plot the scan defined by the scroll bar or the text line according to radio button selected
         """
-        scan_value = self.parent.ui.horizontalScrollBar_SubRuns.value()
+        if (value is None):
+            scan_value = self.parent.ui.horizontalScrollBar_SubRuns.value()
+        else:
+            scan_value = value
+
         try:
             self.parent._ui_graphicsView_fitSetup.reset_viewer()
             self.plot_diff_and_fitted_data(scan_value, True)
