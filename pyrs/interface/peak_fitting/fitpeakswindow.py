@@ -69,7 +69,7 @@ class FitPeaksWindow(QMainWindow):
         self.ui.lineEdit_scanNumbers.returnPressed.connect(self.plot_diff_data)
         self.ui.pushButton_browseHDF.clicked.connect(self.browse_hdf)
         self.ui.pushButton_plotPeaks.clicked.connect(self.plot_diff_data)
-        # self.ui.pushButton_PlotNextScan.clicked.connect(self.plot_next_scan)
+        self.ui.lineEdit_listSubRuns.returnPressed.connect(self.plot_diff_data)
         self.ui.pushButton_fitPeaks.clicked.connect(self.fit_peaks)
         self.ui.horizontalScrollBar_SubRuns.valueChanged.connect(self.plot_scan)
         self.ui.pushButton_saveFitResult.clicked.connect(self.do_save_fit)

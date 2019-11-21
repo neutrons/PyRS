@@ -15,7 +15,7 @@ class Plot:
         """
         # gather the information
         try:
-            scan_log_index_list = parse_integers(str(self.parent.ui.lineEdit_scanNumbers.text()))
+            scan_log_index_list = parse_integers(str(self.parent.ui.lineEdit_listSubRuns.text()))
         except RuntimeError as run_err:
             pop_message(self, "Unable to parse the string", message_type='error')
 
@@ -81,39 +81,11 @@ class Plot:
     def plot_scan(self):
         """ plot the scan defined by the scroll bar or the text line according to radio button selected
         """
-
-        if self.parent.ui.radioButton_listSubRuns.isChecked():
-
+        scan_value = self.parent.ui.horizontalScrollBar_SubRuns.value()
+        try:
+            self.parent._ui_graphicsView_fitSetup.reset_viewer()
+            self.plot_diff_and_fitted_data(scan_value, True)
+        except RuntimeError as run_err:
             pass
 
-            # scan_log_index_list = parse_integers(str(self.parent.ui.lineEdit_scanNumbers.text()))
-            # if len(scan_log_index_list) == 0:
-            #     pop_message(self, 'There is not scan-log index input', 'error')
-            # elif len(scan_log_index_list) > 1:
-            #     pop_message(self, 'There are too many scans for "next"', 'error')
-            # elif scan_log_index_list[0] == (int(self.parent.ui.label_logIndexMax.text()) if is_next else 0):
-            #     # if we are trying to plot the next, we check relative to the last_log_index, otherwise 0
-            #     return
-            #
-            # coeff = 1 if is_next else -1
-            # scan_log = scan_log_index_list[0] + coeff
-            # try:
-            #     self.parent._ui_graphicsView_fitSetup.reset_viewer()
-            #     self.plot_diff_and_fitted_data(scan_log, True)
-            # except RuntimeError as run_err:
-            #     mess = "next" if is_next else "previous"
-            #     err_msg = 'Unable to plot {} scan {} due to {}'.format(mess, scan_log, run_err)
-            #     pop_message(self, err_msg, message_type='error')
-            # else:
-            #     self.parent.ui.lineEdit_scanNumbers.setText('{}'.format(scan_log))
-
-        else:
-
-            scan_value = self.parent.ui.horizontalScrollBar_SubRuns.value()
-            try:
-                self.parent._ui_graphicsView_fitSetup.reset_viewer()
-                self.plot_diff_and_fitted_data(scan_value, True)
-            except RuntimeError as run_err:
-                pass
-
-            self.parent.ui.label_SubRunsValue.setText('{}'.format(scan_value))
+        self.parent.ui.label_SubRunsValue.setText('{}'.format(scan_value))
