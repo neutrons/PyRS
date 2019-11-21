@@ -41,9 +41,10 @@ class EventHandler:
         try:
             self.load_hidra_file(hydra_project_file=hidra_file_name)
 
-            # enabled all fitting widgets
+            # enabled all fitting widgets and main plot
             o_gui = GuiUtilities(parent=self.parent)
             o_gui.enabled_fitting_widgets(True)
+            o_gui.enabled_data_fit_plot(True)
         except RuntimeError as run_err:
             pop_message(self, 'Failed to load {}'.format(hidra_file_name),
                         str(run_err), 'error')

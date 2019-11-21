@@ -41,3 +41,6 @@ class GuiUtilities:
 
         self.parent.ui.pushButton_plotNextScan.setEnabled(enabled_next)
         self.parent.ui.pushButton_plotPreviousScan.setEnabled(enabled_prev)
+
+    def enabled_data_fit_plot(self, enabled=True):
+        self.parent._ui_graphicsView_fitSetup.setEnabled(enabled)

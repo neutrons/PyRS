@@ -53,12 +53,13 @@ class FitPeaksWindow(QMainWindow):
         # promote
         self.ui.graphicsView_fitResult = qt_util.promote_widget(self, self.ui.graphicsView_fitResult_frame,
                                                                 GeneralDiffDataView)
+        self.ui.graphicsView_fitResult.setEnabled(False)
         self.ui.graphicsView_fitResult.set_subplots(1, 1)
         self.ui.graphicsView_contourView = qt_util.promote_widget(self, self.ui.graphicsView_contourView_frame,
                                                                   DiffContourView)
+        self.ui.graphicsView_contourView.setEnabled(False)
         self.ui.tableView_fitSummary = qt_util.promote_widget(self, self.ui.tableView_fitSummary_frame,
                                                               FitResultTable)
-
         self._promote_peak_fit_setup()
 
         self._init_widgets()
@@ -139,6 +140,7 @@ class FitPeaksWindow(QMainWindow):
         curr_layout = QVBoxLayout()
         self.ui.frame_PeakView.setLayout(curr_layout)
         self._ui_graphicsView_fitSetup = PeakFitSetupView(self)
+        self._ui_graphicsView_fitSetup.setEnabled(False)
 
         curr_layout.addWidget(self._ui_graphicsView_fitSetup)
 
