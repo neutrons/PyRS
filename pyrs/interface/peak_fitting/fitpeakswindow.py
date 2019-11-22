@@ -70,9 +70,9 @@ class FitPeaksWindow(QMainWindow):
         self.ui.pushButton_browseHDF.clicked.connect(self.browse_hdf)
         # self.ui.pushButton_plotPeaks.clicked.connect(self.plot_diff_data)
         self.ui.lineEdit_listSubRuns.returnPressed.connect(self.plot_diff_data)
-        self.ui.pushButton_fitPeaks.clicked.connect(self.fit_peaks)
+        self.ui.pushButton_FitPeaks.clicked.connect(self.fit_peaks)
         self.ui.horizontalScrollBar_SubRuns.valueChanged.connect(self.plot_scan)
-        self.ui.pushButton_saveFitResult.clicked.connect(self.do_save_fit)
+        # self.ui.pushButton_saveFitResult.clicked.connect(self.do_save_fit)
         self.ui.radioButton_individualSubRuns.clicked.connect(self.individualSubRuns)
         self.ui.radioButton_listSubRuns.clicked.connect(self.listSubRuns)
         self.ui.actionQuit.triggered.connect(self.do_quit)
@@ -160,8 +160,7 @@ class FitPeaksWindow(QMainWindow):
         self.ui.comboBox_2dPlotChoice.addItem('Raw Data')
         self.ui.comboBox_2dPlotChoice.addItem('Fitted')
 
-        # check boxes
-        self.ui.checkBox_autoSaveFitResult.setChecked(True)
+        self.ui.splitter_4.setStyleSheet("""QSplitter::handle {image: url(':/fitting/vertical_splitter.png'); }""")
 
     def do_launch_adv_fit(self):
         """
