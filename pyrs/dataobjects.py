@@ -16,6 +16,7 @@ class SampleLogs(MutableMapping):
     def __init__(self, **kwargs):
         self._data = dict(kwargs)
         self._subruns = np.ndarray((0))
+        self._plottable = set(self.SUBRUN_KEY)
 
     def __del__(self):
         del self._data
@@ -58,6 +59,28 @@ class SampleLogs(MutableMapping):
             self.subruns = value  # use full method
         else:
             self._data[key] = value
+            # add this to the list of plottable parameters
+            if value.dtype in [np.float64, np.float, np.int64, np.int]:
+                self._plottable.add(key)
+
+    def plottable_logs(self):
+        '''Return the name of all logs that are plottable
+
+        This always includes :py:obj:`~pyrs.utilities.rs_project_file.HidraConstants.SUB_RUNS`
+        in addition to all the other logs'''
+        return list(self._plottable)
+
+    def constant_logs(self):
+        '''Return the name of all logs that have a constant value'''
+        result = list()
+        # plottable logs are the numeric ones
+        for key in self._plottable:
+            if key == self.SUBRUN_KEY:
+                continue
+            if self._data[key].std() == 0.:
+                result.append(key)
+
+        return result
 
     @property
     def subruns(self):

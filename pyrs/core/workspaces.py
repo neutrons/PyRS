@@ -615,16 +615,8 @@ class HidraWorkspace(object):
     @property
     def sample_logs_for_plot(self):
         """ Get names of sample logs that can be plotted, i.e., the log values are integer or float
-        :return:
         """
-        sample_logs = list()
-        for sample_log_name in self._sample_logs.keys():
-            sample_log_value = self._sample_logs[sample_log_name].values()[0]
-            # only int and float can be plot
-            if isinstance(sample_log_value, int) or isinstance(sample_log_value, float):
-                sample_logs.append(sample_log_name)
-
-        return sorted(sample_logs)
+        return sorted(self._sample_logs.plottable_logs())
 
     def set_wavelength(self, wave_length, calibrated):
         """ Set wave length which could be either a float (uniform) or a dictionary
