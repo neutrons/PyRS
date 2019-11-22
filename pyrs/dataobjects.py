@@ -16,7 +16,7 @@ class SampleLogs(MutableMapping):
     def __init__(self, **kwargs):
         self._data = dict(kwargs)
         self._subruns = np.ndarray((0))
-        self._plottable = set(self.SUBRUN_KEY)
+        self._plottable = set([self.SUBRUN_KEY])
 
     def __del__(self):
         del self._data
@@ -39,7 +39,7 @@ class SampleLogs(MutableMapping):
                 raise RuntimeError('Cannot use __getitem__ to get subset of subruns')
             return self._subruns
         else:
-            if (not subruns) or self.matching_subruns(subruns):
+            if (subruns is None) or self.matching_subruns(subruns):
                 return self._data[key]
             else:
                 return self._data[key][self.get_subrun_indices(subruns)]
@@ -58,11 +58,15 @@ class SampleLogs(MutableMapping):
         if key == self.SUBRUN_KEY:
             self.subruns = value  # use full method
         else:
+            if value.size != self.subruns.size:
+                raise ValueError('Number of values[{}] isn\'t the same as number of '
+                                 'subruns[{}]'.format(value.size, self.subruns.size))
             self._data[key] = value
             # add this to the list of plottable parameters
             if value.dtype in [np.float64, np.float, np.int64, np.int]:
                 self._plottable.add(key)
 
+    @property
     def plottable_logs(self):
         '''Return the name of all logs that are plottable
 
@@ -70,6 +74,7 @@ class SampleLogs(MutableMapping):
         in addition to all the other logs'''
         return list(self._plottable)
 
+    @property
     def constant_logs(self):
         '''Return the name of all logs that have a constant value'''
         result = list()
@@ -110,10 +115,9 @@ class SampleLogs(MutableMapping):
             return np.arange(self._subruns.size)
         else:
             subruns = _coerce_to_ndarray(subruns)
-
             # look for the single value
             if subruns.size == 1:
-                indices = np.nonzero(subruns == subruns[0])[0]
+                indices = np.nonzero(self._subruns == subruns[0])[0]
                 if indices.size > 0:
                     return indices
             # check that the first and last values are in the array
@@ -121,4 +125,4 @@ class SampleLogs(MutableMapping):
                 return np.searchsorted(self._subruns, _coerce_to_ndarray(subruns))
 
         # fall-through is an error
-        raise RuntimeError('Failed to find subruns={}'.format(subruns))
+        raise IndexError('Failed to find subruns={}'.format(subruns))

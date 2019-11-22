@@ -616,7 +616,7 @@ class HidraWorkspace(object):
     def sample_logs_for_plot(self):
         """ Get names of sample logs that can be plotted, i.e., the log values are integer or float
         """
-        return sorted(self._sample_logs.plottable_logs())
+        return sorted(self._sample_logs.plottable_logs)
 
     def set_wavelength(self, wave_length, calibrated):
         """ Set wave length which could be either a float (uniform) or a dictionary
