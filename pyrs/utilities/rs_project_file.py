@@ -419,6 +419,9 @@ class HidraProjectFile(object):
 
         # Get 2theta and others
         samplelogs = SampleLogs()
+        # first set subruns
+        if HidraConstants.SUB_RUNS in logs_group.keys():
+            samplelogs[HidraConstants.SUB_RUNS] = logs_group[HidraConstants.SUB_RUNS].value
         for log_name in logs_group.keys():
             samplelogs[log_name] = logs_group[log_name].value
 

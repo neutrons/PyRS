@@ -58,7 +58,9 @@ class SampleLogs(MutableMapping):
         if key == self.SUBRUN_KEY:
             self.subruns = value  # use full method
         else:
-            if value.size != self.subruns.size:
+            if self._subruns.size == 0:
+                raise RuntimeError('Must set subruns first')
+            elif value.size != self.subruns.size:
                 raise ValueError('Number of values[{}] isn\'t the same as number of '
                                  'subruns[{}]'.format(value.size, self.subruns.size))
             self._data[key] = value

@@ -13,6 +13,16 @@ def test_reassign_subruns():
         sample.subruns = [4, 3, 2, 1]
 
 
+def test_subrun_second():
+    sample = SampleLogs()
+    # do it wrong
+    with pytest.raises(RuntimeError):
+        sample['variable1'] = np.linspace(0., 100., 5)
+    # do it right
+    sample.subruns = [1, 2, 3, 4, 5]
+    sample['variable1'] = np.linspace(0., 100., 5)
+
+
 def test_one():
     sample = SampleLogs()
     sample.subruns = 1
