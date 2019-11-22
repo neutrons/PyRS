@@ -65,7 +65,7 @@ class SampleLogs(MutableMapping):
                                  'subruns[{}]'.format(value.size, self.subruns.size))
             self._data[key] = value
             # add this to the list of plottable parameters
-            if value.dtype in [np.float64, np.float, np.int64, np.int]:
+            if value.dtype.kind in 'iuf':  # int, uint, float
                 self._plottable.add(key)
 
     @property

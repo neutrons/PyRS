@@ -58,5 +58,6 @@ def test_multi():
     with pytest.raises(IndexError):
         np.testing.assert_equal(sample['variable1', [10]], [0., 50., 75., 100.])
 
+
 if __name__ == '__main__':
     pytest.main([__file__])
