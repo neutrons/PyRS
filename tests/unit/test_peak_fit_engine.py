@@ -2,6 +2,7 @@ import numpy as np
 from pyrs.core.mantid_fit_peak import MantidPeakFitEngine
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.core.peak_profile_utility import pseudo_voigt, NATIVE_BACKGROUND_PARAMETERS, NATIVE_PEAK_PARAMETERS
+from pyrs.core.peak_profile_utility import Gaussian, PseudoVoigt
 import pytest
 from matplotlib import pyplot as plt
 
@@ -123,8 +124,8 @@ def generate_hydra_workspace(peak_profile_type):
     # Add diffraction pattern
     test_workspace.set_sub_runs([1])
     test_workspace.set_reduced_diffraction_data(1, mask_id=None,
-                                                bin_edges=vec_x,
-                                                hist=vec_y)
+                                                two_theta_array=vec_x,
+                                                intensity_array=vec_y)
 
     return test_workspace, peak_center, (peak_center - peak_range, peak_center + peak_center)
 
@@ -142,7 +143,9 @@ def test_gaussian():
     fit_engine = MantidPeakFitEngine(gaussian_workspace, mask_name=None)
 
     # Fit
-    fit_engine.fit_peaks(sub_run_range=(1, 1),
+    m_tag = 'UnitTestGaussian'
+    fit_engine.fit_peaks(peak_tag=m_tag,
+                         sub_run_range=(1, 1),
                          peak_function_name='Gaussian',
                          background_function_name='Linear',
                          peak_center=peak_center,
@@ -159,20 +162,20 @@ def test_gaussian():
 
     # Test the fitted parameters
     # Read data
-    eff_param_list, sub_runs, fit_costs, effective_param_values =\
-        fit_engine.get_fitted_effective_params(True)
+    eff_param_list, sub_runs, fit_costs, effective_param_values, effective_param_errors =\
+        fit_engine.get_peaks(m_tag).get_effective_parameters_values()
 
     # Read data again for raw data
     native_params = NATIVE_PEAK_PARAMETERS['Gaussian'][:]
     native_params.extend(NATIVE_BACKGROUND_PARAMETERS['Linear'])
-    sub_runs2, fit_cost2, param_values = fit_engine.get_fitted_params(native_params, True)
+    sub_runs2, fit_cost2, param_values, param_errors = fit_engine.get_peaks(m_tag).get_parameters_values(native_params)
 
     # Test
     assert sub_runs.shape == (1, ) == sub_runs2.shape
     assert np.allclose(fit_cost2, fit_costs, 0.0000001)
 
     # Effective paramter list: ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
-    assert effective_param_values[0, 0, 0] == param_values[1, 0, 0]   # center
+    assert effective_param_values[0, 0] == param_values[1, 0]   # center
 
     # fit goodness
     assert fit_costs[0] < 0.5, 'Fit cost (chi2 = {}) is too large'.format(fit_costs[0])
@@ -196,7 +199,9 @@ def test_pseudo_voigt():
     fit_engine = MantidPeakFitEngine(gaussian_workspace, mask_name=None)
 
     # Fit
-    fit_engine.fit_peaks(sub_run_range=(1, 1),
+    peak_tag = 'UnitTestPseudoVoigt'
+    fit_engine.fit_peaks(peak_tag=peak_tag,
+                         sub_run_range=(1, 1),
                          peak_function_name='PseudoVoigt',
                          background_function_name='Linear',
                          peak_center=peak_center,
@@ -213,13 +218,14 @@ def test_pseudo_voigt():
 
     # Test the fitted parameters
     # Read data
-    eff_param_list, sub_runs, fit_costs, effective_param_values =\
-        fit_engine.get_fitted_effective_params(True)
+    eff_param_list, sub_runs, fit_costs, effective_param_values, effective_param_errors =\
+        fit_engine.get_peaks(peak_tag).get_effective_parameters_values()
 
     # Read data again for raw data
     native_params = NATIVE_PEAK_PARAMETERS['PseudoVoigt'][:]
     native_params.extend(NATIVE_BACKGROUND_PARAMETERS['Linear'])
-    sub_runs2, fit_cost2, param_values = fit_engine.get_fitted_params(native_params, True)
+    sub_runs2, fit_cost2, param_values, param_errors =\
+        fit_engine.get_peaks(peak_tag).get_parameters_values(native_params)
     print('Ordered native parameters: {}'.format(native_params))
 
     # Test
@@ -228,19 +234,69 @@ def test_pseudo_voigt():
 
     # Effective parameter list: ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
     # Native parameters: ['Mixing', 'Intensity', 'PeakCentre', 'FWHM', 'A0', 'A1']
-    assert effective_param_values[4, 0, 0] == param_values[0, 0, 0]  # mixing
-    assert effective_param_values[0, 0, 0] == param_values[2, 0, 0]  # center
-    assert effective_param_values[2, 0, 0] == param_values[1, 0, 0]  # intensity
+    assert effective_param_values[4, 0] == param_values[0, 0]  # mixing
+    assert effective_param_values[0, 0] == param_values[2, 0]  # center
+    assert effective_param_values[2, 0] == param_values[1, 0]  # intensity
 
     # fit goodness
     assert fit_costs[0] < 0.5, 'Fit cost (chi2 = {}) is too large'.format(fit_costs[0])
 
-    # If everything is correct, optionally show the result
-    # plt.show()
+    return
+
+
+def test_gaussian_eff_parameters():
+    """Test the effective peak parameters calculation for Gaussian
+
+    Returns
+    -------
+    None
+
+    """
+    # Set raw value
+    sigma = 0.20788180862724454
+    height = 0.676468683375185
+    # Set gold value
+    exp_fwhm = 0.48952424995272315
+    exp_intensity = 0.3524959381046824
+
+    # Calculate effective parameters
+    fwhm = Gaussian.cal_fwhm(sigma)
+    intensity = Gaussian.cal_intensity(height, sigma)
+
+    # assert exp_fwhm == pytest.approx(fwhm, 1E-10), 'FWHM wrong'
+    # assert exp_intensity == pytest.approx(intensity, 1E-10), 'Intensity wrong'
+    assert abs(exp_fwhm - fwhm) < 1E-10, 'FWHM: {} - {} = {} > 1E-10'.format(exp_fwhm, fwhm, exp_fwhm - fwhm)
+    assert abs(exp_intensity - intensity) < 1E-10, 'Intensity: {} - {} = {} > 1e-10' \
+                                                   ''.format(exp_intensity, intensity, exp_intensity - intensity)
+
+    return
+
+
+def test_pv_eff_parameters():
+    """Test the methods to calculate effective parameters for Pseudo-Voigt
+
+    Returns
+    -------
+    None
+
+    """
+    # Set raw parameter values
+    intensity = 0.45705834149790703
+    fwhm = 0.44181666416237664
+    mixing = 0.23636114719871532
+
+    # Set the gold value
+    exp_height = 0.7326251617860263
+
+    # Calculate effective values
+    test_height = PseudoVoigt.cal_height(intensity, fwhm, mixing)
+
+    # Verify
+    assert abs(test_height - exp_height) < 1E-10, 'Peak height: {} - {} = {} > 1e-10' \
+                                                  ''.format(exp_height, test_height, exp_height - test_height)
 
     return
 
 
 if __name__ == '__main__':
     pytest.main()
-    plt.show()

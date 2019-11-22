@@ -7,14 +7,14 @@ import json
 from pyrs.utilities import checkdatatypes
 
 
-class HydraSetup(object):
+class HidraSetup(object):
     """A class to work with instrument geometry calculation
 
     Handle anything to do with HB2B (HYDRA) including geometry, wavelength and calibration
 
     """
 
-    def __init__(self, l1, detector_setup):
+    def __init__(self, detector_setup):
         """Initialization
 
         Initialization HB2B instrument setup
@@ -36,8 +36,6 @@ class HydraSetup(object):
 
         # calibration state
         self._calibration_applied = False
-
-        return
 
     def get_instrument_geometry(self, calibrated):
         """Get instrument geometry parameters
@@ -79,10 +77,6 @@ class HydraSetup(object):
         return self._calibrated_wave_length
 
     def get_wavelength_shift(self):
-        """
-
-        :return:
-        """
         return self._calibrated_wave_length
 
     @property
@@ -99,8 +93,6 @@ class HydraSetup(object):
 
         self._single_wave_length = wavelength
 
-        return
-
     def set_wavelength_calibration(self, wave_length_shift):
         """
         set the wave length shift
@@ -112,8 +104,6 @@ class HydraSetup(object):
         if self._wave_length + wave_length_shift < 0.1:
             raise RuntimeError('Wavelength shift {} to {} results in an unphysical value'.format(wave_length_shift))
 
-        return
-
     def set_geometry_calibration(self, calibration):
         """
         Apply instrument geometry calibration to this instrument
@@ -121,8 +111,7 @@ class HydraSetup(object):
         :param calibration:
         :return:
         """
-
-        return
+        pass
 
 
 class AnglerCameraDetectorGeometry(object):
@@ -156,30 +145,20 @@ class AnglerCameraDetectorGeometry(object):
         self._pixel_size_x = pixel_size_x
         self._pixel_size_y = pixel_size_y
 
-        return
-
     def apply_shift(self, geometry_shift):
-        """
-
-        :param geometry_shift:
-        :return:
-        """
         checkdatatypes.check_type('Detector geometry shift', geometry_shift, AnglerCameraDetectorShift)
 
         self._arm_length += geometry_shift.center_shift_z
 
-        return
-
     @property
     def arm_length(self):
-        """ L2/arm length
-        :return:
+        """L2/arm length
         """
         return self._arm_length
 
     @property
     def detector_size(self):
-        """ Detector size (number of pixels)
+        """Detector size (number of pixels)
         :return: number of rows, number of columns
         """
         return self._detector_rows, self._detector_columns
@@ -211,8 +190,6 @@ class AnglerCameraDetectorShift(object):
 
         # Need data from client to finish this
         self.calibrated_wave_length = {'Si001': 1.00}
-
-        return
 
     def __str__(self):
         nice = '[Calibration]\nShift:    {},  {},  {}\nRotation: {}, {}, {}' \
@@ -274,7 +251,6 @@ class AnglerCameraDetectorShift(object):
     def rotation_z(self, value):
         checkdatatypes.check_float_variable('Rotation along Z direction', value, (-360, 360))
         self._rotation_z = value
-        return
 
     def convert_to_dict(self):
         """
@@ -330,8 +306,6 @@ class AnglerCameraDetectorShift(object):
         if 'rotation z' in geometry_shift_dict:
             self._rotation_z = geometry_shift_dict['rotation z']
 
-        return
-
     # TODO - #86 - Synchronize with convert_to_dict and implement
     def set_from_dict_error(self):
         return
@@ -350,8 +324,6 @@ class AnglerCameraDetectorShift(object):
         json.dump(instrument_dict, jfile)
         jfile.close()
 
-        return
-
     def from_json(self, file_name):
         """ Convert from a Json string (dicionary) and set to parameters
         :param file_name: json file name
@@ -369,8 +341,6 @@ class AnglerCameraDetectorShift(object):
         instrument_dict = json.loads(json_string)
 
         self.set_from_dict(instrument_dict)
-
-        return
 
 
 if __name__ == '__main__':

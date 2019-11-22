@@ -36,11 +36,11 @@ def browse_file(parent, caption, default_dir, file_filter, file_list=False, save
              if user cancels the operation, then return None
     """
     # check inputs
-    assert isinstance(parent, object), 'Parent {} must be of some object.'.format(parent)
-    checkdatatypes.check_string_variable('File browsing title/caption', caption)
-    checkdatatypes.check_file_name(default_dir, check_exist=False, is_dir=True)
-    checkdatatypes.check_bool_variable('Flag for browse a list of files to load', file_list)
-    checkdatatypes.check_bool_variable('Flag to select loading or saving file', save_file)
+    # assert isinstance(parent, object), 'Parent {} must be of some object.'.format(parent)
+    # checkdatatypes.check_string_variable('File browsing title/caption', caption)
+    # checkdatatypes.check_file_name(default_dir, check_exist=False, is_dir=True)
+    # checkdatatypes.check_bool_variable('Flag for browse a list of files to load', file_list)
+    # checkdatatypes.check_bool_variable('Flag to select loading or saving file', save_file)
     if file_filter is None:
         file_filter = 'All Files (*.*)'
     else:

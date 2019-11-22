@@ -2,7 +2,7 @@
 # In order to test the peak fit window (GUI)
 from pyrs.core import pyrscore
 import sys
-from pyrs.interface import fitpeakswindow
+from pyrs.interface.peak_fitting import fitpeakswindow
 from qtpy.QtWidgets import QApplication
 
 
@@ -17,7 +17,7 @@ def main_test():
     fit_window.show()
 
     # 3 candidate files
-    fit_window.ui.lineEdit_expFileName.setText('tests/testdata/Hydra_16-1_cor_log.hdf5')
+    fit_window.ui.lineEdit_expFileName.setText('tests/testdata/Hydra_16-1_cor_log.h5')
     fit_window.ui.comboBox_peakType.setCurrentIndex(0)  # Test pseudo voigt
     fit_window.do_load_hydra_file()
     if False:
@@ -28,7 +28,7 @@ def main_test():
         fit_window.ui.lineEdit_scanNumbers.setText('0')
         fit_window.do_plot_diff_data()
         fit_window.save_data_for_mantid(None, 'peaks.nxs')
-        out_file_name = '16-1_TD.cor_Log.fit.hdf5'
+        out_file_name = '16-1_TD.cor_Log.fit.h5'
         fit_window.save_fit_result(out_file_name)
 
     return fit_window

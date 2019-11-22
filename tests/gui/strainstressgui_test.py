@@ -3,7 +3,7 @@
 from pyrs.core import pyrscore
 import sys
 import os
-from pyrs.interface import strainstresscalwindow
+from pyrs.interface.strain_stress_calculation import strainstresscalwindow
 from qtpy.QtWidgets import QApplication
 import pytest
 

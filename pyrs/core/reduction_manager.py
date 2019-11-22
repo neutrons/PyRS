@@ -1,16 +1,15 @@
 # Reduction engine including slicing
 import os
 import random
+import numpy as np
 from pyrs.utilities import checkdatatypes
 from pyrs.core import workspaces
 from pyrs.utilities import calibration_file_io
 from pyrs.core import mask_util
 from pyrs.core import reduce_hb2b_mtd
 from pyrs.core import reduce_hb2b_pyrs
-from pyrs.utilities import rs_project_file
+from pyrs.utilities.rs_project_file import HidraProjectFile, HidraProjectFileMode
 from pyrs.core import instrument_geometry
-
-# TODO - FIXME - Issue #72 : Clean up
 
 
 class HB2BReductionManager(object):
@@ -41,6 +40,9 @@ class HB2BReductionManager(object):
         self._mantid_idf = None
 
         # TODO - FUTURE - Whether a reduction engine can be re-used or stored???
+
+        # Vanadium
+        self._van_ws = None
 
         # (default) number of bins
         self._num_bins = 2500
@@ -107,6 +109,20 @@ class HB2BReductionManager(object):
 
         return workspace.get_detector_counts(sub_run)
 
+    def get_sample_log_value(self, session_name, log_name, sub_run):
+        """Get an individual sample log's value for a sub run
+
+        :param session_name:
+        :param log_name:
+        :param sub_run:
+        :return:
+        """
+        workspace = self._session_dict[session_name]
+
+        log_value = workspace.get_sample_log_value(log_name, sub_run)
+
+        return log_value
+
     # TODO - #84 - Better
     def get_sample_logs_values(self, session_name, log_names):
         """ Get sample logs' value
@@ -124,7 +140,7 @@ class HB2BReductionManager(object):
         return log_values
 
     # TODO - #84 - Better
-    # TODO - #84 - Implement
+    # TODO - #84 - Implement: can_plot
     def get_sample_logs_names(self, session_name, can_plot):
         """
         Get the names of all sample logs in the workspace
@@ -196,7 +212,7 @@ class HB2BReductionManager(object):
     # TODO - #84 - load_calibrated_instrument IS NOT IMPLEMENTED YET!
     def load_hidra_project(self, project_file_name, load_calibrated_instrument, load_detectors_counts,
                            load_reduced_diffraction):
-        """ Load hidra project file
+        """ Load hidra project file and then CLOSE!
         :param project_file_name:
         :param load_calibrated_instrument:
         :param load_detectors_counts: Flag to load detector counts
@@ -211,8 +227,14 @@ class HB2BReductionManager(object):
             raise RuntimeError('Call init_session to create a ReductionWorkspace')
 
         # PyRS HDF5
-        project_h5_file = rs_project_file.HydraProjectFile(project_file_name,
-                                                           mode=rs_project_file.HydraProjectFileMode.READWRITE)
+        # Check permission of file to determine the RW mode of HidraProject file
+        if os.access(project_file_name, os.W_OK):
+            # Read/Write: Append mode
+            file_mode = HidraProjectFileMode.READWRITE
+        else:
+            # Read only
+            file_mode = HidraProjectFileMode.READONLY
+        project_h5_file = HidraProjectFile(project_file_name, mode=file_mode)
 
         # Load
         self._curr_workspace.load_hidra_project(project_h5_file,
@@ -254,6 +276,65 @@ class HB2BReductionManager(object):
 
         return two_theta, note, mask_id
 
+    def load_vanadium(self, van_project_file):
+        """Load vanadium from HiDRA project file
+
+        Parameters
+        ----------
+        van_project_file
+
+        Returns
+        -------
+        ~numpy.narray
+            1D array as vanadium counts
+
+        """
+        self._van_ws = workspaces.HidraWorkspace(name=van_project_file)
+
+        # PyRS HDF5
+        project_h5_file = HidraProjectFile(van_project_file, mode=HidraProjectFileMode.READONLY)
+
+        # Load
+        self._van_ws.load_hidra_project(project_h5_file,
+                                        load_raw_counts=True,
+                                        load_reduced_diffraction=False)
+
+        # Close project file
+        project_h5_file.close()
+
+        # Process the vanadium counts
+        sub_runs = self._van_ws.get_sub_runs()
+        assert len(sub_runs) == 1, 'There shall be more than 1 sub run in vanadium project file'
+
+        # get vanadium data
+        van_array = self._van_ws.get_detector_counts(sub_runs[0])
+
+        # DEBUG: do statistic
+        print('[INFO] Vanadium {} Counts: min = {}, max = {}, average = {}'
+              ''.format(van_project_file, np.min(van_array), np.max(van_array), np.average(van_array)))
+        count_range = [0, 2, 5, 10, 20, 30, 40, 50, 60, 80, 150, 300]
+        per_count = 0
+        pixel_count = 0
+        for irange in range(len(count_range) - 1):
+            threshold_min = count_range[irange]
+            threshold_max = count_range[irange + 1]
+            good_van_array = van_array[(van_array >= threshold_min) & (van_array < threshold_max)]
+            print('[INFO] {} <= ... < {}: pixels number = {}  Percentage = {}'
+                  ''.format(threshold_min, threshold_max,  good_van_array.size,
+                            good_van_array.size * 1. / van_array.size))
+            pixel_count += good_van_array.size
+            per_count += good_van_array.size * 1. / van_array.size
+        # END-FOR
+
+        # Mask out zero count
+        print('[DEBUG] VANADIUM Before Mask: {}\n\t# of NaN = {}'
+              ''.format(van_array, np.where(np.isnan(van_array))[0].size))
+        van_array[van_array < 3] = np.nan
+        print('[DEBUG] VANADIUM After  Mask: {}\n\t# of NaN = {}'
+              ''.format(van_array, np.where(np.isnan(van_array))[0].size))
+
+        return van_array
+
     def get_loaded_mask_files(self):
         """
         Get the list of file names (full path) that have been loaded
@@ -291,16 +372,31 @@ class HB2BReductionManager(object):
 
         return
 
-    def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, bin_size_2theta, use_pyrs_engine, mask,
-                                sub_run_list):
-        """ Reduce ALL sub runs in a workspace from detector counts to diffraction data
-        :param session_name:
-        :param apply_calibrated_geometry: 3 options (1) user-provided AnglerCameraDetectorShift
+    def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, bin_size_2theta,
+                                use_pyrs_engine, mask,
+                                sub_run_list, apply_vanadium_calibration=False):
+        """Reduce ALL sub runs in a workspace from detector counts to diffraction data
+
+        Parameters
+        ----------
+        session_name
+        apply_calibrated_geometry : ~AnglerCameraDetectorShift or bool
+            3 options (1) user-provided AnglerCameraDetectorShift
                                           (2) True (use the one in workspace) (3) False (no calibration)
-        :param bin_size_2theta:
-        :param use_pyrs_engine:
-        :param mask:  mask ID or mask vector
-        :return:
+        bin_size_2theta : float
+            2theta bin step
+        use_pyrs_engine : bool
+            flag to use PyRS engine; otherwise, use Mantid as diffraction pattern reduction engine
+        mask :
+            Mask
+        sub_run_list : List of None
+            sub runs
+        apply_vanadium_calibration : boolean or ~numpy.ndarray
+
+        Returns
+        -------
+        None
+
         """
         # Get workspace
         if session_name is None:  # default as current session/workspace
@@ -332,80 +428,133 @@ class HB2BReductionManager(object):
         # END-IF-ELSE
         print('[DB...BAT] Det Position Shift: {}'.format(det_pos_shift))
 
+        # Vanadium run
+        if apply_vanadium_calibration is False or apply_vanadium_calibration is None:
+            van_counts_array = None
+        elif apply_vanadium_calibration is True:
+            van_counts_array = self._van_ws.get_detector_counts(self._van_ws.get_sub_runs()[0])
+        else:
+            van_counts_array = apply_vanadium_calibration
+        if isinstance(van_counts_array, np.ndarray):
+            # Mask out zero count
+            van_counts_array[van_counts_array < 3] = np.nan
+            max_count = np.max(van_counts_array[~np.isnan(van_counts_array)])
+            print('[DEBUG] VANADIUM: {}\n\t# of NaN = {}\tMax count = {}'
+                  ''.format(van_counts_array, np.where(np.isnan(van_counts_array))[0].size,
+                            max_count))
+            eff_array = max_count * 1. / van_counts_array
+            print('[DEBUG] Detector efficiency factor: {}\tNumber of NaN = {}'
+                  ''.format(eff_array, np.where(np.isnan(eff_array))[0].size))
+        else:
+            eff_array = None
+
         # TODO - TONIGHT NOW #72 - How to embed mask information???
         if sub_run_list is None:
             sub_run_list = workspace.get_sub_runs()
         for sub_run in sub_run_list:
             self.reduce_sub_run_diffraction(workspace, sub_run, det_pos_shift,
                                             use_mantid_engine=not use_pyrs_engine,
-                                            mask_vec_id=(mask_id, mask_vec),
-                                            resolution_2theta=bin_size_2theta)
+                                            mask_vec_tuple=(mask_id, mask_vec),
+                                            resolution_2theta=bin_size_2theta,
+                                            eff_array=eff_array)
         # END-FOR
 
         return
 
     # NOTE: Refer to compare_reduction_engines_tst
     def reduce_sub_run_diffraction(self, workspace, sub_run, geometry_calibration, use_mantid_engine,
-                                   mask_vec_id,
-                                   min_2theta=None, max_2theta=None, resolution_2theta=None):
-        """
-        Reduce import data (workspace or vector) to 2-theta ~ I
-        Note: engine may not be reused because 2theta value may change among sub runs
-        :param workspace:
-        :param sub_run: integer for sub run number in workspace to reduce
-        :param use_mantid_engine: Flag to use Mantid engine
-        :param mask_vec_id: 2-tuple (String as ID, None or vector for Mask)
-        :param geometry_calibration: instrument_geometry.AnglerCameraDetectorShift instance
-        :param min_2theta: None or user specified
-        :param max_2theta: None or user specified
-        :param resolution_2theta: None or user specified
-        :return:
+                                   mask_vec_tuple, min_2theta=None, max_2theta=None, default_two_theta_range=20,
+                                   resolution_2theta=None, num_bins=1000,
+                                   eff_array=None):
+        """Reduce import data (workspace or vector) to 2-theta ~ I
+
+        The binning of 2theta is linear in range (min, max) with given resolution
+
+        1. 2-theta range:
+            If nothing is given, then the default range is from detector arm's 2theta value
+           going up and down with half of default_two_theta_range
+        2. 2-theta resolution/step size:
+            If 2theta resolution is not given, num_bins will be used to determine resolution with 2-theta range;
+            Otherwise, use resolution
+
+        Parameters
+        ----------
+        workspace : HidraWorkspace
+            workspace with detector counts and position
+        sub_run : integer
+            sub run number in workspace to reduce
+        geometry_calibration : instrument_geometry.AnglerCameraDetectorShift
+            instrument geometry to calculate diffraction pattern
+        use_mantid_engine : boolean
+            flag to use Mantid as reduction engine which is rarely used
+        mask_vec_tuple : tuple (str, numpy.ndarray)
+            mask ID and 1D array for masking (1 to keep, 0 to mask out)
+        min_2theta : float or None
+            min 2theta
+        max_2theta : float or None
+            max 2theta
+        default_two_theta_range : float or None
+            range of 2theta if min or max 2theta is not given
+        resolution_2theta : float or None
+            2theta resolution/step
+        num_bins : int
+            number of bins
+        eff_array :numpy.ndarray or None
+            detector efficiencies
+
+        Returns
+        -------
+
         """
         # Get the raw data
         raw_count_vec = workspace.get_detector_counts(sub_run)
 
-        # Retrieve two theta and L2 from loaded workspace
+        # Retrieve 2-theta and L2 from loaded workspace (DAS)
         two_theta = workspace.get_2theta(sub_run)
+        l2 = workspace.get_l2(sub_run)
+        # Convert 2-theta from DAS convention to Mantid/PyRS convention
         print('[INFO] User specified 2theta = {} is converted to Mantid 2theta = {}'
               ''.format(two_theta, -two_theta))
-        two_theta = -two_theta
-        l2 = workspace.get_l2(sub_run)
+        mantid_two_theta = -two_theta
+
+        # Determine the 2theta range
+        if min_2theta is None or max_2theta is None:
+            min_2theta = abs(two_theta) - 0.5 * default_two_theta_range
+            max_2theta = abs(two_theta) + 0.5 * default_two_theta_range
+        if min_2theta >= max_2theta:
+            raise RuntimeError('Diffraction 2theta range ({}, {})is incorrect.'
+                               'Given information: detector arm 2theta = {}, 2theta range = {}'
+                               ''.format(min_2theta, max_2theta, two_theta, default_two_theta_range))
+        # Determine 2theta resolution
+        if resolution_2theta is None:
+            resolution_2theta = (max_2theta - min_2theta) / num_bins
 
         # Set up reduction engine and also
         if use_mantid_engine:
-            # Mantid reduction engine
             reduction_engine = reduce_hb2b_mtd.MantidHB2BReduction(self._mantid_idf)
-            reduction_engine.set_experimental_data(two_theta, l2, raw_count_vec)
-            reduction_engine.build_instrument(geometry_calibration)
         else:
-            # PyRS reduction engine
             reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
-            reduction_engine.set_experimental_data(two_theta, l2, raw_count_vec)
-            reduction_engine.build_instrument(geometry_calibration)
-        # END-IF
+        reduction_engine.set_experimental_data(mantid_two_theta, l2, raw_count_vec)
+        reduction_engine.build_instrument(geometry_calibration)
 
-        # Mask
-        mask_id, mask_vec = mask_vec_id
+        # Apply mask
+        mask_id, mask_vec = mask_vec_tuple
         if mask_vec is not None:
             reduction_engine.set_mask(mask_vec)
 
         # Reduce
-        # TODO - TONIGHT NOW #72 - Make this method call happy!
-        two_theta_range = (10, 60)
-        two_theta_step = 50. / 500.
-        data_set = reduction_engine.reduce_to_2theta_histogram(two_theta_range, two_theta_step,
+        data_set = reduction_engine.reduce_to_2theta_histogram((min_2theta, max_2theta), resolution_2theta,
                                                                apply_mask=True,
                                                                is_point_data=True,
                                                                normalize_pixel_bin=True,
-                                                               use_mantid_histogram=False)
+                                                               use_mantid_histogram=False,
+                                                               efficiency_correction=eff_array)
 
-        bin_edges = data_set[0]
+        bin_centers = data_set[0]
         hist = data_set[1]
 
-        print('[DB...BAT] vec X shape = {}, vec Y shape = {}'.format(bin_edges.shape, hist.shape))
-
         # record
-        workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_edges, hist)
+        workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_centers, hist)
         self._last_reduction_engine = reduction_engine
 
         return
@@ -423,16 +572,16 @@ class HB2BReductionManager(object):
 
         # Open
         if os.path.exists(output_name):
-            io_mode = rs_project_file.HydraProjectFileMode.READWRITE
+            io_mode = HidraProjectFileMode.READWRITE
         else:
-            io_mode = rs_project_file.HydraProjectFileMode.OVERWRITE
-        project_file = rs_project_file.HydraProjectFile(output_name, io_mode)
+            io_mode = HidraProjectFileMode.OVERWRITE
+        project_file = HidraProjectFile(output_name, io_mode)
 
         # Save
         workspace.save_reduced_diffraction_data(project_file)
 
         # Close
-        project_file.save_hydra_project()
+        project_file.save()
 
         return
 

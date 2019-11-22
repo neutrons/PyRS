@@ -2,8 +2,7 @@
 # System (library) test for classes and methods that will be used to calculate strain and stress
 import os
 import sys
-from pyrs.utilities import rs_project_file
-from pyrs.utilities import rs_scan_io
+from pyrs.utilities.rs_project_file import HidraProjectFile, HidraProjectFileMode
 
 
 def contain_strain_stress_main():
@@ -24,18 +23,21 @@ def contain_strain_stress_main():
     # END-FOR
 
     # Start a new project
-    hidra_project_file = rs_project_file.HydraProjectFileMode('tests/testdata/strain_stress_test.hdf5',
-                                                              rs_project_file.HydraProjectFileMode.READONLY)
+    hidra_project_file = HidraProjectFile('tests/testdata/strain_stress_test.hdf5',
+                                          HidraProjectFileMode.READONLY)
+    print(hidra_project_file)
 
     # Get parameters of sample logs
-    for dir_i in [1, 2, 3]:
-        diff_data_dict, sample_log_list = rs_scan_io.load_rs_file(dir_file[1])
-        # TODO - FUTURE - Continue from here
-
-    # set up the combo box for 3 directions
-    sample_logs_list = self._core.strain_stress_calculator.get_sample_logs_names(direction, to_set=False)
-
-    self._setup_sample_logs_combo_box(sample_logs_list, direction)
+    # from pyrs.utilities import rs_scan_io
+    # TODO - continue to develop in a proper PR!
+    # for dir_i in [1, 2, 3]:
+    #     diff_data_dict, sample_log_list = rs_scan_io.load_rs_file(dir_file[1])
+    #     # TODO - FUTURE - Continue from here
+    #
+    # # set up the combo box for 3 directions
+    # sample_logs_list = self._core.strain_stress_calculator.get_sample_logs_names(direction, to_set=False)
+    #
+    # self._setup_sample_logs_combo_box(sample_logs_list, direction)
 
     return
 

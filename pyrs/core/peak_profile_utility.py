@@ -73,7 +73,7 @@ class PeakParametersConverter(object):
         """
         return NATIVE_BACKGROUND_PARAMETERS[self._background_name][:]
 
-    def calculate_effective_parameters(self, native_param_names, param_value_array):
+    def calculate_effective_parameters(self, native_param_names, param_value_array, param_error_array):
         """Calculate effective peak parameter values
 
         If input parameter values include fitting error, then this method will calculate
@@ -84,13 +84,17 @@ class PeakParametersConverter(object):
         native_param_names: list
             native peak parameter names of specific type of peak profile corresponding to param_value_array
         param_value_array : numpy.ndarray
-            (p, n, 1) or (p, n, 2) vector for parameter values and  optionally fitting error
+            (p, n) array for parameter values
+            p = number of native parameters , n = number of sub runs
+        param_error_array : numpy.ndarray
+            (p, n) array for parameter fitting error
             p = number of native parameters , n = number of sub runs
         Returns
         -------
-        np.ndarray
-            (p', n, 1) or (p', n, 2) array for  parameter values and  optionally fitting error
+        np.ndarray, np.ndarray
+            (p', n) and (p', n) array for  parameter values and  fitting error respectively
             p' = number of effective parameters , n = number of sub runs
+
         """
         raise NotImplementedError('Virtual')
 
@@ -109,7 +113,7 @@ class Gaussian(PeakParametersConverter):
 
         return
 
-    def calculate_effective_parameters(self, native_param_names, param_value_array):
+    def calculate_effective_parameters(self, native_param_names, param_value_array, param_error_array):
         """Calculate effective peak parameter values
 
         If input parameter values include fitting error, then this method will calculate
@@ -117,22 +121,24 @@ class Gaussian(PeakParametersConverter):
 
         Parameters
         ----------
-        native_param_names: list or None
+        native_param_names: list
+            native parameter names
         param_value_array : numpy.ndarray
-            (p, n, 1) or (p, n, 2) vector for parameter values and  optionally fitting error
+            (p, n) array for parameter values
+            p = number of native parameters , n = number of sub runs
+        param_error_array : numpy.ndarray
+            (p, n) array for parameter fitting error
             p = number of native parameters , n = number of sub runs
         Returns
         -------
-        np.ndarray
-            (p', n, 1) or (p', n, 2) array for  parameter values and  optionally fitting error
+        np.ndarray, np.ndarray
+            (p', n) and (p', n) array for  parameter values and  fitting error respectively
             p' = number of effective parameters , n = number of sub runs
         """
-        # Check whether error is included or not: flag to include error in the output
-        include_error = param_value_array.shape[2] == 2
-
         # Output array
-        eff_value_array = np.zeros(shape=(len(EFFECTIVE_PEAK_PARAMETERS), param_value_array.shape[1],
-                                          param_value_array.shape[2]),
+        eff_value_array = np.zeros(shape=(len(EFFECTIVE_PEAK_PARAMETERS), param_value_array.shape[1]),
+                                   dtype=float)
+        eff_error_array = np.zeros(shape=(len(EFFECTIVE_PEAK_PARAMETERS), param_value_array.shape[1]),
                                    dtype=float)
 
         # Put to value
@@ -146,40 +152,38 @@ class Gaussian(PeakParametersConverter):
             raise RuntimeError('Input native parameters (\n\t{}\n)are not complete: {}.'
                                ''.format(native_param_names, value_err))
 
-        # Calculate effective parameter value
-        fwhm_array = self.cal_fwhm(param_value_array[sigma_index, :, 0])
-        intensity_array = self.cal_intensity(param_value_array[height_index, :, 0],
-                                             param_value_array[sigma_index, :, 0])
+        # Calculate effective parameters' value: FWHM, Intensity
+        fwhm_array = self.cal_fwhm(param_value_array[sigma_index, :])
+        intensity_array = self.cal_intensity(param_value_array[height_index, :],
+                                             param_value_array[sigma_index, :])
 
-        # Set
-        eff_value_array[0, :, 0] = param_value_array[center_index, :, 0]  # center
-        eff_value_array[1, :, 0] = param_value_array[height_index, :, 0]  # height
-        eff_value_array[2, :, 0] = intensity_array[:]  # intensity
-        eff_value_array[3, :, 0] = fwhm_array[:]  # FWHM
-        eff_value_array[4, :, 0] = 1   # no mixing for Gaussian
-        eff_value_array[5, :, 0] = param_value_array[bkgd_a0_index, :, 0]  # A0
-        eff_value_array[6, :, 0] = param_value_array[bkgd_a1_index, :, 0]  # A1
+        # Set effective parameter values
+        eff_value_array[0, :] = param_value_array[center_index, :]  # center
+        eff_value_array[1, :] = param_value_array[height_index, :]  # height
+        eff_value_array[2, :] = intensity_array[:]  # intensity
+        eff_value_array[3, :] = fwhm_array[:]  # FWHM
+        eff_value_array[4, :] = 1   # no mixing for Gaussian
+        eff_value_array[5, :] = param_value_array[bkgd_a0_index, :]  # A0
+        eff_value_array[6, :] = param_value_array[bkgd_a1_index, :]  # A1
 
-        # Error propagation
-        if include_error:
-            fwhm_error_array = self.cal_fwhm_error(param_value_array[sigma_index, :, 1])
-            intensity_error_array = self.cal_intensity_error(intensity_array,
-                                                             param_value_array[height_index, :, 0],
-                                                             param_value_array[height_index, :, 1],
-                                                             param_value_array[sigma_index, :, 0],
-                                                             param_value_array[sigma_index, :, 1])
+        # Calculate error propagation
+        fwhm_error_array = self.cal_fwhm_error(param_error_array[sigma_index, :])
+        intensity_error_array = self.cal_intensity_error(intensity_array,
+                                                         param_value_array[height_index, :],
+                                                         param_error_array[height_index, :],
+                                                         param_value_array[sigma_index, :],
+                                                         param_error_array[sigma_index, :])
 
-            # Set
-            eff_value_array[0, :, 1] = param_value_array[center_index, :, 1]  # center
-            eff_value_array[1, :, 1] = param_value_array[height_index, :, 1]  # height
-            eff_value_array[2, :, 1] = intensity_error_array[:]  # intensity
-            eff_value_array[3, :, 1] = fwhm_error_array[:]  # FWHM
-            eff_value_array[4, :, 1] = 0  # no mixing for Gaussian
-            eff_value_array[5, :, 1] = param_value_array[bkgd_a0_index, :, 1]  # A0
-            eff_value_array[6, :, 1] = param_value_array[bkgd_a1_index, :, 1]  # A1
-        # END-IF
+        # Set Error
+        eff_error_array[0, :] = param_value_array[center_index, :]  # center
+        eff_error_array[1, :] = param_value_array[height_index, :]  # height
+        eff_error_array[2, :] = intensity_error_array[:]  # intensity
+        eff_error_array[3, :] = fwhm_error_array[:]  # FWHM
+        eff_error_array[4, :] = 0  # no mixing for Gaussian
+        eff_error_array[5, :] = param_value_array[bkgd_a0_index, :]  # A0
+        eff_error_array[6, :] = param_value_array[bkgd_a1_index, :]  # A1
 
-        return EFFECTIVE_PEAK_PARAMETERS, eff_value_array
+        return EFFECTIVE_PEAK_PARAMETERS, eff_value_array, eff_error_array
 
     @staticmethod
     def cal_intensity(height, sigma):
@@ -271,7 +275,7 @@ class PseudoVoigt(PeakParametersConverter):
 
         return
 
-    def calculate_effective_parameters(self, native_param_names, param_value_array):
+    def calculate_effective_parameters(self, native_param_names, param_value_array, param_error_array):
         """Calculate effective peak parameter values
 
         If input parameter values include fitting error, then this method will calculate
@@ -280,23 +284,25 @@ class PseudoVoigt(PeakParametersConverter):
         Native PseudoVoigt: ['Mixing', 'Intensity', 'PeakCentre', 'FWHM']
 
         Parameters
-        ----------
-        native_param_names: list or None
+        native_param_names: list
+            native peak parameter names of specific type of peak profile corresponding to param_value_array
         param_value_array : numpy.ndarray
-            (p, n, 1) or (p, n, 2) vector for parameter values and  optionally fitting error
+            (p, n) array for parameter values
+            p = number of native parameters , n = number of sub runs
+        param_error_array : numpy.ndarray
+            (p, n) array for parameter fitting error
             p = number of native parameters , n = number of sub runs
         Returns
         -------
-        np.ndarray
-            (p', n, 1) or (p', n, 2) array for  parameter values and  optionally fitting error
+        np.ndarray, np.ndarray
+            (p', n) and (p', n) array for  parameter values and  fitting error respectively
             p' = number of effective parameters , n = number of sub runs
-        """
-        # Check whether error is included or not: flag to include error in the output
-        include_error = param_value_array.shape[2] == 2
 
+        """
         # Output array
-        eff_value_array = np.zeros(shape=(len(EFFECTIVE_PEAK_PARAMETERS), param_value_array.shape[1],
-                                          param_value_array.shape[2]),
+        eff_value_array = np.zeros(shape=(len(EFFECTIVE_PEAK_PARAMETERS), param_value_array.shape[1]),
+                                   dtype=float)
+        eff_error_array = np.zeros(shape=(len(EFFECTIVE_PEAK_PARAMETERS), param_value_array.shape[1]),
                                    dtype=float)
 
         # Put to value
@@ -311,40 +317,37 @@ class PseudoVoigt(PeakParametersConverter):
             raise RuntimeError('Input native parameters are not complete: {}'.format(value_err))
 
         # Calculate effective parameter value
-        heights = self.cal_height(intensity=param_value_array[intensity_index, :, 0],
-                                  fwhm=param_value_array[fwhm_index, :, 0],
-                                  mixing=param_value_array[mix_index, :, 0])
+        heights = self.cal_height(intensity=param_value_array[intensity_index, :],
+                                  fwhm=param_value_array[fwhm_index, :],
+                                  mixing=param_value_array[mix_index, :])
+
+        # Set effective parameters
+        eff_value_array[0, :] = param_value_array[center_index, :]  # center
+        eff_value_array[1, :] = heights[:]  # height
+        eff_value_array[2, :] = param_value_array[intensity_index, :]  # intensity
+        eff_value_array[3, :] = param_value_array[fwhm_index, :]  # FWHM
+        eff_value_array[4, :] = param_value_array[mix_index, :]  # no mixing for Gaussian
+        eff_value_array[5, :] = param_value_array[bkgd_a0_index, :]  # A0
+        eff_value_array[6, :] = param_value_array[bkgd_a1_index, :]  # A1
+
+        # Calculate error propagation: effective parameter value
+        heights_error = self.cal_height_error(param_value_array[intensity_index, :],
+                                              param_error_array[intensity_index, :],
+                                              param_value_array[fwhm_index, :],
+                                              param_error_array[fwhm_index, :],
+                                              param_value_array[mix_index, :],
+                                              param_error_array[mix_index, :])
 
         # Set
-        eff_value_array[0, :, 0] = param_value_array[center_index, :, 0]  # center
-        eff_value_array[1, :, 0] = heights[:]  # height
-        eff_value_array[2, :, 0] = param_value_array[intensity_index, :, 0]  # intensity
-        eff_value_array[3, :, 0] = param_value_array[fwhm_index, :, 0]  # FWHM
-        eff_value_array[4, :, 0] = param_value_array[mix_index, :, 0]  # no mixing for Gaussian
-        eff_value_array[5, :, 0] = param_value_array[bkgd_a0_index, :, 0]  # A0
-        eff_value_array[6, :, 0] = param_value_array[bkgd_a1_index, :, 0]  # A1
+        eff_error_array[0, :] = param_value_array[center_index, :]  # center
+        eff_error_array[1, :] = heights_error[:]  # height
+        eff_error_array[2, :] = param_value_array[intensity_index, :]  # intensity
+        eff_error_array[3, :] = param_value_array[fwhm_index, :]  # FWHM
+        eff_error_array[4, :] = param_value_array[mix_index, :]  # no mixing for Gaussian
+        eff_error_array[5, :] = param_value_array[bkgd_a0_index, :]  # A0
+        eff_error_array[6, :] = param_value_array[bkgd_a1_index, :]  # A1
 
-        # Error propagation
-        if include_error:
-            # Calculate effective parameter value
-            heights_error = self.cal_height_error(param_value_array[intensity_index, :, 0],
-                                                  param_value_array[intensity_index, :, 1],
-                                                  param_value_array[fwhm_index, :, 0],
-                                                  param_value_array[fwhm_index, :, 1],
-                                                  param_value_array[mix_index, :, 0],
-                                                  param_value_array[mix_index, :, 1])
-
-            # Set
-            eff_value_array[0, :, 1] = param_value_array[center_index, :, 0]  # center
-            eff_value_array[1, :, 1] = heights_error[:]  # height
-            eff_value_array[2, :, 1] = param_value_array[intensity_index, :, 0]  # intensity
-            eff_value_array[3, :, 1] = param_value_array[fwhm_index, :, 0]  # FWHM
-            eff_value_array[4, :, 1] = param_value_array[mix_index, :, 0]  # no mixing for Gaussian
-            eff_value_array[5, :, 1] = param_value_array[bkgd_a0_index, :, 0]  # A0
-            eff_value_array[6, :, 1] = param_value_array[bkgd_a1_index, :, 0]  # A1
-        # END-IF
-
-        return EFFECTIVE_PEAK_PARAMETERS, eff_value_array
+        return EFFECTIVE_PEAK_PARAMETERS, eff_value_array, eff_error_array
 
     @staticmethod
     def cal_height(intensity, fwhm, mixing):
@@ -383,7 +386,6 @@ class PseudoVoigt(PeakParametersConverter):
 
         Parameters
         ----------
-        height
         intensity
         intensity_error
         fwhm
@@ -435,7 +437,7 @@ class Voigt(PeakParametersConverter):
 
         return
 
-    def calculate_effective_parameters(self, native_param_names, param_value_array):
+    def calculate_effective_parameters(self, native_param_names, param_value_array, param_error_array):
         """Calculate effective peak parameter values
 
         If input parameter values include fitting error, then this method will calculate
@@ -449,6 +451,7 @@ class Voigt(PeakParametersConverter):
         param_value_array : numpy.ndarray
             (p, n, 1) or (p, n, 2) vector for parameter values and  optionally fitting error
             p = number of native parameters , n = number of sub runs
+        param_error_array : numpy.ndarray
         Returns
         -------
         np.ndarray
@@ -459,10 +462,12 @@ class Voigt(PeakParametersConverter):
         include_error = param_value_array.shape[3] == 2
 
         # Output array
-        eff_value_array = np.zeros(shape=(len(EFFECTIVE_PEAK_PARAMETERS), param_value_array.shape[1],
-                                          param_value_array.shape[2]),
+        eff_value_array = np.zeros(shape=(len(EFFECTIVE_PEAK_PARAMETERS), param_value_array.shape[1]),
+                                   dtype=float)
+        eff_error_array = np.zeros(shape=(len(EFFECTIVE_PEAK_PARAMETERS), param_value_array.shape[1]),
                                    dtype=float)
         assert eff_value_array
+        assert param_error_array
 
         # Calculate effective parameters
         # ... ...
@@ -471,10 +476,7 @@ class Voigt(PeakParametersConverter):
         if include_error:
             pass
 
-        # TODO - Implement the main body ASAP
-        raise NotImplementedError('ASAP')
-
-        return EFFECTIVE_PEAK_PARAMETERS, eff_value_array
+        return EFFECTIVE_PEAK_PARAMETERS, eff_value_array, eff_error_array
 
 
 """

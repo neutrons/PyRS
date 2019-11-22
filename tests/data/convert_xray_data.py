@@ -7,8 +7,8 @@ Convert the synchrotron raw data to test
 
 Note: most of the methods to parse HZB data are copied from script pyrscalibration.py
 """
-from pyrs.utilities import rs_project_file
-from pyrs.utilities import rs_project_file
+from pyrs.utilities.rs_project_file import HidraConstants, HidraProjectFile, HidraProjectFileMode
+from pyrs.core.instrument_geometry import HidraSetup
 import numpy
 from skimage import io
 from PIL import Image
@@ -66,7 +66,7 @@ def generate_xray_instrument():
                                                                 arm_length=0.416,  # meter
                                                                 calibrated=False)
 
-    hzb = instrument_geometry.HydraSetup(l1=1.0, detector_setup=detector)  # single wave length
+    hzb = HidraSetup(detector_setup=detector)  # single wave length
     hzb.set_single_wavelength(wavelength)
 
     return hzb
@@ -79,29 +79,28 @@ def main():
     :return:
     """
     raw_tif_name = 'tests/testdata/LaB6_10kev_35deg-00004_Rotated.tif'
-    output_file_name = 'tests/testdata/Hidra_XRay_LaB6_10kev_35deg.hdf'
+    output_file_name = 'tests/testdata/Hidra_XRay_LaB6_10kev_35deg.h5'
 
     # Load raw data from image
     xray_count_vec, xray_det_type = load_data_from_tif(raw_tif_name)
 
     # start project file
-    project_file = rs_project_file.HydraProjectFile(output_file_name,
-                                                    mode=rs_project_file.HydraProjectFileMode.OVERWRITE)
+    project_file = HidraProjectFile(output_file_name, mode=HidraProjectFileMode.OVERWRITE)
 
     # add comments
-    project_file.set_information({'Raw Data File': raw_tif_name, 'Detector Type': xray_det_type})
+    project_file.write_information({'Raw Data File': raw_tif_name, 'Detector Type': xray_det_type})
 
     # parse and add counts: only 1 sub run
-    project_file.add_raw_counts(sub_run_number=1, counts_array=xray_count_vec)
+    project_file.append_raw_counts(sub_run_number=1, counts_array=xray_count_vec)
 
     # add sample log data & sub runs
     # for log_name in ['sub-run', '2Theta']
-    project_file.add_experiment_log(rs_project_file.HidraConstants.SUB_RUNS, numpy.array([1]))
-    project_file.add_experiment_log(rs_project_file.HidraConstants.TWO_THETA, numpy.array([35.]))
+    project_file.append_experiment_log(HidraConstants.SUB_RUNS, numpy.array([1]))
+    project_file.append_experiment_log(HidraConstants.TWO_THETA, numpy.array([35.]))
 
     # add instrument information
     instrument_setup = generate_xray_instrument()
-    project_file.set_instrument_geometry(instrument_setup)
+    project_file.write_instrument_geometry(instrument_setup)
 
     # save
     project_file.close()

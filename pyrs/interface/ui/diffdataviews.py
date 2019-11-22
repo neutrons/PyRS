@@ -99,13 +99,13 @@ class DetectorView(MplGraphicsView2D):
         # TODO - #84 - Make it real!
         sub_run_number, mask_id = info_tuple
         title = 'Sub run {}, Mask: {}'.format(sub_run_number, mask_id)
-        print('[DEBUG]: {}'.format(title))
+        self.set_title(title)
 
-        # print(detector_counts)
-        # print(type(detector_counts))
-        # print(detector_counts.shape)
+        image_size = int(np.sqrt(detector_counts.shape[0]))
+        if image_size * image_size != detector_counts.shape[0]:
+            raise RuntimeError('Detector with {} counts cannot convert to a 2D view without further information'
+                               ''.format(detector_counts.shape))
 
-        image_size = np.sqrt(detector_counts.shape[0])
         counts2d = detector_counts.reshape(image_size, image_size)
 
         # Rotate 90 degree to match the view: IT COULD BE WRONG!
@@ -248,11 +248,7 @@ class PeakFitSetupView(MplFitPlottingWidget):
         self._last_diff_reference = None  # last diffraction (raw) line ID
         self._last_model_reference = None  # last model diffraction (raw) line ID
         self._last_fit_diff_reference = None  # Last plot's reference for fitting residual
-
-        #
         self._auto_color = True
-
-        return
 
     def plot_experiment_data(self, diff_data_set, data_reference):
         """
@@ -269,8 +265,6 @@ class PeakFitSetupView(MplFitPlottingWidget):
 
         self._diff_reference_list.append(ref_id)
         self._last_diff_reference = ref_id
-
-        return
 
     def plot_model_data(self, diff_data_set, model_label, residual_set):
         """Plot model data from fitting
@@ -296,8 +290,6 @@ class PeakFitSetupView(MplFitPlottingWidget):
             # diff_y = residual_set[1]
             self._myCanvas.add_plot_lower_axis(residual_set)
 
-        return
-
     def plot_diff_data(self, diff_data_set, data_reference):
         """
         plot a diffraction data
@@ -317,8 +309,6 @@ class PeakFitSetupView(MplFitPlottingWidget):
 
         self._diff_reference_list.append(ref_id)
         self._last_diff_reference = ref_id
-
-        return
 
     def plot_fit_diff(self, diff_data_set, model_data_set):
         """
@@ -346,8 +336,6 @@ class PeakFitSetupView(MplFitPlottingWidget):
         # plot
         self._last_fit_diff_reference = self._myCanvas.add_plot_lower_axis(fit_diff_vec)
 
-        return
-
     def plot_model(self, model_data_set):
         """
         plot a model diffraction data
@@ -371,8 +359,6 @@ class PeakFitSetupView(MplFitPlottingWidget):
         # TODO - TONIGHT - Merge this with FitPeak UI's Figure Canvas
         # self._last_model_reference = self.add_plot(model_data_set[0], model_data_set[1], color='red')
 
-        return
-
     def reset_viewer(self):
         """
         reset current graphics view
@@ -386,8 +372,6 @@ class PeakFitSetupView(MplFitPlottingWidget):
 
         # call to clean lines
         self.clear_canvas()
-
-        return
 
 
 class SampleSliceView(slice_view_widget.SliceViewWidget):

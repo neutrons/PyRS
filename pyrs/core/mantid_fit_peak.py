@@ -2,6 +2,7 @@
 from pyrs.core import mantid_helper
 from pyrs.utilities import checkdatatypes
 from pyrs.core import peak_fit_engine
+from pyrs.core.peak_collection import PeakCollection
 import numpy as np
 from mantid.api import AnalysisDataService
 from mantid.simpleapi import CreateWorkspace, FitPeaks
@@ -11,7 +12,6 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
     """
     peak fitting engine class for mantid
     """
-
     def __init__(self, workspace, mask_name):
         """ Initialization to set up the workspace for fitting
         :param workspace: Hidra workspace to get the diffraction peaks from
@@ -43,6 +43,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
         return
 
+    # FIXME TODO - This method can be abstracted to base class PeakFitEngine
     def calculate_center_of_mass(self):
         """ calculate center of mass of peaks in the Mantid MatrixWorkspace as class variable
         and highest data point
@@ -75,9 +76,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         print('[INFO] Highest Point Workspace: {0} Number of spectra = {1}'
               ''.format(self._highest_point_ws_name, high_ws.getNumberHistograms()))
 
-        self._peak_center_vec = peak_center_vec
-
-        return
+        return peak_center_vec
 
     def _create_peak_center_ws(self, peak_center):
         """ Create peak center workspace
@@ -108,16 +107,20 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         return center_ws
 
     # TODO - #89 - Cleanup
-    def fit_peaks(self, sub_run_range, peak_function_name, background_function_name, peak_center, peak_range,
-                  cal_center_d):
+    def fit_peaks(self, peak_tag, sub_run_range, peak_function_name, background_function_name,
+                  peak_center, peak_range, cal_center_d):
         """Fit peaks
 
         Fit peaks given from sub run range and with option to calculate peak center in d-spacing
 
+        Note: method _set_profile_parameters_values_from_fitting() must be called at the end of fit_peaks()
+
         Parameters
         ----------
-        sub_run_range: tuple
+        sub_run_range: 2-tuple
             first sub run, last sub run (included)
+            start sub run (None as first 1) and end sub run (None as last 1) for
+            range of sub runs (including both end) to refine
         peak_function_name
         background_function_name
         peak_center: str / Mantid Workspace2D / ndarray / float
@@ -134,23 +137,29 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         self._fit_peaks_checks(sub_run_range, peak_function_name, background_function_name, peak_center, peak_range,
                                cal_center_d)
 
-        # Set class variable
-        self._peak_function_name = peak_function_name
-
         # Get workspace and gather some information
         mantid_ws = mantid_helper.retrieve_workspace(self._mantid_workspace_name, True)
         num_spectra = mantid_ws.getNumberHistograms()
+        sub_run_array = self._hd_workspace.get_sub_runs()
 
         # Get the sub run range
         start_sub_run, end_sub_run = sub_run_range
         if start_sub_run is None:
+            # default start sub run as first sub run
             start_spectrum = 0
+            start_sub_run = sub_run_array[0]
         else:
+            # user specified
             start_spectrum = self._hd_workspace.get_spectrum_index(start_sub_run)
         if end_sub_run is None:
+            # default end sub run as last sub run (included)
             end_spectrum = num_spectra - 1
+            end_sub_run = sub_run_array[-1]
         else:
             end_spectrum = self._hd_workspace.get_spectrum_index(end_sub_run)
+
+        # TODO FIXME - Next step: this section to create peak center and windows will be moved to a
+        #              separate method and expanded to support multiple peaks
 
         # Create Peak range/window workspace
         peak_window_ws_name = 'fit_window_{0}'.format(self._mantid_workspace_name)
@@ -197,17 +206,18 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         # SaveNexusProcessed(InputWorkspace=peak_center_ws, Filename='/tmp/position.nxs')
         # SaveNexusProcessed(InputWorkspace=peak_window_ws_name, Filename='/tmp/peakwindow.nxs')
 
-        # TODO FIXME #89 - Make the difference between peak profiles
-        if self._peak_function_name == 'Gaussian':
+        # TODO FIXME - Using standard constants and separate this part to a separate method
+        # Make the difference between peak profiles
+        if peak_function_name == 'Gaussian':
             # Gaussian
             peak_param_names = "{}".format(width_dict[peak_function_name][0])
             peak_param_values = "{}".format(width_dict[peak_function_name][1])
-        elif self._peak_function_name == 'PseudoVoigt':
+        elif peak_function_name == 'PseudoVoigt':
             peak_param_names = "{}, {}".format(width_dict[peak_function_name][0], 'Mixing')
             peak_param_values = "{}, {}".format(width_dict[peak_function_name][1], '0.5')
         else:
             raise RuntimeError('Peak function {} is not supported for pre-set guessed starting value'
-                               ''.format(self._peak_function_name))
+                               ''.format(peak_function_name))
 
         # END-IF
 
@@ -239,7 +249,6 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         # END-IF-DEBUG (True)
 
         # process output
-        self._peak_function_name = peak_function_name
         self._fitted_peak_position_ws = AnalysisDataService.retrieve(r_positions_ws_name)
         self._fitted_function_param_table = AnalysisDataService.retrieve(r_param_table_name)
         self._fitted_function_error_table = AnalysisDataService.retrieve(r_error_table_name)
@@ -250,14 +259,74 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
             # optionally to use calibrated wave length as default
             self.calculate_peak_position_d(wave_length=self._wavelength_vec)
 
-        return
+        # Set the fit result to private class structure numpy arrays
+        # Get sub runs considering fitting only being applied to a sub set of sub runs
+        sub_runs = sub_run_array[np.where((sub_run_array >= start_sub_run) & (sub_run_array <= end_sub_run))]
+        fitted_peak = self._set_profile_parameters_values_from_fitting(peak_tag, sub_runs, peak_function_name,
+                                                                       background_function_name)
 
-    def get_observed_peaks_centers(self):
+        return fitted_peak
+
+    def _set_profile_parameters_values_from_fitting(self, peak_tag, sub_runs, peak_profile_name,
+                                                    background_type_name):
+        """Set (fitted) profile names from TableWorkspaces
+
+        Parameters
+        ----------
+        peak_tag : str
+            peak tag
+        sub_runs : numpy.ndarray
+            sub run numbers for those which are fitted
+        peak_profile_name : str
+        background_type_name : str
+
+        Returns
+        -------
+        ~pyrs.core.peak_collecton.PeakCollection
+            Fitted peak's information
+
+        """
+        def convert_from_table_to_arrays(table_ws):
+            # Table column names
+            table_col_names = table_ws.getColumnNames()
+            num_sub_runs = table_ws.rowCount()
+
+            # Set the structured numpy array
+            data_type_list = list()
+            for param_name in table_col_names:
+                data_type_list.append((param_name, np.float32))
+
+            struct_array = np.zeros(num_sub_runs, dtype=data_type_list)
+
+            # get fitted parameter value
+            for col_index, param_name in enumerate(table_col_names):
+                # get value from column in value table
+                struct_array[param_name] = table_ws.column(col_index)
+
+            return struct_array
+
+        peak_params_value_array = convert_from_table_to_arrays(self._fitted_function_param_table)
+        peak_params_error_array = convert_from_table_to_arrays(self._fitted_function_error_table)
+        fit_cost_array = peak_params_value_array['chi2']
+
+        # Create PeakCollection instance
+        peak_object = PeakCollection(peak_tag)
+        peak_object.set_peak_fitting_values(peak_profile_name, background_type_name, sub_runs,
+                                            peak_params_value_array, peak_params_error_array, fit_cost_array)
+
+        # Set to dictionary
+        self._peak_collection_dict[peak_tag] = peak_object
+
+        return peak_object
+
+    # FIXME - Abstract to base class and re-implement
+    @staticmethod
+    def get_observed_peaks_centers():
         """
         get center of mass vector and X value vector corresponding to maximum Y value
         :return:
         """
-        return self._peak_center_vec
+        return np.zeros(shape=(1000,))
 
     def get_calculated_peak(self, sub_run):
         """Get the "model" peak, calculated from fitted parameters
@@ -301,58 +370,58 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         """
         return self._mantid_workspace_name
 
-    def _get_fitted_parameters_value(self, spec_index_vec, param_name_list, param_value_array):
-        """
-        Get fitted peak parameters' value
-        :param spec_index_vec:
-        :param param_name_list:
-        :param param_value_array: a (p, s, e) array: p = param_name_list.size, s = sub runs size, e = 1 or 2
-        :return:
-        """
-        # table column names
-        col_names = self._fitted_function_param_table.getColumnNames()
+    # def _get_fitted_parameters_value(self, spec_index_vec, param_name_list, param_value_array):
+    #     """
+    #     Get fitted peak parameters' value
+    #     :param spec_index_vec:
+    #     :param param_name_list:
+    #     :param param_value_array: a (p, s, e) array: p = param_name_list.size, s = sub runs size, e = 1 or 2
+    #     :return:
+    #     """
+    #     # table column names
+    #     col_names = self._fitted_function_param_table.getColumnNames()
+    #
+    #     # get fitted parameter value
+    #     for out_index, param_name in enumerate(param_name_list):
+    #         # get value from column
+    #         if param_name in col_names:
+    #             param_col_index = col_names.index(param_name)
+    #             param_vec = np.array(self._fitted_function_param_table.column(param_col_index))
+    #         elif param_name == 'center_d':
+    #             param_vec = self._peak_center_d_vec[:, 0]
+    #         else:
+    #             raise RuntimeError('Peak parameter {} does not exist. Available parameters are {} and center_d'
+    #                                ''.format(param_name, col_names))
+    #         # set value
+    #         param_value_array[out_index, :, 0] = param_vec[spec_index_vec]
+    #     # END-FOR
+    #
+    #     return
 
-        # get fitted parameter value
-        for out_index, param_name in enumerate(param_name_list):
-            # get value from column
-            if param_name in col_names:
-                param_col_index = col_names.index(param_name)
-                param_vec = np.array(self._fitted_function_param_table.column(param_col_index))
-            elif param_name == 'center_d':
-                param_vec = self._peak_center_d_vec[:, 0]
-            else:
-                raise RuntimeError('Peak parameter {} does not exist. Available parameters are {} and center_d'
-                                   ''.format(param_name, col_names))
-            # set value
-            param_value_array[out_index, :, 0] = param_vec[spec_index_vec]
-        # END-FOR
-
-        return
-
-    def get_fit_cost(self, max_chi2):
-        """ Get the peak function cost
-        :param max_chi2:
-        :return:
-        """
-        # Get chi2 column
-        col_names = self._fitted_function_param_table.getColumnNames()
-        chi2_col_index = col_names.index('chi2')
-
-        # Get chi2 from table workspace (native return is List)
-        chi2_vec = np.array(self._fitted_function_param_table.column(chi2_col_index))  # form to np.ndarray
-
-        # Filter out the sub runs/spectra with large chi^2
-        if max_chi2 is not None and max_chi2 < 1.E20:
-            # selected
-            good_fit_indexes = np.where(chi2_vec < max_chi2)
-            chi2_vec = chi2_vec[good_fit_indexes]
-            spec_vec = good_fit_indexes[0]
-        else:
-            # all
-            print(chi2_vec)
-            spec_vec = np.arange(chi2_vec.shape[0])
-
-        return spec_vec, chi2_vec
+    # def get_fit_cost(self, max_chi2):
+    #     """ Get the peak function cost
+    #     :param max_chi2:
+    #     :return:
+    #     """
+    #     # Get chi2 column
+    #     col_names = self._fitted_function_param_table.getColumnNames()
+    #     chi2_col_index = col_names.index('chi2')
+    #
+    #     # Get chi2 from table workspace (native return is List)
+    #     chi2_vec = np.array(self._fitted_function_param_table.column(chi2_col_index))  # form to np.ndarray
+    #
+    #     # Filter out the sub runs/spectra with large chi^2
+    #     if max_chi2 is not None and max_chi2 < 1.E20:
+    #         # selected
+    #         good_fit_indexes = np.where(chi2_vec < max_chi2)
+    #         chi2_vec = chi2_vec[good_fit_indexes]
+    #         spec_vec = good_fit_indexes[0]
+    #     else:
+    #         # all
+    #         print(chi2_vec)
+    #         spec_vec = np.arange(chi2_vec.shape[0])
+    #
+    #     return spec_vec, chi2_vec
 
     def get_scan_indexes(self):
         """

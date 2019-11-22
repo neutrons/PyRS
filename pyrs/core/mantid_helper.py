@@ -5,6 +5,7 @@ from mantid.simpleapi import AddSampleLog
 import os
 from pyrs.core import workspaces
 from pyrs.utilities import checkdatatypes
+import numpy as np
 
 
 def generate_mantid_workspace(hidra_workspace, workspace_name, mask_id=None):
@@ -23,9 +24,15 @@ def generate_mantid_workspace(hidra_workspace, workspace_name, mask_id=None):
     else:
         checkdatatypes.check_string_variable('Workspace name', workspace_name)
 
-    two_theta_array, data_y_matrix = hidra_workspace.get_reduced_diffraction_data_set(mask_id)
+    # Get data from HiDRA Workspace
+    two_theta_matrix, data_y_matrix = hidra_workspace.get_reduced_diffraction_data_set(mask_id)
 
-    matrix_ws = CreateWorkspace(DataX=two_theta_array,
+    # Mantid (2019.11) does not accept NaN
+    # Convert all NaN to zero.  No good peak will have NaN or Zero
+    data_y_matrix[np.where(np.isnan(data_y_matrix))] = 0.
+
+    # Create Mantid workspace
+    matrix_ws = CreateWorkspace(DataX=two_theta_matrix,
                                 DataY=data_y_matrix,
                                 NSpec=data_y_matrix.shape[0],
                                 OutputWorkspace=workspace_name)
