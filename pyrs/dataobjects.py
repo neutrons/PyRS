@@ -1,5 +1,13 @@
 # extentable version of dict https://treyhunner.com/2019/04/why-you-shouldnt-inherit-from-list-and-dict-in-python/
 from collections import MutableMapping
+import numpy as np
+
+
+def _coerce_to_ndarray(value):
+    if isinstance(value, np.ndarray):
+        return value
+    else:
+        return np.atleast_1d(value)
 
 
 class SampleLogs(MutableMapping):
@@ -7,30 +15,87 @@ class SampleLogs(MutableMapping):
 
     def __init__(self, **kwargs):
         self._data = dict(kwargs)
-        self.subruns = None
+        self._subruns = np.ndarray((0))
+
+    def __del__(self):
+        del self._data
+        del self._subruns
 
     def __delitem__(self, key):
         if key == self.SUBRUN_KEY:
-            self.subruns = None
+            self.subruns = np.ndarray((0))  # use full method
         else:
             del self._data[key]
 
     def __getitem__(self, key):
-        if key == self.SUBRUN_KEY:
-            return self.subruns
+        if isinstance(key, tuple):
+            key, subruns = key
         else:
-            return self._data[key]
+            subruns = None
+
+        if key == self.SUBRUN_KEY:
+            if subruns:
+                raise RuntimeError('Cannot use __getitem__ to get subset of subruns')
+            return self._subruns
+        else:
+            if (not subruns) or self.matching_subruns(subruns):
+                return self._data[key]
+            else:
+                return self._data[key][self.get_subrun_indices(subruns)]
 
     def __iter__(self):
         # does not include subruns
         return iter(self._data)
 
     def __len__(self):
+        '''The number of keys in the underlying dictionary'''
         # does not include subruns
         return len(self._data)
 
     def __setitem__(self, key, value):
+        value = _coerce_to_ndarray(value)
         if key == self.SUBRUN_KEY:
-            self.subruns = value
+            self.subruns = value  # use full method
         else:
             self._data[key] = value
+
+    @property
+    def subruns(self):
+        '''This method must exist in order to customize the setter'''
+        return self._subruns
+
+    @subruns.setter
+    def subruns(self, value):
+        '''Set the subruns and build up associated values'''
+        if self._subruns.size != 0:
+            if not self.matching_subruns(value):
+                raise RuntimeError('Cannot set subruns on non-empty SampleLog')
+        value = _coerce_to_ndarray(value)
+        if not np.all(value[:-1] < value[1:]):
+            raise RuntimeError('subruns are not soryed in increasing order')
+        self._subruns = value
+
+    def matching_subruns(self, subruns):
+        subruns = _coerce_to_ndarray(subruns)
+        if subruns.size != self._subruns.size:
+            return False
+        else:
+            return np.all(subruns == self._subruns)
+
+    def get_subrun_indices(self, subruns):
+        if self.matching_subruns(subruns):
+            return np.arange(self._subruns.size)
+        else:
+            subruns = _coerce_to_ndarray(subruns)
+
+            # look for the single value
+            if subruns.size == 1:
+                indices = np.nonzero(subruns == subruns[0])[0]
+                if indices.size > 0:
+                    return indices
+            # check that the first and last values are in the array
+            elif subruns[0] in self._subruns and subruns[-1] in self._subruns:
+                return np.searchsorted(self._subruns, _coerce_to_ndarray(subruns))
+
+        # fall-through is an error
+        raise RuntimeError('Failed to find subruns={}'.format(subruns))
