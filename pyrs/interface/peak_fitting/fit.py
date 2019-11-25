@@ -1,4 +1,3 @@
-from pyrs.interface.peak_fitting.utilities import Utilities
 from pyrs.interface.peak_fitting.plot import Plot
 from pyrs.interface.gui_helper import pop_message
 from pyrs.utilities.rs_project_file import HidraConstants

@@ -14,7 +14,7 @@ from pyrs.interface.peak_fitting.event_handler import EventHandler
 from pyrs.interface.peak_fitting.plot import Plot
 from pyrs.interface.peak_fitting.fit import Fit
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
-from pyrs.icons import icons_rc  # noga
+from pyrs.icons import icons_rc  # noqa: F401
 
 
 class FitPeaksWindow(QMainWindow):
