@@ -34,5 +34,3 @@ class GuiUtilities:
                                   enabled=individual_radio_button_status)
         self.enabled_list_widgets(list_widgets=list_ui_listruns,
                                   enabled=(not individual_radio_button_status))
-
-

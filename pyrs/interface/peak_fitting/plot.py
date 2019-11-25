@@ -2,7 +2,6 @@ import numpy as np
 
 from pyrs.interface.gui_helper import parse_integers
 from pyrs.interface.gui_helper import pop_message
-from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
 
 
 class Plot:
@@ -95,7 +94,7 @@ class Plot:
         try:
             self.parent._ui_graphicsView_fitSetup.reset_viewer()
             self.plot_diff_and_fitted_data(scan_value, True)
-        except RuntimeError as run_err:
+        except RuntimeError:
             pass
 
         self.parent.ui.label_SubRunsValue.setText('{}'.format(scan_value))

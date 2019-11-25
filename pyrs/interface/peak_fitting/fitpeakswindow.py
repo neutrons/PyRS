@@ -2,13 +2,11 @@ import numpy
 import os
 from qtpy.QtWidgets import QVBoxLayout, QFileDialog, QMainWindow
 
-
 from pyrs.utilities import load_ui
 from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.diffdataviews import GeneralDiffDataView, DiffContourView
 from pyrs.interface.ui.rstables import FitResultTable
 from pyrs.interface.ui.diffdataviews import PeakFitSetupView
-# from pyrs.utilities import checkdatatypes
 from pyrs.utilities.rs_project_file import HidraConstants
 import pyrs.interface.advpeakfitdialog
 import pyrs.interface.gui_helper
@@ -16,7 +14,8 @@ from pyrs.interface.peak_fitting.event_handler import EventHandler
 from pyrs.interface.peak_fitting.plot import Plot
 from pyrs.interface.peak_fitting.fit import Fit
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
-from pyrs.icons import icons_rc #noga
+from pyrs.icons import icons_rc  # noga
+
 
 class FitPeaksWindow(QMainWindow):
     """
