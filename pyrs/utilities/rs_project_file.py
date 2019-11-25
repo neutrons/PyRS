@@ -616,8 +616,8 @@ class HidraProjectFile(object):
 
         # Get value from peak collection
         peak_tag = fitted_peaks.peak_tag
-        peak_profile = fitted_peaks.peak_profile
-        background_type = fitted_peaks.background_type
+        peak_profile = str(fitted_peaks.peak_profile)
+        background_type = str(fitted_peaks.background_type)
 
         checkdatatypes.check_string_variable('Peak tag', peak_tag)
         checkdatatypes.check_string_variable('Peak profile', peak_profile)
