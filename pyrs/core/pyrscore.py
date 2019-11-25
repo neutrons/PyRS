@@ -178,9 +178,7 @@ class PyRsCore(object):
             # fit peak
             try:
                 self._peak_fit_controller.fit_peaks(peak_tag_i, sub_run_range, peak_type, background_type,
-                                                    peak_center, peak_range, cal_center_d=True)
-                self._peak_fit_controller.calculate_peak_center_d(peak_tag_i)
-
+                                                    peak_center, peak_range)
             except RuntimeError as run_err:
                 error_message += 'Failed to fit (tag) {} due to {}\n'.format(peak_tag_i, run_err)
         # END-FOR

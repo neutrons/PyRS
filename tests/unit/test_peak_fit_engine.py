@@ -17,7 +17,7 @@ def generate_test_gaussian(vec_x, peak_center, peak_range):
 
     Returns
     -------
-    ndarray, float, tuple
+    (ndarray, float, tuple)
         vector of Y containing Gaussian, peak center, peak range
     """
     # Set sigma
@@ -149,8 +149,7 @@ def test_gaussian():
                          peak_function_name='Gaussian',
                          background_function_name='Linear',
                          peak_center=peak_center,
-                         peak_range=peak_range,
-                         cal_center_d=False)
+                         peak_range=peak_range)
 
     # Get model (from fitted parameters) against each other
     model_x, model_y = fit_engine.get_calculated_peak(1)
@@ -205,8 +204,7 @@ def test_pseudo_voigt():
                          peak_function_name='PseudoVoigt',
                          background_function_name='Linear',
                          peak_center=peak_center,
-                         peak_range=peak_range,
-                         cal_center_d=False)
+                         peak_range=peak_range)
 
     # Get model (from fitted parameters) against each other
     model_x, model_y = fit_engine.get_calculated_peak(1)
