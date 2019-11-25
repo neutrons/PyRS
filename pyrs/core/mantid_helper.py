@@ -1,11 +1,17 @@
 from mantid.simpleapi import CreateWorkspace
 from mantid.simpleapi import mtd
 from mantid.simpleapi import Transpose
-from mantid.simpleapi import AddSampleLog
+from mantid.simpleapi import AddSampleLog, SaveNexusProcessed
+from mantid.api import MatrixWorkspace
 import os
 from pyrs.core import workspaces
 from pyrs.utilities import checkdatatypes
 import numpy as np
+
+
+def export_workspaces(ws_name_list):
+    for ws_name in ws_name_list:
+        SaveNexusProcessed(InputWorkspace=ws_name, Filename='/tmp/{}.nxs'.format(ws_name))
 
 
 def generate_mantid_workspace(hidra_workspace, workspace_name, mask_id=None):
@@ -75,6 +81,20 @@ def get_log_value(workspace, log_name):
     log_value = sample_log_property.value()
 
     return log_value
+
+
+def is_matrix_workspace(workspace):
+    """Check an object is a MantidWorkspace
+
+    Parameters
+    ----------
+    workspace
+
+    Returns
+    -------
+
+    """
+    return isinstance(workspace, MatrixWorkspace)
 
 
 def set_log_value(workspace, log_name, log_value, unit='meter'):

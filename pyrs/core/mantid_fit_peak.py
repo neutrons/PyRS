@@ -8,6 +8,9 @@ from mantid.api import AnalysisDataService
 from mantid.simpleapi import CreateWorkspace, FitPeaks
 
 
+DEBUG = False   # Flag for debugging mode
+
+
 class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
     """
     peak fitting engine class for mantid
@@ -61,9 +64,64 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
         return center_ws
 
-    # TODO - #89 - Cleanup
+    def _create_peak_window_workspace(self, num_spectra, peaks_range_list):
+        """Create Mantid Matrix workspace for peak fitting window used by FitPeaks
+
+        Parameters
+        ----------
+        num_spectra : int
+            number of spectrum
+        peaks_range_list
+
+        Returns
+        -------
+        str
+            name of peak range MatrixWorkspace required by FitPeaks
+
+        """
+        # Check inputs
+        checkdatatypes.check_list('Peaks ranges', peaks_range_list)
+
+        # Create Peak range/window workspace
+        peak_window_ws_name = 'fit_window_{0}'.format(self._mantid_workspace_name)
+
+        # Create vector X and vector Y
+        range_vector = np.tile(np.array(peaks_range_list).flatten(), num_spectra)
+
+        # Create workspace
+        CreateWorkspace(DataX=range_vector, DataY=range_vector,
+                        NSpec=num_spectra, OutputWorkspace=peak_window_ws_name)
+
+        return peak_window_ws_name
+
+    @staticmethod
+    def _set_default_peak_params_value(peak_function_name):
+
+        # TODO FIXME - Using standard constants and separate this part to a separate method
+        # TODO - #81 NOW - Requiring good estimation!!! - shall we use a dictionary to set up somewhere else?
+        width_dict = {'Gaussian': ('Sigma', 0.36),
+                      'PseudoVoigt': ('FWHM', 1.0),
+                      'Voigt': ('LorentzFWHM, GaussianFWHM', '0.1, 0.7')}
+
+        print('[DB...BAT] Peak function: {}'.format(peak_function_name))
+        print('[DB...BAT] Param names:   {}'.format(width_dict[peak_function_name][0]))
+        print('[DB...BAT] Param values:  {}'.format(width_dict[peak_function_name][1]))
+        # Make the difference between peak profiles
+        if peak_function_name == 'Gaussian':
+            # Gaussian
+            peak_param_names = "{}".format(width_dict[peak_function_name][0])
+            peak_param_values = "{}".format(width_dict[peak_function_name][1])
+        elif peak_function_name == 'PseudoVoigt':
+            peak_param_names = "{}, {}".format(width_dict[peak_function_name][0], 'Mixing')
+            peak_param_values = "{}, {}".format(width_dict[peak_function_name][1], '0.5')
+        else:
+            raise RuntimeError('Peak function {} is not supported for pre-set guessed starting value'
+                               ''.format(peak_function_name))
+
+        return peak_param_names, peak_param_values
+
     def fit_peaks(self, peak_tag, sub_run_range, peak_function_name, background_function_name,
-                  peak_center, peak_range, cal_center_d):
+                  peak_center, peak_range):
         """Fit peaks
 
         Fit peaks given from sub run range and with option to calculate peak center in d-spacing
@@ -72,32 +130,33 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
         Parameters
         ----------
+        peak_tag: str
+            peak tag
         sub_run_range: 2-tuple
             first sub run, last sub run (included)
             start sub run (None as first 1) and end sub run (None as last 1) for
             range of sub runs (including both end) to refine
-        peak_function_name
+        peak_function_name : str
+            peak profile function name
         background_function_name
         peak_center: str / Mantid Workspace2D / ndarray / float
             Center workspace name, Center workspace, peak centers for each spectrum, peak center (universal)
-        peak_range:
-            Peak range
-        cal_center_d
+        peak_range: (float, float)
+            Peak range in 2-theta
 
         Returns
         -------
 
         """
         # Check inputs
-        self._fit_peaks_checks(sub_run_range, peak_function_name, background_function_name, peak_center, peak_range,
-                               cal_center_d)
+        self._fit_peaks_checks(sub_run_range, peak_function_name, background_function_name, peak_center, peak_range)
 
         # Get workspace and gather some information
         mantid_ws = mantid_helper.retrieve_workspace(self._mantid_workspace_name, True)
         num_spectra = mantid_ws.getNumberHistograms()
         sub_run_array = self._hidra_wksp.get_sub_runs()
 
-        # Get the sub run range
+        # Get the sub run range and spectrum index range for Mantid
         start_sub_run, end_sub_run = sub_run_range
         if start_sub_run is None:
             # default start sub run as first sub run
@@ -113,14 +172,8 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         else:
             end_spectrum = int(self._hidra_wksp.get_spectrum_index(end_sub_run))
 
-        # TODO FIXME - Next step: this section to create peak center and windows will be moved to a
-        #              separate method and expanded to support multiple peaks
-
-        # Create Peak range/window workspace
-        peak_window_ws_name = 'fit_window_{0}'.format(self._mantid_workspace_name)
-        CreateWorkspace(DataX=np.array([peak_range[0], peak_range[1]] * num_spectra),
-                        DataY=np.array([peak_range[0], peak_range[1]] * num_spectra),
-                        NSpec=num_spectra, OutputWorkspace=peak_window_ws_name)
+        # Create peak range/fitting window workspace
+        peak_window_ws_name = self._create_peak_window_workspace(num_spectra, [peak_range])
 
         # Create peak center workspace
         if isinstance(peak_center, float) or isinstance(peak_center, np.ndarray) or isinstance(peak_center, list):
@@ -139,80 +192,50 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
                                       ''.format(peak_center, type(peak_center)))
         # END-IF-ELSE
 
-        # no pre-determined peak center: use center of mass
+        # Create output workspace names
         r_positions_ws_name = 'fitted_peak_positions_{0}'.format(self._mantid_workspace_name)
         r_param_table_name = 'param_m_{0}'.format(self._mantid_workspace_name)
         r_error_table_name = 'param_e_{0}'.format(self._mantid_workspace_name)
         r_model_ws_name = 'model_full_{0}'.format(self._mantid_workspace_name)
 
-        # TODO - #81 NOW - Requiring good estimation!!! - shall we use a dictionary to set up somewhere else?
-        width_dict = {'Gaussian': ('Sigma', 0.36),
-                      'PseudoVoigt': ('FWHM', 1.0),
-                      'Voigt': ('LorentzFWHM, GaussianFWHM', '0.1, 0.7')}
+        # Set up the default parameter values according to peak profile and instrument property
+        peak_param_names, peak_param_values = self._set_default_peak_params_value(peak_function_name)
 
-        print('[DB...BAT] Peak function: {}'.format(peak_function_name))
-        print('[DB...BAT] Param names:   {}'.format(width_dict[peak_function_name][0]))
-        print('[DB...BAT] Param values:  {}'.format(width_dict[peak_function_name][1]))
-
-        # Get peak center workspace
-        self.calculate_center_of_mass()
-
-        # SaveNexusProcessed(InputWorkspace=self._mantid_workspace_name, Filename='/tmp/data.nxs')
-        # SaveNexusProcessed(InputWorkspace=peak_center_ws, Filename='/tmp/position.nxs')
-        # SaveNexusProcessed(InputWorkspace=peak_window_ws_name, Filename='/tmp/peakwindow.nxs')
-
-        # TODO FIXME - Using standard constants and separate this part to a separate method
-        # Make the difference between peak profiles
-        if peak_function_name == 'Gaussian':
-            # Gaussian
-            peak_param_names = "{}".format(width_dict[peak_function_name][0])
-            peak_param_values = "{}".format(width_dict[peak_function_name][1])
-        elif peak_function_name == 'PseudoVoigt':
-            peak_param_names = "{}, {}".format(width_dict[peak_function_name][0], 'Mixing')
-            peak_param_values = "{}, {}".format(width_dict[peak_function_name][1], '0.5')
-        else:
-            raise RuntimeError('Peak function {} is not supported for pre-set guessed starting value'
-                               ''.format(peak_function_name))
-
-        # END-IF
+        if DEBUG:
+            mantid_helper.export_workspaces([self._mantid_workspace_name, peak_center_ws, peak_window_ws_name])
 
         # Fit peak by Mantid.FitPeaks
-        r = FitPeaks(InputWorkspace=self._mantid_workspace_name,
-                     PeakCentersWorkspace=peak_center_ws,
-                     FitPeakWindowWorkspace=peak_window_ws_name,
-                     PeakFunction=peak_function_name,
-                     BackgroundType=background_function_name,
-                     StartWorkspaceIndex=start_spectrum,
-                     StopWorkspaceIndex=end_spectrum,
-                     FindBackgroundSigma=1,
-                     HighBackground=True,
-                     ConstrainPeakPositions=False,
-                     PeakParameterNames=peak_param_names,
-                     PeakParameterValues=peak_param_values,
-                     RawPeakParameters=True,
-                     OutputWorkspace=r_positions_ws_name,
-                     OutputPeakParametersWorkspace=r_param_table_name,
-                     OutputParameterFitErrorsWorkspace=r_error_table_name,
-                     FittedPeaksWorkspace=r_model_ws_name)
+        fit_return = FitPeaks(InputWorkspace=self._mantid_workspace_name,
+                              PeakCentersWorkspace=peak_center_ws,
+                              FitPeakWindowWorkspace=peak_window_ws_name,
+                              PeakFunction=peak_function_name,
+                              BackgroundType=background_function_name,
+                              StartWorkspaceIndex=start_spectrum,
+                              StopWorkspaceIndex=end_spectrum,
+                              FindBackgroundSigma=1,
+                              HighBackground=True,
+                              ConstrainPeakPositions=False,
+                              PeakParameterNames=peak_param_names,
+                              PeakParameterValues=peak_param_values,
+                              RawPeakParameters=True,
+                              OutputWorkspace=r_positions_ws_name,
+                              OutputPeakParametersWorkspace=r_param_table_name,
+                              OutputParameterFitErrorsWorkspace=r_error_table_name,
+                              FittedPeaksWorkspace=r_model_ws_name)
         # r is a class containing multiple outputs (workspaces)
-        # print (r,  r.OutputParameterFitErrorsWorkspace.getColumnNames(), r.OutputPeakParametersWorkspace,
-        #        r.FittedPeaksWorkspace)
-        assert r, 'return from FitPeaks cannot be None'
+        if fit_return is None:
+            raise RuntimeError('return from FitPeaks cannot be None')
 
         # Save all the workspaces automatically for further review
         # mantid_helper.study_mantid_peak_fitting()
         # END-IF-DEBUG (True)
 
-        # process output
+        # Process output
+        # retrieve workspaces from Analysis cluster
         self._fitted_peak_position_ws = AnalysisDataService.retrieve(r_positions_ws_name)
         self._fitted_function_param_table = AnalysisDataService.retrieve(r_param_table_name)
         self._fitted_function_error_table = AnalysisDataService.retrieve(r_error_table_name)
         self._model_matrix_ws = AnalysisDataService.retrieve(r_model_ws_name)
-
-        # Calculate d-spacing with wave length given
-        if cal_center_d:
-            # optionally to use calibrated wave length as default
-            self.convert_peaks_centers_to_d(wave_length=self._wavelength_vec)
 
         # Set the fit result to private class structure numpy arrays
         # Get sub runs considering fitting only being applied to a sub set of sub runs
@@ -221,6 +244,55 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
                                                                        background_function_name)
 
         return fitted_peak
+
+    # TODO FIXME - peak_tag, peak_center and peak_range will be replaced by a PeakObject class (namedtuple)
+    def fit_multiple_peaks(self, sub_run_range, peak_function_name, background_function_name, peak_tag_list,
+                           peak_center_list, peak_range_list):
+        """Fit multiple peaks on multiple sub runs
+
+        Parameters
+        ----------
+        sub_run_range : 2-tuple
+            start sub run (None as first 1) and end sub run (None as last 1) for
+            range of sub runs (including both end) to refine
+        peak_function_name : str
+            name of peak profile function
+        background_function_name : str
+            name of background function
+        peak_tag_list : List
+            list of str for peak tags
+        peak_center_list : List
+            list of float for peak centers
+        peak_range_list : List
+            list of 2-tuple for each peak's range in 2-theta
+
+        Returns
+        -------
+        Dict
+            dictionary of ~pyrs.core.peak_collection.PeakCollection with peak tag as key
+
+        """
+        peak_collection_dict = dict()
+
+        error_message = ''
+        for i_peak, peak_tag_i in enumerate(peak_tag_list):
+            # get fit setup parameters
+            peak_center = peak_center_list[i_peak]
+            peak_range = peak_range_list[i_peak]
+
+            # fit peak
+            try:
+                pl = self.fit_peaks(peak_tag_i, sub_run_range, peak_function_name, background_function_name,
+                                    peak_center, peak_range)
+                peak_collection_dict[peak_tag_i] = pl
+            except RuntimeError as run_err:
+                error_message += 'Failed to fit (tag) {} due to {}\n'.format(peak_tag_i, run_err)
+        # END-FOR
+
+        if len(error_message) > 0:
+            raise RuntimeError(error_message)
+
+        return peak_collection_dict
 
     def _set_profile_parameters_values_from_fitting(self, peak_tag, sub_runs, peak_profile_name,
                                                     background_type_name):

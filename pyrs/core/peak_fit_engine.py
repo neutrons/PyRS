@@ -160,30 +160,36 @@ class PeakFitEngine(object):
         """
         raise NotImplementedError('Virtual base class member method fit_peaks()')
 
-    # TODO NEW - Implement
-    def fit_multiple_peaks(self, sub_run_range, peak_function_name, background_function_name,
-                           peak_center_list, peak_range_list, cal_center_d):
-        """Fit multiple peaks
+    # TODO FIXME - peak_tag, peak_center and peak_range will be replaced by a PeakObject class (namedtuple)
+    def fit_multiple_peaks(self, sub_run_range, peak_function_name, background_function_name, peak_tag_list,
+                           peak_center_list, peak_range_list):
+        """Fit multiple peaks on multiple sub runs
 
         Parameters
         ----------
-        sub_run_range
-        peak_function_name
-        background_function_name
-        peak_center_list
-        peak_range_list
-        cal_center_d
+        sub_run_range : 2-tuple
+            start sub run (None as first 1) and end sub run (None as last 1) for
+            range of sub runs (including both end) to refine
+        peak_function_name : str
+            name of peak profile function
+        background_function_name : str
+            name of background function
+        peak_tag_list : list
+            list of str for peak tags
+        peak_center_list : list
+            list of float for peak centers
+        peak_range_list : list
+            list of 2-tuple for each peak's range in 2-theta
 
         Returns
         -------
         List of ~pyrs.core.peak_collection.PeakCollection
 
         """
-        return
+        raise NotImplementedError('Virtual base class member method fit_multiple_peaks')
 
     @staticmethod
-    def _fit_peaks_checks(sub_run_range, peak_function_name, background_function_name, peak_center, peak_range,
-                          cal_center_d):
+    def _fit_peaks_checks(sub_run_range, peak_function_name, background_function_name, peak_center, peak_range):
         """Check parameters used to fit peaks
 
         Parameters
@@ -197,8 +203,6 @@ class PeakFitEngine(object):
         peak_center: float or np.ndarray
             peak centers
         peak_range:
-        cal_center_d : boolean
-            flag to calculate d-spacing of fitted peaks
 
         Returns
         -------
@@ -209,7 +213,6 @@ class PeakFitEngine(object):
                                              allowed_values=['Gaussian', 'Voigt', 'PseudoVoigt', 'Lorentzian'])
         checkdatatypes.check_string_variable('Background function name', background_function_name,
                                              allowed_values=['Linear', 'Flat', 'Quadratic'])
-        checkdatatypes.check_bool_variable('Flag to calculate peak center in d-spacing', cal_center_d)
         if not isinstance(peak_center, float or np.ndarray):
             raise AssertionError('Peak center {} must be float or np.array'.format(peak_center))
         checkdatatypes.check_tuple('Peak range', peak_range, 2)

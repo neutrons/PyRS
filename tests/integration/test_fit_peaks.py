@@ -258,6 +258,11 @@ def test_calculating_com():
     pass
 
 
+def test_convert_peaks_centers_to_dspacing():
+    #
+    pass
+
+
 @pytest.mark.parametrize('project_file_name, csv_file_name',
                          [('data/HB2B_938_peak.h5', 'HB2B_938.h5')],
                          ids=['HB2B_938CSV'])
