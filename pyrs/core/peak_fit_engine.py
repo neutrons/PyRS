@@ -3,6 +3,7 @@ import numpy
 from pyrs.core import workspaces
 from pyrs.utilities import rs_project_file
 from pyrs.core import peak_profile_utility
+from pyrs.core.peak_profile_utility import PeakShape
 from pyrs.utilities import checkdatatypes
 
 
@@ -258,11 +259,11 @@ class PeakFitEngine(object):
         else:
             # Native parameters
             try:
-                param_names = peak_profile_utility.NATIVE_PEAK_PARAMETERS[peak_function][:]
+                param_names = PeakShape.getShape(peak_function).native_parameters
             except KeyError as key_err:
                 raise RuntimeError('Peak type {} not supported.  The supported peak functions are {}.  FYI: {}'
                                    ''.format(peak_function,
-                                             peak_profile_utility.NATIVE_PEAK_PARAMETERS.keys(), key_err))
+                                             PeakShape.keys(), key_err))
 
         return param_names
 

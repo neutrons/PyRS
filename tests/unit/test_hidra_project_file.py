@@ -192,8 +192,8 @@ def test_peak_fitting_result_io():
     peak_info = verify_project_file.read_peak_parameters('test fake')
 
     # peak profile
-    assert peak_info[0] == 'pseudovoigt'
-    assert peak_info[1] == 'linear'
+    assert peak_info[0] == 'PseudoVoigt'
+    assert peak_info[1] == 'Linear'
 
     # sub runs
     assert np.allclose(peak_info[2], np.array([1, 2, 3]))
