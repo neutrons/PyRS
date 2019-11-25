@@ -20,63 +20,18 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         # call parent
         super(MantidPeakFitEngine, self).__init__(workspace, mask_name)
 
-        # sub-run, Mantid workspace index dictionary
-        # self._ws_index_sub_run_dict = dict()
-
-        # Create Mantid workspace: generate a workspace with all sub runs!!!
+        # Create Mantid workspace: generate a workspace with all sub runs and for all peaks
         mantid_workspace = mantid_helper.generate_mantid_workspace(workspace, mask_name)
         # the Mandid workspace and HiDRA workspace have consistent spectrum/sub run map.
         self._mantid_workspace_name = mantid_workspace.name()
 
-        # wave length
-        self._wavelength_vec = None
-
-        # some observed properties
-        self._center_of_mass_ws_name = None
-        self._highest_point_ws_name = None
-
-        # fitting result (Mantid specific)
+        # fitting results in Mantid workspaces (Mantid specific)
         self._fitted_peak_position_ws = None  # fitted peak position workspace
         self._fitted_function_param_table = None  # fitted function parameters table workspace
         self._fitted_function_error_table = None  # fitted function parameters' fitting error table workspace
         self._model_matrix_ws = None  # MatrixWorkspace of the model from fitted function parameters
 
         return
-
-    # FIXME TODO - This method can be abstracted to base class PeakFitEngine
-    def calculate_center_of_mass(self):
-        """ calculate center of mass of peaks in the Mantid MatrixWorkspace as class variable
-        and highest data point
-        :return:
-        """
-        # get the workspace
-        data_ws = AnalysisDataService.retrieve(self._mantid_workspace_name)
-        num_spectra = data_ws.getNumberHistograms()
-
-        peak_center_vec = np.ndarray(shape=(num_spectra, 2), dtype='float')
-
-        for iws in range(num_spectra):
-            vec_x = data_ws.readX(iws)
-            vec_y = data_ws.readY(iws)
-            com_i = np.sum(vec_x * vec_y) / np.sum(vec_y)
-            peak_center_vec[iws, 0] = com_i
-            imax_peak = np.argmax(vec_y, axis=0)
-            peak_center_vec[iws, 1] = vec_x[imax_peak]
-
-        # create 2 workspaces
-        self._center_of_mass_ws_name = '{0}_COM'.format(self._mantid_workspace_name)
-        com_ws = CreateWorkspace(DataX=peak_center_vec[:, 0], DataY=peak_center_vec[:, 0],
-                                 NSpec=num_spectra, OutputWorkspace=self._center_of_mass_ws_name)
-        print('[INFO] Center of Mass Workspace: {0} Number of spectra = {1}'
-              ''.format(self._center_of_mass_ws_name, com_ws.getNumberHistograms()))
-
-        self._highest_point_ws_name = '{0}_HighestPoints'.format(self._mantid_workspace_name)
-        high_ws = CreateWorkspace(DataX=peak_center_vec[:, 1], DataY=peak_center_vec[:, 1],
-                                  NSpec=num_spectra, OutputWorkspace=self._highest_point_ws_name)
-        print('[INFO] Highest Point Workspace: {0} Number of spectra = {1}'
-              ''.format(self._highest_point_ws_name, high_ws.getNumberHistograms()))
-
-        return peak_center_vec
 
     def _create_peak_center_ws(self, peak_center):
         """ Create peak center workspace
@@ -140,7 +95,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         # Get workspace and gather some information
         mantid_ws = mantid_helper.retrieve_workspace(self._mantid_workspace_name, True)
         num_spectra = mantid_ws.getNumberHistograms()
-        sub_run_array = self._hd_workspace.get_sub_runs()
+        sub_run_array = self._hidra_wksp.get_sub_runs()
 
         # Get the sub run range
         start_sub_run, end_sub_run = sub_run_range
@@ -150,13 +105,13 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
             start_sub_run = int(sub_run_array[0])
         else:
             # user specified
-            start_spectrum = int(self._hd_workspace.get_spectrum_index(start_sub_run))
+            start_spectrum = int(self._hidra_wksp.get_spectrum_index(start_sub_run))
         if end_sub_run is None:
             # default end sub run as last sub run (included)
             end_spectrum = num_spectra - 1
             end_sub_run = int(sub_run_array[-1])
         else:
-            end_spectrum = int(self._hd_workspace.get_spectrum_index(end_sub_run))
+            end_spectrum = int(self._hidra_wksp.get_spectrum_index(end_sub_run))
 
         # TODO FIXME - Next step: this section to create peak center and windows will be moved to a
         #              separate method and expanded to support multiple peaks
@@ -257,7 +212,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         # Calculate d-spacing with wave length given
         if cal_center_d:
             # optionally to use calibrated wave length as default
-            self.calculate_peak_position_d(wave_length=self._wavelength_vec)
+            self.convert_peaks_centers_to_d(wave_length=self._wavelength_vec)
 
         # Set the fit result to private class structure numpy arrays
         # Get sub runs considering fitting only being applied to a sub set of sub runs
@@ -348,7 +303,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
 
         # Convert to workspace
-        ws_index = int(self._hd_workspace.get_spectrum_index(sub_run))
+        ws_index = int(self._hidra_wksp.get_spectrum_index(sub_run))
 
         # Get data
         vec_x = self._model_matrix_ws.readX(ws_index)

@@ -252,6 +252,12 @@ def test_main(project_file_name, peak_file_name, peak_type, peak_info):
     return
 
 
+# TODO - MAKE IT WORK!
+def test_calculating_com():
+    # calculate_center_of_mass(self, peak_tag, peak_range):
+    pass
+
+
 @pytest.mark.parametrize('project_file_name, csv_file_name',
                          [('data/HB2B_938_peak.h5', 'HB2B_938.h5')],
                          ids=['HB2B_938CSV'])

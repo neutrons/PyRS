@@ -1,5 +1,5 @@
 # This is the virtual base class as the fitting frame
-import numpy
+import numpy as np
 from pyrs.core import workspaces
 from pyrs.utilities import rs_project_file
 from pyrs.core import peak_profile_utility
@@ -12,34 +12,92 @@ class PeakFitEngine(object):
     """
 
     def __init__(self, workspace, mask_name):
-        """
-        initialization
-        :param workspace: HidraWorksapce containing the diffraction data
-        :param mask_name: name of mask ID (or main/None) for reduced diffraction data
+        """Initialization
+
+        Parameters
+        ----------
+        workspace : pyrs.core.workspaces.HidrawWorkspace
+            Hidra Workspace holding data
+        mask_name : str
+            name of mask ID (or main/None) for reduced diffraction data
+
         """
         # check
         checkdatatypes.check_type('Diffraction workspace', workspace, workspaces.HidraWorkspace)
 
-        # for scipy: keep the numpy array will be good enough
-        self._hd_workspace = workspace  # hd == HiDra
+        # for scipy: keep the np.array will be good enough
+        self._hidra_wksp = workspace  # wksp = workspace
         self._mask_name = mask_name
 
         # wave length information
         self._wavelength_dict = None
+
+        # Center of mass of peaks:  key = peak tag, value = ???
+        self._peak_com_dict = dict()
 
         # Fitted peak parameters
         self._peak_collection_dict = dict()   # key: peak tag, value: PeakCollection
 
         return
 
-    def calculate_peak_position_d(self, peak_tag, wave_length):
+    def calculate_center_of_mass(self, peak_tag, peak_range):
+        """Calculate center of mass of peaks in the Mantid MatrixWorkspace as class variable
+
+        Output: calculated peaks' centers of mass will be recored to self._peak_com_dict
+
+        Parameters
+        ----------
+        peak_tag : str
+            peak tag
+        peak_range : tuple
+            boundary of peak on 2theta-axis
+
+        Returns
+        -------
+        None
+
+        """
+        # Create the array to hold center of mass and observed data point with highest value
+        sub_run_array = self._hidra_wksp.get_sub_runs()
+        num_sub_runs = len(sub_run_array)
+        peak_center_vec = np.ndarray(shape=(num_sub_runs, 2), dtype='float')
+
+        # Calculate COM and highest data point in 2theta
+        for iws, sub_run_i in enumerate(sub_run_array):
+            # Get 2theta and Y
+            vec_x, vec_y = self._hidra_wksp.get_reduced_diffraction_data(sub_run_i, None)
+
+            # Filter 2theta in range
+            x_range = np.where((vec_x > peak_range[0]) & (vec_x < peak_range[1]))
+            vec_x = vec_x[x_range]
+            vec_y = vec_y[x_range]
+
+            # Calculate COM
+            if len(vec_x) == 0:
+                # No data within range
+                peak_center_vec[iws, 0] = np.nan
+                peak_center_vec[iws, 1] = np.nan
+            else:
+                # There are data within rang
+                peak_center_vec[iws, 0] = np.sum(vec_x * vec_y) / np.sum(vec_y)
+                peak_center_vec[iws, 1] = vec_x[np.argmax(vec_y, axis=0)]
+            # END-IF-ELSE
+        # END-FOR
+
+        self._peak_com_dict[peak_tag] = peak_center_vec
+
+        return
+
+    def convert_peaks_centers_to_d(self, peak_tag, wave_length):
         """Calculate peak positions in d-spacing after peak fitting is done
 
         Output: result will be saved to self._peak_center_d_vec
 
         Parameters
         ----------
-        wave_length : float or numpy.ndarray(dtype=float)
+        peak_tag : str
+            Peak tag retrieve the peaks
+        wave_length : float
             uniform wave length or wave length for each sub run
 
         Returns
@@ -47,53 +105,20 @@ class PeakFitEngine(object):
         None
 
         """
-        # TODO/FIXME - BROKEN! - Must have a better way than try and guess
-        # Assumption: This is a private method working from the workspace directory
-        #          OR This is a public method that will not be called within FitPeaks() with peak tag
+        # Get peaks' centers
+        # FIXME - this interface will be changed
+        peaks = self._peak_collection_dict[peak_tag]
+        sub_runs, cost_chi2, peak_params_values, peak_params_errors = peaks.get_effective_parameter_values()
+        center_2theta_value_array = peak_params_values[0]
+        center_2theta_error_array = peak_params_errors[0]
 
-        print(wave_length)
-        print(self._peak_collection_dict.keys())
+        # Calculate peaks' centers in dSpacing
+        # d = lambda / 2 * sin(theta)
+        center_d_value_array = wave_length * 0.5 / np.sin(center_2theta_value_array * 0.5 * np.pi / 180.)
+        # sigma(d) = d * abs(sigma(theta) / theta)
+        center_d_error_array = center_d_value_array * np.abs(center_2theta_error_array / center_d_value_array)
 
-        try:
-            r = self.get_fitted_params(peak_tag, param_name_list=['PeakCentre'], including_error=True)
-        except KeyError:
-            r = self.get_fitted_params(peak_tag, param_name_list=['centre'], including_error=True)
-        sub_run_vec = r[0]
-        params_vec = r[2]
-
-        # Other parameters
-        num_sub_runs = sub_run_vec.shape[0]
-
-        # Process wave length
-        if isinstance(wave_length, numpy.ndarray):
-            assert wave_length.shape[0] == num_sub_runs
-            various_wl = True
-            wl = 0
-        else:
-            various_wl = False
-            wl = wave_length
-
-        # init vector for peak center in d-spacing with error
-        self._peak_center_d_vec = numpy.ndarray((params_vec.shape[1], 2), params_vec.dtype)
-
-        for sb_index in range(num_sub_runs):
-            # convert to d-spacing: both fitted value and fitting error
-            # set wave length if various to sub runs
-            if various_wl:
-                wl = wave_length[sb_index]
-
-            # calculate peak position and propagating fitting error
-            for sub_index in range(2):
-                peak_i_2theta_j = params_vec[0][sb_index][sub_index]
-                if wl:
-                    peak_i_d_j = wl * 0.5 / math.sin(peak_i_2theta_j * 0.5 * math.pi / 180.)
-                else:
-                    # case for None or zero
-                    peak_i_d_j = -1  # return a non-physical number
-                self._peak_center_d_vec[sb_index][0] = peak_i_d_j
-        # END-FOR
-
-        return
+        return center_d_value_array, center_d_error_array
 
     def export_to_hydra_project(self, hydra_project_file, peak_tag):
         """Export fit result from this fitting engine instance to Hidra project file
@@ -169,7 +194,7 @@ class PeakFitEngine(object):
             name of peak function
         background_function_name :
             name of background function
-        peak_center: float or numpy ndarray
+        peak_center: float or np.ndarray
             peak centers
         peak_range:
         cal_center_d : boolean
@@ -185,8 +210,8 @@ class PeakFitEngine(object):
         checkdatatypes.check_string_variable('Background function name', background_function_name,
                                              allowed_values=['Linear', 'Flat', 'Quadratic'])
         checkdatatypes.check_bool_variable('Flag to calculate peak center in d-spacing', cal_center_d)
-        if not isinstance(peak_center, float or numpy.ndarray):
-            raise AssertionError('Peak center {} must be float or numpy array'.format(peak_center))
+        if not isinstance(peak_center, float or np.ndarray):
+            raise AssertionError('Peak center {} must be float or np.array'.format(peak_center))
         checkdatatypes.check_tuple('Peak range', peak_range, 2)
 
         return
@@ -209,9 +234,9 @@ class PeakFitEngine(object):
         Get the HidraWorkspace instance associated with this peak fit engine
         :return:
         """
-        assert self._hd_workspace is not None, 'No HidraWorkspace has been set up.'
+        assert self._hidra_wksp is not None, 'No HidraWorkspace has been set up.'
 
-        return self._hd_workspace
+        return self._hidra_wksp
 
     def get_peaks(self, peak_tag):
         return self._peak_collection_dict[peak_tag]
