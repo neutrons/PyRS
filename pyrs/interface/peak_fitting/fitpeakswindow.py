@@ -16,7 +16,7 @@ from pyrs.interface.peak_fitting.event_handler import EventHandler
 from pyrs.interface.peak_fitting.plot import Plot
 from pyrs.interface.peak_fitting.fit import Fit
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
-
+from pyrs.icons import icons_rc #noga
 
 class FitPeaksWindow(QMainWindow):
     """
@@ -160,7 +160,9 @@ class FitPeaksWindow(QMainWindow):
         self.ui.comboBox_2dPlotChoice.addItem('Raw Data')
         self.ui.comboBox_2dPlotChoice.addItem('Fitted')
 
-        self.ui.splitter_4.setStyleSheet("""QSplitter::handle {image: url(':/fitting/vertical_splitter.png'); }""")
+#        self.ui.splitter_4.setStyleSheet("""QSplitter::handle {image: url(':/fitting/vertical_splitter.png'); }""")
+        self.ui.splitter_2.setStyleSheet("""QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }""")
+        self.ui.splitter.setStyleSheet("""QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }""")
 
     def do_launch_adv_fit(self):
         """
