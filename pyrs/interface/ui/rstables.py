@@ -44,7 +44,7 @@ class FitResultTable(NTableWidget.NTableWidget):
         :param sub_run_number_list: list of sub runs
         :return:
         """
-        checkdatatypes.check_list('Index list', sub_run_number_list)
+        checkdatatypes.check_list('Index list', list(sub_run_number_list))
 
         # sort
         sub_run_number_list.sort()
