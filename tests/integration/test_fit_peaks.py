@@ -142,15 +142,84 @@ class PeakFittingTest(object):
         return
 
 
+# @pytest.mark.parametrize('source_project_file, output_project_file, peak_type, peak_info',
+#                          [('data/HB2B_1017.h5', 'HB2B_1017_2Peaks.h5', 'PseudoVoigt',
+#                            [PeakInfo(81., 78., 83., 'LeftPeak'), PeakInfo(85., 83., 87., 'RightPeak')])],
+#                          ids=['HB2B1017PeakFit'])
+def broken_test_fit_2peaks(source_project_file, output_project_file, peak_type, peak_info_list):
+    """Performance test on data with multiple peaks on multiple sub runs
+
+    Also on the 'real' situation that some peaks do not even exist on some sub runs
+
+    Parameters
+    ----------
+    source_project_file
+    output_project_file
+    peak_type
+    peak_info_list
+
+    Returns
+    -------
+
+    """
+    # Test only 1
+    if source_project_file != 'data/HB2B_1017.h5':
+        return
+
+    # Create tester
+    tester = PeakFittingTest(source_project_file)
+
+    # Fit peak
+    tester.fit_peak(peak_type, peak_info_list[0])
+    tester.fit_peak(peak_type, peak_info_list[1])
+
+    # save to project file
+    tester.save_fit_result(source_project_file, output_project_file, peak_info_list[0].tag)
+
+    return
+
+
+@pytest.mark.parametrize('source_project_file, output_project_file, peak_type, peak_info',
+                         [('/HFIR/HB2B/IPTS-22731/shared/ProjectFiles/HB2B_1065.h5', 'HB2B_1065_Peak.h5',
+                           'PseudoVoigt', PeakInfo(90.5, 89.9, 91.6, '311'))],
+                         ids=['HB2B1065PeakExport'])
+def skip_test_fit_2peaks(source_project_file, output_project_file, peak_type, peak_info):
+    """Performance test on data with multiple peaks and/or sub runs
+
+    This also tends to ddd a new test for strain/stress data (goal is to generate light-weight HiDRA file)
+
+    Parameters
+    ----------
+    source_project_file
+    output_project_file
+    peak_type
+    peak_info
+
+    Returns
+    -------
+
+    """
+    # Test only 1
+    if source_project_file != 'data/HB2B_1017.h5':
+        return
+
+    # Create tester
+    tester = PeakFittingTest(source_project_file)
+
+    # Fit peak
+    tester.fit_peak(peak_type, peak_info)
+
+    # save to project file
+    tester.save_fit_result(source_project_file, output_project_file, peak_info.tag)
+
+    return
+
+
 @pytest.mark.parametrize('project_file_name, peak_file_name, peak_type, peak_info',
-                         [
-                             # NSFR2 peak
-                             ('data/Hidra_16-1_cor_log.h5', 'Hidra_16-1_cor_log_peak.h5', 'Gaussian',
-                              PeakInfo(94.5, 91, 97, 'Fe111')),
-                             # A good peak in HB2B commission
-                             ('data/HB2B_938.h5', 'HB2B_938_peak.h5', 'PseudoVoigt',
-                              PeakInfo(95.5, 91, 97, 'Si111')),
-                         ],
+                         [('data/Hidra_16-1_cor_log.h5', 'Hidra_16-1_cor_log_peak.h5', 'Gaussian',
+                           PeakInfo(94.5, 91, 97, 'Fe111')),  # NSFR2 peak
+                          ('data/HB2B_938.h5', 'HB2B_938_peak.h5', 'PseudoVoigt',
+                           PeakInfo(95.5, 91, 97, 'Si111'))],
                          ids=('FakeHB2B', 'HB2B_938'))
 def test_main(project_file_name, peak_file_name, peak_type, peak_info):
     """Test peak fitting
@@ -186,7 +255,7 @@ def test_main(project_file_name, peak_file_name, peak_type, peak_info):
 @pytest.mark.parametrize('project_file_name, csv_file_name',
                          [('data/HB2B_938_peak.h5', 'HB2B_938.h5')],
                          ids=['HB2B_938CSV'])
-def test_write_csv(project_file_name, csv_file_name):
+def skip_test_write_csv(project_file_name, csv_file_name):
     """
 
     Returns
