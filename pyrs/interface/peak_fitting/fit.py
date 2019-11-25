@@ -38,7 +38,8 @@ class Fit:
         # Fit Peaks: It is better to fit all the peaks at the same time after testing
         guessed_peak_center = 0.5 * (fit_range[0] + fit_range[1])
         peak_info_dict = {'Peak 1': {'Center': guessed_peak_center, 'Range': fit_range}}
-        self.parent._core.fit_peaks(self.parent._project_name, sub_run_list,
+        self.parent._core.fit_peaks(self.parent._project_name,
+                                    sub_run_list,
                                     peak_type=peak_function,
                                     background_type=bkgd_function,
                                     peaks_fitting_setup=peak_info_dict)
@@ -46,11 +47,17 @@ class Fit:
         # Process fitted peaks
         # TEST - #84 - This shall be reviewed!
         try:
+            # FIXME - effective_parameter=True will fail!
+            # FIXME - other than return_format=dict will fail!
+            # FIXME - need to give a real value to default_tag
+            # FIXME - this only works if fitting 1 peak a time
+            default_tag = peak_info_dict.keys()[0]
             function_params, fit_values = self.parent._core.get_peak_fitting_result(self.parent._project_name,
+                                                                                    default_tag,
                                                                                     return_format=dict,
                                                                                     effective_parameter=False)
         except AttributeError as err:
-            pop_message(self, 'Zoom in/out to only show peak to fit!', err, "error")
+            pop_message(self, 'Zoom in/out to only show peak to fit!', str(err), "error")
             return
 
         # TODO - #84+ - Need to implement the option as effective_parameter=True
