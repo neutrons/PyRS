@@ -3,7 +3,7 @@ Object to contain peak parameters (names and values) of a collection of peaks fo
 """
 import numpy as np
 from pyrs.utilities import checkdatatypes
-from pyrs.core.peak_profile_utility import get_effective_parameters_converter
+from pyrs.core.peak_profile_utility import get_effective_parameters_converter, PeakShape, BackgroundFunction
 
 
 class PeakCollection(object):
@@ -27,8 +27,8 @@ class PeakCollection(object):
         self._tag = peak_tag
 
         # Init other parameters
-        self._peak_profile = peak_profile
-        self._background_type = background_type
+        self._peak_profile = PeakShape.getShape(peak_profile)
+        self._background_type = BackgroundFunction.getFunction(background_type)
 
         # sub run numbers: 1D array
         self._sub_run_array = None
@@ -61,7 +61,7 @@ class PeakCollection(object):
             peak profile name such as Gaussian
 
         """
-        return self._peak_profile
+        return str(self._peak_profile)
 
     @property
     def background_type(self):

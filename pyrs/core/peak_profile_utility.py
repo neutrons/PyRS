@@ -1,6 +1,7 @@
 """
 Containing peak profiles with method to calculate effective peak parameters and error from native values
 """
+from enum import Enum
 import numpy as np
 
 
@@ -12,6 +13,42 @@ NATIVE_PEAK_PARAMETERS = {'Gaussian': ['Height', 'PeakCentre', 'Sigma'],
 NATIVE_BACKGROUND_PARAMETERS = {'Linear': ['A0', 'A1']}
 # Effective peak and background parameters
 EFFECTIVE_PEAK_PARAMETERS = ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
+
+
+class PeakShape(Enum):
+    GAUSSIAN = 'gaussian'
+    PSEUDOVOIGT = 'pseudovoigt'
+    VOIGT = 'voigt'
+
+    def __str__(self):
+        return self.value
+
+    @staticmethod
+    def getShape(shape):
+        if shape in PeakShape:
+            return shape
+        else:
+            try:
+                return PeakShape[str(shape).upper()]
+            except KeyError:
+                raise KeyError('Cannot determine peak shape from "{}"'.format(shape))
+
+
+class BackgroundFunction(Enum):
+    LINEAR = 'linear'  # so far, one and only supported
+
+    def __str__(self):
+        return self.value
+
+    @staticmethod
+    def getFunction(function):
+        if function in BackgroundFunction:
+            return function
+        else:
+            try:
+                return BackgroundFunction[str(function).upper()]
+            except KeyError:
+                raise KeyError('Cannot determine background function from "{}"'.format(function))
 
 
 def get_effective_parameters_converter(peak_profile):
@@ -27,15 +64,19 @@ def get_effective_parameters_converter(peak_profile):
     PeakParametersConverter
         Gaussian, PseudoVoigt or Voigt
     """
-    profile_name = peak_profile.lower()
-    if profile_name == 'gaussian':
+    try:
+        peak_profile = PeakShape.getShape(peak_profile)
+    except KeyError:
+        raise KeyError('Profile {} is not supported.'.format(peak_profile))
+
+    if peak_profile == PeakShape.GAUSSIAN:
         converter = Gaussian()
-    elif profile_name == 'pseudovoigt':
+    elif peak_profile == PeakShape.PSEUDOVOIGT:
         converter = PseudoVoigt()
-    elif profile_name == 'voigt':
+    elif peak_profile == PeakShape.VOIGT:
         converter = Voigt()
     else:
-        raise RuntimeError('Profile {} is not supported.'.format(profile_name))
+        raise RuntimeError('if/else tree is incomplete')
 
     return converter
 
