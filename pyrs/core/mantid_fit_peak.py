@@ -147,16 +147,16 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         if start_sub_run is None:
             # default start sub run as first sub run
             start_spectrum = 0
-            start_sub_run = sub_run_array[0]
+            start_sub_run = int(sub_run_array[0])
         else:
             # user specified
-            start_spectrum = self._hd_workspace.get_spectrum_index(start_sub_run)
+            start_spectrum = int(self._hd_workspace.get_spectrum_index(start_sub_run))
         if end_sub_run is None:
             # default end sub run as last sub run (included)
             end_spectrum = num_spectra - 1
-            end_sub_run = sub_run_array[-1]
+            end_sub_run = int(sub_run_array[-1])
         else:
-            end_spectrum = self._hd_workspace.get_spectrum_index(end_sub_run)
+            end_spectrum = int(self._hd_workspace.get_spectrum_index(end_sub_run))
 
         # TODO FIXME - Next step: this section to create peak center and windows will be moved to a
         #              separate method and expanded to support multiple peaks
@@ -348,7 +348,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
 
         # Convert to workspace
-        ws_index = self._hd_workspace.get_spectrum_index(sub_run)
+        ws_index = int(self._hd_workspace.get_spectrum_index(sub_run))
 
         # Get data
         vec_x = self._model_matrix_ws.readX(ws_index)
