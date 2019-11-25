@@ -265,9 +265,8 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         fit_cost_array = peak_params_value_array['chi2']
 
         # Create PeakCollection instance
-        peak_object = PeakCollection(peak_tag)
-        peak_object.set_peak_fitting_values(peak_profile_name, background_type_name, sub_runs,
-                                            peak_params_value_array, peak_params_error_array, fit_cost_array)
+        peak_object = PeakCollection(peak_tag, peak_profile_name, background_type_name)
+        peak_object.set_peak_fitting_values(sub_runs, peak_params_value_array, peak_params_error_array, fit_cost_array)
 
         # Set to dictionary
         self._peak_collection_dict[peak_tag] = peak_object
