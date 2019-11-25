@@ -20,12 +20,12 @@ class Fit:
         :return:
         """
         # Get the sub runs to fit or all the peaks
-        if self.parent.ui.checkBox_fitSubRuns.isChecked() and not all_sub_runs:
-            # Parse sub runs specified in lineEdit_scanNumbers
-            o_utilities = Utilities(parent=self.parent)
-            sub_run_list = o_utilities.parse_sub_runs()
-        else:
-            sub_run_list = None
+        # if not all_sub_runs:
+        #     # Parse sub runs specified in lineEdit_scanNumbers
+        #     o_utilities = Utilities(parent=self.parent)
+        #     sub_run_list = o_utilities.parse_sub_runs()
+        # else:
+        sub_run_list = None
 
         # Get peak function and background function
         peak_function = str(self.parent.ui.comboBox_peakType.currentText())

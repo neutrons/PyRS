@@ -238,7 +238,7 @@
              <item>
               <layout class="QHBoxLayout" name="horizontalLayout_8">
                <item>
-                <widget class="QComboBox" name="comboBox_peakType_2">
+                <widget class="QComboBox" name="comboBox_peakType">
                  <property name="toolTip">
                   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Peak types&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                  </property>
@@ -260,7 +260,7 @@
                 </widget>
                </item>
                <item>
-                <widget class="QComboBox" name="comboBox_backgroundType_2">
+                <widget class="QComboBox" name="comboBox_backgroundType">
                  <item>
                   <property name="text">
                    <string>Linear</string>
@@ -319,14 +319,14 @@
                 </spacer>
                </item>
                <item>
-                <widget class="QPushButton" name="pushButton_saveFitResult_2">
+                <widget class="QPushButton" name="pushButton_saveAsFitResult">
                  <property name="text">
                   <string>Save As ...</string>
                  </property>
                 </widget>
                </item>
                <item>
-                <widget class="QPushButton" name="pushButton_saveFitResult_3">
+                <widget class="QPushButton" name="pushButton_saveFitResult">
                  <property name="text">
                   <string>Save</string>
                  </property>
