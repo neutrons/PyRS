@@ -233,6 +233,8 @@ class QtMplFitCanvas(FigureCanvas):
         self._data_subplot = self.fig.add_axes([0.15, 0.35, 0.8, 0.55])  # top
         self._residual_subplot = self.fig.add_axes([0.15, 0.1, 0.8, 0.20])  # bottom
 
+        self._data_subplot.get_shared_x_axes().join(self._data_subplot, self._residual_subplot)
+
         self._line_index = 0
         self._data_plot_dict = dict()
         self._residual_dict = dict()

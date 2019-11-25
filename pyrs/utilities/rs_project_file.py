@@ -6,6 +6,7 @@ import numpy
 import os
 from pyrs.utilities import checkdatatypes
 from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSetup
+from pyrs.dataobjects import SampleLogs
 
 
 class HidraConstants(object):
@@ -416,21 +417,15 @@ class HidraProjectFile(object):
         # Get the group
         logs_group = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS]
 
-        # Get the sub run numbers
-        sub_runs = logs_group[HidraConstants.SUB_RUNS].value
-
         # Get 2theta and others
-        logs_value_set = dict()
+        samplelogs = SampleLogs()
+        # first set subruns
+        if HidraConstants.SUB_RUNS in logs_group.keys():
+            samplelogs[HidraConstants.SUB_RUNS] = logs_group[HidraConstants.SUB_RUNS].value
         for log_name in logs_group.keys():
-            # no sub runs
-            if log_name == HidraConstants.SUB_RUNS:
-                continue
+            samplelogs[log_name] = logs_group[log_name].value
 
-            # get array
-            log_value_vec = logs_group[log_name].value
-            logs_value_set[log_name] = log_value_vec
-
-        return sub_runs, logs_value_set
+        return samplelogs
 
     def read_log_value(self, log_name):
         """Get a log's value
