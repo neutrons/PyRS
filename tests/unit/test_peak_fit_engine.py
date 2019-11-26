@@ -14,16 +14,20 @@ def generate_test_gaussian(vec_x, peak_center, peak_range):
     ----------
     vec_x: ndarray (N, )
         Vector of X
+    peak_center : float
+        peak center
+    peak_range : float
+        6 times of FWHM
 
     Returns
     -------
-    ndarray, float, tuple
-        vector of Y containing Gaussian, peak center, peak range
+    numpy.ndarray
+        vector of Gaussian
     """
-    # Set sigma
+    # Set FWHM to 1/6 of peak range and then to Gaussian's Sigma
     sigma = peak_range / 6. / (2. * np.sqrt(2. * np.log(2.)))
 
-    # calculate Gaussian
+    # calculate Gaussian function based on input peak center and peak range
     vec_y = 10. * np.exp(-(vec_x - peak_center)**2 / sigma**2)
 
     # Add noise
@@ -37,12 +41,13 @@ def generate_test_pseudovoigt(vec_x, peak_center, peak_range):
     Generate Gaussian function for test
     Parameters
     ----------
+    vec_x: ndarray (N, )
+        Vector of X
     peak_center: float
         peak center
     peak_range: float
         range of peak
-    vec_x: ndarray (N, )
-        Vector of X
+
 
     Returns
     -------
@@ -130,12 +135,12 @@ def generate_hydra_workspace(peak_profile_type):
     return test_workspace, peak_center, (peak_center - peak_range, peak_center + peak_center)
 
 
-def test_gaussian():
-    """
-    Test fitting single Gaussian peak with background
+def test_fit_gaussian_base():
+    """Test fitting single Gaussian peak on 1 spectrum with background
+
     Returns
     -------
-    None
+
     """
     # Generate test workspace and initialize fit engine
     test_suite = generate_hydra_workspace('Gaussian')
@@ -149,8 +154,7 @@ def test_gaussian():
                          peak_function_name='Gaussian',
                          background_function_name='Linear',
                          peak_center=peak_center,
-                         peak_range=peak_range,
-                         cal_center_d=False)
+                         peak_range=peak_range)
 
     # Get model (from fitted parameters) against each other
     model_x, model_y = fit_engine.get_calculated_peak(1)
@@ -176,6 +180,7 @@ def test_gaussian():
 
     # Effective paramter list: ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
     assert effective_param_values[0, 0] == param_values[1, 0]   # center
+    assert abs(effective_param_values[0, 0] - peak_center) < 2e-2, 'Peak center is not correct'
 
     # fit goodness
     assert fit_costs[0] < 0.5, 'Fit cost (chi2 = {}) is too large'.format(fit_costs[0])
@@ -205,8 +210,7 @@ def test_pseudo_voigt():
                          peak_function_name='PseudoVoigt',
                          background_function_name='Linear',
                          peak_center=peak_center,
-                         peak_range=peak_range,
-                         cal_center_d=False)
+                         peak_range=peak_range)
 
     # Get model (from fitted parameters) against each other
     model_x, model_y = fit_engine.get_calculated_peak(1)

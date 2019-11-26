@@ -328,11 +328,19 @@ class HidraWorkspace(object):
         return matrix_2theta, intensity_matrix
 
     def get_reduced_diffraction_data(self, sub_run, mask_id=None):
-        """
-        get data set of a single diffraction pattern
-        :param sub_run: sub run number (integer)
-        :param mask_id: None (as default main) or ID as a String
-        :return:
+        """Get data set of a single diffraction pattern
+
+        Parameters
+        ----------
+        sub_run: int
+            sub run number (integer)
+        mask_id : str or None
+            None (as default main) or ID as a String
+        Returns
+        -------
+        numpy.ndarray, numpy.ndarray
+            vector 2theta, vector intensity
+
         """
         # Check inputs
         checkdatatypes.check_int_variable('Sub run number', sub_run, (1, None))
@@ -357,6 +365,19 @@ class HidraWorkspace(object):
         return vec_2theta, vec_intensity
 
     def get_sample_log_value(self, sample_log_name, sub_run=None):
+        """
+
+        Parameters
+        ----------
+        sample_log_name
+        sub_run
+
+        Returns
+        -------
+        float
+            time-averaged sample log value for this sub run
+
+        """
         checkdatatypes.check_string_variable('Sample log name', sample_log_name,
                                              self._sample_logs.keys())
 
