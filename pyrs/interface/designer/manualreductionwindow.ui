@@ -19,7 +19,7 @@
      <layout class="QVBoxLayout" name="verticalLayout">
       <item>
        <layout class="QGridLayout" name="gridLayout">
-        <item row="4" column="1">
+        <item row="4" column="2">
          <widget class="QLineEdit" name="lineEdit_calibratonFile">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
@@ -36,54 +36,14 @@
           </property>
          </widget>
         </item>
-        <item row="4" column="2">
+        <item row="4" column="3">
          <widget class="QPushButton" name="pushButton_setCalibrationFile">
           <property name="text">
            <string>Set</string>
           </property>
          </widget>
         </item>
-        <item row="0" column="0">
-         <widget class="QLabel" name="label">
-          <property name="text">
-           <string>IPTS</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="4">
-         <spacer name="horizontalSpacer">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-          <property name="sizeType">
-           <enum>QSizePolicy::Preferred</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>40</width>
-            <height>20</height>
-           </size>
-          </property>
-         </spacer>
-        </item>
-        <item row="2" column="1">
-         <widget class="QLineEdit" name="lineEdit_idfName">
-          <property name="text">
-           <string>/home/wzz/Projects/PyRS/tests/testdata/hzb/HZB_Definition_20190523_0844.txt</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="1">
-         <widget class="QLineEdit" name="lineEdit_iptsNumber">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="1">
+        <item row="2" column="2">
          <widget class="QLineEdit" name="lineEdit_outputDir">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
@@ -93,28 +53,48 @@
           </property>
          </widget>
         </item>
-        <item row="3" column="2">
+        <item row="2" column="3">
          <widget class="QPushButton" name="pushButton_browseOutputDir">
           <property name="text">
            <string>Set</string>
           </property>
          </widget>
         </item>
-        <item row="3" column="0">
+        <item row="2" column="0">
          <widget class="QLabel" name="label_5">
           <property name="text">
-           <string>Save to ... ...</string>
+           <string>Project File</string>
           </property>
          </widget>
         </item>
-        <item row="4" column="4">
+        <item row="4" column="5">
          <widget class="QCheckBox" name="checkBox_autoCalibSet">
           <property name="text">
            <string>Auto</string>
           </property>
          </widget>
         </item>
-        <item row="2" column="0">
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_14">
+          <property name="text">
+           <string>NeXus File</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="2">
+         <widget class="QLineEdit" name="lineEdit_runNumber"/>
+        </item>
+        <item row="0" column="3">
+         <widget class="QPushButton" name="pushButton_loadProjectFile">
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Load Hidra project file&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="text">
+           <string>Load</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0">
          <widget class="QLabel" name="label_3">
           <property name="toolTip">
            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Instrument file&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -124,30 +104,17 @@
           </property>
          </widget>
         </item>
-        <item row="2" column="2">
+        <item row="3" column="3">
          <widget class="QPushButton" name="pushButton_setBrowseIDF">
           <property name="text">
            <string>Set</string>
           </property>
          </widget>
         </item>
-        <item row="1" column="0">
-         <widget class="QLabel" name="label_14">
+        <item row="3" column="2">
+         <widget class="QLineEdit" name="lineEdit_idfName">
           <property name="text">
-           <string>Run Number</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="1">
-         <widget class="QLineEdit" name="lineEdit_runNumber"/>
-        </item>
-        <item row="1" column="2">
-         <widget class="QPushButton" name="pushButton_loadProjectFile">
-          <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Load Hidra project file&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
-          <property name="text">
-           <string>Load</string>
+           <string/>
           </property>
          </widget>
         </item>
@@ -369,14 +336,10 @@
          </attribute>
          <layout class="QVBoxLayout" name="verticalLayout_3">
           <item>
+           <layout class="QVBoxLayout" name="verticalLayout_6"/>
+          </item>
+          <item>
            <layout class="QHBoxLayout" name="horizontalLayout_4">
-            <item>
-             <widget class="QLabel" name="label_2">
-              <property name="text">
-               <string>Run Numbers</string>
-              </property>
-             </widget>
-            </item>
             <item>
              <widget class="QFrame" name="frame_subRunInfoTable">
               <property name="sizePolicy">
@@ -390,6 +353,13 @@
               </property>
               <property name="frameShadow">
                <enum>QFrame::Raised</enum>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="label_2">
+              <property name="text">
+               <string>Run Numbers</string>
               </property>
              </widget>
             </item>

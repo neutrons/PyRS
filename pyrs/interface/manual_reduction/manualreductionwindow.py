@@ -390,7 +390,6 @@ class ManualReductionWindow(QMainWindow):
                                        '{}'.format(run_err), 'error')
                 return
         # END-IF-ELSE
-
         # Reduce data
         # TODO FIXME - Urgent - Mask and calibration is not implemented at all!
         self._core.reduction_service.reduce_diffraction_data(self._project_data_id,
