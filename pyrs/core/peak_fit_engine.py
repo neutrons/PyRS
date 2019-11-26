@@ -248,9 +248,6 @@ class PeakFitEngine(object):
     @staticmethod
     def get_peak_param_names(peak_function, is_effective):
         """ Get the peak parameter names
-        :param peak_function: None for default/current peak function
-        :param is_effective:
-        :return:
         """
         if is_effective:
             # Effective parameters

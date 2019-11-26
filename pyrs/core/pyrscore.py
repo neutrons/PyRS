@@ -250,7 +250,10 @@ class PyRsCore(object):
 
         return data_set
 
-    def get_peak_fitting_result(self, project_name, peak_tag, return_format, effective_parameter):
+    def get_peak_fitting_result(self, project_name, peak_tag,
+                                return_format={},
+                                effective_parameter=False,
+                                fitting_function="Gaussian"):
         """ Get peak fitting result
         Note: this provides a convenient method to retrieve information
         :param project_name:
@@ -273,7 +276,7 @@ class PyRsCore(object):
         else:
             # Native peak parameters' value
             # get function parameters names
-            param_names = fit_engine.get_peak_param_names(None, False)
+            param_names = fit_engine.get_peak_param_names(fitting_function, effective_parameter)
             sub_run_vec, chi2_vec, param_vec, param_error_vec = fitted_peaks_obj.get_parameters_values(param_names)
 
         if return_format == dict:
