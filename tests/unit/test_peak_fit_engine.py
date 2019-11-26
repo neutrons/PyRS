@@ -7,28 +7,42 @@ import pytest
 from matplotlib import pyplot as plt
 
 
-def generate_test_gaussian(vec_x, peak_center, peak_range):
+def generate_test_gaussian(vec_x, peak_center_list, peak_range_list, intensity_list):
     """
     Generate Gaussian function for test
     Parameters
     ----------
     vec_x: ndarray (N, )
         Vector of X
-    peak_center : float
-        peak center
-    peak_range : float
-        6 times of FWHM
+    peak_center_list : List
+        peak center (float) list
+    peak_range_list : List
+        peak range (float) list.  Peak range is equal to 6 times of FWHM
 
     Returns
     -------
     numpy.ndarray
         vector of Gaussian
     """
-    # Set FWHM to 1/6 of peak range and then to Gaussian's Sigma
-    sigma = peak_range / 6. / (2. * np.sqrt(2. * np.log(2.)))
+    assert len(peak_range_list) == len(peak_range_list) == len(intensity_list)
 
-    # calculate Gaussian function based on input peak center and peak range
-    vec_y = 10. * np.exp(-(vec_x - peak_center)**2 / sigma**2)
+    # Init Y
+    vec_y = np.zeros_like(vec_x, dtype=float)
+
+    # Number of peaks
+    num_peaks = len(peak_range_list)
+
+    for ipeak in range(num_peaks):
+        # get peak center and range
+        peak_center = peak_center_list[ipeak]
+        peak_range = peak_range_list[ipeak]
+
+        # Set FWHM to 1/6 of peak range and then to Gaussian's Sigma
+        sigma = peak_range / 6. / (2. * np.sqrt(2. * np.log(2.)))
+
+        # calculate Gaussian function based on input peak center and peak range
+        vec_y += intensity_list[ipeak] * np.exp(-(vec_x - peak_center)**2 / sigma**2)
+    # END-FOR
 
     # Add noise
     noise = (np.random.random_sample(vec_x.shape[0]) - 0.5) * 2.0
@@ -36,31 +50,45 @@ def generate_test_gaussian(vec_x, peak_center, peak_range):
     return vec_y + noise
 
 
-def generate_test_pseudovoigt(vec_x, peak_center, peak_range):
+def generate_test_pseudovoigt(vec_x, peak_center_list, peak_range_list, intensity_list):
     """
     Generate Gaussian function for test
     Parameters
     ----------
     vec_x: ndarray (N, )
         Vector of X
-    peak_center: float
+    peak_center_list: List(float)
         peak center
-    peak_range: float
+    peak_range_list: List(float)
         range of peak
-
 
     Returns
     -------
-    ndarray, float, tuple
+    numpy.ndarray
         vector of Y containing Gaussian, peak center, peak range
     """
-    # Set FWHM
-    fwhm = peak_range / 6.
-    peak_intensity = 100.
-    mixing = 0.75  # more Gaussian than Lorentzian
+    assert len(peak_range_list) == len(peak_range_list)
 
-    # calculate Gaussian
-    vec_y = pseudo_voigt(vec_x, peak_intensity, fwhm, mixing, peak_center)
+    # Init Y
+    vec_y = np.zeros_like(vec_x, dtype=float)
+
+    # Number of peaks
+    num_peaks = len(peak_range_list)
+
+    # Calculate each peak
+    for ipeak in range(num_peaks):
+        # get peak center and range
+        peak_center = peak_center_list[ipeak]
+        peak_range = peak_range_list[ipeak]
+
+        # Set FWHM
+        fwhm = peak_range / 6.
+        peak_intensity = intensity_list[ipeak]
+        mixing = 0.75  # more Gaussian than Lorentzian
+
+        # calculate Gaussian
+        vec_y += pseudo_voigt(vec_x, peak_intensity, fwhm, mixing, peak_center)
+    # END-FOR
 
     # Add noise
     noise = (np.random.random_sample(vec_x.shape[0]) - 0.5) * 2.0
@@ -89,12 +117,24 @@ def generate_test_background(vec_x, vec_y):
     return vec_y + background
 
 
-def generate_hydra_workspace(peak_profile_type):
-    """
-    Generate HiDRAWorkspace
+def generate_hydra_workspace(peak_profile_type, min_x, max_x, num_x, peak_centers, peak_ranges, peak_intensities):
+    """Generate HiDRAWorkspace for peak fitting test
+
+    Default:
+        min_x = 75
+        max_x = 85
+        num_x = 500
+
+
+
     Parameters
     ----------
     peak_profile_type
+    min_x
+    max_x
+    num_x
+    peak_centers
+    peak_ranges
 
     Returns
     -------
@@ -103,19 +143,18 @@ def generate_hydra_workspace(peak_profile_type):
     # Create test workspace
     test_workspace = HidraWorkspace('test')
 
+    # resolution
+    x_step = (max_x - min_x) / num_x
+
     # Generate vector X
-    vec_x = np.arange(500) * 0.1 * 0.2 + 75.  # from 75 to 85 degree
-    # Determine peak range and center
-    peak_center = 0.5 * (vec_x[0] + vec_x[-1])
-    data_range = vec_x[-1] - vec_x[0]
-    peak_range = 0.25 * data_range  # distance from peak center to 6 sigma
+    vec_x = np.arange(num_x) * x_step + min_x  # from 75 to 85 degree
 
     # Add profile
     if peak_profile_type.lower() == 'gaussian':
-        vec_y = generate_test_gaussian(vec_x, peak_center, peak_range)
+        vec_y = generate_test_gaussian(vec_x, peak_centers, peak_ranges, peak_intensities)
     elif peak_profile_type.lower() == 'pseudovoigt':
-        vec_y = generate_test_pseudovoigt(vec_x, peak_center, peak_range)
-        peak_range *= 2  # PV requires larger fitting range
+        vec_y = generate_test_pseudovoigt(vec_x, peak_centers, peak_ranges, peak_intensities)
+        # peak_range *= 2  # PV requires larger fitting range
     else:
         raise NotImplementedError('Peak profile {} is not supported to generate testing workspace')
 
@@ -132,19 +171,27 @@ def generate_hydra_workspace(peak_profile_type):
                                                 two_theta_array=vec_x,
                                                 intensity_array=vec_y)
 
-    return test_workspace, peak_center, (peak_center - peak_range, peak_center + peak_center)
+    return test_workspace
 
 
-def test_fit_gaussian_base():
+def test_fit_1_gaussian_peak():
     """Test fitting single Gaussian peak on 1 spectrum with background
 
     Returns
     -------
+    None
 
     """
+    # Set testing value
+    # Default value
+    min_x = 75.
+    max_x = 85.
+    num_x = 500
+    peak_center = 80.
+    peak_range = 10. * 0.25  # distance from peak center to 6 sigma
+
     # Generate test workspace and initialize fit engine
-    test_suite = generate_hydra_workspace('Gaussian')
-    gaussian_workspace, peak_center, peak_range = test_suite
+    gaussian_workspace = generate_hydra_workspace('Gaussian', min_x, max_x, num_x, [peak_center], [peak_range], [10.])
     fit_engine = MantidPeakFitEngine(gaussian_workspace, mask_name=None)
 
     # Fit
@@ -154,13 +201,13 @@ def test_fit_gaussian_base():
                          peak_function_name='Gaussian',
                          background_function_name='Linear',
                          peak_center=peak_center,
-                         peak_range=peak_range)
+                         peak_range=(peak_center - peak_range * 0.5, peak_center + peak_range * 0.5))
 
     # Get model (from fitted parameters) against each other
     model_x, model_y = fit_engine.get_calculated_peak(1)
     data_x, data_y = gaussian_workspace.get_reduced_diffraction_data(1, None)
-    plt.plot(data_x, data_y, label='Test Gaussian')
-    plt.plot(model_x, model_y, label='Fitted Gaussian')
+    # plt.plot(data_x, data_y, label='Test Gaussian')
+    # plt.plot(model_x, model_y, label='Fitted Gaussian')
     assert data_x.shape == model_x.shape
     assert data_y.shape == model_y.shape
 
@@ -178,15 +225,84 @@ def test_fit_gaussian_base():
     assert sub_runs.shape == (1, ) == sub_runs2.shape
     assert np.allclose(fit_cost2, fit_costs, 0.0000001)
 
-    # Effective paramter list: ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
+    # Effective parameter list: ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
     assert effective_param_values[0, 0] == param_values[1, 0]   # center
     assert abs(effective_param_values[0, 0] - peak_center) < 2e-2, 'Peak center is not correct'
 
     # fit goodness
     assert fit_costs[0] < 0.5, 'Fit cost (chi2 = {}) is too large'.format(fit_costs[0])
 
-    # If everything is correct, optionally show the result
+    return
+
+
+def test_2_gaussian_peaks():
+    """Fit 2 Gaussian peaks
+
+    Returns
+    -------
+
+    """
+    # Set testing value
+    # Default value
+    min_x = 75.
+    max_x = 95.
+    num_x = 1000
+    peak_centers = [80., 90.]
+    peak_ranges = [10. * 0.25, 11. * 0.25]  # distance from peak center to 6 sigma
+    peak_intensities = [10., 4]
+
+    # Generate test workspace and initialize fit engine
+    gaussian_workspace = generate_hydra_workspace('Gaussian', min_x, max_x, num_x, peak_centers,
+                                                  peak_ranges, peak_intensities)
+    fit_engine = MantidPeakFitEngine(gaussian_workspace, mask_name=None)
+
+    # Fit
+    fit_engine.fit_multiple_peaks(sub_run_range=(1, 1),
+                                  peak_function_name='Gaussian',
+                                  background_function_name='Linear',
+                                  peak_tag_list=['Left', 'Right'],
+                                  peak_center_list=[79.4, 90.75],
+                                  peak_range_list=[(76., 84.), (86., 94.)])
+
+    # Get model (from fitted parameters) against each other
+    model_x, model_y = fit_engine.get_calculated_peak(1)
+    data_x, data_y = gaussian_workspace.get_reduced_diffraction_data(1, None)
+    # plt.plot(data_x, data_y, label='Test 2 Gaussian')
+    # plt.plot(model_x, model_y, label='Fitted Gaussian')
+    # plt.legend()
     # plt.show()
+    assert data_x.shape == model_x.shape
+    assert data_y.shape == model_y.shape
+
+    # Test the fitted parameters
+    # Read data
+    eff_param_list, sub_runs, fit_costs, effective_param_values, effective_param_errors =\
+        fit_engine.get_peaks('Left').get_effective_parameters_values()
+    print('DEBUG Effective parameter values shape: {}'.format(effective_param_values))
+    assert abs(effective_param_values[2, 0] - 10.) < 1E-20, 'Peak intensity {} shall be equal to 10.' \
+                                                            ''.format(effective_param_values[0, 2])
+
+    # Read data again for raw data
+    native_params = PeakShape.GAUSSIAN.native_parameters
+    native_params.extend(BackgroundFunction.LINEAR.native_parameters)
+    sub_runs2, fit_cost2, param_values, param_errors =\
+        fit_engine.get_peaks('Left').get_parameters_values(native_params)
+
+    # Test
+    assert sub_runs.shape == (1, ) == sub_runs2.shape
+    assert np.allclose(fit_cost2, fit_costs, 0.0000001)
+
+    # Effective paramter list: ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
+    assert effective_param_values[0, 0] == param_values[1, 0]   # center
+    assert abs(effective_param_values[0, 0] - peak_centers[0]) < 2e-2, 'Peak center is not correct'
+
+    # fit goodness
+    assert fit_costs[0] < 0.5, 'Fit cost (chi2 = {}) is too large'.format(fit_costs[0])
+
+    # Test the peak on the right
+    sub_runs_right, fit_cost_right, param_values_right, param_errors_right =\
+        fit_engine.get_peaks('Right').get_parameters_values(native_params)
+    assert fit_cost_right[0] < 0.5
 
     return
 
@@ -199,9 +315,15 @@ def test_pseudo_voigt():
     None
     """
     # Generate test workspace and initialize fit engine
-    test_suite = generate_hydra_workspace('PseudoVoigt')
-    gaussian_workspace, peak_center, peak_range = test_suite
-    fit_engine = MantidPeakFitEngine(gaussian_workspace, mask_name=None)
+    # Default value
+    min_x = 75.
+    max_x = 85.
+    num_x = 500
+    peak_center = 80.
+    peak_range = 10. * 0.25  # distance from peak center to 6 sigma
+    pv_workspace = generate_hydra_workspace('PseudoVoigt', min_x, max_x, num_x, [peak_center], [peak_range], [100.])
+
+    fit_engine = MantidPeakFitEngine(pv_workspace, mask_name=None)
 
     # Fit
     peak_tag = 'UnitTestPseudoVoigt'
@@ -210,11 +332,11 @@ def test_pseudo_voigt():
                          peak_function_name='PseudoVoigt',
                          background_function_name='Linear',
                          peak_center=peak_center,
-                         peak_range=peak_range)
+                         peak_range=(peak_center - peak_range * 1.0, peak_center + peak_range * 1.0))
 
     # Get model (from fitted parameters) against each other
     model_x, model_y = fit_engine.get_calculated_peak(1)
-    data_x, data_y = gaussian_workspace.get_reduced_diffraction_data(1, None)
+    data_x, data_y = pv_workspace.get_reduced_diffraction_data(1, None)
     plt.plot(data_x, data_y, label='Test PseudoVoigt')
     plt.plot(model_x, model_y, label='Fitted PseudoVoigt')
     assert data_x.shape == model_x.shape
