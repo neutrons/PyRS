@@ -3,6 +3,7 @@ import numpy
 from pyrs.core import workspaces
 from pyrs.utilities import rs_project_file
 from pyrs.core import peak_profile_utility
+from pyrs.core.peak_profile_utility import PeakShape
 from pyrs.utilities import checkdatatypes
 
 
@@ -239,16 +240,13 @@ class PeakFitEngine(object):
     def get_peaks(self, peak_tag):
         return self._peak_collection_dict[peak_tag]
 
-    def get_peak_param_names(self, peak_function, is_effective):
+    @staticmethod
+    def get_peak_param_names(peak_function, is_effective):
         """ Get the peak parameter names
         :param peak_function: None for default/current peak function
         :param is_effective:
         :return:
         """
-        # Default
-        if peak_function is None:
-            peak_function = self._peak_function_name
-
         if is_effective:
             # Effective parameters
             param_names = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS[:]
@@ -258,11 +256,11 @@ class PeakFitEngine(object):
         else:
             # Native parameters
             try:
-                param_names = peak_profile_utility.NATIVE_PEAK_PARAMETERS[peak_function][:]
+                param_names = PeakShape.getShape(peak_function).native_parameters
             except KeyError as key_err:
                 raise RuntimeError('Peak type {} not supported.  The supported peak functions are {}.  FYI: {}'
                                    ''.format(peak_function,
-                                             peak_profile_utility.NATIVE_PEAK_PARAMETERS.keys(), key_err))
+                                             PeakShape.keys(), key_err))
 
         return param_names
 

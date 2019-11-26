@@ -1,17 +1,64 @@
 """
 Containing peak profiles with method to calculate effective peak parameters and error from native values
 """
+from enum import Enum
 import numpy as np
 
 
-# Native peak parameters in Mantid naming convention
-NATIVE_PEAK_PARAMETERS = {'Gaussian': ['Height', 'PeakCentre', 'Sigma'],
-                          'PseudoVoigt': ['Mixing', 'Intensity', 'PeakCentre', 'FWHM'],
-                          'Voigt': ['LorentzAmp', 'LorentzPos', 'LorentzFWHM', 'GaussianFWHM']}
-# Native background parameters in Mantid naming convention
-NATIVE_BACKGROUND_PARAMETERS = {'Linear': ['A0', 'A1']}
 # Effective peak and background parameters
 EFFECTIVE_PEAK_PARAMETERS = ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
+
+
+class PeakShape(Enum):
+    GAUSSIAN = 'Gaussian'
+    PSEUDOVOIGT = 'PseudoVoigt'
+    VOIGT = 'Voigt'
+
+    def __str__(self):
+        return self.value
+
+    @staticmethod
+    def getShape(shape):
+        if shape in PeakShape:
+            return shape
+        else:
+            try:
+                return PeakShape[str(shape).upper()]
+            except KeyError:
+                raise KeyError('Cannot determine peak shape from "{}"'.format(shape))
+
+    @property
+    def native_parameters(self):
+        # Native peak parameters in Mantid naming convention
+        NATIVE_PEAK_PARAMETERS = {'Gaussian': ['Height', 'PeakCentre', 'Sigma'],
+                                  'PseudoVoigt': ['Mixing', 'Intensity', 'PeakCentre', 'FWHM'],
+                                  'Voigt': ['LorentzAmp', 'LorentzPos', 'LorentzFWHM', 'GaussianFWHM']}
+
+        return NATIVE_PEAK_PARAMETERS[self.value][:]
+
+
+class BackgroundFunction(Enum):
+    LINEAR = 'Linear'  # so far, one and only supported
+
+    def __str__(self):
+        return self.value
+
+    @staticmethod
+    def getFunction(function):
+        if function in BackgroundFunction:
+            return function
+        else:
+            try:
+                return BackgroundFunction[str(function).upper()]
+            except KeyError:
+                raise KeyError('Cannot determine background function from "{}"'.format(function))
+
+    @property
+    def native_parameters(self):
+        # Native background parameters in Mantid naming convention
+        NATIVE_BACKGROUND_PARAMETERS = {'Linear': ['A0', 'A1']}
+
+        return NATIVE_BACKGROUND_PARAMETERS[self.value][:]
 
 
 def get_effective_parameters_converter(peak_profile):
@@ -27,15 +74,19 @@ def get_effective_parameters_converter(peak_profile):
     PeakParametersConverter
         Gaussian, PseudoVoigt or Voigt
     """
-    profile_name = peak_profile.lower()
-    if profile_name == 'gaussian':
+    try:
+        peak_profile = PeakShape.getShape(peak_profile)
+    except KeyError:
+        raise KeyError('Profile {} is not supported.'.format(peak_profile))
+
+    if peak_profile == PeakShape.GAUSSIAN:
         converter = Gaussian()
-    elif profile_name == 'pseudovoigt':
+    elif peak_profile == PeakShape.PSEUDOVOIGT:
         converter = PseudoVoigt()
-    elif profile_name == 'voigt':
+    elif peak_profile == PeakShape.VOIGT:
         converter = Voigt()
     else:
-        raise RuntimeError('Profile {} is not supported.'.format(profile_name))
+        raise RuntimeError('if/else tree is incomplete')
 
     return converter
 
@@ -44,13 +95,13 @@ class PeakParametersConverter(object):
     """Virtual base class to convert peak parameters from native to effective
 
     """
-    def __init__(self):
+    def __init__(self, peak_shape):
         """Initialization
         """
         # Peak profile name
-        self._peak_name = 'Virtual Peak'
+        self._peak_shape = PeakShape.getShape(peak_shape)
         # Background name
-        self._background_name = 'Linear'  # so far, one and only supported
+        self._background = BackgroundFunction.LINEAR  # so far, one and only supported
 
         return
 
@@ -62,7 +113,7 @@ class PeakParametersConverter(object):
         List
             list of string for peak parameter name used in Mantid as the standard
         """
-        return NATIVE_PEAK_PARAMETERS[self._peak_name][:]
+        return self._peak_shape.native_parameters
 
     def get_native_background_names(self):
         """
@@ -71,7 +122,7 @@ class PeakParametersConverter(object):
         -------
 
         """
-        return NATIVE_BACKGROUND_PARAMETERS[self._background_name][:]
+        return self._background.native_parameters
 
     def calculate_effective_parameters(self, native_param_names, param_value_array, param_error_array):
         """Calculate effective peak parameter values
@@ -104,14 +155,7 @@ class Gaussian(PeakParametersConverter):
     class for handling peak profile parameters' conversion
     """
     def __init__(self):
-        """
-        Initialization
-        """
-        super(Gaussian, self).__init__()
-
-        self._peak_name = 'Gaussian'
-
-        return
+        super(Gaussian, self).__init__(PeakShape.GAUSSIAN)
 
     def calculate_effective_parameters(self, native_param_names, param_value_array, param_error_array):
         """Calculate effective peak parameter values
@@ -266,14 +310,7 @@ class PseudoVoigt(PeakParametersConverter):
     class for handling peak profile parameters' conversion
     """
     def __init__(self):
-        """Initialization
-
-        """
-        super(PseudoVoigt, self).__init__()
-
-        self._peak_name = 'PseudoVoigt'
-
-        return
+        super(PseudoVoigt, self).__init__(PeakShape.PSEUDOVOIGT)
 
     def calculate_effective_parameters(self, native_param_names, param_value_array, param_error_array):
         """Calculate effective peak parameter values
@@ -428,14 +465,7 @@ class Voigt(PeakParametersConverter):
     class for handling peak profile parameters' conversion
     """
     def __init__(self):
-        """Initialization
-
-        """
-        super(Voigt, self).__init__()
-
-        self._peak_name = 'Voigt'
-
-        return
+        super(Voigt, self).__init__(PeakShape.VOIGT)
 
     def calculate_effective_parameters(self, native_param_names, param_value_array, param_error_array):
         """Calculate effective peak parameter values

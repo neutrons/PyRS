@@ -3,28 +3,32 @@ Object to contain peak parameters (names and values) of a collection of peaks fo
 """
 import numpy as np
 from pyrs.utilities import checkdatatypes
-from pyrs.core.peak_profile_utility import get_effective_parameters_converter
+from pyrs.core.peak_profile_utility import get_effective_parameters_converter, PeakShape, BackgroundFunction
 
 
 class PeakCollection(object):
     """
     Class for a collection of peaks
     """
-    def __init__(self, peak_tag):
+    def __init__(self, peak_tag, peak_profile, background_type):
         """Initialization
 
         Parameters
         ----------
         peak_tag : str
             tag for the peak such as 'Si111'
+        peak_profile : str
+            Peak profile
+        background_type : str
+            Background type
 
         """
         # Init variables from input
         self._tag = peak_tag
 
         # Init other parameters
-        self._peak_profile = None
-        self._background_type = None
+        self._peak_profile = PeakShape.getShape(peak_profile)
+        self._background_type = BackgroundFunction.getFunction(background_type)
 
         # sub run numbers: 1D array
         self._sub_run_array = None
@@ -34,8 +38,6 @@ class PeakCollection(object):
         self._params_error_array = None
         # fitting cost (chi2): numpy 1D array
         self._fit_cost_array = None
-
-        return
 
     @property
     def peak_tag(self):
@@ -59,7 +61,7 @@ class PeakCollection(object):
             peak profile name such as Gaussian
 
         """
-        return self._peak_profile
+        return str(self._peak_profile)
 
     @property
     def background_type(self):
@@ -89,16 +91,11 @@ class PeakCollection(object):
     def fitting_costs(self):
         return self._fit_cost_array
 
-    def set_peak_fitting_values(self, peak_profile, background_type, sub_runs, parameter_values,
-                                parameter_errors, fit_costs):
+    def set_peak_fitting_values(self, sub_runs, parameter_values, parameter_errors, fit_costs):
         """Set peak fitting values
 
         Parameters
         ----------
-        peak_profile : str
-            Peak profile
-        background_type : str
-            Background type
         sub_runs : numpy.array
             1D numpy array for sub run numbers
         parameter_values : numpy.ndarray
@@ -112,9 +109,6 @@ class PeakCollection(object):
         -------
 
         """
-        self._peak_profile = peak_profile
-        self._background_type = background_type
-
         self._sub_run_array = np.copy(sub_runs)
         self._params_value_array = np.copy(parameter_values)
         self._params_error_array = np.copy(parameter_errors)
@@ -136,7 +130,7 @@ class PeakCollection(object):
             Default is including all
         Returns
         -------
-        tuple
+        (numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray)
             4-tuple: (1) (n, ) vector for sub run number
                      (2) costs
                      (3) (p, n) array for parameter values

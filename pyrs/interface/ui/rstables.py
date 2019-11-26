@@ -44,10 +44,16 @@ class FitResultTable(NTableWidget.NTableWidget):
         :param sub_run_number_list: list of sub runs
         :return:
         """
-        checkdatatypes.check_list('Index list', list(sub_run_number_list))
+        # checkdatatypes.check_list('Index list', list(sub_run_number_list))
+        #
+        # # sort
+        # sub_run_number_list.sort()
 
-        # sort
-        sub_run_number_list.sort()
+        if isinstance(sub_run_number_list, list) or isinstance(sub_run_number_list, numpy.ndarray):
+            # sort
+            sub_run_number_list.sort()
+        else:
+            raise RuntimeError('Sub runs in {} are not supported'.format(type(sub_run_number_list)))
 
         # clean the table
         if self.rowCount() > 0:

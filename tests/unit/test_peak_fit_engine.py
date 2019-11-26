@@ -1,7 +1,7 @@
 import numpy as np
 from pyrs.core.mantid_fit_peak import MantidPeakFitEngine
 from pyrs.core.workspaces import HidraWorkspace
-from pyrs.core.peak_profile_utility import pseudo_voigt, NATIVE_BACKGROUND_PARAMETERS, NATIVE_PEAK_PARAMETERS
+from pyrs.core.peak_profile_utility import pseudo_voigt, PeakShape, BackgroundFunction
 from pyrs.core.peak_profile_utility import Gaussian, PseudoVoigt
 import pytest
 from matplotlib import pyplot as plt
@@ -166,8 +166,8 @@ def test_gaussian():
         fit_engine.get_peaks(m_tag).get_effective_parameters_values()
 
     # Read data again for raw data
-    native_params = NATIVE_PEAK_PARAMETERS['Gaussian'][:]
-    native_params.extend(NATIVE_BACKGROUND_PARAMETERS['Linear'])
+    native_params = PeakShape.GAUSSIAN.native_parameters
+    native_params.extend(BackgroundFunction.LINEAR.native_parameters)
     sub_runs2, fit_cost2, param_values, param_errors = fit_engine.get_peaks(m_tag).get_parameters_values(native_params)
 
     # Test
@@ -222,8 +222,8 @@ def test_pseudo_voigt():
         fit_engine.get_peaks(peak_tag).get_effective_parameters_values()
 
     # Read data again for raw data
-    native_params = NATIVE_PEAK_PARAMETERS['PseudoVoigt'][:]
-    native_params.extend(NATIVE_BACKGROUND_PARAMETERS['Linear'])
+    native_params = PeakShape.PSEUDOVOIGT.native_parameters
+    native_params.extend(BackgroundFunction.LINEAR.native_parameters)
     sub_runs2, fit_cost2, param_values, param_errors =\
         fit_engine.get_peaks(peak_tag).get_parameters_values(native_params)
     print('Ordered native parameters: {}'.format(native_params))
