@@ -225,7 +225,6 @@ class FitPeaksWindow(QMainWindow):
 
     def do_plot_2d_data(self):
         """
-
         :return:
         """
         # TODO - #84 - Implement this method
@@ -272,8 +271,6 @@ class FitPeaksWindow(QMainWindow):
 
         self.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y, x_axis_name, y_axis_name)
 
-        return
-
     def do_save_as(self):
         """ export the peaks to another file
         :return:
@@ -285,8 +282,6 @@ class FitPeaksWindow(QMainWindow):
                                                               save_file=True)
 
         self.save_fit_result(out_file_name)
-
-        return
 
     def do_save_fit(self):
         """
@@ -309,8 +304,6 @@ class FitPeaksWindow(QMainWindow):
                                                   detailed_message='Supported are hdf5, h5, hdf, csv and dat',
                                                   message_type='error')
 
-        return
-
     def do_save_fit_result(self):
         """
         save fit result
@@ -332,16 +325,12 @@ class FitPeaksWindow(QMainWindow):
 
         self.export_fit_result(file_name)
 
-        return
-
     def do_quit(self):
         """
         close the window and quit
         :return:
         """
         self.close()
-
-        return
 
     def export_fit_result(self, file_name):
         """
@@ -350,8 +339,6 @@ class FitPeaksWindow(QMainWindow):
         :return:
         """
         self.ui.tableView_fitSummary.export_table_csv(file_name)
-
-        return
 
     def fit_peaks_smart(self, peak_profiles_order):
         """
@@ -365,8 +352,6 @@ class FitPeaksWindow(QMainWindow):
             err_msg = 'Smart peak fitting with order {} failed due to {}' \
                       ''.format(peak_profiles_order, run_err)
             pyrs.interface.gui_helper.pop_message(self, err_msg, 'error')
-
-        return
 
     def get_function_parameter_data(self, param_name):
         """ get the parameter function data
@@ -426,8 +411,6 @@ class FitPeaksWindow(QMainWindow):
         """
         self._core.save_nexus(data_key, file_name)
 
-        return
-
     def save_fit_result(self, out_file_name):
         """
         make a copy of the input file and add the fit result into it
@@ -439,19 +422,3 @@ class FitPeaksWindow(QMainWindow):
         # TODO FIXME - TONIGHT NOW - Fit the following method!
         # FIXME Temporarily disabled:
         # self._core.save_peak_fit_result(self._curr_data_key, self._curr_file_name, out_file_name)
-
-        return
-
-    # def setup_window(self, pyrs_core):
-    #     """ set up the window.  It must be called mandatory
-    #     :param pyrs_core:
-    #     :return:
-    #     """
-    #     from pyrs.core.pyrscore import PyRsCore
-    #     # check
-    #     assert isinstance(pyrs_core, PyRsCore), 'Controller core {0} must be a PyRSCore instance but not a {1}.' \
-    #                                             ''.format(pyrs_core, pyrs_core.__class__.__name__)
-    #
-    #     self._core = pyrs_core
-    #
-    #     return
