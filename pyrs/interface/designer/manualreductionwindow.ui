@@ -81,9 +81,6 @@
           </property>
          </widget>
         </item>
-        <item row="0" column="2">
-         <widget class="QLineEdit" name="lineEdit_runNumber"/>
-        </item>
         <item row="0" column="3">
          <widget class="QPushButton" name="pushButton_loadProjectFile">
           <property name="toolTip">
@@ -117,6 +114,9 @@
            <string/>
           </property>
          </widget>
+        </item>
+        <item row="0" column="2">
+         <widget class="QLineEdit" name="lineEdit_runNumber"/>
         </item>
        </layout>
       </item>
@@ -334,12 +334,50 @@
          <attribute name="title">
           <string>Simple Reduction</string>
          </attribute>
-         <layout class="QVBoxLayout" name="verticalLayout_3">
+         <layout class="QVBoxLayout" name="verticalLayout_6">
           <item>
-           <layout class="QVBoxLayout" name="verticalLayout_6"/>
-          </item>
-          <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_4">
+           <layout class="QVBoxLayout" name="verticalLayout_3">
+            <item>
+             <layout class="QHBoxLayout" name="horizontalLayout_4">
+              <item>
+               <widget class="QLabel" name="label_2">
+                <property name="text">
+                 <string>Run Numbers</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLineEdit" name="lineEdit_runNumbersList">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="toolTip">
+                 <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Experiment numbers in numpy convention:&lt;/p&gt;&lt;p&gt;a, b:c, d:e, f, ...&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                </property>
+                <property name="text">
+                 <string>all</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="pushButton_batchReduction">
+                <property name="text">
+                 <string>Reduce</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="pushButton_saveProject">
+                <property name="text">
+                 <string>Save</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
             <item>
              <widget class="QFrame" name="frame_subRunInfoTable">
               <property name="sizePolicy">
@@ -353,43 +391,6 @@
               </property>
               <property name="frameShadow">
                <enum>QFrame::Raised</enum>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLabel" name="label_2">
-              <property name="text">
-               <string>Run Numbers</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLineEdit" name="lineEdit_runNumbersList">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Experiment numbers in numpy convention:&lt;/p&gt;&lt;p&gt;a, b:c, d:e, f, ...&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
-              <property name="text">
-               <string>all</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QPushButton" name="pushButton_batchReduction">
-              <property name="text">
-               <string>Reduce</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QPushButton" name="pushButton_saveProject">
-              <property name="text">
-               <string>Save</string>
               </property>
              </widget>
             </item>
