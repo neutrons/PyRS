@@ -1,5 +1,6 @@
 from pyrs.interface.peak_fitting.plot import Plot
 from pyrs.utilities.rs_project_file import HidraConstants
+from pyrs.interface.peak_fitting.utilities import Utilities
 
 
 class Fit:
@@ -140,3 +141,15 @@ class Fit:
                                                                 peak_param_dict,
                                                                 write_error=False,
                                                                 peak_profile=peak_function)
+
+    def initialize_fitting_table(self):
+        # Set the table
+        if self.parent.ui.tableView_fitSummary.rowCount() > 0:
+            self.parent.ui.tableView_fitSummary.remove_all_rows()
+
+        o_utility = Utilities(parent=self.parent)
+        sub_run_list = o_utility.get_subruns_limit(self.parent._project_name)
+        self.parent.ui.tableView_fitSummary.init_exp(sub_run_list)
+
+
+

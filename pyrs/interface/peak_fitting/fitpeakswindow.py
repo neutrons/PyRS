@@ -110,7 +110,7 @@ class FitPeaksWindow(QMainWindow):
         """ Browse Hidra project HDF file
         """
         o_handler = EventHandler(parent=self)
-        o_handler.browse_and_load_hdf()
+        o_handler.browse_load_plot_hdf()
 
     def load_hidra_file(self):
         o_handler = EventHandler(parent=self)
