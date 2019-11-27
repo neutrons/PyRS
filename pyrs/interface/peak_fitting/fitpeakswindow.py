@@ -22,7 +22,7 @@ class FitPeaksWindow(QMainWindow):
     GUI window for user to fit peaks
     """
 
-    def __init__(self, parent):
+    def __init__(self, parent, fit_peak_core=None):
         """
         initialization
         :param parent:
@@ -30,7 +30,7 @@ class FitPeaksWindow(QMainWindow):
         super(FitPeaksWindow, self).__init__(parent)
 
         # class variables
-        self._core = None
+        self._core = fit_peak_core
         self._project_name = None
         # current/last loaded data
         self._curr_file_name = None
@@ -442,16 +442,16 @@ class FitPeaksWindow(QMainWindow):
 
         return
 
-    def setup_window(self, pyrs_core):
-        """ set up the window.  It must be called mandatory
-        :param pyrs_core:
-        :return:
-        """
-        from pyrs.core.pyrscore import PyRsCore
-        # check
-        assert isinstance(pyrs_core, PyRsCore), 'Controller core {0} must be a PyRSCore instance but not a {1}.' \
-                                                ''.format(pyrs_core, pyrs_core.__class__.__name__)
-
-        self._core = pyrs_core
-
-        return
+    # def setup_window(self, pyrs_core):
+    #     """ set up the window.  It must be called mandatory
+    #     :param pyrs_core:
+    #     :return:
+    #     """
+    #     from pyrs.core.pyrscore import PyRsCore
+    #     # check
+    #     assert isinstance(pyrs_core, PyRsCore), 'Controller core {0} must be a PyRSCore instance but not a {1}.' \
+    #                                             ''.format(pyrs_core, pyrs_core.__class__.__name__)
+    #
+    #     self._core = pyrs_core
+    #
+    #     return
