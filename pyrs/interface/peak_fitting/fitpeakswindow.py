@@ -163,6 +163,7 @@ class FitPeaksWindow(QMainWindow):
         self.ui.splitter_4.setStyleSheet("""QSplitter::handle {image: url(':/fitting/vertical_splitter.png'); }""")
         self.ui.splitter_4.setSizes([100,0])
         self.ui.splitter_2.setStyleSheet("""QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }""")
+        self.ui.splitter_2.setSizes([100,0])
         self.ui.splitter_3.setStyleSheet("""QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }""")
         self.ui.splitter.setStyleSheet("""QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }""")
 

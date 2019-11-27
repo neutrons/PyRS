@@ -24,14 +24,14 @@
        <number>6</number>
       </property>
       <property name="childrenCollapsible">
-       <bool>false</bool>
+       <bool>true</bool>
       </property>
       <widget class="QSplitter" name="splitter_2">
        <property name="orientation">
         <enum>Qt::Vertical</enum>
        </property>
        <property name="childrenCollapsible">
-        <bool>false</bool>
+        <bool>true</bool>
        </property>
        <widget class="QSplitter" name="splitter">
         <property name="orientation">
