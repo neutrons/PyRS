@@ -14,28 +14,27 @@ class EventHandler:
         self.parent = parent
 
     def browse_and_load_hdf(self):
+        if self.parent._core is None:
+            raise RuntimeError('Not set up yet!')
 
-        # Check
-        self._check_core()
-
-        # Use IPTS and run number to get the default Hydra HDF
-
-        # FIXME maybe recover auto name of hidra file
         # hydra_file_name = self._get_default_hdf()
         hidra_file_name = None
         if hidra_file_name is None:
             # No default Hidra file: browse the file
             file_filter = 'HDF (*.hdf);H5 (*.h5)'
-            hidra_file_name = browse_file(self.parent, 'HIDRA Project File',
-                                          os.getcwd(), file_filter,
-                                          file_list=False, save_file=False)
+            hidra_file_name = browse_file(self.parent,
+                                          'HIDRA Project File',
+                                          os.getcwd(),
+                                          file_filter,
+                                          file_list=False,
+                                          save_file=False)
 
             if hidra_file_name is None:
-                # user clicked CANCEL
-                return
+                return # user clicked cancel
 
         # Add file name to line edit to show
         self.parent.ui.lineEdit_expFileName.setText(hidra_file_name)
+        self.parent.ui.statusbar.showMessage("Working with: {}".format(hidra_file_name))
 
         # Load file as an option
         try:
@@ -51,19 +50,12 @@ class EventHandler:
 
         # o_gui = GuiUtilities(parent=self.parent)
         # o_gui.check_prev_next_sub_runs_widgets()
-
-    def _check_core(self):
-        """
-        check whether PyRs.Core has been set to this window
-        :return:
-        """
-        if self.parent._core is None:
-            raise RuntimeError('Not set up yet!')
-
     def _get_default_hdf(self):
         """
-        use IPTS and Exp to determine
-        :return:
+        use IPTS and run number to determine the name of the project file
+        By default, look into the /HFIR/HB2B/IPTS-####/shared/pyrs_reduction folder
+        if the project file for the given run number exists.
+        If it does not, look into the /HFIR/HB2B/IPTS-####/autoreduce folder
         """
         try:
             ipts_number = parse_integer(self.parent.ui.lineEdit_iptsNumber)

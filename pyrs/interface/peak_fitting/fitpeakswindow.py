@@ -1,6 +1,7 @@
 import numpy
 import os
-from qtpy.QtWidgets import QVBoxLayout, QFileDialog, QMainWindow
+from qtpy.QtWidgets import QVBoxLayout, QFileDialog, QMainWindow, QLabel
+from qtpy.QtCore import Qt
 
 from pyrs.utilities import load_ui
 from pyrs.interface.ui import qt_util
@@ -164,6 +165,9 @@ class FitPeaksWindow(QMainWindow):
         self.ui.splitter_2.setStyleSheet("""QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }""")
         self.ui.splitter_3.setStyleSheet("""QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }""")
         self.ui.splitter.setStyleSheet("""QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }""")
+
+        # status bar
+        self.setStyleSheet("QStatusBar{padding-left:8px;color:green;}")
 
     def do_launch_adv_fit(self):
         """
