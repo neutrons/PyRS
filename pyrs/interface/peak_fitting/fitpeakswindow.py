@@ -16,6 +16,9 @@ from pyrs.interface.peak_fitting.fit import Fit
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
 from pyrs.icons import icons_rc  # noqa: F401
 
+VERTICAL_SPLITTER = """QSplitter::handle {image: url(':/fitting/vertical_splitter.png'); }"""
+HORIZONTAL_SPLITTER = """QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }"""
+
 
 class FitPeaksWindow(QMainWindow):
     """
@@ -160,12 +163,12 @@ class FitPeaksWindow(QMainWindow):
         self.ui.comboBox_2dPlotChoice.addItem('Raw Data')
         self.ui.comboBox_2dPlotChoice.addItem('Fitted')
 
-        self.ui.splitter_4.setStyleSheet("""QSplitter::handle {image: url(':/fitting/vertical_splitter.png'); }""")
+        self.ui.splitter_4.setStyleSheet(VERTICAL_SPLITTER)
         self.ui.splitter_4.setSizes([100,0])
-        self.ui.splitter_2.setStyleSheet("""QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }""")
+        self.ui.splitter_2.setStyleSheet(HORIZONTAL_SPLITTER)
         self.ui.splitter_2.setSizes([100,0])
-        self.ui.splitter_3.setStyleSheet("""QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }""")
-        self.ui.splitter.setStyleSheet("""QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }""")
+        self.ui.splitter_3.setStyleSheet(HORIZONTAL_SPLITTER)
+        self.ui.splitter.setStyleSheet(HORIZONTAL_SPLITTER)
 
         # status bar
         self.setStyleSheet("QStatusBar{padding-left:8px;color:green;}")
