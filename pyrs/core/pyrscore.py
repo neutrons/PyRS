@@ -327,6 +327,9 @@ class PyRsCore(object):
         """
         optimizer = self._get_peak_fitting_controller(data_key)
 
+        print("in get_peak_center_of_mass")
+        print(optimizer.get_observed_peaks_centers())
+
         return optimizer.get_observed_peaks_centers()[:, 0]
 
     def get_peak_intensities(self, data_key_pair):
