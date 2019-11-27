@@ -4,8 +4,10 @@ from pyrs.interface.gui_helper import pop_message
 from pyrs.interface.gui_helper import parse_integer
 from pyrs.interface.gui_helper import browse_file
 from pyrs.utilities import hb2b_utilities
+from pyrs.interface.peak_fitting.load import Load
 from pyrs.interface.peak_fitting.plot import Plot
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
+from pyrs.interface.peak_fitting.utilities import Utilities
 
 
 class EventHandler:
@@ -33,12 +35,26 @@ class EventHandler:
                 return # user clicked cancel
 
         # Add file name to line edit to show
-        self.parent.ui.lineEdit_expFileName.setText(hidra_file_name)
+        self.parent.ui.lineEdit_expFileName.setText(hidra_file_name)  ## REMOVE THIS ONCE ITS BEEN REPLACED
         self.parent.ui.statusbar.showMessage("Working with: {}".format(hidra_file_name))
 
-        # Load file as an option
         try:
-            self.load_hidra_file(hydra_project_file=hidra_file_name)
+            o_load = Load(parent=self.parent)
+            o_load.load(project_file=hidra_file_name)
+
+            o_plot = Plot(parent=self.parent)
+            o_plot.plot_diff_data(plot_model=False)
+
+            # reset the plot
+            self.parent.ui.graphicsView_fitResult.reset_viewer()
+
+            # Set the table
+            if self.parent.ui.tableView_fitSummary.rowCount() > 0:
+                self.parent.ui.tableView_fitSummary.remove_all_rows()
+
+            o_utility = Utilities(parent=self.parent)
+            sub_run_list = o_utility.get_subruns_limit(self.parent._project_name)
+            self.parent.ui.tableView_fitSummary.init_exp(sub_run_list)
 
             # enabled all fitting widgets and main plot
             o_gui = GuiUtilities(parent=self.parent)
@@ -48,8 +64,6 @@ class EventHandler:
             pop_message(self, 'Failed to load {}'.format(hidra_file_name),
                         str(run_err), 'error')
 
-        # o_gui = GuiUtilities(parent=self.parent)
-        # o_gui.check_prev_next_sub_runs_widgets()
     def _get_default_hdf(self):
         """
         use IPTS and run number to determine the name of the project file
@@ -69,87 +83,87 @@ class EventHandler:
 
         return archive_data
 
-    def load_hidra_file(self, hydra_project_file=None):
-        """ Load Hidra project file
-        :return: None
-        """
+    # def load_hidra_file(self, hydra_project_file=None):
+    #     """ Load Hidra project file
+    #     :return: None
+    #     """
+    #
+    #     # load file
+    #     try:
+    #         self.parent._project_name = os.path.basename(hydra_project_file).split('.')[0]
+    #         self.parent._core.load_hidra_project(hydra_project_file,
+    #                                              project_name=self.parent._project_name,
+    #                                              load_detector_counts=False,
+    #                                              load_diffraction=True)
+    #         # Record data key and next
+    #         self.parent._curr_file_name = hydra_project_file
+    #     except (RuntimeError, TypeError) as run_err:
+    #         pop_message(self, 'Unable to load {}'.format(hydra_project_file),
+    #                     detailed_message=str(run_err),
+    #                     message_type='error')
+    #
+    #     # Edit information on the UI for user to visualize
+    #     self.parent.ui.label_loadedFileInfo.setText('Loaded {}; Project name: {}'
+    #                                                 .format(hydra_project_file, self.parent._project_name))
+    #
+    #     # Get and set the range of sub runs
+    #     sub_run_list = self.get_subruns_limit()
+    #
+    #     o_gui = GuiUtilities(parent=self.parent)
+    #     o_gui.initialize_fitting_slider(max=len(sub_run_list))
+    #
+    #     # Set the widgets about viewer: get the sample logs and add the combo boxes for plotting
+    #     sample_log_names = self.parent._core.reduction_service.get_sample_logs_names(self.parent._project_name,
+    #                                                                                  can_plot=True)
+    #     self._set_sample_logs_for_plotting(sample_log_names)
+    #
+    #     o_plot = Plot(parent=self.parent)
+    #     o_plot.plot_diff_data(plot_model=False)
+    #
+    #     # reset the plot
+    #     self.parent.ui.graphicsView_fitResult.reset_viewer()
+    #
+    #     # Set the table
+    #     if self.parent.ui.tableView_fitSummary.rowCount() > 0:
+    #         self.parent.ui.tableView_fitSummary.remove_all_rows()
+    #     self.parent.ui.tableView_fitSummary.init_exp(sub_run_list)
+    #
+    #     # try:
+    #     #     # Auto fit for all the peaks
+    #     #     if self.parent.ui.checkBox_autoFit.isChecked():
+    #     #         o_fit = Fit(parent=self.parent)
+    #     #         o_fit.fit_peaks(all_sub_runs=True)
+    #     # except (AttributeError) as err:
+    #     #     pop_message(self, 'some errors during fitting!', detailed_message=str(err),
+    #     #                 message_type='warning')
+    #
+    #     # enabled all fitting widgets
+    #     o_gui.enabled_fitting_widgets(True)
 
-        # load file
-        try:
-            self.parent._project_name = os.path.basename(hydra_project_file).split('.')[0]
-            self.parent._core.load_hidra_project(hydra_project_file,
-                                                 project_name=self.parent._project_name,
-                                                 load_detector_counts=False,
-                                                 load_diffraction=True)
-            # Record data key and next
-            self.parent._curr_file_name = hydra_project_file
-        except (RuntimeError, TypeError) as run_err:
-            pop_message(self, 'Unable to load {}'.format(hydra_project_file),
-                        detailed_message=str(run_err),
-                        message_type='error')
+    # def get_subruns_limit(self):
+    #     sub_run_list = self.parent._core.reduction_service.get_sub_runs(self.parent._project_name)
+    #     # self.parent.ui.label_logIndexMin.setText(str(sub_run_list[0]))
+    #     # self.parent.ui.label_logIndexMax.setText(str(sub_run_list[-1]))
+    #     # self.parent.ui.label_MinScanNumber.setText(str(sub_run_list[0]))
+    #     # self.parent.ui.label_MaxScanNumber.setText(str(sub_run_list[-1]))
+    #     return sub_run_list
 
-        # Edit information on the UI for user to visualize
-        self.parent.ui.label_loadedFileInfo.setText('Loaded {}; Project name: {}'
-                                                    .format(hydra_project_file, self.parent._project_name))
-
-        # Get and set the range of sub runs
-        sub_run_list = self.get_subruns_limit()
-
-        o_gui = GuiUtilities(parent=self.parent)
-        o_gui.initialize_fitting_slider(max=len(sub_run_list))
-
-        # Set the widgets about viewer: get the sample logs and add the combo boxes for plotting
-        sample_log_names = self.parent._core.reduction_service.get_sample_logs_names(self.parent._project_name,
-                                                                                     can_plot=True)
-        self._set_sample_logs_for_plotting(sample_log_names)
-
-        o_plot = Plot(parent=self.parent)
-        o_plot.plot_diff_data(plot_model=False)
-
-        # reset the plot
-        self.parent.ui.graphicsView_fitResult.reset_viewer()
-
-        # Set the table
-        if self.parent.ui.tableView_fitSummary.rowCount() > 0:
-            self.parent.ui.tableView_fitSummary.remove_all_rows()
-        self.parent.ui.tableView_fitSummary.init_exp(sub_run_list)
-
-        # try:
-        #     # Auto fit for all the peaks
-        #     if self.parent.ui.checkBox_autoFit.isChecked():
-        #         o_fit = Fit(parent=self.parent)
-        #         o_fit.fit_peaks(all_sub_runs=True)
-        # except (AttributeError) as err:
-        #     pop_message(self, 'some errors during fitting!', detailed_message=str(err),
-        #                 message_type='warning')
-
-        # enabled all fitting widgets
-        o_gui.enabled_fitting_widgets(True)
-
-    def get_subruns_limit(self):
-        sub_run_list = self.parent._core.reduction_service.get_sub_runs(self.parent._project_name)
-        # self.parent.ui.label_logIndexMin.setText(str(sub_run_list[0]))
-        # self.parent.ui.label_logIndexMax.setText(str(sub_run_list[-1]))
-        # self.parent.ui.label_MinScanNumber.setText(str(sub_run_list[0]))
-        # self.parent.ui.label_MaxScanNumber.setText(str(sub_run_list[-1]))
-        return sub_run_list
-
-    def _set_sample_logs_for_plotting(self, sample_log_names):
-        """ There are 2 combo boxes containing sample logs' names for plotting.  Clear the existing ones
-        and add the sample log names specified to them
-        :param sample_log_names:
-        :return:
-        """
-        self.parent._sample_log_names_mutex = True
-        self.parent.ui.comboBox_xaxisNames.clear()
-        self.parent.ui.comboBox_yaxisNames.clear()
-
-        # Maintain a copy of sample logs!
-        self.parent._sample_log_names = list(set(sample_log_names))
-        self.parent._sample_log_names.sort()
-
-        for sample_log in sample_log_names:
-            self.parent.ui.comboBox_xaxisNames.addItem(sample_log)
-            self.parent.ui.comboBox_yaxisNames.addItem(sample_log)
-            self.parent._sample_log_name_set.add(sample_log)
-        self.parent._sample_log_names_mutex = False
+    # def _set_sample_logs_for_plotting(self, sample_log_names):
+    #     """ There are 2 combo boxes containing sample logs' names for plotting.  Clear the existing ones
+    #     and add the sample log names specified to them
+    #     :param sample_log_names:
+    #     :return:
+    #     """
+    #     self.parent._sample_log_names_mutex = True
+    #     self.parent.ui.comboBox_xaxisNames.clear()
+    #     self.parent.ui.comboBox_yaxisNames.clear()
+    #
+    #     # Maintain a copy of sample logs!
+    #     self.parent._sample_log_names = list(set(sample_log_names))
+    #     self.parent._sample_log_names.sort()
+    #
+    #     for sample_log in sample_log_names:
+    #         self.parent.ui.comboBox_xaxisNames.addItem(sample_log)
+    #         self.parent.ui.comboBox_yaxisNames.addItem(sample_log)
+    #         self.parent._sample_log_name_set.add(sample_log)
+    #     self.parent._sample_log_names_mutex = False

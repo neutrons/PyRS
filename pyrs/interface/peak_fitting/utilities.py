@@ -17,3 +17,11 @@ class Utilities:
             sub_run_list = parse_integers(int_string_list)
 
         return sub_run_list
+
+    def get_subruns_limit(self, project_name):
+        sub_run_list = self.parent._core.reduction_service.get_sub_runs(project_name)
+        # self.parent.ui.label_logIndexMin.setText(str(sub_run_list[0]))
+        # self.parent.ui.label_logIndexMax.setText(str(sub_run_list[-1]))
+        # self.parent.ui.label_MinScanNumber.setText(str(sub_run_list[0]))
+        # self.parent.ui.label_MaxScanNumber.setText(str(sub_run_list[-1]))
+        return sub_run_list
