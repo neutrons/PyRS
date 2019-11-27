@@ -84,8 +84,6 @@ class NeXusConvertingApp(object):
                 continue  # skip 'SUB_RUNS'
             self._hydra_workspace.set_sample_log(log_name, sub_runs, sample_log_dict[log_name])
 
-        return
-
     def save(self, projectfile, instrument=None):
         """
         Save workspace to Hidra project file

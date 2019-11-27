@@ -6,6 +6,7 @@ import os
 import numpy as np
 import datetime
 from pyrs.core import peak_profile_utility
+from pyrs.core.peak_collection import PeakCollection
 import pytest
 
 
@@ -166,9 +167,8 @@ def test_peak_fitting_result_io():
     test_params_array[HidraConstants.PEAK_FIT_CHI2] = chi2_array
 
     # Add test data to output
-    from pyrs.core.peak_collection import PeakCollection
-    peaks = PeakCollection('test fake')
-    peaks.set_peak_fitting_values('PseudoVoigt', 'Linear', np.array([1, 2, 3]), test_params_array, test_error_array,
+    peaks = PeakCollection('test fake', 'PseudoVoigt', 'Linear')
+    peaks.set_peak_fitting_values(np.array([1, 2, 3]), test_params_array, test_error_array,
                                   chi2_array)
 
     test_project_file.write_peak_fit_result(peaks)

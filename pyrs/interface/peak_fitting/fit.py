@@ -1,6 +1,4 @@
-from pyrs.interface.peak_fitting.utilities import Utilities
 from pyrs.interface.peak_fitting.plot import Plot
-from pyrs.interface.gui_helper import pop_message
 from pyrs.utilities.rs_project_file import HidraConstants
 
 
@@ -20,12 +18,12 @@ class Fit:
         :return:
         """
         # Get the sub runs to fit or all the peaks
-        if self.parent.ui.checkBox_fitSubRuns.isChecked() and not all_sub_runs:
-            # Parse sub runs specified in lineEdit_scanNumbers
-            o_utilities = Utilities(parent=self.parent)
-            sub_run_list = o_utilities.parse_sub_runs()
-        else:
-            sub_run_list = None
+        # if not all_sub_runs:
+        #     # Parse sub runs specified in lineEdit_scanNumbers
+        #     o_utilities = Utilities(parent=self.parent)
+        #     sub_run_list = o_utilities.parse_sub_runs()
+        # else:
+        sub_run_list = None
 
         # Get peak function and background function
         peak_function = str(self.parent.ui.comboBox_peakType.currentText())
@@ -38,20 +36,28 @@ class Fit:
         # Fit Peaks: It is better to fit all the peaks at the same time after testing
         guessed_peak_center = 0.5 * (fit_range[0] + fit_range[1])
         peak_info_dict = {'Peak 1': {'Center': guessed_peak_center, 'Range': fit_range}}
-        self.parent._core.fit_peaks(self.parent._project_name, sub_run_list,
+        self.parent._core.fit_peaks(self.parent._project_name,
+                                    sub_run_list,
                                     peak_type=peak_function,
                                     background_type=bkgd_function,
                                     peaks_fitting_setup=peak_info_dict)
 
         # Process fitted peaks
         # TEST - #84 - This shall be reviewed!
-        try:
-            function_params, fit_values = self.parent._core.get_peak_fitting_result(self.parent._project_name,
-                                                                                    return_format=dict,
-                                                                                    effective_parameter=False)
-        except AttributeError as err:
-            pop_message(self, 'Zoom in/out to only show peak to fit!', err, "error")
-            return
+        # try:
+        # FIXME - effective_parameter=True will fail!
+        # FIXME - other than return_format=dict will fail!
+        # FIXME - need to give a real value to default_tag
+        # FIXME - this only works if fitting 1 peak a time
+        default_tag = peak_info_dict.keys()[0]
+        function_params, fit_values = self.parent._core.get_peak_fitting_result(self.parent._project_name,
+                                                                                default_tag,
+                                                                                return_format=dict,
+                                                                                effective_parameter=False,
+                                                                                fitting_function=peak_function)
+        # except AttributeError as err:
+        #     pop_message(self, 'Zoom in/out to only show peak to fit!', str(err), "error")
+        #     return
 
         # TODO - #84+ - Need to implement the option as effective_parameter=True
 
