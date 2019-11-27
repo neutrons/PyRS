@@ -15,7 +15,7 @@ class Load:
             return
 
         try:
-            self.parent._project_name = os.path.basename(project_file).split('.')[0]
+            self.__set_up_project_name(project_file=project_file)
             self.parent._core.load_hidra_project(project_file,
                                                  project_name=self.parent._project_name,
                                                  load_detector_counts=False,
@@ -55,6 +55,10 @@ class Load:
 
         # enabled all fitting widgets
         o_gui.enabled_fitting_widgets(True)
+
+    def __set_up_project_name(self, project_file=""):
+        """Keep the basename and removed the nxs and h5 extenstions"""
+        self.parent._project_name = os.path.basename(project_file).split('.')[0]
 
     def _set_sample_logs_for_plotting(self, sample_log_names):
         """ There are 2 combo boxes containing sample logs' names for plotting.  Clear the existing ones

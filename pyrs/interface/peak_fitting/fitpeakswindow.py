@@ -1,6 +1,6 @@
-import numpy
+import numpy as np
 import os
-from qtpy.QtWidgets import QVBoxLayout, QFileDialog, QMainWindow, QLabel
+from qtpy.QtWidgets import QVBoxLayout, QFileDialog, QMainWindow
 
 from pyrs.utilities import load_ui
 from pyrs.interface.ui import qt_util
@@ -397,7 +397,7 @@ class FitPeaksWindow(QMainWindow):
 
         if name == HidraConstants.SUB_RUNS:
             # sub run vector
-            value_vector = numpy.array(self._core.reduction_service.get_sub_runs(self._project_name))
+            value_vector = np.array(self._core.reduction_service.get_sub_runs(self._project_name))
         elif name in sample_log_names:
             # sample log but not sub-runs
             value_vector = self._core.reduction_service.get_sample_log_value(self._project_name, name)

@@ -190,7 +190,6 @@ class HB2BReductionManager(object):
                                ''.format(session_name, self._session_dict.keys()))
 
         workspace = self._session_dict[session_name]
-
         return workspace
 
     def init_session(self, session_name):

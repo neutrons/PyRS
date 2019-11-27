@@ -37,8 +37,8 @@ class Fit:
         # Fit Peaks: It is better to fit all the peaks at the same time after testing
         guessed_peak_center = 0.5 * (fit_range[0] + fit_range[1])
         peak_info_dict = {'Peak 1': {'Center': guessed_peak_center, 'Range': fit_range}}
-        self.parent._core.fit_peaks(self.parent._project_name,
-                                    sub_run_list,
+        self.parent._core.fit_peaks(project_name=self.parent._project_name,
+                                    sub_run_list=sub_run_list,
                                     peak_type=peak_function,
                                     background_type=bkgd_function,
                                     peaks_fitting_setup=peak_info_dict)
