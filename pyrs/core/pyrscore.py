@@ -149,9 +149,12 @@ class PyRsCore(object):
 
         # Check Inputs
         checkdatatypes.check_dict('Peak fitting (information) parameters', peaks_fitting_setup)
-        checkdatatypes.check_string_variable('Peak type', peak_type, peak_fit_factory.SupportedPeakProfiles)
+        checkdatatypes.check_string_variable('Peak type', peak_type,
+                                             peak_fit_factory.SupportedPeakProfiles)
         checkdatatypes.check_string_variable('Background type', background_type,
                                              peak_fit_factory.SupportedBackgroundTypes)
+
+        print("sub_run_list: {}".format(sub_run_list))
 
         # Deal with sub runs
         if sub_run_list is None:
