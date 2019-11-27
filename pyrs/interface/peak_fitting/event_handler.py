@@ -41,15 +41,16 @@ class EventHandler:
         try:
             self.load_hidra_file(hydra_project_file=hidra_file_name)
 
-            # enabled all fitting widgets
+            # enabled all fitting widgets and main plot
             o_gui = GuiUtilities(parent=self.parent)
             o_gui.enabled_fitting_widgets(True)
+            o_gui.enabled_data_fit_plot(True)
         except RuntimeError as run_err:
             pop_message(self, 'Failed to load {}'.format(hidra_file_name),
                         str(run_err), 'error')
 
-        o_gui = GuiUtilities(parent=self.parent)
-        o_gui.check_prev_next_sub_runs_widgets()
+        # o_gui = GuiUtilities(parent=self.parent)
+        # o_gui.check_prev_next_sub_runs_widgets()
 
     def _check_core(self):
         """
@@ -99,18 +100,16 @@ class EventHandler:
         self.parent.ui.label_loadedFileInfo.setText('Loaded {}; Project name: {}'
                                                     .format(hydra_project_file, self.parent._project_name))
 
-        # Get the range of sub runs
-        sub_run_list = self.parent._core.reduction_service.get_sub_runs(self.parent._project_name)
-        self.parent.ui.label_logIndexMin.setText(str(sub_run_list[0]))
-        self.parent.ui.label_logIndexMax.setText(str(sub_run_list[-1]))
+        # Get and set the range of sub runs
+        sub_run_list = self.get_subruns_limit()
+
+        o_gui = GuiUtilities(parent=self.parent)
+        o_gui.initialize_fitting_slider(max=len(sub_run_list))
 
         # Set the widgets about viewer: get the sample logs and add the combo boxes for plotting
         sample_log_names = self.parent._core.reduction_service.get_sample_logs_names(self.parent._project_name,
                                                                                      can_plot=True)
         self._set_sample_logs_for_plotting(sample_log_names)
-
-        # plot first peak for default peak range
-        self.parent.ui.lineEdit_scanNumbers.setText('1')
 
         o_plot = Plot(parent=self.parent)
         o_plot.plot_diff_data(plot_model=False)
@@ -133,8 +132,15 @@ class EventHandler:
         #                 message_type='warning')
 
         # enabled all fitting widgets
-        o_gui = GuiUtilities(parent=self.parent)
         o_gui.enabled_fitting_widgets(True)
+
+    def get_subruns_limit(self):
+        sub_run_list = self.parent._core.reduction_service.get_sub_runs(self.parent._project_name)
+        # self.parent.ui.label_logIndexMin.setText(str(sub_run_list[0]))
+        # self.parent.ui.label_logIndexMax.setText(str(sub_run_list[-1]))
+        # self.parent.ui.label_MinScanNumber.setText(str(sub_run_list[0]))
+        # self.parent.ui.label_MaxScanNumber.setText(str(sub_run_list[-1]))
+        return sub_run_list
 
     def _set_sample_logs_for_plotting(self, sample_log_names):
         """ There are 2 combo boxes containing sample logs' names for plotting.  Clear the existing ones

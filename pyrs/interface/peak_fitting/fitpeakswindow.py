@@ -2,13 +2,11 @@ import numpy
 import os
 from qtpy.QtWidgets import QVBoxLayout, QFileDialog, QMainWindow
 
-
 from pyrs.utilities import load_ui
 from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.diffdataviews import GeneralDiffDataView, DiffContourView
 from pyrs.interface.ui.rstables import FitResultTable
 from pyrs.interface.ui.diffdataviews import PeakFitSetupView
-# from pyrs.utilities import checkdatatypes
 from pyrs.utilities.rs_project_file import HidraConstants
 import pyrs.interface.advpeakfitdialog
 import pyrs.interface.gui_helper
@@ -16,6 +14,7 @@ from pyrs.interface.peak_fitting.event_handler import EventHandler
 from pyrs.interface.peak_fitting.plot import Plot
 from pyrs.interface.peak_fitting.fit import Fit
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
+from pyrs.icons import icons_rc  # noqa: F401
 
 
 class FitPeaksWindow(QMainWindow):
@@ -50,29 +49,32 @@ class FitPeaksWindow(QMainWindow):
         ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', 'peakfitwindow.ui'))
         self.ui = load_ui(ui_path, baseinstance=self)
 
+        self.setup_ui()
+
+    def setup_ui(self):
+        """define the layout, widgets and signals"""
+
         # promote
         self.ui.graphicsView_fitResult = qt_util.promote_widget(self, self.ui.graphicsView_fitResult_frame,
                                                                 GeneralDiffDataView)
+        self.ui.graphicsView_fitResult.setEnabled(False)
         self.ui.graphicsView_fitResult.set_subplots(1, 1)
         self.ui.graphicsView_contourView = qt_util.promote_widget(self, self.ui.graphicsView_contourView_frame,
                                                                   DiffContourView)
+        self.ui.graphicsView_contourView.setEnabled(False)
         self.ui.tableView_fitSummary = qt_util.promote_widget(self, self.ui.tableView_fitSummary_frame,
                                                               FitResultTable)
-
         self._promote_peak_fit_setup()
-
         self._init_widgets()
 
         # set up handling
         self.ui.pushButton_loadHDF.clicked.connect(self.load_hidra_file)
-        self.ui.lineEdit_scanNumbers.returnPressed.connect(self.plot_diff_data)
         self.ui.pushButton_browseHDF.clicked.connect(self.browse_hdf)
-        self.ui.pushButton_plotPeaks.clicked.connect(self.plot_diff_data)
-        self.ui.pushButton_plotPreviousScan.clicked.connect(self.plot_prev_scan)
-        self.ui.pushButton_plotNextScan.clicked.connect(self.plot_next_scan)
-        self.ui.pushButton_fitPeaks.clicked.connect(self.fit_peaks)
-        self.ui.pushButton_saveFitResult.clicked.connect(self.do_save_fit)
-
+        self.ui.lineEdit_listSubRuns.returnPressed.connect(self.plot_diff_data)
+        self.ui.pushButton_FitPeaks.clicked.connect(self.fit_peaks)
+        self.ui.horizontalScrollBar_SubRuns.valueChanged.connect(self.plot_scan)
+        self.ui.radioButton_individualSubRuns.clicked.connect(self.individualSubRuns)
+        self.ui.radioButton_listSubRuns.clicked.connect(self.listSubRuns)
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.actionSave_As.triggered.connect(self.do_save_as)
         self.ui.actionSave_Fit_Result.triggered.connect(self.do_save_fit_result)
@@ -102,11 +104,6 @@ class FitPeaksWindow(QMainWindow):
         o_gui = GuiUtilities(parent=self)
         o_gui.enabled_fitting_widgets(False)
 
-        # see if we can get rid of those buttons
-        self.ui.pushButton_plotPeaks.setVisible(False)
-        self.ui.checkBox_keepPrevPlot.setVisible(False)
-        self.ui.checkBox_autoFit.setVisible(False)
-
     # Menu event handler
     def browse_hdf(self):
         """ Browse Hidra project HDF file
@@ -126,19 +123,28 @@ class FitPeaksWindow(QMainWindow):
         o_fit = Fit(parent=self)
         o_fit.fit_peaks()
 
-    def plot_next_scan(self):
-        o_plot = Plot(parent=self)
-        o_plot.plot_next_scan()
+    def individualSubRuns(self):
+        self.check_subRunsDisplayMode()
+        self.plot_scan()
 
-    def plot_prev_scan(self):
+    def listSubRuns(self):
+        self.check_subRunsDisplayMode()
+        self.plot_diff_data()
+
+    def check_subRunsDisplayMode(self):
+        o_gui = GuiUtilities(parent=self)
+        o_gui.check_subRuns_display_mode()
+
+    def plot_scan(self):
         o_plot = Plot(parent=self)
-        o_plot.plot_prev_scan()
+        o_plot.plot_scan()
 
     def _promote_peak_fit_setup(self):
         # 2D detector view
         curr_layout = QVBoxLayout()
         self.ui.frame_PeakView.setLayout(curr_layout)
         self._ui_graphicsView_fitSetup = PeakFitSetupView(self)
+        self._ui_graphicsView_fitSetup.setEnabled(False)
 
         curr_layout.addWidget(self._ui_graphicsView_fitSetup)
 
@@ -148,15 +154,16 @@ class FitPeaksWindow(QMainWindow):
         :return:
         """
         self.ui.pushButton_loadHDF.setEnabled(False)
-        self.ui.checkBox_autoFit.setChecked(True)
 
         # combo boxes
         self.ui.comboBox_2dPlotChoice.clear()
         self.ui.comboBox_2dPlotChoice.addItem('Raw Data')
         self.ui.comboBox_2dPlotChoice.addItem('Fitted')
 
-        # check boxes
-        self.ui.checkBox_autoSaveFitResult.setChecked(True)
+        self.ui.splitter_4.setStyleSheet("""QSplitter::handle {image: url(':/fitting/vertical_splitter.png'); }""")
+        self.ui.splitter_2.setStyleSheet("""QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }""")
+        self.ui.splitter_3.setStyleSheet("""QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }""")
+        self.ui.splitter.setStyleSheet("""QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }""")
 
     def do_launch_adv_fit(self):
         """
