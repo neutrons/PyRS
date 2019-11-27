@@ -49,6 +49,11 @@ class FitPeaksWindow(QMainWindow):
         ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', 'peakfitwindow.ui'))
         self.ui = load_ui(ui_path, baseinstance=self)
 
+        self.setup_ui()
+
+    def setup_ui(self):
+        """define the layout, widgets and signals"""
+
         # promote
         self.ui.graphicsView_fitResult = qt_util.promote_widget(self, self.ui.graphicsView_fitResult_frame,
                                                                 GeneralDiffDataView)
@@ -60,18 +65,14 @@ class FitPeaksWindow(QMainWindow):
         self.ui.tableView_fitSummary = qt_util.promote_widget(self, self.ui.tableView_fitSummary_frame,
                                                               FitResultTable)
         self._promote_peak_fit_setup()
-
         self._init_widgets()
 
         # set up handling
         self.ui.pushButton_loadHDF.clicked.connect(self.load_hidra_file)
-        # self.ui.lineEdit_scanNumbers.returnPressed.connect(self.plot_diff_data)
         self.ui.pushButton_browseHDF.clicked.connect(self.browse_hdf)
-        # self.ui.pushButton_plotPeaks.clicked.connect(self.plot_diff_data)
         self.ui.lineEdit_listSubRuns.returnPressed.connect(self.plot_diff_data)
         self.ui.pushButton_FitPeaks.clicked.connect(self.fit_peaks)
         self.ui.horizontalScrollBar_SubRuns.valueChanged.connect(self.plot_scan)
-        # self.ui.pushButton_saveFitResult.clicked.connect(self.do_save_fit)
         self.ui.radioButton_individualSubRuns.clicked.connect(self.individualSubRuns)
         self.ui.radioButton_listSubRuns.clicked.connect(self.listSubRuns)
         self.ui.actionQuit.triggered.connect(self.do_quit)
