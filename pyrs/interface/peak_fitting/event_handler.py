@@ -45,8 +45,9 @@ class EventHandler:
             pop_message(self, 'Failed to load {}'.format(hidra_file_name),
                         str(run_err), 'error')
 
-        self.parent.ui.statusbar.showMessage("Working with: {} | Project Name: {}".format(hidra_file_name,
-                                                                                          self.parent._project_name))
+        self.parent.ui.statusbar.showMessage("Working with: {} \t\t\t\t"
+                                             " Project Name: {}".format(hidra_file_name,
+                                                                        self.parent._project_name))
 
         try:
             o_plot = Plot(parent=self.parent)

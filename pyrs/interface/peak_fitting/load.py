@@ -28,9 +28,9 @@ class Load:
                         detailed_message=str(run_err),
                         message_type='error')
 
-        # Edit information on the UI for user to visualize
-        self.parent.ui.label_loadedFileInfo.setText('Loaded {}; Project name: {}'
-                                                    .format(project_file, self.parent._project_name))
+        # # Edit information on the UI for user to visualize
+        # self.parent.ui.label_loadedFileInfo.setText('Loaded {}; Project name: {}'
+        #                                             .format(project_file, self.parent._project_name))
 
         # Get and set the range of sub runs
         o_utility = Utilities(parent=self.parent)
