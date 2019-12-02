@@ -76,8 +76,8 @@ class FitPeaksWindow(QMainWindow):
         self.ui.lineEdit_listSubRuns.returnPressed.connect(self.plot_diff_data)
         self.ui.pushButton_FitPeaks.clicked.connect(self.fit_peaks)
         self.ui.horizontalScrollBar_SubRuns.valueChanged.connect(self.plot_scan)
-        self.ui.radioButton_individualSubRuns.clicked.connect(self.individualSubRuns)
-        self.ui.radioButton_listSubRuns.clicked.connect(self.listSubRuns)
+        self.ui.radioButton_individualSubRuns.clicked.connect(self.individual_sub_runs)
+        self.ui.radioButton_listSubRuns.clicked.connect(self.list_sub_runs)
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.actionSave_As.triggered.connect(self.do_save_as)
         self.ui.actionSave_Fit_Result.triggered.connect(self.do_save_fit_result)
@@ -125,12 +125,20 @@ class FitPeaksWindow(QMainWindow):
     def fit_peaks(self):
         o_fit = Fit(parent=self)
         o_fit.fit_peaks()
+        self.individual_or_list_sub_runs()
 
-    def individualSubRuns(self):
+    def individual_or_list_sub_runs(self):
+        if self.ui.radioButton_individualSubRuns.isChecked():
+            self.individual_sub_runs()
+        else:
+            self.list_sub_runs()
+            print("here")
+
+    def individual_sub_runs(self):
         self.check_subRunsDisplayMode()
         self.plot_scan()
 
-    def listSubRuns(self):
+    def list_sub_runs(self):
         self.check_subRunsDisplayMode()
         self.plot_diff_data()
 

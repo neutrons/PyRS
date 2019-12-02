@@ -1,6 +1,7 @@
 from pyrs.interface.peak_fitting.plot import Plot
 from pyrs.utilities.rs_project_file import HidraConstants
 from pyrs.interface.peak_fitting.utilities import Utilities
+from pyrs.interface.gui_helper import pop_message
 
 
 class Fit:
@@ -45,20 +46,20 @@ class Fit:
 
         # Process fitted peaks
         # TEST - #84 - This shall be reviewed!
-        # try:
+        try:
         # FIXME - effective_parameter=True will fail!
         # FIXME - other than return_format=dict will fail!
         # FIXME - need to give a real value to default_tag
         # FIXME - this only works if fitting 1 peak a time
-        default_tag = peak_info_dict.keys()[0]
-        function_params, fit_values = self.parent._core.get_peak_fitting_result(self.parent._project_name,
-                                                                                default_tag,
-                                                                                return_format=dict,
-                                                                                effective_parameter=False,
-                                                                                fitting_function=peak_function)
-        # except AttributeError as err:
-        #     pop_message(self, 'Zoom in/out to only show peak to fit!', str(err), "error")
-        #     return
+            default_tag = peak_info_dict.keys()[0]
+            function_params, fit_values = self.parent._core.get_peak_fitting_result(self.parent._project_name,
+                                                                                    default_tag,
+                                                                                    return_format=dict,
+                                                                                    effective_parameter=False,
+                                                                                    fitting_function=peak_function)
+        except AttributeError as err:
+            pop_message(self, 'Zoom in/out to only show peak to fit!', str(err), "error")
+            return
 
         # TODO - #84+ - Need to implement the option as effective_parameter=True
 
@@ -108,7 +109,10 @@ class Fit:
 
         # Show fitting result in Table
         # TODO - could add an option to show native or effective peak parameters
-        self.show_fit_result_table(peak_function, function_params, fit_values, is_effective=False)
+        try:
+            self.show_fit_result_table(peak_function, function_params, fit_values, is_effective=False)
+        except IndexError:
+            return
 
         # plot the model and difference
         if sub_run_list is None:
