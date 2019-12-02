@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1557</width>
-    <height>943</height>
+    <width>1406</width>
+    <height>992</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -23,13 +23,22 @@
       <property name="handleWidth">
        <number>6</number>
       </property>
+      <property name="childrenCollapsible">
+       <bool>true</bool>
+      </property>
       <widget class="QSplitter" name="splitter_2">
        <property name="orientation">
         <enum>Qt::Vertical</enum>
        </property>
+       <property name="childrenCollapsible">
+        <bool>true</bool>
+       </property>
        <widget class="QSplitter" name="splitter">
         <property name="orientation">
          <enum>Qt::Vertical</enum>
+        </property>
+        <property name="childrenCollapsible">
+         <bool>false</bool>
         </property>
         <widget class="QWidget" name="">
          <layout class="QVBoxLayout" name="verticalLayout">
@@ -402,6 +411,9 @@
        <property name="handleWidth">
         <number>10</number>
        </property>
+       <property name="childrenCollapsible">
+        <bool>false</bool>
+       </property>
        <widget class="QWidget" name="">
         <layout class="QVBoxLayout" name="verticalLayout_5">
          <item>
@@ -561,7 +573,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1557</width>
+     <width>1406</width>
      <height>22</height>
     </rect>
    </property>
