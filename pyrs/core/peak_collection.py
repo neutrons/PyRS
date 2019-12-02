@@ -130,7 +130,7 @@ class PeakCollection(object):
             Default is including all
         Returns
         -------
-        tuple
+        (numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray)
             4-tuple: (1) (n, ) vector for sub run number
                      (2) costs
                      (3) (p, n) array for parameter values

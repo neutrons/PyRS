@@ -4,23 +4,8 @@ class GuiUtilities:
         self.parent = parent
 
     def enabled_fitting_widgets(self, enabled=True):
-        list_widgets = [self.parent.ui.label_sub_runs,
-                        self.parent.ui.label_functions,
-                        self.parent.ui.lineEdit_scanNumbers,
-                        self.parent.ui.pushButton_plotPreviousScan,
-                        self.parent.ui.pushButton_plotNextScan,
-                        self.parent.ui.label_min,
-                        self.parent.ui.label_max,
-                        self.parent.ui.label_logIndexMin,
-                        self.parent.ui.label_logIndexMax,
-                        self.parent.ui.checkBox_keepPrevPlot,
-                        self.parent.ui.pushButton_plotPeaks,
-                        self.parent.ui.comboBox_peakType,
-                        self.parent.ui.comboBox_backgroundType,
-                        self.parent.ui.pushButton_fitPeaks,
-                        self.parent.ui.checkBox_fitSubRuns,
-                        self.parent.ui.checkBox_autoSaveFitResult,
-                        self.parent.ui.pushButton_saveFitResult,
+        list_widgets = [self.parent.ui.groupBox_FittingFunctions,
+                        self.parent.ui.groupBox_SubRuns,
                         ]
         self.enabled_list_widgets(list_widgets=list_widgets,
                                   enabled=enabled)
@@ -29,15 +14,23 @@ class GuiUtilities:
         for _widget in list_widgets:
             _widget.setEnabled(enabled)
 
-    def check_prev_next_sub_runs_widgets(self):
+    def enabled_data_fit_plot(self, enabled=True):
+        self.parent._ui_graphicsView_fitSetup.setEnabled(enabled)
 
-        enabled_next = True
-        enabled_prev = True
+    def initialize_fitting_slider(self, max=-1):
+        self.parent.ui.horizontalScrollBar_SubRuns.setMaximum(max)
+        self.parent.ui.horizontalScrollBar_SubRuns.setValue(1)
+        self.parent.ui.horizontalScrollBar_SubRuns.setMinimum(1)
 
-        if (str(self.parent.ui.lineEdit_scanNumbers.text()) == str(self.parent.ui.label_logIndexMin.text())):
-            enabled_prev = False
-        elif (str(self.parent.ui.lineEdit_scanNumbers.text()) == str(self.parent.ui.label_logIndexMax.text())):
-            enabled_next = False
+    def check_subRuns_display_mode(self):
+        individual_radio_button_status = self.parent.ui.radioButton_individualSubRuns.isChecked()
 
-        self.parent.ui.pushButton_plotNextScan.setEnabled(enabled_next)
-        self.parent.ui.pushButton_plotPreviousScan.setEnabled(enabled_prev)
+        list_ui_individual = [self.parent.ui.horizontalScrollBar_SubRuns,
+                              self.parent.ui.label_SubRunsValue]
+        list_ui_listruns = [self.parent.ui.label_listSubRunsHelp,
+                            self.parent.ui.lineEdit_listSubRuns]
+
+        self.enabled_list_widgets(list_widgets=list_ui_individual,
+                                  enabled=individual_radio_button_status)
+        self.enabled_list_widgets(list_widgets=list_ui_listruns,
+                                  enabled=(not individual_radio_button_status))

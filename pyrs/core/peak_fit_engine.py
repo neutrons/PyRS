@@ -39,8 +39,6 @@ class PeakFitEngine(object):
         # Fitted peak parameters
         self._peak_collection_dict = dict()   # key: peak tag, value: PeakCollection
 
-        return
-
     def calculate_center_of_mass(self, peak_tag, peak_range):
         """Calculate center of mass of peaks in the Mantid MatrixWorkspace as class variable
 
@@ -82,12 +80,8 @@ class PeakFitEngine(object):
                 # There are data within rang
                 peak_center_vec[iws, 0] = np.sum(vec_x * vec_y) / np.sum(vec_y)
                 peak_center_vec[iws, 1] = vec_x[np.argmax(vec_y, axis=0)]
-            # END-IF-ELSE
-        # END-FOR
 
         self._peak_com_dict[peak_tag] = peak_center_vec
-
-        return
 
     def convert_peaks_centers_to_d(self, peak_tag, wave_length):
         """Calculate peak positions in d-spacing after peak fitting is done
@@ -137,8 +131,6 @@ class PeakFitEngine(object):
         checkdatatypes.check_type('Hidra project file', hydra_project_file, rs_project_file.HidraProjectFile)
 
         hydra_project_file.write_peak_fit_result(self._peak_collection_dict[peak_tag])
-
-        return
 
     def fit_peaks(self, peak_tag, sub_run_range, peak_function_name, background_function_name, peak_center,
                   peak_range):
@@ -218,8 +210,6 @@ class PeakFitEngine(object):
             raise AssertionError('Peak center {} must be float or np.array'.format(peak_center))
         checkdatatypes.check_tuple('Peak range', peak_range, 2)
 
-        return
-
     def get_calculated_peak(self, sub_run_number):
         """
         get the calculated peak's value
@@ -245,16 +235,10 @@ class PeakFitEngine(object):
     def get_peaks(self, peak_tag):
         return self._peak_collection_dict[peak_tag]
 
-    def get_peak_param_names(self, peak_function, is_effective):
+    @staticmethod
+    def get_peak_param_names(peak_function, is_effective):
         """ Get the peak parameter names
-        :param peak_function: None for default/current peak function
-        :param is_effective:
-        :return:
         """
-        # Default
-        if peak_function is None:
-            peak_function = self._peak_function_name
-
         if is_effective:
             # Effective parameters
             param_names = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS[:]
@@ -280,5 +264,3 @@ class PeakFitEngine(object):
         """
         # TODO - #80 NOW - Implement
         self._wavelength_dict = wavelengths
-
-        return

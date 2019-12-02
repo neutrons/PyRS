@@ -1,6 +1,7 @@
+import numpy as np
+
 from pyrs.interface.gui_helper import parse_integers
 from pyrs.interface.gui_helper import pop_message
-from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
 
 
 class Plot:
@@ -15,7 +16,7 @@ class Plot:
         """
         # gather the information
         try:
-            scan_log_index_list = parse_integers(str(self.parent.ui.lineEdit_scanNumbers.text()))
+            scan_log_index_list = parse_integers(str(self.parent.ui.lineEdit_listSubRuns.text()))
         except RuntimeError as run_err:
             pop_message(self, "Unable to parse the string", message_type='error')
 
@@ -26,6 +27,10 @@ class Plot:
         # keep_prev = self.ui.checkBox_keepPrevPlot.isChecked()
         # if keep_prev is False:
         self.parent._ui_graphicsView_fitSetup.reset_viewer()
+
+        if len(scan_log_index_list) == 1:
+            self.plot_scan(value=np.int(scan_log_index_list[0]))
+            return
 
         # get data and plot
         err_msg = ''
@@ -78,41 +83,18 @@ class Plot:
                                                                   model_label='fit',
                                                                   residual_set=residual_data_set)
 
-    def plot_scan(self, is_next=True):
-        """ plot the next or previous scan (log index)
+    def plot_scan(self, value=None):
+        """ plot the scan defined by the scroll bar or the text line according to radio button selected
         """
-        scan_log_index_list = parse_integers(str(self.parent.ui.lineEdit_scanNumbers.text()))
-        if len(scan_log_index_list) == 0:
-            pop_message(self, 'There is not scan-log index input', 'error')
-        elif len(scan_log_index_list) > 1:
-            pop_message(self, 'There are too many scans for "next"', 'error')
-        elif scan_log_index_list[0] == (int(self.parent.ui.label_logIndexMax.text()) if is_next else 0):
-            # if we are trying to plot the next, we check relative to the last_log_index, otherwise 0
-            return
+        if (value is None):
+            scan_value = self.parent.ui.horizontalScrollBar_SubRuns.value()
+        else:
+            scan_value = value
 
-        coeff = 1 if is_next else -1
-        scan_log = scan_log_index_list[0] + coeff
         try:
             self.parent._ui_graphicsView_fitSetup.reset_viewer()
-            self.plot_diff_and_fitted_data(scan_log, True)
-        except RuntimeError as run_err:
-            mess = "next" if is_next else "previous"
-            err_msg = 'Unable to plot {} scan {} due to {}'.format(mess, scan_log, run_err)
-            pop_message(self, err_msg, message_type='error')
-        else:
-            self.parent.ui.lineEdit_scanNumbers.setText('{}'.format(scan_log))
+            self.plot_diff_and_fitted_data(scan_value, True)
+        except RuntimeError:
+            pass
 
-        o_gui = GuiUtilities(parent=self.parent)
-        o_gui.check_prev_next_sub_runs_widgets()
-
-    def plot_next_scan(self):
-        """ plot the next scan (log index)
-        It is assumed that al the scan log indexes are consecutive
-        """
-        self.plot_scan(is_next=True)
-
-    def plot_prev_scan(self):
-        """ plot the previous scan (log index)
-        It is assumed that al the scan log indexes are consecutive
-        """
-        self.plot_scan(is_next=False)
+        self.parent.ui.label_SubRunsValue.setText('{}'.format(scan_value))

@@ -149,9 +149,12 @@ class PyRsCore(object):
 
         # Check Inputs
         checkdatatypes.check_dict('Peak fitting (information) parameters', peaks_fitting_setup)
-        checkdatatypes.check_string_variable('Peak type', peak_type, peak_fit_factory.SupportedPeakProfiles)
+        checkdatatypes.check_string_variable('Peak type', peak_type,
+                                             peak_fit_factory.SupportedPeakProfiles)
         checkdatatypes.check_string_variable('Background type', background_type,
                                              peak_fit_factory.SupportedBackgroundTypes)
+
+        print("sub_run_list: {}".format(sub_run_list))
 
         # Deal with sub runs
         if sub_run_list is None:
@@ -250,7 +253,10 @@ class PyRsCore(object):
 
         return data_set
 
-    def get_peak_fitting_result(self, project_name, return_format, effective_parameter):
+    def get_peak_fitting_result(self, project_name, peak_tag,
+                                return_format={},
+                                effective_parameter=False,
+                                fitting_function="Gaussian"):
         """ Get peak fitting result
         Note: this provides a convenient method to retrieve information
         :param project_name:
@@ -258,23 +264,23 @@ class PyRsCore(object):
         :param effective_parameter:
         :return:
         """
-        # Get peak fitting controller
+        # Get peak fitting controller &
         if project_name in self._peak_fitting_dict:
             # if it does exist
-            peak_fitter = self._peak_fitting_dict[project_name]
+            fit_engine = self._peak_fitting_dict[project_name]
+            fitted_peaks_obj = fit_engine.get_peaks(peak_tag)
         else:
             raise RuntimeError('{} not exist'.format(project_name))
-
-        # Param names
-        param_names = peak_fitter.get_peak_param_names(None, False)
 
         # Get the parameter values
         if effective_parameter:
             # Retrieve effective peak parameters
-            sub_run_vec, chi2_vec, param_vec = peak_fitter.get_effective_parameters_values(param_names,
-                                                                                           including_error=True)
+            sub_run_vec, chi2_vec, param_vec, param_error_vec = fitted_peaks_obj.get_effective_parameters_values()
         else:
-            sub_run_vec, chi2_vec, param_vec = peak_fitter.get_parameters_values(param_names, including_error=True)
+            # Native peak parameters' value
+            # get function parameters names
+            param_names = fit_engine.get_peak_param_names(fitting_function, effective_parameter)
+            sub_run_vec, chi2_vec, param_vec, param_error_vec = fitted_peaks_obj.get_parameters_values(param_names)
 
         if return_format == dict:
             # The output format is a dictionary for each parameter including sub-run
@@ -323,6 +329,9 @@ class PyRsCore(object):
         :return:
         """
         optimizer = self._get_peak_fitting_controller(data_key)
+
+        print("in get_peak_center_of_mass")
+        print(optimizer.get_observed_peaks_centers())
 
         return optimizer.get_observed_peaks_centers()[:, 0]
 
