@@ -1,6 +1,8 @@
 from qtpy.QtWidgets import QMainWindow, QVBoxLayout
 import os
 
+from mantid.qt.utils.asynchronous import AsyncTask
+
 from pyrs.utilities import load_ui
 
 from pyrs.core.pyrscore import PyRsCore
@@ -380,24 +382,23 @@ class ManualReductionWindow(QMainWindow):
         """
         # get (sub) run numbers
         sub_runs_str = str(self.ui.lineEdit_runNumbersList.text()).strip().lower()
-        if sub_runs_str == 'all':
-            sub_run_list = self._core.reduction_service.get_sub_runs(self._project_data_id)
-        else:
-            try:
-                sub_run_list = gui_helper.parse_integers(sub_runs_str)
-            except RuntimeError as run_err:
-                gui_helper.pop_message(self, 'Failed to parse integer list',
-                                       '{}'.format(run_err), 'error')
-                return
+        #if sub_runs_str == 'all':
+        #    sub_run_list = self._core.reduction_service.get_sub_runs(self._project_data_id)
+        #else:
+        #    try:
+        #        sub_run_list = gui_helper.parse_integers(sub_runs_str)
+        #    except RuntimeError as run_err:
+        #        gui_helper.pop_message(self, 'Failed to parse integer list',
+        #                               '{}'.format(run_err), 'error')
+        #       return
         # END-IF-ELSE
         # Reduce data
-        # TODO FIXME - Urgent - Mask and calibration is not implemented at all!
-        self._core.reduction_service.reduce_diffraction_data(self._project_data_id,
-                                                             apply_calibrated_geometry=None,
-                                                             bin_size_2theta=0.05,
-                                                             use_pyrs_engine=True,
-                                                             mask=None,
-                                                             sub_run_list=sub_run_list)
+        nexus_file = str(self.ui.lineEdit_runNumber.text().strip())
+        project_file = str(self.ui.lineEdit_outputDir.text().strip())
+        idf_name = str(self.ui.lineEdit_idfName.text().strip())
+        calibration_file = str(self.ui.lineEdit_calibratonFile.text().strip())
+
+        recv = AsyncTask
 
         # Update table
         for sub_run in sub_run_list:
