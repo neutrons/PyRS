@@ -132,7 +132,6 @@ class FitPeaksWindow(QMainWindow):
             self.individual_sub_runs()
         else:
             self.list_sub_runs()
-            print("here")
 
     def individual_sub_runs(self):
         self.check_subRunsDisplayMode()

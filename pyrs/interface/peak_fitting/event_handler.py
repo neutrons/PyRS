@@ -36,7 +36,6 @@ class EventHandler:
 
         # Add file name to line edit to show
         self.parent.ui.lineEdit_expFileName.setText(hidra_file_name)  # REMOVE THIS ONCE ITS BEEN REPLACED
-        self.parent.ui.statusbar.showMessage("Working with: {}".format(hidra_file_name))
 
         try:
             o_load = Load(parent=self.parent)
@@ -45,6 +44,9 @@ class EventHandler:
         except RuntimeError as run_err:
             pop_message(self, 'Failed to load {}'.format(hidra_file_name),
                         str(run_err), 'error')
+
+        self.parent.ui.statusbar.showMessage("Working with: {} | Project Name: {}".format(hidra_file_name,
+                                                                                          self.parent._project_name))
 
         try:
             o_plot = Plot(parent=self.parent)

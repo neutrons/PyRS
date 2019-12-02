@@ -20,6 +20,7 @@ class Load:
                                                  project_name=self.parent._project_name,
                                                  load_detector_counts=False,
                                                  load_diffraction=True)
+
             # Record data key and next
             self.parent._curr_file_name = project_file
         except (RuntimeError, TypeError) as run_err:
