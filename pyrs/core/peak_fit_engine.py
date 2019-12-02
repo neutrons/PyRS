@@ -210,12 +210,44 @@ class PeakFitEngine(object):
             raise AssertionError('Peak center {} must be float or np.array'.format(peak_center))
         checkdatatypes.check_tuple('Peak range', peak_range, 2)
 
-    def get_calculated_peak(self, sub_run_number):
+    def calculate_fitted_peaks(self, sub_run_number, vec_2theta):
+        """Calculate peak(s) from fitted parameters for a single sub run
+
+        Set the values to zero and calculate peaks with background within +/- 3 FWHM
+
+        Parameters
+        ----------
+        sub_run_number : integer
+            sub run number
+
+        vec_2theta : None or ~numpy.ndarray
+            vector X to plot on
+
+        Returns
+        -------
+        ~numpy.ndarray, ~numpy.ndarray
+            data set with values calculated from peaks and background
+
         """
-        get the calculated peak's value
-        :return:
-        """
-        raise NotImplementedError('Virtual base class member method get_calculated_peak()')
+        # Set vector X and initialize Y
+        if vec_2theta is None:
+            vec_2theta = self._hidra_wksp.get_reduced_diffraction_data_2theta(sub_run_number)
+
+        vec_intensity = np.zeros_like(vec_2theta)
+
+        # Calculate peaks
+        print('Peaks: {}'.format(self._peak_collection_dict.keys()))
+        for peak_tag in self._peak_collection_dict.keys():
+            pc_i = self._peak_collection_dict[peak_tag]
+            param_dict = pc_i.get_sub_run_params(sub_run_number)
+            vec_intensity += peak_profile_utility.calculate_profile(peak_type=pc_i.peak_profile,
+                                                                    background_type=pc_i.background_type,
+                                                                    vec_x=vec_2theta,
+                                                                    param_value_dict=param_dict,
+                                                                    peak_range=3)
+        # END-FOR
+
+        return vec_2theta, vec_intensity
 
     def get_number_scans(self):
         """ Get number of scans in input data to fit

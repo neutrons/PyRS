@@ -149,7 +149,7 @@ class ScipyPeakFitEngine(PeakFitEngine):
 
         return
 
-    def get_calculated_peak(self, scan_index):
+    def calculate_fitted_peaks(self, scan_index):
         """
         get the calculated peak's value
         :param scan_index:

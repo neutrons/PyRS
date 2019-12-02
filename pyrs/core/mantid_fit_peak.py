@@ -354,33 +354,33 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         """
         return np.zeros(shape=(1000,))
 
-    def get_calculated_peak(self, sub_run):
-        """Get the "model" peak, calculated from fitted parameters
-
-        Parameters
-        ----------
-        sub_run: int
-            sub run number
-
-        Returns
-        -------
-        ndarray, ndarray
-            vector X, vector Y
-        """
-        if self._model_matrix_ws is None:
-            raise RuntimeError('There is no fitting result!')
-
-        # Check sub run: just a positive integer
-        checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
-
-        # Convert to workspace
-        ws_index = int(self._hidra_wksp.get_spectrum_index(sub_run))
-
-        # Get data
-        vec_x = self._model_matrix_ws.readX(ws_index)
-        vec_y = self._model_matrix_ws.readY(ws_index)
-
-        return vec_x, vec_y
+    # def calculate_fitted_peaks(self, sub_run_number):
+    #     """Get the "model" peak, calculated from fitted parameters
+    #
+    #     Parameters
+    #     ----------
+    #     sub_run: int
+    #         sub run number
+    #
+    #     Returns
+    #     -------
+    #     ndarray, ndarray
+    #         vector X, vector Y
+    #     """
+    #     if self._model_matrix_ws is None:
+    #         raise RuntimeError('There is no fitting result!')
+    #
+    #     # Check sub run: just a positive integer
+    #     checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
+    #
+    #     # Convert to workspace
+    #     ws_index = int(self._hidra_wksp.get_spectrum_index(sub_run))
+    #
+    #     # Get data
+    #     vec_x = self._model_matrix_ws.readX(ws_index)
+    #     vec_y = self._model_matrix_ws.readY(ws_index)
+    #
+    #     return vec_x, vec_y
 
     def get_center_of_mass_workspace_name(self):
         """

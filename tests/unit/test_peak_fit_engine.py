@@ -204,7 +204,7 @@ def test_fit_1_gaussian_peak():
                          peak_range=(peak_center - peak_range * 0.5, peak_center + peak_range * 0.5))
 
     # Get model (from fitted parameters) against each other
-    model_x, model_y = fit_engine.get_calculated_peak(1)
+    model_x, model_y = fit_engine.calculate_fitted_peaks(1, None)
     data_x, data_y = gaussian_workspace.get_reduced_diffraction_data(1, None)
     # plt.plot(data_x, data_y, label='Test Gaussian')
     # plt.plot(model_x, model_y, label='Fitted Gaussian')
@@ -265,7 +265,7 @@ def test_2_gaussian_peaks():
                                   peak_range_list=[(76., 84.), (86., 94.)])
 
     # Get model (from fitted parameters) against each other
-    model_x, model_y = fit_engine.get_calculated_peak(1)
+    model_x, model_y = fit_engine.calculate_fitted_peaks(1, None)
     data_x, data_y = gaussian_workspace.get_reduced_diffraction_data(1, None)
     # plt.plot(data_x, data_y, label='Test 2 Gaussian')
     # plt.plot(model_x, model_y, label='Fitted Gaussian')
@@ -274,25 +274,25 @@ def test_2_gaussian_peaks():
     assert data_x.shape == model_x.shape
     assert data_y.shape == model_y.shape
 
-    # Test the fitted parameters
+    # Test the fitted parameters: effective parameters
+    # Effective parameter list: ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
     # Read data
     eff_param_list, sub_runs, fit_costs, effective_param_values, effective_param_errors =\
         fit_engine.get_peaks('Left').get_effective_parameters_values()
-    print('DEBUG Effective parameter values shape: {}'.format(effective_param_values))
-    assert abs(effective_param_values[2, 0] - 10.) < 1E-20, 'Peak intensity {} shall be equal to 10.' \
-                                                            ''.format(effective_param_values[0, 2])
+    assert effective_param_values.shape == (7, 1), 'Only 1 sub run and 7 parameters'
+    assert abs(effective_param_values[2][0] - 10.) < 1E-20, 'Peak intensity {} shall be equal to 10.' \
+                                                            ''.format(effective_param_values[2, 0])
 
-    # Read data again for raw data
+    # Test the fitted parameters: native parameters
     native_params = PeakShape.GAUSSIAN.native_parameters
     native_params.extend(BackgroundFunction.LINEAR.native_parameters)
     sub_runs2, fit_cost2, param_values, param_errors =\
         fit_engine.get_peaks('Left').get_parameters_values(native_params)
 
     # Test
-    assert sub_runs.shape == (1, ) == sub_runs2.shape
+    assert sub_runs.shape == (1,) == sub_runs2.shape
     assert np.allclose(fit_cost2, fit_costs, 0.0000001)
 
-    # Effective paramter list: ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
     assert effective_param_values[0, 0] == param_values[1, 0]   # center
     assert abs(effective_param_values[0, 0] - peak_centers[0]) < 2e-2, 'Peak center is not correct'
 
@@ -335,7 +335,7 @@ def test_pseudo_voigt():
                          peak_range=(peak_center - peak_range * 1.0, peak_center + peak_range * 1.0))
 
     # Get model (from fitted parameters) against each other
-    model_x, model_y = fit_engine.get_calculated_peak(1)
+    model_x, model_y = fit_engine.calculate_fitted_peaks(1, None)
     data_x, data_y = pv_workspace.get_reduced_diffraction_data(1, None)
     plt.plot(data_x, data_y, label='Test PseudoVoigt')
     plt.plot(model_x, model_y, label='Fitted PseudoVoigt')

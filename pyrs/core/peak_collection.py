@@ -172,6 +172,30 @@ class PeakCollection(object):
 
         return sub_runs_vec, chi2_vec, param_value_array, param_error_array
 
+    def get_sub_run_params(self, sub_run_number):
+        """Retrieve the native peak parameters' value of a particular sub run
+
+        Parameters
+        ----------
+        sub_run_number : integer
+            sub run number
+
+        Returns
+        -------
+        dict
+            key: parameter name, value: parameter value
+
+        """
+        # Locate the index of the sub run
+        sub_run_index = np.abs(self._sub_run_array - sub_run_number).argmin()
+
+        # Create the workspace
+        param_value_dict = dict()
+        for param_name in self._params_value_array.dtype.names:
+            param_value_dict[param_name] = self._params_value_array[param_name][sub_run_index]
+
+        return param_value_dict
+
     def get_effective_parameters_values(self, max_chi2=None):
         """
         Get the effective peak parameters including

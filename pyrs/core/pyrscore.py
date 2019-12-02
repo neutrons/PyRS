@@ -249,7 +249,7 @@ class PyRsCore(object):
 
         # get data key
         optimizer = self._get_peak_fitting_controller(session_name)
-        data_set = optimizer.get_calculated_peak(sub_run)
+        data_set = optimizer.calculate_fitted_peaks(sub_run)
 
         return data_set
 
