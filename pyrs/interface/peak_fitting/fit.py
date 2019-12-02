@@ -1,5 +1,7 @@
 from pyrs.interface.peak_fitting.plot import Plot
 from pyrs.utilities.rs_project_file import HidraConstants
+from pyrs.interface.peak_fitting.utilities import Utilities
+from pyrs.interface.gui_helper import pop_message
 
 
 class Fit:
@@ -36,28 +38,28 @@ class Fit:
         # Fit Peaks: It is better to fit all the peaks at the same time after testing
         guessed_peak_center = 0.5 * (fit_range[0] + fit_range[1])
         peak_info_dict = {'Peak 1': {'Center': guessed_peak_center, 'Range': fit_range}}
-        self.parent._core.fit_peaks(self.parent._project_name,
-                                    sub_run_list,
+        self.parent._core.fit_peaks(project_name=self.parent._project_name,
+                                    sub_run_list=sub_run_list,
                                     peak_type=peak_function,
                                     background_type=bkgd_function,
                                     peaks_fitting_setup=peak_info_dict)
 
         # Process fitted peaks
         # TEST - #84 - This shall be reviewed!
-        # try:
-        # FIXME - effective_parameter=True will fail!
-        # FIXME - other than return_format=dict will fail!
-        # FIXME - need to give a real value to default_tag
-        # FIXME - this only works if fitting 1 peak a time
-        default_tag = peak_info_dict.keys()[0]
-        function_params, fit_values = self.parent._core.get_peak_fitting_result(self.parent._project_name,
-                                                                                default_tag,
-                                                                                return_format=dict,
-                                                                                effective_parameter=False,
-                                                                                fitting_function=peak_function)
-        # except AttributeError as err:
-        #     pop_message(self, 'Zoom in/out to only show peak to fit!', str(err), "error")
-        #     return
+        try:
+            # FIXME - effective_parameter=True will fail!
+            # FIXME - other than return_format=dict will fail!
+            # FIXME - need to give a real value to default_tag
+            # FIXME - this only works if fitting 1 peak a time
+            default_tag = peak_info_dict.keys()[0]
+            function_params, fit_values = self.parent._core.get_peak_fitting_result(self.parent._project_name,
+                                                                                    default_tag,
+                                                                                    return_format=dict,
+                                                                                    effective_parameter=False,
+                                                                                    fitting_function=peak_function)
+        except AttributeError as err:
+            pop_message(self, 'Zoom in/out to only show peak to fit!', str(err), "error")
+            return
 
         # TODO - #84+ - Need to implement the option as effective_parameter=True
 
@@ -107,7 +109,10 @@ class Fit:
 
         # Show fitting result in Table
         # TODO - could add an option to show native or effective peak parameters
-        self.show_fit_result_table(peak_function, function_params, fit_values, is_effective=False)
+        try:
+            self.show_fit_result_table(peak_function, function_params, fit_values, is_effective=False)
+        except IndexError:
+            return
 
         # plot the model and difference
         if sub_run_list is None:
@@ -140,3 +145,12 @@ class Fit:
                                                                 peak_param_dict,
                                                                 write_error=False,
                                                                 peak_profile=peak_function)
+
+    def initialize_fitting_table(self):
+        # Set the table
+        if self.parent.ui.tableView_fitSummary.rowCount() > 0:
+            self.parent.ui.tableView_fitSummary.remove_all_rows()
+
+        o_utility = Utilities(parent=self.parent)
+        sub_run_list = o_utility.get_subruns_limit(self.parent._project_name)
+        self.parent.ui.tableView_fitSummary.init_exp(sub_run_list)

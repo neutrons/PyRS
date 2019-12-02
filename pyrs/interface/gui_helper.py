@@ -1,5 +1,4 @@
 # a collection of helper methdos for GUI
-import platform
 from pyrs.utilities import checkdatatypes
 from qtpy.QtWidgets import QLineEdit, QFileDialog, QMessageBox, QVBoxLayout
 
@@ -49,10 +48,9 @@ def browse_file(parent, caption, default_dir, file_filter, file_list=False, save
 
     if save_file:
         # browse file name to save to
-        if platform.system() == 'Darwin':
-            # TODO - 20180721 - Find out the behavior on Mac!
-            file_filter = ''
-        save_set = QFileDialog.getSaveFileName(parent, caption=caption, directory=default_dir,
+        save_set = QFileDialog.getSaveFileName(parent,
+                                               caption=caption,
+                                               directory=default_dir,
                                                filter=file_filter)
         if isinstance(save_set, tuple):
             # returned include both file name and filter
@@ -65,13 +63,11 @@ def browse_file(parent, caption, default_dir, file_filter, file_list=False, save
         open_set = QFileDialog.getOpenFileNames(parent, caption, default_dir, file_filter)
 
         if isinstance(open_set, tuple):
-            # PyQt5
             file_name_list = open_set[0]
         else:
             file_name_list = open_set
 
-        if len(file_name_list) == 0:
-            # use cancel
+        if len(file_name_list) == 0:  # user cancel browser
             return None
         else:
             return file_name_list
@@ -81,12 +77,9 @@ def browse_file(parent, caption, default_dir, file_filter, file_list=False, save
         open_set = QFileDialog.getOpenFileName(parent, caption, default_dir, file_filter)
 
         if isinstance(open_set, tuple):
-            # PyQt5
             file_name = open_set[0]
         else:
             file_name = open_set
-
-    # END-IF-ELSE
 
     # check result for single file whether user cancels operation
     if len(file_name) == 0:

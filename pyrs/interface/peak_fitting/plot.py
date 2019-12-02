@@ -44,6 +44,10 @@ class Plot:
         if len(err_msg) > 0:
             pop_message(self, err_msg, message_type='error')
 
+    def reset_fitting_plot(self):
+        """reset the fitting plots"""
+        self.parent.ui.graphicsView_fitResult.reset_viewer()
+
     def plot_diff_and_fitted_data(self, sub_run_number, plot_model):
         """Plot a set of diffraction data (one scan log index) and plot its fitted data
 

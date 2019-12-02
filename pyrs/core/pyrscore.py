@@ -102,7 +102,9 @@ class PyRsCore(object):
         raise NotImplementedError('Project {} of solid angles {} need to be implemented soon!'
                                   ''.format(project_name, solid_angles))
 
-    def create_fit_engine_instance(self, fit_tag):
+    def create_workspace(self, fit_tag):
+        """Create the working workspace that will be used to fit the data"""
+
         # get workspace
         workspace = self.reduction_service.get_hidra_workspace(fit_tag)
         # create a controller from factory
@@ -116,7 +118,11 @@ class PyRsCore(object):
 
         return workspace
 
-    def fit_peaks(self, data_tag, sub_run_list, peak_type, background_type, peaks_fitting_setup):
+    def fit_peaks(self, project_name="",
+                  sub_run_list=None,
+                  peak_type="",
+                  background_type="",
+                  peaks_fitting_setup={}):
         """Fit a single peak on each diffraction pattern selected from client-specified
 
         Note:
@@ -124,8 +130,8 @@ class PyRsCore(object):
 
         Parameters
         ----------
-        data_tag: str
-            Name of current project for loading, peak fitting and etc.
+        project_name: str
+            Name of the current project (defined when loading the file)
         sub_run_list: list or None
             sub runs to fit peak. None is the default for fitting all sub runs
         peak_type
@@ -136,15 +142,14 @@ class PyRsCore(object):
         -------
         None
         """
-        # Check input
-        checkdatatypes.check_string_variable('Project name', data_tag, allow_empty=False)
+        if project_name == "":
+            raise ValueError("Project name can not be empty!")
 
-        # Create new one if it does not exist
-        if data_tag not in self._peak_fitting_dict:
-            self.create_fit_engine_instance(data_tag)
+        if project_name not in self._peak_fitting_dict:
+            self.create_workspace(project_name)
 
         # Get controller by 'fitting tag' and set it to current peak_fit_controller
-        self._peak_fit_controller = self._peak_fitting_dict[data_tag]
+        self._peak_fit_controller = self._peak_fitting_dict[project_name]
         workspace = self._peak_fit_controller.get_hidra_workspace()
 
         # Check Inputs

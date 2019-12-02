@@ -1,4 +1,4 @@
-import numpy
+import numpy as np
 import os
 from qtpy.QtWidgets import QVBoxLayout, QFileDialog, QMainWindow
 
@@ -16,13 +16,16 @@ from pyrs.interface.peak_fitting.fit import Fit
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
 from pyrs.icons import icons_rc  # noqa: F401
 
+VERTICAL_SPLITTER = """QSplitter::handle {image: url(':/fitting/vertical_splitter.png'); }"""
+HORIZONTAL_SPLITTER = """QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }"""
+
 
 class FitPeaksWindow(QMainWindow):
     """
     GUI window for user to fit peaks
     """
 
-    def __init__(self, parent):
+    def __init__(self, parent, fit_peak_core=None):
         """
         initialization
         :param parent:
@@ -30,7 +33,7 @@ class FitPeaksWindow(QMainWindow):
         super(FitPeaksWindow, self).__init__(parent)
 
         # class variables
-        self._core = None
+        self._core = fit_peak_core
         self._project_name = None
         # current/last loaded data
         self._curr_file_name = None
@@ -73,8 +76,8 @@ class FitPeaksWindow(QMainWindow):
         self.ui.lineEdit_listSubRuns.returnPressed.connect(self.plot_diff_data)
         self.ui.pushButton_FitPeaks.clicked.connect(self.fit_peaks)
         self.ui.horizontalScrollBar_SubRuns.valueChanged.connect(self.plot_scan)
-        self.ui.radioButton_individualSubRuns.clicked.connect(self.individualSubRuns)
-        self.ui.radioButton_listSubRuns.clicked.connect(self.listSubRuns)
+        self.ui.radioButton_individualSubRuns.clicked.connect(self.individual_sub_runs)
+        self.ui.radioButton_listSubRuns.clicked.connect(self.list_sub_runs)
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.actionSave_As.triggered.connect(self.do_save_as)
         self.ui.actionSave_Fit_Result.triggered.connect(self.do_save_fit_result)
@@ -109,7 +112,7 @@ class FitPeaksWindow(QMainWindow):
         """ Browse Hidra project HDF file
         """
         o_handler = EventHandler(parent=self)
-        o_handler.browse_and_load_hdf()
+        o_handler.browse_load_plot_hdf()
 
     def load_hidra_file(self):
         o_handler = EventHandler(parent=self)
@@ -122,12 +125,20 @@ class FitPeaksWindow(QMainWindow):
     def fit_peaks(self):
         o_fit = Fit(parent=self)
         o_fit.fit_peaks()
+        self.individual_or_list_sub_runs()
 
-    def individualSubRuns(self):
+    def individual_or_list_sub_runs(self):
+        if self.ui.radioButton_individualSubRuns.isChecked():
+            self.individual_sub_runs()
+        else:
+            self.list_sub_runs()
+            print("here")
+
+    def individual_sub_runs(self):
         self.check_subRunsDisplayMode()
         self.plot_scan()
 
-    def listSubRuns(self):
+    def list_sub_runs(self):
         self.check_subRunsDisplayMode()
         self.plot_diff_data()
 
@@ -160,10 +171,15 @@ class FitPeaksWindow(QMainWindow):
         self.ui.comboBox_2dPlotChoice.addItem('Raw Data')
         self.ui.comboBox_2dPlotChoice.addItem('Fitted')
 
-        self.ui.splitter_4.setStyleSheet("""QSplitter::handle {image: url(':/fitting/vertical_splitter.png'); }""")
-        self.ui.splitter_2.setStyleSheet("""QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }""")
-        self.ui.splitter_3.setStyleSheet("""QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }""")
-        self.ui.splitter.setStyleSheet("""QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }""")
+        self.ui.splitter_4.setStyleSheet(VERTICAL_SPLITTER)
+        self.ui.splitter_4.setSizes([100, 0])
+        self.ui.splitter_2.setStyleSheet(HORIZONTAL_SPLITTER)
+        self.ui.splitter_2.setSizes([100, 0])
+        self.ui.splitter_3.setStyleSheet(HORIZONTAL_SPLITTER)
+        self.ui.splitter.setStyleSheet(HORIZONTAL_SPLITTER)
+
+        # status bar
+        self.setStyleSheet("QStatusBar{padding-left:8px;color:green;}")
 
     def do_launch_adv_fit(self):
         """
@@ -225,7 +241,6 @@ class FitPeaksWindow(QMainWindow):
 
     def do_plot_2d_data(self):
         """
-
         :return:
         """
         # TODO - #84 - Implement this method
@@ -272,8 +287,6 @@ class FitPeaksWindow(QMainWindow):
 
         self.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y, x_axis_name, y_axis_name)
 
-        return
-
     def do_save_as(self):
         """ export the peaks to another file
         :return:
@@ -285,8 +298,6 @@ class FitPeaksWindow(QMainWindow):
                                                               save_file=True)
 
         self.save_fit_result(out_file_name)
-
-        return
 
     def do_save_fit(self):
         """
@@ -309,8 +320,6 @@ class FitPeaksWindow(QMainWindow):
                                                   detailed_message='Supported are hdf5, h5, hdf, csv and dat',
                                                   message_type='error')
 
-        return
-
     def do_save_fit_result(self):
         """
         save fit result
@@ -332,16 +341,12 @@ class FitPeaksWindow(QMainWindow):
 
         self.export_fit_result(file_name)
 
-        return
-
     def do_quit(self):
         """
         close the window and quit
         :return:
         """
         self.close()
-
-        return
 
     def export_fit_result(self, file_name):
         """
@@ -350,8 +355,6 @@ class FitPeaksWindow(QMainWindow):
         :return:
         """
         self.ui.tableView_fitSummary.export_table_csv(file_name)
-
-        return
 
     def fit_peaks_smart(self, peak_profiles_order):
         """
@@ -365,8 +368,6 @@ class FitPeaksWindow(QMainWindow):
             err_msg = 'Smart peak fitting with order {} failed due to {}' \
                       ''.format(peak_profiles_order, run_err)
             pyrs.interface.gui_helper.pop_message(self, err_msg, 'error')
-
-        return
 
     def get_function_parameter_data(self, param_name):
         """ get the parameter function data
@@ -404,7 +405,7 @@ class FitPeaksWindow(QMainWindow):
 
         if name == HidraConstants.SUB_RUNS:
             # sub run vector
-            value_vector = numpy.array(self._core.reduction_service.get_sub_runs(self._project_name))
+            value_vector = np.array(self._core.reduction_service.get_sub_runs(self._project_name))
         elif name in sample_log_names:
             # sample log but not sub-runs
             value_vector = self._core.reduction_service.get_sample_log_value(self._project_name, name)
@@ -426,8 +427,6 @@ class FitPeaksWindow(QMainWindow):
         """
         self._core.save_nexus(data_key, file_name)
 
-        return
-
     def save_fit_result(self, out_file_name):
         """
         make a copy of the input file and add the fit result into it
@@ -439,19 +438,3 @@ class FitPeaksWindow(QMainWindow):
         # TODO FIXME - TONIGHT NOW - Fit the following method!
         # FIXME Temporarily disabled:
         # self._core.save_peak_fit_result(self._curr_data_key, self._curr_file_name, out_file_name)
-
-        return
-
-    def setup_window(self, pyrs_core):
-        """ set up the window.  It must be called mandatory
-        :param pyrs_core:
-        :return:
-        """
-        from pyrs.core.pyrscore import PyRsCore
-        # check
-        assert isinstance(pyrs_core, PyRsCore), 'Controller core {0} must be a PyRSCore instance but not a {1}.' \
-                                                ''.format(pyrs_core, pyrs_core.__class__.__name__)
-
-        self._core = pyrs_core
-
-        return
