@@ -67,4 +67,3 @@ class EventHandler:
         except RuntimeError as run_err:
             pop_message(self, 'Failed to initialize widgets for {}'.format(hidra_file_name),
                         str(run_err), 'error')
-
