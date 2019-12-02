@@ -34,3 +34,18 @@ class GuiUtilities:
                                   enabled=individual_radio_button_status)
         self.enabled_list_widgets(list_widgets=list_ui_listruns,
                                   enabled=(not individual_radio_button_status))
+
+    @staticmethod
+    def block_widgets(list_ui=[]):
+        GuiUtilities.__block_widgets(list_ui, True)
+
+    @staticmethod
+    def unblock_widgets(list_ui=[]):
+        GuiUtilities.__block_widgets(list_ui, True)
+
+    @staticmethod
+    def __block_widgets(list_ui, block):
+        for _ui in list_ui:
+            _ui.blockSignals(block)
+
+
