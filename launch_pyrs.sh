@@ -12,6 +12,9 @@ if [ ! $(command -v $MANTIDPYTHON) ]; then
     exit -1
 fi
 
+SCRIPTHOME=$(dirname "${BASH_SOURCE[0]}")
+echo $SCRIPTHOME
+
 # let people know what is going on and launch it
 echo "Using \"$(which $MANTIDPYTHON)\""
-PYTHONPATH=`pwd`/build/lib $MANTIDPYTHON --classic `pwd`/build/scripts-2.7/pyrsplot
+PYTHONPATH=$SCRIPTHOME/build/lib $MANTIDPYTHON --classic $SCRIPTHOME/build/scripts-2.7/pyrsplot
