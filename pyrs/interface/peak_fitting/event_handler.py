@@ -6,7 +6,7 @@ from pyrs.interface.peak_fitting.load import Load
 from pyrs.interface.peak_fitting.plot import Plot
 from pyrs.interface.peak_fitting.fit import Fit
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
-#from pyrs.interface.peak_fitting.utilities import Utilities
+# from pyrs.interface.peak_fitting.utilities import Utilities
 
 
 class EventHandler:
@@ -32,10 +32,10 @@ class EventHandler:
                                           save_file=False)
 
             if hidra_file_name is None:
-                return # user clicked cancel
+                return  # user clicked cancel
 
         # Add file name to line edit to show
-        self.parent.ui.lineEdit_expFileName.setText(hidra_file_name)  ## REMOVE THIS ONCE ITS BEEN REPLACED
+        self.parent.ui.lineEdit_expFileName.setText(hidra_file_name)  # REMOVE THIS ONCE ITS BEEN REPLACED
         self.parent.ui.statusbar.showMessage("Working with: {}".format(hidra_file_name))
 
         try:
@@ -67,5 +67,4 @@ class EventHandler:
         except RuntimeError as run_err:
             pop_message(self, 'Failed to initialize widgets for {}'.format(hidra_file_name),
                         str(run_err), 'error')
-
 

@@ -43,7 +43,6 @@ class Load:
                                                                                      can_plot=True)
         self._set_sample_logs_for_plotting(sample_log_names)
 
-
         # try:
         #     # Auto fit for all the peaks
         #     if self.parent.ui.checkBox_autoFit.isChecked():

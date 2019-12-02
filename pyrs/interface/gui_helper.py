@@ -67,7 +67,7 @@ def browse_file(parent, caption, default_dir, file_filter, file_list=False, save
         else:
             file_name_list = open_set
 
-        if len(file_name_list) == 0: # user cancel browser
+        if len(file_name_list) == 0:  # user cancel browser
             return None
         else:
             return file_name_list
