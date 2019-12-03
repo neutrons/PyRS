@@ -1,8 +1,9 @@
-from qtpy.QtWidgets import QMainWindow, QVBoxLayout
+from qtpy.QtWidgets import QMainWindow, QVBoxLayout, QApplication
 import os
-
-from mantid.qt.utils.asynchronous import AsyncTask
-
+from mantid.simpleapi import Logger
+from pyrs.core.nexus_conversion import NeXusConvertingApp
+from pyrs.core.powder_pattern import ReductionApp
+from mantidqt.utils.asynchronous import BlockingAsyncTaskWithCallback
 from pyrs.utilities import load_ui
 
 from pyrs.core.pyrscore import PyRsCore
@@ -20,6 +21,47 @@ from pyrs.interface.manual_reduction.event_handler import EventHandler
 # TODO              4. Implement plot method for reduced data
 # TODO              5. Implement method to reduce data
 # TODO              6. Add parameters for reducing data
+
+
+def _nexus_to_subscans(nexusfile, projectfile, logger):
+    if os.path.exists(projectfile):
+        logger.information('Removing existing projectfile {}'.format(projectfile))
+        os.remove(projectfile)
+
+    logger.notice('Creating subscans from {} into project file {}'.format(nexusfile, projectfile))
+    converter = NeXusConvertingApp(nexusfile)
+    converter.convert()
+    converter.save(projectfile)
+
+
+def _create_powder_patterns(projectfile, instrument, calibration, mask, subruns, logger):
+    logger.notice('Adding powder patterns to project file {}'.format(projectfile))
+
+    reducer = ReductionApp(False)
+    reducer.load_project_file(projectfile)
+
+    reducer.reduce_data(instrument_file=instrument,
+                        calibration_file=calibration,
+                        mask=mask,
+                        sub_runs=subruns)
+
+    reducer.save_diffraction_data(projectfile)
+
+
+def reduce_h2bc(nexus, outputdir, instrument=None, calibration=None, mask=None, subruns=list()):
+    nexus = "/home/svh/Documents/PyRS/HB2B_1017.nxs.h5"
+    outputdir = "/home/svh/Documents/tmp"
+
+    project = os.path.basename(nexus).split('.')[0] + '.h5'
+    project = os.path.join(outputdir, project)
+
+    logger = Logger('reduce_HB2B')
+    # process the data
+    _nexus_to_subscans(nexus, project, logger)
+
+    # add powder patterns
+    _create_powder_patterns(project, instrument, calibration,
+                            mask, subruns, logger)
 
 
 class ManualReductionWindow(QMainWindow):
@@ -375,6 +417,10 @@ class ManualReductionWindow(QMainWindow):
 
         return
 
+
+
+
+
     def do_reduce_batch_runs(self):
         """
         (simply) reduce a list of runs in same experiment in a batch
@@ -398,10 +444,10 @@ class ManualReductionWindow(QMainWindow):
         idf_name = str(self.ui.lineEdit_idfName.text().strip())
         calibration_file = str(self.ui.lineEdit_calibratonFile.text().strip())
 
-        recv = AsyncTask
-
+        task = BlockingAsyncTaskWithCallback(reduce_h2bc, args=(nexus_file, project_file),blocking_cb=QApplication.processEvents)
+        task.start()
         # Update table
-        for sub_run in sub_run_list:
+        for sub_run in list():
             self.ui.rawDataTable.update_reduction_state(sub_run, True)
 
         return
