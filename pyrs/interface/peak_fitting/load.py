@@ -86,5 +86,3 @@ class Load:
         # enabled the 1D plot widgets (x-axis, y-axis comboboxes)
         o_gui = GuiUtilities(parent=self.parent)
         o_gui.enabled_list_widgets(list_widgets=[self.parent.ui.frame_1dplot], enabled=True)
-
-

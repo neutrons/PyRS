@@ -47,5 +47,3 @@ class GuiUtilities:
     def __block_widgets(list_ui, block):
         for _ui in list_ui:
             _ui.blockSignals(block)
-
-
