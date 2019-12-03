@@ -44,6 +44,7 @@ install:
     # BUILD: Create PyRS build environment
   - mamba create -q -n PyRS_build python=$CONDA conda-build=3.17 conda-verify
   - conda activate PyRS_build
+  - conda install -c anaconda pyqtgraph
   - mamba build conda.recipe
   - export PKG_FILE=$(mamba build conda.recipe --output)
   - conda activate

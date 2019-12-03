@@ -5,7 +5,7 @@ import pyqtgraph as pg
 
 from pyrs.utilities import load_ui
 from pyrs.interface.ui import qt_util
-from pyrs.interface.ui.diffdataviews import GeneralDiffDataView, DiffContourView
+from pyrs.interface.ui.diffdataviews import GeneralDiffDataView
 from pyrs.interface.ui.rstables import FitResultTable
 from pyrs.interface.ui.diffdataviews import PeakFitSetupView
 from pyrs.utilities.rs_project_file import HidraConstants
