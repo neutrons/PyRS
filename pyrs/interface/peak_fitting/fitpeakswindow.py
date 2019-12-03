@@ -1,6 +1,7 @@
 import numpy as np
 import os
 from qtpy.QtWidgets import QVBoxLayout, QFileDialog, QMainWindow
+import pyqtgraph as pg
 
 from pyrs.utilities import load_ui
 from pyrs.interface.ui import qt_util
@@ -58,13 +59,12 @@ class FitPeaksWindow(QMainWindow):
                                                                 GeneralDiffDataView)
         self.ui.graphicsView_fitResult.setEnabled(False)
         self.ui.graphicsView_fitResult.set_subplots(1, 1)
-        self.ui.graphicsView_contourView = qt_util.promote_widget(self, self.ui.graphicsView_contourView_frame,
-                                                                  DiffContourView)
-        self.ui.graphicsView_contourView.setEnabled(False)
+        self.ui.widget_contour_plot.setEnabled(False)
         self.ui.tableView_fitSummary = qt_util.promote_widget(self, self.ui.tableView_fitSummary_frame,
                                                               FitResultTable)
         self._promote_peak_fit_setup()
         self._init_widgets()
+        self._init_pyqtgraph()
 
         # set up handling
         self.ui.pushButton_loadHDF.clicked.connect(self.load_hidra_file)
@@ -175,6 +175,16 @@ class FitPeaksWindow(QMainWindow):
 
         # status bar
         self.setStyleSheet("QStatusBar{padding-left:8px;color:green;}")
+
+    def _init_pyqtgraph(self):
+        image_view = pg.ImageView()
+        image_view.ui.roiBtn.hide()
+        image_view.ui.menuBtn.hide()
+
+        vertical_layout = QVBoxLayout()
+        vertical_layout.addWidget(image_view)
+
+        self.ui.widget_contour_plot.setLayout(vertical_layout)
 
     def do_launch_adv_fit(self):
         """

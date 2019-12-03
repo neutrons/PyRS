@@ -578,14 +578,7 @@
              <widget class="QWidget" name="layoutWidget_3">
               <layout class="QVBoxLayout" name="verticalLayout_8">
                <item>
-                <widget class="QFrame" name="graphicsView_contourView_frame">
-                 <property name="sizePolicy">
-                  <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
-                   <horstretch>0</horstretch>
-                   <verstretch>0</verstretch>
-                  </sizepolicy>
-                 </property>
-                </widget>
+                <widget class="QWidget" name="widget_contour_plot" native="true"/>
                </item>
                <item>
                 <widget class="QFrame" name="frame_1dplot_2">
