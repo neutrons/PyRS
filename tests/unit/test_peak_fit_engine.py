@@ -7,7 +7,7 @@ import pytest
 from matplotlib import pyplot as plt
 
 
-def generate_test_gaussian(vec_x, peak_center_list, peak_range_list, intensity_list):
+def generate_test_gaussian(vec_x, peak_center_list, peak_range_list, peak_height_list):
     """
     Generate Gaussian function for test
     Parameters
@@ -18,7 +18,7 @@ def generate_test_gaussian(vec_x, peak_center_list, peak_range_list, intensity_l
         peak center (float) list
     peak_range_list : List
         peak range (float) list.  Peak range is equal to 6 times of FWHM
-    intensity_list : List
+    peak_height_list : List
         list of intensities
 
     Returns
@@ -26,7 +26,7 @@ def generate_test_gaussian(vec_x, peak_center_list, peak_range_list, intensity_l
     numpy.ndarray
         vector of Gaussian
     """
-    assert len(peak_range_list) == len(peak_range_list) == len(intensity_list)
+    assert len(peak_range_list) == len(peak_range_list) == len(peak_height_list)
 
     # Init Y
     vec_y = np.zeros_like(vec_x, dtype=float)
@@ -43,7 +43,7 @@ def generate_test_gaussian(vec_x, peak_center_list, peak_range_list, intensity_l
         sigma = peak_range / 6. / (2. * np.sqrt(2. * np.log(2.)))
 
         # calculate Gaussian function based on input peak center and peak range
-        vec_y += intensity_list[ipeak] * np.exp(-(vec_x - peak_center)**2 / sigma**2)
+        vec_y += peak_height_list[ipeak] * np.exp(-(vec_x - peak_center) ** 2 / sigma ** 2)
     # END-FOR
 
     # Add noise
@@ -119,15 +119,14 @@ def generate_test_background(vec_x, vec_y):
     return vec_y + background
 
 
-def generate_hydra_workspace(peak_profile_type, min_x, max_x, num_x, peak_centers, peak_ranges, peak_intensities):
+def generate_hydra_workspace_single_subrun(peak_profile_type, min_x, max_x, num_x, peak_centers, peak_ranges,
+                                           peak_intensities):
     """Generate HiDRAWorkspace for peak fitting test
 
     Default:
         min_x = 75
         max_x = 85
         num_x = 500
-
-
 
     Parameters
     ----------
@@ -137,9 +136,12 @@ def generate_hydra_workspace(peak_profile_type, min_x, max_x, num_x, peak_center
     num_x
     peak_centers
     peak_ranges
+    peak_intensities
 
     Returns
     -------
+    pyrs.core.workspaces.HidraWorkspace
+        Test Hidra workspace
 
     """
     # Create test workspace
@@ -176,6 +178,39 @@ def generate_hydra_workspace(peak_profile_type, min_x, max_x, num_x, peak_center
     return test_workspace
 
 
+def generate_hydra_workspace_multiple_sub_runs(ws_name, sub_run_data_dict):
+    """Generate a multiple sub-run HiDRA workspace
+
+    Parameters
+    ----------
+    ws_name
+    sub_run_data_dict
+
+    Returns
+    -------
+    pyrs.core.workspaces.HidraWorkspace
+        Test Hidra workspace
+
+    """
+
+    # Create test workspace
+    test_workspace = HidraWorkspace(ws_name)
+
+    # Sub runs:
+    sub_runs_list = sub_run_data_dict.keys()
+    test_workspace.set_sub_runs(sub_runs_list)
+
+    # Add diffraction pattern
+    for sub_run_i in sorted(sub_runs_list):
+        vec_x, vec_y = sub_run_data_dict[sub_run_i]
+        test_workspace.set_reduced_diffraction_data(sub_run_i,
+                                                    mask_id=None,
+                                                    two_theta_array=vec_x,
+                                                    intensity_array=vec_y)
+
+    return test_workspace
+
+
 def test_1_gaussian_1_subrun():
     """Test fitting single Gaussian peak on 1 spectrum with background
 
@@ -193,7 +228,7 @@ def test_1_gaussian_1_subrun():
     peak_range = 10. * 0.25  # distance from peak center to 6 sigma
 
     # Generate test workspace and initialize fit engine
-    gaussian_workspace = generate_hydra_workspace('Gaussian', min_x, max_x, num_x, [peak_center], [peak_range], [10.])
+    gaussian_workspace = generate_hydra_workspace_single_subrun('Gaussian', min_x, max_x, num_x, [peak_center], [peak_range], [10.])
     fit_engine = MantidPeakFitEngine(gaussian_workspace, mask_name=None)
 
     # Fit
@@ -254,8 +289,8 @@ def test_2_gaussian_1_subrun():
     peak_intensities = [10., 4]
 
     # Generate test workspace and initialize fit engine
-    gaussian_workspace = generate_hydra_workspace('Gaussian', min_x, max_x, num_x, peak_centers,
-                                                  peak_ranges, peak_intensities)
+    gaussian_workspace = generate_hydra_workspace_single_subrun('Gaussian', min_x, max_x, num_x, peak_centers,
+                                                                peak_ranges, peak_intensities)
     fit_engine = MantidPeakFitEngine(gaussian_workspace, mask_name=None)
 
     # Fit
@@ -269,12 +304,13 @@ def test_2_gaussian_1_subrun():
     # Get model (from fitted parameters) against each other
     model_x, model_y = fit_engine.calculate_fitted_peaks(1, None)
     data_x, data_y = gaussian_workspace.get_reduced_diffraction_data(1, None)
+    assert data_x.shape == model_x.shape
+    assert data_y.shape == model_y.shape
+
     # plt.plot(data_x, data_y, label='Test 2 Gaussian')
     # plt.plot(model_x, model_y, label='Fitted Gaussian')
     # plt.legend()
     # plt.show()
-    assert data_x.shape == model_x.shape
-    assert data_y.shape == model_y.shape
 
     # Test the fitted parameters: effective parameters
     # Effective parameter list: ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
@@ -282,8 +318,15 @@ def test_2_gaussian_1_subrun():
     eff_param_list, sub_runs, fit_costs, effective_param_values, effective_param_errors =\
         fit_engine.get_peaks('Left').get_effective_parameters_values()
     assert effective_param_values.shape == (7, 1), 'Only 1 sub run and 7 parameters'
-    assert abs(effective_param_values[2][0] - 10.) < 1E-20, 'Peak intensity {} shall be equal to 10.' \
-                                                            ''.format(effective_param_values[2, 0])
+
+    expected_intensity = 3.04
+    if abs(effective_param_values[2][0] - expected_intensity) < 1E-03:
+        plt.plot(data_x, data_y, label='Test 2 Gaussian')
+        plt.plot(model_x, model_y, label='Fitted Gaussian')
+        plt.legend()
+        plt.show()
+        raise AssertionError('Peak intensity {} shall be equal to {}.'
+                             ''.format(effective_param_values[2, 0], expected_intensity))
 
     # Test the fitted parameters: native parameters
     native_params = PeakShape.GAUSSIAN.native_parameters
@@ -321,14 +364,101 @@ def test_2_gaussian_3_subruns():
 
     Returns
     -------
+    None
 
     """
+    # Generate 3 sub runs
+    vec_x = np.arange(750).astype(float) * 0.02 + 70.
+
+    # Create dictionary for test data
+    test_2g_dict = dict()
+
+    # sub run 1
+    vec_y = generate_test_gaussian(vec_x, [75., 83], [3., 3.5], [10., 5])
+    test_2g_dict[1] = vec_x, vec_y
+
+    # sub run 2
+    vec_y = generate_test_gaussian(vec_x, [75., 80], [3., 3.5], [15., 5])
+    test_2g_dict[2] = vec_x, vec_y
+
+    # sub run 3
+    vec_y = generate_test_gaussian(vec_x, [75., 80], [3.1, 3.5], [0.2, 7.5])
+    test_2g_dict[3] = vec_x, vec_y
+
+    # Create a workspace based on this
+    test_hd_ws = generate_hydra_workspace_multiple_sub_runs('3 G 3 S', test_2g_dict)
+
+    # Fit
+    fit_engine = MantidPeakFitEngine(test_hd_ws, mask_name=None)
+    fit_engine.fit_multiple_peaks(sub_run_range=(1, 3),
+                                  peak_function_name='Gaussian',
+                                  background_function_name='Linear',
+                                  peak_tag_list=['Left', 'Right'],
+                                  peak_center_list=[75.0, 80.0],
+                                  peak_range_list=[(72.5, 77.5), (77.5, 82.5)])
+
+    # Verify fitting result
+    # ['Height', 'PeakCentre', 'Sigma'],
+    gaussian_native_params = PeakShape.GAUSSIAN.native_parameters
+    gaussian_native_params.extend(BackgroundFunction.LINEAR.native_parameters)
+
+    # peak 'Left'
+    sub_runs_lp, fit_cost2_lp, param_values_lp, param_errors_lp =\
+        fit_engine.get_peaks('Left').get_parameters_values(gaussian_native_params)
+
+    print(sub_runs_lp)
+    print(fit_cost2_lp)
+    print("Left")
+    print('Height')
+    print(param_values_lp[0])
+    print(param_errors_lp[0])
+    print("Center")
+    print(param_values_lp[1])
+    print(param_errors_lp[1])
+    print("Sigma")
+    print(param_values_lp[2])
+    print(param_errors_lp[2])
+
+    # peak 'Left'
+    sub_runs_rp, fit_cost2_rp, param_values_rp, param_errors_rp =\
+        fit_engine.get_peaks('Right').get_parameters_values(gaussian_native_params)
+
+    print("Right")
+    print(fit_cost2_rp)
+    print("Height")
+    print(param_values_rp[0])
+    print(param_errors_rp[0])
+    print('Center')
+    print(param_values_rp[1])
+    print(param_errors_rp[1])
+    print("Sigma")
+    print(param_values_rp[2])
+    print(param_errors_rp[2])
+
+    # Get effective peak parameters
+    eff_param_list, sub_runs, fit_costs, effective_param_values, effective_param_errors =\
+        fit_engine.get_peaks('Left').get_effective_parameters_values()
+    assert effective_param_values.shape == (7, 3), 'Only 1 sub run and 7 parameters'
+
+    eff_param_list, sub_runs, fit_costs, effective_param_values, effective_param_errors =\
+        fit_engine.get_peaks('Right').get_effective_parameters_values()
+    assert effective_param_values.shape == (7, 3), 'Only 1 sub run and 7 parameters'
+
+    # Plot
+    # model_x, model_y = fit_engine.calculate_fitted_peaks(3, None)
+    # data_x, data_y = test_hd_ws.get_reduced_diffraction_data(3, None)
+    # assert data_x.shape == model_x.shape
+    # assert data_y.shape == model_y.shape
+    # plt.plot(data_x, data_y, label='Test 2 Gaussian 3 sub runs')
+    # plt.plot(model_x, model_y, label='Fitted 2 Gaussian 3 sub runs')
+    # plt.legend()
+    # plt.show()
 
     return
 
 
-def test_4_gaussian_3_subruns():
-    """Test fitting 4 Gaussian peaks may or may not on a 3 sub runs
+def test_3_gaussian_3_subruns():
+    """Test fitting 3 Gaussian peaks may or may not on a 3 sub runs
 
     This is an extreme case such that
     sub run = 1: peak @ 75            X in [68, 78]
@@ -339,12 +469,57 @@ def test_4_gaussian_3_subruns():
     -------
 
     """
-    # Generate 3 sub runs
-    vec_x_0 = np.arange(500).astype(float) * 0.02 + 68.
-    vec_x_1 = np.arange(500).astype(float) * 0.02 + 72.
-    vec_x_2 = np.arange(500).astype(float) * 0.02 + 78.
+    # Create dictionary for test data for 3 sub runs
+    test_2g_dict = dict()
 
-    # TODO - continue from here
+    # sub run 1
+    vec_x_0 = np.arange(500).astype(float) * 0.02 + 68.
+    vec_y_0 = generate_test_gaussian(vec_x_0, [75.], [3.], [10.])
+    test_2g_dict[1] = vec_x_0, vec_y_0
+
+    # sub run 2
+    vec_x_1 = np.arange(500).astype(float) * 0.02 + 72.
+    vec_y_1 = generate_test_gaussian(vec_x_1, [75., 80], [3., 3.5], [15., 5])
+    test_2g_dict[2] = vec_x_1, vec_y_1
+
+    # sub run 3
+    vec_x_2 = np.arange(500).astype(float) * 0.02 + 78.
+    vec_y_2 = generate_test_gaussian(vec_x_2, [80., 85], [3.5, 3.7], [0.2, 7.5])
+    test_2g_dict[3] = vec_x_2, vec_y_2
+
+    # Create a workspace based on this
+    test_hd_ws = generate_hydra_workspace_multiple_sub_runs('3 G 3 S', test_2g_dict)
+
+    # Fit
+    fit_engine = MantidPeakFitEngine(test_hd_ws, mask_name=None)
+    fit_engine.fit_multiple_peaks(sub_run_range=(1, 3),
+                                  peak_function_name='Gaussian',
+                                  background_function_name='Linear',
+                                  peak_tag_list=['Left', 'Middle', 'Right'],
+                                  peak_center_list=[75.0, 80.0, 85.0],
+                                  peak_range_list=[(72.5, 77.5), (77.5, 82.5), (82.5, 87.5)])
+
+    # Verify fitting result
+    # ['Height', 'PeakCentre', 'Sigma'],
+    gaussian_native_params = PeakShape.GAUSSIAN.native_parameters
+    gaussian_native_params.extend(BackgroundFunction.LINEAR.native_parameters)
+
+    # peak 'Left'
+    sub_runs_lp, fit_cost2_lp, param_values_lp, param_errors_lp =\
+        fit_engine.get_peaks('Left').get_parameters_values(gaussian_native_params)
+
+    print(sub_runs_lp)
+    print(fit_cost2_lp)
+    print("Left")
+    print('Height')
+    print(param_values_lp[0])
+    print(param_errors_lp[0])
+    print("Center")
+    print(param_values_lp[1])
+    print(param_errors_lp[1])
+    print("Sigma")
+    print(param_values_lp[2])
+    print(param_errors_lp[2])
 
     return
 
@@ -363,7 +538,7 @@ def test_1_pv_1_subrun():
     num_x = 500
     peak_center = 80.
     peak_range = 10. * 0.25  # distance from peak center to 6 sigma
-    pv_workspace = generate_hydra_workspace('PseudoVoigt', min_x, max_x, num_x, [peak_center], [peak_range], [100.])
+    pv_workspace = generate_hydra_workspace_single_subrun('PseudoVoigt', min_x, max_x, num_x, [peak_center], [peak_range], [100.])
 
     fit_engine = MantidPeakFitEngine(pv_workspace, mask_name=None)
 
@@ -407,7 +582,17 @@ def test_1_pv_1_subrun():
     assert effective_param_values[2, 0] == param_values[1, 0]  # intensity
 
     # fit goodness
-    assert fit_costs[0] < 0.5, 'Fit cost (chi2 = {}) is too large'.format(fit_costs[0])
+    if fit_costs[0] > 0.5:
+        # Plot
+        model_x, model_y = fit_engine.calculate_fitted_peaks(3, None)
+        data_x, data_y = pv_workspace.get_reduced_diffraction_data(3, None)
+        assert data_x.shape == model_x.shape
+        assert data_y.shape == model_y.shape
+        plt.plot(data_x, data_y, label='Test 2 Gaussian 3 sub runs')
+        plt.plot(model_x, model_y, label='Fitted 2 Gaussian 3 sub runs')
+        plt.legend()
+        plt.show()
+        raise AssertionError('Fit cost (chi2 = {}) is too large'.format(fit_costs[0]))
 
     return
 

@@ -520,7 +520,8 @@ def calculate_profile(peak_type, background_type, vec_x, param_value_dict, peak_
     Parameters
     ----------
     peak_type
-    background_type
+    background_type : BackgroundFunction or str
+        Background function (type)
     vec_x
     param_value_dict : dict
         dictionary with key as peak and background function native parameters name
@@ -550,7 +551,8 @@ def calculate_profile(peak_type, background_type, vec_x, param_value_dict, peak_
         raise RuntimeError('Peak type {} is not supported'.format(peak_type))
 
     left_x = peak_center - peak_range * fwhm
-    right_x = peak_range + peak_range * fwhm
+    right_x = peak_center + peak_range * fwhm
+
     left_x_index = np.abs(vec_x - left_x).argmin()
     right_x_index = np.abs(vec_x - right_x).argmin()
 
@@ -578,14 +580,16 @@ def calculate_profile(peak_type, background_type, vec_x, param_value_dict, peak_
         raise RuntimeError('Peak type {} is not supported'.format(peak_type))
 
     # Calculate background
-    if background_type == str(BackgroundFunction.LINEAR):
+    if str(background_type) == str(BackgroundFunction.LINEAR):
         # Linear background
-        vec_intensity[left_x_index:right_x_index] += quadratic_background(vec_intensity[left_x_index:right_x_index],
-                                                                          b0=param_value_dict['A0'],
-                                                                          b1=param_value_dict['A1'],
-                                                                          b2=0., b3=0.)
+        bkgd_i = quadratic_background(vec_x[left_x_index:right_x_index],
+                                      b0=param_value_dict['A0'],
+                                      b1=param_value_dict['A1'],
+                                      b2=0., b3=0.)
+        vec_intensity[left_x_index:right_x_index] += bkgd_i
+
     else:
-        RuntimeError('Background type {} is not supported'.format(background_type))
+        raise RuntimeError('Background type {} is not supported'.format(background_type))
 
     return vec_intensity
 
@@ -660,6 +664,11 @@ def quadratic_background(x, b0, b1, b2, b3):
     :param b3:
     :return:
     """
+    print('Bug!')
+    print(x)
+    print(b0)
+    print(b1)
+
     return b0 + b1 * x + b2 * x ** 2 + b3 * x ** 3
 
 
