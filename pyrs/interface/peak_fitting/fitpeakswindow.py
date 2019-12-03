@@ -45,10 +45,6 @@ class FitPeaksWindow(QMainWindow):
         self._advanced_fit_dialog = None
 
         # set up UI
-        # self.ui = ui.ui_peakfitwindow.Ui_MainWindow()
-        # self.ui.setupUi(self)
-
-        # set up UI
         ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', 'peakfitwindow.ui'))
         self.ui = load_ui(ui_path, baseinstance=self)
 
@@ -132,7 +128,6 @@ class FitPeaksWindow(QMainWindow):
             self.individual_sub_runs()
         else:
             self.list_sub_runs()
-            print("here")
 
     def individual_sub_runs(self):
         self.check_subRunsDisplayMode()
@@ -251,9 +246,6 @@ class FitPeaksWindow(QMainWindow):
         plot the meta/fit result data on the right side GUI
         :return:
         """
-        if self._sample_log_names_mutex:
-            return
-
         # if self.ui.checkBox_keepPrevPlotRight.isChecked() is False:
         # TODO - Shall be controlled by a more elegant mechanism
         self.ui.graphicsView_fitResult.reset_viewer()

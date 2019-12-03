@@ -20,6 +20,7 @@ class Load:
                                                  project_name=self.parent._project_name,
                                                  load_detector_counts=False,
                                                  load_diffraction=True)
+
             # Record data key and next
             self.parent._curr_file_name = project_file
         except (RuntimeError, TypeError) as run_err:
@@ -27,9 +28,9 @@ class Load:
                         detailed_message=str(run_err),
                         message_type='error')
 
-        # Edit information on the UI for user to visualize
-        self.parent.ui.label_loadedFileInfo.setText('Loaded {}; Project name: {}'
-                                                    .format(project_file, self.parent._project_name))
+        # # Edit information on the UI for user to visualize
+        # self.parent.ui.label_loadedFileInfo.setText('Loaded {}; Project name: {}'
+        #                                             .format(project_file, self.parent._project_name))
 
         # Get and set the range of sub runs
         o_utility = Utilities(parent=self.parent)
@@ -43,16 +44,6 @@ class Load:
                                                                                      can_plot=True)
         self._set_sample_logs_for_plotting(sample_log_names)
 
-        # try:
-        #     # Auto fit for all the peaks
-        #     if self.parent.ui.checkBox_autoFit.isChecked():
-        #         o_fit = Fit(parent=self.parent)
-        #         o_fit.fit_peaks(all_sub_runs=True)
-        # except (AttributeError) as err:
-        #     pop_message(self, 'some errors during fitting!', detailed_message=str(err),
-        #                 message_type='warning')
-
-        # enabled all fitting widgets
         o_gui.enabled_fitting_widgets(True)
 
     def __set_up_project_name(self, project_file=""):
@@ -61,18 +52,22 @@ class Load:
 
     def _set_sample_logs_for_plotting(self, sample_log_names):
         """ There are 2 combo boxes containing sample logs' names for plotting.  Clear the existing ones
-        and add the sample log names specified     def get_subruns_limit(self):
+        and add the sample log names specified
+
+        def get_subruns_limit(self):
         sub_run_list = self.parent._core.reduction_service.get_sub_runs(self.parent._project_name)
         # self.parent.ui.label_logIndexMin.setText(str(sub_run_list[0]))
         # self.parent.ui.label_logIndexMax.setText(str(sub_run_list[-1]))
         # self.parent.ui.label_MinScanNumber.setText(str(sub_run_list[0]))
         # self.parent.ui.label_MaxScanNumber.setText(str(sub_run_list[-1]))
-        return sub_run_list
-to them
+        return sub_run_list to them
         :param sample_log_names:
         :return:
         """
-        self.parent._sample_log_names_mutex = True
+
+        GuiUtilities.block_widgets(list_ui=[self.parent.ui.comboBox_xaxisNames,
+                                            self.parent.ui.comboBox_yaxisNames])
+
         self.parent.ui.comboBox_xaxisNames.clear()
         self.parent.ui.comboBox_yaxisNames.clear()
 
@@ -84,4 +79,10 @@ to them
             self.parent.ui.comboBox_xaxisNames.addItem(sample_log)
             self.parent.ui.comboBox_yaxisNames.addItem(sample_log)
             self.parent._sample_log_name_set.add(sample_log)
-        self.parent._sample_log_names_mutex = False
+
+        GuiUtilities.unblock_widgets(list_ui=[self.parent.ui.comboBox_xaxisNames,
+                                              self.parent.ui.comboBox_yaxisNames])
+
+        # enabled the 1D plot widgets (x-axis, y-axis comboboxes)
+        o_gui = GuiUtilities(parent=self.parent)
+        o_gui.enabled_list_widgets(list_widgets=[self.parent.ui.frame_1dplot], enabled=True)

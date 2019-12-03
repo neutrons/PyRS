@@ -286,6 +286,8 @@ class QtMplFitCanvas(FigureCanvas):
 
         plot_info = self._residual_subplot.plot(vec_x, vec_y, label=None, color='green',
                                                 linestyle='-', linewidth=2)
+        self._residual_subplot.axhline(2, linestyle='--', color='blue')
+        self._residual_subplot.axhline(-2, linestyle='--', color='blue')
 
         self._data_subplot.set_aspect('auto')
 
