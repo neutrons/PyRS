@@ -18,6 +18,8 @@ def generate_test_gaussian(vec_x, peak_center_list, peak_range_list, intensity_l
         peak center (float) list
     peak_range_list : List
         peak range (float) list.  Peak range is equal to 6 times of FWHM
+    intensity_list : List
+        list of intensities
 
     Returns
     -------
@@ -174,7 +176,7 @@ def generate_hydra_workspace(peak_profile_type, min_x, max_x, num_x, peak_center
     return test_workspace
 
 
-def test_fit_1_gaussian_peak():
+def test_1_gaussian_1_subrun():
     """Test fitting single Gaussian peak on 1 spectrum with background
 
     Returns
@@ -235,8 +237,8 @@ def test_fit_1_gaussian_peak():
     return
 
 
-def test_2_gaussian_peaks():
-    """Fit 2 Gaussian peaks
+def test_2_gaussian_1_subrun():
+    """Fit 2 Gaussian peaks for 1 sub run
 
     Returns
     -------
@@ -307,7 +309,47 @@ def test_2_gaussian_peaks():
     return
 
 
-def test_pseudo_voigt():
+def test_2_gaussian_3_subruns():
+    """Testing fitting 2 Gaussian peaks among 3 sub runs.
+
+    Some of the sub runs may not have one specific peak or the peak may be off center too much.
+
+    This is an extreme case such that
+    sub run = 1: peak @ 75 and @ 83
+    sub run = 2: peak @ 75 and @ 80
+    sub run = 3: peak @ 75 very low and @ 80
+
+    Returns
+    -------
+
+    """
+
+    return
+
+
+def test_4_gaussian_3_subruns():
+    """Test fitting 4 Gaussian peaks may or may not on a 3 sub runs
+
+    This is an extreme case such that
+    sub run = 1: peak @ 75            X in [68, 78]
+    sub run = 2: peak @ 75 and @ 80   X in [72, 82]
+    sub run = 3: peak @ 80 and @ 85   X in [78, 88]
+
+    Returns
+    -------
+
+    """
+    # Generate 3 sub runs
+    vec_x_0 = np.arange(500).astype(float) * 0.02 + 68.
+    vec_x_1 = np.arange(500).astype(float) * 0.02 + 72.
+    vec_x_2 = np.arange(500).astype(float) * 0.02 + 78.
+
+    # TODO - continue from here
+
+    return
+
+
+def test_1_pv_1_subrun():
     """
     Test fitting single Pseudo-voigt peak with background
     Returns
@@ -370,7 +412,7 @@ def test_pseudo_voigt():
     return
 
 
-def test_gaussian_eff_parameters():
+def test_calculate_effective_parameters_gaussian():
     """Test the effective peak parameters calculation for Gaussian
 
     Returns
@@ -398,7 +440,7 @@ def test_gaussian_eff_parameters():
     return
 
 
-def test_pv_eff_parameters():
+def test_calculate_effective_parameters_pv():
     """Test the methods to calculate effective parameters for Pseudo-Voigt
 
     Returns
