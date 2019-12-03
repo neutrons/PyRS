@@ -128,9 +128,9 @@ class Fit:
         :return:
         """
         # Add peaks' centers of mass to the output table
-        peak_param_names.append(HidraConstants.PEAK_COM)
-        com_vec = self.parent._core.get_peak_center_of_mass(self.parent._project_name)
-        peak_param_dict[HidraConstants.PEAK_COM] = com_vec
+        # peak_param_names.append(HidraConstants.PEAK_COM)
+        # com_vec = self.parent._core.get_peak_center_of_mass(self.parent._project_name)
+        # peak_param_dict[HidraConstants.PEAK_COM] = com_vec
 
         # Initialize the table by resetting the column names
         self.parent.ui.tableView_fitSummary.reset_table(peak_param_names)
