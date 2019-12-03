@@ -109,10 +109,10 @@ class Fit:
 
         # Show fitting result in Table
         # TODO - could add an option to show native or effective peak parameters
-        #try:
-        self.show_fit_result_table(peak_function, function_params, fit_values, is_effective=False)
-        #except IndexError:
-        #    return
+        try:
+            self.show_fit_result_table(peak_function, function_params, fit_values, is_effective=False)
+        except IndexError:
+            return
 
         # plot the model and difference
         if sub_run_list is None:
