@@ -115,7 +115,6 @@ class Plot:
         print("x_axis_name: " + x_axis_name)
         print("y_axis_name: " + y_axis_name)
 
-
         return
 
         # Return if sample logs combo box not set
@@ -126,11 +125,12 @@ class Plot:
             vec_y, vec_x = self.get_function_parameter_data(x_axis_name)
         elif y_axis_name in self.parent._function_param_name_set and x_axis_name == HidraConstants.SUB_RUNS:
             vec_x, vec_y = self.get_function_parameter_data(y_axis_name)
-        elif x_axis_name in self.parent._function_param_name_set or y_axis_name in self.parent._function_param_name_set:
+        elif x_axis_name in self.parent._function_param_name_set or y_axis_name in \
+                self.parent._function_param_name_set:
             pop_message(self, 'It has not considered how to plot 2 function parameters '
-                                                        '{} and {} against each other'
-                                                        ''.format(x_axis_name, y_axis_name),
-                                                  message_type='error')
+                              '{} and {} against each other'
+                              ''.format(x_axis_name, y_axis_name),
+                              message_type='error')
             return
         else:
             vec_x = self.get_meta_sample_data(x_axis_name)

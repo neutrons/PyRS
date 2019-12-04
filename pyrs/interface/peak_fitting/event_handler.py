@@ -76,7 +76,7 @@ class EventHandler:
         try:
             parse_input = parse_integers(raw_input)
             o_gui.make_visible_listsubruns_warning(False)
-        except RuntimeError as err:
+        except RuntimeError:
             o_gui.make_visible_listsubruns_warning(True)
 
         return parse_input
@@ -86,6 +86,7 @@ class EventHandler:
 
     def list_subruns_2dplot_returned(self):
         list_subruns_parsed = self.list_subruns_2dplot()
+        print(list_subruns_parsed)
 
         # updating the plot here
         pass
