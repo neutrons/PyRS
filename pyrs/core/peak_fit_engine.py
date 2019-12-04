@@ -133,7 +133,7 @@ class PeakFitEngine(object):
         hydra_project_file.write_peak_fit_result(self._peak_collection_dict[peak_tag])
 
     def fit_peaks(self, peak_tag, sub_run_range, peak_function_name, background_function_name, peak_center,
-                  peak_range):
+                  peak_range, max_chi2=1E3, max_peak_shift=2, min_intensity=None):
         """Fit peaks with option to calculate peak center in d-spacing
 
         Parameters
@@ -145,7 +145,14 @@ class PeakFitEngine(object):
         peak_function_name
         background_function_name
         peak_center
-        peak_range
+        peak_range : (float, float)
+            peak range
+        max_chi2 : float
+            maximum allowed chi2
+        max_peak_shift : float or None
+            maximum allowed peak shift from specified peak position
+        min_intensity : float or None
+            minimum allowed peak intensity
 
         Returns
         -------
@@ -155,7 +162,7 @@ class PeakFitEngine(object):
 
     # TODO FIXME - peak_tag, peak_center and peak_range will be replaced by a PeakObject class (namedtuple)
     def fit_multiple_peaks(self, sub_run_range, peak_function_name, background_function_name, peak_tag_list,
-                           peak_center_list, peak_range_list):
+                           peak_center_list, peak_range_list, max_chi2=1E3, max_peak_shift=2, min_intensity=None):
         """Fit multiple peaks on multiple sub runs
 
         Parameters
@@ -173,6 +180,12 @@ class PeakFitEngine(object):
             list of float for peak centers
         peak_range_list : list
             list of 2-tuple for each peak's range in 2-theta
+        max_chi2 : float
+            maximum allowed chi2
+        max_peak_shift : float or None
+            maximum allowed peak shift from specified peak position
+        min_intensity : float or None
+            minimum allowed peak intensity
 
         Returns
         -------
@@ -210,12 +223,46 @@ class PeakFitEngine(object):
             raise AssertionError('Peak center {} must be float or np.array'.format(peak_center))
         checkdatatypes.check_tuple('Peak range', peak_range, 2)
 
-    def get_calculated_peak(self, sub_run_number):
+    def calculate_fitted_peaks(self, sub_run_number, vec_2theta):
+        """Calculate peak(s) from fitted parameters for a single sub run
+
+        Set the values to zero and calculate peaks with background within +/- 3 FWHM
+
+        Parameters
+        ----------
+        sub_run_number : integer
+            sub run number
+
+        vec_2theta : None or ~numpy.ndarray
+            vector X to plot on
+
+        Returns
+        -------
+        ~numpy.ndarray, ~numpy.ndarray
+            data set with values calculated from peaks and background
+
         """
-        get the calculated peak's value
-        :return:
-        """
-        raise NotImplementedError('Virtual base class member method get_calculated_peak()')
+        # Set vector X and initialize Y
+        if vec_2theta is None:
+            vec_2theta = self._hidra_wksp.get_reduced_diffraction_data_2theta(sub_run_number)
+
+        vec_intensity = np.zeros_like(vec_2theta)
+
+        # Calculate peaks
+        print('Peaks: {}'.format(self._peak_collection_dict.keys()))
+        for peak_tag in self._peak_collection_dict.keys():
+            pc_i = self._peak_collection_dict[peak_tag]
+            param_dict = pc_i.get_sub_run_params(sub_run_number)
+            peak_vec = peak_profile_utility.calculate_profile(peak_type=pc_i.peak_profile,
+                                                              background_type=pc_i.background_type,
+                                                              vec_x=vec_2theta,
+                                                              param_value_dict=param_dict,
+                                                              peak_range=3)
+
+            vec_intensity += peak_vec
+        # END-FOR
+
+        return vec_2theta, vec_intensity
 
     def get_number_scans(self):
         """ Get number of scans in input data to fit

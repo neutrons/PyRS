@@ -162,7 +162,7 @@ class HB2BReductionManager(object):
         checkdatatypes.check_string_variable('Session name', session_name, self._session_dict.keys())
         workspace = self._session_dict[session_name]
 
-        return workspace.get_2theta(sub_run)
+        return workspace.get_detector_2theta(sub_run)
 
     def get_detector_counts(self, session_name, sub_run):
         """ Get the raw counts from detector of the specified sub run
@@ -498,7 +498,7 @@ class HB2BReductionManager(object):
         raw_count_vec = workspace.get_detector_counts(sub_run)
 
         # Retrieve 2-theta and L2 from loaded workspace (DAS)
-        two_theta = workspace.get_2theta(sub_run)
+        two_theta = workspace.get_detector_2theta(sub_run)
         l2 = workspace.get_l2(sub_run)
         # Convert 2-theta from DAS convention to Mantid/PyRS convention
         print('[INFO] User specified 2theta = {} is converted to Mantid 2theta = {}'
