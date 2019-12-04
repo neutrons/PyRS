@@ -155,7 +155,7 @@ class Plot:
 
         param_names, param_data = self.parent._core.get_peak_fitting_result(self.parent._project_name,
                                                                             return_format=dict,
-                                                                     effective_parameter=False)
+                                                                            effective_parameter=False)
 
         print('[DB...BAT] Param Names: {}'.format(param_names))
         sub_run_vec = param_data[HidraConstants.SUB_RUNS]
