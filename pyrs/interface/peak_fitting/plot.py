@@ -2,6 +2,7 @@ import numpy as np
 
 from pyrs.interface.gui_helper import parse_integers
 from pyrs.interface.gui_helper import pop_message
+from pyrs.utilities.rs_project_file import HidraConstants
 
 
 class Plot:
@@ -102,3 +103,92 @@ class Plot:
             pass
 
         self.parent.ui.label_SubRunsValue.setText('{}'.format(scan_value))
+
+    def plot_1d(self):
+
+        self.parent.ui.graphicsView_fitResult.reset_viewer()
+
+        # get the sample log/meta data name
+        x_axis_name = str(self.parent.ui.comboBox_xaxisNames.currentText())
+        y_axis_name = str(self.parent.ui.comboBox_yaxisNames.currentText())
+
+        print("x_axis_name: " + x_axis_name)
+        print("y_axis_name: " + y_axis_name)
+
+
+        return
+
+        # Return if sample logs combo box not set
+        if x_axis_name == '' and y_axis_name == '':
+            return
+
+        if x_axis_name in self.parent._function_param_name_set and y_axis_name == HidraConstants.SUB_RUNS:
+            vec_y, vec_x = self.get_function_parameter_data(x_axis_name)
+        elif y_axis_name in self.parent._function_param_name_set and x_axis_name == HidraConstants.SUB_RUNS:
+            vec_x, vec_y = self.get_function_parameter_data(y_axis_name)
+        elif x_axis_name in self.parent._function_param_name_set or y_axis_name in self.parent._function_param_name_set:
+            pop_message(self, 'It has not considered how to plot 2 function parameters '
+                                                        '{} and {} against each other'
+                                                        ''.format(x_axis_name, y_axis_name),
+                                                  message_type='error')
+            return
+        else:
+            vec_x = self.get_meta_sample_data(x_axis_name)
+            vec_y = self.get_meta_sample_data(y_axis_name)
+        # END-IF-ELSE
+
+        if vec_x is None or vec_y is None:
+            raise RuntimeError('{} or {} cannot be None ({}, {})'
+                               ''.format(x_axis_name, y_axis_name, vec_x, vec_y))
+
+        self.parent.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y, x_axis_name, y_axis_name)
+
+    def get_function_parameter_data(self, param_name):
+        """ get the parameter function data
+        :param param_name:
+        :return:
+        """
+        # get data key
+        if self.parent._project_name is None:
+            pop_message(self, 'No data loaded', 'error')
+            return
+
+        param_names, param_data = self.parent._core.get_peak_fitting_result(self.parent._project_name,
+                                                                            return_format=dict,
+                                                                     effective_parameter=False)
+
+        print('[DB...BAT] Param Names: {}'.format(param_names))
+        sub_run_vec = param_data[HidraConstants.SUB_RUNS]
+        param_value_2darray = param_data[param_name]
+        print('[DB...BAT] 2D array shape: {}'.format(param_value_2darray.shape))
+
+        return sub_run_vec, param_value_2darray[:, 0]
+
+    def get_meta_sample_data(self, name):
+        """
+        get meta data to plot.
+        the meta data can contain sample log data and fitted peak parameters
+        :param name:
+        :return:
+        """
+        # get data key
+        if self.parent._project_name is None:
+            pop_message(self, 'No data loaded', 'error')
+            return
+
+        sample_log_names = self.parent._core.reduction_service.get_sample_logs_names(self.parent._project_name, True)
+
+        if name == HidraConstants.SUB_RUNS:
+            # sub run vector
+            value_vector = np.array(self.parent._core.reduction_service.get_sub_runs(self.parent._project_name))
+        elif name in sample_log_names:
+            # sample log but not sub-runs
+            value_vector = self.parent._core.reduction_service.get_sample_log_value(self.parent._project_name, name)
+        elif name == 'Center of mass':
+            # center of mass is different????
+            # TODO - #84 - Make sure of it!
+            value_vector = self.parent._core.get_peak_center_of_mass(self.parent._project_name)
+        else:
+            value_vector = None
+
+        return value_vector

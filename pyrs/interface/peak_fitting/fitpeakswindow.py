@@ -83,10 +83,11 @@ class FitPeaksWindow(QMainWindow):
         self.ui.lineEdit_subruns_2dplot.returnPressed.connect(self.list_subruns_2dplot_returned)
         self.ui.lineEdit_subruns_2dplot.textChanged.connect(self.list_subruns_2dplot_changed)
 
-        # TODO - 20180805 - Implement : pushButton_plotLogs, comboBox_detectorI
+        self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.plot_1d)
+        self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.plot_1d)
 
-        self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
-        self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
+        self.ui.comboBox_xaxisNames_2dplot.currentIndexChanged.connect(self.plot_2d)
+        self.ui.comboBox_yaxisNames_2dplot.currentIndexChanged.connect(self.plot_2d)
 
         # tracker for sample log names and peak parameter names
         self._sample_log_name_set = set()
@@ -158,13 +159,20 @@ class FitPeaksWindow(QMainWindow):
         o_handle = EventHandler(parent=self)
         o_handle.list_subruns_2dplot_changed()
 
+    def plot_1d(self):
+        print("in here plot_1d")
+        o_plot = Plot(parent=self)
+        o_plot.plot_1d()
+
+    def plot_2d(self):
+        raise NotImplementedError("Not implemented yet, it's coming!")
+
     def _promote_peak_fit_setup(self):
         # 2D detector view
         curr_layout = QVBoxLayout()
         self.ui.frame_PeakView.setLayout(curr_layout)
         self._ui_graphicsView_fitSetup = PeakFitSetupView(self)
         self._ui_graphicsView_fitSetup.setEnabled(False)
-
         curr_layout.addWidget(self._ui_graphicsView_fitSetup)
 
     def _init_widgets(self):
@@ -241,44 +249,6 @@ class FitPeaksWindow(QMainWindow):
         """
         # TODO - #84 - Implement this method
         return
-
-    def do_plot_meta_data(self):
-        """
-        plot the meta/fit result data on the right side GUI
-        :return:
-        """
-        # if self.ui.checkBox_keepPrevPlotRight.isChecked() is False:
-        # TODO - Shall be controlled by a more elegant mechanism
-        self.ui.graphicsView_fitResult.reset_viewer()
-
-        # get the sample log/meta data name
-        x_axis_name = str(self.ui.comboBox_xaxisNames.currentText())
-        y_axis_name = str(self.ui.comboBox_yaxisNames.currentText())
-
-        # Return if sample logs combo box not set
-        if x_axis_name == '' and y_axis_name == '':
-            return
-
-        if x_axis_name in self._function_param_name_set and y_axis_name == HidraConstants.SUB_RUNS:
-            vec_y, vec_x = self.get_function_parameter_data(x_axis_name)
-        elif y_axis_name in self._function_param_name_set and x_axis_name == HidraConstants.SUB_RUNS:
-            vec_x, vec_y = self.get_function_parameter_data(y_axis_name)
-        elif x_axis_name in self._function_param_name_set or y_axis_name in self._function_param_name_set:
-            pyrs.interface.gui_helper.pop_message(self, 'It has not considered how to plot 2 function parameters '
-                                                        '{} and {} against each other'
-                                                        ''.format(x_axis_name, y_axis_name),
-                                                        message_type='error')
-            return
-        else:
-            vec_x = self.get_meta_sample_data(x_axis_name)
-            vec_y = self.get_meta_sample_data(y_axis_name)
-        # END-IF-ELSE
-
-        if vec_x is None or vec_y is None:
-            raise RuntimeError('{} or {} cannot be None ({}, {})'
-                               ''.format(x_axis_name, y_axis_name, vec_x, vec_y))
-
-        self.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y, x_axis_name, y_axis_name)
 
     def do_save_as(self):
         """ export the peaks to another file
@@ -361,55 +331,6 @@ class FitPeaksWindow(QMainWindow):
             err_msg = 'Smart peak fitting with order {} failed due to {}' \
                       ''.format(peak_profiles_order, run_err)
             pyrs.interface.gui_helper.pop_message(self, err_msg, 'error')
-
-    def get_function_parameter_data(self, param_name):
-        """ get the parameter function data
-        :param param_name:
-        :return:
-        """
-        # get data key
-        if self._project_name is None:
-            pyrs.interface.gui_helper.pop_message(self, 'No data loaded', 'error')
-            return
-
-        param_names, param_data = self._core.get_peak_fitting_result(self._project_name, return_format=dict,
-                                                                     effective_parameter=False)
-
-        print('[DB...BAT] Param Names: {}'.format(param_names))
-        sub_run_vec = param_data[HidraConstants.SUB_RUNS]
-        param_value_2darray = param_data[param_name]
-        print('[DB...BAT] 2D array shape: {}'.format(param_value_2darray.shape))
-
-        return sub_run_vec, param_value_2darray[:, 0]
-
-    def get_meta_sample_data(self, name):
-        """
-        get meta data to plot.
-        the meta data can contain sample log data and fitted peak parameters
-        :param name:
-        :return:
-        """
-        # get data key
-        if self._project_name is None:
-            pyrs.interface.gui_helper.pop_message(self, 'No data loaded', 'error')
-            return
-
-        sample_log_names = self._core.reduction_service.get_sample_logs_names(self._project_name, True)
-
-        if name == HidraConstants.SUB_RUNS:
-            # sub run vector
-            value_vector = np.array(self._core.reduction_service.get_sub_runs(self._project_name))
-        elif name in sample_log_names:
-            # sample log but not sub-runs
-            value_vector = self._core.reduction_service.get_sample_log_value(self._project_name, name)
-        elif name == 'Center of mass':
-            # center of mass is different????
-            # TODO - #84 - Make sure of it!
-            value_vector = self._core.get_peak_center_of_mass(self._project_name)
-        else:
-            value_vector = None
-
-        return value_vector
 
     def save_data_for_mantid(self, data_key, file_name):
         """

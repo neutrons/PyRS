@@ -35,9 +35,6 @@ class EventHandler:
             if hidra_file_name is None:
                 return  # user clicked cancel
 
-        # # Add file name to line edit to show
-        # self.parent.ui.lineEdit_expFileName.setText(hidra_file_name)  # REMOVE THIS ONCE ITS BEEN REPLACED
-
         try:
             o_load = Load(parent=self.parent)
             o_load.load(project_file=hidra_file_name)
