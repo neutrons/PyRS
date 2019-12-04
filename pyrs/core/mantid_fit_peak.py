@@ -338,10 +338,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
             num_sub_runs = table_ws.rowCount()
 
             # Set the structured numpy array
-            data_type_list = list()
-            for param_name in table_col_names:
-                data_type_list.append((param_name, np.float32))
-
+            data_type_list = [(name, np.float32) for name in table_col_names]
             struct_array = np.zeros(num_sub_runs, dtype=data_type_list)
 
             # get fitted parameter value
