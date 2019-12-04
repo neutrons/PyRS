@@ -1,3 +1,12 @@
+LIST_AXIS_TO_PLOT = {'Sub-runs':'subrun', 'sx':'sx', 'sy':'sy', 'sz':'sz',
+                     'vx':'vx', 'vy':'vy', 'vz':'vz',
+                     'phi':'phi', 'chi':'chi', 'omega':'omega',
+                     'Peak Height': 'PeakHeight',
+                     'Full Width Half Max': 'FWHM', 'intensity':'intensity',
+                     'PeakCenter':'PeakCenter',
+                     'd-spacing':'d-spacing'}
+
+
 class GuiUtilities:
 
     def __init__(self, parent=None):
@@ -51,6 +60,39 @@ class GuiUtilities:
                                   enabled=individual_radio_button_status)
         self.enabled_list_widgets(list_widgets=list_ui_listruns,
                                   enabled=(not individual_radio_button_status))
+
+    def set_1D_2D_axis_comboboxes(self):
+        # Set the widgets about viewer: get the sample logs and add the combo boxes for plotting
+        sample_log_names = self.parent._core.reduction_service.get_sample_logs_names(self.parent._project_name,
+                                                                                     can_plot=True)
+
+        GuiUtilities.block_widgets(list_ui=[self.parent.ui.comboBox_xaxisNames,
+                                            self.parent.ui.comboBox_yaxisNames,
+                                            self.parent.ui.comboBox_yaxisNames_2dplot,
+                                            self.parent.ui.comboBox_xaxisNames_2dplot])
+
+        self.parent.ui.comboBox_xaxisNames.clear()
+        self.parent.ui.comboBox_yaxisNames.clear()
+        self.parent.ui.comboBox_xaxisNames_2dplot.clear()
+        self.parent.ui.comboBox_yaxisNames_2dplot.clear()
+
+        # Maintain a copy of sample logs!
+        self.parent._sample_log_names = list(set(sample_log_names))
+        self.parent._sample_log_names.sort()
+
+        for sample_log in LIST_AXIS_TO_PLOT:
+            self.parent.ui.comboBox_xaxisNames.addItem(sample_log)
+            self.parent.ui.comboBox_yaxisNames.addItem(sample_log)
+            self.parent.ui.comboBox_xaxisNames_2dplot.addItem(sample_log)
+            self.parent.ui.comboBox_yaxisNames_2dplot.addItem(sample_log)
+            self.parent._sample_log_name_set.add(sample_log)
+
+        GuiUtilities.unblock_widgets(list_ui=[self.parent.ui.comboBox_xaxisNames,
+                                              self.parent.ui.comboBox_yaxisNames])
+
+        # enabled the 1D and 2D plot widgets
+        self.enabled_1dplot_widgets(enabled=True)
+        self.enabled_2dplot_widgets(enabled=True)
 
     @staticmethod
     def block_widgets(list_ui=[]):

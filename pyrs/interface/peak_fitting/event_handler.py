@@ -72,7 +72,7 @@ class EventHandler:
             pop_message(self, 'Failed to initialize widgets for {}'.format(hidra_file_name),
                         str(run_err), 'error')
 
-    def list_subruns_2dplot_changed(self):
+    def list_subruns_2dplot(self):
         raw_input = str(self.parent.ui.lineEdit_subruns_2dplot.text())
         o_gui = GuiUtilities(parent=self.parent)
 
@@ -81,13 +81,14 @@ class EventHandler:
             o_gui.make_visible_listsubruns_warning(False)
         except RuntimeError as err:
             o_gui.make_visible_listsubruns_warning(True)
+
+        return parse_input
+
+    def list_subruns_2dplot_changed(self):
+        self.list_subruns_2dplot()
 
     def list_subruns_2dplot_returned(self):
-        raw_input = str(self.parent.ui.lineEdit_subruns_2dplot.text())
-        o_gui = GuiUtilities(parent=self.parent)
+        list_subruns_parsed = self.list_subruns_2dplot()
 
-        try:
-            parse_input = parse_integers(raw_input)
-            o_gui.make_visible_listsubruns_warning(False)
-        except RuntimeError as err:
-            o_gui.make_visible_listsubruns_warning(True)
+        # updating the plot here
+        pass

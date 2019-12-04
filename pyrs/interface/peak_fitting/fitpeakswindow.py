@@ -207,26 +207,6 @@ class FitPeaksWindow(QMainWindow):
 
         self._advanced_fit_dialog.show()
 
-    def _set_sample_logs_for_plotting(self, sample_log_names):
-        """ There are 2 combo boxes containing sample logs' names for plotting.  Clear the existing ones
-        and add the sample log names specified to them
-        :param sample_log_names:
-        :return:
-        """
-        self._sample_log_names_mutex = True
-        self.ui.comboBox_xaxisNames.clear()
-        self.ui.comboBox_yaxisNames.clear()
-
-        # Maintain a copy of sample logs!
-        self._sample_log_names = list(set(sample_log_names))
-        self._sample_log_names.sort()
-
-        for sample_log in sample_log_names:
-            self.ui.comboBox_xaxisNames.addItem(sample_log)
-            self.ui.comboBox_yaxisNames.addItem(sample_log)
-            self._sample_log_name_set.add(sample_log)
-        self._sample_log_names_mutex = False
-
     def do_make_movie(self):
         """
         plot all the fitted data for each scan log index and save the figure to PNG files
