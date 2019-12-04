@@ -605,17 +605,18 @@ def test_1_pv_1_subrun():
     assert effective_param_values[2, 0] == param_values[1, 0]  # intensity
 
     # fit goodness
-    if fit_costs[0] > 0.5:
+    if fit_costs[0] > 1.0:
         # Plot
-        model_x, model_y = fit_engine.calculate_fitted_peaks(3, None)
-        data_x, data_y = pv_workspace.get_reduced_diffraction_data(3, None)
+        model_x, model_y = fit_engine.calculate_fitted_peaks(1, None)
+        data_x, data_y = pv_workspace.get_reduced_diffraction_data(1, None)
         assert data_x.shape == model_x.shape
         assert data_y.shape == model_y.shape
+        plt.clf()
         plt.plot(data_x, data_y, label='Test 2 Gaussian 3 sub runs')
         plt.plot(model_x, model_y, label='Fitted 2 Gaussian 3 sub runs')
         plt.legend()
-        plt.show()
-        raise AssertionError('Fit cost (chi2 = {}) is too large'.format(fit_costs[0]))
+        # plt.show()
+        raise AssertionError('Fit cost (chi2 = {}) is too large (criteria = 1.)'.format(fit_costs[0]))
 
     return
 
