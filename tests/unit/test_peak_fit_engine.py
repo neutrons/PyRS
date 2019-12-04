@@ -407,34 +407,42 @@ def test_2_gaussian_3_subruns():
     sub_runs_lp, fit_cost2_lp, param_values_lp, param_errors_lp =\
         fit_engine.get_peaks('Left').get_parameters_values(gaussian_native_params)
 
-    print(sub_runs_lp)
-    print(fit_cost2_lp)
-    print("Left")
-    print('Height')
-    print(param_values_lp[0])
-    print(param_errors_lp[0])
-    print("Center")
-    print(param_values_lp[1])
-    print(param_errors_lp[1])
-    print("Sigma")
-    print(param_values_lp[2])
-    print(param_errors_lp[2])
-
-    # peak 'Left'
+    # peak 'Right'
     sub_runs_rp, fit_cost2_rp, param_values_rp, param_errors_rp =\
         fit_engine.get_peaks('Right').get_parameters_values(gaussian_native_params)
 
-    print("Right")
-    print(fit_cost2_rp)
-    print("Height")
-    print(param_values_rp[0])
-    print(param_errors_rp[0])
-    print('Center')
-    print(param_values_rp[1])
-    print(param_errors_rp[1])
-    print("Sigma")
-    print(param_values_rp[2])
-    print(param_errors_rp[2])
+    """
+    Left
+    Chi2: [0.3144778  0.32581177 0.31288937]
+    Height (0)
+        [ 9.75107193 15.30580711  0.10662809]
+        [0.34154591 0.34128258 0.25921181]
+    Center (1)
+        [74.99655914 74.99921417 76.14541626]
+        [0.0059319  0.00377185 0.75386631]
+    Sigma (2)
+        [0.14838572 0.14782989 0.28031287]
+        [0.00608054 0.00388058 0.85695982]
+
+    Right
+    Chi2: [0.32870555 0.33221155 0.32712516]
+    Note: chi2[0] can be infinity sometimes
+    Height
+        [0.41185206 4.91072798 7.52280378]
+        [0.6211102  0.31933406 0.30802685]
+    Center
+        [78.88805389 79.9979248  80.00099945]
+        [0.0767037  0.01266132 0.00856138]
+    Sigma
+        [0.04440744 0.17071389 0.18304431]
+        [0.07783635 0.01304373 0.00897603]
+    """
+
+    # verify
+    assert 0.001 < fit_cost2_lp[0] < 0.4, 'Fitting cost of sub run 1 of left peak ({}) ' \
+                                          'is not reasonable or too large'.format(fit_cost2_lp[0])
+    assert 0.001 < fit_cost2_rp[1] < 0.4, 'Fitting cost of sub run 1 of right peak ({}) ' \
+                                          'is not reasonable or too large'.format(fit_cost2_rp[0])
 
     # Get effective peak parameters
     eff_param_list, sub_runs, fit_costs, effective_param_values, effective_param_errors =\
@@ -509,18 +517,31 @@ def test_3_gaussian_3_subruns():
     sub_runs_lp, fit_cost2_lp, param_values_lp, param_errors_lp =\
         fit_engine.get_peaks('Left').get_parameters_values(gaussian_native_params)
 
-    print(sub_runs_lp)
-    print(fit_cost2_lp)
-    print("Left")
-    print('Height')
-    print(param_values_lp[0])
-    print(param_errors_lp[0])
-    print("Center")
-    print(param_values_lp[1])
-    print(param_errors_lp[1])
-    print("Sigma")
-    print(param_values_lp[2])
-    print(param_errors_lp[2])
+    assert np.isinf(fit_cost2_lp[2]), 'Sub run 3 does not have peak @ 75 (Peak-Left).  Chi2 shall be infinity but' \
+                                      ' not {}'.format(fit_cost2_lp[2])
+
+    # Check with visualization
+    # set
+    fig, axs = plt.subplots(3)
+    for sb_i in range(1, 4):
+        model_x_i, model_y_i = fit_engine.calculate_fitted_peaks(sb_i, None)
+        data_x_i, data_y_i = test_hd_ws.get_reduced_diffraction_data(sb_i, None)
+        axs[sb_i - 1].plot(data_x_i, data_y_i, label='Sub run {} Data'.format(sb_i))
+        axs[sb_i - 1].plot(model_x_i, model_y_i, label='Sub run {} Model'.format(sb_i))
+    # plt.show()
+
+    # print(sub_runs_lp)
+    # print(fit_cost2_lp)
+    # print("Left")
+    # print('Height')
+    # print(param_values_lp[0])
+    # print(param_errors_lp[0])
+    # print("Center")
+    # print(param_values_lp[1])
+    # print(param_errors_lp[1])
+    # print("Sigma")
+    # print(param_values_lp[2])
+    # print(param_errors_lp[2])
 
     return
 
