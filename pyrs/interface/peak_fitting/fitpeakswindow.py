@@ -1,6 +1,7 @@
 import numpy as np
 import os
 from qtpy.QtWidgets import QVBoxLayout, QFileDialog, QMainWindow
+from qtpy import QtGui
 import pyqtgraph as pg
 
 from pyrs.utilities import load_ui
@@ -79,12 +80,12 @@ class FitPeaksWindow(QMainWindow):
         self.ui.actionSave_Fit_Result.triggered.connect(self.do_save_fit_result)
         self.ui.actionAdvanced_Peak_Fit_Settings.triggered.connect(self.do_launch_adv_fit)
         self.ui.actionQuick_Fit_Result_Check.triggered.connect(self.do_make_movie)
+        self.ui.lineEdit_subruns_2dplot.returnPressed.connect(self.list_subruns_2dplot)
 
         # TODO - 20180805 - Implement : pushButton_plotLogs, comboBox_detectorI
 
         self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
         self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
-        self.ui.comboBox_2dPlotChoice.currentIndexChanged.connect(self.do_plot_2d_data)
 
         # tracker for sample log names and peak parameter names
         self._sample_log_name_set = set()
@@ -104,6 +105,7 @@ class FitPeaksWindow(QMainWindow):
         o_gui.enabled_fitting_widgets(False)
         o_gui.enabled_1dplot_widgets(False)
         o_gui.enabled_2dplot_widgets(False)
+        o_gui.make_visible_listsubruns_warning(False)
 
     # Menu event handler
     def browse_hdf(self):
@@ -147,6 +149,10 @@ class FitPeaksWindow(QMainWindow):
         o_plot = Plot(parent=self)
         o_plot.plot_scan()
 
+    def list_subruns_2dplot(self):
+        pass
+
+
     def _promote_peak_fit_setup(self):
         # 2D detector view
         curr_layout = QVBoxLayout()
@@ -163,15 +169,6 @@ class FitPeaksWindow(QMainWindow):
         """
         self.ui.pushButton_loadHDF.setEnabled(False)
 
-        # combo boxes
-        self.ui.comboBox_1dPlotChoice.clear()
-        self.ui.comboBox_1dPlotChoice.addItem('Raw Data')
-        self.ui.comboBox_1dPlotChoice.addItem('Fitted')
-
-        self.ui.comboBox_2dPlotChoice.clear()
-        self.ui.comboBox_2dPlotChoice.addItem('Raw Data')
-        self.ui.comboBox_2dPlotChoice.addItem('Fitted')
-
         self.ui.splitter_4.setStyleSheet(VERTICAL_SPLITTER)
         self.ui.splitter_4.setSizes([100, 0])
         self.ui.splitter_2.setStyleSheet(HORIZONTAL_SPLITTER)
@@ -181,6 +178,9 @@ class FitPeaksWindow(QMainWindow):
 
         # status bar
         self.setStyleSheet("QStatusBar{padding-left:8px;color:green;}")
+
+        # warning icon
+        self.ui.listsubruns_warning_icon.setPixmap(QtGui.QPixmap(":/fitting/warning_icon.png"))
 
     def _init_pyqtgraph(self):
         image_view = pg.ImageView()

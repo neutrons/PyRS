@@ -24,6 +24,9 @@ class GuiUtilities:
         self.enabled_list_widgets(list_widgets=list_widgets,
                                   enabled=enabled)
 
+    def make_visible_listsubruns_warning(self, visible=True):
+        self.parent.ui.listsubruns_warning_icon.setVisible(visible)
+
     def enabled_list_widgets(self, list_widgets=[], enabled=True):
         for _widget in list_widgets:
             _widget.setEnabled(enabled)
