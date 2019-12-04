@@ -228,7 +228,8 @@ def test_1_gaussian_1_subrun():
     peak_range = 10. * 0.25  # distance from peak center to 6 sigma
 
     # Generate test workspace and initialize fit engine
-    gaussian_workspace = generate_hydra_workspace_single_subrun('Gaussian', min_x, max_x, num_x, [peak_center], [peak_range], [10.])
+    gaussian_workspace = generate_hydra_workspace_single_subrun('Gaussian', min_x, max_x, num_x, [peak_center],
+                                                                [peak_range], [10.])
     fit_engine = MantidPeakFitEngine(gaussian_workspace, mask_name=None)
 
     # Fit
@@ -538,7 +539,8 @@ def test_1_pv_1_subrun():
     num_x = 500
     peak_center = 80.
     peak_range = 10. * 0.25  # distance from peak center to 6 sigma
-    pv_workspace = generate_hydra_workspace_single_subrun('PseudoVoigt', min_x, max_x, num_x, [peak_center], [peak_range], [100.])
+    pv_workspace = generate_hydra_workspace_single_subrun('PseudoVoigt', min_x, max_x, num_x, [peak_center],
+                                                          [peak_range], [100.])
 
     fit_engine = MantidPeakFitEngine(pv_workspace, mask_name=None)
 
