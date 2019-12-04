@@ -39,6 +39,33 @@ class PeakCollection(object):
         # fitting cost (chi2): numpy 1D array
         self._fit_cost_array = None
 
+    def apply_fitting_cost_criteria(self, max_chi2):
+        sub_run_index_tuple = np.where((np.isinf(self._fit_cost_array)) | (np.isnan(self._fit_cost_array)) |
+                                       (self._fit_cost_array > max_chi2))
+        self._params_value_array[sub_run_index_tuple] = np.nan
+        self._params_error_array[sub_run_index_tuple] = np.nan
+
+        return
+
+    def apply_intensity_criteria(self, min_peak_intensity):
+
+        # TODO - NEXT
+        peak_intensities = self._params_value_array
+        assert min_peak_intensity is not None
+        assert peak_intensities is not None
+
+        return
+
+    def apply_peak_position_criteria(self, expected_peak_center, max_allowed_peak_shift):
+
+        # TODO - NEXT
+        peak_centers = self._params_value_array
+        expected_peak_center + max_allowed_peak_shift
+        expected_peak_center - max_allowed_peak_shift
+        assert peak_centers is not None
+
+        return
+
     @property
     def peak_tag(self):
         """Peak tag
@@ -171,6 +198,30 @@ class PeakCollection(object):
         # END-IF
 
         return sub_runs_vec, chi2_vec, param_value_array, param_error_array
+
+    def get_sub_run_params(self, sub_run_number):
+        """Retrieve the native peak parameters' value of a particular sub run
+
+        Parameters
+        ----------
+        sub_run_number : integer
+            sub run number
+
+        Returns
+        -------
+        dict
+            key: parameter name, value: parameter value
+
+        """
+        # Locate the index of the sub run
+        sub_run_index = np.abs(self._sub_run_array - sub_run_number).argmin()
+
+        # Create the workspace
+        param_value_dict = dict()
+        for param_name in self._params_value_array.dtype.names:
+            param_value_dict[param_name] = self._params_value_array[param_name][sub_run_index]
+
+        return param_value_dict
 
     def get_effective_parameters_values(self, max_chi2=None):
         """

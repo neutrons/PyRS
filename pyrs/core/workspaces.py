@@ -154,7 +154,7 @@ class HidraWorkspace(object):
         # reset the wave length (dictionary) from HIDRA project file
         self._wave_length_dict = hidra_file.read_wavelengths()
 
-    def get_2theta(self, sub_run):
+    def get_detector_2theta(self, sub_run):
         """ Get 2theta value from sample log
         This is a special one
         :param sub_run: sub run number (integer)
@@ -326,6 +326,29 @@ class HidraWorkspace(object):
                                ''.format(mask_id, self._diff_data_set.keys()))
 
         return matrix_2theta, intensity_matrix
+
+    def get_reduced_diffraction_data_2theta(self, sub_run):
+        """Get 2theta vector of reduced diffraction data
+
+        Parameters
+        ----------
+        sub_run : int
+            sub run number
+
+        Returns
+        -------
+        numpy.ndarray
+            vector of 2theta
+
+        """
+        # Check inputs
+        checkdatatypes.check_int_variable('Sub run number', sub_run, (1, None))
+        # Get spectrum index
+        spec_index = self._sample_logs.get_subrun_indices(sub_run)[0]
+        # Vector 2theta
+        vec_2theta = self._2theta_matrix[spec_index][:]
+
+        return vec_2theta
 
     def get_reduced_diffraction_data(self, sub_run, mask_id=None):
         """Get data set of a single diffraction pattern
