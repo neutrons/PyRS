@@ -80,7 +80,8 @@ class FitPeaksWindow(QMainWindow):
         self.ui.actionSave_Fit_Result.triggered.connect(self.do_save_fit_result)
         self.ui.actionAdvanced_Peak_Fit_Settings.triggered.connect(self.do_launch_adv_fit)
         self.ui.actionQuick_Fit_Result_Check.triggered.connect(self.do_make_movie)
-        self.ui.lineEdit_subruns_2dplot.returnPressed.connect(self.list_subruns_2dplot)
+        self.ui.lineEdit_subruns_2dplot.returnPressed.connect(self.list_subruns_2dplot_returned)
+        self.ui.lineEdit_subruns_2dplot.textChanged.connect(self.list_subruns_2dplot_changed)
 
         # TODO - 20180805 - Implement : pushButton_plotLogs, comboBox_detectorI
 
@@ -149,9 +150,13 @@ class FitPeaksWindow(QMainWindow):
         o_plot = Plot(parent=self)
         o_plot.plot_scan()
 
-    def list_subruns_2dplot(self):
-        pass
+    def list_subruns_2dplot_returned(self):
+        o_handle = EventHandler(parent=self)
+        o_handle.list_subruns_2dplot_returned()
 
+    def list_subruns_2dplot_changed(self):
+        o_handle = EventHandler(parent=self)
+        o_handle.list_subruns_2dplot_changed()
 
     def _promote_peak_fit_setup(self):
         # 2D detector view
