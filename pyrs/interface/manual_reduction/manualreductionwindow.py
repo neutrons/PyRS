@@ -49,8 +49,6 @@ def _create_powder_patterns(projectfile, instrument, calibration, mask, subruns,
 
 
 def reduce_h2bc(nexus, outputdir, instrument=None, calibration=None, mask=None, subruns=list()):
-    nexus = "/home/svh/Documents/PyRS/HB2B_1017.nxs.h5"
-    outputdir = "/home/svh/Documents/tmp"
 
     project = os.path.basename(nexus).split('.')[0] + '.h5'
     project = os.path.join(outputdir, project)
@@ -428,16 +426,15 @@ class ManualReductionWindow(QMainWindow):
         """
         # get (sub) run numbers
         sub_runs_str = str(self.ui.lineEdit_runNumbersList.text()).strip().lower()
-        #if sub_runs_str == 'all':
-        #    sub_run_list = self._core.reduction_service.get_sub_runs(self._project_data_id)
-        #else:
-        #    try:
-        #        sub_run_list = gui_helper.parse_integers(sub_runs_str)
-        #    except RuntimeError as run_err:
-        #        gui_helper.pop_message(self, 'Failed to parse integer list',
-        #                               '{}'.format(run_err), 'error')
-        #       return
-        # END-IF-ELSE
+        if sub_runs_str == 'all':
+            sub_run_list = list()
+        else:
+            try:
+                sub_run_list = gui_helper.parse_integers(sub_runs_str)
+            except RuntimeError as run_err:
+                gui_helper.pop_message(self, 'Failed to parse integer list',
+                                       '{}'.format(run_err), 'error')
+               return
         # Reduce data
         nexus_file = str(self.ui.lineEdit_runNumber.text().strip())
         project_file = str(self.ui.lineEdit_outputDir.text().strip())
@@ -468,18 +465,18 @@ class ManualReductionWindow(QMainWindow):
         set IPTS number
         :return:
         """
-        try:
-            ipts_number = gui_helper.parse_integer(str(self.ui.lineEdit_iptsNumber.text()))
-            exp_number = gui_helper.parse_integer(str(self.ui.lineEdit_expNumber.text()))
-            self._currIPTSNumber = ipts_number
-            self._currExpNumber = exp_number
-            project_file_name = 'blabla.hdf5'
-        except RuntimeError:
-            gui_helper.pop_message(self, 'IPTS number shall be set to an integer.', message_type='error')
-            project_file_name = gui_helper.browse_file(
-                self, 'Hidra Project File', os.getcwd(), 'hdf5 (*.hdf5)', False, False)
-
-        self.load_hydra_file(project_file_name)
+        #try:
+        #    ipts_number = gui_helper.parse_integer(str(self.ui.lineEdit_iptsNumber.text()))
+        #    exp_number = gui_helper.parse_integer(str(self.ui.lineEdit_expNumber.text()))
+        #    self._currIPTSNumber = ipts_number
+        #    self._currExpNumber = exp_number
+        #    project_file_name = 'blabla.hdf5'
+        #except RuntimeError:
+        gui_helper.pop_message(self, 'IPTS number shall be set to an integer.', message_type='error')
+        project_file_name = gui_helper.browse_file(
+            self, 'Hidra Project File', os.getcwd(), 'hdf5 (*.h5)', False, False)
+        self.ui.lineEdit_runNumber.setText(project_file_name)
+        #self.load_hydra_file(project_file_name)
 
         return
 
