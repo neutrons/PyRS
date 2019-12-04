@@ -1,6 +1,7 @@
-from qtpy.QtWidgets import QMainWindow, QVBoxLayout, QApplication
+from qtpy.QtWidgets import QMainWindow, QVBoxLayout, QApplication, QProgressBar
 import os
 from mantid.simpleapi import Logger
+from mantid.api import AlgorithmObserver
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
 from mantidqt.utils.asynchronous import BlockingAsyncTaskWithCallback
@@ -21,6 +22,32 @@ from pyrs.interface.manual_reduction.event_handler import EventHandler
 # TODO              4. Implement plot method for reduced data
 # TODO              5. Implement method to reduce data
 # TODO              6. Add parameters for reducing data
+
+class MockObserver(AlgorithmObserver):
+
+    def __init__(self):
+        super(MockObserver, self).__init__()
+        self.finish_handled = False
+        self.error_message = None
+        self.progress_message = None
+        self.first_progress_reported = False
+        self.second_progress_reported = False
+
+    def finishHandle(self):
+        self.finish_handled = True
+
+    def errorHandle(self, message):
+        self.error_message = message
+
+    def progressHandle(self, p, message):
+        if len(message) > 0:
+            self.progress_message = message
+        if p == 0.5:
+            self.first_progress_reported = True
+        if p == 1.0:
+            self.second_progress_reported = True
+
+
 
 
 def _nexus_to_subscans(nexusfile, projectfile, logger):
