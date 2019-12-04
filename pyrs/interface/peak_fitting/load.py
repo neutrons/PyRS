@@ -83,6 +83,7 @@ class Load:
         GuiUtilities.unblock_widgets(list_ui=[self.parent.ui.comboBox_xaxisNames,
                                               self.parent.ui.comboBox_yaxisNames])
 
-        # enabled the 1D plot widgets (x-axis, y-axis comboboxes)
+        # enabled the 1D and 2D plot widgets
         o_gui = GuiUtilities(parent=self.parent)
-        o_gui.enabled_list_widgets(list_widgets=[self.parent.ui.frame_1dplot], enabled=True)
+        o_gui.enabled_1dplot_widgets(enabled=True)
+        o_gui.enabled_2dplot_widgets(enabled=True)

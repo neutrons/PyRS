@@ -10,6 +10,20 @@ class GuiUtilities:
         self.enabled_list_widgets(list_widgets=list_widgets,
                                   enabled=enabled)
 
+    def enabled_1dplot_widgets(self, enabled=True):
+        list_widgets = [self.parent.ui.frame_1dplot,
+                        self.parent.ui.graphicsView_fitResult_frame,
+                        ]
+        self.enabled_list_widgets(list_widgets=list_widgets,
+                                  enabled=enabled)
+
+    def enabled_2dplot_widgets(self, enabled=True):
+        list_widgets = [self.parent.ui.frame_2dplot,
+                        self.parent.ui.widget_contour_plot,
+                        ]
+        self.enabled_list_widgets(list_widgets=list_widgets,
+                                  enabled=enabled)
+
     def enabled_list_widgets(self, list_widgets=[], enabled=True):
         for _widget in list_widgets:
             _widget.setEnabled(enabled)

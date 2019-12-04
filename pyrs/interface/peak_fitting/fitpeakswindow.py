@@ -102,6 +102,8 @@ class FitPeaksWindow(QMainWindow):
 
         o_gui = GuiUtilities(parent=self)
         o_gui.enabled_fitting_widgets(False)
+        o_gui.enabled_1dplot_widgets(False)
+        o_gui.enabled_2dplot_widgets(False)
 
     # Menu event handler
     def browse_hdf(self):
@@ -162,6 +164,10 @@ class FitPeaksWindow(QMainWindow):
         self.ui.pushButton_loadHDF.setEnabled(False)
 
         # combo boxes
+        self.ui.comboBox_1dPlotChoice.clear()
+        self.ui.comboBox_1dPlotChoice.addItem('Raw Data')
+        self.ui.comboBox_1dPlotChoice.addItem('Fitted')
+
         self.ui.comboBox_2dPlotChoice.clear()
         self.ui.comboBox_2dPlotChoice.addItem('Raw Data')
         self.ui.comboBox_2dPlotChoice.addItem('Fitted')
