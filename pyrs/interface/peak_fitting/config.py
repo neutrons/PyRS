@@ -5,5 +5,5 @@ LIST_AXIS_TO_PLOT = {'raw': {'Sub-runs': 'subrun', 'sx': 'sx', 'sy': 'sy', 'sz':
                              'Full Width Half Max': 'FWHM', 'intensity': 'intensity',
                              'PeakCenter': 'PeakCenter',
                              'd-spacing': 'd-spacing',
-                             'strength': 'strength'}
+                             'strain': 'strain'}
                      }

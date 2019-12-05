@@ -63,7 +63,8 @@ class GuiUtilities:
         GuiUtilities.block_widgets(list_ui=[self.parent.ui.comboBox_xaxisNames,
                                             self.parent.ui.comboBox_yaxisNames,
                                             self.parent.ui.comboBox_yaxisNames_2dplot,
-                                            self.parent.ui.comboBox_xaxisNames_2dplot])
+                                            self.parent.ui.comboBox_yaxisNames_2dplot,
+                                            self.parent.ui.comboBox_zaxisNames_2dplot])
 
         if with_clear:
             self.parent.ui.comboBox_xaxisNames.clear()
@@ -94,11 +95,31 @@ class GuiUtilities:
         _list_comboboxes = [self.parent.ui.comboBox_xaxisNames,
                             self.parent.ui.comboBox_yaxisNames,
                             self.parent.ui.comboBox_xaxisNames_2dplot,
-                            self.parent.ui.comboBox_yaxisNames_2dplot]
+                            self.parent.ui.comboBox_yaxisNames_2dplot,
+                            self.parent.ui.comboBox_zaxisNames_2dplot]
         for sample_log in list_axis_to_plot:
             for _ui in _list_comboboxes:
                 _ui.addItem(sample_log)
             self.parent._sample_log_name_set.add(sample_log)
+
+    def make_visible_d01d_widgets(self, visible=True):
+        list_ui = [self.parent.ui.label_d01d,
+                   self.parent.ui.label_d0units1d,
+                   self.parent.ui.lineEdit_d01d]
+        GuiUtilities.make_visible_ui(list_ui=list_ui,
+                                     visible=visible)
+
+    def make_visible_d02d_widgets(self, visible=True):
+        list_ui = [self.parent.ui.label_d02d,
+                   self.parent.ui.label_d0units2d,
+                   self.parent.ui.lineEdit_d02d]
+        GuiUtilities.make_visible_ui(list_ui=list_ui,
+                                     visible=visible)
+
+    @staticmethod
+    def make_visible_ui(list_ui=[], visible=True):
+        for _ui in list_ui:
+            _ui.setVisible(visible)
 
     @staticmethod
     def block_widgets(list_ui=[]):
