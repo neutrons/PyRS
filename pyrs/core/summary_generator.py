@@ -1,28 +1,23 @@
 """
 This module generates reduction summary for user in plain text CSV file
 """
-import collections
-import numpy as np
-
-# Default summary headers
-SummaryHeaders = collections.namedtuple('SummaryHeader', 'ipts run title sample_name item_number hkl strain_dir '
-                                                         'mono_set cal_file project reduction')
+from pyrs.core.peak_profile_utility import EFFECTIVE_PEAK_PARAMETERS  # TODO get from the first peak collection
 
 # Default summary titles shown in the CSV file
-Header_Titles = [('IPTS number', 'ipts'),
-                 ('Run', 'run'),
-                 ('Scan title', 'title'),
-                 ('Sample name', 'sample_name'),
-                 ('Item number', 'item_number'),
-                 ('HKL phase', 'hkl'),
-                 ('Strain direction', 'strain_dir'),
-                 ('Monochromator setting', 'mono_set'),
-                 ('Calibration file', 'cal_file'),
-                 ('Hidra project file', 'project'),
-                 ('Manual vs auto reduction', 'reduction')]
+DEFAULT_HEADER_TITLES = [('IPTS number', 'ipts'),
+                         ('Run', 'run'),
+                         ('Scan title', 'title'),
+                         ('Sample name', 'sample_name'),
+                         ('Item number', 'item_number'),
+                         ('HKL phase', 'hkl'),
+                         ('Strain direction', 'strain_dir'),
+                         ('Monochromator setting', 'mono_set'),
+                         ('Calibration file', 'cal_file'),
+                         ('Hidra project file', 'project'),
+                         ('Manual vs auto reduction', 'reduction')]
 
 # Default field for values
-Body_Titles = [
+DEFAULT_BODY_TITLES = [
     ('sub-run', 'sub_run'),
     ('vx', 'vx'),
     ('vy', 'vy'),
@@ -62,25 +57,37 @@ class SummaryGenerator(object):
       effective peak parameters
 
     """
-    def __init__(self, header_title, header_values, log_tup_list):
+    def __init__(self, filename, header_titles=None, log_list=None):
         """Initialization
 
         Parameters
         ----------
-        header_title : List of 2-tuples
-            Ordered list of 2-tuple (as parameter titles and field in namedtuple for values) written in CSV header.
+        filename: str
+            Name of the ``.csv`` file to write
+        header_titles : List of 2-tuples
+            Ordered list of 2-tuple (as parameter titles and field in namedtuple for values) written in
+            CSV header. The default is :py:obj:`DEFAULT_HEADER_TITLES`
         header_values : ~collections.namedtuple
             Containing value
-        log_tup_list : List
-            sample log tuples as sample log name in title title and sample log name in file
         """
         # Check input
-        self._check_header_title_value_match(header_title, header_values)
+        # self._check_header_title_value_match(header_title, header_values)
 
         # Set
-        self._header_title = header_title
-        self._header_value = header_values
-        self._sample_log_list = log_tup_list
+        if header_titles is None:
+            self._header_titles = DEFAULT_HEADER_TITLES
+        else:
+            self._header_titles = header_titles
+        if log_list is None:
+            self._sample_log_list = DEFAULT_BODY_TITLES
+        else:
+            self._sample_log_list = log_list
+
+        if not filename:
+            raise RuntimeError('Failed to supply output filename')
+        self._filename = str(filename)
+        if not self._filename.endswith('.csv'):
+            raise RuntimeError('Filename "{}" must end with ".csv"'.format(self._filename))
 
         # To write
         self._fit_engine = None
@@ -88,159 +95,95 @@ class SummaryGenerator(object):
         self._header_log_section = None
         self._body_section = None
 
-        return
+    def setHeaderInformation(self, headervalues):
+        '''This creates a string to write to the file without actually writing it'''
+        # Reset the information
+        self._header_info_section = ''
 
-    @staticmethod
-    def _check_header_title_value_match(header_title_tuples, header_values):
-        """Check whether all the titles have the field existing in header_values
+        for label, value_name in self._header_titles:
+            value = headervalues.get(value_name, '')
+            if value:
+                line = ' = '.join((label, str(value)))
+            else:
+                line = label
+            self._header_info_section += '# {}\n'.format(line)
 
-        Exceptions
-        RuntimeError : if not match
-
-        Parameters
-        ----------
-        header_title_tuples : list
-            list of 2-tuple
-        header_values : ~collections.namedtuple
-            sample log value
-
-        Returns
-        -------
-        None
-
-        """
-        for header_title, value_field in header_title_tuples:
-            if value_field not in header_values._fields:
-                raise RuntimeError('Header item {} does not have correct field {} in given namedtuple ({})'
-                                   ''.format(header_title, value_field, header_values._fields))
-
-        return
-
-    def export_to_csv(self, peak_fit_engine, csv_file_name, sep=',', tolerance=1E-10):
+    def write_csv(self, sample_logs, peak_collections, sep=',', tolerance=1E-10):
         """Export the CSV file
 
         Parameters
         ----------
-        peak_fit_engine :  ~core.PeakFitEngine
-            PeakFitEngine where the peaks' parameter are found
-        csv_file_name
-        sep
+        sep: str
+            string to separate fields in the body of the file
         tolerance : float
-            tolerance of variance to treat a sample log as a non-changed value
-
-        Returns
-        -------
-
+            relative tolerance of variance to treat a sample log as a constant value
+            and bring into extended header
         """
-        # Set fit engine
-        self._fit_engine = peak_fit_engine
+        # verify the same number of subruns everywhere
+        for peak_collection in peak_collections:
+            _, subruns, _, _, _ = peak_collection.get_effective_parameters_values()
+            if not sample_logs.matching_subruns(subruns):
+                raise ValueError('Subruns from sample logs and peak {} do not match'.format(peak_collection.peak_tag))
 
-        #
-        self._write_info_header()
+        # header has already been put together
+        with open(self._filename, 'w') as handle:
+            handle.write(self._header_info_section)
+            self._write_header_constants(handle, sample_logs)  # TODO use separator and constants
+            self._write_column_names(handle, sample_logs, peak_collections)  # TODO use constants
+            self._write_data(handle, sample_logs, peak_collections)  # TODO use separator and constants
 
-        #
-        self._write_sample_logs(sep, tolerance)
-
-        return
-
-    def _write_info_header(self):
-        """Write
-
-        Returns
-        -------
-
+    def _write_header_constants(self, handle, sample_logs):
+        """Write only the sample logs that are constants into the header. These should not appear in the body.
         """
-        # Set start
-        self._header_info_section = ''
+        constants = sample_logs.constant_logs  # cache value
+        stuff = dict()
+        for name in constants:
+            stuff[name] = sample_logs[name][0]
+            handle.write('# {} = {}\n'.format(name, stuff[name]))
 
-        for index, field in enumerate(self._header_title):
-            self._header_info_section += '# {} = {}\n'.format(field, self._header_value[index])
+    def _write_column_names(self, handle, sample_logs, peak_collections):
+        # the header line from the sample logs
+        constant_logs = sample_logs.constant_logs  # cache value
+        column_names = [name for name in sample_logs.keys()
+                        if name not in constant_logs]
 
-        return
+        # the contribution from each peak
+        for peak_collection in peak_collections:
+            tag = peak_collection.peak_tag  # name of the peak
+            # values first
+            for param in EFFECTIVE_PEAK_PARAMETERS:
+                column_names.append('{}_{}'.format(tag, param))
+            # errors after values
+            for param in EFFECTIVE_PEAK_PARAMETERS:
+                column_names.append('{}_{}_error'.format(tag, param))
+            column_names.append('{}_chisq'.format(tag))
 
-    def _write_sample_logs(self, sep, tolerance):
-        """Write sample logs
+        # subrun number goes in the very front
+        column_names.insert(0, 'sub-run')
 
-        Exceptions
-        ----------
+        handle.write(','.join(column_names) + '\n')
 
-        Parameters
-        ----------
-        sep : str
-            separator in CSV
-        tolerance : float
-            tolerance of variance to treat a sample log as a non-changed value
+    def _write_data(self, handle, sample_logs, peak_collections):
+        constant_logs = sample_logs.constant_logs  # cache value
+        column_names = [name for name in sample_logs.keys()
+                        if name not in constant_logs]
 
-        Returns
-        -------
-        None
+        for i in range(len(sample_logs.subruns)):
+            line = []
 
-        """
-        # Init
-        self._header_log_section = ''
+            # sub-run goes in first
+            line.append(str(sample_logs.subruns[i]))
 
-        # Examine the values to write out as column or field
-        column_list = list()  # item: log title, log value array
+            # then sample logs
+            for name in column_names:
+                line.append(str(sample_logs[name][i]))  # get by index rather than subrun
 
-        for index in range(len(self._sample_log_list)):
-            log_title, log_name = self._sample_log_list[index]
+            for peak_collection in peak_collections:
+                _, _, fit_cost, values, errors = peak_collection.get_effective_parameters_values()
+                for j in range(values.shape[0]):  # number of parameters
+                    line.append(str(values[j, i]))
+                for j in range(errors.shape[0]):  # number of parameters
+                    line.append(str(errors[j, i]))
+                line.append(str(fit_cost[i]))
 
-            if log_title == 'sub-run':
-                # sub run is a special case
-                column_list.append((log_title, self._fit_engine.get_hidra_workspace().get_sub_runs()))
-            else:
-                # regular sample log value
-                try:
-                    # get the log value as array
-                    log_value_array = self._fit_engine.get_hidra_workspace().get_sample_log_values()
-                    # calculate the variance
-                    log_var = np.var(log_value_array)
-                    if log_var < tolerance:
-                        # less than tolerance: fixed value and add to heder
-                        self._header_log_section += '# {} = {} +/- {}\n'.format(log_title, np.average(log_value_array),
-                                                                              log_var)
-                    else:
-                        # add the column list for future processing
-                        column_list.append((log_title, log_value_array))
-                    # END-IF
-                except RuntimeError:
-                    # sample log value does not exist
-                    # add note to header
-                    self._header_log_section += '# {} = N/A\n'.format(log_title)
-            # END-IF-ELSE
-        # END-FOR
-
-        # Convert to body
-        num_columns = len(column_list)
-        num_rows = column_list[0][1].size
-        # CSV body header
-        body_header = '# '
-        for index in range(num_columns):
-            body_header += column_list[index][0]
-            if index < num_columns - 1:
-                body_header += '{}'.format(sep)
-        # END-FOR
-
-        # CSV body
-        csv_body = ''
-        for row_index in range(num_rows):
-            # construct a row
-            line_buf = ''
-            for col_index in range(num_columns):
-                # add value
-                line_buf += column_list[col_index][1][row_index]
-                # add separator unless last one
-                if col_index < num_columns - 1:
-                    line_buf += sep
-            # END-FOR (COL)
-
-            # add to body
-            csv_body += line_buf
-            # add new line unless last row
-            if row_index < num_rows - 1:
-                csv_body += '\n'
-        # END-FOR
-
-        self._body_section = body_header + '\n' + csv_body
-
-        return
+            handle.write(','.join(line) + '\n')

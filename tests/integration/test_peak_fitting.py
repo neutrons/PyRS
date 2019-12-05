@@ -2,6 +2,11 @@
 # Test class and methods implemented for peak fitting
 import numpy
 from pyrs.core import pyrscore
+from pyrs.core.peak_collection import PeakCollection
+from pyrs.core.peak_profile_utility import PeakShape, BackgroundFunction
+from pyrs.core.summary_generator import SummaryGenerator
+from pyrs.dataobjects import SampleLogs
+from pyrs.utilities.rs_project_file import HidraProjectFile
 from matplotlib import pyplot as plt
 import pytest
 from collections import namedtuple
@@ -263,33 +268,115 @@ def test_convert_peaks_centers_to_dspacing():
     pass
 
 
+def test_write_csv():
+    csv_filename = 'test_write_single.csv'
+    if os.path.exists(csv_filename):
+        os.remove(csv_filename)
+
+    # create a PeakCollection
+    gaussian = PeakShape.GAUSSIAN
+    linear = BackgroundFunction.LINEAR
+    total_params = len(gaussian.native_parameters) + len(linear.native_parameters)
+
+    subruns = [1, 2, 3]
+    data_type = [(name, numpy.float32) for name in gaussian.native_parameters + linear.native_parameters]
+    data = numpy.zeros(len(subruns), dtype=data_type)
+    error = numpy.zeros(len(subruns), dtype=data_type)
+    for i in range(len(subruns)):
+        data[i] = numpy.arange(total_params)
+        error[i] = 2. * numpy.arange(total_params)
+
+    peaks = PeakCollection('fake', gaussian, linear)
+    peaks.set_peak_fitting_values(subruns, data, error, [10., 20., 30.])
+
+    # create a SampleLog
+    sample = SampleLogs()
+    sample.subruns = subruns
+    sample['variable1'] = numpy.linspace(0., 100., len(subruns))
+    sample['constant1'] = numpy.zeros(len(subruns), dtype=float)
+
+    # write things out to disk
+    generator = SummaryGenerator(csv_filename)
+    generator.setHeaderInformation(dict())  # means empty header
+    generator.write_csv(sample, [peaks])
+
+    assert os.path.exists(csv_filename), '{} was not created'.format(csv_filename)
+
+    EXPECTED_HEADER = '''# IPTS number
+# Run
+# Scan title
+# Sample name
+# Item number
+# HKL phase
+# Strain direction
+# Monochromator setting
+# Calibration file
+# Hidra project file
+# Manual vs auto reduction'''.split('\n')
+
+    # verify the file contents
+    with open(csv_filename, 'r') as handle:
+        # read in the file and remove whitespace
+        contents = [line.strip() for line in handle.readlines()]
+
+    # verify exact match on the header
+    assert len(contents) >= len(EXPECTED_HEADER), 'Does not have full header'
+    for exp, obs in zip(contents[:len(EXPECTED_HEADER)], EXPECTED_HEADER):
+        assert exp == obs
+
+    # verify that the line that should be constant is
+    assert contents[len(EXPECTED_HEADER)] == '# constant1 = 0.0'
+
+    # verify that the number of columns is correct
+    # columns are (subruns, one log, parameter values, uncertainties, chisq)
+    for line in contents[len(EXPECTED_HEADER) + 1:]:  # skip past header and constant log
+        assert len(line.split(',')) == 1 + 1 + 7 * 2 + 1
+
+    # cleanup
+    os.remove(csv_filename)
+
+
+# FIXME - Add a new 2 peaks 3 sub run 1017???
 @pytest.mark.parametrize('project_file_name, csv_file_name',
-                         [('data/HB2B_938_peak.h5', 'HB2B_938.h5')],
+                         [('/HFIR/HB2B/shared/PyRS/HB2B_1065_Peak.h5', 'HB2B_938.csv')],
+                         # [('data/HB2B_938_peak.h5', 'HB2B_938.csv')],
                          ids=['HB2B_938CSV'])
-def test_write_csv(project_file_name, csv_file_name):
+def xtest_write_csv_from_project(project_file_name, csv_file_name):
     """Test the method to export CSV file
-
-    Returns
-    -------
-
     """
-    # Load project file
+    # load project file
     assert os.path.exists(project_file_name), 'Project file {} does not exist'.format(project_file_name)
+    project = HidraProjectFile(project_file_name)
 
-    # Create calibration control
-    controller = pyrscore.PyRsCore()
+    # get information from the project file
+    peak_tags = project.read_peak_tags()
+    print 'peak_tags', peak_tags
 
-    controller.load_hidra_project(project_file_name, project_name='csv.{}'.format(project_file_name),
-                                  load_detector_counts=False, load_diffraction=False, load_peaks=True)
+    # put together output CSV file
+    generator = SummaryGenerator(csv_file_name)
+    generator.setHeaderInformation(dict())
+    # add all of the peaks
+    for tag in peak_tags:
+        peak_params = project.read_peak_parameters(tag)
+        print '>>>', peak_params, '<<<'
+        print peak_params.parameters.dtype
+        print '----------'
+        print peak_params.parameters.dtype.fields.keys()
+        print '----------'
+        field_name = peak_params.parameters.dtype.fields.keys()[-1]
+        print field_name, peak_params.parameters[field_name]
+        print '----------'
+        print dir(peak_params.parameters.dtype)
+        print '----------'
+        generator.addPeak(tag, peak_params)
+    # finally write the file
+    generator.write_csv()
 
-    # Check tag
-    peak_tags = controller.get_peak_tags()
-    assert True
+    # header_values, header_title, log_tup_list)
+    # generator.export_to_csv(peak_fit_engine, csv_file_name) # fit_engine not set
+    assert False, 'stopping'
 
-    # Output CSV file
-    controller.export_summary(peak_tags[0], csv_file_name)
-
-    return
+    # controller.export_summary(peak_tags[0], csv_file_name)
 
 
 if __name__ == '__main__':
