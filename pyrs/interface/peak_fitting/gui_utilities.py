@@ -116,6 +116,14 @@ class GuiUtilities:
         GuiUtilities.make_visible_ui(list_ui=list_ui,
                                      visible=visible)
 
+    def check_axis1d_status(self):
+        xaxis_selected = str(self.parent.ui.comboBox_xaxisNames.currentText())
+        yaxis_selected = str(self.parent.ui.comboBox_yaxisNames.currentText())
+        if (xaxis_selected == 'strain' ) or (yaxis_selected == 'strain'):
+            self.make_visible_d01d_widgets(True)
+        else:
+            self.make_visible_d01d_widgets(False)
+
     @staticmethod
     def make_visible_ui(list_ui=[], visible=True):
         for _ui in list_ui:

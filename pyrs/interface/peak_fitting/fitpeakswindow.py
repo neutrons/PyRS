@@ -161,10 +161,14 @@ class FitPeaksWindow(QMainWindow):
         o_handle.list_subruns_2dplot_changed()
 
     def xaxis_1d_changed(self):
+        o_gui = GuiUtilities(parent=self)
+        o_gui.check_axis1d_status()
         o_plot = Plot(parent=self)
         o_plot.plot_1d()
 
     def yaxis_1d_changed(self):
+        o_gui = GuiUtilities(parent=self)
+        o_gui.check_axis1d_status()
         o_plot = Plot(parent=self)
         o_plot.plot_1d()
 

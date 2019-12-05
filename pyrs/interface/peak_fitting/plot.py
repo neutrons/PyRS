@@ -114,8 +114,8 @@ class Plot:
         x_axis_name = str(self.parent.ui.comboBox_xaxisNames.currentText())
         y_axis_name = str(self.parent.ui.comboBox_yaxisNames.currentText())
 
-        print("x_axis_name: " + LIST_AXIS_TO_PLOT[x_axis_name])
-        print("y_axis_name: " + LIST_AXIS_TO_PLOT[y_axis_name])
+        # print("x_axis_name: " + LIST_AXIS_TO_PLOT['raw'][x_axis_name])
+        # print("y_axis_name: " + LIST_AXIS_TO_PLOT['raw'][y_axis_name])
 
         return
 
