@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from pyrs.dataobjects import SampleLogs
+from pyrs.core.nexus_conversion import calculate_log_time_average
 
 
 def test_reassign_subruns():
@@ -57,6 +58,38 @@ def test_multi():
         np.testing.assert_equal(sample['variable1', [0]], [0., 50., 75., 100.])
     with pytest.raises(IndexError):
         np.testing.assert_equal(sample['variable1', [10]], [0., 50., 75., 100.])
+
+
+def test_time_average():
+    """Test method to do time average
+
+    Example from 1086
+
+    Returns
+    -------
+
+    """
+    # sub run 1
+    log1_times = np.array([1.5742809368379436e+18, 1.574280940122952e+18,
+                           1.5742809402252196e+18, 1.5742809634411576e+18])
+    log1_value = np.array([90.995, 81.9955, 81.99525, 84.])
+
+    # splitter
+    splitter1_times = np.array([1.5742809368379436e+18, 1.5742809601445215e+18])
+    splitter1_value = np.array([1, 0])
+
+    log1_average = calculate_log_time_average(log1_times, log1_value, splitter1_times, splitter1_value)
+    assert abs(log1_average - 83.26374511281652) < 1E-10, '{} shall be close to {}' \
+                                                          ''.format(log1_average, 83.26374511281652)
+
+    # sub run 2
+    log2_times = np.array([1.5742809634411576e+18, 1.5742809868603507e+18])
+    log2_vlaue = np.array([84., 86.00025])
+
+    splitter2_times = np.array([1.5742809368379436e+18, 1.574280963555972e+18, 1.574280983560895e+18])
+    splitter2_value = np.array([0, 1, 0])
+    log2_average = calculate_log_time_average(log2_times, log2_vlaue, splitter2_times, splitter2_value)
+    assert abs(log2_average - 84. < 1E-10), '{} shall be close to 84'.format(log2_average)
 
 
 if __name__ == '__main__':
