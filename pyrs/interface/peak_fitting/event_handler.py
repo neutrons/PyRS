@@ -2,6 +2,7 @@ import os
 
 from pyrs.interface.gui_helper import pop_message
 from pyrs.interface.gui_helper import browse_file
+from pyrs.interface.gui_helper import parse_integers
 from pyrs.interface.peak_fitting.load import Load
 from pyrs.interface.peak_fitting.plot import Plot
 from pyrs.interface.peak_fitting.fit import Fit
@@ -33,9 +34,6 @@ class EventHandler:
 
             if hidra_file_name is None:
                 return  # user clicked cancel
-
-        # # Add file name to line edit to show
-        # self.parent.ui.lineEdit_expFileName.setText(hidra_file_name)  # REMOVE THIS ONCE ITS BEEN REPLACED
 
         try:
             o_load = Load(parent=self.parent)
@@ -70,3 +68,25 @@ class EventHandler:
         except RuntimeError as run_err:
             pop_message(self, 'Failed to initialize widgets for {}'.format(hidra_file_name),
                         str(run_err), 'error')
+
+    def list_subruns_2dplot(self):
+        raw_input = str(self.parent.ui.lineEdit_subruns_2dplot.text())
+        o_gui = GuiUtilities(parent=self.parent)
+
+        try:
+            parse_input = parse_integers(raw_input)
+            o_gui.make_visible_listsubruns_warning(False)
+        except RuntimeError:
+            o_gui.make_visible_listsubruns_warning(True)
+
+        return parse_input
+
+    def list_subruns_2dplot_changed(self):
+        self.list_subruns_2dplot()
+
+    def list_subruns_2dplot_returned(self):
+        list_subruns_parsed = self.list_subruns_2dplot()
+        print(list_subruns_parsed)
+
+        # updating the plot here
+        pass

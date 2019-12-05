@@ -377,5 +377,3 @@ def pop_message(parent, message, detailed_message=None, message_type='error'):
 
     ret_val = msg_box.exec_()
     print('Message box return value: {}'.format(ret_val))
-
-    return

@@ -2,5 +2,6 @@
   <qresource prefix="fitting">
     <file>horizontal_splitter.png</file>
     <file>vertical_splitter.png</file>
+    <file>warning_icon.png</file>
   </qresource>
 </RCC>
