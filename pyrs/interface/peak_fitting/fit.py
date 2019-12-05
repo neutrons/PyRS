@@ -70,11 +70,11 @@ class Fit:
         for param_name in function_params:
             self.parent._function_param_name_set.add(param_name)
 
-        # log index and center of mass
-        size_x = len(self.parent._sample_log_names) + len(self.parent._function_param_name_set) + 2
-
-        # center of mass
-        size_y = len(self.parent._sample_log_names) + len(self.parent._function_param_name_set) + 1
+        # # log index and center of mass
+        # size_x = len(self.parent._sample_log_names) + len(self.parent._function_param_name_set) + 2
+        #
+        # # center of mass
+        # size_y = len(self.parent._sample_log_names) + len(self.parent._function_param_name_set) + 1
 
         # release the mutex: because re-plot is required anyway
         self.parent._sample_log_names_mutex = False
