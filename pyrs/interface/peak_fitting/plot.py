@@ -120,6 +120,10 @@ class Plot:
         print("self.parent._function_param_name_set): {}".format(self.parent._function_param_name_set))
         print("HidraConstants.SUB_RUNS: {}".format(HidraConstants.SUB_RUNS))
 
+        param_names, param_data = self.parent._core.get_peak_fitting_result(self.parent._project_name,
+                                                                            return_format=dict,
+                                                                            effective_parameter=False)
+
 
         return
 
