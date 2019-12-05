@@ -41,11 +41,14 @@ class PeakCollection(object):
 
     def apply_fitting_cost_criteria(self, max_chi2):
         sub_run_index_tuple = np.where((np.isinf(self._fit_cost_array)) | (np.isnan(self._fit_cost_array)) |
-                                       (self._fit_cost_array > max_chi2))
-        self._params_value_array[sub_run_index_tuple] = np.nan
-        self._params_error_array[sub_run_index_tuple] = np.nan
+                                       (self._fit_cost_array > max_chi2))[0]
+        for i in sub_run_index_tuple:
+            # values and errors are different length arrays
+            for j in range(len(self._params_value_array[i])):
+                self._params_value_array[i][j] = np.nan
 
-        return
+            for j in range(len(self._params_error_array[i])):
+                self._params_error_array[i][j] = np.nan
 
     def apply_intensity_criteria(self, min_peak_intensity):
 
