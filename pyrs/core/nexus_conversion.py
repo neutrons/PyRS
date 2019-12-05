@@ -1,14 +1,16 @@
 """
 Convert HB2B NeXus file to Hidra project file for further reduction
 """
-
 from mantid.simpleapi import mtd, GenerateEventsFilter, LoadEventNexus, FilterEvents
+from mantid.kernel import BoolTimeSeriesProperty, FloatTimeSeriesProperty, Int32TimeSeriesProperty,\
+    Int64TimeSeriesProperty, StringTimeSeriesProperty
 import numpy
 import os
 from pyrs.core import workspaces
 from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSetup
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.rs_project_file import HidraConstants, HidraProjectFile, HidraProjectFileMode
+import bisect
 
 
 class NeXusConvertingApp(object):
@@ -113,14 +115,15 @@ class NeXusConvertingApp(object):
     def _get_log_value_and_type(runObj, name):
         """
         Calculate the mean value of the sample log "within" the sub run time range
-        :param log_property: Mantid run property
+        :param name: Mantid run property's name
         :return:
         """
         log_property = runObj.getProperty(name)
         log_dtype = log_property.dtype()
         try:
-            # gets time average (if TimeSeriesProperty) or single value
-            return runObj.getPropertyAsSingleValue(name), log_dtype
+            log_value = time_average_value(runObj, name)
+            # return runObj.getPropertyAsSingleValue(name), log_dtype
+            return log_value, log_dtype
         except ValueError:
             # if the value is a string, just return it
             if isinstance(log_property.value, str):
@@ -175,3 +178,119 @@ class NeXusConvertingApp(object):
         # END-FOR
 
         return sub_run_ws_dict
+
+
+def time_average_value(run_obj, log_name):
+    """Get time averaged value for TimeSeriesProperty or single value
+
+    Parameters
+    ----------
+    run_obj
+    log_name
+
+    Returns
+    -------
+
+    """
+    # Get property
+    log_property = run_obj.getProperty(log_name)
+    has_splitter_log = run_obj.hasProperty('splitter')
+    if has_splitter_log:
+        splitter_times = run_obj.getProperty('splitter').times
+        splitter_value = run_obj.getProperty('splitter').value
+    else:
+        splitter_times = splitter_value = None
+    if has_splitter_log and isinstance(log_property,
+                                       (Int32TimeSeriesProperty, Int64TimeSeriesProperty, FloatTimeSeriesProperty)):
+        # Integer or float time series property and this is a split workspace
+        log_value = calculate_log_time_average(log_property.times, log_property.value,
+                                               splitter_times, splitter_value)
+    else:
+        # No a split workspace
+        # If a split workspace: string, boolean and others won't have time average issue
+        # Get single value
+        log_value = run_obj.getPropertyAsSingleValue(log_name)
+
+    return log_value
+
+
+def calculate_log_time_average(log_times, log_value, splitter_times, splitter_value):
+    """Calculate time average for sample log of split
+
+    Parameters
+    ----------
+    log_times : ~numpy.ndarray
+        sample log series time.  Allowed value are float (nanosecond) or numpy.datetime64
+    log_value : numpy.ndarray
+        sample log value series
+    splitter_times : ndarray
+        numpy array for splitter time
+    splitter_value : ndarray
+        numpy array for splitter value wit alternative 0 and 1.  1 stands for the period of events included
+
+    Returns
+    -------
+    Float
+
+    """
+    # Determine T0 (starting of the time period)
+    start_split_index = 0 if splitter_value[0] == 1 else 1
+
+    # Convert time to float and in unit of second (this may not be necessary but good for test)
+    splitter_times = splitter_times.astype(float) * 1E-9
+    time_start = splitter_times[start_split_index]
+
+    # convert splitter time to relative to time_start in unit of second
+    splitter_times -= time_start
+
+    # convert log time to relative to time_start in unit of second
+    log_times = log_times.astype(float) * 1E-9
+    log_times -= time_start
+
+    # Calculate time average
+    total_time = 0.
+    weighted_sum = 0.
+    num_periods = splitter_times.shape[0] / 2
+
+    for iperiod in range(num_periods):
+        # determine the start and stop time
+        start_time = splitter_times[2 * iperiod + start_split_index]
+        stop_time = splitter_times[2 * iperiod + start_split_index + 1]
+
+        # print('Start/Stop Time: ', start_time, stop_time)
+
+        # update the total time
+        total_time += stop_time - start_time
+
+        # get the (partial) interval from sample log
+        # print('Log times: ', log_times)
+        log_start_index = bisect.bisect(log_times, start_time)
+        log_stop_index = bisect.bisect(log_times, stop_time)
+        # print('Start/Stop index:', log_start_index, log_stop_index)
+
+        if log_start_index == 0:
+            raise RuntimeError('It is not expected that the run (splitter[0]) starts with no sample value recorded')
+
+        # set the partial log time
+        partial_time_size = log_stop_index - log_start_index + 2
+        partial_log_times = numpy.ndarray((partial_time_size, ), dtype=float)
+        partial_log_times[0] = start_time
+        partial_log_times[-1] = stop_time
+        # to 1 + time size - 2 = time size - 1
+        partial_log_times[1:partial_time_size - 1] = log_times[log_start_index:log_stop_index]
+        # print('Processed log times: ', partial_log_times)
+
+        # set the partial value: v[0] is the value before log_start_index (to the right)
+        # so it shall start from log_start_index - 1
+        # the case with log_start_index == 0 is ruled out
+        partial_log_value = log_value[log_start_index - 1:log_stop_index]
+        # print('Partial log value:', partial_log_value)
+
+        # Now for time average
+        weighted_sum += numpy.sum(partial_log_value * (partial_log_times[1:] - partial_log_times[:-1]))
+    # END-FOR
+
+    time_averaged = weighted_sum / total_time
+
+    return time_averaged
+
