@@ -2,8 +2,7 @@
 Convert HB2B NeXus file to Hidra project file for further reduction
 """
 from mantid.simpleapi import mtd, GenerateEventsFilter, LoadEventNexus, FilterEvents
-from mantid.kernel import BoolTimeSeriesProperty, FloatTimeSeriesProperty, Int32TimeSeriesProperty,\
-    Int64TimeSeriesProperty, StringTimeSeriesProperty
+from mantid.kernel import FloatTimeSeriesProperty, Int32TimeSeriesProperty, Int64TimeSeriesProperty
 import numpy
 import os
 from pyrs.core import workspaces
