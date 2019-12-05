@@ -66,24 +66,8 @@ class Fit:
         print('[DB...BAT...FITWINDOW....FIT] returned = {}, {}'.format(function_params, fit_values))
 
         self.parent._sample_log_names_mutex = True
-        # curr_x_index = self.parent.ui.comboBox_xaxisNames.currentIndex()
-        # curr_y_index = self.parent.ui.comboBox_yaxisNames.currentIndex()
-        # # add fitted parameters by resetting and build from the copy of fit parameters
-        # self.parent.ui.comboBox_xaxisNames.clear()
-        # self.parent.ui.comboBox_yaxisNames.clear()
-        # add sample logs (names)
-        # for sample_log_name in self.parent._sample_log_names:
-        #     self.parent.ui.comboBox_xaxisNames.addItem(sample_log_name)
-        #     self.parent.ui.comboBox_yaxisNames.addItem(sample_log_name)
-        # add function parameters (names)
         for param_name in function_params:
-            # self.parent.ui.comboBox_xaxisNames.addItem(param_name)
-            # self.parent.ui.comboBox_yaxisNames.addItem(param_name)
             self.parent._function_param_name_set.add(param_name)
-        # add observed parameters
-        # self.parent.ui.comboBox_xaxisNames.addItem('Center of mass')
-        # self.parent.ui.comboBox_yaxisNames.addItem('Center of mass')
-        # keep current selected item unchanged
 
         # log index and center of mass
         size_x = len(self.parent._sample_log_names) + len(self.parent._function_param_name_set) + 2
@@ -91,21 +75,8 @@ class Fit:
         # center of mass
         size_y = len(self.parent._sample_log_names) + len(self.parent._function_param_name_set) + 1
 
-        # if curr_x_index < size_x:
-        #     # keep current set up
-        #     self.parent.ui.comboBox_xaxisNames.setCurrentIndex(curr_x_index)
-        # else:
-        #     # original one does not exist: reset to first/log index
-        #     self.parent.ui.comboBox_xaxisNames.setCurrentIndex(0)
-
         # release the mutex: because re-plot is required anyway
         self.parent._sample_log_names_mutex = False
-
-        # plot Y
-        # if curr_y_index >= size_y:
-        #     # out of boundary: use the last one (usually something about peak)
-        #     curr_y_index = size_y - 1
-        # self.parent.ui.comboBox_yaxisNames.setCurrentIndex(curr_y_index)
 
         # Show fitting result in Table
         # TODO - could add an option to show native or effective peak parameters
