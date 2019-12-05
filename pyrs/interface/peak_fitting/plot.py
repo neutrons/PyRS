@@ -4,6 +4,8 @@ from pyrs.interface.gui_helper import parse_integers
 from pyrs.interface.gui_helper import pop_message
 from pyrs.utilities.rs_project_file import HidraConstants
 
+from pyrs.interface.peak_fitting.config import LIST_AXIS_TO_PLOT
+
 
 class Plot:
 
@@ -112,8 +114,8 @@ class Plot:
         x_axis_name = str(self.parent.ui.comboBox_xaxisNames.currentText())
         y_axis_name = str(self.parent.ui.comboBox_yaxisNames.currentText())
 
-        print("x_axis_name: " + x_axis_name)
-        print("y_axis_name: " + y_axis_name)
+        print("x_axis_name: " + LIST_AXIS_TO_PLOT[x_axis_name])
+        print("y_axis_name: " + LIST_AXIS_TO_PLOT[y_axis_name])
 
         return
 

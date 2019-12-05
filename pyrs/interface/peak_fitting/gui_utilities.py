@@ -1,10 +1,4 @@
-LIST_AXIS_TO_PLOT = {'Sub-runs': 'subrun', 'sx': 'sx', 'sy': 'sy', 'sz': 'sz',
-                     'vx': 'vx', 'vy': 'vy', 'vz': 'vz',
-                     'phi': 'phi', 'chi': 'chi', 'omega': 'omega',
-                     'Peak Height': 'PeakHeight',
-                     'Full Width Half Max': 'FWHM', 'intensity': 'intensity',
-                     'PeakCenter': 'PeakCenter',
-                     'd-spacing': 'd-spacing'}
+from pyrs.interface.peak_fitting.config import LIST_AXIS_TO_PLOT
 
 
 class GuiUtilities:
@@ -100,7 +94,7 @@ class GuiUtilities:
 
     @staticmethod
     def unblock_widgets(list_ui=[]):
-        GuiUtilities.__block_widgets(list_ui, True)
+        GuiUtilities.__block_widgets(list_ui, False)
 
     @staticmethod
     def __block_widgets(list_ui, block):
