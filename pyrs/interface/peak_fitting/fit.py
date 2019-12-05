@@ -2,6 +2,7 @@ from pyrs.interface.peak_fitting.plot import Plot
 from pyrs.utilities.rs_project_file import HidraConstants
 from pyrs.interface.peak_fitting.utilities import Utilities
 from pyrs.interface.gui_helper import pop_message
+from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
 
 
 class Fit:
@@ -89,6 +90,10 @@ class Fit:
         if sub_run_list is None:
             o_plot = Plot(parent=self.parent)
             o_plot.plot_diff_and_fitted_data(1, True)
+
+        o_gui = GuiUtilities(parent=self.parent)
+        o_gui.set_1D_2D_axis_comboboxes(fill_fit=True)
+
 
     def show_fit_result_table(self, peak_function, peak_param_names, peak_param_dict, is_effective):
         """ Set up the table containing fit result

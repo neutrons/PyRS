@@ -39,7 +39,7 @@ class Load:
         o_gui = GuiUtilities(parent=self.parent)
         o_gui.initialize_fitting_slider(max=len(sub_run_list))
 
-        o_gui.set_1D_2D_axis_comboboxes()
+        o_gui.set_1D_2D_axis_comboboxes(with_clear=True, fill_raw=True)
         o_gui.enabled_fitting_widgets(True)
 
     def __set_up_project_name(self, project_file=""):
