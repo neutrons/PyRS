@@ -19,8 +19,9 @@ from pyrs.icons import icons_rc  # noqa: F401
 VERTICAL_SPLITTER = """QSplitter::handle {image: url(':/fitting/vertical_splitter.png'); }"""
 HORIZONTAL_SPLITTER = """QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }"""
 
-MICROSTRAIN = u"\u00B5strain";
+MICROSTRAIN = u"\u00B5strain"
 D0 = u"d\u2080"
+
 
 class FitPeaksWindow(QMainWindow):
     """
