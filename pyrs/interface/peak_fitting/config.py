@@ -5,5 +5,18 @@ LIST_AXIS_TO_PLOT = {'raw': {'Sub-runs': 'subrun', 'sx': 'sx', 'sy': 'sy', 'sz':
                              'Full Width Half Max': 'FWHM', 'intensity': 'intensity',
                              'PeakCenter': 'PeakCenter',
                              'd-spacing': 'd-spacing',
-                             'strain': 'strain'}
+                             'strain': 'strain'},
+                     'full': {'Sub-runs': 'subrun', 'sx': 'sx', 'sy': 'sy', 'sz': 'sz',
+                             'vx': 'vx', 'vy': 'vy', 'vz': 'vz',
+                             'phi': 'phi', 'chi': 'chi', 'omega': 'omega',
+                             'Peak Height': 'PeakHeight',
+                             'Full Width Half Max': 'FWHM', 'intensity': 'intensity',
+                             'PeakCenter': 'PeakCenter',
+                             'd-spacing': 'd-spacing',
+                             'strain': 'strain'},
                      }
+DEFAUT_AXIS = {'1d': {'xaxis': 'Sub-runs',
+                      'yaxis': 'sx'},
+               '2d': {'xaxis': 'Sub-runs',
+                      'yaxis': 'sx',
+                      'zaxis': 'sy'}}

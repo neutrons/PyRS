@@ -1,4 +1,5 @@
 from pyrs.interface.peak_fitting.config import LIST_AXIS_TO_PLOT
+from pyrs.interface.peak_fitting.config import DEFAUT_AXIS
 
 
 class GuiUtilities:
@@ -90,6 +91,24 @@ class GuiUtilities:
         # enabled the 1D and 2D plot widgets
         self.enabled_1dplot_widgets(enabled=True)
         self.enabled_2dplot_widgets(enabled=True)
+
+    def initialize_combobox(self):
+        self.initialize_combobox_1d()
+        self.initialize_combobox_2d()
+
+    def initialize_combobox_1d(self):
+        _index_xaxis = self.parent.ui.comboBox_xaxisNames.findText(DEFAUT_AXIS['1d']['xaxis'])
+        self.parent.ui.comboBox_xaxisNames.setCurrentIndex(_index_xaxis)
+        _index_yaxis = self.parent.ui.comboBox_xaxisNames.findText(DEFAUT_AXIS['1d']['yaxis'])
+        self.parent.ui.comboBox_yaxisNames.setCurrentIndex(_index_yaxis)
+
+    def initialize_combobox_2d(self):
+        _index_xaxis = self.parent.ui.comboBox_xaxisNames_2dplot.findText(DEFAUT_AXIS['2d']['xaxis'])
+        self.parent.ui.comboBox_xaxisNames_2dplot.setCurrentIndex(_index_xaxis)
+        _index_yaxis = self.parent.ui.comboBox_xaxisNames_2dplot.findText(DEFAUT_AXIS['2d']['yaxis'])
+        self.parent.ui.comboBox_yaxisNames_2dplot.setCurrentIndex(_index_yaxis)
+        _index_zaxis = self.parent.ui.comboBox_xaxisNames_2dplot.findText(DEFAUT_AXIS['2d']['zaxis'])
+        self.parent.ui.comboBox_zaxisNames_2dplot.setCurrentIndex(_index_zaxis)
 
     def _update_plots_combobox_items(self, list_axis_to_plot=[]):
         _list_comboboxes = [self.parent.ui.comboBox_xaxisNames,

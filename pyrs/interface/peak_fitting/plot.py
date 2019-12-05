@@ -114,8 +114,12 @@ class Plot:
         x_axis_name = str(self.parent.ui.comboBox_xaxisNames.currentText())
         y_axis_name = str(self.parent.ui.comboBox_yaxisNames.currentText())
 
-        # print("x_axis_name: " + LIST_AXIS_TO_PLOT['raw'][x_axis_name])
-        # print("y_axis_name: " + LIST_AXIS_TO_PLOT['raw'][y_axis_name])
+        print("x_axis_name: " + LIST_AXIS_TO_PLOT['full'][x_axis_name])
+        print("y_axis_name: " + LIST_AXIS_TO_PLOT['full'][y_axis_name])
+
+        print("self.parent._function_param_name_set): {}".format(self.parent._function_param_name_set))
+        print("HidraConstants.SUB_RUNS: {}".format(HidraConstants.SUB_RUNS))
+
 
         return
 
