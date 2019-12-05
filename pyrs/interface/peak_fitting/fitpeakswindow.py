@@ -173,13 +173,16 @@ class FitPeaksWindow(QMainWindow):
         o_plot.plot_1d()
 
     def xaxis_2d_changed(self):
-        raise NotImplementedError("Not implemented yet, it's coming!")
+        o_gui = GuiUtilities(parent=self)
+        o_gui.check_axis2d_status()
 
     def yaxis_2d_changed(self):
-        raise NotImplementedError("Not implemented yet, it's coming!")
+        o_gui = GuiUtilities(parent=self)
+        o_gui.check_axis2d_status()
 
     def zaxis_2d_changed(self):
-        raise NotImplementedError("Not implemented yet, it's coming!")
+        o_gui = GuiUtilities(parent=self)
+        o_gui.check_axis2d_status()
 
     def _promote_peak_fit_setup(self):
         # 2D detector view

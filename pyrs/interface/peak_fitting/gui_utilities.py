@@ -119,10 +119,20 @@ class GuiUtilities:
     def check_axis1d_status(self):
         xaxis_selected = str(self.parent.ui.comboBox_xaxisNames.currentText())
         yaxis_selected = str(self.parent.ui.comboBox_yaxisNames.currentText())
-        if (xaxis_selected == 'strain' ) or (yaxis_selected == 'strain'):
+        if (xaxis_selected == 'strain') or (yaxis_selected == 'strain'):
             self.make_visible_d01d_widgets(True)
         else:
             self.make_visible_d01d_widgets(False)
+
+    def check_axis2d_status(self):
+        xaxis_selected = str(self.parent.ui.comboBox_xaxisNames_2dplot.currentText())
+        yaxis_selected = str(self.parent.ui.comboBox_yaxisNames_2dplot.currentText())
+        zaxis_selected = str(self.parent.ui.comboBox_zaxisNames_2dplot.currentText())
+        if (xaxis_selected == 'strain') or (yaxis_selected == 'strain') or \
+           (zaxis_selected == 'strain'):
+            self.make_visible_d02d_widgets(True)
+        else:
+            self.make_visible_d02d_widgets(False)
 
     @staticmethod
     def make_visible_ui(list_ui=[], visible=True):
