@@ -16,23 +16,21 @@ DEFAULT_HEADER_TITLES = [('IPTS number', 'ipts'),
                          ('Hidra project file', 'project'),
                          ('Manual vs auto reduction', 'reduction')]
 
-# Default field for values
-DEFAULT_BODY_TITLES = [
-    ('sub-run', 'sub_run'),
-    ('vx', 'vx'),
-    ('vy', 'vy'),
-    ('vz', 'vz'),
-    ('sx', 'sx'),
-    ('sy', 'sy'),
-    ('sz', 'sz'),
-    ('phi', 'phi'),
-    ('chi', 'chi'),
-    ('omega', 'omega'),
-    ('2theta', '2theta'),
-    ('S1 width', 'Unknown'),
-    ('S1 height', 'Unknown'),
-    ('S1 Distance', 'Unknown'),
-    ('Radial distance', 'Unknown')]
+# Default field for values - log_name:csv_name
+DEFAULT_BODY_TITLES = {'vx': 'vx',
+                       'vy': 'vy',
+                       'vz': 'vz',
+                       'sx': 'sx',
+                       'sy': 'sy',
+                       'sz': 'sz',
+                       'phi': 'phi',
+                       'chi': 'chi',
+                       'omega': 'omega',
+                       '2theta': '2theta',
+                       'S1width': 'S1_width',
+                       'S1height': 'S1_height',
+                       'S1distance': 'S1_distance',
+                       'RadialDistance': 'radial_distance'}
 
 
 class SummaryGenerator(object):
@@ -57,7 +55,7 @@ class SummaryGenerator(object):
       effective peak parameters
 
     """
-    def __init__(self, filename, header_titles=None, log_list=None):
+    def __init__(self, filename, header_titles=None, log_list=None, separator=','):
         """Initialization
 
         Parameters
@@ -69,6 +67,8 @@ class SummaryGenerator(object):
             CSV header. The default is :py:obj:`DEFAULT_HEADER_TITLES`
         header_values : ~collections.namedtuple
             Containing value
+        separator: str
+            The column separator in the output file
         """
         # Check input
         # self._check_header_title_value_match(header_title, header_values)
@@ -89,7 +89,14 @@ class SummaryGenerator(object):
         if not self._filename.endswith('.csv'):
             raise RuntimeError('Filename "{}" must end with ".csv"'.format(self._filename))
 
+        self.separator = separator
+
+        # logs that don't change within tolerance
         self._constant_logs = list()
+        # logs that were requested but don't exist
+        self._missing_logs = []
+        # logs that were requested and do exist
+        self._present_logs = []
 
         # To write
         self._fit_engine = None
@@ -110,7 +117,7 @@ class SummaryGenerator(object):
                 line = label
             self._header_info_section += '# {}\n'.format(line)
 
-    def write_csv(self, sample_logs, peak_collections, sep=',', tolerance=1E-10):
+    def write_csv(self, sample_logs, peak_collections, tolerance=1E-10):
         """Export the CSV file
 
         Parameters
@@ -127,23 +134,40 @@ class SummaryGenerator(object):
             if not sample_logs.matching_subruns(subruns):
                 raise ValueError('Subruns from sample logs and peak {} do not match'.format(peak_collection.peak_tag))
 
+        # determine what is constant and what is missing
+        self._classify_logs(sample_logs, tolerance)
+
         # header has already been put together
         with open(self._filename, 'w') as handle:
             handle.write(self._header_info_section)
-            self._write_header_constants(handle, sample_logs, tolerance)  # TODO use separator and constants
-            self._write_column_names(handle, sample_logs, peak_collections)  # TODO use constants
-            self._write_data(handle, sample_logs, peak_collections)  # TODO use separator and constants
+            self._write_header_missing(handle)
+            self._write_header_constants(handle, sample_logs)
+            self._write_column_names(handle, peak_collections)
+            self._write_data(handle, sample_logs, peak_collections)
 
-    def _write_header_constants(self, handle, sample_logs, tolerance):
+    def _classify_logs(self, sample_logs, tolerance):
+        self._constant_logs = sample_logs.constant_logs(tolerance)
+
+        # loop through all of the requested logs and classify as present or missing
+        for logname in self._sample_log_list.keys():
+            if logname in sample_logs:
+                self._present_logs.append(logname)
+            else:
+                self._missing_logs.append(logname)
+
+    def _write_header_missing(self, handle):
+        if self._missing_logs:
+            handle.write('# missing: {}\n'.format(', '.join(self._missing_logs)))
+
+    def _write_header_constants(self, handle, sample_logs):
         """Write only the sample logs that are constants into the header. These should not appear in the body.
         """
-        self._constant_logs = sample_logs.constant_logs(tolerance)  # cache value
         for name in self._constant_logs:
             handle.write('# {} = {:.5g} +/- {:.2g}\n'.format(name, sample_logs[name].mean(), sample_logs[name].std()))
 
-    def _write_column_names(self, handle, sample_logs, peak_collections):
+    def _write_column_names(self, handle, peak_collections):
         # the header line from the sample logs
-        column_names = [name for name in sample_logs.keys()
+        column_names = [self._sample_log_list[name] for name in self._present_logs
                         if name not in self._constant_logs]
 
         # the contribution from each peak
@@ -160,11 +184,11 @@ class SummaryGenerator(object):
         # subrun number goes in the very front
         column_names.insert(0, 'sub-run')
 
-        handle.write(','.join(column_names) + '\n')
+        handle.write(self.separator.join(column_names) + '\n')
 
     def _write_data(self, handle, sample_logs, peak_collections):
-        column_names = [name for name in sample_logs.keys()
-                        if name not in self._constant_logs]
+        log_names = [name for name in self._present_logs
+                     if name not in self._constant_logs]
 
         for i in range(len(sample_logs.subruns)):
             line = []
@@ -173,7 +197,7 @@ class SummaryGenerator(object):
             line.append(str(sample_logs.subruns[i]))
 
             # then sample logs
-            for name in column_names:
+            for name in log_names:
                 line.append(str(sample_logs[name][i]))  # get by index rather than subrun
 
             for peak_collection in peak_collections:
@@ -184,4 +208,4 @@ class SummaryGenerator(object):
                     line.append(str(errors[j, i]))
                 line.append(str(fit_cost[i]))
 
-            handle.write(','.join(line) + '\n')
+            handle.write(self.separator.join(line) + '\n')

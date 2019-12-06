@@ -293,11 +293,15 @@ def test_write_csv():
     sample = SampleLogs()
     sample.subruns = subruns
     sample['variable1'] = numpy.linspace(0., 100., len(subruns))
+    sample['variable2'] = numpy.linspace(100., 200., len(subruns))  # not to be found in the output
     sample['constant1'] = numpy.linspace(1., 1.+5E-11, len(subruns))  # values less than tolerance
 
     # write things out to disk
-    generator = SummaryGenerator(csv_filename)
+    generator = SummaryGenerator(csv_filename,
+                                 log_list={'variable1': 'scan_variable',
+                                           'constant1': 'constant1', 'missing1': 'missing1'})
     generator.setHeaderInformation(dict())  # means empty header
+
     generator.write_csv(sample, [peaks])
 
     assert os.path.exists(csv_filename), '{} was not created'.format(csv_filename)
@@ -313,6 +317,7 @@ def test_write_csv():
 # Calibration file
 # Hidra project file
 # Manual vs auto reduction
+# missing: missing1
 # constant1 = 1 +/- 2e-11'''.split('\n')
 
     # verify the file contents
@@ -321,10 +326,14 @@ def test_write_csv():
         contents = [line.strip() for line in handle.readlines()]
 
     # verify exact match on the header
-    assert len(contents) >= len(EXPECTED_HEADER), 'Does not have full header'
     for exp, obs in zip(contents[:len(EXPECTED_HEADER)], EXPECTED_HEADER):
         assert exp == obs
 
+    # verify the column headers
+    assert contents[len(EXPECTED_HEADER)].startswith('sub-run,scan_variable,fake_Center,')
+    assert contents[len(EXPECTED_HEADER)].endswith(',fake_chisq')
+
+    assert len(contents) == len(EXPECTED_HEADER) + 1 + len(subruns), 'Does not have full body'
     # verify that the number of columns is correct
     # columns are (subruns, one log, parameter values, uncertainties, chisq)
     for line in contents[len(EXPECTED_HEADER) + 1:]:  # skip past header and constant log
