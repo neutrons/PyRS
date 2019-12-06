@@ -110,8 +110,8 @@ class NeXusConvertingApp(object):
 
         self._hydra_workspace.save_experimental_data(hydra_file)
 
-    @staticmethod
-    def _get_log_value_and_type(runObj, name):
+    # @staticmethod
+    def _get_log_value_and_type(self, runObj, name):
         """
         Calculate the mean value of the sample log "within" the sub run time range
         :param name: Mantid run property's name
@@ -202,8 +202,16 @@ def time_average_value(run_obj, log_name):
     if has_splitter_log and isinstance(log_property,
                                        (Int32TimeSeriesProperty, Int64TimeSeriesProperty, FloatTimeSeriesProperty)):
         # Integer or float time series property and this is a split workspace
-        log_value = calculate_log_time_average(log_property.times, log_property.value,
-                                               splitter_times, splitter_value)
+        try:
+            log_value = calculate_log_time_average(log_property.times, log_property.value,
+                                                   splitter_times, splitter_value)
+        except RuntimeError as run_err:
+            # Sample log may not meet requirement
+            # TODO - log the error!
+            print('Failed on sample log {}. Cause: {}'.format(log_name, run_err))
+            # use current Mantid method instead
+            log_value = run_obj.getPropertyAsSingleValue(log_name)
+
     else:
         # No a split workspace
         # If a split workspace: string, boolean and others won't have time average issue
@@ -268,6 +276,8 @@ def calculate_log_time_average(log_times, log_value, splitter_times, splitter_va
         # print('Start/Stop index:', log_start_index, log_stop_index)
 
         if log_start_index == 0:
+            print('Sample log time start time:    {}'.format(log_times[0]))
+            print('Splitter star time:            {}'.format(start_time))
             raise RuntimeError('It is not expected that the run (splitter[0]) starts with no sample value recorded')
 
         # set the partial log time
