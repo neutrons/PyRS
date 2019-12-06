@@ -89,6 +89,8 @@ class SummaryGenerator(object):
         if not self._filename.endswith('.csv'):
             raise RuntimeError('Filename "{}" must end with ".csv"'.format(self._filename))
 
+        self._constant_logs = list()
+
         # To write
         self._fit_engine = None
         self._header_info_section = None
@@ -128,24 +130,21 @@ class SummaryGenerator(object):
         # header has already been put together
         with open(self._filename, 'w') as handle:
             handle.write(self._header_info_section)
-            self._write_header_constants(handle, sample_logs)  # TODO use separator and constants
+            self._write_header_constants(handle, sample_logs, tolerance)  # TODO use separator and constants
             self._write_column_names(handle, sample_logs, peak_collections)  # TODO use constants
             self._write_data(handle, sample_logs, peak_collections)  # TODO use separator and constants
 
-    def _write_header_constants(self, handle, sample_logs):
+    def _write_header_constants(self, handle, sample_logs, tolerance):
         """Write only the sample logs that are constants into the header. These should not appear in the body.
         """
-        constants = sample_logs.constant_logs  # cache value
-        stuff = dict()
-        for name in constants:
-            stuff[name] = sample_logs[name][0]
-            handle.write('# {} = {}\n'.format(name, stuff[name]))
+        self._constant_logs = sample_logs.constant_logs(tolerance)  # cache value
+        for name in self._constant_logs:
+            handle.write('# {} = {:.5g} +/- {:.2g}\n'.format(name, sample_logs[name].mean(), sample_logs[name].std()))
 
     def _write_column_names(self, handle, sample_logs, peak_collections):
         # the header line from the sample logs
-        constant_logs = sample_logs.constant_logs  # cache value
         column_names = [name for name in sample_logs.keys()
-                        if name not in constant_logs]
+                        if name not in self._constant_logs]
 
         # the contribution from each peak
         for peak_collection in peak_collections:
@@ -164,9 +163,8 @@ class SummaryGenerator(object):
         handle.write(','.join(column_names) + '\n')
 
     def _write_data(self, handle, sample_logs, peak_collections):
-        constant_logs = sample_logs.constant_logs  # cache value
         column_names = [name for name in sample_logs.keys()
-                        if name not in constant_logs]
+                        if name not in self._constant_logs]
 
         for i in range(len(sample_logs.subruns)):
             line = []

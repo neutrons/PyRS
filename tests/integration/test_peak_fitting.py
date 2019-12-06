@@ -293,7 +293,7 @@ def test_write_csv():
     sample = SampleLogs()
     sample.subruns = subruns
     sample['variable1'] = numpy.linspace(0., 100., len(subruns))
-    sample['constant1'] = numpy.zeros(len(subruns), dtype=float)
+    sample['constant1'] = numpy.linspace(1., 1.+5E-11, len(subruns))  # values less than tolerance
 
     # write things out to disk
     generator = SummaryGenerator(csv_filename)
@@ -312,7 +312,8 @@ def test_write_csv():
 # Monochromator setting
 # Calibration file
 # Hidra project file
-# Manual vs auto reduction'''.split('\n')
+# Manual vs auto reduction
+# constant1 = 1 +/- 2e-11'''.split('\n')
 
     # verify the file contents
     with open(csv_filename, 'r') as handle:
@@ -323,9 +324,6 @@ def test_write_csv():
     assert len(contents) >= len(EXPECTED_HEADER), 'Does not have full header'
     for exp, obs in zip(contents[:len(EXPECTED_HEADER)], EXPECTED_HEADER):
         assert exp == obs
-
-    # verify that the line that should be constant is
-    assert contents[len(EXPECTED_HEADER)] == '# constant1 = 0.0'
 
     # verify that the number of columns is correct
     # columns are (subruns, one log, parameter values, uncertainties, chisq)
