@@ -302,4 +302,3 @@ def calculate_log_time_average(log_times, log_value, splitter_times, splitter_va
     time_averaged = weighted_sum / total_time
 
     return time_averaged
-
