@@ -593,6 +593,8 @@ class PyHB2BReduction(object):
             vec_counts *= self._detector_mask
             masked_counts = vec_counts.sum()
             num_masked = self._detector_mask.shape[0] - self._detector_mask.sum()
+            pixel_2theta_array = pixel_2theta_array[np.where(self._detector_mask==1)[0]]
+            vec_counts = vec_counts[np.where(self._detector_mask==1)[0]]
         else:
             masked_counts = raw_event_counts
             num_masked = 0
