@@ -156,10 +156,8 @@ class FitResultTable(NTableWidget.NTableWidget):
                 else:
                     # Output is the value
                     value_i = value_i[0]
-            # END-IF in case of numpy array
 
             this_value_list.append(value_i)
-        # END-FOR
 
         # Last: peak profile
         this_value_list.append(peak_profile)
@@ -175,9 +173,6 @@ class FitResultTable(NTableWidget.NTableWidget):
             status, err_msg = self.append_row(row_value_list=this_value_list)
             if not status:
                 print('[ERROR] {}'.format(err_msg))
-        # END-IF-ELSE
-
-        return
 
     def set_peak_center_of_mass(self, row_number, com):
         """
@@ -187,8 +182,6 @@ class FitResultTable(NTableWidget.NTableWidget):
         :return:
         """
         self.update_cell_value(row_number, self._colIndexCoM, com)
-
-        return
 
     def set_peak_params(self, row_number, center, height, fwhm, intensity, chi2, profile):
         """
@@ -208,8 +201,6 @@ class FitResultTable(NTableWidget.NTableWidget):
         self.update_cell_value(row_number, self._colIndexChi2, chi2)
         self.update_cell_value(row_number, self._colIndexIntensity, intensity)
         self.update_cell_value(row_number, self._colIndexProfile, profile)
-
-        return
 
 
 class GridsStatisticsTable(NTableWidget.NTableWidget):
@@ -233,8 +224,6 @@ class GridsStatisticsTable(NTableWidget.NTableWidget):
         for i_dir, dir_name in enumerate(['e11', 'e22', 'e33']):
             self._indexDirDict[dir_name] = i_dir + 1
 
-        return
-
     def set_statistics(self, stat_dict, row_item_list):
         """
 
@@ -256,10 +245,6 @@ class GridsStatisticsTable(NTableWidget.NTableWidget):
             self.update_cell_value(i_row, self._indexItemName, item_name)
             for dir_i in stat_dict.keys():
                 self.update_cell_value(i_row, self._indexDirDict[dir_i], stat_dict[dir_i][item_name])
-            # END-FOR (dir)
-        # END-FOR (row)
-
-        return
 
     def setup(self):
         """
@@ -267,8 +252,6 @@ class GridsStatisticsTable(NTableWidget.NTableWidget):
         :return:
         """
         self.init_setup(self.TableSetupList)
-
-        return
 
 
 class GridAlignmentTable(NTableWidget.NTableWidget):
@@ -298,8 +281,6 @@ class GridAlignmentTable(NTableWidget.NTableWidget):
         for i_dir, dir_name in enumerate(['e11', 'e22', 'e33']):
             self._index_dir_dict[dir_name] = i_dir + 3
 
-        return
-
     def add_grid(self, grid_pos_x, grid_pos_y, grid_pos_z, scan_index_e11, scan_index_e22, scan_index_e33):
         """
         add to grid
@@ -320,8 +301,6 @@ class GridAlignmentTable(NTableWidget.NTableWidget):
 
         self.append_row([grid_pos_x, grid_pos_y, grid_pos_z, scan_index_e11, scan_index_e22, scan_index_e33])
 
-        return
-
     def set_grids_values(self, grid_vector, grids_value_vec_dict):
         """
 
@@ -337,7 +316,6 @@ class GridAlignmentTable(NTableWidget.NTableWidget):
             grid_pos = grid_vector[i_grid]
             param_value = grids_value_vec_dict['e11'][i_grid]
             self.append_row([grid_pos[0], grid_pos[1], grid_pos[2], param_value, None, None])
-        return
 
     def setup(self):
         """
@@ -345,8 +323,6 @@ class GridAlignmentTable(NTableWidget.NTableWidget):
         :return:
         """
         self.init_setup(self.TableSetupList)
-
-        return
 
 
 class MatchedGridsTable(NTableWidget.NTableWidget):
@@ -364,8 +340,6 @@ class MatchedGridsTable(NTableWidget.NTableWidget):
         :param parent:
         """
         super(MatchedGridsTable, self).__init__(parent)
-
-        return
 
     def add_matched_grid(self, grid_pos_x, grid_pos_y, grid_pos_z, scan_index_e11, scan_index_e22, scan_index_e33):
         """
@@ -385,16 +359,12 @@ class MatchedGridsTable(NTableWidget.NTableWidget):
 
         self.append_row([grid_pos_x, grid_pos_y, grid_pos_z, scan_index_e11, scan_index_e22, scan_index_e33])
 
-        return
-
     def setup(self):
         """
         Init setup
         :return:
         """
         self.init_setup(self.TableSetupList)
-
-        return
 
 
 class MismatchedGridsTable(NTableWidget.NTableWidget):
@@ -413,8 +383,6 @@ class MismatchedGridsTable(NTableWidget.NTableWidget):
         """
         super(MismatchedGridsTable, self).__init__(parent)
 
-        return
-
     def add_mismatched_grid(self, direction, scan_index, grid_pos_x, grid_pos_y, grid_pos_z):
         """
         add a line for mismatched grid
@@ -432,17 +400,12 @@ class MismatchedGridsTable(NTableWidget.NTableWidget):
 
         self.append_row([direction, scan_index, grid_pos_x, grid_pos_y, grid_pos_z])
 
-        return
-
     def setup(self):
         """
         Init setup
         :return:
         """
         self.init_setup(self.TableSetupList)
-
-        return
-# END-CLASS
 
 
 class ParamValueGridTable(NTableWidget.NTableWidget):
@@ -462,8 +425,6 @@ class ParamValueGridTable(NTableWidget.NTableWidget):
         """
         super(ParamValueGridTable, self).__init__(parent)
 
-        return
-
     def add_matched_grid(self, grid_pos_x, grid_pos_y, grid_pos_z, param_value_11, param_value_22, param_value_33):
         """
         add an all-direction matched grid
@@ -482,16 +443,12 @@ class ParamValueGridTable(NTableWidget.NTableWidget):
 
         self.append_row([grid_pos_x, grid_pos_y, grid_pos_z, param_value_11, param_value_22, param_value_33])
 
-        return
-
     def setup(self):
         """
         Init setup
         :return:
         """
         self.init_setup(self.TableSetupList)
-
-        return
 
     def set_user_grid_parameter_values(self, user_grid_value_dict):
         """ set the parameter values on user defined grid
@@ -507,11 +464,6 @@ class ParamValueGridTable(NTableWidget.NTableWidget):
         for i_grid, grid_pos in enumerate(grid_positions):
             grid_i = user_grid_value_dict[grid_pos]
             self.add_matched_grid(grid_pos[0], grid_pos[1], grid_pos[2], grid_i['e11'], grid_i['e22'], grid_i['e33'])
-        # END-FOR
-
-        return
-
-# END-CLASS-DEF
 
 
 class ParamValueMapAnalysisTable(NTableWidget.NTableWidget):
@@ -532,8 +484,6 @@ class ParamValueMapAnalysisTable(NTableWidget.NTableWidget):
         """
         super(ParamValueMapAnalysisTable, self).__init__(parent)
 
-        return
-
     def set_user_grid_parameter_values(self, grid_vec, mapped_param_value_array, direction):
         """ set the parameter values on user defined grid
         Note: each grid's value is given by a dict with keys (2) value (3) dir (4) scan-index
@@ -549,8 +499,6 @@ class ParamValueMapAnalysisTable(NTableWidget.NTableWidget):
         for i_grid in range(grid_vec.shape[0]):
             self.append_row([None, grid_vec[i_grid][0], grid_vec[i_grid][1], grid_vec[i_grid][2],
                              mapped_param_value_array[i_grid], direction])
-
-        return
 
     def set_raw_grid_parameter_values(self, raw_grid_value_dict):
         """
@@ -568,7 +516,6 @@ class ParamValueMapAnalysisTable(NTableWidget.NTableWidget):
             grid_i = raw_grid_value_dict[grid_pos]
             self.append_row([grid_i['scan-index'], grid_pos[0], grid_pos[1], grid_pos[2],
                              grid_i['value'], grid_i['dir']])
-        # END-FOR
 
     def reset_table(self):
         """
@@ -577,16 +524,12 @@ class ParamValueMapAnalysisTable(NTableWidget.NTableWidget):
         """
         self.remove_all_rows()
 
-        return
-
     def setup(self):
         """
         Init setup
         :return:
         """
         self.init_setup(self.TableSetupList)
-
-# END-DEF-CLASS
 
 
 class PartialMatchedGrids(NTableWidget.NTableWidget):
@@ -606,16 +549,12 @@ class PartialMatchedGrids(NTableWidget.NTableWidget):
         """
         super(PartialMatchedGrids, self).__init__(parent)
 
-        return
-
     def setup(self):
         """
         Init setup
         :return:
         """
         self.init_setup(self.TableSetupList)
-
-        return
 
 
 class PoleFigureTable(NTableWidget.NTableWidget):
@@ -655,8 +594,6 @@ class PoleFigureTable(NTableWidget.NTableWidget):
 
         self._col_index_goodness = None
 
-        return
-
     def get_detector_log_index(self, row_number):
         """
         get detector ID and scan log index of a row
@@ -685,14 +622,10 @@ class PoleFigureTable(NTableWidget.NTableWidget):
             for scan_index in sorted(scan_log_indexes_dict[det_id]):
                 self.append_row([None, None, 0., det_id, scan_index, None, None, None, None, None])
 
-        return
-
     def set_intensity(self, row_number, intensity, chi2):
         # TODO - DOC & CHECK
         self.update_cell_value(row_number, self._col_index_intensity, intensity)
         self.update_cell_value(row_number, self._col_index_goodness, chi2)
-
-        return
 
     def set_pole_figure_motors_position(self, row_number, motor_pos_dict):
         # TODO - DOC & CHECK
@@ -738,9 +671,6 @@ class PoleFigureTable(NTableWidget.NTableWidget):
 
         self._col_index_goodness = self.TableSetupList.index(('cost', 'float'))
 
-        return
-# END-DEF-CLASS()
-
 
 class RawDataTable(NTableWidget.NTableWidget):
     """
@@ -758,8 +688,6 @@ class RawDataTable(NTableWidget.NTableWidget):
 
         # Dictionary to hold some information
         self._sub_run_row_map = dict()  # [sub run] = row number
-
-        return
 
     def add_subruns_info(self, meta_data_array, clear_table=True):
         """Add information of sub runs to the table
@@ -784,9 +712,6 @@ class RawDataTable(NTableWidget.NTableWidget):
             sub_run_i = meta_data_array[0][row]
             two_theta_i = meta_data_array[1][sub_run_i]
             self._add_raw_sub_run(sub_run_i, two_theta_i)
-        # END-FOR
-
-        return
 
     def _add_raw_sub_run(self, sub_run_number, two_theta):
         """
@@ -803,16 +728,12 @@ class RawDataTable(NTableWidget.NTableWidget):
         else:
             print('[ERROR] Unable to append row due to {}'.format(error_msg))
 
-        return
-
     def setup(self):
         """
         Init setup
         :return:
         """
         self.init_setup(self.TableSetupList)
-
-        return
 
     def update_reduction_state(self, sub_run_index, reduced):
         """Update a sub run's reduction state
@@ -832,8 +753,6 @@ class RawDataTable(NTableWidget.NTableWidget):
             raise RuntimeError('Sub run {} has never been added to table'.format(sub_run_index))
         # Update
         self.update_cell_value(self._sub_run_row_map[sub_run_index], 2, reduced)
-
-        return
 
 
 class StrainStressValueTable(NTableWidget.NTableWidget):
@@ -859,8 +778,6 @@ class StrainStressValueTable(NTableWidget.NTableWidget):
 
         self._col_index_strain_dict = dict()
         self._col_index_stress_dict = dict()
-
-        return
 
     def add_grid_strain_stress(self, grid_pos, strain_matrix, stress_matrix):
         """
@@ -894,5 +811,3 @@ class StrainStressValueTable(NTableWidget.NTableWidget):
 
         for index, element_name in enumerate(['nu11', 'nu22', 'nu33']):
             self._col_index_strain_dict['s11'] = 6 + index
-
-        return

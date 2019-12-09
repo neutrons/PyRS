@@ -1,13 +1,13 @@
-import numpy as np
 import os
 from qtpy.QtWidgets import QVBoxLayout, QFileDialog, QMainWindow
+from qtpy import QtGui
+import pyqtgraph as pg
 
 from pyrs.utilities import load_ui
 from pyrs.interface.ui import qt_util
-from pyrs.interface.ui.diffdataviews import GeneralDiffDataView, DiffContourView
+from pyrs.interface.ui.diffdataviews import GeneralDiffDataView
 from pyrs.interface.ui.rstables import FitResultTable
 from pyrs.interface.ui.diffdataviews import PeakFitSetupView
-from pyrs.utilities.rs_project_file import HidraConstants
 import pyrs.interface.advpeakfitdialog
 import pyrs.interface.gui_helper
 from pyrs.interface.peak_fitting.event_handler import EventHandler
@@ -45,10 +45,6 @@ class FitPeaksWindow(QMainWindow):
         self._advanced_fit_dialog = None
 
         # set up UI
-        # self.ui = ui.ui_peakfitwindow.Ui_MainWindow()
-        # self.ui.setupUi(self)
-
-        # set up UI
         ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', 'peakfitwindow.ui'))
         self.ui = load_ui(ui_path, baseinstance=self)
 
@@ -62,13 +58,12 @@ class FitPeaksWindow(QMainWindow):
                                                                 GeneralDiffDataView)
         self.ui.graphicsView_fitResult.setEnabled(False)
         self.ui.graphicsView_fitResult.set_subplots(1, 1)
-        self.ui.graphicsView_contourView = qt_util.promote_widget(self, self.ui.graphicsView_contourView_frame,
-                                                                  DiffContourView)
-        self.ui.graphicsView_contourView.setEnabled(False)
+        self.ui.widget_contour_plot.setEnabled(False)
         self.ui.tableView_fitSummary = qt_util.promote_widget(self, self.ui.tableView_fitSummary_frame,
                                                               FitResultTable)
         self._promote_peak_fit_setup()
         self._init_widgets()
+        self._init_pyqtgraph()
 
         # set up handling
         self.ui.pushButton_loadHDF.clicked.connect(self.load_hidra_file)
@@ -83,12 +78,14 @@ class FitPeaksWindow(QMainWindow):
         self.ui.actionSave_Fit_Result.triggered.connect(self.do_save_fit_result)
         self.ui.actionAdvanced_Peak_Fit_Settings.triggered.connect(self.do_launch_adv_fit)
         self.ui.actionQuick_Fit_Result_Check.triggered.connect(self.do_make_movie)
+        self.ui.lineEdit_subruns_2dplot.returnPressed.connect(self.list_subruns_2dplot_returned)
+        self.ui.lineEdit_subruns_2dplot.textChanged.connect(self.list_subruns_2dplot_changed)
 
-        # TODO - 20180805 - Implement : pushButton_plotLogs, comboBox_detectorI
+        self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.plot_1d)
+        self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.plot_1d)
 
-        self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
-        self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.do_plot_meta_data)
-        self.ui.comboBox_2dPlotChoice.currentIndexChanged.connect(self.do_plot_2d_data)
+        self.ui.comboBox_xaxisNames_2dplot.currentIndexChanged.connect(self.plot_2d)
+        self.ui.comboBox_yaxisNames_2dplot.currentIndexChanged.connect(self.plot_2d)
 
         # tracker for sample log names and peak parameter names
         self._sample_log_name_set = set()
@@ -106,6 +103,9 @@ class FitPeaksWindow(QMainWindow):
 
         o_gui = GuiUtilities(parent=self)
         o_gui.enabled_fitting_widgets(False)
+        o_gui.enabled_1dplot_widgets(False)
+        o_gui.enabled_2dplot_widgets(False)
+        o_gui.make_visible_listsubruns_warning(False)
 
     # Menu event handler
     def browse_hdf(self):
@@ -132,7 +132,6 @@ class FitPeaksWindow(QMainWindow):
             self.individual_sub_runs()
         else:
             self.list_sub_runs()
-            print("here")
 
     def individual_sub_runs(self):
         self.check_subRunsDisplayMode()
@@ -150,13 +149,28 @@ class FitPeaksWindow(QMainWindow):
         o_plot = Plot(parent=self)
         o_plot.plot_scan()
 
+    def list_subruns_2dplot_returned(self):
+        o_handle = EventHandler(parent=self)
+        o_handle.list_subruns_2dplot_returned()
+
+    def list_subruns_2dplot_changed(self):
+        o_handle = EventHandler(parent=self)
+        o_handle.list_subruns_2dplot_changed()
+
+    def plot_1d(self):
+        print("in here plot_1d")
+        o_plot = Plot(parent=self)
+        o_plot.plot_1d()
+
+    def plot_2d(self):
+        raise NotImplementedError("Not implemented yet, it's coming!")
+
     def _promote_peak_fit_setup(self):
         # 2D detector view
         curr_layout = QVBoxLayout()
         self.ui.frame_PeakView.setLayout(curr_layout)
         self._ui_graphicsView_fitSetup = PeakFitSetupView(self)
         self._ui_graphicsView_fitSetup.setEnabled(False)
-
         curr_layout.addWidget(self._ui_graphicsView_fitSetup)
 
     def _init_widgets(self):
@@ -165,11 +179,6 @@ class FitPeaksWindow(QMainWindow):
         :return:
         """
         self.ui.pushButton_loadHDF.setEnabled(False)
-
-        # combo boxes
-        self.ui.comboBox_2dPlotChoice.clear()
-        self.ui.comboBox_2dPlotChoice.addItem('Raw Data')
-        self.ui.comboBox_2dPlotChoice.addItem('Fitted')
 
         self.ui.splitter_4.setStyleSheet(VERTICAL_SPLITTER)
         self.ui.splitter_4.setSizes([100, 0])
@@ -181,6 +190,19 @@ class FitPeaksWindow(QMainWindow):
         # status bar
         self.setStyleSheet("QStatusBar{padding-left:8px;color:green;}")
 
+        # warning icon
+        self.ui.listsubruns_warning_icon.setPixmap(QtGui.QPixmap(":/fitting/warning_icon.png"))
+
+    def _init_pyqtgraph(self):
+        image_view = pg.ImageView()
+        image_view.ui.roiBtn.hide()
+        image_view.ui.menuBtn.hide()
+
+        vertical_layout = QVBoxLayout()
+        vertical_layout.addWidget(image_view)
+
+        self.ui.widget_contour_plot.setLayout(vertical_layout)
+
     def do_launch_adv_fit(self):
         """
         launch the dialog window for advanced peak fitting setup and control
@@ -190,26 +212,6 @@ class FitPeaksWindow(QMainWindow):
             self._advanced_fit_dialog = pyrs.interface.advpeakfitdialog.SmartPeakFitControlDialog(self)
 
         self._advanced_fit_dialog.show()
-
-    def _set_sample_logs_for_plotting(self, sample_log_names):
-        """ There are 2 combo boxes containing sample logs' names for plotting.  Clear the existing ones
-        and add the sample log names specified to them
-        :param sample_log_names:
-        :return:
-        """
-        self._sample_log_names_mutex = True
-        self.ui.comboBox_xaxisNames.clear()
-        self.ui.comboBox_yaxisNames.clear()
-
-        # Maintain a copy of sample logs!
-        self._sample_log_names = list(set(sample_log_names))
-        self._sample_log_names.sort()
-
-        for sample_log in sample_log_names:
-            self.ui.comboBox_xaxisNames.addItem(sample_log)
-            self.ui.comboBox_yaxisNames.addItem(sample_log)
-            self._sample_log_name_set.add(sample_log)
-        self._sample_log_names_mutex = False
 
     def do_make_movie(self):
         """
@@ -245,47 +247,6 @@ class FitPeaksWindow(QMainWindow):
         """
         # TODO - #84 - Implement this method
         return
-
-    def do_plot_meta_data(self):
-        """
-        plot the meta/fit result data on the right side GUI
-        :return:
-        """
-        if self._sample_log_names_mutex:
-            return
-
-        # if self.ui.checkBox_keepPrevPlotRight.isChecked() is False:
-        # TODO - Shall be controlled by a more elegant mechanism
-        self.ui.graphicsView_fitResult.reset_viewer()
-
-        # get the sample log/meta data name
-        x_axis_name = str(self.ui.comboBox_xaxisNames.currentText())
-        y_axis_name = str(self.ui.comboBox_yaxisNames.currentText())
-
-        # Return if sample logs combo box not set
-        if x_axis_name == '' and y_axis_name == '':
-            return
-
-        if x_axis_name in self._function_param_name_set and y_axis_name == HidraConstants.SUB_RUNS:
-            vec_y, vec_x = self.get_function_parameter_data(x_axis_name)
-        elif y_axis_name in self._function_param_name_set and x_axis_name == HidraConstants.SUB_RUNS:
-            vec_x, vec_y = self.get_function_parameter_data(y_axis_name)
-        elif x_axis_name in self._function_param_name_set or y_axis_name in self._function_param_name_set:
-            pyrs.interface.gui_helper.pop_message(self, 'It has not considered how to plot 2 function parameters '
-                                                        '{} and {} against each other'
-                                                        ''.format(x_axis_name, y_axis_name),
-                                                        message_type='error')
-            return
-        else:
-            vec_x = self.get_meta_sample_data(x_axis_name)
-            vec_y = self.get_meta_sample_data(y_axis_name)
-        # END-IF-ELSE
-
-        if vec_x is None or vec_y is None:
-            raise RuntimeError('{} or {} cannot be None ({}, {})'
-                               ''.format(x_axis_name, y_axis_name, vec_x, vec_y))
-
-        self.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y, x_axis_name, y_axis_name)
 
     def do_save_as(self):
         """ export the peaks to another file
@@ -368,55 +329,6 @@ class FitPeaksWindow(QMainWindow):
             err_msg = 'Smart peak fitting with order {} failed due to {}' \
                       ''.format(peak_profiles_order, run_err)
             pyrs.interface.gui_helper.pop_message(self, err_msg, 'error')
-
-    def get_function_parameter_data(self, param_name):
-        """ get the parameter function data
-        :param param_name:
-        :return:
-        """
-        # get data key
-        if self._project_name is None:
-            pyrs.interface.gui_helper.pop_message(self, 'No data loaded', 'error')
-            return
-
-        param_names, param_data = self._core.get_peak_fitting_result(self._project_name, return_format=dict,
-                                                                     effective_parameter=False)
-
-        print('[DB...BAT] Param Names: {}'.format(param_names))
-        sub_run_vec = param_data[HidraConstants.SUB_RUNS]
-        param_value_2darray = param_data[param_name]
-        print('[DB...BAT] 2D array shape: {}'.format(param_value_2darray.shape))
-
-        return sub_run_vec, param_value_2darray[:, 0]
-
-    def get_meta_sample_data(self, name):
-        """
-        get meta data to plot.
-        the meta data can contain sample log data and fitted peak parameters
-        :param name:
-        :return:
-        """
-        # get data key
-        if self._project_name is None:
-            pyrs.interface.gui_helper.pop_message(self, 'No data loaded', 'error')
-            return
-
-        sample_log_names = self._core.reduction_service.get_sample_logs_names(self._project_name, True)
-
-        if name == HidraConstants.SUB_RUNS:
-            # sub run vector
-            value_vector = np.array(self._core.reduction_service.get_sub_runs(self._project_name))
-        elif name in sample_log_names:
-            # sample log but not sub-runs
-            value_vector = self._core.reduction_service.get_sample_log_value(self._project_name, name)
-        elif name == 'Center of mass':
-            # center of mass is different????
-            # TODO - #84 - Make sure of it!
-            value_vector = self._core.get_peak_center_of_mass(self._project_name)
-        else:
-            value_vector = None
-
-        return value_vector
 
     def save_data_for_mantid(self, data_key, file_name):
         """

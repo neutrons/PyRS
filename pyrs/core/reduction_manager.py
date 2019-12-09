@@ -54,8 +54,6 @@ class HB2BReductionManager(object):
         # Outputs
         self._output_directory = None
 
-        return
-
     @staticmethod
     def _generate_ws_name(file_name, is_nexus):
         ws_name = os.path.basename(file_name).split('.')[0]
@@ -164,7 +162,7 @@ class HB2BReductionManager(object):
         checkdatatypes.check_string_variable('Session name', session_name, self._session_dict.keys())
         workspace = self._session_dict[session_name]
 
-        return workspace.get_2theta(sub_run)
+        return workspace.get_detector_2theta(sub_run)
 
     def get_detector_counts(self, session_name, sub_run):
         """ Get the raw counts from detector of the specified sub run
@@ -205,8 +203,6 @@ class HB2BReductionManager(object):
         self._curr_workspace = workspaces.HidraWorkspace()
         self._curr_session_name = session_name
         self._session_dict[session_name] = self._curr_workspace
-
-        return
 
     # TODO - #84 - load_calibrated_instrument IS NOT IMPLEMENTED YET!
     def load_hidra_project(self, project_file_name, load_calibrated_instrument, load_detectors_counts,
@@ -257,8 +253,6 @@ class HB2BReductionManager(object):
 
         instrument = calibration_file_io.import_instrument_setup(instrument_file_name)
         self._curr_workspace.set_instrument(instrument)
-
-        return
 
     def load_mask_file(self, mask_file_name):
         """ Load mask file to 1D array and auxiliary information
@@ -369,8 +363,6 @@ class HB2BReductionManager(object):
 
         self._geometry_calibration = geometry_calibration
 
-        return
-
     def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, bin_size_2theta,
                                 use_pyrs_engine, mask,
                                 sub_run_list, apply_vanadium_calibration=False):
@@ -456,9 +448,6 @@ class HB2BReductionManager(object):
                                             mask_vec_tuple=(mask_id, mask_vec),
                                             resolution_2theta=bin_size_2theta,
                                             eff_array=eff_array)
-        # END-FOR
-
-        return
 
     # NOTE: Refer to compare_reduction_engines_tst
     def reduce_sub_run_diffraction(self, workspace, sub_run, geometry_calibration, use_mantid_engine,
@@ -509,7 +498,7 @@ class HB2BReductionManager(object):
         raw_count_vec = workspace.get_detector_counts(sub_run)
 
         # Retrieve 2-theta and L2 from loaded workspace (DAS)
-        two_theta = workspace.get_2theta(sub_run)
+        two_theta = workspace.get_detector_2theta(sub_run)
         l2 = workspace.get_l2(sub_run)
         # Convert 2-theta from DAS convention to Mantid/PyRS convention
         print('[INFO] User specified 2theta = {} is converted to Mantid 2theta = {}'
@@ -556,8 +545,6 @@ class HB2BReductionManager(object):
         workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_centers, hist)
         self._last_reduction_engine = reduction_engine
 
-        return
-
     def save_reduced_diffraction(self, session_name, output_name):
         """
         Save the reduced diffraction data to file
@@ -582,8 +569,6 @@ class HB2BReductionManager(object):
         # Close
         project_file.save()
 
-        return
-
     def set_mantid_idf(self, idf_name):
         """
         set the IDF file to reduction engine
@@ -596,8 +581,6 @@ class HB2BReductionManager(object):
 
         self._mantid_idf = idf_name
 
-        return
-
     def set_output_dir(self, output_dir):
         """
         set the directory for output data
@@ -607,7 +590,3 @@ class HB2BReductionManager(object):
         checkdatatypes.check_file_name(output_dir, True, True, True, 'Output directory')
 
         self._output_directory = output_dir
-
-        return
-
-# END-CLASS-DEF

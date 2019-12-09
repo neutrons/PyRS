@@ -121,8 +121,8 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         return peak_param_names, peak_param_values
 
     def fit_peaks(self, peak_tag, sub_run_range, peak_function_name, background_function_name,
-                  peak_center, peak_range):
-        """Fit peaks
+                  peak_center, peak_range, max_chi2=1E3, max_peak_shift=2, min_intensity=None):
+        """Fit 1 peak on multiple sub runs
 
         Fit peaks given from sub run range and with option to calculate peak center in d-spacing
 
@@ -143,6 +143,12 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
             Center workspace name, Center workspace, peak centers for each spectrum, peak center (universal)
         peak_range: (float, float)
             Peak range in 2-theta
+        max_chi2 : float
+            maximum allowed chi2
+        max_peak_shift : float or None
+            maximum allowed peak shift from specified peak position
+        min_intensity : float or None
+            minimum allowed peak intensity
 
         Returns
         -------
@@ -243,11 +249,18 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         fitted_peak = self._set_profile_parameters_values_from_fitting(peak_tag, sub_runs, peak_function_name,
                                                                        background_function_name)
 
+        # Apply criteria
+        fitted_peak.apply_fitting_cost_criteria(max_chi2)
+        if min_intensity is not None:
+            fitted_peak.apply_intensity_criteria(min_intensity)
+        if isinstance(peak_center, (float, int)) and max_peak_shift is not None:
+            fitted_peak.apply_peak_position_criteria(peak_center, max_peak_shift)
+
         return fitted_peak
 
     # TODO FIXME - peak_tag, peak_center and peak_range will be replaced by a PeakObject class (namedtuple)
     def fit_multiple_peaks(self, sub_run_range, peak_function_name, background_function_name, peak_tag_list,
-                           peak_center_list, peak_range_list):
+                           peak_center_list, peak_range_list, max_chi2=1E3, max_peak_shift=2, min_intensity=None):
         """Fit multiple peaks on multiple sub runs
 
         Parameters
@@ -265,6 +278,12 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
             list of float for peak centers
         peak_range_list : List
             list of 2-tuple for each peak's range in 2-theta
+        max_chi2 : float
+            maximum allowed chi2
+        max_peak_shift : float or None
+            maximum allowed peak shift from specified peak position
+        min_intensity : float or None
+            minimum allowed peak intensity
 
         Returns
         -------
@@ -283,7 +302,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
             # fit peak
             try:
                 pl = self.fit_peaks(peak_tag_i, sub_run_range, peak_function_name, background_function_name,
-                                    peak_center, peak_range)
+                                    peak_center, peak_range, max_chi2, max_peak_shift, min_intensity)
                 peak_collection_dict[peak_tag_i] = pl
             except RuntimeError as run_err:
                 error_message += 'Failed to fit (tag) {} due to {}\n'.format(peak_tag_i, run_err)
@@ -319,10 +338,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
             num_sub_runs = table_ws.rowCount()
 
             # Set the structured numpy array
-            data_type_list = list()
-            for param_name in table_col_names:
-                data_type_list.append((param_name, np.float32))
-
+            data_type_list = [(name, np.float32) for name in table_col_names]
             struct_array = np.zeros(num_sub_runs, dtype=data_type_list)
 
             # get fitted parameter value
@@ -354,33 +370,33 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         """
         return np.zeros(shape=(1000,))
 
-    def get_calculated_peak(self, sub_run):
-        """Get the "model" peak, calculated from fitted parameters
-
-        Parameters
-        ----------
-        sub_run: int
-            sub run number
-
-        Returns
-        -------
-        ndarray, ndarray
-            vector X, vector Y
-        """
-        if self._model_matrix_ws is None:
-            raise RuntimeError('There is no fitting result!')
-
-        # Check sub run: just a positive integer
-        checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
-
-        # Convert to workspace
-        ws_index = int(self._hidra_wksp.get_spectrum_index(sub_run))
-
-        # Get data
-        vec_x = self._model_matrix_ws.readX(ws_index)
-        vec_y = self._model_matrix_ws.readY(ws_index)
-
-        return vec_x, vec_y
+    # def calculate_fitted_peaks(self, sub_run_number):
+    #     """Get the "model" peak, calculated from fitted parameters
+    #
+    #     Parameters
+    #     ----------
+    #     sub_run: int
+    #         sub run number
+    #
+    #     Returns
+    #     -------
+    #     ndarray, ndarray
+    #         vector X, vector Y
+    #     """
+    #     if self._model_matrix_ws is None:
+    #         raise RuntimeError('There is no fitting result!')
+    #
+    #     # Check sub run: just a positive integer
+    #     checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
+    #
+    #     # Convert to workspace
+    #     ws_index = int(self._hidra_wksp.get_spectrum_index(sub_run))
+    #
+    #     # Get data
+    #     vec_x = self._model_matrix_ws.readX(ws_index)
+    #     vec_y = self._model_matrix_ws.readY(ws_index)
+    #
+    #     return vec_x, vec_y
 
     def get_center_of_mass_workspace_name(self):
         """

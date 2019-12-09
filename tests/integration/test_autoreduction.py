@@ -31,7 +31,7 @@ def convertNeXusToProject(nexusfile, projectfile, skippable):
         os.remove(projectfile)
 
     converter = NeXusConvertingApp(nexusfile)
-    converter.convert()
+    converter.convert(start_time=0)
     converter.save(projectfile)
 
     # tests for the created file
@@ -67,13 +67,42 @@ def test_nexus_to_project(nexusfile, projectfile):
     os.remove(projectfile)
 
 
+@pytest.mark.parametrize('nexus_file, project_file',
+                         [('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1086.nxs.h5', 'HB2B_1086.h5')],
+                         ids=['HB2B_1086_SplitLog'])
+def test_split_log(nexus_file, project_file):
+    """Test converting the nexus file to a project file
+
+    With detailed check on the sample log values that are retrieved from split workspace
+
+    Parameters
+    ----------
+    nexus_file
+    project_file
+
+    Returns
+    -------
+
+    """
+    # Convert the NeXus to project
+    convertNeXusToProject(nexus_file, project_file, skippable=True)
+
+    # Verification
+
+    return
+
+
+def test_hello_world():
+    # Convert the NeXus to project
+    nexus_file = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1086.nxs.h5'
+    project_file = 'HB2B_1086.h5'
+    convertNeXusToProject(nexus_file, project_file, skippable=True)
+
+
 def test_nexus_to_subrun():
     nexusfile = 'data/HB2B_938.nxs.h5'  # A good peak
     projectfile = 'HB2B_938.h5'
-
     convertNeXusToProject(nexusfile, projectfile, skippable=False)
-
-    # TODO more specific checks
 
 
 def test_nexus_to_powder():

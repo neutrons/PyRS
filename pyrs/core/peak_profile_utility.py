@@ -514,6 +514,86 @@ From here are a list of static method of peak profiles
 """
 
 
+def calculate_profile(peak_type, background_type, vec_x, param_value_dict, peak_range):
+    """Calculate peak and background profile of a given set of NATIVE peak parameters
+
+    Parameters
+    ----------
+    peak_type
+    background_type : BackgroundFunction or str
+        Background function (type)
+    vec_x
+    param_value_dict : dict
+        dictionary with key as peak and background function native parameters name
+    peak_range : integer or float
+        range (R) is equal N * FWHM
+        Then calculated range will be peak center +/- R
+
+    Returns
+    -------
+    numpy.ndarray
+        1D array as calculated intensity
+
+    """
+    # Calculate peak range
+    if peak_type == str(PeakShape.GAUSSIAN):
+        # Gaussian: ['Height', 'PeakCentre', 'Sigma']
+        peak_center = param_value_dict['PeakCentre']
+        fwhm = Gaussian.cal_fwhm(param_value_dict['Sigma'])
+
+    elif peak_type == str(PeakShape.PSEUDOVOIGT):
+        # PseudoVoigt: ['Mixing', 'Intensity', 'PeakCentre', 'FWHM']
+        peak_center = param_value_dict['PeakCentre']
+        fwhm = param_value_dict['FWHM']
+
+    else:
+        # Not supported
+        raise RuntimeError('Peak type {} is not supported'.format(peak_type))
+
+    left_x = peak_center - peak_range * fwhm
+    right_x = peak_center + peak_range * fwhm
+
+    left_x_index = np.abs(vec_x - left_x).argmin()
+    right_x_index = np.abs(vec_x - right_x).argmin()
+
+    # Init Y
+    vec_intensity = np.zeros_like(vec_x)
+
+    # Calculate peak range
+    if peak_type == str(PeakShape.GAUSSIAN):
+        # Gaussian: ['Height', 'PeakCentre', 'Sigma']
+        vec_intensity[left_x_index:right_x_index] = gaussian(vec_x[left_x_index:right_x_index],
+                                                             param_value_dict['Height'],
+                                                             param_value_dict['Sigma'],
+                                                             param_value_dict['PeakCentre'])
+
+    elif peak_type == str(PeakShape.PSEUDOVOIGT):
+        # PseudoVoigt: ['Mixing', 'Intensity', 'PeakCentre', 'FWHM']
+        vec_intensity[left_x_index:right_x_index] = pseudo_voigt(vec_x[left_x_index:right_x_index],
+                                                                 param_value_dict['Intensity'],
+                                                                 param_value_dict['FWHM'],
+                                                                 param_value_dict['Mixing'],
+                                                                 param_value_dict['PeakCentre'])
+
+    else:
+        # Not supported
+        raise RuntimeError('Peak type {} is not supported'.format(peak_type))
+
+    # Calculate background
+    if str(background_type) == str(BackgroundFunction.LINEAR):
+        # Linear background
+        bkgd_i = quadratic_background(vec_x[left_x_index:right_x_index],
+                                      b0=param_value_dict['A0'],
+                                      b1=param_value_dict['A1'],
+                                      b2=0., b3=0.)
+        vec_intensity[left_x_index:right_x_index] += bkgd_i
+
+    else:
+        raise RuntimeError('Background type {} is not supported'.format(background_type))
+
+    return vec_intensity
+
+
 def gaussian(x, a, sigma, x0):
     """
     Gaussian with linear background
@@ -584,6 +664,11 @@ def quadratic_background(x, b0, b1, b2, b3):
     :param b3:
     :return:
     """
+    print('Bug!')
+    print(x)
+    print(b0)
+    print(b1)
+
     return b0 + b1 * x + b2 * x ** 2 + b3 * x ** 3
 
 
