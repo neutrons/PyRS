@@ -96,7 +96,8 @@ class PeakFittingTest(object):
         :return:
         """
         # TODO - #81 NOW - Implement get_peak_fitting_result()
-        peak_name_list, peak_params_matrix = \
+        # first return is `peak_name_list`
+        _, peak_params_matrix = \
             self._reduction_controller.get_peak_fitting_result(self._project_name, return_format=numpy.ndarray,
                                                                effective_parameter=show_effective_params)
         # Plot peak width
@@ -343,46 +344,70 @@ def test_write_csv():
 
 
 # FIXME - Add a new 2 peaks 3 sub run 1017???
-@pytest.mark.parametrize('project_file_name, csv_file_name',
+@pytest.mark.parametrize('project_file_name, csv_filename',
                          [('/HFIR/HB2B/shared/PyRS/HB2B_1065_Peak.h5', 'HB2B_938.csv')],
                          # [('data/HB2B_938_peak.h5', 'HB2B_938.csv')],
                          ids=['HB2B_938CSV'])
-def xtest_write_csv_from_project(project_file_name, csv_file_name):
+def test_write_csv_from_project(project_file_name, csv_filename):
     """Test the method to export CSV file
     """
+    EXPECTED_NUM_SUBRUNS = 99
+
     # load project file
     assert os.path.exists(project_file_name), 'Project file {} does not exist'.format(project_file_name)
     project = HidraProjectFile(project_file_name)
 
     # get information from the project file
     peak_tags = project.read_peak_tags()
-    print 'peak_tags', peak_tags
+    peak_collections = [project.read_peak_parameters(tag) for tag in peak_tags]  # all tags
+    sample_logs = project.read_sample_logs()
+    assert sample_logs.subruns.size == EXPECTED_NUM_SUBRUNS  # just as a quick check
 
-    # put together output CSV file
-    generator = SummaryGenerator(csv_file_name)
-    generator.setHeaderInformation(dict())
-    # add all of the peaks
-    for tag in peak_tags:
-        peak_params = project.read_peak_parameters(tag)
-        print '>>>', peak_params, '<<<'
-        print peak_params.parameters.dtype
-        print '----------'
-        print peak_params.parameters.dtype.fields.keys()
-        print '----------'
-        field_name = peak_params.parameters.dtype.fields.keys()[-1]
-        print field_name, peak_params.parameters[field_name]
-        print '----------'
-        print dir(peak_params.parameters.dtype)
-        print '----------'
-        generator.addPeak(tag, peak_params)
-    # finally write the file
-    generator.write_csv()
+    # write out the csv file
+    generator = SummaryGenerator(csv_filename)
+    generator.setHeaderInformation(dict())  # means empty header
+    generator.write_csv(sample_logs, peak_collections)
 
-    # header_values, header_title, log_tup_list)
-    # generator.export_to_csv(peak_fit_engine, csv_file_name) # fit_engine not set
-    assert False, 'stopping'
+    # testing
+    assert os.path.exists(csv_filename), '{} was not created'.format(csv_filename)
 
-    # controller.export_summary(peak_tags[0], csv_file_name)
+    EXPECTED_HEADER = '''# IPTS number
+# Run
+# Scan title
+# Sample name
+# Item number
+# HKL phase
+# Strain direction
+# Monochromator setting
+# Calibration file
+# Hidra project file
+# Manual vs auto reduction
+# missing: S1width, S1height, S1distance, RadialDistance
+# chi = 0 +/- 0
+# phi = 0 +/- 0
+# omega = 135 +/- 0'''.split('\n')
+
+    # verify the file contents
+    with open(csv_filename, 'r') as handle:
+        # read in the file and remove whitespace
+        contents = [line.strip() for line in handle.readlines()]
+
+    # verify exact match on the header
+    for exp, obs in zip(contents[:len(EXPECTED_HEADER)], EXPECTED_HEADER):
+        assert exp == obs
+
+    # verify the column headers
+    assert contents[len(EXPECTED_HEADER)].startswith('sub-run,vx,vy,vz,')
+    assert contents[len(EXPECTED_HEADER)].endswith(',311_chisq')
+
+    assert len(contents) == len(EXPECTED_HEADER) + 1 + EXPECTED_NUM_SUBRUNS, 'Does not have full body'
+    # verify that the number of columns is correct
+    # columns are (subruns, seven logs, parameter values, uncertainties, chisq)
+    for line in contents[len(EXPECTED_HEADER) + 1:]:  # skip past header and constant log
+        assert len(line.split(',')) == 1 + 7 + 7 * 2 + 1
+
+    # cleanup
+    os.remove(csv_filename)
 
 
 if __name__ == '__main__':
