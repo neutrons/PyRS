@@ -298,8 +298,7 @@ def test_write_csv():
 
     # write things out to disk
     generator = SummaryGenerator(csv_filename,
-                                 log_list={'variable1': 'scan_variable',
-                                           'constant1': 'constant1', 'missing1': 'missing1'})
+                                 log_list=['variable1', 'constant1', 'missing1'])
     generator.setHeaderInformation(dict())  # means empty header
 
     generator.write_csv(sample, [peaks])
@@ -330,7 +329,7 @@ def test_write_csv():
         assert exp == obs
 
     # verify the column headers
-    assert contents[len(EXPECTED_HEADER)].startswith('sub-run,scan_variable,fake_Center,')
+    assert contents[len(EXPECTED_HEADER)].startswith('sub-run,variable1,fake_Center,')
     assert contents[len(EXPECTED_HEADER)].endswith(',fake_chisq')
 
     assert len(contents) == len(EXPECTED_HEADER) + 1 + len(subruns), 'Does not have full body'

@@ -17,20 +17,8 @@ DEFAULT_HEADER_TITLES = [('IPTS number', 'ipts'),
                          ('Manual vs auto reduction', 'reduction')]
 
 # Default field for values - log_name:csv_name
-DEFAULT_BODY_TITLES = {'vx': 'vx',
-                       'vy': 'vy',
-                       'vz': 'vz',
-                       'sx': 'sx',
-                       'sy': 'sy',
-                       'sz': 'sz',
-                       'phi': 'phi',
-                       'chi': 'chi',
-                       'omega': 'omega',
-                       '2theta': '2theta',
-                       'S1width': 'S1_width',
-                       'S1height': 'S1_height',
-                       'S1distance': 'S1_distance',
-                       'RadialDistance': 'radial_distance'}
+DEFAULT_BODY_TITLES = ['vx', 'vy', 'vz', 'sx', 'sy', 'sz', 'phi', 'chi', 'omega', '2theta', 'S1width',
+                       'S1height', 'S1distance', 'RadialDistance']
 
 
 class SummaryGenerator(object):
@@ -149,7 +137,7 @@ class SummaryGenerator(object):
         self._constant_logs = sample_logs.constant_logs(tolerance)
 
         # loop through all of the requested logs and classify as present or missing
-        for logname in self._sample_log_list.keys():
+        for logname in self._sample_log_list:
             if logname in sample_logs:
                 self._present_logs.append(logname)
             else:
@@ -167,7 +155,7 @@ class SummaryGenerator(object):
 
     def _write_column_names(self, handle, peak_collections):
         # the header line from the sample logs
-        column_names = [self._sample_log_list[name] for name in self._present_logs
+        column_names = [name for name in self._present_logs
                         if name not in self._constant_logs]
 
         # the contribution from each peak
