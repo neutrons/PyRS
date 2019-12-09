@@ -277,15 +277,11 @@ def test_write_csv():
     # create a PeakCollection
     gaussian = PeakShape.GAUSSIAN
     linear = BackgroundFunction.LINEAR
-    total_params = len(gaussian.native_parameters) + len(linear.native_parameters)
 
     subruns = [1, 2, 3]
     data_type = [(name, numpy.float32) for name in gaussian.native_parameters + linear.native_parameters]
-    data = numpy.zeros(len(subruns), dtype=data_type)
-    error = numpy.zeros(len(subruns), dtype=data_type)
-    for i in range(len(subruns)):
-        data[i] = numpy.arange(total_params)
-        error[i] = 2. * numpy.arange(total_params)
+    data = numpy.zeros(len(subruns), dtype=data_type)  # doesn't matter what the values are
+    error = numpy.zeros(len(subruns), dtype=data_type)  # doesn't matter what the values are
 
     peaks = PeakCollection('fake', gaussian, linear)
     peaks.set_peak_fitting_values(subruns, data, error, [10., 20., 30.])
@@ -343,35 +339,7 @@ def test_write_csv():
     os.remove(csv_filename)
 
 
-# FIXME - Add a new 2 peaks 3 sub run 1017???
-@pytest.mark.parametrize('project_file_name, csv_filename',
-                         [('/HFIR/HB2B/shared/PyRS/HB2B_1065_Peak.h5', 'HB2B_938.csv')],
-                         # [('data/HB2B_938_peak.h5', 'HB2B_938.csv')],
-                         ids=['HB2B_938CSV'])
-def test_write_csv_from_project(project_file_name, csv_filename):
-    """Test the method to export CSV file
-    """
-    EXPECTED_NUM_SUBRUNS = 99
-
-    # load project file
-    assert os.path.exists(project_file_name), 'Project file {} does not exist'.format(project_file_name)
-    project = HidraProjectFile(project_file_name)
-
-    # get information from the project file
-    peak_tags = project.read_peak_tags()
-    peak_collections = [project.read_peak_parameters(tag) for tag in peak_tags]  # all tags
-    sample_logs = project.read_sample_logs()
-    assert sample_logs.subruns.size == EXPECTED_NUM_SUBRUNS  # just as a quick check
-
-    # write out the csv file
-    generator = SummaryGenerator(csv_filename)
-    generator.setHeaderInformation({'project': '/some/place/random.h5'})  # only set one value
-    generator.write_csv(sample_logs, peak_collections)
-
-    # testing
-    assert os.path.exists(csv_filename), '{} was not created'.format(csv_filename)
-
-    EXPECTED_HEADER = '''# IPTS number = 22731
+EXPECTED_HEADER_1065 = '''# IPTS number = 22731
 # Run = 1065
 # Scan title = A boring axis move
 # Sample name
@@ -387,24 +355,75 @@ def test_write_csv_from_project(project_file_name, csv_filename):
 # phi = 0 +/- 0
 # omega = 135 +/- 0'''.split('\n')
 
+EXPECTED_HEADER_938 = '''# IPTS number = 22731
+# Run = 938
+# Scan title = Testing
+# Sample name
+# Item number
+# HKL phase
+# Strain direction = ND
+# Monochromator setting
+# Calibration file
+# Hidra project file = /some/place/random.h5
+# Manual vs auto reduction
+# missing: S1width, S1height, S1distance, RadialDistance
+# sx = 0.00073674 +/- 0
+# chi = 0 +/- 0
+# phi = 0 +/- 0
+# omega = 0 +/- 0
+# sz = 3.8844 +/- 0
+# sy = 0.00057072 +/- 0
+# 2theta = 90.001 +/- 0'''.split('\n')
+
+
+@pytest.mark.parametrize('project_file_name, csv_filename, expected_header, num_subruns, num_logs,'
+                         ' startswith, endswith',
+                         [('/HFIR/HB2B/shared/PyRS/HB2B_1065_Peak.h5', 'HB2B_1065.csv', EXPECTED_HEADER_1065, 99, 7,
+                           'sub-run,vx,vy,vz,', ',311_chisq'),
+                          ('data/HB2B_938_peak.h5', 'HB2B_938.csv', EXPECTED_HEADER_938, 1, 3,
+                           'sub-run,vx,vy,vz,Si111_Center', ',Si111_chisq')],
+                         ids=['HB2B_1065_CSV', 'HB2B_938_CSV'])
+def test_write_csv_from_project(project_file_name, csv_filename, expected_header, num_subruns, num_logs,
+                                startswith, endswith):
+    """Test the method to export CSV file
+    """
+    # load project file
+    if not os.path.exists(project_file_name):
+        pytest.skip('Project file {} does not exist'.format(project_file_name))
+    project = HidraProjectFile(project_file_name)
+
+    # get information from the project file
+    peak_tags = project.read_peak_tags()
+    peak_collections = [project.read_peak_parameters(tag) for tag in peak_tags]  # all tags
+    sample_logs = project.read_sample_logs()
+    assert sample_logs.subruns.size == num_subruns  # just as a quick check
+
+    # write out the csv file
+    generator = SummaryGenerator(csv_filename)
+    generator.setHeaderInformation({'project': '/some/place/random.h5'})  # only set one value
+    generator.write_csv(sample_logs, peak_collections)
+
+    # testing
+    assert os.path.exists(csv_filename), '{} was not created'.format(csv_filename)
+
     # verify the file contents
     with open(csv_filename, 'r') as handle:
         # read in the file and remove whitespace
         contents = [line.strip() for line in handle.readlines()]
 
     # verify exact match on the header
-    for exp, obs in zip(contents[:len(EXPECTED_HEADER)], EXPECTED_HEADER):
+    for exp, obs in zip(contents[:len(expected_header)], expected_header):
         assert exp == obs
 
     # verify the column headers
-    assert contents[len(EXPECTED_HEADER)].startswith('sub-run,vx,vy,vz,')
-    assert contents[len(EXPECTED_HEADER)].endswith(',311_chisq')
+    assert contents[len(expected_header)].startswith(startswith)
+    assert contents[len(expected_header)].endswith(endswith)
 
-    assert len(contents) == len(EXPECTED_HEADER) + 1 + EXPECTED_NUM_SUBRUNS, 'Does not have full body'
+    assert len(contents) == len(expected_header) + 1 + num_subruns, 'Does not have full body'
     # verify that the number of columns is correct
     # columns are (subruns, seven logs, parameter values, uncertainties, chisq)
-    for line in contents[len(EXPECTED_HEADER) + 1:]:  # skip past header and constant log
-        assert len(line.split(',')) == 1 + 7 + 7 * 2 + 1
+    for line in contents[len(expected_header) + 1:]:  # skip past header and constant log
+        assert len(line.split(',')) == 1 + num_logs + 7 * 2 + 1
 
     # cleanup
     os.remove(csv_filename)
