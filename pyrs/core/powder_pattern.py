@@ -46,6 +46,9 @@ class ReductionApp(object):
         if configuration_file.lower().endswith('.h5'):
             # this returns a dict
             geometry_config = calibration_file_io.import_calibration_info_file(configuration_file)
+        elif configuration_file.lower().endswith('.json'):
+            # this returns a AnglerCameraDetectorShift
+            geometry_config = calibration_file_io.read_calibration_json_file(configuration_file)[0]
         else:
             # this returns a AnglerCameraDetectorShift
             geometry_config = calibration_file_io.import_calibration_ascii_file(configuration_file)
@@ -110,8 +113,13 @@ class ReductionApp(object):
         # depending on the value of this thing that is named like it is a bool
         geometry_calibration = False
         if calibration_file is not None:
-            geometry_calibration =\
-                calibration_file_io.import_calibration_ascii_file(geometry_file_name=calibration_file)
+
+            if calibration_file.lower().endswith('.json'):
+                geometry_calibration =\
+                    calibration_file_io.read_calibration_json_file(calibration_file_name=calibration_file)
+            else:
+                geometry_calibration =\
+                    calibration_file_io.import_calibration_ascii_file(geometry_file_name=calibration_file)
         # END-IF
 
         # mask

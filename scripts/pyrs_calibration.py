@@ -1,9 +1,7 @@
 # Migrated from /HFIR/HB2B/shared/Quick_Calibration.py
 # Original can be found at ./Quick_Calibration_v3.py
 # Renamed from  ./prototypes/calibration/Quick_Calibration_Class.py
-import time
 import os
-import json
 import numpy
 from pyrs.utilities import calibration_file_io
 from pyrs.utilities.rs_project_file import HidraProjectFile, HidraProjectFileMode
@@ -17,7 +15,8 @@ DEFAULT_CALIBRATION = None
 DEFAULT_INSTRUMENT = None
 DEFAULT_MASK = None
 
-def SurveyLandscape( calibrator, fName, i_1, i_2, ll=[], ul=[], steps=20):
+
+def SurveyLandscape(calibrator, fName, i_1, i_2, ll=[], ul=[], steps=20):
     import multiprocessing
     import time
 
@@ -26,7 +25,7 @@ def SurveyLandscape( calibrator, fName, i_1, i_2, ll=[], ul=[], steps=20):
         calibrator._calib[i_2] = val2
         res = calibrator.singleEval(ReturnScalar=True)
         return_dict[procnum] = [res, val1, val2]
-        return 
+        return
 
     step1 = (ul[0]-ll[0])/(steps-1)
     step2 = (ul[1]-ll[1])/(steps-1)
@@ -45,56 +44,49 @@ def SurveyLandscape( calibrator, fName, i_1, i_2, ll=[], ul=[], steps=20):
             jobs.append(p)
             pipe_list.append(recv_end)
             p.start()
-            index+=1
+            index += 1
             time.sleep(3)
-
 
     for proc in jobs:
         proc.join()
 
-    with open('ParamSurvey_{}_{}_{}steps.csv'.format(i_1, i_2, steps),'w') as fOUT:
+    with open('ParamSurvey_{}_{}_{}steps.csv'.format(i_1, i_2, steps), 'w') as fOUT:
         fOUT.write('# key_{},key_{},res\n'.format(1, 2))
         keys = sorted(return_dict.keys())
         for i_key in keys:
-            res,val1,val2 = return_dict[i_key]
-            fOUT.write('{},{},{}\n'.format(val1,val2,res))
+            res, val1, val2 = return_dict[i_key]
+            fOUT.write('{},{},{}\n'.format(val1, val2, res))
 
-#    result_list = [x.recv() for x in pipe_list]
-#    print result_list
-
-
-    return 
+    return
 
 
-def SaveCalibError( calibrator, fName):
+def SaveCalibError(calibrator, fName):
     calibrator.singleEval(ConstrainPosition=True, start=1, stop=0)
 
     tths = sorted(list(calibrator.ReductionResults.keys()))
-    try:
-        Rois = list(calibrator.ReductionResults[tths[0]].keys())
-        DataPoints = len( calibrator.ReductionResults[tths[0]][Rois[0]][0] )
-    except:
-        Rois = list(calibrator.ReductionResults[tths[1]].keys())
-        DataPoints = len( calibrator.ReductionResults[tths[1]][Rois[0]][0] )
+
+    Rois = list(calibrator.ReductionResults[tths[0]].keys())
+    DataPoints = len(calibrator.ReductionResults[tths[0]][Rois[0]][0])
 
     DataOut = numpy.zeros((DataPoints, 3*len(tths)*len(Rois)))
     header = ''
 
-    numRoi = len(Rois)
     lcv = -1
     for i_tth in tths:
         for j in list(calibrator.ReductionResults[i_tth].keys()):
             tempdata = calibrator.ReductionResults[i_tth][j]
 
-            lcv+=1
-            DataOut[:,lcv*3+0] = tempdata[0]
-            DataOut[:,lcv*3+1] = tempdata[1]
-            DataOut[:,lcv*3+2] = tempdata[2]
-            header += ',pos{}_roi{}_tth,pos{}_roi{}_obs,pos{}_roi{}_calc'.format(i_tth, j[0], i_tth, j[0], i_tth, j[0])
+            lcv += 1
+            DataOut[:, lcv*3+0] = tempdata[0]
+            DataOut[:, lcv*3+1] = tempdata[1]
+            DataOut[:, lcv*3+2] = tempdata[2]
+            header += ',pos{}_roi{}_tth,pos{}_roi{}_obs,pos{}_roi{}_calc'.format(i_tth, j[0],
+                                                                                 i_tth, j[0], i_tth, j[0])
 
-    DataOut = DataOut[:,:lcv*3+3]
+    DataOut = DataOut[:, :lcv*3+3]
 
-    numpy.savetxt( fName, DataOut, delimiter=',', header=header[1:])
+    numpy.savetxt(fName, DataOut, delimiter=',', header=header[1:])
+
 
 if __name__ == '__main__':
     from argparse import ArgumentParser
@@ -124,7 +116,7 @@ if __name__ == '__main__':
     hb2b = calibration_file_io.import_instrument_setup(idf_name)
     calibrator = peakfit_calibration.PeakFitCalibration(hb2b, engine)
 
-    calibrator._calib[0] =  0.0025
+    calibrator._calib[0] = 0.0025
     calibrator._calib[2] = -0.02281116
 #    SaveCalibError(calibrator, 'HB2B_{}_before.txt'.format(options.run))
 
@@ -166,7 +158,7 @@ if __name__ == '__main__':
         calibrator.singlepeak = False
         calibrator.FullCalibration(ConstrainPosition=True)
         print calibrator.get_calib()
-        fName = 'HB2B_{}_LSQ_{}.json'.format(options.run,calibrator.Method)
+        fName = 'HB2B_{}_LSQ_{}.json'.format(options.run, calibrator.Method)
         file_name = os.path.join(os.getcwd(), fName)
         calibrator.write_calibration(file_name)
 
@@ -206,12 +198,13 @@ if __name__ == '__main__':
         print calibrator._engine.read_log_value(calibrator.tth_ref).value
         print calibrator._engine.read_log_value('2theta').value
 
-        vals = numpy.concatenate( [ calibrator._engine.read_log_value('2theta').value, calibrator._engine.read_log_value(calibrator.tth_ref).value])
-        vals = vals.reshape((2,calibrator._engine.read_log_value('2theta').value.shape[0])).T
+        vals = numpy.concatenate([calibrator._engine.read_log_value('2theta').value,
+                                  calibrator._engine.read_log_value(calibrator.tth_ref).value])
+        vals = vals.reshape((2, calibrator._engine.read_log_value('2theta').value.shape[0])).T
 
-        numpy.savetxt( 'HB2B_1086_tths.dat', vals, delimiter=',')
+        numpy.savetxt('HB2B_1086_tths.dat', vals, delimiter=',')
 
-        Data1 = calibrator._engine.read_raw_counts(i_tth+1).reshape((1024,1024))
+        Data1 = calibrator._engine.read_raw_counts(i_tth+1).reshape((1024, 1024))
 
         # generate project name if not already determined
         project_file_name = '{}/HB2B_{}.h5'.format(options.projectdir, 1087)
@@ -230,17 +223,16 @@ if __name__ == '__main__':
         print calibrator._engine.read_log_value(calibrator.tth_ref).value[i_tth]
         print calibrator._engine.read_log_value('2theta').value[i_tth]
 
-        Data2 = calibrator._engine.read_raw_counts(i_tth+1).reshape((1024,1024))
+        Data2 = calibrator._engine.read_raw_counts(i_tth+1).reshape((1024, 1024))
 
-        numpy.savetxt( 'HB2B_1086_DATA.dat', Data1, delimiter=',')
-        numpy.savetxt( 'HB2B_1087_DATA.dat', Data2, delimiter=',')
+        numpy.savetxt('HB2B_1086_DATA.dat', Data1, delimiter=',')
+        numpy.savetxt('HB2B_1087_DATA.dat', Data2, delimiter=',')
 
     if options.calibration == 'survey':
         print 'Calibrating Geometry in Steps'
         calibrator.singlepeak = False
 
-        SurveyLandscape( calibrator, '', 0, 6, ll=[-0.025, 1.53], ul=[0.025, 1.55], steps=21)
-
+        SurveyLandscape(calibrator, '', 0, 6, ll=[-0.025, 1.53], ul=[0.025, 1.55], steps=21)
 
     if options.calibration in [DEFAULT_CALIBRATION, 'runAll']:
         calibrator = peakfit_calibration.PeakFitCalibration(hb2b, engine)
@@ -268,4 +260,3 @@ if __name__ == '__main__':
         print RotateCalib
         print ShiftCalib
         print LambdaCalib
-
