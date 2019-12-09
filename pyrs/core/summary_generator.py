@@ -3,18 +3,20 @@ This module generates reduction summary for user in plain text CSV file
 """
 from pyrs.core.peak_profile_utility import EFFECTIVE_PEAK_PARAMETERS  # TODO get from the first peak collection
 
-# Default summary titles shown in the CSV file
-DEFAULT_HEADER_TITLES = [('IPTS number', 'ipts'),
-                         ('Run', 'run'),
-                         ('Scan title', 'title'),
-                         ('Sample name', 'sample_name'),
-                         ('Item number', 'item_number'),
-                         ('HKL phase', 'hkl'),
-                         ('Strain direction', 'strain_dir'),
-                         ('Monochromator setting', 'mono_set'),
-                         ('Calibration file', 'cal_file'),
-                         ('Hidra project file', 'project'),
-                         ('Manual vs auto reduction', 'reduction')]
+# Default summary titles shown in the CSV file. This is a list of tuples ot enforce order
+# things to be found in the output file with
+# key = logname, value=name in csv
+HEADER_MAPPING = [('experiment_identifier', 'IPTS number'),
+                  ('run_number', 'Run'),
+                  ('run_title', 'Scan title'),
+                  ('sample_name', 'Sample name'),
+                  ('item_number', 'Item number'),  # BL11A:CS:ITEMS on powgen
+                  ('hkl', 'HKL phase'),
+                  ('StrainDirection', 'Strain direction'),  # was suggested to be "strain_dir"
+                  ('mono_set', 'Monochromator setting'),
+                  ('cal_file', 'Calibration file'),
+                  ('project', 'Hidra project file'),
+                  ('reduction', 'Manual vs auto reduction')]
 
 # Default field for values - log_name:csv_name
 DEFAULT_BODY_TITLES = ['vx', 'vy', 'vz', 'sx', 'sy', 'sz', 'phi', 'chi', 'omega', '2theta', 'S1width',
@@ -43,29 +45,21 @@ class SummaryGenerator(object):
       effective peak parameters
 
     """
-    def __init__(self, filename, header_titles=None, log_list=None, separator=','):
+    def __init__(self, filename, log_list=None, separator=','):
         """Initialization
 
         Parameters
         ----------
         filename: str
             Name of the ``.csv`` file to write
-        header_titles : List of 2-tuples
-            Ordered list of 2-tuple (as parameter titles and field in namedtuple for values) written in
-            CSV header. The default is :py:obj:`DEFAULT_HEADER_TITLES`
-        header_values : ~collections.namedtuple
-            Containing value
+        log_list: list
+            Names of the logs to write out
         separator: str
             The column separator in the output file
         """
         # Check input
         # self._check_header_title_value_match(header_title, header_values)
 
-        # Set
-        if header_titles is None:
-            self._header_titles = DEFAULT_HEADER_TITLES
-        else:
-            self._header_titles = header_titles
         if log_list is None:
             self._sample_log_list = DEFAULT_BODY_TITLES
         else:
@@ -79,6 +73,9 @@ class SummaryGenerator(object):
 
         self.separator = separator
 
+        # name values that appear in the header
+        self._header_information = dict()
+
         # logs that don't change within tolerance
         self._constant_logs = list()
         # logs that were requested but don't exist
@@ -88,22 +85,15 @@ class SummaryGenerator(object):
 
         # To write
         self._fit_engine = None
-        self._header_info_section = None
         self._header_log_section = None
         self._body_section = None
 
     def setHeaderInformation(self, headervalues):
         '''This creates a string to write to the file without actually writing it'''
-        # Reset the information
-        self._header_info_section = ''
 
-        for label, value_name in self._header_titles:
-            value = headervalues.get(value_name, '')
-            if value:
-                line = ' = '.join((label, str(value)))
-            else:
-                line = label
-            self._header_info_section += '# {}\n'.format(line)
+        for logname, _ in HEADER_MAPPING:
+            if logname in headervalues.keys():
+                self._header_information[logname] = headervalues[logname]
 
     def write_csv(self, sample_logs, peak_collections, tolerance=1E-10):
         """Export the CSV file
@@ -127,7 +117,7 @@ class SummaryGenerator(object):
 
         # header has already been put together
         with open(self._filename, 'w') as handle:
-            handle.write(self._header_info_section)
+            self._write_header_information(handle, sample_logs)
             self._write_header_missing(handle)
             self._write_header_constants(handle, sample_logs)
             self._write_column_names(handle, peak_collections)
@@ -143,6 +133,33 @@ class SummaryGenerator(object):
                 self._present_logs.append(logname)
             else:
                 self._missing_logs.append(logname)
+
+    def _write_header_information(self, handle, sample_logs):
+        # get the values that weren't specified from the logs
+        for logname, _ in HEADER_MAPPING:
+            # leave it alone if it was already set
+            if logname not in self._header_information:
+                # try to get the value from the logs or set it to empty string
+                value = ''
+                if logname in sample_logs:
+                    value = sample_logs[logname][0]  # only use first value
+                self._header_information[logname] = value
+
+            # fix up particular values
+            if self._header_information[logname]:
+                if logname == 'run_number':
+                    self._header_information[logname] = int(self._header_information[logname])
+                elif logname == 'experiment_identifier':
+                    self._header_information[logname] = self._header_information[logname].split('-')[-1]
+
+        # write out the text
+        for logname, label in HEADER_MAPPING:
+            value = self._header_information[logname]
+            if value:
+                line = ' = '.join((label, str(value)))
+            else:
+                line = label
+            handle.write('# {}\n'.format(line))
 
     def _write_header_missing(self, handle):
         if self._missing_logs:

@@ -365,22 +365,22 @@ def test_write_csv_from_project(project_file_name, csv_filename):
 
     # write out the csv file
     generator = SummaryGenerator(csv_filename)
-    generator.setHeaderInformation(dict())  # means empty header
+    generator.setHeaderInformation({'project': '/some/place/random.h5'})  # only set one value
     generator.write_csv(sample_logs, peak_collections)
 
     # testing
     assert os.path.exists(csv_filename), '{} was not created'.format(csv_filename)
 
-    EXPECTED_HEADER = '''# IPTS number
-# Run
-# Scan title
+    EXPECTED_HEADER = '''# IPTS number = 22731
+# Run = 1065
+# Scan title = A boring axis move
 # Sample name
 # Item number
 # HKL phase
-# Strain direction
+# Strain direction = Powder
 # Monochromator setting
 # Calibration file
-# Hidra project file
+# Hidra project file = /some/place/random.h5
 # Manual vs auto reduction
 # missing: S1width, S1height, S1distance, RadialDistance
 # chi = 0 +/- 0
