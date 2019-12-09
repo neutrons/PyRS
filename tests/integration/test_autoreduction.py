@@ -31,7 +31,7 @@ def convertNeXusToProject(nexusfile, projectfile, skippable):
         os.remove(projectfile)
 
     converter = NeXusConvertingApp(nexusfile)
-    converter.convert()
+    converter.convert(start_time=0)
     converter.save(projectfile)
 
     # tests for the created file

@@ -37,15 +37,23 @@ class NeXusConvertingApp(object):
 
         return
 
-    def convert(self):
-        """
-        Main method to convert NeXus file to HidraProject File by
+    def convert(self, start_time):
+        """Main method to convert NeXus file to HidraProject File by
+
         1. split the workspace to sub runs
         2. for each split workspace, aka a sub run, get the total counts for each spectrum and save to a 1D array
-        :return:
+
+        Parameters
+        ----------
+        start_time : float
+            User defined run start time relative to DAS recorded run start time in unit of second
+
+        Returns
+        -------
+
         """
         # Load data file, split to sub runs and sample logs
-        self._sub_run_workspace_dict = self._split_sub_runs()
+        self._sub_run_workspace_dict = self._split_sub_runs(start_time)
 
         # Get the sample log value
         sample_log_dict = dict()
@@ -132,10 +140,21 @@ class NeXusConvertingApp(object):
             else:
                 raise RuntimeError('Cannot convert "{}" to a single value'.format(name))
 
-    def _split_sub_runs(self):
-        """
-        Performing event filtering according to sample log sub-runs
-        :return: dictionary: key = sub run number (integer), value = workspace name (string)
+    def _split_sub_runs(self, relative_start_time=0):
+        """Performing event filtering according to sample log sub-runs
+
+        DAS log may not be correct from the run start,
+
+        Parameters
+        ----------
+        relative_start_time : float or int
+            Starting time from the run start time in unit of second
+
+        Returns
+        -------
+        dict
+            split workspaces: key = sub run number (integer), value = workspace name (string)
+
         """
         # Load data
         LoadEventNexus(Filename=self._nexus_name, OutputWorkspace=self._event_ws_name)
@@ -143,10 +162,15 @@ class NeXusConvertingApp(object):
         # Generate splitters by sample log 'scan_index'.  real sub run starts with scan_index == 1
         split_ws_name = 'Splitter_{}'.format(self._nexus_name)
         split_info_name = 'InfoTable_{}'.format(self._nexus_name)
+
+        # StartTime can be relative in unit of second
+        # https://docs.mantidproject.org/nightly/algorithms/GenerateEventsFilter-v1.html
         GenerateEventsFilter(InputWorkspace=self._event_ws_name,
                              OutputWorkspace=split_ws_name,
                              InformationWorkspace=split_info_name,
                              LogName='scan_index',
+                             StartTime='{}'.format(relative_start_time),
+                             UnitOfTime='Seconds',
                              MinimumLogValue=0,
                              LogValueInterval=1)
 
