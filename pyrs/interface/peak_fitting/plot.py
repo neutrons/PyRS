@@ -114,13 +114,25 @@ class Plot:
         x_axis_name = str(self.parent.ui.comboBox_xaxisNames.currentText())
         y_axis_name = str(self.parent.ui.comboBox_yaxisNames.currentText())
 
-        print("x_axis_name: " + LIST_AXIS_TO_PLOT['full'][x_axis_name])
-        print("y_axis_name: " + LIST_AXIS_TO_PLOT['full'][y_axis_name])
+        print("self.parent._project_name: {}".format(self.parent._project_name))
+        print("x_axis_name: {}".format(x_axis_name))
+        print("hidra_worskpace: {}".format(self.parent.hidra_workspace))
 
-        print("self.parent._function_param_name_set): {}".format(self.parent._function_param_name_set))
-        print("HidraConstants.SUB_RUNS: {}".format(HidraConstants.SUB_RUNS))
+        hidra_workspace = self.parent.hidra_workspace
+        # print("sub_runs: {}".format(hidra_workspace.get_sub_runs()))
+        # print("hidra_workspace keys: {}".format(hidra_workspace._sample_logs.keys()))
+        # print("hidra workspace for sz: {}".format(hidra_workspace._sample_logs['sz']))
+
+        axis_x = hidra_workspace.get_sub_runs()
+        axis_y = hidra_workspace._sample_logs[y_axis_name]
+
+        self.parent.ui.graphicsView_fitResult.plot_scatter(axis_x, axis_y, 'sub_runs', y_axis_name)
+
+        return
+
 
         param_names, param_data = self.parent._core.get_peak_fitting_result(self.parent._project_name,
+                                                                            0,
                                                                             return_format=dict,
                                                                             effective_parameter=False)
 
@@ -164,8 +176,13 @@ class Plot:
             return
 
         param_names, param_data = self.parent._core.get_peak_fitting_result(self.parent._project_name,
+                                                                            0,
                                                                             return_format=dict,
                                                                             effective_parameter=False)
+
+
+
+
 
         print('[DB...BAT] Param Names: {}'.format(param_names))
         sub_run_vec = param_data[HidraConstants.SUB_RUNS]

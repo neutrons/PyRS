@@ -16,13 +16,14 @@ class Load:
 
         try:
             self.__set_up_project_name(project_file=project_file)
-            self.parent._core.load_hidra_project(project_file,
-                                                 project_name=self.parent._project_name,
-                                                 load_detector_counts=False,
-                                                 load_diffraction=True)
+            ws = self.parent._core.load_hidra_project(project_file,
+                                                      project_name=self.parent._project_name,
+                                                      load_detector_counts=False,
+                                                      load_diffraction=True)
 
             # Record data key and next
             self.parent._curr_file_name = project_file
+            self.parent.hidra_workspace = ws
         except (RuntimeError, TypeError) as run_err:
             pop_message(self, 'Unable to load {}'.format(project_file),
                         detailed_message=str(run_err),

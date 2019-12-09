@@ -60,6 +60,7 @@ class GuiUtilities:
         # Set the widgets about viewer: get the sample logs and add the combo boxes for plotting
         sample_log_names = self.parent._core.reduction_service.get_sample_logs_names(self.parent._project_name,
                                                                                      can_plot=True)
+        print("** inside set_1D_2D_axis combobox")
 
         GuiUtilities.block_widgets(list_ui=[self.parent.ui.comboBox_xaxisNames,
                                             self.parent.ui.comboBox_yaxisNames,
@@ -79,6 +80,9 @@ class GuiUtilities:
 
         if fill_raw:
             _list_axis_to_plot = LIST_AXIS_TO_PLOT['raw']
+            print("filling raw")
+            print(_list_axis_to_plot)
+            print("------------")
             self._update_plots_combobox_items(list_axis_to_plot=_list_axis_to_plot)
 
         if fill_fit:

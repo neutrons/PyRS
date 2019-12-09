@@ -38,6 +38,7 @@ class FitPeaksWindow(QMainWindow):
         # class variables
         self._core = fit_peak_core
         self._project_name = None
+        self.hidra_workspace = None
         # current/last loaded data
         self._curr_file_name = None
 

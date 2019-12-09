@@ -262,13 +262,11 @@ class PyRsCore(object):
                                 return_format={},
                                 effective_parameter=False,
                                 fitting_function="Gaussian"):
-        """ Get peak fitting result
-        Note: this provides a convenient method to retrieve information
-        :param project_name:
-        :param return_format:
-        :param effective_parameter:
-        :return:
-        """
+
+        print("In get_peak_fitting_result")
+        print("-> project_name: {}".format(project_name))
+        print("-> self._peak_fitting_dict: {}".format(self._peak_fitting_dict))
+
         # Get peak fitting controller &
         if project_name in self._peak_fitting_dict:
             # if it does exist
