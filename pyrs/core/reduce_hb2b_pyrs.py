@@ -398,6 +398,10 @@ class PyHB2BReduction(object):
         self._detector_counts = None
         self._detector_mask = None
 
+        # buffer for the last reduced data set
+        # supposed to be 2 tuple for vector of 2theta and vector of intensity
+        self._reduced_diffraction_data = None
+
         return
 
     @property
@@ -530,15 +534,29 @@ class PyHB2BReduction(object):
     def reduce_to_2theta_histogram(self, two_theta_range, two_theta_step, apply_mask,
                                    is_point_data=True, normalize_pixel_bin=True, use_mantid_histogram=False,
                                    efficiency_correction=None):
-        """ Reduce the previously added detector raw counts to 2theta histogram (i.e., diffraction pattern)
-        :param two_theta_range: range of 2theta for histogram
-        :param two_theta_step: step size of two theta
-        :param apply_mask: If true and self._detector_mask has been set, the apply mask to output
-        :param is_point_data: Flag whether the output is point data (numbers of X and Y are same)
-        :param normalize_pixel_bin: normalize the number of pixels in each 2theta histogram bin
-        :param use_mantid_histogram: Flag to use Mantid (algorithm ResampleX) to do histogram
-        :param efficiency_correction:
-        :return: 2-tuple (2-theta vector, counts in histogram)
+        """Reduce the previously added detector raw counts to 2theta histogram (i.e., diffraction pattern)
+
+        Parameters
+        ----------
+        two_theta_range : tuple
+            2 tuple as min and max of 2theta
+        two_theta_step : float
+            2theta step/bin size
+        apply_mask : bool
+            If true and self._detector_mask has been set, the apply mask to output
+        is_point_data : bool
+            Flag whether the output is point data (numbers of X and Y are same)
+        normalize_pixel_bin : bool
+            Flag to normalize the number of pixels in each 2theta histogram bin
+        use_mantid_histogram : bool
+            Flag to use Mantid (algorithm ResampleX) to do histogram
+        efficiency_correction :
+
+        Returns
+        -------
+        numpy.ndarray, numpy.ndarray
+            2theta vector and intensity vector
+
         """
         # Get two-theta-histogram vector
         two_theta_vector = self.generate_2theta_histogram_vector(
@@ -586,6 +604,8 @@ class PyHB2BReduction(object):
         # NOTE: input 2theta_range may not be accurate because 2theta max may not be on the full 2-theta tick
         two_theta_vec_range = two_theta_vector.min(), two_theta_vector.max() + two_theta_step
 
+        # TODO - If use vanadium for normalization, then (1) flag to normalize by pixel count and (2) efficiency
+        #        are not required anymore but both of them will be replaced by integrated vanadium counts
         if use_mantid_histogram:
             # this is a branch used for testing against Mantid method
             num_bins = two_theta_vector.size()
