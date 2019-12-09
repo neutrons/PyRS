@@ -83,13 +83,8 @@ class SummaryGenerator(object):
         # logs that were requested and do exist
         self._present_logs = []
 
-        # To write
-        self._fit_engine = None
-        self._header_log_section = None
-        self._body_section = None
-
     def setHeaderInformation(self, headervalues):
-        '''This creates a string to write to the file without actually writing it'''
+        '''This sets up the supplied information for the header without actually writing it'''
 
         for logname, _ in HEADER_MAPPING:
             if logname in headervalues.keys():
@@ -100,8 +95,9 @@ class SummaryGenerator(object):
 
         Parameters
         ----------
-        sep: str
-            string to separate fields in the body of the file
+        sample_logs: ~pyrs.dataobjects.SampleLogs
+        peak_collections: list
+            list of :py:obj:`~pyrs.core.peak_collection.PeakCollection`
         tolerance : float
             relative tolerance of variance to treat a sample log as a constant value
             and bring into extended header
@@ -135,6 +131,8 @@ class SummaryGenerator(object):
                 self._missing_logs.append(logname)
 
     def _write_header_information(self, handle, sample_logs):
+        '''Things that are supplied to SummaryGenerator.setHeaderInformation win out over what
+        is found in the sample_logs'''
         # get the values that weren't specified from the logs
         for logname, _ in HEADER_MAPPING:
             # leave it alone if it was already set
@@ -162,16 +160,18 @@ class SummaryGenerator(object):
             handle.write('# {}\n'.format(line))
 
     def _write_header_missing(self, handle):
+        '''Add to the header a list of all missing logs'''
         if self._missing_logs:
             handle.write('# missing: {}\n'.format(', '.join(self._missing_logs)))
 
     def _write_header_constants(self, handle, sample_logs):
-        """Write only the sample logs that are constants into the header. These should not appear in the body.
-        """
+        '''Write only the sample logs that are constants into the header. These do not appear in the body.
+        '''
         for name in self._constant_logs:
             handle.write('# {} = {:.5g} +/- {:.2g}\n'.format(name, sample_logs[name].mean(), sample_logs[name].std()))
 
     def _write_column_names(self, handle, peak_collections):
+        '''This writes the names of all of the columns'''
         # the header line from the sample logs
         column_names = [name for name in self._present_logs
                         if name not in self._constant_logs]
@@ -193,6 +193,7 @@ class SummaryGenerator(object):
         handle.write(self.separator.join(column_names) + '\n')
 
     def _write_data(self, handle, sample_logs, peak_collections):
+        '''Write out the actual data fields, ignoring what is constant'''
         log_names = [name for name in self._present_logs
                      if name not in self._constant_logs]
 

@@ -544,10 +544,8 @@ class HidraProjectFile(object):
 
         Returns
         -------
-        str, str, ndarray, ndarray, ndarray, ndarray
-            peak profile, background type, sub runs corresponding to parameter chi2 and values,
-              fitting cose (chi2) array,
-              parameter values (may include Chi2), parameter errors
+        ~pyrs.core.peak_collection.PeakCollection
+            All of the information from fitting a peak across subruns
         """
         # Get main group
         peak_main_group = self._project_h5[HidraConstants.PEAKS]
