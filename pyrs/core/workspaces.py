@@ -117,8 +117,6 @@ class HidraWorkspace(object):
         print('[INFO] Loaded diffraction data from {} includes : {}'
               ''.format(self._project_file_name, self._diff_data_set.keys()))
 
-        return
-
     def _load_instrument(self, hidra_file):
         """ Load instrument setup from HIDRA file
         :param hidra_file: HIDRA project file instance
@@ -129,8 +127,6 @@ class HidraWorkspace(object):
 
         # Get values
         self._instrument_setup = hidra_file.read_instrument_geometry()
-
-        return
 
     def _load_sample_logs(self, hidra_file):
         """ Load sample logs.
@@ -282,8 +278,6 @@ class HidraWorkspace(object):
         # load the wave length
         self._load_wave_length(hidra_file)
 
-        return
-
     def get_detector_shift(self):
         """
         Get detector geometry shift
@@ -408,6 +402,10 @@ class HidraWorkspace(object):
 
     def get_sample_log_values(self, sample_log_name, sub_runs=None):
         """Get ONE INDIVIDUAL sample log's values as a vector
+
+        Exceptions
+        ----------
+        RuntimeError : if sample log name not in sample_log_dict
 
         Parameters
         ----------
