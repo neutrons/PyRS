@@ -834,13 +834,17 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
             self.axes_main[row_index, col_index].autoscale()
 
         else:
-            r = self.self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
-                                                                   yerr=y_err, color=color, marker=marker,
-                                                                   linestyle=line_style, label=label,
-                                                                   linewidth=line_width)
+            r = self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
+                                                              yerr=y_err, color=color, marker=marker,
+                                                              linestyle=line_style, label=label,
+                                                              linewidth=line_width)
 
         # set aspect ratio
-        # self.axes_main[row_index, col_index].set_aspect('auto')
+        self.axes_main[row_index, col_index].set_aspect('auto')
+        delta_x = vec_x[1]-vec_x[0]
+        x_left = vec_x[0] - delta_x
+        x_right =  vec_x[-1] + delta_x
+        self.axes_main[row_index, col_index].set_xlim(x_left, x_right)
 
         # set/update legend
         if show_legend:
