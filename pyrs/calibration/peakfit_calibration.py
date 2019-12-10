@@ -1,3 +1,6 @@
+# Migrated from /HFIR/HB2B/shared/Quick_Calibration.py
+# Original can be found at ./Quick_Calibration_v3.py
+# Renamed from  ./prototypes/calibration/Quick_Calibration_Class.py
 import numpy as np
 import time
 import glob
@@ -18,14 +21,6 @@ except ImportError:
 from scipy.optimize import brute
 
 colors = ['black', 'red', 'blue', 'green', 'yellow']
-
-# dSpace = np.array([4.156826, 2.93931985, 2.39994461, 2.078413, 1.8589891, 1.69701711, 1.46965993,
-#                   1.38560867, 1.3145038, 1.2533302, 1.19997231, 1.1528961, 1.11095848, 1.0392065,
-#                   1.00817839, 0.97977328, 0.95364129, 0.92949455, 0.9070938, 0.88623828, 0.84850855,
-#                   0.8313652, 0.81522065, 0.79998154, 0.77190321, 0.75892912, 0.73482996])
-
-# dSpace = np.array([3.580/np.sqrt(11), 3.580/np.sqrt(12)])
-dSpace = np.array([3.59188696/np.sqrt(11), 3.59188696/np.sqrt(12)])
 
 
 def runCalib():
@@ -86,7 +81,7 @@ class PeakFitCalibration(object):
     Calibrate by grid searching algorithm using Brute Force or Monte Carlo random walk
     """
 
-    def __init__(self, hb2b_instrument, hidra_data):
+    def __init__(self, hb2b_instrument, hidra_data, scheme=1):
         """
         Initialization
         """
@@ -100,17 +95,21 @@ class PeakFitCalibration(object):
 
         try:
             monosetting = self._engine.read_log_value('MonoSetting')[0]
-        except ValueError:
-            if -20.0 < self._engine.read_log_value('mrot')[0] < -19.:
+        except KeyError:
+            if -13.0 < self._engine.read_log_value('mrot')[0] < -11.:
+                monosetting = 0
+            elif 19.0 < self._engine.read_log_value('mrot')[0] < 21.:
+                monosetting = 1
+            elif -20.0 < self._engine.read_log_value('mrot')[0] < -19.:
                 monosetting = 2
+
+        self.tth_ref = '2thetaSetpoint'
 
         try:
             self._engine.read_log_value('2theta')
             self.tth_ref = '2theta'
-        except ValueError:
+        except KeyError:
             self.tth_ref = '2Theta'
-
-        self.tth_ref = '2thetaSetpoint'
 
         # Set wave length
         self._calib[6] = \
@@ -122,6 +121,14 @@ class PeakFitCalibration(object):
         self.singlepeak = True
 
         self.Method = UseLSQ
+
+        if scheme == 0:
+            self.dSpace = 3.59188696 * np.array([1./np.sqrt(11), 1./np.sqrt(12)])
+        elif scheme == 1:
+            self.dSpace = np.array([4.156826, 2.93931985, 2.39994461, 2.078413, 1.8589891, 1.69701711, 1.46965993,
+                                    1.38560867, 1.3145038, 1.2533302, 1.19997231, 1.1528961, 1.11095848, 1.0392065,
+                                    1.00817839, 0.97977328, 0.95364129, 0.92949455, 0.9070938, 0.88623828, 0.84850855,
+                                    0.8313652, 0.81522065, 0.79998154, 0.77190321, 0.75892912, 0.73482996])
 
         GlobalParameter.global_curr_sequence = 0
 
@@ -295,7 +302,7 @@ class PeakFitCalibration(object):
 
         residual = np.array([])
 
-        two_theta_calib = np.arcsin(x[6] / 2. / dSpace) * 360. / np.pi
+        two_theta_calib = np.arcsin(x[6] / 2. / self.dSpace) * 360. / np.pi
         two_theta_calib = two_theta_calib[~np.isnan(two_theta_calib)]
 
         if stop == 0:
@@ -440,7 +447,6 @@ class PeakFitCalibration(object):
         paramVec[0] = x[0]
         paramVec[6] = x[1]
 
-        print x
         residual = self.get_alignment_residual(paramVec, roi_vec_set, True)
 
         if ReturnScalar:
@@ -454,7 +460,6 @@ class PeakFitCalibration(object):
         :param x:
         :return:
         """
-        print x
 
         paramVec = np.copy(self._calib)
         paramVec[i_index] = x[0]
@@ -477,7 +482,6 @@ class PeakFitCalibration(object):
         paramVec = np.copy(self._calib)
         paramVec[0:3] = x[:]
 
-        print x
         residual = self.get_alignment_residual(paramVec, roi_vec_set, ConstrainPosition, False, start, stop)
 
         if ReturnScalar:
@@ -579,10 +583,6 @@ class PeakFitCalibration(object):
         if initial_guess is None:
             initial_guess = self.get_wavelength()
             initial_guess = np.concatenate((self.get_shiftx(), self.get_wavelength()))
-
-
-#        out = self.calibrate_single(initial_guess=initial_guess, ConstrainPosition=ConstrainPosition,
-#                                    LL=[self._calib[6]-.005], UL=[self._calib[6]+.005], i_index=6, Brute=True)
 
         out = self.FitDetector(self.peak_alignment_wavelength, initial_guess, jac='3-point',
                                bounds=([-0.05, self._calib[6]-.005], [0.05, self._calib[6]+.005]), method='dogbox',
