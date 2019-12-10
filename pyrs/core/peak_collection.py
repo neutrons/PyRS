@@ -191,7 +191,6 @@ class PeakCollection(object):
 
         # THIS BELOW CAN NOT WORK !!!!!
 
-
         for iparam, param_name in enumerate(param_name_list):
             param_value_array[iparam] = self._params_value_array[param_name]
             param_error_array[iparam] = self._params_error_array[param_name]

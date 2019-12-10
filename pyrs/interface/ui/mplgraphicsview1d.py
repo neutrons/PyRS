@@ -182,8 +182,10 @@ class MplGraphicsView1D(QWidget):
 
         return
 
-    def add_plot(self, vec_x, vec_y, y_err=None, row_index=0, col_index=0, is_right=False, color=None, label='',
-                 x_label=None, y_label=None, marker=None, markersize=2, line_style=None, line_width=1, show_legend=True):
+    def add_plot(self, vec_x, vec_y, y_err=None, row_index=0, col_index=0, is_right=False,
+                 color=None, label='',
+                 x_label=None, y_label=None, marker=None, markersize=2, line_style=None,
+                 line_width=1, show_legend=True):
         """Add a plot in 1D
         :param row_index:
         :param col_index:
@@ -841,9 +843,9 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
 
         # set aspect ratio
         self.axes_main[row_index, col_index].set_aspect('auto')
-        delta_x = vec_x[1]-vec_x[0]
+        delta_x = vec_x[1] - vec_x[0]
         x_left = vec_x[0] - delta_x
-        x_right =  vec_x[-1] + delta_x
+        x_right = vec_x[-1] + delta_x
         self.axes_main[row_index, col_index].set_xlim(x_left, x_right)
 
         # set/update legend
@@ -866,7 +868,8 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
 
         return line_key
 
-    def add_right_plot(self, row_index, col_index, x, y, markersize=4, color=None, label="", x_label=None, y_label=None,
+    def add_right_plot(self, row_index, col_index, x, y, markersize=4, color=None,
+                       label="", x_label=None, y_label=None,
                        marker=None, line_style=None, linewidth=1):
         """
         add a 1-D line at the right axis
@@ -916,7 +919,6 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
                                                                linestyle=line_style, linewidth=linewidth)
         #
         self.axes_right[row_index, col_index].set_aspect('auto')
-
 
         # set x-axis and y-axis label
         if x_label is not None:
