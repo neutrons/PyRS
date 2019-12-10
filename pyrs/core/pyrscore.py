@@ -263,26 +263,35 @@ class PyRsCore(object):
                                 effective_parameter=False,
                                 fitting_function="Gaussian"):
 
-        print("In get_peak_fitting_result")
-        print("-> project_name: {}".format(project_name))
-        print("-> self._peak_fitting_dict: {}".format(self._peak_fitting_dict))
+        import pprint
 
         # Get peak fitting controller &
         if project_name in self._peak_fitting_dict:
             # if it does exist
             fit_engine = self._peak_fitting_dict[project_name]
+            pprint.pprint("fit_engine: {}".format(fit_engine))
+
             fitted_peaks_obj = fit_engine.get_peaks(peak_tag)
+            pprint.pprint("fitted_peaks_obj: {}".format(fitted_peaks_obj))
+
         else:
             raise RuntimeError('{} not exist'.format(project_name))
 
+
+
+
+
+
         # Get the parameter values
-        if effective_parameter:
+        if effective_parameter:  # what does it mean 'effective parameter' ???
             # Retrieve effective peak parameters
             sub_run_vec, chi2_vec, param_vec, param_error_vec = fitted_peaks_obj.get_effective_parameters_values()
         else:
             # Native peak parameters' value
             # get function parameters names
             param_names = fit_engine.get_peak_param_names(fitting_function, effective_parameter)
+            print("-> param_names: {}".format(param_names))
+
             sub_run_vec, chi2_vec, param_vec, param_error_vec = fitted_peaks_obj.get_parameters_values(param_names)
 
         if return_format == dict:

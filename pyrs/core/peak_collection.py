@@ -183,6 +183,15 @@ class PeakCollection(object):
         param_value_array = np.zeros(shape=(num_params, sub_runs_vec.shape[0]), dtype='float')
         param_error_array = np.zeros(shape=(num_params, sub_runs_vec.shape[0]), dtype='float')
         # Set value (unfiltered)
+
+        import pprint
+        pprint.pprint("--> param_name_list: {}".format(param_name_list))
+        pprint.pprint("*****************")
+        pprint.pprint("self._params_value_array: {}".format(self._params_value_array))
+
+        # THIS BELOW CAN NOT WORK !!!!!
+
+
         for iparam, param_name in enumerate(param_name_list):
             param_value_array[iparam] = self._params_value_array[param_name]
             param_error_array[iparam] = self._params_error_array[param_name]

@@ -121,16 +121,34 @@ class Plot:
                 axis_y = hidra_workspace.get_sub_runs()
             elif y_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
                 axis_y = hidra_workspace._sample_logs[y_axis_name]
+            elif y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
+                vec_y, vec_x = self.get_function_parameter_data(x_axis_name)
+                import pprint
+                pprint.pprint("vec_y: {}".format(vec_y))
+                pprint.pprint("vec_x: {}".format(vec_x))
             else:
-                raise NotImplementedError("working on it!")
+                raise NotImplementedError("y_axis choice not supported yet: {}".format(y_axis_name))
         elif x_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
             axis_x = hidra_workspace._sample_logs[x_axis_name]
             if y_axis_name == 'Sub-runs':
                 axis_y = hidra_workspace.get_sub_runs()
             elif y_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
                 axis_y = hidra_workspace._sample_logs[y_axis_name]
+            elif y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
+                pass
             else:
-                raise NotImplementedError("working on it!")
+                raise NotImplementedError("y_axis choice not supported yet: {}!".format(y_axis_name))
+        elif x_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
+            if y_axis_name == 'Sub-runs':
+                axis_y = hidra_workspace.get_sub_runs()
+            elif y_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
+                axis_y = hidra_workspace._sample_logs[y_axis_name]
+            elif y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
+                pass
+            else:
+                raise NotImplementedError("y_axis choice not supported yet: {}!".format(y_axis_name))
+        else:
+            raise NotImplementedError("x_axis choice not supported yet: {}!".format(x_axis_name))
 
         self.parent.ui.graphicsView_fitResult.plot_scatter(axis_x, axis_y,
                                                            'sub_runs', y_axis_name)

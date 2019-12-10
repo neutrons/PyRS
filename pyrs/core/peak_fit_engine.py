@@ -280,6 +280,10 @@ class PeakFitEngine(object):
         return self._hidra_wksp
 
     def get_peaks(self, peak_tag):
+        # only work for peak 1 right now
+        print("in get_peaks of peak_fit_engine.py")
+        print("-> self._peak_collection_dict.keys(): {}".format(self._peak_collection_dict.keys()))
+        peak_tag = 'Peak 1'  #FIXME
         return self._peak_collection_dict[peak_tag]
 
     @staticmethod
