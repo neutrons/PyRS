@@ -12,6 +12,35 @@ DEFAULT_CALIBRATION = None
 DEFAULT_INSTRUMENT = None
 DEFAULT_MASK = None
 
+
+def SaveCalibError(calibrator, fName):
+    calibrator.singleEval(ConstrainPosition=True, start=1, stop=0)
+
+    tths = sorted(list(calibrator.ReductionResults.keys()))
+
+    Rois = list(calibrator.ReductionResults[tths[0]].keys())
+    DataPoints = len(calibrator.ReductionResults[tths[0]][Rois[0]][0])
+
+    DataOut = numpy.zeros((DataPoints, 3*len(tths)*len(Rois)))
+    header = ''
+
+    lcv = -1
+    for i_tth in tths:
+        for j in list(calibrator.ReductionResults[i_tth].keys()):
+            tempdata = calibrator.ReductionResults[i_tth][j]
+
+            lcv += 1
+            DataOut[:, lcv*3+0] = tempdata[0]
+            DataOut[:, lcv*3+1] = tempdata[1]
+            DataOut[:, lcv*3+2] = tempdata[2]
+            header += ',pos{}_roi{}_tth,pos{}_roi{}_obs,pos{}_roi{}_calc'.format(i_tth, j[0],
+                                                                                 i_tth, j[0], i_tth, j[0])
+
+    DataOut = DataOut[:, :lcv*3+3]
+
+    numpy.savetxt(fName, DataOut, delimiter=',', header=header[1:])
+
+
 if __name__ == '__main__':
     from argparse import ArgumentParser
     parser = ArgumentParser(description='Script for auto-reducing HB2B')
@@ -40,8 +69,9 @@ if __name__ == '__main__':
     hb2b = calibration_file_io.import_instrument_setup(idf_name)
     calibrator = peakfit_calibration.PeakFitCalibration(hb2b, engine, scheme=0)
 
-    calibrator._calib[0] = 0.0025
-    calibrator._calib[2] = -0.02281116
+#    calibrator._calib[0] = 0.002600685374401848
+#    calibrator._calib[2] = -0.020583807174127174
+#    calibrator._calib[6] = 1.537467969479386
 
     if options.calibration in [DEFAULT_CALIBRATION, 'geometry']:
         SaveCalibError(calibrator, 'HB2B_{}_before.csv'.format(options.run))
