@@ -54,8 +54,9 @@ def addPowderToProject(projectfile, use_mantid_engine=False):
 
 @pytest.mark.parametrize('nexusfile, projectfile',
                          [('/HFIR/HB2B/IPTS-22731/nexus/HB2B_439.nxs.h5', 'HB2B_439.h5'),  # file when reactor was off
-                          ('/HFIR/HB2B/IPTS-22731/nexus/HB2B_931.nxs.h5', 'HB2B_931.h5')],  # Vanadium
-                         ids=('HB2B_439', 'HB2B_931'))
+                          ('/HFIR/HB2B/IPTS-22731/nexus/HB2B_931.nxs.h5', 'HB2B_931.h5'),  # Vanadium
+                          ('data/HB2B_938.nxs.h5', 'data/HB2B_938.nxs.h5')],  # A good peak
+                         ids=('HB2B_439', 'HB2B_931', 'RW_938'))
 def test_nexus_to_project(nexusfile, projectfile):
     # convert the nexus file to a project file and do the "simple" checks
     convertNeXusToProject(nexusfile, projectfile, skippable=True)
@@ -67,56 +68,19 @@ def test_nexus_to_project(nexusfile, projectfile):
     os.remove(projectfile)
 
 
-@pytest.mark.parametrize('nexus_file, project_file',
-                         [('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1086.nxs.h5', 'HB2B_1086.h5')],
-                         ids=['HB2B_1086_SplitLog'])
-def test_split_log(nexus_file, project_file):
-    """Test converting the nexus file to a project file
+def test_split_log_time_average():
+    """(Integration) test on doing proper time average on split sample logs
 
-    With detailed check on the sample log values that are retrieved from split workspace
-
-    Parameters
-    ----------
-    nexus_file
-    project_file
+    Run-1086 was measured with moving detector (changing 2theta value) along sub runs.
 
     Returns
     -------
 
     """
     # Convert the NeXus to project
-    convertNeXusToProject(nexus_file, project_file, skippable=True)
-
-    # Verification
-
-    return
-
-
-def test_hello_world():
-    # Convert the NeXus to project
     nexus_file = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1086.nxs.h5'
     project_file = 'HB2B_1086.h5'
     convertNeXusToProject(nexus_file, project_file, skippable=True)
-
-
-def test_nexus_to_subrun():
-    nexusfile = 'data/HB2B_938.nxs.h5'  # A good peak
-    projectfile = 'HB2B_938.h5'
-    convertNeXusToProject(nexusfile, projectfile, skippable=False)
-
-
-def test_nexus_to_powder():
-    '''unfortunately, this needs to repeat the work of :func:`test_nexus_to_subrun`'''
-    nexusfile = 'data/HB2B_938.nxs.h5'  # A good peak
-    projectfile = 'HB2B_938.h5'
-
-    # convert the nexus file to a project file and do the "simple" checks
-    convertNeXusToProject(nexusfile, projectfile, skippable=False)
-
-    # extract the powder patterns and add them to the project file
-    addPowderToProject(projectfile, use_mantid_engine=False)
-
-    # TODO more specific checks
 
 
 @pytest.mark.parametrize('project_file, van_project_file, target_project_file',
