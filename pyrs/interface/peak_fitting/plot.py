@@ -114,19 +114,26 @@ class Plot:
         x_axis_name = str(self.parent.ui.comboBox_xaxisNames.currentText())
         y_axis_name = str(self.parent.ui.comboBox_yaxisNames.currentText())
 
-        print("self.parent._project_name: {}".format(self.parent._project_name))
-        print("x_axis_name: {}".format(x_axis_name))
-        print("hidra_worskpace: {}".format(self.parent.hidra_workspace))
-
         hidra_workspace = self.parent.hidra_workspace
-        # print("sub_runs: {}".format(hidra_workspace.get_sub_runs()))
-        # print("hidra_workspace keys: {}".format(hidra_workspace._sample_logs.keys()))
-        # print("hidra workspace for sz: {}".format(hidra_workspace._sample_logs['sz']))
+        if x_axis_name == 'Sub-runs':
+            axis_x = hidra_workspace.get_sub_runs()
+            if y_axis_name == 'Sub-runs':
+                axis_y = hidra_workspace.get_sub_runs()
+            elif y_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
+                axis_y = hidra_workspace._sample_logs[y_axis_name]
+            else:
+                raise NotImplementedError("working on it!")
+        elif x_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
+            axis_x = hidra_workspace._sample_logs[x_axis_name]
+            if y_axis_name == 'Sub-runs':
+                axis_y = hidra_workspace.get_sub_runs()
+            elif y_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
+                axis_y = hidra_workspace._sample_logs[y_axis_name]
+            else:
+                raise NotImplementedError("working on it!")
 
-        axis_x = hidra_workspace.get_sub_runs()
-        axis_y = hidra_workspace._sample_logs[y_axis_name]
-
-        self.parent.ui.graphicsView_fitResult.plot_scatter(axis_x, axis_y, 'sub_runs', y_axis_name)
+        self.parent.ui.graphicsView_fitResult.plot_scatter(axis_x, axis_y,
+                                                           'sub_runs', y_axis_name)
 
         return
 
