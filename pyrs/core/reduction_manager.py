@@ -505,25 +505,32 @@ class HB2BReductionManager(object):
               ''.format(two_theta, -two_theta))
         mantid_two_theta = -two_theta
 
-        # Determine the 2theta range
-        if min_2theta is None or max_2theta is None:
-            min_2theta = abs(two_theta) - 0.5 * default_two_theta_range
-            max_2theta = abs(two_theta) + 0.5 * default_two_theta_range
-        if min_2theta >= max_2theta:
-            raise RuntimeError('Diffraction 2theta range ({}, {})is incorrect.'
-                               'Given information: detector arm 2theta = {}, 2theta range = {}'
-                               ''.format(min_2theta, max_2theta, two_theta, default_two_theta_range))
-        # Determine 2theta resolution
-        if resolution_2theta is None:
-            resolution_2theta = (max_2theta - min_2theta) / num_bins
-
         # Set up reduction engine and also
         if use_mantid_engine:
             reduction_engine = reduce_hb2b_mtd.MantidHB2BReduction(self._mantid_idf)
         else:
             reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
+
         reduction_engine.set_experimental_data(mantid_two_theta, l2, raw_count_vec)
         reduction_engine.build_instrument(geometry_calibration)
+
+        # Determine the 2theta range
+        # Get the 2theta values for all pixels if default value is required
+        if min_2theta is None or max_2theta is None:
+            pixel_2theta_vector = reduction_engine._instrument.get_pixels_2theta(dimension=1)
+            if min_2theta is None:
+                min_2theta = np.min(pixel_2theta_vector)
+            if max_2theta is None:
+                max_2theta = np.max(pixel_2theta_vector)
+
+        if min_2theta >= max_2theta:
+            raise RuntimeError('Diffraction 2theta range ({}, {})is incorrect.'
+                               'Given information: detector arm 2theta = {}, 2theta range = {}'
+                               ''.format(min_2theta, max_2theta, two_theta, default_two_theta_range))
+
+        # Determine 2theta resolution
+        if resolution_2theta is None:
+            resolution_2theta = (max_2theta - min_2theta) / num_bins
 
         # Apply mask
         mask_id, mask_vec = mask_vec_tuple
