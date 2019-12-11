@@ -286,7 +286,7 @@ class HB2BReductionManager(object):
         checkdatatypes.check_file_name(van_project_file, True, False, False, 'Vanadium project/NeXus file')
 
         if van_project_file.endswith('.nxs.h5'):
-            raise NotImplemented('It has not been implemented to load NeXus file of Vanadium')
+            raise NotImplementedError('It has not been implemented to load NeXus file of Vanadium')
 
         # Input is HiDRA project file
         self._van_ws = workspaces.HidraWorkspace(name=van_project_file)
