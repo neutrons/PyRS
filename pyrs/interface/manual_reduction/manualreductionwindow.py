@@ -57,7 +57,7 @@ def _nexus_to_subscans(nexusfile, projectfile, logger):
 
     logger.notice('Creating subscans from {} into project file {}'.format(nexusfile, projectfile))
     converter = NeXusConvertingApp(nexusfile)
-    converter.convert()
+    converter.convert(3.)
     converter.save(projectfile)
 
 
@@ -75,20 +75,22 @@ def _create_powder_patterns(projectfile, instrument, calibration, mask, subruns,
     reducer.save_diffraction_data(projectfile)
 
 
-def reduce_h2bc(nexus, outputdir, instrument=None, calibration=None, mask=None, subruns=list(), progressbar=None):
+def reduce_h2bc(nexus, outputdir, progressbar, instrument=None, calibration=None, mask=None, subruns=list()):
 
     project = os.path.basename(nexus).split('.')[0] + '.h5'
     project = os.path.join(outputdir, project)
 
     logger = Logger('reduce_HB2B')
     # process the data
+    progressbar.setVisible(True)
     progressbar.setValue(0.)
     _nexus_to_subscans(nexus, project, logger)
-    progressbar.setValue(0.5)
+    progressbar.setValue(50.)
     # add powder patterns
     _create_powder_patterns(project, instrument, calibration,
                             mask, subruns, logger)
-    progressbar.setValue(1.)
+    progressbar.setValue(100.)
+    progressbar.setVisible(False)
 
 
 class ManualReductionWindow(QMainWindow):
@@ -143,7 +145,7 @@ class ManualReductionWindow(QMainWindow):
         self.ui.radioButton_chopAdvanced.toggled.connect(self.event_change_slice_type)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
-
+        self.ui.progressBar.setVisible(False)
         # event handling for combobox
         # self.ui.comboBox_sub_runs.currentIndexChanged.connect(self.event_new_run_to_plot)
 
@@ -425,8 +427,8 @@ class ManualReductionWindow(QMainWindow):
         if append_mode is False:
             self.ui.comboBox_sampleLogNames.setCurrentIndex(0)
         self._plot_selection_mutex = False
-
         return
+
 
     def do_quit(self):
         """Quit manual reduction window
@@ -445,9 +447,6 @@ class ManualReductionWindow(QMainWindow):
         return
 
 
-
-
-
     def do_reduce_batch_runs(self):
         """
         (simply) reduce a list of runs in same experiment in a batch
@@ -463,14 +462,14 @@ class ManualReductionWindow(QMainWindow):
             except RuntimeError as run_err:
                 gui_helper.pop_message(self, 'Failed to parse integer list',
                                        '{}'.format(run_err), 'error')
-               return
+                return
         # Reduce data
         nexus_file = str(self.ui.lineEdit_runNumber.text().strip())
         project_file = str(self.ui.lineEdit_outputDir.text().strip())
         idf_name = str(self.ui.lineEdit_idfName.text().strip())
         calibration_file = str(self.ui.lineEdit_calibratonFile.text().strip())
 
-        task = BlockingAsyncTaskWithCallback(reduce_h2bc, args=(nexus_file, project_file),blocking_cb=QApplication.processEvents, progressbar=self.ui.rawDataTable.progressbar)
+        task = BlockingAsyncTaskWithCallback(reduce_h2bc, args=(nexus_file, project_file, self.ui.progressBar), blocking_cb=QApplication.processEvents)
         task.start()
         # Update table
         for sub_run in list():
@@ -501,7 +500,7 @@ class ManualReductionWindow(QMainWindow):
         #    self._currExpNumber = exp_number
         #    project_file_name = 'blabla.hdf5'
         #except RuntimeError:
-        gui_helper.pop_message(self, 'IPTS number shall be set to an integer.', message_type='error')
+        #    gui_helper.pop_message(self, 'IPTS number shall be set to an integer.', message_type='error')
         project_file_name = gui_helper.browse_file(
             self, 'Hidra Project File', os.getcwd(), 'hdf5 (*.h5)', False, False)
         self.ui.lineEdit_runNumber.setText(project_file_name)
