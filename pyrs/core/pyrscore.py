@@ -102,7 +102,7 @@ class PyRsCore(object):
         raise NotImplementedError('Project {} of solid angles {} need to be implemented soon!'
                                   ''.format(project_name, solid_angles))
 
-    def create_workspace(self, fit_tag):
+    def init_peak_fit_engine(self, fit_tag):
         """Create the working workspace that will be used to fit the data"""
 
         # get workspace
@@ -146,7 +146,7 @@ class PyRsCore(object):
             raise ValueError("Project name can not be empty!")
 
         if project_name not in self._peak_fitting_dict:
-            self.create_workspace(project_name)
+            self.init_peak_fit_engine(project_name)
 
         # Get controller by 'fitting tag' and set it to current peak_fit_controller
         self._peak_fit_controller = self._peak_fitting_dict[project_name]
