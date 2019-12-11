@@ -103,7 +103,7 @@ class PeakCollection(object):
             background type of the profile such as Linear
 
         """
-        return self._background_type
+        return str(self._background_type)
 
     @property
     def sub_runs(self):

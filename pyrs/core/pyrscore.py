@@ -407,7 +407,10 @@ class PyRsCore(object):
         self._reduction_service.init_session(project_name)
 
         # Load project
-        ws = self._reduction_service.load_hidra_project(hidra_h5_name, False, load_detector_counts, load_diffraction)
+        ws = self._reduction_service.load_hidra_project(project_file_name=hidra_h5_name,
+                                                        load_calibrated_instrument=False,
+                                                        load_detectors_counts=load_detector_counts,
+                                                        load_reduced_diffraction=load_diffraction)
 
         return ws
 

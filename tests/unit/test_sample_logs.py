@@ -35,8 +35,8 @@ def test_one():
     with pytest.raises(ValueError):
         sample['variable1'] = [27, 28]
 
-    assert sorted(sample.plottable_logs) == ['sub-runs', 'variable1']
-    assert sample.constant_logs == ['variable1']
+    assert sorted(sample.plottable_logs()) == ['sub-runs', 'variable1']
+    assert sample.constant_logs() == ['variable1']
 
 
 def test_multi():
@@ -46,8 +46,8 @@ def test_multi():
     sample['variable1'] = np.linspace(0., 100., 5)
 
     # names of logs
-    assert sorted(sample.plottable_logs) == ['constant1', 'sub-runs', 'variable1']
-    assert sample.constant_logs == ['constant1']
+    assert sorted(sample.plottable_logs()) == ['constant1', 'sub-runs', 'variable1']
+    assert sample.constant_logs() == ['constant1']
 
     # slicing
     np.testing.assert_equal(sample['variable1'], [0., 25., 50., 75., 100.])

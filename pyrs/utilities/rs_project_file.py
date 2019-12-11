@@ -6,6 +6,7 @@ import numpy
 import os
 from pyrs.utilities import checkdatatypes
 from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSetup
+from pyrs.core.peak_collection import PeakCollection
 from pyrs.dataobjects import SampleLogs
 
 
@@ -470,7 +471,10 @@ class HidraProjectFile(object):
         self._log.debug(self._file_name)
         # coded a little wacky to be less than 120 characters across
         sub_runs_str_list = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS]
-        sub_runs_str_list = sub_runs_str_list[HidraConstants.SUB_RUNS].value
+        if HidraConstants.SUB_RUNS in sub_runs_str_list:
+            sub_runs_str_list = sub_runs_str_list[HidraConstants.SUB_RUNS].value
+        else:
+            sub_runs_str_list = []
 
         self._log.debug('.... Sub runs: {}'.format(sub_runs_str_list))
 
@@ -540,10 +544,8 @@ class HidraProjectFile(object):
 
         Returns
         -------
-        str, str, ndarray, ndarray, ndarray, ndarray
-            peak profile, background type, sub runs corresponding to parameter chi2 and values,
-              fitting cose (chi2) array,
-              parameter values (may include Chi2), parameter errors
+        ~pyrs.core.peak_collection.PeakCollection
+            All of the information from fitting a peak across subruns
         """
         # Get main group
         peak_main_group = self._project_h5[HidraConstants.PEAKS]
@@ -556,42 +558,20 @@ class HidraProjectFile(object):
         # Get all the attribute and data
         profile = peak_entry.attrs[HidraConstants.PEAK_PROFILE]
         background = peak_entry.attrs[HidraConstants.BACKGROUND_TYPE]
-        sub_run_array = peak_entry[HidraConstants.SUB_RUNS]
-        chi2_array = peak_entry[HidraConstants.PEAK_FIT_CHI2]
+        sub_run_array = peak_entry[HidraConstants.SUB_RUNS].value
+        chi2_array = peak_entry[HidraConstants.PEAK_FIT_CHI2].value
         param_values = peak_entry[HidraConstants.PEAK_PARAMS].value
         error_values = peak_entry[HidraConstants.PEAK_PARAMS_ERROR].value
 
-        return profile, background, sub_run_array, chi2_array, param_values, error_values
+        # validate the information makes sense
+        if param_values.shape != error_values.shape:
+            raise RuntimeError('Parameters[{}] and Errors[{}] have different shape'.format(param_values.shape,
+                                                                                           error_values.shape))
+        peak_collection = PeakCollection(peak_tag, profile, background)
+        peak_collection.set_peak_fitting_values(sub_runs=sub_run_array, parameter_values=param_values,
+                                                parameter_errors=error_values, fit_costs=chi2_array)
+        return peak_collection
 
-    # def write_peak_fit_result(self, peak_tag, peak_profile, background_type, sub_run_vec, fit_cost_array,
-    #                           param_value_array, param_error_array):
-    #    """Set the peak fitting results to project file.
-
-    #    The tree structure for fitted peak in all sub runs is defined as
-    #    - peaks
-    #        - [peak-tag]
-    #            - attr/'peak profile'
-    #            - sub runs
-    #            - parameter values
-    #            - parameter fitting error
-
-    #    Parameters
-    #    ----------
-    #    peak_tag : str
-    #        peak tag
-    #    peak_profile : str
-    #        peak function name
-    #    background_type : str
-    #        background function
-    #    sub_run_vec : ~numpy.ndarray
-    #        sub run number
-    #    fit_cost_array :  ~numpy.ndarray
-    #        fitting cost (chi2)
-    #    param_value_array : ~numpy.ndarray
-    #        structured numpy array for peak + background (fitted) value
-    #    param_error_array : ~numpy.ndarray
-    #        structured numpy array for peak + background fitting error
-    #    """
     def write_peak_fit_result(self, fitted_peaks):
         """Set the peak fitting results to project file.
 
