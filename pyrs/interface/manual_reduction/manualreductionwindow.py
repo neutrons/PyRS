@@ -75,18 +75,20 @@ def _create_powder_patterns(projectfile, instrument, calibration, mask, subruns,
     reducer.save_diffraction_data(projectfile)
 
 
-def reduce_h2bc(nexus, outputdir, instrument=None, calibration=None, mask=None, subruns=list()):
+def reduce_h2bc(nexus, outputdir, instrument=None, calibration=None, mask=None, subruns=list(), progressbar=None):
 
     project = os.path.basename(nexus).split('.')[0] + '.h5'
     project = os.path.join(outputdir, project)
 
     logger = Logger('reduce_HB2B')
     # process the data
+    progressbar.setValue(0.)
     _nexus_to_subscans(nexus, project, logger)
-
+    progressbar.setValue(0.5)
     # add powder patterns
     _create_powder_patterns(project, instrument, calibration,
                             mask, subruns, logger)
+    progressbar.setValue(1.)
 
 
 class ManualReductionWindow(QMainWindow):
@@ -468,7 +470,7 @@ class ManualReductionWindow(QMainWindow):
         idf_name = str(self.ui.lineEdit_idfName.text().strip())
         calibration_file = str(self.ui.lineEdit_calibratonFile.text().strip())
 
-        task = BlockingAsyncTaskWithCallback(reduce_h2bc, args=(nexus_file, project_file),blocking_cb=QApplication.processEvents)
+        task = BlockingAsyncTaskWithCallback(reduce_h2bc, args=(nexus_file, project_file),blocking_cb=QApplication.processEvents, progressbar=self.ui.rawDataTable.progressbar)
         task.start()
         # Update table
         for sub_run in list():
