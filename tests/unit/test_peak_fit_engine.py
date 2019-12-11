@@ -676,4 +676,8 @@ def test_calculate_effective_parameters_pv():
 
 
 if __name__ == '__main__':
+    # Init random number
+    import random
+    random.seed(1)
+    # Test main
     pytest.main()
