@@ -374,9 +374,27 @@ class HB2BReductionManager(object):
 
         self._geometry_calibration = geometry_calibration
 
+    def get_current_vanadium(self):
+        """Get vanadium counts of each pixel from current/default vanadium (HidraWorkspace)
+
+        Usage: this will be called in order to fetch vanadium counts to reduce_diffraction_data()
+
+        Returns
+        -------
+        numpy.ndarray
+            1D vanadium counts array
+
+        """
+        if self._van_ws is None:
+            raise RuntimeError('There is no default vanadium set up in reduction service')
+        else:
+            van_counts_array = self._van_ws.get_detector_counts(self._van_ws.get_sub_runs()[0])
+
+        return van_counts_array
+
     def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, bin_size_2theta,
                                 use_pyrs_engine, mask,
-                                sub_run_list, apply_vanadium_calibration=False):
+                                sub_run_list, vanadium_counts=None):
         """Reduce ALL sub runs in a workspace from detector counts to diffraction data
 
         Parameters
@@ -393,7 +411,8 @@ class HB2BReductionManager(object):
             Mask
         sub_run_list : List of None
             sub runs
-        apply_vanadium_calibration : boolean or ~numpy.ndarray
+        vanadium_counts : None or ~numpy.ndarray
+            vanadium counts of each detector pixels for normalization
 
         Returns
         -------
@@ -430,26 +449,6 @@ class HB2BReductionManager(object):
         # END-IF-ELSE
         print('[DB...BAT] Det Position Shift: {}'.format(det_pos_shift))
 
-        # Vanadium run
-        if apply_vanadium_calibration is False or apply_vanadium_calibration is None:
-            van_counts_array = None
-        elif apply_vanadium_calibration is True:
-            van_counts_array = self._van_ws.get_detector_counts(self._van_ws.get_sub_runs()[0])
-        else:
-            van_counts_array = apply_vanadium_calibration
-        if isinstance(van_counts_array, np.ndarray):
-            # Mask out zero count
-            van_counts_array[van_counts_array < 3] = np.nan
-            max_count = np.max(van_counts_array[~np.isnan(van_counts_array)])
-            print('[DEBUG] VANADIUM: {}\n\t# of NaN = {}\tMax count = {}'
-                  ''.format(van_counts_array, np.where(np.isnan(van_counts_array))[0].size,
-                            max_count))
-            eff_array = max_count * 1. / van_counts_array
-            print('[DEBUG] Detector efficiency factor: {}\tNumber of NaN = {}'
-                  ''.format(eff_array, np.where(np.isnan(eff_array))[0].size))
-        else:
-            eff_array = None
-
         # TODO - TONIGHT NOW #72 - How to embed mask information???
         if sub_run_list is None:
             sub_run_list = workspace.get_sub_runs()
@@ -458,13 +457,13 @@ class HB2BReductionManager(object):
                                             use_mantid_engine=not use_pyrs_engine,
                                             mask_vec_tuple=(mask_id, mask_vec),
                                             resolution_2theta=bin_size_2theta,
-                                            eff_array=eff_array)
+                                            vanadium_counts=vanadium_counts)
 
     # NOTE: Refer to compare_reduction_engines_tst
     def reduce_sub_run_diffraction(self, workspace, sub_run, geometry_calibration, use_mantid_engine,
                                    mask_vec_tuple, min_2theta=None, max_2theta=None, default_two_theta_range=20,
                                    resolution_2theta=None, num_bins=1000,
-                                   eff_array=None):
+                                   vanadium_counts=None):
         """Reduce import data (workspace or vector) to 2-theta ~ I
 
         The binning of 2theta is linear in range (min, max) with given resolution
@@ -498,8 +497,8 @@ class HB2BReductionManager(object):
             2theta resolution/step
         num_bins : int
             number of bins
-        eff_array :numpy.ndarray or None
-            detector efficiencies
+        vanadium_counts :numpy.ndarray or None
+            detector pixels' vanadium for efficiency and normalization
 
         Returns
         -------
@@ -547,7 +546,7 @@ class HB2BReductionManager(object):
                                                                is_point_data=True,
                                                                normalize_pixel_bin=True,
                                                                use_mantid_histogram=False,
-                                                               efficiency_correction=eff_array)
+                                                               vanadium_counts_array=vanadium_counts)
 
         bin_centers = data_set[0]
         hist = data_set[1]

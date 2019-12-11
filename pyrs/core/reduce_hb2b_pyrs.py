@@ -533,7 +533,7 @@ class PyHB2BReduction(object):
 
     def reduce_to_2theta_histogram(self, two_theta_range, two_theta_step, apply_mask,
                                    is_point_data=True, normalize_pixel_bin=True, use_mantid_histogram=False,
-                                   efficiency_correction=None):
+                                   vanadium_counts_array=None):
         """Reduce the previously added detector raw counts to 2theta histogram (i.e., diffraction pattern)
 
         Parameters
@@ -550,7 +550,8 @@ class PyHB2BReduction(object):
             Flag to normalize the number of pixels in each 2theta histogram bin
         use_mantid_histogram : bool
             Flag to use Mantid (algorithm ResampleX) to do histogram
-        efficiency_correction :
+        vanadium_counts_array : None or numpy.ndarray
+            Vanadium counts array for normalization and efficiency calibration
 
         Returns
         -------
@@ -572,13 +573,8 @@ class PyHB2BReduction(object):
             raise RuntimeError('Detector pixel position array ({}) does not match detector counts array ({})'
                                ''.format(pixel_2theta_array.shape, self._detector_counts.shape))
 
-        # Convert count type
+        # Convert vector counts array's dtype to float
         vec_counts = self._detector_counts.astype('float64')
-        if efficiency_correction is not None:
-            checkdatatypes.check_numpy_arrays('Vector counts, Efficiency', [vec_counts, efficiency_correction],
-                                              dimension=1, check_same_shape=True)
-            vec_counts *= efficiency_correction
-        # END-FOR
 
         print('[INFO] PyRS.Instrument: pixels 2theta range: ({}, {}) vs 2theta histogram range: ({}, {})'
               ''.format(pixel_2theta_array.min(), pixel_2theta_array.max(), two_theta_vector.min(),
@@ -616,7 +612,7 @@ class PyHB2BReduction(object):
             # use numpy.histogram
             two_theta_vector, intensity_vector = self.histogram_by_numpy(pixel_2theta_array, vec_counts,
                                                                          two_theta_vector,
-                                                                         is_point_data, normalize_pixel_bin)
+                                                                         is_point_data, vanadium_counts_array)
 
         # Record
         self._reduced_diffraction_data = two_theta_vector, intensity_vector
@@ -750,7 +746,7 @@ class PyHB2BReduction(object):
         return bin_edges, hist
 
     @staticmethod
-    def histogram_by_numpy(pixel_2theta_array, vec_counts, two_theta_vec, is_point_data, norm_bins):
+    def histogram_by_numpy(pixel_2theta_array, vec_counts, two_theta_vec, is_point_data, vanadium_counts):
         """Histogram a data set (X, Y) by numpy histogram algorithm
 
         Assumption:
@@ -760,25 +756,18 @@ class PyHB2BReduction(object):
         ----------
         pixel_2theta_array : ~numpy.ndarray
             2theta (1D) array for each pixel
-        vec_counts
-        two_theta_vec
-        is_point_data
-        norm_bins
+        vec_counts : numpy.ndarray
+            count array (1D) for each pixel and paired to pixel_2theta_array
+        two_theta_vec : numpy.ndarray
+            two theta vector to bin to
+        is_point_data : bool
+            Output shall be point data; otherwise, histogram data
+        vanadium_counts : None or numpy.ndarray
+            Vanadium counts for normalization and efficiency calibration.  It is allowed to be None
 
         Returns
         -------
 
-        """
-        """
-
-        :param pixel_2theta_array:
-        :param vec_counts: array for vector counts
-        :param x_range: 2-theta range
-        :param num_bins: number of bins
-        :param is_point_data: whether the output is a point data
-        :param norm_bins: whether in each histogram 2theta bin, the intensity (summed counts) shall be normalized
-                          by the number of pixels fall into this 2theta range
-        :return:
         """
         # Check inputs
         checkdatatypes.check_numpy_arrays('Pixel 2theta array, pixel counts array',
@@ -795,26 +784,29 @@ class PyHB2BReduction(object):
         hist, bin_edges = np.histogram(pixel_2theta_array, bins=two_theta_vec, weights=vec_counts)
 
         # Optionally to normalize by number of pixels (sampling points) in the 2theta bin
-        if norm_bins:
+        if vanadium_counts is None:
             # Get the number of pixels in each bin
-            # hist_bin = np.histogram(pixel_2theta_array[np.where(vec_counts > .5)[0]],
-            #                         bins=two_theta_vec)[0]
-            hist_bin = np.histogram(pixel_2theta_array, bins=two_theta_vec)[0]
-            # Normalize
-            hist /= hist_bin  # normalize
-        # END-IF
+            hist_bin, be_temp = np.histogram(pixel_2theta_array, bins=two_theta_vec)
+        else:
+            # Normalize by vanadium including efficiency calibration
+            checkdatatypes.check_numpy_arrays('Vanadium counts', [vanadium_counts], 1, False)
+            hist_bin, be_temp = np.histogram(pixel_2theta_array, bins=two_theta_vec, weights=vanadium_counts)
+        # END-IF-ELSE
 
-        # Bins information output
-        bin_size_vec = (bin_edges[1:] - bin_edges[:-1])
-        print('[DB...BAT] Histograms Bins: X = [{}, {}]'.format(bin_edges[0], bin_edges[-1]))
-        print('[DB...BAT] Bin size = {}, Std = {}'.format(numpy.average(bin_size_vec), numpy.std(bin_size_vec)))
+        # Find out the bin where there is either no vanadium count or no pixel's located
+        # Mask these bins by NaN
+        hist_bin[np.where(hist_bin < 1E-10)] = np.nan
+
+        # Normalize
+        hist /= hist_bin  # normalize
 
         # convert to point data as an option.  Use the center of the 2theta bin as new theta
         if is_point_data:
-            delta_bin = bin_edges[1] - bin_edges[0]
-            bin_edges += delta_bin * 0.5
-            bin_edges = bin_edges[:-1]
-        # END-IF
+            # calculate bin centers
+            bins = 0.5 * (bin_edges[1:] + bin_edges[:-1])
+        else:
+            # return bin edges
+            bins = bin_edges
 
-        return bin_edges, hist
+        return bins, hist
 # END-CLASS
