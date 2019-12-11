@@ -39,7 +39,7 @@ def check_file_name(file_name, check_exist=True, check_writable=False, is_dir=Fa
 
     if check_exist and not os.path.exists(file_name):
         cur_dir = os.getcwd()
-        file_dir = os.path.basename(file_name)
+        file_dir = os.path.dirname(file_name)
         files = os.listdir(file_dir)
         message = 'DEBUG: current dir: {}; file dir: {}; Files available: {}'.format(cur_dir, file_dir, files)
         print(message)
