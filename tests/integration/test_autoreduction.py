@@ -55,7 +55,7 @@ def addPowderToProject(projectfile, use_mantid_engine=False):
 @pytest.mark.parametrize('nexusfile, projectfile',
                          [('/HFIR/HB2B/IPTS-22731/nexus/HB2B_439.nxs.h5', 'HB2B_439.h5'),  # file when reactor was off
                           ('/HFIR/HB2B/IPTS-22731/nexus/HB2B_931.nxs.h5', 'HB2B_931.h5'),  # Vanadium
-                          ('data/HB2B_938.nxs.h5', 'data/HB2B_938.nxs.h5')],  # A good peak
+                          ('data/HB2B_938.nxs.h5', 'HB2B_938.nxs.h5')],  # A good peak
                          ids=('HB2B_439', 'HB2B_931', 'RW_938'))
 def test_nexus_to_project(nexusfile, projectfile):
     # convert the nexus file to a project file and do the "simple" checks
