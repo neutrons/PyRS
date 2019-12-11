@@ -206,15 +206,19 @@ class GeneralDiffDataView(MplGraphicsView1D):
                 self.reset_viewer()
 
         # plot data in a scattering plot with auto re-scale
-        ref_id = self.add_plot(vec_x, vec_y, line_style='', marker='.',
-                               color='red', x_label=x_label, y_label=y_label)
+        ref_id = self.add_plot(vec_x, vec_y,
+                               line_style='',
+                               marker='*',
+                               markersize=6,
+                               color='red',
+                               x_label=x_label,
+                               y_label=y_label)
+
         # TODO - 20181101 - Enable after auto_scale is fixed: self.auto_rescale()
 
         self._line_reference_list.append(ref_id)
         self._last_line_reference = ref_id
         self._current_x_axis_name = x_label
-
-        return
 
     def reset_viewer(self):
         """
@@ -227,8 +231,6 @@ class GeneralDiffDataView(MplGraphicsView1D):
 
         # call to clean lines
         self.clear_all_lines()
-
-        return
 
 
 class PeakFitSetupView(MplFitPlottingWidget):

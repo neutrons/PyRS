@@ -39,8 +39,6 @@ class PeakFittingTest(object):
         # set wave length
         hd_ws.set_wavelength(1.071, False)
 
-        return
-
     def fit_peak(self, peak_profile, peak_info):
         """Fit peak
 
@@ -62,8 +60,6 @@ class PeakFittingTest(object):
                                              peak_type=peak_profile, background_type='Linear',
                                              peaks_fitting_setup=peak_info_dict)
 
-        return
-
     def fit_pseudo_voigt(self):
         """
         Fit pseudo-voigt peaks
@@ -76,8 +72,6 @@ class PeakFittingTest(object):
                                              peak_type='PseudoVoigt', background_type='Linear',
                                              peaks_fitting_setup=peak_info_dict)
 
-        return
-
     def fit_gaussian(self):
         """ Test fitting with Gaussian
         :return:
@@ -88,8 +82,6 @@ class PeakFittingTest(object):
         self._reduction_controller.fit_peaks(self._project_name, sub_run_list=None,
                                              peak_type='Gaussian', background_type='Linear',
                                              peaks_fitting_setup=peak_info_dict)
-
-        return
 
     def show_fit_result(self, show_effective_params):
         """ Get the fit results and plot
@@ -123,8 +115,6 @@ class PeakFittingTest(object):
         # Print parameters
         print('sub-run = {}, peak width = {}'.format(3, peak_params_dict[3]['PeakWidth']))
 
-        return
-
     def save_fit_result(self, src_project_file, out_file_name, peak_tag):
         """Save peak fitting result to project file with previous
 
@@ -144,8 +134,6 @@ class PeakFittingTest(object):
 
         # Save result with default value on file name to import from and export to
         self._reduction_controller.save_peak_fit_result(self._project_name, out_file_name, peak_tag, overwrite=False)
-
-        return
 
 
 # @pytest.mark.parametrize('source_project_file, output_project_file, peak_type, peak_info',
@@ -182,8 +170,6 @@ def broken_test_fit_2peaks(source_project_file, output_project_file, peak_type, 
     # save to project file
     tester.save_fit_result(source_project_file, output_project_file, peak_info_list[0].tag)
 
-    return
-
 
 @pytest.mark.parametrize('source_project_file, output_project_file, peak_type, peak_info',
                          [('/HFIR/HB2B/IPTS-22731/shared/ProjectFiles/HB2B_1065.h5', 'HB2B_1065_Peak.h5',
@@ -218,7 +204,28 @@ def skip_test_fit_2peaks(source_project_file, output_project_file, peak_type, pe
     # save to project file
     tester.save_fit_result(source_project_file, output_project_file, peak_info.tag)
 
-    return
+
+@pytest.mark.parametrize('source_project_file, output_project_file, peak_type, peak_info',
+                         [('/HFIR/HB2B/IPTS-22731/shared/ProjectFiles/HB2B_1065.h5', 'HB2B_1065_Peak.h5',
+                           'PseudoVoigt', PeakInfo(90.5, 89.9, 91.6, '311'))],
+                         ids=['HB2B1065PeakExport'])
+def test_retrieve_fit_metadata(source_project_file, output_project_file, peak_type, peak_info):
+    pass
+    # Create tester
+    # tester = PeakFittingTest(source_project_file)
+
+    # Fit peak
+    # tester.fit_peak(peak_type, peak_info)
+
+    # retrieve Center
+
+    # retrieve Height
+
+    # retrieve intensity
+
+    # retrieve FWHM
+
+    # retrieve d_spacing
 
 
 @pytest.mark.parametrize('project_file_name, peak_file_name, peak_type, peak_info',
@@ -254,8 +261,6 @@ def test_main(project_file_name, peak_file_name, peak_type, peak_info):
 
     # save to project file
     tester.save_fit_result(project_file_name, peak_file_name, peak_info.tag)
-
-    return
 
 
 # TODO - MAKE IT WORK!
