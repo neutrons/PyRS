@@ -28,7 +28,7 @@ class GuiUtilities:
 
     def enabled_2dplot_widgets(self, enabled=True):
         list_widgets = [self.parent.ui.frame_2dplot,
-                        self.parent.ui.widget_contour_plot,
+                        self.parent.ui.graphicsView_2dPlot_frame,
                         ]
         self.enabled_list_widgets(list_widgets=list_widgets,
                                   enabled=enabled)

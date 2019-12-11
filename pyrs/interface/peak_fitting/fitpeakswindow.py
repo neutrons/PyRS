@@ -1,7 +1,6 @@
 import os
 from qtpy.QtWidgets import QVBoxLayout, QFileDialog, QMainWindow
 from qtpy import QtGui
-import pyqtgraph as pg
 
 from pyrs.utilities import load_ui
 from pyrs.interface.ui import qt_util
@@ -58,12 +57,12 @@ class FitPeaksWindow(QMainWindow):
                                                                 GeneralDiffDataView)
         self.ui.graphicsView_fitResult.setEnabled(False)
         self.ui.graphicsView_fitResult.set_subplots(1, 1)
-        self.ui.widget_contour_plot.setEnabled(False)
+        self.ui.graphicsView_plot2D = qt_util.promote_widget(self, self.ui.graphicsView_2dPlot_frame,
+                                                             GeneralDiffDataView)
         self.ui.tableView_fitSummary = qt_util.promote_widget(self, self.ui.tableView_fitSummary_frame,
                                                               FitResultTable)
         self._promote_peak_fit_setup()
         self._init_widgets()
-        self._init_pyqtgraph()
 
         # set up handling
         self.ui.pushButton_loadHDF.clicked.connect(self.load_hidra_file)
@@ -192,16 +191,6 @@ class FitPeaksWindow(QMainWindow):
 
         # warning icon
         self.ui.listsubruns_warning_icon.setPixmap(QtGui.QPixmap(":/fitting/warning_icon.png"))
-
-    def _init_pyqtgraph(self):
-        image_view = pg.ImageView()
-        image_view.ui.roiBtn.hide()
-        image_view.ui.menuBtn.hide()
-
-        vertical_layout = QVBoxLayout()
-        vertical_layout.addWidget(image_view)
-
-        self.ui.widget_contour_plot.setLayout(vertical_layout)
 
     def do_launch_adv_fit(self):
         """
