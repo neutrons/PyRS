@@ -134,14 +134,15 @@ class ReductionApp(object):
                                                         sub_run_list=sub_runs,
                                                         vanadium_counts=van_array)
 
-    def plot_reduced_data(self):
-        vec_x, vec_y = self._reduction_engine.get_reduced_data()  # TODO this method doesn't exist
+    def plot_reduced_data(self, sub_run_number=None):
 
-        if vec_x.shape[0] > vec_y.shape[0]:
-            print('Shape: vec x = {}, vec y = {}'.format(vec_x.shape, vec_y.shape))
-            # TODO - TONIGHT 3 - shift half bin of X to point data
-            plt.plot(vec_x[:-1], vec_y)
+        if sub_run_number is None:
+            sub_runs = self._reduction_manager.get_sub_runs(self._session)
         else:
+            sub_runs = [sub_run_number]
+
+        for sub_run_i in sub_runs:
+            vec_x, vec_y = self._reduction_manager.get_reduced_diffraction_data(self._session, sub_run_i)
             plt.plot(vec_x, vec_y)
         plt.show()
 
