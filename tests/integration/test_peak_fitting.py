@@ -227,6 +227,9 @@ def test_retrieve_fit_metadata(source_project_file, output_project_file, peak_ty
     -------
 
     """
+    if os.path.exists(source_project_file) is False:
+        pytest.skip('{} does not exist on Travis')
+
     # Create calibration control
     controller = pyrscore.PyRsCore()
 
