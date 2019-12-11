@@ -19,6 +19,8 @@ class EventHandler:
         if self.parent._core is None:
             raise RuntimeError('Not set up yet!')
 
+        print("browse and load and plot")
+
         # o_utility = Utilities(parent=self.parent)
         # hydra_file_name = o_utility.get_default_hdf()
         hidra_file_name = None

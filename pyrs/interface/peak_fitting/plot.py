@@ -4,6 +4,8 @@ from pyrs.interface.gui_helper import parse_integers
 from pyrs.interface.gui_helper import pop_message
 from pyrs.utilities.rs_project_file import HidraConstants
 
+from pyrs.interface.peak_fitting.config import LIST_AXIS_TO_PLOT
+
 
 class Plot:
 
@@ -112,36 +114,78 @@ class Plot:
         x_axis_name = str(self.parent.ui.comboBox_xaxisNames.currentText())
         y_axis_name = str(self.parent.ui.comboBox_yaxisNames.currentText())
 
-        print("x_axis_name: " + x_axis_name)
-        print("y_axis_name: " + y_axis_name)
-
-        return
-
-        # Return if sample logs combo box not set
-        if x_axis_name == '' and y_axis_name == '':
-            return
-
-        if x_axis_name in self.parent._function_param_name_set and y_axis_name == HidraConstants.SUB_RUNS:
-            vec_y, vec_x = self.get_function_parameter_data(x_axis_name)
-        elif y_axis_name in self.parent._function_param_name_set and x_axis_name == HidraConstants.SUB_RUNS:
-            vec_x, vec_y = self.get_function_parameter_data(y_axis_name)
-        elif x_axis_name in self.parent._function_param_name_set or y_axis_name in \
-                self.parent._function_param_name_set:
-            pop_message(self, 'It has not considered how to plot 2 function parameters '
-                              '{} and {} against each other'
-                              ''.format(x_axis_name, y_axis_name),
-                              message_type='error')
-            return
+        hidra_workspace = self.parent.hidra_workspace
+        if x_axis_name == 'Sub-runs':
+            axis_x = hidra_workspace.get_sub_runs()
+            if y_axis_name == 'Sub-runs':
+                axis_y = hidra_workspace.get_sub_runs()
+            elif y_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
+                axis_y = hidra_workspace._sample_logs[y_axis_name]
+            elif y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
+                vec_y, vec_x = self.get_function_parameter_data(x_axis_name)
+                print(vec_y)
+                print(vec_x)
+            else:
+                raise NotImplementedError("y_axis choice not supported yet: {}".format(y_axis_name))
+        elif x_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
+            axis_x = hidra_workspace._sample_logs[x_axis_name]
+            if y_axis_name == 'Sub-runs':
+                axis_y = hidra_workspace.get_sub_runs()
+            elif y_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
+                axis_y = hidra_workspace._sample_logs[y_axis_name]
+            elif y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
+                pass
+            else:
+                raise NotImplementedError("y_axis choice not supported yet: {}!".format(y_axis_name))
+        elif x_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
+            if y_axis_name == 'Sub-runs':
+                axis_y = hidra_workspace.get_sub_runs()
+            elif y_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
+                axis_y = hidra_workspace._sample_logs[y_axis_name]
+            elif y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
+                pass
+            else:
+                raise NotImplementedError("y_axis choice not supported yet: {}!".format(y_axis_name))
         else:
-            vec_x = self.get_meta_sample_data(x_axis_name)
-            vec_y = self.get_meta_sample_data(y_axis_name)
-        # END-IF-ELSE
+            raise NotImplementedError("x_axis choice not supported yet: {}!".format(x_axis_name))
 
-        if vec_x is None or vec_y is None:
-            raise RuntimeError('{} or {} cannot be None ({}, {})'
-                               ''.format(x_axis_name, y_axis_name, vec_x, vec_y))
+        self.parent.ui.graphicsView_fitResult.plot_scatter(axis_x, axis_y,
+                                                           'sub_runs', y_axis_name)
 
-        self.parent.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y, x_axis_name, y_axis_name)
+        # return
+        #
+        # param_names, param_data = self.parent._core.get_peak_fitting_result(self.parent._project_name,
+        #                                                                     0,
+        #                                                                     return_format=dict,
+        #                                                                     effective_parameter=False)
+        #
+        # return
+        #
+        # # Return if sample logs combo box not set
+        # if x_axis_name == '' and y_axis_name == '':
+        #     return
+        #
+        # if x_axis_name in self.parent._function_param_name_set and y_axis_name == HidraConstants.SUB_RUNS:
+        #     vec_y, vec_x = self.get_function_parameter_data(x_axis_name)
+        # elif y_axis_name in self.parent._function_param_name_set and x_axis_name == HidraConstants.SUB_RUNS:
+        #     vec_x, vec_y = self.get_function_parameter_data(y_axis_name)
+        # elif x_axis_name in self.parent._function_param_name_set or y_axis_name in \
+        #         self.parent._function_param_name_set:
+        #     pop_message(self, 'It has not considered how to plot 2 function parameters '
+        #                       '{} and {} against each other'
+        #                       ''.format(x_axis_name, y_axis_name),
+        #                       message_type='error')
+        #     return
+        # else:
+        #     vec_x = self.get_meta_sample_data(x_axis_name)
+        #     vec_y = self.get_meta_sample_data(y_axis_name)
+        # # END-IF-ELSE
+        #
+        # if vec_x is None or vec_y is None:
+        #     raise RuntimeError('{} or {} cannot be None ({}, {})'
+        #                        ''.format(x_axis_name, y_axis_name, vec_x, vec_y))
+        #
+        # self.parent.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y, x_axis_name, y_axis_name)
 
     def get_function_parameter_data(self, param_name):
         """ get the parameter function data
@@ -154,6 +198,7 @@ class Plot:
             return
 
         param_names, param_data = self.parent._core.get_peak_fitting_result(self.parent._project_name,
+                                                                            0,
                                                                             return_format=dict,
                                                                             effective_parameter=False)
 
