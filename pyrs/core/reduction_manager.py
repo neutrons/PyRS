@@ -274,7 +274,8 @@ class HB2BReductionManager(object):
 
         Parameters
         ----------
-        van_project_file
+        van_project_file : str
+            vanadium HiDRA project file or NeXus file
 
         Returns
         -------
@@ -282,6 +283,12 @@ class HB2BReductionManager(object):
             1D array as vanadium counts
 
         """
+        checkdatatypes.check_file_name(van_project_file, True, False, False, 'Vanadium project/NeXus file')
+
+        if van_project_file.endswith('.nxs.h5'):
+            raise NotImplemented('It has not been implemented to load NeXus file of Vanadium')
+
+        # Input is HiDRA project file
         self._van_ws = workspaces.HidraWorkspace(name=van_project_file)
 
         # PyRS HDF5
@@ -302,9 +309,15 @@ class HB2BReductionManager(object):
         # get vanadium data
         van_array = self._van_ws.get_detector_counts(sub_runs[0])
 
+        return van_array
+
+    @staticmethod
+    def _do_stat_to_van(van_array):
         # DEBUG: do statistic
-        print('[INFO] Vanadium {} Counts: min = {}, max = {}, average = {}'
-              ''.format(van_project_file, np.min(van_array), np.max(van_array), np.average(van_array)))
+        print('[INFO] Vanadium Counts: min = {}, max = {}, average = {}'
+              ''.format(np.min(van_array), np.max(van_array), np.average(van_array)))
+        # do statistic on each pixel with hard-coded range of counts
+        # i.e., do a histogram on the vanadium counts
         count_range = [0, 2, 5, 10, 20, 30, 40, 50, 60, 80, 150, 300]
         per_count = 0
         pixel_count = 0
@@ -325,8 +338,6 @@ class HB2BReductionManager(object):
         van_array[van_array < 3] = np.nan
         print('[DEBUG] VANADIUM After  Mask: {}\n\t# of NaN = {}'
               ''.format(van_array, np.where(np.isnan(van_array))[0].size))
-
-        return van_array
 
     def get_loaded_mask_files(self):
         """

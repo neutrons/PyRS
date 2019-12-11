@@ -85,11 +85,13 @@ class ReductionApp(object):
 
         Parameters
         ----------
-        sub_runs
+        sub_runs : List or None
+            sub run numbers to reduce
         instrument_file
         calibration_file
         mask
-        van_file
+        van_file : str or None
+            HiDRA project file containing vanadium counts or event NeXus file
 
         Returns
         -------
