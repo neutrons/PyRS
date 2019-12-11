@@ -331,16 +331,21 @@
                 </spacer>
                </item>
                <item>
-                <widget class="QPushButton" name="pushButton_saveAsFitResult">
-                 <property name="text">
-                  <string>Save As ...</string>
+                <widget class="QPushButton" name="pushButton_exportCSV">
+                 <property name="minimumSize">
+                  <size>
+                   <width>120</width>
+                   <height>0</height>
+                  </size>
                  </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="pushButton_saveFitResult">
+                 <property name="maximumSize">
+                  <size>
+                   <width>120</width>
+                   <height>16777215</height>
+                  </size>
+                 </property>
                  <property name="text">
-                  <string>Save</string>
+                  <string>Export CSV</string>
                  </property>
                 </widget>
                </item>
@@ -828,8 +833,8 @@
     <property name="title">
      <string>File</string>
     </property>
-    <addaction name="actionSave_Fit_Result"/>
-    <addaction name="actionSave_As"/>
+    <addaction name="actionSave"/>
+    <addaction name="actionSaveAs"/>
     <addaction name="separator"/>
     <addaction name="actionQuit"/>
    </widget>
@@ -864,14 +869,14 @@
     <string>More Options ... ...</string>
    </property>
   </action>
-  <action name="actionSave_As">
+  <action name="actionSaveAs">
    <property name="text">
     <string>Save As ...</string>
    </property>
   </action>
-  <action name="actionSave_Fit_Result">
+  <action name="actionSave">
    <property name="text">
-    <string>Save Fit Result</string>
+    <string>Save</string>
    </property>
   </action>
   <action name="actionQuick_Fit_Result_Check">
