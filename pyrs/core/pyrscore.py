@@ -159,8 +159,6 @@ class PyRsCore(object):
         checkdatatypes.check_string_variable('Background type', background_type,
                                              peak_fit_factory.SupportedBackgroundTypes)
 
-        print("sub_run_list: {}".format(sub_run_list))
-
         # Deal with sub runs
         if sub_run_list is None:
             sub_run_list = workspace.get_sub_runs()
@@ -262,13 +260,7 @@ class PyRsCore(object):
                                 return_format={},
                                 effective_parameter=False,
                                 fitting_function="Gaussian"):
-        """ Get peak fitting result
-        Note: this provides a convenient method to retrieve information
-        :param project_name:
-        :param return_format:
-        :param effective_parameter:
-        :return:
-        """
+
         # Get peak fitting controller &
         if project_name in self._peak_fitting_dict:
             # if it does exist
@@ -278,7 +270,7 @@ class PyRsCore(object):
             raise RuntimeError('{} not exist'.format(project_name))
 
         # Get the parameter values
-        if effective_parameter:
+        if effective_parameter:  # what does it mean 'effective parameter' ???
             # Retrieve effective peak parameters
             sub_run_vec, chi2_vec, param_vec, param_error_vec = fitted_peaks_obj.get_effective_parameters_values()
         else:
@@ -295,8 +287,6 @@ class PyRsCore(object):
                     param_data_dict[param_name] = sub_run_vec
                 else:
                     param_data_dict[param_name] = param_vec[param_index]
-                # END-IF-ELSE
-            # END-FOR
 
             # add sub runs and chi2
             param_data_dict[HidraConstants.SUB_RUNS] = sub_run_vec
@@ -334,10 +324,6 @@ class PyRsCore(object):
         :return:
         """
         optimizer = self._get_peak_fitting_controller(data_key)
-
-        print("in get_peak_center_of_mass")
-        print(optimizer.get_observed_peaks_centers())
-
         return optimizer.get_observed_peaks_centers()[:, 0]
 
     def get_peak_intensities(self, data_key_pair):
@@ -404,9 +390,7 @@ class PyRsCore(object):
                 vec_alpha = numpy.concatenate((vec_alpha, vec_alpha_i), axis=0)
                 vec_beta = numpy.concatenate((vec_beta, vec_beta_i), axis=0)
                 vec_intensity = numpy.concatenate((vec_intensity, vec_intensity_i), axis=0)
-            # END-IF-ELSE
             print('Updated alpha: size = {0}: {1}'.format(len(vec_alpha), vec_alpha))
-        # END-FOR
 
         return vec_alpha, vec_beta, vec_intensity
 
@@ -508,8 +492,6 @@ class PyRsCore(object):
         self._curr_ss_session = session_name
         self._curr_ss_type = ss_type
 
-        return
-
     def reduce_diffraction_data(self, session_name, two_theta_step, pyrs_engine, mask_file_name=None,
                                 geometry_calibration=None, sub_run_list=None):
         """ Reduce all sub runs in a workspace from detector counts to diffraction data
@@ -547,13 +529,10 @@ class PyRsCore(object):
         else:
             raise RuntimeError('Argument geometry_calibration of value {} and type {} is not supported'
                                ''.format(geometry_calibration, type(geometry_calibration)))
-        # END-IF-ELSE
 
         self._reduction_service.reduce_diffraction_data(session_name, apply_calibration,
                                                         two_theta_step, pyrs_engine,
                                                         mask_id, sub_run_list)
-
-        return
 
     @property
     def reduction_service(self):
@@ -624,8 +603,6 @@ class PyRsCore(object):
         except RuntimeError as run_err:
             raise RuntimeError('Unable to write COM to NeXus because Mantid fit engine is not used.\nError info: {0}'
                                ''.format(run_err))
-
-        return
 
     def slice_data(self, even_nexus, splicer_id):
         """Event split a NeXus file

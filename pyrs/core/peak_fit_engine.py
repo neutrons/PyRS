@@ -223,7 +223,7 @@ class PeakFitEngine(object):
             raise AssertionError('Peak center {} must be float or np.array'.format(peak_center))
         checkdatatypes.check_tuple('Peak range', peak_range, 2)
 
-    def calculate_fitted_peaks(self, sub_run_number, vec_2theta):
+    def calculate_fitted_peaks(self, sub_run_number, vec_2theta=None):
         """Calculate peak(s) from fitted parameters for a single sub run
 
         Set the values to zero and calculate peaks with background within +/- 3 FWHM
@@ -249,7 +249,7 @@ class PeakFitEngine(object):
         vec_intensity = np.zeros_like(vec_2theta)
 
         # Calculate peaks
-        print('Peaks: {}'.format(self._peak_collection_dict.keys()))
+        # print('Peaks: {}'.format(self._peak_collection_dict.keys()))
         for peak_tag in self._peak_collection_dict.keys():
             pc_i = self._peak_collection_dict[peak_tag]
             param_dict = pc_i.get_sub_run_params(sub_run_number)
@@ -280,6 +280,10 @@ class PeakFitEngine(object):
         return self._hidra_wksp
 
     def get_peaks(self, peak_tag):
+        # only work for peak 1 right now
+        print("in get_peaks of peak_fit_engine.py")
+        print("-> self._peak_collection_dict.keys(): {}".format(self._peak_collection_dict.keys()))
+        # peak_tag = 'Peak 1'  # FIXME
         return self._peak_collection_dict[peak_tag]
 
     @staticmethod
