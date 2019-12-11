@@ -795,6 +795,8 @@ class PyHB2BReduction(object):
 
         # Find out the bin where there is either no vanadium count or no pixel's located
         # Mask these bins by NaN
+        # make sure it is float
+        hist_bin = hist_bin.astype(float)
         hist_bin[np.where(hist_bin < 1E-10)] = np.nan
 
         # Normalize
