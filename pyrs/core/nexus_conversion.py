@@ -392,7 +392,7 @@ def calculate_log_time_average(log_times, log_value, splitter_times, splitter_va
         total_time += stop_time - start_time
 
         # get the (partial) interval from sample log
-        logger.debug('Log times: {}'.format(log_times))
+        # logger.debug('Log times: {}'.format(log_times))
         log_start_index = bisect.bisect(log_times, start_time)
         log_stop_index = bisect.bisect(log_times, stop_time)
         logger.debug('Start/Stop index: {} {}'.format(log_start_index, log_stop_index))
@@ -409,13 +409,13 @@ def calculate_log_time_average(log_times, log_value, splitter_times, splitter_va
         partial_log_times[-1] = stop_time
         # to 1 + time size - 2 = time size - 1
         partial_log_times[1:partial_time_size - 1] = log_times[log_start_index:log_stop_index]
-        logger.debug('Processed log times: {}'.format(partial_log_times))
+        # logger.debug('Processed log times: {}'.format(partial_log_times))
 
         # set the partial value: v[0] is the value before log_start_index (to the right)
         # so it shall start from log_start_index - 1
         # the case with log_start_index == 0 is ruled out
         partial_log_value = log_value[log_start_index - 1:log_stop_index]
-        logger.debug('Partial log value: {}'.format(partial_log_value))
+        # logger.debug('Partial log value: {}'.format(partial_log_value))
 
         # Now for time average
         weighted_sum += numpy.sum(partial_log_value * (partial_log_times[1:] - partial_log_times[:-1]))
