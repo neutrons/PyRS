@@ -191,7 +191,8 @@ class FitPeaksWindow(QMainWindow):
 
     def export_csv(self):
         o_export = ExportCSV(parent=self)
-        o_export.csv()
+        o_export.select_output_folder()
+        o_export.create_csv()
 
     def _promote_peak_fit_setup(self):
         # 2D detector view

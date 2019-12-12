@@ -231,6 +231,10 @@ class HB2BReductionManager(object):
             file_mode = HidraProjectFileMode.READONLY
         project_h5_file = HidraProjectFile(project_file_name, mode=file_mode)
 
+        print("in reduction manager")
+        print("in load_hidra_project")
+        print("project_h5_file: {}".format(project_h5_file))
+
         # Load
         self._curr_workspace.load_hidra_project(project_h5_file,
                                                 load_raw_counts=load_detectors_counts,
@@ -238,6 +242,9 @@ class HB2BReductionManager(object):
 
         # Close
         project_h5_file.close()
+
+
+        print("project_h5_file: {}".format(self._curr_workspace._project_file))
 
         return self._curr_workspace
 

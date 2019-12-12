@@ -259,6 +259,7 @@ class HidraWorkspace(object):
         # Check input
         checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HidraProjectFile)
         self._project_file_name = hidra_file.name
+        self._project_file = hidra_file
 
         # create the spectrum map - must exist before loading the counts array
         self._sample_logs.subruns = hidra_file.read_sub_runs()
