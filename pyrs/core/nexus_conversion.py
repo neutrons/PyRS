@@ -1,8 +1,9 @@
 """
 Convert HB2B NeXus file to Hidra project file for further reduction
 """
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from mantid.simpleapi import mtd, GenerateEventsFilter, LoadEventNexus, FilterEvents
-from mantid.kernel import FloatTimeSeriesProperty, Int32TimeSeriesProperty, Int64TimeSeriesProperty
+from mantid.kernel import FloatTimeSeriesProperty, Int32TimeSeriesProperty, Int64TimeSeriesProperty, logger, Logger
 import numpy
 import os
 from pyrs.core import workspaces
@@ -16,11 +17,13 @@ class NeXusConvertingApp(object):
     """
     Convert NeXus file to Hidra project file
     """
-
     def __init__(self, nexus_file_name):
         """ Initialization
         :param nexus_file_name:
         """
+        # configure logging for this class
+        self._log = Logger(__name__)
+
         checkdatatypes.check_file_name(nexus_file_name, True, False, False, 'NeXus file')
 
         self._nexus_name = nexus_file_name
@@ -91,7 +94,7 @@ class NeXusConvertingApp(object):
         try:
             sample_log_dict[HidraConstants.SUB_RUN_DURATION] = self._calculate_sub_run_duration()
         except RuntimeError as run_err:
-            print('[ERROR] Unable to calculate duration for sub runs: {}'.format(run_err))
+            self._log.error('Unable to calculate duration for sub runs: {}'.format(run_err))
 
         # Set sub runs to HidraWorkspace
         sub_runs = numpy.array(sorted(self._sub_run_workspace_dict.keys()))
@@ -165,7 +168,7 @@ class NeXusConvertingApp(object):
 
         # remove file if it already exists
         if os.path.exists(projectfile):
-            print('Projectfile "{}" exists, removing previous version'.format(projectfile))
+            self._log.information('Projectfile "{}" exists, removing previous version'.format(projectfile))
             os.remove(projectfile)
 
         # save
@@ -327,7 +330,7 @@ def time_average_value(run_obj, log_name):
         except RuntimeError as run_err:
             # Sample log may not meet requirement
             # TODO - log the error!
-            print('Failed on sample log {}. Cause: {}'.format(log_name, run_err))
+            logger.warning('Failed on sample log {}. Cause: {}'.format(log_name, run_err))
             # use current Mantid method instead
             log_value = run_obj.getPropertyAsSingleValue(log_name)
 
@@ -376,27 +379,27 @@ def calculate_log_time_average(log_times, log_value, splitter_times, splitter_va
     # Calculate time average
     total_time = 0.
     weighted_sum = 0.
-    num_periods = splitter_times.shape[0] / 2
+    num_periods = int(.5 * splitter_times.shape[0])
 
     for iperiod in range(num_periods):
         # determine the start and stop time
         start_time = splitter_times[2 * iperiod + start_split_index]
         stop_time = splitter_times[2 * iperiod + start_split_index + 1]
 
-        # print('Start/Stop Time: ', start_time, stop_time)
+        logger.debug('Start/Stop Time: {} {}'.format(start_time, stop_time))
 
         # update the total time
         total_time += stop_time - start_time
 
         # get the (partial) interval from sample log
-        # print('Log times: ', log_times)
+        logger.debug('Log times: {}'.format(log_times))
         log_start_index = bisect.bisect(log_times, start_time)
         log_stop_index = bisect.bisect(log_times, stop_time)
-        # print('Start/Stop index:', log_start_index, log_stop_index)
+        logger.debug('Start/Stop index: {} {}'.format(log_start_index, log_stop_index))
 
         if log_start_index == 0:
-            print('Sample log time start time:    {}'.format(log_times[0]))
-            print('Splitter star time:            {}'.format(start_time))
+            logger.information('Sample log time start time:    {}'.format(log_times[0]))
+            logger.information('Splitter star time:            {}'.format(start_time))
             raise RuntimeError('It is not expected that the run (splitter[0]) starts with no sample value recorded')
 
         # set the partial log time
@@ -406,13 +409,13 @@ def calculate_log_time_average(log_times, log_value, splitter_times, splitter_va
         partial_log_times[-1] = stop_time
         # to 1 + time size - 2 = time size - 1
         partial_log_times[1:partial_time_size - 1] = log_times[log_start_index:log_stop_index]
-        # print('Processed log times: ', partial_log_times)
+        logger.debug('Processed log times: {}'.format(partial_log_times))
 
         # set the partial value: v[0] is the value before log_start_index (to the right)
         # so it shall start from log_start_index - 1
         # the case with log_start_index == 0 is ruled out
         partial_log_value = log_value[log_start_index - 1:log_stop_index]
-        # print('Partial log value:', partial_log_value)
+        logger.debug('Partial log value: {}'.format(partial_log_value))
 
         # Now for time average
         weighted_sum += numpy.sum(partial_log_value * (partial_log_times[1:] - partial_log_times[:-1]))
