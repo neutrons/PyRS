@@ -134,8 +134,8 @@ class NeXusConvertingApp(object):
                 raise RuntimeError('sub run {} does not have splitter'.format(sub_run))
             else:
                 # calculate duration
-                splitter_times = run_i.getProperty('splitter').times
-                splitter_value = run_i.getProperty('splitter').value.astype(float) * 1E-9
+                splitter_times = run_i.getProperty('splitter').times.astype(float) * 1E-9
+                splitter_value = run_i.getProperty('splitter').value
 
                 if splitter_value[0] == 0:
                     splitter_times = splitter_times[1:]
