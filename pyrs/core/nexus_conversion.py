@@ -35,9 +35,9 @@ class NeXusConvertingApp(object):
         # project file
         self._project_file = None
 
-        return
+        self._starttime = 0.  # start filtering at the beginning of the run
 
-    def convert(self, start_time):
+    def convert(self):
         """Main method to convert NeXus file to HidraProject File by
 
         1. split the workspace to sub runs
@@ -55,7 +55,9 @@ class NeXusConvertingApp(object):
 
         """
         # Load data file, split to sub runs and sample logs
-        self._sub_run_workspace_dict = self._split_sub_runs(start_time)
+        self._load_event_nexus()
+        self._determine_start_time()
+        self._sub_run_workspace_dict = self._split_sub_runs()
 
         # Get the sample log value
         sample_log_dict = dict()
@@ -200,15 +202,49 @@ class NeXusConvertingApp(object):
             else:
                 raise RuntimeError('Cannot convert "{}" to a single value'.format(name))
 
-    def _split_sub_runs(self, relative_start_time=0):
-        """Performing event filtering according to sample log sub-runs
+    def _load_event_nexus(self):
+        '''Loads the event file using instance variables'''
+        LoadEventNexus(Filename=self._nexus_name, OutputWorkspace=self._event_ws_name)
+        # get the start time from the run object
+        self._starttime = mtd[self._event_ws_name].run()['start_time'].value
 
-        DAS log may not be correct from the run start,
+    def _determine_start_time(self, abs_tolerance=0.05):
+        '''This goes through a subset of logs and compares when they actually
+        get to their specified setpoint, updating the start time for
+        event filtering. When this is done ``self._starttime`` will have been updated.
 
         Parameters
         ----------
-        relative_start_time : float or int
-            Starting time from the run start time in unit of second
+        abs_tolerance: float
+            When then log is within this absolute tolerance of the setpoint, it is correct
+        '''
+        # static view of the run object
+        runObj = mtd[self._event_ws_name].run()
+
+        # loop through the 'special' logs
+        for logname in ['sx', 'sy', 'sz', '2theta', 'omega', 'chi', 'phi']:
+            if logname not in runObj:
+                continue  # log doesn't exist - not a good one to look at
+            if logname + 'Setpoint' not in runObj:
+                continue  # log doesn't have a setpoint - not a good one to look at
+
+            # get the observed values of the log
+            observed = runObj[logname].value
+            if len(observed) <= 1 or observed.std() <= .5 * abs_tolerance:
+                continue  # don't bother if the log is constant within half of the tolerance
+
+            # look for the setpoint and find when the log first got there
+            setPoint = runObj[logname + 'Setpoint'].value[0]  # only look at first setpoint
+            for i, value in enumerate(observed):
+                if abs(value - setPoint) < abs_tolerance:
+                    # pick the larger of what was found and the previous largest value
+                    self._starttime = max(runObj[logname].times[i], self._starttime)
+                    break
+
+    def _split_sub_runs(self):
+        """Performing event filtering according to sample log sub-runs
+
+        DAS log may not be correct from the run start,
 
         Returns
         -------
@@ -217,7 +253,6 @@ class NeXusConvertingApp(object):
 
         """
         # Load data
-        LoadEventNexus(Filename=self._nexus_name, OutputWorkspace=self._event_ws_name)
 
         # Generate splitters by sample log 'scan_index'.  real sub run starts with scan_index == 1
         split_ws_name = 'Splitter_{}'.format(self._nexus_name)
@@ -229,7 +264,7 @@ class NeXusConvertingApp(object):
                              OutputWorkspace=split_ws_name,
                              InformationWorkspace=split_info_name,
                              LogName='scan_index',
-                             StartTime='{}'.format(relative_start_time),
+                             StartTime=str(self._starttime),
                              UnitOfTime='Seconds',
                              MinimumLogValue=0,
                              LogValueInterval=1)
