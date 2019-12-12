@@ -12,7 +12,7 @@ import pyrs.interface.gui_helper
 from pyrs.interface.peak_fitting.event_handler import EventHandler
 from pyrs.interface.peak_fitting.plot import Plot
 from pyrs.interface.peak_fitting.fit import Fit
-from pyrs.interface.peak_fitting.export import Export
+from pyrs.interface.peak_fitting.export import ExportCSV
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
 from pyrs.icons import icons_rc  # noqa: F401
 
@@ -190,7 +190,7 @@ class FitPeaksWindow(QMainWindow):
         o_gui.check_axis2d_status()
 
     def export_csv(self):
-        o_export = Export(parent=self)
+        o_export = ExportCSV(parent=self)
         o_export.csv()
 
     def _promote_peak_fit_setup(self):
