@@ -48,6 +48,9 @@ class HidraConstants(object):
     PEAK_COM = 'C.O.M'  # peak's center of mass
     BACKGROUND_TYPE = 'background type'
 
+    # Special sample logs
+    SUB_RUN_DURATION = 'sub-run duration'
+
 
 class HidraProjectFileMode(Enum):
     '''

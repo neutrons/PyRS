@@ -50,6 +50,8 @@ class NeXusConvertingApp(object):
 
         Returns
         -------
+        pyrs.core.workspaces.HidraWorkspace
+            HidraWorkspace for converted data
 
         """
         # Load data file, split to sub runs and sample logs
@@ -83,6 +85,12 @@ class NeXusConvertingApp(object):
             sub_run_index += 1
         # END-FOR
 
+        # Calculate sub run duration
+        try:
+            sample_log_dict[HidraConstants.SUB_RUN_DURATION] = self._calculate_sub_run_duration()
+        except RuntimeError as run_err:
+            print('[ERROR] Unable to calculate duration for sub runs: {}'.format(run_err))
+
         # Set sub runs to HidraWorkspace
         sub_runs = numpy.array(sorted(self._sub_run_workspace_dict.keys()))
         self._hydra_workspace.set_sub_runs(sub_runs)
@@ -92,6 +100,58 @@ class NeXusConvertingApp(object):
             if log_name == HidraConstants.SUB_RUNS:
                 continue  # skip 'SUB_RUNS'
             self._hydra_workspace.set_sample_log(log_name, sub_runs, sample_log_dict[log_name])
+
+        return self._hydra_workspace
+
+    def _calculate_sub_run_duration(self):
+        """Calculate the duration of each sub run
+
+        The duration of each sub run is calculated from sample log 'splitter' with unit as second
+
+        Exception: RuntimeError if there is no splitter
+
+        Returns
+        -------
+        numpy.ndarray
+            a vector of float as sub run's duration.  They are ordered by sub run number increasing monotonically
+
+        """
+        # Get sub runs and init returned value (array)
+        sub_runs = sorted(self._sub_run_workspace_dict.keys())
+        duration_vec = numpy.zeros(shape=(len(sub_runs),), dtype=float)
+
+        sub_run_index = 0
+        for sub_run in sorted(self._sub_run_workspace_dict.keys()):
+            # get event workspace of sub run and then run object
+            event_ws_i = mtd[str(self._sub_run_workspace_dict[sub_run])]
+
+            # sample logs
+            run_i = event_ws_i.run()
+
+            # get splitter
+            if not run_i.hasProperty('splitter'):
+                # no splitter (which is not right), use NAN
+                raise RuntimeError('sub run {} does not have splitter'.format(sub_run))
+            else:
+                # calculate duration
+                splitter_times = run_i.getProperty('splitter').times.astype(float) * 1E-9
+                splitter_value = run_i.getProperty('splitter').value
+
+                if splitter_value[0] == 0:
+                    splitter_times = splitter_times[1:]
+                assert len(splitter_times) % 2 == 0, 'If splitter starts from 0, there will be odd number of ' \
+                                                     'splitter times; otherwise, even number'
+
+                sub_split_durations = splitter_times[1::2] - splitter_times[::2]
+
+                duration_vec[sub_run_index] = numpy.sum(sub_split_durations)
+            # END-FOR
+
+            # Update
+            sub_run_index += 1
+        # END-FOR
+
+        return duration_vec
 
     def save(self, projectfile, instrument=None):
         """
@@ -118,8 +178,8 @@ class NeXusConvertingApp(object):
 
         self._hydra_workspace.save_experimental_data(hydra_file)
 
-    # @staticmethod
-    def _get_log_value_and_type(self, runObj, name):
+    @staticmethod
+    def _get_log_value_and_type(runObj, name):
         """
         Calculate the mean value of the sample log "within" the sub run time range
         :param name: Mantid run property's name

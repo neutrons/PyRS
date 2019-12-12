@@ -31,11 +31,13 @@ def convertNeXusToProject(nexusfile, projectfile, skippable):
         os.remove(projectfile)
 
     converter = NeXusConvertingApp(nexusfile)
-    converter.convert(start_time=0)
+    hidra_ws = converter.convert(start_time=0)
     converter.save(projectfile)
 
     # tests for the created file
     assert os.path.exists(projectfile), 'Project file {} does not exist'.format(projectfile)
+
+    return hidra_ws
 
 
 def addPowderToProject(projectfile, use_mantid_engine=False):
@@ -72,8 +74,16 @@ def test_nexus_to_project(nexusfile, projectfile):
     -------
 
     """
+    from pyrs.utilities.rs_project_file import HidraConstants
+    from matplotlib import pyplot as plt
+
     # convert the nexus file to a project file and do the "simple" checks
-    convertNeXusToProject(nexusfile, projectfile, skippable=True)
+    test_hidra_ws = convertNeXusToProject(nexusfile, projectfile, skippable=True)
+
+    # verify sub run duration
+    sub_runs = test_hidra_ws.get_sub_runs()
+    durations = test_hidra_ws.get_sample_log_values(HidraConstants.SUB_RUN_DURATION, sub_runs=sub_runs)
+    plt.plot(sub_runs, durations)
 
     # extract the powder patterns and add them to the project file
     addPowderToProject(projectfile, use_mantid_engine=False)
