@@ -129,9 +129,10 @@ class ReductionApp(object):
 
         # Vanadium
         if van_file is not None:
-            van_array = self._reduction_manager.load_vanadium(van_file)
+            van_array, van_duration = self._reduction_manager.load_vanadium(van_file)
         else:
             van_array = None
+            van_duration = 1
 
         self._reduction_manager.reduce_diffraction_data(self._session,
                                                         apply_calibrated_geometry=geometry_calibration,
@@ -139,7 +140,8 @@ class ReductionApp(object):
                                                         use_pyrs_engine=not self._use_mantid_engine,
                                                         mask=None,
                                                         sub_run_list=sub_runs,
-                                                        vanadium_counts=van_array)
+                                                        vanadium_counts=van_array,
+                                                        vanadium_duration=van_duration)
 
     def plot_reduced_data(self, sub_run_number=None):
 

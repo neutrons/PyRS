@@ -1,6 +1,8 @@
 import os
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
+from pyrs.utilities.rs_project_file import HidraConstants
+from matplotlib import pyplot as plt
 import pytest
 
 
@@ -74,9 +76,6 @@ def test_nexus_to_project(nexusfile, projectfile):
     -------
 
     """
-    from pyrs.utilities.rs_project_file import HidraConstants
-    from matplotlib import pyplot as plt
-
     # convert the nexus file to a project file and do the "simple" checks
     test_hidra_ws = convertNeXusToProject(nexusfile, projectfile, skippable=True)
 
@@ -109,7 +108,7 @@ def test_split_log_time_average():
 
 @pytest.mark.parametrize('project_file, van_project_file, target_project_file',
                          [('data/HB2B_938.h5', 'data/HB2B_931.h5', 'HB2B_938_van.h5')],
-                         ids=['HB2B_930V'])
+                         ids=['HB2B_938V'])
 def test_apply_vanadium(project_file, van_project_file, target_project_file):
     """Test applying vanadium to the raw data in project file
 
@@ -133,7 +132,6 @@ def test_apply_vanadium(project_file, van_project_file, target_project_file):
     # Load data
     # extract the powder patterns and add them to the project file
     reducer = ReductionApp(use_mantid_engine=False)
-    # TODO should add versions for testing arguments:
     # instrument_file, calibration_file, mask, sub_runs
     reducer.load_project_file(project_file)
     reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None,
