@@ -10,7 +10,7 @@ DEFAULT_INSTRUMENT = None
 DEFAULT_MASK = None
 
 
-def _nexus_to_subscans(nexusfile, projectfile, user_start_time):
+def _nexus_to_subscans(nexusfile, projectfile):
     """Split raw data from NeXus file to sub runs/scans
 
     Parameters
@@ -19,8 +19,6 @@ def _nexus_to_subscans(nexusfile, projectfile, user_start_time):
         HB2B event NeXus file's name
     projectfile : str
         Target HB2B HiDRA project file's name
-    user_start_time : float
-        User defined starting time relative to DAS recorded run start time in unit of second
 
     Returns
     -------
@@ -32,7 +30,7 @@ def _nexus_to_subscans(nexusfile, projectfile, user_start_time):
 
     logger.notice('Creating subscans from {} into project file {}'.format(nexusfile, projectfile))
     converter = NeXusConvertingApp(nexusfile)
-    converter.convert(start_time=user_start_time)
+    converter.convert()
     converter.save(projectfile)
 
 
@@ -98,11 +96,7 @@ if __name__ == '__main__':
 
     # process the data
 
-    # Due to some DAS issue, 2theta motor may not reach the 2thetaSetPoint in the first 3 seconds
-    # Therefore, a 'user start time' is set to 3 (seconds) as a default
-    # In future, this value shall be set from the configuration file
-    user_start_time = 3.
-    _nexus_to_subscans(options.nexus, options.project, user_start_time=user_start_time)
+    _nexus_to_subscans(options.nexus, options.project)
 
     if options.viewraw:  # plot data
         _view_raw(options.projectfile, options.mask, options.subruns, options.engine)
