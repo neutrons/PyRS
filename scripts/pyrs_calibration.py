@@ -1,6 +1,3 @@
-# Migrated from /HFIR/HB2B/shared/Quick_Calibration.py
-# Original can be found at ./Quick_Calibration_v3.py
-# Renamed from  ./prototypes/calibration/Quick_Calibration_Class.py
 import os
 import numpy
 from pyrs.utilities import calibration_file_io
@@ -11,7 +8,9 @@ from pyrs.calibration import peakfit_calibration
 DEFAULT_CALIBRATION = None
 DEFAULT_INSTRUMENT = None
 DEFAULT_MASK = None
-
+DEFAULT_POWDER = None
+DEFAULT_IPTS = None
+DEFAULT_PIN = None
 
 def SaveCalibError(calibrator, fName):
     calibrator.singleEval(ConstrainPosition=True, start=1, stop=0)
@@ -44,8 +43,10 @@ def SaveCalibError(calibrator, fName):
 if __name__ == '__main__':
     from argparse import ArgumentParser
     parser = ArgumentParser(description='Script for auto-reducing HB2B')
-    parser.add_argument('run', help='name of nexus file')
-    parser.add_argument('projectdir', nargs='?', help='Path to output directory')
+    parser.add_argument('--IPTS', nargs='?', default=DEFAULT_IPTS,
+                        help='Run number for stepping file (default=%(default)s)')
+    parser.add_argument('--pin', nargs='?', default=DEFAULT_PIN,
+                        help='Run number for stepping file (default=%(default)s)')
     parser.add_argument('--instrument', nargs='?', default=DEFAULT_INSTRUMENT,
                         help='instrument configuration file overriding embedded (arm, pixel number'
                         ' and size) (default=%(default)s)')
@@ -53,13 +54,24 @@ if __name__ == '__main__':
                         help='instrument geometry calibration file overriding embedded (default=%(default)s)')
     parser.add_argument('--mask', nargs='?', default=DEFAULT_MASK,
                         help='masking file (PyRS hdf5 format) or mask name (default=%(default)s)')
+    parser.add_argument('--powder', nargs='?', default=DEFAULT_POWDER,
+                        help='Run number for powder file (default=%(default)s)')
 
     options = parser.parse_args()
 
     # generate project name if not already determined
-    project_file_name = '{}/HB2B_{}.h5'.format(options.projectdir, options.run)
-    engine = HidraProjectFile(project_file_name, mode=HidraProjectFileMode.READONLY)
+    if options.pin == None:
+        pin_engine = None
+    else:
+        pin_project_file = '/HFIR/HB2B/IPTS-{}/shared/ProjectFile/HB2B_{}.h5'.format(options.IPTS, options.run)
+        pin_engine = HidraProjectFile(project_file_name, mode=HidraProjectFileMode.READONLY)
 
+    if options.powder == None:
+        powder_engine = None
+    else:
+        powder_project_file = '/HFIR/HB2B/IPTS-{}/shared/ProjectFile/HB2B_{}.h5'.format(options.IPTS, options.run)
+        powder_engine = HidraProjectFile(project_file_name, mode=HidraProjectFileMode.READONLY)
+        
     # instrument geometry
     if options.instrument == DEFAULT_INSTRUMENT:
         idf_name = 'data/XRay_Definition_1K.txt'
@@ -68,6 +80,9 @@ if __name__ == '__main__':
 
     hb2b = calibration_file_io.import_instrument_setup(idf_name)
     calibrator = peakfit_calibration.PeakFitCalibration(hb2b, engine, scheme=0)
+    
+    if options.calibration != None:
+        calibrator.get_archived_calibration(options.calibration)
 
 #    calibrator._calib[0] = 0.002600685374401848
 #    calibrator._calib[2] = -0.020583807174127174
@@ -116,23 +131,23 @@ if __name__ == '__main__':
         print calibrator.get_calib()
 
     if options.calibration in [DEFAULT_CALIBRATION, 'runAll']:
-        calibrator = peakfit_calibration.PeakFitCalibration(hb2b, engine)
+        calibrator = peakfit_calibration.PeakFitCalibration(hb2b, pin_engine, powder_engine)
         calibrator.FullCalibration()
         FullCalib = calibrator.get_calib()
 
-        calibrator = peakfit_calibration.PeakFitCalibration(hb2b, engine)
+        calibrator = peakfit_calibration.PeakFitCalibration(hb2b, pin_engine, powder_engine)
         calibrator.CalibrateGeometry()
         GeoCalib = calibrator.get_calib()
 
-        calibrator = peakfit_calibration.PeakFitCalibration(hb2b, engine)
+        calibrator = peakfit_calibration.PeakFitCalibration(hb2b, pin_engine, powder_engine)
         calibrator.CalibrateRotation()
         RotateCalib = calibrator.get_calib()
 
-        calibrator = peakfit_calibration.PeakFitCalibration(hb2b, engine)
+        calibrator = peakfit_calibration.PeakFitCalibration(hb2b, pin_engine, powder_engine)
         calibrator.CalibrateShift()
         ShiftCalib = calibrator.get_calib()
 
-        calibrator = peakfit_calibration.PeakFitCalibration(hb2b, engine)
+        calibrator = peakfit_calibration.PeakFitCalibration(hb2b, pin_engine, powder_engine)
         calibrator.calibrate_wave_length()
         LambdaCalib = calibrator.get_calib()
 

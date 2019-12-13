@@ -81,13 +81,14 @@ class PeakFitCalibration(object):
     Calibrate by grid searching algorithm using Brute Force or Monte Carlo random walk
     """
 
-    def __init__(self, hb2b_instrument, hidra_data, scheme=1):
+    def __init__(self, hb2b_instrument, hidra_data, hidra_data2, scheme=1):
         """
         Initialization
         """
 
         self._instrument = hb2b_instrument
         self._engine = hidra_data
+        self._engine2 = hidra_data2
         # calibration: numpy array. size as 7 for ... [6] for wave length
         self._calib = np.array(7 * [0], dtype=np.float)
         # calibration error: numpy array. size as 7 for ...
@@ -519,7 +520,6 @@ class PeakFitCalibration(object):
         paramVec = np.copy(self._calib)
         paramVec[:6] = x[:]
 
-        print paramVec
         residual = self.get_alignment_residual(paramVec, roi_vec_set, ConstrainPosition, False, start, stop)
 
         if ReturnScalar:
