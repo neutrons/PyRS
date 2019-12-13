@@ -398,7 +398,14 @@ class HidraWorkspace(object):
         checkdatatypes.check_string_variable('Sample log name', sample_log_name,
                                              self._sample_logs.keys())
 
-        return self._sample_logs[sample_log_name, sub_run]
+        log_value = self._sample_logs[sample_log_name, sub_run]
+
+        if isinstance(log_value, numpy.ndarray):
+            assert log_value.shape == (1, ), 'Single log {} (= {}) is a numpy array with multiple items' \
+                                             '(shape = {})'.format(sample_log_name, log_value, log_value.shape)
+            log_value = log_value[0]
+
+        return log_value
 
     def get_sample_log_values(self, sample_log_name, sub_runs=None):
         """Get ONE INDIVIDUAL sample log's values as a vector

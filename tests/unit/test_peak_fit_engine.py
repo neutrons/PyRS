@@ -530,19 +530,6 @@ def test_3_gaussian_3_subruns():
         axs[sb_i - 1].plot(model_x_i, model_y_i, label='Sub run {} Model'.format(sb_i))
     # plt.show()
 
-    # print(sub_runs_lp)
-    # print(fit_cost2_lp)
-    # print("Left")
-    # print('Height')
-    # print(param_values_lp[0])
-    # print(param_errors_lp[0])
-    # print("Center")
-    # print(param_values_lp[1])
-    # print(param_errors_lp[1])
-    # print("Sigma")
-    # print(param_values_lp[2])
-    # print(param_errors_lp[2])
-
     return
 
 

@@ -129,8 +129,12 @@ class ReductionApp(object):
 
         # Vanadium
         if van_file is not None:
-            van_array = self._reduction_manager.load_vanadium(van_file)
+            # vanadium file is given
+            van_array, van_duration = self._reduction_manager.load_vanadium(van_file)
+            if van_duration is not None:
+                van_array /= van_duration
         else:
+            # no vanadium
             van_array = None
 
         self._reduction_manager.reduce_diffraction_data(self._session,

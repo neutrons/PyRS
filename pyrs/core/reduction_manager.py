@@ -8,7 +8,7 @@ from pyrs.utilities import calibration_file_io
 from pyrs.core import mask_util
 from pyrs.core import reduce_hb2b_mtd
 from pyrs.core import reduce_hb2b_pyrs
-from pyrs.utilities.rs_project_file import HidraProjectFile, HidraProjectFileMode
+from pyrs.utilities.rs_project_file import HidraProjectFile, HidraProjectFileMode, HidraConstants
 from pyrs.core import instrument_geometry
 
 
@@ -279,8 +279,8 @@ class HB2BReductionManager(object):
 
         Returns
         -------
-        ~numpy.narray
-            1D array as vanadium counts
+        ~numpy.narray, float
+            1D array as vanadium counts and duration of vanadium run (second)
 
         """
         checkdatatypes.check_file_name(van_project_file, True, False, False, 'Vanadium project/NeXus file')
@@ -309,7 +309,10 @@ class HB2BReductionManager(object):
         # get vanadium data
         van_array = self._van_ws.get_detector_counts(sub_runs[0])
 
-        return van_array
+        # get vanadium run duration
+        van_duration = self._van_ws.get_sample_log_value(HidraConstants.SUB_RUN_DURATION, sub_runs[0])
+
+        return van_array, van_duration
 
     @staticmethod
     def _do_stat_to_van(van_array):
@@ -374,7 +377,7 @@ class HB2BReductionManager(object):
 
         self._geometry_calibration = geometry_calibration
 
-    def get_current_vanadium(self):
+    def get_vanadium_counts(self, normalized):
         """Get vanadium counts of each pixel from current/default vanadium (HidraWorkspace)
 
         Usage: this will be called in order to fetch vanadium counts to reduce_diffraction_data()
@@ -388,13 +391,19 @@ class HB2BReductionManager(object):
         if self._van_ws is None:
             raise RuntimeError('There is no default vanadium set up in reduction service')
         else:
-            van_counts_array = self._van_ws.get_detector_counts(self._van_ws.get_sub_runs()[0])
+            # get vanadium
+            sub_run = self._van_ws.get_sub_runs()[0]
+            van_counts_array = self._van_ws.get_detector_counts(sub_run)
+
+            if normalized:
+                van_duration = self._van_ws.get_sample_log_value(HidraConstants.SUB_RUN_DURATION, sub_run)
+                van_counts_array /= van_duration
 
         return van_counts_array
 
     def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, bin_size_2theta,
-                                use_pyrs_engine, mask,
-                                sub_run_list, vanadium_counts=None):
+                                use_pyrs_engine, mask, sub_run_list,
+                                vanadium_counts=None):
         """Reduce ALL sub runs in a workspace from detector counts to diffraction data
 
         Parameters
@@ -413,6 +422,7 @@ class HB2BReductionManager(object):
             sub runs
         vanadium_counts : None or ~numpy.ndarray
             vanadium counts of each detector pixels for normalization
+            If vanadium duration is recorded, the vanadium counts are normalized by its duration in seconds
 
         Returns
         -------
@@ -452,17 +462,29 @@ class HB2BReductionManager(object):
         # TODO - TONIGHT NOW #72 - How to embed mask information???
         if sub_run_list is None:
             sub_run_list = workspace.get_sub_runs()
+
+        # Determine whether normalization by time is supported
+        if not workspace.has_sample_log(HidraConstants.SUB_RUN_DURATION):
+            raise RuntimeError('Workspace {} does not have sample log {}'.format(workspace,
+                                                                                 HidraConstants.SUB_RUN_DURATION))
+
         for sub_run in sub_run_list:
+            # get the duration
+            duration_i = workspace.get_sample_log_value(HidraConstants.SUB_RUN_DURATION,
+                                                        sub_run)
+            # reduce sub run
             self.reduce_sub_run_diffraction(workspace, sub_run, det_pos_shift,
                                             use_mantid_engine=not use_pyrs_engine,
                                             mask_vec_tuple=(mask_id, mask_vec),
                                             resolution_2theta=bin_size_2theta,
+                                            sub_run_duration=duration_i,
                                             vanadium_counts=vanadium_counts)
+        # END-FOR (sub run)
 
     # NOTE: Refer to compare_reduction_engines_tst
     def reduce_sub_run_diffraction(self, workspace, sub_run, geometry_calibration, use_mantid_engine,
                                    mask_vec_tuple, min_2theta=None, max_2theta=None, default_two_theta_range=20,
-                                   resolution_2theta=None, num_bins=1000,
+                                   resolution_2theta=None, num_bins=1000, sub_run_duration=None,
                                    vanadium_counts=None):
         """Reduce import data (workspace or vector) to 2-theta ~ I
 
@@ -474,6 +496,11 @@ class HB2BReductionManager(object):
         2. 2-theta resolution/step size:
             If 2theta resolution is not given, num_bins will be used to determine resolution with 2-theta range;
             Otherwise, use resolution
+
+        Normalization to time/duration
+        ------------------------------
+        If both sub run duration and vanadium duration are given
+        normalized intensity = raw histogram / vanadium histogram * vanadium duration / sub run duration
 
         Parameters
         ----------
@@ -497,11 +524,16 @@ class HB2BReductionManager(object):
             2theta resolution/step
         num_bins : int
             number of bins
-        vanadium_counts :numpy.ndarray or None
-            detector pixels' vanadium for efficiency and normalization
+        sub_run_duration: float or None
+            If None, then no normalization to time (duration) will be done. Otherwise, intensity will be
+            normalized by time (duration)
+        vanadium_counts : numpy.ndarray or None
+            detector pixels' vanadium for efficiency and normalization.
+            If vanadium duration is recorded, the vanadium counts are normalized by its duration in seconds
 
         Returns
         -------
+        None
 
         """
         # Get the raw data
@@ -557,6 +589,12 @@ class HB2BReductionManager(object):
 
         bin_centers = data_set[0]
         hist = data_set[1]
+
+        # Normalization
+        if sub_run_duration is not None:
+            # check sub-run duration and normalize by duration time
+            checkdatatypes.check_float_variable('Sub-run duration', sub_run_duration, (0, None))
+            hist /= sub_run_duration
 
         # record
         workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_centers, hist)
