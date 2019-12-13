@@ -484,15 +484,9 @@ class HidraWorkspace(object):
         :param counts: ndarray of detector counts
         :return:
         """
-        # Check inputs
-        checkdatatypes.check_int_variable('Sub run number', sub_run_number, (1, None))
-        checkdatatypes.check_numpy_arrays('Counts', [counts], dimension=None,
-                                          check_same_shape=False)
+        checkdatatypes.check_numpy_arrays('Counts', [counts], dimension=None, check_same_shape=False)
 
-        # Set
-        self._raw_counts[sub_run_number] = counts
-
-        return
+        self._raw_counts[int(sub_run_number)] = counts
 
     def set_reduced_diffraction_data(self, sub_run, mask_id, two_theta_array, intensity_array):
         """ Set reduced diffraction data to workspace
