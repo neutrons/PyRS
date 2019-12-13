@@ -131,7 +131,7 @@ def retrieve_workspace(ws_name, throw=True):
     return mtd.retrieve(ws_name)
 
 
-def study_mantid_peak_fitting(workspace_name, peak_window_ws_name, center_of_mass_ws_name,
+def study_mantid_peak_fitting(workspace_name, peak_window_ws_name, center_of_mass_ws_name, output_ws_name,
                               peak_function_name, info):
     """
     Save the workspaces used or output from Mantid FitPeaks
@@ -151,13 +151,20 @@ def study_mantid_peak_fitting(workspace_name, peak_window_ws_name, center_of_mas
                                 title='raw data for {0}'.format(info))
 
     # peak window workspace
-    fit_window_name = os.path.join(dir_name, '{0}_fit_window.nxs'.format(base_name))
-    file_util.save_mantid_nexus(peak_window_ws_name, fit_window_name, title='Peak fit window workspace')
+    fit_window_file_name = os.path.join(dir_name, '{0}_fit_window.nxs'.format(base_name))
+    file_util.save_mantid_nexus(peak_window_ws_name, fit_window_file_name, title='Peak fit window workspace')
 
     # peak center workspace
-    peak_center_file_name = os.path.join(dir_name, '{0}_peak_center.nxs'.format(base_name))
-    file_util.save_mantid_nexus(center_of_mass_ws_name, peak_center_file_name,
-                                title='Peak center (center of mass) workspace')
+    if center_of_mass_ws_name is not None:
+        peak_center_file_name = os.path.join(dir_name, '{0}_peak_center.nxs'.format(base_name))
+        file_util.save_mantid_nexus(center_of_mass_ws_name, peak_center_file_name,
+                                    title='Peak center (center of mass) workspace')
+
+    # Output workspace
+    if output_ws_name is not None:
+        output_file_name = os.path.join(dir_name, '{0}_peak_fit_output.nxs'.format(base_name))
+        file_util.save_mantid_nexus(output_ws_name, output_file_name,
+                                    title='Peak fit output (center of mass) workspace')
 
     return
 

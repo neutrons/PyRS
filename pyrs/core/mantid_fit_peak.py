@@ -100,7 +100,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         # TODO FIXME - Using standard constants and separate this part to a separate method
         # TODO - #81 NOW - Requiring good estimation!!! - shall we use a dictionary to set up somewhere else?
         width_dict = {'Gaussian': ('Sigma', 0.36),
-                      'PseudoVoigt': ('FWHM', 1.0),
+                      'PseudoVoigt': ('FWHM', 0.5),
                       'Voigt': ('LorentzFWHM, GaussianFWHM', '0.1, 0.7')}
 
         print('[DB...BAT] Peak function: {}'.format(peak_function_name))
@@ -112,8 +112,8 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
             peak_param_names = "{}".format(width_dict[peak_function_name][0])
             peak_param_values = "{}".format(width_dict[peak_function_name][1])
         elif peak_function_name == 'PseudoVoigt':
-            peak_param_names = "{}, {}".format(width_dict[peak_function_name][0], 'Mixing')
-            peak_param_values = "{}, {}".format(width_dict[peak_function_name][1], '0.5')
+            peak_param_names = "{}, {}".format(width_dict[peak_function_name][0], 'Intensity')
+            peak_param_values = "{}, {}".format(width_dict[peak_function_name][1], '0.1')
         else:
             raise RuntimeError('Peak function {} is not supported for pre-set guessed starting value'
                                ''.format(peak_function_name))
@@ -220,7 +220,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
                               StopWorkspaceIndex=end_spectrum,
                               FindBackgroundSigma=1,
                               HighBackground=True,
-                              ConstrainPeakPositions=False,
+                              ConstrainPeakPositions=True,
                               PeakParameterNames=peak_param_names,
                               PeakParameterValues=peak_param_values,
                               RawPeakParameters=True,
@@ -233,7 +233,9 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
             raise RuntimeError('return from FitPeaks cannot be None')
 
         # Save all the workspaces automatically for further review
-        # mantid_helper.study_mantid_peak_fitting()
+        mantid_helper.study_mantid_peak_fitting(self._mantid_workspace_name, peak_window_ws_name, None,
+                                                r_positions_ws_name,
+                                                peak_function_name, info=peak_tag)
         # END-IF-DEBUG (True)
 
         # Process output
