@@ -103,13 +103,13 @@ class PeakFitCalibration(object):
             elif -20.0 < self._engine.read_log_value('mrot')[0] < -19.:
                 monosetting = 2
 
-        self.tth_ref = '2thetaSetpoint'
-
         try:
             self._engine.read_log_value('2theta')
             self.tth_ref = '2theta'
         except KeyError:
             self.tth_ref = '2Theta'
+
+        self.tth_ref = '2thetaSetpoint'
 
         # Set wave length
         self._calib[6] = \
@@ -535,7 +535,6 @@ class PeakFitCalibration(object):
         :return:
         """
 
-        print x
         residual = self.get_alignment_residual(x, roi_vec_set, True, False, start, stop)
 
         if ReturnScalar:
