@@ -710,7 +710,7 @@ class RawDataTable(NTableWidget.NTableWidget):
 
         for row in range(num_sub_runs):
             sub_run_i = meta_data_array[0][row]
-            two_theta_i = meta_data_array[1][sub_run_i]
+            two_theta_i = meta_data_array[1][row]
             self._add_raw_sub_run(sub_run_i, two_theta_i)
 
     def _add_raw_sub_run(self, sub_run_number, two_theta):
