@@ -145,7 +145,7 @@ class PeakFittingTest(object):
                           ('/HFIR/HB2B/IPTS-22731/shared/ProjectFiles/HB2B_1065.h5', 'HB2B_1065_Peak.h5',
                            'PseudoVoigt', [PeakInfo(90.5, 89.9, 91.6, '311')])],
                          ids=['HB2B1017PeakFit', 'HB2B1065PeakExport'])
-def test_fit_2peaks(source_project_file, output_project_file, peak_type, peak_info_list):
+def in_develop_test_fit_2peaks(source_project_file, output_project_file, peak_type, peak_info_list):
     """Performance test on data with multiple peaks on multiple sub runs
 
     Also on the 'real' situation that some peaks do not even exist on some sub runs
@@ -192,7 +192,7 @@ def test_fit_2peaks(source_project_file, output_project_file, peak_type, peak_in
                          [('/HFIR/HB2B/IPTS-22731/shared/ProjectFiles/HB2B_1065.h5', 'HB2B_1065_Peak.h5',
                            'PseudoVoigt', PeakInfo(90.5, 89.9, 91.6, '311'))],
                          ids=['HB2B1065PeakExport'])
-def test_retrieve_fit_metadata(source_project_file, output_project_file, peak_type, peak_info):
+def passed_test_retrieve_fit_metadata(source_project_file, output_project_file, peak_type, peak_info):
     """A full set of test including loading project,  fitting peaks, write fitting result and exporting fitting
     result and calculated peaks
 
@@ -276,7 +276,7 @@ def test_retrieve_fit_metadata(source_project_file, output_project_file, peak_ty
                           ('data/HB2B_938.h5', 'HB2B_938_peak.h5', 'PseudoVoigt',
                            PeakInfo(95.5, 91, 97, 'Si111'))],
                          ids=('FakeHB2B', 'HB2B_938'))
-def test_main(project_file_name, peak_file_name, peak_type, peak_info):
+def passed_test_main(project_file_name, peak_file_name, peak_type, peak_info):
     """Test peak fitting
 
     Parameters
@@ -358,8 +358,17 @@ def test_improve_quality():
                                   peak_center_list=[peak_info_left.center],
                                   peak_range_list=[(peak_info_left.left_bound, peak_info_left.right_bound)])
 
+    # Get peak fit result
+    model_set = fit_engine.calculate_fitted_peaks(sub_run_number=3)
+    data_set = hd_ws.get_reduced_diffraction_data(sub_run=3, mask_id=None)
 
-def test_write_csv():
+    from matplotlib import pyplot as plt
+    plt.plot(model_set[0], model_set[1])
+    plt.plot(data_set[0], data_set[1])
+    # plt.show()
+
+
+def passed_test_write_csv():
     csv_filename = 'test_write_single.csv'
     if os.path.exists(csv_filename):
         os.remove(csv_filename)
@@ -473,7 +482,7 @@ EXPECTED_HEADER_938 = '''# IPTS number = 22731
                           ('data/HB2B_938_peak.h5', 'HB2B_938.csv', EXPECTED_HEADER_938, 1, 3,
                            'sub-run,vx,vy,vz,Si111_Center', ',Si111_chisq')],
                          ids=['HB2B_1065_CSV', 'HB2B_938_CSV'])
-def test_write_csv_from_project(project_file_name, csv_filename, expected_header, num_subruns, num_logs,
+def passed_test_write_csv_from_project(project_file_name, csv_filename, expected_header, num_subruns, num_logs,
                                 startswith, endswith):
     """Test the method to export CSV file
     """

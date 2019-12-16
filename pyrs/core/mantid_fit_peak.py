@@ -24,7 +24,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         super(MantidPeakFitEngine, self).__init__(workspace, mask_name)
 
         # Create Mantid workspace: generate a workspace with all sub runs and for all peaks
-        mantid_workspace = mantid_helper.generate_mantid_workspace(workspace, mask_name)
+        mantid_workspace = mantid_helper.generate_mantid_workspace(workspace, workspace.name, mask_name)
         # the Mandid workspace and HiDRA workspace have consistent spectrum/sub run map.
         self._mantid_workspace_name = mantid_workspace.name()
 
@@ -112,8 +112,8 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
             peak_param_names = "{}".format(width_dict[peak_function_name][0])
             peak_param_values = "{}".format(width_dict[peak_function_name][1])
         elif peak_function_name == 'PseudoVoigt':
-            peak_param_names = "{}, {}".format(width_dict[peak_function_name][0], 'Intensity')
-            peak_param_values = "{}, {}".format(width_dict[peak_function_name][1], '0.1')
+            peak_param_names = "{}, {}, {}".format(width_dict[peak_function_name][0], 'Intensity', 'Mixing')
+            peak_param_values = "{}, {}, {}".format(width_dict[peak_function_name][1], '0.1', '0.8')
         else:
             raise RuntimeError('Peak function {} is not supported for pre-set guessed starting value'
                                ''.format(peak_function_name))
@@ -221,19 +221,20 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
                               FindBackgroundSigma=1,
                               HighBackground=True,
                               ConstrainPeakPositions=True,
-                              PeakParameterNames=peak_param_names,
-                              PeakParameterValues=peak_param_values,
+                              PeakParameterNames='Mixing, FWHM, Intensity',
+                              PeakParameterValues='0.8, 0.5, 0.1',
                               RawPeakParameters=True,
                               OutputWorkspace=r_positions_ws_name,
                               OutputPeakParametersWorkspace=r_param_table_name,
                               OutputParameterFitErrorsWorkspace=r_error_table_name,
-                              FittedPeaksWorkspace=r_model_ws_name)
+                              FittedPeaksWorkspace=r_model_ws_name,
+                              MaxFitIterations=500)
         # r is a class containing multiple outputs (workspaces)
         if fit_return is None:
             raise RuntimeError('return from FitPeaks cannot be None')
 
         # Save all the workspaces automatically for further review
-        mantid_helper.study_mantid_peak_fitting(self._mantid_workspace_name, peak_window_ws_name, None,
+        mantid_helper.study_mantid_peak_fitting(self._mantid_workspace_name, r_param_table_name, r_model_ws_name,
                                                 r_positions_ws_name,
                                                 peak_function_name, info=peak_tag)
         # END-IF-DEBUG (True)

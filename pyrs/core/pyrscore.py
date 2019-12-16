@@ -396,6 +396,20 @@ class PyRsCore(object):
 
     def load_hidra_project(self, hidra_h5_name, project_name, load_detector_counts=True, load_diffraction=False):
         """
+
+        Parameters
+        ----------
+        hidra_h5_name
+        project_name
+        load_detector_counts
+        load_diffraction
+
+        Returns
+        -------
+        pyrs.core.workspaces.HidraWorkspace
+
+        """
+        """
         Load a HIDRA project file
         :param hidra_h5_name: name of HIDRA project file in HDF5 format
         :param project_name: name of the reduction project specified by user to trace

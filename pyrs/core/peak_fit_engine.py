@@ -115,6 +115,42 @@ class PeakFitEngine(object):
 
         return center_d_value_array, center_d_error_array
 
+    # TODO - TONIGHT to implement
+    def estimate_peak_height(self):
+        # Assume: flat background
+        # loop around for each
+        for iws in range(ws.getNumberHistograms()):
+            vec_x = ws.readX(iws)
+            vec_y = ws.readY(iws)
+
+            b1index = np.argmin(np.abs(vec_x - peak_range[0]))
+            b2index = np.argmin(np.abs(vec_x - peak_range[1]))
+
+            b1 = vec_y[b1index]
+            b2 = vec_y[b2index]
+            # print(b1, b2)
+
+            # esitmate rough intensity
+            """
+            rough_intensity = np.sum(vec_y[b1index:b2index] - (b1 + b2) * 0.5)
+            if rough_intensity < 0:
+                print(iws, rough_intensity, b1, b2)
+            """
+
+            # estimate rough peak height
+            max_y_index = np.argmax(vec_y[b1index:b2index])
+            max_y = np.max(vec_y[b1index:b2index])
+            rough_height = max_y - 0.5 * (b1 + b2)
+            mixing = 0.5
+            rough_intensity = rough_height * 0.5 * np.pi * mixing / (1 + 0.5 * (np.pi * np.log(2) - 0.5))
+            print(iws, rough_intensity, rough_height, max_y)
+            param_table.addRow([0.8, 0.5, rough_intensity])
+
+    # TODO - TONIGHT to implement
+    def estimate_peak_intensity(self):
+        blabla
+
+
     def export_to_hydra_project(self, hydra_project_file, peak_tag):
         """Export fit result from this fitting engine instance to Hidra project file
 
@@ -280,6 +316,18 @@ class PeakFitEngine(object):
         return self._hidra_wksp
 
     def get_peaks(self, peak_tag):
+        """
+
+        Parameters
+        ----------
+        peak_tag
+
+        Returns
+        -------
+        pyrs.core.peak_collection.PeakCollection
+            Collection of peak information
+
+        """
         # only work for peak 1 right now
         print("in get_peaks of peak_fit_engine.py")
         print("-> self._peak_collection_dict.keys(): {}".format(self._peak_collection_dict.keys()))

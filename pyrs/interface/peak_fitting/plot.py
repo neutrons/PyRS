@@ -22,6 +22,7 @@ class Plot:
             scan_log_index_list = parse_integers(str(self.parent.ui.lineEdit_listSubRuns.text()))
         except RuntimeError as run_err:
             pop_message(self, "Unable to parse the string", message_type='error')
+            return
 
         if len(scan_log_index_list) == 0:
             pop_message(self, 'There is not scan-log index input', 'error')

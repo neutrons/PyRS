@@ -569,6 +569,7 @@ def calculate_profile(peak_type, background_type, vec_x, param_value_dict, peak_
 
     elif peak_type == str(PeakShape.PSEUDOVOIGT):
         # PseudoVoigt: ['Mixing', 'Intensity', 'PeakCentre', 'FWHM']
+        print('Calculating PV....')
         vec_intensity[left_x_index:right_x_index] = pseudo_voigt(vec_x[left_x_index:right_x_index],
                                                                  param_value_dict['Intensity'],
                                                                  param_value_dict['FWHM'],
@@ -596,7 +597,7 @@ def calculate_profile(peak_type, background_type, vec_x, param_value_dict, peak_
 
 def gaussian(x, a, sigma, x0):
     """
-    Gaussian with linear background
+    Gaussian without normalization (Mantid compatible)
     :param x:
     :param a:
     :param sigma:
@@ -625,11 +626,10 @@ def pseudo_voigt(x, intensity, fwhm, mixing, x0):
     """
     # Calculate normalized Gaussian part
     sigma = fwhm / (2. * np.sqrt(2. * np.log(2)))
-    part_gauss = gaussian(x, a=1 / (2. * np.sqrt(2 * np.pi)),
-                          sigma=sigma, x0=x0)
+    part_gauss = 1. / (sigma * np.sqrt(2. * np.pi)) * np.exp(-(x - x0)**2 / (2 * sigma**2))
 
     # Calculate normalized Lorentzian
-    part_lorenz = lorenzian(x, 1., fwhm, x0)
+    part_lorenz = 1. / np.pi * (fwhm / 2.) / ((x - x0)**2 + (fwhm / 2.)**2)
 
     # Together
     pv = intensity * (mixing * part_gauss + (1 - mixing) * part_lorenz)
