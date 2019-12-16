@@ -421,11 +421,14 @@ class HidraProjectFile(object):
         # Get the group
         logs_group = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS]
 
+        if HidraConstants.SUB_RUNS not in logs_group.keys():
+            raise RuntimeError('Failed to find {} in {} group of the file'.format(HidraConstants.SUB_RUNS,
+                                                                                  HidraConstants.SAMPLE_LOGS))
+
         # Get 2theta and others
         samplelogs = SampleLogs()
         # first set subruns
-        if HidraConstants.SUB_RUNS in logs_group.keys():
-            samplelogs[HidraConstants.SUB_RUNS] = logs_group[HidraConstants.SUB_RUNS].value
+        samplelogs[HidraConstants.SUB_RUNS] = logs_group[HidraConstants.SUB_RUNS].value
         for log_name in logs_group.keys():
             samplelogs[log_name] = logs_group[log_name].value
 

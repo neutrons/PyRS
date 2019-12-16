@@ -62,6 +62,26 @@ class NeXusConvertingApp(object):
         self._determine_start_time()
         self._sub_run_workspace_dict = self._split_sub_runs()
 
+        self._set_counts()
+
+        # Set sub runs to HidraWorkspace
+        sub_runs = numpy.array(sorted(self._sub_run_workspace_dict.keys()))
+        self._hydra_workspace.set_sub_runs(sub_runs)
+
+        # Add the sample logs to the workspace
+        sample_log_dict = self._create_sample_log_dict()
+        for log_name in sample_log_dict:
+            if log_name == HidraConstants.SUB_RUNS:
+                continue  # skip 'SUB_RUNS'
+            self._hydra_workspace.set_sample_log(log_name, sub_runs, sample_log_dict[log_name])
+
+        return self._hydra_workspace
+
+    def _set_counts(self):
+        for sub_run, wkspname in self._sub_run_workspace_dict.items():
+            self._hydra_workspace.set_raw_counts(sub_run, mtd[wkspname].extractY())
+
+    def _create_sample_log_dict(self):
         # Get the sample log value
         sample_log_dict = dict()
         log_array_size = len(self._sub_run_workspace_dict.keys())
@@ -69,13 +89,9 @@ class NeXusConvertingApp(object):
         # Construct the workspace
         sub_run_index = 0
         for sub_run in sorted(self._sub_run_workspace_dict.keys()):
-            # counts
-            event_ws_i = mtd[str(self._sub_run_workspace_dict[sub_run])]
-            counts_i = event_ws_i.extractY()
-            self._hydra_workspace.set_raw_counts(sub_run, counts_i)
-
-            # sample logs
-            runObj = event_ws_i.run()
+            # this contains all of the sample logs
+            runObj = mtd[str(self._sub_run_workspace_dict[sub_run])].run()
+            # loop through all available logs
             for log_name in runObj.keys():
                 log_value, log_dtype = self._get_log_value_and_type(runObj, log_name)
 
@@ -90,23 +106,13 @@ class NeXusConvertingApp(object):
             sub_run_index += 1
         # END-FOR
 
-        # Calculate sub run duration
+        # create a fictional log for duration
         try:
             sample_log_dict[HidraConstants.SUB_RUN_DURATION] = self._calculate_sub_run_duration()
         except RuntimeError as run_err:
             self._log.error('Unable to calculate duration for sub runs: {}'.format(run_err))
 
-        # Set sub runs to HidraWorkspace
-        sub_runs = numpy.array(sorted(self._sub_run_workspace_dict.keys()))
-        self._hydra_workspace.set_sub_runs(sub_runs)
-
-        # Add the sample logs
-        for log_name in sample_log_dict:
-            if log_name == HidraConstants.SUB_RUNS:
-                continue  # skip 'SUB_RUNS'
-            self._hydra_workspace.set_sample_log(log_name, sub_runs, sample_log_dict[log_name])
-
-        return self._hydra_workspace
+        return sample_log_dict
 
     def _calculate_sub_run_duration(self):
         """Calculate the duration of each sub run
@@ -315,6 +321,7 @@ def time_average_value(run_obj, log_name):
     """
     # Get property
     log_property = run_obj.getProperty(log_name)
+
     has_splitter_log = run_obj.hasProperty('splitter')
     if has_splitter_log:
         splitter_times = run_obj.getProperty('splitter').times
