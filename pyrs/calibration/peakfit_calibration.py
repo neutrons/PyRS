@@ -135,13 +135,24 @@ class PeakFitCalibration(object):
         if hidra_data is None:
             pin_engine = [hidra_data, []]
         else:
-            pin_engine = [hidra_data, dSpace]
+            pin_engine = [hidra_data, dSpace, False]
 
         if hidra_data2 is None:
             pow_engine = [hidra_data, []]
         else:
-            dSpace_P = np.array([])
-            pow_engine = [hidra_data2, dSpace_P]
+            
+            dSpace_P = np.array([1.433198898,
+                                 1.284838753,
+                                 1.245851,
+                                 1.170202,
+                                 1.112703,
+                                 1.062465303,
+                                 1.017233082,
+                                 1.01342466,
+                                 0.995231819,
+                                 0.906434572])
+
+            pow_engine = [hidra_data2, dSpace_P, True]
 
         self.engines = [pin_engine, pow_engine]
 
@@ -319,7 +330,7 @@ class PeakFitCalibration(object):
 
         for engine_setup in self.engines:
 
-            datasets, dSpace = engine_setup
+            datasets, dSpace, Individual = engine_setup
 
             self._engine = datasets
 
@@ -358,12 +369,14 @@ class PeakFitCalibration(object):
                     eta_roi_vec = np.array(roi_vec_set)
 
                 resq = []
+                if Individual:
+                    CalibPeaks = two_theta_calib[i_tth]
+                else:
+                    CalibPeaks = two_theta_calib[np.where((two_theta_calib > mintth+0.75) ==
+                                                          (two_theta_calib < maxtth-0.75))[0]]
 
-                CalibPeaks = two_theta_calib[np.where((two_theta_calib > mintth+0.75) ==
-                                                      (two_theta_calib < maxtth-0.75))[0]]
-
-                if CalibPeaks.shape[0] > 0 and (not ConPeaks or self.singlepeak):
-                    CalibPeaks = np.array([CalibPeaks[0]])
+                    if CalibPeaks.shape[0] > 0 and (not ConPeaks or self.singlepeak):
+                        CalibPeaks = np.array([CalibPeaks[0]])
 
                 for ipeak in range(len(CalibPeaks)):
                     Peaks = []
