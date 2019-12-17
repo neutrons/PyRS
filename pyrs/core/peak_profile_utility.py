@@ -304,6 +304,24 @@ class Gaussian(PeakParametersConverter):
 
         return fwhm_error
 
+    @staticmethod
+    def cal_sigma(fwhm):
+        """Calculate Sigma from FWHM
+
+        Parameters
+        ----------
+        fwhm
+
+        Returns
+        -------
+        float
+            Sigma
+
+        """
+        sigma = fwhm / (2. * np.sqrt(2. * np.log(2.)))
+
+        return sigma
+
 
 class PseudoVoigt(PeakParametersConverter):
     """
@@ -459,6 +477,30 @@ class PseudoVoigt(PeakParametersConverter):
 
         return np.sqrt(s_h2)
 
+    @staticmethod
+    def cal_intensity(height, fwhm, mixing):
+        """Calculate peak intensity
+
+        I = h * pi * fwhm * 0.5 / (1 + mixing * (sqrt(pi * log2) - 1)))
+
+        Parameters
+        ----------
+        height : float
+            peak height
+        fwhm : float
+            full width half maximum
+        mixing : float
+            mixing value
+
+        Returns
+        -------
+        float
+
+        """
+        intensity = 0.5 * height * np.pi * fwhm / (1 + mixing * (np.sqrt(np.pi * np.log(2)) - 1.0))
+
+        return intensity
+
 
 class Voigt(PeakParametersConverter):
     """
@@ -569,6 +611,7 @@ def calculate_profile(peak_type, background_type, vec_x, param_value_dict, peak_
 
     elif peak_type == str(PeakShape.PSEUDOVOIGT):
         # PseudoVoigt: ['Mixing', 'Intensity', 'PeakCentre', 'FWHM']
+        print('Calculating PV....')
         vec_intensity[left_x_index:right_x_index] = pseudo_voigt(vec_x[left_x_index:right_x_index],
                                                                  param_value_dict['Intensity'],
                                                                  param_value_dict['FWHM'],
@@ -596,7 +639,7 @@ def calculate_profile(peak_type, background_type, vec_x, param_value_dict, peak_
 
 def gaussian(x, a, sigma, x0):
     """
-    Gaussian with linear background
+    Gaussian without normalization (Mantid compatible)
     :param x:
     :param a:
     :param sigma:
@@ -625,11 +668,10 @@ def pseudo_voigt(x, intensity, fwhm, mixing, x0):
     """
     # Calculate normalized Gaussian part
     sigma = fwhm / (2. * np.sqrt(2. * np.log(2)))
-    part_gauss = gaussian(x, a=1 / (2. * np.sqrt(2 * np.pi)),
-                          sigma=sigma, x0=x0)
+    part_gauss = 1. / (sigma * np.sqrt(2. * np.pi)) * np.exp(-(x - x0)**2 / (2 * sigma**2))
 
     # Calculate normalized Lorentzian
-    part_lorenz = lorenzian(x, 1., fwhm, x0)
+    part_lorenz = 1. / np.pi * (fwhm / 2.) / ((x - x0)**2 + (fwhm / 2.)**2)
 
     # Together
     pv = intensity * (mixing * part_gauss + (1 - mixing) * part_lorenz)
