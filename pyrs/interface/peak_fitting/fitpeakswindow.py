@@ -112,6 +112,7 @@ class FitPeaksWindow(QMainWindow):
         o_gui.enabled_1dplot_widgets(False)
         o_gui.enabled_2dplot_widgets(False)
         o_gui.make_visible_listsubruns_warning(False)
+        o_gui.enabled_export_csv_widgets(False)
 
     # Menu event handler
     def browse_hdf(self):

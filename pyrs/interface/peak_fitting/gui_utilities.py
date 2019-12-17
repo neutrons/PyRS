@@ -14,6 +14,12 @@ class GuiUtilities:
         self.enabled_list_widgets(list_widgets=list_widgets,
                                   enabled=enabled)
 
+    def enabled_export_csv_widgets(self, enabled=True):
+        list_widgets = [self.parent.ui.pushButton_exportCSV,
+                        ]
+        self.enabled_list_widgets(list_widgets=list_widgets,
+                                  enabled=enabled)
+
     def enabled_1dplot_widgets(self, enabled=True):
         list_widgets = [self.parent.ui.frame_1dplot,
                         self.parent.ui.graphicsView_fitResult_frame,
