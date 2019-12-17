@@ -115,41 +115,63 @@ class PeakFitEngine(object):
 
         return center_d_value_array, center_d_error_array
 
-    # TODO - TONIGHT to implement
-    def estimate_peak_height(self):
-        # Assume: flat background
-        # loop around for each
-        for iws in range(ws.getNumberHistograms()):
-            vec_x = ws.readX(iws)
-            vec_y = ws.readY(iws)
+    def estimate_peak_height(self, peak_range):
+        """Estimate peak height with assumption as flat background
 
+        Assume: flat background
+
+        Parameters
+        ----------
+        peak_range
+
+        Returns
+        -------
+        numpy.ndarray, numpy.ndarray
+            each sub run's estimated peak height, each sub run's estimated flat background
+
+        """
+        # sub run information
+        sub_run_array = self._hidra_wksp.get_sub_runs()
+        num_sub_runs = len(sub_run_array)
+
+        # Init the output arrays
+        peak_heights = np.ndarray(shape=sub_run_array.shape, dtype=float)
+        flat_bkgds = np.ndarray(shape=sub_run_array.shape, dtype=float)
+
+        # loop around for each sub run
+        for iws in range(num_sub_runs):
+            # sub run number
+            sub_run_i = sub_run_array[iws]
+            # get 2theta and intensity  - FIXME - MaskID shall be exposed to user later
+            vec_x, vec_y = self._hidra_wksp.get_reduced_diffraction_data(sub_run=sub_run_i, mask_id=None)
+
+            # estimate the flat background: average value of 2 ends of the peak range
             b1index = np.argmin(np.abs(vec_x - peak_range[0]))
             b2index = np.argmin(np.abs(vec_x - peak_range[1]))
 
             b1 = vec_y[b1index]
             b2 = vec_y[b2index]
+
+            flat_background = 0.5 * (b1 + b2)
             # print(b1, b2)
 
-            # esitmate rough intensity
-            """
-            rough_intensity = np.sum(vec_y[b1index:b2index] - (b1 + b2) * 0.5)
-            if rough_intensity < 0:
-                print(iws, rough_intensity, b1, b2)
-            """
+            # experience: estimate the intensity can be largely messed up noise on the background
+            # so don't do estimation on intensity
 
             # estimate rough peak height
-            max_y_index = np.argmax(vec_y[b1index:b2index])
-            max_y = np.max(vec_y[b1index:b2index])
-            rough_height = max_y - 0.5 * (b1 + b2)
-            mixing = 0.5
-            rough_intensity = rough_height * 0.5 * np.pi * mixing / (1 + 0.5 * (np.pi * np.log(2) - 0.5))
-            print(iws, rough_intensity, rough_height, max_y)
-            param_table.addRow([0.8, 0.5, rough_intensity])
+            try:
+                max_y = np.max(vec_y[b1index:b2index])
+                rough_height = max_y - flat_background
+            except ValueError:
+                # mostly a zero-size array array for max()
+                rough_height = 1.
 
-    # TODO - TONIGHT to implement
-    def estimate_peak_intensity(self):
-        blabla
+            # record
+            peak_heights[iws] = rough_height
+            flat_bkgds[iws] = flat_background
+        # END-FOR
 
+        return peak_heights, flat_bkgds
 
     def export_to_hydra_project(self, hydra_project_file, peak_tag):
         """Export fit result from this fitting engine instance to Hidra project file

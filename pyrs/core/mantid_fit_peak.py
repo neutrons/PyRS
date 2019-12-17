@@ -94,27 +94,57 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
         return peak_window_ws_name
 
-    @staticmethod
-    def _set_default_peak_params_value(peak_function_name):
+    def _set_default_peak_params_value(self, peak_function_name, peak_range):
+        """Set up the starting peak parameters values for Mantid.FitPeaks
 
-        # TODO FIXME - Using standard constants and separate this part to a separate method
-        # TODO - #81 NOW - Requiring good estimation!!! - shall we use a dictionary to set up somewhere else?
-        width_dict = {'Gaussian': ('Sigma', 0.36),
-                      'PseudoVoigt': ('FWHM', 0.5),
-                      'Voigt': ('LorentzFWHM, GaussianFWHM', '0.1, 0.7')}
+        Parameters
+        ----------
+        peak_function_name : str
+            peak function name
+        peak_range : float, float
+            peak range
 
-        print('[DB...BAT] Peak function: {}'.format(peak_function_name))
-        print('[DB...BAT] Param names:   {}'.format(width_dict[peak_function_name][0]))
-        print('[DB...BAT] Param values:  {}'.format(width_dict[peak_function_name][1]))
+        Returns
+        -------
+        str, str
+            parameter names (native), parameter values (as a list in str)
+
+        """
+        from peak_profile_utility import Gaussian, PseudoVoigt
+
+        # Specify instrument resolution for both Gaussian and FWHM
+        hidra_fwhm = 0.5
+
+        # Estimate
+        estimated_heights, flat_bkgds = self.estimate_peak_height(peak_range)
+        max_estimated_height = estimated_heights.max()
+        flat_bkgd = flat_bkgds[np.argmax(estimated_heights)]
+
         # Make the difference between peak profiles
         if peak_function_name == 'Gaussian':
             # Gaussian
-            peak_param_names = "{}".format(width_dict[peak_function_name][0])
-            peak_param_values = "{}".format(width_dict[peak_function_name][1])
+            peak_param_names = '{}, {}'.format('Height', 'Sigma', 'A0')
+
+            # sigma
+            instrument_sigma = Gaussian.cal_sigma(hidra_fwhm)
+
+            # set value
+            peak_param_values = "{}, {}".format(max_estimated_height, instrument_sigma, flat_bkgd)
+
         elif peak_function_name == 'PseudoVoigt':
-            peak_param_names = "{}, {}, {}".format(width_dict[peak_function_name][0], 'Intensity', 'Mixing')
-            peak_param_values = "{}, {}, {}".format(width_dict[peak_function_name][1], '0.1', '0.8')
+            # Pseudo-voig
+            default_mixing = 0.6
+
+            peak_param_names = '{}, {}, {}'.format('Mixing', 'Intensity', 'FWHM', 'A0')
+
+            # intensity
+            max_intensity = PseudoVoigt.cal_intensity(max_estimated_height, hidra_fwhm, default_mixing)
+
+            # set values
+            peak_param_values = "{}, {}, {}".format(default_mixing, max_intensity, hidra_fwhm, flat_bkgds)
+
         else:
+            # Non-supported case
             raise RuntimeError('Peak function {} is not supported for pre-set guessed starting value'
                                ''.format(peak_function_name))
 
@@ -205,7 +235,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         r_model_ws_name = 'model_full_{0}'.format(self._mantid_workspace_name)
 
         # Set up the default parameter values according to peak profile and instrument property
-        peak_param_names, peak_param_values = self._set_default_peak_params_value(peak_function_name)
+        peak_param_names, peak_param_values = self._set_default_peak_params_value(peak_function_name, peak_range)
 
         if DEBUG:
             mantid_helper.export_workspaces([self._mantid_workspace_name, peak_center_ws, peak_window_ws_name])
@@ -221,8 +251,8 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
                               FindBackgroundSigma=1,
                               HighBackground=True,
                               ConstrainPeakPositions=True,
-                              PeakParameterNames='Mixing, FWHM, Intensity',
-                              PeakParameterValues='0.8, 0.5, 0.1',
+                              PeakParameterNames=peak_param_names,  # 'Mixing, FWHM, Intensity',
+                              PeakParameterValues=peak_param_values,  # '0.8, 0.5, 0.1',
                               RawPeakParameters=True,
                               OutputWorkspace=r_positions_ws_name,
                               OutputPeakParametersWorkspace=r_param_table_name,
@@ -234,9 +264,10 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
             raise RuntimeError('return from FitPeaks cannot be None')
 
         # Save all the workspaces automatically for further review
-        mantid_helper.study_mantid_peak_fitting(self._mantid_workspace_name, r_param_table_name, r_model_ws_name,
-                                                r_positions_ws_name,
-                                                peak_function_name, info=peak_tag)
+        if DEBUG:
+            mantid_helper.study_mantid_peak_fitting(self._mantid_workspace_name, r_param_table_name,
+                                                    r_model_ws_name, r_positions_ws_name,
+                                                    peak_function_name, info=peak_tag)
         # END-IF-DEBUG (True)
 
         # Process output
@@ -373,100 +404,12 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         """
         return np.zeros(shape=(1000,))
 
-    # def calculate_fitted_peaks(self, sub_run_number):
-    #     """Get the "model" peak, calculated from fitted parameters
-    #
-    #     Parameters
-    #     ----------
-    #     sub_run: int
-    #         sub run number
-    #
-    #     Returns
-    #     -------
-    #     ndarray, ndarray
-    #         vector X, vector Y
-    #     """
-    #     if self._model_matrix_ws is None:
-    #         raise RuntimeError('There is no fitting result!')
-    #
-    #     # Check sub run: just a positive integer
-    #     checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
-    #
-    #     # Convert to workspace
-    #     ws_index = int(self._hidra_wksp.get_spectrum_index(sub_run))
-    #
-    #     # Get data
-    #     vec_x = self._model_matrix_ws.readX(ws_index)
-    #     vec_y = self._model_matrix_ws.readY(ws_index)
-    #
-    #     return vec_x, vec_y
-
-    def get_center_of_mass_workspace_name(self):
-        """
-        Get the center of mass workspace name
-        :return:
-        """
-        return self._center_of_mass_ws_name
-
-    def get_data_workspace_name(self):
+    def get_mantid_workspace_name(self):
         """
         get the data workspace name
         :return:
         """
         return self._mantid_workspace_name
-
-    # def _get_fitted_parameters_value(self, spec_index_vec, param_name_list, param_value_array):
-    #     """
-    #     Get fitted peak parameters' value
-    #     :param spec_index_vec:
-    #     :param param_name_list:
-    #     :param param_value_array: a (p, s, e) array: p = param_name_list.size, s = sub runs size, e = 1 or 2
-    #     :return:
-    #     """
-    #     # table column names
-    #     col_names = self._fitted_function_param_table.getColumnNames()
-    #
-    #     # get fitted parameter value
-    #     for out_index, param_name in enumerate(param_name_list):
-    #         # get value from column
-    #         if param_name in col_names:
-    #             param_col_index = col_names.index(param_name)
-    #             param_vec = np.array(self._fitted_function_param_table.column(param_col_index))
-    #         elif param_name == 'center_d':
-    #             param_vec = self._peak_center_d_vec[:, 0]
-    #         else:
-    #             raise RuntimeError('Peak parameter {} does not exist. Available parameters are {} and center_d'
-    #                                ''.format(param_name, col_names))
-    #         # set value
-    #         param_value_array[out_index, :, 0] = param_vec[spec_index_vec]
-    #     # END-FOR
-    #
-    #     return
-
-    # def get_fit_cost(self, max_chi2):
-    #     """ Get the peak function cost
-    #     :param max_chi2:
-    #     :return:
-    #     """
-    #     # Get chi2 column
-    #     col_names = self._fitted_function_param_table.getColumnNames()
-    #     chi2_col_index = col_names.index('chi2')
-    #
-    #     # Get chi2 from table workspace (native return is List)
-    #     chi2_vec = np.array(self._fitted_function_param_table.column(chi2_col_index))  # form to np.ndarray
-    #
-    #     # Filter out the sub runs/spectra with large chi^2
-    #     if max_chi2 is not None and max_chi2 < 1.E20:
-    #         # selected
-    #         good_fit_indexes = np.where(chi2_vec < max_chi2)
-    #         chi2_vec = chi2_vec[good_fit_indexes]
-    #         spec_vec = good_fit_indexes[0]
-    #     else:
-    #         # all
-    #         print(chi2_vec)
-    #         spec_vec = np.arange(chi2_vec.shape[0])
-    #
-    #     return spec_vec, chi2_vec
 
     def get_scan_indexes(self):
         """

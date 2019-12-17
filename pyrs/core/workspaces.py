@@ -360,7 +360,8 @@ class HidraWorkspace(object):
 
         """
         # Check inputs
-        checkdatatypes.check_int_variable('Sub run number', sub_run, (1, None))
+        # sub run number might start from 0
+        checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
         if mask_id is None:
             # mask_id = 'main'
             pass

@@ -182,17 +182,18 @@ def in_develop_test_fit_2peaks(source_project_file, output_project_file, peak_ty
     tester = PeakFittingTest(source_project_file)
 
     # Fit peak
-    tester.fit_peak(peak_type, peak_info)
+    for peak_info in peak_info_list:
+        tester.fit_peak(peak_type, peak_info)
 
-    # save to project file
-    tester.save_fit_result(source_project_file, output_project_file, peak_info.tag)
+        # save to project file
+        tester.save_fit_result(source_project_file, output_project_file, peak_info.tag)
 
 
 @pytest.mark.parametrize('source_project_file, output_project_file, peak_type, peak_info',
                          [('/HFIR/HB2B/IPTS-22731/shared/ProjectFiles/HB2B_1065.h5', 'HB2B_1065_Peak.h5',
                            'PseudoVoigt', PeakInfo(90.5, 89.9, 91.6, '311'))],
                          ids=['HB2B1065PeakExport'])
-def passed_test_retrieve_fit_metadata(source_project_file, output_project_file, peak_type, peak_info):
+def test_retrieve_fit_metadata(source_project_file, output_project_file, peak_type, peak_info):
     """A full set of test including loading project,  fitting peaks, write fitting result and exporting fitting
     result and calculated peaks
 
@@ -276,7 +277,7 @@ def passed_test_retrieve_fit_metadata(source_project_file, output_project_file, 
                           ('data/HB2B_938.h5', 'HB2B_938_peak.h5', 'PseudoVoigt',
                            PeakInfo(95.5, 91, 97, 'Si111'))],
                          ids=('FakeHB2B', 'HB2B_938'))
-def passed_test_main(project_file_name, peak_file_name, peak_type, peak_info):
+def test_main(project_file_name, peak_file_name, peak_type, peak_info):
     """Test peak fitting
 
     Parameters
@@ -303,6 +304,9 @@ def passed_test_main(project_file_name, peak_file_name, peak_type, peak_info):
 
     # save to project file
     tester.save_fit_result(project_file_name, peak_file_name, peak_info.tag)
+
+    # Clean
+    os.remove(peak_file_name)
 
 
 # TODO - MAKE IT WORK!
@@ -346,7 +350,7 @@ def test_improve_quality():
     # create a controller from factory
     fit_engine = peak_fit_factory.PeakFitEngineFactory.getInstance('Mantid')(hd_ws, None)
 
-    peak_type = 'PseudoVoigt'
+    peak_type = 'Gaussian'
 
     # Fit peak @ left
     peak_info_left = PeakInfo(91.7, 87., 93., 'Left Peak')
@@ -362,13 +366,30 @@ def test_improve_quality():
     model_set = fit_engine.calculate_fitted_peaks(sub_run_number=3)
     data_set = hd_ws.get_reduced_diffraction_data(sub_run=3, mask_id=None)
 
-    from matplotlib import pyplot as plt
-    plt.plot(model_set[0], model_set[1])
-    plt.plot(data_set[0], data_set[1])
+    # Fit the right peak
+    peak_info_left = PeakInfo(95.8, 93.5, 98.5, 'Right Peak')
+
+    fit_engine.fit_multiple_peaks(sub_run_range=(None, None),  # default is all sub runs
+                                  peak_function_name='Gaussian',
+                                  background_function_name='Linear',
+                                  peak_tag_list=[peak_info_left.tag],
+                                  peak_center_list=[peak_info_left.center],
+                                  peak_range_list=[(peak_info_left.left_bound, peak_info_left.right_bound)])
+
+    # Get peak fit result @ right
+    right_model_set = fit_engine.calculate_fitted_peaks(sub_run_number=100)
+    right_data_set = hd_ws.get_reduced_diffraction_data(sub_run=100, mask_id=None)
+
+    plt.plot(model_set[0], model_set[1], color='red', label='91 peak model')
+    plt.plot(data_set[0], data_set[1], color='black', label='91 peak raw')
+
+    plt.plot(right_model_set[0], right_model_set[1], color='blue', label='96 peak model')
+    plt.plot(right_data_set[0], right_data_set[1], color='green', label='96 peak raw')
+
     # plt.show()
 
 
-def passed_test_write_csv():
+def test_write_csv():
     csv_filename = 'test_write_single.csv'
     if os.path.exists(csv_filename):
         os.remove(csv_filename)
@@ -482,7 +503,7 @@ EXPECTED_HEADER_938 = '''# IPTS number = 22731
                           ('data/HB2B_938_peak.h5', 'HB2B_938.csv', EXPECTED_HEADER_938, 1, 3,
                            'sub-run,vx,vy,vz,Si111_Center', ',Si111_chisq')],
                          ids=['HB2B_1065_CSV', 'HB2B_938_CSV'])
-def passed_test_write_csv_from_project(project_file_name, csv_filename, expected_header, num_subruns, num_logs,
+def test_write_csv_from_project(project_file_name, csv_filename, expected_header, num_subruns, num_logs,
                                 startswith, endswith):
     """Test the method to export CSV file
     """

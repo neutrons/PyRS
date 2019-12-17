@@ -600,7 +600,7 @@ class PyRsCore(object):
 
         # get the workspace name
         try:
-            matrix_name = optimizer.get_data_workspace_name()
+            matrix_name = optimizer.get_mantid_workspace_name()
             # save
             file_util.save_mantid_nexus(matrix_name, file_name)
         except RuntimeError as run_err:

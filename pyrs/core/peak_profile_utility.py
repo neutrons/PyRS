@@ -304,6 +304,24 @@ class Gaussian(PeakParametersConverter):
 
         return fwhm_error
 
+    @staticmethod
+    def cal_sigma(fwhm):
+        """Calculate Sigma from FWHM
+
+        Parameters
+        ----------
+        fwhm
+
+        Returns
+        -------
+        float
+            Sigma
+
+        """
+        sigma = fwhm / (2. * np.sqrt(2. * np.log(2.)))
+
+        return sigma
+
 
 class PseudoVoigt(PeakParametersConverter):
     """
@@ -458,6 +476,30 @@ class PseudoVoigt(PeakParametersConverter):
                (part_h_part_eta * mixing_error)**2
 
         return np.sqrt(s_h2)
+
+    @staticmethod
+    def cal_intensity(height, fwhm, mixing):
+        """Calculate peak intensity
+
+        I = h * pi * fwhm * 0.5 / (1 + mixing * (sqrt(pi * log2) - 1)))
+
+        Parameters
+        ----------
+        height : float
+            peak height
+        fwhm : float
+            full width half maximum
+        mixing : float
+            mixing value
+
+        Returns
+        -------
+        float
+
+        """
+        intensity = 0.5 * height * np.pi * fwhm / (1 + mixing * (np.sqrt(np.pi * np.log(2)) - 1.0))
+
+        return intensity
 
 
 class Voigt(PeakParametersConverter):
