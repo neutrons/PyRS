@@ -132,19 +132,19 @@ class PeakFitCalibration(object):
         else:
             dSpace = 3.59188696 * np.array([1./np.sqrt(11), 1./np.sqrt(12)])
 
-        if hidra_data == None:
+        if hidra_data is None:
             pin_engine = [hidra_data, []]
         else:
             pin_engine = [hidra_data, dSpace]
 
-        if hidra_data2 == None:
+        if hidra_data2 is None:
             pow_engine = [hidra_data, []]
         else:
             dSpace_P = np.array([])
-            pow_engine = [hidra_data2, dSpace]
+            pow_engine = [hidra_data2, dSpace_P]
 
         self.engines = [pin_engine, pow_engine]
-        
+
         GlobalParameter.global_curr_sequence = 0
 
     @staticmethod
@@ -317,7 +317,7 @@ class PeakFitCalibration(object):
 
         residual = np.array([])
 
-        for engine_setup in self.engines: 
+        for engine_setup in self.engines:
 
             datasets, dSpace = engine_setup
 
@@ -326,7 +326,7 @@ class PeakFitCalibration(object):
             two_theta_calib = np.arcsin(x[6] / 2. / dSpace) * 360. / np.pi
             two_theta_calib = two_theta_calib[~np.isnan(two_theta_calib)]
 
-            if datasets == None:
+            if datasets is None:
                 stop = start
             elif stop == 0:
                 stop = self._engine.read_log_value(self.tth_ref).shape[0]
@@ -384,9 +384,11 @@ class PeakFitCalibration(object):
                         # Define Mask
                         Mask = np.zeros_like(Eta_val)
                         if abs(eta_roi_vec[i_roi]) == eta_roi_vec[i_roi]:
-                            index = np.where((Eta_val < (eta_roi_vec[i_roi]+1)) == (Eta_val > (eta_roi_vec[i_roi] - 1)))[0]
+                            index = np.where((Eta_val < (eta_roi_vec[i_roi]+1)) ==
+                                             (Eta_val > (eta_roi_vec[i_roi] - 1)))[0]
                         else:
-                            index = np.where((Eta_val > (eta_roi_vec[i_roi]-1)) == (Eta_val < (eta_roi_vec[i_roi] + 1)))[0]
+                            index = np.where((Eta_val > (eta_roi_vec[i_roi]-1)) ==
+                                             (Eta_val < (eta_roi_vec[i_roi] + 1)))[0]
 
                         Mask[index] = 1.
 

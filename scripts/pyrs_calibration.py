@@ -12,6 +12,7 @@ DEFAULT_POWDER = None
 DEFAULT_IPTS = None
 DEFAULT_PIN = None
 
+
 def SaveCalibError(calibrator, fName):
     calibrator.singleEval(ConstrainPosition=True, start=1, stop=0)
 
@@ -60,18 +61,18 @@ if __name__ == '__main__':
     options = parser.parse_args()
 
     # generate project name if not already determined
-    if options.pin == None:
+    if options.pin is None:
         pin_engine = None
     else:
         pin_project_file = '/HFIR/HB2B/IPTS-{}/shared/ProjectFile/HB2B_{}.h5'.format(options.IPTS, options.run)
-        pin_engine = HidraProjectFile(project_file_name, mode=HidraProjectFileMode.READONLY)
+        pin_engine = HidraProjectFile(pin_project_file, mode=HidraProjectFileMode.READONLY)
 
-    if options.powder == None:
+    if options.powder is None:
         powder_engine = None
     else:
         powder_project_file = '/HFIR/HB2B/IPTS-{}/shared/ProjectFile/HB2B_{}.h5'.format(options.IPTS, options.run)
-        powder_engine = HidraProjectFile(project_file_name, mode=HidraProjectFileMode.READONLY)
-        
+        powder_engine = HidraProjectFile(powder_project_file, mode=HidraProjectFileMode.READONLY)
+
     # instrument geometry
     if options.instrument == DEFAULT_INSTRUMENT:
         idf_name = 'data/XRay_Definition_1K.txt'
@@ -79,9 +80,9 @@ if __name__ == '__main__':
         idf_name = options.instrument
 
     hb2b = calibration_file_io.import_instrument_setup(idf_name)
-    calibrator = peakfit_calibration.PeakFitCalibration(hb2b, engine, scheme=0)
-    
-    if options.calibration != None:
+    calibrator = peakfit_calibration.PeakFitCalibration(hb2b, pin_engine, powder_engine, scheme=0)
+
+    if options.calibration is not None:
         calibrator.get_archived_calibration(options.calibration)
 
 #    calibrator._calib[0] = 0.002600685374401848

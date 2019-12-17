@@ -123,9 +123,10 @@ def test_main():
     hb2b = calibration_file_io.import_instrument_setup(idf_name)
 
     calibrator = peakfit_calibration.PeakFitCalibration(hb2b, engine, scheme=0)
-   
+
     calibrator.calibrate_wave_length()
     calibrator._caliberr[6] = 1e-4
+    calibrator._caliberr[0] = 1e-4
     calibrator._calibstatus = 3
 
     # write out
