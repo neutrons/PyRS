@@ -117,8 +117,6 @@ class HidraWorkspace(object):
         print('[INFO] Loaded diffraction data from {} includes : {}'
               ''.format(self._project_file_name, self._diff_data_set.keys()))
 
-        return
-
     def _load_instrument(self, hidra_file):
         """ Load instrument setup from HIDRA file
         :param hidra_file: HIDRA project file instance
@@ -129,8 +127,6 @@ class HidraWorkspace(object):
 
         # Get values
         self._instrument_setup = hidra_file.read_instrument_geometry()
-
-        return
 
     def _load_sample_logs(self, hidra_file):
         """ Load sample logs.
@@ -282,8 +278,6 @@ class HidraWorkspace(object):
         # load the wave length
         self._load_wave_length(hidra_file)
 
-        return
-
     def get_detector_shift(self):
         """
         Get detector geometry shift
@@ -366,7 +360,8 @@ class HidraWorkspace(object):
 
         """
         # Check inputs
-        checkdatatypes.check_int_variable('Sub run number', sub_run, (1, None))
+        # sub run number might start from 0
+        checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
         if mask_id is None:
             # mask_id = 'main'
             pass
@@ -404,10 +399,21 @@ class HidraWorkspace(object):
         checkdatatypes.check_string_variable('Sample log name', sample_log_name,
                                              self._sample_logs.keys())
 
-        return self._sample_logs[sample_log_name, sub_run]
+        log_value = self._sample_logs[sample_log_name, sub_run]
+
+        if isinstance(log_value, numpy.ndarray):
+            assert log_value.shape == (1, ), 'Single log {} (= {}) is a numpy array with multiple items' \
+                                             '(shape = {})'.format(sample_log_name, log_value, log_value.shape)
+            log_value = log_value[0]
+
+        return log_value
 
     def get_sample_log_values(self, sample_log_name, sub_runs=None):
         """Get ONE INDIVIDUAL sample log's values as a vector
+
+        Exceptions
+        ----------
+        RuntimeError : if sample log name not in sample_log_dict
 
         Parameters
         ----------
@@ -479,15 +485,9 @@ class HidraWorkspace(object):
         :param counts: ndarray of detector counts
         :return:
         """
-        # Check inputs
-        checkdatatypes.check_int_variable('Sub run number', sub_run_number, (1, None))
-        checkdatatypes.check_numpy_arrays('Counts', [counts], dimension=None,
-                                          check_same_shape=False)
+        checkdatatypes.check_numpy_arrays('Counts', [counts], dimension=None, check_same_shape=False)
 
-        # Set
-        self._raw_counts[sub_run_number] = counts
-
-        return
+        self._raw_counts[int(sub_run_number)] = counts
 
     def set_reduced_diffraction_data(self, sub_run, mask_id, two_theta_array, intensity_array):
         """ Set reduced diffraction data to workspace

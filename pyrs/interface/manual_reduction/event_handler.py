@@ -10,6 +10,9 @@ class EventHandler:
     def __init__(self, parent=None):
         self.parent = parent
 
+        # project ID (current)
+        self._project_data_id = None
+
     def load_nexus_file(self):
         """
         allow users to browse for a nexus file to convert to project file
@@ -23,7 +26,8 @@ class EventHandler:
 
         self.convert_to_project_file(nexus_file)
 
-    def convert_to_project_file(self, nexus_filename):
+    @staticmethod
+    def convert_to_project_file(nexus_filename):
         """
         Convert nexus_filename into a project file
         :param nexus_filename:
@@ -43,7 +47,7 @@ class EventHandler:
 
         try:
             o_load = LoadProjectFile(parent=self.parent)
-            o_load.load_hydra_file(project_h5_name)
+            self._project_data_id = o_load.load_hydra_file(project_h5_name)
         except RuntimeError as run_err:
             pop_message(self,
                         'Failed to load project file {}: {}'.format(project_h5_name, run_err),

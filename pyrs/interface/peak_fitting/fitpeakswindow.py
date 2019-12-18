@@ -1,7 +1,6 @@
 import os
 from qtpy.QtWidgets import QVBoxLayout, QFileDialog, QMainWindow
 from qtpy import QtGui
-import pyqtgraph as pg
 
 from pyrs.utilities import load_ui
 from pyrs.interface.ui import qt_util
@@ -19,6 +18,9 @@ from pyrs.icons import icons_rc  # noqa: F401
 VERTICAL_SPLITTER = """QSplitter::handle {image: url(':/fitting/vertical_splitter.png'); }"""
 HORIZONTAL_SPLITTER = """QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }"""
 
+MICROSTRAIN = u"\u00B5strain"
+D0 = u"d\u2080"
+
 
 class FitPeaksWindow(QMainWindow):
     """
@@ -35,6 +37,7 @@ class FitPeaksWindow(QMainWindow):
         # class variables
         self._core = fit_peak_core
         self._project_name = None
+        self.hidra_workspace = None
         # current/last loaded data
         self._curr_file_name = None
 
@@ -58,12 +61,12 @@ class FitPeaksWindow(QMainWindow):
                                                                 GeneralDiffDataView)
         self.ui.graphicsView_fitResult.setEnabled(False)
         self.ui.graphicsView_fitResult.set_subplots(1, 1)
-        self.ui.widget_contour_plot.setEnabled(False)
+        self.ui.graphicsView_plot2D = qt_util.promote_widget(self, self.ui.graphicsView_2dPlot_frame,
+                                                             GeneralDiffDataView)
         self.ui.tableView_fitSummary = qt_util.promote_widget(self, self.ui.tableView_fitSummary_frame,
                                                               FitResultTable)
         self._promote_peak_fit_setup()
         self._init_widgets()
-        self._init_pyqtgraph()
 
         # set up handling
         self.ui.pushButton_loadHDF.clicked.connect(self.load_hidra_file)
@@ -81,11 +84,12 @@ class FitPeaksWindow(QMainWindow):
         self.ui.lineEdit_subruns_2dplot.returnPressed.connect(self.list_subruns_2dplot_returned)
         self.ui.lineEdit_subruns_2dplot.textChanged.connect(self.list_subruns_2dplot_changed)
 
-        self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.plot_1d)
-        self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.plot_1d)
+        self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.xaxis_1d_changed)
+        self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.yaxis_1d_changed)
 
-        self.ui.comboBox_xaxisNames_2dplot.currentIndexChanged.connect(self.plot_2d)
-        self.ui.comboBox_yaxisNames_2dplot.currentIndexChanged.connect(self.plot_2d)
+        self.ui.comboBox_xaxisNames_2dplot.currentIndexChanged.connect(self.xaxis_2d_changed)
+        self.ui.comboBox_yaxisNames_2dplot.currentIndexChanged.connect(self.yaxis_2d_changed)
+        self.ui.comboBox_zaxisNames_2dplot.currentIndexChanged.connect(self.zaxis_2d_changed)
 
         # tracker for sample log names and peak parameter names
         self._sample_log_name_set = set()
@@ -113,6 +117,8 @@ class FitPeaksWindow(QMainWindow):
         """
         o_handler = EventHandler(parent=self)
         o_handler.browse_load_plot_hdf()
+        o_plot = Plot(parent=self)
+        o_plot.plot_1d()
 
     def load_hidra_file(self):
         o_handler = EventHandler(parent=self)
@@ -157,13 +163,29 @@ class FitPeaksWindow(QMainWindow):
         o_handle = EventHandler(parent=self)
         o_handle.list_subruns_2dplot_changed()
 
-    def plot_1d(self):
-        print("in here plot_1d")
+    def xaxis_1d_changed(self):
+        o_gui = GuiUtilities(parent=self)
+        o_gui.check_axis1d_status()
         o_plot = Plot(parent=self)
         o_plot.plot_1d()
 
-    def plot_2d(self):
-        raise NotImplementedError("Not implemented yet, it's coming!")
+    def yaxis_1d_changed(self):
+        o_gui = GuiUtilities(parent=self)
+        o_gui.check_axis1d_status()
+        o_plot = Plot(parent=self)
+        o_plot.plot_1d()
+
+    def xaxis_2d_changed(self):
+        o_gui = GuiUtilities(parent=self)
+        o_gui.check_axis2d_status()
+
+    def yaxis_2d_changed(self):
+        o_gui = GuiUtilities(parent=self)
+        o_gui.check_axis2d_status()
+
+    def zaxis_2d_changed(self):
+        o_gui = GuiUtilities(parent=self)
+        o_gui.check_axis2d_status()
 
     def _promote_peak_fit_setup(self):
         # 2D detector view
@@ -193,15 +215,15 @@ class FitPeaksWindow(QMainWindow):
         # warning icon
         self.ui.listsubruns_warning_icon.setPixmap(QtGui.QPixmap(":/fitting/warning_icon.png"))
 
-    def _init_pyqtgraph(self):
-        image_view = pg.ImageView()
-        image_view.ui.roiBtn.hide()
-        image_view.ui.menuBtn.hide()
+        # hide and initialize d0 and microstrength widgets
+        self.ui.label_d0units1d.setText(MICROSTRAIN)
+        self.ui.label_d0units2d.setText(MICROSTRAIN)
+        self.ui.label_d01d.setText(D0)
+        self.ui.label_d02d.setText(D0)
 
-        vertical_layout = QVBoxLayout()
-        vertical_layout.addWidget(image_view)
-
-        self.ui.widget_contour_plot.setLayout(vertical_layout)
+        o_gui = GuiUtilities(parent=self)
+        o_gui.make_visible_d01d_widgets(visible=False)
+        o_gui.make_visible_d02d_widgets(visible=False)
 
     def do_launch_adv_fit(self):
         """

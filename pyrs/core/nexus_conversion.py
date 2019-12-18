@@ -1,8 +1,9 @@
 """
 Convert HB2B NeXus file to Hidra project file for further reduction
 """
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from mantid.simpleapi import mtd, GenerateEventsFilter, LoadEventNexus, FilterEvents
-from mantid.kernel import FloatTimeSeriesProperty, Int32TimeSeriesProperty, Int64TimeSeriesProperty
+from mantid.kernel import FloatTimeSeriesProperty, Int32TimeSeriesProperty, Int64TimeSeriesProperty, logger, Logger
 import numpy
 import os
 from pyrs.core import workspaces
@@ -16,11 +17,13 @@ class NeXusConvertingApp(object):
     """
     Convert NeXus file to Hidra project file
     """
-
     def __init__(self, nexus_file_name):
         """ Initialization
         :param nexus_file_name:
         """
+        # configure logging for this class
+        self._log = Logger(__name__)
+
         checkdatatypes.check_file_name(nexus_file_name, True, False, False, 'NeXus file')
 
         self._nexus_name = nexus_file_name
@@ -35,9 +38,9 @@ class NeXusConvertingApp(object):
         # project file
         self._project_file = None
 
-        return
+        self._starttime = 0.  # start filtering at the beginning of the run
 
-    def convert(self, start_time):
+    def convert(self):
         """Main method to convert NeXus file to HidraProject File by
 
         1. split the workspace to sub runs
@@ -50,11 +53,35 @@ class NeXusConvertingApp(object):
 
         Returns
         -------
+        pyrs.core.workspaces.HidraWorkspace
+            HidraWorkspace for converted data
 
         """
         # Load data file, split to sub runs and sample logs
-        self._sub_run_workspace_dict = self._split_sub_runs(start_time)
+        self._load_event_nexus()
+        self._determine_start_time()
+        self._sub_run_workspace_dict = self._split_sub_runs()
 
+        self._set_counts()
+
+        # Set sub runs to HidraWorkspace
+        sub_runs = numpy.array(sorted(self._sub_run_workspace_dict.keys()))
+        self._hydra_workspace.set_sub_runs(sub_runs)
+
+        # Add the sample logs to the workspace
+        sample_log_dict = self._create_sample_log_dict()
+        for log_name in sample_log_dict:
+            if log_name == HidraConstants.SUB_RUNS:
+                continue  # skip 'SUB_RUNS'
+            self._hydra_workspace.set_sample_log(log_name, sub_runs, sample_log_dict[log_name])
+
+        return self._hydra_workspace
+
+    def _set_counts(self):
+        for sub_run, wkspname in self._sub_run_workspace_dict.items():
+            self._hydra_workspace.set_raw_counts(sub_run, mtd[wkspname].extractY())
+
+    def _create_sample_log_dict(self):
         # Get the sample log value
         sample_log_dict = dict()
         log_array_size = len(self._sub_run_workspace_dict.keys())
@@ -62,13 +89,9 @@ class NeXusConvertingApp(object):
         # Construct the workspace
         sub_run_index = 0
         for sub_run in sorted(self._sub_run_workspace_dict.keys()):
-            # counts
-            event_ws_i = mtd[str(self._sub_run_workspace_dict[sub_run])]
-            counts_i = event_ws_i.extractY()
-            self._hydra_workspace.set_raw_counts(sub_run, counts_i)
-
-            # sample logs
-            runObj = event_ws_i.run()
+            # this contains all of the sample logs
+            runObj = mtd[str(self._sub_run_workspace_dict[sub_run])].run()
+            # loop through all available logs
             for log_name in runObj.keys():
                 log_value, log_dtype = self._get_log_value_and_type(runObj, log_name)
 
@@ -83,15 +106,63 @@ class NeXusConvertingApp(object):
             sub_run_index += 1
         # END-FOR
 
-        # Set sub runs to HidraWorkspace
-        sub_runs = numpy.array(sorted(self._sub_run_workspace_dict.keys()))
-        self._hydra_workspace.set_sub_runs(sub_runs)
+        # create a fictional log for duration
+        try:
+            sample_log_dict[HidraConstants.SUB_RUN_DURATION] = self._calculate_sub_run_duration()
+        except RuntimeError as run_err:
+            self._log.error('Unable to calculate duration for sub runs: {}'.format(run_err))
 
-        # Add the sample logs
-        for log_name in sample_log_dict:
-            if log_name == HidraConstants.SUB_RUNS:
-                continue  # skip 'SUB_RUNS'
-            self._hydra_workspace.set_sample_log(log_name, sub_runs, sample_log_dict[log_name])
+        return sample_log_dict
+
+    def _calculate_sub_run_duration(self):
+        """Calculate the duration of each sub run
+
+        The duration of each sub run is calculated from sample log 'splitter' with unit as second
+
+        Exception: RuntimeError if there is no splitter
+
+        Returns
+        -------
+        numpy.ndarray
+            a vector of float as sub run's duration.  They are ordered by sub run number increasing monotonically
+
+        """
+        # Get sub runs and init returned value (array)
+        sub_runs = sorted(self._sub_run_workspace_dict.keys())
+        duration_vec = numpy.zeros(shape=(len(sub_runs),), dtype=float)
+
+        sub_run_index = 0
+        for sub_run in sorted(self._sub_run_workspace_dict.keys()):
+            # get event workspace of sub run and then run object
+            event_ws_i = mtd[str(self._sub_run_workspace_dict[sub_run])]
+
+            # sample logs
+            run_i = event_ws_i.run()
+
+            # get splitter
+            if not run_i.hasProperty('splitter'):
+                # no splitter (which is not right), use NAN
+                raise RuntimeError('sub run {} does not have splitter'.format(sub_run))
+            else:
+                # calculate duration
+                splitter_times = run_i.getProperty('splitter').times.astype(float) * 1E-9
+                splitter_value = run_i.getProperty('splitter').value
+
+                if splitter_value[0] == 0:
+                    splitter_times = splitter_times[1:]
+                assert len(splitter_times) % 2 == 0, 'If splitter starts from 0, there will be odd number of ' \
+                                                     'splitter times; otherwise, even number'
+
+                sub_split_durations = splitter_times[1::2] - splitter_times[::2]
+
+                duration_vec[sub_run_index] = numpy.sum(sub_split_durations)
+            # END-FOR
+
+            # Update
+            sub_run_index += 1
+        # END-FOR
+
+        return duration_vec
 
     def save(self, projectfile, instrument=None):
         """
@@ -103,7 +174,7 @@ class NeXusConvertingApp(object):
 
         # remove file if it already exists
         if os.path.exists(projectfile):
-            print('Projectfile "{}" exists, removing previous version'.format(projectfile))
+            self._log.information('Projectfile "{}" exists, removing previous version'.format(projectfile))
             os.remove(projectfile)
 
         # save
@@ -118,8 +189,8 @@ class NeXusConvertingApp(object):
 
         self._hydra_workspace.save_experimental_data(hydra_file)
 
-    # @staticmethod
-    def _get_log_value_and_type(self, runObj, name):
+    @staticmethod
+    def _get_log_value_and_type(runObj, name):
         """
         Calculate the mean value of the sample log "within" the sub run time range
         :param name: Mantid run property's name
@@ -140,15 +211,49 @@ class NeXusConvertingApp(object):
             else:
                 raise RuntimeError('Cannot convert "{}" to a single value'.format(name))
 
-    def _split_sub_runs(self, relative_start_time=0):
-        """Performing event filtering according to sample log sub-runs
+    def _load_event_nexus(self):
+        '''Loads the event file using instance variables'''
+        LoadEventNexus(Filename=self._nexus_name, OutputWorkspace=self._event_ws_name)
+        # get the start time from the run object
+        self._starttime = mtd[self._event_ws_name].run()['start_time'].value
 
-        DAS log may not be correct from the run start,
+    def _determine_start_time(self, abs_tolerance=0.05):
+        '''This goes through a subset of logs and compares when they actually
+        get to their specified setpoint, updating the start time for
+        event filtering. When this is done ``self._starttime`` will have been updated.
 
         Parameters
         ----------
-        relative_start_time : float or int
-            Starting time from the run start time in unit of second
+        abs_tolerance: float
+            When then log is within this absolute tolerance of the setpoint, it is correct
+        '''
+        # static view of the run object
+        runObj = mtd[self._event_ws_name].run()
+
+        # loop through the 'special' logs
+        for logname in ['sx', 'sy', 'sz', '2theta', 'omega', 'chi', 'phi']:
+            if logname not in runObj:
+                continue  # log doesn't exist - not a good one to look at
+            if logname + 'Setpoint' not in runObj:
+                continue  # log doesn't have a setpoint - not a good one to look at
+
+            # get the observed values of the log
+            observed = runObj[logname].value
+            if len(observed) <= 1 or observed.std() <= .5 * abs_tolerance:
+                continue  # don't bother if the log is constant within half of the tolerance
+
+            # look for the setpoint and find when the log first got there
+            setPoint = runObj[logname + 'Setpoint'].value[0]  # only look at first setpoint
+            for i, value in enumerate(observed):
+                if abs(value - setPoint) < abs_tolerance:
+                    # pick the larger of what was found and the previous largest value
+                    self._starttime = max(runObj[logname].times[i], self._starttime)
+                    break
+
+    def _split_sub_runs(self):
+        """Performing event filtering according to sample log sub-runs
+
+        DAS log may not be correct from the run start,
 
         Returns
         -------
@@ -157,7 +262,6 @@ class NeXusConvertingApp(object):
 
         """
         # Load data
-        LoadEventNexus(Filename=self._nexus_name, OutputWorkspace=self._event_ws_name)
 
         # Generate splitters by sample log 'scan_index'.  real sub run starts with scan_index == 1
         split_ws_name = 'Splitter_{}'.format(self._nexus_name)
@@ -169,7 +273,7 @@ class NeXusConvertingApp(object):
                              OutputWorkspace=split_ws_name,
                              InformationWorkspace=split_info_name,
                              LogName='scan_index',
-                             StartTime='{}'.format(relative_start_time),
+                             StartTime=str(self._starttime),
                              UnitOfTime='Seconds',
                              MinimumLogValue=0,
                              LogValueInterval=1)
@@ -217,6 +321,7 @@ def time_average_value(run_obj, log_name):
     """
     # Get property
     log_property = run_obj.getProperty(log_name)
+
     has_splitter_log = run_obj.hasProperty('splitter')
     if has_splitter_log:
         splitter_times = run_obj.getProperty('splitter').times
@@ -232,7 +337,7 @@ def time_average_value(run_obj, log_name):
         except RuntimeError as run_err:
             # Sample log may not meet requirement
             # TODO - log the error!
-            print('Failed on sample log {}. Cause: {}'.format(log_name, run_err))
+            logger.warning('Failed on sample log {}. Cause: {}'.format(log_name, run_err))
             # use current Mantid method instead
             log_value = run_obj.getPropertyAsSingleValue(log_name)
 
@@ -281,27 +386,27 @@ def calculate_log_time_average(log_times, log_value, splitter_times, splitter_va
     # Calculate time average
     total_time = 0.
     weighted_sum = 0.
-    num_periods = splitter_times.shape[0] / 2
+    num_periods = int(.5 * splitter_times.shape[0])
 
     for iperiod in range(num_periods):
         # determine the start and stop time
         start_time = splitter_times[2 * iperiod + start_split_index]
         stop_time = splitter_times[2 * iperiod + start_split_index + 1]
 
-        # print('Start/Stop Time: ', start_time, stop_time)
+        logger.debug('Start/Stop Time: {} {}'.format(start_time, stop_time))
 
         # update the total time
         total_time += stop_time - start_time
 
         # get the (partial) interval from sample log
-        # print('Log times: ', log_times)
+        # logger.debug('Log times: {}'.format(log_times))
         log_start_index = bisect.bisect(log_times, start_time)
         log_stop_index = bisect.bisect(log_times, stop_time)
-        # print('Start/Stop index:', log_start_index, log_stop_index)
+        logger.debug('Start/Stop index: {} {}'.format(log_start_index, log_stop_index))
 
         if log_start_index == 0:
-            print('Sample log time start time:    {}'.format(log_times[0]))
-            print('Splitter star time:            {}'.format(start_time))
+            logger.information('Sample log time start time:    {}'.format(log_times[0]))
+            logger.information('Splitter star time:            {}'.format(start_time))
             raise RuntimeError('It is not expected that the run (splitter[0]) starts with no sample value recorded')
 
         # set the partial log time
@@ -311,13 +416,13 @@ def calculate_log_time_average(log_times, log_value, splitter_times, splitter_va
         partial_log_times[-1] = stop_time
         # to 1 + time size - 2 = time size - 1
         partial_log_times[1:partial_time_size - 1] = log_times[log_start_index:log_stop_index]
-        # print('Processed log times: ', partial_log_times)
+        # logger.debug('Processed log times: {}'.format(partial_log_times))
 
         # set the partial value: v[0] is the value before log_start_index (to the right)
         # so it shall start from log_start_index - 1
         # the case with log_start_index == 0 is ruled out
         partial_log_value = log_value[log_start_index - 1:log_stop_index]
-        # print('Partial log value:', partial_log_value)
+        # logger.debug('Partial log value: {}'.format(partial_log_value))
 
         # Now for time average
         weighted_sum += numpy.sum(partial_log_value * (partial_log_times[1:] - partial_log_times[:-1]))

@@ -8,7 +8,7 @@ from pyrs.utilities import calibration_file_io
 from pyrs.core import mask_util
 from pyrs.core import reduce_hb2b_mtd
 from pyrs.core import reduce_hb2b_pyrs
-from pyrs.utilities.rs_project_file import HidraProjectFile, HidraProjectFileMode
+from pyrs.utilities.rs_project_file import HidraProjectFile, HidraProjectFileMode, HidraConstants
 from pyrs.core import instrument_geometry
 
 
@@ -274,14 +274,21 @@ class HB2BReductionManager(object):
 
         Parameters
         ----------
-        van_project_file
+        van_project_file : str
+            vanadium HiDRA project file or NeXus file
 
         Returns
         -------
-        ~numpy.narray
-            1D array as vanadium counts
+        ~numpy.narray, float
+            1D array as vanadium counts and duration of vanadium run (second)
 
         """
+        checkdatatypes.check_file_name(van_project_file, True, False, False, 'Vanadium project/NeXus file')
+
+        if van_project_file.endswith('.nxs.h5'):
+            raise NotImplementedError('It has not been implemented to load NeXus file of Vanadium')
+
+        # Input is HiDRA project file
         self._van_ws = workspaces.HidraWorkspace(name=van_project_file)
 
         # PyRS HDF5
@@ -302,9 +309,18 @@ class HB2BReductionManager(object):
         # get vanadium data
         van_array = self._van_ws.get_detector_counts(sub_runs[0])
 
+        # get vanadium run duration
+        van_duration = self._van_ws.get_sample_log_value(HidraConstants.SUB_RUN_DURATION, sub_runs[0])
+
+        return van_array, van_duration
+
+    @staticmethod
+    def _do_stat_to_van(van_array):
         # DEBUG: do statistic
-        print('[INFO] Vanadium {} Counts: min = {}, max = {}, average = {}'
-              ''.format(van_project_file, np.min(van_array), np.max(van_array), np.average(van_array)))
+        print('[INFO] Vanadium Counts: min = {}, max = {}, average = {}'
+              ''.format(np.min(van_array), np.max(van_array), np.average(van_array)))
+        # do statistic on each pixel with hard-coded range of counts
+        # i.e., do a histogram on the vanadium counts
         count_range = [0, 2, 5, 10, 20, 30, 40, 50, 60, 80, 150, 300]
         per_count = 0
         pixel_count = 0
@@ -325,8 +341,6 @@ class HB2BReductionManager(object):
         van_array[van_array < 3] = np.nan
         print('[DEBUG] VANADIUM After  Mask: {}\n\t# of NaN = {}'
               ''.format(van_array, np.where(np.isnan(van_array))[0].size))
-
-        return van_array
 
     def get_loaded_mask_files(self):
         """
@@ -363,9 +377,33 @@ class HB2BReductionManager(object):
 
         self._geometry_calibration = geometry_calibration
 
+    def get_vanadium_counts(self, normalized):
+        """Get vanadium counts of each pixel from current/default vanadium (HidraWorkspace)
+
+        Usage: this will be called in order to fetch vanadium counts to reduce_diffraction_data()
+
+        Returns
+        -------
+        numpy.ndarray
+            1D vanadium counts array
+
+        """
+        if self._van_ws is None:
+            raise RuntimeError('There is no default vanadium set up in reduction service')
+        else:
+            # get vanadium
+            sub_run = self._van_ws.get_sub_runs()[0]
+            van_counts_array = self._van_ws.get_detector_counts(sub_run)
+
+            if normalized:
+                van_duration = self._van_ws.get_sample_log_value(HidraConstants.SUB_RUN_DURATION, sub_run)
+                van_counts_array /= van_duration
+
+        return van_counts_array
+
     def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, bin_size_2theta,
-                                use_pyrs_engine, mask,
-                                sub_run_list, apply_vanadium_calibration=False):
+                                use_pyrs_engine, mask, sub_run_list,
+                                vanadium_counts=None):
         """Reduce ALL sub runs in a workspace from detector counts to diffraction data
 
         Parameters
@@ -382,7 +420,9 @@ class HB2BReductionManager(object):
             Mask
         sub_run_list : List of None
             sub runs
-        apply_vanadium_calibration : boolean or ~numpy.ndarray
+        vanadium_counts : None or ~numpy.ndarray
+            vanadium counts of each detector pixels for normalization
+            If vanadium duration is recorded, the vanadium counts are normalized by its duration in seconds
 
         Returns
         -------
@@ -419,41 +459,33 @@ class HB2BReductionManager(object):
         # END-IF-ELSE
         print('[DB...BAT] Det Position Shift: {}'.format(det_pos_shift))
 
-        # Vanadium run
-        if apply_vanadium_calibration is False or apply_vanadium_calibration is None:
-            van_counts_array = None
-        elif apply_vanadium_calibration is True:
-            van_counts_array = self._van_ws.get_detector_counts(self._van_ws.get_sub_runs()[0])
-        else:
-            van_counts_array = apply_vanadium_calibration
-        if isinstance(van_counts_array, np.ndarray):
-            # Mask out zero count
-            van_counts_array[van_counts_array < 3] = np.nan
-            max_count = np.max(van_counts_array[~np.isnan(van_counts_array)])
-            print('[DEBUG] VANADIUM: {}\n\t# of NaN = {}\tMax count = {}'
-                  ''.format(van_counts_array, np.where(np.isnan(van_counts_array))[0].size,
-                            max_count))
-            eff_array = max_count * 1. / van_counts_array
-            print('[DEBUG] Detector efficiency factor: {}\tNumber of NaN = {}'
-                  ''.format(eff_array, np.where(np.isnan(eff_array))[0].size))
-        else:
-            eff_array = None
-
         # TODO - TONIGHT NOW #72 - How to embed mask information???
         if sub_run_list is None:
             sub_run_list = workspace.get_sub_runs()
+
+        # Determine whether normalization by time is supported
+        if not workspace.has_sample_log(HidraConstants.SUB_RUN_DURATION):
+            raise RuntimeError('Workspace {} does not have sample log {}'.format(workspace,
+                                                                                 HidraConstants.SUB_RUN_DURATION))
+
         for sub_run in sub_run_list:
+            # get the duration
+            duration_i = workspace.get_sample_log_value(HidraConstants.SUB_RUN_DURATION,
+                                                        sub_run)
+            # reduce sub run
             self.reduce_sub_run_diffraction(workspace, sub_run, det_pos_shift,
                                             use_mantid_engine=not use_pyrs_engine,
                                             mask_vec_tuple=(mask_id, mask_vec),
                                             resolution_2theta=bin_size_2theta,
-                                            eff_array=eff_array)
+                                            sub_run_duration=duration_i,
+                                            vanadium_counts=vanadium_counts)
+        # END-FOR (sub run)
 
     # NOTE: Refer to compare_reduction_engines_tst
     def reduce_sub_run_diffraction(self, workspace, sub_run, geometry_calibration, use_mantid_engine,
                                    mask_vec_tuple, min_2theta=None, max_2theta=None, default_two_theta_range=20,
-                                   resolution_2theta=None, num_bins=1000,
-                                   eff_array=None):
+                                   resolution_2theta=None, num_bins=1000, sub_run_duration=None,
+                                   vanadium_counts=None):
         """Reduce import data (workspace or vector) to 2-theta ~ I
 
         The binning of 2theta is linear in range (min, max) with given resolution
@@ -464,6 +496,11 @@ class HB2BReductionManager(object):
         2. 2-theta resolution/step size:
             If 2theta resolution is not given, num_bins will be used to determine resolution with 2-theta range;
             Otherwise, use resolution
+
+        Normalization to time/duration
+        ------------------------------
+        If both sub run duration and vanadium duration are given
+        normalized intensity = raw histogram / vanadium histogram * vanadium duration / sub run duration
 
         Parameters
         ----------
@@ -487,11 +524,16 @@ class HB2BReductionManager(object):
             2theta resolution/step
         num_bins : int
             number of bins
-        eff_array :numpy.ndarray or None
-            detector efficiencies
+        sub_run_duration: float or None
+            If None, then no normalization to time (duration) will be done. Otherwise, intensity will be
+            normalized by time (duration)
+        vanadium_counts : numpy.ndarray or None
+            detector pixels' vanadium for efficiency and normalization.
+            If vanadium duration is recorded, the vanadium counts are normalized by its duration in seconds
 
         Returns
         -------
+        None
 
         """
         # Get the raw data
@@ -505,25 +547,32 @@ class HB2BReductionManager(object):
               ''.format(two_theta, -two_theta))
         mantid_two_theta = -two_theta
 
-        # Determine the 2theta range
-        if min_2theta is None or max_2theta is None:
-            min_2theta = abs(two_theta) - 0.5 * default_two_theta_range
-            max_2theta = abs(two_theta) + 0.5 * default_two_theta_range
-        if min_2theta >= max_2theta:
-            raise RuntimeError('Diffraction 2theta range ({}, {})is incorrect.'
-                               'Given information: detector arm 2theta = {}, 2theta range = {}'
-                               ''.format(min_2theta, max_2theta, two_theta, default_two_theta_range))
-        # Determine 2theta resolution
-        if resolution_2theta is None:
-            resolution_2theta = (max_2theta - min_2theta) / num_bins
-
         # Set up reduction engine and also
         if use_mantid_engine:
             reduction_engine = reduce_hb2b_mtd.MantidHB2BReduction(self._mantid_idf)
         else:
             reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
+
         reduction_engine.set_experimental_data(mantid_two_theta, l2, raw_count_vec)
         reduction_engine.build_instrument(geometry_calibration)
+
+        # Determine the 2theta range
+        # Get the 2theta values for all pixels if default value is required
+        if min_2theta is None or max_2theta is None:
+            pixel_2theta_vector = reduction_engine._instrument.get_pixels_2theta(dimension=1)
+            if min_2theta is None:
+                min_2theta = np.min(pixel_2theta_vector)
+            if max_2theta is None:
+                max_2theta = np.max(pixel_2theta_vector)
+
+        if min_2theta >= max_2theta:
+            raise RuntimeError('Diffraction 2theta range ({}, {})is incorrect.'
+                               'Given information: detector arm 2theta = {}, 2theta range = {}'
+                               ''.format(min_2theta, max_2theta, two_theta, default_two_theta_range))
+
+        # Determine 2theta resolution
+        if resolution_2theta is None:
+            resolution_2theta = (max_2theta - min_2theta) / num_bins
 
         # Apply mask
         mask_id, mask_vec = mask_vec_tuple
@@ -536,10 +585,16 @@ class HB2BReductionManager(object):
                                                                is_point_data=True,
                                                                normalize_pixel_bin=True,
                                                                use_mantid_histogram=False,
-                                                               efficiency_correction=eff_array)
+                                                               vanadium_counts_array=vanadium_counts)
 
         bin_centers = data_set[0]
         hist = data_set[1]
+
+        # Normalization
+        if sub_run_duration is not None:
+            # check sub-run duration and normalize by duration time
+            checkdatatypes.check_float_variable('Sub-run duration', sub_run_duration, (0, None))
+            hist /= sub_run_duration
 
         # record
         workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_centers, hist)

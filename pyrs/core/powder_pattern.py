@@ -88,11 +88,13 @@ class ReductionApp(object):
 
         Parameters
         ----------
-        sub_runs
+        sub_runs : List or None
+            sub run numbers to reduce
         instrument_file
         calibration_file
         mask
-        van_file
+        van_file : str or None
+            HiDRA project file containing vanadium counts or event NeXus file
 
         Returns
         -------
@@ -113,7 +115,6 @@ class ReductionApp(object):
         # depending on the value of this thing that is named like it is a bool
         geometry_calibration = False
         if calibration_file is not None:
-
             if calibration_file.lower().endswith('.json'):
                 geometry_calibration =\
                     calibration_file_io.read_calibration_json_file(calibration_file_name=calibration_file)[0]
@@ -128,8 +129,12 @@ class ReductionApp(object):
 
         # Vanadium
         if van_file is not None:
-            van_array = self._reduction_manager.load_vanadium(van_file)
+            # vanadium file is given
+            van_array, van_duration = self._reduction_manager.load_vanadium(van_file)
+            if van_duration is not None:
+                van_array /= van_duration
         else:
+            # no vanadium
             van_array = None
 
         self._reduction_manager.reduce_diffraction_data(self._session,
@@ -138,16 +143,17 @@ class ReductionApp(object):
                                                         use_pyrs_engine=not self._use_mantid_engine,
                                                         mask=None,
                                                         sub_run_list=sub_runs,
-                                                        apply_vanadium_calibration=van_array)
+                                                        vanadium_counts=van_array)
 
-    def plot_reduced_data(self):
-        vec_x, vec_y = self._reduction_engine.get_reduced_data()  # TODO this method doesn't exist
+    def plot_reduced_data(self, sub_run_number=None):
 
-        if vec_x.shape[0] > vec_y.shape[0]:
-            print('Shape: vec x = {}, vec y = {}'.format(vec_x.shape, vec_y.shape))
-            # TODO - TONIGHT 3 - shift half bin of X to point data
-            plt.plot(vec_x[:-1], vec_y)
+        if sub_run_number is None:
+            sub_runs = self._reduction_manager.get_sub_runs(self._session)
         else:
+            sub_runs = [sub_run_number]
+
+        for sub_run_i in sub_runs:
+            vec_x, vec_y = self._reduction_manager.get_reduced_diffraction_data(self._session, sub_run_i)
             plt.plot(vec_x, vec_y)
         plt.show()
 

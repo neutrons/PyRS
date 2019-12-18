@@ -115,6 +115,64 @@ class PeakFitEngine(object):
 
         return center_d_value_array, center_d_error_array
 
+    def estimate_peak_height(self, peak_range):
+        """Estimate peak height with assumption as flat background
+
+        Assume: flat background
+
+        Parameters
+        ----------
+        peak_range
+
+        Returns
+        -------
+        numpy.ndarray, numpy.ndarray
+            each sub run's estimated peak height, each sub run's estimated flat background
+
+        """
+        # sub run information
+        sub_run_array = self._hidra_wksp.get_sub_runs()
+        num_sub_runs = len(sub_run_array)
+
+        # Init the output arrays
+        peak_heights = np.ndarray(shape=sub_run_array.shape, dtype=float)
+        flat_bkgds = np.ndarray(shape=sub_run_array.shape, dtype=float)
+
+        # loop around for each sub run
+        for iws in range(num_sub_runs):
+            # sub run number
+            sub_run_i = sub_run_array[iws]
+            # get 2theta and intensity  - FIXME - MaskID shall be exposed to user later
+            vec_x, vec_y = self._hidra_wksp.get_reduced_diffraction_data(sub_run=sub_run_i, mask_id=None)
+
+            # estimate the flat background: average value of 2 ends of the peak range
+            b1index = np.argmin(np.abs(vec_x - peak_range[0]))
+            b2index = np.argmin(np.abs(vec_x - peak_range[1]))
+
+            b1 = vec_y[b1index]
+            b2 = vec_y[b2index]
+
+            flat_background = 0.5 * (b1 + b2)
+            # print(b1, b2)
+
+            # experience: estimate the intensity can be largely messed up noise on the background
+            # so don't do estimation on intensity
+
+            # estimate rough peak height
+            try:
+                max_y = np.max(vec_y[b1index:b2index])
+                rough_height = max_y - flat_background
+            except ValueError:
+                # mostly a zero-size array array for max()
+                rough_height = 1.
+
+            # record
+            peak_heights[iws] = rough_height
+            flat_bkgds[iws] = flat_background
+        # END-FOR
+
+        return peak_heights, flat_bkgds
+
     def export_to_hydra_project(self, hydra_project_file, peak_tag):
         """Export fit result from this fitting engine instance to Hidra project file
 
@@ -223,7 +281,7 @@ class PeakFitEngine(object):
             raise AssertionError('Peak center {} must be float or np.array'.format(peak_center))
         checkdatatypes.check_tuple('Peak range', peak_range, 2)
 
-    def calculate_fitted_peaks(self, sub_run_number, vec_2theta):
+    def calculate_fitted_peaks(self, sub_run_number, vec_2theta=None):
         """Calculate peak(s) from fitted parameters for a single sub run
 
         Set the values to zero and calculate peaks with background within +/- 3 FWHM
@@ -249,7 +307,7 @@ class PeakFitEngine(object):
         vec_intensity = np.zeros_like(vec_2theta)
 
         # Calculate peaks
-        print('Peaks: {}'.format(self._peak_collection_dict.keys()))
+        # print('Peaks: {}'.format(self._peak_collection_dict.keys()))
         for peak_tag in self._peak_collection_dict.keys():
             pc_i = self._peak_collection_dict[peak_tag]
             param_dict = pc_i.get_sub_run_params(sub_run_number)
@@ -280,6 +338,22 @@ class PeakFitEngine(object):
         return self._hidra_wksp
 
     def get_peaks(self, peak_tag):
+        """
+
+        Parameters
+        ----------
+        peak_tag
+
+        Returns
+        -------
+        pyrs.core.peak_collection.PeakCollection
+            Collection of peak information
+
+        """
+        # only work for peak 1 right now
+        print("in get_peaks of peak_fit_engine.py")
+        print("-> self._peak_collection_dict.keys(): {}".format(self._peak_collection_dict.keys()))
+        # peak_tag = 'Peak 1'  # FIXME
         return self._peak_collection_dict[peak_tag]
 
     @staticmethod

@@ -68,7 +68,6 @@ class SampleLogs(MutableMapping):
             if value.dtype.kind in 'iuf':  # int, uint, float
                 self._plottable.add(key)
 
-    @property
     def plottable_logs(self):
         '''Return the name of all logs that are plottable
 
@@ -76,15 +75,19 @@ class SampleLogs(MutableMapping):
         in addition to all the other logs'''
         return list(self._plottable)
 
-    @property
-    def constant_logs(self):
-        '''Return the name of all logs that have a constant value'''
+    def constant_logs(self, atol=0.):
+        '''Return the name of all logs that have a constant value
+
+        Parameters
+        ----------
+        atol: float
+            Logs with a smaller stddev than the atol (inclusive) will be considered constant'''
         result = list()
         # plottable logs are the numeric ones
         for key in self._plottable:
             if key == self.SUBRUN_KEY:
                 continue
-            if self._data[key].std() == 0.:
+            if self._data[key].std() <= atol:
                 result.append(key)
 
         return result

@@ -3,6 +3,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# test files
+HB2B_*.h5
+HZB_*.h5
+Hidra_*.h5
+
 # C extensions
 *.so
 
