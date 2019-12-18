@@ -116,7 +116,7 @@ class ReductionApp(object):
 
             if calibration_file.lower().endswith('.json'):
                 geometry_calibration =\
-                    calibration_file_io.read_calibration_json_file(calibration_file_name=calibration_file)
+                    calibration_file_io.read_calibration_json_file(calibration_file_name=calibration_file)[0]
             else:
                 geometry_calibration =\
                     calibration_file_io.import_calibration_ascii_file(geometry_file_name=calibration_file)
