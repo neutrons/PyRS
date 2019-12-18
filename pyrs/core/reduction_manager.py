@@ -590,11 +590,11 @@ class HB2BReductionManager(object):
         bin_centers = data_set[0]
         hist = data_set[1]
 
-        # Normalization
-        if sub_run_duration is not None:
-            # check sub-run duration and normalize by duration time
-            checkdatatypes.check_float_variable('Sub-run duration', sub_run_duration, (0, None))
-            hist /= sub_run_duration
+#        # Normalization
+#        if sub_run_duration is not None:
+#            # check sub-run duration and normalize by duration time
+#            checkdatatypes.check_float_variable('Sub-run duration', sub_run_duration, (0, None))
+#            hist /= sub_run_duration
 
         # record
         workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_centers, hist)
