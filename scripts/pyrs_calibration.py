@@ -1,4 +1,3 @@
-import os
 import numpy
 import time
 from pyrs.utilities import calibration_file_io
@@ -14,6 +13,7 @@ DEFAULT_IPTS = 22731
 DEFAULT_PIN = None
 DEFAULT_PIN = None
 DEFAULT_CYCLE = 482
+
 
 def SaveCalibError(calibrator, fName):
     calibrator.singleEval(ConstrainPosition=True)
@@ -105,7 +105,7 @@ if __name__ == '__main__':
     if options.method in [DEFAULT_CALIBRATION, 'testshift']:
         SaveCalibError(calibrator, 'HB2B_{}_shift1.txt'.format(options.pin))
         calibrator._calib[2] = -0.020583807174127174
-        #SaveCalibError(calibrator, 'HB2B_{}_shift2.txt'.format(options.pin))
+        # SaveCalibError(calibrator, 'HB2B_{}_shift2.txt'.format(options.pin))
 
     if options.method in ['shift']:
         calibrator.singlepeak = False

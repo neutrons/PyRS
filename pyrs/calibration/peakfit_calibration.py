@@ -3,8 +3,6 @@
 # Renamed from  ./prototypes/calibration/Quick_Calibration_Class.py
 import numpy as np
 import time
-import glob
-import dateutil.parser
 import json
 import os
 from pyrs.core import reduce_hb2b_pyrs
@@ -921,6 +919,10 @@ class PeakFitCalibration(object):
         -------
         None
         """
+
+        # import glob
+        # import dateutil.parser
+
         # Monochromator setting
 #        mono_setting_index = self._engine.read_log_value('MonoSetting')[0]
 #        mono_setting = ['Si333', 'Si511', 'Si422', 'Si331', 'Si400', 'Si311', 'Si220'][mono_setting_index]

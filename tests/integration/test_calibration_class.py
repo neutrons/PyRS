@@ -17,6 +17,7 @@ try:
 except ImportError as e:
     least_squares = str(e)  # import failed exception explains why
 
+
 def are_equivalent_jsons(test_json_name, gold_json_name, atol):
     """Print out the difference of two JSON files
 
@@ -152,6 +153,7 @@ def test_least_square():
         assert False, 'Test output {} is different from gold file {}'.format(file_name, 'data/HB2B_CAL_Si333.json')
 
     return
+
 
 @pytest.mark.skipif(isinstance(peakfit_calibration, str), reason=peakfit_calibration)
 def test_leastsq():
