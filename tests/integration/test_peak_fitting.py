@@ -2,7 +2,7 @@
 # Test class and methods implemented for peak fitting
 import numpy
 from pyrs.core import pyrscore
-from pyrs.core.peak_collection import PeakCollection
+from pyrs.peaks import PeakCollection
 from pyrs.core.peak_profile_utility import PeakShape, BackgroundFunction
 from pyrs.core.summary_generator import SummaryGenerator
 from pyrs.dataobjects import SampleLogs

@@ -2,7 +2,7 @@
 from pyrs.core import mantid_helper
 from pyrs.utilities import checkdatatypes
 from pyrs.core import peak_fit_engine
-from pyrs.core.peak_collection import PeakCollection
+from pyrs.peaks import PeakCollection
 import numpy as np
 from mantid.api import AnalysisDataService
 from mantid.simpleapi import CreateWorkspace, FitPeaks
@@ -322,7 +322,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
         Returns
         -------
         Dict
-            dictionary of ~pyrs.core.peak_collection.PeakCollection with peak tag as key
+            dictionary of ~pyrs.peaks.PeakCollection with peak tag as key
 
         """
         peak_collection_dict = dict()
@@ -362,7 +362,7 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
 
         Returns
         -------
-        ~pyrs.core.peak_collecton.PeakCollection
+        ~pyrs.peaks.PeakCollection
             Fitted peak's information
 
         """
