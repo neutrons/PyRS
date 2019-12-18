@@ -1,5 +1,6 @@
 import os
 import numpy
+import time
 from pyrs.utilities import calibration_file_io
 from pyrs.utilities.rs_project_file import HidraProjectFile, HidraProjectFileMode
 from pyrs.calibration import peakfit_calibration
@@ -9,12 +10,13 @@ DEFAULT_CALIBRATION = None
 DEFAULT_INSTRUMENT = None
 DEFAULT_MASK = None
 DEFAULT_POWDER = None
-DEFAULT_IPTS = None
+DEFAULT_IPTS = 22731
 DEFAULT_PIN = None
-
+DEFAULT_PIN = None
+DEFAULT_CYCLE = 482
 
 def SaveCalibError(calibrator, fName):
-    calibrator.singleEval(ConstrainPosition=True, start=1, stop=0)
+    calibrator.singleEval(ConstrainPosition=True)
 
     tths = sorted(list(calibrator.ReductionResults.keys()))
 
@@ -28,6 +30,7 @@ def SaveCalibError(calibrator, fName):
     for i_tth in tths:
         for j in list(calibrator.ReductionResults[i_tth].keys()):
             tempdata = calibrator.ReductionResults[i_tth][j]
+            print i_tth, j
 
             lcv += 1
             DataOut[:, lcv*3+0] = tempdata[0]
@@ -38,6 +41,7 @@ def SaveCalibError(calibrator, fName):
 
     DataOut = DataOut[:, :lcv*3+3]
 
+    print DataOut.shape
     numpy.savetxt(fName, DataOut, delimiter=',', header=header[1:])
 
 
@@ -51,12 +55,16 @@ if __name__ == '__main__':
     parser.add_argument('--instrument', nargs='?', default=DEFAULT_INSTRUMENT,
                         help='instrument configuration file overriding embedded (arm, pixel number'
                         ' and size) (default=%(default)s)')
+    parser.add_argument('--method', nargs='?', default=DEFAULT_CALIBRATION,
+                        help='method used for instrument geometry calibration (default=%(default)s)')
     parser.add_argument('--calibration', nargs='?', default=DEFAULT_CALIBRATION,
                         help='instrument geometry calibration file overriding embedded (default=%(default)s)')
     parser.add_argument('--mask', nargs='?', default=DEFAULT_MASK,
                         help='masking file (PyRS hdf5 format) or mask name (default=%(default)s)')
     parser.add_argument('--powder', nargs='?', default=DEFAULT_POWDER,
                         help='Run number for powder file (default=%(default)s)')
+    parser.add_argument('--cycle', nargs='?', default=DEFAULT_CYCLE,
+                        help='HFIR run cycle (default=%(default)s)')
 
     options = parser.parse_args()
 
@@ -64,13 +72,13 @@ if __name__ == '__main__':
     if options.pin is None:
         pin_engine = None
     else:
-        pin_project_file = '/HFIR/HB2B/IPTS-{}/shared/ProjectFile/HB2B_{}.h5'.format(options.IPTS, options.run)
+        pin_project_file = '/HFIR/HB2B/IPTS-{}/shared/ProjectFiles/HB2B_{}.h5'.format(options.IPTS, options.pin)
         pin_engine = HidraProjectFile(pin_project_file, mode=HidraProjectFileMode.READONLY)
 
     if options.powder is None:
         powder_engine = None
     else:
-        powder_project_file = '/HFIR/HB2B/IPTS-{}/shared/ProjectFile/HB2B_{}.h5'.format(options.IPTS, options.run)
+        powder_project_file = '/HFIR/HB2B/IPTS-{}/shared/ProjectFiles/HB2B_{}.h5'.format(options.IPTS, options.powder)
         powder_engine = HidraProjectFile(powder_project_file, mode=HidraProjectFileMode.READONLY)
 
     # instrument geometry
@@ -80,7 +88,7 @@ if __name__ == '__main__':
         idf_name = options.instrument
 
     hb2b = calibration_file_io.import_instrument_setup(idf_name)
-    calibrator = peakfit_calibration.PeakFitCalibration(hb2b, pin_engine, powder_engine, scheme=0)
+    calibrator = peakfit_calibration.PeakFitCalibration(hb2b, pin_engine, powder_engine)
 
     if options.calibration is not None:
         calibrator.get_archived_calibration(options.calibration)
@@ -89,36 +97,40 @@ if __name__ == '__main__':
 #    calibrator._calib[2] = -0.020583807174127174
 #    calibrator._calib[6] = 1.537467969479386
 
-    if options.calibration in [DEFAULT_CALIBRATION, 'geometry']:
-        SaveCalibError(calibrator, 'HB2B_{}_before.csv'.format(options.run))
+    if options.method in [DEFAULT_CALIBRATION, 'geometry']:
+        SaveCalibError(calibrator, 'HB2B_{}_before.csv'.format(options.pin))
         calibrator.CalibrateGeometry()
         print calibrator.get_calib()
-        SaveCalibError(calibrator, 'HB2B_{}_calibres.csv'.format(options.run))
 
-    if options.calibration in ['shift']:
+    if options.method in [DEFAULT_CALIBRATION, 'testshift']:
+        SaveCalibError(calibrator, 'HB2B_{}_shift1.txt'.format(options.pin))
+        calibrator._calib[2] = -0.020583807174127174
+        #SaveCalibError(calibrator, 'HB2B_{}_shift2.txt'.format(options.pin))
+
+    if options.method in ['shift']:
         calibrator.singlepeak = False
         calibrator.CalibrateShift(ConstrainPosition=True)
         print calibrator.get_calib()
 
-    if options.calibration in ['rotate']:
+    if options.method in ['rotate']:
         calibrator.CalibrateRotation(ConstrainPosition=True)
         print calibrator.get_calib()
 
-    if options.calibration in ['wavelength']:
+    if options.method in ['wavelength']:
         calibrator.singlepeak = False
         calibrator.calibrate_wave_length()
         print calibrator.get_calib()
 
-    if options.calibration in ['full']:
+    if options.method in ['full']:
         calibrator.singlepeak = False
         calibrator.FullCalibration(ConstrainPosition=True)
         print calibrator.get_calib()
 
-    if options.calibration == 'distance':
-        calibrator.calibrate_distance(ConstrainPosition=True, Brute=False)
+    if options.method == 'distance':
+        calibrator.calibrate_distance(ConstrainPosition=True, Brute=True)
         print calibrator.get_calib()
 
-    if options.calibration == 'geoNew':
+    if options.method == 'geoNew':
         print 'Calibrating Geometry in Steps'
         calibrator.calibrate_shiftx(ConstrainPosition=True)
         print calibrator.get_calib()
@@ -131,7 +143,7 @@ if __name__ == '__main__':
         calibrator.FullCalibration()
         print calibrator.get_calib()
 
-    if options.calibration in [DEFAULT_CALIBRATION, 'runAll']:
+    if options.method in [DEFAULT_CALIBRATION, 'runAll']:
         calibrator = peakfit_calibration.PeakFitCalibration(hb2b, pin_engine, powder_engine)
         calibrator.FullCalibration()
         FullCalib = calibrator.get_calib()
@@ -158,6 +170,7 @@ if __name__ == '__main__':
         print ShiftCalib
         print LambdaCalib
 
-    fName = 'HB2B_{}_LSQ_{}_Method_{}.json'.format(options.run, calibrator.Method, options.calibration)
-    file_name = os.path.join(os.getcwd(), fName)
-    calibrator.write_calibration(file_name)
+    datatime = time.strftime('%Y-%m-%dT%H-%M', time.localtime())
+    fName = '/HFIR/HB2B/shared/CAL/cycle{}/HB2B_{}_{}.json'.format(options.cycle, calibrator.mono, datatime)
+#    file_name = os.path.join(os.getcwd(), fName)
+    calibrator.write_calibration(fName)

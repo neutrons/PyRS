@@ -10,15 +10,16 @@ import os
 from pyrs.core import reduce_hb2b_pyrs
 
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
+
+from scipy.optimize import leastsq  # for older scipy
+from scipy.optimize import minimize
+from scipy.optimize import brute
+
 try:
     from scipy.optimize import least_squares
     UseLSQ = False
 except ImportError:
     UseLSQ = True
-    from scipy.optimize import leastsq  # for older scipy
-    from scipy.optimize import minimize
-
-from scipy.optimize import brute
 
 colors = ['black', 'red', 'blue', 'green', 'yellow']
 
@@ -87,8 +88,10 @@ class PeakFitCalibration(object):
         """
 
         self._instrument = hb2b_instrument
-        self._engine = hidra_data
-        self._engine2 = hidra_data2
+        if hidra_data is None:
+            self._engine = hidra_data2
+        else:
+            self._engine = hidra_data
 
         # calibration: numpy array. size as 7 for ... [6] for wave length
         self._calib = np.array(7 * [0], dtype=np.float)
@@ -98,13 +101,22 @@ class PeakFitCalibration(object):
         try:
             monosetting = self._engine.read_log_value('MonoSetting')[0]
         except KeyError:
-            if -13.0 < self._engine.read_log_value('mrot')[0] < -11.:
+            if -41.0 < self._engine.read_log_value('mrot')[0] < -38.0:
                 monosetting = 0
-            elif 19.0 < self._engine.read_log_value('mrot')[0] < 21.:
+            elif -1.0 < self._engine.read_log_value('mrot')[0] < 1.0:
                 monosetting = 1
-            elif -20.0 < self._engine.read_log_value('mrot')[0] < -19.:
+            elif -20.0 < self._engine.read_log_value('mrot')[0] < -19.0:
                 monosetting = 2
+            elif -170.0 < self._engine.read_log_value('mrot')[0] < -166.0:
+                monosetting = 3
+            elif 14.0 < self._engine.read_log_value('mrot')[0] < 18.0:
+                monosetting = 4
+            elif -11.0 < self._engine.read_log_value('mrot')[0] < -8.0:
+                monosetting = 5
+            elif -185.0 < self._engine.read_log_value('mrot')[0] < -180.0:
+                monosetting = 6
 
+        self.mono = ['Si333', 'Si511', 'Si422', 'Si331', 'Si400', 'Si311', 'Si220'][monosetting]
         try:
             self._engine.read_log_value('2theta')
             self.tth_ref = '2theta'
@@ -116,13 +128,14 @@ class PeakFitCalibration(object):
         # Set wave length
         self._calib[6] = \
             np.array([1.452, 1.452, 1.540, 1.731, 1.886, 2.275, 2.667])[monosetting]
+
         self._calibstatus = -1
 
         self.ReductionResults = {}
         self._residualpoints = None
-        self.singlepeak = True
+        self.singlepeak = False
 
-        self.Method = UseLSQ
+        self.UseLSQ = UseLSQ
 
         if scheme == 0:
             dSpace = np.array([4.156826, 2.93931985, 2.39994461, 2.078413, 1.8589891, 1.69701711, 1.46965993,
@@ -133,14 +146,13 @@ class PeakFitCalibration(object):
             dSpace = 3.59188696 * np.array([1./np.sqrt(11), 1./np.sqrt(12)])
 
         if hidra_data is None:
-            pin_engine = [hidra_data, []]
+            pin_engine = [hidra_data, [], False]
         else:
             pin_engine = [hidra_data, dSpace, False]
 
         if hidra_data2 is None:
-            pow_engine = [hidra_data, []]
+            pow_engine = [hidra_data2, [], False]
         else:
-            
             dSpace_P = np.array([1.433198898,
                                  1.284838753,
                                  1.245851,
@@ -198,8 +210,7 @@ class PeakFitCalibration(object):
 
         return vec_2theta, vec_hist
 
-    @staticmethod
-    def FitPeaks(x, y, Params, Peak_Num):
+    def FitPeaks(self, x, y, Params, Peak_Num):
 
         def CalcPatt(x, y, PAR, Peak_Num):
             Model = np.zeros_like(x)
@@ -227,7 +238,7 @@ class PeakFitCalibration(object):
 
             ParamNames.append(pkey)
 
-        if UseLSQ:
+        if self.UseLSQ:
             pfit, pcov, infodict, errmsg, success = leastsq(residual, x0, args=(x, y, ParamNames, Peak_Num),
                                                             Dfun=None, ftol=1e-8, xtol=1e-8, full_output=1,
                                                             gtol=1e-8, maxfev=1500, factor=100.0)
@@ -260,7 +271,7 @@ class PeakFitCalibration(object):
             out1 = brute(fun, ranges=BOUNDS, args=(ROI, ConPos, True, i_index), Ns=11)
             return [out1, np.array([0]), 1]
 
-        elif UseLSQ:
+        elif self.UseLSQ:
             if max_nfev is None:
                 max_nfev = 0
 
@@ -364,13 +375,13 @@ class PeakFitCalibration(object):
                 minEta = np.min(Eta_val) + 2
 
                 if roi_vec_set is None:
-                    eta_roi_vec = np.arange(minEta, maxEta + 0.2, 0.5)
+                    eta_roi_vec = np.arange(minEta, maxEta + 0.2, 2.0)
                 else:
                     eta_roi_vec = np.array(roi_vec_set)
 
                 resq = []
                 if Individual:
-                    CalibPeaks = two_theta_calib[i_tth]
+                    CalibPeaks = np.array([two_theta_calib[i_tth]])
                 else:
                     CalibPeaks = two_theta_calib[np.where((two_theta_calib > mintth+0.75) ==
                                                           (two_theta_calib < maxtth-0.75))[0]]
@@ -418,6 +429,7 @@ class PeakFitCalibration(object):
 
                         if Fitresult[2] == 5 or Fitresult[2] < 1:
                             pass
+
                         elif ConPeaks:
                             for p_index in Peaks:
                                 if Fitresult[0]['g%d_center' % p_index] == CalibPeaks[p_index]:
@@ -502,6 +514,7 @@ class PeakFitCalibration(object):
         paramVec = np.copy(self._calib)
         paramVec[i_index] = x[0]
 
+        print x
         residual = self.get_alignment_residual(paramVec, roi_vec_set, ConstrainPosition, False, start, stop)
 
         if ReturnScalar:
@@ -572,6 +585,7 @@ class PeakFitCalibration(object):
         :return:
         """
 
+        print x
         residual = self.get_alignment_residual(x, roi_vec_set, True, False, start, stop)
 
         if ReturnScalar:
@@ -898,7 +912,7 @@ class PeakFitCalibration(object):
 
         return
 
-    def get_archived_calibration(self):
+    def get_archived_calibration(self, file_name):
         """Get calibration from archived JSON file
 
         Output: result is written to self._calib[i]
@@ -908,17 +922,24 @@ class PeakFitCalibration(object):
         None
         """
         # Monochromator setting
-        mono_setting_index = self._engine.read_log_value('MonoSetting')[0]
-        mono_setting = ['Si333', 'Si511', 'Si422', 'Si331', 'Si400', 'Si311', 'Si220'][mono_setting_index]
+#        mono_setting_index = self._engine.read_log_value('MonoSetting')[0]
+#        mono_setting = ['Si333', 'Si511', 'Si422', 'Si331', 'Si400', 'Si311', 'Si220'][mono_setting_index]
 
-        for files in glob.glob('/HFIR/HB2B/shared/CAL/{}/*.json'.format(mono_setting)):
-            # get date
-            datetime = files.split('.json')[0].split('_CAL_')[1]
-            if dateutil.parser.parse(datetime) < dateutil.parser.parse(self._engine.read_log_value('MonoSetting')[0]):
-                CalibData = json.read(files)
-                keys = ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda']
-                for i in range(len(keys)):
-                    self._calib[i] = CalibData[keys[i]]
+#        for files in glob.glob('/HFIR/HB2B/shared/CAL/{}/*.json'.format(mono_setting)):
+#            # get date
+#            datetime = files.split('.json')[0].split('_CAL_')[1]
+#            if dateutil.parser.parse(datetime) < dateutil.parser.parse(self._engine.read_log_value('MonoSetting')[0]):
+#                CalibData = json.load(files)
+#                keys = ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda']
+#                for i in range(len(keys)):
+#                    self._calib[i] = CalibData[keys[i]]
+#
+
+        with open(file_name) as fIN:
+            CalibData = json.load(fIN)
+            keys = ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda']
+            for i in range(len(keys)):
+                self._calib[i] = CalibData[keys[i]]
 
         return
 
@@ -940,7 +961,7 @@ class PeakFitCalibration(object):
         # Year, Month, Day, Hour, Min = time.localtime()[0:5]
         # mono_setting_index = self._engine.read_log_value('MonoSetting')[0]
         # Mono = ['Si333', 'Si511', 'Si422', 'Si331', 'Si400', 'Si311', 'Si220'][mono_setting_index]
-        Mono = 'Si422'
+        Mono = self.mono
         # Form AnglerCameraDetectorShift objects
         cal_shift = AnglerCameraDetectorShift(self._calib[0], self._calib[1], self._calib[2], self._calib[3],
                                               self._calib[4], self._calib[5])
