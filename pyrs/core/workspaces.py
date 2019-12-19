@@ -1,6 +1,7 @@
 # Data manager
 import numpy
 from pyrs.dataobjects import SampleLogs
+from pyrs.projectfile import HidraConstants
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities import rs_project_file
 
@@ -158,11 +159,11 @@ class HidraWorkspace(object):
         """
         checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
         try:
-            two_theta = self._sample_logs[rs_project_file.HidraConstants.TWO_THETA, sub_run]
+            two_theta = self._sample_logs[HidraConstants.TWO_THETA, sub_run]
         except KeyError as key_err:
             raise RuntimeError('Unable to retrieve 2theta value ({}) from sub run {} due to missing key {}.'
                                'Available sample logs are {}'
-                               .format(rs_project_file.HidraConstants.TWO_THETA,
+                               .format(HidraConstants.TWO_THETA,
                                        sub_run, key_err, self._sample_logs.keys()))
         return two_theta[0]  # convert from numpy array of length 1 to a scalar
 
@@ -173,14 +174,14 @@ class HidraWorkspace(object):
         """
         checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
 
-        if rs_project_file.HidraConstants.L2 in self._sample_logs:
+        if HidraConstants.L2 in self._sample_logs:
             # L2 is a valid sample log: get L2
             try:
                 # convert from numpy array of length 1 to a scalar
-                l2 = self._sample_logs[rs_project_file.HidraConstants.L2, sub_run][0]
+                l2 = self._sample_logs[HidraConstants.L2, sub_run][0]
             except KeyError as key_err:
                 raise RuntimeError('Unable to retrieve L2 value for {} due to {}. Available sun runs are {}'
-                                   .format(sub_run, key_err, self._sample_logs[rs_project_file.HidraConstants.L2]))
+                                   .format(sub_run, key_err, self._sample_logs[HidraConstants.L2]))
         else:
             # L2 might be unchanged
             l2 = None
@@ -427,7 +428,7 @@ class HidraWorkspace(object):
             sample log values ordered by sub run numbers with given sub runs or all sub runs
 
         """
-        if sample_log_name == rs_project_file.HidraConstants.SUB_RUNS and \
+        if sample_log_name == HidraConstants.SUB_RUNS and \
                 sample_log_name not in self._sample_logs.keys():
             return self.get_sub_runs()
 
@@ -623,12 +624,12 @@ class HidraWorkspace(object):
         else:
             # same thing
             sub_runs_array = sub_runs
-        hidra_project.append_experiment_log(rs_project_file.HidraConstants.SUB_RUNS, sub_runs_array)
+        hidra_project.append_experiment_log(HidraConstants.SUB_RUNS, sub_runs_array)
 
         # Add regular ample logs
         for log_name in self._sample_logs.keys():
             # no operation on 'sub run': skip
-            if log_name == rs_project_file.HidraConstants.SUB_RUNS:
+            if log_name == HidraConstants.SUB_RUNS:
                 continue
 
             # Convert each sample log to a numpy array

@@ -2,15 +2,16 @@
 Convert HB2B NeXus file to Hidra project file for further reduction
 """
 from __future__ import (absolute_import, division, print_function)  # python3 compatibility
-from mantid.simpleapi import mtd, GenerateEventsFilter, LoadEventNexus, FilterEvents
+import bisect
 from mantid.kernel import FloatTimeSeriesProperty, Int32TimeSeriesProperty, Int64TimeSeriesProperty, logger, Logger
+from mantid.simpleapi import mtd, GenerateEventsFilter, LoadEventNexus, FilterEvents
 import numpy
 import os
 from pyrs.core import workspaces
 from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSetup
+from pyrs.projectfile import HidraConstants
 from pyrs.utilities import checkdatatypes
-from pyrs.utilities.rs_project_file import HidraConstants, HidraProjectFile, HidraProjectFileMode
-import bisect
+from pyrs.utilities.rs_project_file import HidraProjectFile, HidraProjectFileMode
 
 
 class NeXusConvertingApp(object):

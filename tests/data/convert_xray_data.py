@@ -7,7 +7,8 @@ Convert the synchrotron raw data to test
 
 Note: most of the methods to parse HZB data are copied from script pyrscalibration.py
 """
-from pyrs.utilities.rs_project_file import HidraConstants, HidraProjectFile, HidraProjectFileMode
+from pyrs.projectfile import HidraConstants
+from pyrs.utilities.rs_project_file import HidraProjectFile, HidraProjectFileMode
 from pyrs.core.instrument_geometry import HidraSetup
 import numpy
 from skimage import io
