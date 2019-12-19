@@ -7,8 +7,8 @@ import os
 from pyrs.utilities import checkdatatypes
 from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSetup
 from pyrs.peaks import PeakCollection
-from pyrs.dataobjects import SampleLogs
-from pyrs.projectfile import HidraConstants, HidraProjectFileMode
+from pyrs.dataobjects import HidraConstants, SampleLogs
+from pyrs.projectfile import HidraProjectFileMode
 
 __all__ = ['HidraProjectFile']
 

@@ -14,7 +14,8 @@ Note: most of the methods to parse HZB data are copied from script convert_hzb_d
 import numpy
 import os
 from pyrs.core.instrument_geometry import HidraSetup
-from pyrs.projectfile import HidraConstants, HidraProjectFile, HidraProjectFileMode
+from pyrs.dataobjects import HidraConstants
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 from pyrs.utilities import file_util
 
 

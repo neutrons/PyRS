@@ -1,9 +1,10 @@
 # This is the core of PyRS serving as the controller of PyRS and hub for all the data
 from pyrs.utilities import checkdatatypes
 from pyrs.core import instrument_geometry
+from pyrs.dataobjects import HidraConstants
 from pyrs.utilities import file_util
 from pyrs.peaks import PeakFitEngineFactory, SupportedPeakProfiles, SupportedBackgroundTypes
-from pyrs.projectfile import HidraConstants, HidraProjectFile, HidraProjectFileMode
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 from pyrs.core import strain_stress_calculator
 from pyrs.core import reduction_manager
 from pyrs.core import polefigurecalculator

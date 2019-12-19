@@ -7,7 +7,8 @@ from pyrs.core import instrument_geometry
 from pyrs.core import mask_util
 from pyrs.core import reduce_hb2b_mtd
 from pyrs.core import reduce_hb2b_pyrs
-from pyrs.projectfile import HidraConstants, HidraProjectFile, HidraProjectFileMode
+from pyrs.dataobjects import HidraConstants
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 from pyrs.utilities import calibration_file_io
 from pyrs.utilities import checkdatatypes
 

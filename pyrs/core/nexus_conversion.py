@@ -9,7 +9,8 @@ import numpy
 import os
 from pyrs.core import workspaces
 from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSetup
-from pyrs.projectfile import HidraConstants, HidraProjectFile, HidraProjectFileMode
+from pyrs.dataobjects import HidraConstants
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 from pyrs.utilities import checkdatatypes
 
 

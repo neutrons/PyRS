@@ -1,7 +1,7 @@
 import os
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
-from pyrs.projectfile import HidraConstants
+from pyrs.dataobjects import HidraConstants
 from matplotlib import pyplot as plt
 import pytest
 
