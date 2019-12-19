@@ -28,25 +28,13 @@ class ExportCSV(Export):
         self._csv_file_name = os.path.join(out_folder, self.parent._project_name + '.csv')
 
     def create_csv(self):
-        project = self._retrieve_project()
+        peaks = self.parent._core.get_peak(self.parent._project_name, 'Peak 1')
+        sample_logs = self.parent.hidra_workspace._sample_logs
 
-        print("project is: " + project)
-
-        # get information from the project file
-        peak_tags = project.read_peak_tags()
-        peak_collections = [project.read_peak_parameters(tag) for tag in peak_tags]  # all tags
-        sample_logs = project.read_sample_logs()
-
-        # save the project file
-        # project_name = ?
-        # project_file_name = ?
-        # self._reduction_controller.save_peak_fit_result(project, peak_tags, overwrite=True)
-
-        # write out the csv file
-        generator = SummaryGenerator(self._csv_file_name)
-        print("output file is : {}".format(self._csv_file_name))
-        # generator.setHeaderInformation({'project': '/some/place/random.h5'})  # only set one value
-        generator.write_csv(sample_logs, peak_collections)
+        generator = SummaryGenerator(self._csv_file_name,
+                                     log_list=sample_logs.keys())
+        generator.setHeaderInformation(dict())
+        generator.write_csv(sample_logs, [peaks])
 
     def _retrieve_project(self):
         _hidra_project_file = self.parent.hidra_workspace._project_file

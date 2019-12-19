@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1920</width>
-    <height>1085</height>
+    <width>1300</width>
+    <height>581</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -345,7 +345,7 @@
                   </size>
                  </property>
                  <property name="text">
-                  <string>Export CSV</string>
+                  <string>Export CSV ...</string>
                  </property>
                 </widget>
                </item>
@@ -825,7 +825,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1920</width>
+     <width>1300</width>
      <height>22</height>
     </rect>
    </property>
