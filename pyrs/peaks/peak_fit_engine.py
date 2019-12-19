@@ -6,6 +6,8 @@ from pyrs.core import peak_profile_utility
 from pyrs.core.peak_profile_utility import PeakShape
 from pyrs.utilities import checkdatatypes
 
+__all__ = ['PeakFitEngine']
+
 
 class PeakFitEngine(object):
     """
@@ -247,7 +249,7 @@ class PeakFitEngine(object):
 
         Returns
         -------
-        List of ~pyrs.core.peak_collection.PeakCollection
+        List of ~pyrs.peaks.PeakCollection
 
         """
         raise NotImplementedError('Virtual base class member method fit_multiple_peaks')
@@ -346,7 +348,7 @@ class PeakFitEngine(object):
 
         Returns
         -------
-        pyrs.core.peak_collection.PeakCollection
+        pyrs.peaks.PeakCollection
             Collection of peak information
 
         """

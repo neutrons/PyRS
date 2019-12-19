@@ -6,7 +6,7 @@ import os
 import numpy as np
 import datetime
 from pyrs.core import peak_profile_utility
-from pyrs.core.peak_collection import PeakCollection
+from pyrs.peaks import PeakCollection
 import pytest
 
 
