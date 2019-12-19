@@ -1,4 +1,4 @@
-from pyrs.utilities.rs_project_file import HidraProjectFile
+from pyrs.projectfile import HidraProjectFile
 from pyrs.utilities import calibration_file_io
 from pyrs.core import workspaces
 import pytest

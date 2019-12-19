@@ -3,8 +3,7 @@ from pyrs.utilities import checkdatatypes
 from pyrs.core import instrument_geometry
 from pyrs.utilities import file_util
 from pyrs.peaks import PeakFitEngineFactory, SupportedPeakProfiles, SupportedBackgroundTypes
-from pyrs.projectfile import HidraConstants, HidraProjectFileMode
-from pyrs.utilities.rs_project_file import HidraProjectFile
+from pyrs.projectfile import HidraConstants, HidraProjectFile, HidraProjectFileMode
 from pyrs.core import strain_stress_calculator
 from pyrs.core import reduction_manager
 from pyrs.core import polefigurecalculator

@@ -1,9 +1,8 @@
 # Data manager
 import numpy
 from pyrs.dataobjects import SampleLogs
-from pyrs.projectfile import HidraConstants
+from pyrs.projectfile import HidraConstants, HidraProjectFile
 from pyrs.utilities import checkdatatypes
-from pyrs.utilities import rs_project_file
 
 
 class HidraWorkspace(object):
@@ -57,7 +56,7 @@ class HidraWorkspace(object):
         :param hidra_file:
         :return:
         """
-        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HidraProjectFile)
+        checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
 
         for sub_run_i in self._sample_logs.subruns:
             counts_vec_i = hidra_file.read_raw_counts(sub_run_i)
@@ -72,7 +71,7 @@ class HidraWorkspace(object):
         :return:
         """
         # Check inputs
-        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HidraProjectFile)
+        checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
 
         # get 2theta value
         try:
@@ -124,7 +123,7 @@ class HidraWorkspace(object):
         :return:
         """
         # Check
-        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HidraProjectFile)
+        checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
 
         # Get values
         self._instrument_setup = hidra_file.read_instrument_geometry()
@@ -136,7 +135,7 @@ class HidraWorkspace(object):
         :param hidra_file:  HIDRA project file instance
         :return:
         """
-        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HidraProjectFile)
+        checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
 
         # overwrite the existing sample logs
         self._sample_logs = hidra_file.read_sample_logs()
@@ -146,7 +145,7 @@ class HidraWorkspace(object):
         :param hidra_file:  HIDRA project file instance
         :return:
         """
-        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HidraProjectFile)
+        checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
 
         # reset the wave length (dictionary) from HIDRA project file
         self._wave_length_dict = hidra_file.read_wavelengths()
@@ -258,7 +257,7 @@ class HidraWorkspace(object):
         :return:
         """
         # Check input
-        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HidraProjectFile)
+        checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
         self._project_file_name = hidra_file.name
 
         # create the spectrum map - must exist before loading the counts array
@@ -645,7 +644,7 @@ class HidraWorkspace(object):
         :param hidra_project: HidraProjectFile instance
         :return:
         """
-        checkdatatypes.check_type('HIDRA project file', hidra_project, rs_project_file.HidraProjectFile)
+        checkdatatypes.check_type('HIDRA project file', hidra_project, HidraProjectFile)
 
         hidra_project.write_reduced_diffraction_data_set(self._2theta_matrix, self._diff_data_set)
 

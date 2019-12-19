@@ -1,7 +1,6 @@
 # This is the virtual base class as the fitting frame
 import numpy as np
 from pyrs.core import workspaces
-from pyrs.utilities import rs_project_file
 from pyrs.core import peak_profile_utility
 from pyrs.core.peak_profile_utility import PeakShape
 from pyrs.utilities import checkdatatypes
@@ -175,22 +174,23 @@ class PeakFitEngine(object):
 
         return peak_heights, flat_bkgds
 
-    def export_to_hydra_project(self, hydra_project_file, peak_tag):
+    def export_to_hydra_project(self, hidra_project_file, peak_tag):
         """Export fit result from this fitting engine instance to Hidra project file
 
         Parameters
         ----------
-        hydra_project_file : pyrs.utilities.rs_project_file.HidraProjectFile
+        hidra_project_file : ~pyrs.projectfile.HidraProjectFile
         peak_tag
 
         Returns
         -------
 
         """
-        # Check input
-        checkdatatypes.check_type('Hidra project file', hydra_project_file, rs_project_file.HidraProjectFile)
-
-        hydra_project_file.write_peak_fit_result(self._peak_collection_dict[peak_tag])
+        try:
+            hidra_project_file.write_peak_fit_result(self._peak_collection_dict[peak_tag])
+        except AttributeError as e:
+            print 'Parameter "hidra_project_file" does not appear to be correct type', e
+            raise RuntimeError('Method requires a HidraProjectFile')
 
     def fit_peaks(self, peak_tag, sub_run_range, peak_function_name, background_function_name, peak_center,
                   peak_range, max_chi2=1E3, max_peak_shift=2, min_intensity=None):

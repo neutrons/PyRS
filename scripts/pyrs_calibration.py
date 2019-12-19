@@ -1,8 +1,7 @@
 import numpy
 import time
-from pyrs.projectfile import HidraProjectFileMode
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 from pyrs.utilities import calibration_file_io
-from pyrs.utilities.rs_project_file import HidraProjectFile
 from pyrs.calibration import peakfit_calibration
 
 # DEFAULT VALUES FOR DATA PROCESSING

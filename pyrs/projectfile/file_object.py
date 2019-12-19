@@ -10,7 +10,7 @@ from pyrs.peaks import PeakCollection
 from pyrs.dataobjects import SampleLogs
 from pyrs.projectfile import HidraConstants, HidraProjectFileMode
 
-__all__ = ['DiffractionUnit', 'HidraProjectFile']
+__all__ = ['HidraProjectFile']
 
 
 class DiffractionUnit(Enum):

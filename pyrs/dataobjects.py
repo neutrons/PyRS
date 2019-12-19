@@ -1,7 +1,7 @@
 # extentable version of dict https://treyhunner.com/2019/04/why-you-shouldnt-inherit-from-list-and-dict-in-python/
 from collections import MutableMapping
 import numpy as np
-from pyrs.projectfile import HidraConstants
+
 
 def _coerce_to_ndarray(value):
     if isinstance(value, np.ndarray):
@@ -11,7 +11,7 @@ def _coerce_to_ndarray(value):
 
 
 class SampleLogs(MutableMapping):
-    SUBRUN_KEY = HidraConstants.SUB_RUNS
+    SUBRUN_KEY = 'sub-runs'  # TODO should be pyrs.projectfile.HidraConstants.SUB_RUNS
 
     def __init__(self, **kwargs):
         self._data = dict(kwargs)

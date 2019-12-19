@@ -1,5 +1,5 @@
 from pyrs.core import workspaces
-from pyrs.utilities.rs_project_file import HidraProjectFile
+from pyrs.projectfile import HidraProjectFile
 from pyrs.core.instrument_geometry import HidraSetup
 import os
 import pytest

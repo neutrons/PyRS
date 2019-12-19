@@ -9,7 +9,7 @@ Convert the "old" HB2B data, now used to test peak fitting, to new HidraProject 
 """
 import numpy
 from pyrs.utilities import rs_scan_io
-from pyrs.utilities.rs_project_file import HidraProjectFile
+from pyrs.projectfile import HidraProjectFile
 
 
 def main():

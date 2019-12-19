@@ -1,6 +1,8 @@
 # flake8: noqa
-# pylint: disable=undefined-variable
-from .constants import HidraConstants
-from .file_mode import HidraProjectFileMode
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 
-__all__ = constants.__all__ + file_mode.__all__
+from .constants import *
+from .file_mode import *
+from .file_object import *
+
+__all__ = constants.__all__ + file_mode.__all__ + file_object.__all__
