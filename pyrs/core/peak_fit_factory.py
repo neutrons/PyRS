@@ -1,5 +1,5 @@
 # Peak fitting engine
-from pyrs.core import mantid_fit_peak
+from pyrs.peaks.mantid_fit_peak import MantidPeakFitEngine
 from pyrs.utilities import checkdatatypes
 
 
@@ -20,7 +20,7 @@ class PeakFitEngineFactory(object):
         checkdatatypes.check_string_variable('Peak fitting engine', engine_name, ['Mantid', 'PyRS'])
 
         if engine_name == 'Mantid':
-            engine_class = mantid_fit_peak.MantidPeakFitEngine
+            engine_class = MantidPeakFitEngine
         else:
             raise RuntimeError('Implement general scipy peak fitting engine')
 

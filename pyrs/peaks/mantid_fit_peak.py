@@ -1,5 +1,6 @@
 # Peak fitting engine by calling mantid
 from pyrs.core import mantid_helper
+from pyrs.core.peak_profile_utility import Gaussian, PseudoVoigt
 from pyrs.utilities import checkdatatypes
 from pyrs.core import peak_fit_engine
 from pyrs.peaks import PeakCollection
@@ -110,8 +111,6 @@ class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
             parameter names (native), parameter values (as a list in str)
 
         """
-        from peak_profile_utility import Gaussian, PseudoVoigt
-
         # Specify instrument resolution for both Gaussian and FWHM
         hidra_fwhm = 0.5
 

@@ -1,5 +1,5 @@
 import numpy as np
-from pyrs.core.mantid_fit_peak import MantidPeakFitEngine
+from pyrs.core.peak_fit_factory import PeakFitEngineFactory
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.core.peak_profile_utility import pseudo_voigt, PeakShape, BackgroundFunction
 from pyrs.core.peak_profile_utility import Gaussian, PseudoVoigt
@@ -230,7 +230,7 @@ def test_1_gaussian_1_subrun():
     # Generate test workspace and initialize fit engine
     gaussian_workspace = generate_hydra_workspace_single_subrun('Gaussian', min_x, max_x, num_x, [peak_center],
                                                                 [peak_range], [10.])
-    fit_engine = MantidPeakFitEngine(gaussian_workspace, mask_name=None)
+    fit_engine = PeakFitEngineFactory.getInstance('Mantid')(gaussian_workspace, mask_name=None)
 
     # Fit
     m_tag = 'UnitTestGaussian'
@@ -292,7 +292,7 @@ def test_2_gaussian_1_subrun():
     # Generate test workspace and initialize fit engine
     gaussian_workspace = generate_hydra_workspace_single_subrun('Gaussian', min_x, max_x, num_x, peak_centers,
                                                                 peak_ranges, peak_intensities)
-    fit_engine = MantidPeakFitEngine(gaussian_workspace, mask_name=None)
+    fit_engine = PeakFitEngineFactory.getInstance('Mantid')(gaussian_workspace, mask_name=None)
 
     # Fit
     fit_engine.fit_multiple_peaks(sub_run_range=(1, 1),
@@ -390,7 +390,7 @@ def test_2_gaussian_3_subruns():
     test_hd_ws = generate_hydra_workspace_multiple_sub_runs('3 G 3 S', test_2g_dict)
 
     # Fit
-    fit_engine = MantidPeakFitEngine(test_hd_ws, mask_name=None)
+    fit_engine = PeakFitEngineFactory.getInstance('Mantid')(test_hd_ws, mask_name=None)
     fit_engine.fit_multiple_peaks(sub_run_range=(1, 3),
                                   peak_function_name='Gaussian',
                                   background_function_name='Linear',
@@ -500,7 +500,7 @@ def test_3_gaussian_3_subruns():
     test_hd_ws = generate_hydra_workspace_multiple_sub_runs('3 G 3 S', test_2g_dict)
 
     # Fit
-    fit_engine = MantidPeakFitEngine(test_hd_ws, mask_name=None)
+    fit_engine = PeakFitEngineFactory.getInstance('Mantid')(test_hd_ws, mask_name=None)
     fit_engine.fit_multiple_peaks(sub_run_range=(1, 3),
                                   peak_function_name='Gaussian',
                                   background_function_name='Linear',
@@ -550,7 +550,7 @@ def test_1_pv_1_subrun():
     pv_workspace = generate_hydra_workspace_single_subrun('PseudoVoigt', min_x, max_x, num_x, [peak_center],
                                                           [peak_range], [100.])
 
-    fit_engine = MantidPeakFitEngine(pv_workspace, mask_name=None)
+    fit_engine = PeakFitEngineFactory.getInstance('Mantid')(pv_workspace, mask_name=None)
 
     # Fit
     peak_tag = 'UnitTestPseudoVoigt'
