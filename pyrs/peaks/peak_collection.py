@@ -5,6 +5,8 @@ import numpy as np
 from pyrs.utilities import checkdatatypes
 from pyrs.core.peak_profile_utility import get_effective_parameters_converter, PeakShape, BackgroundFunction
 
+__all__ = ['PeakCollection']
+
 
 class PeakCollection(object):
     """

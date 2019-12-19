@@ -3,6 +3,8 @@ from scipy.optimize import leastsq
 import numpy as np
 from pyrs.utilities import checkdatatypes
 
+__all__ = ['ScipyPeakFitEngine']
+
 
 class ScipyPeakFitEngine(PeakFitEngine):
     """peak fitting engine class for mantid
@@ -72,6 +74,7 @@ class ScipyPeakFitEngine(PeakFitEngine):
         else:
             return Data - model_y
 
+    # TODO signature doesn't match base class
     def fit_peaks(self, peak_function_name, background_function_name, scan_index=None):
         """
         fit peaks
@@ -149,6 +152,7 @@ class ScipyPeakFitEngine(PeakFitEngine):
 
         return
 
+    # TODO arguments don't match base class
     def calculate_fitted_peaks(self, scan_index):
         """
         get the calculated peak's value

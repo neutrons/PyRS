@@ -1,10 +1,11 @@
 # Peak fitting engine
-from pyrs.peaks.mantid_fit_peak import MantidPeakFitEngine
 from pyrs.utilities import checkdatatypes
 
 
 SupportedPeakProfiles = ['Gaussian', 'PseudoVoigt', 'Voigt']
 SupportedBackgroundTypes = ['Flat', 'Linear', 'Quadratic']
+
+__all__ = ['PeakFitEngineFactory', 'SupportedPeakProfiles', 'SupportedBackgroundTypes']
 
 
 class PeakFitEngineFactory(object):
@@ -12,16 +13,15 @@ class PeakFitEngineFactory(object):
     Peak fitting engine factory
     """
     @staticmethod
-    def getInstance(engine_name):
+    def getInstance(name):
         """ Get instance of Peak fitting engine
-        :param engine_name:
-        :return:
         """
-        checkdatatypes.check_string_variable('Peak fitting engine', engine_name, ['Mantid', 'PyRS'])
+        checkdatatypes.check_string_variable('Peak fitting engine', name, ['Mantid', 'PyRS'])
 
-        if engine_name == 'Mantid':
-            engine_class = MantidPeakFitEngine
+        # this must be here for now to stop circular imports
+        from .mantid_fit_peak import MantidPeakFitEngine
+
+        if name == 'Mantid':
+            return MantidPeakFitEngine
         else:
             raise RuntimeError('Implement general scipy peak fitting engine')
-
-        return engine_class

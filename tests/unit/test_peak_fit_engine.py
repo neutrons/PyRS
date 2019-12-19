@@ -1,5 +1,5 @@
 import numpy as np
-from pyrs.core.peak_fit_factory import PeakFitEngineFactory
+from pyrs.peaks import PeakFitEngineFactory
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.core.peak_profile_utility import pseudo_voigt, PeakShape, BackgroundFunction
 from pyrs.core.peak_profile_utility import Gaussian, PseudoVoigt

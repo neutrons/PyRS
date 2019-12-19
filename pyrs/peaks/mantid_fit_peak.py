@@ -8,6 +8,7 @@ import numpy as np
 from mantid.api import AnalysisDataService
 from mantid.simpleapi import CreateWorkspace, FitPeaks
 
+__all__ = ['MantidPeakFitEngine']
 
 DEBUG = False   # Flag for debugging mode
 
@@ -34,8 +35,6 @@ class MantidPeakFitEngine(PeakFitEngine):
         self._fitted_function_param_table = None  # fitted function parameters table workspace
         self._fitted_function_error_table = None  # fitted function parameters' fitting error table workspace
         self._model_matrix_ws = None  # MatrixWorkspace of the model from fitted function parameters
-
-        return
 
     def _create_peak_center_ws(self, peak_center):
         """ Create peak center workspace
@@ -117,30 +116,30 @@ class MantidPeakFitEngine(PeakFitEngine):
         # Estimate
         estimated_heights, flat_bkgds = self.estimate_peak_height(peak_range)
         max_estimated_height = estimated_heights.max()
-        flat_bkgd = flat_bkgds[np.argmax(estimated_heights)]
+        # do not pass A0 to FitPeaks
 
         # Make the difference between peak profiles
         if peak_function_name == 'Gaussian':
             # Gaussian
-            peak_param_names = '{}, {}'.format('Height', 'Sigma', 'A0')
+            peak_param_names = '{}, {}'.format('Height', 'Sigma')
 
             # sigma
             instrument_sigma = Gaussian.cal_sigma(hidra_fwhm)
 
             # set value
-            peak_param_values = "{}, {}".format(max_estimated_height, instrument_sigma, flat_bkgd)
+            peak_param_values = "{}, {}".format(max_estimated_height, instrument_sigma)
 
         elif peak_function_name == 'PseudoVoigt':
             # Pseudo-voig
             default_mixing = 0.6
 
-            peak_param_names = '{}, {}, {}'.format('Mixing', 'Intensity', 'FWHM', 'A0')
+            peak_param_names = '{}, {}, {}'.format('Mixing', 'Intensity', 'FWHM')
 
             # intensity
             max_intensity = PseudoVoigt.cal_intensity(max_estimated_height, hidra_fwhm, default_mixing)
 
             # set values
-            peak_param_values = "{}, {}, {}".format(default_mixing, max_intensity, hidra_fwhm, flat_bkgds)
+            peak_param_values = "{}, {}, {}".format(default_mixing, max_intensity, hidra_fwhm)
 
         else:
             # Non-supported case

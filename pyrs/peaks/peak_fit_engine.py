@@ -6,6 +6,8 @@ from pyrs.core import peak_profile_utility
 from pyrs.core.peak_profile_utility import PeakShape
 from pyrs.utilities import checkdatatypes
 
+__all__ = ['PeakFitEngine']
+
 
 class PeakFitEngine(object):
     """
