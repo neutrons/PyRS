@@ -1,4 +1,4 @@
-from pyrs.core.peak_fit_engine import PeakFitEngine
+from .peak_fit_engine import PeakFitEngine
 from scipy.optimize import leastsq
 import numpy as np
 from pyrs.utilities import checkdatatypes

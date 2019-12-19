@@ -1,8 +1,8 @@
 # Peak fitting engine by calling mantid
+from .peak_fit_engine import PeakFitEngine
 from pyrs.core import mantid_helper
 from pyrs.core.peak_profile_utility import Gaussian, PseudoVoigt
 from pyrs.utilities import checkdatatypes
-from pyrs.core import peak_fit_engine
 from pyrs.peaks import PeakCollection
 import numpy as np
 from mantid.api import AnalysisDataService
@@ -12,7 +12,7 @@ from mantid.simpleapi import CreateWorkspace, FitPeaks
 DEBUG = False   # Flag for debugging mode
 
 
-class MantidPeakFitEngine(peak_fit_engine.PeakFitEngine):
+class MantidPeakFitEngine(PeakFitEngine):
     """
     peak fitting engine class for mantid
     """
