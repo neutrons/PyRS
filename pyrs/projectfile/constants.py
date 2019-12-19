@@ -1,3 +1,6 @@
+__all__ = ['HidraConstants']
+
+
 class HidraConstants(object):
     """
     Constants used for Hidra project file, workspace and related dictionary

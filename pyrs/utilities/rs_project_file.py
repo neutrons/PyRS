@@ -8,31 +8,9 @@ from pyrs.utilities import checkdatatypes
 from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSetup
 from pyrs.peaks import PeakCollection
 from pyrs.dataobjects import SampleLogs
-from pyrs.projectfile import HidraConstants
+from pyrs.projectfile import HidraConstants, HidraProjectFileMode
 
-__all__ = ['HidraProjectFileMode', 'DiffractionUnit', 'HidraProjectFile']
-
-
-class HidraProjectFileMode(Enum):
-    '''
-    Enumeration for file access mode
-
-    These values match the strings of :py:obj:`h5py.File`
-    '''
-    READONLY = 'r'   # read-only
-    READWRITE = 'a'  # read and write
-    OVERWRITE = 'w'  # new file
-
-    def __str__(self):
-        return self.value
-
-    @staticmethod
-    def getMode(mode):
-        '''Private function to convert anything into :py:obj:`HidraProjectFileMode`'''
-        if mode in HidraProjectFileMode:
-            return mode
-        else:
-            return HidraProjectFileMode[str(mode)]
+__all__ = ['DiffractionUnit', 'HidraProjectFile']
 
 
 class DiffractionUnit(Enum):

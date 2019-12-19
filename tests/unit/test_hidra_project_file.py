@@ -1,8 +1,8 @@
 """
 Test for reading and writing components to HiDRA project file
 """
-from pyrs.projectfile import HidraConstants
-from pyrs.utilities.rs_project_file import HidraProjectFile, HidraProjectFileMode
+from pyrs.projectfile import HidraConstants, HidraProjectFileMode
+from pyrs.utilities.rs_project_file import HidraProjectFile
 import os
 import numpy as np
 import datetime

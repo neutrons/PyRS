@@ -5,8 +5,9 @@ import pytest
 import time
 import os
 import json
+from pyrs.projectfile import HidraProjectFileMode
 from pyrs.utilities import calibration_file_io
-from pyrs.utilities.rs_project_file import HidraProjectFile, HidraProjectFileMode
+from pyrs.utilities.rs_project_file import HidraProjectFile
 try:
     from pyrs.calibration import peakfit_calibration
 except ImportError as e:

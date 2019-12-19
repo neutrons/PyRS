@@ -1,8 +1,9 @@
 from pyrs.core import reduction_manager
 from pyrs.utilities import checkdatatypes
 from pyrs.core import mask_util
+from pyrs.projectfile import HidraProjectFileMode
 from pyrs.utilities import calibration_file_io
-from pyrs.utilities.rs_project_file import HidraProjectFile, HidraProjectFileMode
+from pyrs.utilities.rs_project_file import HidraProjectFile
 from matplotlib import pyplot as plt
 
 
