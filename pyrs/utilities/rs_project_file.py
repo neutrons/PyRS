@@ -6,7 +6,7 @@ import numpy
 import os
 from pyrs.utilities import checkdatatypes
 from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSetup
-from pyrs.core.peak_collection import PeakCollection
+from pyrs.peaks import PeakCollection
 from pyrs.dataobjects import SampleLogs
 
 
@@ -47,6 +47,9 @@ class HidraConstants(object):
     PEAK_PARAM_NAMES = 'parameter names'  # peak parameter names
     PEAK_COM = 'C.O.M'  # peak's center of mass
     BACKGROUND_TYPE = 'background type'
+
+    # Special sample logs
+    SUB_RUN_DURATION = 'sub-run duration'
 
 
 class HidraProjectFileMode(Enum):
@@ -418,11 +421,14 @@ class HidraProjectFile(object):
         # Get the group
         logs_group = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS]
 
+        if HidraConstants.SUB_RUNS not in logs_group.keys():
+            raise RuntimeError('Failed to find {} in {} group of the file'.format(HidraConstants.SUB_RUNS,
+                                                                                  HidraConstants.SAMPLE_LOGS))
+
         # Get 2theta and others
         samplelogs = SampleLogs()
         # first set subruns
-        if HidraConstants.SUB_RUNS in logs_group.keys():
-            samplelogs[HidraConstants.SUB_RUNS] = logs_group[HidraConstants.SUB_RUNS].value
+        samplelogs[HidraConstants.SUB_RUNS] = logs_group[HidraConstants.SUB_RUNS].value
         for log_name in logs_group.keys():
             samplelogs[log_name] = logs_group[log_name].value
 

@@ -2,11 +2,14 @@
 # Test class and methods implemented for peak fitting
 import numpy
 from pyrs.core import pyrscore
-from pyrs.core.peak_collection import PeakCollection
+from pyrs.peaks import PeakCollection
 from pyrs.core.peak_profile_utility import PeakShape, BackgroundFunction
 from pyrs.core.summary_generator import SummaryGenerator
 from pyrs.dataobjects import SampleLogs
 from pyrs.utilities.rs_project_file import HidraProjectFile
+from pyrs.peaks import PeakFitEngineFactory
+import h5py
+from pyrs.core import peak_profile_utility
 from matplotlib import pyplot as plt
 import pytest
 from collections import namedtuple
@@ -136,11 +139,13 @@ class PeakFittingTest(object):
         self._reduction_controller.save_peak_fit_result(self._project_name, out_file_name, peak_tag, overwrite=False)
 
 
-# @pytest.mark.parametrize('source_project_file, output_project_file, peak_type, peak_info',
-#                          [('data/HB2B_1017.h5', 'HB2B_1017_2Peaks.h5', 'PseudoVoigt',
-#                            [PeakInfo(81., 78., 83., 'LeftPeak'), PeakInfo(85., 83., 87., 'RightPeak')])],
-#                          ids=['HB2B1017PeakFit'])
-def broken_test_fit_2peaks(source_project_file, output_project_file, peak_type, peak_info_list):
+@pytest.mark.parametrize('source_project_file, output_project_file, peak_type, peak_info_list',
+                         [('data/HB2B_1017.h5', 'HB2B_1017_2Peaks.h5', 'PseudoVoigt',
+                           [PeakInfo(81., 78., 83., 'LeftPeak'), PeakInfo(85., 83., 87., 'RightPeak')]),
+                          ('/HFIR/HB2B/IPTS-22731/shared/ProjectFiles/HB2B_1065.h5', 'HB2B_1065_Peak.h5',
+                           'PseudoVoigt', [PeakInfo(90.5, 89.9, 91.6, '311')])],
+                         ids=['HB2B1017PeakFit', 'HB2B1065PeakExport'])
+def in_develop_test_fit_2peaks(source_project_file, output_project_file, peak_type, peak_info_list):
     """Performance test on data with multiple peaks on multiple sub runs
 
     Also on the 'real' situation that some peaks do not even exist on some sub runs
@@ -169,16 +174,28 @@ def broken_test_fit_2peaks(source_project_file, output_project_file, peak_type, 
 
     # save to project file
     tester.save_fit_result(source_project_file, output_project_file, peak_info_list[0].tag)
+    # Test only 1
+    if source_project_file != 'data/HB2B_1017.h5':
+        return
+
+    # Create tester
+    tester = PeakFittingTest(source_project_file)
+
+    # Fit peak
+    for peak_info in peak_info_list:
+        tester.fit_peak(peak_type, peak_info)
+
+        # save to project file
+        tester.save_fit_result(source_project_file, output_project_file, peak_info.tag)
 
 
 @pytest.mark.parametrize('source_project_file, output_project_file, peak_type, peak_info',
                          [('/HFIR/HB2B/IPTS-22731/shared/ProjectFiles/HB2B_1065.h5', 'HB2B_1065_Peak.h5',
                            'PseudoVoigt', PeakInfo(90.5, 89.9, 91.6, '311'))],
                          ids=['HB2B1065PeakExport'])
-def skip_test_fit_2peaks(source_project_file, output_project_file, peak_type, peak_info):
-    """Performance test on data with multiple peaks and/or sub runs
-
-    This also tends to ddd a new test for strain/stress data (goal is to generate light-weight HiDRA file)
+def test_retrieve_fit_metadata(source_project_file, output_project_file, peak_type, peak_info):
+    """A full set of test including loading project,  fitting peaks, write fitting result and exporting fitting
+    result and calculated peaks
 
     Parameters
     ----------
@@ -191,41 +208,67 @@ def skip_test_fit_2peaks(source_project_file, output_project_file, peak_type, pe
     -------
 
     """
-    # Test only 1
-    if source_project_file != 'data/HB2B_1017.h5':
-        return
+    if os.path.exists(source_project_file) is False:
+        pytest.skip('{} does not exist on Travis'.format(source_project_file))
 
-    # Create tester
-    tester = PeakFittingTest(source_project_file)
+    # Create calibration control
+    controller = pyrscore.PyRsCore()
 
-    # Fit peak
-    tester.fit_peak(peak_type, peak_info)
+    # Load project file to HidraWorkspace
+    project_name = 'Jean Peaks'
+    hd_ws = controller.load_hidra_project(source_project_file, project_name=project_name, load_detector_counts=False,
+                                          load_diffraction=True)
 
-    # save to project file
-    tester.save_fit_result(source_project_file, output_project_file, peak_info.tag)
+    # set wave length
+    # TODO : @Jean please find out the correct value
+    hd_ws.set_wavelength(1.071, False)
 
-
-@pytest.mark.parametrize('source_project_file, output_project_file, peak_type, peak_info',
-                         [('/HFIR/HB2B/IPTS-22731/shared/ProjectFiles/HB2B_1065.h5', 'HB2B_1065_Peak.h5',
-                           'PseudoVoigt', PeakInfo(90.5, 89.9, 91.6, '311'))],
-                         ids=['HB2B1065PeakExport'])
-def test_retrieve_fit_metadata(source_project_file, output_project_file, peak_type, peak_info):
-    pass
-    # Create tester
-    # tester = PeakFittingTest(source_project_file)
+    # Set peak fitting engine
+    # create a controller from factory
+    fit_engine = PeakFitEngineFactory.getInstance('Mantid')(hd_ws, None)
 
     # Fit peak
-    # tester.fit_peak(peak_type, peak_info)
+    fit_engine.fit_multiple_peaks(sub_run_range=(None, None),  # default is all sub runs
+                                  peak_function_name=peak_type,
+                                  background_function_name='Linear',
+                                  peak_tag_list=[peak_info.tag],
+                                  peak_center_list=[peak_info.center],
+                                  peak_range_list=[(peak_info.left_bound, peak_info.right_bound)])
 
-    # retrieve Center
+    # Retrieve all effective peak parameters
+    fitted_peak = fit_engine.get_peaks(peak_info.tag)
+    param_set = fitted_peak.get_effective_parameters_values()
+    eff_params_list, sub_run_array, fit_cost_array, eff_param_value_array, eff_param_error_array = param_set
+
+    # retrieve Center: EFFECTIVE_PEAK_PARAMETERS = ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
+    i_center = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS.index('Center')
+    centers = eff_param_value_array[i_center]
 
     # retrieve Height
+    i_height = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS.index('Height')
+    heights = eff_param_value_array[i_height]
 
     # retrieve intensity
+    i_intensity = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS.index('Intensity')
+    intensities = eff_param_value_array[i_intensity]
 
     # retrieve FWHM
+    i_fwhm = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS.index('FWHM')
+    fwhms = eff_param_value_array[i_fwhm]
+
+    # result file
+    ref_h5 = h5py.File(output_project_file, 'w')
+    peak_entry = ref_h5.create_group(peak_info.tag)
+    peak_entry.create_dataset('Center', data=centers)
+    peak_entry.create_dataset('Height', data=heights)
+    peak_entry.create_dataset('Intensity', data=intensities)
+    peak_entry.create_dataset('FWHM', data=fwhms)
+    ref_h5.close()
 
     # retrieve d_spacing
+    # TODO - Next Thing!
+
+    return
 
 
 @pytest.mark.parametrize('project_file_name, peak_file_name, peak_type, peak_info',
@@ -262,6 +305,9 @@ def test_main(project_file_name, peak_file_name, peak_type, peak_info):
     # save to project file
     tester.save_fit_result(project_file_name, peak_file_name, peak_info.tag)
 
+    # Clean
+    os.remove(peak_file_name)
+
 
 # TODO - MAKE IT WORK!
 def test_calculating_com():
@@ -272,6 +318,75 @@ def test_calculating_com():
 def test_convert_peaks_centers_to_dspacing():
     #
     pass
+
+
+def test_improve_quality():
+    """This is a test to improve the quality of peak fitting.
+
+    Data are from the real HB2B data previously reported problematic
+
+    Returns
+    -------
+
+    """
+    # Define HiDRA project file name and skip test if it does not exist (on Travis)
+    project_file_name = '/HFIR/HB2B/IPTS-22731/shared/autoreduce/HB2B_1060.h5'
+    if not os.path.exists(project_file_name):
+        pytest.skip('{} does not exist on Travis'.format(project_file_name))
+
+    # Create calibration control
+    controller = pyrscore.PyRsCore()
+
+    # Load project file to HidraWorkspace
+    project_name = 'Jean Peaks'
+    hd_ws = controller.load_hidra_project(project_file_name, project_name=project_name, load_detector_counts=False,
+                                          load_diffraction=True)
+
+    # set wave length
+    # TODO : @Jean please find out the correct value
+    hd_ws.set_wavelength(1.071, False)
+
+    # Set peak fitting engine
+    # create a controller from factory
+    fit_engine = PeakFitEngineFactory.getInstance('Mantid')(hd_ws, None)
+
+    peak_type = 'Gaussian'
+
+    # Fit peak @ left
+    peak_info_left = PeakInfo(91.7, 87., 93., 'Left Peak')
+
+    fit_engine.fit_multiple_peaks(sub_run_range=(None, None),  # default is all sub runs
+                                  peak_function_name=peak_type,
+                                  background_function_name='Linear',
+                                  peak_tag_list=[peak_info_left.tag],
+                                  peak_center_list=[peak_info_left.center],
+                                  peak_range_list=[(peak_info_left.left_bound, peak_info_left.right_bound)])
+
+    # Get peak fit result
+    model_set = fit_engine.calculate_fitted_peaks(sub_run_number=3)
+    data_set = hd_ws.get_reduced_diffraction_data(sub_run=3, mask_id=None)
+
+    # Fit the right peak
+    peak_info_left = PeakInfo(95.8, 93.5, 98.5, 'Right Peak')
+
+    fit_engine.fit_multiple_peaks(sub_run_range=(None, None),  # default is all sub runs
+                                  peak_function_name='Gaussian',
+                                  background_function_name='Linear',
+                                  peak_tag_list=[peak_info_left.tag],
+                                  peak_center_list=[peak_info_left.center],
+                                  peak_range_list=[(peak_info_left.left_bound, peak_info_left.right_bound)])
+
+    # Get peak fit result @ right
+    right_model_set = fit_engine.calculate_fitted_peaks(sub_run_number=100)
+    right_data_set = hd_ws.get_reduced_diffraction_data(sub_run=100, mask_id=None)
+
+    plt.plot(model_set[0], model_set[1], color='red', label='91 peak model')
+    plt.plot(data_set[0], data_set[1], color='black', label='91 peak raw')
+
+    plt.plot(right_model_set[0], right_model_set[1], color='blue', label='96 peak model')
+    plt.plot(right_data_set[0], right_data_set[1], color='green', label='96 peak raw')
+
+    # plt.show()
 
 
 def test_write_csv():

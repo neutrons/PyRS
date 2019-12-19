@@ -2,16 +2,13 @@
 from pyrs.utilities import checkdatatypes
 from pyrs.core import instrument_geometry
 from pyrs.utilities import file_util
-from pyrs.core import peak_fit_factory
+from pyrs.peaks import PeakFitEngineFactory, SupportedPeakProfiles, SupportedBackgroundTypes
 from pyrs.utilities.rs_project_file import HidraConstants, HidraProjectFile, HidraProjectFileMode
 from pyrs.core import strain_stress_calculator
 from pyrs.core import reduction_manager
 from pyrs.core import polefigurecalculator
 import os
 import numpy
-
-# Define Constants
-SUPPORTED_PEAK_TYPES = ['PseudoVoigt', 'Gaussian', 'Voigt']  # 'Lorentzian': No a profile of HB2B
 
 
 class PyRsCore(object):
@@ -102,14 +99,13 @@ class PyRsCore(object):
         raise NotImplementedError('Project {} of solid angles {} need to be implemented soon!'
                                   ''.format(project_name, solid_angles))
 
-    def create_workspace(self, fit_tag):
+    def init_peak_fit_engine(self, fit_tag):
         """Create the working workspace that will be used to fit the data"""
 
         # get workspace
         workspace = self.reduction_service.get_hidra_workspace(fit_tag)
         # create a controller from factory
-        self._peak_fitting_dict[fit_tag] = peak_fit_factory.PeakFitEngineFactory.getInstance('Mantid')(workspace,
-                                                                                                       None)
+        self._peak_fitting_dict[fit_tag] = PeakFitEngineFactory.getInstance('Mantid')(workspace, None)
         # set wave length: TODO - #81+ - shall be a way to use calibrated or non-calibrated
         wave_length_dict = workspace.get_wavelength(calibrated=False, throw_if_not_set=False)
         if wave_length_dict is not None:
@@ -146,7 +142,7 @@ class PyRsCore(object):
             raise ValueError("Project name can not be empty!")
 
         if project_name not in self._peak_fitting_dict:
-            self.create_workspace(project_name)
+            self.init_peak_fit_engine(project_name)
 
         # Get controller by 'fitting tag' and set it to current peak_fit_controller
         self._peak_fit_controller = self._peak_fitting_dict[project_name]
@@ -154,10 +150,8 @@ class PyRsCore(object):
 
         # Check Inputs
         checkdatatypes.check_dict('Peak fitting (information) parameters', peaks_fitting_setup)
-        checkdatatypes.check_string_variable('Peak type', peak_type,
-                                             peak_fit_factory.SupportedPeakProfiles)
-        checkdatatypes.check_string_variable('Background type', background_type,
-                                             peak_fit_factory.SupportedBackgroundTypes)
+        checkdatatypes.check_string_variable('Peak type', peak_type, SupportedPeakProfiles)
+        checkdatatypes.check_string_variable('Background type', background_type, SupportedBackgroundTypes)
 
         # Deal with sub runs
         if sub_run_list is None:
@@ -406,6 +400,20 @@ class PyRsCore(object):
 
     def load_hidra_project(self, hidra_h5_name, project_name, load_detector_counts=True, load_diffraction=False):
         """
+
+        Parameters
+        ----------
+        hidra_h5_name
+        project_name
+        load_detector_counts
+        load_diffraction
+
+        Returns
+        -------
+        pyrs.core.workspaces.HidraWorkspace
+
+        """
+        """
         Load a HIDRA project file
         :param hidra_h5_name: name of HIDRA project file in HDF5 format
         :param project_name: name of the reduction project specified by user to trace
@@ -596,7 +604,7 @@ class PyRsCore(object):
 
         # get the workspace name
         try:
-            matrix_name = optimizer.get_data_workspace_name()
+            matrix_name = optimizer.get_mantid_workspace_name()
             # save
             file_util.save_mantid_nexus(matrix_name, file_name)
         except RuntimeError as run_err:
@@ -643,4 +651,4 @@ class PyRsCore(object):
         list of supported peaks' types for fitting
         :return:
         """
-        return SUPPORTED_PEAK_TYPES[:]
+        return SupportedPeakProfiles[:]
