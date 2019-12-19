@@ -251,6 +251,16 @@ class PyRsCore(object):
 
         return data_set
 
+    def get_peak(self, project_name, peak_tag):
+        """
+
+        :param project_name:
+        :param peak_tag:
+        :return: pyrs.core.peak_collection.PeakCollection
+        """
+        fit_engine = self._peak_fitting_dict[project_name]
+        return fit_engine.get_peaks(peak_tag)
+
     def get_peak_fitting_result(self, project_name, peak_tag,
                                 return_format={},
                                 effective_parameter=False,

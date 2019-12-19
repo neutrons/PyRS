@@ -12,6 +12,7 @@ import pyrs.interface.gui_helper
 from pyrs.interface.peak_fitting.event_handler import EventHandler
 from pyrs.interface.peak_fitting.plot import Plot
 from pyrs.interface.peak_fitting.fit import Fit
+from pyrs.interface.peak_fitting.export import ExportCSV
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
 from pyrs.icons import icons_rc  # noqa: F401
 
@@ -77,9 +78,10 @@ class FitPeaksWindow(QMainWindow):
         self.ui.radioButton_individualSubRuns.clicked.connect(self.individual_sub_runs)
         self.ui.radioButton_listSubRuns.clicked.connect(self.list_sub_runs)
         self.ui.actionQuit.triggered.connect(self.do_quit)
-        self.ui.actionSave_As.triggered.connect(self.do_save_as)
-        self.ui.actionSave_Fit_Result.triggered.connect(self.do_save_fit_result)
+        self.ui.actionSave.triggered.connect(self.save)
+        self.ui.actionSaveAs.triggered.connect(self.save_as)
         self.ui.actionAdvanced_Peak_Fit_Settings.triggered.connect(self.do_launch_adv_fit)
+        self.ui.pushButton_exportCSV.clicked.connect(self.export_csv)
         self.ui.actionQuick_Fit_Result_Check.triggered.connect(self.do_make_movie)
         self.ui.lineEdit_subruns_2dplot.returnPressed.connect(self.list_subruns_2dplot_returned)
         self.ui.lineEdit_subruns_2dplot.textChanged.connect(self.list_subruns_2dplot_changed)
@@ -110,6 +112,7 @@ class FitPeaksWindow(QMainWindow):
         o_gui.enabled_1dplot_widgets(False)
         o_gui.enabled_2dplot_widgets(False)
         o_gui.make_visible_listsubruns_warning(False)
+        o_gui.enabled_export_csv_widgets(False)
 
     # Menu event handler
     def browse_hdf(self):
@@ -187,6 +190,11 @@ class FitPeaksWindow(QMainWindow):
         o_gui = GuiUtilities(parent=self)
         o_gui.check_axis2d_status()
 
+    def export_csv(self):
+        o_export = ExportCSV(parent=self)
+        o_export.select_output_folder()
+        o_export.create_csv()
+
     def _promote_peak_fit_setup(self):
         # 2D detector view
         curr_layout = QVBoxLayout()
@@ -201,6 +209,8 @@ class FitPeaksWindow(QMainWindow):
         :return:
         """
         self.ui.pushButton_loadHDF.setEnabled(False)
+        self.ui.actionSave.setEnabled(False)
+        self.ui.actionSaveAs.setEnabled(False)
 
         self.ui.splitter_4.setStyleSheet(VERTICAL_SPLITTER)
         self.ui.splitter_4.setSizes([100, 0])
@@ -264,13 +274,13 @@ class FitPeaksWindow(QMainWindow):
         # TODO - continue - command to pop: ffmpeg -r 24 -framerate 8 -pattern_type glob -i '*_fit.png' out.mp4
 
     def do_plot_2d_data(self):
-        """
-        :return:
-        """
         # TODO - #84 - Implement this method
         return
 
-    def do_save_as(self):
+    def save(self):
+        pass
+
+    def save_as(self):
         """ export the peaks to another file
         :return:
         """
@@ -303,26 +313,26 @@ class FitPeaksWindow(QMainWindow):
                                                   detailed_message='Supported are hdf5, h5, hdf, csv and dat',
                                                   message_type='error')
 
-    def do_save_fit_result(self):
-        """
-        save fit result
-        :return:
-        """
-        # get file name
-        csv_filter = 'CSV Files(*.csv);;DAT Files(*.dat);;All Files(*.*)'
-        # with filter, the returned will contain 2 values
-        user_input = QFileDialog.getSaveFileName(self, 'CSV file for peak fitting result', self._core.working_dir,
-                                                 csv_filter)
-        if isinstance(user_input, tuple) and len(user_input) == 2:
-            file_name = str(user_input[0])
-        else:
-            file_name = str(user_input)
-
-        if file_name == '':
-            # user cancels
-            return
-
-        self.export_fit_result(file_name)
+    # def do_save_fit_result(self):
+    #     """
+    #     save fit result
+    #     :return:
+    #     """
+    #     # get file name
+    #     csv_filter = 'CSV Files(*.csv);;DAT Files(*.dat);;All Files(*.*)'
+    #     # with filter, the returned will contain 2 values
+    #     user_input = QFileDialog.getSaveFileName(self, 'CSV file for peak fitting result', self._core.working_dir,
+    #                                              csv_filter)
+    #     if isinstance(user_input, tuple) and len(user_input) == 2:
+    #         file_name = str(user_input[0])
+    #     else:
+    #         file_name = str(user_input)
+    #
+    #     if file_name == '':
+    #         # user cancels
+    #         return
+    #
+    #     self.export_fit_result(file_name)
 
     def do_quit(self):
         """

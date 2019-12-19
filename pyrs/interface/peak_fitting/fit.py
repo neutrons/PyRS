@@ -93,6 +93,7 @@ class Fit:
 
         o_gui = GuiUtilities(parent=self.parent)
         o_gui.set_1D_2D_axis_comboboxes(fill_fit=True)
+        o_gui.enabled_export_csv_widgets(True)
 
     def show_fit_result_table(self, peak_function, peak_param_names, peak_param_dict, is_effective):
         """ Set up the table containing fit result

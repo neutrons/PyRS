@@ -240,6 +240,8 @@ class HB2BReductionManager(object):
         # Close
         project_h5_file.close()
 
+        print("project_h5_file: {}".format(self._curr_workspace._project_file))
+
         return self._curr_workspace
 
     def load_instrument_file(self, instrument_file_name):
