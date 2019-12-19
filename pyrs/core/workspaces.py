@@ -1,8 +1,8 @@
 # Data manager
 import numpy
-from pyrs.dataobjects import SampleLogs
+from pyrs.dataobjects import HidraConstants, SampleLogs
+from pyrs.projectfile import HidraProjectFile
 from pyrs.utilities import checkdatatypes
-from pyrs.utilities import rs_project_file
 
 
 class HidraWorkspace(object):
@@ -56,7 +56,7 @@ class HidraWorkspace(object):
         :param hidra_file:
         :return:
         """
-        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HidraProjectFile)
+        checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
 
         for sub_run_i in self._sample_logs.subruns:
             counts_vec_i = hidra_file.read_raw_counts(sub_run_i)
@@ -71,7 +71,7 @@ class HidraWorkspace(object):
         :return:
         """
         # Check inputs
-        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HidraProjectFile)
+        checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
 
         # get 2theta value
         try:
@@ -123,7 +123,7 @@ class HidraWorkspace(object):
         :return:
         """
         # Check
-        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HidraProjectFile)
+        checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
 
         # Get values
         self._instrument_setup = hidra_file.read_instrument_geometry()
@@ -135,7 +135,7 @@ class HidraWorkspace(object):
         :param hidra_file:  HIDRA project file instance
         :return:
         """
-        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HidraProjectFile)
+        checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
 
         # overwrite the existing sample logs
         self._sample_logs = hidra_file.read_sample_logs()
@@ -145,7 +145,7 @@ class HidraWorkspace(object):
         :param hidra_file:  HIDRA project file instance
         :return:
         """
-        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HidraProjectFile)
+        checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
 
         # reset the wave length (dictionary) from HIDRA project file
         self._wave_length_dict = hidra_file.read_wavelengths()
@@ -158,11 +158,11 @@ class HidraWorkspace(object):
         """
         checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
         try:
-            two_theta = self._sample_logs[rs_project_file.HidraConstants.TWO_THETA, sub_run]
+            two_theta = self._sample_logs[HidraConstants.TWO_THETA, sub_run]
         except KeyError as key_err:
             raise RuntimeError('Unable to retrieve 2theta value ({}) from sub run {} due to missing key {}.'
                                'Available sample logs are {}'
-                               .format(rs_project_file.HidraConstants.TWO_THETA,
+                               .format(HidraConstants.TWO_THETA,
                                        sub_run, key_err, self._sample_logs.keys()))
         return two_theta[0]  # convert from numpy array of length 1 to a scalar
 
@@ -173,14 +173,14 @@ class HidraWorkspace(object):
         """
         checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
 
-        if rs_project_file.HidraConstants.L2 in self._sample_logs:
+        if HidraConstants.L2 in self._sample_logs:
             # L2 is a valid sample log: get L2
             try:
                 # convert from numpy array of length 1 to a scalar
-                l2 = self._sample_logs[rs_project_file.HidraConstants.L2, sub_run][0]
+                l2 = self._sample_logs[HidraConstants.L2, sub_run][0]
             except KeyError as key_err:
                 raise RuntimeError('Unable to retrieve L2 value for {} due to {}. Available sun runs are {}'
-                                   .format(sub_run, key_err, self._sample_logs[rs_project_file.HidraConstants.L2]))
+                                   .format(sub_run, key_err, self._sample_logs[HidraConstants.L2]))
         else:
             # L2 might be unchanged
             l2 = None
@@ -257,7 +257,7 @@ class HidraWorkspace(object):
         :return:
         """
         # Check input
-        checkdatatypes.check_type('HIDRA project file', hidra_file, rs_project_file.HidraProjectFile)
+        checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
         self._project_file_name = hidra_file.name
 
         # create the spectrum map - must exist before loading the counts array
@@ -427,7 +427,7 @@ class HidraWorkspace(object):
             sample log values ordered by sub run numbers with given sub runs or all sub runs
 
         """
-        if sample_log_name == rs_project_file.HidraConstants.SUB_RUNS and \
+        if sample_log_name == HidraConstants.SUB_RUNS and \
                 sample_log_name not in self._sample_logs.keys():
             return self.get_sub_runs()
 
@@ -623,12 +623,12 @@ class HidraWorkspace(object):
         else:
             # same thing
             sub_runs_array = sub_runs
-        hidra_project.append_experiment_log(rs_project_file.HidraConstants.SUB_RUNS, sub_runs_array)
+        hidra_project.append_experiment_log(HidraConstants.SUB_RUNS, sub_runs_array)
 
         # Add regular ample logs
         for log_name in self._sample_logs.keys():
             # no operation on 'sub run': skip
-            if log_name == rs_project_file.HidraConstants.SUB_RUNS:
+            if log_name == HidraConstants.SUB_RUNS:
                 continue
 
             # Convert each sample log to a numpy array
@@ -644,7 +644,7 @@ class HidraWorkspace(object):
         :param hidra_project: HidraProjectFile instance
         :return:
         """
-        checkdatatypes.check_type('HIDRA project file', hidra_project, rs_project_file.HidraProjectFile)
+        checkdatatypes.check_type('HIDRA project file', hidra_project, HidraProjectFile)
 
         hidra_project.write_reduced_diffraction_data_set(self._2theta_matrix, self._diff_data_set)
 

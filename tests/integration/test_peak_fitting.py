@@ -6,7 +6,7 @@ from pyrs.peaks import PeakCollection
 from pyrs.core.peak_profile_utility import PeakShape, BackgroundFunction
 from pyrs.core.summary_generator import SummaryGenerator
 from pyrs.dataobjects import SampleLogs
-from pyrs.utilities.rs_project_file import HidraProjectFile
+from pyrs.projectfile import HidraProjectFile
 from pyrs.peaks import PeakFitEngineFactory
 import h5py
 from pyrs.core import peak_profile_utility
@@ -97,7 +97,7 @@ class PeakFittingTest(object):
                                                                effective_parameter=show_effective_params)
         # Plot peak width
         sub_run_vec = peak_params_matrix[:, 0]
-        peak_width = peak_params_matrix[:, 5]  # rs_project_file.HidraConstants.Peak_FWHM for pandas output
+        peak_width = peak_params_matrix[:, 5]  # pyrs.projectfile.HidraConstants.Peak_FWHM for pandas output
         plt.plot(sub_run_vec, peak_width, color='red', label='FWHM')
 
         # plt.show()

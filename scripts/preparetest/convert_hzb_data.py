@@ -11,11 +11,12 @@ Note: most of the methods to parse HZB data are copied from script convert_hzb_d
 1. Add PyRS path to python path (refer to pyrsdev.sh)
 2. Run this script
 """
+import numpy
 import os
 from pyrs.core.instrument_geometry import HidraSetup
+from pyrs.dataobjects import HidraConstants
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 from pyrs.utilities import file_util
-from pyrs.utilities.rs_project_file import HidraConstants, HidraProjectFile, HidraProjectFileMode
-import numpy
 
 
 def parse_hzb_tiff(tiff_file_name):

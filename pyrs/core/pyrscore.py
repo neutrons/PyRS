@@ -1,9 +1,10 @@
 # This is the core of PyRS serving as the controller of PyRS and hub for all the data
 from pyrs.utilities import checkdatatypes
 from pyrs.core import instrument_geometry
+from pyrs.dataobjects import HidraConstants
 from pyrs.utilities import file_util
 from pyrs.peaks import PeakFitEngineFactory, SupportedPeakProfiles, SupportedBackgroundTypes
-from pyrs.utilities.rs_project_file import HidraConstants, HidraProjectFile, HidraProjectFileMode
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 from pyrs.core import strain_stress_calculator
 from pyrs.core import reduction_manager
 from pyrs.core import polefigurecalculator
@@ -394,7 +395,9 @@ class PyRsCore(object):
         Parameters
         ----------
         hidra_h5_name
+            name of HIDRA project file in HDF5 format
         project_name
+            name of the reduction project specified by user to trace
         load_detector_counts
         load_diffraction
 
@@ -402,14 +405,6 @@ class PyRsCore(object):
         -------
         pyrs.core.workspaces.HidraWorkspace
 
-        """
-        """
-        Load a HIDRA project file
-        :param hidra_h5_name: name of HIDRA project file in HDF5 format
-        :param project_name: name of the reduction project specified by user to trace
-        :param load_detector_counts:
-        :param load_diffraction:
-        :return: HidraWorkspace instance
         """
         # Initialize session
         self._reduction_service.init_session(project_name)
