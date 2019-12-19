@@ -1,4 +1,4 @@
-from pyrs.utilities.rs_project_file import HidraProjectFile, HidraProjectFileMode
+from pyrs.projectfile import HidraProjectFile
 from pyrs.utilities import calibration_file_io
 from pyrs.core import workspaces
 import pytest
@@ -27,7 +27,7 @@ def test_calibration_json():
     assert status == 3
 
     # Import project file
-    project_file = HidraProjectFile(project_file_name, HidraProjectFileMode.READONLY)
+    project_file = HidraProjectFile(project_file_name, 'r')
 
     # Reduce
     test_workspace = workspaces.HidraWorkspace('test calibration')

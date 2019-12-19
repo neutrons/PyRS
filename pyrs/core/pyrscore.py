@@ -1,17 +1,15 @@
 # This is the core of PyRS serving as the controller of PyRS and hub for all the data
 from pyrs.utilities import checkdatatypes
 from pyrs.core import instrument_geometry
+from pyrs.dataobjects import HidraConstants
 from pyrs.utilities import file_util
-from pyrs.core import peak_fit_factory
-from pyrs.utilities.rs_project_file import HidraConstants, HidraProjectFile, HidraProjectFileMode
+from pyrs.peaks import PeakFitEngineFactory, SupportedPeakProfiles, SupportedBackgroundTypes
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 from pyrs.core import strain_stress_calculator
 from pyrs.core import reduction_manager
 from pyrs.core import polefigurecalculator
 import os
 import numpy
-
-# Define Constants
-SUPPORTED_PEAK_TYPES = ['PseudoVoigt', 'Gaussian', 'Voigt']  # 'Lorentzian': No a profile of HB2B
 
 
 class PyRsCore(object):
@@ -108,8 +106,7 @@ class PyRsCore(object):
         # get workspace
         workspace = self.reduction_service.get_hidra_workspace(fit_tag)
         # create a controller from factory
-        self._peak_fitting_dict[fit_tag] = peak_fit_factory.PeakFitEngineFactory.getInstance('Mantid')(workspace,
-                                                                                                       None)
+        self._peak_fitting_dict[fit_tag] = PeakFitEngineFactory.getInstance('Mantid')(workspace, None)
         # set wave length: TODO - #81+ - shall be a way to use calibrated or non-calibrated
         wave_length_dict = workspace.get_wavelength(calibrated=False, throw_if_not_set=False)
         if wave_length_dict is not None:
@@ -154,10 +151,8 @@ class PyRsCore(object):
 
         # Check Inputs
         checkdatatypes.check_dict('Peak fitting (information) parameters', peaks_fitting_setup)
-        checkdatatypes.check_string_variable('Peak type', peak_type,
-                                             peak_fit_factory.SupportedPeakProfiles)
-        checkdatatypes.check_string_variable('Background type', background_type,
-                                             peak_fit_factory.SupportedBackgroundTypes)
+        checkdatatypes.check_string_variable('Peak type', peak_type, SupportedPeakProfiles)
+        checkdatatypes.check_string_variable('Background type', background_type, SupportedBackgroundTypes)
 
         # Deal with sub runs
         if sub_run_list is None:
@@ -255,6 +250,16 @@ class PyRsCore(object):
         data_set = optimizer.calculate_fitted_peaks(sub_run)
 
         return data_set
+
+    def get_peak(self, project_name, peak_tag):
+        """
+
+        :param project_name:
+        :param peak_tag:
+        :return: pyrs.core.peak_collection.PeakCollection
+        """
+        fit_engine = self._peak_fitting_dict[project_name]
+        return fit_engine.get_peaks(peak_tag)
 
     def get_peak_fitting_result(self, project_name, peak_tag,
                                 return_format={},
@@ -400,7 +405,9 @@ class PyRsCore(object):
         Parameters
         ----------
         hidra_h5_name
+            name of HIDRA project file in HDF5 format
         project_name
+            name of the reduction project specified by user to trace
         load_detector_counts
         load_diffraction
 
@@ -408,14 +415,6 @@ class PyRsCore(object):
         -------
         pyrs.core.workspaces.HidraWorkspace
 
-        """
-        """
-        Load a HIDRA project file
-        :param hidra_h5_name: name of HIDRA project file in HDF5 format
-        :param project_name: name of the reduction project specified by user to trace
-        :param load_detector_counts:
-        :param load_diffraction:
-        :return: HidraWorkspace instance
         """
         # Initialize session
         self._reduction_service.init_session(project_name)
@@ -647,4 +646,4 @@ class PyRsCore(object):
         list of supported peaks' types for fitting
         :return:
         """
-        return SUPPORTED_PEAK_TYPES[:]
+        return SupportedPeakProfiles[:]

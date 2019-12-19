@@ -2,12 +2,12 @@
 # Test class and methods implemented for peak fitting
 import numpy
 from pyrs.core import pyrscore
-from pyrs.core.peak_collection import PeakCollection
+from pyrs.peaks import PeakCollection
 from pyrs.core.peak_profile_utility import PeakShape, BackgroundFunction
 from pyrs.core.summary_generator import SummaryGenerator
 from pyrs.dataobjects import SampleLogs
-from pyrs.utilities.rs_project_file import HidraProjectFile
-from pyrs.core import peak_fit_factory
+from pyrs.projectfile import HidraProjectFile
+from pyrs.peaks import PeakFitEngineFactory
 import h5py
 from pyrs.core import peak_profile_utility
 from matplotlib import pyplot as plt
@@ -97,7 +97,7 @@ class PeakFittingTest(object):
                                                                effective_parameter=show_effective_params)
         # Plot peak width
         sub_run_vec = peak_params_matrix[:, 0]
-        peak_width = peak_params_matrix[:, 5]  # rs_project_file.HidraConstants.Peak_FWHM for pandas output
+        peak_width = peak_params_matrix[:, 5]  # pyrs.projectfile.HidraConstants.Peak_FWHM for pandas output
         plt.plot(sub_run_vec, peak_width, color='red', label='FWHM')
 
         # plt.show()
@@ -225,7 +225,7 @@ def test_retrieve_fit_metadata(source_project_file, output_project_file, peak_ty
 
     # Set peak fitting engine
     # create a controller from factory
-    fit_engine = peak_fit_factory.PeakFitEngineFactory.getInstance('Mantid')(hd_ws, None)
+    fit_engine = PeakFitEngineFactory.getInstance('Mantid')(hd_ws, None)
 
     # Fit peak
     fit_engine.fit_multiple_peaks(sub_run_range=(None, None),  # default is all sub runs
@@ -348,7 +348,7 @@ def test_improve_quality():
 
     # Set peak fitting engine
     # create a controller from factory
-    fit_engine = peak_fit_factory.PeakFitEngineFactory.getInstance('Mantid')(hd_ws, None)
+    fit_engine = PeakFitEngineFactory.getInstance('Mantid')(hd_ws, None)
 
     peak_type = 'Gaussian'
 

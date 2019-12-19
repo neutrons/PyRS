@@ -7,9 +7,10 @@ Convert the synchrotron raw data to test
 
 Note: most of the methods to parse HZB data are copied from script pyrscalibration.py
 """
-from pyrs.utilities.rs_project_file import HidraConstants, HidraProjectFile, HidraProjectFileMode
+from pyrs.dataobjects import HidraConstants
+from pyrs.projectfile import HidraProjectFileMode
+from pyrs.utilities.rs_project_file import HidraProjectFile
 from pyrs.core.instrument_geometry import HidraSetup
-import numpy
 from skimage import io
 from PIL import Image
 import numpy as np
@@ -95,8 +96,8 @@ def main():
 
     # add sample log data & sub runs
     # for log_name in ['sub-run', '2Theta']
-    project_file.append_experiment_log(HidraConstants.SUB_RUNS, numpy.array([1]))
-    project_file.append_experiment_log(HidraConstants.TWO_THETA, numpy.array([35.]))
+    project_file.append_experiment_log(HidraConstants.SUB_RUNS, np.array([1]))
+    project_file.append_experiment_log(HidraConstants.TWO_THETA, np.array([35.]))
 
     # add instrument information
     instrument_setup = generate_xray_instrument()

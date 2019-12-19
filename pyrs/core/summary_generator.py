@@ -97,7 +97,7 @@ class SummaryGenerator(object):
         ----------
         sample_logs: ~pyrs.dataobjects.SampleLogs
         peak_collections: list
-            list of :py:obj:`~pyrs.core.peak_collection.PeakCollection`
+            list of :py:obj:`~pyrs.peaks.PeakCollection`
         tolerance : float
             relative tolerance of variance to treat a sample log as a constant value
             and bring into extended header
