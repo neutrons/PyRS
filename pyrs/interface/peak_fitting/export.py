@@ -1,7 +1,6 @@
 import os
 
 from pyrs.interface.gui_helper import browse_dir
-from pyrs.utilities.rs_project_file import HidraProjectFile
 from pyrs.core.summary_generator import SummaryGenerator
 
 
@@ -39,5 +38,3 @@ class ExportCSV(Export):
     def _retrieve_project(self):
         _hidra_project_file = self.parent.hidra_workspace._project_file
         return _hidra_project_file
-
-
