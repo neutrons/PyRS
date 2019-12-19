@@ -190,7 +190,7 @@ class HB2BReductionManager(object):
         workspace = self._session_dict[session_name]
         return workspace
 
-    def init_session(self, session_name):
+    def init_session(self, session_name, hidra_ws=None):
         """
         Initialize a new session of reduction and thus to store data according to session name
         :return:
@@ -200,7 +200,11 @@ class HB2BReductionManager(object):
         if session_name == '' or session_name in self._session_dict:
             raise RuntimeError('Session name {} is either empty or previously used (not unique)'.format(session_name))
 
-        self._curr_workspace = workspaces.HidraWorkspace()
+        if hidra_ws is None:
+            self._curr_workspace = workspaces.HidraWorkspace()
+        else:
+            checkdatatypes.check_type('HidraWorkspace', hidra_ws, workspaces.HidraWorkspace)
+            self._curr_workspace = hidra_ws
         self._curr_session_name = session_name
         self._session_dict[session_name] = self._curr_workspace
 
@@ -465,8 +469,9 @@ class HB2BReductionManager(object):
 
         # Determine whether normalization by time is supported
         if not workspace.has_sample_log(HidraConstants.SUB_RUN_DURATION):
-            raise RuntimeError('Workspace {} does not have sample log {}'.format(workspace,
-                                                                                 HidraConstants.SUB_RUN_DURATION))
+            raise RuntimeError('Workspace {} does not have sample log {}.  Existing logs are {}'
+                               ''.format(workspace, HidraConstants.SUB_RUN_DURATION,
+                                         workspace.get_sample_log_names()))
 
         for sub_run in sub_run_list:
             # get the duration

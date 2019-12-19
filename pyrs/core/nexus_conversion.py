@@ -7,7 +7,7 @@ from mantid.kernel import FloatTimeSeriesProperty, Int32TimeSeriesProperty, Int6
 import numpy
 import os
 from pyrs.core import workspaces
-from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSetup
+from pyrs.core.instrument_geometry import HidraSetup, AnglerCameraDetectorGeometry
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.rs_project_file import HidraConstants, HidraProjectFile, HidraProjectFileMode
 import bisect
@@ -70,6 +70,7 @@ class NeXusConvertingApp(object):
 
         # Add the sample logs to the workspace
         sample_log_dict = self._create_sample_log_dict()
+
         for log_name in sample_log_dict:
             if log_name == HidraConstants.SUB_RUNS:
                 continue  # skip 'SUB_RUNS'
@@ -164,7 +165,7 @@ class NeXusConvertingApp(object):
 
         return duration_vec
 
-    def save(self, projectfile, instrument=None):
+    def save(self, projectfile, instrument):
         """
         Save workspace to Hidra project file
         """
@@ -180,11 +181,10 @@ class NeXusConvertingApp(object):
         # save
         hydra_file = HidraProjectFile(projectfile, HidraProjectFileMode.OVERWRITE)
 
-        # initialize instrument: hard code!
-        if instrument is None:
-            instrument = AnglerCameraDetectorGeometry(1024, 1024, 0.0003, 0.0003, 0.985, False)
-
         # Set geometry
+        if instrument is None:
+            # initialize instrument: hard code!
+            instrument = AnglerCameraDetectorGeometry(1024, 1024, 0.0003, 0.0003, 0.985, False)
         hydra_file.write_instrument_geometry(HidraSetup(instrument))
 
         self._hydra_workspace.save_experimental_data(hydra_file)

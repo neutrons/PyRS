@@ -382,6 +382,9 @@ class HidraWorkspace(object):
                                ''.format(mask_id, self._diff_data_set.keys()))
         return vec_2theta, vec_intensity
 
+    def get_sample_log_names(self):
+        return self._sample_logs.keys()
+
     def get_sample_log_value(self, sample_log_name, sub_run=None):
         """
 
@@ -478,6 +481,9 @@ class HidraWorkspace(object):
 
         return has_log
 
+    def set_instrument_geometry(self, instrument):
+        self._instrument_setup = instrument
+
     def set_raw_counts(self, sub_run_number, counts):
         """
         Set the raw counts to
@@ -486,6 +492,10 @@ class HidraWorkspace(object):
         :return:
         """
         checkdatatypes.check_numpy_arrays('Counts', [counts], dimension=None, check_same_shape=False)
+
+        if len(counts.shape) == 2 and counts.shape[1] == 1:
+            # 1D array in 2D format: set to 1D array
+            counts = counts.reshape((counts.shape[0],))
 
         self._raw_counts[int(sub_run_number)] = counts
 
