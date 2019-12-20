@@ -528,10 +528,12 @@ class HidraWorkspace(object):
             num_sub_runs = len(self._sample_logs.subruns)
             self._2theta_matrix = numpy.ndarray(shape=(num_sub_runs, two_theta_array.shape[0]),
                                                 dtype=intensity_array.dtype)
-        # END-IF
-
-        # Set intensity data set (matrix) if not initialized yet
-        if mask_id not in self._diff_data_set:
+            # set the diffraction data (2D) array with new dimension
+            num_sub_runs = len(self._sample_logs.subruns)
+            self._diff_data_set[mask_id] = numpy.ndarray(shape=(num_sub_runs, intensity_array.shape[0]),
+                                                         dtype=intensity_array.dtype)
+        elif mask_id not in self._diff_data_set:
+            # A new mask: reset the diff_data_set again
             num_sub_runs = len(self._sample_logs.subruns)
             self._diff_data_set[mask_id] = numpy.ndarray(shape=(num_sub_runs, intensity_array.shape[0]),
                                                          dtype=intensity_array.dtype)
@@ -710,3 +712,13 @@ class HidraWorkspace(object):
             self._wave_length_calibrated_dict = wl_dict
         else:
             self._wave_length_dict = wl_dict
+
+    def reset_diffraction_data(self):
+        """Reset the data structures to store the diffraction data set
+
+        Returns
+        -------
+        None
+
+        """
+        self._2theta_matrix = None

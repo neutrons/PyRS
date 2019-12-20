@@ -29,11 +29,24 @@ class LoadProjectFile:
                                                                                 project_name=project_name,
                                                                                 load_detector_counts=True,
                                                                                 load_diffraction=True)
-        except (RuntimeError, IOError) as load_err:
+        except (KeyError, RuntimeError, IOError) as load_err:
             self.parent._hydra_workspace = None
-            pop_message(self.parent, 'Loading {} failed'.format(project_file_name),
+            pop_message(self.parent, 'Loading {} failed.\nTry to load diffraction only!'.format(project_file_name),
                         detailed_message='{}'.format(load_err),
                         message_type='error')
+
+            # Load
+            try:
+                self.parent._hydra_workspace = self.parent._core.load_hidra_project(project_file_name,
+                                                                                    project_name=project_name,
+                                                                                    load_detector_counts=False,
+                                                                                    load_diffraction=True)
+            except (KeyError, RuntimeError, IOError) as load_err:
+                self.parent._hydra_workspace = None
+                pop_message(self.parent, 'Loading {} failed.\nNothing is loaded'.format(project_file_name),
+                            detailed_message='{}'.format(load_err),
+                            message_type='error')
+
             return
 
         # Set value for the loaded project

@@ -368,7 +368,7 @@ class PeakFitCalibration(object):
                 mintth = np.min(tths) + .5
                 maxtth = np.max(tths) - .5
 
-                Eta_val = pyrs_reducer.get_eta_Values()
+                Eta_val = pyrs_reducer.get_eta_value()
                 maxEta = np.max(Eta_val) - 2
                 minEta = np.min(Eta_val) + 2
 

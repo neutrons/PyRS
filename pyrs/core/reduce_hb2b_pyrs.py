@@ -492,10 +492,10 @@ class PyHB2BReduction(object):
 
         return pixel_array
 
-    def generate_2theta_histogram_vector(self, min_2theta, step_2theta, max_2theta):
+    def generate_2theta_histogram_vector(self, min_2theta, num_bins, max_2theta):
         """ Generate a 1-D array for histogram 2theta bins
         :param min_2theta: minimum 2theta or None
-        :param step_2theta: constant bin size 2theta or None
+        :param num_bins : nubmer of bins
         :param max_2theta: maximum 2theta and must be integer
         :return: 1D array
         """
@@ -508,20 +508,28 @@ class PyHB2BReduction(object):
                 max_2theta = numpy.max(pixel_2theta_vector)
         # END-IF
 
+        step_2theta = (max_2theta - min_2theta) * 1. / num_bins
+
         # Check inputs
         checkdatatypes.check_float_variable('Minimum 2theta', min_2theta, (-180, 180))
         checkdatatypes.check_float_variable('Maximum 2theta', max_2theta, (-180, 180))
         checkdatatypes.check_float_variable('2theta bin size', step_2theta, (0, 180))
-
         if min_2theta >= max_2theta:
             raise RuntimeError('2theta range ({}, {}) is invalid for generating histogram'
                                ''.format(min_2theta, max_2theta))
 
-        vec_2theta = np.arange(min_2theta, max_2theta, step_2theta)
+        # Create 2theta: these are bin edges from (min - 1/2) to (max + 1/2) with num_bins bins
+        # and (num_bins + 1) data points
+        vec_2theta = np.arange(num_bins + 1).astype(float) * step_2theta + (min_2theta - step_2theta)
+        # vec_2theta = np.arange(min_2theta, max_2theta, step_2theta)
+        if vec_2theta.shape[0] != num_bins + 1:
+            raise RuntimeError('Expected = {} vs {}\n2theta min max  = {}, {}\n2thetas: {}'
+                               ''.format(num_bins, vec_2theta.shape, min_2theta, max_2theta,
+                                         vec_2theta))
 
         return vec_2theta
 
-    def get_eta_Values(self):
+    def get_eta_value(self):
         """Get solid angle values for each pixel
 
         Returns
@@ -531,17 +539,17 @@ class PyHB2BReduction(object):
         """
         return self._instrument.get_eta_values(dimension=1)
 
-    def reduce_to_2theta_histogram(self, two_theta_range, two_theta_step, apply_mask,
+    def reduce_to_2theta_histogram(self, two_theta_range, two_theta_bins_number, apply_mask,
                                    is_point_data=True, normalize_pixel_bin=True, use_mantid_histogram=False,
                                    vanadium_counts_array=None):
         """Reduce the previously added detector raw counts to 2theta histogram (i.e., diffraction pattern)
 
         Parameters
         ----------
-        two_theta_range : tuple
+        two_theta_range : float, float
             2 tuple as min and max of 2theta
-        two_theta_step : float
-            2theta step/bin size
+        two_theta_bins_number : int
+            2theta number of bins
         apply_mask : bool
             If true and self._detector_mask has been set, the apply mask to output
         is_point_data : bool
@@ -561,7 +569,7 @@ class PyHB2BReduction(object):
         """
         # Get two-theta-histogram vector
         two_theta_vector = self.generate_2theta_histogram_vector(
-            two_theta_range[0], two_theta_step, two_theta_range[1])
+            two_theta_range[0], two_theta_bins_number, two_theta_range[1])
 
         # Get the data (each pixel's 2theta and counts): the 2theta value is the absolute diffraction angle
         # that disregards the real 2theta value in the instrument coordinate system
@@ -600,12 +608,11 @@ class PyHB2BReduction(object):
 
         # Histogram:
         # NOTE: input 2theta_range may not be accurate because 2theta max may not be on the full 2-theta tick
-        two_theta_vec_range = two_theta_vector.min(), two_theta_vector.max() + two_theta_step
-
         # TODO - If use vanadium for normalization, then (1) flag to normalize by pixel count and (2) efficiency
         #        are not required anymore but both of them will be replaced by integrated vanadium counts
         if use_mantid_histogram:
             # this is a branch used for testing against Mantid method
+            two_theta_vec_range = two_theta_vector.min(), two_theta_vector.max() + two_theta_step
             num_bins = two_theta_vector.size()
             two_theta_vector, intensity_vector = self.histogram_by_mantid(pixel_2theta_array, masked_counts,
                                                                           two_theta_vec_range, num_bins)
@@ -776,7 +783,7 @@ class PyHB2BReduction(object):
                                           [pixel_2theta_array, vec_counts],
                                           1, True)
 
-        # Exclude NaN regions
+        # Exclude NaN and infinity regions
         masked_pixels = (np.isnan(vec_counts)) | (np.isinf(vec_counts))
 
         pixel_2theta_array = pixel_2theta_array[~masked_pixels]

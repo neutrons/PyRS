@@ -101,7 +101,7 @@ class ReductionApp(object):
         # set the workspace to self
         self._hydra_ws = hd_workspace
 
-    def reduce_data(self, sub_runs, instrument_file, calibration_file, mask, van_file=None):
+    def reduce_data(self, sub_runs, instrument_file, calibration_file, mask, van_file=None, num_bins=1000):
         """Reduce data from HidraWorkspace
 
         Parameters
@@ -113,6 +113,8 @@ class ReductionApp(object):
         mask
         van_file : str or None
             HiDRA project file containing vanadium counts or event NeXus file
+        num_bins : int
+            number of bins
 
         Returns
         -------
@@ -157,7 +159,7 @@ class ReductionApp(object):
 
         self._reduction_manager.reduce_diffraction_data(self._session,
                                                         apply_calibrated_geometry=geometry_calibration,
-                                                        bin_size_2theta=0.02,
+                                                        num_bins=num_bins,
                                                         use_pyrs_engine=not self._use_mantid_engine,
                                                         mask=None,
                                                         sub_run_list=sub_runs,

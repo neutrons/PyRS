@@ -84,7 +84,7 @@ def main(argv):
     calib_controller.load_hidra_project(param_dict['inputfile'], project_name=project_name)
 
     # Reduce data
-    calib_controller.reduce_diffraction_data(project_name, two_theta_step=param_dict['binsize'],
+    calib_controller.reduce_diffraction_data(project_name, num_bins=param_dict['binsize'],
                                              pyrs_engine=True)
 
     # Calibration init: import ROI/Mask files
@@ -99,7 +99,7 @@ def main(argv):
 
     # Last test before calibration start: reduce by mask
     for mask_file_name in mask_file_list:
-        calib_controller.reduce_diffraction_data(project_name,  two_theta_step=param_dict['binsize'],
+        calib_controller.reduce_diffraction_data(project_name, num_bins=param_dict['binsize'],
                                                  pyrs_engine=True, mask_file_name=mask_file_name)
     # END-FOR
 

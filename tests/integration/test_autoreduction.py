@@ -135,7 +135,7 @@ def test_apply_vanadium(project_file, van_project_file, target_project_file):
     # instrument_file, calibration_file, mask, sub_runs
     reducer.load_project_file(project_file)
     reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None,
-                        van_file=van_project_file)
+                        van_file=van_project_file, num_bins=950)
     reducer.save_diffraction_data(target_project_file)
 
     # plot for proof
