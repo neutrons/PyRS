@@ -115,10 +115,7 @@ class NeXusConvertingApp(object):
         # END-FOR
 
         # create a fictional log for duration
-        try:
-            sample_log_dict[HidraConstants.SUB_RUN_DURATION] = self._calculate_sub_run_duration()
-        except RuntimeError as run_err:
-            self._log.error('Unable to calculate duration for sub runs: {}'.format(run_err))
+        sample_log_dict[HidraConstants.SUB_RUN_DURATION] = self._calculate_sub_run_duration()
 
         return sample_log_dict
 
@@ -140,6 +137,7 @@ class NeXusConvertingApp(object):
         duration_vec = numpy.zeros(shape=(len(sub_runs),), dtype=float)
 
         sub_run_index = 0
+
         for sub_run in sorted(self._sub_run_workspace_dict.keys()):
             # get event workspace of sub run and then run object
             event_ws_i = mtd[str(self._sub_run_workspace_dict[sub_run])]
@@ -149,8 +147,9 @@ class NeXusConvertingApp(object):
 
             # get splitter
             if not run_i.hasProperty('splitter'):
-                # no splitter (which is not right), use NAN
-                raise RuntimeError('sub run {} does not have splitter'.format(sub_run))
+                # no splitter (which is not right), use the duration property
+                duration_vec[sub_run_index] = run_i.getPropertyAsSingleValue('duration')
+                print('duration[{}] = {}'.format(sub_run_index, duration_vec[sub_run_index]))
             else:
                 # calculate duration
                 splitter_times = run_i.getProperty('splitter').times.astype(float) * 1E-9
@@ -289,35 +288,50 @@ class NeXusConvertingApp(object):
         # dictionary for the output
         sub_run_ws_dict = dict()   # [sub run number] = workspace name
 
+        # determine the range of subruns being used
         scan_index = mtd[self._event_ws_name].run()[SUBRUN_LOGNAME].value
-        # the +1 is to make it inclusive
-        for subrun in range(scan_index.min(), scan_index.max() + 1):
-            self._log.information('Filtering scan_index={}'.format(subrun))
-            # pad up to 5 zeros
-            ws_name = '{}_split_{:05d}'.format(self._event_ws_name, subrun)
-            # filter out the subrun - this assumes that subruns are integers
-            FilterByLogValue(InputWorkspace=self._event_ws_name,
-                             OutputWorkspace=ws_name,
-                             LogName=SUBRUN_LOGNAME,
-                             LogBoundary='Left',
-                             MinimumValue=float(subrun) - .5,
-                             MaximumValue=float(subrun) + .5)
-            # this converts the event workspace to a histogram
-            ConvertToMatrixWorkspace(InputWorkspace=ws_name,
-                                     OutputWorkspace=ws_name)
-            # add it to the dictionary
-            sub_run_ws_dict[subrun] = ws_name
+        scan_index_min = scan_index.min()
+        scan_index_max = scan_index.max()
+        multiple_subrun = bool(scan_index_min != scan_index_max)
 
-            # remove all of the events we already wanted
-            if subrun != scan_index.max():
+        if multiple_subrun:
+            # skip scan_index=0
+            # the +1 is to make it inclusive
+            for subrun in range(max(scan_index_min, 1), scan_index_max + 1):
+                self._log.information('Filtering scan_index={}'.format(subrun))
+                # pad up to 5 zeros
+                ws_name = '{}_split_{:05d}'.format(self._event_ws_name, subrun)
+                # filter out the subrun - this assumes that subruns are integers
                 FilterByLogValue(InputWorkspace=self._event_ws_name,
-                                 OutputWorkspace=self._event_ws_name,
+                                 OutputWorkspace=ws_name,
                                  LogName=SUBRUN_LOGNAME,
                                  LogBoundary='Left',
-                                 MinimumValue=float(subrun) + .5)
+                                 MinimumValue=float(subrun) - .5,
+                                 MaximumValue=float(subrun) + .5)
+
+                # TODO calculate the duration and update in the workspace
+
+                # matrix workspaces take significnatly less memory for HB2B
+                ConvertToMatrixWorkspace(InputWorkspace=ws_name,
+                                         OutputWorkspace=ws_name)
+
+                # add it to the dictionary
+                sub_run_ws_dict[subrun] = ws_name
+
+                # remove all of the events we already wanted
+                if subrun != scan_index_max:
+                    FilterByLogValue(InputWorkspace=self._event_ws_name,
+                                     OutputWorkspace=self._event_ws_name,
+                                     LogName=SUBRUN_LOGNAME,
+                                     LogBoundary='Left',
+                                     MinimumValue=float(subrun) + .5)
+        else:  # nothing to filter so just histogram it
+            ConvertToMatrixWorkspace(InputWorkspace=self._event_ws_name,
+                                     OutputWorkspace=self._event_ws_name)
+            sub_run_ws_dict[1] = self._event_ws_name
 
         # input workspace should no longer have any events in it
-        DeleteWorkspace(Workspace=self._event_ws_name)
+        # but must stick around for single subrun case
 
         return sub_run_ws_dict
 
