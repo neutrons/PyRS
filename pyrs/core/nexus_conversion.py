@@ -3,7 +3,8 @@ Convert HB2B NeXus file to Hidra project file for further reduction
 """
 from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import bisect
-from mantid.kernel import FloatTimeSeriesProperty, Int32TimeSeriesProperty, Int64TimeSeriesProperty, logger, Logger
+from mantid.kernel import FloatPropertyWithValue, FloatTimeSeriesProperty, Int32TimeSeriesProperty, \
+    Int64TimeSeriesProperty, logger, Logger
 from mantid.simpleapi import mtd, ConvertToMatrixWorkspace, DeleteWorkspace, FilterByLogValue, \
     FilterByTime, LoadEventNexus
 import numpy
@@ -295,6 +296,17 @@ class NeXusConvertingApp(object):
         multiple_subrun = bool(scan_index_min != scan_index_max)
 
         if multiple_subrun:
+            # determine the duration of each subrun by correlating to the scan_index
+            scan_times = mtd[self._event_ws_name].run()[SUBRUN_LOGNAME].times
+            durations = {}
+            for timedelta, subrun in zip(scan_times - scan_times[0], scan_index):
+                timedelta /= numpy.timedelta64(1, 's')  # convert to seconds
+                print(subrun, timedelta)
+                if subrun not in durations:
+                    durations[subrun] = timedelta
+                else:
+                    durations[subrun] += timedelta
+
             # skip scan_index=0
             # the +1 is to make it inclusive
             for subrun in range(max(scan_index_min, 1), scan_index_max + 1):
@@ -309,11 +321,14 @@ class NeXusConvertingApp(object):
                                  MinimumValue=float(subrun) - .5,
                                  MaximumValue=float(subrun) + .5)
 
-                # TODO calculate the duration and update in the workspace
-
-                # matrix workspaces take significnatly less memory for HB2B
+                # matrix workspaces take significantly less memory for HB2B
                 ConvertToMatrixWorkspace(InputWorkspace=ws_name,
                                          OutputWorkspace=ws_name)
+
+                # update the duration in the filtered workspace
+                duration = FloatPropertyWithValue('duration', durations[subrun])
+                duration.units = 'second'
+                mtd[ws_name].run()['duration'] = duration
 
                 # add it to the dictionary
                 sub_run_ws_dict[subrun] = ws_name
