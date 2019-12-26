@@ -4,7 +4,8 @@ Convert HB2B NeXus file to Hidra project file for further reduction
 from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import bisect
 from mantid.kernel import FloatTimeSeriesProperty, Int32TimeSeriesProperty, Int64TimeSeriesProperty, logger, Logger
-from mantid.simpleapi import mtd, GenerateEventsFilter, LoadEventNexus, FilterEvents
+from mantid.simpleapi import mtd, ConvertToMatrixWorkspace, DeleteWorkspace, FilterByLogValue, \
+    FilterByTime, LoadEventNexus
 import numpy
 import os
 from pyrs.core import workspaces
@@ -41,6 +42,12 @@ class NeXusConvertingApp(object):
 
         self._starttime = 0.  # start filtering at the beginning of the run
 
+    def __del__(self):
+        # all of the workspaces that were created should be deleted if they haven't been already
+        for name in self._sub_run_workspace_dict.values() + [self._event_ws_name]:
+            if name in mtd:
+                DeleteWorkspace(Workspace=name)
+
     def convert(self):
         """Main method to convert NeXus file to HidraProject File by
 
@@ -62,6 +69,7 @@ class NeXusConvertingApp(object):
         self._load_event_nexus()
         self._determine_start_time()
         self._sub_run_workspace_dict = self._split_sub_runs()
+        sample_log_dict = self._create_sample_log_dict()
 
         self._set_counts()
 
@@ -70,7 +78,6 @@ class NeXusConvertingApp(object):
         self._hydra_workspace.set_sub_runs(sub_runs)
 
         # Add the sample logs to the workspace
-        sample_log_dict = self._create_sample_log_dict()
         for log_name in sample_log_dict:
             if log_name == HidraConstants.SUB_RUNS:
                 continue  # skip 'SUB_RUNS'
@@ -216,7 +223,7 @@ class NeXusConvertingApp(object):
         '''Loads the event file using instance variables'''
         LoadEventNexus(Filename=self._nexus_name, OutputWorkspace=self._event_ws_name)
         # get the start time from the run object
-        self._starttime = mtd[self._event_ws_name].run()['start_time'].value
+        self._starttime = numpy.datetime64(mtd[self._event_ws_name].run()['start_time'].value)
 
     def _determine_start_time(self, abs_tolerance=0.05):
         '''This goes through a subset of logs and compares when they actually
@@ -262,48 +269,49 @@ class NeXusConvertingApp(object):
             split workspaces: key = sub run number (integer), value = workspace name (string)
 
         """
-        # Load data
+        SUBRUN_LOGNAME = 'scan_index'
 
-        # Generate splitters by sample log 'scan_index'.  real sub run starts with scan_index == 1
-        split_ws_name = 'Splitter_{}'.format(self._nexus_name)
-        split_info_name = 'InfoTable_{}'.format(self._nexus_name)
+        # first remove the data before the previously calculated start time
+        # numpy only likes integers for timedeltas
+        duration = int(mtd[self._event_ws_name].run().getPropertyAsSingleValue('duration'))
+        duration = numpy.timedelta64(duration, 's') + numpy.timedelta64(300, 's')  # add 5 minutes
+        FilterByTime(InputWorkspace=self._event_ws_name,
+                     OutputWorkspace=self._event_ws_name,
+                     AbsoluteStartTime=str(self._starttime),
+                     AbsoluteStopTime=str(self._starttime + duration))
 
-        # StartTime can be relative in unit of second
-        # https://docs.mantidproject.org/nightly/algorithms/GenerateEventsFilter-v1.html
-        GenerateEventsFilter(InputWorkspace=self._event_ws_name,
-                             OutputWorkspace=split_ws_name,
-                             InformationWorkspace=split_info_name,
-                             LogName='scan_index',
-                             StartTime=str(self._starttime),
-                             UnitOfTime='Seconds',
-                             MinimumLogValue=0,
-                             LogValueInterval=1)
-
-        # Split
-        base_out_name = self._event_ws_name + '_split'
-        split_returns = FilterEvents(InputWorkspace=self._event_ws_name,
-                                     SplitterWorkspace=split_ws_name,
-                                     InformationWorkspace=split_info_name,
-                                     OutputWorkspaceBaseName=base_out_name,
-                                     DescriptiveOutputNames=False,  # requires split workspace ends with sub run
-                                     OutputWorkspaceIndexedFrom1=False,  # as workspace 0 is kept for what left between
-                                                                         # 2 sub runs
-                                     GroupWorkspaces=True)
-
-        # Fill in
-        output_ws_names = split_returns.OutputWorkspaceNames
+        # dictionary for the output
         sub_run_ws_dict = dict()   # [sub run number] = workspace name
-        for ws_name in output_ws_names:
-            try:
-                sub_run_number = int(ws_name.split('_')[-1])
-                if sub_run_number > 0 and len(output_ws_names) > 2:
-                    sub_run_ws_dict[sub_run_number] = ws_name
-                elif sub_run_number == 0:
-                    sub_run_ws_dict[1] = ws_name
-            except ValueError:
-                # sub runs not ends with integer: unsplit
-                pass
-        # END-FOR
+
+        scan_index = mtd[self._event_ws_name].run()[SUBRUN_LOGNAME].value
+        # the +1 is to make it inclusive
+        for subrun in range(scan_index.min(), scan_index.max() + 1):
+            self._log.information('Filtering scan_index={}'.format(subrun))
+            # pad up to 5 zeros
+            ws_name = '{}_split_{:05d}'.format(self._event_ws_name, subrun)
+            # filter out the subrun - this assumes that subruns are integers
+            FilterByLogValue(InputWorkspace=self._event_ws_name,
+                             OutputWorkspace=ws_name,
+                             LogName=SUBRUN_LOGNAME,
+                             LogBoundary='Left',
+                             MinimumValue=float(subrun) - .5,
+                             MaximumValue=float(subrun) + .5)
+            # this converts the event workspace to a histogram
+            ConvertToMatrixWorkspace(InputWorkspace=ws_name,
+                                     OutputWorkspace=ws_name)
+            # add it to the dictionary
+            sub_run_ws_dict[subrun] = ws_name
+
+            # remove all of the events we already wanted
+            if subrun != scan_index.max():
+                FilterByLogValue(InputWorkspace=self._event_ws_name,
+                                 OutputWorkspace=self._event_ws_name,
+                                 LogName=SUBRUN_LOGNAME,
+                                 LogBoundary='Left',
+                                 MinimumValue=float(subrun) + .5)
+
+        # input workspace should no longer have any events in it
+        DeleteWorkspace(Workspace=self._event_ws_name)
 
         return sub_run_ws_dict
 
