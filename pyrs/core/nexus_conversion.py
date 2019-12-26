@@ -69,7 +69,6 @@ class NeXusConvertingApp(object):
         self._load_event_nexus()
         self._determine_start_time()
         self._sub_run_workspace_dict = self._split_sub_runs()
-        sample_log_dict = self._create_sample_log_dict()
 
         self._set_counts()
 
@@ -78,6 +77,7 @@ class NeXusConvertingApp(object):
         self._hydra_workspace.set_sub_runs(sub_runs)
 
         # Add the sample logs to the workspace
+        sample_log_dict = self._create_sample_log_dict()
         for log_name in sample_log_dict:
             if log_name == HidraConstants.SUB_RUNS:
                 continue  # skip 'SUB_RUNS'
