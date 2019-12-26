@@ -258,6 +258,10 @@ class NeXusConvertingApp(object):
                     self._starttime = max(runObj[logname].times[i], self._starttime)
                     break
 
+        # unset the start time if it is before the actual start of the run
+        if self._starttime <= numpy.datetime64(mtd[self._event_ws_name].run()['start_time'].value):
+            self._starttime = None
+
     def _split_sub_runs(self):
         """Performing event filtering according to sample log sub-runs
 
@@ -272,13 +276,15 @@ class NeXusConvertingApp(object):
         SUBRUN_LOGNAME = 'scan_index'
 
         # first remove the data before the previously calculated start time
-        # numpy only likes integers for timedeltas
-        duration = int(mtd[self._event_ws_name].run().getPropertyAsSingleValue('duration'))
-        duration = numpy.timedelta64(duration, 's') + numpy.timedelta64(300, 's')  # add 5 minutes
-        FilterByTime(InputWorkspace=self._event_ws_name,
-                     OutputWorkspace=self._event_ws_name,
-                     AbsoluteStartTime=str(self._starttime),
-                     AbsoluteStopTime=str(self._starttime + duration))
+        # don't bother if starttime isn't set
+        if self._starttime:
+            # numpy only likes integers for timedeltas
+            duration = int(mtd[self._event_ws_name].run().getPropertyAsSingleValue('duration'))
+            duration = numpy.timedelta64(duration, 's') + numpy.timedelta64(300, 's')  # add 5 minutes
+            FilterByTime(InputWorkspace=self._event_ws_name,
+                         OutputWorkspace=self._event_ws_name,
+                         AbsoluteStartTime=str(self._starttime),
+                         AbsoluteStopTime=str(self._starttime + duration))
 
         # dictionary for the output
         sub_run_ws_dict = dict()   # [sub run number] = workspace name
