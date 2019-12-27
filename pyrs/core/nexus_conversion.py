@@ -3,8 +3,10 @@ Convert HB2B NeXus file to Hidra project file for further reduction
 """
 from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import bisect
-from mantid.kernel import FloatTimeSeriesProperty, Int32TimeSeriesProperty, Int64TimeSeriesProperty, logger, Logger
-from mantid.simpleapi import mtd, GenerateEventsFilter, LoadEventNexus, FilterEvents
+from mantid.kernel import FloatPropertyWithValue, FloatTimeSeriesProperty, Int32TimeSeriesProperty, \
+    Int64TimeSeriesProperty, logger, Logger
+from mantid.simpleapi import mtd, ConvertToMatrixWorkspace, DeleteWorkspace, FilterByLogValue, \
+    FilterByTime, LoadEventNexus
 import numpy
 import os
 from pyrs.core import workspaces
@@ -40,6 +42,12 @@ class NeXusConvertingApp(object):
         self._project_file = None
 
         self._starttime = 0.  # start filtering at the beginning of the run
+
+    def __del__(self):
+        # all of the workspaces that were created should be deleted if they haven't been already
+        for name in self._sub_run_workspace_dict.values() + [self._event_ws_name]:
+            if name in mtd:
+                DeleteWorkspace(Workspace=name)
 
     def convert(self):
         """Main method to convert NeXus file to HidraProject File by
@@ -109,10 +117,7 @@ class NeXusConvertingApp(object):
         # END-FOR
 
         # create a fictional log for duration
-        try:
-            sample_log_dict[HidraConstants.SUB_RUN_DURATION] = self._calculate_sub_run_duration()
-        except RuntimeError as run_err:
-            self._log.error('Unable to calculate duration for sub runs: {}'.format(run_err))
+        sample_log_dict[HidraConstants.SUB_RUN_DURATION] = self._calculate_sub_run_duration()
 
         return sample_log_dict
 
@@ -134,6 +139,7 @@ class NeXusConvertingApp(object):
         duration_vec = numpy.zeros(shape=(len(sub_runs),), dtype=float)
 
         sub_run_index = 0
+
         for sub_run in sorted(self._sub_run_workspace_dict.keys()):
             # get event workspace of sub run and then run object
             event_ws_i = mtd[str(self._sub_run_workspace_dict[sub_run])]
@@ -143,8 +149,9 @@ class NeXusConvertingApp(object):
 
             # get splitter
             if not run_i.hasProperty('splitter'):
-                # no splitter (which is not right), use NAN
-                raise RuntimeError('sub run {} does not have splitter'.format(sub_run))
+                # no splitter (which is not right), use the duration property
+                duration_vec[sub_run_index] = run_i.getPropertyAsSingleValue('duration')
+                print('duration[{}] = {}'.format(sub_run_index, duration_vec[sub_run_index]))
             else:
                 # calculate duration
                 splitter_times = run_i.getProperty('splitter').times.astype(float) * 1E-9
@@ -216,7 +223,7 @@ class NeXusConvertingApp(object):
         '''Loads the event file using instance variables'''
         LoadEventNexus(Filename=self._nexus_name, OutputWorkspace=self._event_ws_name)
         # get the start time from the run object
-        self._starttime = mtd[self._event_ws_name].run()['start_time'].value
+        self._starttime = numpy.datetime64(mtd[self._event_ws_name].run()['start_time'].value)
 
     def _determine_start_time(self, abs_tolerance=0.05):
         '''This goes through a subset of logs and compares when they actually
@@ -251,6 +258,10 @@ class NeXusConvertingApp(object):
                     self._starttime = max(runObj[logname].times[i], self._starttime)
                     break
 
+        # unset the start time if it is before the actual start of the run
+        if self._starttime <= numpy.datetime64(mtd[self._event_ws_name].run()['start_time'].value):
+            self._starttime = None
+
     def _split_sub_runs(self):
         """Performing event filtering according to sample log sub-runs
 
@@ -262,48 +273,80 @@ class NeXusConvertingApp(object):
             split workspaces: key = sub run number (integer), value = workspace name (string)
 
         """
-        # Load data
+        SUBRUN_LOGNAME = 'scan_index'
 
-        # Generate splitters by sample log 'scan_index'.  real sub run starts with scan_index == 1
-        split_ws_name = 'Splitter_{}'.format(self._nexus_name)
-        split_info_name = 'InfoTable_{}'.format(self._nexus_name)
+        # first remove the data before the previously calculated start time
+        # don't bother if starttime isn't set
+        if self._starttime:
+            # numpy only likes integers for timedeltas
+            duration = int(mtd[self._event_ws_name].run().getPropertyAsSingleValue('duration'))
+            duration = numpy.timedelta64(duration, 's') + numpy.timedelta64(300, 's')  # add 5 minutes
+            FilterByTime(InputWorkspace=self._event_ws_name,
+                         OutputWorkspace=self._event_ws_name,
+                         AbsoluteStartTime=str(self._starttime),
+                         AbsoluteStopTime=str(self._starttime + duration))
 
-        # StartTime can be relative in unit of second
-        # https://docs.mantidproject.org/nightly/algorithms/GenerateEventsFilter-v1.html
-        GenerateEventsFilter(InputWorkspace=self._event_ws_name,
-                             OutputWorkspace=split_ws_name,
-                             InformationWorkspace=split_info_name,
-                             LogName='scan_index',
-                             StartTime=str(self._starttime),
-                             UnitOfTime='Seconds',
-                             MinimumLogValue=0,
-                             LogValueInterval=1)
-
-        # Split
-        base_out_name = self._event_ws_name + '_split'
-        split_returns = FilterEvents(InputWorkspace=self._event_ws_name,
-                                     SplitterWorkspace=split_ws_name,
-                                     InformationWorkspace=split_info_name,
-                                     OutputWorkspaceBaseName=base_out_name,
-                                     DescriptiveOutputNames=False,  # requires split workspace ends with sub run
-                                     OutputWorkspaceIndexedFrom1=False,  # as workspace 0 is kept for what left between
-                                                                         # 2 sub runs
-                                     GroupWorkspaces=True)
-
-        # Fill in
-        output_ws_names = split_returns.OutputWorkspaceNames
+        # dictionary for the output
         sub_run_ws_dict = dict()   # [sub run number] = workspace name
-        for ws_name in output_ws_names:
-            try:
-                sub_run_number = int(ws_name.split('_')[-1])
-                if sub_run_number > 0 and len(output_ws_names) > 2:
-                    sub_run_ws_dict[sub_run_number] = ws_name
-                elif sub_run_number == 0:
-                    sub_run_ws_dict[1] = ws_name
-            except ValueError:
-                # sub runs not ends with integer: unsplit
-                pass
-        # END-FOR
+
+        # determine the range of subruns being used
+        scan_index = mtd[self._event_ws_name].run()[SUBRUN_LOGNAME].value
+        scan_index_min = scan_index.min()
+        scan_index_max = scan_index.max()
+        multiple_subrun = bool(scan_index_min != scan_index_max)
+
+        if multiple_subrun:
+            # determine the duration of each subrun by correlating to the scan_index
+            scan_times = mtd[self._event_ws_name].run()[SUBRUN_LOGNAME].times
+            durations = {}
+            for timedelta, subrun in zip(scan_times - scan_times[0], scan_index):
+                timedelta /= numpy.timedelta64(1, 's')  # convert to seconds
+                print(subrun, timedelta)
+                if subrun not in durations:
+                    durations[subrun] = timedelta
+                else:
+                    durations[subrun] += timedelta
+
+            # skip scan_index=0
+            # the +1 is to make it inclusive
+            for subrun in range(max(scan_index_min, 1), scan_index_max + 1):
+                self._log.information('Filtering scan_index={}'.format(subrun))
+                # pad up to 5 zeros
+                ws_name = '{}_split_{:05d}'.format(self._event_ws_name, subrun)
+                # filter out the subrun - this assumes that subruns are integers
+                FilterByLogValue(InputWorkspace=self._event_ws_name,
+                                 OutputWorkspace=ws_name,
+                                 LogName=SUBRUN_LOGNAME,
+                                 LogBoundary='Left',
+                                 MinimumValue=float(subrun) - .5,
+                                 MaximumValue=float(subrun) + .5)
+
+                # matrix workspaces take significantly less memory for HB2B
+                ConvertToMatrixWorkspace(InputWorkspace=ws_name,
+                                         OutputWorkspace=ws_name)
+
+                # update the duration in the filtered workspace
+                duration = FloatPropertyWithValue('duration', durations[subrun])
+                duration.units = 'second'
+                mtd[ws_name].run()['duration'] = duration
+
+                # add it to the dictionary
+                sub_run_ws_dict[subrun] = ws_name
+
+                # remove all of the events we already wanted
+                if subrun != scan_index_max:
+                    FilterByLogValue(InputWorkspace=self._event_ws_name,
+                                     OutputWorkspace=self._event_ws_name,
+                                     LogName=SUBRUN_LOGNAME,
+                                     LogBoundary='Left',
+                                     MinimumValue=float(subrun) + .5)
+        else:  # nothing to filter so just histogram it
+            ConvertToMatrixWorkspace(InputWorkspace=self._event_ws_name,
+                                     OutputWorkspace=self._event_ws_name)
+            sub_run_ws_dict[1] = self._event_ws_name
+
+        # input workspace should no longer have any events in it
+        # but must stick around for single subrun case
 
         return sub_run_ws_dict
 

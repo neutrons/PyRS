@@ -35,6 +35,10 @@ class ExportCSV(Export):
         generator.setHeaderInformation(dict())
         generator.write_csv(sample_logs, [peaks])
 
+        new_message = self.parent.current_root_statusbar_message + "\t\t\t\t Last Exported CSV: {}" \
+                                                                   "".format(self._csv_file_name)
+        self.parent.ui.statusbar.showMessage(new_message)
+
     def _retrieve_project(self):
         _hidra_project_file = self.parent.hidra_workspace._project_file
         return _hidra_project_file
