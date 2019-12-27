@@ -200,11 +200,10 @@ class PeakFitCalibration(object):
             2theta, intensity
         """
         # reduce data
-        two_theta_step = (max_2theta - min_2theta) / num_bins
+        # two_theta_step = (max_2theta - min_2theta) / num_bins
         pyrs_reducer.set_mask(roi_vec)
-        vec_2theta, vec_hist = pyrs_reducer.reduce_to_2theta_histogram((min_2theta, max_2theta), two_theta_step, True,
-                                                                       is_point_data=True, normalize_pixel_bin=True,
-                                                                       use_mantid_histogram=False)
+        vec_2theta, vec_hist = pyrs_reducer.reduce_to_2theta_histogram((min_2theta, max_2theta), num_bins, True,
+                                                                       is_point_data=True, use_mantid_histogram=False)
 
         return vec_2theta, vec_hist
 
@@ -368,7 +367,7 @@ class PeakFitCalibration(object):
                 mintth = np.min(tths) + .5
                 maxtth = np.max(tths) - .5
 
-                Eta_val = pyrs_reducer.get_eta_Values()
+                Eta_val = pyrs_reducer.get_eta_value()
                 maxEta = np.max(Eta_val) - 2
                 minEta = np.min(Eta_val) + 2
 

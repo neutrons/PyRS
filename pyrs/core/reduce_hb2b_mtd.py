@@ -154,22 +154,35 @@ class MantidHB2BReduction(object):
 
         return pos_array
 
-    def reduce_to_2theta_histogram(self, two_theta_range, two_theta_step,
-                                   apply_mask, is_point_data, normalize_pixel_bin, use_mantid_histogram,
+    def reduce_to_2theta_histogram(self, two_theta_range, two_theta_bins_number,
+                                   apply_mask, is_point_data, use_mantid_histogram,
                                    vanadium_counts_array=None):
-        """ Reduce the raw matrix workspace, with instrument already loaded, to 2theta
-        :param matrix_ws_name:
-        :param two_theta_min:
-        :param two_theta_max:
-        :param num_2theta_bins:
-        :param mask:
-        :return:
+        """Histogram counts on each pixels with pixel's diffraction angle
+
+        Parameters
+        ----------
+        two_theta_range : tuple
+            2 tuple as min and max of 2theta
+        two_theta_bins_number : int
+            2theta number of bins
+        apply_mask : bool
+            If true and self._detector_mask has been set, the apply mask to output
+        is_point_data : bool
+            Flag whether the output is point data (numbers of X and Y are same)
+        use_mantid_histogram : bool
+            Flag to use Mantid (algorithm ResampleX) to do histogram
+        vanadium_counts_array : None or numpy.ndarray
+            Vanadium counts array for normalization and efficiency calibration
+
+        Returns
+        -------
+
         """
         # Process input arguments
         matrix_ws_name = self._data_ws_name
         two_theta_min, two_theta_max = two_theta_range
         # TODO FIXME - NOW NOW TONIGHT - #72 2-theta range is a myth!!!
-        num_2theta_bins = numpy.arange(two_theta_min, two_theta_max, two_theta_step).shape[0] - 1
+        num_2theta_bins = numpy.arange(two_theta_min, two_theta_max, two_theta_bins_number).shape[0] - 1
         target_vec_2theta = None
 
         # convert with Axis ordered

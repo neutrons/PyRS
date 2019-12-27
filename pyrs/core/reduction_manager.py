@@ -191,17 +191,29 @@ class HB2BReductionManager(object):
         workspace = self._session_dict[session_name]
         return workspace
 
-    def init_session(self, session_name):
+    def init_session(self, session_name, hidra_ws=None):
         """
         Initialize a new session of reduction and thus to store data according to session name
         :return:
         """
         # Check inputs
         checkdatatypes.check_string_variable('Reduction session name', session_name)
-        if session_name == '' or session_name in self._session_dict:
-            raise RuntimeError('Session name {} is either empty or previously used (not unique)'.format(session_name))
+        if session_name == '':
+            raise RuntimeError('Session name {} is empty'.format(session_name))
+        elif session_name in self._session_dict:
+            print('[WARNING] Session {} is previously taken.  The HidraWorkspace associated '
+                  'will be replaced if new HidraWorkspace is not None ({})'
+                  ''.format(session_name, hidra_ws is None))
 
-        self._curr_workspace = workspaces.HidraWorkspace()
+        if hidra_ws is None:
+            # session is initialized without HidraWorkspace
+            self._curr_workspace = workspaces.HidraWorkspace()
+        else:
+            # session starts with a HidraWorkspace
+            checkdatatypes.check_type('HidraWorkspace', hidra_ws, workspaces.HidraWorkspace)
+            self._curr_workspace = hidra_ws
+
+        # set the current session name and add HidraWorkspace to dict
         self._curr_session_name = session_name
         self._session_dict[session_name] = self._curr_workspace
 
@@ -404,7 +416,7 @@ class HB2BReductionManager(object):
 
         return van_counts_array
 
-    def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, bin_size_2theta,
+    def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, num_bins,
                                 use_pyrs_engine, mask, sub_run_list,
                                 vanadium_counts=None):
         """Reduce ALL sub runs in a workspace from detector counts to diffraction data
@@ -415,8 +427,8 @@ class HB2BReductionManager(object):
         apply_calibrated_geometry : ~AnglerCameraDetectorShift or bool
             3 options (1) user-provided AnglerCameraDetectorShift
                                           (2) True (use the one in workspace) (3) False (no calibration)
-        bin_size_2theta : float
-            2theta bin step
+        num_bins : int
+            number of bins
         use_pyrs_engine : bool
             flag to use PyRS engine; otherwise, use Mantid as diffraction pattern reduction engine
         mask :
@@ -468,8 +480,12 @@ class HB2BReductionManager(object):
 
         # Determine whether normalization by time is supported
         if not workspace.has_sample_log(HidraConstants.SUB_RUN_DURATION):
-            raise RuntimeError('Workspace {} does not have sample log {}'.format(workspace,
-                                                                                 HidraConstants.SUB_RUN_DURATION))
+            raise RuntimeError('Workspace {} does not have sample log {}.  Existing logs are {}'
+                               ''.format(workspace, HidraConstants.SUB_RUN_DURATION,
+                                         workspace.get_sample_log_names()))
+
+        # Reset workspace's 2theta matrix and intensities
+        workspace.reset_diffraction_data()
 
         for sub_run in sub_run_list:
             # get the duration
@@ -479,7 +495,7 @@ class HB2BReductionManager(object):
             self.reduce_sub_run_diffraction(workspace, sub_run, det_pos_shift,
                                             use_mantid_engine=not use_pyrs_engine,
                                             mask_vec_tuple=(mask_id, mask_vec),
-                                            resolution_2theta=bin_size_2theta,
+                                            num_bins=num_bins,
                                             sub_run_duration=duration_i,
                                             vanadium_counts=vanadium_counts)
         # END-FOR (sub run)
@@ -487,7 +503,7 @@ class HB2BReductionManager(object):
     # NOTE: Refer to compare_reduction_engines_tst
     def reduce_sub_run_diffraction(self, workspace, sub_run, geometry_calibration, use_mantid_engine,
                                    mask_vec_tuple, min_2theta=None, max_2theta=None, default_two_theta_range=20,
-                                   resolution_2theta=None, num_bins=1000, sub_run_duration=None,
+                                   num_bins=1000, sub_run_duration=None,
                                    vanadium_counts=None):
         """Reduce import data (workspace or vector) to 2-theta ~ I
 
@@ -523,7 +539,7 @@ class HB2BReductionManager(object):
             max 2theta
         default_two_theta_range : float or None
             range of 2theta if min or max 2theta is not given
-        resolution_2theta : float or None
+        num_bins : float or None
             2theta resolution/step
         num_bins : int
             number of bins
@@ -573,31 +589,19 @@ class HB2BReductionManager(object):
                                'Given information: detector arm 2theta = {}, 2theta range = {}'
                                ''.format(min_2theta, max_2theta, two_theta, default_two_theta_range))
 
-        # Determine 2theta resolution
-        if resolution_2theta is None:
-            resolution_2theta = (max_2theta - min_2theta) / num_bins
-
         # Apply mask
         mask_id, mask_vec = mask_vec_tuple
         if mask_vec is not None:
             reduction_engine.set_mask(mask_vec)
 
-        # Reduce
-        data_set = reduction_engine.reduce_to_2theta_histogram((min_2theta, max_2theta), resolution_2theta,
+        data_set = reduction_engine.reduce_to_2theta_histogram((min_2theta, max_2theta),
+                                                               two_theta_bins_number=num_bins,
                                                                apply_mask=True,
                                                                is_point_data=True,
-                                                               normalize_pixel_bin=True,
                                                                use_mantid_histogram=False,
                                                                vanadium_counts_array=vanadium_counts)
-
         bin_centers = data_set[0]
         hist = data_set[1]
-
-#        # Normalization
-#        if sub_run_duration is not None:
-#            # check sub-run duration and normalize by duration time
-#            checkdatatypes.check_float_variable('Sub-run duration', sub_run_duration, (0, None))
-#            hist /= sub_run_duration
 
         # record
         workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_centers, hist)

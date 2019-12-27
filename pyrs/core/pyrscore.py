@@ -505,11 +505,11 @@ class PyRsCore(object):
         self._curr_ss_session = session_name
         self._curr_ss_type = ss_type
 
-    def reduce_diffraction_data(self, session_name, two_theta_step, pyrs_engine, mask_file_name=None,
+    def reduce_diffraction_data(self, session_name, num_bins, pyrs_engine, mask_file_name=None,
                                 geometry_calibration=None, sub_run_list=None):
         """ Reduce all sub runs in a workspace from detector counts to diffraction data
         :param session_name:
-        :param two_theta_step:
+        :param num_bins:
         :param pyrs_engine:
         :param mask_file_name:
         :param geometry_calibration: True/file name/AnglerCameraDetectorShift/None), False, None/(False, )
@@ -544,7 +544,7 @@ class PyRsCore(object):
                                ''.format(geometry_calibration, type(geometry_calibration)))
 
         self._reduction_service.reduce_diffraction_data(session_name, apply_calibration,
-                                                        two_theta_step, pyrs_engine,
+                                                        num_bins, pyrs_engine,
                                                         mask_id, sub_run_list)
 
     @property

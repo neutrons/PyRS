@@ -32,7 +32,6 @@ class ReductionApp(object):
 
         # initialize reduction session with a general name (single session script)
         self._session = 'GeneralHB2BReduction'
-        self._reduction_manager.init_session(self._session)
         self._hydra_file_name = None
 
         return
@@ -76,6 +75,8 @@ class ReductionApp(object):
         return
 
     def load_project_file(self, data_file):
+        # init session
+        self._reduction_manager.init_session(self._session)
         # load data: from raw counts to reduced data
         self._hydra_ws = self._reduction_manager.load_hidra_project(data_file, True, True, True)
 
@@ -83,7 +84,24 @@ class ReductionApp(object):
 
         return
 
-    def reduce_data(self, sub_runs, instrument_file, calibration_file, mask, van_file=None):
+    def load_hidra_workspace(self, hd_workspace):
+        """Load a HidraWorkspace
+
+        Parameters
+        ----------
+        hd_workspace : pyrs.core.workspaces.HidraWorkspace
+            HidraWorkspace containing raw counts
+
+        Returns
+        -------
+
+        """
+        # set workspace to reduction manager
+        self._reduction_manager.init_session(self._session, hd_workspace)
+        # set the workspace to self
+        self._hydra_ws = hd_workspace
+
+    def reduce_data(self, sub_runs, instrument_file, calibration_file, mask, van_file=None, num_bins=1000):
         """Reduce data from HidraWorkspace
 
         Parameters
@@ -95,6 +113,8 @@ class ReductionApp(object):
         mask
         van_file : str or None
             HiDRA project file containing vanadium counts or event NeXus file
+        num_bins : int
+            number of bins
 
         Returns
         -------
@@ -139,7 +159,7 @@ class ReductionApp(object):
 
         self._reduction_manager.reduce_diffraction_data(self._session,
                                                         apply_calibrated_geometry=geometry_calibration,
-                                                        bin_size_2theta=0.02,
+                                                        num_bins=num_bins,
                                                         use_pyrs_engine=not self._use_mantid_engine,
                                                         mask=None,
                                                         sub_run_list=sub_runs,
@@ -175,8 +195,17 @@ class ReductionApp(object):
             file_name = output_file_name
             mode = HidraProjectFileMode.OVERWRITE
 
+        # Sanity check
+        if file_name is None:
+            raise RuntimeError('Output file name is not set property.  There is no default file name'
+                               'or user specified output file name.')
+
         # Generate project file instance
         out_file = HidraProjectFile(file_name, mode)
+
+        # If it is a new file, the sample logs and other information shall be exported too
+        if mode == HidraProjectFileMode.OVERWRITE:
+            self._hydra_ws.save_experimental_data(out_file, ignore_raw_counts=True)
 
         # Write & close
         self._hydra_ws.save_reduced_diffraction_data(out_file)

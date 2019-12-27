@@ -383,6 +383,9 @@ class HidraWorkspace(object):
                                ''.format(mask_id, self._diff_data_set.keys()))
         return vec_2theta, vec_intensity
 
+    def get_sample_log_names(self):
+        return self._sample_logs.keys()
+
     def get_sample_log_value(self, sample_log_name, sub_run=None):
         """
 
@@ -479,6 +482,9 @@ class HidraWorkspace(object):
 
         return has_log
 
+    def set_instrument_geometry(self, instrument):
+        self._instrument_setup = instrument
+
     def set_raw_counts(self, sub_run_number, counts):
         """
         Set the raw counts to
@@ -487,6 +493,10 @@ class HidraWorkspace(object):
         :return:
         """
         checkdatatypes.check_numpy_arrays('Counts', [counts], dimension=None, check_same_shape=False)
+
+        if len(counts.shape) == 2 and counts.shape[1] == 1:
+            # 1D array in 2D format: set to 1D array
+            counts = counts.reshape((counts.shape[0],))
 
         self._raw_counts[int(sub_run_number)] = counts
 
@@ -518,10 +528,12 @@ class HidraWorkspace(object):
             num_sub_runs = len(self._sample_logs.subruns)
             self._2theta_matrix = numpy.ndarray(shape=(num_sub_runs, two_theta_array.shape[0]),
                                                 dtype=intensity_array.dtype)
-        # END-IF
-
-        # Set intensity data set (matrix) if not initialized yet
-        if mask_id not in self._diff_data_set:
+            # set the diffraction data (2D) array with new dimension
+            num_sub_runs = len(self._sample_logs.subruns)
+            self._diff_data_set[mask_id] = numpy.ndarray(shape=(num_sub_runs, intensity_array.shape[0]),
+                                                         dtype=intensity_array.dtype)
+        elif mask_id not in self._diff_data_set:
+            # A new mask: reset the diff_data_set again
             num_sub_runs = len(self._sample_logs.subruns)
             self._diff_data_set[mask_id] = numpy.ndarray(shape=(num_sub_runs, intensity_array.shape[0]),
                                                          dtype=intensity_array.dtype)
@@ -589,10 +601,12 @@ class HidraWorkspace(object):
         """
         self._sample_logs.subruns = sorted(sub_runs)
 
-    def save_experimental_data(self, hidra_project, sub_runs=None):
+    def save_experimental_data(self, hidra_project, sub_runs=None, ignore_raw_counts=False):
         """Save experimental data including raw counts and sample logs to HiDRA project file
 
         Export (aka save) raw detector counts and sample logs from this HidraWorkspace to a HiDRA project file
+
+        Exporting sub run's counts is an option
 
         Parameters
         ----------
@@ -600,21 +614,25 @@ class HidraWorkspace(object):
             reference to a HyDra project file
         sub_runs: None or list/ndarray(1D)
             None for exporting all or the specified sub runs
+        ignore_raw_counts : bool
+            flag to not to export raw counts to file
+
         Returns
         -------
         None
         """
-        # Raw counts
-        for sub_run_i in self._raw_counts.keys():
-            if sub_runs is None or sub_run_i in sub_runs:
-                hidra_project.append_raw_counts(sub_run_i, self._raw_counts[sub_run_i])
-            else:
-                print('[WARNING] sub run {} is not exported to {}'
-                      ''.format(sub_run_i, hidra_project.name))
-            # END-IF-ELSE
-        # END-FOR
+        # Add raw counts if it is specified to save
+        if not ignore_raw_counts:
+            for sub_run_i in self._raw_counts.keys():
+                if sub_runs is None or sub_run_i in sub_runs:
+                    hidra_project.append_raw_counts(sub_run_i, self._raw_counts[sub_run_i])
+                else:
+                    print('[WARNING] sub run {} is not exported to {}'
+                          ''.format(sub_run_i, hidra_project.name))
+                # END-IF-ELSE
+            # END-FOR
 
-        # Add sub runs first
+        # Add entry for sub runs (first)
         if sub_runs is None:
             # all sub runs
             sub_runs_array = numpy.array(sorted(self._raw_counts.keys()))
@@ -626,7 +644,7 @@ class HidraWorkspace(object):
             sub_runs_array = sub_runs
         hidra_project.append_experiment_log(HidraConstants.SUB_RUNS, sub_runs_array)
 
-        # Add regular ample logs
+        # Add regular sample logs
         for log_name in self._sample_logs.keys():
             # no operation on 'sub run': skip
             if log_name == HidraConstants.SUB_RUNS:
@@ -694,3 +712,13 @@ class HidraWorkspace(object):
             self._wave_length_calibrated_dict = wl_dict
         else:
             self._wave_length_dict = wl_dict
+
+    def reset_diffraction_data(self):
+        """Reset the data structures to store the diffraction data set
+
+        Returns
+        -------
+        None
+
+        """
+        self._2theta_matrix = None

@@ -395,7 +395,7 @@ class ManualReductionWindow(QMainWindow):
         # TODO FIXME - Urgent - Mask and calibration is not implemented at all!
         self._core.reduction_service.reduce_diffraction_data(self._project_data_id,
                                                              apply_calibrated_geometry=None,
-                                                             bin_size_2theta=0.05,
+                                                             num_bins=1000,
                                                              use_pyrs_engine=True,
                                                              mask=None,
                                                              sub_run_list=sub_run_list)
@@ -637,7 +637,7 @@ class ManualReductionWindow(QMainWindow):
         # TODO - #84 - Need mask, calibration, and etc.
 
         self._core.reduce_diffraction_data(session_name=self._project_data_id,
-                                           two_theta_step=0.1,
+                                           num_bins=1000,
                                            pyrs_engine=True,
                                            mask_file_name=None,
                                            geometry_calibration=None,

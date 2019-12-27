@@ -101,7 +101,7 @@ def peaks_alignment_score(x, engine, hb2b_setup, two_theta, roi_vec_set, plot=Fa
 
 #    pyrs_reducer.build_instrument_prototype()
 
-    Eta_val = pyrs_reducer.get_eta_Values()
+    Eta_val = pyrs_reducer.get_eta_value()
 
     # reduce data
     reduced_data_set = [None] * num_reduced_set

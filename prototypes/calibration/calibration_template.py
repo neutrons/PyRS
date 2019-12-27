@@ -96,7 +96,7 @@ def main(argv):
     calib_controller.load_hidra_project(param_dict['inputfile'], project_name=project_name)
 
     # Reduce data
-    calib_controller.reduce_diffraction_data(project_name, two_theta_step=param_dict['binsize'],
+    calib_controller.reduce_diffraction_data(project_name, num_bins=param_dict['binsize'],
                                              pyrs_engine=True)
 
     # get handler on reduciton engine
