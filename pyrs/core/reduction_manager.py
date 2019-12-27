@@ -594,11 +594,10 @@ class HB2BReductionManager(object):
         if mask_vec is not None:
             reduction_engine.set_mask(mask_vec)
 
-        # Reduce
-        data_set = reduction_engine.reduce_to_2theta_histogram((min_2theta, max_2theta), num_bins,
+        data_set = reduction_engine.reduce_to_2theta_histogram((min_2theta, max_2theta),
+                                                               two_theta_bins_number=num_bins,
                                                                apply_mask=True,
                                                                is_point_data=True,
-                                                               normalize_pixel_bin=True,
                                                                use_mantid_histogram=False,
                                                                vanadium_counts_array=vanadium_counts)
         bin_centers = data_set[0]

@@ -540,7 +540,7 @@ class PyHB2BReduction(object):
         return self._instrument.get_eta_values(dimension=1)
 
     def reduce_to_2theta_histogram(self, two_theta_range, two_theta_bins_number, apply_mask,
-                                   is_point_data=True, normalize_pixel_bin=True, use_mantid_histogram=False,
+                                   is_point_data=True, use_mantid_histogram=False,
                                    vanadium_counts_array=None):
         """Reduce the previously added detector raw counts to 2theta histogram (i.e., diffraction pattern)
 
@@ -554,8 +554,6 @@ class PyHB2BReduction(object):
             If true and self._detector_mask has been set, the apply mask to output
         is_point_data : bool
             Flag whether the output is point data (numbers of X and Y are same)
-        normalize_pixel_bin : bool
-            Flag to normalize the number of pixels in each 2theta histogram bin
         use_mantid_histogram : bool
             Flag to use Mantid (algorithm ResampleX) to do histogram
         vanadium_counts_array : None or numpy.ndarray
@@ -612,6 +610,7 @@ class PyHB2BReduction(object):
         #        are not required anymore but both of them will be replaced by integrated vanadium counts
         if use_mantid_histogram:
             # this is a branch used for testing against Mantid method
+            two_theta_step = (two_theta_vector.max() - two_theta_vector.min()) * 1. / two_theta_bins_number
             two_theta_vec_range = two_theta_vector.min(), two_theta_vector.max() + two_theta_step
             num_bins = two_theta_vector.size()
             two_theta_vector, intensity_vector = self.histogram_by_mantid(pixel_2theta_array, masked_counts,

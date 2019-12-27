@@ -155,21 +155,24 @@ class MantidHB2BReduction(object):
         return pos_array
 
     def reduce_to_2theta_histogram(self, two_theta_range, two_theta_bins_number,
-                                   apply_mask, is_point_data, normalize_pixel_bin, use_mantid_histogram,
+                                   apply_mask, is_point_data, use_mantid_histogram,
                                    vanadium_counts_array=None):
         """Histogram counts on each pixels with pixel's diffraction angle
 
         Parameters
         ----------
-        two_theta_range : float, float
-            2theta min and max
+        two_theta_range : tuple
+            2 tuple as min and max of 2theta
         two_theta_bins_number : int
-            number of 2theta
-        apply_mask :
-        is_point_data
-        normalize_pixel_bin
-        use_mantid_histogram
-        vanadium_counts_array
+            2theta number of bins
+        apply_mask : bool
+            If true and self._detector_mask has been set, the apply mask to output
+        is_point_data : bool
+            Flag whether the output is point data (numbers of X and Y are same)
+        use_mantid_histogram : bool
+            Flag to use Mantid (algorithm ResampleX) to do histogram
+        vanadium_counts_array : None or numpy.ndarray
+            Vanadium counts array for normalization and efficiency calibration
 
         Returns
         -------

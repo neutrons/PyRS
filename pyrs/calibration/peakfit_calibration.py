@@ -203,8 +203,7 @@ class PeakFitCalibration(object):
         # two_theta_step = (max_2theta - min_2theta) / num_bins
         pyrs_reducer.set_mask(roi_vec)
         vec_2theta, vec_hist = pyrs_reducer.reduce_to_2theta_histogram((min_2theta, max_2theta), num_bins, True,
-                                                                       is_point_data=True, normalize_pixel_bin=True,
-                                                                       use_mantid_histogram=False)
+                                                                       is_point_data=True, use_mantid_histogram=False)
 
         return vec_2theta, vec_hist
 
