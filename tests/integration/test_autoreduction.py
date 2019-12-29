@@ -4,6 +4,7 @@ from pyrs.core.powder_pattern import ReductionApp
 from pyrs.dataobjects import HidraConstants
 from matplotlib import pyplot as plt
 import pytest
+import numpy as np
 
 
 def checkFileExists(filename, feedback):
@@ -149,19 +150,39 @@ def test_apply_mantid_mask():
     -------
 
     """
-    # convert the nexus file to a project file and do the "simple" checks
+    # Specify NeXus
     nexus_file = 'data/HB2B_938.nxs.h5'
-    project_file = 'HB2B_938_mask.h5'
-    convertNeXusToProject(nexus_file, project_file, skippable=True,
-                          mask_file_name='data/HB2B_Mask_12-18-19.xml')
 
-    # Reduce data
-    # extract the powder patterns and add them to the project file
+    # Convert the NeXus to file to a project without mask and convert to 2theta diffraction pattern
+    no_mask_project_file = 'HB2B_938_no_mask.h5'
+    convertNeXusToProject(nexus_file, no_mask_project_file, skippable=False,
+                          mask_file_name=None)
+
+    # Convert the nexus file to a project file and do the "simple" checks
+    no_mask_reducer = ReductionApp(use_mantid_engine=False)
+    no_mask_reducer.load_project_file(no_mask_project_file)
+    no_mask_reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None,
+                                van_file=None, num_bins=950)
+    no_mask_reducer.save_diffraction_data(no_mask_project_file)
+
+    # Convert the NeXus to file to a project with mask and convert to 2theta diffraction pattern
+    project_file = 'HB2B_938_mask.h5'
+    convertNeXusToProject(nexus_file, project_file, skippable=False,
+                          mask_file_name='data/HB2B_Mask_12-18-19.xml')
     reducer = ReductionApp(use_mantid_engine=False)
     reducer.load_project_file(project_file)
     reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None,
                         van_file=None, num_bins=950)
     reducer.save_diffraction_data(project_file)
+
+    # Compare range of 2theta
+    no_mask_data_set = no_mask_reducer.get_diffraction_data(sub_run=1)
+    masked_data_set = reducer.get_diffraction_data(sub_run=1)
+
+    print('[DEBUG...] No mask 2theta range: {}, {}'.format(no_mask_data_set[0].min(), no_mask_data_set[0].max()))
+    print('[DEBUG...] Masked  2theta range: {}, {}'.format(masked_data_set[0].min(), masked_data_set[0].max()))
+
+    assert np.allclose(no_mask_data_set[0], masked_data_set[0])
 
 
 if __name__ == '__main__':

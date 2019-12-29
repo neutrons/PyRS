@@ -74,6 +74,23 @@ class ReductionApp(object):
 
         return
 
+    def get_diffraction_data(self, sub_run):
+        """Get 2theta diffraction data
+
+        Parameters
+        ----------
+        sub_run : int
+            sub run number
+
+        Returns
+        -------
+        ~numpy.ndarray, ~numpy.ndarray
+
+        """
+        vec_x, vec_y = self._reduction_manager.get_reduced_diffraction_data(self._session, sub_run)
+
+        return vec_x, vec_y
+
     def load_project_file(self, data_file):
         # init session
         self._reduction_manager.init_session(self._session)
