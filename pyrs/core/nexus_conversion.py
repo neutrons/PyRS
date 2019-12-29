@@ -250,7 +250,7 @@ class NeXusConvertingApp(object):
         if self._mask_file_name is not None:
             # Load mask with reference to event workspace just created
             mask_ws_name = os.path.basename(self._mask_file_name).split('.')[0] + '_mask'
-            LoadMask(Instrument='HB2B', InputFile=self._mask_file_name, RefWorkspace=self._event_ws_name,
+            LoadMask(InputFile=self._mask_file_name, RefWorkspace=self._event_ws_name,
                      OutputWorkspace=mask_ws_name)
             # Mask detectors and set all the events in mask to zero
             MaskDetectors(Workspace=self._event_ws_name, MaskedWorkspace=mask_ws_name)
