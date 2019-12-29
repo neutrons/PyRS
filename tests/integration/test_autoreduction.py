@@ -22,7 +22,7 @@ def checkFileExists(filename, feedback):
         raise ValueError('Do not know how to give feedback={}'.format(feedback))
 
 
-def convertNeXusToProject(nexusfile, projectfile, skippable):
+def convertNeXusToProject(nexusfile, projectfile, skippable, mask_file_name=None):
     if skippable:
         checkFileExists(nexusfile, feedback='skip')
     else:
@@ -32,7 +32,7 @@ def convertNeXusToProject(nexusfile, projectfile, skippable):
     if os.path.exists(projectfile):
         os.remove(projectfile)
 
-    converter = NeXusConvertingApp(nexusfile)
+    converter = NeXusConvertingApp(nexusfile, mask_file_name=mask_file_name)
     hidra_ws = converter.convert()
     converter.save(projectfile, None)
 
@@ -140,6 +140,28 @@ def test_apply_vanadium(project_file, van_project_file, target_project_file):
 
     # plot for proof
     # reducer.plot_reduced_data()
+
+
+def test_apply_mantid_mask():
+    """Test auto reduction script with Mantid mask file applied
+
+    Returns
+    -------
+
+    """
+    # convert the nexus file to a project file and do the "simple" checks
+    nexus_file = 'data/HB2B_938.nxs.h5'
+    project_file = 'HB2B_938_mask.h5'
+    convertNeXusToProject(nexus_file, project_file, skippable=True,
+                          mask_file_name='data/HB2B_Mask_12-18-19.xml')
+
+    # Reduce data
+    # extract the powder patterns and add them to the project file
+    reducer = ReductionApp(use_mantid_engine=False)
+    reducer.load_project_file(project_file)
+    reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None,
+                        van_file=None, num_bins=950)
+    reducer.save_diffraction_data(project_file)
 
 
 if __name__ == '__main__':
