@@ -152,12 +152,9 @@ class GeneralDiffDataView(MplGraphicsView1D):
         self._last_line_reference = None
         self._current_x_axis_name = None
 
-        return
-
     @property
     def current_x_name(self):
         """
-
         :return:
         """
         return self._current_x_axis_name
@@ -189,8 +186,6 @@ class GeneralDiffDataView(MplGraphicsView1D):
         self._last_line_reference = ref_id
         self._current_x_axis_name = x_label
 
-        return
-
     def plot_scatter(self, vec_x, vec_y, x_label, y_label):
         """ plot figure in scatter-style
         :param vec_x:
@@ -215,7 +210,6 @@ class GeneralDiffDataView(MplGraphicsView1D):
                                y_label=y_label)
 
         # TODO - 20181101 - Enable after auto_scale is fixed: self.auto_rescale()
-
         self._line_reference_list.append(ref_id)
         self._last_line_reference = ref_id
         self._current_x_axis_name = x_label

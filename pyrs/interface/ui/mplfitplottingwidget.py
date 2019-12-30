@@ -39,7 +39,26 @@ class MplFitPlottingWidget(QWidget):
         self._curr_color_index = 0
         self._curr_x_label = None
 
-        return
+        self._button_pressed =False
+        self._myCanvas.mpl_connect('button_press_event', self.button_clicked)
+        self._myCanvas.mpl_connect('button_release_event', self.button_released)
+        self._myCanvas.mpl_connect('motion_notify_event', self.mouse_moved)
+
+    def button_clicked(self, event):
+        self._button_pressed = True
+        print("button pressed here!")
+        _x = event.x
+        _y = event.y
+        _xdata = event.xdata
+        _ydata = event.ydata
+
+    def button_released(self, event):
+        self._button_pressed = False
+        print("button released")
+
+    def mouse_moved(self, event):
+        if self._button_pressed:
+            print("mouse moved")
 
     def _get_next_color(self):
         """

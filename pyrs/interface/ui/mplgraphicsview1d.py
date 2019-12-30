@@ -54,6 +54,8 @@ class MplGraphicsView1D(QWidget):
         else:
             self._myToolBar = None
 
+        cid = self._myCanvas.mpl_connect('button_press_event', self.button_clicked_in_canvas)
+
         # state of operation
         self._isZoomed = False
         # X and Y limit with home button
@@ -64,7 +66,10 @@ class MplGraphicsView1D(QWidget):
         self._vBox.addWidget(self._myCanvas)
         self._vBox.addWidget(self._myToolBar)
 
-        return
+    def button_clicked_in_canvas(self, event):
+        print("button pressed here!")
+        print("-> %s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f".format(event.dblclick, event.button,
+                                                                              event.x, event.y, event.xdata, event.ydata))
 
     def _get_plot_y_range(self, row_index, col_index, line_id, is_main):
         """
@@ -158,9 +163,6 @@ class MplGraphicsView1D(QWidget):
 
             # set information to plot dictionary
             plot_dict[row_index, col_index][line_id] = [label, min_x, max_x, min_y, max_y]
-        # END-IF
-
-        return
 
     def add_arrow(self, start_x, start_y, stop_x, stop_y):
         """Add a row
@@ -179,8 +181,6 @@ class MplGraphicsView1D(QWidget):
         """
         # Add default to (0, 0) figure
         self._myCanvas.add_arrow(0, 0, start_x, start_y, stop_x, stop_y)
-
-        return
 
     def add_plot(self, vec_x, vec_y, y_err=None, row_index=0, col_index=0, is_right=False,
                  color=None, label='',
@@ -227,7 +227,6 @@ class MplGraphicsView1D(QWidget):
                                                     markersize=markersize)
             # record min/max
             # self._statMainPlotDict[line_key] = min(vec_x), max(vec_x), min(vec_y), max(vec_y)
-        # END-IF
 
         # update line information
         self._update_plot_line_information(row_index, col_index, line_key, is_main=not is_right,
@@ -277,7 +276,6 @@ class MplGraphicsView1D(QWidget):
                 min_i, max_i = self._get_plot_y_range(row_index, col_index, line_key, is_main=True)
                 min_y_list.append(min_i)
                 max_y_list.append(max_i)
-            # END-FOR
 
             # get real min and max
             min_y = np.min(np.array(min_y_list))
@@ -296,9 +294,6 @@ class MplGraphicsView1D(QWidget):
             # set limit
             is_main = True  # Need to extend to right axis plot
             self._myCanvas.set_y_limits(row_index, col_index, is_main, lower_y, upper_y, apply_change=True)
-        # END-FOR
-
-        return
 
     def canvas(self):
         """ Get the canvas
@@ -347,13 +342,9 @@ class MplGraphicsView1D(QWidget):
                 self._myRightPlotDict[row_index, col_index].clear()
                 # self._statRightPlotDict ???
 
-        # END-FOR
-
         # about zoom
         self._isZoomed = False
         self._homeXYLimit = None
-
-        return
 
     def clear_canvas(self):
         """ Clear canvas
@@ -370,18 +361,9 @@ class MplGraphicsView1D(QWidget):
 
     def evt_toolbar_home(self):
         """
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-
         """
         # turn off zoom mode
         self._isZoomed = False
-
-        return
 
     def evt_view_updated(self):
         """ Event handling as canvas size updated
@@ -396,8 +378,7 @@ class MplGraphicsView1D(QWidget):
         #     data_x, data_y = self._myIndicatorsManager.get_data(indicator_key)
         #     self.update_line(canvas_line_id, data_x, data_y)
         # # END-FOR
-
-        return
+        pass
 
     def evt_zoom_released(self, event):
         """
@@ -412,12 +393,9 @@ class MplGraphicsView1D(QWidget):
         if self._isZoomed is False:
             self._homeXYLimit = list(self.get_x_limit())
             self._homeXYLimit.extend(list(self.get_y_limit()))
-        # END-IF
 
         # set the state of being zoomed
         self._isZoomed = True
-
-        return
 
     def get_label_x(self, row_index=0, col_index=0):
         """Get X-axis label
@@ -462,8 +440,6 @@ class MplGraphicsView1D(QWidget):
         # remove the records
         self._update_plot_line_information(row_index, col_index, line_id=line_id, is_main=is_on_main,
                                            remove_line=True)
-
-        return
 
     def get_canvas(self):
         """
@@ -558,14 +534,10 @@ class MplGraphicsView1D(QWidget):
             for color in MplBasicColors:
                 self._myLineMarkerColorList.append((marker, color))
 
-        return
-
     def setLineMarkerColorIndex(self, newindex):
         """
         """
         self._myLineMarkerColorIndex = newindex
-
-        return
 
     def set_axis_color(self, row_index, col_index, is_main, color):
         """
@@ -586,8 +558,6 @@ class MplGraphicsView1D(QWidget):
         # set color
         axis.spines[side].set_color(color)
 
-        return
-
     def set_subplots(self, row_size, col_size):
         """
         re-set up the subplots.  This is the only  method that allows users to change the subplots
@@ -606,8 +576,6 @@ class MplGraphicsView1D(QWidget):
         subplot_indexes = self._myCanvas.subplot_indexes
         for index in subplot_indexes:
             self._myMainPlotDict[index] = dict()
-
-        return
 
     # TODO/NOW - How to deal with label!!!
     def update_line(self, row_index, col_index, ikey, is_main, vec_x=None, vec_y=None,
@@ -645,8 +613,6 @@ class MplGraphicsView1D(QWidget):
 
         self._myCanvas.update_plot_line(row_index, col_index, ikey, is_main, vec_x, vec_y,
                                         line_style, line_color, marker, marker_color)
-
-        return
 
 
 class Qt4MplCanvasMultiFigure(FigureCanvas):
@@ -1657,20 +1623,14 @@ class MyNavigationToolbar(NavigationToolbar2):
             # into zoom mode
             self._myMode = MyNavigationToolbar.NAVIGATION_MODE_ZOOM
 
-        return
-
     def release_zoom(self, event):
         """ Override zoom release (mouse released from zooming) method
         :param event:
         :return:
         """
         NavigationToolbar2.release_zoom(self, event)
-
-        print(type(event))
-
+        print("zoom has been pressed: {}".format(type(event)))
         self.canvas_zoom_released.emit(event)
-
-        return
 
     def _update_view(self):
         """
@@ -1678,7 +1638,4 @@ class MyNavigationToolbar(NavigationToolbar2):
         :return:
         """
         NavigationToolbar2._update_view(self)
-
         self._myParent.evt_view_updated()
-
-        return

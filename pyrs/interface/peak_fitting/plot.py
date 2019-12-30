@@ -198,6 +198,33 @@ class Plot:
             pop_message(self, 'No data loaded', 'error')
             return
 
+        fitted_peak = self.parent._core._peak_fitting_dict[self.parent._project_name]
+        from pyrs.core import peak_profile_utility
+
+        param_set = fitted_peak.get_effective_parameters_values()
+        eff_params_list, sub_run_array, fit_cost_array, eff_param_value_array, eff_param_error_array = param_set
+
+        # retrieve Center: EFFECTIVE_PEAK_PARAMETERS = ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
+        i_center = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS.index('Center')
+        centers = eff_param_value_array[i_center]
+
+        # retrieve Height
+        i_height = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS.index('Height')
+        heights = eff_param_value_array[i_height]
+
+        # retrieve intensity
+        i_intensity = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS.index('Intensity')
+        intensities = eff_param_value_array[i_intensity]
+
+        # retrieve FWHM
+        i_fwhm = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS.index('FWHM')
+        fwhms = eff_param_value_array[i_fwhm]
+
+        import pprint
+        pprint.pprint("fwhms: {}".format(fwhms))
+
+        return
+
         param_names, param_data = self.parent._core.get_peak_fitting_result(self.parent._project_name,
                                                                             0,
                                                                             return_format=dict,
