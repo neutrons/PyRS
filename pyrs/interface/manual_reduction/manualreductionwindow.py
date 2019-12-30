@@ -1,4 +1,4 @@
-from qtpy.QtWidgets import QMainWindow, QVBoxLayout, QApplication, QProgressBar
+from qtpy.QtWidgets import QMainWindow, QVBoxLayout, QApplication
 import os
 from mantid.simpleapi import Logger
 from mantid.api import AlgorithmObserver
@@ -23,6 +23,7 @@ from pyrs.interface.manual_reduction.event_handler import EventHandler
 # TODO              5. Implement method to reduce data
 # TODO              6. Add parameters for reducing data
 
+
 class MockObserver(AlgorithmObserver):
 
     def __init__(self):
@@ -46,8 +47,6 @@ class MockObserver(AlgorithmObserver):
             self.first_progress_reported = True
         if p == 1.0:
             self.second_progress_reported = True
-
-
 
 
 def _nexus_to_subscans(nexusfile, projectfile, logger):
@@ -429,9 +428,9 @@ class ManualReductionWindow(QMainWindow):
         self._plot_selection_mutex = False
         return
 
-
     def do_quit(self):
-        """Quit manual reduction window
+        """
+        Quit manual reduction window
 
         Returns
         -------
@@ -446,7 +445,6 @@ class ManualReductionWindow(QMainWindow):
 
         return
 
-
     def do_reduce_batch_runs(self):
         """
         (simply) reduce a list of runs in same experiment in a batch
@@ -455,10 +453,10 @@ class ManualReductionWindow(QMainWindow):
         # get (sub) run numbers
         sub_runs_str = str(self.ui.lineEdit_runNumbersList.text()).strip().lower()
         if sub_runs_str == 'all':
-            sub_run_list = list()
+            # sub_run_list = list()
         else:
             try:
-                sub_run_list = gui_helper.parse_integers(sub_runs_str)
+                # sub_run_list = gui_helper.parse_integers(sub_runs_str)
             except RuntimeError as run_err:
                 gui_helper.pop_message(self, 'Failed to parse integer list',
                                        '{}'.format(run_err), 'error')
@@ -466,9 +464,10 @@ class ManualReductionWindow(QMainWindow):
         # Reduce data
         nexus_file = str(self.ui.lineEdit_runNumber.text().strip())
         project_file = str(self.ui.lineEdit_outputDir.text().strip())
-        idf_name = str(self.ui.lineEdit_idfName.text().strip())
-        calibration_file = str(self.ui.lineEdit_calibratonFile.text().strip())
-        task = BlockingAsyncTaskWithCallback(reduce_h2bc, args=(nexus_file, project_file, self.ui.progressBar), blocking_cb=QApplication.processEvents)
+        # idf_name = str(self.ui.lineEdit_idfName.text().strip())
+        # calibration_file = str(self.ui.lineEdit_calibratonFile.text().strip())
+        task = BlockingAsyncTaskWithCallback(reduce_h2bc, args=(nexus_file, project_file, self.ui.progressBar),
+                                             blocking_cb=QApplication.processEvents)
         task.start()
         # Update table
         for sub_run in list():
@@ -492,18 +491,18 @@ class ManualReductionWindow(QMainWindow):
         set IPTS number
         :return:
         """
-        #try:
+        # try:
         #    ipts_number = gui_helper.parse_integer(str(self.ui.lineEdit_iptsNumber.text()))
         #    exp_number = gui_helper.parse_integer(str(self.ui.lineEdit_expNumber.text()))
         #    self._currIPTSNumber = ipts_number
         #    self._currExpNumber = exp_number
         #    project_file_name = 'blabla.hdf5'
-        #except RuntimeError:
+        # except RuntimeError:
         #    gui_helper.pop_message(self, 'IPTS number shall be set to an integer.', message_type='error')
         project_file_name = gui_helper.browse_file(
             self, 'Hidra Project File', os.getcwd(), 'hdf5 (*.h5)', False, False)
         self.ui.lineEdit_runNumber.setText(project_file_name)
-        #self.load_hydra_file(project_file_name)
+        # self.load_hydra_file(project_file_name)
 
         return
 
