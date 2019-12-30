@@ -7,7 +7,6 @@ from mantid.kernel import FloatPropertyWithValue, FloatTimeSeriesProperty, Int32
     Int64TimeSeriesProperty, logger, Logger
 from mantid.simpleapi import mtd, ConvertToMatrixWorkspace, DeleteWorkspace, FilterByLogValue, \
     FilterByTime, LoadEventNexus, LoadMask, MaskDetectors
-from mantid.api import AnalysisDataService as mtd
 import numpy
 import os
 from pyrs.core import workspaces

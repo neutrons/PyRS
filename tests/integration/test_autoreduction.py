@@ -4,7 +4,6 @@ from pyrs.core.powder_pattern import ReductionApp
 from pyrs.dataobjects import HidraConstants
 from matplotlib import pyplot as plt
 import pytest
-import numpy as np
 
 
 def checkFileExists(filename, feedback):
