@@ -182,8 +182,9 @@ def test_apply_mantid_mask():
     print('[DEBUG...] No mask 2theta range: {}, {}'.format(no_mask_data_set[0].min(), no_mask_data_set[0].max()))
     print('[DEBUG...] Masked  2theta range: {}, {}'.format(masked_data_set[0].min(), masked_data_set[0].max()))
 
-    assert np.allclose(no_mask_data_set[0], masked_data_set[0])
-    assert 1 == 2
+    # verify the masked reduced data shall have smaller or at least equal range of 2theta
+    assert no_mask_data_set[0].min() <= masked_data_set[0].min()
+    assert no_mask_data_set[0].max() >= masked_data_set[0].max()
 
 
 if __name__ == '__main__':

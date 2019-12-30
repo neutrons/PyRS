@@ -254,23 +254,18 @@ class NeXusConvertingApp(object):
 
             # check zero spectrum
             counts_vec = ws.extractY()
-            print('[DB...BAT] {}: # of zero counts detector before masking = {}'
-                  ''.format(self._event_ws_name, numpy.where(counts_vec < 0.5)[0].shape))
+            num_zero = numpy.where(counts_vec < 0.5)[0].shape[0]
 
             LoadMask(Instrument='nrsf2', InputFile=self._mask_file_name, RefWorkspace=self._event_ws_name,
                      OutputWorkspace=mask_ws_name)
-            mask_ws = mtd[mask_ws_name]
-            counts_vec = mask_ws.extractY()
-            print('[DB...BAT] {}: # masked spectra = {}'
-                  ''.format(mask_ws_name, numpy.where(counts_vec < 0.5)[0].shape))
 
             # Mask detectors and set all the events in mask to zero
             MaskDetectors(Workspace=self._event_ws_name, MaskedWorkspace=mask_ws_name)
 
             ws = mtd[self._event_ws_name]
             counts_vec = ws.extractY()
-            print('[DB...BAT] {}: # of zero counts detector being masked = {}'
-                  ''.format(self._event_ws_name, numpy.where(counts_vec < 0.5)[0].shape))
+            print('[INFO] {}: number of extra masked spectra = {}'
+                  ''.format(self._event_ws_name, numpy.where(counts_vec < 0.5)[0].shape[0] - num_zero))
 
         # get the start time from the run object
         self._starttime = numpy.datetime64(mtd[self._event_ws_name].run()['start_time'].value)
