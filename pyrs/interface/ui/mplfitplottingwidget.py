@@ -39,6 +39,8 @@ class MplFitPlottingWidget(QWidget):
         self._curr_color_index = 0
         self._curr_x_label = None
 
+        self.list_peak_ranges = []
+        self._working_with_range_index = -1
         self._button_pressed =False
         self._myCanvas.mpl_connect('button_press_event', self.button_clicked)
         self._myCanvas.mpl_connect('button_release_event', self.button_released)
@@ -46,19 +48,43 @@ class MplFitPlottingWidget(QWidget):
 
     def button_clicked(self, event):
         self._button_pressed = True
-        print("button pressed here!")
-        _x = event.x
-        _y = event.y
-        _xdata = event.xdata
-        _ydata = event.ydata
+        self._add_initial_point(x=event.xdata)
 
     def button_released(self, event):
         self._button_pressed = False
-        print("button released")
+        self._validate_second_point(x=event.xdata)
 
     def mouse_moved(self, event):
         if self._button_pressed:
-            print("mouse moved")
+            self._change_second_point(x=event.xdata)
+
+    def _add_initial_point(self, x=np.NaN):
+        if not self.list_peak_ranges:
+            self.list_peak_ranges = [[x, np.NaN]]
+        else:
+            _was_part_of_one_range = False
+            for _index, _range in enumerate(self.list_peak_ranges):
+                if (x >= np.min(_range)) and (x <= np.max(_range)):
+                    self.list_peak_ranges[_index] = [x, np.NaN]
+                    _was_part_of_one_range = True
+                    self._working_with_range_index = _index
+                    break
+
+            if _was_part_of_one_range is False:
+                self.list_peak_ranges.append([x, np.NaN])
+                self._working_with_range_index = -1
+
+    def _validate_second_point(self, x=np.NaN):
+        _working_range = self.list_peak_ranges[self._working_with_range_index]
+        if _working_range[0] == x:  # remove this range
+            self.list_peak_ranges.remove([_working_range[0], np.NaN])
+        else:
+            _working_range = [_working_range[0], x]
+            self.list_peak_ranges[self._working_with_range_index] = _working_range
+
+    def _change_second_point(self, x=np.NaN):
+        _working_range = self.list_peak_ranges[self._working_with_range_index]
+        self.list_peak_ranges[self._working_with_range_index] = [_working_range[0], x]
 
     def _get_next_color(self):
         """
