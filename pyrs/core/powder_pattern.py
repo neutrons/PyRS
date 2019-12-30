@@ -74,6 +74,23 @@ class ReductionApp(object):
 
         return
 
+    def get_diffraction_data(self, sub_run):
+        """Get 2theta diffraction data
+
+        Parameters
+        ----------
+        sub_run : int
+            sub run number
+
+        Returns
+        -------
+        ~numpy.ndarray, ~numpy.ndarray
+
+        """
+        vec_x, vec_y = self._reduction_manager.get_reduced_diffraction_data(self._session, sub_run)
+
+        return vec_x, vec_y
+
     def load_project_file(self, data_file):
         # init session
         self._reduction_manager.init_session(self._session)
@@ -110,7 +127,8 @@ class ReductionApp(object):
             sub run numbers to reduce
         instrument_file
         calibration_file
-        mask
+        mask : str
+            Mask name.  None for no mask
         van_file : str or None
             HiDRA project file containing vanadium counts or event NeXus file
         num_bins : int
@@ -143,10 +161,6 @@ class ReductionApp(object):
                     calibration_file_io.import_calibration_ascii_file(geometry_file_name=calibration_file)
         # END-IF
 
-        # mask
-        if mask is not None:
-            raise NotImplementedError('It has not been decided how to parse mask to auto reduction script')
-
         # Vanadium
         if van_file is not None:
             # vanadium file is given
@@ -161,7 +175,7 @@ class ReductionApp(object):
                                                         apply_calibrated_geometry=geometry_calibration,
                                                         num_bins=num_bins,
                                                         use_pyrs_engine=not self._use_mantid_engine,
-                                                        mask=None,
+                                                        mask=mask,
                                                         sub_run_list=sub_runs,
                                                         vanadium_counts=van_array)
 

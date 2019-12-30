@@ -6,7 +6,7 @@ import bisect
 from mantid.kernel import FloatPropertyWithValue, FloatTimeSeriesProperty, Int32TimeSeriesProperty, \
     Int64TimeSeriesProperty, logger, Logger
 from mantid.simpleapi import mtd, ConvertToMatrixWorkspace, DeleteWorkspace, FilterByLogValue, \
-    FilterByTime, LoadEventNexus
+    FilterByTime, LoadEventNexus, LoadMask, MaskDetectors
 import numpy
 import os
 from pyrs.core import workspaces
@@ -20,16 +20,33 @@ class NeXusConvertingApp(object):
     """
     Convert NeXus file to Hidra project file
     """
-    def __init__(self, nexus_file_name):
-        """ Initialization
-        :param nexus_file_name:
+    def __init__(self, nexus_file_name, mask_file_name):
+        """Initialization
+
+        Parameters
+        ----------
+        nexus_file_name : str
+            Name of NeXus file
+        mask_file_name : str
+            Name of masking file
         """
         # configure logging for this class
         self._log = Logger(__name__)
 
+        # NeXus name
         checkdatatypes.check_file_name(nexus_file_name, True, False, False, 'NeXus file')
-
         self._nexus_name = nexus_file_name
+
+        # Mask
+        if mask_file_name is None:
+            self._mask_file_name = None
+        else:
+            checkdatatypes.check_file_name(mask_file_name, True, False, False, 'Mask file')
+            self._mask_file_name = mask_file_name
+            if not mask_file_name.lower().endswith('.xml'):
+                raise NotImplementedError('Only Mantid mask in XML format is supported now.  File '
+                                          '{} with type {} is not supported yet.'
+                                          ''.format(mask_file_name, mask_file_name.split('.')[-1]))
 
         # workspaces
         self._event_ws_name = os.path.basename(nexus_file_name).split('.')[0]
@@ -67,7 +84,7 @@ class NeXusConvertingApp(object):
 
         """
         # Load data file, split to sub runs and sample logs
-        self._load_event_nexus()
+        self._load_mask_event_nexus()
         self._determine_start_time()
         self._sub_run_workspace_dict = self._split_sub_runs()
 
@@ -219,9 +236,36 @@ class NeXusConvertingApp(object):
             else:
                 raise RuntimeError('Cannot convert "{}" to a single value'.format(name))
 
-    def _load_event_nexus(self):
-        '''Loads the event file using instance variables'''
-        LoadEventNexus(Filename=self._nexus_name, OutputWorkspace=self._event_ws_name)
+    def _load_mask_event_nexus(self):
+        """Loads the event file using instance variables
+        If mask file is not None, then also mask the EventWorkspace
+
+        Returns
+        -------
+
+        """
+        # Load
+        ws = LoadEventNexus(Filename=self._nexus_name, OutputWorkspace=self._event_ws_name)
+        # Mask
+        if self._mask_file_name is not None:
+            # Load mask with reference to event workspace just created
+            mask_ws_name = os.path.basename(self._mask_file_name).split('.')[0] + '_mask'
+
+            # check zero spectrum
+            counts_vec = ws.extractY()
+            num_zero = numpy.where(counts_vec < 0.5)[0].shape[0]
+
+            LoadMask(Instrument='nrsf2', InputFile=self._mask_file_name, RefWorkspace=self._event_ws_name,
+                     OutputWorkspace=mask_ws_name)
+
+            # Mask detectors and set all the events in mask to zero
+            MaskDetectors(Workspace=self._event_ws_name, MaskedWorkspace=mask_ws_name)
+
+            ws = mtd[self._event_ws_name]
+            counts_vec = ws.extractY()
+            print('[INFO] {}: number of extra masked spectra = {}'
+                  ''.format(self._event_ws_name, numpy.where(counts_vec < 0.5)[0].shape[0] - num_zero))
+
         # get the start time from the run object
         self._starttime = numpy.datetime64(mtd[self._event_ws_name].run()['start_time'].value)
 
