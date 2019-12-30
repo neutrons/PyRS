@@ -41,16 +41,18 @@ class MplFitPlottingWidget(QWidget):
 
         self.list_peak_ranges = []
         self._working_with_range_index = -1
-        self._button_pressed =False
+        self._button_pressed = False
+        self._left_line = None
+        self._right_line = None
         self._myCanvas.mpl_connect('button_press_event', self.button_clicked)
         self._myCanvas.mpl_connect('button_release_event', self.button_released)
         self._myCanvas.mpl_connect('motion_notify_event', self.mouse_moved)
 
     def any_toolbar_button_clicked(self):
-        if (self._myToolBar.NAVIGATION_MODE_ZOOM == self._myToolBar._myMode):
+        if self._myToolBar.NAVIGATION_MODE_ZOOM == self._myToolBar._myMode:
             return True
 
-        if (self._myToolBar.NAVIGATION_MODE_PAN == self._myToolBar._myMode):
+        if self._myToolBar.NAVIGATION_MODE_PAN == self._myToolBar._myMode:
             return True
 
         return False
@@ -220,19 +222,27 @@ class MplFitPlottingWidget(QWidget):
         self._data_line_list.append(data_line_id)
 
     def plot_data_with_fitting_ranges(self):
-        pass
-        # color = self._color
-        # data_set = self._data_set
-        # line_label = self._line_label
-        #
-        # data_line_id = self._myCanvas.add_plot_upper_axis(data_set, line_color=color, label=line_label)
-        # for _range in self.list_peak_ranges:
-        #     x_left = np.min(_range)
-        #     x_right = np.max(_range)
-        #     self._myCanvas._data_subplot.axvline(x_left, color='r', linestyle='--')
-        #     self._myCanvas._data_subplot.axvline(x_right, color='r', linestyle='--')
-        #
-        # self._myCanvas.draw()
+        self.clear_canvas()
+        if self._left_line:
+            self._left_line.remove()
+            self._left_line = None
+
+        if self._right_line:
+            self._right_line.remove()
+            self._right_line = None
+
+        color = self._color
+        data_set = self._data_set
+        line_label = self._line_label
+
+        self._myCanvas.add_plot_upper_axis(data_set, line_color=color, label=line_label)
+        for _range in self.list_peak_ranges:
+            x_left = np.min(_range)
+            x_right = np.max(_range)
+            self._left_line = self._myCanvas._data_subplot.axvline(x_left, color='r', linestyle='--')
+            self._right_line = self._myCanvas._data_subplot.axvline(x_right, color='r', linestyle='--')
+
+        self._myCanvas.draw()
 
     def plot_data_model(self, data_set, data_label, model_set, model_label, residual_set):
         """
@@ -466,7 +476,6 @@ class QtMplFitCanvas(FigureCanvas):
             self._data_subplot.lines.remove(line_handler)
             del self._data_plot_dict[line_index]
 
-        return
 
     def remove_residual_line(self):
         """
@@ -481,8 +490,6 @@ class QtMplFitCanvas(FigureCanvas):
         self._residual_subplot.lines.remove(line_handler)
         self._residual_dict = dict()
 
-        return
-
     def reset_plot(self):
         """
         remove all the lines plot on subplots currently
@@ -490,8 +497,6 @@ class QtMplFitCanvas(FigureCanvas):
         """
         self.remove_data_lines()
         self.remove_residual_line()
-
-        return
 
     def set_x_range(self, x_min, x_max, is_residual):
         """

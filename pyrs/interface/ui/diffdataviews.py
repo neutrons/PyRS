@@ -257,7 +257,7 @@ class PeakFitSetupView(MplFitPlottingWidget):
         vec_x = diff_data_set[0]
         vec_y = diff_data_set[1]
 
-        ref_id = self.plot_data(data_set=(vec_x, vec_y), color='black', line_label=data_reference)
+        ref_id = self.plot_data(data_set=(vec_x, vec_y), color='blue', line_label=data_reference)
 
         self._diff_reference_list.append(ref_id)
         self._last_diff_reference = ref_id
