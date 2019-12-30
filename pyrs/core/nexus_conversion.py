@@ -7,6 +7,7 @@ from mantid.kernel import FloatPropertyWithValue, FloatTimeSeriesProperty, Int32
     Int64TimeSeriesProperty, logger, Logger
 from mantid.simpleapi import mtd, ConvertToMatrixWorkspace, DeleteWorkspace, FilterByLogValue, \
     FilterByTime, LoadEventNexus, LoadMask, MaskDetectors
+from mantid.api import AnalysisDataService as mtd
 import numpy
 import os
 from pyrs.core import workspaces
@@ -245,15 +246,31 @@ class NeXusConvertingApp(object):
 
         """
         # Load
-        LoadEventNexus(Filename=self._nexus_name, OutputWorkspace=self._event_ws_name)
+        ws = LoadEventNexus(Filename=self._nexus_name, OutputWorkspace=self._event_ws_name)
         # Mask
         if self._mask_file_name is not None:
             # Load mask with reference to event workspace just created
             mask_ws_name = os.path.basename(self._mask_file_name).split('.')[0] + '_mask'
+
+            # check zero spectrum
+            counts_vec = ws.extractY()
+            print('[DB...BAT] {}: # of zero counts detector before masking = {}'
+                  ''.format(self._event_ws_name, numpy.where(counts_vec < 0.5)[0]))
+
             LoadMask(Instrument='nrsf2', InputFile=self._mask_file_name, RefWorkspace=self._event_ws_name,
                      OutputWorkspace=mask_ws_name)
+            mask_ws = mtd[mask_ws_name]
+            counts_vec = mask_ws.extractY()
+            print('[DB...BAT] {}: # masked spectra = {}'
+                  ''.format(mask_ws_name, numpy.where(counts_vec < 0.5)[0]))
+
             # Mask detectors and set all the events in mask to zero
             MaskDetectors(Workspace=self._event_ws_name, MaskedWorkspace=mask_ws_name)
+
+            ws = mtd[self._event_ws_name]
+            counts_vec = ws.extractY()
+            print('[DB...BAT] {}: # of zero counts detector being masked = {}'
+                  ''.format(self._event_ws_name, numpy.where(counts_vec < 0.5)[0]))
 
         # get the start time from the run object
         self._starttime = numpy.datetime64(mtd[self._event_ws_name].run()['start_time'].value)
