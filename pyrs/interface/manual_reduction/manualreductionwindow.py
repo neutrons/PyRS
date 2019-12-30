@@ -74,7 +74,7 @@ def _create_powder_patterns(projectfile, instrument, calibration, mask, subruns,
     reducer.save_diffraction_data(projectfile)
 
 
-def reduce_h2bc(nexus, outputdir, progressbar, instrument=None, calibration=None, mask=None, subruns=list()):
+def reduce_h2bc(nexus, outputdir, progressbar, subruns, instrument=None, calibration=None, mask=None):
 
     project = os.path.basename(nexus).split('.')[0] + '.h5'
     project = os.path.join(outputdir, project)
@@ -453,10 +453,10 @@ class ManualReductionWindow(QMainWindow):
         # get (sub) run numbers
         sub_runs_str = str(self.ui.lineEdit_runNumbersList.text()).strip().lower()
         if sub_runs_str == 'all':
-            # sub_run_list = list()
+            sub_run_list = list()
         else:
             try:
-                # sub_run_list = gui_helper.parse_integers(sub_runs_str)
+                sub_run_list = gui_helper.parse_integers(sub_runs_str)
             except RuntimeError as run_err:
                 gui_helper.pop_message(self, 'Failed to parse integer list',
                                        '{}'.format(run_err), 'error')
@@ -466,7 +466,8 @@ class ManualReductionWindow(QMainWindow):
         project_file = str(self.ui.lineEdit_outputDir.text().strip())
         # idf_name = str(self.ui.lineEdit_idfName.text().strip())
         # calibration_file = str(self.ui.lineEdit_calibratonFile.text().strip())
-        task = BlockingAsyncTaskWithCallback(reduce_h2bc, args=(nexus_file, project_file, self.ui.progressBar),
+        task = BlockingAsyncTaskWithCallback(reduce_h2bc, args=(nexus_file, project_file, self.ui.progressBar,
+                                                                sub_run_list),
                                              blocking_cb=QApplication.processEvents)
         task.start()
         # Update table
