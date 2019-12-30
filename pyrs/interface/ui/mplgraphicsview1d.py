@@ -1501,8 +1501,6 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
 
         return
 
-# END-OF-CLASS (MplGraphicsView)
-
 
 class MyNavigationToolbar(NavigationToolbar2):
     """ A customized navigation tool bar attached to canvas
@@ -1540,8 +1538,6 @@ class MyNavigationToolbar(NavigationToolbar2):
         self.home_button_pressed.connect(self._myParent.evt_toolbar_home)
         self.canvas_zoom_released.connect(self._myParent.evt_zoom_released)
 
-        return
-
     @property
     def is_zoom_mode(self):
         """
@@ -1568,8 +1564,6 @@ class MyNavigationToolbar(NavigationToolbar2):
 
         self._myParent.evt_view_updated()
 
-        return
-
     def home(self, *args):
         """
 
@@ -1587,8 +1581,6 @@ class MyNavigationToolbar(NavigationToolbar2):
         # send a signal to parent class for further operation
         self.home_button_pressed.emit()
 
-        return
-
     def pan(self, *args):
         """
 
@@ -1603,10 +1595,6 @@ class MyNavigationToolbar(NavigationToolbar2):
         else:
             # into pan mode
             self._myMode = MyNavigationToolbar.NAVIGATION_MODE_PAN
-
-        print('PANNED')
-
-        return
 
     def zoom(self, *args):
         """ Override zoom method from NavigationToolbar2

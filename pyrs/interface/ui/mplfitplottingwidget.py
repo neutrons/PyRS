@@ -46,11 +46,26 @@ class MplFitPlottingWidget(QWidget):
         self._myCanvas.mpl_connect('button_release_event', self.button_released)
         self._myCanvas.mpl_connect('motion_notify_event', self.mouse_moved)
 
+    def any_toolbar_button_clicked(self):
+        if (self._myToolBar.NAVIGATION_MODE_ZOOM == self._myToolBar._myMode):
+            return True
+
+        if (self._myToolBar.NAVIGATION_MODE_PAN == self._myToolBar._myMode):
+            return True
+
+        return False
+
     def button_clicked(self, event):
+        if (self.any_toolbar_button_clicked()):
+            return
+
         self._button_pressed = True
         self._add_initial_point(x=event.xdata)
 
     def button_released(self, event):
+        if not self._button_pressed:
+            return
+
         self._button_pressed = False
         self._validate_second_point(x=event.xdata)
 
@@ -74,6 +89,8 @@ class MplFitPlottingWidget(QWidget):
                 self.list_peak_ranges.append([x, np.NaN])
                 self._working_with_range_index = -1
 
+        self.plot_data_with_fitting_ranges()
+
     def _validate_second_point(self, x=np.NaN):
         _working_range = self.list_peak_ranges[self._working_with_range_index]
         if _working_range[0] == x:  # remove this range
@@ -81,10 +98,12 @@ class MplFitPlottingWidget(QWidget):
         else:
             _working_range = [_working_range[0], x]
             self.list_peak_ranges[self._working_with_range_index] = _working_range
+        self.plot_data_with_fitting_ranges()
 
     def _change_second_point(self, x=np.NaN):
         _working_range = self.list_peak_ranges[self._working_with_range_index]
         self.list_peak_ranges[self._working_with_range_index] = [_working_range[0], x]
+        self.plot_data_with_fitting_ranges()
 
     def _get_next_color(self):
         """
@@ -175,9 +194,6 @@ class MplFitPlottingWidget(QWidget):
                 # upper_y_range = self._myCanvas.get_curr_y_range(False)
                 self._myCanvas.set_x_range(upper_x_range[0], upper_x_range[1], is_residual=True)
                 # self._myCanvas.set_y_range(upper_y_range[0], upper_y_range[1], is_residual=True)
-        # END-IF-ELSE
-
-        return
 
     def get_x_limit(self):
         """
@@ -196,10 +212,27 @@ class MplFitPlottingWidget(QWidget):
         if color is None:
             color = self._get_next_color()
 
+        self._color = color
+        self._data_set = data_set
+        self._line_label = line_label
+
         data_line_id = self._myCanvas.add_plot_upper_axis(data_set, line_color=color, label=line_label)
         self._data_line_list.append(data_line_id)
 
-        return
+    def plot_data_with_fitting_ranges(self):
+        pass
+        # color = self._color
+        # data_set = self._data_set
+        # line_label = self._line_label
+        #
+        # data_line_id = self._myCanvas.add_plot_upper_axis(data_set, line_color=color, label=line_label)
+        # for _range in self.list_peak_ranges:
+        #     x_left = np.min(_range)
+        #     x_right = np.max(_range)
+        #     self._myCanvas._data_subplot.axvline(x_left, color='r', linestyle='--')
+        #     self._myCanvas._data_subplot.axvline(x_right, color='r', linestyle='--')
+        #
+        # self._myCanvas.draw()
 
     def plot_data_model(self, data_set, data_label, model_set, model_label, residual_set):
         """
@@ -227,16 +260,12 @@ class MplFitPlottingWidget(QWidget):
         diff_line_id = self._myCanvas.add_plot_lower_axis(residual_set)
         self._residual_line = diff_line_id
 
-        return
-
     def reset_color(self):
         """
         reset the auto color index
         :return:
         """
         self._curr_color_index = 0
-
-        return
 
     def set_x_label(self, new_x_label):
         """
@@ -251,8 +280,6 @@ class MplFitPlottingWidget(QWidget):
             # set
             self._myCanvas.set_x_label(new_x_label)
             self._curr_x_label = new_x_label
-
-        return
 
 
 # TEST - 20181124 - Make split diffraction view work!
@@ -438,7 +465,6 @@ class QtMplFitCanvas(FigureCanvas):
             line_handler = self._data_plot_dict[line_index]
             self._data_subplot.lines.remove(line_handler)
             del self._data_plot_dict[line_index]
-        # END-FOR
 
         return
 
