@@ -41,7 +41,7 @@ def main(argv):
     calib_controller.load_hidra_project(param_dict['inputfile'], project_name=project_name)
 
     # Reduce data
-    calib_controller.reduce_diffraction_data(project_name, two_theta_step=args_def_dict['binsize'],
+    calib_controller.reduce_diffraction_data(project_name, num_bins=args_def_dict['binsize'],
                                              pyrs_engine=True)
 
     # Export reduction data

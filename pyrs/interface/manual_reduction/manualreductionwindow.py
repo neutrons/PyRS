@@ -468,7 +468,6 @@ class ManualReductionWindow(QMainWindow):
         project_file = str(self.ui.lineEdit_outputDir.text().strip())
         idf_name = str(self.ui.lineEdit_idfName.text().strip())
         calibration_file = str(self.ui.lineEdit_calibratonFile.text().strip())
-
         task = BlockingAsyncTaskWithCallback(reduce_h2bc, args=(nexus_file, project_file, self.ui.progressBar), blocking_cb=QApplication.processEvents)
         task.start()
         # Update table
@@ -708,7 +707,7 @@ class ManualReductionWindow(QMainWindow):
         # TODO - #84 - Need mask, calibration, and etc.
 
         self._core.reduce_diffraction_data(session_name=self._project_data_id,
-                                           two_theta_step=0.1,
+                                           num_bins=1000,
                                            pyrs_engine=True,
                                            mask_file_name=None,
                                            geometry_calibration=None,

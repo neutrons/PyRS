@@ -62,9 +62,6 @@ class WorkspacesView(QMainWindow):
         # self.retranslateUi(self)
         QtCore.QMetaObject.connectSlotsByName(self)
 
-        return
-# END-CLASS
-
 
 class PyRSLauncher(QMainWindow):
     """
@@ -101,8 +98,6 @@ class PyRSLauncher(QMainWindow):
         self.calibration_window = None
         self.debugger = None   # IPython window
 
-        return
-
     @property
     def core(self):
         """
@@ -136,8 +131,6 @@ class PyRSLauncher(QMainWindow):
 
         self.debugger.show()
 
-        return
-
     def do_launch_fit_peak_window(self):
         """
         launch peak fit window
@@ -148,15 +141,12 @@ class PyRSLauncher(QMainWindow):
 
         # set up interface object
         if self.peak_fit_window is None:
-            self.peak_fit_window = fitpeakswindow.FitPeaksWindow(self)
-            self.peak_fit_window.setup_window(fit_peak_core)
+            self.peak_fit_window = fitpeakswindow.FitPeaksWindow(self, fit_peak_core=fit_peak_core)
         self.peak_fit_window.show()
 
         # # optionally close the main window
         # if self.ui.checkBox_keepWindowOpen.isChecked() is False:
         #     self.hide()
-
-        return
 
     def do_launch_strain_stress_window(self):
         """
@@ -175,8 +165,6 @@ class PyRSLauncher(QMainWindow):
         # optionally close the main window
         # if self.ui.checkBox_keepWindowOpen.isChecked() is False:
         #     self.close()
-
-        return
 
     def do_launch_texture_window(self):
         """
@@ -218,8 +206,6 @@ class PyRSLauncher(QMainWindow):
         # if self.ui.checkBox_keepWindowOpen.isChecked() is False:
         #     self.close()
 
-        return
-
     def do_quit(self):
         """
         close window
@@ -242,5 +228,3 @@ class PyRSLauncher(QMainWindow):
             self.instrument_calibration_window.close()
 
         self.close()
-
-        return

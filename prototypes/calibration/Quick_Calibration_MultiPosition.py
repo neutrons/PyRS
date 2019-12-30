@@ -94,7 +94,7 @@ def get_alignment_residual(x, engine, hb2b_setup, two_theta, roi_vec_set):
         mintth  = DetectorAngle-8.0
         maxtth  = DetectorAngle+8.8
 
-        Eta_val = pyrs_reducer.get_eta_Values()
+        Eta_val = pyrs_reducer.get_eta_value()
         maxEta  = np.max( Eta_val )-2
         minEta  = np.min( Eta_val )+2
 

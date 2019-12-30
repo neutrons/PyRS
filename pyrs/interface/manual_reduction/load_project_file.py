@@ -10,10 +10,17 @@ class LoadProjectFile:
         self.parent = parent
 
     def load_hydra_file(self, project_file_name):
-        """
-        Load Hidra project file to the core
-        :param project_file_name:
-        :return:
+        """Load Hidra project file to the core
+
+        Parameters
+        ----------
+        project_file_name
+
+        Returns
+        -------
+        str
+            project ID to refer
+
         """
         # Load data file
         project_name = os.path.basename(project_file_name).split('.')[0]
@@ -22,11 +29,24 @@ class LoadProjectFile:
                                                                                 project_name=project_name,
                                                                                 load_detector_counts=True,
                                                                                 load_diffraction=True)
-        except (RuntimeError, IOError) as load_err:
+        except (KeyError, RuntimeError, IOError) as load_err:
             self.parent._hydra_workspace = None
-            pop_message(self.parent, 'Loading {} failed'.format(project_file_name),
+            pop_message(self.parent, 'Loading {} failed.\nTry to load diffraction only!'.format(project_file_name),
                         detailed_message='{}'.format(load_err),
                         message_type='error')
+
+            # Load
+            try:
+                self.parent._hydra_workspace = self.parent._core.load_hidra_project(project_file_name,
+                                                                                    project_name=project_name,
+                                                                                    load_detector_counts=False,
+                                                                                    load_diffraction=True)
+            except (KeyError, RuntimeError, IOError) as load_err:
+                self.parent._hydra_workspace = None
+                pop_message(self.parent, 'Loading {} failed.\nNothing is loaded'.format(project_file_name),
+                            detailed_message='{}'.format(load_err),
+                            message_type='error')
+
             return
 
         # Set value for the loaded project
@@ -40,7 +60,9 @@ class LoadProjectFile:
         self.parent.ui.comboBox_sub_runs.setCurrentIndex(0)
 
         # Fill in self.ui.frame_subRunInfoTable
-        meta_data_array = self.parent._core.reduction_manager.get_sample_logs_values(self.parent._project_data_id,
+        meta_data_array = self.parent._core.reduction_service.get_sample_logs_values(self.parent._project_data_id,
                                                                                      [HidraConstants.SUB_RUNS,
                                                                                       HidraConstants.TWO_THETA])
         self.parent.ui.rawDataTable.add_subruns_info(meta_data_array, clear_table=True)
+
+        return self.parent._project_data_id

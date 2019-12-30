@@ -182,8 +182,10 @@ class MplGraphicsView1D(QWidget):
 
         return
 
-    def add_plot(self, vec_x, vec_y, y_err=None, row_index=0, col_index=0, is_right=False, color=None, label='',
-                 x_label=None, y_label=None, marker=None, line_style=None, line_width=1, show_legend=True):
+    def add_plot(self, vec_x, vec_y, y_err=None, row_index=0, col_index=0, is_right=False,
+                 color=None, label='',
+                 x_label=None, y_label=None, marker=None, markersize=2, line_style=None,
+                 line_width=1, show_legend=True):
         """Add a plot in 1D
         :param row_index:
         :param col_index:
@@ -211,7 +213,8 @@ class MplGraphicsView1D(QWidget):
             line_key = self._myCanvas.add_right_plot(row_index=row_index, col_index=col_index,
                                                      x=vec_x, y=vec_y, y_label=y_label,
                                                      color=color, label=label, marker=marker,
-                                                     line_style=line_style, linewidth=line_width)
+                                                     line_style=line_style, linewidth=line_width,
+                                                     markersize=markersize)
             # initialize right axes
             if (row_index, col_index) not in self._myRightPlotDict:
                 self._myRightPlotDict[row_index, col_index] = dict()
@@ -220,7 +223,8 @@ class MplGraphicsView1D(QWidget):
             # plot at the main axis
             line_key = self._myCanvas.add_main_plot(row_index, col_index, vec_x, vec_y, y_err, color, label, x_label,
                                                     y_label, marker, line_style,
-                                                    line_width, show_legend)
+                                                    line_width, show_legend,
+                                                    markersize=markersize)
             # record min/max
             # self._statMainPlotDict[line_key] = min(vec_x), max(vec_x), min(vec_y), max(vec_y)
         # END-IF
@@ -772,7 +776,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
 
     def add_main_plot(self, row_index, col_index, vec_x, vec_y, y_err=None, color=None, label='',
                       x_label=None, y_label=None,
-                      marker=None, line_style=None, line_width=1, show_legend=True):
+                      marker=None, line_style=None, line_width=1, show_legend=True, markersize=4,):
         """Add 1D plot on the main side (left)
         :param row_index: numpy array X
         :param col_index: numpy array Y
@@ -826,17 +830,23 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         if plot_error is False:
             # return: list of matplotlib.lines.Line2D object
             r = self.axes_main[row_index, col_index].plot(vec_x, vec_y, color=color,
-                                                          marker=marker, markersize=4,
+                                                          marker=marker, markersize=markersize,
                                                           linestyle=line_style, label=label,
                                                           linewidth=line_width)
+            self.axes_main[row_index, col_index].autoscale()
+
         else:
-            r = self.self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
-                                                                   yerr=y_err, color=color, marker=marker,
-                                                                   linestyle=line_style, label=label,
-                                                                   linewidth=line_width)
+            r = self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
+                                                              yerr=y_err, color=color, marker=marker,
+                                                              linestyle=line_style, label=label,
+                                                              linewidth=line_width)
 
         # set aspect ratio
         self.axes_main[row_index, col_index].set_aspect('auto')
+        delta_x = vec_x[1] - vec_x[0]
+        x_left = vec_x[0] - delta_x
+        x_right = vec_x[-1] + delta_x
+        self.axes_main[row_index, col_index].set_xlim(x_left, x_right)
 
         # set/update legend
         if show_legend:
@@ -858,7 +868,8 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
 
         return line_key
 
-    def add_right_plot(self, row_index, col_index, x, y, color=None, label="", x_label=None, y_label=None,
+    def add_right_plot(self, row_index, col_index, x, y, markersize=4, color=None,
+                       label="", x_label=None, y_label=None,
                        marker=None, line_style=None, linewidth=1):
         """
         add a 1-D line at the right axis
@@ -903,7 +914,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
             color = 'red'
 
         # return: list of matplotlib.lines.Line2D object
-        plot_info = self.axes_right[row_index, col_index].plot(x, y, color=color, marker=marker, markersize=4,
+        plot_info = self.axes_right[row_index, col_index].plot(x, y, color=color, marker=marker, markersize=markersize,
                                                                label=label,
                                                                linestyle=line_style, linewidth=linewidth)
         #

@@ -1,12 +1,13 @@
 """
 Test for reading and writing components to HiDRA project file
 """
-from pyrs.utilities.rs_project_file import HidraConstants, HidraProjectFile, HidraProjectFileMode
+from pyrs.dataobjects import HidraConstants
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 import os
 import numpy as np
 import datetime
 from pyrs.core import peak_profile_utility
-from pyrs.core.peak_collection import PeakCollection
+from pyrs.peaks import PeakCollection
 import pytest
 
 
@@ -192,20 +193,20 @@ def test_peak_fitting_result_io():
     peak_info = verify_project_file.read_peak_parameters('test fake')
 
     # peak profile
-    assert peak_info[0] == 'PseudoVoigt'
-    assert peak_info[1] == 'Linear'
+    assert peak_info.peak_profile == 'PseudoVoigt'
+    assert peak_info.background_type == 'Linear'
 
     # sub runs
-    assert np.allclose(peak_info[2], np.array([1, 2, 3]))
+    assert np.allclose(peak_info.sub_runs, np.array([1, 2, 3]))
 
     # parameter values
     # print('DEBUG:\n  Expected: {}\n  Found: {}'.format(test_params_array, peak_info[3]))
-    assert_allclose_structured_numpy_arrays(test_params_array, peak_info[4])
+    assert_allclose_structured_numpy_arrays(test_params_array, peak_info.parameters_values)
     # np.testing.assert_allclose(peak_info[3], test_params_array, atol=1E-12)
 
     # parameter values
     # assert np.allclose(peak_info[4], test_error_array, 1E-12)
-    assert_allclose_structured_numpy_arrays(test_error_array, peak_info[5])
+    assert_allclose_structured_numpy_arrays(test_error_array, peak_info.parameters_errors)
 
     # Clean
     os.remove(test_file_name)

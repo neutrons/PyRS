@@ -38,7 +38,12 @@ def check_file_name(file_name, check_exist=True, check_writable=False, is_dir=Fa
         description = 'File'
 
     if check_exist and not os.path.exists(file_name):
-        raise RuntimeError('{} {} does not exist.'.format(description, file_name))
+        cur_dir = os.getcwd()
+        file_dir = os.path.dirname(file_name)
+        files = os.listdir(file_dir)
+        message = 'DEBUG: current dir: {}; file dir: {}; Files available: {}'.format(cur_dir, file_dir, files)
+        print(message)
+        raise RuntimeError('{} {} does not exist. FYI\n{}.'.format(description, file_name, message))
 
     if check_writable:
         if os.path.exists(file_name) and not os.access(file_name, os.W_OK):

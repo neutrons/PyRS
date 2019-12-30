@@ -5,12 +5,17 @@ import pytest
 import time
 import os
 import json
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 from pyrs.utilities import calibration_file_io
-from pyrs.utilities.rs_project_file import HidraProjectFile, HidraProjectFileMode
 try:
     from pyrs.calibration import peakfit_calibration
 except ImportError as e:
     peakfit_calibration = str(e)  # import failed exception explains why
+
+try:
+    from scipy.optimize import least_squares
+except ImportError as e:
+    least_squares = str(e)  # import failed exception explains why
 
 
 def are_equivalent_jsons(test_json_name, gold_json_name, atol):
@@ -101,8 +106,8 @@ def print_out_json_diff(json_file1_name, json_file2_name):
 
 
 # On analysis cluster, it will fail due to lmfit is not supported
-@pytest.mark.skipif(isinstance(peakfit_calibration, str), reason=peakfit_calibration)
-def test_main():
+@pytest.mark.skipif(isinstance(least_squares, str), reason=least_squares)
+def test_least_square():
     """Main test for the script
 
     Returns
@@ -122,9 +127,61 @@ def test_main():
     # instrument
     hb2b = calibration_file_io.import_instrument_setup(idf_name)
 
-    calibrator = peakfit_calibration.PeakFitCalibration(hb2b, engine)
+    calibrator = peakfit_calibration.PeakFitCalibration(hb2b, engine, scheme=0)
+
+    calibrator.UseLSQ = False
     calibrator.calibrate_wave_length()
     calibrator._caliberr[6] = 1e-4
+    calibrator._caliberr[0] = 1e-4
+    calibrator._calibstatus = 3
+
+    # write out
+    if os.path.exists('HB2B_CAL_Test.json'):
+        os.remove('HB2B_CAL_Test.json')
+    file_name = os.path.join(os.getcwd(), 'HB2B_CAL_Test.json')
+    calibrator.write_calibration(file_name)
+
+    t_stop = time.time()
+    print('Total Time: {}'.format(t_stop - t_start))
+
+    # Compare output file with gold file for test
+    if are_equivalent_jsons('data/HB2B_CAL_Si333.json', file_name, atol=5E-3):
+        # Same: remove file generated in test
+        os.remove(file_name)
+    else:
+        print_out_json_diff('data/HB2B_CAL_Si333.json', 'HB2B_CAL_Test.json')
+        assert False, 'Test output {} is different from gold file {}'.format(file_name, 'data/HB2B_CAL_Si333.json')
+
+    return
+
+
+@pytest.mark.skipif(isinstance(peakfit_calibration, str), reason=peakfit_calibration)
+def test_leastsq():
+    """Main test for the script
+
+    Returns
+    -------
+
+    """
+    # Set up
+    # reduction engine
+    project_file_name = 'data/HB2B_000.h5'
+    engine = HidraProjectFile(project_file_name, mode=HidraProjectFileMode.READONLY)
+
+    # instrument geometry
+    idf_name = 'data/XRay_Definition_1K.txt'
+
+    t_start = time.time()
+
+    # instrument
+    hb2b = calibration_file_io.import_instrument_setup(idf_name)
+
+    calibrator = peakfit_calibration.PeakFitCalibration(hb2b, engine, scheme=0)
+
+    calibrator.UseLSQ = True
+    calibrator.calibrate_wave_length()
+    calibrator._caliberr[6] = 1e-4
+    calibrator._caliberr[0] = 1e-4
     calibrator._calibstatus = 3
 
     # write out

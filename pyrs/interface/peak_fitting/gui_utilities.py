@@ -1,10 +1,5 @@
-LIST_AXIS_TO_PLOT = {'Sub-runs': 'subrun', 'sx': 'sx', 'sy': 'sy', 'sz': 'sz',
-                     'vx': 'vx', 'vy': 'vy', 'vz': 'vz',
-                     'phi': 'phi', 'chi': 'chi', 'omega': 'omega',
-                     'Peak Height': 'PeakHeight',
-                     'Full Width Half Max': 'FWHM', 'intensity': 'intensity',
-                     'PeakCenter': 'PeakCenter',
-                     'd-spacing': 'd-spacing'}
+from pyrs.interface.peak_fitting.config import LIST_AXIS_TO_PLOT
+from pyrs.interface.peak_fitting.config import DEFAUT_AXIS
 
 
 class GuiUtilities:
@@ -19,6 +14,12 @@ class GuiUtilities:
         self.enabled_list_widgets(list_widgets=list_widgets,
                                   enabled=enabled)
 
+    def enabled_export_csv_widgets(self, enabled=True):
+        list_widgets = [self.parent.ui.pushButton_exportCSV,
+                        ]
+        self.enabled_list_widgets(list_widgets=list_widgets,
+                                  enabled=enabled)
+
     def enabled_1dplot_widgets(self, enabled=True):
         list_widgets = [self.parent.ui.frame_1dplot,
                         self.parent.ui.graphicsView_fitResult_frame,
@@ -28,7 +29,7 @@ class GuiUtilities:
 
     def enabled_2dplot_widgets(self, enabled=True):
         list_widgets = [self.parent.ui.frame_2dplot,
-                        self.parent.ui.widget_contour_plot,
+                        self.parent.ui.graphicsView_2dPlot_frame,
                         ]
         self.enabled_list_widgets(list_widgets=list_widgets,
                                   enabled=enabled)
@@ -61,31 +62,38 @@ class GuiUtilities:
         self.enabled_list_widgets(list_widgets=list_ui_listruns,
                                   enabled=(not individual_radio_button_status))
 
-    def set_1D_2D_axis_comboboxes(self):
+    def set_1D_2D_axis_comboboxes(self, with_clear=False, fill_raw=False, fill_fit=False):
         # Set the widgets about viewer: get the sample logs and add the combo boxes for plotting
         sample_log_names = self.parent._core.reduction_service.get_sample_logs_names(self.parent._project_name,
                                                                                      can_plot=True)
+        print("** inside set_1D_2D_axis combobox")
 
         GuiUtilities.block_widgets(list_ui=[self.parent.ui.comboBox_xaxisNames,
                                             self.parent.ui.comboBox_yaxisNames,
                                             self.parent.ui.comboBox_yaxisNames_2dplot,
-                                            self.parent.ui.comboBox_xaxisNames_2dplot])
+                                            self.parent.ui.comboBox_yaxisNames_2dplot,
+                                            self.parent.ui.comboBox_zaxisNames_2dplot])
 
-        self.parent.ui.comboBox_xaxisNames.clear()
-        self.parent.ui.comboBox_yaxisNames.clear()
-        self.parent.ui.comboBox_xaxisNames_2dplot.clear()
-        self.parent.ui.comboBox_yaxisNames_2dplot.clear()
+        if with_clear:
+            self.parent.ui.comboBox_xaxisNames.clear()
+            self.parent.ui.comboBox_yaxisNames.clear()
+            self.parent.ui.comboBox_xaxisNames_2dplot.clear()
+            self.parent.ui.comboBox_yaxisNames_2dplot.clear()
 
         # Maintain a copy of sample logs!
         self.parent._sample_log_names = list(set(sample_log_names))
         self.parent._sample_log_names.sort()
 
-        for sample_log in LIST_AXIS_TO_PLOT:
-            self.parent.ui.comboBox_xaxisNames.addItem(sample_log)
-            self.parent.ui.comboBox_yaxisNames.addItem(sample_log)
-            self.parent.ui.comboBox_xaxisNames_2dplot.addItem(sample_log)
-            self.parent.ui.comboBox_yaxisNames_2dplot.addItem(sample_log)
-            self.parent._sample_log_name_set.add(sample_log)
+        if fill_raw:
+            _list_axis_to_plot = LIST_AXIS_TO_PLOT['raw']
+            print("filling raw")
+            print(_list_axis_to_plot)
+            print("------------")
+            self._update_plots_combobox_items(list_axis_to_plot=_list_axis_to_plot)
+
+        if fill_fit:
+            _list_axis_to_plot = LIST_AXIS_TO_PLOT['fit']
+            self._update_plots_combobox_items(list_axis_to_plot=_list_axis_to_plot)
 
         GuiUtilities.unblock_widgets(list_ui=[self.parent.ui.comboBox_xaxisNames,
                                               self.parent.ui.comboBox_yaxisNames])
@@ -94,13 +102,79 @@ class GuiUtilities:
         self.enabled_1dplot_widgets(enabled=True)
         self.enabled_2dplot_widgets(enabled=True)
 
+    def initialize_combobox(self):
+        self.initialize_combobox_1d()
+        self.initialize_combobox_2d()
+
+    def initialize_combobox_1d(self):
+        _index_xaxis = self.parent.ui.comboBox_xaxisNames.findText(DEFAUT_AXIS['1d']['xaxis'])
+        self.parent.ui.comboBox_xaxisNames.setCurrentIndex(_index_xaxis)
+        _index_yaxis = self.parent.ui.comboBox_xaxisNames.findText(DEFAUT_AXIS['1d']['yaxis'])
+        self.parent.ui.comboBox_yaxisNames.setCurrentIndex(_index_yaxis)
+
+    def initialize_combobox_2d(self):
+        _index_xaxis = self.parent.ui.comboBox_xaxisNames_2dplot.findText(DEFAUT_AXIS['2d']['xaxis'])
+        self.parent.ui.comboBox_xaxisNames_2dplot.setCurrentIndex(_index_xaxis)
+        _index_yaxis = self.parent.ui.comboBox_xaxisNames_2dplot.findText(DEFAUT_AXIS['2d']['yaxis'])
+        self.parent.ui.comboBox_yaxisNames_2dplot.setCurrentIndex(_index_yaxis)
+        _index_zaxis = self.parent.ui.comboBox_xaxisNames_2dplot.findText(DEFAUT_AXIS['2d']['zaxis'])
+        self.parent.ui.comboBox_zaxisNames_2dplot.setCurrentIndex(_index_zaxis)
+
+    def _update_plots_combobox_items(self, list_axis_to_plot=[]):
+        _list_comboboxes = [self.parent.ui.comboBox_xaxisNames,
+                            self.parent.ui.comboBox_yaxisNames,
+                            self.parent.ui.comboBox_xaxisNames_2dplot,
+                            self.parent.ui.comboBox_yaxisNames_2dplot,
+                            self.parent.ui.comboBox_zaxisNames_2dplot]
+        for sample_log in list_axis_to_plot:
+            for _ui in _list_comboboxes:
+                _ui.addItem(sample_log)
+            self.parent._sample_log_name_set.add(sample_log)
+
+    def make_visible_d01d_widgets(self, visible=True):
+        list_ui = [self.parent.ui.label_d01d,
+                   self.parent.ui.label_d0units1d,
+                   self.parent.ui.lineEdit_d01d]
+        GuiUtilities.make_visible_ui(list_ui=list_ui,
+                                     visible=visible)
+
+    def make_visible_d02d_widgets(self, visible=True):
+        list_ui = [self.parent.ui.label_d02d,
+                   self.parent.ui.label_d0units2d,
+                   self.parent.ui.lineEdit_d02d]
+        GuiUtilities.make_visible_ui(list_ui=list_ui,
+                                     visible=visible)
+
+    def check_axis1d_status(self):
+        xaxis_selected = str(self.parent.ui.comboBox_xaxisNames.currentText())
+        yaxis_selected = str(self.parent.ui.comboBox_yaxisNames.currentText())
+        if (xaxis_selected == 'strain') or (yaxis_selected == 'strain'):
+            self.make_visible_d01d_widgets(True)
+        else:
+            self.make_visible_d01d_widgets(False)
+
+    def check_axis2d_status(self):
+        xaxis_selected = str(self.parent.ui.comboBox_xaxisNames_2dplot.currentText())
+        yaxis_selected = str(self.parent.ui.comboBox_yaxisNames_2dplot.currentText())
+        zaxis_selected = str(self.parent.ui.comboBox_zaxisNames_2dplot.currentText())
+        if (xaxis_selected == 'strain') or (yaxis_selected == 'strain') or \
+           (zaxis_selected == 'strain'):
+            self.make_visible_d02d_widgets(True)
+        else:
+            self.make_visible_d02d_widgets(False)
+
+    @staticmethod
+    def make_visible_ui(list_ui=[], visible=True):
+        for _ui in list_ui:
+            _ui.setVisible(visible)
+
     @staticmethod
     def block_widgets(list_ui=[]):
         GuiUtilities.__block_widgets(list_ui, True)
 
     @staticmethod
     def unblock_widgets(list_ui=[]):
-        GuiUtilities.__block_widgets(list_ui, True)
+        GuiUtilities.__block_widgets(list_ui, False)
 
     @staticmethod
     def __block_widgets(list_ui, block):
