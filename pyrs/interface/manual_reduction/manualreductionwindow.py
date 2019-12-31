@@ -4,6 +4,7 @@ from mantid.simpleapi import Logger
 from mantid.api import AlgorithmObserver
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
+from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry
 from mantidqt.utils.asynchronous import BlockingAsyncTaskWithCallback
 from pyrs.utilities import load_ui
 
@@ -55,9 +56,10 @@ def _nexus_to_subscans(nexusfile, projectfile, logger):
         os.remove(projectfile)
 
     logger.notice('Creating subscans from {} into project file {}'.format(nexusfile, projectfile))
-    converter = NeXusConvertingApp(nexusfile)
-    converter.convert(3.)
-    converter.save(projectfile)
+    converter = NeXusConvertingApp(nexusfile, None)
+    converter.convert()
+    instrument = AnglerCameraDetectorGeometry(1024, 1024, 0.0003, 0.0003, 0.985, False)
+    converter.save(projectfile, instrument)
 
 
 def _create_powder_patterns(projectfile, instrument, calibration, mask, subruns, logger):
@@ -74,7 +76,7 @@ def _create_powder_patterns(projectfile, instrument, calibration, mask, subruns,
     reducer.save_diffraction_data(projectfile)
 
 
-def reduce_h2bc(nexus, outputdir, progressbar, subruns, instrument=None, calibration=None, mask=None):
+def reduce_h2bc(nexus, outputdir, progressbar, subruns=list(), instrument=None, calibration=None, mask=None):
 
     project = os.path.basename(nexus).split('.')[0] + '.h5'
     project = os.path.join(outputdir, project)
@@ -466,8 +468,7 @@ class ManualReductionWindow(QMainWindow):
         project_file = str(self.ui.lineEdit_outputDir.text().strip())
         # idf_name = str(self.ui.lineEdit_idfName.text().strip())
         # calibration_file = str(self.ui.lineEdit_calibratonFile.text().strip())
-        task = BlockingAsyncTaskWithCallback(reduce_h2bc, args=(nexus_file, project_file, self.ui.progressBar,
-                                                                sub_run_list),
+        task = BlockingAsyncTaskWithCallback(reduce_h2bc, args=(nexus_file, project_file, self.ui.progressBar),
                                              blocking_cb=QApplication.processEvents)
         task.start()
         # Update table
