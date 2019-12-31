@@ -20,7 +20,7 @@ class NeXusConvertingApp(object):
     """
     Convert NeXus file to Hidra project file
     """
-    def __init__(self, nexus_file_name, mask_file_name):
+    def __init__(self, nexus_file_name, mask_file_name=None):
         """Initialization
 
         Parameters
@@ -345,7 +345,6 @@ class NeXusConvertingApp(object):
             durations = {}
             for timedelta, subrun in zip(scan_times - scan_times[0], scan_index):
                 timedelta /= numpy.timedelta64(1, 's')  # convert to seconds
-                print(subrun, timedelta)
                 if subrun not in durations:
                     durations[subrun] = timedelta
                 else:
