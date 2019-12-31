@@ -1,7 +1,6 @@
 from qtpy.QtWidgets import QMainWindow, QVBoxLayout, QApplication
 import os
 from mantid.simpleapi import Logger
-from mantid.api import AlgorithmObserver
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
 from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry
@@ -24,39 +23,13 @@ from pyrs.interface.manual_reduction.event_handler import EventHandler
 # TODO              5. Implement method to reduce data
 # TODO              6. Add parameters for reducing data
 
-
-class MockObserver(AlgorithmObserver):
-
-    def __init__(self):
-        super(MockObserver, self).__init__()
-        self.finish_handled = False
-        self.error_message = None
-        self.progress_message = None
-        self.first_progress_reported = False
-        self.second_progress_reported = False
-
-    def finishHandle(self):
-        self.finish_handled = True
-
-    def errorHandle(self, message):
-        self.error_message = message
-
-    def progressHandle(self, p, message):
-        if len(message) > 0:
-            self.progress_message = message
-        if p == 0.5:
-            self.first_progress_reported = True
-        if p == 1.0:
-            self.second_progress_reported = True
-
-
-def _nexus_to_subscans(nexusfile, projectfile, logger):
+def _nexus_to_subscans(nexusfile, projectfile, logger, mask):
     if os.path.exists(projectfile):
         logger.information('Removing existing projectfile {}'.format(projectfile))
         os.remove(projectfile)
 
     logger.notice('Creating subscans from {} into project file {}'.format(nexusfile, projectfile))
-    converter = NeXusConvertingApp(nexusfile, None)
+    converter = NeXusConvertingApp(nexusfile, mask)
     converter.convert()
     instrument = AnglerCameraDetectorGeometry(1024, 1024, 0.0003, 0.0003, 0.985, False)
     converter.save(projectfile, instrument)
@@ -130,6 +103,7 @@ class ManualReductionWindow(QMainWindow):
         self.ui.pushButton_loadProjectFile.clicked.connect(self.do_load_hidra_projec_file)
         self.ui.pushButton_browseOutputDir.clicked.connect(self.do_browse_output_dir)
         self.ui.pushButton_setCalibrationFile.clicked.connect(self.do_browse_calibration_file)
+        self.ui.pushButton_setMaskFile.clicked.connect(self.do_browse_mask_file)
 
         self.ui.pushButton_setBrowseIDF.clicked.connect(self.do_browse_set_idf)
 
@@ -466,10 +440,12 @@ class ManualReductionWindow(QMainWindow):
         # Reduce data
         nexus_file = str(self.ui.lineEdit_runNumber.text().strip())
         project_file = str(self.ui.lineEdit_outputDir.text().strip())
+        mask_file = str(self.ui.LineEdit_maskFile.text().strip())
         # idf_name = str(self.ui.lineEdit_idfName.text().strip())
         # calibration_file = str(self.ui.lineEdit_calibratonFile.text().strip())
         task = BlockingAsyncTaskWithCallback(reduce_h2bc, args=(nexus_file, project_file, self.ui.progressBar),
-                                             kwargs={'subruns': sub_run_list}, blocking_cb=QApplication.processEvents)
+                                             kwargs={'subruns': sub_run_list, 'mask': mask_file},
+                                             blocking_cb=QApplication.processEvents)
         task.start()
         # Update table
         for sub_run in list():
@@ -506,6 +482,17 @@ class ManualReductionWindow(QMainWindow):
         self.ui.lineEdit_runNumber.setText(project_file_name)
         # self.load_hydra_file(project_file_name)
 
+        return
+
+    def do_browse_mask_file(self):
+        """
+        set IPTS number
+        :return:
+        """
+        mask_file_name = gui_helper.browse_file(
+            self, 'Hidra Mask File', os.getcwd(), 'hdf5 (*.h5);;xml (*.xml)', False, False)
+        self.ui.lineEdit_maskFile.setText(mask_file_name)
+        # self.load_hydra_file(project_file_name)
         return
 
     def event_change_slice_type(self):
