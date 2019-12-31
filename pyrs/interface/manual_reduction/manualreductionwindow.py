@@ -469,7 +469,7 @@ class ManualReductionWindow(QMainWindow):
         # idf_name = str(self.ui.lineEdit_idfName.text().strip())
         # calibration_file = str(self.ui.lineEdit_calibratonFile.text().strip())
         task = BlockingAsyncTaskWithCallback(reduce_h2bc, args=(nexus_file, project_file, self.ui.progressBar),
-                                             blocking_cb=QApplication.processEvents)
+                                             kwargs={'subruns': sub_run_list}, blocking_cb=QApplication.processEvents)
         task.start()
         # Update table
         for sub_run in list():
