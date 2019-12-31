@@ -23,6 +23,7 @@ from pyrs.interface.manual_reduction.event_handler import EventHandler
 # TODO              5. Implement method to reduce data
 # TODO              6. Add parameters for reducing data
 
+
 def _nexus_to_subscans(nexusfile, projectfile, logger, mask):
     if os.path.exists(projectfile):
         logger.information('Removing existing projectfile {}'.format(projectfile))
