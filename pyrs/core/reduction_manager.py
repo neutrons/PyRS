@@ -443,7 +443,7 @@ class HB2BReductionManager(object):
         eta_min : float
             min angle for out-of-plane reduction
         eta_max : float
-            max angle for out-of-plane reduction          
+            max angle for out-of-plane reduction
 
         Returns
         -------
@@ -507,7 +507,7 @@ class HB2BReductionManager(object):
                                             eta_step=eta_step,
                                             eta_min=eta_min,
                                             eta_max=eta_max)
-                     
+
         # END-FOR (sub run)
 
     # NOTE: Refer to compare_reduction_engines_tst
@@ -617,16 +617,16 @@ class HB2BReductionManager(object):
                 eta_min = np.min(eta_val)
             if eta_max is None:
                 eta_max = np.max(eta_val)
-                
+
             eta_roi_vec = np.arange(eta_min, eta_max + eta_step/10., eta_step)
-            
+
             if mask_vec is not None:
                 mask_vec_index = np.where(mask_vec == 1)[0]
-                
+
         else:
             eta_roi_vec = np.array([0])
             eta_step = 50
-            
+
         for eta_cent in eta_roi_vec:
             if eta_roi_vec.shape[0] != 1:
                 mask_id = 'eta_{}'.format(eta_cent)
@@ -639,12 +639,12 @@ class HB2BReductionManager(object):
                                      (eta_val < (eta_cent - eta_step / 2.)))[0]
 
                 Mask[index] = 1.
-                
+
                 if mask_vec is not None:
                     Mask[mask_vec_index] = 1.
-                    
+
                 reduction_engine.set_mask(Mask)
-            
+
             data_set = reduction_engine.reduce_to_2theta_histogram((min_2theta, max_2theta),
                                                                    two_theta_bins_number=num_bins,
                                                                    apply_mask=True,
@@ -653,10 +653,10 @@ class HB2BReductionManager(object):
                                                                    vanadium_counts_array=vanadium_counts)
             bin_centers = data_set[0]
             hist = data_set[1]
-    
+
             # record
             workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_centers, hist)
-        
+
         self._last_reduction_engine = reduction_engine
 
     def save_reduced_diffraction(self, session_name, output_name):

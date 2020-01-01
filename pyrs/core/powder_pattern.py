@@ -139,7 +139,7 @@ class ReductionApp(object):
         eta_min : float
             min angle for out-of-plane reduction
         eta_max : float
-            max angle for out-of-plane reduction 
+            max angle for out-of-plane reduction
 
         Returns
         -------
@@ -177,7 +177,7 @@ class ReductionApp(object):
         else:
             # no vanadium
             van_array = None
-            
+
         # Reduce data with no out-of-plane mask applied
         self._reduction_manager.reduce_diffraction_data(self._session,
                                                         apply_calibrated_geometry=geometry_calibration,
@@ -199,7 +199,7 @@ class ReductionApp(object):
                                                             eta_step=eta_step,
                                                             eta_min=eta_min,
                                                             eta_max=eta_max)
-            
+
     def plot_reduced_data(self, sub_run_number=None):
 
         if sub_run_number is None:
