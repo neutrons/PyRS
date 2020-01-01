@@ -417,8 +417,8 @@ class HB2BReductionManager(object):
         return van_counts_array
 
     def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, num_bins,
-                                use_pyrs_engine, mask, sub_run_list,
-                                vanadium_counts=None):
+                                use_pyrs_engine, mask, sub_run_list, vanadium_counts=None,
+                                eta_step=None, eta_min=None, eta_max=None):
         """Reduce ALL sub runs in a workspace from detector counts to diffraction data
 
         Parameters
@@ -438,6 +438,12 @@ class HB2BReductionManager(object):
         vanadium_counts : None or ~numpy.ndarray
             vanadium counts of each detector pixels for normalization
             If vanadium duration is recorded, the vanadium counts are normalized by its duration in seconds
+        eta_step : float
+            angular step size for out-of-plane reduction
+        eta_min : float
+            min angle for out-of-plane reduction
+        eta_max : float
+            max angle for out-of-plane reduction          
 
         Returns
         -------
@@ -474,26 +480,6 @@ class HB2BReductionManager(object):
         # END-IF-ELSE
         print('[DB...BAT] Det Position Shift: {}'.format(det_pos_shift))
 
-        # Vanadium run
-        if apply_vanadium_calibration is False or apply_vanadium_calibration is None:
-            van_counts_array = None
-        elif apply_vanadium_calibration is True:
-            van_counts_array = self._van_ws.get_detector_counts(self._van_ws.get_sub_runs()[0])
-        else:
-            van_counts_array = apply_vanadium_calibration
-        if isinstance(van_counts_array, np.ndarray):
-            # Mask out zero count
-            van_counts_array[van_counts_array < 1] = np.nan
-            max_count = np.max(van_counts_array[~np.isnan(van_counts_array)])
-            print('[DEBUG] VANADIUM: {}\n\t# of NaN = {}\tMax count = {}'
-                  ''.format(van_counts_array, np.where(np.isnan(van_counts_array))[0].size,
-                            max_count))
-            eff_array = max_count * 1. / van_counts_array
-            print('[DEBUG] Detector efficiency factor: {}\tNumber of NaN = {}'
-                  ''.format(eff_array, np.where(np.isnan(eff_array))[0].size))
-        else:
-            eff_array = None
-
         # TODO - TONIGHT NOW #72 - How to embed mask information???
         if sub_run_list is None:
             sub_run_list = workspace.get_sub_runs()
@@ -517,14 +503,16 @@ class HB2BReductionManager(object):
                                             mask_vec_tuple=(mask_id, mask_vec),
                                             num_bins=num_bins,
                                             sub_run_duration=duration_i,
-                                            vanadium_counts=vanadium_counts)
+                                            vanadium_counts=vanadium_counts,
+w
+                     
         # END-FOR (sub run)
 
     # NOTE: Refer to compare_reduction_engines_tst
     def reduce_sub_run_diffraction(self, workspace, sub_run, geometry_calibration, use_mantid_engine,
                                    mask_vec_tuple, min_2theta=None, max_2theta=None, default_two_theta_range=20,
-                                   num_bins=1000, sub_run_duration=None,
-                                   vanadium_counts=None):
+                                   num_bins=1000, sub_run_duration=None, vanadium_counts=None,
+                                   eta_step=None, eta_min=None, eta_max=None):
         """Reduce import data (workspace or vector) to 2-theta ~ I
 
         The binning of 2theta is linear in range (min, max) with given resolution
@@ -569,6 +557,12 @@ class HB2BReductionManager(object):
         vanadium_counts : numpy.ndarray or None
             detector pixels' vanadium for efficiency and normalization.
             If vanadium duration is recorded, the vanadium counts are normalized by its duration in seconds
+        eta_step : float
+            angular step size for out-of-plane reduction
+        eta_min : float
+            min angle for out-of-plane reduction
+        eta_max : float
+            max angle for out-of-plane reduction
 
         Returns
         -------
@@ -614,17 +608,53 @@ class HB2BReductionManager(object):
         if mask_vec is not None:
             reduction_engine.set_mask(mask_vec)
 
-        data_set = reduction_engine.reduce_to_2theta_histogram((min_2theta, max_2theta),
-                                                               two_theta_bins_number=num_bins,
-                                                               apply_mask=True,
-                                                               is_point_data=True,
-                                                               use_mantid_histogram=False,
-                                                               vanadium_counts_array=vanadium_counts)
-        bin_centers = data_set[0]
-        hist = data_set[1]
+        # Define setup for out-of-plane reduction
+        if eta_step is not None:
+            eta_val = reduction_engine.get_eta_value()
+            if eta_min is None:
+                eta_min = np.min(eta_val)
+            if eta_max is None:
+                eta_max = np.max(eta_val)
+                
+            eta_roi_vec = np.arange(eta_min, eta_max + eta_step/10., eta_step)
+            
+            if mask_vec is not None:
+                mask_vec_index = np.where(mask_vec == 1)[0]
+                
+        else:
+            eta_roi_vec = np.array([0])
+            eta_step = 50
+            
+        for eta_cent in eta_roi_vec:
+            if eta_roi_vec.shape[0] != 1:
+                mask_id = 'eta_{}'.format(eta_cent)
+                Mask = np.zeros_like(eta_val)
+                if abs(eta_cent) == eta_cent:
+                    index = np.where((eta_val < (eta_cent + eta_step / 2.)) ==
+                                     (eta_val > (eta_cent - eta_step / 2.)))[0]
+                else:
+                    index = np.where((eta_val > (eta_cent + eta_step / 2.)) ==
+                                     (eta_val < (eta_cent - eta_step / 2.)))[0]
 
-        # record
-        workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_centers, hist)
+                Mask[index] = 1.
+                
+                if mask_vec is not None:
+                    Mask[mask_vec_index] = 1.
+                    
+                reduction_engine.set_mask(Mask)
+            
+            data_set = reduction_engine.reduce_to_2theta_histogram((min_2theta, max_2theta),
+                                                                   two_theta_bins_number=num_bins,
+                                                                   apply_mask=True,
+                                                                   is_point_data=True,
+                                                                   use_mantid_histogram=False,
+                                                                   vanadium_counts_array=vanadium_counts)
+            bin_centers = data_set[0]
+            hist = data_set[1]
+    
+            # record
+            workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_centers, hist)
+        
         self._last_reduction_engine = reduction_engine
 
     def save_reduced_diffraction(self, session_name, output_name):
