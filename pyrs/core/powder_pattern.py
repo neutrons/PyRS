@@ -178,17 +178,28 @@ class ReductionApp(object):
             # no vanadium
             van_array = None
             
+        # Reduce data with no out-of-plane mask applied
         self._reduction_manager.reduce_diffraction_data(self._session,
                                                         apply_calibrated_geometry=geometry_calibration,
                                                         num_bins=num_bins,
                                                         use_pyrs_engine=not self._use_mantid_engine,
                                                         mask=mask,
                                                         sub_run_list=sub_runs,
-                                                        vanadium_counts=van_array,
-                                                        eta_step=eta_step,
-                                                        eta_min=eta_min,
-                                                        eta_max=eta_max)
+                                                        vanadium_counts=van_array)
 
+        # Reduce data with out-of-plane mask applied
+        if eta_step is not None:
+            self._reduction_manager.reduce_diffraction_data(self._session,
+                                                            apply_calibrated_geometry=geometry_calibration,
+                                                            num_bins=num_bins,
+                                                            use_pyrs_engine=not self._use_mantid_engine,
+                                                            mask=mask,
+                                                            sub_run_list=sub_runs,
+                                                            vanadium_counts=van_array,
+                                                            eta_step=eta_step,
+                                                            eta_min=eta_min,
+                                                            eta_max=eta_max)
+            
     def plot_reduced_data(self, sub_run_number=None):
 
         if sub_run_number is None:

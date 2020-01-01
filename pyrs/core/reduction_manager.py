@@ -504,7 +504,9 @@ class HB2BReductionManager(object):
                                             num_bins=num_bins,
                                             sub_run_duration=duration_i,
                                             vanadium_counts=vanadium_counts,
-w
+                                            eta_step=eta_step,
+                                            eta_min=eta_min,
+                                            eta_max=eta_max)
                      
         # END-FOR (sub run)
 
