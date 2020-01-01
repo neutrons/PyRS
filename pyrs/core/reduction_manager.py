@@ -46,7 +46,7 @@ class HB2BReductionManager(object):
         self._van_ws = None
 
         # (default) number of bins
-        self._num_bins = 2500
+        self._num_bins = 720
 
         # masks
         self._loaded_mask_files = list()
@@ -473,6 +473,26 @@ class HB2BReductionManager(object):
             det_pos_shift = None
         # END-IF-ELSE
         print('[DB...BAT] Det Position Shift: {}'.format(det_pos_shift))
+
+        # Vanadium run
+        if apply_vanadium_calibration is False or apply_vanadium_calibration is None:
+            van_counts_array = None
+        elif apply_vanadium_calibration is True:
+            van_counts_array = self._van_ws.get_detector_counts(self._van_ws.get_sub_runs()[0])
+        else:
+            van_counts_array = apply_vanadium_calibration
+        if isinstance(van_counts_array, np.ndarray):
+            # Mask out zero count
+            van_counts_array[van_counts_array < 1] = np.nan
+            max_count = np.max(van_counts_array[~np.isnan(van_counts_array)])
+            print('[DEBUG] VANADIUM: {}\n\t# of NaN = {}\tMax count = {}'
+                  ''.format(van_counts_array, np.where(np.isnan(van_counts_array))[0].size,
+                            max_count))
+            eff_array = max_count * 1. / van_counts_array
+            print('[DEBUG] Detector efficiency factor: {}\tNumber of NaN = {}'
+                  ''.format(eff_array, np.where(np.isnan(eff_array))[0].size))
+        else:
+            eff_array = None
 
         # TODO - TONIGHT NOW #72 - How to embed mask information???
         if sub_run_list is None:
