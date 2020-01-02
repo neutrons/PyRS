@@ -6,7 +6,7 @@ import bisect
 from mantid.kernel import FloatPropertyWithValue, FloatTimeSeriesProperty, Int32TimeSeriesProperty, \
     Int64TimeSeriesProperty, logger, Logger
 from mantid.simpleapi import mtd, ConvertToMatrixWorkspace, DeleteWorkspace, FilterByLogValue, \
-    FilterByTime, LoadEventNexus, LoadMask, MaskDetectors
+    FilterByTime, LoadEventNexus, LoadMask, MaskDetectors, GenerateEventsFilter, FilterEvents
 import numpy
 import os
 from pyrs.core import workspaces
@@ -463,12 +463,12 @@ class NeXusConvertingApp(object):
         # determine the duration of each subrun by correlating to the scan_index
         scan_times = mtd[self._event_ws_name].run()[SUBRUN_LOGNAME].times
         durations = {}
-        for timedelta, subrun in zip(scan_times - scan_times[0], scan_index):
+        for timedelta, sub_run_index in zip(scan_times - scan_times[0], scan_index):
             timedelta /= numpy.timedelta64(1, 's')  # convert to seconds
-            if subrun not in durations:
-                durations[subrun] = timedelta
+            if sub_run_index not in durations:
+                durations[sub_run_index] = timedelta
             else:
-                durations[subrun] += timedelta
+                durations[sub_run_index] += timedelta
 
         # Split sub runs to a list of sub sets of sub runs
         scan_index_min = max(scan_index_min, 1)
@@ -479,41 +479,44 @@ class NeXusConvertingApp(object):
 
         while continue_split:
             sub_run_max_i = min(sub_run_min_i, scan_index_max)
-            for subrun in range(sub_run_min_i, sub_run_max_i + 1):
-                # skip scan_index=0
-                # the +1 is to make it inclusive
-                for subrun in range(max(scan_index_min, 1), scan_index_max + 1):
-                    self._log.information('Filtering scan_index={}'.format(subrun))
-                    # pad up to 5 zeros
-                    ws_name = '{}_split_{:05d}'.format(self._event_ws_name, subrun)
-                    # filter out the subrun - this assumes that subruns are integers
-                    # TODO - change to GenerateEventFilter and FilterEvents
-                    FilterByLogValue(InputWorkspace=self._event_ws_name,
-                                     OutputWorkspace=ws_name,
-                                     LogName=SUBRUN_LOGNAME,
-                                     LogBoundary='Left',
-                                     MinimumValue=float(subrun) - .5,
-                                     MaximumValue=float(subrun) + .5)
 
-                    # matrix workspaces take significantly less memory for HB2B
-                    ConvertToMatrixWorkspace(InputWorkspace=ws_name,
-                                             OutputWorkspace=ws_name)
+            # Generate event filter and split
+            split_ws_name = self._event_ws_name + '_split'
+            info_ws_name = self._event_ws_name + '_info'
+            GenerateEventsFilter(InputWorkspace=self._event_ws_name,
+                                 OutputWorkspace=split_ws_name,
+                                 InformationWorkspace=info_ws_name,
+                                 LogName=SUBRUN_LOGNAME,
+                                 MinimumLogValue=sub_run_min_i,
+                                 MaximumLogValue=sub_run_max_i)
+            outputs = FilterEvents(InputWorkspace=self._event_ws_name,
+                                   SplitterWorkspace=split_ws_name,
+                                   InformationWorkspace=info_ws_name,
+                                   OutputWorkspaceBaseName=self._event_ws_name + '_child',
+                                   FilterByPulseTime=True,
+                                   GroupWorkspaces=True,
+                                   OutputWorkspaceIndexFrom1=True,
+                                   CorrectionToSample=False,
+                                   SplitSampleLogs=True)
 
-                    # update the duration in the filtered workspace
-                    duration = FloatPropertyWithValue('duration', durations[subrun])
-                    duration.units = 'second'
-                    mtd[ws_name].run()['duration'] = duration
+            # Convert each output workspace
+            child_ws_names = sorted(outputs.OutputWorkspaceNames)
+            assert len(child_ws_names) == sub_run_max_i - sub_run_min_i + 1
+            for sub_run_index in range(sub_run_min_i, sub_run_max_i + 1):
+                # get workspace
+                child_index = sub_run_index - sub_run_min_i
+                child_ws_name = child_ws_names[child_index]
 
-                    # add it to the dictionary
-                    sub_run_ws_dict[subrun] = ws_name
+                # get real index: starting from 1
+                split_index = int(child_ws_name.split('_')[-1])
+                # convert to the correct sub run: starting from sub_run_min_1
+                sub_run_number = split_index - 1 + sub_run_min_i
 
-                    # remove all of the events we already wanted
-                    if subrun != scan_index_max:
-                        FilterByLogValue(InputWorkspace=self._event_ws_name,
-                                         OutputWorkspace=self._event_ws_name,
-                                         LogName=SUBRUN_LOGNAME,
-                                         LogBoundary='Left',
-                                         MinimumValue=float(subrun) + .5)
+                # convert MatrixWorkspace and delete old one
+                ConvertToMatrixWorkspace(InputWorkspace=child_ws_name,
+                                         OutputWorkspace=self._event_ws_name + '_split_{:05)'.format(sub_run_number))
+                DeleteWorkspace(child_ws_name)
+            # END-FOR
 
             # Update sub run min for iteration i
             sub_run_min_i += group_size
