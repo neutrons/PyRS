@@ -343,48 +343,49 @@ class NeXusConvertingApp(object):
 
         if multiple_subrun:
             # determine the duration of each subrun by correlating to the scan_index
-            scan_times = mtd[self._event_ws_name].run()[SUBRUN_LOGNAME].times
-            durations = {}
-            for timedelta, subrun in zip(scan_times - scan_times[0], scan_index):
-                timedelta /= numpy.timedelta64(1, 's')  # convert to seconds
-                if subrun not in durations:
-                    durations[subrun] = timedelta
-                else:
-                    durations[subrun] += timedelta
-
-            # skip scan_index=0
-            # the +1 is to make it inclusive
-            for subrun in range(max(scan_index_min, 1), scan_index_max + 1):
-                self._log.information('Filtering scan_index={}'.format(subrun))
-                # pad up to 5 zeros
-                ws_name = '{}_split_{:05d}'.format(self._event_ws_name, subrun)
-                # filter out the subrun - this assumes that subruns are integers
-                FilterByLogValue(InputWorkspace=self._event_ws_name,
-                                 OutputWorkspace=ws_name,
-                                 LogName=SUBRUN_LOGNAME,
-                                 LogBoundary='Left',
-                                 MinimumValue=float(subrun) - .5,
-                                 MaximumValue=float(subrun) + .5)
-
-                # matrix workspaces take significantly less memory for HB2B
-                ConvertToMatrixWorkspace(InputWorkspace=ws_name,
-                                         OutputWorkspace=ws_name)
-
-                # update the duration in the filtered workspace
-                duration = FloatPropertyWithValue('duration', durations[subrun])
-                duration.units = 'second'
-                mtd[ws_name].run()['duration'] = duration
-
-                # add it to the dictionary
-                sub_run_ws_dict[subrun] = ws_name
-
-                # remove all of the events we already wanted
-                if subrun != scan_index_max:
-                    FilterByLogValue(InputWorkspace=self._event_ws_name,
-                                     OutputWorkspace=self._event_ws_name,
-                                     LogName=SUBRUN_LOGNAME,
-                                     LogBoundary='Left',
-                                     MinimumValue=float(subrun) + .5)
+            self.split_sub_run_singles(sub_run_ws_dict, scan_index, scan_index_min, scan_index_max)
+            # scan_times = mtd[self._event_ws_name].run()[SUBRUN_LOGNAME].times
+            # durations = {}
+            # for timedelta, subrun in zip(scan_times - scan_times[0], scan_index):
+            #     timedelta /= numpy.timedelta64(1, 's')  # convert to seconds
+            #     if subrun not in durations:
+            #         durations[subrun] = timedelta
+            #     else:
+            #         durations[subrun] += timedelta
+            #
+            # # skip scan_index=0
+            # # the +1 is to make it inclusive
+            # for subrun in range(max(scan_index_min, 1), scan_index_max + 1):
+            #     self._log.information('Filtering scan_index={}'.format(subrun))
+            #     # pad up to 5 zeros
+            #     ws_name = '{}_split_{:05d}'.format(self._event_ws_name, subrun)
+            #     # filter out the subrun - this assumes that subruns are integers
+            #     FilterByLogValue(InputWorkspace=self._event_ws_name,
+            #                      OutputWorkspace=ws_name,
+            #                      LogName=SUBRUN_LOGNAME,
+            #                      LogBoundary='Left',
+            #                      MinimumValue=float(subrun) - .5,
+            #                      MaximumValue=float(subrun) + .5)
+            #
+            #     # matrix workspaces take significantly less memory for HB2B
+            #     ConvertToMatrixWorkspace(InputWorkspace=ws_name,
+            #                              OutputWorkspace=ws_name)
+            #
+            #     # update the duration in the filtered workspace
+            #     duration = FloatPropertyWithValue('duration', durations[subrun])
+            #     duration.units = 'second'
+            #     mtd[ws_name].run()['duration'] = duration
+            #
+            #     # add it to the dictionary
+            #     sub_run_ws_dict[subrun] = ws_name
+            #
+            #     # remove all of the events we already wanted
+            #     if subrun != scan_index_max:
+            #         FilterByLogValue(InputWorkspace=self._event_ws_name,
+            #                          OutputWorkspace=self._event_ws_name,
+            #                          LogName=SUBRUN_LOGNAME,
+            #                          LogBoundary='Left',
+            #                          MinimumValue=float(subrun) + .5)
         else:  # nothing to filter so just histogram it
             ConvertToMatrixWorkspace(InputWorkspace=self._event_ws_name,
                                      OutputWorkspace=self._event_ws_name)
@@ -442,7 +443,20 @@ class NeXusConvertingApp(object):
 
         return
 
-    def split_sub_run_subsets(self, sub_run_ws_dict, scan_index, scan_index_min, scan_index_max):
+    def split_sub_run_subsets(self, sub_run_ws_dict, scan_index, scan_index_min, scan_index_max, group_size):
+        """Split sub runs in groups
+
+        Parameters
+        ----------
+        sub_run_ws_dict
+        scan_index
+        scan_index_min
+        scan_index_max
+
+        Returns
+        -------
+
+        """
         # determine the duration of each subrun by correlating to the scan_index
         scan_times = mtd[self._event_ws_name].run()[SUBRUN_LOGNAME].times
         durations = {}
@@ -453,42 +467,50 @@ class NeXusConvertingApp(object):
             else:
                 durations[subrun] += timedelta
 
-        # TODO - Find out the algorithm to split sub runs to a list of sub sets of sub runs
+        # Split sub runs to a list of sub sets of sub runs
+        scan_index_min = max(scan_index_min, 1)
+        sub_run_set_list = list()
 
-        # skip scan_index=0
-        # the +1 is to make it inclusive
-        for subrun in range(max(scan_index_min, 1), scan_index_max + 1):
-            self._log.information('Filtering scan_index={}'.format(subrun))
-            # pad up to 5 zeros
-            ws_name = '{}_split_{:05d}'.format(self._event_ws_name, subrun)
-            # filter out the subrun - this assumes that subruns are integers
-            # TODO - change to GenerateEventFilter and FilterEvents
-            FilterByLogValue(InputWorkspace=self._event_ws_name,
-                             OutputWorkspace=ws_name,
-                             LogName=SUBRUN_LOGNAME,
-                             LogBoundary='Left',
-                             MinimumValue=float(subrun) - .5,
-                             MaximumValue=float(subrun) + .5)
+        continue_split = True
+        while continue_split:
+            sub_run_min_i = scan_index_min
+            sub_run_max_i = min(sub_run_min_i, scan_index_max)
 
-            # matrix workspaces take significantly less memory for HB2B
-            ConvertToMatrixWorkspace(InputWorkspace=ws_name,
-                                     OutputWorkspace=ws_name)
+            for subrun in range(sub_run_min_i, sub_run_max_i + 1):
+                # skip scan_index=0
+                # the +1 is to make it inclusive
+                for subrun in range(max(scan_index_min, 1), scan_index_max + 1):
+                    self._log.information('Filtering scan_index={}'.format(subrun))
+                    # pad up to 5 zeros
+                    ws_name = '{}_split_{:05d}'.format(self._event_ws_name, subrun)
+                    # filter out the subrun - this assumes that subruns are integers
+                    # TODO - change to GenerateEventFilter and FilterEvents
+                    FilterByLogValue(InputWorkspace=self._event_ws_name,
+                                     OutputWorkspace=ws_name,
+                                     LogName=SUBRUN_LOGNAME,
+                                     LogBoundary='Left',
+                                     MinimumValue=float(subrun) - .5,
+                                     MaximumValue=float(subrun) + .5)
 
-            # update the duration in the filtered workspace
-            duration = FloatPropertyWithValue('duration', durations[subrun])
-            duration.units = 'second'
-            mtd[ws_name].run()['duration'] = duration
+                    # matrix workspaces take significantly less memory for HB2B
+                    ConvertToMatrixWorkspace(InputWorkspace=ws_name,
+                                             OutputWorkspace=ws_name)
 
-            # add it to the dictionary
-            sub_run_ws_dict[subrun] = ws_name
+                    # update the duration in the filtered workspace
+                    duration = FloatPropertyWithValue('duration', durations[subrun])
+                    duration.units = 'second'
+                    mtd[ws_name].run()['duration'] = duration
 
-            # remove all of the events we already wanted
-            if subrun != scan_index_max:
-                FilterByLogValue(InputWorkspace=self._event_ws_name,
-                                 OutputWorkspace=self._event_ws_name,
-                                 LogName=SUBRUN_LOGNAME,
-                                 LogBoundary='Left',
-                                 MinimumValue=float(subrun) + .5)
+                    # add it to the dictionary
+                    sub_run_ws_dict[subrun] = ws_name
+
+                    # remove all of the events we already wanted
+                    if subrun != scan_index_max:
+                        FilterByLogValue(InputWorkspace=self._event_ws_name,
+                                         OutputWorkspace=self._event_ws_name,
+                                         LogName=SUBRUN_LOGNAME,
+                                         LogBoundary='Left',
+                                         MinimumValue=float(subrun) + .5)
 
         return
 
