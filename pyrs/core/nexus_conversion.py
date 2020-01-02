@@ -91,8 +91,6 @@ class NeXusConvertingApp(object):
         self._determine_start_time()
         self._sub_run_workspace_dict = self._split_sub_runs()
 
-        self._set_counts()
-
         # Set sub runs to HidraWorkspace
         sub_runs = numpy.array(sorted(self._sub_run_workspace_dict.keys()))
         self._hydra_workspace.set_sub_runs(sub_runs)
@@ -107,9 +105,8 @@ class NeXusConvertingApp(object):
 
         return self._hydra_workspace
 
-    def _set_counts(self):
-        for sub_run, wkspname in self._sub_run_workspace_dict.items():
-            self._hydra_workspace.set_raw_counts(sub_run, mtd[wkspname].extractY())
+    def _set_counts(self, sub_run, wkspname):
+        self._hydra_workspace.set_raw_counts(sub_run, mtd[wkspname].extractY())
 
     def _create_sample_log_dict(self):
         # Get the sample log value
@@ -117,8 +114,7 @@ class NeXusConvertingApp(object):
         log_array_size = len(self._sub_run_workspace_dict.keys())
 
         # Construct the workspace
-        sub_run_index = 0
-        for sub_run in sorted(self._sub_run_workspace_dict.keys()):
+        for sub_run_index, sub_run in enumerate(sorted(self._sub_run_workspace_dict.keys())):
             # this contains all of the sample logs
             runObj = mtd[str(self._sub_run_workspace_dict[sub_run])].run()
             # loop through all available logs
@@ -132,8 +128,6 @@ class NeXusConvertingApp(object):
 
                 sample_log_dict[log_name][sub_run_index] = log_value
             # END-FOR
-
-            sub_run_index += 1
         # END-FOR
 
         # create a fictional log for duration
@@ -378,6 +372,9 @@ class NeXusConvertingApp(object):
                 # add it to the dictionary
                 sub_run_ws_dict[subrun] = ws_name
 
+                # put the counts in the workspace
+                self._set_counts(subrun, ws_name)
+
                 # remove all of the events we already wanted
                 if subrun != scan_index_max:
                     FilterByLogValue(InputWorkspace=self._event_ws_name,
@@ -386,9 +383,14 @@ class NeXusConvertingApp(object):
                                      LogBoundary='Left',
                                      MinimumValue=float(subrun) + .5)
         else:  # nothing to filter so just histogram it
+            subrun = 1
             ConvertToMatrixWorkspace(InputWorkspace=self._event_ws_name,
                                      OutputWorkspace=self._event_ws_name)
-            sub_run_ws_dict[1] = self._event_ws_name
+            # add it to the dictionary
+            sub_run_ws_dict[subrun] = self._event_ws_name
+
+            # put the counts in the workspace
+            self._set_counts(subrun, self._event_ws_name)
 
         # input workspace should no longer have any events in it
         # but must stick around for single subrun case
