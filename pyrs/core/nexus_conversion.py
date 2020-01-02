@@ -343,8 +343,11 @@ class NeXusConvertingApp(object):
 
         if multiple_subrun:
             # determine the duration of each subrun by correlating to the scan_index
-            self.split_sub_run_singles(sub_run_ws_dict, scan_index, scan_index_min, scan_index_max)
-            # scan_times = mtd[self._event_ws_name].run()[SUBRUN_LOGNAME].times
+            # self.split_sub_run_singles(sub_run_ws_dict, scan_index, scan_index_min, scan_index_max)
+            group_size = 3
+            self.split_sub_run_subsets(sub_run_ws_dict, scan_index, scan_index_min, scan_index_max, group_size)
+
+        # scan_times = mtd[self._event_ws_name].run()[SUBRUN_LOGNAME].times
             # durations = {}
             # for timedelta, subrun in zip(scan_times - scan_times[0], scan_index):
             #     timedelta /= numpy.timedelta64(1, 's')  # convert to seconds
@@ -469,13 +472,13 @@ class NeXusConvertingApp(object):
 
         # Split sub runs to a list of sub sets of sub runs
         scan_index_min = max(scan_index_min, 1)
-        sub_run_set_list = list()
+        # sub_run_set_list = list()
 
         continue_split = True
-        while continue_split:
-            sub_run_min_i = scan_index_min
-            sub_run_max_i = min(sub_run_min_i, scan_index_max)
+        sub_run_min_i = scan_index_min
 
+        while continue_split:
+            sub_run_max_i = min(sub_run_min_i, scan_index_max)
             for subrun in range(sub_run_min_i, sub_run_max_i + 1):
                 # skip scan_index=0
                 # the +1 is to make it inclusive
@@ -511,6 +514,13 @@ class NeXusConvertingApp(object):
                                          LogName=SUBRUN_LOGNAME,
                                          LogBoundary='Left',
                                          MinimumValue=float(subrun) + .5)
+
+            # Update sub run min for iteration i
+            sub_run_min_i += group_size
+
+            # Continue?
+            if sub_run_min_i > scan_index_max:
+                continue_split = False
 
         return
 
