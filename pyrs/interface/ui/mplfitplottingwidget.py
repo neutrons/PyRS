@@ -40,6 +40,7 @@ class MplFitPlottingWidget(QWidget):
         self._curr_x_label = None
 
         self.list_peak_ranges = []
+        self.list_peak_ranges_matplotlib_id = []
         self._working_with_range_index = -1
         self._button_pressed = False
         self._left_line = None
@@ -97,6 +98,8 @@ class MplFitPlottingWidget(QWidget):
         _working_range = self.list_peak_ranges[self._working_with_range_index]
         if _working_range[0] == x:  # remove this range
             self.list_peak_ranges.remove([_working_range[0], np.NaN])
+            [left_peak, right_peak] = self.list_peak_ranges_matplotlib_id[self._working_with_range_index]
+            self.list_peak_ranges_matplotlib_id.remove([left_peak, right_peak])
         else:
             _working_range = [_working_range[0], x]
             self.list_peak_ranges[self._working_with_range_index] = _working_range
@@ -118,7 +121,6 @@ class MplFitPlottingWidget(QWidget):
         if self._curr_color_index >= len(MplBasicColors):
             self._curr_color_index = 0
 
-        return color
 
     def clear_canvas(self):
         """
@@ -133,8 +135,6 @@ class MplFitPlottingWidget(QWidget):
         self._model_line = None
         self._residual_line = None
 
-        return
-
     def evt_toolbar_home(self):
         """
         Handle event triggered by 'home' button in tool bar is pressed
@@ -144,14 +144,12 @@ class MplFitPlottingWidget(QWidget):
         # No NavigrationToolbar2.evt_toolbar_home()
 
         # self._myCanvas.set_x_y_home()
-
         return
 
     def evt_view_updated(self):
         """ Handling the event when a 'draw()' is called from tool bar
         :return:
         """
-
         return
 
     def evt_zoom_released(self, event):
@@ -236,11 +234,13 @@ class MplFitPlottingWidget(QWidget):
         line_label = self._line_label
 
         self._myCanvas.add_plot_upper_axis(data_set, line_color=color, label=line_label)
+        self.list_peak_ranges_matplotlib_id = []
         for _range in self.list_peak_ranges:
             x_left = np.min(_range)
             x_right = np.max(_range)
             self._left_line = self._myCanvas._data_subplot.axvline(x_left, color='r', linestyle='--')
             self._right_line = self._myCanvas._data_subplot.axvline(x_right, color='r', linestyle='--')
+            self.list_peak_ranges_matplotlib_id.append([self._left_line, self._right_line])
 
         self._myCanvas.draw()
 
