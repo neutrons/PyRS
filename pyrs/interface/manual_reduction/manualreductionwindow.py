@@ -82,7 +82,6 @@ class ManualReductionWindow(QMainWindow):
 
         # class variables
         self._core = None
-        self._currIPTSNumber = None
         self._currExpNumber = None
         self._hydra_workspace = None  # HiDRA worksapce instance if any file loaded
         self._project_data_id = None  # Project name for reference (str)
@@ -101,12 +100,9 @@ class ManualReductionWindow(QMainWindow):
         self._promote_widgets()
 
         # set up the event handling
-        self.ui.pushButton_loadProjectFile.clicked.connect(self.do_load_hidra_projec_file)
         self.ui.pushButton_browseOutputDir.clicked.connect(self.do_browse_output_dir)
-        self.ui.pushButton_setCalibrationFile.clicked.connect(self.do_browse_calibration_file)
-        self.ui.pushButton_setMaskFile.clicked.connect(self.do_browse_mask_file)
-
-        self.ui.pushButton_setBrowseIDF.clicked.connect(self.do_browse_set_idf)
+        self.ui.pushButton_browseCalibrationFile.clicked.connect(self.do_browse_calibration_file)
+        self.ui.pushButton_browseMaskFile.clicked.connect(self.do_browse_mask_file)
 
         self.ui.pushButton_batchReduction.clicked.connect(self.do_reduce_batch_runs)
         self.ui.pushButton_saveProject.clicked.connect(self.do_save_project)
