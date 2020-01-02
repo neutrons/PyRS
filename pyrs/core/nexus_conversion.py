@@ -171,7 +171,7 @@ class NeXusConvertingApp(object):
             if not run_i.hasProperty('splitter'):
                 # no splitter (which is not right), use the duration property
                 duration_vec[sub_run_index] = run_i.getPropertyAsSingleValue('duration')
-                print('duration[{}] = {}'.format(sub_run_index, duration_vec[sub_run_index]))
+                self._log.information('duration[{}] = {}'.format(sub_run_index, duration_vec[sub_run_index]))
             else:
                 # calculate duration
                 splitter_times = run_i.getProperty('splitter').times.astype(float) * 1E-9
@@ -266,8 +266,8 @@ class NeXusConvertingApp(object):
 
             ws = mtd[self._event_ws_name]
             counts_vec = ws.extractY()
-            print('[INFO] {}: number of extra masked spectra = {}'
-                  ''.format(self._event_ws_name, numpy.where(counts_vec < 0.5)[0].shape[0] - num_zero))
+            self._log.information('{}: number of extra masked spectra = {}'
+                                  ''.format(self._event_ws_name, numpy.where(counts_vec < 0.5)[0].shape[0] - num_zero))
 
         # get the start time from the run object
         self._starttime = numpy.datetime64(mtd[self._event_ws_name].run()['start_time'].value)
@@ -345,7 +345,7 @@ class NeXusConvertingApp(object):
             # determine the duration of each subrun by correlating to the scan_index
             scan_times = mtd[self._event_ws_name].run()[SUBRUN_LOGNAME].times
             durations = {}
-            for timedelta, subrun in zip(scan_times - scan_times[0], scan_index):
+            for timedelta, subrun in zip(scan_times[1:] - scan_times[:-1], scan_index[:-1]):
                 timedelta /= numpy.timedelta64(1, 's')  # convert to seconds
                 if subrun not in durations:
                     durations[subrun] = timedelta
