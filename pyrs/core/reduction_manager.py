@@ -649,7 +649,7 @@ class HB2BReductionManager(object):
                 eta_mask = mask_vec
 
             # Histogram
-            bin_centers, hist = self.convert_counts_to_diffraction(reduction_engine,
+            bin_centers, hist = self.convert_counts_to_diffraction(reduction_engine, mantid_two_theta,
                                                                    (min_2theta, max_2theta),
                                                                    num_bins, eta_mask, vanadium_counts)
 
@@ -688,7 +688,8 @@ class HB2BReductionManager(object):
         self._last_reduction_engine = reduction_engine
 
     @staticmethod
-    def convert_counts_to_diffraction(reduction_engine, two_theta_range, num_bins, mask_array, vanadium_array):
+    def convert_counts_to_diffraction(reduction_engine, instrument_2theta,
+                                      two_theta_range, num_bins, mask_array, vanadium_array):
         """Histogram detector counts with detectors' 2theta angle
 
         Parameters
