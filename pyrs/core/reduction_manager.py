@@ -625,7 +625,7 @@ class HB2BReductionManager(object):
 
             Upper = np.arange(eta_roi_start, eta_max - eta_step / 2., eta_step)
 
-            if eta_min < 0:                
+            if eta_min < 0:
                 Lower = np.arange(-1 * eta_step, eta_min + eta_step / 2., -1 * eta_step)
             else:
                 Lower = np.array([])
