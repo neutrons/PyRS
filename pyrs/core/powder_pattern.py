@@ -56,17 +56,27 @@ class ReductionApp(object):
 
     @property
     def use_mantid_engine(self):
-        """
+        """Status to use Mantid as reduction engine to convert counts to diffraction pattern
 
-        :return:
+        Returns
+        -------
+        bool
+            True to indicate the reduction is done by Mantid algorithm and instrument geometry
+
         """
         return self._use_mantid_engine
 
     @use_mantid_engine.setter
     def use_mantid_engine(self, value):
-        """ set flag to use mantid reduction engine (True) or PyRS reduction engine (False)
-        :param value:
-        :return:
+        """Set flag to use mantid reduction engine (True) or PyRS reduction engine (False)
+
+        Parameters
+        ----------
+        value
+
+        Returns
+        -------
+
         """
         checkdatatypes.check_bool_variable('Flag to use Mantid as reduction engine', value)
 

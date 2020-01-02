@@ -502,9 +502,8 @@ class HB2BReductionManager(object):
 
     # NOTE: Refer to compare_reduction_engines_tst
     def reduce_sub_run_diffraction(self, workspace, sub_run, geometry_calibration, use_mantid_engine,
-                                   mask_vec_tuple, min_2theta=None, max_2theta=None, default_two_theta_range=20,
-                                   num_bins=1000, sub_run_duration=None,
-                                   vanadium_counts=None):
+                                   mask_vec_tuple, min_2theta=None, max_2theta=None,
+                                   num_bins=1000, sub_run_duration=None, vanadium_counts=None):
         """Reduce import data (workspace or vector) to 2-theta ~ I
 
         The binning of 2theta is linear in range (min, max) with given resolution
@@ -566,46 +565,114 @@ class HB2BReductionManager(object):
               ''.format(two_theta, -two_theta))
         mantid_two_theta = -two_theta
 
+        # Apply mask
+        mask_id, mask_vec = mask_vec_tuple
+
         # Set up reduction engine and also
         if use_mantid_engine:
             reduction_engine = reduce_hb2b_mtd.MantidHB2BReduction(self._mantid_idf)
         else:
             reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
 
-        reduction_engine.set_experimental_data(mantid_two_theta, l2, raw_count_vec)
+        # Histogram
+        bin_centers, hist = self.convert_counts_to_diffraction(reduction_engine, l2, mantid_two_theta,
+                                                               geometry_calibration, raw_count_vec,
+                                                               (min_2theta, max_2theta),
+                                                               num_bins, mask_vec, vanadium_counts)
+
+        # reduction_engine.set_experimental_data(mantid_two_theta, l2, raw_count_vec)
+        # reduction_engine.build_instrument(geometry_calibration)
+
+        # # Determine the 2theta range
+        # # Get the 2theta values for all pixels if default value is required
+        # if min_2theta is None or max_2theta is None:
+        #     pixel_2theta_vector = reduction_engine._instrument.get_pixels_2theta(dimension=1)
+        #     if min_2theta is None:
+        #         min_2theta = np.min(pixel_2theta_vector)
+        #     if max_2theta is None:
+        #         max_2theta = np.max(pixel_2theta_vector)
+
+        # if min_2theta >= max_2theta:
+        #     raise RuntimeError('Diffraction 2theta range ({}, {})is incorrect.'
+        #                        'Given information: detector arm 2theta = {}, 2theta range = {}'
+        #                        ''.format(min_2theta, max_2theta, two_theta, default_two_theta_range))
+
+        # # Apply mask
+        # if mask_vec is not None:
+        #     reduction_engine.set_mask(mask_vec)
+
+        # data_set = reduction_engine.reduce_to_2theta_histogram((min_2theta, max_2theta),
+        #                                                        two_theta_bins_number=num_bins,
+        #                                                        apply_mask=True,
+        #                                                        is_point_data=True,
+        #                                                        use_mantid_histogram=False,
+        #                                                        vanadium_counts_array=vanadium_counts)
+        # bin_centers = data_set[0]
+        # hist = data_set[1]
+
+        # record
+        workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_centers, hist)
+        self._last_reduction_engine = reduction_engine
+
+    @staticmethod
+    def convert_counts_to_diffraction(reduction_engine, l2, instrument_2theta, geometry_calibration,
+                                      det_counts_array, two_theta_range, num_bins, mask_array, vanadium_array):
+        """Histogram detector counts with detectors' 2theta angle
+
+        Parameters
+        ----------
+        reduction_engine
+        l2
+        instrument_2theta
+        geometry_calibration
+        det_counts_array
+        two_theta_range
+        num_bins
+        mask_array
+        vanadium_array
+
+        Returns
+        -------
+
+        """
+        # Set up reduction engine
+        reduction_engine.set_experimental_data(instrument_2theta, l2, det_counts_array)
         reduction_engine.build_instrument(geometry_calibration)
 
-        # Determine the 2theta range
-        # Get the 2theta values for all pixels if default value is required
+        # Apply mask
+        if mask_array is not None:
+            reduction_engine.set_mask(mask_array)
+
+        # Get the 2theta values for all pixels
+        min_2theta, max_2theta = two_theta_range
+
+        # If default value is required: set the default
         if min_2theta is None or max_2theta is None:
+            # get the 2theta of each pixel
             pixel_2theta_vector = reduction_engine._instrument.get_pixels_2theta(dimension=1)
+            # TODO - mask detector by set the masked pixels to NaN and then remove from 2theta array
+            # ... ...
             if min_2theta is None:
                 min_2theta = np.min(pixel_2theta_vector)
             if max_2theta is None:
                 max_2theta = np.max(pixel_2theta_vector)
-
+        # sanity check
         if min_2theta >= max_2theta:
             raise RuntimeError('Diffraction 2theta range ({}, {})is incorrect.'
-                               'Given information: detector arm 2theta = {}, 2theta range = {}'
-                               ''.format(min_2theta, max_2theta, two_theta, default_two_theta_range))
+                               'Given information: detector arm 2theta = {}, 2theta range = {}, {}'
+                               ''.format(min_2theta, max_2theta, instrument_2theta, min_2theta, max_2theta))
 
-        # Apply mask
-        mask_id, mask_vec = mask_vec_tuple
-        if mask_vec is not None:
-            reduction_engine.set_mask(mask_vec)
-
+        # Histogram
         data_set = reduction_engine.reduce_to_2theta_histogram((min_2theta, max_2theta),
                                                                two_theta_bins_number=num_bins,
                                                                apply_mask=True,
                                                                is_point_data=True,
                                                                use_mantid_histogram=False,
-                                                               vanadium_counts_array=vanadium_counts)
+                                                               vanadium_counts_array=vanadium_array)
         bin_centers = data_set[0]
         hist = data_set[1]
 
-        # record
-        workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_centers, hist)
-        self._last_reduction_engine = reduction_engine
+        return bin_centers, hist
 
     def save_reduced_diffraction(self, session_name, output_name):
         """
