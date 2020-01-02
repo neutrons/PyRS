@@ -129,7 +129,7 @@ class ReductionApp(object):
         self._hydra_ws = hd_workspace
 
     def reduce_data(self, sub_runs, instrument_file, calibration_file, mask, van_file=None, num_bins=1000,
-                    eta_step=None, eta_min=None, eta_max=None):
+                    eta_step=None, eta_min=-8.2, eta_max=8.2):
         """Reduce data from HidraWorkspace
         Parameters
         ----------

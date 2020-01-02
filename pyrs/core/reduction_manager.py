@@ -418,7 +418,7 @@ class HB2BReductionManager(object):
 
     def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, num_bins,
                                 use_pyrs_engine, mask, sub_run_list, vanadium_counts=None,
-                                eta_step=None, eta_min=None, eta_max=None):
+                                eta_step=None, eta_min=-8.2, eta_max=8.2):
         """Reduce ALL sub runs in a workspace from detector counts to diffraction data
 
         Parameters
@@ -514,7 +514,7 @@ class HB2BReductionManager(object):
     def reduce_sub_run_diffraction(self, workspace, sub_run, geometry_calibration, use_mantid_engine,
                                    mask_vec_tuple, min_2theta=None, max_2theta=None, default_two_theta_range=20,
                                    num_bins=1000, sub_run_duration=None, vanadium_counts=None,
-                                   eta_step=None, eta_min=None, eta_max=None):
+                                   eta_step=None, eta_min=-8.2, eta_max=8.2):
 
         """Reduce import data (workspace or vector) to 2-theta ~ I
 
@@ -592,13 +592,19 @@ class HB2BReductionManager(object):
         else:
             reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
 
+        # Set up reduction engine
+        reduction_engine.set_experimental_data(mantid_two_theta, l2, raw_count_vec)
+        reduction_engine.build_instrument(geometry_calibration)
+
         # Define setup for out-of-plane reduction
         if eta_step is not None:
             eta_val = reduction_engine.get_eta_value()
+
+            # set eta bounds to default if None is provided
             if eta_min is None:
-                eta_min = -9.0
+                eta_min = -8.2
             if eta_max is None:
-                eta_max = 9.0
+                eta_max = 8.2
 
             if eta_min < 0:
                 eta_roi_start = 0
@@ -623,10 +629,11 @@ class HB2BReductionManager(object):
             eta_roi_vec = np.array([0])
             eta_step = 50
 
+        eta_mask = None
         for eta_cent in eta_roi_vec:
             if eta_roi_vec.shape[0] != 1:
                 mask_id = 'eta_{}'.format(eta_cent)
-                Mask = np.zeros_like(eta_val)
+                eta_mask = np.zeros_like(eta_val)
                 if abs(eta_cent) == eta_cent:
                     index = np.where((eta_val < (eta_cent + eta_step / 2.)) ==
                                      (eta_val > (eta_cent - eta_step / 2.)))[0]
@@ -634,16 +641,18 @@ class HB2BReductionManager(object):
                     index = np.where((eta_val > (eta_cent + eta_step / 2.)) ==
                                      (eta_val < (eta_cent - eta_step / 2.)))[0]
 
-                Mask[index] = 1.
+                eta_mask[index] = 1.
 
                 if mask_vec is not None:
-                    Mask[mask_vec_index] = 1.
+                    eta_mask[mask_vec_index] = 1.
+
+            if eta_mask is None:
+                eta_mask = mask_vec
 
             # Histogram
-            bin_centers, hist = self.convert_counts_to_diffraction(reduction_engine, l2, mantid_two_theta,
-                                                                   geometry_calibration, raw_count_vec,
+            bin_centers, hist = self.convert_counts_to_diffraction(reduction_engine,
                                                                    (min_2theta, max_2theta),
-                                                                   num_bins, Mask, vanadium_counts)
+                                                                   num_bins, eta_mask, vanadium_counts)
 
         # reduction_engine.set_experimental_data(mantid_two_theta, l2, raw_count_vec)
         # reduction_engine.build_instrument(geometry_calibration)
@@ -680,17 +689,12 @@ class HB2BReductionManager(object):
         self._last_reduction_engine = reduction_engine
 
     @staticmethod
-    def convert_counts_to_diffraction(reduction_engine, l2, instrument_2theta, geometry_calibration,
-                                      det_counts_array, two_theta_range, num_bins, mask_array, vanadium_array):
+    def convert_counts_to_diffraction(reduction_engine, two_theta_range, num_bins, mask_array, vanadium_array):
         """Histogram detector counts with detectors' 2theta angle
 
         Parameters
         ----------
         reduction_engine
-        l2
-        instrument_2theta
-        geometry_calibration
-        det_counts_array
         two_theta_range
         num_bins
         mask_array
@@ -700,10 +704,6 @@ class HB2BReductionManager(object):
         -------
 
         """
-        # Set up reduction engine
-        reduction_engine.set_experimental_data(instrument_2theta, l2, det_counts_array)
-        reduction_engine.build_instrument(geometry_calibration)
-
         # Apply mask
         if mask_array is not None:
             reduction_engine.set_mask(mask_array)
