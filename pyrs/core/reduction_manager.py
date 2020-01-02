@@ -614,11 +614,25 @@ class HB2BReductionManager(object):
         if eta_step is not None:
             eta_val = reduction_engine.get_eta_value()
             if eta_min is None:
-                eta_min = np.min(eta_val)
+                eta_min = -9.0
             if eta_max is None:
-                eta_max = np.max(eta_val)
+                eta_max = 9.0
 
-            eta_roi_vec = np.arange(eta_min, eta_max + eta_step/10., eta_step)
+            if eta_min < 0:
+                eta_roi_start = 0
+            else:
+                eta_roi_start = eta_min
+
+            Upper = np.arange(eta_roi_start, eta_max - eta_step / 2., eta_step)
+
+            if eta_min < 0:                
+                Lower = np.arange(-1 * eta_step, eta_min + eta_step / 2., -1 * eta_step)
+            else:
+                Lower = np.array([])
+
+            eta_roi_vec = np.concatenate((Upper, Lower))
+
+#            eta_roi_vec = np.arange(eta_min, eta_max + eta_step/10., eta_step)
 
             if mask_vec is not None:
                 mask_vec_index = np.where(mask_vec == 1)[0]
