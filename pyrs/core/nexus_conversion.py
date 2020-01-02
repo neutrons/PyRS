@@ -125,7 +125,6 @@ class NeXusConvertingApp(object):
                 if log_name not in sample_log_dict:
                     sample_log_dict[log_name] = numpy.ndarray(shape=(log_array_size, ),
                                                               dtype=log_dtype)
-
                 sample_log_dict[log_name][sub_run_index] = log_value
             # END-FOR
         # END-FOR
@@ -345,6 +344,15 @@ class NeXusConvertingApp(object):
                     durations[subrun] = timedelta
                 else:
                     durations[subrun] += timedelta
+            if 0 in durations:
+                del durations[0]
+            durations[scan_index_max] = 0.
+            numpy.sum(durations.values())
+            durations[scan_index_max] = mtd[self._event_ws_name].run()['duration'].value \
+                - numpy.sum(durations.values())
+            if durations[scan_index_max] < 0.:
+                raise RuntimeError('Got negative duration ({}s) for subrun={}'
+                                   ''.format(durations[scan_index_max], scan_index_max))
 
             # skip scan_index=0
             # the +1 is to make it inclusive
@@ -357,8 +365,8 @@ class NeXusConvertingApp(object):
                                  OutputWorkspace=ws_name,
                                  LogName=SUBRUN_LOGNAME,
                                  LogBoundary='Left',
-                                 MinimumValue=float(subrun) - .5,
-                                 MaximumValue=float(subrun) + .5)
+                                 MinimumValue=float(subrun) - .25,
+                                 MaximumValue=float(subrun) + .25)
 
                 # matrix workspaces take significantly less memory for HB2B
                 ConvertToMatrixWorkspace(InputWorkspace=ws_name,
@@ -369,19 +377,20 @@ class NeXusConvertingApp(object):
                 duration.units = 'second'
                 mtd[ws_name].run()['duration'] = duration
 
+                # should not get subrun twice
+                if subrun in sub_run_ws_dict:
+                    raise RuntimeError('subrun {} is already in the results'.format(subrun))
+                # subrun found should match what was requested
+                if abs(mtd[ws_name].run().getPropertyAsSingleValue('scan_index') - subrun) > .1:
+                    subrun_obs = mtd[ws_name].run().getPropertyAsSingleValue('scan_index')
+                    # TODO this should match exactly - doesn't in test_split_log_time_average
+                    self._log.warning('subrun {:.1f} is not the expected value {}'.format(subrun_obs, subrun))
+                    # raise RuntimeError('subrun {:.1f} is not the expected value {}'.format(subrun_obs, subrun))
                 # add it to the dictionary
                 sub_run_ws_dict[subrun] = ws_name
 
                 # put the counts in the workspace
                 self._set_counts(subrun, ws_name)
-
-                # remove all of the events we already wanted
-                if subrun != scan_index_max:
-                    FilterByLogValue(InputWorkspace=self._event_ws_name,
-                                     OutputWorkspace=self._event_ws_name,
-                                     LogName=SUBRUN_LOGNAME,
-                                     LogBoundary='Left',
-                                     MinimumValue=float(subrun) + .5)
         else:  # nothing to filter so just histogram it
             subrun = 1
             ConvertToMatrixWorkspace(InputWorkspace=self._event_ws_name,
@@ -419,6 +428,7 @@ def time_average_value(run_obj, log_name):
         splitter_value = run_obj.getProperty('splitter').value
     else:
         splitter_times = splitter_value = None
+
     if has_splitter_log and isinstance(log_property,
                                        (Int32TimeSeriesProperty, Int64TimeSeriesProperty, FloatTimeSeriesProperty)):
         # Integer or float time series property and this is a split workspace
