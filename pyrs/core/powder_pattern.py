@@ -149,6 +149,7 @@ class ReductionApp(object):
             min angle for out-of-plane reduction
         eta_max : float
             max angle for out-of-plane reduction
+
         Returns
         -------
         """

@@ -418,7 +418,7 @@ class HB2BReductionManager(object):
 
     def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, num_bins,
                                 use_pyrs_engine, mask, sub_run_list, vanadium_counts=None,
-                                eta_step=None, eta_min=-8.2, eta_max=8.2):
+                                eta_step=None, eta_min=None, eta_max=None):
         """Reduce ALL sub runs in a workspace from detector counts to diffraction data
 
         Parameters
@@ -514,8 +514,7 @@ class HB2BReductionManager(object):
     def reduce_sub_run_diffraction(self, workspace, sub_run, geometry_calibration, use_mantid_engine,
                                    mask_vec_tuple, min_2theta=None, max_2theta=None, default_two_theta_range=20,
                                    num_bins=1000, sub_run_duration=None, vanadium_counts=None,
-                                   eta_step=None, eta_min=-8.2, eta_max=8.2):
-
+                                   eta_step=None, eta_min=None, eta_max=None):
         """Reduce import data (workspace or vector) to 2-theta ~ I
 
         The binning of 2theta is linear in range (min, max) with given resolution
