@@ -7,7 +7,7 @@ from pyrs.core.peak_profile_utility import PeakShape, BackgroundFunction
 from pyrs.core.summary_generator import SummaryGenerator
 from pyrs.dataobjects import SampleLogs
 from pyrs.projectfile import HidraProjectFile
-from pyrs.peaks import PeakFitEngineFactory
+from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory
 import h5py
 from pyrs.core import peak_profile_utility
 from matplotlib import pyplot as plt
@@ -225,7 +225,7 @@ def test_retrieve_fit_metadata(source_project_file, output_project_file, peak_ty
 
     # Set peak fitting engine
     # create a controller from factory
-    fit_engine = PeakFitEngineFactory.getInstance('Mantid')(hd_ws, None)
+    fit_engine = PeakFitEngineFactory.getInstance('Mantid', hd_ws, None)
 
     # Fit peak
     fit_engine.fit_multiple_peaks(sub_run_range=(None, None),  # default is all sub runs
@@ -348,7 +348,7 @@ def test_improve_quality():
 
     # Set peak fitting engine
     # create a controller from factory
-    fit_engine = PeakFitEngineFactory.getInstance('Mantid')(hd_ws, None)
+    fit_engine = PeakFitEngineFactory.getInstance('Mantid', hd_ws, None)
 
     peak_type = 'Gaussian'
 
