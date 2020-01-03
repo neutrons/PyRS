@@ -487,6 +487,7 @@ class NeXusConvertingApp(object):
                                  OutputWorkspace=split_ws_name,
                                  InformationWorkspace=info_ws_name,
                                  LogName=SUBRUN_LOGNAME,
+                                 LogValueInterval=1,
                                  MinimumLogValue=sub_run_min_i,
                                  MaximumLogValue=sub_run_max_i)
             outputs = FilterEvents(InputWorkspace=self._event_ws_name,
@@ -496,11 +497,14 @@ class NeXusConvertingApp(object):
                                    FilterByPulseTime=True,
                                    GroupWorkspaces=True,
                                    OutputWorkspaceIndexFrom1=True,
-                                   CorrectionToSample=False,
+                                   CorrectionToSample='None',
                                    SplitSampleLogs=True)
 
             # Convert each output workspace
             child_ws_names = sorted(outputs.OutputWorkspaceNames)
+            # remove any empty workspace
+            if '' in child_ws_names:
+                child_ws_names.remove('')
             assert len(child_ws_names) == sub_run_max_i - sub_run_min_i + 1
             for sub_run_index in range(sub_run_min_i, sub_run_max_i + 1):
                 # get workspace
