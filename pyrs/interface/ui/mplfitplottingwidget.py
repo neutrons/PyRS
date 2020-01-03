@@ -99,6 +99,9 @@ class MplFitPlottingWidget(QWidget):
         if _working_range[0] == x:  # remove this range
             self.list_peak_ranges.remove([_working_range[0], np.NaN])
             [left_peak, right_peak] = self.list_peak_ranges_matplotlib_id[self._working_with_range_index]
+            left_peak.remove()
+            right_peak.remove()
+
             self.list_peak_ranges_matplotlib_id.remove([left_peak, right_peak])
         else:
             _working_range = [_working_range[0], x]
@@ -120,7 +123,6 @@ class MplFitPlottingWidget(QWidget):
         self._curr_color_index += 1
         if self._curr_color_index >= len(MplBasicColors):
             self._curr_color_index = 0
-
 
     def clear_canvas(self):
         """
@@ -223,17 +225,8 @@ class MplFitPlottingWidget(QWidget):
         self.clear_canvas()
 
         for [_left_line, _right_line] in self.list_peak_ranges_matplotlib_id:
-            print("left and right: {}, {}".format(_left_line, _right_line))
             _left_line.remove()
             _right_line.remove()
-
-        # if self._left_line:
-        #     self._left_line.remove()
-        #     self._left_line = None
-        #
-        # if self._right_line:
-        #     self._right_line.remove()
-        #     self._right_line = None
 
         color = self._color
         data_set = self._data_set
@@ -243,10 +236,10 @@ class MplFitPlottingWidget(QWidget):
         self.list_peak_ranges_matplotlib_id = []
 
         for _range in self.list_peak_ranges:
-            x_right = np.max(_range)
-            x_left = np.min(_range)
-            self._right_line = self._myCanvas._data_subplot.axvline(x_right, color='r', linestyle='--')
+            x_right = np.nanmax(_range)
+            x_left = np.nanmin(_range)
             self._left_line = self._myCanvas._data_subplot.axvline(x_left, color='r', linestyle='--')
+            self._right_line = self._myCanvas._data_subplot.axvline(x_right, color='r', linestyle='--')
             self.list_peak_ranges_matplotlib_id.append([self._left_line, self._right_line])
 
         self._myCanvas.draw()
