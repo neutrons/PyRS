@@ -12,7 +12,7 @@ from pyrs.utilities import calibration_file_io
 from pyrs.interface.ui.diffdataviews import DetectorView, GeneralDiffDataView
 from pyrs.interface import gui_helper
 from pyrs.utilities import checkdatatypes
-from pyrs.utilities.rs_project_file import HidraConstants
+from pyrs.dataobjects import HidraConstants
 from pyrs.interface.ui import rstables
 from pyrs.interface.manual_reduction.event_handler import EventHandler
 
