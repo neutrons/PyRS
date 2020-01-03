@@ -221,13 +221,19 @@ class MplFitPlottingWidget(QWidget):
 
     def plot_data_with_fitting_ranges(self):
         self.clear_canvas()
-        if self._left_line:
-            self._left_line.remove()
-            self._left_line = None
 
-        if self._right_line:
-            self._right_line.remove()
-            self._right_line = None
+        for [_left_line, _right_line] in self.list_peak_ranges_matplotlib_id:
+            print("left and right: {}, {}".format(_left_line, _right_line))
+            _left_line.remove()
+            _right_line.remove()
+
+        # if self._left_line:
+        #     self._left_line.remove()
+        #     self._left_line = None
+        #
+        # if self._right_line:
+        #     self._right_line.remove()
+        #     self._right_line = None
 
         color = self._color
         data_set = self._data_set
@@ -235,11 +241,12 @@ class MplFitPlottingWidget(QWidget):
 
         self._myCanvas.add_plot_upper_axis(data_set, line_color=color, label=line_label)
         self.list_peak_ranges_matplotlib_id = []
+
         for _range in self.list_peak_ranges:
-            x_left = np.min(_range)
             x_right = np.max(_range)
-            self._left_line = self._myCanvas._data_subplot.axvline(x_left, color='r', linestyle='--')
+            x_left = np.min(_range)
             self._right_line = self._myCanvas._data_subplot.axvline(x_right, color='r', linestyle='--')
+            self._left_line = self._myCanvas._data_subplot.axvline(x_left, color='r', linestyle='--')
             self.list_peak_ranges_matplotlib_id.append([self._left_line, self._right_line])
 
         self._myCanvas.draw()
@@ -475,7 +482,6 @@ class QtMplFitCanvas(FigureCanvas):
             line_handler = self._data_plot_dict[line_index]
             self._data_subplot.lines.remove(line_handler)
             del self._data_plot_dict[line_index]
-
 
     def remove_residual_line(self):
         """
