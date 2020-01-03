@@ -63,6 +63,8 @@ def test_performance_test():
 
     print('Converting = {} seconds; Saving = {} seconds'.format(time_1 - time_0, time_2 - time_1))
 
+    assert 'I am ' == '....'
+
 
 if __name__ == '__main__':
     pytest.main([__file__])

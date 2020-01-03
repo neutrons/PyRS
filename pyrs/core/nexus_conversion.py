@@ -344,7 +344,7 @@ class NeXusConvertingApp(object):
         if multiple_subrun:
             # determine the duration of each subrun by correlating to the scan_index
             # self.split_sub_run_singles(sub_run_ws_dict, scan_index, scan_index_min, scan_index_max)
-            group_size = 3
+            group_size = 10
             self.split_sub_run_subsets(sub_run_ws_dict, scan_index, scan_index_min, scan_index_max, group_size)
 
         # scan_times = mtd[self._event_ws_name].run()[SUBRUN_LOGNAME].times
@@ -396,6 +396,8 @@ class NeXusConvertingApp(object):
 
         # input workspace should no longer have any events in it
         # but must stick around for single subrun case
+
+	print('sub runs: {}'.format(sub_run_ws_dict.keys()))
 
         return sub_run_ws_dict
 
@@ -478,11 +480,12 @@ class NeXusConvertingApp(object):
         sub_run_min_i = scan_index_min
 
         while continue_split:
-            sub_run_max_i = min(sub_run_min_i, scan_index_max)
+            sub_run_max_i = int(min(sub_run_min_i + group_size - 1, scan_index_max))
 
             # Generate event filter and split
             split_ws_name = self._event_ws_name + '_split'
             info_ws_name = self._event_ws_name + '_info'
+            print('[DEBUG] sub run range: {}, {}'.format(sub_run_min_i, sub_run_max_i))
             GenerateEventsFilter(InputWorkspace=self._event_ws_name,
                                  OutputWorkspace=split_ws_name,
                                  InformationWorkspace=info_ws_name,
@@ -496,7 +499,7 @@ class NeXusConvertingApp(object):
                                    OutputWorkspaceBaseName=self._event_ws_name + '_child',
                                    FilterByPulseTime=True,
                                    GroupWorkspaces=True,
-                                   OutputWorkspaceIndexFrom1=True,
+                                   OutputWorkspaceIndexedFrom1=True,
                                    CorrectionToSample='None',
                                    SplitSampleLogs=True)
 
@@ -517,9 +520,14 @@ class NeXusConvertingApp(object):
                 sub_run_number = split_index - 1 + sub_run_min_i
 
                 # convert MatrixWorkspace and delete old one
+                matrix_ws_name = self._event_ws_name + '_split_{:05}'.format(sub_run_number)
                 ConvertToMatrixWorkspace(InputWorkspace=child_ws_name,
-                                         OutputWorkspace=self._event_ws_name + '_split_{:05)'.format(sub_run_number))
+                                         OutputWorkspace=matrix_ws_name)
                 DeleteWorkspace(child_ws_name)
+
+            	# add it to the dictionary
+            	sub_run_ws_dict[sub_run_number] = matrix_ws_name
+                print('sub run {}: save Mantid workspace {}'.format(sub_run_number, matrix_ws_name))
             # END-FOR
 
             # Update sub run min for iteration i
