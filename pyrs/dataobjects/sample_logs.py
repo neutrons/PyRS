@@ -105,7 +105,8 @@ class SampleLogs(MutableMapping):
         '''Set the subruns and build up associated values'''
         if self._subruns.size != 0:
             if not self.matching_subruns(value):
-                raise RuntimeError('Cannot set subruns on non-empty SampleLog')
+                raise RuntimeError('Cannot set subruns on non-empty SampleLog '
+                                   '(previous={}, new={})'.format(self._subruns, value))
         value = _coerce_to_ndarray(value)
         if not np.all(value[:-1] < value[1:]):
             raise RuntimeError('subruns are not soryed in increasing order')
