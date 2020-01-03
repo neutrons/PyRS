@@ -91,16 +91,14 @@ class NeXusConvertingApp(object):
         self._determine_start_time()
         self._sub_run_workspace_dict = self._split_sub_runs()
 
-        # Set sub runs to HidraWorkspace
-        sub_runs = numpy.array(sorted(self._sub_run_workspace_dict.keys()))
-
         # Add the sample logs to the workspace
-        sample_log_dict = self._create_sample_log_dict()
+        self._create_sample_log_dict()
 
-        for log_name in sample_log_dict:
+        sub_runs = self._sample_log_dict['scan_index']
+        for log_name in self._sample_log_dict:
             if log_name in ['scan_index', HidraConstants.SUB_RUNS]:
                 continue  # skip 'SUB_RUNS'
-            self._hydra_workspace.set_sample_log(log_name, sub_runs, sample_log_dict[log_name])
+            self._hydra_workspace.set_sample_log(log_name, sub_runs, self._sample_log_dict[log_name])
 
         return self._hydra_workspace
 
@@ -109,7 +107,6 @@ class NeXusConvertingApp(object):
 
     def _create_sample_log_dict(self):
         # Get the sample log value
-        sample_log_dict = dict()
         log_array_size = len(self._sub_run_workspace_dict.keys())
 
         # Construct the workspace
@@ -121,17 +118,15 @@ class NeXusConvertingApp(object):
                 log_value, log_dtype = self._get_log_value_and_type(runObj, log_name)
 
                 # if the entry for this log is not created, create it!
-                if log_name not in sample_log_dict:
-                    sample_log_dict[log_name] = numpy.ndarray(shape=(log_array_size, ),
+                if log_name not in self._sample_log_dict:
+                    self._sample_log_dict[log_name] = numpy.ndarray(shape=(log_array_size, ),
                                                               dtype=log_dtype)
-                sample_log_dict[log_name][sub_run_index] = log_value
+                self._sample_log_dict[log_name][sub_run_index] = log_value
             # END-FOR
         # END-FOR
 
         # create a fictional log for duration
-        sample_log_dict[HidraConstants.SUB_RUN_DURATION] = self._calculate_sub_run_duration()
-
-        return sample_log_dict
+        self._sample_log_dict[HidraConstants.SUB_RUN_DURATION] = self._calculate_sub_run_duration()
 
     def _calculate_sub_run_duration(self):
         """Calculate the duration of each sub run
