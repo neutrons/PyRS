@@ -92,8 +92,6 @@ class NeXusConvertingApp(object):
         self._sub_run_workspace_dict = self._split_sub_runs()
 
         # Add the sample logs to the workspace
-        self._create_sample_log_dict()
-
         sub_runs = self._sample_log_dict['scan_index']
         for log_name in self._sample_log_dict:
             if log_name in ['scan_index', HidraConstants.SUB_RUNS]:
@@ -105,80 +103,57 @@ class NeXusConvertingApp(object):
     def _set_counts(self, sub_run, wkspname):
         self._hydra_workspace.set_raw_counts(sub_run, mtd[wkspname].extractY())
 
-    def _create_sample_log_dict(self):
-        # Get the sample log value
-        log_array_size = len(self._sub_run_workspace_dict.keys())
+    def _create_sample_log_dict(self, wkspname, sub_run_index, log_array_size):
+        # this contains all of the sample logs
+        runObj = mtd[wkspname].run()
+        # loop through all available logs
+        for log_name in runObj.keys():
+            log_value, log_dtype = self._get_log_value_and_type(runObj, log_name)
 
-        # Construct the workspace
-        for sub_run_index, sub_run in enumerate(sorted(self._sub_run_workspace_dict.keys())):
-            # this contains all of the sample logs
-            runObj = mtd[str(self._sub_run_workspace_dict[sub_run])].run()
-            # loop through all available logs
-            for log_name in runObj.keys():
-                log_value, log_dtype = self._get_log_value_and_type(runObj, log_name)
-
-                # if the entry for this log is not created, create it!
-                if log_name not in self._sample_log_dict:
-                    self._sample_log_dict[log_name] = numpy.ndarray(shape=(log_array_size, ),
-                                                              dtype=log_dtype)
-                self._sample_log_dict[log_name][sub_run_index] = log_value
-            # END-FOR
+            # if the entry for this log is not created, create it!
+            if log_name not in self._sample_log_dict:
+                self._sample_log_dict[log_name] = numpy.ndarray(shape=(log_array_size, ),
+                                                                dtype=log_dtype)
+            self._sample_log_dict[log_name][sub_run_index] = log_value
         # END-FOR
 
         # create a fictional log for duration
-        self._sample_log_dict[HidraConstants.SUB_RUN_DURATION] = self._calculate_sub_run_duration()
+        if HidraConstants.SUB_RUN_DURATION not in self._sample_log_dict:
+            self._sample_log_dict[HidraConstants.SUB_RUN_DURATION] = numpy.ndarray(shape=(log_array_size, ),
+                                                                                   dtype=float)
+        self._sample_log_dict[HidraConstants.SUB_RUN_DURATION][sub_run_index] \
+            = self._calculate_sub_run_duration(runObj)
 
-    def _calculate_sub_run_duration(self):
-        """Calculate the duration of each sub run
+    def _calculate_sub_run_duration(self, runObj):
+        """Calculate the duration of a sub run from the logs
 
         The duration of each sub run is calculated from sample log 'splitter' with unit as second
 
-        Exception: RuntimeError if there is no splitter
-
         Returns
         -------
-        numpy.ndarray
-            a vector of float as sub run's duration.  They are ordered by sub run number increasing monotonically
+        float
+            The sub run's duration
 
         """
-        # Get sub runs and init returned value (array)
-        sub_runs = sorted(self._sub_run_workspace_dict.keys())
-        duration_vec = numpy.zeros(shape=(len(sub_runs),), dtype=float)
+        # get splitter
+        if runObj.hasProperty('splitter'):
+            # calculate duration
+            splitter_times = runObj.getProperty('splitter').times.astype(float) * 1E-9
+            splitter_value = runObj.getProperty('splitter').value
 
-        sub_run_index = 0
+            if splitter_value[0] == 0:
+                splitter_times = splitter_times[1:]
+            assert len(splitter_times) % 2 == 0, 'If splitter starts from 0, there will be odd number of ' \
+                'splitter times; otherwise, even number'
 
-        for sub_run in sorted(self._sub_run_workspace_dict.keys()):
-            # get event workspace of sub run and then run object
-            event_ws_i = mtd[str(self._sub_run_workspace_dict[sub_run])]
+            sub_split_durations = splitter_times[1::2] - splitter_times[::2]
 
-            # sample logs
-            run_i = event_ws_i.run()
+            duration = numpy.sum(sub_split_durations)
+        else:
+            # no splitter (which is not right), use the duration property
+            duration = runObj.getPropertyAsSingleValue('duration')
 
-            # get splitter
-            if not run_i.hasProperty('splitter'):
-                # no splitter (which is not right), use the duration property
-                duration_vec[sub_run_index] = run_i.getPropertyAsSingleValue('duration')
-                self._log.information('duration[{}] = {}'.format(sub_run_index, duration_vec[sub_run_index]))
-            else:
-                # calculate duration
-                splitter_times = run_i.getProperty('splitter').times.astype(float) * 1E-9
-                splitter_value = run_i.getProperty('splitter').value
-
-                if splitter_value[0] == 0:
-                    splitter_times = splitter_times[1:]
-                assert len(splitter_times) % 2 == 0, 'If splitter starts from 0, there will be odd number of ' \
-                                                     'splitter times; otherwise, even number'
-
-                sub_split_durations = splitter_times[1::2] - splitter_times[::2]
-
-                duration_vec[sub_run_index] = numpy.sum(sub_split_durations)
-            # END-FOR
-
-            # Update
-            sub_run_index += 1
-        # END-FOR
-
-        return duration_vec
+        return duration
 
     def save(self, projectfile, instrument):
         """
@@ -357,8 +332,7 @@ class NeXusConvertingApp(object):
 
             # skip scan_index=0
             # the +1 is to make it inclusive
-            for subrun in scan_index:
-
+            for subrun_index, subrun in enumerate(scan_index):
                 self._log.information('Filtering scan_index={}'.format(subrun))
                 # pad up to 5 zeros
                 ws_name = '{}_split_{:05d}'.format(self._event_ws_name, subrun)
@@ -393,6 +367,8 @@ class NeXusConvertingApp(object):
 
                 # put the counts in the workspace
                 self._set_counts(subrun, ws_name)
+
+                self._create_sample_log_dict(ws_name, subrun_index, len(scan_index))
         else:  # nothing to filter so just histogram it
             self._hydra_workspace.set_sub_runs(numpy.arange(1, 2))
             subrun = 1
@@ -403,6 +379,11 @@ class NeXusConvertingApp(object):
 
             # put the counts in the workspace
             self._set_counts(subrun, self._event_ws_name)
+
+            # put the sample logs together
+            self._create_sample_log_dict(self._event_ws_name, 0, 1)
+            # force the subrun number rather than just using it
+            self._sample_log_dict['scan_index'][0] = subrun
 
         # input workspace should no longer have any events in it
         # but must stick around for single subrun case
