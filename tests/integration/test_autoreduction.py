@@ -3,6 +3,7 @@ from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
 from pyrs.dataobjects import HidraConstants
 from matplotlib import pyplot as plt
+import numpy as np
 import pytest
 
 
@@ -83,6 +84,11 @@ def test_nexus_to_project(nexusfile, projectfile):
     sub_runs = test_hidra_ws.get_sub_runs()
     durations = test_hidra_ws.get_sample_log_values(HidraConstants.SUB_RUN_DURATION, sub_runs=sub_runs)
     plt.plot(sub_runs, durations)
+
+    if projectfile == 'HB2B_439.h5':
+        np.testing.assert_equal(sub_runs, [1, 2, 3, 4])
+        # TODO last value probably isn't right
+        np.testing.assert_allclose(durations, [10, 5, 10, 17], atol=.1)
 
     # extract the powder patterns and add them to the project file
     addPowderToProject(projectfile, use_mantid_engine=False)
