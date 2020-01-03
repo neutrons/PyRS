@@ -71,8 +71,8 @@ def check_int_variable(var_name, variable, value_range):
     :param value_range: if not None, then must be a 2 tuple as [min, max)
     '''
     check_string_variable('var_name', var_name)
-    assert isinstance(variable, (int, numpy.int8, numpy.int16)), '{0} {1} must be an integer but not a {2}'\
-        .format(var_name, variable, type(variable))
+    assert isinstance(variable, (int, numpy.int8, numpy.int16, numpy.int32)), '{0} "{1}" must be an integer ' \
+        'but not a {2}'.format(var_name, variable, type(variable))
 
     if value_range is not None:
         assert len(value_range) == 2, '{0}\' value range {1} must be either a None or have 2 elements as [min, max)' \
