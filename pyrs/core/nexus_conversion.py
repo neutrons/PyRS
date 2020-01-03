@@ -53,7 +53,6 @@ class NeXusConvertingApp(object):
 
         # workspaces
         self._event_ws_name = os.path.basename(nexus_file_name).split('.')[0]
-        self._sub_run_workspace_dict = dict()
         self._sample_log_dict = dict()
 
         self._hydra_workspace = workspaces.HidraWorkspace(self._nexus_name)
@@ -65,7 +64,7 @@ class NeXusConvertingApp(object):
 
     def __del__(self):
         # all of the workspaces that were created should be deleted if they haven't been already
-        for name in self._sub_run_workspace_dict.values() + [self._event_ws_name]:
+        for name in [self._event_ws_name]:
             if name in mtd:
                 DeleteWorkspace(Workspace=name)
 
@@ -89,9 +88,9 @@ class NeXusConvertingApp(object):
         # Load data file, split to sub runs and sample logs
         self._load_mask_event_nexus()
         self._determine_start_time()
-        self._sub_run_workspace_dict = self._split_sub_runs()
+        self._split_sub_runs()
 
-        # Add the sample logs to the workspace
+        # Add the sample logs to the hidra workspace
         sub_runs = self._sample_log_dict['scan_index']
         for log_name in self._sample_log_dict:
             if log_name in ['scan_index', HidraConstants.SUB_RUNS]:
@@ -294,9 +293,6 @@ class NeXusConvertingApp(object):
                          AbsoluteStartTime=str(self._starttime),
                          AbsoluteStopTime=str(self._starttime + duration))
 
-        # dictionary for the output
-        sub_run_ws_dict = dict()   # [sub run number] = workspace name
-
         # determine the range of subruns being used
         scan_index = mtd[self._event_ws_name].run()[SUBRUN_LOGNAME].value
         scan_index_min = scan_index.min()
@@ -344,38 +340,32 @@ class NeXusConvertingApp(object):
                                  MinimumValue=float(subrun) - .25,
                                  MaximumValue=float(subrun) + .25)
 
-                # matrix workspaces take significantly less memory for HB2B
-                ConvertToMatrixWorkspace(InputWorkspace=ws_name,
-                                         OutputWorkspace=ws_name)
-
                 # update the duration in the filtered workspace
                 duration = FloatPropertyWithValue('duration', durations[subrun])
                 duration.units = 'second'
                 mtd[ws_name].run()['duration'] = duration
 
-                # should not get subrun twice
-                if subrun in sub_run_ws_dict:
-                    raise RuntimeError('subrun {} is already in the results'.format(subrun))
                 # subrun found should match what was requested
                 if abs(mtd[ws_name].run().getPropertyAsSingleValue('scan_index') - subrun) > .1:
                     subrun_obs = mtd[ws_name].run().getPropertyAsSingleValue('scan_index')
                     # TODO this should match exactly - doesn't in test_split_log_time_average
                     self._log.warning('subrun {:.1f} is not the expected value {}'.format(subrun_obs, subrun))
                     # raise RuntimeError('subrun {:.1f} is not the expected value {}'.format(subrun_obs, subrun))
-                # add it to the dictionary
-                sub_run_ws_dict[subrun] = ws_name
 
                 # put the counts in the workspace
                 self._set_counts(subrun, ws_name)
 
+                # put the sample logs together
                 self._create_sample_log_dict(ws_name, subrun_index, len(scan_index))
+
+                # cleanup
+                DeleteWorkspace(Workspace=ws_name)
+
         else:  # nothing to filter so just histogram it
             self._hydra_workspace.set_sub_runs(numpy.arange(1, 2))
             subrun = 1
             ConvertToMatrixWorkspace(InputWorkspace=self._event_ws_name,
                                      OutputWorkspace=self._event_ws_name)
-            # add it to the dictionary
-            sub_run_ws_dict[subrun] = self._event_ws_name
 
             # put the counts in the workspace
             self._set_counts(subrun, self._event_ws_name)
@@ -384,11 +374,6 @@ class NeXusConvertingApp(object):
             self._create_sample_log_dict(self._event_ws_name, 0, 1)
             # force the subrun number rather than just using it
             self._sample_log_dict['scan_index'][0] = subrun
-
-        # input workspace should no longer have any events in it
-        # but must stick around for single subrun case
-
-        return sub_run_ws_dict
 
 
 def time_average_value(run_obj, log_name):
