@@ -93,13 +93,12 @@ class NeXusConvertingApp(object):
 
         # Set sub runs to HidraWorkspace
         sub_runs = numpy.array(sorted(self._sub_run_workspace_dict.keys()))
-        self._hydra_workspace.set_sub_runs(sub_runs)
 
         # Add the sample logs to the workspace
         sample_log_dict = self._create_sample_log_dict()
 
         for log_name in sample_log_dict:
-            if log_name == HidraConstants.SUB_RUNS:
+            if log_name in ['scan_index', HidraConstants.SUB_RUNS]:
                 continue  # skip 'SUB_RUNS'
             self._hydra_workspace.set_sample_log(log_name, sub_runs, sample_log_dict[log_name])
 
@@ -354,9 +353,17 @@ class NeXusConvertingApp(object):
                 raise RuntimeError('Got negative duration ({}s) for subrun={}'
                                    ''.format(durations[scan_index_max], scan_index_max))
 
+            # create the sorted, unique value version of the scan index and set it on the output workspace
+            scan_index = numpy.unique(scan_index)
+            scan_index.sort()
+            if scan_index[0] == 0:
+                scan_index = scan_index[1:]
+            self._hydra_workspace.set_sub_runs(scan_index)
+
             # skip scan_index=0
             # the +1 is to make it inclusive
-            for subrun in range(max(scan_index_min, 1), scan_index_max + 1):
+            for subrun in scan_index:
+
                 self._log.information('Filtering scan_index={}'.format(subrun))
                 # pad up to 5 zeros
                 ws_name = '{}_split_{:05d}'.format(self._event_ws_name, subrun)
@@ -392,6 +399,7 @@ class NeXusConvertingApp(object):
                 # put the counts in the workspace
                 self._set_counts(subrun, ws_name)
         else:  # nothing to filter so just histogram it
+            self._hydra_workspace.set_sub_runs(numpy.arange(1, 2))
             subrun = 1
             ConvertToMatrixWorkspace(InputWorkspace=self._event_ws_name,
                                      OutputWorkspace=self._event_ws_name)
@@ -447,6 +455,10 @@ def time_average_value(run_obj, log_name):
         # If a split workspace: string, boolean and others won't have time average issue
         # Get single value
         log_value = run_obj.getPropertyAsSingleValue(log_name)
+        # this is a workaround for some runs where there is more than one value
+        # in the scan_index log. It takes the largest unique value
+        if log_name == 'scan_index':
+            log_value = log_property.value.max()
 
     return log_value
 
