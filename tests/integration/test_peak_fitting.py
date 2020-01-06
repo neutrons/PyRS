@@ -216,7 +216,9 @@ def test_retrieve_fit_metadata(source_project_file, output_project_file, peak_ty
 
     # Load project file to HidraWorkspace
     project_name = 'Jean Peaks'
-    hd_ws = controller.load_hidra_project(source_project_file, project_name=project_name, load_detector_counts=False,
+    hd_ws = controller.load_hidra_project(source_project_file,
+                                          project_name=project_name,
+                                          load_detector_counts=False,
                                           load_diffraction=True)
 
     # set wave length

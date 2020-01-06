@@ -133,7 +133,7 @@ class FitPeaksWindow(QMainWindow):
 
     def fit_peaks(self):
         o_fit = Fit(parent=self)
-        o_fit.fit_peaks()
+        o_fit.fit_multi_peaks()
         self.individual_or_list_sub_runs()
 
     def individual_or_list_sub_runs(self):
