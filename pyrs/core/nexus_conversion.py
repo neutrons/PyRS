@@ -86,7 +86,7 @@ class NeXusConvertingApp(object):
 
         """
         # Load data file, split to sub runs and sample logs
-        self._load_mask_event_nexus()
+        self._load_mask_event_nexus(True)
         self._determine_start_time()
         self._split_sub_runs()
 
@@ -200,16 +200,24 @@ class NeXusConvertingApp(object):
             else:
                 raise RuntimeError('Cannot convert "{}" to a single value'.format(name))
 
-    def _load_mask_event_nexus(self):
+    def _load_mask_event_nexus(self, extract_mask):
         """Loads the event file using instance variables
+
         If mask file is not None, then also mask the EventWorkspace
+
+        Parameters
+        ----------
+        extract_mask : bool
+            If True, extract the mask out of MaskWorkspace and set HidraWorkspace
 
         Returns
         -------
+        None
 
         """
         # Load
         ws = LoadEventNexus(Filename=self._nexus_name, OutputWorkspace=self._event_ws_name)
+
         # Mask
         if self._mask_file_name is not None:
             # Load mask with reference to event workspace just created
@@ -219,8 +227,13 @@ class NeXusConvertingApp(object):
             counts_vec = ws.extractY()
             num_zero = numpy.where(counts_vec < 0.5)[0].shape[0]
 
-            LoadMask(Instrument='nrsf2', InputFile=self._mask_file_name, RefWorkspace=self._event_ws_name,
-                     OutputWorkspace=mask_ws_name)
+            mask_ws = LoadMask(Instrument='nrsf2', InputFile=self._mask_file_name, RefWorkspace=self._event_ws_name,
+                               OutputWorkspace=mask_ws_name)
+
+            # Extract mask out
+            if extract_mask:
+                masked_pixels = mask_ws.extractY()
+                self._hydra_workspace.set_mask(masked_pixels, is_default=True)
 
             # Mask detectors and set all the events in mask to zero
             MaskDetectors(Workspace=self._event_ws_name, MaskedWorkspace=mask_ws_name)
@@ -232,6 +245,8 @@ class NeXusConvertingApp(object):
 
         # get the start time from the run object
         self._starttime = numpy.datetime64(mtd[self._event_ws_name].run()['start_time'].value)
+
+        return
 
     def _determine_start_time(self, abs_tolerance=0.05):
         '''This goes through a subset of logs and compares when they actually

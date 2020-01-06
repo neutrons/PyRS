@@ -42,6 +42,11 @@ class HidraWorkspace(object):
 
         # raw Hidra project file
         self._project_file_name = None
+        self._project_file = None
+
+        # Masks
+        self._default_mask = None
+        self._mask_dict = dict()
 
     @property
     def name(self):
@@ -127,6 +132,24 @@ class HidraWorkspace(object):
 
         # Get values
         self._instrument_setup = hidra_file.read_instrument_geometry()
+
+    def _load_masks(self, hidra_file):
+        """
+
+        Parameters
+        ----------
+        hidra_file
+
+        Returns
+        -------
+
+        """
+        # Check
+        checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
+
+        # Get values
+        self._default_mask = hidra_file.read_default_maks()
+        hidra_file.read_user_masks(self._mask_dict)
 
     def _load_sample_logs(self, hidra_file):
         """ Load sample logs.
@@ -275,6 +298,9 @@ class HidraWorkspace(object):
 
         # load sample logs
         self._load_sample_logs(hidra_file)
+
+        # load masks
+        self._load_masks(hidra_file)
 
         # load the wave length
         self._load_wave_length(hidra_file)
@@ -484,6 +510,30 @@ class HidraWorkspace(object):
 
     def set_instrument_geometry(self, instrument):
         self._instrument_setup = instrument
+
+    def set_mask(self, mask_array, is_default, mask_id=None):
+        """Set mask array to HidraWorkspace
+
+        Record the mask to HidraWorkspace future reference
+
+        Parameters
+        ----------
+        mask_array : numpy.darray
+            mask bit for each pixel
+        is_default : bool
+            whether this mask is the default mask from beginning
+        mask_id : str
+            ID for mask
+
+        Returns
+        -------
+
+        """
+        if is_default:
+            self._default_mask = mask_array
+        else:
+            checkdatatypes.check_string_variable('Mask ID', mask_id, allow_empty=False)
+            self._mask_dict[mask_id] = mask_array
 
     def set_raw_counts(self, sub_run_number, counts):
         """
