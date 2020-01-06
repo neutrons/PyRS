@@ -23,6 +23,17 @@ def assert_allclose_structured_numpy_arrays(expected, calculated):
     return
 
 
+def test_default_mask_rw():
+    """Test writing and reading default mask
+
+    Returns
+    -------
+
+    """
+    # TODO - Implementing
+    # ... ...
+
+
 def test_mask():
     """Test methods to read and write mask file
 

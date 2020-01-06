@@ -232,8 +232,12 @@ class NeXusConvertingApp(object):
 
             # Extract mask out
             if extract_mask:
-                masked_pixels = mask_ws.extractY()
-                self._hydra_workspace.set_mask(masked_pixels, is_default=True)
+                # get the Y array from mask workspace: shape = (1048576, 1)
+                mask_array = mask_ws.extractY()
+                # in Mantid's mask workspace, 1 stands for mask (value cleared), 0 stands for non-mask (value kept)
+                mask_array = 1 - mask_array.astype(int)
+                # set the HidraWorkspace
+                self._hydra_workspace.set_mask(mask_array, is_default=True)
 
             # Mask detectors and set all the events in mask to zero
             MaskDetectors(Workspace=self._event_ws_name, MaskedWorkspace=mask_ws_name)

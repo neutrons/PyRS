@@ -163,6 +163,8 @@ def test_apply_mantid_mask():
     convertNeXusToProject(nexus_file, no_mask_project_file, skippable=False,
                           mask_file_name=None)
 
+    # TODO - add check on Mask: num_masked_pixels = (135602,)
+
     # Convert the nexus file to a project file and do the "simple" checks
     no_mask_reducer = ReductionApp(use_mantid_engine=False)
     no_mask_reducer.load_project_file(no_mask_project_file)
