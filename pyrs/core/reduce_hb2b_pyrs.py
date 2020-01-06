@@ -396,7 +396,6 @@ class PyHB2BReduction(object):
         self._detector_2theta = None
         self._detector_l2 = None
         self._detector_counts = None
-        self._detector_mask = None
 
         # buffer for the last reduced data set
         # supposed to be 2 tuple for vector of 2theta and vector of intensity
@@ -492,43 +491,6 @@ class PyHB2BReduction(object):
 
         return pixel_array
 
-    def generate_2theta_histogram_vector(self, min_2theta, num_bins, max_2theta):
-        """ Generate a 1-D array for histogram 2theta bins
-        :param min_2theta: minimum 2theta or None
-        :param num_bins : nubmer of bins
-        :param max_2theta: maximum 2theta and must be integer
-        :return: 1D array
-        """
-        # Get the 2theta values for all pixels if default value is required
-        if min_2theta is None or max_2theta is None:
-            pixel_2theta_vector = self._instrument.get_pixels_2theta(dimension=1)
-            if min_2theta is None:
-                min_2theta = numpy.min(pixel_2theta_vector)
-            if max_2theta is None:
-                max_2theta = numpy.max(pixel_2theta_vector)
-        # END-IF
-
-        step_2theta = (max_2theta - min_2theta) * 1. / num_bins
-
-        # Check inputs
-        checkdatatypes.check_float_variable('Minimum 2theta', min_2theta, (-180, 180))
-        checkdatatypes.check_float_variable('Maximum 2theta', max_2theta, (-180, 180))
-        checkdatatypes.check_float_variable('2theta bin size', step_2theta, (0, 180))
-        if min_2theta >= max_2theta:
-            raise RuntimeError('2theta range ({}, {}) is invalid for generating histogram'
-                               ''.format(min_2theta, max_2theta))
-
-        # Create 2theta: these are bin edges from (min - 1/2) to (max + 1/2) with num_bins bins
-        # and (num_bins + 1) data points
-        vec_2theta = np.arange(num_bins + 1).astype(float) * step_2theta + (min_2theta - step_2theta)
-        # vec_2theta = np.arange(min_2theta, max_2theta, step_2theta)
-        if vec_2theta.shape[0] != num_bins + 1:
-            raise RuntimeError('Expected = {} vs {}\n2theta min max  = {}, {}\n2thetas: {}'
-                               ''.format(num_bins, vec_2theta.shape, min_2theta, max_2theta,
-                                         vec_2theta))
-
-        return vec_2theta
-
     def get_eta_value(self):
         """Get solid angle values for each pixel
 
@@ -539,23 +501,18 @@ class PyHB2BReduction(object):
         """
         return self._instrument.get_eta_values(dimension=1)
 
-    def reduce_to_2theta_histogram(self, two_theta_range, two_theta_bins_number, apply_mask,
-                                   is_point_data=True, use_mantid_histogram=False,
-                                   vanadium_counts_array=None):
+    def reduce_to_2theta_histogram(self, two_theta_bins, mask_array,
+                                   is_point_data=True, vanadium_counts_array=None):
         """Reduce the previously added detector raw counts to 2theta histogram (i.e., diffraction pattern)
 
         Parameters
         ----------
-        two_theta_range : float, float
-            2 tuple as min and max of 2theta
-        two_theta_bins_number : int
-            2theta number of bins
-        apply_mask : bool
+        two_theta_bins : numpy.ndarray
+            2theta bin boundaries to binned to
+        mask_array : bool
             If true and self._detector_mask has been set, the apply mask to output
         is_point_data : bool
             Flag whether the output is point data (numbers of X and Y are same)
-        use_mantid_histogram : bool
-            Flag to use Mantid (algorithm ResampleX) to do histogram
         vanadium_counts_array : None or numpy.ndarray
             Vanadium counts array for normalization and efficiency calibration
 
@@ -566,8 +523,7 @@ class PyHB2BReduction(object):
 
         """
         # Get two-theta-histogram vector
-        two_theta_vector = self.generate_2theta_histogram_vector(
-            two_theta_range[0], two_theta_bins_number, two_theta_range[1])
+        checkdatatypes.check_numpy_arrays('2theta array', [two_theta_bins], 1, False)
 
         # Get the data (each pixel's 2theta and counts): the 2theta value is the absolute diffraction angle
         # that disregards the real 2theta value in the instrument coordinate system
@@ -583,15 +539,15 @@ class PyHB2BReduction(object):
         vec_counts = self._detector_counts.astype('float64')
 
         print('[INFO] PyRS.Instrument: pixels 2theta range: ({}, {}) vs 2theta histogram range: ({}, {})'
-              ''.format(pixel_2theta_array.min(), pixel_2theta_array.max(), two_theta_vector.min(),
-                        two_theta_vector.max()))
+              ''.format(pixel_2theta_array.min(), pixel_2theta_array.max(), two_theta_bins.min(),
+                        two_theta_bins.max()))
 
         # Apply mask: act on local variable vec_counts and thus won't affect raw data
         raw_event_counts = vec_counts.sum()
-        if apply_mask and self._detector_mask is not None:
+        if mask_array is not None:
             # mask detector counts, assuming detector mask and counts are in same order of pixel
             checkdatatypes.check_numpy_arrays('Counts vector and mask vector',
-                                              [self._detector_counts, self._detector_mask], 1, True)
+                                              [self._detector_counts, mask_array], 1, True)
             vec_counts *= self._detector_mask
             masked_counts = vec_counts.sum()
             num_masked = self._detector_mask.shape[0] - self._detector_mask.sum()
@@ -608,77 +564,16 @@ class PyHB2BReduction(object):
         # NOTE: input 2theta_range may not be accurate because 2theta max may not be on the full 2-theta tick
         # TODO - If use vanadium for normalization, then (1) flag to normalize by pixel count and (2) efficiency
         #        are not required anymore but both of them will be replaced by integrated vanadium counts
-        if use_mantid_histogram:
-            # this is a branch used for testing against Mantid method
-            two_theta_step = (two_theta_vector.max() - two_theta_vector.min()) * 1. / two_theta_bins_number
-            two_theta_vec_range = two_theta_vector.min(), two_theta_vector.max() + two_theta_step
-            num_bins = two_theta_vector.size()
-            two_theta_vector, intensity_vector = self.histogram_by_mantid(pixel_2theta_array, masked_counts,
-                                                                          two_theta_vec_range, num_bins)
 
-        else:
-            # use numpy.histogram
-            two_theta_vector, intensity_vector = self.histogram_by_numpy(pixel_2theta_array, vec_counts,
-                                                                         two_theta_vector,
-                                                                         is_point_data, vanadium_counts_array)
+        # use numpy.histogram
+        two_theta_bins, intensity_vector = self.histogram_by_numpy(pixel_2theta_array, vec_counts,
+                                                                       two_theta_bins,
+                                                                       is_point_data, vanadium_counts_array)
 
         # Record
-        self._reduced_diffraction_data = two_theta_vector, intensity_vector
+        self._reduced_diffraction_data = two_theta_bins, intensity_vector
 
-        return two_theta_vector, intensity_vector
-
-    def reduce_to_dspacing_histogram(self, counts_array, mask, num_bins, x_range=None,
-                                     export_point_data=True, use_mantid_histogram=False):
-        """
-        w_l = 2d sin (0.5 * two_theta)
-        :param counts_array:
-        :param mask:
-        :param num_bins:
-        :param x_range:
-        :param export_point_data:
-        :param use_mantid_histogram:
-        :return:
-        """
-        # get d-spacing
-        d_space_vec = self._instrument.get_dspacing_value(dimension=1)
-        checkdatatypes.check_numpy_arrays('dSpacing array', [d_space_vec], 1, check_same_shape=False)
-
-        # check with counts
-        if d_space_vec.shape != counts_array.shape:
-            raise RuntimeError('Counts (array) has a different ... blabla')
-
-        # convert count type
-        vec_counts = counts_array.astype('float64')
-        print('[INFO] PyRS.Instrument: 2theta range: {}, {}'.format(d_space_vec.min(),
-                                                                    d_space_vec.max()))
-
-        # check inputs of x range
-        if x_range:
-            checkdatatypes.check_tuple('X range', x_range, 2)
-            if x_range[0] >= x_range[1]:
-                raise RuntimeError('X range {} is not allowed'.format(x_range))
-
-        # apply mask
-        raw_counts = vec_counts.sum()
-        if mask is not None:
-            checkdatatypes.check_numpy_arrays('Counts vector and mask vector', [counts_array, mask], 1, True)
-            vec_counts *= mask
-            masked_counts = vec_counts.sum()
-            num_masked = mask.shape[0] - mask.sum()
-        else:
-            masked_counts = raw_counts
-            num_masked = 0
-        # END-IF-ELSE
-        print('[INFO] Raw counts = {}, # Masked Pixels = {}, Counts in ROI = {}'
-              ''.format(raw_counts, num_masked, masked_counts))
-
-        # this is histogram data
-        norm_bins = True
-        is_point_data = True
-        bin_edges, hist = self.histogram_by_numpy(d_space_vec, vec_counts, x_range, num_bins,
-                                                  is_point_data, norm_bins)
-
-        return bin_edges, hist
+        return two_theta_bins, intensity_vector
 
     def set_experimental_data(self, two_theta, l2, raw_count_vec):
         """ Set experimental data (for a sub-run)
@@ -697,64 +592,8 @@ class PyHB2BReduction(object):
 
         return
 
-    def set_mask(self, mask_vec):
-        """
-        Set mask vector to this instance
-        :param mask_vec: 1D array for mask (1 for ROI, 0 for mask out)
-        :return:
-        """
-        checkdatatypes.check_numpy_arrays('Mask vector', [mask_vec], 1, False)
-
-        self._detector_mask = mask_vec
-
-        return
-
     @staticmethod
-    def histogram_by_mantid(two_theta_array, vec_counts, x_range, num_bins):
-        """
-        Use Mantid's ResampleX to histogram detector counts to 2theta
-        :param two_theta_array:
-        :param vec_counts:
-        :param x_range:
-        :param num_bins:
-        :return:
-        """
-        # create a 1-spec workspace
-        t0 = time.time()
-
-        pixel_ids = numpy.arange(two_theta_array.shape[0])
-        CreateWorkspace(DataX=two_theta_array, DataY=vec_counts, DataE=pixel_ids, NSpec=1,
-                        OutputWorkspace='prototype')
-
-        t1 = time.time()
-
-        # Sort X-axis
-        SortXAxis(InputWorkspace='prototype', OutputWorkspace='prot_sorted', Ordering='Ascending',
-                  IgnoreHistogramValidation=True)
-        # temp_vec_y = temp_ws.readY(0)
-        # print('[DEBUG] After SortXAxis: Y-range = ({}, {})'.format(temp_vec_y.min(), temp_vec_y.max()))
-        t2 = time.time()
-
-        # Resample
-        binned = ResampleX(InputWorkspace='prot_sorted', OutputWorkspace='mantid_binned',
-                           XMin=x_range[0], XMax=x_range[1],
-                           NumberBins=num_bins, EnableLogging=False)
-
-        t3 = time.time()
-
-        print('[STAT] Create workspace: {}\n\tSort: {}\n\tResampleX: {}'
-              ''.format(t1 - t0, t2 - t0, t3 - t0))
-
-        bin_edges = binned.readX(0)
-        hist = binned.readY(0)
-        pixel_ids = binned.readE(0)
-
-        print('[DB...BAT] Workspace Size: {}, {}, {}'.format(len(bin_edges), len(hist), len(pixel_ids)))
-
-        return bin_edges, hist
-
-    @staticmethod
-    def histogram_by_numpy(pixel_2theta_array, vec_counts, two_theta_vec, is_point_data, vanadium_counts):
+    def histogram_by_numpy(pixel_2theta_array, pixel_count_array, two_theta_bins, is_point_data, vanadium_counts):
         """Histogram a data set (X, Y) by numpy histogram algorithm
 
         Assumption:
@@ -764,10 +603,10 @@ class PyHB2BReduction(object):
         ----------
         pixel_2theta_array : ~numpy.ndarray
             2theta (1D) array for each pixel
-        vec_counts : numpy.ndarray
+        pixel_count_array : numpy.ndarray
             count array (1D) for each pixel and paired to pixel_2theta_array
-        two_theta_vec : numpy.ndarray
-            two theta vector to bin to
+        two_theta_bins : numpy.ndarray
+            2-theta bin boundaries
         is_point_data : bool
             Output shall be point data; otherwise, histogram data
         vanadium_counts : None or numpy.ndarray
@@ -779,26 +618,26 @@ class PyHB2BReduction(object):
         """
         # Check inputs
         checkdatatypes.check_numpy_arrays('Pixel 2theta array, pixel counts array',
-                                          [pixel_2theta_array, vec_counts],
+                                          [pixel_2theta_array, pixel_count_array],
                                           1, True)
 
         # Exclude NaN and infinity regions
-        masked_pixels = (np.isnan(vec_counts)) | (np.isinf(vec_counts))
+        masked_pixels = (np.isnan(pixel_count_array)) | (np.isinf(pixel_count_array))
 
         pixel_2theta_array = pixel_2theta_array[~masked_pixels]
-        vec_counts = vec_counts[~masked_pixels]
+        pixel_count_array = pixel_count_array[~masked_pixels]
 
         # Call numpy to histogram
-        hist, bin_edges = np.histogram(pixel_2theta_array, bins=two_theta_vec, weights=vec_counts)
+        hist, bin_edges = np.histogram(pixel_2theta_array, bins=two_theta_bins, weights=pixel_count_array)
 
         # Optionally to normalize by number of pixels (sampling points) in the 2theta bin
         if vanadium_counts is None:
             # Get the number of pixels in each bin
-            hist_bin, be_temp = np.histogram(pixel_2theta_array, bins=two_theta_vec)
+            hist_bin, be_temp = np.histogram(pixel_2theta_array, bins=two_theta_bins)
         else:
             # Normalize by vanadium including efficiency calibration
             checkdatatypes.check_numpy_arrays('Vanadium counts', [vanadium_counts], 1, False)
-            hist_bin, be_temp = np.histogram(pixel_2theta_array, bins=two_theta_vec, weights=vanadium_counts)
+            hist_bin, be_temp = np.histogram(pixel_2theta_array, bins=two_theta_bins, weights=vanadium_counts)
         # END-IF-ELSE
 
         # Find out the bin where there is either no vanadium count or no pixel's located
