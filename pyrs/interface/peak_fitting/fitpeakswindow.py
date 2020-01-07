@@ -216,7 +216,7 @@ class FitPeaksWindow(QMainWindow):
         self.ui.splitter_2.setStyleSheet(HORIZONTAL_SPLITTER)
         self.ui.splitter_2.setSizes([100, 0])
         self.ui.splitter_3.setStyleSheet(HORIZONTAL_SPLITTER)
-        self.ui.splitter.setStyleSheet(HORIZONTAL_SPLITTER)
+        # self.ui.splitter.setStyleSheet(HORIZONTAL_SPLITTER)
 
         # status bar
         self.setStyleSheet("QStatusBar{padding-left:8px;color:green;}")

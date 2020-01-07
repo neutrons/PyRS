@@ -34,11 +34,17 @@
         <bool>true</bool>
        </property>
        <widget class="QSplitter" name="splitter">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
         <property name="orientation">
          <enum>Qt::Vertical</enum>
         </property>
+        <property name="opaqueResize">
+         <bool>true</bool>
+        </property>
         <property name="childrenCollapsible">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <widget class="QWidget" name="layoutWidget">
          <layout class="QVBoxLayout" name="verticalLayout">
@@ -165,7 +171,7 @@
         <widget class="QWidget" name="layoutWidget">
          <layout class="QVBoxLayout" name="verticalLayout_3">
           <property name="sizeConstraint">
-           <enum>QLayout::SetMinimumSize</enum>
+           <enum>QLayout::SetMaximumSize</enum>
           </property>
           <item>
            <widget class="QGroupBox" name="groupBox_SubRuns">
