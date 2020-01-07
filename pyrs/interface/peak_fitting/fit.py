@@ -6,7 +6,7 @@ from pyrs.utilities.rs_project_file import HidraConstants
 from pyrs.interface.peak_fitting.utilities import Utilities
 from pyrs.interface.gui_helper import pop_message
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
-# from pyrs.peaks import PeakFitEngineFactory
+from pyrs.peaks import PeakFitEngineFactory
 
 PeakInfo = namedtuple('PeakInfo', 'center left_bound right_bound tag')
 
@@ -25,25 +25,23 @@ class Fit:
         _peak_range_list = [tuple(_range) for _range in self.parent._ui_graphicsView_fitSetup.list_peak_ranges]
         _peak_center_list = [np.mean([left, right]) for (left, right) in _peak_range_list]
         _peak_tag_list = ["peak{}".format(_index) for _index, _ in enumerate(_peak_center_list)]
+        _peak_function_name = str(self.parent.ui.comboBox_peakType.currentText())
 
         # Fit peak
-        hd_ws = self.parent._core.load_hidra_project(self.parent._curr_file_name,
-                                                     project_name=self.parent._project_name,
-                                                     load_detector_counts=False,
-                                                     load_diffraction=True)
+        hd_ws = self.parent.hidra_workspace
         hd_ws.set_wavelength(1.071, False)  # FIXME
 
-        print("_peak_range_list: {}".format(_peak_range_list))
-        print("_peak_center_list: {}".format(_peak_center_list))
-        print("_peak_tag_list: {}".format(_peak_tag_list))
+        # print("_peak_range_list: {}".format(_peak_range_list))
+        # print("_peak_center_list: {}".format(_peak_center_list))
+        # print("_peak_tag_list: {}".format(_peak_tag_list))
 
-        # fit_engine = PeakFitEngineFactory.getInstance('Mantid')(hd_ws, None)
-        # fit_engine.fit_multiple_peaks(sub_run_range=(None, None),  # default is all sub runs
-        #                               # peak_function_name=peak_type,
-        #                               background_function_name='Linear',
-        #                               peak_tag_list=[peak_info.tag],
-        #                               peak_center_list=_peak_center_list,
-        #                               peak_range_list=_peak_range_list
+        fit_engine = PeakFitEngineFactory.getInstance('Mantid')(hd_ws, None)
+        fit_engine.fit_multiple_peaks(sub_run_range=(None, None),  # default is all sub runs
+                                      peak_function_name=_peak_function_name,
+                                      background_function_name='Linear',
+                                      peak_tag_list=_peak_tag_list,
+                                      peak_center_list=_peak_center_list,
+                                      peak_range_list=_peak_range_list)
 
     def fit_peaks(self, all_sub_runs=False):
         """ Fit peaks either all peaks or selected peaks
