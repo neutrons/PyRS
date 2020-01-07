@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1300</width>
-    <height>581</height>
+    <width>1363</width>
+    <height>745</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -148,228 +148,363 @@
            <enum>QLayout::SetMaximumSize</enum>
           </property>
           <item>
-           <widget class="QGroupBox" name="groupBox_SubRuns">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="title">
-             <string>Sub. Runs.</string>
-            </property>
-            <layout class="QGridLayout" name="gridLayout_6">
-             <item row="0" column="0">
-              <widget class="QRadioButton" name="radioButton_individualSubRuns">
-               <property name="text">
-                <string/>
-               </property>
-               <property name="checked">
-                <bool>false</bool>
-               </property>
-              </widget>
-             </item>
-             <item row="0" column="1">
-              <layout class="QHBoxLayout" name="horizontalLayout_7">
+           <layout class="QHBoxLayout" name="horizontalLayout_10">
+            <item>
+             <widget class="QGroupBox" name="groupBox_2">
+              <property name="minimumSize">
+               <size>
+                <width>500</width>
+                <height>250</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>500</width>
+                <height>250</height>
+               </size>
+              </property>
+              <property name="title">
+               <string>Peak Ranges</string>
+              </property>
+              <layout class="QHBoxLayout" name="horizontalLayout_16">
                <item>
-                <widget class="QScrollBar" name="horizontalScrollBar_SubRuns">
-                 <property name="sizePolicy">
-                  <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                   <horstretch>0</horstretch>
-                   <verstretch>0</verstretch>
-                  </sizepolicy>
-                 </property>
-                 <property name="maximumSize">
-                  <size>
-                   <width>16777215</width>
-                   <height>16777215</height>
-                  </size>
-                 </property>
-                 <property name="maximum">
-                  <number>2</number>
-                 </property>
-                 <property name="orientation">
-                  <enum>Qt::Horizontal</enum>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QLabel" name="label_SubRunsValue">
-                 <property name="text">
-                  <string>-1</string>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item row="1" column="0">
-              <widget class="QRadioButton" name="radioButton_listSubRuns">
-               <property name="text">
-                <string/>
-               </property>
-               <property name="checked">
-                <bool>true</bool>
-               </property>
-              </widget>
-             </item>
-             <item row="1" column="1">
-              <layout class="QHBoxLayout" name="horizontalLayout_6">
-               <item>
-                <widget class="QLineEdit" name="lineEdit_listSubRuns">
-                 <property name="enabled">
-                  <bool>false</bool>
-                 </property>
-                 <property name="text">
-                  <string>1</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QLabel" name="label_listSubRunsHelp">
-                 <property name="enabled">
-                  <bool>false</bool>
-                 </property>
-                 <property name="text">
-                  <string>(ex: 1,2,3)</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <spacer name="horizontalSpacer_10">
-                 <property name="orientation">
-                  <enum>Qt::Horizontal</enum>
-                 </property>
-                 <property name="sizeHint" stdset="0">
-                  <size>
-                   <width>40</width>
-                   <height>20</height>
-                  </size>
-                 </property>
-                </spacer>
-               </item>
-              </layout>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item>
-           <widget class="QGroupBox" name="groupBox_FittingFunctions">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="title">
-             <string>Fitting Functions</string>
-            </property>
-            <layout class="QVBoxLayout" name="verticalLayout_4">
-             <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_8">
-               <item>
-                <widget class="QComboBox" name="comboBox_peakType">
-                 <property name="toolTip">
-                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Peak types&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                 </property>
-                 <item>
-                  <property name="text">
-                   <string>PseudoVoigt</string>
-                  </property>
-                 </item>
-                 <item>
-                  <property name="text">
-                   <string>Gaussian</string>
-                  </property>
-                 </item>
-                 <item>
-                  <property name="text">
-                   <string>Voigt</string>
-                  </property>
-                 </item>
-                </widget>
-               </item>
-               <item>
-                <widget class="QComboBox" name="comboBox_backgroundType">
-                 <item>
-                  <property name="text">
-                   <string>Linear</string>
-                  </property>
-                 </item>
-                 <item>
-                  <property name="text">
-                   <string>Flat</string>
-                  </property>
-                 </item>
-                 <item>
-                  <property name="text">
-                   <string>Quadratic</string>
-                  </property>
-                 </item>
-                </widget>
-               </item>
-               <item>
-                <spacer name="horizontalSpacer_2">
-                 <property name="orientation">
-                  <enum>Qt::Horizontal</enum>
-                 </property>
-                 <property name="sizeType">
-                  <enum>QSizePolicy::Minimum</enum>
-                 </property>
-                 <property name="sizeHint" stdset="0">
-                  <size>
-                   <width>40</width>
-                   <height>20</height>
-                  </size>
-                 </property>
-                </spacer>
-               </item>
-               <item>
-                <widget class="QPushButton" name="pushButton_FitPeaks">
-                 <property name="text">
-                  <string>Fit Peak(s)</string>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_9">
-               <item>
-                <spacer name="horizontalSpacer_12">
-                 <property name="orientation">
-                  <enum>Qt::Horizontal</enum>
-                 </property>
-                 <property name="sizeHint" stdset="0">
-                  <size>
-                   <width>40</width>
-                   <height>20</height>
-                  </size>
-                 </property>
-                </spacer>
-               </item>
-               <item>
-                <widget class="QPushButton" name="pushButton_exportCSV">
+                <widget class="QTableWidget" name="peak_range_table_2">
                  <property name="minimumSize">
                   <size>
-                   <width>120</width>
-                   <height>0</height>
+                   <width>300</width>
+                   <height>200</height>
                   </size>
                  </property>
                  <property name="maximumSize">
                   <size>
-                   <width>120</width>
-                   <height>16777215</height>
+                   <width>300</width>
+                   <height>200</height>
                   </size>
                  </property>
-                 <property name="text">
-                  <string>Export CSV ...</string>
+                 <property name="alternatingRowColors">
+                  <bool>true</bool>
                  </property>
+                 <property name="selectionMode">
+                  <enum>QAbstractItemView::ContiguousSelection</enum>
+                 </property>
+                 <property name="selectionBehavior">
+                  <enum>QAbstractItemView::SelectRows</enum>
+                 </property>
+                 <attribute name="horizontalHeaderStretchLastSection">
+                  <bool>true</bool>
+                 </attribute>
+                 <column>
+                  <property name="text">
+                   <string>x_left</string>
+                  </property>
+                 </column>
+                 <column>
+                  <property name="text">
+                   <string>x_right</string>
+                  </property>
+                 </column>
+                 <column>
+                  <property name="text">
+                   <string>Label</string>
+                  </property>
+                 </column>
                 </widget>
                </item>
+               <item>
+                <layout class="QVBoxLayout" name="verticalLayout_14">
+                 <item>
+                  <widget class="QPushButton" name="pushButton_load_peak_range_2">
+                   <property name="text">
+                    <string>Load ...</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QPushButton" name="pushButton_save_peak_range_2">
+                   <property name="text">
+                    <string>Save ...</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <spacer name="verticalSpacer_3">
+                   <property name="orientation">
+                    <enum>Qt::Vertical</enum>
+                   </property>
+                   <property name="sizeType">
+                    <enum>QSizePolicy::Minimum</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>20</width>
+                     <height>40</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                 <item>
+                  <widget class="QPushButton" name="pushButton_clear_peak_range_2">
+                   <property name="text">
+                    <string>Clear</string>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
               </layout>
-             </item>
-            </layout>
-           </widget>
+             </widget>
+            </item>
+            <item>
+             <widget class="Line" name="line">
+              <property name="minimumSize">
+               <size>
+                <width>0</width>
+                <height>200</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>250</height>
+               </size>
+              </property>
+              <property name="lineWidth">
+               <number>4</number>
+              </property>
+              <property name="orientation">
+               <enum>Qt::Vertical</enum>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <layout class="QVBoxLayout" name="verticalLayout_13">
+              <item>
+               <widget class="QGroupBox" name="groupBox_SubRuns">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="title">
+                 <string>Sub. Runs.</string>
+                </property>
+                <layout class="QGridLayout" name="gridLayout_6">
+                 <item row="0" column="0">
+                  <widget class="QRadioButton" name="radioButton_individualSubRuns">
+                   <property name="text">
+                    <string/>
+                   </property>
+                   <property name="checked">
+                    <bool>false</bool>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="0" column="1">
+                  <layout class="QHBoxLayout" name="horizontalLayout_7">
+                   <item>
+                    <widget class="QScrollBar" name="horizontalScrollBar_SubRuns">
+                     <property name="sizePolicy">
+                      <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                       <horstretch>0</horstretch>
+                       <verstretch>0</verstretch>
+                      </sizepolicy>
+                     </property>
+                     <property name="maximumSize">
+                      <size>
+                       <width>16777215</width>
+                       <height>16777215</height>
+                      </size>
+                     </property>
+                     <property name="maximum">
+                      <number>2</number>
+                     </property>
+                     <property name="orientation">
+                      <enum>Qt::Horizontal</enum>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLabel" name="label_SubRunsValue">
+                     <property name="text">
+                      <string>-1</string>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </item>
+                 <item row="1" column="0">
+                  <widget class="QRadioButton" name="radioButton_listSubRuns">
+                   <property name="text">
+                    <string/>
+                   </property>
+                   <property name="checked">
+                    <bool>true</bool>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="1" column="1">
+                  <layout class="QHBoxLayout" name="horizontalLayout_6">
+                   <item>
+                    <widget class="QLineEdit" name="lineEdit_listSubRuns">
+                     <property name="enabled">
+                      <bool>false</bool>
+                     </property>
+                     <property name="text">
+                      <string>1</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLabel" name="label_listSubRunsHelp">
+                     <property name="enabled">
+                      <bool>false</bool>
+                     </property>
+                     <property name="text">
+                      <string>(ex: 1,2,3)</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <spacer name="horizontalSpacer_10">
+                     <property name="orientation">
+                      <enum>Qt::Horizontal</enum>
+                     </property>
+                     <property name="sizeHint" stdset="0">
+                      <size>
+                       <width>40</width>
+                       <height>20</height>
+                      </size>
+                     </property>
+                    </spacer>
+                   </item>
+                  </layout>
+                 </item>
+                </layout>
+               </widget>
+              </item>
+              <item>
+               <widget class="QGroupBox" name="groupBox_FittingFunctions">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="title">
+                 <string>Fitting Functions</string>
+                </property>
+                <layout class="QVBoxLayout" name="verticalLayout_4">
+                 <item>
+                  <layout class="QHBoxLayout" name="horizontalLayout_8">
+                   <item>
+                    <widget class="QComboBox" name="comboBox_peakType">
+                     <property name="toolTip">
+                      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Peak types&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                     </property>
+                     <item>
+                      <property name="text">
+                       <string>PseudoVoigt</string>
+                      </property>
+                     </item>
+                     <item>
+                      <property name="text">
+                       <string>Gaussian</string>
+                      </property>
+                     </item>
+                     <item>
+                      <property name="text">
+                       <string>Voigt</string>
+                      </property>
+                     </item>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QComboBox" name="comboBox_backgroundType">
+                     <item>
+                      <property name="text">
+                       <string>Linear</string>
+                      </property>
+                     </item>
+                     <item>
+                      <property name="text">
+                       <string>Flat</string>
+                      </property>
+                     </item>
+                     <item>
+                      <property name="text">
+                       <string>Quadratic</string>
+                      </property>
+                     </item>
+                    </widget>
+                   </item>
+                   <item>
+                    <spacer name="horizontalSpacer_2">
+                     <property name="orientation">
+                      <enum>Qt::Horizontal</enum>
+                     </property>
+                     <property name="sizeType">
+                      <enum>QSizePolicy::Minimum</enum>
+                     </property>
+                     <property name="sizeHint" stdset="0">
+                      <size>
+                       <width>40</width>
+                       <height>20</height>
+                      </size>
+                     </property>
+                    </spacer>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="pushButton_FitPeaks">
+                     <property name="text">
+                      <string>Fit Peak(s)</string>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </item>
+                 <item>
+                  <layout class="QHBoxLayout" name="horizontalLayout_9">
+                   <item>
+                    <spacer name="horizontalSpacer_12">
+                     <property name="orientation">
+                      <enum>Qt::Horizontal</enum>
+                     </property>
+                     <property name="sizeHint" stdset="0">
+                      <size>
+                       <width>40</width>
+                       <height>20</height>
+                      </size>
+                     </property>
+                    </spacer>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="pushButton_exportCSV">
+                     <property name="minimumSize">
+                      <size>
+                       <width>120</width>
+                       <height>0</height>
+                      </size>
+                     </property>
+                     <property name="maximumSize">
+                      <size>
+                       <width>120</width>
+                       <height>16777215</height>
+                      </size>
+                     </property>
+                     <property name="text">
+                      <string>Export CSV ...</string>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </item>
+                </layout>
+               </widget>
+              </item>
+             </layout>
+            </item>
+           </layout>
           </item>
          </layout>
         </widget>
@@ -842,7 +977,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1300</width>
+     <width>1363</width>
      <height>22</height>
     </rect>
    </property>
