@@ -221,7 +221,7 @@ class HidraProjectFile(object):
         """
         # Get mask names except default mask
         mask_names = self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK].keys()
-        if HidraConstants.DEFAULT_MASK:
+        if HidraConstants.DEFAULT_MASK in mask_names:
             mask_names.remove(HidraConstants.DEFAULT_MASK)
 
         # Read mask one by one
