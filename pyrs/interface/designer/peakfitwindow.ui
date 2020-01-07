@@ -45,16 +45,6 @@
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout_2">
             <item>
-             <widget class="QLabel" name="label">
-              <property name="text">
-               <string>IPTS</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLineEdit" name="lineEdit_iptsNumber"/>
-            </item>
-            <item>
              <widget class="QLabel" name="label_2">
               <property name="text">
                <string>Run Number</string>
@@ -62,7 +52,34 @@
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="lineEdit_expNumber"/>
+             <widget class="QLineEdit" name="lineEdit_expNumber">
+              <property name="minimumSize">
+               <size>
+                <width>100</width>
+                <height>0</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>100</width>
+                <height>16777215</height>
+               </size>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="label">
+              <property name="text">
+               <string>or</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="pushButton_browseHDF">
+              <property name="text">
+               <string>Browse Exp. Data File ...</string>
+              </property>
+             </widget>
             </item>
             <item>
              <spacer name="horizontalSpacer_7">
@@ -77,35 +94,10 @@
               </property>
              </spacer>
             </item>
-            <item>
-             <widget class="QPushButton" name="pushButton_loadHDF">
-              <property name="text">
-               <string>Load</string>
-              </property>
-             </widget>
-            </item>
            </layout>
           </item>
           <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_3">
-            <item>
-             <widget class="QLabel" name="label_3">
-              <property name="text">
-               <string>Exp Data File</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLineEdit" name="lineEdit_expFileName"/>
-            </item>
-            <item>
-             <widget class="QPushButton" name="pushButton_browseHDF">
-              <property name="text">
-               <string>Browse</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
+           <layout class="QHBoxLayout" name="horizontalLayout_3"/>
           </item>
           <item>
            <widget class="QTabWidget" name="tabWidget">

@@ -70,7 +70,7 @@ class FitPeaksWindow(QMainWindow):
         self._init_widgets()
 
         # set up handling
-        self.ui.pushButton_loadHDF.clicked.connect(self.load_hidra_file)
+        # self.ui.pushButton_loadHDF.clicked.connect(self.load_hidra_file)
         self.ui.pushButton_browseHDF.clicked.connect(self.browse_hdf)
         self.ui.lineEdit_listSubRuns.returnPressed.connect(self.plot_diff_data)
         self.ui.pushButton_FitPeaks.clicked.connect(self.fit_peaks)
@@ -208,7 +208,6 @@ class FitPeaksWindow(QMainWindow):
         initialize the some widgets
         :return:
         """
-        self.ui.pushButton_loadHDF.setEnabled(False)
         self.ui.actionSave.setEnabled(False)
         self.ui.actionSaveAs.setEnabled(False)
 
