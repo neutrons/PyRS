@@ -237,7 +237,7 @@ class HidraProjectFile(object):
         except KeyError as key_err:
             raise RuntimeError('Detector mask {} does not exist.  Available masks are {}. FYI: {}'
                                ''.format(mask_name,
-                                         self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK].keys(),
+                                         self._project_h5[HidraConstants.MASK].keys(),
                                          key_err))
 
         return mask_array

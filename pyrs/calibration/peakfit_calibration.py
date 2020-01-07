@@ -213,7 +213,6 @@ class PeakFitCalibration(object):
         data_set = pyrs_reducer.reduce_to_2theta_histogram(bin_boundaries_2theta,
                                                            mask_array=roi_vec,
                                                            is_point_data=True,
-                                                           use_mantid_histogram=False,
                                                            vanadium_counts_array=None)
 
         vec_2theta, vec_hist = data_set

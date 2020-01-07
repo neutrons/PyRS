@@ -455,7 +455,7 @@ class HB2BReductionManager(object):
         else:
             checkdatatypes.check_numpy_arrays('Mask', [mask], dimension=1, check_same_shape=False)
             mask_vec = mask
-            mask_id = 'Mask_{0:04}'.format(random.randint(1000))
+            mask_id = 'Mask_{0:04}'.format(random.randint(1, 1000))
         # END-IF-ELSE
 
         # Apply (or not) instrument geometry calibration shift
