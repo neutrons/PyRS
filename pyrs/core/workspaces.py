@@ -705,7 +705,6 @@ class HidraWorkspace(object):
             # unsupported format
             raise RuntimeError('Wave length {} in format {} is not supported.'
                                ''.format(wave_length, type(wave_length)))
-        # END-IF-ELSE
 
         # Set to desired target
         if calibrated:
