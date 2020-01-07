@@ -544,9 +544,11 @@ class PyRsCore(object):
             raise RuntimeError('Argument geometry_calibration of value {} and type {} is not supported'
                                ''.format(geometry_calibration, type(geometry_calibration)))
 
+        # Reduce
+        # TODO - Mask/MaskID shall be refactored
         self._reduction_service.reduce_diffraction_data(session_name, apply_calibration,
-                                                        num_bins, pyrs_engine,
-                                                        mask_id, sub_run_list)
+                                                        num_bins, pyrs_engine, sub_run_list,
+                                                        mask_id, mask_id)
 
     @property
     def reduction_service(self):
