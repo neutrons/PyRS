@@ -147,9 +147,16 @@ class HidraWorkspace(object):
         # Check
         checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
 
-        # Get values
-        self._default_mask = hidra_file.read_default_maks()
-        hidra_file.read_user_masks(self._mask_dict)
+        # Default mask: get value and set
+        default_mask = hidra_file.read_default_masks()
+        if default_mask is not None:
+            self.set_detector_mask(default_mask, True)
+
+        # User specified mask
+        mask_dict = dict()
+        hidra_file.read_user_masks(mask_dict)
+        for mask_name in mask_dict:
+            self.set_detector_mask(mask_dict[mask_name], False, mask_name)
 
     def _load_sample_logs(self, hidra_file):
         """ Load sample logs.
@@ -556,6 +563,18 @@ class HidraWorkspace(object):
         -------
 
         """
+        checkdatatypes.check_numpy_arrays('Detector mask', [mask_array], None, False)
+
+        # Convert mask to 1D array
+        if len(mask_array.shape) == 2:
+            # rule out unexpected shape
+            if mask_array.shape[1] != 1:
+                raise RuntimeError('Mask array with shape {} is not acceptable'.format(mask_array.shape))
+            # convert from (N, 1) to (N,)
+            num_pixels = mask_array.shape[0]
+            mask_array = mask_array.reshape((num_pixels,))
+        # END-IF
+
         if is_default:
             self._default_mask = mask_array
         else:

@@ -3,10 +3,10 @@ import numpy as np
 import numpy
 from pyrs.core import instrument_geometry
 from pyrs.utilities import checkdatatypes
-from mantid.simpleapi import CreateWorkspace
-from mantid.simpleapi import ResampleX
-from mantid.simpleapi import SortXAxis
-import time
+# from mantid.simpleapi import CreateWorkspace
+# from mantid.simpleapi import ResampleX
+# from mantid.simpleapi import SortXAxis
+# import time
 import math
 
 

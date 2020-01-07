@@ -189,6 +189,45 @@ class HidraProjectFile(object):
         self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK].create_dataset(mask_name,
                                                                                            data=mask_array)
 
+    def read_default_masks(self):
+        """Read default mask, i.e., for pixels at the edges
+
+        Returns
+        -------
+        numpy.ndarray
+            array for mask.  None for no mask
+
+        """
+        try:
+            mask_name = HidraConstants.DEFAULT_MASK
+            default_mask = self.read_mask_detector_array(mask_name)
+        except RuntimeError:
+            default_mask = None
+
+        return default_mask
+
+    def read_user_masks(self, mask_dict):
+        """Read user-specified masks
+
+        Parameters
+        ----------
+        mask_dict : dict
+            dictionary to store masks (array)
+
+        Returns
+        -------
+        None
+
+        """
+        # Get mask names except default mask
+        mask_names = self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK].keys()
+        if HidraConstants.DEFAULT_MASK:
+            mask_names.remove(HidraConstants.DEFAULT_MASK)
+
+        # Read mask one by one
+        for mask_name in mask_names:
+            mask_dict[mask_name] = self.read_mask_detector_array(mask_name)
+
     def read_mask_detector_array(self, mask_name):
         """ Get the mask from hidra project file (.h5) in the form of numpy array
         :exception RuntimeError:
