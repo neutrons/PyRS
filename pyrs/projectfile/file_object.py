@@ -207,7 +207,11 @@ class HidraProjectFile(object):
 
         """
         # Get mask names except default mask
-        mask_names = self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK].keys()
+        try:
+            mask_names = self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK].keys()
+        except KeyError:
+            # return if the file has an old format
+            return
         if HidraConstants.DEFAULT_MASK in mask_names:
             mask_names.remove(HidraConstants.DEFAULT_MASK)
 
@@ -236,9 +240,13 @@ class HidraProjectFile(object):
         try:
             mask_array = self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK][mask_name]
         except KeyError as key_err:
-            if HidraConstants.DETECTOR_MASK not in self._project_h5[HidraConstants.MASK]:
+            if HidraConstants.MASK not in self._project_h5.keys():
                 err_msg = 'Project file {} does not have "{}" entry.  Its format is not up-to-date.' \
-                          ''.format(self._file_name, self._project_h5[HidraConstants.MASK].keys())
+                          ''.format(self._file_name, HidraConstants.MASK)
+            elif HidraConstants.DETECTOR_MASK not in self._project_h5[HidraConstants.MASK]:
+                err_msg = 'Project file {} does not have "{}" entry under {}. ' \
+                          'Its format is not up-to-date.' \
+                          ''.format(self._file_name, HidraConstants.DETECTOR_MASK, HidraConstants.MASK)
             else:
                 err_msg = 'Detector mask {} does not exist.  Available masks are {}.' \
                           ''.format(mask_name, self._project_h5[HidraConstants.MASK].keys())
