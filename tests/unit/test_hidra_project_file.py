@@ -3,7 +3,6 @@ Test for reading and writing components to HiDRA project file
 """
 from pyrs.dataobjects import HidraConstants
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
-from pyrs.core.workspaces import HidraWorkspace
 import os
 import numpy as np
 import datetime

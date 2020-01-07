@@ -1,6 +1,5 @@
 # Reduction engine including slicing
 import os
-import random
 import numpy as np
 from pyrs.core import workspaces
 from pyrs.core import instrument_geometry
