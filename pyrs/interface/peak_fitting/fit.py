@@ -31,7 +31,7 @@ class Fit:
                                                      project_name=self.parent._project_name,
                                                      load_detector_counts=False,
                                                      load_diffraction=True)
-        hd_ws.set_wavelength(1.071, False) # FIXME
+        hd_ws.set_wavelength(1.071, False)  # FIXME
 
         print("_peak_range_list: {}".format(_peak_range_list))
         print("_peak_center_list: {}".format(_peak_center_list))
