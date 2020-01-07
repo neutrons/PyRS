@@ -3,6 +3,7 @@ Test for reading and writing components to HiDRA project file
 """
 from pyrs.dataobjects import HidraConstants
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
+from pyrs.core.workspaces import HidraWorkspace
 import os
 import numpy as np
 import datetime
@@ -21,17 +22,6 @@ def assert_allclose_structured_numpy_arrays(expected, calculated):
                                  ''.format(name, expected[name], calculated[name]))
 
     return
-
-
-def test_default_mask_rw():
-    """Test writing and reading default mask
-
-    Returns
-    -------
-
-    """
-    # TODO - Implementing
-    # ... ...
 
 
 def test_mask():
@@ -53,7 +43,8 @@ def test_mask():
     # Create a solid angle mask
     solid_mask = np.array([-20, -15, -10, -5, 5, 10, 15, 20])
 
-    # Write detector mask
+    # Write detector mask: default and etc
+    test_project_file.write_mask_detector_array(None, pixel_mask)
     test_project_file.write_mask_detector_array('test', pixel_mask)
 
     # Write solid angle mask
@@ -65,9 +56,18 @@ def test_mask():
     # Open file again
     verify_project_file = HidraProjectFile('test_mask.hdf', HidraProjectFileMode.READONLY)
 
+    # Read detector default mask
+    default_pixel_mask = verify_project_file.read_default_masks()
+    assert np.allclose(pixel_mask, default_pixel_mask, 1.E-12)
+
     # Read detector mask & compare
     verify_pixel_mask = verify_project_file.read_mask_detector_array('test')
     assert np.allclose(pixel_mask, verify_pixel_mask, 1.E-12)
+
+    # Test to read all user detector mask
+    user_mask_dict = dict()
+    verify_project_file.read_user_masks(user_mask_dict)
+    assert user_mask_dict.keys()[0] == 'test'
 
     # Read solid angle mask & compare
     verify_solid_mask = verify_project_file.read_mask_solid_angle('test')

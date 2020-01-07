@@ -176,19 +176,6 @@ class HidraProjectFile(object):
             raise RuntimeError('Failed to add log {} with value {} of type {}: {}'
                                ''.format(log_name, log_value_array, type(log_value_array), type_err))
 
-    def write_mask_detector_array(self, mask_name, mask_array):
-        """ Add the a mask array to Hidra file
-        :param mask_name: String, name of mask for reference
-        :param mask_array: numpy ndarray (N, ), masks, 0 for masking, 1 for ROI
-        """
-        if mask_name in self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK]:
-            # delete the existing mask
-            del self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK][mask_name]
-
-        # add new detector mask (array)
-        self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK].create_dataset(mask_name,
-                                                                                           data=mask_array)
-
     def read_default_masks(self):
         """Read default mask, i.e., for pixels at the edges
 
@@ -229,18 +216,70 @@ class HidraProjectFile(object):
             mask_dict[mask_name] = self.read_mask_detector_array(mask_name)
 
     def read_mask_detector_array(self, mask_name):
-        """ Get the mask from hidra project file (.h5) in the form of numpy array
-        :exception RuntimeError:
+        """Get the mask from hidra project file (.h5) in the form of numpy array
+
+        Location
+          root
+            - mask
+                - detector
+                     - mask_name
+
+        Parameters
+        ----------
+        mask_name : str
+            name of mask
+
+        Returns
+        -------
+
         """
         try:
             mask_array = self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK][mask_name]
         except KeyError as key_err:
-            raise RuntimeError('Detector mask {} does not exist.  Available masks are {}. FYI: {}'
-                               ''.format(mask_name,
-                                         self._project_h5[HidraConstants.MASK].keys(),
-                                         key_err))
+            if HidraConstants.DETECTOR_MASK not in self._project_h5[HidraConstants.MASK]:
+                err_msg = 'Project file {} does not have "{}" entry.  Its format is not up-to-date.' \
+                          ''.format(self._file_name, self._project_h5[HidraConstants.MASK].keys())
+            else:
+                err_msg = 'Detector mask {} does not exist.  Available masks are {}.' \
+                          ''.format(mask_name, self._project_h5[HidraConstants.MASK].keys())
+            raise RuntimeError('{}\nFYI: {}'.format(err_msg,  key_err))
 
         return mask_array
+
+    def write_mask_detector_array(self, mask_name, mask_array):
+        """Write detector mask
+
+        Structure:
+          root
+            - mask
+                - detector
+                     - default/universal
+                     - mask_name
+
+
+        Parameters
+        ----------
+        mask_name : str or None
+            mask name.  None for default/universal detector mask
+        mask_array : numpy.ndarray
+            (N, ), masks, 0 for masking, 1 for ROI
+
+        Returns
+        -------
+        None
+
+        """
+        # Set the default case
+        if mask_name is None:
+            mask_name = HidraConstants.DEFAULT_MASK
+
+        if mask_name in self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK]:
+            # delete the existing mask
+            del self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK][mask_name]
+
+        # add new detector mask (array)
+        self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK].create_dataset(mask_name,
+                                                                                           data=mask_array)
 
     def write_mask_solid_angle(self, mask_name, solid_angle_bin_edges):
         """

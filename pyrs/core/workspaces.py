@@ -597,12 +597,23 @@ class HidraWorkspace(object):
         self._raw_counts[int(sub_run_number)] = counts
 
     def set_reduced_diffraction_data(self, sub_run, mask_id, two_theta_array, intensity_array):
-        """ Set reduced diffraction data to workspace
-        :param sub_run:
-        :param mask_id: None (no mask) or String (with mask indexed by this string)
-        :param two_theta_array:
-        :param intensity_array:
-        :return:
+        """Set reduced diffraction data to workspace
+
+        Parameters
+        ----------
+        sub_run : int
+            sub run number
+        mask_id : None or str
+            mask ID.  None for no-mask or masked by default/universal detector masks on edges
+        two_theta_array : numpy.ndarray
+            2theta bins (center)
+        intensity_array : numpy.ndarray
+            histogrammed intensities
+
+        Returns
+        -------
+        None
+
         """
         # Check status of reducer whether sub run number and spectrum are initialized
         if len(self._sample_logs.subruns) == 0:

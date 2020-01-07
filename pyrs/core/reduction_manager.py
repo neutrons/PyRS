@@ -411,7 +411,7 @@ class HB2BReductionManager(object):
         return van_counts_array
 
     def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, num_bins,
-                                use_pyrs_engine, mask, sub_run_list,
+                                use_pyrs_engine, sub_run_list, mask, mask_id,
                                 vanadium_counts=None):
         """Reduce ALL sub runs in a workspace from detector counts to diffraction data
 
@@ -427,6 +427,8 @@ class HB2BReductionManager(object):
             flag to use PyRS engine; otherwise, use Mantid as diffraction pattern reduction engine
         mask : numpy.ndarray
             Mask
+        mask_id : str or None
+            ID for mask.  If mask ID is None, then it is the default universal mask applied to all data
         sub_run_list : List of None
             sub runs
         vanadium_counts : None or ~numpy.ndarray
@@ -447,15 +449,16 @@ class HB2BReductionManager(object):
         # Process mask: No mask, Mask ID and mask vector
         if mask is None:
             mask_vec = None
-            mask_id = None
+            # mask_id = None
         elif isinstance(mask, str):
-            # mask ID
+            # mask is determined by mask ID
             mask_vec = self.get_mask_vector(mask)
-            mask_id = mask
+            # mask_id = mask
         else:
+            # user supplied an array for mask
             checkdatatypes.check_numpy_arrays('Mask', [mask], dimension=1, check_same_shape=False)
             mask_vec = mask
-            mask_id = 'Mask_{0:04}'.format(random.randint(1, 1000))
+            # mask_id = 'Mask_{0:04}'.format(random.randint(1, 1000))
         # END-IF-ELSE
 
         # Apply (or not) instrument geometry calibration shift
