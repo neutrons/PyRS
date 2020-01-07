@@ -614,7 +614,6 @@ class HB2BReductionManager(object):
         data_set = reduction_engine.reduce_to_2theta_histogram(bin_boundaries_2theta,
                                                                mask_array=mask_array,
                                                                is_point_data=True,
-                                                               use_mantid_histogram=False,
                                                                vanadium_counts_array=vanadium_array)
         bin_centers = data_set[0]
         hist = data_set[1]
