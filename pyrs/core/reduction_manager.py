@@ -40,8 +40,6 @@ class HB2BReductionManager(object):
         # IDF
         self._mantid_idf = None
 
-        # TODO - FUTURE - Whether a reduction engine can be re-used or stored???
-
         # Vanadium
         self._van_ws = None
 
@@ -122,7 +120,6 @@ class HB2BReductionManager(object):
 
         return log_value
 
-    # TODO - #84 - Better
     def get_sample_logs_values(self, session_name, log_names):
         """ Get sample logs' value
         :param session_name:
@@ -138,8 +135,6 @@ class HB2BReductionManager(object):
 
         return log_values
 
-    # TODO - #84 - Better
-    # TODO - #84 - Implement: can_plot
     def get_sample_logs_names(self, session_name, can_plot):
         """
         Get the names of all sample logs in the workspace
@@ -217,7 +212,6 @@ class HB2BReductionManager(object):
         self._curr_session_name = session_name
         self._session_dict[session_name] = self._curr_workspace
 
-    # TODO - #84 - load_calibrated_instrument IS NOT IMPLEMENTED YET!
     def load_hidra_project(self, project_file_name, load_calibrated_instrument, load_detectors_counts,
                            load_reduced_diffraction):
         """ Load hidra project file and then CLOSE!
@@ -431,7 +425,7 @@ class HB2BReductionManager(object):
             number of bins
         use_pyrs_engine : bool
             flag to use PyRS engine; otherwise, use Mantid as diffraction pattern reduction engine
-        mask :
+        mask : numpy.ndarray
             Mask
         sub_run_list : List of None
             sub runs
@@ -474,7 +468,6 @@ class HB2BReductionManager(object):
         # END-IF-ELSE
         print('[DB...BAT] Det Position Shift: {}'.format(det_pos_shift))
 
-        # TODO - TONIGHT NOW #72 - How to embed mask information???
         if sub_run_list is None:
             sub_run_list = workspace.get_sub_runs()
 
@@ -536,8 +529,6 @@ class HB2BReductionManager(object):
             min 2theta
         max_2theta : float or None
             max 2theta
-        default_two_theta_range : float or None
-            range of 2theta if min or max 2theta is not given
         num_bins : float or None
             2theta resolution/step
         num_bins : int
@@ -580,36 +571,6 @@ class HB2BReductionManager(object):
                                                                (min_2theta, max_2theta),
                                                                num_bins, mask_vec, vanadium_counts)
 
-        # reduction_engine.set_experimental_data(mantid_two_theta, l2, raw_count_vec)
-        # reduction_engine.build_instrument(geometry_calibration)
-
-        # # Determine the 2theta range
-        # # Get the 2theta values for all pixels if default value is required
-        # if min_2theta is None or max_2theta is None:
-        #     pixel_2theta_vector = reduction_engine._instrument.get_pixels_2theta(dimension=1)
-        #     if min_2theta is None:
-        #         min_2theta = np.min(pixel_2theta_vector)
-        #     if max_2theta is None:
-        #         max_2theta = np.max(pixel_2theta_vector)
-
-        # if min_2theta >= max_2theta:
-        #     raise RuntimeError('Diffraction 2theta range ({}, {})is incorrect.'
-        #                        'Given information: detector arm 2theta = {}, 2theta range = {}'
-        #                        ''.format(min_2theta, max_2theta, two_theta, default_two_theta_range))
-
-        # # Apply mask
-        # if mask_vec is not None:
-        #     reduction_engine.set_mask(mask_vec)
-
-        # data_set = reduction_engine.reduce_to_2theta_histogram((min_2theta, max_2theta),
-        #                                                        two_theta_bins_number=num_bins,
-        #                                                        apply_mask=True,
-        #                                                        is_point_data=True,
-        #                                                        use_mantid_histogram=False,
-        #                                                        vanadium_counts_array=vanadium_counts)
-        # bin_centers = data_set[0]
-        # hist = data_set[1]
-
         # record
         workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_centers, hist)
         self._last_reduction_engine = reduction_engine
@@ -632,6 +593,8 @@ class HB2BReductionManager(object):
 
         Returns
         -------
+        numpy.ndarray, numpy.ndarray
+            2theta bins, histogram of counts
 
         """
         # Set up reduction engine
@@ -642,12 +605,13 @@ class HB2BReductionManager(object):
 
         # Default minimum and maximum 2theta are related with
         min_2theta, max_2theta = two_theta_range
-        pixel_2theta_array = reduction_engine.get_pixel_2theta()
+        pixel_2theta_array = reduction_engine.instrument.get_pixels_2theta(1)
+
         bin_boundaries_2theta = self.generate_2theta_histogram_vector(min_2theta, num_bins, max_2theta,
                                                                       pixel_2theta_array, mask_array)
 
         # Histogram
-        data_set = reduction_engine.reduce_to_2theta_histogram(two_theta_range,
+        data_set = reduction_engine.reduce_to_2theta_histogram(bin_boundaries_2theta,
                                                                mask_array=mask_array,
                                                                is_point_data=True,
                                                                use_mantid_histogram=False,
@@ -657,7 +621,8 @@ class HB2BReductionManager(object):
 
         return bin_centers, hist
 
-    def generate_2theta_histogram_vector(self, min_2theta, num_bins, max_2theta,
+    @staticmethod
+    def generate_2theta_histogram_vector(min_2theta, num_bins, max_2theta,
                                          pixel_2theta_array, mask_array):
         """Generate a 1-D array for histogram 2theta bins
 
@@ -667,37 +632,37 @@ class HB2BReductionManager(object):
             minimum 2theta or None
         num_bins : int
             nubmer of bins
-        max_2theta : float
+        max_2theta : float  or None
              maximum 2theta and must be integer
+        pixel_2theta_array : numpy.ndarray
+            2theta of each detector pixel
+        mask_array : numpy.ndarray or None
+            array of mask
 
         Returns
         -------
         numpy.ndarray
+            2theta values serving as bin boundaries, such its size is 1 larger than num_bins
 
         """
         # If default value is required: set the default
         if min_2theta is None or max_2theta is None:
-            # get the 2theta of each pixel
-            pixel_2theta_vector = reduction_engine._instrument.get_pixels_2theta(dimension=1)
-            # TODO - mask detector by set the masked pixels to NaN and then remove from 2theta array
-            # ... ...
-            if min_2theta is None:
-                min_2theta = np.min(pixel_2theta_vector)
-            if max_2theta is None:
-                max_2theta = np.max(pixel_2theta_vector)
-        # sanity check
-        if min_2theta >= max_2theta:
-            raise RuntimeError('Diffraction 2theta range ({}, {})is incorrect.'
-                               'Given information: detector arm 2theta = {}, 2theta range = {}, {}'
-                               ''.format(min_2theta, max_2theta, instrument_2theta, min_2theta, max_2theta))
+            # check inputs
+            if mask_array is None:
+                checkdatatypes.check_numpy_arrays('Pixel 2theta angles', [pixel_2theta_array], 1, False)
+            else:
+                checkdatatypes.check_numpy_arrays('Pixel 2theta position and mask array',
+                                                  [pixel_2theta_array, mask_array], 1, True)
+                # mask
+                pixel_2theta_array = pixel_2theta_array[np.where(mask_array == 1)]
+            # END-IF
 
-        # Get the 2theta values for all pixels if default value is required
-        if min_2theta is None or max_2theta is None:
-            pixel_2theta_vector = self._instrument.get_pixels_2theta(dimension=1)
             if min_2theta is None:
-                min_2theta = numpy.min(pixel_2theta_vector)
+                # lower boundary of 2theta for bins is the minimum 2theta angle of all the pixels
+                min_2theta = np.min(pixel_2theta_array)
             if max_2theta is None:
-                max_2theta = numpy.max(pixel_2theta_vector)
+                # upper boundary of 2theta for bins is the maximum 2theta angle of all the pixels
+                max_2theta = np.max(pixel_2theta_array)
         # END-IF
 
         step_2theta = (max_2theta - min_2theta) * 1. / num_bins
@@ -713,11 +678,15 @@ class HB2BReductionManager(object):
         # Create 2theta: these are bin edges from (min - 1/2) to (max + 1/2) with num_bins bins
         # and (num_bins + 1) data points
         vec_2theta = np.arange(num_bins + 1).astype(float) * step_2theta + (min_2theta - step_2theta)
-        # vec_2theta = np.arange(min_2theta, max_2theta, step_2theta)
         if vec_2theta.shape[0] != num_bins + 1:
             raise RuntimeError('Expected = {} vs {}\n2theta min max  = {}, {}\n2thetas: {}'
                                ''.format(num_bins, vec_2theta.shape, min_2theta, max_2theta,
                                          vec_2theta))
+
+        # Sanity check
+        assert vec_2theta.shape[0] == num_bins + 1, '2theta bins (boundary)\'size ({}) shall be exactly ' \
+                                                    '1 larger than specified num_bins ({})' \
+                                                    ''.format(vec_2theta.shape, num_bins)
 
         return vec_2theta
 

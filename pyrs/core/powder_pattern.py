@@ -137,8 +137,8 @@ class ReductionApp(object):
             sub run numbers to reduce
         instrument_file
         calibration_file
-        mask : str
-            Mask name.  None for no mask
+        mask : str or numpy.ndarray or None
+            Mask name or mask (value) array.  None for no mask
         van_file : str or None
             HiDRA project file containing vanadium counts or event NeXus file
         num_bins : int

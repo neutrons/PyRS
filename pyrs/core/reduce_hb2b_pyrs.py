@@ -509,8 +509,8 @@ class PyHB2BReduction(object):
         ----------
         two_theta_bins : numpy.ndarray
             2theta bin boundaries to binned to
-        mask_array : bool
-            If true and self._detector_mask has been set, the apply mask to output
+        mask_array : numpy.ndarray
+            mask
         is_point_data : bool
             Flag whether the output is point data (numbers of X and Y are same)
         vanadium_counts_array : None or numpy.ndarray
@@ -529,36 +529,30 @@ class PyHB2BReduction(object):
         # that disregards the real 2theta value in the instrument coordinate system
         pixel_2theta_array = self._instrument.get_pixels_2theta(1)
         checkdatatypes.check_numpy_arrays('Two theta and detector counts array',
-                                          [pixel_2theta_array, self._detector_counts], None,
+                                          [pixel_2theta_array, self._detector_counts], 1,
                                           check_same_shape=True)  # optional check
-        if pixel_2theta_array.shape[0] != self._detector_counts.shape[0]:
-            raise RuntimeError('Detector pixel position array ({}) does not match detector counts array ({})'
-                               ''.format(pixel_2theta_array.shape, self._detector_counts.shape))
 
         # Convert vector counts array's dtype to float
-        vec_counts = self._detector_counts.astype('float64')
+        counts_array = self._detector_counts.astype('float64')
 
         print('[INFO] PyRS.Instrument: pixels 2theta range: ({}, {}) vs 2theta histogram range: ({}, {})'
               ''.format(pixel_2theta_array.min(), pixel_2theta_array.max(), two_theta_bins.min(),
                         two_theta_bins.max()))
 
         # Apply mask: act on local variable vec_counts and thus won't affect raw data
-        raw_event_counts = vec_counts.sum()
         if mask_array is not None:
             # mask detector counts, assuming detector mask and counts are in same order of pixel
             checkdatatypes.check_numpy_arrays('Counts vector and mask vector',
-                                              [self._detector_counts, mask_array], 1, True)
-            vec_counts *= self._detector_mask
-            masked_counts = vec_counts.sum()
-            num_masked = self._detector_mask.shape[0] - self._detector_mask.sum()
-            pixel_2theta_array = pixel_2theta_array[np.where(self._detector_mask == 1)[0]]
-            vec_counts = vec_counts[np.where(self._detector_mask == 1)[0]]
+                                              [counts_array, mask_array], 1, True)
+            # exclude mask from histogramming
+            counts_array = counts_array[np.where(mask_array == 1)]
+            pixel_2theta_array = pixel_2theta_array[np.where(mask_array == 1)]
+            if vanadium_counts_array:
+                vanadium_counts_array = vanadium_counts_array[np.where(mask_array == 1)]
         else:
-            masked_counts = raw_event_counts
-            num_masked = 0
+            # no mask: do nothing
+            pass
         # END-IF-ELSE
-        print('[INFO] Raw counts = {}, # Masked Pixels = {}, Counts in ROI = {}'
-              ''.format(raw_event_counts, num_masked, masked_counts))
 
         # Histogram:
         # NOTE: input 2theta_range may not be accurate because 2theta max may not be on the full 2-theta tick
@@ -566,9 +560,9 @@ class PyHB2BReduction(object):
         #        are not required anymore but both of them will be replaced by integrated vanadium counts
 
         # use numpy.histogram
-        two_theta_bins, intensity_vector = self.histogram_by_numpy(pixel_2theta_array, vec_counts,
-                                                                       two_theta_bins,
-                                                                       is_point_data, vanadium_counts_array)
+        two_theta_bins, intensity_vector = self.histogram_by_numpy(pixel_2theta_array, counts_array,
+                                                                   two_theta_bins,
+                                                                   is_point_data, vanadium_counts_array)
 
         # Record
         self._reduced_diffraction_data = two_theta_bins, intensity_vector

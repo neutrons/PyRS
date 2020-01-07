@@ -237,7 +237,7 @@ class NeXusConvertingApp(object):
                 # in Mantid's mask workspace, 1 stands for mask (value cleared), 0 stands for non-mask (value kept)
                 mask_array = 1 - mask_array.astype(int)
                 # set the HidraWorkspace
-                self._hydra_workspace.set_mask(mask_array, is_default=True)
+                self._hydra_workspace.set_detector_mask(mask_array, is_default=True)
 
             # Mask detectors and set all the events in mask to zero
             MaskDetectors(Workspace=self._event_ws_name, MaskedWorkspace=mask_ws_name)

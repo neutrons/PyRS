@@ -305,6 +305,33 @@ class HidraWorkspace(object):
         # load the wave length
         self._load_wave_length(hidra_file)
 
+    def get_detector_mask(self, is_default, mask_id=None):
+        """Get detector mask
+
+        Parameters
+        ----------
+        is_default : bool
+            If True, get the default detector mask
+        mask_id : str
+            with is_default is False, get the user-specified mask/ROI
+
+        Returns
+        -------
+        numpy.ndarray
+            detector mask
+
+        """
+        # Default mask
+        if is_default:
+            return self._default_mask
+
+        # User-specific mask
+        if mask_id not in self._mask_dict:
+            raise RuntimeError('Mask ID {} does not exist in HidraWorkspace {}.  Available masks are '
+                               '{}'.format(mask_id, self._name, self._mask_dict.keys()))
+
+        return self._mask_dict[mask_id]
+
     def get_detector_shift(self):
         """
         Get detector geometry shift
@@ -511,7 +538,7 @@ class HidraWorkspace(object):
     def set_instrument_geometry(self, instrument):
         self._instrument_setup = instrument
 
-    def set_mask(self, mask_array, is_default, mask_id=None):
+    def set_detector_mask(self, mask_array, is_default, mask_id=None):
         """Set mask array to HidraWorkspace
 
         Record the mask to HidraWorkspace future reference
