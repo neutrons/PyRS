@@ -6,7 +6,7 @@ from pyrs.utilities.rs_project_file import HidraConstants
 from pyrs.interface.peak_fitting.utilities import Utilities
 from pyrs.interface.gui_helper import pop_message
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
-from pyrs.peaks import PeakFitEngineFactory
+# from pyrs.peaks import PeakFitEngineFactory
 
 PeakInfo = namedtuple('PeakInfo', 'center left_bound right_bound tag')
 
@@ -19,8 +19,8 @@ class Fit:
     def fit_multi_peaks(self):
 
         # Get peak function and background function
-        peak_function_name = str(self.parent.ui.comboBox_peakType.currentText())
-        bkgd_function_name = str(self.parent.ui.comboBox_backgroundType.currentText())
+        # peak_function_name = str(self.parent.ui.comboBox_peakType.currentText())
+        # bkgd_function_name = str(self.parent.ui.comboBox_backgroundType.currentText())
 
         _peak_range_list = [tuple(_range) for _range in self.parent._ui_graphicsView_fitSetup.list_peak_ranges]
         _peak_center_list = [np.mean([left, right]) for (left, right) in _peak_range_list]
@@ -31,7 +31,7 @@ class Fit:
                                                      project_name=self.parent._project_name,
                                                      load_detector_counts=False,
                                                      load_diffraction=True)
-        hd_ws.set_wavelength(1.071, False) #FIXME
+        hd_ws.set_wavelength(1.071, False) # FIXME
 
         print("_peak_range_list: {}".format(_peak_range_list))
         print("_peak_center_list: {}".format(_peak_center_list))

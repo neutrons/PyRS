@@ -118,7 +118,7 @@ class MplFitPlottingWidget(QWidget):
         get the next available color
         :return:
         """
-        color = MplBasicColors[0]
+        # color = MplBasicColors[0]
 
         self._curr_color_index += 1
         if self._curr_color_index >= len(MplBasicColors):
@@ -129,7 +129,6 @@ class MplFitPlottingWidget(QWidget):
         clear (aka reset) the canvas
         :return:
         """
-        #
         self._myCanvas.reset_plot()
 
         # reset the class variables managing the plots
