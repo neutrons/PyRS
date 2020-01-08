@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>Data Manual Reduction</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout" name="horizontalLayout_3">
@@ -70,7 +70,7 @@
         <item row="0" column="0">
          <widget class="QLabel" name="label_14">
           <property name="text">
-           <string>Experiment Num</string>
+           <string>Run Number</string>
           </property>
          </widget>
         </item>
