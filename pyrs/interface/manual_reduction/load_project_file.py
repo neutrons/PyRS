@@ -1,7 +1,7 @@
 import os
 
 from pyrs.interface.gui_helper import pop_message
-from pyrs.utilities.rs_project_file import HidraConstants
+from pyrs.dataobjects import HidraConstants
 
 
 class LoadProjectFile:

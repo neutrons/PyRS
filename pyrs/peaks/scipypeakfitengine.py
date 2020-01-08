@@ -14,7 +14,7 @@ class ScipyPeakFitEngine(PeakFitEngine):
 
     """
 
-    def __init__(self, data_set_list, ref_id):
+    def __init__(self, hidraworkspace, ref_id):
         """
         initialization
         :param data_set_list:
@@ -23,9 +23,7 @@ class ScipyPeakFitEngine(PeakFitEngine):
         """
         self.fitted_ws = None
 
-        super(ScipyPeakFitEngine, self).__init__(data_set_list, ref_id)
-
-        return
+        super(ScipyPeakFitEngine, self).__init__(hidraworkspace, ref_id)
 
     @staticmethod
     def calculate_peak(X, Data, TTH, peak_function_name, background_function_name, ReturnModel=False):

@@ -221,7 +221,7 @@ def get_alignment_residual(x, engine, hb2b_setup, two_theta, roi_vec_set):
 def convert_to_2theta(engine, pyrs_reducer, roi_vec, ws_name, curr_id, min_2theta=16., max_2theta=61., num_bins=1800):
     # reduce data
     TTHStep = (max_2theta - min_2theta) / num_bins
-    pyrs_reducer.set_mask(roi_vec)
+    pyrs_reducer.set_detector_mask(roi_vec)
     pyrs_reducer._detector_counts = engine.get_counts(curr_id)
 
     vec_2theta, vec_hist = pyrs_reducer.reduce_to_2theta_histogram((min_2theta, max_2theta), TTHStep, True,

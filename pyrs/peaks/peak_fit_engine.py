@@ -13,23 +13,21 @@ class PeakFitEngine(object):
     Virtual peak fit engine
     """
 
-    def __init__(self, workspace, mask_name):
+    def __init__(self, workspace, out_of_plane_angle):
         """Initialization
 
         Parameters
         ----------
         workspace : pyrs.core.workspaces.HidrawWorkspace
             Hidra Workspace holding data
-        mask_name : str
-            name of mask ID (or main/None) for reduced diffraction data
-
+        out_of_plane_angle: str
         """
         # check
         checkdatatypes.check_type('Diffraction workspace', workspace, workspaces.HidraWorkspace)
 
         # for scipy: keep the np.array will be good enough
         self._hidra_wksp = workspace  # wksp = workspace
-        self._mask_name = mask_name
+        self._out_of_plane_angle = out_of_plane_angle
 
         # wave length information
         self._wavelength_dict = None

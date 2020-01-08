@@ -128,7 +128,8 @@ class ReductionApp(object):
         # set the workspace to self
         self._hydra_ws = hd_workspace
 
-    def reduce_data(self, sub_runs, instrument_file, calibration_file, mask, van_file=None, num_bins=1000):
+    def reduce_data(self, sub_runs, instrument_file, calibration_file, mask, mask_id=None,
+                    van_file=None, num_bins=1000):
         """Reduce data from HidraWorkspace
 
         Parameters
@@ -137,8 +138,10 @@ class ReductionApp(object):
             sub run numbers to reduce
         instrument_file
         calibration_file
-        mask : str
-            Mask name.  None for no mask
+        mask : str or numpy.ndarray or None
+            Mask name or mask (value) array.  None for no mask
+        mask_id : str or None
+            ID for mask.  If mask ID is None, then it is the default universal mask applied to all data
         van_file : str or None
             HiDRA project file containing vanadium counts or event NeXus file
         num_bins : int
@@ -185,8 +188,9 @@ class ReductionApp(object):
                                                         apply_calibrated_geometry=geometry_calibration,
                                                         num_bins=num_bins,
                                                         use_pyrs_engine=not self._use_mantid_engine,
-                                                        mask=mask,
                                                         sub_run_list=sub_runs,
+                                                        mask=mask,
+                                                        mask_id=mask_id,
                                                         vanadium_counts=van_array)
 
     def plot_reduced_data(self, sub_run_number=None):

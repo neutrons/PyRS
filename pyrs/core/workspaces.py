@@ -42,6 +42,11 @@ class HidraWorkspace(object):
 
         # raw Hidra project file
         self._project_file_name = None
+        self._project_file = None
+
+        # Masks
+        self._default_mask = None
+        self._mask_dict = dict()
 
     @property
     def name(self):
@@ -127,6 +132,31 @@ class HidraWorkspace(object):
 
         # Get values
         self._instrument_setup = hidra_file.read_instrument_geometry()
+
+    def _load_masks(self, hidra_file):
+        """
+
+        Parameters
+        ----------
+        hidra_file
+
+        Returns
+        -------
+
+        """
+        # Check
+        checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
+
+        # Default mask: get value and set
+        default_mask = hidra_file.read_default_masks()
+        if default_mask is not None:
+            self.set_detector_mask(default_mask, True)
+
+        # User specified mask
+        mask_dict = dict()
+        hidra_file.read_user_masks(mask_dict)
+        for mask_name in mask_dict:
+            self.set_detector_mask(mask_dict[mask_name], False, mask_name)
 
     def _load_sample_logs(self, hidra_file):
         """ Load sample logs.
@@ -276,8 +306,38 @@ class HidraWorkspace(object):
         # load sample logs
         self._load_sample_logs(hidra_file)
 
+        # load masks
+        self._load_masks(hidra_file)
+
         # load the wave length
         self._load_wave_length(hidra_file)
+
+    def get_detector_mask(self, is_default, mask_id=None):
+        """Get detector mask
+
+        Parameters
+        ----------
+        is_default : bool
+            If True, get the default detector mask
+        mask_id : str
+            with is_default is False, get the user-specified mask/ROI
+
+        Returns
+        -------
+        numpy.ndarray
+            detector mask
+
+        """
+        # Default mask
+        if is_default:
+            return self._default_mask
+
+        # User-specific mask
+        if mask_id not in self._mask_dict:
+            raise RuntimeError('Mask ID {} does not exist in HidraWorkspace {}.  Available masks are '
+                               '{}'.format(mask_id, self._name, self._mask_dict.keys()))
+
+        return self._mask_dict[mask_id]
 
     def get_detector_shift(self):
         """
@@ -485,6 +545,42 @@ class HidraWorkspace(object):
     def set_instrument_geometry(self, instrument):
         self._instrument_setup = instrument
 
+    def set_detector_mask(self, mask_array, is_default, mask_id=None):
+        """Set mask array to HidraWorkspace
+
+        Record the mask to HidraWorkspace future reference
+
+        Parameters
+        ----------
+        mask_array : numpy.darray
+            mask bit for each pixel
+        is_default : bool
+            whether this mask is the default mask from beginning
+        mask_id : str
+            ID for mask
+
+        Returns
+        -------
+
+        """
+        checkdatatypes.check_numpy_arrays('Detector mask', [mask_array], None, False)
+
+        # Convert mask to 1D array
+        if len(mask_array.shape) == 2:
+            # rule out unexpected shape
+            if mask_array.shape[1] != 1:
+                raise RuntimeError('Mask array with shape {} is not acceptable'.format(mask_array.shape))
+            # convert from (N, 1) to (N,)
+            num_pixels = mask_array.shape[0]
+            mask_array = mask_array.reshape((num_pixels,))
+        # END-IF
+
+        if is_default:
+            self._default_mask = mask_array
+        else:
+            checkdatatypes.check_string_variable('Mask ID', mask_id, allow_empty=False)
+            self._mask_dict[mask_id] = mask_array
+
     def set_raw_counts(self, sub_run_number, counts):
         """
         Set the raw counts to
@@ -501,12 +597,23 @@ class HidraWorkspace(object):
         self._raw_counts[int(sub_run_number)] = counts
 
     def set_reduced_diffraction_data(self, sub_run, mask_id, two_theta_array, intensity_array):
-        """ Set reduced diffraction data to workspace
-        :param sub_run:
-        :param mask_id: None (no mask) or String (with mask indexed by this string)
-        :param two_theta_array:
-        :param intensity_array:
-        :return:
+        """Set reduced diffraction data to workspace
+
+        Parameters
+        ----------
+        sub_run : int
+            sub run number
+        mask_id : None or str
+            mask ID.  None for no-mask or masked by default/universal detector masks on edges
+        two_theta_array : numpy.ndarray
+            2theta bins (center)
+        intensity_array : numpy.ndarray
+            histogrammed intensities
+
+        Returns
+        -------
+        None
+
         """
         # Check status of reducer whether sub run number and spectrum are initialized
         if len(self._sample_logs.subruns) == 0:
