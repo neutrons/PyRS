@@ -211,7 +211,8 @@ class FitPeaksWindow(QMainWindow):
         curr_layout.addWidget(self._ui_graphicsView_fitSetup)
 
     def peak_range_table_changed(self, row, column):
-        print("tbale changed at row:{} and column:{}".format(row, column))
+        o_handle = EventHandler(parent=self)
+        o_handle.update_fit_peak_ranges_plot()
 
     def _init_widgets(self):
         """

@@ -1,4 +1,5 @@
 import os
+import numpy as np
 
 from pyrs.interface.gui_helper import pop_message
 from pyrs.interface.gui_helper import browse_file
@@ -96,6 +97,8 @@ class EventHandler:
 
     def update_fit_peak_ranges_table(self, **kwargs):
 
+        self.parent.ui.peak_range_table.blockSignals(True)
+
         def __get_kwargs_value(key='', data_type='boolean'):
             if data_type == 'boolean':
                 _default = False
@@ -103,14 +106,14 @@ class EventHandler:
                 _default = []
             return kwargs[key] if key in kwargs.keys() else _default
 
-        click = __get_kwargs_value('click', data_type='boolean')
-        move = __get_kwargs_value('move', data_type='boolean')
-        release = __get_kwargs_value('release', data_type='boolean')
+        # click = __get_kwargs_value('click', data_type='boolean')
+        # move = __get_kwargs_value('move', data_type='boolean')
+        # release = __get_kwargs_value('release', data_type='boolean')
 
         list_fit_peak_ranges = __get_kwargs_value('list_fit_peak_ranges',
                                                   data_type='array')
-        list_fit_peak_ranges_matplotlib_id = __get_kwargs_value('list_fit_peak_ranges_matplotlib_id',
-                                                                data_type='array')
+        # list_fit_peak_ranges_matplotlib_id = __get_kwargs_value('list_fit_peak_ranges_matplotlib_id',
+        #                                                         data_type='array')
         list_fit_peak_labels = __get_kwargs_value('list_fit_peak_labels',
                                                   data_type='array')
 
@@ -119,9 +122,43 @@ class EventHandler:
         o_gui.fill_peak_range_table(list_fit_peak_ranges=list_fit_peak_ranges,
                                     list_fit_peak_labels=list_fit_peak_labels)
 
-        print("in update fit peak ranges table")
-        print("-> click: {}".format(click))
-        print("-> move: {}".format(move))
-        print("-> release: {}".format(release))
-        print("-> list_fit_peak_ranges: {}".format(list_fit_peak_ranges))
-        print("-> list_fit_peak_ranges_matplotlib_id: {}".format(list_fit_peak_ranges_matplotlib_id))
+        self.parent.ui.peak_range_table.blockSignals(False)
+
+    def update_fit_peak_ranges_plot(self):
+        # retrieve all peaks and labels from table
+        table_ui = self.parent.ui.peak_range_table
+
+        nbr_row = table_ui.rowCount()
+        list_peak_ranges = []
+        list_fit_peak_labels = []
+        for _row in np.arange(nbr_row):
+            _value1 = GuiUtilities.get_item_value(table_ui, _row, 0)
+            _value2 = GuiUtilities.get_item_value(table_ui, _row, 1)
+
+            try:
+                _value1_float = np.float(_value1)
+                _value2_float = np.float(_value2)
+                _array = [_value1_float, _value2_float]
+
+                _value1 = np.nanmin(_array)
+                _value2 = np.nanmax(_array)
+
+                list_peak_ranges.append([_value1, _value2])
+
+            except:
+                continue
+
+            _label = GuiUtilities.get_item_value(table_ui, _row, 2)
+            list_fit_peak_labels.append(_label)
+
+
+
+
+
+        # replace the list_peak_ranges and list_fit_peak_labels from mplfitplottingwidget.py
+
+
+
+
+
+
