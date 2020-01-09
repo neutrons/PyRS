@@ -212,5 +212,5 @@ class GuiUtilities:
 
     @staticmethod
     def get_item_value(ui=None, row=-1, column=-1):
-        _item = ui.itemAt(row, column)
+        _item = ui.item(row, column).text()
         return str(_item)

@@ -1,5 +1,6 @@
 import os
 import numpy as np
+from qtpy.QtWidgets import QTableWidgetItem
 
 from pyrs.interface.gui_helper import pop_message
 from pyrs.interface.gui_helper import browse_file
@@ -127,38 +128,41 @@ class EventHandler:
     def update_fit_peak_ranges_plot(self):
         # retrieve all peaks and labels from table
         table_ui = self.parent.ui.peak_range_table
+        table_ui.blockSignals(True)
 
         nbr_row = table_ui.rowCount()
+
         list_peak_ranges = []
         list_fit_peak_labels = []
         for _row in np.arange(nbr_row):
             _value1 = GuiUtilities.get_item_value(table_ui, _row, 0)
             _value2 = GuiUtilities.get_item_value(table_ui, _row, 1)
 
-            try:
-                _value1_float = np.float(_value1)
-                _value2_float = np.float(_value2)
-                _array = [_value1_float, _value2_float]
+            # try:
+            _value1_float = np.float(_value1)
+            _value2_float = np.float(_value2)
+            _array = [_value1_float, _value2_float]
 
-                _value1 = np.nanmin(_array)
-                _value2 = np.nanmax(_array)
+            _value1 = np.nanmin(_array)
+            _value2 = np.nanmax(_array)
 
-                list_peak_ranges.append([_value1, _value2])
+            _item0 = QTableWidgetItem("{:.3f}".format(_value1))
+            self.parent.ui.peak_range_table.setItem(_row, 0, _item0)
 
-            except:
-                continue
+            _item1 = QTableWidgetItem("{:.3f}".format(_value2))
+            self.parent.ui.peak_range_table.setItem(_row, 1, _item1)
+
+            list_peak_ranges.append([_value1, _value2])
+
+            # except:
+            #     continue
 
             _label = GuiUtilities.get_item_value(table_ui, _row, 2)
             list_fit_peak_labels.append(_label)
 
-
-
-
-
         # replace the list_peak_ranges and list_fit_peak_labels from mplfitplottingwidget.py
+        self.parent._ui_graphicsView_fitSetup.list_peak_ranges = list_peak_ranges
+        self.parent._ui_graphicsView_fitSetup.list_fit_peak_labels = list_fit_peak_labels
+        self.parent._ui_graphicsView_fitSetup.plot_data_with_fitting_ranges()
 
-
-
-
-
-
+        table_ui.blockSignals(False)
