@@ -66,7 +66,6 @@ class Fit:
         #                                       function_params=
         # plot fitted data
 
-
     def show_fitting_parameters_in_table(self):
         self.show_fit_result_table(peak_function='',
                                    function_params=None,

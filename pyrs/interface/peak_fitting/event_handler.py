@@ -138,24 +138,24 @@ class EventHandler:
             _value1 = GuiUtilities.get_item_value(table_ui, _row, 0)
             _value2 = GuiUtilities.get_item_value(table_ui, _row, 1)
 
-            # try:
-            _value1_float = np.float(_value1)
-            _value2_float = np.float(_value2)
-            _array = [_value1_float, _value2_float]
+            try:
+                _value1_float = np.float(_value1)
+                _value2_float = np.float(_value2)
+                _array = [_value1_float, _value2_float]
 
-            _value1 = np.nanmin(_array)
-            _value2 = np.nanmax(_array)
+                _value1 = np.nanmin(_array)
+                _value2 = np.nanmax(_array)
 
-            _item0 = QTableWidgetItem("{:.3f}".format(_value1))
-            self.parent.ui.peak_range_table.setItem(_row, 0, _item0)
+                _item0 = QTableWidgetItem("{:.3f}".format(_value1))
+                self.parent.ui.peak_range_table.setItem(_row, 0, _item0)
 
-            _item1 = QTableWidgetItem("{:.3f}".format(_value2))
-            self.parent.ui.peak_range_table.setItem(_row, 1, _item1)
+                _item1 = QTableWidgetItem("{:.3f}".format(_value2))
+                self.parent.ui.peak_range_table.setItem(_row, 1, _item1)
 
-            list_peak_ranges.append([_value1, _value2])
+                list_peak_ranges.append([_value1, _value2])
 
-            # except:
-            #     continue
+            except ValueError:
+                continue
 
             _label = GuiUtilities.get_item_value(table_ui, _row, 2)
             list_fit_peak_labels.append(_label)
