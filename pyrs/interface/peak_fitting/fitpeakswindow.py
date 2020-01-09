@@ -93,6 +93,8 @@ class FitPeaksWindow(QMainWindow):
         self.ui.comboBox_yaxisNames_2dplot.currentIndexChanged.connect(self.yaxis_2d_changed)
         self.ui.comboBox_zaxisNames_2dplot.currentIndexChanged.connect(self.zaxis_2d_changed)
 
+        self.ui.peak_range_table.cellChanged.connect(self.peak_range_table_changed)
+
         # tracker for sample log names and peak parameter names
         self._sample_log_name_set = set()
         self._function_param_name_set = set()
@@ -207,6 +209,9 @@ class FitPeaksWindow(QMainWindow):
         self._ui_graphicsView_fitSetup = PeakFitSetupView(self)
         self._ui_graphicsView_fitSetup.setEnabled(False)
         curr_layout.addWidget(self._ui_graphicsView_fitSetup)
+
+    def peak_range_table_changed(self, row, column):
+        print("tbale changed at row:{} and column:{}".format(row, column))
 
     def _init_widgets(self):
         """

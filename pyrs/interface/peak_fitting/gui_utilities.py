@@ -183,10 +183,10 @@ class GuiUtilities:
         for _index, _range in enumerate(list_fit_peak_ranges):
             self.parent.ui.peak_range_table.insertRow(_index)
 
-            _item0 = QTableWidgetItem(str(np.min(_range)))
+            _item0 = QTableWidgetItem("{:.3f}".format(np.min(_range)))
             self.parent.ui.peak_range_table.setItem(_index, 0, _item0)
 
-            _item1 = QTableWidgetItem(str(np.max(_range)))
+            _item1 = QTableWidgetItem("{:.3f}".format(np.max(_range)))
             self.parent.ui.peak_range_table.setItem(_index, 1, _item1)
 
             _label = QTableWidgetItem(list_fit_peak_labels[_index])
