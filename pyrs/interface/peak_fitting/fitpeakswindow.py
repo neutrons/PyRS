@@ -113,6 +113,7 @@ class FitPeaksWindow(QMainWindow):
         o_gui.enabled_2dplot_widgets(False)
         o_gui.make_visible_listsubruns_warning(False)
         o_gui.enabled_export_csv_widgets(False)
+        o_gui.enabled_peak_ranges_widgets(False)
 
     # Menu event handler
     def browse_hdf(self):
@@ -194,6 +195,10 @@ class FitPeaksWindow(QMainWindow):
         o_export = ExportCSV(parent=self)
         o_export.select_output_folder()
         o_export.create_csv()
+
+    def update_peak_ranges_table(self, **kwargs):
+        o_handle = EventHandler(parent=self)
+        o_handle.update_fit_peak_ranges_table(**kwargs)
 
     def _promote_peak_fit_setup(self):
         # 2D detector view

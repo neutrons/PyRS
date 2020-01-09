@@ -240,6 +240,7 @@ class PeakFitSetupView(MplFitPlottingWidget):
         super(PeakFitSetupView, self).__init__(parent)
 
         # management
+        self.parent = parent
         self._diff_reference_list = list()
         self._last_diff_reference = None  # last diffraction (raw) line ID
         self._last_model_reference = None  # last model diffraction (raw) line ID

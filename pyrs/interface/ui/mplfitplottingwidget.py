@@ -20,6 +20,7 @@ class MplFitPlottingWidget(QWidget):
         :param parent:
         """
         super(MplFitPlottingWidget, self).__init__(parent)
+        self.parent = parent
 
         # set up UI and widgets
         self._myCanvas = QtMplFitCanvas(self)
@@ -41,6 +42,8 @@ class MplFitPlottingWidget(QWidget):
 
         self.list_peak_ranges = []
         self.list_peak_ranges_matplotlib_id = []
+        self.list_fit_peak_labels = []
+
         self._working_with_range_index = -1
         self._button_pressed = False
         self._left_line = None
@@ -64,6 +67,10 @@ class MplFitPlottingWidget(QWidget):
 
         self._button_pressed = True
         self._add_initial_point(x=event.xdata)
+        self.parent.update_peak_ranges_table(click=True,
+                                             list_fit_peak_labels=self.list_fit_peak_labels,
+                                             list_fit_peak_ranges=self.list_peak_ranges,
+                                             list_fit_peak_ranges_matplotlib_id=self.list_peak_ranges_matplotlib_id)
 
     def button_released(self, event):
         if not self._button_pressed:
@@ -71,14 +78,23 @@ class MplFitPlottingWidget(QWidget):
 
         self._button_pressed = False
         self._validate_second_point(x=event.xdata)
+        self.parent.update_peak_ranges_table(release=True,
+                                             list_fit_peak_labels=self.list_fit_peak_labels,
+                                             list_fit_peak_ranges=self.list_peak_ranges,
+                                             list_fit_peak_ranges_matplotlib_id=self.list_peak_ranges_matplotlib_id)
 
     def mouse_moved(self, event):
         if self._button_pressed:
             self._change_second_point(x=event.xdata)
+        self.parent.update_peak_ranges_table(move=True,
+                                             list_fit_peak_labels=self.list_fit_peak_labels,
+                                             list_fit_peak_ranges=self.list_peak_ranges,
+                                             list_fit_peak_ranges_matplotlib_id=self.list_peak_ranges_matplotlib_id)
 
     def _add_initial_point(self, x=np.NaN):
         if not self.list_peak_ranges:
             self.list_peak_ranges = [[x, np.NaN]]
+            self.list_fit_peak_labels = ['Peak0']
         else:
             _was_part_of_one_range = False
             for _index, _range in enumerate(self.list_peak_ranges):
@@ -90,6 +106,7 @@ class MplFitPlottingWidget(QWidget):
 
             if _was_part_of_one_range is False:
                 self.list_peak_ranges.append([x, np.NaN])
+                self.list_fit_peak_labels.append("Peak{}".format(self._working_with_range_index))
                 self._working_with_range_index = -1
 
         self.plot_data_with_fitting_ranges()

@@ -66,6 +66,7 @@ class EventHandler:
             o_gui = GuiUtilities(parent=self.parent)
             o_gui.enabled_fitting_widgets(True)
             o_gui.enabled_data_fit_plot(True)
+            o_gui.enabled_peak_ranges_widgets(True)
 
         except RuntimeError as run_err:
             pop_message(self, 'Failed to initialize widgets for {}'.format(hidra_file_name),
@@ -92,3 +93,35 @@ class EventHandler:
 
         # updating the plot here
         pass
+
+    def update_fit_peak_ranges_table(self, **kwargs):
+
+        def __get_kwargs_value(key='', data_type='boolean'):
+            if data_type == 'boolean':
+                _default = False
+            elif data_type == 'array':
+                _default = []
+            return kwargs[key] if key in kwargs.keys() else _default
+
+        click = __get_kwargs_value('click', data_type='boolean')
+        move = __get_kwargs_value('move', data_type='boolean')
+        release = __get_kwargs_value('release', data_type='boolean')
+
+        list_fit_peak_ranges = __get_kwargs_value('list_fit_peak_ranges',
+                                                  data_type='array')
+        list_fit_peak_ranges_matplotlib_id = __get_kwargs_value('list_fit_peak_ranges_matplotlib_id',
+                                                                data_type='array')
+        list_fit_peak_labels = __get_kwargs_value('list_fit_peak_labels',
+                                                  data_type='array')
+
+        o_gui = GuiUtilities(parent=self.parent)
+        o_gui.reset_peak_range_table()
+        o_gui.fill_peak_range_table(list_fit_peak_ranges=list_fit_peak_ranges,
+                                    list_fit_peak_labels=list_fit_peak_labels)
+
+        print("in update fit peak ranges table")
+        print("-> click: {}".format(click))
+        print("-> move: {}".format(move))
+        print("-> release: {}".format(release))
+        print("-> list_fit_peak_ranges: {}".format(list_fit_peak_ranges))
+        print("-> list_fit_peak_ranges_matplotlib_id: {}".format(list_fit_peak_ranges_matplotlib_id))
