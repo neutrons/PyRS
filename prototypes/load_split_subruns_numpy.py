@@ -40,7 +40,7 @@ def split_sub_runs(nexus_h5, scan_index_times, scan_index_values):
     event_id_array = nexus_h5['entry']['bank1_events']['event_id'].value
 
     # histogram boundaries
-    bound_x = np.arange(1024 ** 2 + 1).astype(float) - 0.1
+    # bound_x = np.arange(1024 ** 2 + 1).astype(float) - 0.1
 
     # split data
     num_sub_runs = scan_index_values.shape[0] / 2
@@ -51,14 +51,18 @@ def split_sub_runs(nexus_h5, scan_index_times, scan_index_values):
         # get the start and stop index in pulse array
         start_pulse_index = subrun_pulseindex_array[2 * i_sub_run]
         stop_pulse_index = subrun_pulseindex_array[2 * i_sub_run + 1]
-        if stop_pulse_index >= event_index_array.size:
-            print('[WARNING] for sub run {} out of {}, stop pulse index {} is out of boundary of {}'
-                  ''.format(i_sub_run, num_sub_runs, stop_pulse_index, event_index_array.shape))
-            stop_pulse_index = event_index_array.size - 1
 
         # get start andn stop event ID from event index array
         start_event_id = event_index_array[start_pulse_index]
-        stop_event_id = event_index_array[stop_pulse_index]
+        if stop_pulse_index >= event_index_array.size:
+            print('[WARNING] for sub run {} out of {}, stop pulse index {} is out of boundary of {}'
+                  ''.format(i_sub_run, num_sub_runs, stop_pulse_index, event_index_array.shape))
+            # stop_pulse_index = event_index_array.size - 1
+            # supposed to be the last pulse and thus use the last + 1 event ID's index
+            stop_event_id = event_index_array.shape[0]
+        else:
+            # natural one
+            stop_event_id = event_index_array[stop_pulse_index]
 
         # get sub set of the events falling into this range
         sub_run_events = event_id_array[start_event_id:stop_event_id]
@@ -118,7 +122,7 @@ def main():
     duration = (stop_time - start_time).total_seconds()
     print('Processing time = {}; Per sub run = {}'.format(duration, duration * 1. / len(frames)))
 
-    verify(nexus, range(1, 100), frames)
+    verify(nexus, range(100, 117), frames)
 
 
 if __name__ == '__main__':
