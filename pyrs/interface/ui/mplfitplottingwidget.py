@@ -43,6 +43,7 @@ class MplFitPlottingWidget(QWidget):
         self.list_peak_ranges = []
         self.list_peak_ranges_matplotlib_id = []
         self.list_fit_peak_labels = []
+        self.list_peak_labels_matplotlib_id = []
 
         self._working_with_range_index = -1
         self._button_pressed = False
@@ -70,7 +71,8 @@ class MplFitPlottingWidget(QWidget):
         self.parent.update_peak_ranges_table(click=True,
                                              list_fit_peak_labels=self.list_fit_peak_labels,
                                              list_fit_peak_ranges=self.list_peak_ranges,
-                                             list_fit_peak_ranges_matplotlib_id=self.list_peak_ranges_matplotlib_id)
+                                             list_fit_peak_ranges_matplotlib_id=self.list_peak_ranges_matplotlib_id,
+                                             list_fit_peak_labels_matplotlib_id=self.list_peak_labels_matplotlib_id)
 
     def button_released(self, event):
         if not self._button_pressed:
@@ -81,7 +83,8 @@ class MplFitPlottingWidget(QWidget):
         self.parent.update_peak_ranges_table(release=True,
                                              list_fit_peak_labels=self.list_fit_peak_labels,
                                              list_fit_peak_ranges=self.list_peak_ranges,
-                                             list_fit_peak_ranges_matplotlib_id=self.list_peak_ranges_matplotlib_id)
+                                             list_fit_peak_ranges_matplotlib_id=self.list_peak_ranges_matplotlib_id,
+                                             list_fit_peak_labels_matplotlib_id=self.list_peak_labels_matplotlib_id)
 
     def mouse_moved(self, event):
         if self._button_pressed:
@@ -89,7 +92,8 @@ class MplFitPlottingWidget(QWidget):
         self.parent.update_peak_ranges_table(move=True,
                                              list_fit_peak_labels=self.list_fit_peak_labels,
                                              list_fit_peak_ranges=self.list_peak_ranges,
-                                             list_fit_peak_ranges_matplotlib_id=self.list_peak_ranges_matplotlib_id)
+                                             list_fit_peak_ranges_matplotlib_id=self.list_peak_ranges_matplotlib_id,
+                                             list_fit_peak_labels_matplotlib_id=self.list_peak_labels_matplotlib_id)
 
     def _add_initial_point(self, x=np.NaN):
         if not self.list_peak_ranges:
@@ -118,8 +122,10 @@ class MplFitPlottingWidget(QWidget):
             [left_peak, right_peak] = self.list_peak_ranges_matplotlib_id[self._working_with_range_index]
             left_peak.remove()
             right_peak.remove()
-
             self.list_peak_ranges_matplotlib_id.remove([left_peak, right_peak])
+            # peak_label = self.list_peak_labels_matplotlib_id[self._working_with_range_index]
+            # peak_label.remove()
+            # self.list_peak_labels_matplotlib_id.remove(peak_label)
         else:
             _working_range = [_working_range[0], x]
             self.list_peak_ranges[self._working_with_range_index] = _working_range
@@ -240,6 +246,9 @@ class MplFitPlottingWidget(QWidget):
     def plot_data_with_fitting_ranges(self):
         self.clear_canvas()
 
+        for _peak_label in self.list_peak_labels_matplotlib_id:
+            _peak_label.remove()
+
         for [_left_line, _right_line] in self.list_peak_ranges_matplotlib_id:
             _left_line.remove()
             _right_line.remove()
@@ -250,13 +259,20 @@ class MplFitPlottingWidget(QWidget):
 
         self._myCanvas.add_plot_upper_axis(data_set, line_color=color, label=line_label)
         self.list_peak_ranges_matplotlib_id = []
+        self.list_peak_labels_matplotlib_id = []
+        list_peak_labels = self.list_fit_peak_labels
 
-        for _range in self.list_peak_ranges:
+        for _index, _range in enumerate(self.list_peak_ranges):
             x_right = np.nanmax(_range)
             x_left = np.nanmin(_range)
             self._left_line = self._myCanvas._data_subplot.axvline(x_left, color='r', linestyle='--')
             self._right_line = self._myCanvas._data_subplot.axvline(x_right, color='r', linestyle='--')
             self.list_peak_ranges_matplotlib_id.append([self._left_line, self._right_line])
+            txt_id = self._myCanvas._data_subplot.text(x_left, 0, list_peak_labels[_index],
+                                                       fontsize=16,
+                                                       rotation=90,
+                                                       rotation_mode='anchor')
+            self.list_peak_labels_matplotlib_id.append(txt_id)
 
         self._myCanvas.draw()
 
