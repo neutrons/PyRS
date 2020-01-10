@@ -46,6 +46,7 @@ class MplFitPlottingWidget(QWidget):
         self.list_peak_labels_matplotlib_id = []
 
         self._working_with_range_index = -1
+        self._peak_label_index = 0
         self._button_pressed = False
         self._left_line = None
         self._right_line = None
@@ -96,9 +97,11 @@ class MplFitPlottingWidget(QWidget):
                                              list_fit_peak_labels_matplotlib_id=self.list_peak_labels_matplotlib_id)
 
     def _add_initial_point(self, x=np.NaN):
+
         if not self.list_peak_ranges:
             self.list_peak_ranges = [[x, np.NaN]]
             self.list_fit_peak_labels = ['Peak0']
+            self._peak_label_index += 1
         else:
             _was_part_of_one_range = False
             for _index, _range in enumerate(self.list_peak_ranges):
@@ -110,12 +113,14 @@ class MplFitPlottingWidget(QWidget):
 
             if _was_part_of_one_range is False:
                 self.list_peak_ranges.append([x, np.NaN])
-                self.list_fit_peak_labels.append("Peak{}".format(self._working_with_range_index))
+                self.list_fit_peak_labels.append("Peak{}".format(self._peak_label_index))
                 self._working_with_range_index = -1
+                self._peak_label_index += 1
 
         self.plot_data_with_fitting_ranges()
 
     def _validate_second_point(self, x=np.NaN):
+
         _working_range = self.list_peak_ranges[self._working_with_range_index]
         if _working_range[0] == x:  # remove this range
             self.list_peak_ranges.remove([_working_range[0], np.NaN])
@@ -123,9 +128,8 @@ class MplFitPlottingWidget(QWidget):
             left_peak.remove()
             right_peak.remove()
             self.list_peak_ranges_matplotlib_id.remove([left_peak, right_peak])
-            # peak_label = self.list_peak_labels_matplotlib_id[self._working_with_range_index]
-            # peak_label.remove()
-            # self.list_peak_labels_matplotlib_id.remove(peak_label)
+            _peak_label = self.list_fit_peak_labels[self._working_with_range_index]
+            self.list_fit_peak_labels.remove(_peak_label)
         else:
             _working_range = [_working_range[0], x]
             self.list_peak_ranges[self._working_with_range_index] = _working_range
