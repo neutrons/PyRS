@@ -3,6 +3,7 @@ from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.utilities import calibration_file_io
 from pyrs.core import workspaces
 import numpy as np
+import os
 import pytest
 
 
@@ -37,9 +38,9 @@ def test_calibration_json():
 
 
 @pytest.mark.parametrize('nexus_file_name, mask_file_name',
-                         [('data/HB2B_938.nxs.h5', None),
-                          ('data/HB2B_938_nxs.h5', 'data/xxx.xml')],
-                         ids=('HB2B_938_NoMask', 'HB2B_938_Masked'))
+                         [('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5', None),
+                          ('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5', 'data/xxx.xml')],
+                         ids=('HB2B_1017_NoMask', 'HB2B_1017_Masked'))
 def test_compare_nexus_reader(nexus_file_name, mask_file_name):
     """Verify NeXus converters including counts and sample log values
 
@@ -49,14 +50,17 @@ def test_compare_nexus_reader(nexus_file_name, mask_file_name):
     """
     # Test on a light weight NeXus
     if mask_file_name is not None:
-        pytest.pytest.skip('Masking with H5PY/PYTHON NeXus conversion has not been implemented.')
+        pytest.skip('Masking with H5PY/PYTHON NeXus conversion has not been implemented.')
+    if os.path.exists(nexus_file_name) is False:
+        pytest.skip('Unable to access test file {}'.format(nexus_file_name))
 
     # reduce with Mantid
-    nexus_converter = NeXusConvertingApp(nexus_file_name, mask_file_name=mask_file_name)
-    hidra_mtd_ws = nexus_converter.convert(use_mantid=True)
+    nexus_mtd_converter = NeXusConvertingApp(nexus_file_name, mask_file_name=mask_file_name)
+    hidra_mtd_ws = nexus_mtd_converter.convert(use_mantid=True)
 
     # reduce with PyRS/Python
-    hidra_pyrs_ws = nexus_converter.convert(use_mantid=False)
+    nexus_pyrs_converter = NeXusConvertingApp(nexus_file_name, mask_file_name=mask_file_name)
+    hidra_pyrs_ws = nexus_pyrs_converter.convert(use_mantid=False)
 
     # compare sub runs
     sub_runs_mtd = hidra_mtd_ws.get_sub_runs()
@@ -67,19 +71,48 @@ def test_compare_nexus_reader(nexus_file_name, mask_file_name):
     for sub_run in sub_runs_mtd:
         mtd_counts = hidra_mtd_ws.get_detector_counts(sub_run)
         pyrs_counts = hidra_pyrs_ws.get_detector_counts(sub_run)
+
+        diff_counts = mtd_counts - pyrs_counts
+        print('Sub Run {}: Mantid counts = {}, PyRS counts = {}\n'
+              'Number of pixels with different counts = {}.  Maximum difference = {}'
+              ''.format(sub_run, np.sum(mtd_counts), np.sum(pyrs_counts),
+                        len(np.where(diff_counts != 0)[0]), np.max(np.abs(diff_counts))))
         np.testing.assert_allclose(mtd_counts, pyrs_counts)
 
     # compare number of sample logs
     log_names_mantid = hidra_mtd_ws.get_sample_log_names()
     log_names_pyrs = hidra_pyrs_ws.get_sample_log_names()
-    np.testing.assert_allclose(log_names_mantid, log_names_pyrs)
+
+    if len(log_names_mantid) != len(log_names_pyrs):
+        print(set(log_names_mantid) - set(log_names_pyrs))
+        print(set(log_names_pyrs) - set(log_names_mantid))
+        # raise AssertionError('Parameters are not same')
+    else:
+        print('Log difference:')
+        print(set(log_names_mantid) - set(log_names_pyrs))
+        print(set(log_names_pyrs) - set(log_names_mantid))
 
     # compare sample log values
     for log_name in log_names_pyrs:
+        if log_name == 'pulse_flags':
+            continue
+
         mtd_log_values = hidra_mtd_ws.get_sample_log_values(log_name)
         pyrs_log_values = hidra_pyrs_ws.get_sample_log_values(log_name)
-        np.testing.assert_allclose(mtd_log_values, pyrs_log_values)
+        if str(pyrs_log_values.dtype).count('float') > 0 or str(pyrs_log_values.dtype).count('int') > 0:
+            pass
+        else:
+            print(log_name, pyrs_log_values.dtype)
+            continue
 
+        log_diff = np.sqrt(np.sum((mtd_log_values - pyrs_log_values)**2))
+        print('{}: diff_sum = {}'.format(log_name, log_diff))
+        try:
+            np.testing.assert_allclose(mtd_log_values, pyrs_log_values)
+        except AssertionError as ass_err:
+            print('......BAD: {}'.format(ass_err))
+
+    assert 1 == 2
 
 if __name__ == '__main__':
     pytest.main([__file__])

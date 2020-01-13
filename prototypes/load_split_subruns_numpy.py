@@ -34,6 +34,9 @@ def split_sub_runs(nexus_h5, scan_index_times, scan_index_values):
 
     # search scan index boundaries in pulse time array
     subrun_pulseindex_array = np.searchsorted(pulse_time_array, scan_index_times)
+    print('Scan Index Times:      {}'.format(scan_index_times))
+    print('Pulse Ends:            {}'.format(pulse_time_array[-1]))
+    print('Matched Pulse Indexes: {}'.format(subrun_pulseindex_array))
 
     # get event  index array: same size as pulse times
     event_index_array = nexus_h5['entry']['bank1_events']['event_index'].value
@@ -43,6 +46,7 @@ def split_sub_runs(nexus_h5, scan_index_times, scan_index_values):
     # bound_x = np.arange(1024 ** 2 + 1).astype(float) - 0.1
 
     # split data
+    print(scan_index_values)
     num_sub_runs = scan_index_values.shape[0] / 2
     # sub_run_data_set = np.ndarray((num_sub_runs, 1024**2), dtype=float)
     sub_run_counts_dict = dict()
@@ -59,10 +63,11 @@ def split_sub_runs(nexus_h5, scan_index_times, scan_index_values):
                   ''.format(i_sub_run, num_sub_runs, stop_pulse_index, event_index_array.shape))
             # stop_pulse_index = event_index_array.size - 1
             # supposed to be the last pulse and thus use the last + 1 event ID's index
-            stop_event_id = event_index_array.shape[0]
+            stop_event_id = event_id_array.shape[0]
         else:
             # natural one
             stop_event_id = event_index_array[stop_pulse_index]
+        print('Sub run {}: Stop Event ID = {}'.format(i_sub_run, stop_event_id))
 
         # get sub set of the events falling into this range
         sub_run_events = event_id_array[start_event_id:stop_event_id]
@@ -110,7 +115,8 @@ def main():
 
     start_time = datetime.datetime.now()
 
-    nexus = '/HFIR/HB2B/IPTS-22048/nexus/HB2B_1205.nxs.h5'
+    # nexus = '/HFIR/HB2B/IPTS-22048/nexus/HB2B_1205.nxs.h5'
+    nexus = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5'
     nexus_h5 = load_nexus(nexus)
 
     scan_index_times, scan_index_values = get_scan_indexes(nexus_h5)
@@ -122,7 +128,7 @@ def main():
     duration = (stop_time - start_time).total_seconds()
     print('Processing time = {}; Per sub run = {}'.format(duration, duration * 1. / len(frames)))
 
-    verify(nexus, range(1, 235), frames)
+    verify(nexus, range(1, len(frames) + 1), frames)
 
 
 if __name__ == '__main__':

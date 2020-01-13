@@ -91,16 +91,80 @@ class NexusProcessor(object):
         if scan_index_times.shape != scan_index_value.shape:
             raise RuntimeError('Scan index time and value not in same shape')
         if scan_index_times.shape[0] % 2 == 1:
-            raise RuntimeError("Scan index are not in (1, 0) pair")
+            raise RuntimeError('Scan index ({}) are not in (1, 0) pair'.format(scan_index_value))
 
         # Remove ZERO scan index value
         scan_index_value = scan_index_value[::2]
-        if min(scan_index_value) == 0:
-            raise RuntimeError('Original sub scan indexes are not in 0, 1, 0, 2, ... mode.')
+        try:
+            if min(scan_index_value) == 0:
+                raise RuntimeError('Original sub scan indexes are not in 0, 1, 0, 2, ... mode.')
+        except ValueError as val_error:
+            err_msg = 'Scan index:\nTime: {}\nValue:' \
+                      ''.format(self._nexus_h5['entry']['DASlogs']['scan_index']['time'].value,
+                                self._nexus_h5['entry']['DASlogs']['scan_index']['value'].value)
+            raise RuntimeError('Failed to get sub run (scan index)\n{}\nFYI:{}'
+                               ''.format(err_msg, val_error))
         if max(np.bincount(scan_index_value, minlength=scan_index_value.shape[0])) > 1:
             raise RuntimeError('Some sub run has more than 1 entry. This situation has not been considered yet')
 
+        # Correct start scan_index time
+        corrected_value = self.correct_starting_scan_index_time()
+        if corrected_value is not None:
+            scan_index_times[0] = corrected_value
+        print('[DEBUG] Corrected value = {} ... Difference = {}'.format(scan_index_times[0],
+                                                                        scan_index_times[0] - 3280328590. * 1E-9))
+
         return scan_index_times, scan_index_value
+
+    def correct_starting_scan_index_time(self, abs_tolerance=0.05):
+        """Correct the DAS-issue for mis-record the first scan_index/sub run before the motor is in position
+
+        This goes through a subset of logs and compares when they actually
+        get to their specified setpoint, updating the start time for
+        event filtering. When this is done ``self._starttime`` will have been updated.
+
+        Parameters
+        ----------
+        abs_tolerance: float
+            When then log is within this absolute tolerance of the setpoint, it is correct
+
+        Returns
+        -------
+        float
+            Corrected value or None
+
+        """
+        # loop through the 'special' logs
+        start_time = -1E-9
+
+        for log_name in ['sx', 'sy', 'sz', '2theta', 'omega', 'chi', 'phi']:
+            if log_name not in self._nexus_h5['entry']['DASlogs'].keys():
+                continue  # log doesn't exist - not a good one to look at
+            if log_name + 'Setpoint' not in self._nexus_h5['entry']['DASlogs'].keys():
+                continue  # log doesn't have a setpoint - not a good one to look at
+
+            # get the observed values of the log
+            observed = self._nexus_h5['entry']['DASlogs'][log_name]['value'].value
+            if len(observed) <= 1 or observed.std() <= .5 * abs_tolerance:
+                continue  # don't bother if the log is constant within half of the tolerance
+
+            # look for the setpoint and find when the log first got there
+            # only look at first setpoint
+            set_point = self._nexus_h5['entry']['DASlogs'][log_name + 'Setpoint']['value'].value[0]
+            for i, value in enumerate(observed):
+                if abs(value - set_point) < abs_tolerance:
+                    # pick the larger of what was found and the previous largest value
+                    start_time = max(self._nexus_h5['entry']['DASlogs'][log_name]['time'].value[i], 0.)
+                    break
+
+        # unset the start time if it is before the actual start of the run
+        if start_time <= 0:
+            start_time = None
+        else:
+            print('[DEBUG] Shift from start_time = {}'
+                  ''.format(start_time))
+
+        return start_time
 
     def split_events_sub_runs(self, sub_run_times, sub_run_values):
         """Split events by sub runs
@@ -140,14 +204,19 @@ class NexusProcessor(object):
             start_pulse_index = subrun_pulseindex_array[2 * i_sub_run]
             stop_pulse_index = subrun_pulseindex_array[2 * i_sub_run + 1]
 
-            # get start andn stop event ID from event index array
-            start_event_id = event_index_array[start_pulse_index]
+            # In case of start
+            if start_pulse_index >= event_index_array.size:
+                # event ID out of boundary
+                start_event_id = event_id_array.shape[0]
+            else:
+                # get start andn stop event ID from event index array
+                start_event_id = event_index_array[start_pulse_index]
             if stop_pulse_index >= event_index_array.size:
                 print('[WARNING] for sub run {} out of {}, stop pulse index {} is out of boundary of {}'
                       ''.format(i_sub_run, num_sub_runs, stop_pulse_index, event_index_array.shape))
                 # stop_pulse_index = event_index_array.size - 1
                 # supposed to be the last pulse and thus use the last + 1 event ID's index
-                stop_event_id = event_index_array.shape[0]
+                stop_event_id = event_id_array.shape[0]
             else:
                 # natural one
                 stop_event_id = event_index_array[stop_pulse_index]
@@ -194,7 +263,16 @@ class NexusProcessor(object):
             try:
                 times = single_log_entry['time']
                 value = single_log_entry['value']
-                split_log_dict[log_name] = split_das_log(times, value, sub_run_times, sub_run_value)
+
+                # check type
+                value_type = str(value.dtype)
+
+                if value_type.count('float') == 0 and value_type.count('int') == 0:
+                    print('[WARNING] Log {} has dtype {}.  No split'.format(log_name, value_type))
+                    continue
+
+                split_log, time_i = split_das_log(times, value, sub_run_times, sub_run_value)
+                split_log_dict[log_name] = split_log
             except KeyError:
                 irregular_log_names.append(log_name)
         # END-FOR
@@ -265,13 +343,18 @@ def split_das_log(log_times, log_values, sub_run_times, sub_run_numbers):
                 raise RuntimeError('Algorithm error!')
             # change times at the start and append the stop time
             sub_times[0] = sub_run_times[2 * i_sr]
-            np.append(sub_run_times, sub_run_times[2 * i_sr + 1])
+            sub_times = np.append(sub_times, sub_run_times[2 * i_sr + 1])
 
             # get the range value
             sub_values = log_values[start_index:stop_index]
 
             # calculate the time average
-            weighted_sum = np.sum(sub_values * (sub_times[1:] - sub_times[:-1]))
+            try:
+                weighted_sum = np.sum(sub_values[:] * (sub_times[1:] - sub_times[:-1]))
+            except TypeError as type_err:
+                print('Sub values: {}\nSub times: {}'.format(sub_values, sub_times))
+                print('Sub value type: {}'.format(sub_values.dtype))
+                raise type_err
             time_averaged = weighted_sum / (sub_times[-1] - sub_times[0])
 
             # record

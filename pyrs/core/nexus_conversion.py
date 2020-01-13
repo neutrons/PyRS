@@ -317,6 +317,9 @@ class NeXusConvertingApp(object):
         # unset the start time if it is before the actual start of the run
         if self._starttime <= numpy.datetime64(mtd[self._event_ws_name].run()['start_time'].value):
             self._starttime = None
+        else:
+            print('[DEBUG] Shift from start_time = {}'
+                  ''.format(self._starttime - numpy.datetime64(mtd[self._event_ws_name].run()['start_time'].value)))
 
     def _split_sub_runs(self):
         """Performing event filtering according to sample log sub-runs
@@ -340,6 +343,7 @@ class NeXusConvertingApp(object):
                          OutputWorkspace=self._event_ws_name,
                          AbsoluteStartTime=str(self._starttime),
                          AbsoluteStopTime=str(self._starttime + duration))
+            print('[DEBUG]..............{}'.format(self._starttime))
 
         # determine the range of subruns being used
         scan_index = mtd[self._event_ws_name].run()[SUBRUN_LOGNAME].value

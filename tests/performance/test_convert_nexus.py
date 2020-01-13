@@ -19,7 +19,7 @@ def test_convert_nexus():
 
     ipts_dir = '/HFIR/HB2B/IPTS-{}/nexus'.format(ipts_number)
     if os.path.exists(ipts_dir) is False:
-        pytest.pytest.skip('Performance test is skipped due to no access to {}'.format(ipts_dir))
+        pytest.skip('Performance test is skipped due to no access to {}'.format(ipts_dir))
 
     # a record dictionary for reduction time, key = time (second)
     time_run_dict = dict()
@@ -30,6 +30,9 @@ def test_convert_nexus():
         # skip non-existing NeXus
         if not os.path.exists(nexus_name):
             non_exist_nexuses.append((run_number, nexus_name))
+            continue
+        else:
+            print('Reducing Run{} In ({}, {})'.format(run_number, run_start, run_stop))
 
         # load and split
         start_time = datetime.datetime.now()
