@@ -57,6 +57,11 @@ class NexusProcessor(object):
         # Load
         self._nexus_h5 = h5py.File(nexus_file_name, 'r')
 
+        # Check number of neutron events.  Raise exception if there is no neutron event
+        if self._nexus_h5['entry']['bank1_events']['total_counts'].value[0] < 0.1:
+            # no counts
+            raise RuntimeError('Run {} does to have counts'.format(self._nexus_name))
+
     def __del__(self):
         """Destructor
 
@@ -81,6 +86,10 @@ class NexusProcessor(object):
         # Get the time and value of 'scan_index' (entry) in H5
         scan_index_times = self._nexus_h5['entry']['DASlogs']['scan_index']['time'].value
         scan_index_value = self._nexus_h5['entry']['DASlogs']['scan_index']['value'].value
+
+        if scan_index_times.shape[0] <= 1:
+            raise RuntimeError('Sub scan (time = {}, value = {}) is not valid'
+                               ''.format(scan_index_times, scan_index_value))
 
         sub_run_times, sub_runs = self.generate_sub_run_splitter(scan_index_times, scan_index_value)
 

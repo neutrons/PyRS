@@ -25,6 +25,12 @@ def test_convert_nexus():
     time_run_dict = dict()
     non_exist_nexuses = list()
     for run_number in range(run_start, run_stop):
+        # Skip known problematic runs
+        # 1119: no count
+        # 1123: low count with zero scan index
+        if run_number in [1119, 1123]:
+            continue
+
         # create NeXus file name
         nexus_name = os.path.join(ipts_dir, 'HB2B_{}.nxs.h5'.format(run_number))
         # skip non-existing NeXus
@@ -32,11 +38,21 @@ def test_convert_nexus():
             non_exist_nexuses.append((run_number, nexus_name))
             continue
         else:
-            print('Reducing Run{} In ({}, {})'.format(run_number, run_start, run_stop))
+            print('Reducing Run {} In ({}, {})'.format(run_number, run_start, run_stop))
 
         # load and split
         start_time = datetime.datetime.now()
-        counts_dict, sample_log_dict = load_split_nexus_python(nexus_name)
+        try:
+            counts_dict, sample_log_dict = load_split_nexus_python(nexus_name)
+        except RuntimeError as run_err:
+            if str(run_err).count('does to have counts') > 0:
+                # it is OK to fail
+                continue
+            if str(run_err).count('is not valid') > 0:
+                # it is OK to fail: sub index error
+                continue
+            else:
+                raise run_err
         stop_time = datetime.datetime.now()
 
         time_run_dict[(stop_time - start_time).total_seconds()] = run_number, nexus_name, counts_dict.keys()
