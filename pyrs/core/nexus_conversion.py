@@ -14,6 +14,7 @@ from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSet
 from pyrs.dataobjects import HidraConstants
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 from pyrs.utilities import checkdatatypes
+from pyrs.nexus.split_sub_runs import load_split_nexus_python
 
 
 SUBRUN_LOGNAME = 'scan_index'
@@ -68,7 +69,7 @@ class NeXusConvertingApp(object):
             if name in mtd:
                 DeleteWorkspace(Workspace=name)
 
-    def convert(self):
+    def convert(self, use_mantid):
         """Main method to convert NeXus file to HidraProject File by
 
         1. split the workspace to sub runs
@@ -76,8 +77,9 @@ class NeXusConvertingApp(object):
 
         Parameters
         ----------
-        start_time : float
-            User defined run start time relative to DAS recorded run start time in unit of second
+        use_mantid : bool
+            Flag to use Mantid library to convert NeXus (True);
+            Otherwise, use PyRS/Python algorithms to convert NeXus
 
         Returns
         -------
@@ -85,10 +87,21 @@ class NeXusConvertingApp(object):
             HidraWorkspace for converted data
 
         """
-        # Load data file, split to sub runs and sample logs
-        self._load_mask_event_nexus(True)
-        self._determine_start_time()
-        self._split_sub_runs()
+        if use_mantid:
+            # Use Mantid algorithms to load and split sub runs
+            # Load data file, split to sub runs and sample logs
+            self._load_mask_event_nexus(True)
+            self._determine_start_time()
+            self._split_sub_runs()
+
+        else:
+            # Use PyRS/converter to load and split sub runs
+            sub_run_counts, self._sample_log_dict = load_split_nexus_python(self._nexus_name)
+            # set counts to each sub run
+            for sub_run in sub_run_counts:
+                self._hydra_workspace.set_raw_counts(sub_run, sub_run_counts[sub_run])
+
+        # END-IF
 
         # Add the sample logs to the hidra workspace
         sub_runs = self._sample_log_dict['scan_index']
@@ -103,6 +116,22 @@ class NeXusConvertingApp(object):
         self._hydra_workspace.set_raw_counts(sub_run, mtd[wkspname].extractY())
 
     def _create_sample_log_dict(self, wkspname, sub_run_index, log_array_size):
+        """Create dictioonary for sample log of a sub run
+
+        Goal:
+            1. set self._sample_log_dict[log_name][sub_run_index] with log value (single or time-averaged)
+            2. set self._sample_log_dict[HidraConstants.SUB_RUN_DURATION][sub_run_index] with duration
+
+        Parameters
+        ----------
+        wkspname
+        sub_run_index
+        log_array_size
+
+        Returns
+        -------
+
+        """
         # this contains all of the sample logs
         runObj = mtd[wkspname].run()
         # loop through all available logs
