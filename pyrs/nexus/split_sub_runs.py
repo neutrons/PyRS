@@ -82,39 +82,66 @@ class NexusProcessor(object):
         scan_index_times = self._nexus_h5['entry']['DASlogs']['scan_index']['time'].value
         scan_index_value = self._nexus_h5['entry']['DASlogs']['scan_index']['value'].value
 
-        # Remove the first 0
-        if scan_index_value[0] == 0:
-            scan_index_times = scan_index_times[1:]
-            scan_index_value = scan_index_value[1:]
-
-        # Sanity check
-        if scan_index_times.shape != scan_index_value.shape:
-            raise RuntimeError('Scan index time and value not in same shape')
-        if scan_index_times.shape[0] % 2 == 1:
-            raise RuntimeError('Scan index ({}) are not in (1, 0) pair'.format(scan_index_value))
-
-        # Remove ZERO scan index value
-        scan_index_value = scan_index_value[::2]
-        try:
-            if min(scan_index_value) == 0:
-                raise RuntimeError('Original sub scan indexes are not in 0, 1, 0, 2, ... mode.')
-        except ValueError as val_error:
-            err_msg = 'Scan index:\nTime: {}\nValue:' \
-                      ''.format(self._nexus_h5['entry']['DASlogs']['scan_index']['time'].value,
-                                self._nexus_h5['entry']['DASlogs']['scan_index']['value'].value)
-            raise RuntimeError('Failed to get sub run (scan index)\n{}\nFYI:{}'
-                               ''.format(err_msg, val_error))
-        if max(np.bincount(scan_index_value, minlength=scan_index_value.shape[0])) > 1:
-            raise RuntimeError('Some sub run has more than 1 entry. This situation has not been considered yet')
+        sub_run_times, sub_runs = self.generate_sub_run_splitter(scan_index_times, scan_index_value)
 
         # Correct start scan_index time
         corrected_value = self.correct_starting_scan_index_time()
         if corrected_value is not None:
-            scan_index_times[0] = corrected_value
-        print('[DEBUG] Corrected value = {} ... Difference = {}'.format(scan_index_times[0],
-                                                                        scan_index_times[0] - 3280328590. * 1E-9))
+            sub_run_times[0] = corrected_value
 
-        return scan_index_times, scan_index_value
+        return sub_run_times, sub_runs
+
+    def generate_sub_run_splitter(self, scan_index_times, scan_index_value):
+        """Generate event splitters according to sub runs
+
+        """
+        # Init
+        sub_run_time_list = list()
+        sub_run_value_list = list()
+        num_scan_index = scan_index_times.shape[0]
+
+        # Loop through all scan indexes to get the correct splitters
+        curr_sub_run = 0
+        for i_scan in range(num_scan_index):
+            if scan_index_value[i_scan] != curr_sub_run:
+                #  New run no same as old one: There will be some change!
+                if curr_sub_run > 0:
+                    # previous run shall be saved: it is ending: record the ending time/current time
+                    sub_run_time_list.append(scan_index_times[i_scan])
+
+                if scan_index_value[i_scan] > 0:
+                    # new scan index is valid: a new run shall start: record the starting time and sub run value
+                    sub_run_time_list.append(scan_index_times[i_scan])
+                    sub_run_value_list.append(scan_index_value[i_scan])
+
+                # Update the curr_sub_run
+                curr_sub_run = scan_index_value[i_scan]
+
+                # Note: there is one scenario to append 2 and same time stamp: scan index change from i to j, where
+                # both i and j are larger than 0
+            # END-IF
+        # END-FOR
+
+        # Check the ending
+        if curr_sub_run > 0:
+            # In case the stop (scan_index = 0) is not recorded
+            sub_run_time_list.append(np.nan)
+
+        # Convert from list to array
+        sub_run_times = np.array(sub_run_time_list)
+        sub_run_numbers = np.array(sub_run_value_list)
+
+        # Sanity check
+        if sub_run_times.shape[0] % 2 == 1 or sub_run_times.shape[0] == 0:
+            raise RuntimeError('Algorithm error: Failed to parse\nTime: {}\nValue: {}.\n'
+                               'Current resulted time ({}) is incorrect as odd/even'
+                               ''.format(scan_index_times, scan_index_value, sub_run_times))
+
+        if sub_run_times.shape[0] != sub_run_numbers.shape[0] * 2:
+            raise RuntimeError('Sub run number {} and sub run times do not match (as twice)'
+                               ''.format(sub_run_numbers, sub_run_times))
+
+        return sub_run_times, sub_run_numbers
 
     def correct_starting_scan_index_time(self, abs_tolerance=0.05):
         """Correct the DAS-issue for mis-record the first scan_index/sub run before the motor is in position
