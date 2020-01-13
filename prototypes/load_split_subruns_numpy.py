@@ -110,7 +110,7 @@ def main():
 
     start_time = datetime.datetime.now()
 
-    nexus = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1060.nxs.h5'
+    nexus = '/HFIR/HB2B/IPTS-22048/nexus/HB2B_1205.nxs.h5'
     nexus_h5 = load_nexus(nexus)
 
     scan_index_times, scan_index_values = get_scan_indexes(nexus_h5)
@@ -122,7 +122,7 @@ def main():
     duration = (stop_time - start_time).total_seconds()
     print('Processing time = {}; Per sub run = {}'.format(duration, duration * 1. / len(frames)))
 
-    verify(nexus, range(100, 117), frames)
+    verify(nexus, range(1, 235), frames)
 
 
 if __name__ == '__main__':
