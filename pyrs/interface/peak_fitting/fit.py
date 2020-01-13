@@ -6,7 +6,7 @@ from pyrs.dataobjects import HidraConstants
 from pyrs.interface.peak_fitting.utilities import Utilities
 from pyrs.interface.gui_helper import pop_message
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
-from pyrs.peaks import PeakFitEngineFactory
+from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory
 
 PeakInfo = namedtuple('PeakInfo', 'center left_bound right_bound tag')
 
@@ -27,6 +27,9 @@ class Fit:
         _peak_tag_list = ["peak{}".format(_index) for _index, _ in enumerate(_peak_center_list)]
         _peak_function_name = str(self.parent.ui.comboBox_peakType.currentText())
 
+        _peak_xmin_list = [left for (left, _) in _peak_range_list]
+        _peak_xmax_list = [right for (_, right) in _peak_range_list]
+
         # Fit peak
         hd_ws = self.parent.hidra_workspace
 
@@ -40,13 +43,12 @@ class Fit:
         # print("_peak_center_list: {}".format(_peak_center_list))
         # print("_peak_tag_list: {}".format(_peak_tag_list))
 
-        fit_engine = PeakFitEngineFactory.getInstance('Mantid')(hd_ws, None)
-        peak_collection_dict = fit_engine.fit_multiple_peaks(sub_run_range=(None, None),
-                                                             peak_function_name=_peak_function_name,
-                                                             background_function_name='Linear',
-                                                             peak_tag_list=_peak_tag_list,
-                                                             peak_center_list=_peak_center_list,
-                                                             peak_range_list=_peak_range_list)
+        fit_engine = PeakFitEngineFactory.getInstance('Mantid', hd_ws, peak_function_name=_peak_function_name,
+                                                             background_function_name='Linear')
+        fit_result = fit_engine.fit_multiple_peaks(peak_tag_list=_peak_tag_list,
+                                                   x_mins=_peak_xmin_list,
+                                                   x_maxs=_peak_xmax_list)
+        # result contains (peakcollections, fitted, difference)
 
         pprint.pprint("peak_collection_dict:")
         pprint.pprint(peak_collection_dict['peak0'])
