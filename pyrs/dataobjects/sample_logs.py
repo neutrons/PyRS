@@ -1,9 +1,9 @@
 # extentable version of dict https://treyhunner.com/2019/04/why-you-shouldnt-inherit-from-list-and-dict-in-python/
-from collections import MutableMapping
+from collections import Iterable, MutableMapping
 import numpy as np
 from pyrs.dataobjects import HidraConstants
 
-__all__ = ['SampleLogs']
+__all__ = ['SampleLogs', 'SubRuns']
 
 
 def _coerce_to_ndarray(value):
@@ -13,12 +13,74 @@ def _coerce_to_ndarray(value):
         return np.atleast_1d(value)
 
 
+class SubRuns(Iterable):
+    '''SubRun class is a (mostly) immutable object that allows for getting the index of its arguments.'''
+    def __init__(self, subruns=None):
+        '''Default is to create zero-length subruns. This is the only version of
+        subrun that can have its value updated'''
+        self.__value = np.ndarray((0))
+
+        if subruns is not None:
+            self.set(subruns)
+
+    def __eq__(self, other):
+        other = _coerce_to_ndarray(other)
+        if other.size != self.__value.size:
+            return False
+        else:
+            return np.all(other == self.__value)
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    def __iter__(self):
+        yield self.__value.next()
+
+    def __len__(self):
+        return self.size
+
+    @property
+    def size(self):
+        return self.__value.size
+
+    def empty(self):
+        return self.size == 0
+
+    def set(self, value):
+        if not self.empty():
+            if self != value:
+                raise RuntimeError('Cannot change subruns when non-empty '
+                                   '(previous={}, new={})'.format(self.__value, value))
+        value = _coerce_to_ndarray(value)
+        if not np.all(value[:-1] < value[1:]):
+            raise RuntimeError('subruns are not soryed in increasing order')
+        self.__value = value
+
+    def get_indices(self, subruns):
+        '''Convert the list of subruns into indices into the subrun array'''
+        if self.__eq__(subruns):
+            return np.arange(self.__value.size)
+        else:
+            subruns = _coerce_to_ndarray(subruns)
+            # look for the single value
+            if subruns.size == 1:
+                indices = np.nonzero(self.__value == subruns[0])[0]
+                if indices.size > 0:
+                    return indices
+            # check that the first and last values are in the array
+            elif subruns[0] in self.__value and subruns[-1] in self.__value:
+                return np.searchsorted(self.__value, subruns)
+
+        # fall-through is an error
+        raise IndexError('Failed to find subruns={}'.format(subruns))
+
+
 class SampleLogs(MutableMapping):
     SUBRUN_KEY = HidraConstants.SUB_RUNS
 
     def __init__(self, **kwargs):
         self._data = dict(kwargs)
-        self._subruns = np.ndarray((0))
+        self._subruns = SubRuns()
         self._plottable = set([self.SUBRUN_KEY])
 
     def __del__(self):
@@ -27,7 +89,7 @@ class SampleLogs(MutableMapping):
 
     def __delitem__(self, key):
         if key == self.SUBRUN_KEY:
-            self.subruns = np.ndarray((0))  # use full method
+            self.subruns = SubRuns()  # set to empty subruns
         else:
             del self._data[key]
 
@@ -59,7 +121,7 @@ class SampleLogs(MutableMapping):
     def __setitem__(self, key, value):
         value = _coerce_to_ndarray(value)
         if key == self.SUBRUN_KEY:
-            self.subruns = value  # use full method
+            self.subruns = SubRuns(value)  # use full method
         else:
             if self._subruns.size == 0:
                 raise RuntimeError('Must set subruns first')
@@ -103,35 +165,10 @@ class SampleLogs(MutableMapping):
     @subruns.setter
     def subruns(self, value):
         '''Set the subruns and build up associated values'''
-        if self._subruns.size != 0:
-            if not self.matching_subruns(value):
-                raise RuntimeError('Cannot set subruns on non-empty SampleLog '
-                                   '(previous={}, new={})'.format(self._subruns, value))
-        value = _coerce_to_ndarray(value)
-        if not np.all(value[:-1] < value[1:]):
-            raise RuntimeError('subruns are not soryed in increasing order')
-        self._subruns = value
+        self._subruns.set(value)
 
     def matching_subruns(self, subruns):
-        subruns = _coerce_to_ndarray(subruns)
-        if subruns.size != self._subruns.size:
-            return False
-        else:
-            return np.all(subruns == self._subruns)
+        return self._subruns == subruns
 
     def get_subrun_indices(self, subruns):
-        if self.matching_subruns(subruns):
-            return np.arange(self._subruns.size)
-        else:
-            subruns = _coerce_to_ndarray(subruns)
-            # look for the single value
-            if subruns.size == 1:
-                indices = np.nonzero(self._subruns == subruns[0])[0]
-                if indices.size > 0:
-                    return indices
-            # check that the first and last values are in the array
-            elif subruns[0] in self._subruns and subruns[-1] in self._subruns:
-                return np.searchsorted(self._subruns, _coerce_to_ndarray(subruns))
-
-        # fall-through is an error
-        raise IndexError('Failed to find subruns={}'.format(subruns))
+        return self._subruns.get_indices(subruns)
