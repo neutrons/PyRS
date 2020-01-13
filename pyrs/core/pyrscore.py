@@ -3,7 +3,8 @@ from pyrs.utilities import checkdatatypes
 from pyrs.core import instrument_geometry
 from pyrs.dataobjects import HidraConstants
 from pyrs.utilities import file_util
-from pyrs.peaks import PeakFitEngineFactory, SupportedPeakProfiles, SupportedBackgroundTypes
+from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory
+from pyrs.peaks import SupportedPeakProfiles, SupportedBackgroundTypes
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 from pyrs.core import strain_stress_calculator
 from pyrs.core import reduction_manager
@@ -27,7 +28,7 @@ class PyRsCore(object):
         # peak fitting service
         # last/current peak fitting controller
         # None or RsPeakFitEngine/MantidPeakFitEngine instance
-        self._peak_fit_controller = None  # current peak fitting controller,
+        self._peak_fit_engine = None  # current peak fitting controller,
         self._peak_fitting_dict = dict()  # dict of peak fitting controller. key = tag, value = peak fit controller
 
         # pole figure calculation
@@ -50,7 +51,7 @@ class PyRsCore(object):
         return handler to current/last peak fitting controller
         :return:
         """
-        return self._peak_fit_controller
+        return self._peak_fit_engine
 
     @property
     def strain_stress_calculator(self):
@@ -106,13 +107,13 @@ class PyRsCore(object):
         # get workspace
         workspace = self.reduction_service.get_hidra_workspace(fit_tag)
         # create a controller from factory
-        self._peak_fitting_dict[fit_tag] = PeakFitEngineFactory.getInstance('Mantid')(workspace, None)
+        self._peak_fitting_dict[fit_tag] = PeakFitEngineFactory.getInstance('Mantid', workspace, None)
         # set wave length: TODO - #81+ - shall be a way to use calibrated or non-calibrated
         wave_length_dict = workspace.get_wavelength(calibrated=False, throw_if_not_set=False)
         self.current_wavelength_dict = wave_length_dict
         if wave_length_dict is not None:
             self._peak_fitting_dict[fit_tag].set_wavelength(wave_length_dict)
-            # self._peak_fit_controller.set_wavelength(wave_length_dict)
+            # self._peak_fit_engine.set_wavelength(wave_length_dict)
 
         return workspace
 
@@ -147,8 +148,8 @@ class PyRsCore(object):
             self.init_peak_fit_engine(project_name)
 
         # Get controller by 'fitting tag' and set it to current peak_fit_controller
-        self._peak_fit_controller = self._peak_fitting_dict[project_name]
-        workspace = self._peak_fit_controller.get_hidra_workspace()
+        self._peak_fit_engine = self._peak_fitting_dict[project_name]
+        workspace = self._peak_fit_engine.get_hidra_workspace()
 
         # Check Inputs
         checkdatatypes.check_dict('Peak fitting (information) parameters', peaks_fitting_setup)
@@ -179,8 +180,8 @@ class PyRsCore(object):
 
             # fit peak
             try:
-                self._peak_fit_controller.fit_peaks(peak_tag_i, sub_run_range, peak_type, background_type,
-                                                    peak_center, peak_range)
+                self._peak_fit_engine.fit_peaks(peak_tag_i, sub_run_range, peak_type, background_type,
+                                                peak_center, peak_range)
             except RuntimeError as run_err:
                 error_message += 'Failed to fit (tag) {} due to {}\n'.format(peak_tag_i, run_err)
         # END-FOR
@@ -456,7 +457,7 @@ class PyRsCore(object):
 
         """
         if project_name is None:
-            optimizer = self._peak_fit_controller
+            optimizer = self._peak_fit_engine
         else:
             optimizer = self._peak_fitting_dict[project_name]
 
@@ -544,9 +545,11 @@ class PyRsCore(object):
             raise RuntimeError('Argument geometry_calibration of value {} and type {} is not supported'
                                ''.format(geometry_calibration, type(geometry_calibration)))
 
+        # Reduce
+        # TODO - Mask/MaskID shall be refactored
         self._reduction_service.reduce_diffraction_data(session_name, apply_calibration,
-                                                        num_bins, pyrs_engine,
-                                                        mask_id, sub_run_list)
+                                                        num_bins, pyrs_engine, sub_run_list,
+                                                        mask_id, mask_id)
 
     @property
     def reduction_service(self):

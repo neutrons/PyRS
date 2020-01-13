@@ -1,6 +1,10 @@
-from qtpy.QtWidgets import QMainWindow, QVBoxLayout
+from qtpy.QtWidgets import QMainWindow, QVBoxLayout, QApplication
 import os
-
+from mantid.simpleapi import Logger
+from pyrs.core.nexus_conversion import NeXusConvertingApp
+from pyrs.core.powder_pattern import ReductionApp
+from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry
+from mantidqt.utils.asynchronous import BlockingAsyncTaskWithCallback
 from pyrs.utilities import load_ui
 
 from pyrs.core.pyrscore import PyRsCore
@@ -8,7 +12,7 @@ from pyrs.utilities import calibration_file_io
 from pyrs.interface.ui.diffdataviews import DetectorView, GeneralDiffDataView
 from pyrs.interface import gui_helper
 from pyrs.utilities import checkdatatypes
-from pyrs.utilities.rs_project_file import HidraConstants
+from pyrs.dataobjects import HidraConstants
 from pyrs.interface.ui import rstables
 from pyrs.interface.manual_reduction.event_handler import EventHandler
 
@@ -18,6 +22,50 @@ from pyrs.interface.manual_reduction.event_handler import EventHandler
 # TODO              4. Implement plot method for reduced data
 # TODO              5. Implement method to reduce data
 # TODO              6. Add parameters for reducing data
+
+
+def _nexus_to_subscans(nexusfile, projectfile, logger, mask):
+    if os.path.exists(projectfile):
+        logger.information('Removing existing projectfile {}'.format(projectfile))
+        os.remove(projectfile)
+
+    logger.notice('Creating subscans from {} into project file {}'.format(nexusfile, projectfile))
+    converter = NeXusConvertingApp(nexusfile, mask)
+    converter.convert()
+    instrument = AnglerCameraDetectorGeometry(1024, 1024, 0.0003, 0.0003, 0.985, False)
+    converter.save(projectfile, instrument)
+
+
+def _create_powder_patterns(projectfile, instrument, calibration, mask, subruns, logger):
+    logger.notice('Adding powder patterns to project file {}'.format(projectfile))
+
+    reducer = ReductionApp(False)
+    reducer.load_project_file(projectfile)
+
+    reducer.reduce_data(instrument_file=instrument,
+                        calibration_file=calibration,
+                        mask=mask,
+                        sub_runs=subruns)
+
+    reducer.save_diffraction_data(projectfile)
+
+
+def reduce_h2bc(nexus, outputdir, progressbar, subruns=list(), instrument=None, calibration=None, mask=None):
+
+    project = os.path.basename(nexus).split('.')[0] + '.h5'
+    project = os.path.join(outputdir, project)
+
+    logger = Logger('reduce_HB2B')
+    # process the data
+    progressbar.setVisible(True)
+    progressbar.setValue(0.)
+    _nexus_to_subscans(nexus, project, logger)
+    progressbar.setValue(50.)
+    # add powder patterns
+    _create_powder_patterns(project, instrument, calibration,
+                            mask, subruns, logger)
+    progressbar.setValue(100.)
+    progressbar.setVisible(False)
 
 
 class ManualReductionWindow(QMainWindow):
@@ -56,6 +104,7 @@ class ManualReductionWindow(QMainWindow):
         self.ui.pushButton_loadProjectFile.clicked.connect(self.do_load_hidra_projec_file)
         self.ui.pushButton_browseOutputDir.clicked.connect(self.do_browse_output_dir)
         self.ui.pushButton_setCalibrationFile.clicked.connect(self.do_browse_calibration_file)
+        self.ui.pushButton_setMaskFile.clicked.connect(self.do_browse_mask_file)
 
         self.ui.pushButton_setBrowseIDF.clicked.connect(self.do_browse_set_idf)
 
@@ -72,7 +121,7 @@ class ManualReductionWindow(QMainWindow):
         self.ui.radioButton_chopAdvanced.toggled.connect(self.event_change_slice_type)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
-
+        self.ui.progressBar.setVisible(False)
         # event handling for combobox
         # self.ui.comboBox_sub_runs.currentIndexChanged.connect(self.event_new_run_to_plot)
 
@@ -354,11 +403,11 @@ class ManualReductionWindow(QMainWindow):
         if append_mode is False:
             self.ui.comboBox_sampleLogNames.setCurrentIndex(0)
         self._plot_selection_mutex = False
-
         return
 
     def do_quit(self):
-        """Quit manual reduction window
+        """
+        Quit manual reduction window
 
         Returns
         -------
@@ -381,7 +430,7 @@ class ManualReductionWindow(QMainWindow):
         # get (sub) run numbers
         sub_runs_str = str(self.ui.lineEdit_runNumbersList.text()).strip().lower()
         if sub_runs_str == 'all':
-            sub_run_list = self._core.reduction_service.get_sub_runs(self._project_data_id)
+            sub_run_list = list()
         else:
             try:
                 sub_run_list = gui_helper.parse_integers(sub_runs_str)
@@ -389,19 +438,18 @@ class ManualReductionWindow(QMainWindow):
                 gui_helper.pop_message(self, 'Failed to parse integer list',
                                        '{}'.format(run_err), 'error')
                 return
-        # END-IF-ELSE
-
         # Reduce data
-        # TODO FIXME - Urgent - Mask and calibration is not implemented at all!
-        self._core.reduction_service.reduce_diffraction_data(self._project_data_id,
-                                                             apply_calibrated_geometry=None,
-                                                             num_bins=1000,
-                                                             use_pyrs_engine=True,
-                                                             mask=None,
-                                                             sub_run_list=sub_run_list)
-
+        nexus_file = str(self.ui.lineEdit_runNumber.text().strip())
+        project_file = str(self.ui.lineEdit_outputDir.text().strip())
+        mask_file = str(self.ui.LineEdit_maskFile.text().strip())
+        # idf_name = str(self.ui.lineEdit_idfName.text().strip())
+        # calibration_file = str(self.ui.lineEdit_calibratonFile.text().strip())
+        task = BlockingAsyncTaskWithCallback(reduce_h2bc, args=(nexus_file, project_file, self.ui.progressBar),
+                                             kwargs={'subruns': sub_run_list, 'mask': mask_file},
+                                             blocking_cb=QApplication.processEvents)
+        task.start()
         # Update table
-        for sub_run in sub_run_list:
+        for sub_run in list():
             self.ui.rawDataTable.update_reduction_state(sub_run, True)
 
         return
@@ -422,19 +470,30 @@ class ManualReductionWindow(QMainWindow):
         set IPTS number
         :return:
         """
-        try:
-            ipts_number = gui_helper.parse_integer(str(self.ui.lineEdit_iptsNumber.text()))
-            exp_number = gui_helper.parse_integer(str(self.ui.lineEdit_expNumber.text()))
-            self._currIPTSNumber = ipts_number
-            self._currExpNumber = exp_number
-            project_file_name = 'blabla.hdf5'
-        except RuntimeError:
-            gui_helper.pop_message(self, 'IPTS number shall be set to an integer.', message_type='error')
-            project_file_name = gui_helper.browse_file(
-                self, 'Hidra Project File', os.getcwd(), 'hdf5 (*.hdf5)', False, False)
+        # try:
+        #    ipts_number = gui_helper.parse_integer(str(self.ui.lineEdit_iptsNumber.text()))
+        #    exp_number = gui_helper.parse_integer(str(self.ui.lineEdit_expNumber.text()))
+        #    self._currIPTSNumber = ipts_number
+        #    self._currExpNumber = exp_number
+        #    project_file_name = 'blabla.hdf5'
+        # except RuntimeError:
+        #    gui_helper.pop_message(self, 'IPTS number shall be set to an integer.', message_type='error')
+        project_file_name = gui_helper.browse_file(
+            self, 'Hidra Project File', os.getcwd(), 'hdf5 (*.h5)', False, False)
+        self.ui.lineEdit_runNumber.setText(project_file_name)
+        # self.load_hydra_file(project_file_name)
 
-        self.load_hydra_file(project_file_name)
+        return
 
+    def do_browse_mask_file(self):
+        """
+        set IPTS number
+        :return:
+        """
+        mask_file_name = gui_helper.browse_file(
+            self, 'Hidra Mask File', os.getcwd(), 'hdf5 (*.h5);;xml (*.xml)', False, False)
+        self.ui.lineEdit_maskFile.setText(mask_file_name)
+        # self.load_hydra_file(project_file_name)
         return
 
     def event_change_slice_type(self):

@@ -11,7 +11,7 @@ DEFAULT_INSTRUMENT = None
 DEFAULT_MASK = None
 
 
-def _nexus_to_subscans(nexusfile, projectfile, save_project_file):
+def _nexus_to_subscans(nexusfile, projectfile, mask_file_name, save_project_file):
     """Split raw data from NeXus file to sub runs/scans
 
     Parameters
@@ -20,6 +20,10 @@ def _nexus_to_subscans(nexusfile, projectfile, save_project_file):
         HB2B event NeXus file's name
     projectfile : str
         Target HB2B HiDRA project file's name
+    mask_file_name : str
+        Mask file name; None for no mask
+    save_project_file : str
+        Project file to save to.  None for not being saved
 
     Returns
     -------
@@ -32,7 +36,7 @@ def _nexus_to_subscans(nexusfile, projectfile, save_project_file):
         os.remove(projectfile)
 
     logger.notice('Creating subscans from {} into project file {}'.format(nexusfile, projectfile))
-    converter = NeXusConvertingApp(nexusfile)
+    converter = NeXusConvertingApp(nexusfile, mask_file_name)
     hydra_ws = converter.convert()
 
     # set up instrument
@@ -80,13 +84,16 @@ def _view_raw(hidra_workspace, mask, subruns, engine):
 
 def reduce_hidra_workflow(user_options):
 
-    hidra_ws = _nexus_to_subscans(user_options.nexus, user_options.project, save_project_file=False)
+    # split into sub runs fro NeXus file
+    hidra_ws = _nexus_to_subscans(user_options.nexus, user_options.project,
+                                  mask_file_name=user_options.mask,
+                                  save_project_file=False)
 
     if user_options.viewraw:  # plot data
-        _view_raw(hidra_ws, user_options.mask, user_options.subruns, user_options.engine)
+        _view_raw(hidra_ws, None, user_options.subruns, user_options.engine)
     else:  # add powder patterns
         _create_powder_patterns(hidra_ws, user_options.instrument, user_options.calibration,
-                                user_options.mask, user_options.subruns, user_options.project)
+                                None, user_options.subruns, user_options.project)
         logger.notice('Successful reduced {}'.format(user_options.nexus))
 
 
@@ -104,7 +111,8 @@ if __name__ == '__main__':
     parser.add_argument('--calibration', nargs='?', default=DEFAULT_CALIBRATION,
                         help='instrument geometry calibration file overriding embedded (default=%(default)s)')
     parser.add_argument('--mask', nargs='?', default=DEFAULT_MASK,
-                        help='masking file (PyRS hdf5 format) or mask name (default=%(default)s)')
+                        help='masking file (PyRS hdf5 format or Mantid XML format) or '
+                             'mask name (default=%(default)s)')
     parser.add_argument('--engine', choices=['mantid', 'pyrs'], default='pyrs',
                         help='reduction engine (default=%(default)s)')
     parser.add_argument('--viewraw', action='store_true',

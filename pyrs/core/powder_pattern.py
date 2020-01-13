@@ -56,23 +56,50 @@ class ReductionApp(object):
 
     @property
     def use_mantid_engine(self):
-        """
+        """Status to use Mantid as reduction engine to convert counts to diffraction pattern
 
-        :return:
+        Returns
+        -------
+        bool
+            True to indicate the reduction is done by Mantid algorithm and instrument geometry
+
         """
         return self._use_mantid_engine
 
     @use_mantid_engine.setter
     def use_mantid_engine(self, value):
-        """ set flag to use mantid reduction engine (True) or PyRS reduction engine (False)
-        :param value:
-        :return:
+        """Set flag to use mantid reduction engine (True) or PyRS reduction engine (False)
+
+        Parameters
+        ----------
+        value
+
+        Returns
+        -------
+
         """
         checkdatatypes.check_bool_variable('Flag to use Mantid as reduction engine', value)
 
         self._use_mantid_engine = value
 
         return
+
+    def get_diffraction_data(self, sub_run):
+        """Get 2theta diffraction data
+
+        Parameters
+        ----------
+        sub_run : int
+            sub run number
+
+        Returns
+        -------
+        ~numpy.ndarray, ~numpy.ndarray
+
+        """
+        vec_x, vec_y = self._reduction_manager.get_reduced_diffraction_data(self._session, sub_run)
+
+        return vec_x, vec_y
 
     def load_project_file(self, data_file):
         # init session
@@ -101,7 +128,8 @@ class ReductionApp(object):
         # set the workspace to self
         self._hydra_ws = hd_workspace
 
-    def reduce_data(self, sub_runs, instrument_file, calibration_file, mask, van_file=None, num_bins=1000):
+    def reduce_data(self, sub_runs, instrument_file, calibration_file, mask, mask_id=None,
+                    van_file=None, num_bins=1000):
         """Reduce data from HidraWorkspace
 
         Parameters
@@ -110,7 +138,10 @@ class ReductionApp(object):
             sub run numbers to reduce
         instrument_file
         calibration_file
-        mask
+        mask : str or numpy.ndarray or None
+            Mask name or mask (value) array.  None for no mask
+        mask_id : str or None
+            ID for mask.  If mask ID is None, then it is the default universal mask applied to all data
         van_file : str or None
             HiDRA project file containing vanadium counts or event NeXus file
         num_bins : int
@@ -143,10 +174,6 @@ class ReductionApp(object):
                     calibration_file_io.import_calibration_ascii_file(geometry_file_name=calibration_file)
         # END-IF
 
-        # mask
-        if mask is not None:
-            raise NotImplementedError('It has not been decided how to parse mask to auto reduction script')
-
         # Vanadium
         if van_file is not None:
             # vanadium file is given
@@ -161,8 +188,9 @@ class ReductionApp(object):
                                                         apply_calibrated_geometry=geometry_calibration,
                                                         num_bins=num_bins,
                                                         use_pyrs_engine=not self._use_mantid_engine,
-                                                        mask=None,
                                                         sub_run_list=sub_runs,
+                                                        mask=mask,
+                                                        mask_id=mask_id,
                                                         vanadium_counts=van_array)
 
     def plot_reduced_data(self, sub_run_number=None):

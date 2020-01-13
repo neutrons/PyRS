@@ -41,7 +41,7 @@ def convert_to_2theta(engine, pyrs_reducer, roi_vec, ws_name):
     # reduce PyRS (pure python)
     curr_id = engine.current_data_id
 
-    pyrs_reducer.set_mask(roi_vec)
+    pyrs_reducer.set_detector_mask(roi_vec)
     pyrs_reducer._detector_counts = engine.get_counts(curr_id)
 #    vec_2theta, vec_hist = pyrs_reducer.reduce_to_2theta_histogram(counts_array=engine.get_counts(curr_id),
 #                                                                   mask=roi_vec, x_range=(min_2theta, max_2theta),

@@ -2,7 +2,7 @@ import numpy as np
 
 from pyrs.interface.gui_helper import parse_integers
 from pyrs.interface.gui_helper import pop_message
-from pyrs.utilities.rs_project_file import HidraConstants
+from pyrs.dataobjects import HidraConstants
 
 from pyrs.interface.peak_fitting.config import LIST_AXIS_TO_PLOT
 

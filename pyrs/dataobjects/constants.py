@@ -27,6 +27,7 @@ class HidraConstants(object):
     # Masks
     MASK = 'mask'  # main entry name of mask
     DETECTOR_MASK = 'detector'
+    DEFAULT_MASK = '_DEFAULT_'
     SOLID_ANGLE_MASK = 'solid angle'
 
     # constants about peak fitting

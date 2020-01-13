@@ -19,7 +19,14 @@
      <layout class="QVBoxLayout" name="verticalLayout">
       <item>
        <layout class="QGridLayout" name="gridLayout">
-        <item row="4" column="1">
+        <item row="1" column="0">
+         <widget class="QLabel" name="label">
+          <property name="text">
+           <string>Mask File</string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="2">
          <widget class="QLineEdit" name="lineEdit_calibratonFile">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
@@ -36,54 +43,14 @@
           </property>
          </widget>
         </item>
-        <item row="4" column="2">
+        <item row="4" column="3">
          <widget class="QPushButton" name="pushButton_setCalibrationFile">
           <property name="text">
            <string>Set</string>
           </property>
          </widget>
         </item>
-        <item row="0" column="0">
-         <widget class="QLabel" name="label">
-          <property name="text">
-           <string>IPTS</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="4">
-         <spacer name="horizontalSpacer">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-          <property name="sizeType">
-           <enum>QSizePolicy::Preferred</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>40</width>
-            <height>20</height>
-           </size>
-          </property>
-         </spacer>
-        </item>
-        <item row="2" column="1">
-         <widget class="QLineEdit" name="lineEdit_idfName">
-          <property name="text">
-           <string>/home/wzz/Projects/PyRS/tests/testdata/hzb/HZB_Definition_20190523_0844.txt</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="1">
-         <widget class="QLineEdit" name="lineEdit_iptsNumber">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="1">
+        <item row="2" column="2">
          <widget class="QLineEdit" name="lineEdit_outputDir">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
@@ -93,28 +60,45 @@
           </property>
          </widget>
         </item>
-        <item row="3" column="2">
+        <item row="2" column="3">
          <widget class="QPushButton" name="pushButton_browseOutputDir">
           <property name="text">
            <string>Set</string>
           </property>
          </widget>
         </item>
-        <item row="3" column="0">
+        <item row="2" column="0">
          <widget class="QLabel" name="label_5">
           <property name="text">
-           <string>Save to ... ...</string>
+           <string>Project File</string>
           </property>
          </widget>
         </item>
-        <item row="4" column="4">
+        <item row="4" column="5">
          <widget class="QCheckBox" name="checkBox_autoCalibSet">
           <property name="text">
            <string>Auto</string>
           </property>
          </widget>
         </item>
-        <item row="2" column="0">
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_14">
+          <property name="text">
+           <string>NeXus File</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="3">
+         <widget class="QPushButton" name="pushButton_loadProjectFile">
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Load Hidra project file&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="text">
+           <string>Set</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0">
          <widget class="QLabel" name="label_3">
           <property name="toolTip">
            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Instrument file&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -124,30 +108,30 @@
           </property>
          </widget>
         </item>
-        <item row="2" column="2">
+        <item row="3" column="3">
          <widget class="QPushButton" name="pushButton_setBrowseIDF">
           <property name="text">
            <string>Set</string>
           </property>
          </widget>
         </item>
-        <item row="1" column="0">
-         <widget class="QLabel" name="label_14">
+        <item row="3" column="2">
+         <widget class="QLineEdit" name="lineEdit_idfName">
           <property name="text">
-           <string>Run Number</string>
+           <string/>
           </property>
          </widget>
         </item>
-        <item row="1" column="1">
+        <item row="0" column="2">
          <widget class="QLineEdit" name="lineEdit_runNumber"/>
         </item>
         <item row="1" column="2">
-         <widget class="QPushButton" name="pushButton_loadProjectFile">
-          <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Load Hidra project file&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
+         <widget class="QLineEdit" name="lineEdit_maskFile"/>
+        </item>
+        <item row="1" column="3">
+         <widget class="QPushButton" name="pushButton_setMaskFile">
           <property name="text">
-           <string>Load</string>
+           <string>Set</string>
           </property>
          </widget>
         </item>
@@ -159,46 +143,6 @@
          <string>Calibration</string>
         </property>
         <layout class="QGridLayout" name="gridLayout_2">
-         <item row="2" column="0">
-          <widget class="QLabel" name="label_24">
-           <property name="font">
-            <font>
-             <pointsize>9</pointsize>
-            </font>
-           </property>
-           <property name="text">
-            <string>Tilt X</string>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="1">
-          <widget class="QLineEdit" name="lineEdit_14">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="maximumSize">
-            <size>
-             <width>120</width>
-             <height>16777215</height>
-            </size>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="4">
-          <widget class="QLabel" name="label_23">
-           <property name="font">
-            <font>
-             <pointsize>9</pointsize>
-            </font>
-           </property>
-           <property name="text">
-            <string>Tilt Y</string>
-           </property>
-          </widget>
-         </item>
          <item row="0" column="1">
           <widget class="QLineEdit" name="lineEdit_17">
            <property name="sizePolicy">
@@ -212,18 +156,6 @@
              <width>120</width>
              <height>16777215</height>
             </size>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="2">
-          <widget class="QLabel" name="label_26">
-           <property name="font">
-            <font>
-             <pointsize>9</pointsize>
-            </font>
-           </property>
-           <property name="text">
-            <string>Tilt Z</string>
            </property>
           </widget>
          </item>
@@ -253,38 +185,6 @@
          </item>
          <item row="1" column="1">
           <widget class="QLineEdit" name="lineEdit_15">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="maximumSize">
-            <size>
-             <width>120</width>
-             <height>16777215</height>
-            </size>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="3">
-          <widget class="QLineEdit" name="lineEdit_19">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="maximumSize">
-            <size>
-             <width>120</width>
-             <height>16777215</height>
-            </size>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="5">
-          <widget class="QLineEdit" name="lineEdit_11">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -367,13 +267,54 @@
          <attribute name="title">
           <string>Simple Reduction</string>
          </attribute>
-         <layout class="QVBoxLayout" name="verticalLayout_3">
+         <layout class="QVBoxLayout" name="verticalLayout_6">
           <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_4">
+           <layout class="QVBoxLayout" name="verticalLayout_3">
             <item>
-             <widget class="QLabel" name="label_2">
-              <property name="text">
-               <string>Run Numbers</string>
+             <layout class="QHBoxLayout" name="horizontalLayout_4">
+              <item>
+               <widget class="QLabel" name="label_2">
+                <property name="text">
+                 <string>Run Numbers</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLineEdit" name="lineEdit_runNumbersList">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="toolTip">
+                 <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Experiment numbers in numpy convention:&lt;/p&gt;&lt;p&gt;a, b:c, d:e, f, ...&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                </property>
+                <property name="text">
+                 <string>all</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="pushButton_batchReduction">
+                <property name="text">
+                 <string>Reduce</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="pushButton_saveProject">
+                <property name="text">
+                 <string>Save</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <widget class="QProgressBar" name="progressBar">
+              <property name="value">
+               <number>24</number>
               </property>
              </widget>
             </item>
@@ -390,36 +331,6 @@
               </property>
               <property name="frameShadow">
                <enum>QFrame::Raised</enum>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLineEdit" name="lineEdit_runNumbersList">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Experiment numbers in numpy convention:&lt;/p&gt;&lt;p&gt;a, b:c, d:e, f, ...&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
-              <property name="text">
-               <string>all</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QPushButton" name="pushButton_batchReduction">
-              <property name="text">
-               <string>Reduce</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QPushButton" name="pushButton_saveProject">
-              <property name="text">
-               <string>Save</string>
               </property>
              </widget>
             </item>

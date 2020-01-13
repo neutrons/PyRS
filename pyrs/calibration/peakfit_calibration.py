@@ -8,6 +8,7 @@ import os
 from pyrs.core import reduce_hb2b_pyrs
 
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
+from pyrs.core.reduction_manager import HB2BReductionManager
 
 from scipy.optimize import leastsq  # for older scipy
 from scipy.optimize import minimize
@@ -200,10 +201,26 @@ class PeakFitCalibration(object):
             2theta, intensity
         """
         # reduce data
+        # Default minimum and maximum 2theta are related with
+        pixel_2theta_array = pyrs_reducer.instrument.get_pixels_2theta(1)
+
+        bin_boundaries_2theta = HB2BReductionManager.generate_2theta_histogram_vector(min_2theta, num_bins,
+                                                                                      max_2theta,
+                                                                                      pixel_2theta_array,
+                                                                                      roi_vec)
+
+        # Histogram
+        data_set = pyrs_reducer.reduce_to_2theta_histogram(bin_boundaries_2theta,
+                                                           mask_array=roi_vec,
+                                                           is_point_data=True,
+                                                           vanadium_counts_array=None)
+
+        vec_2theta, vec_hist = data_set
         # two_theta_step = (max_2theta - min_2theta) / num_bins
-        pyrs_reducer.set_mask(roi_vec)
-        vec_2theta, vec_hist = pyrs_reducer.reduce_to_2theta_histogram((min_2theta, max_2theta), num_bins, True,
-                                                                       is_point_data=True, use_mantid_histogram=False)
+        # pyrs_reducer.set_mask(roi_vec)
+        # vec_2theta, vec_hist = pyrs_reducer.
+        #          reduce_to_2theta_histogram((min_2theta, max_2theta), num_bins, roi_vec,
+        #          is_point_data=True, use_mantid_histogram=False)
 
         return vec_2theta, vec_hist
 
