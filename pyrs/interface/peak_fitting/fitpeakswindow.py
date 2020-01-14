@@ -214,6 +214,9 @@ class FitPeaksWindow(QMainWindow):
         o_handle = EventHandler(parent=self)
         o_handle.update_fit_peak_ranges_plot()
 
+    def create_plot_color_range(self):
+        pass
+
     def _init_widgets(self):
         """
         initialize the some widgets

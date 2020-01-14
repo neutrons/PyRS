@@ -24,6 +24,7 @@ class Load:
             # Record data key and next
             self.parent._curr_file_name = project_file
             self.parent.hidra_workspace = ws
+            self.parent.create_plot_color_range()
         except (RuntimeError, TypeError) as run_err:
             pop_message(self, 'Unable to load {}'.format(project_file),
                         detailed_message=str(run_err),

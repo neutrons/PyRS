@@ -258,6 +258,7 @@ class MplFitPlottingWidget(QWidget):
             _right_line.remove()
 
         color = self._color
+
         data_set = self._data_set
         line_label = self._line_label
 

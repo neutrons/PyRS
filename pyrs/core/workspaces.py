@@ -117,8 +117,6 @@ class HidraWorkspace(object):
                 mask_name = None
             self._diff_data_set[mask_name] = hidra_file.read_diffraction_intensity_vector(mask_id=mask_name,
                                                                                           sub_run=None)
-        # END-FOR (mask)
-
         print('[INFO] Loaded diffraction data from {} includes : {}'
               ''.format(self._project_file_name, self._diff_data_set.keys()))
 
