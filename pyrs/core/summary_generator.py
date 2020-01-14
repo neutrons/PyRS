@@ -168,7 +168,13 @@ class SummaryGenerator(object):
         '''Write only the sample logs that are constants into the header. These do not appear in the body.
         '''
         for name in self._constant_logs:
-            handle.write('# {} = {:.5g} +/- {:.2g}\n'.format(name, sample_logs[name].mean(), sample_logs[name].std()))
+            try:
+                handle.write('# {} = {:.5g} +/- {:.2g}\n'.format(name, sample_logs[name].mean(),
+                                                                 sample_logs[name].std()))
+            except TypeError:
+                # strings don't have a "mean" or "std" so use the first value
+                # this is intended for strings
+                handle.write('# {} = {}\n'.format(name, sample_logs[name][0]))
 
     def _write_column_names(self, handle, peak_collections):
         '''This writes the names of all of the columns'''
