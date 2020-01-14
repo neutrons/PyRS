@@ -3,7 +3,7 @@ import numpy
 from pyrs.dataobjects import HidraConstants, SampleLogs
 from pyrs.projectfile import HidraProjectFile
 from pyrs.utilities import checkdatatypes
-
+from mantid.api import FileFinder
 
 class HidraWorkspace(object):
     """

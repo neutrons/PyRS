@@ -1,6 +1,7 @@
 from qtpy.QtWidgets import QMainWindow, QVBoxLayout, QApplication
 import os
 from mantid.simpleapi import Logger
+from mantid.api import FileFinder
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
 from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry
@@ -59,7 +60,7 @@ def reduce_h2bc(nexus, outputdir, progressbar, subruns=list(), instrument=None, 
     # process the data
     progressbar.setVisible(True)
     progressbar.setValue(0.)
-    _nexus_to_subscans(nexus, project, logger)
+    _nexus_to_subscans(nexus, project, logger, mask)
     progressbar.setValue(50.)
     # add powder patterns
     _create_powder_patterns(project, instrument, calibration,
@@ -100,9 +101,11 @@ class ManualReductionWindow(QMainWindow):
         self._promote_widgets()
 
         # set up the event handling
-        self.ui.pushButton_browseOutputDir.clicked.connect(self.do_browse_output_dir)
-        self.ui.pushButton_browseCalibrationFile.clicked.connect(self.do_browse_calibration_file)
+        self.ui.lineEdit_maskFile.setText('/HFIR/HB2B/shared/CALIBRATION/HB2B_MASK_Latest.xml')
         self.ui.pushButton_browseMaskFile.clicked.connect(self.do_browse_mask_file)
+        self.ui.lineEdit_calibrationFile.setText('/HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json')
+        self.ui.pushButton_browseCalibrationFile.clicked.connect(self.do_browse_calibration_file)
+        self.ui.pushButton_browseOutputDir.clicked.connect(self.do_browse_output_dir)
 
         self.ui.pushButton_batchReduction.clicked.connect(self.do_reduce_batch_runs)
         self.ui.pushButton_saveProject.clicked.connect(self.do_save_project)
@@ -435,13 +438,14 @@ class ManualReductionWindow(QMainWindow):
                                        '{}'.format(run_err), 'error')
                 return
         # Reduce data
-        nexus_file = str(self.ui.lineEdit_runNumber.text().strip())
-        project_file = str(self.ui.lineEdit_outputDir.text().strip())
-        mask_file = str(self.ui.LineEdit_maskFile.text().strip())
-        # idf_name = str(self.ui.lineEdit_idfName.text().strip())
-        # calibration_file = str(self.ui.lineEdit_calibratonFile.text().strip())
+        run_number = self.ui.spinBox_runNumber.text().strip()
+        nexus_file = FileFinder.findRuns('HB2B'+run_number)[0]
+        project_file = str(self.ui.lineEdit_outputDirectory.text().strip())
+        mask_file = str(self.ui.lineEdit_maskFile.text().strip())
+        calibration_file = str(self.ui.lineEdit_calibrationFile.text().strip())
         task = BlockingAsyncTaskWithCallback(reduce_h2bc, args=(nexus_file, project_file, self.ui.progressBar),
-                                             kwargs={'subruns': sub_run_list, 'mask': mask_file},
+                                             kwargs={'subruns': sub_run_list, 'mask': mask_file,
+                                                     'calibration': calibration_file},
                                              blocking_cb=QApplication.processEvents)
         task.start()
         # Update table
