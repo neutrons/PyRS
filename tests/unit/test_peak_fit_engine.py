@@ -271,6 +271,13 @@ def test_1_gaussian_1_subrun():
     assert eff_param_values[0, 0] == param_values[1, 0]   # center
     assert abs(eff_param_values[0, 0] - peak_center) < 3e-2, 'Peak center is not correct'
 
+   # Parameters verified
+    assert eff_param_values[1, 0] == pytest.approx(10, abs=20.0)  # Height
+    assert eff_param_values[2, 0] == pytest.approx(3.1, abs=20.0)  # Intensity
+    assert eff_param_values[3, 0] == pytest.approx(0.29, abs=20.0)  # FWHM
+    assert eff_param_values[5, 0] == pytest.approx(35.0, abs=20.0)  # A0
+    assert eff_param_values[6, 0] == pytest.approx(-0.3, abs=20.0)  # A1
+
     # fit goodness
     assert fit_costs[0] < 1.5, 'Fit cost (chi2 = {}) is too large'.format(fit_costs[0])  # TODO was 0.5
 
@@ -336,6 +343,13 @@ def test_2_gaussian_1_subrun():
 
     assert eff_param_values[0, 0] == param_values[1, 0]   # center
     assert abs(eff_param_values[0, 0] - peak_centers[0]) < 2e-2, 'Peak center is not correct'
+
+    # Parameters verified
+    assert eff_param_values[1, 0] == pytest.approx(10, abs=20.0)  # Height
+    assert eff_param_values[2, 0] == pytest.approx(3.1, abs=20.0)  # Intensity
+    assert eff_param_values[3, 0] == pytest.approx(0.29, abs=20.0)  # FWHM
+    assert eff_param_values[5, 0] == pytest.approx(35.0, abs=20.0)  # A0
+    assert eff_param_values[6, 0] == pytest.approx(-0.3, abs=20.0)  # A1
 
     # fit goodness
     assert fit_costs[0] < 0.5, 'Fit cost (chi2 = {}) is too large'.format(fit_costs[0])
@@ -446,9 +460,23 @@ def test_2_gaussian_3_subruns():
         fit_result.peakcollections[0].get_effective_parameters_values()
     assert effective_param_values.shape == (7, 3), 'Only 1 sub run and 7 parameters'
 
+    # Parameters verified
+    assert effective_param_values[1, 0] == pytest.approx(10, abs=20.0)  # Height
+    assert effective_param_values[2, 0] == pytest.approx(3.1, abs=20.0)  # Intensity
+    assert effective_param_values[3, 0] == pytest.approx(0.29, abs=20.0)  # FWHM
+    assert effective_param_values[5, 0] == pytest.approx(0.39, abs=20.0)  # A0
+    assert effective_param_values[6, 0] == pytest.approx(-0.3, abs=20.0)  # A1
+
     eff_param_list, sub_runs, fit_costs, effective_param_values, effective_param_errors =\
         fit_result.peakcollections[1].get_effective_parameters_values()
     assert effective_param_values.shape == (7, 3), 'Only 1 sub run and 7 parameters'
+
+    # Parameters verified
+    assert effective_param_values[1, 0] == pytest.approx(0.012, abs=20.0)  # Height
+    assert effective_param_values[2, 0] == pytest.approx(0.04, abs=20.0)  # Intensity
+    assert effective_param_values[3, 0] == pytest.approx(3.58, abs=20.0)  # FWHM
+    assert effective_param_values[5, 0] == pytest.approx(-0.301, abs=20.0)  # A0
+    assert effective_param_values[6, 0] == pytest.approx(0.003, abs=20.0)  # A1
 
     # Plot
     # model_x, model_y = fit_engine.calculate_fitted_peaks(3, None)
@@ -509,6 +537,13 @@ def test_3_gaussian_3_subruns():
     # peak 'Left'
     sub_runs_lp, fit_cost2_lp, param_values_lp, param_errors_lp =\
         fit_result.peakcollections[0].get_parameters_values(gaussian_native_params)
+
+    # Parameters verified
+    assert param_values_lp[0, 0] == pytest.approx(10, abs=20.0)  # Height
+    assert param_values_lp[1, 0] == pytest.approx(75, abs=20.0)  # Peak center
+    assert param_values_lp[2, 0] == pytest.approx(0.15, abs=20.0)  # sigma
+    assert param_values_lp[3, 0] == pytest.approx(0.00, abs=20.0)  # A0
+    assert param_values_lp[4, 0] == pytest.approx(0.00, abs=20.0)  # A1
 
     assert np.isinf(fit_cost2_lp[2]), 'Sub run 3 does not have peak @ 75 (Peak-Left).  Chi2 shall be infinity but' \
                                       ' not {}'.format(fit_cost2_lp[2])
@@ -576,6 +611,12 @@ def test_1_pv_1_subrun():
     assert eff_param_values[4, 0] == param_values[0, 0]  # mixing
     assert eff_param_values[0, 0] == param_values[2, 0]  # center
     assert eff_param_values[2, 0] == param_values[1, 0]  # intensity
+
+    assert eff_param_values[1, 0] == pytest.approx(207.29, abs=20.0)  # Height
+    assert eff_param_values[2, 0] == pytest.approx(100, abs=20.0)  # Intensity
+    assert eff_param_values[3, 0] == pytest.approx(0.41, abs=20.0)  # FWHM
+    assert eff_param_values[5, 0] == pytest.approx(35, abs=20.0)  # A0
+    assert eff_param_values[6, 0] == pytest.approx(-0.3, abs=20.0)  # A1
 
     # fit goodness
     if fit_costs[0] > 1.0:
