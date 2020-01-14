@@ -64,9 +64,9 @@ def test_log_time_average():
 
 
 @pytest.mark.parametrize('nexus_file_name, mask_file_name',
-                         [('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5', None),
-                          ('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5', 'data/xxx.xml')],
-                         ids=('HB2B_1017_NoMask', 'HB2B_1017_Masked'))
+                         [('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5', 'data/HB2B_Mask_12-18-19.xml'),
+                          ('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5', None)],
+                         ids=('HB2B_1017_Masked', 'HB2B_1017_NoMask'))
 def test_compare_nexus_reader(nexus_file_name, mask_file_name):
     """Verify NeXus converters including counts and sample log values
 
@@ -75,8 +75,6 @@ def test_compare_nexus_reader(nexus_file_name, mask_file_name):
 
     """
     # Test on a light weight NeXus
-    if mask_file_name is not None:
-        pytest.skip('Masking with H5PY/PYTHON NeXus conversion has not been implemented.')
     if os.path.exists(nexus_file_name) is False:
         pytest.skip('Unable to access test file {}'.format(nexus_file_name))
 

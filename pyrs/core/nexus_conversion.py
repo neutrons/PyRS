@@ -96,11 +96,14 @@ class NeXusConvertingApp(object):
 
         else:
             # Use PyRS/converter to load and split sub runs
-            sub_run_counts, self._sample_log_dict = load_split_nexus_python(self._nexus_name)
+            sub_run_counts, self._sample_log_dict, mask_array = load_split_nexus_python(self._nexus_name,
+                                                                                        self._mask_file_name)
             # set counts to each sub run
             for sub_run in sub_run_counts:
                 self._hydra_workspace.set_raw_counts(sub_run, sub_run_counts[sub_run])
-
+            # set mask
+            if mask_array is not None:
+                self._hydra_workspace.set_detector_mask(mask_array, is_default=True)
         # END-IF
 
         # Add the sample logs to the hidra workspace

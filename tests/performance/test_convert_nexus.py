@@ -47,7 +47,7 @@ def test_convert_nexus(ipts_number, run_start, run_stop):
         # load and split
         start_time = datetime.datetime.now()
         try:
-            counts_dict, sample_log_dict = load_split_nexus_python(nexus_name)
+            counts_dict, sample_log_dict, mask_array = load_split_nexus_python(nexus_name, None)
         except RuntimeError as run_err:
             if str(run_err).count('does to have counts') > 0:
                 # it is OK to fail
