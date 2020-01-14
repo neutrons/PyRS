@@ -3,7 +3,10 @@
 import h5py
 import numpy as np
 from pyrs.utilities import checkdatatypes
+from pyrs.dataobjects.constants import HidraConstants
 import datetime
+import os
+from mantid.simpleapi import mtd, Load
 
 
 HIDRA_PIXEL_NUMBER = 1024**2
@@ -100,7 +103,8 @@ class NexusProcessor(object):
 
         return sub_run_times, sub_runs
 
-    def generate_sub_run_splitter(self, scan_index_times, scan_index_value):
+    @staticmethod
+    def generate_sub_run_splitter(scan_index_times, scan_index_value):
         """Generate event splitters according to sub runs
 
         """
@@ -325,6 +329,84 @@ class NexusProcessor(object):
         split_log_dict['duration'] = duration_logs
 
         return split_log_dict
+
+    def create_sample_log_dict(self, sub_run_times, sub_run_numbers):
+        """Create dictionary for sample log of a sub run
+
+        Goal:
+            1. set self._sample_log_dict[log_name][sub_run_index] with log value (single or time-averaged)
+            2. set self._sample_log_dict[HidraConstants.SUB_RUN_DURATION][sub_run_index] with duration
+
+        Parameters
+        ----------
+        sub_run_times : numpy.ndarray
+            sub run times as the relative time to 'start_time'
+        sub_run_numbers : numpy.ndarray
+            sub run values
+
+        Returns
+        -------
+
+        """
+        # Check
+        if sub_run_numbers.shape[0] * 2 != sub_run_times.shape[0]:
+            raise RuntimeError('....')
+
+        # Load file
+        ws_name = os.path.basename(self._nexus_name).split('.')[0]
+        workspace = Load(Filename=ws_name, MetaDataOnly=True)
+        run_obj = workspace.run()
+
+        # Get 'start_time' and create a new sub_run_times in datetime64
+        run_start_abs = np.datetime64(run_obj['start_time'].value)
+        delta_times = (sub_run_times * 1E9).astype(np.timedelta64)  # convert to nanosecond then to timedetal64
+        sub_run_splitter_times = run_start_abs + delta_times
+
+        # this contains all of the sample logs
+        sample_log_dict = dict()
+        log_array_size = sub_run_numbers.shape[0]
+        # loop through all available logs
+        for log_name in run_obj.keys():
+            # create and calculate the sample log
+            sample_log_dict[log_name] = self.split_property(run_obj.getProperty(log_name), sub_run_splitter_times,
+                                                            log_array_size)
+        # END-FOR
+
+        # create a fictional log for duration
+        if HidraConstants.SUB_RUN_DURATION not in sample_log_dict:
+            sample_log_dict[HidraConstants.SUB_RUN_DURATION] = sub_run_times[1::2] - sub_run_times[::2]
+
+        return sample_log_dict
+
+    @staticmethod
+    def split_property(log_property, splitter_times, log_array_size):
+        """
+        Calculate the mean value of the sample log "within" the sub run time range
+        :param name: Mantid run property's name
+        :return:
+        """
+        # Init split sample logs
+        log_dtype = log_property.dtype()
+        split_log = np.ndarray(shape=(log_array_size,), dtype=log_dtype)
+
+        if isinstance(log_property.value, np.ndarray) and str(log_dtype) in ['f', 'i']:
+            # Float or integer time series property
+            split_log[:] = log_property.value
+            for i_sb in range(log_array_size):
+                time_average_value = log_property.filter
+            raise NotImplementedError('From here!')
+
+        elif isinstance(log_property.value, np.ndarray) and str(log_dtype) in ['f', 'i']:
+            # ndarray. but not float or integer: get the first value
+            split_log[:] = log_property.value[0]
+        elif isinstance(log_property.value, list):
+            # list, but not time series property: get the first value
+            split_log[:] = log_property.value[0]
+        else:
+            # single value log
+            split_log[:] = log_property.value
+
+        return split_log
 
 
 def split_das_log(log_times, log_values, sub_run_times, sub_run_numbers):
