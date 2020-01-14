@@ -34,7 +34,7 @@ def convertNeXusToProject(nexusfile, projectfile, skippable, mask_file_name=None
         os.remove(projectfile)
 
     converter = NeXusConvertingApp(nexusfile, mask_file_name=mask_file_name)
-    hidra_ws = converter.convert()
+    hidra_ws = converter.convert(use_mantid=True)
     converter.save(projectfile, None)
 
     # tests for the created file
