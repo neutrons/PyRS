@@ -36,7 +36,7 @@ class Load:
 
         # Get and set the range of sub runs
         o_utility = Utilities(parent=self.parent)
-        sub_run_list = o_utility.get_subruns_limit(self.parent._project_name)
+        sub_run_list = o_utility.get_subruns_limit()
 
         o_gui = GuiUtilities(parent=self.parent)
         o_gui.initialize_fitting_slider(max=len(sub_run_list))

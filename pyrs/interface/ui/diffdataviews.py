@@ -201,7 +201,8 @@ class GeneralDiffDataView(MplGraphicsView1D):
                 self.reset_viewer()
 
         # plot data in a scattering plot with auto re-scale
-        ref_id = self.add_plot(vec_x, vec_y,
+        ref_id = self.add_plot(vec_x,
+                               vec_y,
                                line_style='',
                                marker='*',
                                markersize=6,

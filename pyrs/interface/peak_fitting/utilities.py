@@ -21,9 +21,10 @@ class Utilities:
 
         return sub_run_list
 
-    def get_subruns_limit(self, project_name):
-        sub_run_list = self.parent._core.reduction_service.get_sub_runs(project_name)
-        return sub_run_list
+    def get_subruns_limit(self):
+        sample_log = self.parent.hidra_workspace._sample_logs
+        sub_run_list = sample_log._subruns
+        return list(sub_run_list)
 
     def get_default_hdf(self):
         """

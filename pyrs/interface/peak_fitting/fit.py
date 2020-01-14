@@ -191,5 +191,5 @@ class Fit:
             self.parent.ui.tableView_fitSummary.remove_all_rows()
 
         o_utility = Utilities(parent=self.parent)
-        sub_run_list = o_utility.get_subruns_limit(self.parent._project_name)
+        sub_run_list = o_utility.get_subruns_limit()
         self.parent.ui.tableView_fitSummary.init_exp(sub_run_list)

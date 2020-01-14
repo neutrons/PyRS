@@ -124,7 +124,7 @@ class FitPeaksWindow(QMainWindow):
         o_handler = EventHandler(parent=self)
         o_handler.browse_load_plot_hdf()
         o_plot = Plot(parent=self)
-        o_plot.plot_1d()
+        #o_plot.plot_1d()
 
     def load_hidra_file(self):
         o_handler = EventHandler(parent=self)
@@ -179,7 +179,7 @@ class FitPeaksWindow(QMainWindow):
         o_gui = GuiUtilities(parent=self)
         o_gui.check_axis1d_status()
         o_plot = Plot(parent=self)
-        o_plot.plot_1d()
+        # o_plot.plot_1d()
 
     def xaxis_2d_changed(self):
         o_gui = GuiUtilities(parent=self)

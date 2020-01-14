@@ -60,19 +60,19 @@ class EventHandler:
             pop_message(self, 'Failed to plot {}'.format(hidra_file_name),
                         str(run_err), 'error')
 
-        try:
-            o_fit = Fit(parent=self.parent)
-            o_fit.initialize_fitting_table()
+        # try:
+        o_fit = Fit(parent=self.parent)
+        o_fit.initialize_fitting_table()
 
-            # enabled all fitting widgets and main plot
-            o_gui = GuiUtilities(parent=self.parent)
-            o_gui.enabled_fitting_widgets(True)
-            o_gui.enabled_data_fit_plot(True)
-            o_gui.enabled_peak_ranges_widgets(True)
+        # enabled all fitting widgets and main plot
+        o_gui = GuiUtilities(parent=self.parent)
+        o_gui.enabled_fitting_widgets(True)
+        o_gui.enabled_data_fit_plot(True)
+        o_gui.enabled_peak_ranges_widgets(True)
 
-        except RuntimeError as run_err:
-            pop_message(self, 'Failed to initialize widgets for {}'.format(hidra_file_name),
-                        str(run_err), 'error')
+        # except RuntimeError as run_err:
+        #     pop_message(self, 'Failed to initialize widgets for {}'.format(hidra_file_name),
+        #                 str(run_err), 'error')
 
     def list_subruns_2dplot(self):
         raw_input = str(self.parent.ui.lineEdit_subruns_2dplot.text())
