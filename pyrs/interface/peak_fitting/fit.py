@@ -42,9 +42,17 @@ class Fit:
         # print("_peak_range_list: {}".format(_peak_range_list))
         # print("_peak_center_list: {}".format(_peak_center_list))
         # print("_peak_tag_list: {}".format(_peak_tag_list))
+        print("_peak_function_name: {}".format(_peak_function_name))
 
-        fit_engine = PeakFitEngineFactory.getInstance('Mantid', hd_ws, peak_function_name=_peak_function_name,
-                                                             background_function_name='Linear')
+        fit_engine = PeakFitEngineFactory.getInstance(hd_ws,
+                                                      _peak_function_name,
+                                                      'Linear')
+        fit_result = fit_engine.fit_peaks(_peak_tag_list[0], _peak_xmin_list[0], _peak_xmax_list[0])
+
+        pprint.pprint("fit_result is: {}".format(fit_result))
+
+        return
+
         fit_result = fit_engine.fit_multiple_peaks(peak_tag_list=_peak_tag_list,
                                                    x_mins=_peak_xmin_list,
                                                    x_maxs=_peak_xmax_list)
