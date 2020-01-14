@@ -37,6 +37,30 @@ def test_calibration_json():
     test_workspace.load_hidra_project(project_file, load_raw_counts=True, load_reduced_diffraction=False)
 
 
+def test_log_time_average():
+    """Test the log time average calculation
+
+    Returns
+    -------
+
+    """
+    from pyrs.nexus.split_sub_runs import NexusProcessor
+    nexus_file_name = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5'
+
+    processor = NexusProcessor(nexus_file_name)
+
+    sub_run_times, sub_run_numbers = processor.get_sub_run_times_value()
+
+    # sample log (TSP)
+    tsp_sample_logs = processor.split_sample_logs(sub_run_times, sub_run_numbers)
+    # sample log (PyRS)
+    pyrs_sample_logs = processor.split_sample_logs_prototype(sub_run_times, sub_run_numbers)
+
+    # compare some
+    for log_name in ['2theta', 'DOSC']:
+        np.testing.assert_allclose(tsp_sample_logs[log_name], pyrs_sample_logs[log_name])
+
+
 @pytest.mark.parametrize('nexus_file_name, mask_file_name',
                          [('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5', None),
                           ('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5', 'data/xxx.xml')],
@@ -83,15 +107,13 @@ def test_compare_nexus_reader(nexus_file_name, mask_file_name):
     log_names_mantid = hidra_mtd_ws.get_sample_log_names()
     log_names_pyrs = hidra_pyrs_ws.get_sample_log_names()
 
+    print('Diff set Mantid vs PyRS: {} ... {}'
+          ''.format(set(log_names_mantid) - set(log_names_pyrs),
+                    set(log_names_pyrs) - set(log_names_mantid)))
     if len(log_names_mantid) != len(log_names_pyrs):
-        print(set(log_names_mantid) - set(log_names_pyrs))
-        print(set(log_names_pyrs) - set(log_names_mantid))
-        # raise AssertionError('Parameters are not same')
-    else:
-        print('Log difference:')
-        print(set(log_names_mantid) - set(log_names_pyrs))
-        print(set(log_names_pyrs) - set(log_names_mantid))
+        raise AssertionError('Sample logs entries are not same')
 
+    not_compare_output = ''
     # compare sample log values
     for log_name in log_names_pyrs:
         if log_name == 'pulse_flags':
@@ -99,20 +121,24 @@ def test_compare_nexus_reader(nexus_file_name, mask_file_name):
 
         mtd_log_values = hidra_mtd_ws.get_sample_log_values(log_name)
         pyrs_log_values = hidra_pyrs_ws.get_sample_log_values(log_name)
-        if str(pyrs_log_values.dtype).count('float') > 0 or str(pyrs_log_values.dtype).count('int') > 0:
-            pass
+
+        if str(pyrs_log_values.dtype).count('float') == 0 and str(pyrs_log_values.dtype).count('int') == 0:
+            # Not float or integer: cannot be compared
+            not_compare_output += '{}: Mantid {} vs PyRS {}\n'.format(log_name, mtd_log_values, pyrs_log_values)
         else:
-            print(log_name, pyrs_log_values.dtype)
-            continue
+            # Int or float: comparable
+            log_diff = np.sqrt(np.sum((mtd_log_values - pyrs_log_values) ** 2))
+            print('{}: sum(diff) = {}, size = {}'.format(log_name, log_diff, len(mtd_log_values)))
+            try:
+                np.testing.assert_allclose(mtd_log_values, pyrs_log_values)
+                print()
+            except AssertionError as ass_err:
+                print('........... Not matched!: \n{}'.format(ass_err))
+                print('----------------------------------------------------\n')
+    # END-FOR
 
-        log_diff = np.sqrt(np.sum((mtd_log_values - pyrs_log_values)**2))
-        print('{}: diff_sum = {}'.format(log_name, log_diff))
-        try:
-            np.testing.assert_allclose(mtd_log_values, pyrs_log_values)
-        except AssertionError as ass_err:
-            print('......BAD: {}'.format(ass_err))
+    print(not_compare_output)
 
-    assert 1 == 2
 
 if __name__ == '__main__':
     pytest.main([__file__])

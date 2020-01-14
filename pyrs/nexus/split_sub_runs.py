@@ -12,7 +12,6 @@ from mantid.kernel import Int32TimeSeriesProperty, Int64TimeSeriesProperty, Int3
     Int64FilteredTimeSeriesProperty
 
 
-
 HIDRA_PIXEL_NUMBER = 1024**2
 
 
@@ -303,6 +302,7 @@ class NexusProcessor(object):
         split_log_dict = dict()
         irregular_log_names = list()
         for log_name in log_names:
+
             single_log_entry = das_log_entry[log_name]
             try:
                 times = single_log_entry['time']
@@ -366,6 +366,9 @@ class NexusProcessor(object):
         delta_times = (sub_run_times * 1E9).astype(np.timedelta64)  # convert to nanosecond then to timedetal64
         sub_run_splitter_times = run_start_abs + delta_times
 
+        print('Sub runs start/stop time')
+        print(sub_run_splitter_times)
+
         # this contains all of the sample logs
         sample_log_dict = dict()
         log_array_size = sub_run_numbers.shape[0]
@@ -405,7 +408,7 @@ class NexusProcessor(object):
             # Float or integer time series property: split and get time average
             for i_sb in range(log_array_size):
                 split_log[i_sb] = self._calculate_sub_run_time_average(log_property, splitter_times[2 * i_sb],
-                                                                       splitter_times[2 * i_sb] + 1)
+                                                                       splitter_times[2 * i_sb + 1])
             # END-FOR
         elif isinstance(log_property.value, np.ndarray) and str(log_dtype) in ['f', 'i']:
             # value is ndarray. but not float or integer: get the first value
