@@ -3,6 +3,7 @@ from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.utilities import calibration_file_io
 from pyrs.core import workspaces
 import numpy as np
+from pyrs.nexus.split_sub_runs import NexusProcessor
 import os
 import pytest
 
@@ -44,7 +45,6 @@ def test_log_time_average():
     -------
 
     """
-    from pyrs.nexus.split_sub_runs import NexusProcessor
     nexus_file_name = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5'
 
     processor = NexusProcessor(nexus_file_name)

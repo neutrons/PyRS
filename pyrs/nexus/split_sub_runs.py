@@ -6,7 +6,7 @@ from pyrs.utilities import checkdatatypes
 from pyrs.dataobjects.constants import HidraConstants
 import datetime
 import os
-from mantid.simpleapi import mtd, Load
+from mantid.simpleapi import Load
 from mantid.kernel import BoolTimeSeriesProperty, FloatFilteredTimeSeriesProperty, FloatTimeSeriesProperty
 from mantid.kernel import Int32TimeSeriesProperty, Int64TimeSeriesProperty, Int32FilteredTimeSeriesProperty,\
     Int64FilteredTimeSeriesProperty
@@ -358,16 +358,13 @@ class NexusProcessor(object):
 
         # Load file
         ws_name = os.path.basename(self._nexus_name).split('.')[0]
-        workspace = Load(Filename=ws_name, MetaDataOnly=True)
+        workspace = Load(Filename=self._nexus_name, MetaDataOnly=True, OutputWorkspace=ws_name)
         run_obj = workspace.run()
 
         # Get 'start_time' and create a new sub_run_times in datetime64
         run_start_abs = np.datetime64(run_obj['start_time'].value)
         delta_times = (sub_run_times * 1E9).astype(np.timedelta64)  # convert to nanosecond then to timedetal64
         sub_run_splitter_times = run_start_abs + delta_times
-
-        print('Sub runs start/stop time')
-        print(sub_run_splitter_times)
 
         # this contains all of the sample logs
         sample_log_dict = dict()
