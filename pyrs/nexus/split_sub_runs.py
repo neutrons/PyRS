@@ -7,6 +7,10 @@ from pyrs.dataobjects.constants import HidraConstants
 import datetime
 import os
 from mantid.simpleapi import mtd, Load
+from mantid.kernel import BoolTimeSeriesProperty, FloatFilteredTimeSeriesProperty, FloatTimeSeriesProperty
+from mantid.kernel import Int32TimeSeriesProperty, Int64TimeSeriesProperty, Int32FilteredTimeSeriesProperty,\
+    Int64FilteredTimeSeriesProperty
+
 
 
 HIDRA_PIXEL_NUMBER = 1024**2
@@ -270,7 +274,7 @@ class NexusProcessor(object):
 
         return sub_run_counts_dict
 
-    def split_sample_logs(self, sub_run_times, sub_run_value):
+    def split_sample_logs_prototype(self, sub_run_times, sub_run_value):
         """Split sample logs according to sub runs
 
         Parameters
@@ -330,7 +334,7 @@ class NexusProcessor(object):
 
         return split_log_dict
 
-    def create_sample_log_dict(self, sub_run_times, sub_run_numbers):
+    def split_sample_logs(self, sub_run_times, sub_run_numbers):
         """Create dictionary for sample log of a sub run
 
         Goal:
@@ -378,26 +382,33 @@ class NexusProcessor(object):
 
         return sample_log_dict
 
-    @staticmethod
-    def split_property(log_property, splitter_times, log_array_size):
-        """
-        Calculate the mean value of the sample log "within" the sub run time range
-        :param name: Mantid run property's name
-        :return:
+    def split_property(self, log_property, splitter_times, log_array_size):
+        """Calculate the mean value of the sample log "within" the sub run time range
+
+        Parameters
+        ----------
+        log_property
+        splitter_times
+        log_array_size
+
+        Returns
+        -------
+        numpy.ndarray
+            split logs
+
         """
         # Init split sample logs
         log_dtype = log_property.dtype()
         split_log = np.ndarray(shape=(log_array_size,), dtype=log_dtype)
 
         if isinstance(log_property.value, np.ndarray) and str(log_dtype) in ['f', 'i']:
-            # Float or integer time series property
-            split_log[:] = log_property.value
+            # Float or integer time series property: split and get time average
             for i_sb in range(log_array_size):
-                time_average_value = log_property.filter
-            raise NotImplementedError('From here!')
-
+                split_log[i_sb] = self._calculate_sub_run_time_average(log_property, splitter_times[2 * i_sb],
+                                                                       splitter_times[2 * i_sb] + 1)
+            # END-FOR
         elif isinstance(log_property.value, np.ndarray) and str(log_dtype) in ['f', 'i']:
-            # ndarray. but not float or integer: get the first value
+            # value is ndarray. but not float or integer: get the first value
             split_log[:] = log_property.value[0]
         elif isinstance(log_property.value, list):
             # list, but not time series property: get the first value
@@ -407,6 +418,30 @@ class NexusProcessor(object):
             split_log[:] = log_property.value
 
         return split_log
+
+    @staticmethod
+    def _calculate_sub_run_time_average(log_property, sub_run_start_time, sub_run_stop_time):
+
+        # create a Boolean time series property as the filter
+        time_filter = BoolTimeSeriesProperty('filter')
+        time_filter.addValue(sub_run_start_time, True)
+        time_filter.addValue(sub_run_stop_time, False)
+
+        # filter and get time average value
+        if isinstance(log_property, FloatTimeSeriesProperty):
+            filtered_tsp = FloatFilteredTimeSeriesProperty(log_property, time_filter)
+        elif isinstance(log_property, Int32TimeSeriesProperty):
+            filtered_tsp = Int32FilteredTimeSeriesProperty(log_property, time_filter)
+        elif isinstance(log_property, Int64TimeSeriesProperty):
+            filtered_tsp = Int64FilteredTimeSeriesProperty(log_property, time_filter)
+        else:
+            raise NotImplementedError('TSP log property {} of type {} is not supported'
+                                      ''.format(log_property.name, type(log_property)))
+        # END-IF
+
+        time_average_value = filtered_tsp.timeAverageValue()
+
+        return time_average_value
 
 
 def split_das_log(log_times, log_values, sub_run_times, sub_run_numbers):
