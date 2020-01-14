@@ -412,10 +412,11 @@ def test_write_csv():
     sample['variable1'] = numpy.linspace(0., 100., len(subruns))
     sample['variable2'] = numpy.linspace(100., 200., len(subruns))  # not to be found in the output
     sample['constant1'] = numpy.linspace(1., 1.+5E-11, len(subruns))  # values less than tolerance
+    sample['string1'] = numpy.array(['a constant string'] * sample.subruns.size)  # will be constant as well
 
     # write things out to disk
     generator = SummaryGenerator(csv_filename,
-                                 log_list=['variable1', 'constant1', 'missing1'])
+                                 log_list=['variable1', 'constant1', 'missing1', 'string1'])
     generator.setHeaderInformation(dict())  # means empty header
 
     generator.write_csv(sample, [peaks])
@@ -434,7 +435,8 @@ def test_write_csv():
 # Hidra project file
 # Manual vs auto reduction
 # missing: missing1
-# constant1 = 1 +/- 2e-11'''.split('\n')
+# constant1 = 1 +/- 2e-11
+# string1 = a constant string'''.split('\n')
 
     # verify the file contents
     with open(csv_filename, 'r') as handle:
