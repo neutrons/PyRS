@@ -4,7 +4,11 @@ import pytest
 import datetime
 
 
-def test_convert_nexus():
+@pytest.mark.parametrize('ipts_number, run_start, run_stop',
+                         [(22731, 1102, 1155),
+                          (22048, 1180, 1182)],
+                         ids=('IPTS22731', 'IPTS22048'))
+def test_convert_nexus(ipts_number, run_start, run_stop):
     """Test performance on converting NeXus to HidraWorkspace
 
     Using IPTS-???? Run ??? to ???.
@@ -13,9 +17,9 @@ def test_convert_nexus():
     -------
 
     """
-    ipts_number = 22731
-    run_start = 1102
-    run_stop = 1155
+    # ipts_number = 22731
+    # run_start = 1102
+    # run_stop = 1155
 
     ipts_dir = '/HFIR/HB2B/IPTS-{}/nexus'.format(ipts_number)
     if os.path.exists(ipts_dir) is False:

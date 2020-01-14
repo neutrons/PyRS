@@ -46,6 +46,8 @@ def test_log_time_average():
 
     """
     nexus_file_name = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5'
+    if os.path.exists(nexus_file_name) is False:
+        pytest.skip('File {} is not accessible'.format(nexus_file_name))
 
     processor = NexusProcessor(nexus_file_name)
 
