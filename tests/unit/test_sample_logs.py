@@ -44,10 +44,11 @@ def test_multi():
     sample.subruns = [1, 2, 3, 4, 5]
     sample['constant1'] = np.zeros(5) + 42
     sample['variable1'] = np.linspace(0., 100., 5)
+    sample['string1'] = np.array(['a'] * sample.subruns.size)  # will be constant as well
 
     # names of logs
     assert sorted(sample.plottable_logs()) == ['constant1', 'sub-runs', 'variable1']
-    assert sample.constant_logs() == ['constant1']
+    assert sorted(sample.constant_logs()) == ['constant1', 'string1']
 
     # slicing
     np.testing.assert_equal(sample['variable1'], [0., 25., 50., 75., 100.])

@@ -87,10 +87,13 @@ class SampleLogs(MutableMapping):
             Logs with a smaller stddev than the atol (inclusive) will be considered constant'''
         result = list()
         # plottable logs are the numeric ones
-        for key in self._plottable:
+        for key in self.keys():
             if key == self.SUBRUN_KEY:
                 continue
-            if self._data[key].std() <= atol:
+            elif key in self._plottable:  # plottable things are numbers
+                if self._data[key].std() <= atol:
+                    result.append(key)
+            elif np.alltrue(self._data[key] == self._data[key][0]):  # all values are equal
                 result.append(key)
 
         return result
