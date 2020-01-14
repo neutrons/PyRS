@@ -246,7 +246,7 @@ class HidraWorkspace(object):
         if len(self._sample_logs.subruns) == 0:
             raise RuntimeError('Sub run - spectrum map has not been built')
 
-        return numpy.array(self._sample_logs.subruns)
+        return self._sample_logs.subruns
 
     def get_wavelength(self, calibrated, throw_if_not_set):
         """ Get the wave length from the workspace
