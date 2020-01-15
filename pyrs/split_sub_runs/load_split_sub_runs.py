@@ -87,20 +87,32 @@ class NexusProcessor(object):
         # Check number of neutron events.  Raise exception if there is no neutron event
         if self._nexus_h5['entry']['bank1_events']['total_counts'].value[0] < 0.1:
             # no counts
+            self._nexus_h5.close()
             raise RuntimeError('Run {} has no count.  Proper reduction requires the run to have count'
                                ''.format(self._nexus_name))
+        elif len(self._nexus_h5['entry']['DASlogs']['scan_index']['value'].value) == 1:
+            # Get the time and value of 'scan_index' (entry) in H5
+            scan_index_times = self._nexus_h5['entry']['DASlogs']['scan_index']['time'].value
+            scan_index_value = self._nexus_h5['entry']['DASlogs']['scan_index']['value'].value
+            # close file
+            self._nexus_h5.close()
+            raise RuntimeError('Sub scan (time = {}, value = {}) is not valid'
+                               ''.format(scan_index_times, scan_index_value))
 
     def __del__(self):
         """Destructor
 
-        Close h5py.File instance
+        Close h5py.File if it is not closed
 
         Returns
         -------
         None
 
         """
-        self._nexus_h5.close()
+        try:
+            self._nexus_h5.close()
+        except ValueError:
+            pass
 
     def process_mask(self, mask_file_name):
         """
