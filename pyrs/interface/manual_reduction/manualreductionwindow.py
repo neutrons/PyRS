@@ -25,33 +25,59 @@ from pyrs.interface.manual_reduction.event_handler import EventHandler
 # TODO              6. Add parameters for reducing data
 
 
-def _nexus_to_subscans(nexusfile, projectfile, logger, mask):
+def _nexus_to_subscans(nexusfile, projectfile, mask_file_name, save_project_file, logger):
+    """Split raw data from NeXus file to sub runs/scans
+    Parameters
+    ----------
+    nexusfile : str
+        HB2B event NeXus file's name
+    projectfile : str
+        Target HB2B HiDRA project file's name
+    mask_file_name : str
+        Mask file name; None for no mask
+    save_project_file : str
+        Project file to save to.  None for not being saved
+    Returns
+    -------
+    pyrs.core.workspaces.HidraWorkspace
+        Hidra workspace containing the raw counts and sample logs
+    """
+
     if os.path.exists(projectfile):
         logger.information('Removing existing projectfile {}'.format(projectfile))
         os.remove(projectfile)
 
     logger.notice('Creating subscans from {} into project file {}'.format(nexusfile, projectfile))
-    converter = NeXusConvertingApp(nexusfile, mask)
-    converter.convert()
+    converter = NeXusConvertingApp(nexusfile, mask_file_name)
+    hidra_ws = converter.convert()
+
     instrument = AnglerCameraDetectorGeometry(1024, 1024, 0.0003, 0.0003, 0.985, False)
     converter.save(projectfile, instrument)
 
+    # save project file as an option
+    if save_project_file:
+        converter.save(projectfile, instrument)
+    else:
+        hidra_ws.set_instrument_geometry(instrument)
 
-def _create_powder_patterns(projectfile, instrument, calibration, mask, subruns, logger):
-    logger.notice('Adding powder patterns to project file {}'.format(projectfile))
+    return hidra_ws
+
+
+def _create_powder_patterns(hidra_workspace, instrument, calibration, mask, subruns, project_file_name, logger):
+    logger.notice('Adding powder patterns to project file {}'.format(hidra_workspace))
 
     reducer = ReductionApp(False)
-    reducer.load_project_file(projectfile)
+    reducer.load_hidra_workspace(hidra_workspace)
 
     reducer.reduce_data(instrument_file=instrument,
                         calibration_file=calibration,
                         mask=mask,
                         sub_runs=subruns)
 
-    reducer.save_diffraction_data(projectfile)
+    reducer.save_diffraction_data(project_file_name)
 
 
-def reduce_h2bc(nexus, outputdir, progressbar, subruns=list(), instrument=None, calibration=None, mask=None):
+def reduce_hidra_workflow(nexus, outputdir, progressbar, subruns=list(), instrument=None, calibration=None, mask=None):
 
     project = os.path.basename(nexus).split('.')[0] + '.h5'
     project = os.path.join(outputdir, project)
@@ -60,11 +86,11 @@ def reduce_h2bc(nexus, outputdir, progressbar, subruns=list(), instrument=None, 
     # process the data
     progressbar.setVisible(True)
     progressbar.setValue(0.)
-    _nexus_to_subscans(nexus, project, logger, mask)
+    hidra_ws = _nexus_to_subscans(nexus, project, mask, False, logger)
     progressbar.setValue(50.)
     # add powder patterns
-    _create_powder_patterns(project, instrument, calibration,
-                            mask, subruns, logger)
+    _create_powder_patterns(hidra_ws, instrument, calibration,
+                            None, subruns, project, logger)
     progressbar.setValue(100.)
     progressbar.setVisible(False)
 
@@ -443,7 +469,7 @@ class ManualReductionWindow(QMainWindow):
         project_file = str(self.ui.lineEdit_outputDirectory.text().strip())
         mask_file = str(self.ui.lineEdit_maskFile.text().strip())
         calibration_file = str(self.ui.lineEdit_calibrationFile.text().strip())
-        task = BlockingAsyncTaskWithCallback(reduce_h2bc, args=(nexus_file, project_file, self.ui.progressBar),
+        task = BlockingAsyncTaskWithCallback(reduce_hidra_workflow, args=(nexus_file, project_file, self.ui.progressBar),
                                              kwargs={'subruns': sub_run_list, 'mask': mask_file,
                                                      'calibration': calibration_file},
                                              blocking_cb=QApplication.processEvents)
