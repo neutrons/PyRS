@@ -31,7 +31,7 @@ def _nexus_to_subscans(nexusfile, projectfile, logger, mask):
 
     logger.notice('Creating subscans from {} into project file {}'.format(nexusfile, projectfile))
     converter = NeXusConvertingApp(nexusfile, mask)
-    converter.convert()
+    converter.convert(False)
     instrument = AnglerCameraDetectorGeometry(1024, 1024, 0.0003, 0.0003, 0.985, False)
     converter.save(projectfile, instrument)
 

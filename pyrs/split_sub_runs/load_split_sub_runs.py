@@ -82,7 +82,8 @@ class NexusProcessor(object):
         # Check number of neutron events.  Raise exception if there is no neutron event
         if self._nexus_h5['entry']['bank1_events']['total_counts'].value[0] < 0.1:
             # no counts
-            raise RuntimeError('Run {} does to have counts'.format(self._nexus_name))
+            raise RuntimeError('Run {} has no count.  Proper reduction requires the run to have count'
+                               ''.format(self._nexus_name))
 
         # Create workspace for sample logs and optionally mask
         # Load file

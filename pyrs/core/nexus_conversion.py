@@ -87,6 +87,29 @@ class NeXusConvertingApp(object):
             HidraWorkspace for converted data
 
         """
+        # This is a quick fix: TODO will make a proper refactor in future
+        if not use_mantid:
+            # Use PyRS/converter to load and split sub runs
+            try:
+                sub_run_counts, self._sample_log_dict, mask_array = load_split_nexus_python(self._nexus_name,
+                                                                                            self._mask_file_name)
+                # set counts to each sub run
+                for sub_run in sub_run_counts:
+                    self._hydra_workspace.set_raw_counts(sub_run, sub_run_counts[sub_run])
+                # set mask
+                if mask_array is not None:
+                    self._hydra_workspace.set_detector_mask(mask_array, is_default=True)
+                # get sub runs
+                sub_runs = numpy.array(sorted(sub_run_counts.keys()))
+            except RuntimeError as run_err:
+                if str(run_err).count('Sub scan') == 1 and str(run_err).count('is not valid') == 1:
+                    # RuntimeError: Sub scan (time = [0.], value = [0]) is not valid
+                    # use Mantid to reduce
+                    use_mantid = True
+                else:
+                    # unhandled exception: re-throw
+                    raise run_err
+
         if use_mantid:
             # Use Mantid algorithms to load and split sub runs
             # Load data file, split to sub runs and sample logs
@@ -94,18 +117,6 @@ class NeXusConvertingApp(object):
             self._determine_start_time()
             self._split_sub_runs()
             sub_runs = self._sample_log_dict['scan_index']
-        else:
-            # Use PyRS/converter to load and split sub runs
-            sub_run_counts, self._sample_log_dict, mask_array = load_split_nexus_python(self._nexus_name,
-                                                                                        self._mask_file_name)
-            # set counts to each sub run
-            for sub_run in sub_run_counts:
-                self._hydra_workspace.set_raw_counts(sub_run, sub_run_counts[sub_run])
-            # set mask
-            if mask_array is not None:
-                self._hydra_workspace.set_detector_mask(mask_array, is_default=True)
-            # get sub runs
-            sub_runs = numpy.array(sorted(sub_run_counts.keys()))
         # END-IF
 
         # Add the sample logs to the hidra workspace
@@ -349,7 +360,6 @@ class NeXusConvertingApp(object):
                          OutputWorkspace=self._event_ws_name,
                          AbsoluteStartTime=str(self._starttime),
                          AbsoluteStopTime=str(self._starttime + duration))
-            print('[DEBUG]..............{}'.format(self._starttime))
 
         # determine the range of subruns being used
         scan_index = mtd[self._event_ws_name].run()[SUBRUN_LOGNAME].value
