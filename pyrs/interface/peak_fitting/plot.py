@@ -77,6 +77,21 @@ class Plot:
         self.parent._ui_graphicsView_fitSetup.plot_experiment_data(diff_data_set=diff_data_set,
                                                                    data_reference=data_set_label)
 
+
+        # plot fitted data
+        fit_result = self.parent.fit_result
+        if fit_result:
+            x_array = self.parent.fit_result.fitted.readX(sub_run_number)
+            y_array = self.parent.fit_result.fitted.readY(sub_run_number)
+            self.parent._ui_graphicsView_fitSetup.plot_fitted_data(x_array, y_array)
+
+
+
+
+
+
+
+
         # # Plot fitted model data
         # model_data_set = None
         # if plot_model:

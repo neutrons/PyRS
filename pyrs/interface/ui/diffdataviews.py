@@ -264,6 +264,12 @@ class PeakFitSetupView(MplFitPlottingWidget):
         self._diff_reference_list.append(ref_id)
         self._last_diff_reference = ref_id
 
+    def plot_fitted_data(self, x_array, y_array):
+        ref_id = self.plot_data(data_set=(x_array, y_array),
+                                line_label='-',
+                                color='black')
+
+
     def plot_model_data(self, diff_data_set, model_label, residual_set):
         """Plot model data from fitting
 

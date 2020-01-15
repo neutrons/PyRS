@@ -18,10 +18,6 @@ class Fit:
 
     def fit_multi_peaks(self):
 
-        # Get peak function and background function
-        # peak_function_name = str(self.parent.ui.comboBox_peakType.currentText())
-        # bkgd_function_name = str(self.parent.ui.comboBox_backgroundType.currentText())
-
         _peak_range_list = [tuple(_range) for _range in self.parent._ui_graphicsView_fitSetup.list_peak_ranges]
         _peak_center_list = [np.mean([left, right]) for (left, right) in _peak_range_list]
         _peak_tag_list = ["peak{}".format(_index) for _index, _ in enumerate(_peak_center_list)]
@@ -33,8 +29,6 @@ class Fit:
         # Fit peak
         hd_ws = self.parent.hidra_workspace
 
-        import pprint
-
         _wavelength = 1.071
         hd_ws.set_wavelength(_wavelength, False)
 
@@ -44,56 +38,7 @@ class Fit:
         fit_result = fit_engine.fit_multiple_peaks(_peak_tag_list,
                                                    _peak_xmin_list,
                                                    _peak_xmax_list)
-
         self.parent.populate_fit_result_table(fit_result=fit_result)
-
-
-
-
-
-
-        # pprint.pprint("fit_result.peakCollections[0]: {}".format(fit_result.peakcollections[0]))
-        #
-        # subruns, chisq, params, _ = fit_result.peakcollections[0].get_parameters_values()
-        # pprint.pprint("_params_value_array: {}".format(fit_result.peakcollections[0].get_parameters_values()))
-        # pprint.pprint("_params_value_array: {}".format(fit_result.peakcollections[0].get_parameters_values().dtype))
-        # pprint.pprint()
-
-
-        # pprint.pprint("checking fitting parameters")
-        # first_result = fit_result[0][0]
-        # pprint.pprint("fit_result[0][0]._params_value_array= {}".format(first_result._params_value_array))
-        # pprint.pprint("fit_result[0][0]._fit_cost_array= {}".format(first_result._fit_cost_array))
-
-        # pprint.pprint("peak_collection_dict:")
-        # pprint.pprint(peak_collection_dict['peak0'])
-        # _peak = peak_collection_dict['peak0']
-        # pprint.pprint("_tag: {}".format(_peak._tag))
-        # pprint.pprint("_Params_error_array: {}".format(_peak._params_error_array))
-        # pprint.pprint("_value_array: {}".format(_peak._params_value_array))
-        # pprint.pprint("_fit_cost_array: {}".format(_peak._fit_cost_array))
-        #
-        # pprint.pprint("_core._peak_fitting_dict: {}".format(self.parent._core._peak_fitting_dict))
-        #
-        # pprint.pprint("HB2BReductionManager:")
-        # pprint.pprint(self.parent._core.reduction_service._curr_workspace._wave_length_dict)
-
-        # show fitting parameters in table below 1D plot
-        # self.show_fitting_parameters_in_table(column_names=column_names)
-
-        # plot fitted data
-
-    # def show_fitting_parameters_in_table(self, column_names=[]):
-    #     print("in show fitting parameters in table")
-    #     import pprint
-    #     pprint.pprint("column_names: {}".format(column_names))
-    #
-    #
-    #
-    #
-    #     # self.show_fit_result_table(peak_function='',
-    #     #                            function_params=None,
-    #     #                            fit_values=None)
 
     def fit_peaks(self, all_sub_runs=False):
         """ Fit peaks either all peaks or selected peaks
