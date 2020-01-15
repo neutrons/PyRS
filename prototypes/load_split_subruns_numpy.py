@@ -115,7 +115,7 @@ def main():
 
     start_time = datetime.datetime.now()
 
-    # nexus = '/HFIR/HB2B/IPTS-22048/nexus/HB2B_1205.nxs.h5'
+    # split_sub_runs = '/HFIR/HB2B/IPTS-22048/nexus/HB2B_1205.nxs.h5'
     nexus = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5'
     nexus_h5 = load_nexus(nexus)
 

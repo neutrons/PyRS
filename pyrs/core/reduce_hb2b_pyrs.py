@@ -110,8 +110,8 @@ class ResidualStressInstrument(object):
         else:
             checkdatatypes.check_float_variable('L2', l2, (1E-2, None))
 
-        print('[DB...L101] Build instrument: 2theta = {}, arm = {} (diff to default = {})'
-              ''.format(two_theta, l2, l2 - self._instrument_geom_params.arm_length))
+        # print('[DB...L101] Build instrument: 2theta = {}, arm = {} (diff to default = {})'
+        #       ''.format(two_theta, l2, l2 - self._instrument_geom_params.arm_length))
 
         # make a copy from raw (constant position)
         self._pixel_matrix = self._raw_pixel_matrix.copy()
@@ -535,9 +535,9 @@ class PyHB2BReduction(object):
         # Convert vector counts array's dtype to float
         counts_array = self._detector_counts.astype('float64')
 
-        print('[INFO] PyRS.Instrument: pixels 2theta range: ({}, {}) vs 2theta histogram range: ({}, {})'
-              ''.format(pixel_2theta_array.min(), pixel_2theta_array.max(), two_theta_bins.min(),
-                        two_theta_bins.max()))
+        # print('[INFO] PyRS.Instrument: pixels 2theta range: ({}, {}) vs 2theta histogram range: ({}, {})'
+        #       ''.format(pixel_2theta_array.min(), pixel_2theta_array.max(), two_theta_bins.min(),
+        #                 two_theta_bins.max()))
 
         # Apply mask: act on local variable vec_counts and thus won't affect raw data
         if mask_array is not None:

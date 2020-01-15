@@ -44,10 +44,17 @@ def load_split_nexus_python(nexus_name, mask_file_name):
     sub_run_times, sub_runs = nexus_processor.get_sub_run_times_value()
 
     # Split counts
+    time_split_start = datetime.datetime.now()
     sub_run_counts = nexus_processor.split_events_sub_runs(sub_run_times, sub_runs, mask_array)
+    time_split_end = datetime.datetime.now()
+    print('[INFO] Sub run splitting duration = {} second from {} to {}'
+          ''.format((time_split_end - time_split_start).total_seconds(), time_split_start, time_split_end))
 
     # Split logs
     sample_logs = nexus_processor.split_sample_logs(sub_run_times, sub_runs)
+    log_split_end = datetime.datetime.now()
+    print('[INFO] Sub run splitting duration = {} second from {} to {}'
+          ''.format((log_split_end - time_split_end).total_seconds(), time_split_end, log_split_end))
 
     return sub_run_counts, sample_logs, mask_array
 
@@ -69,23 +76,33 @@ class NexusProcessor(object):
         # check and load
         checkdatatypes.check_file_name(nexus_file_name, True, False, False, 'HB2B event NeXus file name')
 
-        # Load
-        self._nexus_h5 = h5py.File(nexus_file_name, 'r')
-
-        # Check number of neutron events.  Raise exception if there is no neutron event
-        if self._nexus_h5['entry']['bank1_events']['total_counts'].value[0] < 0.1:
-            # no counts
-            raise RuntimeError('Run {} does to have counts'.format(self._nexus_name))
-
         # Create workspace for sample logs and optionally mask
         # Load file
         self._ws_name = os.path.basename(self._nexus_name).split('.')[0]
         self._workspace = Load(Filename=self._nexus_name, MetaDataOnly=True, OutputWorkspace=self._ws_name)
 
+        # Load: this h5 will be opened all the time
+        self._nexus_h5 = h5py.File(nexus_file_name, 'r')
+
+        # Check number of neutron events.  Raise exception if there is no neutron event
+        if self._nexus_h5['entry']['bank1_events']['total_counts'].value[0] < 0.1:
+            # no counts
+            self._nexus_h5.close()
+            raise RuntimeError('Run {} has no count.  Proper reduction requires the run to have count'
+                               ''.format(self._nexus_name))
+        elif len(self._nexus_h5['entry']['DASlogs']['scan_index']['value'].value) == 1:
+            # Get the time and value of 'scan_index' (entry) in H5
+            scan_index_times = self._nexus_h5['entry']['DASlogs']['scan_index']['time'].value
+            scan_index_value = self._nexus_h5['entry']['DASlogs']['scan_index']['value'].value
+            # close file
+            self._nexus_h5.close()
+            raise RuntimeError('Sub scan (time = {}, value = {}) is not valid'
+                               ''.format(scan_index_times, scan_index_value))
+
     def __del__(self):
         """Destructor
 
-        Close h5py.File instance
+        Close h5py.File if it is not closed
 
         Returns
         -------
@@ -264,7 +281,7 @@ class NexusProcessor(object):
         sub_run_values: numpy.ndarray
             sub run value: V[n] = sub run number
             V.shape[0] = T.shape[0] / 2
-        mask_array : numpy.ndarray
+        mask_array : numpy.ndarray or None
             array of 1 or 0 for masking
 
         Returns
