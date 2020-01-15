@@ -76,7 +76,12 @@ class NexusProcessor(object):
         # check and load
         checkdatatypes.check_file_name(nexus_file_name, True, False, False, 'HB2B event NeXus file name')
 
-        # Load
+        # Create workspace for sample logs and optionally mask
+        # Load file
+        self._ws_name = os.path.basename(self._nexus_name).split('.')[0]
+        self._workspace = Load(Filename=self._nexus_name, MetaDataOnly=True, OutputWorkspace=self._ws_name)
+
+        # Load: this h5 will be opened all the time
         self._nexus_h5 = h5py.File(nexus_file_name, 'r')
 
         # Check number of neutron events.  Raise exception if there is no neutron event
@@ -85,10 +90,6 @@ class NexusProcessor(object):
             raise RuntimeError('Run {} has no count.  Proper reduction requires the run to have count'
                                ''.format(self._nexus_name))
 
-        # Create workspace for sample logs and optionally mask
-        # Load file
-        self._ws_name = os.path.basename(self._nexus_name).split('.')[0]
-        self._workspace = Load(Filename=self._nexus_name, MetaDataOnly=True, OutputWorkspace=self._ws_name)
 
     def __del__(self):
         """Destructor
