@@ -84,7 +84,7 @@ def test_nexus_to_project(nexusfile, projectfile):
         if str(run_err).count('has no count') > 0:
             pytest.skip('{} has not count and thus not supported now'.format(nexusfile))
         else:
-            print(run_err)
+            raise run_err
 
     # verify sub run duration
     sub_runs = test_hidra_ws.get_sub_runs()
