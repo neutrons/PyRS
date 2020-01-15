@@ -12,6 +12,7 @@ import pyrs.interface.gui_helper
 from pyrs.interface.peak_fitting.event_handler import EventHandler
 from pyrs.interface.peak_fitting.plot import Plot
 from pyrs.interface.peak_fitting.fit import Fit
+from pyrs.interface.peak_fitting.fit_table import FitTable
 from pyrs.interface.peak_fitting.export import ExportCSV
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
 from pyrs.icons import icons_rc  # noqa: F401
@@ -39,6 +40,7 @@ class FitPeaksWindow(QMainWindow):
         self._core = fit_peak_core
         self._project_name = None
         self.hidra_workspace = None
+        self.fit_result = None # list of fits for each sub-runs
         # current/last loaded data
         self._curr_file_name = None
 
@@ -216,6 +218,11 @@ class FitPeaksWindow(QMainWindow):
 
     def create_plot_color_range(self):
         pass
+
+    def populate_fit_result_table(self, fit_result=None):
+        o_table = FitTable(parent=self, fit_result=fit_result)
+        o_table.initialize_table()
+        o_table.populate_fit_result_table()
 
     def _init_widgets(self):
         """

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1363</width>
-    <height>745</height>
+    <height>966</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -106,38 +106,19 @@
            <layout class="QHBoxLayout" name="horizontalLayout_3"/>
           </item>
           <item>
-           <widget class="QTabWidget" name="tabWidget">
-            <property name="currentIndex">
-             <number>0</number>
+           <widget class="QFrame" name="frame_PeakView">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
             </property>
-            <widget class="QWidget" name="tab">
-             <attribute name="title">
-              <string>1D View</string>
-             </attribute>
-             <layout class="QVBoxLayout" name="verticalLayout_10">
-              <item>
-               <widget class="QFrame" name="frame_PeakView">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-                <property name="frameShape">
-                 <enum>QFrame::StyledPanel</enum>
-                </property>
-                <property name="frameShadow">
-                 <enum>QFrame::Raised</enum>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </widget>
-            <widget class="QWidget" name="tab_2">
-             <attribute name="title">
-              <string>Detector View</string>
-             </attribute>
-            </widget>
+            <property name="frameShape">
+             <enum>QFrame::StyledPanel</enum>
+            </property>
+            <property name="frameShadow">
+             <enum>QFrame::Raised</enum>
+            </property>
            </widget>
           </item>
          </layout>
@@ -474,20 +455,21 @@
           <enum>QLayout::SetMaximumSize</enum>
          </property>
          <item>
-          <widget class="QFrame" name="tableView_fitSummary_frame">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="toolTip">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Peak fit result&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-           </property>
-          </widget>
-         </item>
-         <item>
           <layout class="QHBoxLayout" name="horizontalLayout_4">
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout">
+             <item>
+              <widget class="QLabel" name="label_3">
+               <property name="text">
+                <string>Peak Index:</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="spinBox_peak_index"/>
+             </item>
+            </layout>
+           </item>
            <item>
             <spacer name="horizontalSpacer_8">
              <property name="orientation">
@@ -516,6 +498,19 @@
             </widget>
            </item>
           </layout>
+         </item>
+         <item>
+          <widget class="QFrame" name="tableView_fitSummary_frame">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="toolTip">
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Peak fit result&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           </property>
+          </widget>
          </item>
         </layout>
        </widget>

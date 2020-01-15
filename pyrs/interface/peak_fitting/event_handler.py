@@ -166,3 +166,6 @@ class EventHandler:
         self.parent._ui_graphicsView_fitSetup.plot_data_with_fitting_ranges()
 
         table_ui.blockSignals(False)
+
+
+
