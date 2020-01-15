@@ -113,7 +113,8 @@ class SampleLogs(MutableMapping):
         value = _coerce_to_ndarray(value)
         if not np.all(value[:-1] < value[1:]):
             print('Unsorted sub runs: {}'.format(value))
-            raise RuntimeError('subruns are not soryed in increasing order')
+            raise RuntimeError('sub runs are not sorted in increasing order.  Items not in orders are {}'
+                               ''.format(value[np.where((value[1:] - value[:-1]) != 1)]))
         self._subruns = value
 
     def matching_subruns(self, subruns):
