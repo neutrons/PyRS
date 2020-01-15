@@ -69,7 +69,7 @@ class NeXusConvertingApp(object):
             if name in mtd:
                 DeleteWorkspace(Workspace=name)
 
-    def convert(self, use_mantid):
+    def convert(self, use_mantid=False):
         """Main method to convert NeXus file to HidraProject File by
 
         1. split the workspace to sub runs

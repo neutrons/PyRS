@@ -109,10 +109,7 @@ class NexusProcessor(object):
         None
 
         """
-        try:
-            self._nexus_h5.close()
-        except ValueError:
-            pass
+        self._nexus_h5.close()
 
     def process_mask(self, mask_file_name):
         """
