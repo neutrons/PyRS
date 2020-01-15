@@ -469,7 +469,8 @@ class ManualReductionWindow(QMainWindow):
         project_file = str(self.ui.lineEdit_outputDirectory.text().strip())
         mask_file = str(self.ui.lineEdit_maskFile.text().strip())
         calibration_file = str(self.ui.lineEdit_calibrationFile.text().strip())
-        task = BlockingAsyncTaskWithCallback(reduce_hidra_workflow, args=(nexus_file, project_file, self.ui.progressBar),
+        task = BlockingAsyncTaskWithCallback(reduce_hidra_workflow, args=(nexus_file, project_file,
+                                                                          self.ui.progressBar),
                                              kwargs={'subruns': sub_run_list, 'mask': mask_file,
                                                      'calibration': calibration_file},
                                              blocking_cb=QApplication.processEvents)
