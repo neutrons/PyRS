@@ -6,7 +6,7 @@ from pyrs.utilities import checkdatatypes
 from pyrs.dataobjects.constants import HidraConstants
 import datetime
 import os
-from mantid.simpleapi import Load
+from mantid.simpleapi import Load, LoadMask
 from mantid.kernel import BoolTimeSeriesProperty, FloatFilteredTimeSeriesProperty, FloatTimeSeriesProperty
 from mantid.kernel import Int32TimeSeriesProperty, Int64TimeSeriesProperty, Int32FilteredTimeSeriesProperty,\
     Int64FilteredTimeSeriesProperty
@@ -15,12 +15,15 @@ from mantid.kernel import Int32TimeSeriesProperty, Int64TimeSeriesProperty, Int3
 HIDRA_PIXEL_NUMBER = 1024**2
 
 
-def load_split_nexus_python(nexus_name):
+def load_split_nexus_python(nexus_name, mask_file_name):
     """Wrapping method to load and split event NeXus by sub runs
 
     Parameters
     ----------
-    nexus_name
+    nexus_name : str
+        NeXus file name
+    mask_file_name: str or None
+        Mantid mask file in XML
 
     Returns
     -------
@@ -31,16 +34,22 @@ def load_split_nexus_python(nexus_name):
     # Init processor
     nexus_processor = NexusProcessor(nexus_name)
 
+    # Mask detector
+    if mask_file_name:
+        mask_array = nexus_processor.process_mask(mask_file_name)
+    else:
+        mask_array = None
+
     # Get splitters
     sub_run_times, sub_runs = nexus_processor.get_sub_run_times_value()
 
     # Split counts
-    sub_run_counts = nexus_processor.split_events_sub_runs(sub_run_times, sub_runs)
+    sub_run_counts = nexus_processor.split_events_sub_runs(sub_run_times, sub_runs, mask_array)
 
     # Split logs
     sample_logs = nexus_processor.split_sample_logs(sub_run_times, sub_runs)
 
-    return sub_run_counts, sample_logs
+    return sub_run_counts, sample_logs, mask_array
 
 
 class NexusProcessor(object):
@@ -68,6 +77,11 @@ class NexusProcessor(object):
             # no counts
             raise RuntimeError('Run {} does to have counts'.format(self._nexus_name))
 
+        # Create workspace for sample logs and optionally mask
+        # Load file
+        self._ws_name = os.path.basename(self._nexus_name).split('.')[0]
+        self._workspace = Load(Filename=self._nexus_name, MetaDataOnly=True, OutputWorkspace=self._ws_name)
+
     def __del__(self):
         """Destructor
 
@@ -79,6 +93,35 @@ class NexusProcessor(object):
 
         """
         self._nexus_h5.close()
+
+    def process_mask(self, mask_file_name):
+        """
+
+        Parameters
+        ----------
+        mask_file_name
+
+        Returns
+        -------
+
+        """
+        # Check input
+        checkdatatypes.check_file_name(mask_file_name, True, False, False, 'Mask XML file')
+        if self._workspace is None:
+            raise RuntimeError('Meta data only workspace {} does not exist'.format(self._ws_name))
+
+        # Load mask XML to workspace
+        mask_ws_name = os.path.basename(mask_file_name.split('.')[0])
+        mask_ws = LoadMask(Instrument='nrsf2', InputFile=mask_file_name, RefWorkspace=self._workspace,
+                           OutputWorkspace=mask_ws_name)
+
+        # Extract mask out
+        # get the Y array from mask workspace: shape = (1048576, 1)
+        mask_array = mask_ws.extractY().flatten()
+        # in Mantid's mask workspace, 1 stands for mask (value cleared), 0 stands for non-mask (value kept)
+        mask_array = 1 - mask_array.astype(int)
+
+        return mask_array
 
     def get_sub_run_times_value(self):
         """Get the sample log (time and value) of sub run (aka scan indexes)
@@ -209,7 +252,7 @@ class NexusProcessor(object):
 
         return start_time
 
-    def split_events_sub_runs(self, sub_run_times, sub_run_values):
+    def split_events_sub_runs(self, sub_run_times, sub_run_values, mask_array):
         """Split events by sub runs
 
         Note: this filters events in the resolution of pulse time.  It is same as Mantid.FilterByLogValue
@@ -221,6 +264,8 @@ class NexusProcessor(object):
         sub_run_values: numpy.ndarray
             sub run value: V[n] = sub run number
             V.shape[0] = T.shape[0] / 2
+        mask_array : numpy.ndarray
+            array of 1 or 0 for masking
 
         Returns
         -------
@@ -269,6 +314,12 @@ class NexusProcessor(object):
 
             # Count the occurrence of each event ID (aka detector ID) as counts on each detector pixel
             hist = np.bincount(sub_run_events, minlength=HIDRA_PIXEL_NUMBER)
+
+            # Mask
+            if mask_array is not None:
+                assert hist.shape == mask_array.shape
+                hist *= mask_array
+
             sub_run_counts_dict[int(sub_run_values[i_sub_run])] = hist
 
         return sub_run_counts_dict
@@ -356,10 +407,7 @@ class NexusProcessor(object):
         if sub_run_numbers.shape[0] * 2 != sub_run_times.shape[0]:
             raise RuntimeError('....')
 
-        # Load file
-        ws_name = os.path.basename(self._nexus_name).split('.')[0]
-        workspace = Load(Filename=self._nexus_name, MetaDataOnly=True, OutputWorkspace=ws_name)
-        run_obj = workspace.run()
+        run_obj = self._workspace.run()
 
         # Get 'start_time' and create a new sub_run_times in datetime64
         run_start_abs = np.datetime64(run_obj['start_time'].value)

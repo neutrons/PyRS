@@ -4,6 +4,8 @@ from pyrs.utilities import calibration_file_io
 from pyrs.core import workspaces
 import numpy as np
 from pyrs.nexus.split_sub_runs import NexusProcessor
+from pyrs.core.powder_pattern import ReductionApp
+from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry
 import os
 import pytest
 
@@ -64,9 +66,9 @@ def test_log_time_average():
 
 
 @pytest.mark.parametrize('nexus_file_name, mask_file_name',
-                         [('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5', None),
-                          ('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5', 'data/xxx.xml')],
-                         ids=('HB2B_1017_NoMask', 'HB2B_1017_Masked'))
+                         [('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5', 'data/HB2B_Mask_12-18-19.xml'),
+                          ('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5', None)],
+                         ids=('HB2B_1017_Masked', 'HB2B_1017_NoMask'))
 def test_compare_nexus_reader(nexus_file_name, mask_file_name):
     """Verify NeXus converters including counts and sample log values
 
@@ -74,9 +76,9 @@ def test_compare_nexus_reader(nexus_file_name, mask_file_name):
     -------
 
     """
+    from matplotlib import pyplot as plt
+
     # Test on a light weight NeXus
-    if mask_file_name is not None:
-        pytest.skip('Masking with H5PY/PYTHON NeXus conversion has not been implemented.')
     if os.path.exists(nexus_file_name) is False:
         pytest.skip('Unable to access test file {}'.format(nexus_file_name))
 
@@ -104,6 +106,37 @@ def test_compare_nexus_reader(nexus_file_name, mask_file_name):
               ''.format(sub_run, np.sum(mtd_counts), np.sum(pyrs_counts),
                         len(np.where(diff_counts != 0)[0]), np.max(np.abs(diff_counts))))
         np.testing.assert_allclose(mtd_counts, pyrs_counts)
+
+    # Test reduction to diffraction pattern
+    instrument = AnglerCameraDetectorGeometry(1024, 1024, 0.0003, 0.0003, 0.985, False)
+
+    hidra_mtd_ws.set_instrument_geometry(instrument)
+    reducer_mtd = ReductionApp(False)
+    reducer_mtd.load_hidra_workspace(hidra_mtd_ws)
+    reducer_mtd.reduce_data(sub_runs=None,
+                            instrument_file=None,
+                            calibration_file=None,
+                            mask=None)
+    vec_mtd_x, vec_mtd_y = reducer_mtd.get_diffraction_data(1)
+
+    hidra_pyrs_ws.set_instrument_geometry(instrument)
+    reducer_pyrs = ReductionApp(False)
+    reducer_pyrs.load_hidra_workspace(hidra_pyrs_ws)
+    reducer_pyrs.reduce_data(sub_runs=None,
+                             instrument_file=None,
+                             calibration_file=None,
+                             mask=None)
+    vec_rs_x, vec_rs_y = reducer_pyrs.get_diffraction_data(1)
+
+    plt.plot(vec_mtd_x, vec_mtd_y)
+    plt.plot(vec_rs_x, vec_rs_y, color='red')
+    plt.show()
+
+    for sub_run in [1, 2, 3]:
+        print('Comparing pattern of sub run {}'.format(sub_run))
+        vec_mtd_x, vec_mtd_y = reducer_mtd.get_diffraction_data(sub_run)
+        vec_rs_x, vec_rs_y = reducer_pyrs.get_diffraction_data(sub_run)
+        np.testing.assert_allclose(vec_mtd_y, vec_rs_y)
 
     # compare number of sample logs
     log_names_mantid = hidra_mtd_ws.get_sample_log_names()
