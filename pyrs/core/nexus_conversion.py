@@ -14,7 +14,7 @@ from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSet
 from pyrs.dataobjects import HidraConstants
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 from pyrs.utilities import checkdatatypes
-from pyrs.nexus.split_sub_runs import load_split_nexus_python
+from pyrs.split_sub_runs.load_split_sub_runs import load_split_nexus_python
 
 
 SUBRUN_LOGNAME = 'scan_index'
@@ -93,7 +93,7 @@ class NeXusConvertingApp(object):
             self._load_mask_event_nexus(True)
             self._determine_start_time()
             self._split_sub_runs()
-
+            sub_runs = self._sample_log_dict['scan_index']
         else:
             # Use PyRS/converter to load and split sub runs
             sub_run_counts, self._sample_log_dict, mask_array = load_split_nexus_python(self._nexus_name,
@@ -104,10 +104,13 @@ class NeXusConvertingApp(object):
             # set mask
             if mask_array is not None:
                 self._hydra_workspace.set_detector_mask(mask_array, is_default=True)
+            # get sub runs
+            sub_runs = numpy.array(sorted(sub_run_counts.keys()))
         # END-IF
 
         # Add the sample logs to the hidra workspace
-        sub_runs = self._sample_log_dict['scan_index']
+        # sub_runs = self._sample_log_dict['scan_index']
+
         for log_name in self._sample_log_dict:
             if log_name in ['scan_index', HidraConstants.SUB_RUNS]:
                 continue  # skip 'SUB_RUNS'

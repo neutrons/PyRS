@@ -554,8 +554,8 @@ class HB2BReductionManager(object):
         two_theta = workspace.get_detector_2theta(sub_run)
         l2 = workspace.get_l2(sub_run)
         # Convert 2-theta from DAS convention to Mantid/PyRS convention
-        print('[INFO] User specified 2theta = {} is converted to Mantid 2theta = {}'
-              ''.format(two_theta, -two_theta))
+        # print('[INFO] User specified 2theta = {} is converted to Mantid 2theta = {}'
+        #       ''.format(two_theta, -two_theta))
         mantid_two_theta = -two_theta
 
         # Apply mask

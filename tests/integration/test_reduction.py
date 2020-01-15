@@ -3,7 +3,7 @@ from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.utilities import calibration_file_io
 from pyrs.core import workspaces
 import numpy as np
-from pyrs.nexus.split_sub_runs import NexusProcessor
+from pyrs.split_sub_runs.load_split_sub_runs import NexusProcessor
 from pyrs.core.powder_pattern import ReductionApp
 from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry
 import os

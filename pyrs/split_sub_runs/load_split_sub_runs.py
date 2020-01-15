@@ -44,10 +44,17 @@ def load_split_nexus_python(nexus_name, mask_file_name):
     sub_run_times, sub_runs = nexus_processor.get_sub_run_times_value()
 
     # Split counts
+    time_split_start = datetime.datetime.now()
     sub_run_counts = nexus_processor.split_events_sub_runs(sub_run_times, sub_runs, mask_array)
+    time_split_end = datetime.datetime.now()
+    print('[INFO] Sub run splitting duration = {} second from {} to {}'
+          ''.format((time_split_end - time_split_start).total_seconds(), time_split_start, time_split_end))
 
     # Split logs
     sample_logs = nexus_processor.split_sample_logs(sub_run_times, sub_runs)
+    log_split_end = datetime.datetime.now()
+    print('[INFO] Sub run splitting duration = {} second from {} to {}'
+          ''.format((log_split_end - time_split_end).total_seconds(), time_split_end, log_split_end))
 
     return sub_run_counts, sample_logs, mask_array
 
@@ -264,7 +271,7 @@ class NexusProcessor(object):
         sub_run_values: numpy.ndarray
             sub run value: V[n] = sub run number
             V.shape[0] = T.shape[0] / 2
-        mask_array : numpy.ndarray
+        mask_array : numpy.ndarray or None
             array of 1 or 0 for masking
 
         Returns

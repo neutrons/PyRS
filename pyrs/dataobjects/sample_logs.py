@@ -112,6 +112,7 @@ class SampleLogs(MutableMapping):
                                    '(previous={}, new={})'.format(self._subruns, value))
         value = _coerce_to_ndarray(value)
         if not np.all(value[:-1] < value[1:]):
+            print('Unsorted sub runs: {}'.format(value))
             raise RuntimeError('subruns are not soryed in increasing order')
         self._subruns = value
 

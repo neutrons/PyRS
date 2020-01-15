@@ -1,5 +1,5 @@
 import os
-from pyrs.nexus.split_sub_runs import load_split_nexus_python
+from pyrs.split_sub_runs.load_split_sub_runs import load_split_nexus_python
 import pytest
 import datetime
 
@@ -21,7 +21,7 @@ def test_convert_nexus(ipts_number, run_start, run_stop):
     # run_start = 1102
     # run_stop = 1155
 
-    ipts_dir = '/HFIR/HB2B/IPTS-{}/nexus'.format(ipts_number)
+    ipts_dir = '/HFIR/HB2B/IPTS-{}/split_sub_runs'.format(ipts_number)
     if os.path.exists(ipts_dir) is False:
         pytest.skip('Performance test is skipped due to no access to {}'.format(ipts_dir))
 
