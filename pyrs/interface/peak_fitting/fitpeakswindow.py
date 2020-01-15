@@ -90,6 +90,7 @@ class FitPeaksWindow(QMainWindow):
 
         self.ui.radioButton_fit_value.clicked.connect(self.fit_table_radio_buttons)
         self.ui.radioButton_fit_error.clicked.connect(self.fit_table_radio_buttons)
+        self.ui.spinBox_peak_index.valueChanged.connect(self.fit_table_radio_buttons)
 
         self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.xaxis_1d_changed)
         self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.yaxis_1d_changed)

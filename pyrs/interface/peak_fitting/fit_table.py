@@ -23,8 +23,6 @@ class FitTable:
             self.parent.ui.tableView_fitSummary.insertRow(_row)
             _global_col_index = 0
 
-            print(_row_value)
-
             for _local_col_index, _col_value in enumerate(_row_value):
                 if _local_col_index in self.COL_INDEX_TO_ESCAPE:
                     continue
@@ -58,10 +56,14 @@ class FitTable:
         for _ in np.arange(_nbr_row):
             self.parent.ui.tableView_fitSummary.removeRow(0)
 
-    def _clear_table(self):
+    def _clear_columns(self):
         _nbr_column = self.parent.ui.tableView_fitSummary.columnCount()
         for _ in np.arange(_nbr_column):
             self.parent.ui.tableView_fitSummary.removeColumn(0)
+
+    def _clear_table(self):
+        self._clear_rows()
+        self._clear_columns()
 
     def _get_list_of_columns(self):
         # we want to go from
