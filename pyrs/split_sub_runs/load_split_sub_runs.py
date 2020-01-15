@@ -90,7 +90,6 @@ class NexusProcessor(object):
             raise RuntimeError('Run {} has no count.  Proper reduction requires the run to have count'
                                ''.format(self._nexus_name))
 
-
     def __del__(self):
         """Destructor
 
