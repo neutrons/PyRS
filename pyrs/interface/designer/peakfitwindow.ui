@@ -484,14 +484,17 @@
             </spacer>
            </item>
            <item>
-            <widget class="QCheckBox" name="checkBox_showFitValue">
+            <widget class="QRadioButton" name="radioButton_fit_value">
              <property name="text">
-              <string>Fitted Value</string>
+              <string>Value</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QCheckBox" name="checkBox_showFitError">
+            <widget class="QRadioButton" name="radioButton_fit_error">
              <property name="text">
               <string>Error</string>
              </property>

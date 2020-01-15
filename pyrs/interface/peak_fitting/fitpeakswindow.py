@@ -88,6 +88,9 @@ class FitPeaksWindow(QMainWindow):
         self.ui.lineEdit_subruns_2dplot.returnPressed.connect(self.list_subruns_2dplot_returned)
         self.ui.lineEdit_subruns_2dplot.textChanged.connect(self.list_subruns_2dplot_changed)
 
+        self.ui.radioButton_fit_value.clicked.connect(self.fit_table_radio_buttons)
+        self.ui.radioButton_fit_error.clicked.connect(self.fit_table_radio_buttons)
+
         self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.xaxis_1d_changed)
         self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.yaxis_1d_changed)
 
@@ -220,9 +223,14 @@ class FitPeaksWindow(QMainWindow):
         pass
 
     def populate_fit_result_table(self, fit_result=None):
+        self.fit_result = fit_result
         o_table = FitTable(parent=self, fit_result=fit_result)
-        o_table.initialize_table()
+        o_table.initialize_fit_result_widgets()
         o_table.populate_fit_result_table()
+
+    def fit_table_radio_buttons(self):
+        o_table = FitTable(parent=self, fit_result=self.fit_result)
+        o_table.fit_value_error_changed()
 
     def _init_widgets(self):
         """
