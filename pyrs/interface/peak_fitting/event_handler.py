@@ -1,4 +1,5 @@
 import os
+import json
 import numpy as np
 from qtpy.QtWidgets import QTableWidgetItem
 
@@ -166,3 +167,38 @@ class EventHandler:
         self.parent._ui_graphicsView_fitSetup.plot_data_with_fitting_ranges()
 
         table_ui.blockSignals(False)
+
+    def __retrieving_json_file_name(self, save_file=True):
+        file_filter = 'JSON (*.json)'
+        json_file_name = browse_file(self.parent,
+                                     'Peak Range File',
+                                     os.getcwd(),
+                                     file_filter,
+                                     file_list=False,
+                                     save_file=save_file)
+        return json_file_name
+
+    def save_peak_range(self):
+        json_file_name = self.__retrieving_json_file_name(save_file=True)
+
+        if json_file_name is None:
+            return  # user clicked cancel
+
+        # retrieve peak infos
+        list_peak_ranges = self.parent._ui_graphicsView_fitSetup.list_peak_ranges
+        list_peak_labels = self.parent._ui_graphicsView_fitSetup.list_fit_peak_labels
+
+        # create dictionary
+        dict = {}
+        for _index, peak_range in enumerate(list_peak_ranges):
+            dict[_index] = {'peak_range': peak_range,
+                            'peak_label': list_peak_labels[_index]}
+
+        with open(json_file_name, 'w') as outfile:
+            json.dump(dict, outfile)
+
+    def load_peak_range(self):
+        json_file_name = self.__retrieving_json_file_name(save_file=False)
+
+        if json_file_name is None:
+            return  # user clicked cancel
