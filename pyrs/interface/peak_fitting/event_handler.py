@@ -202,3 +202,23 @@ class EventHandler:
 
         if json_file_name is None:
             return  # user clicked cancel
+
+        with open(json_file_name) as json_file:
+            _dict = json.load(json_file)
+
+        peak_range = []
+        peak_label = []
+        for _index in _dict.keys():
+            peak_range.append(_dict[_index]['peak_range'])
+            peak_label.append(_dict[_index]['peak_label'])
+
+        # save peak infos
+        self.parent._ui_graphicsView_fitSetup.list_peak_ranges = peak_range
+        self.parent._ui_graphicsView_fitSetup.list_fit_peak_labels = peak_label
+
+        self.parent.update_peak_ranges_table(release=True,
+                                             list_fit_peak_labels=peak_label,
+                                             list_fit_peak_ranges=peak_range,
+                                             list_fit_peak_ranges_matplotlib_id=[],
+                                             list_fit_peak_labels_matplotlib_id=[])
+        self.parent._ui_graphicsView_fitSetup.plot_data_with_fitting_ranges()
