@@ -1,7 +1,7 @@
 from qtpy.QtWidgets import QMainWindow, QVBoxLayout, QApplication
 from qtpy.QtCore import Qt
 import os
-from mantid.simpleapi import Logger
+from mantid.simpleapi import Logger, GetIPTS
 from mantid.api import FileFinder
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
@@ -200,7 +200,7 @@ class ManualReductionWindow(QMainWindow):
 
     def _output_state(self, state):
         if state != Qt.Unchecked:
-            self.ui.lineEdit_outputDirectory.setText('')
+            self.ui.lineEdit_outputDirectory.setText('/HFIR/HB2B/IPTS-XXXX/shared/manualreduce')
         self.ui.lineEdit_outputDirectory.setEnabled(state == Qt.Unchecked)
         self.ui.pushButton_browseOutputDirectory.setEnabled(state == Qt.Unchecked)
 
@@ -493,7 +493,12 @@ class ManualReductionWindow(QMainWindow):
         # Reduce data
         run_number = self.ui.spinBox_runNumber.text().strip()
         nexus_file = FileFinder.findRuns('HB2B'+run_number)[0]
-        project_file = str(self.ui.lineEdit_outputDirectory.text().strip())
+        if self.ui.checkBox_defaultOutputDirectory.checkState() == Qt.Unchecked:
+            project_file = str(self.ui.lineEdit_outputDirectory.text().strip())
+        else:
+            ipts = GetIPTS(run_number)
+            project_file = ipts + 'shared/manualreduce/'
+            self.ui.lineEdit_outputDirectory.setText(project_file)
         mask_file = str(self.ui.lineEdit_maskFile.text().strip())
         calibration_file = str(self.ui.lineEdit_calibrationFile.text().strip())
         task = BlockingAsyncTaskWithCallback(reduce_hidra_workflow, args=(nexus_file, project_file,
