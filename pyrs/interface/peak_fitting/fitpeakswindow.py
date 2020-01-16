@@ -248,6 +248,9 @@ class FitPeaksWindow(QMainWindow):
         o_gui = GuiUtilities(parent=self)
         o_gui.update_save_peak_range_widget_status()
 
+    def peak_range_table_right_click(self, position):
+        print("clicked table right click")
+
     def _init_widgets(self):
         """
         initialize the some widgets
