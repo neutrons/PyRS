@@ -51,14 +51,12 @@ def _nexus_to_subscans(nexusfile, projectfile, mask_file_name, save_project_file
     converter = NeXusConvertingApp(nexusfile, mask_file_name)
     hidra_ws = converter.convert()
 
-    instrument = AnglerCameraDetectorGeometry(1024, 1024, 0.0003, 0.0003, 0.985, False)
-    converter.save(projectfile, instrument)
+    # instrument = AnglerCameraDetectorGeometry(1024, 1024, 0.0003, 0.0003, 0.985, False)
+    converter.save(projectfile)
 
     # save project file as an option
     if save_project_file:
-        converter.save(projectfile, instrument)
-    else:
-        hidra_ws.set_instrument_geometry(instrument)
+        converter.save(projectfile)
 
     return hidra_ws
 
