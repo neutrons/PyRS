@@ -3,7 +3,6 @@ from mantid.simpleapi import Logger
 import os
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
-from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry
 
 # DEFAULT VALUES FOR DATA PROCESSING
 DEFAULT_CALIBRATION = None
@@ -39,15 +38,9 @@ def _nexus_to_subscans(nexusfile, projectfile, mask_file_name, save_project_file
     converter = NeXusConvertingApp(nexusfile, mask_file_name)
     hydra_ws = converter.convert(use_mantid=False)
 
-    # set up instrument
-    # initialize instrument: hard code!
-    instrument = AnglerCameraDetectorGeometry(1024, 1024, 0.0003, 0.0003, 0.985, False)
-
     # save project file as an option
     if save_project_file:
-        converter.save(projectfile, instrument)
-    else:
-        hydra_ws.set_instrument_geometry(instrument)
+        converter.save(projectfile)
 
     return hydra_ws
 

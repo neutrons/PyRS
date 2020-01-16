@@ -5,7 +5,6 @@ from pyrs.core import workspaces
 import numpy as np
 from pyrs.split_sub_runs.load_split_sub_runs import NexusProcessor
 from pyrs.core.powder_pattern import ReductionApp
-from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry
 import os
 import pytest
 
@@ -108,9 +107,8 @@ def test_compare_nexus_reader(nexus_file_name, mask_file_name):
         np.testing.assert_allclose(mtd_counts, pyrs_counts)
 
     # Test reduction to diffraction pattern
-    instrument = AnglerCameraDetectorGeometry(1024, 1024, 0.0003, 0.0003, 0.985, False)
-
-    hidra_mtd_ws.set_instrument_geometry(instrument)
+    # instrument = AnglerCameraDetectorGeometry(1024, 1024, 0.0003, 0.0003, 0.985, False)
+    # hidra_mtd_ws.set_instrument_geometry(instrument)
     reducer_mtd = ReductionApp(False)
     reducer_mtd.load_hidra_workspace(hidra_mtd_ws)
     reducer_mtd.reduce_data(sub_runs=None,
@@ -119,7 +117,7 @@ def test_compare_nexus_reader(nexus_file_name, mask_file_name):
                             mask=None)
     vec_mtd_x, vec_mtd_y = reducer_mtd.get_diffraction_data(1)
 
-    hidra_pyrs_ws.set_instrument_geometry(instrument)
+    # hidra_pyrs_ws.set_instrument_geometry(instrument)
     reducer_pyrs = ReductionApp(False)
     reducer_pyrs.load_hidra_workspace(hidra_pyrs_ws)
     reducer_pyrs.reduce_data(sub_runs=None,

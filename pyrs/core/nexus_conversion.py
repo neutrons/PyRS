@@ -57,6 +57,11 @@ class NeXusConvertingApp(object):
         self._sample_log_dict = dict()
 
         self._hydra_workspace = workspaces.HidraWorkspace(self._nexus_name)
+        # Set a default instrument with this workspace
+        # set up instrument
+        # initialize instrument: hard code!
+        instrument = AnglerCameraDetectorGeometry(1024, 1024, 0.0003, 0.0003, 0.985, False)
+        self._hydra_workspace.set_instrument_geometry(instrument)
 
         # project file
         self._project_file = None
@@ -200,7 +205,7 @@ class NeXusConvertingApp(object):
 
         return duration
 
-    def save(self, projectfile, instrument):
+    def save(self, projectfile):
         """
         Save workspace to Hidra project file
         """
@@ -217,10 +222,10 @@ class NeXusConvertingApp(object):
         hydra_file = HidraProjectFile(projectfile, HidraProjectFileMode.OVERWRITE)
 
         # Set geometry
-        if instrument is None:
-            # initialize instrument: hard code!
-            instrument = AnglerCameraDetectorGeometry(1024, 1024, 0.0003, 0.0003, 0.985, False)
-        hydra_file.write_instrument_geometry(HidraSetup(instrument))
+        # if instrument is None:
+        #     # initialize instrument: hard code!
+        #     instrument = AnglerCameraDetectorGeometry(1024, 1024, 0.0003, 0.0003, 0.985, False)
+        hydra_file.write_instrument_geometry(HidraSetup(self._hydra_workspace.get_instrument_setup()))
 
         self._hydra_workspace.save_experimental_data(hydra_file)
 
