@@ -77,7 +77,7 @@ class SubRuns(Iterable):
             raise RuntimeError('subruns are not soryed in increasing order')
         self._value = value.astype(int)
 
-    def raw(self):
+    def raw_copy(self):
         '''Raw copy of underlying values'''
         return np.copy(self._value)
 
