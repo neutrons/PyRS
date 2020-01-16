@@ -20,6 +20,7 @@ class MplFitPlottingWidget(QWidget):
         :param parent:
         """
         super(MplFitPlottingWidget, self).__init__(parent)
+        self.parent = parent
 
         # set up UI and widgets
         self._myCanvas = QtMplFitCanvas(self)
@@ -39,35 +40,128 @@ class MplFitPlottingWidget(QWidget):
         self._curr_color_index = 0
         self._curr_x_label = None
 
-        return
+        self.list_peak_ranges = []
+        self.list_peak_ranges_matplotlib_id = []
+        self.list_fit_peak_labels = []
+        self.list_peak_labels_matplotlib_id = []
+
+        self._working_with_range_index = -1
+        self._peak_label_index = 0
+        self._button_pressed = False
+        self._left_line = None
+        self._right_line = None
+        self._myCanvas.mpl_connect('button_press_event', self.button_clicked)
+        self._myCanvas.mpl_connect('button_release_event', self.button_released)
+        self._myCanvas.mpl_connect('motion_notify_event', self.mouse_moved)
+
+    def any_toolbar_button_clicked(self):
+        if self._myToolBar.NAVIGATION_MODE_ZOOM == self._myToolBar._myMode:
+            return True
+
+        if self._myToolBar.NAVIGATION_MODE_PAN == self._myToolBar._myMode:
+            return True
+
+        return False
+
+    def button_clicked(self, event):
+        if (self.any_toolbar_button_clicked()):
+            return
+
+        self._button_pressed = True
+        self._add_initial_point(x=event.xdata)
+        self.parent.update_peak_ranges_table(click=True,
+                                             list_fit_peak_labels=self.list_fit_peak_labels,
+                                             list_fit_peak_ranges=self.list_peak_ranges,
+                                             list_fit_peak_ranges_matplotlib_id=self.list_peak_ranges_matplotlib_id,
+                                             list_fit_peak_labels_matplotlib_id=self.list_peak_labels_matplotlib_id)
+
+    def button_released(self, event):
+        if not self._button_pressed:
+            return
+
+        self._button_pressed = False
+        self._validate_second_point(x=event.xdata)
+        self.parent.update_peak_ranges_table(release=True,
+                                             list_fit_peak_labels=self.list_fit_peak_labels,
+                                             list_fit_peak_ranges=self.list_peak_ranges,
+                                             list_fit_peak_ranges_matplotlib_id=self.list_peak_ranges_matplotlib_id,
+                                             list_fit_peak_labels_matplotlib_id=self.list_peak_labels_matplotlib_id)
+
+    def mouse_moved(self, event):
+        if self._button_pressed:
+            self._change_second_point(x=event.xdata)
+        self.parent.update_peak_ranges_table(move=True,
+                                             list_fit_peak_labels=self.list_fit_peak_labels,
+                                             list_fit_peak_ranges=self.list_peak_ranges,
+                                             list_fit_peak_ranges_matplotlib_id=self.list_peak_ranges_matplotlib_id,
+                                             list_fit_peak_labels_matplotlib_id=self.list_peak_labels_matplotlib_id)
+
+    def _add_initial_point(self, x=np.NaN):
+
+        if not self.list_peak_ranges:
+            self.list_peak_ranges = [[x, np.NaN]]
+            self.list_fit_peak_labels = ['Peak0']
+            self._peak_label_index += 1
+        else:
+            _was_part_of_one_range = False
+            for _index, _range in enumerate(self.list_peak_ranges):
+                if (x >= np.min(_range)) and (x <= np.max(_range)):
+                    self.list_peak_ranges[_index] = [x, np.NaN]
+                    _was_part_of_one_range = True
+                    self._working_with_range_index = _index
+                    break
+
+            if _was_part_of_one_range is False:
+                self.list_peak_ranges.append([x, np.NaN])
+                self.list_fit_peak_labels.append("Peak{}".format(self._peak_label_index))
+                self._working_with_range_index = -1
+                self._peak_label_index += 1
+
+        self.plot_data_with_fitting_ranges()
+
+    def _validate_second_point(self, x=np.NaN):
+
+        _working_range = self.list_peak_ranges[self._working_with_range_index]
+        if _working_range[0] == x:  # remove this range
+            self.list_peak_ranges.remove([_working_range[0], np.NaN])
+            [left_peak, right_peak] = self.list_peak_ranges_matplotlib_id[self._working_with_range_index]
+            left_peak.remove()
+            right_peak.remove()
+            self.list_peak_ranges_matplotlib_id.remove([left_peak, right_peak])
+            _peak_label = self.list_fit_peak_labels[self._working_with_range_index]
+            self.list_fit_peak_labels.remove(_peak_label)
+        else:
+            _working_range = [_working_range[0], x]
+            self.list_peak_ranges[self._working_with_range_index] = _working_range
+        self.plot_data_with_fitting_ranges()
+
+    def _change_second_point(self, x=np.NaN):
+        _working_range = self.list_peak_ranges[self._working_with_range_index]
+        self.list_peak_ranges[self._working_with_range_index] = [_working_range[0], x]
+        self.plot_data_with_fitting_ranges()
 
     def _get_next_color(self):
         """
         get the next available color
         :return:
         """
-        color = MplBasicColors[0]
+        # color = MplBasicColors[0]
 
         self._curr_color_index += 1
         if self._curr_color_index >= len(MplBasicColors):
             self._curr_color_index = 0
-
-        return color
 
     def clear_canvas(self):
         """
         clear (aka reset) the canvas
         :return:
         """
-        #
         self._myCanvas.reset_plot()
 
         # reset the class variables managing the plots
         self._data_line_list = list()
         self._model_line = None
         self._residual_line = None
-
-        return
 
     def evt_toolbar_home(self):
         """
@@ -78,14 +172,12 @@ class MplFitPlottingWidget(QWidget):
         # No NavigrationToolbar2.evt_toolbar_home()
 
         # self._myCanvas.set_x_y_home()
-
         return
 
     def evt_view_updated(self):
         """ Handling the event when a 'draw()' is called from tool bar
         :return:
         """
-
         return
 
     def evt_zoom_released(self, event):
@@ -130,9 +222,6 @@ class MplFitPlottingWidget(QWidget):
                 # upper_y_range = self._myCanvas.get_curr_y_range(False)
                 self._myCanvas.set_x_range(upper_x_range[0], upper_x_range[1], is_residual=True)
                 # self._myCanvas.set_y_range(upper_y_range[0], upper_y_range[1], is_residual=True)
-        # END-IF-ELSE
-
-        return
 
     def get_x_limit(self):
         """
@@ -151,10 +240,46 @@ class MplFitPlottingWidget(QWidget):
         if color is None:
             color = self._get_next_color()
 
+        self._color = color
+        self._data_set = data_set
+        self._line_label = line_label
+
         data_line_id = self._myCanvas.add_plot_upper_axis(data_set, line_color=color, label=line_label)
         self._data_line_list.append(data_line_id)
 
-        return
+    def plot_data_with_fitting_ranges(self):
+        self.clear_canvas()
+
+        for _peak_label in self.list_peak_labels_matplotlib_id:
+            _peak_label.remove()
+
+        for [_left_line, _right_line] in self.list_peak_ranges_matplotlib_id:
+            _left_line.remove()
+            _right_line.remove()
+
+        color = self._color
+
+        data_set = self._data_set
+        line_label = self._line_label
+
+        self._myCanvas.add_plot_upper_axis(data_set, line_color=color, label=line_label)
+        self.list_peak_ranges_matplotlib_id = []
+        self.list_peak_labels_matplotlib_id = []
+        list_peak_labels = self.list_fit_peak_labels
+
+        for _index, _range in enumerate(self.list_peak_ranges):
+            x_right = np.nanmax(_range)
+            x_left = np.nanmin(_range)
+            self._left_line = self._myCanvas._data_subplot.axvline(x_left, color='r', linestyle='--')
+            self._right_line = self._myCanvas._data_subplot.axvline(x_right, color='r', linestyle='--')
+            self.list_peak_ranges_matplotlib_id.append([self._left_line, self._right_line])
+            txt_id = self._myCanvas._data_subplot.text(x_left, 0, list_peak_labels[_index],
+                                                       fontsize=16,
+                                                       rotation=90,
+                                                       rotation_mode='anchor')
+            self.list_peak_labels_matplotlib_id.append(txt_id)
+
+        self._myCanvas.draw()
 
     def plot_data_model(self, data_set, data_label, model_set, model_label, residual_set):
         """
@@ -182,16 +307,12 @@ class MplFitPlottingWidget(QWidget):
         diff_line_id = self._myCanvas.add_plot_lower_axis(residual_set)
         self._residual_line = diff_line_id
 
-        return
-
     def reset_color(self):
         """
         reset the auto color index
         :return:
         """
         self._curr_color_index = 0
-
-        return
 
     def set_x_label(self, new_x_label):
         """
@@ -206,8 +327,6 @@ class MplFitPlottingWidget(QWidget):
             # set
             self._myCanvas.set_x_label(new_x_label)
             self._curr_x_label = new_x_label
-
-        return
 
 
 # TEST - 20181124 - Make split diffraction view work!
@@ -393,9 +512,6 @@ class QtMplFitCanvas(FigureCanvas):
             line_handler = self._data_plot_dict[line_index]
             self._data_subplot.lines.remove(line_handler)
             del self._data_plot_dict[line_index]
-        # END-FOR
-
-        return
 
     def remove_residual_line(self):
         """
@@ -410,8 +526,6 @@ class QtMplFitCanvas(FigureCanvas):
         self._residual_subplot.lines.remove(line_handler)
         self._residual_dict = dict()
 
-        return
-
     def reset_plot(self):
         """
         remove all the lines plot on subplots currently
@@ -419,8 +533,6 @@ class QtMplFitCanvas(FigureCanvas):
         """
         self.remove_data_lines()
         self.remove_residual_line()
-
-        return
 
     def set_x_range(self, x_min, x_max, is_residual):
         """

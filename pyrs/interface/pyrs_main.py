@@ -140,8 +140,8 @@ class PyRSLauncher(QMainWindow):
         fit_peak_core = pyrscore.PyRsCore()
 
         # set up interface object
-        if self.peak_fit_window is None:
-            self.peak_fit_window = fitpeakswindow.FitPeaksWindow(self, fit_peak_core=fit_peak_core)
+        # if self.peak_fit_window is None:
+        self.peak_fit_window = fitpeakswindow.FitPeaksWindow(self, fit_peak_core=fit_peak_core)
         self.peak_fit_window.show()
 
         # # optionally close the main window

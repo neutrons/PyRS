@@ -148,7 +148,7 @@ class PeakCollection(object):
 
         return
 
-    def get_parameters_values(self, param_name_list, max_chi2=None):
+    def get_parameters_values(self, param_name_list=PeakShape.PSEUDOVOIGT.native_parameters, max_chi2=None):
         """Get specified parameters' fitted value and optionally error with optionally filtered value
 
         The outputs will NOT be numpy structured array but ordered with parameters given in the list

@@ -42,50 +42,6 @@ class PeakFittingTest(object):
         # set wave length
         hd_ws.set_wavelength(1.071, False)
 
-    def fit_peak(self, peak_profile, peak_info):
-        """Fit peak
-
-        Parameters
-        ----------
-        peak_profile
-        peak_info : ~collections.namedtuple
-
-        Returns
-        -------
-
-        """
-        # Convert input named tuple to pyrs dictionary
-        peak_info_dict = {peak_info.tag: {'Center': peak_info.center,
-                                          'Range': (peak_info.left_bound, peak_info.right_bound)}}
-
-        # Fit peak
-        self._reduction_controller.fit_peaks(self._project_name, sub_run_list=None,
-                                             peak_type=peak_profile, background_type='Linear',
-                                             peaks_fitting_setup=peak_info_dict)
-
-    def fit_pseudo_voigt(self):
-        """
-        Fit pseudo-voigt peaks
-        :return:
-        """
-        peak_info_dict = {'Fe111': {'Center': 94.5, 'Range': [91., 97]}}
-
-        # Fit peaks
-        self._reduction_controller.fit_peaks(self._project_name, sub_run_list=None,
-                                             peak_type='PseudoVoigt', background_type='Linear',
-                                             peaks_fitting_setup=peak_info_dict)
-
-    def fit_gaussian(self):
-        """ Test fitting with Gaussian
-        :return:
-        """
-        peak_info_dict = {'Fe111': {'Center': 84., 'Range': [70., 95]}}
-
-        # Fit peaks
-        self._reduction_controller.fit_peaks(self._project_name, sub_run_list=None,
-                                             peak_type='Gaussian', background_type='Linear',
-                                             peaks_fitting_setup=peak_info_dict)
-
     def show_fit_result(self, show_effective_params):
         """ Get the fit results and plot
         :return:
@@ -216,7 +172,9 @@ def test_retrieve_fit_metadata(source_project_file, output_project_file, peak_ty
 
     # Load project file to HidraWorkspace
     project_name = 'Jean Peaks'
-    hd_ws = controller.load_hidra_project(source_project_file, project_name=project_name, load_detector_counts=False,
+    hd_ws = controller.load_hidra_project(source_project_file,
+                                          project_name=project_name,
+                                          load_detector_counts=False,
                                           load_diffraction=True)
 
     # set wave length
@@ -225,18 +183,16 @@ def test_retrieve_fit_metadata(source_project_file, output_project_file, peak_ty
 
     # Set peak fitting engine
     # create a controller from factory
-    fit_engine = PeakFitEngineFactory.getInstance('Mantid', hd_ws, None)
+    fit_engine = PeakFitEngineFactory.getInstance(hd_ws, peak_function_name=peak_type,
+                                                  background_function_name='Linear')
 
     # Fit peak
-    fit_engine.fit_multiple_peaks(sub_run_range=(None, None),  # default is all sub runs
-                                  peak_function_name=peak_type,
-                                  background_function_name='Linear',
-                                  peak_tag_list=[peak_info.tag],
-                                  peak_center_list=[peak_info.center],
-                                  peak_range_list=[(peak_info.left_bound, peak_info.right_bound)])
+    fit_result = fit_engine.fit_peaks(peak_tag=peak_info.tag,
+                                      x_min=peak_info.left_bound,
+                                      x_max=peak_info.right_bound)
 
     # Retrieve all effective peak parameters
-    fitted_peak = fit_engine.get_peaks(peak_info.tag)
+    fitted_peak = fit_result.peakcollections[0]
     param_set = fitted_peak.get_effective_parameters_values()
     eff_params_list, sub_run_array, fit_cost_array, eff_param_value_array, eff_param_error_array = param_set
 
@@ -271,13 +227,14 @@ def test_retrieve_fit_metadata(source_project_file, output_project_file, peak_ty
     return
 
 
+@pytest.mark.skip(reason='PyRsCore doesn\'t do fitting anymore')
 @pytest.mark.parametrize('project_file_name, peak_file_name, peak_type, peak_info',
                          [('data/Hidra_16-1_cor_log.h5', 'Hidra_16-1_cor_log_peak.h5', 'Gaussian',
                            PeakInfo(94.5, 91, 97, 'Fe111')),  # NSFR2 peak
                           ('data/HB2B_938.h5', 'HB2B_938_peak.h5', 'PseudoVoigt',
                            PeakInfo(95.5, 91, 97, 'Si111'))],
                          ids=('FakeHB2B', 'HB2B_938'))
-def test_main(project_file_name, peak_file_name, peak_type, peak_info):
+def xtest_main(project_file_name, peak_file_name, peak_type, peak_info):
     """Test peak fitting
 
     Parameters
@@ -346,47 +303,27 @@ def test_improve_quality():
     # TODO : @Jean please find out the correct value
     hd_ws.set_wavelength(1.071, False)
 
+    peak_type = 'Gaussian'
+
     # Set peak fitting engine
     # create a controller from factory
-    fit_engine = PeakFitEngineFactory.getInstance('Mantid', hd_ws, None)
-
-    peak_type = 'Gaussian'
+    fit_engine = PeakFitEngineFactory.getInstance(hd_ws, peak_function_name=peak_type,
+                                                  background_function_name='Linear')
 
     # Fit peak @ left
     peak_info_left = PeakInfo(91.7, 87., 93., 'Left Peak')
 
-    fit_engine.fit_multiple_peaks(sub_run_range=(None, None),  # default is all sub runs
-                                  peak_function_name=peak_type,
-                                  background_function_name='Linear',
-                                  peak_tag_list=[peak_info_left.tag],
-                                  peak_center_list=[peak_info_left.center],
-                                  peak_range_list=[(peak_info_left.left_bound, peak_info_left.right_bound)])
-
-    # Get peak fit result
-    model_set = fit_engine.calculate_fitted_peaks(sub_run_number=3)
-    data_set = hd_ws.get_reduced_diffraction_data(sub_run=3, mask_id=None)
+    fit_result = fit_engine.fit_peaks(peak_tag=peak_info_left.tag,
+                                      x_min=peak_info_left.left_bound,
+                                      x_max=peak_info_left.right_bound)
+    assert fit_result
 
     # Fit the right peak
     peak_info_left = PeakInfo(95.8, 93.5, 98.5, 'Right Peak')
 
-    fit_engine.fit_multiple_peaks(sub_run_range=(None, None),  # default is all sub runs
-                                  peak_function_name='Gaussian',
-                                  background_function_name='Linear',
-                                  peak_tag_list=[peak_info_left.tag],
-                                  peak_center_list=[peak_info_left.center],
-                                  peak_range_list=[(peak_info_left.left_bound, peak_info_left.right_bound)])
-
-    # Get peak fit result @ right
-    right_model_set = fit_engine.calculate_fitted_peaks(sub_run_number=100)
-    right_data_set = hd_ws.get_reduced_diffraction_data(sub_run=100, mask_id=None)
-
-    plt.plot(model_set[0], model_set[1], color='red', label='91 peak model')
-    plt.plot(data_set[0], data_set[1], color='black', label='91 peak raw')
-
-    plt.plot(right_model_set[0], right_model_set[1], color='blue', label='96 peak model')
-    plt.plot(right_data_set[0], right_data_set[1], color='green', label='96 peak raw')
-
-    # plt.show()
+    fit_engine.fit_peaks(peak_tag=peak_info_left.tag,
+                         x_min=peak_info_left.left_bound,
+                         x_max=peak_info_left.right_bound)
 
 
 def test_write_csv():

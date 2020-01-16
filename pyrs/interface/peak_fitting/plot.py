@@ -72,24 +72,30 @@ class Plot:
                                                                sub_run=sub_run_number,
                                                                mask=None)
 
-        data_set_label = 'Scan {0}'.format(sub_run_number)
-
         # Plot experimental data
+        data_set_label = 'Scan {0}'.format(sub_run_number)
         self.parent._ui_graphicsView_fitSetup.plot_experiment_data(diff_data_set=diff_data_set,
                                                                    data_reference=data_set_label)
 
-        # Plot fitted model data
-        model_data_set = None
-        if plot_model:
-            model_data_set = self.parent._core.get_modeled_data(session_name=self.parent._project_name,
-                                                                sub_run=sub_run_number)
+        # plot fitted data
+        fit_result = self.parent.fit_result
+        if fit_result:
+            x_array = self.parent.fit_result.fitted.readX(sub_run_number)
+            y_array = self.parent.fit_result.fitted.readY(sub_run_number)
+            self.parent._ui_graphicsView_fitSetup.plot_fitted_data(x_array, y_array)
 
-        if model_data_set is not None:
-            residual_y_vec = diff_data_set[1] - model_data_set[1]
-            residual_data_set = [diff_data_set[0], residual_y_vec]
-            self.parent._ui_graphicsView_fitSetup.plot_model_data(diff_data_set=model_data_set,
-                                                                  model_label='fit',
-                                                                  residual_set=residual_data_set)
+        # # Plot fitted model data
+        # model_data_set = None
+        # if plot_model:
+        #     model_data_set = self.parent._core.get_modeled_data(session_name=self.parent._project_name,
+        #                                                         sub_run=sub_run_number)
+        #
+        # if model_data_set is not None:
+        #     residual_y_vec = diff_data_set[1] - model_data_set[1]
+        #     residual_data_set = [diff_data_set[0], residual_y_vec]
+        #     self.parent._ui_graphicsView_fitSetup.plot_model_data(diff_data_set=model_data_set,
+        #                                                           model_label='fit',
+        #                                                           residual_set=residual_data_set)
 
     def plot_scan(self, value=None):
         """ plot the scan defined by the scroll bar or the text line according to radio button selected
@@ -193,10 +199,40 @@ class Plot:
         :param param_name:
         :return:
         """
+
+        print(param_name)
+
         # get data key
         if self.parent._project_name is None:
             pop_message(self, 'No data loaded', 'error')
             return
+
+        # fitted_peak = self.parent._core._peak_fitting_dict[self.parent._project_name]
+        # from pyrs.core import peak_profile_utility
+
+        # param_set = fitted_peak.get_effective_parameters_values()
+        # eff_params_list, sub_run_array, fit_cost_array, eff_param_value_array, eff_param_error_array = param_set
+
+        # retrieve Center: EFFECTIVE_PEAK_PARAMETERS = ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
+        # i_center = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS.index('Center')
+        # centers = eff_param_value_array[i_center]
+
+        # retrieve Height
+        # i_height = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS.index('Height')
+        # heights = eff_param_value_array[i_height]
+
+        # retrieve intensity
+        # i_intensity = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS.index('Intensity')
+        # intensities = eff_param_value_array[i_intensity]
+
+        # retrieve FWHM
+        # i_fwhm = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS.index('FWHM')
+        # fwhms = eff_param_value_array[i_fwhm]
+
+        # import pprint
+        # pprint.pprint("fwhms: {}".format(fwhms))
+
+        return
 
         param_names, param_data = self.parent._core.get_peak_fitting_result(self.parent._project_name,
                                                                             0,

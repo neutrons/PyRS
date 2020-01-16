@@ -117,8 +117,6 @@ class HidraWorkspace(object):
                 mask_name = None
             self._diff_data_set[mask_name] = hidra_file.read_diffraction_intensity_vector(mask_id=mask_name,
                                                                                           sub_run=None)
-        # END-FOR (mask)
-
         print('[INFO] Loaded diffraction data from {} includes : {}'
               ''.format(self._project_file_name, self._diff_data_set.keys()))
 
@@ -248,7 +246,7 @@ class HidraWorkspace(object):
         if len(self._sample_logs.subruns) == 0:
             raise RuntimeError('Sub run - spectrum map has not been built')
 
-        return numpy.array(self._sample_logs.subruns)
+        return self._sample_logs.subruns
 
     def get_wavelength(self, calibrated, throw_if_not_set):
         """ Get the wave length from the workspace
@@ -812,7 +810,6 @@ class HidraWorkspace(object):
             # unsupported format
             raise RuntimeError('Wave length {} in format {} is not supported.'
                                ''.format(wave_length, type(wave_length)))
-        # END-IF-ELSE
 
         # Set to desired target
         if calibrated:

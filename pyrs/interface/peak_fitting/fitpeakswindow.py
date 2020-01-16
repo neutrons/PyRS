@@ -12,6 +12,7 @@ import pyrs.interface.gui_helper
 from pyrs.interface.peak_fitting.event_handler import EventHandler
 from pyrs.interface.peak_fitting.plot import Plot
 from pyrs.interface.peak_fitting.fit import Fit
+from pyrs.interface.peak_fitting.fit_table import FitTable
 from pyrs.interface.peak_fitting.export import ExportCSV
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
 from pyrs.icons import icons_rc  # noqa: F401
@@ -19,7 +20,7 @@ from pyrs.icons import icons_rc  # noqa: F401
 VERTICAL_SPLITTER = """QSplitter::handle {image: url(':/fitting/vertical_splitter.png'); }"""
 HORIZONTAL_SPLITTER = """QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }"""
 
-MICROSTRAIN = u"\u00B5strain"
+MICROSTRAIN = u"\u212B"
 D0 = u"d\u2080"
 
 
@@ -39,6 +40,7 @@ class FitPeaksWindow(QMainWindow):
         self._core = fit_peak_core
         self._project_name = None
         self.hidra_workspace = None
+        self.fit_result = None  # list of fits for each sub-runs
         # current/last loaded data
         self._curr_file_name = None
 
@@ -70,7 +72,7 @@ class FitPeaksWindow(QMainWindow):
         self._init_widgets()
 
         # set up handling
-        self.ui.pushButton_loadHDF.clicked.connect(self.load_hidra_file)
+        # self.ui.pushButton_loadHDF.clicked.connect(self.load_hidra_file)
         self.ui.pushButton_browseHDF.clicked.connect(self.browse_hdf)
         self.ui.lineEdit_listSubRuns.returnPressed.connect(self.plot_diff_data)
         self.ui.pushButton_FitPeaks.clicked.connect(self.fit_peaks)
@@ -86,12 +88,18 @@ class FitPeaksWindow(QMainWindow):
         self.ui.lineEdit_subruns_2dplot.returnPressed.connect(self.list_subruns_2dplot_returned)
         self.ui.lineEdit_subruns_2dplot.textChanged.connect(self.list_subruns_2dplot_changed)
 
+        self.ui.radioButton_fit_value.clicked.connect(self.fit_table_radio_buttons)
+        self.ui.radioButton_fit_error.clicked.connect(self.fit_table_radio_buttons)
+        self.ui.spinBox_peak_index.valueChanged.connect(self.fit_table_radio_buttons)
+
         self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.xaxis_1d_changed)
         self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.yaxis_1d_changed)
 
         self.ui.comboBox_xaxisNames_2dplot.currentIndexChanged.connect(self.xaxis_2d_changed)
         self.ui.comboBox_yaxisNames_2dplot.currentIndexChanged.connect(self.yaxis_2d_changed)
         self.ui.comboBox_zaxisNames_2dplot.currentIndexChanged.connect(self.zaxis_2d_changed)
+
+        self.ui.peak_range_table.cellChanged.connect(self.peak_range_table_changed)
 
         # tracker for sample log names and peak parameter names
         self._sample_log_name_set = set()
@@ -113,6 +121,7 @@ class FitPeaksWindow(QMainWindow):
         o_gui.enabled_2dplot_widgets(False)
         o_gui.make_visible_listsubruns_warning(False)
         o_gui.enabled_export_csv_widgets(False)
+        o_gui.enabled_peak_ranges_widgets(False)
 
     # Menu event handler
     def browse_hdf(self):
@@ -120,8 +129,8 @@ class FitPeaksWindow(QMainWindow):
         """
         o_handler = EventHandler(parent=self)
         o_handler.browse_load_plot_hdf()
-        o_plot = Plot(parent=self)
-        o_plot.plot_1d()
+        # o_plot = Plot(parent=self)
+        # o_plot.plot_1d()
 
     def load_hidra_file(self):
         o_handler = EventHandler(parent=self)
@@ -133,7 +142,7 @@ class FitPeaksWindow(QMainWindow):
 
     def fit_peaks(self):
         o_fit = Fit(parent=self)
-        o_fit.fit_peaks()
+        o_fit.fit_multi_peaks()
         self.individual_or_list_sub_runs()
 
     def individual_or_list_sub_runs(self):
@@ -175,8 +184,8 @@ class FitPeaksWindow(QMainWindow):
     def yaxis_1d_changed(self):
         o_gui = GuiUtilities(parent=self)
         o_gui.check_axis1d_status()
-        o_plot = Plot(parent=self)
-        o_plot.plot_1d()
+        # o_plot = Plot(parent=self)
+        # o_plot.plot_1d()
 
     def xaxis_2d_changed(self):
         o_gui = GuiUtilities(parent=self)
@@ -195,6 +204,10 @@ class FitPeaksWindow(QMainWindow):
         o_export.select_output_folder()
         o_export.create_csv()
 
+    def update_peak_ranges_table(self, **kwargs):
+        o_handle = EventHandler(parent=self)
+        o_handle.update_fit_peak_ranges_table(**kwargs)
+
     def _promote_peak_fit_setup(self):
         # 2D detector view
         curr_layout = QVBoxLayout()
@@ -203,12 +216,28 @@ class FitPeaksWindow(QMainWindow):
         self._ui_graphicsView_fitSetup.setEnabled(False)
         curr_layout.addWidget(self._ui_graphicsView_fitSetup)
 
+    def peak_range_table_changed(self, row, column):
+        o_handle = EventHandler(parent=self)
+        o_handle.update_fit_peak_ranges_plot()
+
+    def create_plot_color_range(self):
+        pass
+
+    def populate_fit_result_table(self, fit_result=None):
+        self.fit_result = fit_result
+        o_table = FitTable(parent=self, fit_result=fit_result)
+        o_table.initialize_fit_result_widgets()
+        o_table.populate_fit_result_table()
+
+    def fit_table_radio_buttons(self):
+        o_table = FitTable(parent=self, fit_result=self.fit_result)
+        o_table.fit_value_error_changed()
+
     def _init_widgets(self):
         """
         initialize the some widgets
         :return:
         """
-        self.ui.pushButton_loadHDF.setEnabled(False)
         self.ui.actionSave.setEnabled(False)
         self.ui.actionSaveAs.setEnabled(False)
 
@@ -217,7 +246,7 @@ class FitPeaksWindow(QMainWindow):
         self.ui.splitter_2.setStyleSheet(HORIZONTAL_SPLITTER)
         self.ui.splitter_2.setSizes([100, 0])
         self.ui.splitter_3.setStyleSheet(HORIZONTAL_SPLITTER)
-        self.ui.splitter.setStyleSheet(HORIZONTAL_SPLITTER)
+        # self.ui.splitter.setStyleSheet(HORIZONTAL_SPLITTER)
 
         # status bar
         self.setStyleSheet("QStatusBar{padding-left:8px;color:green;}")

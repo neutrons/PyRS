@@ -1,3 +1,6 @@
+import numpy as np
+from qtpy.QtWidgets import QTableWidgetItem
+
 from pyrs.interface.peak_fitting.config import LIST_AXIS_TO_PLOT
 from pyrs.interface.peak_fitting.config import DEFAUT_AXIS
 
@@ -16,6 +19,12 @@ class GuiUtilities:
 
     def enabled_export_csv_widgets(self, enabled=True):
         list_widgets = [self.parent.ui.pushButton_exportCSV,
+                        ]
+        self.enabled_list_widgets(list_widgets=list_widgets,
+                                  enabled=enabled)
+
+    def enabled_peak_ranges_widgets(self, enabled=True):
+        list_widgets = [self.parent.ui.groupBox_peak_ranges,
                         ]
         self.enabled_list_widgets(list_widgets=list_widgets,
                                   enabled=enabled)
@@ -163,6 +172,26 @@ class GuiUtilities:
         else:
             self.make_visible_d02d_widgets(False)
 
+    def reset_peak_range_table(self):
+        nbr_row = self.parent.ui.peak_range_table.rowCount()
+        for _ in np.arange(nbr_row):
+            self.parent.ui.peak_range_table.removeRow(0)
+
+    def fill_peak_range_table(self, list_fit_peak_ranges=[],
+                              list_fit_peak_labels=[]):
+
+        for _index, _range in enumerate(list_fit_peak_ranges):
+            self.parent.ui.peak_range_table.insertRow(_index)
+
+            _item0 = QTableWidgetItem("{:.3f}".format(np.min(_range)))
+            self.parent.ui.peak_range_table.setItem(_index, 0, _item0)
+
+            _item1 = QTableWidgetItem("{:.3f}".format(np.max(_range)))
+            self.parent.ui.peak_range_table.setItem(_index, 1, _item1)
+
+            _label = QTableWidgetItem(list_fit_peak_labels[_index])
+            self.parent.ui.peak_range_table.setItem(_index, 2, _label)
+
     @staticmethod
     def make_visible_ui(list_ui=[], visible=True):
         for _ui in list_ui:
@@ -180,3 +209,8 @@ class GuiUtilities:
     def __block_widgets(list_ui, block):
         for _ui in list_ui:
             _ui.blockSignals(block)
+
+    @staticmethod
+    def get_item_value(ui=None, row=-1, column=-1):
+        _item = ui.item(row, column).text()
+        return str(_item)

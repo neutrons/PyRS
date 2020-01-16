@@ -24,6 +24,7 @@ class Load:
             # Record data key and next
             self.parent._curr_file_name = project_file
             self.parent.hidra_workspace = ws
+            self.parent.create_plot_color_range()
         except (RuntimeError, TypeError) as run_err:
             pop_message(self, 'Unable to load {}'.format(project_file),
                         detailed_message=str(run_err),
@@ -35,7 +36,7 @@ class Load:
 
         # Get and set the range of sub runs
         o_utility = Utilities(parent=self.parent)
-        sub_run_list = o_utility.get_subruns_limit(self.parent._project_name)
+        sub_run_list = o_utility.get_subruns_limit()
 
         o_gui = GuiUtilities(parent=self.parent)
         o_gui.initialize_fitting_slider(max=len(sub_run_list))
