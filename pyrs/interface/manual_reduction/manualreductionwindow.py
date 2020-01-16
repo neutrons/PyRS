@@ -28,6 +28,7 @@ from pyrs.interface.manual_reduction.event_handler import EventHandler
 DEFAULT_MASK_DIRECTORY = '/HFIR/HB2B/shared/CALIBRATION/'
 DEFAULT_CALIBRATION_DIRECTORY = DEFAULT_MASK_DIRECTORY
 
+
 def _nexus_to_subscans(nexusfile, projectfile, mask_file_name, save_project_file, logger):
     """Split raw data from NeXus file to sub runs/scans
     Parameters
@@ -134,6 +135,8 @@ class ManualReductionWindow(QMainWindow):
         self.checkBox_defaultMaskFile.stateChanged.connect(self._mask_state)
         self.ui.pushButton_browseMaskFile.clicked.connect(self.do_browse_mask_file)
 
+        self.ui.spinBox_runNumber.valueChanged.connect(self._update_output_ipts)
+
         self._calibration_state(self.ui.checkBox_defaultCalibrationFile.checkState())
         self.checkBox_defaultCalibrationFile.stateChanged.connect(self._calibration_state)
         self.ui.pushButton_browseCalibrationFile.clicked.connect(self.do_browse_calibration_file)
@@ -203,6 +206,15 @@ class ManualReductionWindow(QMainWindow):
             self.ui.lineEdit_outputDirectory.setText('/HFIR/HB2B/IPTS-XXXX/shared/manualreduce')
         self.ui.lineEdit_outputDirectory.setEnabled(state == Qt.Unchecked)
         self.ui.pushButton_browseOutputDirectory.setEnabled(state == Qt.Unchecked)
+
+    def _update_output_ipts(self, run_number):
+        if self.ui.checkBox_defaultOutputDirectory.checkState() != Qt.Unchecked:
+            try:
+                ipts = GetIPTS(run_number)
+                project_file = ipts + 'shared/manualreduce/'
+                self.ui.lineEdit_outputDirectory.setText(project_file)
+            except RuntimeError:
+                pass
 
     def _init_widgets_setup(self):
         """
@@ -492,13 +504,9 @@ class ManualReductionWindow(QMainWindow):
                 return
         # Reduce data
         run_number = self.ui.spinBox_runNumber.text().strip()
+        self._update_output_ipts(run_number)
         nexus_file = FileFinder.findRuns('HB2B'+run_number)[0]
-        if self.ui.checkBox_defaultOutputDirectory.checkState() == Qt.Unchecked:
-            project_file = str(self.ui.lineEdit_outputDirectory.text().strip())
-        else:
-            ipts = GetIPTS(run_number)
-            project_file = ipts + 'shared/manualreduce/'
-            self.ui.lineEdit_outputDirectory.setText(project_file)
+        project_file = str(self.ui.lineEdit_outputDirectory.text().strip())
         mask_file = str(self.ui.lineEdit_maskFile.text().strip())
         calibration_file = str(self.ui.lineEdit_calibrationFile.text().strip())
         task = BlockingAsyncTaskWithCallback(reduce_hidra_workflow, args=(nexus_file, project_file,
