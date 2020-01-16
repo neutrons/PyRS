@@ -1,6 +1,7 @@
 import numpy as np
 from qtpy.QtWidgets import QTableWidgetItem
 
+
 class FitTable:
 
     COL_INDEX_TO_ESCAPE = [1]
@@ -82,5 +83,3 @@ class FitTable:
                 _col_value = 'Sub-run #'
             clean_column_names.append(_col_value)
         return clean_column_names
-
-

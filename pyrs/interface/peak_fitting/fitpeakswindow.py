@@ -40,7 +40,7 @@ class FitPeaksWindow(QMainWindow):
         self._core = fit_peak_core
         self._project_name = None
         self.hidra_workspace = None
-        self.fit_result = None # list of fits for each sub-runs
+        self.fit_result = None  # list of fits for each sub-runs
         # current/last loaded data
         self._curr_file_name = None
 
@@ -184,7 +184,7 @@ class FitPeaksWindow(QMainWindow):
     def yaxis_1d_changed(self):
         o_gui = GuiUtilities(parent=self)
         o_gui.check_axis1d_status()
-        o_plot = Plot(parent=self)
+        # o_plot = Plot(parent=self)
         # o_plot.plot_1d()
 
     def xaxis_2d_changed(self):
