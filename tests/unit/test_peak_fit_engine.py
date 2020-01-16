@@ -221,51 +221,33 @@ def generate_hydra_workspace_multiple_sub_runs(ws_name, sub_run_data_dict):
     return test_workspace
 
 
-@pytest.fixture()
-def assert_checks(request):
+def assert_checks(fit_result, parameters, fitted_param_values, number_of_peakCollection, peak_profile_type='Gaussian'):
     """verified the fitted parameters
-        Parameters
-        ----------
+         Parameters
+         ----------
+         fit_result: object
+            results of the fitting
+         parameters: dict(float)
+            parameters of original shape
+         fitted_param_values:List(float)
+            parameter values of fitting
+         number_of_peakCollection:Integer
+            number of fitted peaks
+         peak_profile_type : str
+            type of peak profile
+         Returns
+         -------
 
-        Returns
-        -------
+         """
+    assert len(fit_result.peakcollections) == number_of_peakCollection, 'Only one PeakCollection'
+    assert fit_result.fitted
+    assert fit_result.difference
 
-        """
-    try:
-        target_values = request.param
-    except AttributeError:
-        try:
-            target_values = request._parent_request.param
-        except AttributeError:
-            target_values = dict()
-
-    def wrapped_checks(fit_result, parameters, fitted_param_values, peak_profile_type='Gaussian'):
-        """verified the fitted parameters
-             Parameters
-             ----------
-             fit_result: object
-                results of the fitting
-             parameters: dict(float)
-                parameters of original shape
-             fitted_param_values:List(float)
-                parameter values of fitting
-             peak_profile_type : str
-                type of peak profile
-             Returns
-             -------
-
-             """
-        assert len(fit_result.peakcollections) == target_values['number_of_peakCollection'], 'Only one PeakCollection'
-        assert fit_result.fitted
-        assert fit_result.difference
-
-        param_to_index = {'peak_center': 0, 'peak_intensity': 1, 'peak_FWHM': 2}
-        if peak_profile_type == 'PseudoVoigt':
-            param_to_index = {'peak_center': 2, 'peak_intensity': 1, 'peak_FWHM': 3}
-        for key, value in parameters.items():
-            assert fitted_param_values[param_to_index[key], 0] == pytest.approx(value, rel=50.0)
-
-    return wrapped_checks
+    param_to_index = {'peak_center': 0, 'peak_intensity': 1, 'peak_FWHM': 2}
+    if peak_profile_type == 'PseudoVoigt':
+        param_to_index = {'peak_center': 2, 'peak_intensity': 1, 'peak_FWHM': 3}
+    for key, value in parameters.items():
+        assert fitted_param_values[param_to_index[key], 0] == pytest.approx(value, rel=50.0)
 
 
 @pytest.fixture()
@@ -289,10 +271,7 @@ def setup_1_subrun(request):
                          indirect=True)
 @pytest.mark.parametrize('fit_domain',
                          [(78.75, 81.25)])
-@pytest.mark.parametrize('assert_checks',
-                         [{'number_of_peakCollection': 1}],
-                         indirect=True)
-def test_1_gaussian_1_subrun(setup_1_subrun, fit_domain, assert_checks):
+def test_1_gaussian_1_subrun(setup_1_subrun, fit_domain):
     """Test fitting single Gaussian peak on 1 spectrum with background
 
     Returns
@@ -307,7 +286,7 @@ def test_1_gaussian_1_subrun(setup_1_subrun, fit_domain, assert_checks):
     # Fit
     peak_tag = 'UnitTestGaussian'
     fit_result = fit_engine.fit_peaks(peak_tag=peak_tag, x_min=fit_domain[0], x_max=fit_domain[1])
-
+    number_of_peakCollection = 1
     # get back the peak collection
     peakcollection = fit_result.peakcollections[0]
     assert peakcollection.peak_tag == peak_tag
@@ -340,24 +319,19 @@ def test_1_gaussian_1_subrun(setup_1_subrun, fit_domain, assert_checks):
     assert abs(eff_param_values[0, 0] - parameters['peak_center']) < 3e-2, 'Peak center is not correct'
 
     # Parameters verified
-    assert_checks(fit_result, parameters, param_values)
+    assert_checks(fit_result, parameters, param_values, number_of_peakCollection)
 
     # fit goodness
     assert fit_costs[0] < 1.5, 'Fit cost (chi2 = {}) is too large'.format(fit_costs[0])  # TODO was 0.5
 
 
-@pytest.mark.parametrize("setup_1_subrun",
-                         [{'peak_profile_type': 'Gaussian', 'min_x': 75., 'max_x': 95., 'num_x': 1000,
-                           'peak_center': [80., 90.], 'peak_range': [10. * 0.25, 11. * 0.25],
-                            'peak_intensities': [10., 4]}
-                           ],
-                         indirect=True)
+@pytest.mark.parametrize("setup_1_subrun", [{'peak_profile_type': 'Gaussian', 'min_x': 75., 'max_x': 95.,
+                                             'num_x': 1000, 'peak_center': [80., 90.],
+                                             'peak_range': [10. * 0.25, 11. * 0.25],
+                                             'peak_intensities': [10., 4]}], indirect=True)
 @pytest.mark.parametrize('fit_domain',
                          [((76., 86.), (84., 94.))])
-@pytest.mark.parametrize('assert_checks',
-                         [{'number_of_peakCollection': 2}],
-                         indirect=True)
-def test_2_gaussian_1_subrun(setup_1_subrun, fit_domain, assert_checks):
+def test_2_gaussian_1_subrun(setup_1_subrun, fit_domain):
     """Fit 2 Gaussian peaks for 1 sub run
 
     Returns
@@ -370,6 +344,7 @@ def test_2_gaussian_1_subrun(setup_1_subrun, fit_domain, assert_checks):
     # Fit
 
     fit_result = fit_engine.fit_multiple_peaks(peak_tags=['Left', 'Right'], x_mins=fit_domain[0], x_maxs=fit_domain[1])
+    number_of_peakCollection = 2.
     # Test the fitted parameters: effective parameters
     # Effective parameter list: ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
     # Read data
@@ -401,7 +376,7 @@ def test_2_gaussian_1_subrun(setup_1_subrun, fit_domain, assert_checks):
     assert abs(eff_param_values[0, 0] - parameters['peak_center']) < 2e-2, 'Peak center is not correct'
 
     # Parameters verified
-    assert_checks(fit_result, parameters, param_values)
+    assert_checks(fit_result, parameters, param_values, number_of_peakCollection)
 
     # fit goodness
     assert fit_costs[0] < 0.5, 'Fit cost (chi2 = {}) is too large'.format(fit_costs[0])
@@ -414,7 +389,7 @@ def test_2_gaussian_1_subrun(setup_1_subrun, fit_domain, assert_checks):
     return
 
 
-@pytest.mark.parametrize('target_values', [{'peak_height': [10, 0.012], 'peak_center': [75, 77], 'sigma': [0.15, 1.5,],
+@pytest.mark.parametrize('target_values', [{'peak_height': [10, 0.012], 'peak_center': [75, 77], 'sigma': [0.15, 1.5],
                                             'background_A0': [2, -0.301], 'background_A1': [0.007, 0.003]}])
 def test_2_gaussian_3_subruns(target_values):
     """Testing fitting 2 Gaussian peaks among 3 sub runs.
@@ -608,10 +583,7 @@ def test_3_gaussian_3_subruns(target_values):
                                              'peak_intensities':[100.]}], indirect=True)
 @pytest.mark.parametrize('fit_domain',
                          [(77.5, 82.5)])
-@pytest.mark.parametrize('assert_checks',
-                         [{'number_of_peakCollection': 1}],
-                         indirect=True)
-def test_1_pv_1_subrun(setup_1_subrun, fit_domain, assert_checks):
+def test_1_pv_1_subrun(setup_1_subrun, fit_domain):
     """
     Test fitting single Pseudo-voigt peak with background
     Returns
@@ -627,7 +599,7 @@ def test_1_pv_1_subrun(setup_1_subrun, fit_domain, assert_checks):
     peak_tag = 'UnitTestPseudoVoigt'
 
     fit_result = fit_engine.fit_peaks(peak_tag=peak_tag, x_min=fit_domain[0], x_max=fit_domain[1])
-
+    number_of_peakCollection = 1.
     # get back the peak collection
     peakcollection = fit_result.peakcollections[0]
     assert peakcollection.peak_tag == peak_tag
@@ -660,7 +632,7 @@ def test_1_pv_1_subrun(setup_1_subrun, fit_domain, assert_checks):
     assert eff_param_values[0, 0] == param_values[2, 0]  # center
     assert eff_param_values[2, 0] == param_values[1, 0]  # intensity
 
-    assert_checks(fit_result, parameters, param_values, peak_profile_type='PseudoVoigt')
+    assert_checks(fit_result, parameters, param_values, number_of_peakCollection, peak_profile_type='PseudoVoigt')
 
     if fit_costs[0] > 1.0:
         # Plot
