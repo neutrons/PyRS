@@ -9,7 +9,6 @@ from pyrs.dataobjects import SampleLogs
 from pyrs.projectfile import HidraProjectFile
 from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory
 import h5py
-from pyrs.core import peak_profile_utility
 from matplotlib import pyplot as plt
 import pytest
 from collections import namedtuple
@@ -192,39 +191,21 @@ def test_retrieve_fit_metadata(source_project_file, output_project_file, peak_ty
                                       x_max=peak_info.right_bound)
 
     # Retrieve all effective peak parameters
-    fitted_peak = fit_result.peakcollections[0]
-    param_set = fitted_peak.get_effective_parameters_values()
-    eff_params_list, sub_run_array, fit_cost_array, eff_param_value_array, eff_param_error_array = param_set
-
-    # retrieve Center: EFFECTIVE_PEAK_PARAMETERS = ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
-    i_center = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS.index('Center')
-    centers = eff_param_value_array[i_center]
-
-    # retrieve Height
-    i_height = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS.index('Height')
-    heights = eff_param_value_array[i_height]
-
-    # retrieve intensity
-    i_intensity = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS.index('Intensity')
-    intensities = eff_param_value_array[i_intensity]
-
-    # retrieve FWHM
-    i_fwhm = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS.index('FWHM')
-    fwhms = eff_param_value_array[i_fwhm]
+    peakcollection = fit_result.peakcollections[0]
+    eff_param_value_array, eff_param_error_array = peakcollection.get_effective_params()
 
     # result file
     ref_h5 = h5py.File(output_project_file, 'w')
     peak_entry = ref_h5.create_group(peak_info.tag)
-    peak_entry.create_dataset('Center', data=centers)
-    peak_entry.create_dataset('Height', data=heights)
-    peak_entry.create_dataset('Intensity', data=intensities)
-    peak_entry.create_dataset('FWHM', data=fwhms)
+    peak_entry.create_dataset('Center', data=eff_param_value_array['Center'])
+    peak_entry.create_dataset('Height', data=eff_param_value_array['Height'])
+    peak_entry.create_dataset('FWHM', data=eff_param_value_array['FWHM'])
+    peak_entry.create_dataset('Mixing', data=eff_param_value_array['Mixing'])
+    peak_entry.create_dataset('Intensity', data=eff_param_value_array['Intensity'])
     ref_h5.close()
 
     # retrieve d_spacing
     # TODO - Next Thing!
-
-    return
 
 
 @pytest.mark.skip(reason='PyRsCore doesn\'t do fitting anymore')
