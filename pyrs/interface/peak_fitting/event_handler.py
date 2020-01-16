@@ -238,4 +238,27 @@ class EventHandler:
             self.remove_peak_range_table_row()
 
     def remove_peak_range_table_row(self):
-        print("remove_row")
+        row_selected = self.parent.ui.peak_range_table.selectedRanges()[0]
+        row_to_remove = row_selected.topRow()
+        self.parent.ui.peak_range_table.removeRow(row_to_remove)
+
+        new_list_peak_ranges = []
+        new_list_peak_labels = []
+        new_list_matplotlib_id = []
+        old_list_peak_label = self.parent._ui_graphicsView_fitSetup.list_fit_peak_labels
+        old_list_matplotlib_id = self.parent._ui_graphicsView_fitSetup.list_peak_labels_matplotlib_id
+        for _row, peak_range in enumerate(self.parent._ui_graphicsView_fitSetup.list_peak_ranges):
+            if _row == row_to_remove:
+                _peak_label_id  = old_list_matplotlib_id[_row]
+                _peak_label_id.remove()
+                continue
+
+            new_list_peak_ranges.append(peak_range)
+            new_list_peak_labels.append(old_list_peak_label[_row])
+            new_list_matplotlib_id.append(old_list_matplotlib_id[_row])
+
+        self.parent._ui_graphicsView_fitSetup.list_fit_peak_labels = new_list_peak_labels
+        self.parent._ui_graphicsView_fitSetup.list_peak_ranges = new_list_peak_ranges
+        self.parent._ui_graphicsView_fitSetup.list_peak_labels_matplotlib_id = new_list_matplotlib_id
+
+        self.parent._ui_graphicsView_fitSetup.plot_data_with_fitting_ranges()
