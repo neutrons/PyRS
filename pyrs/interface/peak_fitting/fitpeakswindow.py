@@ -87,6 +87,8 @@ class FitPeaksWindow(QMainWindow):
         self.ui.actionQuick_Fit_Result_Check.triggered.connect(self.do_make_movie)
         self.ui.lineEdit_subruns_2dplot.returnPressed.connect(self.list_subruns_2dplot_returned)
         self.ui.lineEdit_subruns_2dplot.textChanged.connect(self.list_subruns_2dplot_changed)
+        self.ui.pushButton_save_peak_range.clicked.connect(self.clicked_save_peak_range)
+        self.ui.pushButton_load_peak_range.clicked.connect(self.clicked_load_peak_range)
 
         self.ui.radioButton_fit_value.clicked.connect(self.fit_table_radio_buttons)
         self.ui.radioButton_fit_error.clicked.connect(self.fit_table_radio_buttons)
@@ -122,6 +124,7 @@ class FitPeaksWindow(QMainWindow):
         o_gui.make_visible_listsubruns_warning(False)
         o_gui.enabled_export_csv_widgets(False)
         o_gui.enabled_peak_ranges_widgets(False)
+        o_gui.enabled_save_peak_range_widget(False)
 
     # Menu event handler
     def browse_hdf(self):
@@ -232,6 +235,18 @@ class FitPeaksWindow(QMainWindow):
     def fit_table_radio_buttons(self):
         o_table = FitTable(parent=self, fit_result=self.fit_result)
         o_table.fit_value_error_changed()
+
+    def clicked_save_peak_range(self):
+        o_handler = EventHandler(parent=self)
+        o_handler.save_peak_range()
+
+    def clicked_load_peak_range(self):
+        o_handler = EventHandler(parent=self)
+        o_handler.load_peak_range()
+
+    def update_save_peak_range_widget(self):
+        o_gui = GuiUtilities(parent=self)
+        o_gui.update_save_peak_range_widget_status()
 
     def _init_widgets(self):
         """
