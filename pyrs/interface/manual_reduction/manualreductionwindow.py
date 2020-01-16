@@ -1,6 +1,7 @@
 from qtpy.QtWidgets import QMainWindow, QVBoxLayout, QApplication
+from qtpy.QtCore import Qt
 import os
-from mantid.simpleapi import Logger
+from mantid.simpleapi import Logger, GetIPTS
 from mantid.api import FileFinder
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
@@ -22,6 +23,9 @@ from pyrs.interface.manual_reduction.event_handler import EventHandler
 # TODO              4. Implement plot method for reduced data
 # TODO              5. Implement method to reduce data
 # TODO              6. Add parameters for reducing data
+
+DEFAULT_MASK_DIRECTORY = '/HFIR/HB2B/shared/CALIBRATION/'
+DEFAULT_CALIBRATION_DIRECTORY = DEFAULT_MASK_DIRECTORY
 
 
 def _nexus_to_subscans(nexusfile, projectfile, mask_file_name, save_project_file, logger):
@@ -123,11 +127,19 @@ class ManualReductionWindow(QMainWindow):
         self._promote_widgets()
 
         # set up the event handling
-        self.ui.lineEdit_maskFile.setText('/HFIR/HB2B/shared/CALIBRATION/HB2B_MASK_Latest.xml')
+        self._mask_state(self.ui.checkBox_defaultMaskFile.checkState())
+        self.checkBox_defaultMaskFile.stateChanged.connect(self._mask_state)
         self.ui.pushButton_browseMaskFile.clicked.connect(self.do_browse_mask_file)
-        self.ui.lineEdit_calibrationFile.setText('/HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json')
+
+        self.ui.spinBox_runNumber.valueChanged.connect(self._update_output_ipts)
+
+        self._calibration_state(self.ui.checkBox_defaultCalibrationFile.checkState())
+        self.checkBox_defaultCalibrationFile.stateChanged.connect(self._calibration_state)
         self.ui.pushButton_browseCalibrationFile.clicked.connect(self.do_browse_calibration_file)
-        self.ui.pushButton_browseOutputDir.clicked.connect(self.do_browse_output_dir)
+
+        self._output_state(self.ui.checkBox_defaultOutputDirectory.checkState())
+        self.checkBox_defaultOutputDirectory.stateChanged.connect(self._output_state)
+        self.ui.pushButton_browseOutputDirectory.clicked.connect(self.do_browse_output_dir)
 
         self.ui.pushButton_batchReduction.clicked.connect(self.do_reduce_batch_runs)
         self.ui.pushButton_saveProject.clicked.connect(self.do_save_project)
@@ -172,6 +184,33 @@ class ManualReductionWindow(QMainWindow):
         self._mutexPlotRuns = False
 
         return
+
+    def _mask_state(self, state):
+        if state != Qt.Unchecked:
+            self.ui.lineEdit_maskFile.setText(DEFAULT_MASK_DIRECTORY+'HB2B_MASK_Latest.xml')
+        self.ui.lineEdit_maskFile.setEnabled(state == Qt.Unchecked)
+        self.ui.pushButton_browseMaskFile.setEnabled(state == Qt.Unchecked)
+
+    def _calibration_state(self, state):
+        if state != Qt.Unchecked:
+            self.ui.lineEdit_calibrationFile.setText(DEFAULT_CALIBRATION_DIRECTORY+'HB2B_Latest.json')
+        self.ui.lineEdit_calibrationFile.setEnabled(state == Qt.Unchecked)
+        self.ui.pushButton_browseCalibrationFile.setEnabled(state == Qt.Unchecked)
+
+    def _output_state(self, state):
+        if state != Qt.Unchecked:
+            self._update_output_ipts(self.ui.spinBox_runNumber.value())
+        self.ui.lineEdit_outputDirectory.setEnabled(state == Qt.Unchecked)
+        self.ui.pushButton_browseOutputDirectory.setEnabled(state == Qt.Unchecked)
+
+    def _update_output_ipts(self, run_number):
+        if self.ui.checkBox_defaultOutputDirectory.checkState() != Qt.Unchecked:
+            try:
+                ipts = GetIPTS(run_number)
+                project_file = ipts + 'shared/manualreduce/'
+                self.ui.lineEdit_outputDirectory.setText(project_file)
+            except RuntimeError:
+                pass
 
     def _init_widgets_setup(self):
         """
@@ -224,8 +263,8 @@ class ManualReductionWindow(QMainWindow):
         :return:
         """
         calibration_file = gui_helper.browse_file(self, caption='Choose and set up the calibration file',
-                                                  default_dir=self._core.working_dir, file_filter='hdf5 (*hdf)',
-                                                  file_list=False, save_file=False)
+                                                  default_dir=DEFAULT_CALIBRATION_DIRECTORY,
+                                                  file_filter='hdf5 (*hdf)', file_list=False, save_file=False)
         if calibration_file is None or calibration_file == '':
             # operation canceled
             return
@@ -461,6 +500,7 @@ class ManualReductionWindow(QMainWindow):
                 return
         # Reduce data
         run_number = self.ui.spinBox_runNumber.text().strip()
+        self._update_output_ipts(run_number)
         nexus_file = FileFinder.findRuns('HB2B'+run_number)[0]
         project_file = str(self.ui.lineEdit_outputDirectory.text().strip())
         mask_file = str(self.ui.lineEdit_maskFile.text().strip())
@@ -514,7 +554,7 @@ class ManualReductionWindow(QMainWindow):
         :return:
         """
         mask_file_name = gui_helper.browse_file(
-            self, 'Hidra Mask File', os.getcwd(), 'hdf5 (*.h5);;xml (*.xml)', False, False)
+            self, 'Hidra Mask File', DEFAULT_MASK_DIRECTORY, 'hdf5 (*.h5);;xml (*.xml)', False, False)
         self.ui.lineEdit_maskFile.setText(mask_file_name)
         # self.load_hydra_file(project_file_name)
         return
