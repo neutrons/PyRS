@@ -207,5 +207,17 @@ def test_apply_mantid_mask():
     assert no_mask_data_set[0].max() >= masked_data_set[0].max()
 
 
+def test_hidra_workflow(tmpdir):
+    nexus = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1060.nxs.h5'
+    mask = '/HFIR/HB2B/shared/CALIBRATION/HB2B_MASK_Latest.xml'
+    calibration = '/HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json'
+    project = os.path.basename(nexus).split('.')[0] + '.h5'
+    project = os.path.join(str(tmpdir), project)
+    try:
+        hidra_ws = convertNeXusToProject(nexus, project, True, mask_file_name=mask)
+        addPowderToProject(project)
+    finally:
+        os.remove(project)
+
 if __name__ == '__main__':
     pytest.main([__file__])
