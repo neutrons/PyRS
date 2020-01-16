@@ -203,7 +203,7 @@ class ManualReductionWindow(QMainWindow):
 
     def _output_state(self, state):
         if state != Qt.Unchecked:
-            self.ui.lineEdit_outputDirectory.setText('/HFIR/HB2B/IPTS-XXXX/shared/manualreduce')
+            self._update_output_ipts(self.ui.spinBox_runNumber.value())
         self.ui.lineEdit_outputDirectory.setEnabled(state == Qt.Unchecked)
         self.ui.pushButton_browseOutputDirectory.setEnabled(state == Qt.Unchecked)
 
