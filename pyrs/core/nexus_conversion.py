@@ -14,6 +14,7 @@ from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSet
 from pyrs.dataobjects import HidraConstants
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 from pyrs.utilities import checkdatatypes
+from pyrs.split_sub_runs.load_split_sub_runs import load_split_nexus_python
 
 
 SUBRUN_LOGNAME = 'scan_index'
@@ -68,7 +69,7 @@ class NeXusConvertingApp(object):
             if name in mtd:
                 DeleteWorkspace(Workspace=name)
 
-    def convert(self):
+    def convert(self, use_mantid=False):
         """Main method to convert NeXus file to HidraProject File by
 
         1. split the workspace to sub runs
@@ -76,8 +77,9 @@ class NeXusConvertingApp(object):
 
         Parameters
         ----------
-        start_time : float
-            User defined run start time relative to DAS recorded run start time in unit of second
+        use_mantid : bool
+            Flag to use Mantid library to convert NeXus (True);
+            Otherwise, use PyRS/Python algorithms to convert NeXus
 
         Returns
         -------
@@ -85,13 +87,41 @@ class NeXusConvertingApp(object):
             HidraWorkspace for converted data
 
         """
-        # Load data file, split to sub runs and sample logs
-        self._load_mask_event_nexus(True)
-        self._determine_start_time()
-        self._split_sub_runs()
+        # This is a quick fix: TODO will make a proper refactor in future
+        if not use_mantid:
+            # Use PyRS/converter to load and split sub runs
+            try:
+                sub_run_counts, self._sample_log_dict, mask_array = load_split_nexus_python(self._nexus_name,
+                                                                                            self._mask_file_name)
+                # set counts to each sub run
+                for sub_run in sub_run_counts:
+                    self._hydra_workspace.set_raw_counts(sub_run, sub_run_counts[sub_run])
+                # set mask
+                if mask_array is not None:
+                    self._hydra_workspace.set_detector_mask(mask_array, is_default=True)
+                # get sub runs
+                sub_runs = numpy.array(sorted(sub_run_counts.keys()))
+            except RuntimeError as run_err:
+                if str(run_err).count('Sub scan') == 1 and str(run_err).count('is not valid') == 1:
+                    # RuntimeError: Sub scan (time = [0.], value = [0]) is not valid
+                    # use Mantid to reduce
+                    use_mantid = True
+                else:
+                    # unhandled exception: re-throw
+                    raise run_err
+
+        if use_mantid:
+            # Use Mantid algorithms to load and split sub runs
+            # Load data file, split to sub runs and sample logs
+            self._load_mask_event_nexus(True)
+            self._determine_start_time()
+            self._split_sub_runs()
+            sub_runs = self._sample_log_dict['scan_index']
+        # END-IF
 
         # Add the sample logs to the hidra workspace
-        sub_runs = self._sample_log_dict['scan_index']
+        # sub_runs = self._sample_log_dict['scan_index']
+
         for log_name in self._sample_log_dict:
             if log_name in ['scan_index', HidraConstants.SUB_RUNS]:
                 continue  # skip 'SUB_RUNS'
@@ -103,6 +133,22 @@ class NeXusConvertingApp(object):
         self._hydra_workspace.set_raw_counts(sub_run, mtd[wkspname].extractY())
 
     def _create_sample_log_dict(self, wkspname, sub_run_index, log_array_size):
+        """Create dictioonary for sample log of a sub run
+
+        Goal:
+            1. set self._sample_log_dict[log_name][sub_run_index] with log value (single or time-averaged)
+            2. set self._sample_log_dict[HidraConstants.SUB_RUN_DURATION][sub_run_index] with duration
+
+        Parameters
+        ----------
+        wkspname
+        sub_run_index
+        log_array_size
+
+        Returns
+        -------
+
+        """
         # this contains all of the sample logs
         runObj = mtd[wkspname].run()
         # loop through all available logs
@@ -288,6 +334,9 @@ class NeXusConvertingApp(object):
         # unset the start time if it is before the actual start of the run
         if self._starttime <= numpy.datetime64(mtd[self._event_ws_name].run()['start_time'].value):
             self._starttime = None
+        else:
+            print('[DEBUG] Shift from start_time = {}'
+                  ''.format(self._starttime - numpy.datetime64(mtd[self._event_ws_name].run()['start_time'].value)))
 
     def _split_sub_runs(self):
         """Performing event filtering according to sample log sub-runs

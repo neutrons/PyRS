@@ -174,10 +174,13 @@ class SampleLogs(MutableMapping):
             Logs with a smaller stddev than the atol (inclusive) will be considered constant'''
         result = list()
         # plottable logs are the numeric ones
-        for key in self._plottable:
+        for key in self.keys():
             if key == self.SUBRUN_KEY:
                 continue
-            if self._data[key].std() <= atol:
+            elif key in self._plottable:  # plottable things are numbers
+                if self._data[key].std() <= atol:
+                    result.append(key)
+            elif np.alltrue(self._data[key] == self._data[key][0]):  # all values are equal
                 result.append(key)
 
         return result
@@ -191,6 +194,19 @@ class SampleLogs(MutableMapping):
     def subruns(self, value):
         '''Set the subruns and build up associated values'''
         self._subruns.set(value)
+
+# =======
+#         if self._subruns.size != 0:
+#             if not self.matching_subruns(value):
+#                 raise RuntimeError('Cannot set subruns on non-empty SampleLog '
+#                                    '(previous={}, new={})'.format(self._subruns, value))
+#         value = _coerce_to_ndarray(value)
+#         if not np.all(value[:-1] < value[1:]):
+#             print('Unsorted sub runs: {}'.format(value))
+#             raise RuntimeError('sub runs are not sorted in increasing order.  Items not in orders are {}'
+#                                ''.format(value[np.where((value[1:] - value[:-1]) != 1)]))
+#         self._subruns = value
+# >>>>>>> master
 
     def matching_subruns(self, subruns):
         return self._subruns == subruns

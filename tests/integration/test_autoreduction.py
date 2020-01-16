@@ -34,7 +34,7 @@ def convertNeXusToProject(nexusfile, projectfile, skippable, mask_file_name=None
         os.remove(projectfile)
 
     converter = NeXusConvertingApp(nexusfile, mask_file_name=mask_file_name)
-    hidra_ws = converter.convert()
+    hidra_ws = converter.convert(use_mantid=False)
     converter.save(projectfile, None)
 
     # tests for the created file
@@ -78,7 +78,13 @@ def test_nexus_to_project(nexusfile, projectfile):
 
     """
     # convert the nexus file to a project file and do the "simple" checks
-    test_hidra_ws = convertNeXusToProject(nexusfile, projectfile, skippable=True)
+    try:
+        test_hidra_ws = convertNeXusToProject(nexusfile, projectfile, skippable=True)
+    except RuntimeError as run_err:
+        if str(run_err).count('has no count') > 0:
+            pytest.skip('{} has not count and thus not supported now'.format(nexusfile))
+        else:
+            raise run_err
 
     # verify sub run duration
     sub_runs = test_hidra_ws.get_sub_runs()

@@ -37,7 +37,7 @@ def _nexus_to_subscans(nexusfile, projectfile, mask_file_name, save_project_file
 
     logger.notice('Creating subscans from {} into project file {}'.format(nexusfile, projectfile))
     converter = NeXusConvertingApp(nexusfile, mask_file_name)
-    hydra_ws = converter.convert()
+    hydra_ws = converter.convert(use_mantid=False)
 
     # set up instrument
     # initialize instrument: hard code!

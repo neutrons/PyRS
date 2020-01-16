@@ -141,7 +141,8 @@ class ReductionApp(object):
         mask : str or numpy.ndarray or None
             Mask name or mask (value) array.  None for no mask
         mask_id : str or None
-            ID for mask.  If mask ID is None, then it is the default universal mask applied to all data
+            ID for mask.  If mask ID is None and if default universal mask exists, the default will be
+            applied to all data
         van_file : str or None
             HiDRA project file containing vanadium counts or event NeXus file
         num_bins : int

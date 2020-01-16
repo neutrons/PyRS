@@ -1,6 +1,7 @@
 from qtpy.QtWidgets import QMainWindow, QVBoxLayout, QApplication
 import os
 from mantid.simpleapi import Logger
+from mantid.api import FileFinder
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
 from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry
@@ -24,33 +25,59 @@ from pyrs.interface.manual_reduction.event_handler import EventHandler
 # TODO              6. Add parameters for reducing data
 
 
-def _nexus_to_subscans(nexusfile, projectfile, logger, mask):
+def _nexus_to_subscans(nexusfile, projectfile, mask_file_name, save_project_file, logger):
+    """Split raw data from NeXus file to sub runs/scans
+    Parameters
+    ----------
+    nexusfile : str
+        HB2B event NeXus file's name
+    projectfile : str
+        Target HB2B HiDRA project file's name
+    mask_file_name : str
+        Mask file name; None for no mask
+    save_project_file : str
+        Project file to save to.  None for not being saved
+    Returns
+    -------
+    pyrs.core.workspaces.HidraWorkspace
+        Hidra workspace containing the raw counts and sample logs
+    """
+
     if os.path.exists(projectfile):
         logger.information('Removing existing projectfile {}'.format(projectfile))
         os.remove(projectfile)
 
     logger.notice('Creating subscans from {} into project file {}'.format(nexusfile, projectfile))
-    converter = NeXusConvertingApp(nexusfile, mask)
-    converter.convert()
+    converter = NeXusConvertingApp(nexusfile, mask_file_name)
+    hidra_ws = converter.convert()
+
     instrument = AnglerCameraDetectorGeometry(1024, 1024, 0.0003, 0.0003, 0.985, False)
     converter.save(projectfile, instrument)
 
+    # save project file as an option
+    if save_project_file:
+        converter.save(projectfile, instrument)
+    else:
+        hidra_ws.set_instrument_geometry(instrument)
 
-def _create_powder_patterns(projectfile, instrument, calibration, mask, subruns, logger):
-    logger.notice('Adding powder patterns to project file {}'.format(projectfile))
+    return hidra_ws
+
+
+def _create_powder_patterns(hidra_workspace, instrument, calibration, mask, subruns, project_file_name, logger):
+    logger.notice('Adding powder patterns to project file {}'.format(hidra_workspace))
 
     reducer = ReductionApp(False)
-    reducer.load_project_file(projectfile)
+    reducer.load_hidra_workspace(hidra_workspace)
 
     reducer.reduce_data(instrument_file=instrument,
                         calibration_file=calibration,
                         mask=mask,
                         sub_runs=subruns)
 
-    reducer.save_diffraction_data(projectfile)
+    reducer.save_diffraction_data(project_file_name)
 
 
-def reduce_h2bc(nexus, outputdir, progressbar, subruns=list(), instrument=None, calibration=None, mask=None):
+def reduce_hidra_workflow(nexus, outputdir, progressbar, subruns=list(), instrument=None, calibration=None, mask=None):
 
     project = os.path.basename(nexus).split('.')[0] + '.h5'
     project = os.path.join(outputdir, project)
@@ -59,11 +86,11 @@ def reduce_h2bc(nexus, outputdir, progressbar, subruns=list(), instrument=None, 
     # process the data
     progressbar.setVisible(True)
     progressbar.setValue(0.)
-    _nexus_to_subscans(nexus, project, logger)
+    hidra_ws = _nexus_to_subscans(nexus, project, mask, False, logger)
     progressbar.setValue(50.)
     # add powder patterns
-    _create_powder_patterns(project, instrument, calibration,
-                            mask, subruns, logger)
+    _create_powder_patterns(hidra_ws, instrument, calibration,
+                            None, subruns, project, logger)
     progressbar.setValue(100.)
     progressbar.setVisible(False)
 
@@ -82,7 +109,6 @@ class ManualReductionWindow(QMainWindow):
 
         # class variables
         self._core = None
-        self._currIPTSNumber = None
         self._currExpNumber = None
         self._hydra_workspace = None  # HiDRA worksapce instance if any file loaded
         self._project_data_id = None  # Project name for reference (str)
@@ -101,12 +127,11 @@ class ManualReductionWindow(QMainWindow):
         self._promote_widgets()
 
         # set up the event handling
-        self.ui.pushButton_loadProjectFile.clicked.connect(self.do_load_hidra_projec_file)
+        self.ui.lineEdit_maskFile.setText('/HFIR/HB2B/shared/CALIBRATION/HB2B_MASK_Latest.xml')
+        self.ui.pushButton_browseMaskFile.clicked.connect(self.do_browse_mask_file)
+        self.ui.lineEdit_calibrationFile.setText('/HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json')
+        self.ui.pushButton_browseCalibrationFile.clicked.connect(self.do_browse_calibration_file)
         self.ui.pushButton_browseOutputDir.clicked.connect(self.do_browse_output_dir)
-        self.ui.pushButton_setCalibrationFile.clicked.connect(self.do_browse_calibration_file)
-        self.ui.pushButton_setMaskFile.clicked.connect(self.do_browse_mask_file)
-
-        self.ui.pushButton_setBrowseIDF.clicked.connect(self.do_browse_set_idf)
 
         self.ui.pushButton_batchReduction.clicked.connect(self.do_reduce_batch_runs)
         self.ui.pushButton_saveProject.clicked.connect(self.do_save_project)
@@ -439,13 +464,15 @@ class ManualReductionWindow(QMainWindow):
                                        '{}'.format(run_err), 'error')
                 return
         # Reduce data
-        nexus_file = str(self.ui.lineEdit_runNumber.text().strip())
-        project_file = str(self.ui.lineEdit_outputDir.text().strip())
-        mask_file = str(self.ui.LineEdit_maskFile.text().strip())
-        # idf_name = str(self.ui.lineEdit_idfName.text().strip())
-        # calibration_file = str(self.ui.lineEdit_calibratonFile.text().strip())
-        task = BlockingAsyncTaskWithCallback(reduce_h2bc, args=(nexus_file, project_file, self.ui.progressBar),
-                                             kwargs={'subruns': sub_run_list, 'mask': mask_file},
+        run_number = self.ui.spinBox_runNumber.text().strip()
+        nexus_file = FileFinder.findRuns('HB2B'+run_number)[0]
+        project_file = str(self.ui.lineEdit_outputDirectory.text().strip())
+        mask_file = str(self.ui.lineEdit_maskFile.text().strip())
+        calibration_file = str(self.ui.lineEdit_calibrationFile.text().strip())
+        task = BlockingAsyncTaskWithCallback(reduce_hidra_workflow, args=(nexus_file, project_file,
+                                                                          self.ui.progressBar),
+                                             kwargs={'subruns': sub_run_list, 'mask': mask_file,
+                                                     'calibration': calibration_file},
                                              blocking_cb=QApplication.processEvents)
         task.start()
         # Update table
