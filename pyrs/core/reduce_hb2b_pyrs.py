@@ -152,8 +152,8 @@ class ResidualStressInstrument(object):
             self._pixel_matrix = self._rotate_detector(self._pixel_matrix, two_theta_rot_matrix)
 
         # get 2theta and eta
-        self._pixel_2theta_matrix = self._calculate_pixel_2theta(self._pixel_matrix)
-        self._pixel_eta_matrix = self._calculate_pixel_eta(self._pixel_matrix)
+        self._pixel_2theta_matrix = self.calculate_pixel_2theta(self._pixel_matrix)
+        self._pixel_eta_matrix = self.calculate_pixel_eta(self._pixel_matrix)
 
         return self._pixel_matrix
 
@@ -168,17 +168,17 @@ class ResidualStressInstrument(object):
         Returns
         -------
         numpy.ndarray
-            1D array for each pixel's 2theta diffraction angle
+            multiple dimensional array for detector positions
 
         """
         two_theta_rad = det_2theta * np.pi / 180.
         two_theta_rot_matrix = self._cal_rotation_matrix_y(two_theta_rad)
         pixel_matrix = self._rotate_detector(self._pixel_matrix, two_theta_rot_matrix)
 
-        return self._calculate_pixel_2theta(pixel_matrix)
+        return pixel_matrix
 
     @staticmethod
-    def _calculate_pixel_2theta(pixel_matrix):
+    def calculate_pixel_2theta(pixel_matrix):
         """
         convert the pixel position matrix to 2theta. Result is recorded to self._pixel_2theta_matrix
         :return:
@@ -216,7 +216,7 @@ class ResidualStressInstrument(object):
         return return_value
 
     @staticmethod
-    def _calculate_pixel_eta(pixel_matrix):
+    def calculate_pixel_eta(pixel_matrix):
         """
         convert the pixel position matrix to 2theta. Result is recorded to self._pixel_eta_matrix
         :return:
@@ -463,6 +463,21 @@ class PyHB2BReduction(object):
                                           instrument_calibration=calibration)
 
         return
+
+    def rotate_detector(self, two_theta):
+        """Rotate detector via arm
+
+        Parameters
+        ----------
+        two_theta
+
+        Returns
+        -------
+        numpy.ndarray
+            (N^2, 3) for each pixel's position
+
+        """
+        return self._instrument.rotate_detector_2theta(two_theta)
 
     def build_instrument_prototype(self, two_theta, arm_length, arm_length_shift, center_shift_x, center_shift_y,
                                    rot_x_flip, rot_y_flip, rot_z_spin):
