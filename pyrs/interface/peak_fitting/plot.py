@@ -123,9 +123,9 @@ class Plot:
 
         hidra_workspace = self.parent.hidra_workspace
         if x_axis_name == 'Sub-runs':
-            axis_x = hidra_workspace.get_sub_runs()
+            axis_x = np.array(hidra_workspace.get_sub_runs())
             if y_axis_name == 'Sub-runs':
-                axis_y = hidra_workspace.get_sub_runs()
+                axis_y = np.array(hidra_workspace.get_sub_runs())
             elif y_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
                 axis_y = hidra_workspace._sample_logs[y_axis_name]
             elif y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
@@ -137,7 +137,7 @@ class Plot:
         elif x_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
             axis_x = hidra_workspace._sample_logs[x_axis_name]
             if y_axis_name == 'Sub-runs':
-                axis_y = hidra_workspace.get_sub_runs()
+                axis_y = np.array(hidra_workspace.get_sub_runs())
             elif y_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
                 axis_y = hidra_workspace._sample_logs[y_axis_name]
             elif y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
@@ -146,7 +146,7 @@ class Plot:
                 raise NotImplementedError("y_axis choice not supported yet: {}!".format(y_axis_name))
         elif x_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
             if y_axis_name == 'Sub-runs':
-                axis_y = hidra_workspace.get_sub_runs()
+                axis_y = np.array(hidra_workspace.get_sub_runs())
             elif y_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
                 axis_y = hidra_workspace._sample_logs[y_axis_name]
             elif y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
