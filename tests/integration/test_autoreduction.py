@@ -217,7 +217,8 @@ def test_hidra_workflow(tmpdir):
         hidra_ws = convertNeXusToProject(nexus, project, True, mask_file_name=mask)
         addPowderToProject(project)
     finally:
-        os.remove(project)
+        if os.path.exists(project):
+            os.remove(project)
 
 if __name__ == '__main__':
     pytest.main([__file__])
