@@ -249,7 +249,7 @@ class EventHandler:
         old_list_matplotlib_id = self.parent._ui_graphicsView_fitSetup.list_peak_labels_matplotlib_id
         for _row, peak_range in enumerate(self.parent._ui_graphicsView_fitSetup.list_peak_ranges):
             if _row == row_to_remove:
-                _peak_label_id  = old_list_matplotlib_id[_row]
+                _peak_label_id = old_list_matplotlib_id[_row]
                 _peak_label_id.remove()
                 continue
 
