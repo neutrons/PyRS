@@ -29,6 +29,19 @@ class GuiUtilities:
         self.enabled_list_widgets(list_widgets=list_widgets,
                                   enabled=enabled)
 
+    def enabled_save_peak_range_widget(self, enabled=True):
+        list_widgets = [self.parent.ui.pushButton_save_peak_range]
+        self.enabled_list_widgets(list_widgets=list_widgets,
+                                  enabled=enabled)
+
+    def update_save_peak_range_widget_status(self):
+        list_peak_ranges = self.parent._ui_graphicsView_fitSetup.list_peak_ranges
+        if list_peak_ranges:
+            enabled = True
+        else:
+            enabled = False
+        self.enabled_save_peak_range_widget(enabled=enabled)
+
     def enabled_1dplot_widgets(self, enabled=True):
         list_widgets = [self.parent.ui.frame_1dplot,
                         self.parent.ui.graphicsView_fitResult_frame,
