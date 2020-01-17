@@ -145,70 +145,91 @@ class ResidualStressInstrument(object):
         # END-IF
         self._pixel_matrix[:, :, 2] += arm_l2
 
-        # rotate 2theta
-        two_theta_rad = two_theta * np.pi / 180.
-        two_theta_rot_matrix = self._cal_rotation_matrix_y(two_theta_rad)
-        self._pixel_matrix = self._rotate_detector(self._pixel_matrix, two_theta_rot_matrix)
+        # rotate detector (2theta) if it is not zero
+        if abs(two_theta) > 1E-10:
+            two_theta_rad = two_theta * np.pi / 180.
+            two_theta_rot_matrix = self._cal_rotation_matrix_y(two_theta_rad)
+            self._pixel_matrix = self._rotate_detector(self._pixel_matrix, two_theta_rot_matrix)
 
         # get 2theta and eta
-        self._calculate_pixel_2theta()
-        self._calculate_pixel_eta()
+        self._pixel_2theta_matrix = self._calculate_pixel_2theta(self._pixel_matrix)
+        self._pixel_eta_matrix = self._calculate_pixel_eta(self._pixel_matrix)
 
         return self._pixel_matrix
 
-    def _calculate_pixel_2theta(self):
+    def rotate_detector_2theta(self, det_2theta):
+        """Rotate detector, i.e., change 2theta value of the detector
+
+        Parameters
+        ----------
+        det_2theta : float
+            detector's 2theta (motor) position in degree
+
+        Returns
+        -------
+        numpy.ndarray
+            1D array for each pixel's 2theta diffraction angle
+
+        """
+        two_theta_rad = det_2theta * np.pi / 180.
+        two_theta_rot_matrix = self._cal_rotation_matrix_y(two_theta_rad)
+        pixel_matrix = self._rotate_detector(self._pixel_matrix, two_theta_rot_matrix)
+
+        return self._calculate_pixel_2theta(pixel_matrix)
+
+    @staticmethod
+    def _calculate_pixel_2theta(pixel_matrix):
         """
         convert the pixel position matrix to 2theta. Result is recorded to self._pixel_2theta_matrix
         :return:
         """
         # check whether instrument is well built
-        if self._pixel_matrix is None:
+        if pixel_matrix is None:
             raise RuntimeError('Instrument has not been built yet. Pixel matrix is missing')
 
         # define
         # k_in_vec = [0, 0, 1]
 
-        det_pos_array = self._pixel_matrix.copy()
+        det_pos_array = pixel_matrix.copy()
 
-        if len(self._pixel_matrix[:].shape) == 3:
+        if len(pixel_matrix[:].shape) == 3:
             # N x M x 3 array
             # convert detector position matrix to 2theta
 
             # normalize the detector position 2D array
-            det_pos_norm_matrix = np.sqrt(self._pixel_matrix[:][:, :, 0] ** 2 +
-                                          self._pixel_matrix[:][:, :, 1] ** 2 +
-                                          self._pixel_matrix[:][:, :, 2] ** 2)
+            det_pos_norm_matrix = np.sqrt(pixel_matrix[:][:, :, 0] ** 2 +
+                                          pixel_matrix[:][:, :, 1] ** 2 +
+                                          pixel_matrix[:][:, :, 2] ** 2)
             twotheta_matrix = np.arccos(det_pos_array[:, :, 2] / det_pos_norm_matrix) * 180 / np.pi
             return_value = twotheta_matrix
         else:
             # (N x M) x 3 array
             # convert detector positions array to 2theta array
             # normalize the detector position 2D array
-            des_pos_array = self._pixel_matrix
+            des_pos_array = pixel_matrix
             det_pos_norm_array = np.sqrt(des_pos_array[:, 0] ** 2 +
                                          des_pos_array[:, 1] ** 2 + des_pos_array[:, 2] ** 2)
             twotheta_array = np.arccos(det_pos_array[:, 2] / det_pos_norm_array) * 180 / np.pi
             return_value = twotheta_array
         # END-IF-ELSE
 
-        self._pixel_2theta_matrix = return_value
+        return return_value
 
-        return
-
-    def _calculate_pixel_eta(self):
+    @staticmethod
+    def _calculate_pixel_eta(pixel_matrix):
         """
         convert the pixel position matrix to 2theta. Result is recorded to self._pixel_eta_matrix
         :return:
         """
         # check whether instrument is well built
-        if self._pixel_matrix is None:
+        if pixel_matrix is None:
             raise RuntimeError('Instrument has not been built yet. Pixel matrix is missing')
 
         # define
 
-        det_pos_array = self._pixel_matrix.copy()
+        det_pos_array = pixel_matrix.copy()
 
-        if len(self._pixel_matrix[:].shape) == 3:
+        if len(pixel_matrix[:].shape) == 3:
             # N x M x 3 array
             # convert detector position matrix to 2theta
 
@@ -231,9 +252,7 @@ class ResidualStressInstrument(object):
             return_value = eta_array
         # END-IF-ELSE
 
-        self._pixel_eta_matrix = return_value
-
-        return
+        return return_value
 
     def generate_rotation_matrix(self, rot_x_rad, rot_y_rad, rot_z_rad):
         """
@@ -384,16 +403,28 @@ class PyHB2BReduction(object):
     """
 
     def __init__(self, instrument, wave_length=None):
+        """Init
+
+        Parameters
+        ----------
+        instrument : ResidualStressInstrument or AnglerCameraDetectorGeometry
+            Instrument set up or Instrument
+        wave_length : str
+            wave length
         """
-        initialize the instrument
-        :param instrument
-        """
-        self._instrument = ResidualStressInstrument(instrument)
+        # Set up instrument
+        if isinstance(instrument, ResidualStressInstrument):
+            self._instrument = instrument
+        elif isinstance(instrument, instrument_geometry.AnglerCameraDetectorGeometry):
+            self._instrument = ResidualStressInstrument(instrument)
+        else:
+            raise RuntimeError('User input instrument of type {} is not supported to create'
+                               'an instrument instance.'.format(type(instrument)))
 
         if wave_length is not None:
             self._instrument.set_wavelength(wave_length)
 
-        self._detector_2theta = None
+        self._detector_2theta = 0.  # default 2theta is 0 degree
         self._detector_l2 = None
         self._detector_counts = None
 
@@ -412,9 +443,17 @@ class PyHB2BReduction(object):
         return self._instrument
 
     def build_instrument(self, calibration):
-        """ Build an instrument for each pixel's position in cartesian coordinate
-        :param calibration: AnglerCameraDetectorShift from geometry calibration
-        :return: 2D numpy array
+        """Build instrument geometry, i.e. calculate each pixel's position
+
+        Parameters
+        ----------
+        calibration : AnglerCameraDetectorShift
+            from geometry calibration
+
+        Returns
+        -------
+        None
+
         """
         if calibration is not None:
             checkdatatypes.check_type('Instrument geometry calibrated shift', calibration,
@@ -455,9 +494,10 @@ class PyHB2BReduction(object):
 
         Parameters
         ----------
-        is_matrix: boolean
+        is_matrix: bool
             flag to output pixels in matrix. Otherwise, 1D array in order of pixel IDs
-        corner_center
+        corner_center : bool
+            flag to output only 5 pixels' positions including 4 corners and 1 center
 
         Returns
         -------
@@ -534,10 +574,6 @@ class PyHB2BReduction(object):
 
         # Convert vector counts array's dtype to float
         counts_array = self._detector_counts.astype('float64')
-
-        # print('[INFO] PyRS.Instrument: pixels 2theta range: ({}, {}) vs 2theta histogram range: ({}, {})'
-        #       ''.format(pixel_2theta_array.min(), pixel_2theta_array.max(), two_theta_bins.min(),
-        #                 two_theta_bins.max()))
 
         # Apply mask: act on local variable vec_counts and thus won't affect raw data
         if mask_array is not None:

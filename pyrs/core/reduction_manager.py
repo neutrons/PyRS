@@ -479,6 +479,11 @@ class HB2BReductionManager(object):
         # Reset workspace's 2theta matrix and intensities
         workspace.reset_diffraction_data()
 
+        # Build
+        # TODO - Create an instrument from workspace
+        if use_pyrs_engine:
+            pass
+
         for sub_run in sub_run_list:
             # get the duration
             duration_i = workspace.get_sample_log_value(HidraConstants.SUB_RUN_DURATION,
@@ -562,6 +567,7 @@ class HB2BReductionManager(object):
         if use_mantid_engine:
             reduction_engine = reduce_hb2b_mtd.MantidHB2BReduction(self._mantid_idf)
         else:
+            # TODO - shall input an instrument instance instead of geometry setup
             reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
 
         # Histogram
@@ -598,10 +604,11 @@ class HB2BReductionManager(object):
         """
         # Set up reduction engine
         reduction_engine.set_experimental_data(instrument_2theta, l2, det_counts_array)
+        # TODO FIXME - geometry calibration shall be applied in parent method
         reduction_engine.build_instrument(geometry_calibration)
+        # TODO - instead set_experimental_data() shall rotate
 
         # Get the 2theta values for all pixels
-
         # Default minimum and maximum 2theta are related with
         min_2theta, max_2theta = two_theta_range
         pixel_2theta_array = reduction_engine.instrument.get_pixels_2theta(1)
