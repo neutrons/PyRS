@@ -69,6 +69,7 @@ def _create_powder_patterns(hidra_workspace, instrument, calibration, mask, subr
     reducer = ReductionApp(False)
     reducer.load_hidra_workspace(hidra_workspace)
 
+    # TODO - Need to add some debugging output for user to feel good
     reducer.reduce_data(instrument_file=instrument,
                         calibration_file=calibration,
                         mask=mask,
@@ -77,6 +78,8 @@ def _create_powder_patterns(hidra_workspace, instrument, calibration, mask, subr
     reducer.save_diffraction_data(project_file_name)
 
 
+# TODO - Need to input a dictionary for HidraWorksapce generated
+# TODO - Need to input the table to write the workspace result!
 def reduce_hidra_workflow(nexus, outputdir, progressbar, subruns=list(), instrument=None, calibration=None, mask=None):
 
     project = os.path.basename(nexus).split('.')[0] + '.h5'
@@ -252,11 +255,20 @@ class ManualReductionWindow(QMainWindow):
 
     def load_nexus_file(self):
         o_handler = EventHandler(parent=self)
-        o_handler.load_nexus_file()
+        o_handler.browse_nexus_file()
 
     def do_load_project_h5(self):
+        """Browse and load Hidra project file
+
+        Returns
+        -------
+        None
+
+        """
         o_handler = EventHandler(parent=self)
-        o_handler.load_project_file()
+        hidra_project_file = o_handler.browse_project_file(self)
+        if hidra_project_file is not None:
+            o_handler.load_project_file(self, hidra_project_file)
 
     def do_browse_calibration_file(self):
         """ Browse and set up calibration file
@@ -371,6 +383,7 @@ class ManualReductionWindow(QMainWindow):
 
         current_tab_index = self.ui.tabWidget_View.currentIndex()
         sub_run = int(self.ui.comboBox_sub_runs.currentText())
+        # FIXME - TODO - ValueError: invalid literal for int() with base 10: ''
 
         if current_tab_index == 0:
             # raw view
@@ -510,8 +523,13 @@ class ManualReductionWindow(QMainWindow):
                                              kwargs={'subruns': sub_run_list, 'mask': mask_file,
                                                      'calibration': calibration_file},
                                              blocking_cb=QApplication.processEvents)
+        # TODO - catch RuntimeError! ...
+        # FIXME - check output directory
         task.start()
+        # <<<<
+
         # Update table
+        # TODO - Need to fill the table!
         for sub_run in list():
             self.ui.rawDataTable.update_reduction_state(sub_run, True)
 

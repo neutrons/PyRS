@@ -13,7 +13,7 @@ class EventHandler:
         # project ID (current)
         self._project_data_id = None
 
-    def load_nexus_file(self):
+    def browse_nexus_file(self):
         """
         allow users to browse for a nexus file to convert to project file
         """
@@ -32,25 +32,45 @@ class EventHandler:
         Convert nexus_filename into a project file
         :param nexus_filename:
         """
+        # TODO - Implement!
+
         return
 
-    def load_project_file(self):
-        """ Load project file in HDF5 format
-                :return:
-                """
-        project_h5_name = browse_file(self.parent,
+    @staticmethod
+    def browse_project_file(parent):
+        """Browse Hidra project file in h5 format
+
+        Parameters
+        ----------
+        parent
+
+        Returns
+        -------
+        str or None
+            project file name or None for user's canceling the browse operation
+
+        """
+        project_h5_name = browse_file(parent,
                                       'HIDRA Project File',
                                       os.getcwd(),
                                       file_filter='*.hdf5;;*.h5',
                                       file_list=False,
                                       save_file=False)
 
+        return project_h5_name
+
+    @staticmethod
+    def load_project_file(parent, file_name):
+
         try:
-            o_load = LoadProjectFile(parent=self.parent)
-            self._project_data_id = o_load.load_hydra_file(project_h5_name)
+            o_load = LoadProjectFile(parent=parent)
+            project_data_id = o_load.load_hydra_file(file_name)
         except RuntimeError as run_err:
-            pop_message(self,
-                        'Failed to load project file {}: {}'.format(project_h5_name, run_err),
+            pop_message(parent,
+                        'Failed to load project file {}: {}'.format(file_name, run_err),
                         None, 'error')
+            project_data_id = None
         else:
-            print('Loaded {} to {}'.format(project_h5_name, self._project_data_id))
+            print('Loaded {} to {}'.format(file_name, project_data_id))
+
+        return project_data_id
