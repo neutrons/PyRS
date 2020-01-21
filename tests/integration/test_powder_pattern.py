@@ -60,19 +60,19 @@ def write_gold_file(file_name, data):
     gold_file = h5py.File(file_name, 'w')
 
     if isinstance(data, np.ndarray):
-        dataset = {'data': data}
+        data_set_dict = {'data': data}
     else:
-        dataset = data
+        data_set_dict = data
 
-    for data_name in dataset:
-        if isinstance(dataset[data_name], tuple):
+    for data_name in data_set_dict:
+        if isinstance(data_set_dict[data_name], tuple):
             # write (x, y)
             group = gold_file.create_group(data_name)
-            group.create_dataset('x', data=dataset[data_name][0])
-            group.create_dataset('y', data=dataset[data_name][1])
+            group.create_dataset('x', data=data_set_dict[data_name][0])
+            group.create_dataset('y', data=data_set_dict[data_name][1])
         else:
             # write value directly
-            gold_file.create_dataset(data_name, data=dataset[data_name])
+            gold_file.create_dataset(data_name, data=data_set_dict[data_name])
 
     gold_file.close()
 
