@@ -1,12 +1,11 @@
 """
 Test for reading and writing components to HiDRA project file
 """
-from pyrs.dataobjects import HidraConstants
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 import os
 import numpy as np
 import datetime
-from pyrs.core import peak_profile_utility
+from pyrs.core.peak_profile_utility import PeakShape, BackgroundFunction
 from pyrs.peaks import PeakCollection
 import pytest
 
@@ -161,24 +160,23 @@ def test_peak_fitting_result_io():
     test_project_file = HidraProjectFile(test_file_name, HidraProjectFileMode.OVERWRITE)
 
     # Create a ND array for output parameters
+    param_names = PeakShape.PSEUDOVOIGT.native_parameters + BackgroundFunction.LINEAR.native_parameters
     data_type = list()
-    for param_name in peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS:
+    for param_name in param_names:
         data_type.append((param_name, np.float32))
     test_error_array = np.zeros(3, dtype=data_type)
-    data_type.append((HidraConstants.PEAK_FIT_CHI2, np.float32))
     test_params_array = np.zeros(3, dtype=data_type)
 
     for i in range(3):
         # sub run
-        for j, par_name in enumerate(peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS):
+        for j, par_name in enumerate(param_names):
             test_params_array[par_name][i] = 2**i + 0.1 * 3**j
             test_error_array[par_name][i] = np.sqrt(abs(test_params_array[par_name][i]))
     # END-FOR
     chi2_array = np.array([0.323, 0.423, 0.523])
-    test_params_array[HidraConstants.PEAK_FIT_CHI2] = chi2_array
 
     # Add test data to output
-    peaks = PeakCollection('test fake', 'PseudoVoigt', 'Linear')
+    peaks = PeakCollection('test fake', PeakShape.PSEUDOVOIGT, BackgroundFunction.LINEAR)
     peaks.set_peak_fitting_values(np.array([1, 2, 3]), test_params_array, test_error_array,
                                   chi2_array)
 
@@ -203,8 +201,8 @@ def test_peak_fitting_result_io():
     peak_info = verify_project_file.read_peak_parameters('test fake')
 
     # peak profile
-    assert peak_info.peak_profile == 'PseudoVoigt'
-    assert peak_info.background_type == 'Linear'
+    assert peak_info.peak_profile == str(PeakShape.PSEUDOVOIGT)
+    assert peak_info.background_type == str(BackgroundFunction.LINEAR)
 
     # sub runs
     assert np.allclose(peak_info.sub_runs, np.array([1, 2, 3]))
@@ -225,4 +223,4 @@ def test_peak_fitting_result_io():
 
 
 if __name__ == '__main__':
-    pytest.main()
+    pytest.main([__file__])
