@@ -211,6 +211,10 @@ class FitPeaksWindow(QMainWindow):
         o_handle = EventHandler(parent=self)
         o_handle.update_fit_peak_ranges_table(**kwargs)
 
+    def update_list_of_2d_plots_axis(self):
+        print("in update_list_of_2d_plots_axis")
+        print(self.fit_result.fitted)
+
     def _promote_peak_fit_setup(self):
         # 2D detector view
         curr_layout = QVBoxLayout()
