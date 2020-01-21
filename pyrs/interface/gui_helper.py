@@ -24,15 +24,27 @@ def browse_dir(parent, caption, default_dir):
 
 
 def browse_file(parent, caption, default_dir, file_filter, file_list=False, save_file=False):
-    """ browse a file or files
-    :param parent:
-    :param caption:
-    :param default_dir:
-    :param file_filter:
-    :param file_list:
-    :param save_file:
-    :return: if file_list is False: return string (file name); otherwise, return a list;
-             if user cancels the operation, then return None
+    """Browse a file or files
+
+    Parameters
+    ----------
+    parent : QWindow
+        parent window
+    caption : str
+        Dialog box's caption
+    default_dir : str
+        Default directory to browse the file
+    file_filter : str
+        File type filter
+    file_list : bool
+        Flag for browse a list of files; otherwise, single file
+    save_file : bool
+
+    Returns
+    -------
+    str or ~list or None
+        File name or A list of file names or None for user to cancel the operation
+
     """
     # check inputs
     # assert isinstance(parent, object), 'Parent {} must be of some object.'.format(parent)

@@ -77,7 +77,7 @@ class SubRuns(Iterable):
             raise RuntimeError('subruns are not soryed in increasing order')
         self._value = value.astype(int)
 
-    def raw(self):
+    def raw_copy(self):
         '''Raw copy of underlying values'''
         return np.copy(self._value)
 
@@ -194,19 +194,6 @@ class SampleLogs(MutableMapping):
     def subruns(self, value):
         '''Set the subruns and build up associated values'''
         self._subruns.set(value)
-
-# =======
-#         if self._subruns.size != 0:
-#             if not self.matching_subruns(value):
-#                 raise RuntimeError('Cannot set subruns on non-empty SampleLog '
-#                                    '(previous={}, new={})'.format(self._subruns, value))
-#         value = _coerce_to_ndarray(value)
-#         if not np.all(value[:-1] < value[1:]):
-#             print('Unsorted sub runs: {}'.format(value))
-#             raise RuntimeError('sub runs are not sorted in increasing order.  Items not in orders are {}'
-#                                ''.format(value[np.where((value[1:] - value[:-1]) != 1)]))
-#         self._subruns = value
-# >>>>>>> master
 
     def matching_subruns(self, subruns):
         return self._subruns == subruns

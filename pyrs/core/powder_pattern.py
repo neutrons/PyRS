@@ -101,6 +101,9 @@ class ReductionApp(object):
 
         return vec_x, vec_y
 
+    def get_sub_runs(self):
+        return self._reduction_manager.get_sub_runs(self._session)
+
     def load_project_file(self, data_file):
         # init session
         self._reduction_manager.init_session(self._session)
