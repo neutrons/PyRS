@@ -597,14 +597,11 @@ class HB2BReductionManager(object):
 
         """
         # Set up reduction engine
-        reduction_engine.set_experimental_data(instrument_2theta, l2, det_counts_array)
+        reduction_engine.set_experimental_data(0., l2, det_counts_array)
 
         # Rotate instrument and calculate each pixel's 2theta
         pixel_pos_array = reduction_engine.rotate_detector(instrument_2theta)
-        pixel_2theta_array = reduction_engine.instrument.calculate_pixel_2theta(pixel_pos_array)
-        if len(pixel_2theta_array.shape) == 2:
-            m, n = pixel_2theta_array.shape
-            pixel_2theta_array = pixel_2theta_array.reshape((m * n,))
+        pixel_2theta_array = reduction_engine.instrument.calculate_pixel_2theta(pixel_pos_array).flatten()
 
         # Get the 2theta values for all pixels
         # Default minimum and maximum 2theta are related with
@@ -615,6 +612,7 @@ class HB2BReductionManager(object):
         # Histogram
         data_set = reduction_engine.reduce_to_2theta_histogram(bin_boundaries_2theta,
                                                                mask_array=mask_array,
+                                                               pixel_2theta_array=pixel_2theta_array,
                                                                is_point_data=True,
                                                                vanadium_counts_array=vanadium_array)
         bin_centers = data_set[0]

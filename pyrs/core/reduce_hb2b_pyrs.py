@@ -363,16 +363,11 @@ class ResidualStressInstrument(object):
         :return:
         """
         two_theta_array = self.get_pixels_2theta(dimension)
-        print('[DB...BAT] 2theta range: ({}, {})'
-              ''.format(two_theta_array.min(), two_theta_array.max()))
         assert isinstance(two_theta_array, numpy.ndarray), 'check'
 
         # convert to d-spacing
         d_spacing_array = 0.5 * self._wave_length / numpy.sin(0.5 * two_theta_array * numpy.pi / 180.)
         assert isinstance(d_spacing_array, numpy.ndarray)
-
-        print('[DB...BAT] Converted d-spacing range: ({}, {})'
-              ''.format(d_spacing_array.min(), d_spacing_array.max()))
 
         return d_spacing_array
 
@@ -556,7 +551,7 @@ class PyHB2BReduction(object):
         """
         return self._instrument.get_eta_values(dimension=1)
 
-    def reduce_to_2theta_histogram(self, two_theta_bins, mask_array,
+    def reduce_to_2theta_histogram(self, two_theta_bins, mask_array, pixel_2theta_array=None,
                                    is_point_data=True, vanadium_counts_array=None):
         """Reduce the previously added detector raw counts to 2theta histogram (i.e., diffraction pattern)
 
@@ -582,7 +577,8 @@ class PyHB2BReduction(object):
 
         # Get the data (each pixel's 2theta and counts): the 2theta value is the absolute diffraction angle
         # that disregards the real 2theta value in the instrument coordinate system
-        pixel_2theta_array = self._instrument.get_pixels_2theta(1)
+        if pixel_2theta_array is None:
+            pixel_2theta_array = self._instrument.get_pixels_2theta(1)
         checkdatatypes.check_numpy_arrays('Two theta and detector counts array',
                                           [pixel_2theta_array, self._detector_counts], 1,
                                           check_same_shape=True)  # optional check
