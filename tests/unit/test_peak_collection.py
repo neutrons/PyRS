@@ -61,5 +61,6 @@ def test_peak_collection():
     np.testing.assert_equal(obs_eff_peaks['A1'], NUM_SUBRUN * [0.])
     # not checking integrated intensity
 
+
 if __name__ == '__main__':
     pytest.main([__file__])
