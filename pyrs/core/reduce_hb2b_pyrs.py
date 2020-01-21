@@ -509,7 +509,7 @@ class PyHB2BReduction(object):
         ----------
         two_theta_bins : numpy.ndarray
             2theta bin boundaries to binned to
-        mask_array : numpy.ndarray
+        mask_array : numpy.ndarray or None
             mask
         is_point_data : bool
             Flag whether the output is point data (numbers of X and Y are same)

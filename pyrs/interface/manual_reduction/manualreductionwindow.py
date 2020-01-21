@@ -255,11 +255,20 @@ class ManualReductionWindow(QMainWindow):
 
     def load_nexus_file(self):
         o_handler = EventHandler(parent=self)
-        o_handler.load_nexus_file()
+        o_handler.browse_nexus_file()
 
     def do_load_project_h5(self):
+        """Browse and load Hidra project file
+
+        Returns
+        -------
+        None
+
+        """
         o_handler = EventHandler(parent=self)
-        o_handler.load_project_file()
+        hidra_project_file = o_handler.browse_project_file(self)
+        if hidra_project_file is not None:
+            o_handler.load_project_file(self, hidra_project_file)
 
     def do_browse_calibration_file(self):
         """ Browse and set up calibration file
