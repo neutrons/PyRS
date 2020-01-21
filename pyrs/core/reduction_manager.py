@@ -408,7 +408,7 @@ class HB2BReductionManager(object):
 
     def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, num_bins,
                                 use_pyrs_engine, sub_run_list, mask, mask_id,
-                                vanadium_counts=None):
+                                vanadium_counts=None, normalize_by_duration=True):
         """Reduce ALL sub runs in a workspace from detector counts to diffraction data
 
         Parameters
@@ -471,7 +471,7 @@ class HB2BReductionManager(object):
             sub_run_list = workspace.get_sub_runs()
 
         # Determine whether normalization by time is supported
-        if not workspace.has_sample_log(HidraConstants.SUB_RUN_DURATION):
+        if normalize_by_duration and not workspace.has_sample_log(HidraConstants.SUB_RUN_DURATION):
             raise RuntimeError('Workspace {} does not have sample log {}.  Existing logs are {}'
                                ''.format(workspace, HidraConstants.SUB_RUN_DURATION,
                                          workspace.get_sample_log_names()))
@@ -481,8 +481,12 @@ class HB2BReductionManager(object):
 
         for sub_run in sub_run_list:
             # get the duration
-            duration_i = workspace.get_sample_log_value(HidraConstants.SUB_RUN_DURATION,
-                                                        sub_run)
+            if normalize_by_duration:
+                duration_i = workspace.get_sample_log_value(HidraConstants.SUB_RUN_DURATION,
+                                                            sub_run)
+            else:
+                # not normalized
+                duration_i = 1.
             # reduce sub run
             self.reduce_sub_run_diffraction(workspace, sub_run, det_pos_shift,
                                             use_mantid_engine=not use_pyrs_engine,

@@ -64,10 +64,13 @@ class EventHandler:
 
         try:
             o_load = LoadProjectFile(parent=parent)
-            self._project_data_id = o_load.load_hydra_file(project_h5_name)
+            project_data_id = o_load.load_hydra_file(file_name)
         except RuntimeError as run_err:
-            pop_message(self,
-                        'Failed to load project file {}: {}'.format(project_h5_name, run_err),
+            pop_message(parent,
+                        'Failed to load project file {}: {}'.format(file_name, run_err),
                         None, 'error')
+            project_data_id = None
         else:
-            print('Loaded {} to {}'.format(project_h5_name, self._project_data_id))
+            print('Loaded {} to {}'.format(file_name, project_data_id))
+
+        return project_data_id
