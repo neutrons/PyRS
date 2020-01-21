@@ -3,6 +3,7 @@ from .peak_fit_engine import PeakFitEngine, FitResult
 from pyrs.core.peak_profile_utility import PeakShape
 from pyrs.peaks import PeakCollection
 import numpy as np
+from mantid.kernel import Logger
 from mantid.simpleapi import DeleteWorkspace, FitPeaks, RenameWorkspace
 
 __all__ = ['MantidPeakFitEngine']
@@ -14,6 +15,51 @@ class MantidPeakFitEngine(PeakFitEngine):
     def __init__(self, hidraworkspace, peak_function_name, background_function_name, out_of_plane_angle):
         super(MantidPeakFitEngine, self).__init__(hidraworkspace, peak_function_name,
                                                   background_function_name, out_of_plane_angle)
+        # configure logging for this class
+        self._log = Logger(__name__)
+
+    def __guess_center(self, x_min, x_max):
+        '''
+        Try getting the peak center from each subrun by one of three methods (first one wins):
+        1. First moment of the data within the window
+        2. x-value of the maximum y-valuu in the window
+        3. Center value of the window
+        '''
+        center = []
+
+        for wksp_index in range(self._mtd_wksp.getNumberHistograms()):
+            x_vals = self._mtd_wksp.readX(wksp_index)
+            i_min, i_max = x_vals.searchsorted([x_min, x_max])
+            if i_min >= i_max:
+                msg = 'Failed to find requested x-range({} < {}) '.format(x_min, x_max)
+                msg += 'in data with x-range ({} < {})'.format(x_vals[0], x_vals[-1])
+                self._log.warning(msg)
+                continue  # don't use this workspace index
+            y_vals = self._mtd_wksp.readY(wksp_index)[i_min:i_max]
+            y_offset = np.abs(y_vals.max())
+
+            # add the first moment to the list of centers
+            moment = np.sum(x_vals[i_min:i_max] * (y_vals + y_offset)) / np.sum(y_vals + y_offset)
+            if (x_min < moment < x_max):
+                center.append(moment)
+            else:
+                self._log.notice('Moment calculation failed to find peak center. Using maximum y-value')
+                top = y_vals.argmax()
+                if top > 0:
+                    center.append(x_vals[i_min + top])
+                else:
+                    self._log.warning('Failed to find maximum y-value. Using center of fit window')
+                    center.append(0.5 * (x_min + x_max))
+
+        # calculate the average value across all the subruns
+        if len(center) == 0:
+            raise RuntimeError('Failed to find any peak centers')
+        center = np.mean(center)  # mean value of everything
+
+        # final error check
+        if not (x_min < center < x_max):
+            raise RuntimeError('Failed to guess peak center between {} < {} < {}'.format(x_min, center, x_max))
+        return center
 
     def fit_peaks(self, peak_tag, x_min, x_max):
         x_min, x_max = self._check_fit_range(x_min, x_max)
@@ -25,7 +71,7 @@ class MantidPeakFitEngine(PeakFitEngine):
         r_model_ws_name = 'model_full_{0}'.format(self._mtd_wksp)
 
         # estimate the peak center
-        peak_center = 0.5*(x_min + x_max),  # TODO!!!!! calculate this better
+        peak_center = self.__guess_center(x_min, x_max)
 
         # add in extra parameters for starting values
         kwargs = {}
