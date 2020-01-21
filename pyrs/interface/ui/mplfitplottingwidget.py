@@ -86,6 +86,7 @@ class MplFitPlottingWidget(QWidget):
                                              list_fit_peak_ranges=self.list_peak_ranges,
                                              list_fit_peak_ranges_matplotlib_id=self.list_peak_ranges_matplotlib_id,
                                              list_fit_peak_labels_matplotlib_id=self.list_peak_labels_matplotlib_id)
+        self.parent.update_save_peak_range_widget()
 
     def mouse_moved(self, event):
         if self._button_pressed:
