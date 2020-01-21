@@ -104,7 +104,7 @@ class SummaryGenerator(object):
         """
         # verify the same number of subruns everywhere
         for peak_collection in peak_collections:
-            _, subruns, _, _, _ = peak_collection.get_effective_parameters_values()
+            subruns = peak_collection.sub_runs
             if not sample_logs.matching_subruns(subruns):
                 raise ValueError('Subruns from sample logs and peak {} do not match'.format(peak_collection.peak_tag))
 
@@ -214,11 +214,12 @@ class SummaryGenerator(object):
                 line.append(str(sample_logs[name][i]))  # get by index rather than subrun
 
             for peak_collection in peak_collections:
-                _, _, fit_cost, values, errors = peak_collection.get_effective_parameters_values()
-                for j in range(values.shape[0]):  # number of parameters
-                    line.append(str(values[j, i]))
-                for j in range(errors.shape[0]):  # number of parameters
-                    line.append(str(errors[j, i]))
+                fit_cost = peak_collection.fitting_costs
+                values, errors = peak_collection.get_effective_params()
+                for value in values[i]:
+                    line.append(str(value))
+                for value in errors[i]:
+                    line.append(str(value))
                 line.append(str(fit_cost[i]))
 
             handle.write(self.separator.join(line) + '\n')

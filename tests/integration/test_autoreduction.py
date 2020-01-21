@@ -43,14 +43,14 @@ def convertNeXusToProject(nexusfile, projectfile, skippable, mask_file_name=None
     return hidra_ws
 
 
-def addPowderToProject(projectfile, use_mantid_engine=False):
+def addPowderToProject(projectfile, use_mantid_engine=False, calibration_file=None):
     checkFileExists(projectfile, feedback='assert')
 
     # extract the powder patterns and add them to the project file
     reducer = ReductionApp(use_mantid_engine=use_mantid_engine)
     # TODO should add versions for testing arguments: instrument_file, calibration_file, mask, sub_runs
     reducer.load_project_file(projectfile)
-    reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None)
+    reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=calibration_file, mask=None)
     reducer.save_diffraction_data(projectfile)
 
     # tests for the created file
@@ -205,6 +205,20 @@ def test_apply_mantid_mask():
     # verify the masked reduced data shall have smaller or at least equal range of 2theta
     assert no_mask_data_set[0].min() <= masked_data_set[0].min()
     assert no_mask_data_set[0].max() >= masked_data_set[0].max()
+
+
+def test_hidra_workflow(tmpdir):
+    nexus = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1060.nxs.h5'
+    mask = '/HFIR/HB2B/shared/CALIBRATION/HB2B_MASK_Latest.xml'
+    calibration = '/HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json'
+    project = os.path.basename(nexus).split('.')[0] + '.h5'
+    project = os.path.join(str(tmpdir), project)
+    try:
+        _ = convertNeXusToProject(nexus, project, True, mask_file_name=mask)
+        addPowderToProject(project, calibration_file=calibration)
+    finally:
+        if os.path.exists(project):
+            os.remove(project)
 
 
 if __name__ == '__main__':

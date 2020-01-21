@@ -599,7 +599,7 @@ class HidraProjectFile(object):
             raise RuntimeError('Parameters[{}] and Errors[{}] have different shape'.format(param_values.shape,
                                                                                            error_values.shape))
         peak_collection = PeakCollection(peak_tag, profile, background)
-        peak_collection.set_peak_fitting_values(sub_runs=sub_run_array, parameter_values=param_values,
+        peak_collection.set_peak_fitting_values(subruns=sub_run_array, parameter_values=param_values,
                                                 parameter_errors=error_values, fit_costs=chi2_array)
         return peak_collection
 
