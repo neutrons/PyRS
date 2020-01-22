@@ -239,6 +239,7 @@ class FitPeaksWindow(QMainWindow):
     def fit_table_radio_buttons(self):
         o_table = FitTable(parent=self, fit_result=self.fit_result)
         o_table.initialize_table()
+        o_table.initialize_table_column_size()
         o_table.fit_value_error_changed()
 
     def clicked_save_peak_range(self):
