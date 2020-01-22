@@ -4,7 +4,7 @@ from qtpy.QtWidgets import QTableWidgetItem
 
 class FitTable:
 
-    COL_INDEX_TO_ESCAPE = [1]
+    COL_INDEX_TO_ESCAPE = []
 
     def __init__(self, parent=None, fit_result=None):
         self.parent = parent
@@ -19,6 +19,7 @@ class FitTable:
         _peak_collection = self.fit_result.peakcollections[_peak_selected-1]  # peak 1 is at 0 index
 
         _value = self._get_value_to_display(_peak_collection)
+        _chisq = _peak_collection.fitting_costs
 
         for _row, _row_value in enumerate(_value):
             self.parent.ui.tableView_fitSummary.insertRow(_row)
@@ -31,11 +32,16 @@ class FitTable:
                 self.parent.ui.tableView_fitSummary.setItem(_row, _global_col_index, _item)
                 _global_col_index += 1
 
+            # add chisq
+            _item = QTableWidgetItem(str(_chisq[_row]))
+            self.parent.ui.tableView_fitSummary.setItem(_row, _global_col_index, _item)
+
     def _get_value_to_display(self, peak_collection):
+        values, error = peak_collection.get_effective_params()
         if self.parent.ui.radioButton_fit_value.isChecked():
-            return peak_collection.parameters_values
+            return values
         else:
-            return peak_collection.parameters_errors
+            return error
 
     def fit_value_error_changed(self):
         self._clear_rows()
@@ -67,19 +73,17 @@ class FitTable:
         self._clear_columns()
 
     def _get_list_of_columns(self):
-        # we want to go from
-        # ('wsindex', 'peakindex', 'Mixing', 'Intensity', 'PeakCentre', 'FWHM', 'A0', 'A1', 'chi2')
-        # to
-        # ('Sub-run #', 'Mixing', ....)
-
         _peak_collection = self.fit_result.peakcollections[0]
-        column_names = _peak_collection.parameters_values.dtype.names
-        # remove second column
+        values, _ = _peak_collection.get_effective_params()
+        column_names = values.dtype.names
         clean_column_names = []
         for _col_index, _col_value in enumerate(column_names):
             if _col_index in self.COL_INDEX_TO_ESCAPE:
                 continue
             if _col_index == 0:
-                _col_value = 'Sub-run #'
+                # _col_value = 'Sub-run #'
+                _col_value = 'Peak Center'
             clean_column_names.append(_col_value)
+        # also add chisq
+        clean_column_names.append('chisq')
         return clean_column_names
