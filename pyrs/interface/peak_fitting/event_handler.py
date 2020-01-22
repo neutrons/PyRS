@@ -239,6 +239,9 @@ class EventHandler:
         if action == _remove_row:
             self.remove_peak_range_table_row()
 
+        o_gui = GuiUtilities(parent=self.parent)
+        o_gui.check_if_fitting_widgets_can_be_enabled()
+
     def remove_peak_range_table_row(self):
         row_selected = self.parent.ui.peak_range_table.selectedRanges()[0]
         row_to_remove = row_selected.topRow()
