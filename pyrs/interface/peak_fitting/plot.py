@@ -80,8 +80,9 @@ class Plot:
         # plot fitted data
         fit_result = self.parent.fit_result
         if fit_result:
-            x_array = self.parent.fit_result.fitted.readX(sub_run_number)
-            y_array = self.parent.fit_result.fitted.readY(sub_run_number)
+            sub_run_index = int(self.parent.fit_result.peakcollections[0].sub_runs.get_indices(sub_run_number)[0])
+            x_array = self.parent.fit_result.fitted.readX(sub_run_index)
+            y_array = self.parent.fit_result.fitted.readY(sub_run_index)
             self.parent._ui_graphicsView_fitSetup.plot_fitted_data(x_array, y_array)
 
         # # Plot fitted model data
