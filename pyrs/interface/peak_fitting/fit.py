@@ -39,6 +39,11 @@ class Fit:
                                                    _peak_xmin_list,
                                                    _peak_xmax_list)
         self.parent.populate_fit_result_table(fit_result=fit_result)
+        self.parent.update_list_of_2d_plots_axis()
+
+        o_gui = GuiUtilities(parent=self.parent)
+        o_gui.set_1D_2D_axis_comboboxes(with_clear=True, fill_raw=True, fill_fit=True)
+        o_gui.initialize_combobox()
 
     def fit_peaks(self, all_sub_runs=False):
         """ Fit peaks either all peaks or selected peaks

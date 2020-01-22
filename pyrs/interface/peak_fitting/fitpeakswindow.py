@@ -132,8 +132,8 @@ class FitPeaksWindow(QMainWindow):
         """
         o_handler = EventHandler(parent=self)
         o_handler.browse_load_plot_hdf()
-        # o_plot = Plot(parent=self)
-        # o_plot.plot_1d()
+        o_plot = Plot(parent=self)
+        o_plot.plot_1d()
 
     def load_hidra_file(self):
         o_handler = EventHandler(parent=self)
@@ -187,8 +187,8 @@ class FitPeaksWindow(QMainWindow):
     def yaxis_1d_changed(self):
         o_gui = GuiUtilities(parent=self)
         o_gui.check_axis1d_status()
-        # o_plot = Plot(parent=self)
-        # o_plot.plot_1d()
+        o_plot = Plot(parent=self)
+        o_plot.plot_1d()
 
     def xaxis_2d_changed(self):
         o_gui = GuiUtilities(parent=self)
@@ -210,6 +210,10 @@ class FitPeaksWindow(QMainWindow):
     def update_peak_ranges_table(self, **kwargs):
         o_handle = EventHandler(parent=self)
         o_handle.update_fit_peak_ranges_table(**kwargs)
+
+    def update_list_of_2d_plots_axis(self):
+        print("in update_list_of_2d_plots_axis")
+        print(self.fit_result.fitted)
 
     def _promote_peak_fit_setup(self):
         # 2D detector view
@@ -247,6 +251,10 @@ class FitPeaksWindow(QMainWindow):
     def update_save_peak_range_widget(self):
         o_gui = GuiUtilities(parent=self)
         o_gui.update_save_peak_range_widget_status()
+
+    def peak_range_table_right_click(self, position):
+        o_handler = EventHandler(parent=self)
+        o_handler.peak_range_table_right_click(position=position)
 
     def _init_widgets(self):
         """

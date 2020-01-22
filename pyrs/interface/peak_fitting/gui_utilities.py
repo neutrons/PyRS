@@ -17,6 +17,13 @@ class GuiUtilities:
         self.enabled_list_widgets(list_widgets=list_widgets,
                                   enabled=enabled)
 
+    def check_if_fitting_widgets_can_be_enabled(self):
+        status = False
+        nbr_row_fitting_table = self.parent.ui.peak_range_table.rowCount()
+        if nbr_row_fitting_table > 0:
+            status = True
+        self.enabled_fitting_widgets(enabled=status)
+
     def enabled_export_csv_widgets(self, enabled=True):
         list_widgets = [self.parent.ui.pushButton_exportCSV,
                         ]
@@ -88,8 +95,6 @@ class GuiUtilities:
         # Set the widgets about viewer: get the sample logs and add the combo boxes for plotting
         sample_log_names = self.parent._core.reduction_service.get_sample_logs_names(self.parent._project_name,
                                                                                      can_plot=True)
-        print("** inside set_1D_2D_axis combobox")
-
         GuiUtilities.block_widgets(list_ui=[self.parent.ui.comboBox_xaxisNames,
                                             self.parent.ui.comboBox_yaxisNames,
                                             self.parent.ui.comboBox_yaxisNames_2dplot,
