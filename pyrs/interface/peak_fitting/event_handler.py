@@ -68,7 +68,8 @@ class EventHandler:
 
             # enabled all fitting widgets and main plot
             o_gui = GuiUtilities(parent=self.parent)
-            o_gui.enabled_fitting_widgets(True)
+            o_gui.check_if_fitting_widgets_can_be_enabled()
+            # o_gui.enabled_fitting_widgets(True)
             o_gui.enabled_data_fit_plot(True)
             o_gui.enabled_peak_ranges_widgets(True)
 
@@ -126,6 +127,7 @@ class EventHandler:
                                     list_fit_peak_labels=list_fit_peak_labels)
 
         self.parent.ui.peak_range_table.blockSignals(False)
+        o_gui.check_if_fitting_widgets_can_be_enabled()
 
     def update_fit_peak_ranges_plot(self):
         # retrieve all peaks and labels from table
