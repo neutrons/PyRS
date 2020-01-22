@@ -1,6 +1,4 @@
-"""
-Object to contain peak parameters (names and values) of a collection of peaks for sub runs
-"""
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import numpy as np
 from pyrs.core.peak_profile_utility import get_parameter_dtype, get_effective_parameters_converter, PeakShape, \
     BackgroundFunction
@@ -11,7 +9,7 @@ __all__ = ['PeakCollection']
 
 class PeakCollection(object):
     """
-    Class for a collection of peaks
+    Object to contain peak parameters (names and values) of a collection of peaks for sub runs
     """
     def __init__(self, peak_tag, peak_profile, background_type):
         """Initialization
@@ -41,6 +39,8 @@ class PeakCollection(object):
         self._params_error_array = None
         # fitting cost (chi2): numpy 1D array
         self._fit_cost_array = None
+        # status messages: list of strings
+        self._fit_status = None
 
     @property
     def peak_tag(self):
@@ -110,6 +110,26 @@ class PeakCollection(object):
 
         return converted
 
+    def __set_fit_status(self):
+        '''This requires self._fit_cost_array and self._params_error_array to be set first'''
+        # default value is that everything worked
+        self._fit_status = ['success'] * self._sub_run_array.size
+
+        # check individual parameter errors
+        bad_params = np.zeros(self._sub_run_array.size, dtype=bool)  # nothing is bad
+        for name in self._params_error_array.dtype.names:
+            bad_params = np.logical_or(bad_params, self._params_error_array[name] == 0.)
+            bad_params = np.logical_or(bad_params, np.logical_not(np.isfinite(self._params_error_array[name])))
+        if np.sum(bad_params) > 0:
+            for i in np.where(bad_params)[0]:
+                self._fit_status[i] = 'did not refine all parameters'
+
+        # chisq in general is bad
+        bad_chisq = np.logical_not(np.isfinite(self._fit_cost_array))
+        if np.sum(bad_chisq) > 0:
+            for i in np.where(bad_chisq)[0]:
+                self._fit_status[i] = 'failed'
+
     def set_peak_fitting_values(self, subruns, parameter_values, parameter_errors, fit_costs):
         """Set peak fitting values
 
@@ -132,6 +152,7 @@ class PeakCollection(object):
         self._params_value_array = self.__convertParameters(parameter_values)
         self._params_error_array = self.__convertParameters(parameter_errors)
         self._fit_cost_array = np.copy(fit_costs)
+        self.__set_fit_status()
 
     def get_native_params(self):
         return self._params_value_array, self._params_error_array
@@ -159,4 +180,4 @@ class PeakCollection(object):
 
     def get_fit_status(self):
         '''list of messages with "success" being it's good'''
-        return [''] * self._sub_run_array.size  # TODO other things should give this information
+        return self._fit_status
