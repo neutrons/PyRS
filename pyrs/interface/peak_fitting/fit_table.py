@@ -12,7 +12,7 @@ class FitTable:
 
     def initialize_fit_result_widgets(self):
         self._initialize_list_of_peaks()
-        self._initialize_table()
+        self.initialize_table()
 
     def populate_fit_result_table(self):
         _peak_selected = self.parent.ui.spinBox_peak_index.value()
@@ -32,9 +32,10 @@ class FitTable:
                 self.parent.ui.tableView_fitSummary.setItem(_row, _global_col_index, _item)
                 _global_col_index += 1
 
-            # add chisq
-            _item = QTableWidgetItem(str(_chisq[_row]))
-            self.parent.ui.tableView_fitSummary.setItem(_row, _global_col_index, _item)
+            # add chisq values (but forget when error is selected
+            if self.parent.ui.radioButton_fit_value.isChecked():
+                _item = QTableWidgetItem(str(_chisq[_row]))
+                self.parent.ui.tableView_fitSummary.setItem(_row, _global_col_index, _item)
 
     def _get_value_to_display(self, peak_collection):
         values, error = peak_collection.get_effective_params()
@@ -51,7 +52,7 @@ class FitTable:
         nbr_peaks = len(self.fit_result.peakcollections)
         self.parent.ui.spinBox_peak_index.setRange(1, nbr_peaks)
 
-    def _initialize_table(self):
+    def initialize_table(self):
         self._clear_table()
         columns_names = self._get_list_of_columns()
         for _column in np.arange(len(columns_names)):
@@ -84,6 +85,9 @@ class FitTable:
                 # _col_value = 'Sub-run #'
                 _col_value = 'Peak Center'
             clean_column_names.append(_col_value)
-        # also add chisq
-        clean_column_names.append('chisq')
+
+        if self.parent.ui.radioButton_fit_value.isChecked():
+            # also add chisq
+            clean_column_names.append('chisq')
+
         return clean_column_names
