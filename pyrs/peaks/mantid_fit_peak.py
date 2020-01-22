@@ -1,8 +1,9 @@
-# Peak fitting engine by calling mantid
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from .peak_fit_engine import PeakFitEngine, FitResult
 from pyrs.core.peak_profile_utility import PeakShape
 from pyrs.peaks import PeakCollection
 import numpy as np
+from mantid.kernel import Logger
 from mantid.simpleapi import DeleteWorkspace, FitPeaks, RenameWorkspace
 
 __all__ = ['MantidPeakFitEngine']
@@ -11,9 +12,12 @@ DEBUG = False   # Flag for debugging mode
 
 
 class MantidPeakFitEngine(PeakFitEngine):
+    '''Peak fitting engine by calling mantid'''
     def __init__(self, hidraworkspace, peak_function_name, background_function_name, out_of_plane_angle):
         super(MantidPeakFitEngine, self).__init__(hidraworkspace, peak_function_name,
                                                   background_function_name, out_of_plane_angle)
+        # configure logging for this class
+        self._log = Logger(__name__)
 
     def fit_peaks(self, peak_tag, x_min, x_max):
         x_min, x_max = self._check_fit_range(x_min, x_max)
@@ -25,7 +29,7 @@ class MantidPeakFitEngine(PeakFitEngine):
         r_model_ws_name = 'model_full_{0}'.format(self._mtd_wksp)
 
         # estimate the peak center
-        peak_center = 0.5*(x_min + x_max),  # TODO!!!!! calculate this better
+        peak_center = self._guess_center(x_min, x_max)
 
         # add in extra parameters for starting values
         kwargs = {}

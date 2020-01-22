@@ -1,3 +1,4 @@
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import numpy as np
 from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory
 from pyrs.core.workspaces import HidraWorkspace
@@ -42,18 +43,18 @@ def generate_test_gaussian(vec_x, peak_center_list, peak_range_list, peak_height
         # Set FWHM to 1/6 of peak range and then to Gaussian's Sigma
         sigma = peak_range / 6. / (2. * np.sqrt(2. * np.log(2.)))
 
+        # generate noise with amplitude of sqrt(peak_height)
+        noise = (np.random.random_sample(vec_x.shape[0]) - 0.5) * np.sqrt(peak_height_list[ipeak])
+
         # calculate Gaussian function based on input peak center and peak range
-        vec_y += peak_height_list[ipeak] * np.exp(-(vec_x - peak_center) ** 2 / sigma ** 2)
+        vec_y += noise + peak_height_list[ipeak] * np.exp(-(vec_x - peak_center) ** 2 / sigma ** 2)
+
         parameters.append({'peak_center': peak_center,
                            'peak_intensity': np.sqrt(2. * np.pi) * peak_height_list[ipeak] * sigma,
                            'peak_FWHM': 2. * np.sqrt(2. * np.log(2.)) * sigma
                            })
-    # END-FOR
 
-    # Add noise
-    noise = (np.random.random_sample(vec_x.shape[0]) - 0.5) * 2.0
-
-    return {'values': vec_y + noise, 'parameters': parameters}
+    return {'values': vec_y, 'parameters': parameters}
 
 
 def generate_test_pseudovoigt(vec_x, peak_center_list, peak_range_list, intensity_list):
@@ -207,7 +208,7 @@ def generate_hydra_workspace_multiple_sub_runs(ws_name, sub_run_data_dict):
     test_workspace = HidraWorkspace(ws_name)
 
     # Sub runs:
-    sub_runs_list = sub_run_data_dict.keys()
+    sub_runs_list = list(sub_run_data_dict.keys())
     test_workspace.set_sub_runs(sub_runs_list)
 
     # Add diffraction pattern
@@ -396,13 +397,6 @@ def test_2_gaussian_1_subrun(setup_1_subrun, fit_domain):
     # Parameters verified
     assert_checks(fit_result, parameters, param_values, number_of_peakCollection)
 
-    # fit goodness
-    assert fit_costs[0] < 0.5, 'Fit cost (chi2 = {}) is too large'.format(fit_costs[0])
-
-    # Test the peak on the right
-    fit_cost_right = fit_result.peakcollections[1].fitting_costs
-    assert fit_cost_right[0] < 0.5
-
 
 @pytest.mark.parametrize('target_values', [{'peak_height': [10, 0.012], 'peak_center': [75, 77], 'sigma': [0.15, 1.5],
                                             'background_A0': [2, -0.301], 'background_A1': [0.007, 0.003]}])
@@ -459,11 +453,9 @@ def test_2_gaussian_3_subruns(target_values):
     gaussian_native_params.extend(BackgroundFunction.LINEAR.native_parameters)
 
     # peak 'Left'
-    fit_cost2_lp = fit_result.peakcollections[0].fitting_costs
     param_values_lp, param_errors_lp = fit_result.peakcollections[0].get_native_params()
 
     # peak 'Right'
-    fit_cost2_rp = fit_result.peakcollections[1].fitting_costs
     param_values_rp, param_errors_rp = fit_result.peakcollections[1].get_native_params()
 
     """
@@ -492,12 +484,6 @@ def test_2_gaussian_3_subruns(target_values):
         [0.04440744 0.17071389 0.18304431]
         [0.07783635 0.01304373 0.00897603]
     """
-
-    # verify
-    assert 0.001 < fit_cost2_lp[0] < 0.4, 'Fitting cost of sub run 1 of left peak ({}) ' \
-                                          'is not reasonable or too large'.format(fit_cost2_lp[0])
-    assert 0.001 < fit_cost2_rp[1] < 0.4, 'Fitting cost of sub run 1 of right peak ({}) ' \
-                                          'is not reasonable or too large'.format(fit_cost2_rp[0])
 
     # Get effective peak parameters
     effective_param_values, effective_param_errors = fit_result.peakcollections[0].get_effective_params()
