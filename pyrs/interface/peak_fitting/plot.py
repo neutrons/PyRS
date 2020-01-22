@@ -129,10 +129,11 @@ class Plot:
             elif y_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
                 axis_y = hidra_workspace._sample_logs[y_axis_name]
             elif y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
-                vec_y, vec_x = self.get_function_parameter_data(x_axis_name)
-                print("vec_y: " + format(vec_y))
-                print("vec_x: " + format(vec_x))
-            else:
+                print("self.parent.fit_results: {}".format(self.parent.fit_result.fitted))
+            #     vec_y, vec_x = self.get_function_parameter_data(x_axis_name)
+            #     print("vec_y: " + format(vec_y))
+            #     print("vec_x: " + format(vec_x))
+            # else:
                 raise NotImplementedError("y_axis choice not supported yet: {}".format(y_axis_name))
         elif x_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
             axis_x = hidra_workspace._sample_logs[x_axis_name]
