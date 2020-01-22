@@ -1,3 +1,4 @@
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import numpy as np
 from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory
 from pyrs.core.workspaces import HidraWorkspace
@@ -207,7 +208,7 @@ def generate_hydra_workspace_multiple_sub_runs(ws_name, sub_run_data_dict):
     test_workspace = HidraWorkspace(ws_name)
 
     # Sub runs:
-    sub_runs_list = sub_run_data_dict.keys()
+    sub_runs_list = list(sub_run_data_dict.keys())
     test_workspace.set_sub_runs(sub_runs_list)
 
     # Add diffraction pattern
