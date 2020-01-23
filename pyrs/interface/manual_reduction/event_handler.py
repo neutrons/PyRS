@@ -1,13 +1,8 @@
 import os
 from qtpy.QtCore import Qt
 from pyrs.interface.gui_helper import browse_file
-from pyrs.interface.gui_helper import pop_message
-from pyrs.interface.manual_reduction.load_project_file import LoadProjectFile
+from pyrs.interface.gui_helper import pop_message, parse_line_edit
 from pyrs.interface.manual_reduction.pyrs_api import ReductionController
-
-
-DEFAULT_MASK_DIRECTORY = '/HFIR/HB2B/shared/CALIBRATION/'
-DEFAULT_CALIBRATION_DIRECTORY = DEFAULT_MASK_DIRECTORY
 
 
 class EventHandler(object):
@@ -31,13 +26,14 @@ class EventHandler(object):
 
     def _mask_state(self, state):
         if state != Qt.Unchecked:
-            self.ui.lineEdit_maskFile.setText(DEFAULT_MASK_DIRECTORY+'HB2B_MASK_Latest.xml')
+            self.ui.lineEdit_maskFile.setText(self._controller.get_default_mask_dir() + 'HB2B_MASK_Latest.xml')
         self.ui.lineEdit_maskFile.setEnabled(state == Qt.Unchecked)
         self.ui.pushButton_browseMaskFile.setEnabled(state == Qt.Unchecked)
 
     def _calibration_state(self, state):
         if state != Qt.Unchecked:
-            self.ui.lineEdit_calibrationFile.setText(DEFAULT_CALIBRATION_DIRECTORY+'HB2B_Latest.json')
+            self.ui.lineEdit_calibrationFile.setText(self._controller.get_default_calibration_dir() +
+                                                     'HB2B_Latest.json')
         self.ui.lineEdit_calibrationFile.setEnabled(state == Qt.Unchecked)
         self.ui.pushButton_browseCalibrationFile.setEnabled(state == Qt.Unchecked)
 
@@ -48,54 +44,90 @@ class EventHandler(object):
         self.ui.pushButton_browseOutputDirectory.setEnabled(state == Qt.Unchecked)
 
     def _update_output_ipts(self, run_number):
-        if self.ui.checkBox_defaultOutputDirectory.checkState() != Qt.Unchecked:
-            try:
-                ipts = GetIPTS(run_number)
-                project_file = ipts + 'shared/manualreduce/'
-                self.ui.lineEdit_outputDirectory.setText(project_file)
-            except RuntimeError:
-                pass
+        project_dir = self._controller.get_default_output_dir(run_number)
+        if project_dir is not None:
+            self.ui.lineEdit_outputDirectory.setText(project_dir)
+
+    def _parse_ipts_number(self):
+        """Get IPTS number from
+
+        Returns
+        -------
+        int or None
+            IPTS number
+
+        """
+        run_number = parse_line_edit(self.ui.lineEdit_runNumbersList, int, False, default=None)
+        if run_number is None:
+            return None
+
+        ipts_number = self._controller.get_ipts_from_run(run_number)
+
+        return ipts_number
 
     def browse_load_nexus(self):
+        """Allow users to browse for a nexus file to convert to project file
+
+        Returns
+        -------
+
         """
-        allow users to browse for a nexus file to convert to project file
-        """
-        # Get IPTS or run number for a proper file name
-        # ... ...
+        # Get default directory
+        ipts_number = self._parse_ipts_number()
+        if ipts_number is None:
+            default_dir = self._controller.working_dir
+        else:
+            default_dir = self._controller.get_nexus_dir(ipts_number)
 
         # If specified information is not sufficient, browse
         nexus_file = browse_file(self.parent,
                                  caption='Select a NeXus file',
-                                 default_dir=self.parent._core.working_dir,
-                                 file_filter='NeXus (*.h5)',
-                                 file_list=False,
-                                 save_file=False)
+                                 default_dir=default_dir,
+                                 file_filter='NeXus (*.nxs.h5)',
+                                 file_list=False, save_file=False)
 
-        # Load NeXus file
+        # Return if it is cancelled
+        if nexus_file is None:
+            return
+
+        # Load Nexus
         self._controller.load_nexus_file(nexus_file)
 
-        # Get information from nexus file
-        sub_runs, two_thetas, moving_motor_positions = self._controller.get_nexus_info()
+        # sub runs
+        sub_runs = self._controller.get_sub_runs()
 
-        # Write table with 'Reduced == False'
-
-        return
+        # set sub runs to (1) Table and (2) Combo box
+        self._set_run_numbers(sub_runs)
 
     def browse_load_hidra(self):
-        """
-        allow users to browse for a nexus file to convert to project file
-        """
-        # Get IPTS or run number for a Hidra project file
-        # ... ...
+        """Allow users to browse for a HiDRA project file
 
-        # If a default one from specified information
+        Returns
+        -------
 
-        nexus_file = browse_file(self.parent,
-                                 caption='Select a NeXus file',
-                                 default_dir=self.parent._core.working_dir,
-                                 file_filter='NeXus (*.h5)',
-                                 file_list=False,
-                                 save_file=False)
+        """
+        # Get default directory
+        ipts_number = self._parse_ipts_number()
+        if ipts_number is None:
+            default_dir = self._controller.working_dir
+        else:
+            default_dir = self._controller.get_hidra_project_dir(ipts_number)
+
+        # Browse
+        hidra_file = browse_file(self.parent,
+                                 caption='Select a HIDRA project file',
+                                 default_dir=default_dir,
+                                 file_filter='HiDRA project (*.h5)',
+                                 file_list=False, save_file=False)
+
+        # Load Nexus
+        self._controller.load_hidra_project(hidra_file)
+
+        # sub runs
+        sub_runs = self._controller.get_sub_runs()
+
+        # set sub runs to (1) Table and (2) Combo box
+        self._set_run_numbers(sub_runs)
 
     def browse_calibration_file(self):
         """
@@ -105,7 +137,7 @@ class EventHandler(object):
 
         """
         calibration_file = browse_file(self, caption='Choose and set up the calibration file',
-                                       default_dir=DEFAULT_CALIBRATION_DIRECTORY,
+                                       default_dir=self._controller.get_default_calibration_dir(),
                                        file_filter='hdf5 (*hdf)', file_list=False, save_file=False)
         if calibration_file is None or calibration_file == '':
             # operation canceled
@@ -121,11 +153,8 @@ class EventHandler(object):
         -------
 
         """
-        idf_name = str(self.ui.lineEdit_idfName.text()).strip()
-        if idf_name == '' or not os.path.exists(idf_name):
-            # browse IDF and set
-            idf_name = browse_file(self, 'Instrument definition file', os.getcwd(),
-                                              'Text (*.txt);;XML (*.xml)', False, False)
+        idf_name = browse_file(self, 'Instrument definition file', os.getcwd(),
+                               'Text (*.txt);;XML (*.xml)', False, False)
             if len(idf_name) == 0:
                 return   # user cancels operation
             else:

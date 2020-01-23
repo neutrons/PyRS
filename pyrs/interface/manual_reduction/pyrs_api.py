@@ -10,7 +10,9 @@ from pyrs.utilities import calibration_file_io
 from pyrs.interface import gui_helper
 from pyrs.utilities import checkdatatypes
 from pyrs.dataobjects import HidraConstants
-from pyrs.interface.manual_reduction.event_handler import EventHandler
+
+DEFAULT_MASK_DIRECTORY = '/HFIR/HB2B/shared/CALIBRATION/'
+DEFAULT_CALIBRATION_DIRECTORY = DEFAULT_MASK_DIRECTORY
 
 
 def _nexus_to_subscans(nexusfile, projectfile, mask_file_name, save_project_file, logger):
@@ -75,6 +77,45 @@ class ReductionController(object):
         self._curr_hidra_ws = None
         # record of previously and currently processed HidraWorksapce
         self._hidra_ws_dict = dict()
+
+    @staticmethod
+    def get_default_calibration_dir():
+        """Default calibration directory on analysis cluster
+
+        Returns
+        -------
+        str
+            directory path
+
+        """
+        return DEFAULT_CALIBRATION_DIRECTORY
+
+    @staticmethod
+    def get_default_mask_dir():
+        """Get default directory for masks on analysis cluster
+
+        Returns
+        -------
+        str
+            directory path for maskings
+
+        """
+        return DEFAULT_MASK_DIRECTORY
+
+    @staticmethod
+    def get_ipts_from_run(run_number):
+        ipts = GetIPTS(run_number)
+        return ipts
+
+    @staticmethod
+    def get_default_output_dir(run_number):
+        try:
+            ipts = ReductionController.get_ipts_from_run(run_number)
+            project_dir = ipts + 'shared/manualreduce/'
+        except RuntimeError:
+            project_dir = None
+
+        return project_dir
 
     def load_hydra_file(self, project_file_name):
         """Load Hidra project file to the core
