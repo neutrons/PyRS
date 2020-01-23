@@ -236,6 +236,7 @@ class FitPeaksWindow(QMainWindow):
         o_table = FitTable(parent=self, fit_result=fit_result)
         o_table.initialize_fit_result_widgets()
         o_table.populate_fit_result_table()
+        o_table.select_first_row()
 
     def fit_table_radio_buttons(self):
         o_table = FitTable(parent=self, fit_result=self.fit_result)

@@ -1,5 +1,5 @@
 import numpy as np
-from qtpy.QtWidgets import QTableWidgetItem
+from qtpy.QtWidgets import QTableWidgetItem, QTableWidgetSelectionRange
 from qtpy.QtGui import QColor
 
 SUCCESS = "success"
@@ -93,9 +93,13 @@ class FitTable:
             self.parent.ui.tableView_fitSummary.removeRow(0)
 
     def _clear_columns(self):
-        _nbr_column = self.parent.ui.tableView_fitSummary.columnCount()
+        _nbr_column = self.get_number_of_columns()
         for _ in np.arange(_nbr_column):
             self.parent.ui.tableView_fitSummary.removeColumn(0)
+
+    def get_number_of_columns(self):
+        _nbr_column = self.parent.ui.tableView_fitSummary.columnCount()
+        return _nbr_column
 
     def _clear_table(self):
         self._clear_rows()
@@ -118,5 +122,9 @@ class FitTable:
 
         # add a status column
         clean_column_names.append("Status message")
-
         return clean_column_names
+
+    def select_first_row(self):
+        _nbr_column = self.get_number_of_columns()
+        selection_first_row = QTableWidgetSelectionRange(0, 0, 0, _nbr_column-1)
+        self.parent.ui.tableView_fitSummary.setRangeSelected(selection_first_row, True)
