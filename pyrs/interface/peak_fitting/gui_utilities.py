@@ -10,9 +10,14 @@ class GuiUtilities:
     def __init__(self, parent=None):
         self.parent = parent
 
+    def enabled_sub_runs_interation_widgets(self, enabled=True):
+        list_widgets = [self.parent.ui.groupBox_SubRuns,
+                        ]
+        self.enabled_list_widgets(list_widgets=list_widgets,
+                                  enabled=enabled)
+
     def enabled_fitting_widgets(self, enabled=True):
         list_widgets = [self.parent.ui.groupBox_FittingFunctions,
-                        self.parent.ui.groupBox_SubRuns,
                         ]
         self.enabled_list_widgets(list_widgets=list_widgets,
                                   enabled=enabled)
