@@ -89,6 +89,7 @@ class FitPeaksWindow(QMainWindow):
         self.ui.lineEdit_subruns_2dplot.textChanged.connect(self.list_subruns_2dplot_changed)
         self.ui.pushButton_save_peak_range.clicked.connect(self.clicked_save_peak_range)
         self.ui.pushButton_load_peak_range.clicked.connect(self.clicked_load_peak_range)
+        self.ui.tableView_fitSummary.itemSelectionChanged.connect(self.fit_result_table_selection_changed)
 
         self.ui.radioButton_fit_value.clicked.connect(self.fit_table_radio_buttons)
         self.ui.radioButton_fit_error.clicked.connect(self.fit_table_radio_buttons)
@@ -235,6 +236,7 @@ class FitPeaksWindow(QMainWindow):
         o_table = FitTable(parent=self, fit_result=fit_result)
         o_table.initialize_fit_result_widgets()
         o_table.populate_fit_result_table()
+        o_table.select_first_row()
 
     def fit_table_radio_buttons(self):
         o_table = FitTable(parent=self, fit_result=self.fit_result)
@@ -257,6 +259,10 @@ class FitPeaksWindow(QMainWindow):
     def peak_range_table_right_click(self, position):
         o_handler = EventHandler(parent=self)
         o_handler.peak_range_table_right_click(position=position)
+
+    def fit_result_table_selection_changed(self):
+        o_handler = EventHandler(parent=self)
+        o_handler.fit_table_selection_changed()
 
     def _init_widgets(self):
         """
