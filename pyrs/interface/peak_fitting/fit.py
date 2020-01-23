@@ -7,6 +7,8 @@ from pyrs.interface.peak_fitting.utilities import Utilities
 from pyrs.interface.gui_helper import pop_message
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
 from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory
+from qtpy.QtWidgets import QApplication
+from qtpy.QtCore import Qt
 
 PeakInfo = namedtuple('PeakInfo', 'center left_bound right_bound tag')
 
@@ -17,6 +19,8 @@ class Fit:
         self.parent = parent
 
     def fit_multi_peaks(self):
+
+        QApplication.setOverrideCursor(Qt.WaitCursor)
 
         _peak_range_list = [tuple(_range) for _range in self.parent._ui_graphicsView_fitSetup.list_peak_ranges]
         _peak_center_list = [np.mean([left, right]) for (left, right) in _peak_range_list]
@@ -44,6 +48,8 @@ class Fit:
         o_gui = GuiUtilities(parent=self.parent)
         o_gui.set_1D_2D_axis_comboboxes(with_clear=True, fill_raw=True, fill_fit=True)
         o_gui.initialize_combobox()
+
+        QApplication.restoreOverrideCursor()
 
     def fit_peaks(self, all_sub_runs=False):
         """ Fit peaks either all peaks or selected peaks
