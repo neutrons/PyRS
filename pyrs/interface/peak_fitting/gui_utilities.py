@@ -211,6 +211,11 @@ class GuiUtilities:
             self.parent.ui.peak_range_table.setItem(_index, 2, _label)
 
     @staticmethod
+    def get_row_selected(table_ui=None):
+        selection = table_ui.selectedRanges()[0]
+        return selection.topRow()
+
+    @staticmethod
     def make_visible_ui(list_ui=[], visible=True):
         for _ui in list_ui:
             _ui.setVisible(visible)
