@@ -54,14 +54,21 @@ def test_log_time_average():
 
     sub_run_times, sub_run_numbers = processor.get_sub_run_times_value()
 
-    # sample log (TSP)
-    tsp_sample_logs = processor.split_sample_logs(sub_run_times, sub_run_numbers)
-    # sample log (PyRS)
-    pyrs_sample_logs = processor.split_sample_logs_prototype(sub_run_times, sub_run_numbers)
+    # verify splitting information
+    # 2theta is the motor that determines the first start time
+    exp_times = np.array(['2019-11-10T16:31:02.645235328-0500', '2019-11-10T16:41:02.771317813-0500',   # scan_index=1
+                          '2019-11-10T16:41:14.238680196-0500', '2019-11-10T17:11:14.249705287-0500',   # scan_index=2
+                          '2019-11-10T17:11:33.208056929-0500', '2019-11-10T17:31:33.218615767-0500'],  # scan_index=3
+                         dtype='datetime64[ns]')
+    np.testing.assert_equal(sub_run_numbers, [1, 2, 3], err_msg='subrun numbers')
+    np.testing.assert_equal(sub_run_times, exp_times, err_msg='subrun filtering')
 
-    # compare some
-    for log_name in ['2theta', 'DOSC']:
-        np.testing.assert_allclose(tsp_sample_logs[log_name], pyrs_sample_logs[log_name])
+    # split the sample logs
+    sample_logs = processor.split_sample_logs(sub_run_times, sub_run_numbers)
+
+    # verify two of the properties
+    np.testing.assert_allclose(sample_logs['2theta'], [69.99525,  80.,  97.50225])
+    np.testing.assert_allclose(sample_logs['DOSC'], [-0.01139306,  0.00332028,  0.00635049], rtol=1.e-5)
 
 
 @pytest.mark.parametrize('nexus_file_name, mask_file_name',
