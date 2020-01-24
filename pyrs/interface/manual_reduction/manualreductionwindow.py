@@ -26,9 +26,6 @@ class ManualReductionWindow(QMainWindow):
         """
         super(ManualReductionWindow, self).__init__(parent)
 
-        # Event handler
-        self._event_handler = EventHandler(parent=self)
-
         # class variables
         self._core = None
         self._currExpNumber = None
@@ -48,26 +45,29 @@ class ManualReductionWindow(QMainWindow):
         # promote some widgets
         self._promote_widgets()
 
+        # Event handler: handler must be set up after UI is loaded
+        self._event_handler = EventHandler(parent=self)
+
         # set up the event handling
-        self._mask_state(self.ui.checkBox_defaultMaskFile.checkState())
-        self.checkBox_defaultMaskFile.stateChanged.connect(self._mask_state)
+        # TODO : self._mask_state(self.ui.checkBox_defaultMaskFile.checkState())
+        # TODO:  self.checkBox_defaultMaskFile.stateChanged.connect(self._mask_state)
         self.ui.pushButton_browseMaskFile.clicked.connect(self.browse_mask_file)
 
-        self.ui.spinBox_runNumber.valueChanged.connect(self._update_output_ipts)
+        # TODO: self.ui.spinBox_runNumber.valueChanged.connect(self._update_output_ipts)
 
-        self._calibration_state(self.ui.checkBox_defaultCalibrationFile.checkState())
-        self.checkBox_defaultCalibrationFile.stateChanged.connect(self._calibration_state)
+        # TODO: self._calibration_state(self.ui.checkBox_defaultCalibrationFile.checkState())
+        # TODO:  self.checkBox_defaultCalibrationFile.stateChanged.connect(self._calibration_state)
         self.ui.pushButton_browseCalibrationFile.clicked.connect(self.browse_calibration_file)
 
-        self._output_state(self.ui.checkBox_defaultOutputDirectory.checkState())
-        self.checkBox_defaultOutputDirectory.stateChanged.connect(self._output_state)
+        # TODO: self._output_state(self.ui.checkBox_defaultOutputDirectory.checkState())
+        # TODO: self.checkBox_defaultOutputDirectory.stateChanged.connect(self._output_state)
         self.ui.pushButton_browseOutputDirectory.clicked.connect(self.browse_output_dir)
 
         self.ui.pushButton_batchReduction.clicked.connect(self.manual_reduction)
         self.ui.pushButton_saveProject.clicked.connect(self.do_save_project)
         self.ui.pushButton_chopReduce.clicked.connect(self.slice_nexus)
 
-        self.ui.pushButton_launchAdvSetupWindow.clicked.connect(self.do_launch_slice_setup)
+        # FIXME - useful??? self.ui.pushButton_launchAdvSetupWindow.clicked.connect(self.do_launch_slice_setup)
         self.ui.pushButton_plotDetView.clicked.connect(self.do_plot)
 
         # radio button operation

@@ -194,7 +194,7 @@ class PyRSLauncher(QMainWindow):
         """
         if self.manual_reduction_window is None:
             self.manual_reduction_window = manualreductionwindow.ManualReductionWindow(self)
-            self.manual_reduction_window.setup_window()
+            # self.manual_reduction_window.setup_window()
 
         # show
         self.manual_reduction_window.show()
