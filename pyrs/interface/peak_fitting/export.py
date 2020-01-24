@@ -27,13 +27,15 @@ class ExportCSV(Export):
         self._csv_file_name = os.path.join(out_folder, self.parent._project_name + '.csv')
 
     def create_csv(self):
-        peaks = self.parent._core.get_peak(self.parent._project_name, 'Peak 1')
+        peaks = self.parent.fit_result.peakcollections
         sample_logs = self.parent.hidra_workspace._sample_logs
+
+        print("sample_log: {}".format(sample_logs))
 
         generator = SummaryGenerator(self._csv_file_name,
                                      log_list=sample_logs.keys())
         generator.setHeaderInformation(dict())
-        generator.write_csv(sample_logs, [peaks])
+        generator.write_csv(sample_logs, peaks)
 
         new_message = self.parent.current_root_statusbar_message + "\t\t\t\t Last Exported CSV: {}" \
                                                                    "".format(self._csv_file_name)

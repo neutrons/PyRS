@@ -126,6 +126,7 @@ class FitPeaksWindow(QMainWindow):
         o_gui.enabled_export_csv_widgets(False)
         o_gui.enabled_peak_ranges_widgets(False)
         o_gui.enabled_save_peak_range_widget(False)
+        o_gui.enabled_sub_runs_interation_widgets(False)
 
     # Menu event handler
     def browse_hdf(self):

@@ -69,6 +69,7 @@ class EventHandler:
             # enabled all fitting widgets and main plot
             o_gui = GuiUtilities(parent=self.parent)
             o_gui.check_if_fitting_widgets_can_be_enabled()
+            o_gui.enabled_sub_runs_interation_widgets(True)
             # o_gui.enabled_fitting_widgets(True)
             o_gui.enabled_data_fit_plot(True)
             o_gui.enabled_peak_ranges_widgets(True)

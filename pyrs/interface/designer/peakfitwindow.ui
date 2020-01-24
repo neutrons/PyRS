@@ -200,7 +200,7 @@
                   <enum>QAbstractItemView::SingleSelection</enum>
                  </property>
                  <property name="selectionBehavior">
-                  <enum>QAbstractItemView::SelectRows</enum>
+                  <enum>QAbstractItemView::SelectItems</enum>
                  </property>
                  <attribute name="horizontalHeaderStretchLastSection">
                   <bool>true</bool>
@@ -625,6 +625,9 @@
                      <widget class="QComboBox" name="comboBox_xaxisNames"/>
                     </item>
                     <item>
+                     <widget class="QComboBox" name="plot1d_xaxis_peak_label_comboBox"/>
+                    </item>
+                    <item>
                      <spacer name="horizontalSpacer_5">
                       <property name="orientation">
                        <enum>Qt::Horizontal</enum>
@@ -661,6 +664,9 @@
                     </item>
                     <item>
                      <widget class="QComboBox" name="comboBox_yaxisNames"/>
+                    </item>
+                    <item>
+                     <widget class="QComboBox" name="plot1d_yaxis_peak_label_comboBox"/>
                     </item>
                    </layout>
                   </item>
@@ -796,6 +802,9 @@
                      <widget class="QComboBox" name="comboBox_xaxisNames_2dplot"/>
                     </item>
                     <item>
+                     <widget class="QComboBox" name="plot2d_xaxis_peak_label_comboBox"/>
+                    </item>
+                    <item>
                      <spacer name="horizontalSpacer_11">
                       <property name="orientation">
                        <enum>Qt::Horizontal</enum>
@@ -834,6 +843,9 @@
                      <widget class="QComboBox" name="comboBox_yaxisNames_2dplot"/>
                     </item>
                     <item>
+                     <widget class="QComboBox" name="plot2d_yaxis_peak_label_comboBox"/>
+                    </item>
+                    <item>
                      <spacer name="horizontalSpacer_13">
                       <property name="orientation">
                        <enum>Qt::Horizontal</enum>
@@ -870,6 +882,9 @@
                     </item>
                     <item>
                      <widget class="QComboBox" name="comboBox_zaxisNames_2dplot"/>
+                    </item>
+                    <item>
+                     <widget class="QComboBox" name="plot2d_zaxis_peak_label_comboBox"/>
                     </item>
                    </layout>
                   </item>
