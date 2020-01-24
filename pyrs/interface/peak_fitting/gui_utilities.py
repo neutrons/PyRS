@@ -141,8 +141,25 @@ class GuiUtilities:
 
     def initialize_combobox_peak_label(self):
         list_of_labels = self.get_list_of_peak_label()
-        self.parent.ui.plot1d_peak_label_comboBox.clear()
-        self.parent.ui.plot1d_peak_label_comboBox.addItems(list_of_labels)
+
+        list_ui = [self.parent.ui.plot1d_xaxis_peak_label_comboBox,
+                   self.parent.ui.plot1d_yaxis_peak_label_comboBox,
+                   self.parent.ui.plot2d_xaxis_peak_label_comboBox,
+                   self.parent.ui.plot2d_yaxis_peak_label_comboBox,
+                   self.parent.ui.plot2d_zaxis_peak_label_comboBox]
+
+        GuiUtilities.clear_comboboxes(list_ui=list_ui)
+        GuiUtilities.fill_comboboxes(list_ui=list_ui, list_values=list_of_labels)
+
+    @staticmethod
+    def fill_comboboxes(list_ui=[], list_values=[]):
+        for _ui in list_ui:
+            _ui.addItems(list_values)
+
+    @staticmethod
+    def clear_comboboxes(list_ui=[]):
+        for _ui in list_ui:
+            _ui.clear()
 
     def get_list_of_peak_label(self):
         return self.parent._ui_graphicsView_fitSetup.list_fit_peak_labels
@@ -200,10 +217,15 @@ class GuiUtilities:
         else:
             self.make_visible_d01d_widgets(False)
 
-        if (xaxis_selected in LIST_AXIS_TO_PLOT['fit']) or (yaxis_selected in LIST_AXIS_TO_PLOT['fit']):
-            self.make_visible_peak_label_of_1d_widgets(True)
+        if xaxis_selected in LIST_AXIS_TO_PLOT['fit']:
+            self.parent.ui.plot1d_xaxis_peak_label_comboBox.setVisible(True)
         else:
-            self.make_visible_peak_label_of_1d_widgets(False)
+            self.parent.ui.plot1d_xaxis_peak_label_comboBox.setVisible(False)
+
+        if yaxis_selected in LIST_AXIS_TO_PLOT['fit']:
+            self.parent.ui.plot1d_yaxis_peak_label_comboBox.setVisible(True)
+        else:
+            self.parent.ui.plot1d_yaxis_peak_label_comboBox.setVisible(False)
 
     def check_axis2d_status(self):
         xaxis_selected = str(self.parent.ui.comboBox_xaxisNames_2dplot.currentText())
