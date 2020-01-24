@@ -1,7 +1,8 @@
 import os
 import json
 import numpy as np
-from qtpy.QtWidgets import QTableWidgetItem
+from qtpy.QtWidgets import QTableWidgetItem, QMenu
+from qtpy.QtGui import QCursor
 
 from pyrs.interface.gui_helper import pop_message
 from pyrs.interface.gui_helper import browse_file
@@ -67,7 +68,9 @@ class EventHandler:
 
             # enabled all fitting widgets and main plot
             o_gui = GuiUtilities(parent=self.parent)
-            o_gui.enabled_fitting_widgets(True)
+            o_gui.check_if_fitting_widgets_can_be_enabled()
+            o_gui.enabled_sub_runs_interation_widgets(True)
+            # o_gui.enabled_fitting_widgets(True)
             o_gui.enabled_data_fit_plot(True)
             o_gui.enabled_peak_ranges_widgets(True)
 
@@ -125,6 +128,7 @@ class EventHandler:
                                     list_fit_peak_labels=list_fit_peak_labels)
 
         self.parent.ui.peak_range_table.blockSignals(False)
+        o_gui.check_if_fitting_widgets_can_be_enabled()
 
     def update_fit_peak_ranges_plot(self):
         # retrieve all peaks and labels from table
@@ -222,3 +226,53 @@ class EventHandler:
                                              list_fit_peak_ranges_matplotlib_id=[],
                                              list_fit_peak_labels_matplotlib_id=[])
         self.parent._ui_graphicsView_fitSetup.plot_data_with_fitting_ranges()
+
+    def peak_range_table_right_click(self, position=-1):
+
+        nbr_row = self.parent.ui.peak_range_table.rowCount()
+        if nbr_row == 0:
+            return
+
+        menu = QMenu(self.parent)
+        _remove_row = menu.addAction("Remove")
+        action = menu.exec_(QCursor.pos())
+
+        if action == _remove_row:
+            self.remove_peak_range_table_row()
+
+        o_gui = GuiUtilities(parent=self.parent)
+        o_gui.check_if_fitting_widgets_can_be_enabled()
+
+    def remove_peak_range_table_row(self):
+        row_selected = self.parent.ui.peak_range_table.selectedRanges()[0]
+        row_to_remove = row_selected.topRow()
+        self.parent.ui.peak_range_table.removeRow(row_to_remove)
+
+        new_list_peak_ranges = []
+        new_list_peak_labels = []
+        new_list_matplotlib_id = []
+        old_list_peak_label = self.parent._ui_graphicsView_fitSetup.list_fit_peak_labels
+        old_list_matplotlib_id = self.parent._ui_graphicsView_fitSetup.list_peak_labels_matplotlib_id
+        for _row, peak_range in enumerate(self.parent._ui_graphicsView_fitSetup.list_peak_ranges):
+            if _row == row_to_remove:
+                _peak_label_id = old_list_matplotlib_id[_row]
+                _peak_label_id.remove()
+                continue
+
+            new_list_peak_ranges.append(peak_range)
+            new_list_peak_labels.append(old_list_peak_label[_row])
+            new_list_matplotlib_id.append(old_list_matplotlib_id[_row])
+
+        self.parent._ui_graphicsView_fitSetup.list_fit_peak_labels = new_list_peak_labels
+        self.parent._ui_graphicsView_fitSetup.list_peak_ranges = new_list_peak_ranges
+        self.parent._ui_graphicsView_fitSetup.list_peak_labels_matplotlib_id = new_list_matplotlib_id
+
+        self.parent._ui_graphicsView_fitSetup.plot_data_with_fitting_ranges()
+
+    def fit_table_selection_changed(self):
+        '''as soon as a row is selected, switch to the slider view and go to right sub_run'''
+        row_selected = GuiUtilities.get_row_selected(table_ui=self.parent.ui.tableView_fitSummary)
+        self.parent.ui.radioButton_individualSubRuns.setChecked(True)
+        self.parent.check_subRunsDisplayMode()
+        self.parent.ui.horizontalScrollBar_SubRuns.setValue(row_selected+1)
+        self.parent.plot_scan()

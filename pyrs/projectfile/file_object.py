@@ -1,4 +1,5 @@
 # This is rs_scan_io.DiffractionFile's 2.0 version
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from enum import Enum
 import h5py
 from mantid.kernel import Logger
@@ -650,8 +651,9 @@ class HidraProjectFile(object):
 
         single_peak_entry.create_dataset(HidraConstants.SUB_RUNS, data=fitted_peaks.sub_runs)
         single_peak_entry.create_dataset(HidraConstants.PEAK_FIT_CHI2, data=fitted_peaks.fitting_costs)
-        single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS, data=fitted_peaks.parameters_values)
-        single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS_ERROR, data=fitted_peaks.parameters_errors)
+        peak_values, peak_errors = fitted_peaks.get_native_params()
+        single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS, data=peak_values)
+        single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS_ERROR, data=peak_errors)
 
     def read_wavelengths(self):
         """

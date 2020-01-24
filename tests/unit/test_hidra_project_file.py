@@ -1,6 +1,7 @@
 """
 Test for reading and writing components to HiDRA project file
 """
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 import os
 import numpy as np
@@ -209,7 +210,8 @@ def test_peak_fitting_result_io():
 
     # parameter values
     # print('DEBUG:\n  Expected: {}\n  Found: {}'.format(test_params_array, peak_info[3]))
-    assert_allclose_structured_numpy_arrays(test_params_array, peak_info.parameters_values)
+    peak_values, _ = peak_info.get_native_params()
+    assert_allclose_structured_numpy_arrays(test_params_array, peak_values)
     # np.testing.assert_allclose(peak_info[3], test_params_array, atol=1E-12)
 
     # parameter values
