@@ -66,6 +66,20 @@ class EventHandler(object):
 
         return ipts_number
 
+    def _set_sub_run_numbers(self, sub_runs):
+        """Set sub run numbers to (1) Table and (2) Combo box
+
+        Parameters
+        ----------
+        sub_runs
+
+        Returns
+        -------
+
+        """
+        # TODO - ASAP
+        return
+
     def browse_load_nexus(self):
         """Allow users to browse for a nexus file to convert to project file
 
@@ -98,7 +112,7 @@ class EventHandler(object):
         sub_runs = self._controller.get_sub_runs()
 
         # set sub runs to (1) Table and (2) Combo box
-        self._set_run_numbers(sub_runs)
+        self._set_sub_run_numbers(sub_runs)
 
     def browse_load_hidra(self):
         """Allow users to browse for a HiDRA project file
@@ -134,7 +148,7 @@ class EventHandler(object):
         sub_runs = self._controller.get_sub_runs()
 
         # set sub runs to (1) Table and (2) Combo box
-        self._set_run_numbers(sub_runs)
+        self._set_sub_run_numbers(sub_runs)
         # Set to first sub run and plot
         self.ui.comboBox_sub_runs.setCurrentIndex(0)
         # Fill in self.ui.frame_subRunInfoTable
@@ -192,8 +206,10 @@ class EventHandler(object):
         -------
 
         """
+        # TODO - good run number!
+        run_number = 1060
         output_dir = browse_dir(self, caption='Output directory for reduced data',
-                                default_dir=self._controller.get_default_output_dir())
+                                default_dir=self._controller.get_default_output_dir(run_number))
         if output_dir != '':
             self.ui.lineEdit_outputDir.setText(output_dir)
 
@@ -245,7 +261,7 @@ class EventHandler(object):
 
         """
         # Get valid sub run
-        sub_run = parse_combo_box(self.ui.comboBox_runs, int, default=None)
+        sub_run = parse_combo_box(self.ui.comboBox_runs, int)
         if sub_run is None:
             return
 
@@ -260,7 +276,7 @@ class EventHandler(object):
         # Plot
         # set information
         det_2theta = self._controller.get_sample_log_value(HidraConstants.TWO_THETA, sub_run)
-        info = 'sub-run: {}, 2theta = {}' \ ''.format(sub_run, det_2theta)
+        info = 'sub-run: {}, 2theta = {}'.format(sub_run, det_2theta)
 
         # If mask ID is not None
         # if mask_id is not None:
@@ -284,7 +300,7 @@ class EventHandler(object):
 
         """
         # Get valid sub run
-        sub_run = parse_combo_box(self.ui.comboBox_runs, int, default=None)
+        sub_run = parse_combo_box(self.ui.comboBox_runs, int)
         if sub_run is None:
             return
 
@@ -399,19 +415,22 @@ class EventHandler(object):
         # Reduce data
         run_number = self.ui.spinBox_runNumber.text().strip()
         self._update_output_ipts(run_number)
-        nexus_file = FileFinder.findRuns('HB2B'+run_number)[0]
-        project_file = str(self.ui.lineEdit_outputDirectory.text().strip())
-        mask_file = str(self.ui.lineEdit_maskFile.text().strip())
-        calibration_file = str(self.ui.lineEdit_calibrationFile.text().strip())
-        task = BlockingAsyncTaskWithCallback(reduce_hidra_workflow, args=(nexus_file, project_file,
-                                                                          self.ui.progressBar),
-                                             kwargs={'subruns': sub_run_list, 'mask': mask_file,
-                                                     'calibration': calibration_file},
-                                             blocking_cb=QApplication.processEvents)
-        # TODO - catch RuntimeError! ...
-        # FIXME - check output directory
-        task.start()
-        # <<<<
+
+        if False:
+            # TODO - move to pyrs_api
+            nexus_file = FileFinder.findRuns('HB2B' + run_number)[0]
+            project_file = str(self.ui.lineEdit_outputDirectory.text().strip())
+            mask_file = str(self.ui.lineEdit_maskFile.text().strip())
+            calibration_file = str(self.ui.lineEdit_calibrationFile.text().strip())
+            task = BlockingAsyncTaskWithCallback(reduce_hidra_workflow, args=(nexus_file, project_file,
+                                                                              self.ui.progressBar),
+                                                 kwargs={'subruns': sub_run_list, 'mask': mask_file,
+                                                         'calibration': calibration_file},
+                                                 blocking_cb=QApplication.processEvents)
+            # TODO - catch RuntimeError! ...
+            # FIXME - check output directory
+            task.start()
+            # <<<<
 
         # Update table
         # TODO - Need to fill the table!
@@ -422,12 +441,6 @@ class EventHandler(object):
 
     def save_project(self):
         self._controller.save_project()
-        output_project_name = os.path.join(self._output_dir, os.path.basename(self._project_file_name))
-        if output_project_name != self._project_file_name:
-            import shutil
-            shutil.copyfile(self._project_file_name, output_project_name)
-
-        self._core.reduction_service.save_project(self._project_data_id, output_project_name)
 
     def plot_reduced_data(self, sub_run_number, mask_id):
         """
@@ -437,7 +450,7 @@ class EventHandler(object):
         :return:
         """
         # Check inputs
-        checkdatatypes.check_int_variable('Sub run number', sub_run_number, (0, None))
+        # checkdatatypes.check_int_variable('Sub run number', sub_run_number, (0, None))
 
         try:
             two_theta_array, diff_array = self._core.reduction_service.get_reduced_diffraction_data(

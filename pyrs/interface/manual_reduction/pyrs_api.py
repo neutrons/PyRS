@@ -4,6 +4,7 @@ from mantid.api import FileFinder
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
 from mantidqt.utils.asynchronous import BlockingAsyncTaskWithCallback
+import numpy as np
 
 from pyrs.core.pyrscore import PyRsCore
 from pyrs.utilities import calibration_file_io
@@ -179,6 +180,56 @@ class ReductionController(object):
         """
         return self._curr_hidra_ws.get_sub_runs()
 
+    def get_detector_counts(self, sub_run_number, output_matrix):
+        """
+
+        Parameters
+        ----------
+        sub_run_number
+        output_matrix : bool
+            True: output 2D, otherwise 1D
+
+        Returns
+        -------
+        numpy.ndarray
+
+        """
+        # TODO - ASAP
+        return np.ndarray((1024, 1024), dtype=int)
+
+    def get_powder_pattern(self, sub_run_number):
+        """
+
+        Parameters
+        ----------
+        sub_run_number
+
+        Returns
+        -------
+
+        """
+        return np.arange(1000).astype(float) * 0.1,  np.arange(1000).astype(float) * 0.1
+
+    def get_sample_log_value(self, log_name, sub_run_number):
+        # TODO - ASAP
+        return 69.5
+
+    def get_sample_logs_values(self, sample_log_names):
+        """Get sample logs' value
+
+        Parameters
+        ----------
+        sample_log_names : ~list
+            List of sample logs
+
+        Returns
+        -------
+        numpy.ndarray
+
+        """
+        # TODO - ASAP
+        return np.ndarray(shape=(2, 100))
+
     def load_nexus_file(self, nexus_name):
         # TODO - ASAP
         raise NotImplementedError('ASAP')
@@ -207,8 +258,6 @@ class ReductionController(object):
                                                                        load_detector_counts=True,
                                                                        load_diffraction=True)
         except (KeyError, RuntimeError, IOError) as load_err:
-
-
             # Load
             try:
                 self.parent._hydra_workspace = self.parent._core.load_hidra_project(project_file_name,
@@ -217,9 +266,7 @@ class ReductionController(object):
                                                                                     load_diffraction=True)
             except (KeyError, RuntimeError, IOError) as load_err:
                 self.parent._hydra_workspace = None
-                pop_message(self.parent, 'Loading {} failed.\nNothing is loaded'.format(project_file_name),
-                            detailed_message='{}'.format(load_err),
-                            message_type='error')
+                raise RuntimeError('Loading {} failed.\nNothing is loaded'.format(project_file_name))
 
             return
 
@@ -236,6 +283,14 @@ class ReductionController(object):
         # set
         instrument = calibration_file_io.import_instrument_setup(idf_name)
         self._core.reduction_service.set_instrument(instrument)
+
+    def save_project(self):
+        output_project_name = os.path.join(self._output_dir, os.path.basename(self._project_file_name))
+        if output_project_name != self._project_file_name:
+            import shutil
+            shutil.copyfile(self._project_file_name, output_project_name)
+
+        self._core.reduction_service.save_project(self._project_data_id, output_project_name)
 
 
 @staticmethod
