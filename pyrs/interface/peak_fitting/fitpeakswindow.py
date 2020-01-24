@@ -95,12 +95,12 @@ class FitPeaksWindow(QMainWindow):
         self.ui.radioButton_fit_error.clicked.connect(self.fit_table_radio_buttons)
         self.ui.spinBox_peak_index.valueChanged.connect(self.fit_table_radio_buttons)
 
-        self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.xaxis_1d_changed)
-        self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.yaxis_1d_changed)
+        self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.axis_1d_changed)
+        self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.axis_1d_changed)
 
-        self.ui.comboBox_xaxisNames_2dplot.currentIndexChanged.connect(self.xaxis_2d_changed)
-        self.ui.comboBox_yaxisNames_2dplot.currentIndexChanged.connect(self.yaxis_2d_changed)
-        self.ui.comboBox_zaxisNames_2dplot.currentIndexChanged.connect(self.zaxis_2d_changed)
+        self.ui.comboBox_xaxisNames_2dplot.currentIndexChanged.connect(self.axis_2d_changed)
+        self.ui.comboBox_yaxisNames_2dplot.currentIndexChanged.connect(self.axis_2d_changed)
+        self.ui.comboBox_zaxisNames_2dplot.currentIndexChanged.connect(self.axis_2d_changed)
 
         self.ui.peak_range_table.cellChanged.connect(self.peak_range_table_changed)
 
@@ -121,12 +121,17 @@ class FitPeaksWindow(QMainWindow):
         o_gui = GuiUtilities(parent=self)
         o_gui.enabled_fitting_widgets(False)
         o_gui.enabled_1dplot_widgets(False)
+        o_gui.check_axis1d_status()
         o_gui.enabled_2dplot_widgets(False)
+        o_gui.check_axis2d_status()
         o_gui.make_visible_listsubruns_warning(False)
         o_gui.enabled_export_csv_widgets(False)
         o_gui.enabled_peak_ranges_widgets(False)
         o_gui.enabled_save_peak_range_widget(False)
         o_gui.enabled_sub_runs_interation_widgets(False)
+
+    def test(self):
+        print("in test")
 
     # Menu event handler
     def browse_hdf(self):
@@ -180,29 +185,29 @@ class FitPeaksWindow(QMainWindow):
         o_handle = EventHandler(parent=self)
         o_handle.list_subruns_2dplot_changed()
 
-    def xaxis_1d_changed(self):
+    def axis_1d_changed(self):
         o_gui = GuiUtilities(parent=self)
         o_gui.check_axis1d_status()
         o_plot = Plot(parent=self)
         o_plot.plot_1d()
 
-    def yaxis_1d_changed(self):
-        o_gui = GuiUtilities(parent=self)
-        o_gui.check_axis1d_status()
-        o_plot = Plot(parent=self)
-        o_plot.plot_1d()
+    # def yaxis_1d_changed(self):
+    #     o_gui = GuiUtilities(parent=self)
+    #     o_gui.check_axis1d_status()
+    #     o_plot = Plot(parent=self)
+    #     o_plot.plot_1d()
 
-    def xaxis_2d_changed(self):
+    def axis_2d_changed(self):
         o_gui = GuiUtilities(parent=self)
         o_gui.check_axis2d_status()
 
-    def yaxis_2d_changed(self):
-        o_gui = GuiUtilities(parent=self)
-        o_gui.check_axis2d_status()
-
-    def zaxis_2d_changed(self):
-        o_gui = GuiUtilities(parent=self)
-        o_gui.check_axis2d_status()
+    # def yaxis_2d_changed(self):
+    #     o_gui = GuiUtilities(parent=self)
+    #     o_gui.check_axis2d_status()
+    #
+    # def zaxis_2d_changed(self):
+    #     o_gui = GuiUtilities(parent=self)
+    #     o_gui.check_axis2d_status()
 
     def export_csv(self):
         o_export = ExportCSV(parent=self)
