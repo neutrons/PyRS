@@ -121,7 +121,7 @@ class Plot:
         # get the sample log/meta data name
         x_axis_name = str(self.parent.ui.comboBox_xaxisNames.currentText())
         y_axis_name = str(self.parent.ui.comboBox_yaxisNames.currentText())
-        x_axis_peak_index = self.parent.ui.plot1d_xaxis_peak_label_comboBox.currentIndex()
+        # x_axis_peak_index = self.parent.ui.plot1d_xaxis_peak_label_comboBox.currentIndex()
         y_axis_peak_index = self.parent.ui.plot1d_yaxis_peak_label_comboBox.currentIndex()
 
         hidra_workspace = self.parent.hidra_workspace
@@ -137,8 +137,6 @@ class Plot:
                                                      value_to_display=y_axis_name)
                 import pprint
                 pprint.pprint("value: {}".format(value))
-
-
 
             #     vec_y, vec_x = self.get_function_parameter_data(x_axis_name)
             #     print("vec_y: " + format(vec_y))
@@ -206,14 +204,8 @@ class Plot:
         # self.parent.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y, x_axis_name, y_axis_name)
 
     def get_fitted_value(self, peak=None, value_to_display='Center'):
-
         print(peak)
-
-
-
         return []
-
-
 
     def get_function_parameter_data(self, param_name):
         """ get the parameter function data
