@@ -1,3 +1,4 @@
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from pyrs.projectfile import HidraProjectFile
 from pyrs.utilities import calibration_file_io
 from pyrs.core import workspaces

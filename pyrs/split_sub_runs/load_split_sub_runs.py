@@ -1,5 +1,6 @@
 # This is a numpy version for prototyping to load NeXus and split events for sub runs
 # by numpy and hdf5
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import h5py
 import numpy as np
 from pyrs.utilities import checkdatatypes
