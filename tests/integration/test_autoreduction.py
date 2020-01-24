@@ -6,6 +6,8 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pytest
 
+DIAGNOSTIC_PLOTS = False
+
 
 def checkFileExists(filename, feedback):
     '''``feedback`` should be 'skip' to skip the test if it doesn't exist,
@@ -24,21 +26,34 @@ def checkFileExists(filename, feedback):
 
 
 def convertNeXusToProject(nexusfile, projectfile, skippable, mask_file_name=None):
+    '''
+    Parameters
+    ==========
+    nexusfile: str
+        Path to Nexus file to reduce
+    projectfile: str or None
+        Path to the project file to save. If this is :py:obj:`None`, then the project file is not created
+    skippable: bool
+        Whether missing the nexus file skips the test or fails it
+    mask_file_name: str
+        Name of the masking file to use
+    :return:
+    '''
     if skippable:
         checkFileExists(nexusfile, feedback='skip')
     else:
         checkFileExists(nexusfile, feedback='assert')
 
     # remove the project file if it currently exists
-    if os.path.exists(projectfile):
+    if projectfile and os.path.exists(projectfile):
         os.remove(projectfile)
 
     converter = NeXusConvertingApp(nexusfile, mask_file_name=mask_file_name)
     hidra_ws = converter.convert(use_mantid=False)
-    converter.save(projectfile)
-
-    # tests for the created file
-    assert os.path.exists(projectfile), 'Project file {} does not exist'.format(projectfile)
+    if projectfile is not None:
+        converter.save(projectfile)
+        # tests for the created file
+        assert os.path.exists(projectfile), 'Project file {} does not exist'.format(projectfile)
 
     return hidra_ws
 
@@ -101,6 +116,52 @@ def test_nexus_to_project(nexusfile, projectfile):
 
     # cleanup
     os.remove(projectfile)
+
+
+@pytest.mark.parametrize('mask_file_name, filtered_counts, histogram_counts',
+                         [('data/HB2B_Mask_12-18-19.xml', (540461, 1635432, 1193309), (510.8, 1555.7, 1136.3)),
+                          (None, (548953, 1661711, 1212586), (518.7, 1580.5, 1154.4))],
+                         ids=('HB2B_1017_Masked', 'HB2B_1017_NoMask'))
+def test_reduce_data(mask_file_name, filtered_counts, histogram_counts):
+    """Verify NeXus converters including counts and sample log values"""
+    SUBRUNS = (1, 2, 3)
+    CENTERS = (69.99525,  80.,  97.50225)
+
+    # reduce with PyRS/Python
+    hidra_ws = convertNeXusToProject('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5', projectfile=None, skippable=True,
+                                     mask_file_name=mask_file_name)
+
+    # verify subruns
+    np.testing.assert_equal(hidra_ws.get_sub_runs(), SUBRUNS)
+
+    for sub_run, total_counts in zip(hidra_ws.get_sub_runs(), filtered_counts):
+        counts_array = hidra_ws.get_detector_counts(sub_run)
+        np.testing.assert_equal(counts_array.shape, (1048576,))
+        assert np.sum(counts_array) == total_counts, 'mismatch in subrun={} for filtered data'.format(sub_run)
+
+    # Test reduction to diffraction pattern
+    reducer = ReductionApp(False)
+    reducer.load_hidra_workspace(hidra_ws)
+    reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None)
+
+    # plot the patterns
+    if DIAGNOSTIC_PLOTS:
+        from matplotlib import pyplot as plt
+        for sub_run, angle in zip(SUBRUNS, CENTERS):
+            x, y = reducer.get_diffraction_data(sub_run)
+            plt.plot(x, y, label='SUBRUN {} at {:.1f} deg'.format(sub_run, angle))
+        plt.legend()
+        plt.show()
+
+    # check ranges and total counts
+    for sub_run, angle, total_counts in zip(SUBRUNS, CENTERS, histogram_counts):
+        assert_label = 'mismatch in subrun={} for histogrammed data'.format(sub_run)
+        x, y = reducer.get_diffraction_data(sub_run)
+        assert x[0] < angle < x[-1], assert_label
+        assert np.isnan(np.sum(y)), assert_label
+        np.testing.assert_almost_equal(np.nansum(y), total_counts, decimal=1, err_msg=assert_label)
+
+    # TODO add checks for against golden version
 
 
 def test_split_log_time_average():
