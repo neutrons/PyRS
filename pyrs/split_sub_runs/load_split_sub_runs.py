@@ -6,7 +6,7 @@ from pyrs.utilities import checkdatatypes
 from pyrs.dataobjects.constants import HidraConstants
 import datetime
 import os
-from mantid.simpleapi import Load, LoadMask
+from mantid.simpleapi import LoadEventNexus, LoadMask
 from mantid.kernel import BoolTimeSeriesProperty, FloatFilteredTimeSeriesProperty, FloatTimeSeriesProperty
 from mantid.kernel import Int32TimeSeriesProperty, Int64TimeSeriesProperty, Int32FilteredTimeSeriesProperty,\
     Int64FilteredTimeSeriesProperty
@@ -59,6 +59,24 @@ def load_split_nexus_python(nexus_name, mask_file_name):
     return sub_run_counts, sample_logs, mask_array
 
 
+def convert_pulses_to_datetime64(h5obj):
+    '''The h5object is the h5py handle to ``event_time_zero``. This only supports pulsetimes in seconds'''
+    if h5obj.attrs['units'] != 'second':
+        raise RuntimeError('Do not understand time units "{}"'.format(h5obj.attrs['units']))
+
+    # the value is number of seconds as a float
+    pulse_time = h5obj.value
+
+    # Convert deltas to times with units. This has to be done through
+    # nanoseconds because numpy truncates things to integers during the conversion
+    pulse_time = pulse_time * 1.e9 * np.timedelta64(1, 'ns')
+
+    # get absolute offset and convert to absolute time
+    start_time = np.datetime64(h5obj.attrs['offset'])
+
+    return pulse_time + start_time
+
+
 class NexusProcessor(object):
     """
     Class to process NeXus files in PyRS
@@ -79,37 +97,16 @@ class NexusProcessor(object):
         # Create workspace for sample logs and optionally mask
         # Load file
         self._ws_name = os.path.basename(self._nexus_name).split('.')[0]
-        self._workspace = Load(Filename=self._nexus_name, MetaDataOnly=True, OutputWorkspace=self._ws_name)
-
-        # Load: this h5 will be opened all the time
-        self._nexus_h5 = h5py.File(nexus_file_name, 'r')
-
-        # Check number of neutron events.  Raise exception if there is no neutron event
-        if self._nexus_h5['entry']['bank1_events']['total_counts'].value[0] < 0.1:
-            # no counts
-            self._nexus_h5.close()
-            raise RuntimeError('Run {} has no count.  Proper reduction requires the run to have count'
-                               ''.format(self._nexus_name))
-        elif len(self._nexus_h5['entry']['DASlogs']['scan_index']['value'].value) == 1:
+        self._workspace = LoadEventNexus(Filename=self._nexus_name, OutputWorkspace=self._ws_name,
+                                         MetaDataOnly=True, LoadMonitors=False)
+        # raise an exception if there is only one scan index entry
+        # this is an underlying assumption of the rest of the code
+        if self._workspace.run()['scan_index'].size == 1:
             # Get the time and value of 'scan_index' (entry) in H5
-            scan_index_times = self._nexus_h5['entry']['DASlogs']['scan_index']['time'].value
-            scan_index_value = self._nexus_h5['entry']['DASlogs']['scan_index']['value'].value
-            # close file
-            self._nexus_h5.close()
+            scan_index_times = self._workspace.run()['scan_index'].times
+            scan_index_value = self._workspace.run()['scan_index'].value
             raise RuntimeError('Sub scan (time = {}, value = {}) is not valid'
                                ''.format(scan_index_times, scan_index_value))
-
-    def __del__(self):
-        """Destructor
-
-        Close h5py.File if it is not closed
-
-        Returns
-        -------
-        None
-
-        """
-        self._nexus_h5.close()
 
     def process_mask(self, mask_file_name):
         """
@@ -149,9 +146,9 @@ class NexusProcessor(object):
             sub run (scan index) times
 
         """
-        # Get the time and value of 'scan_index' (entry) in H5
-        scan_index_times = self._nexus_h5['entry']['DASlogs']['scan_index']['time'].value
-        scan_index_value = self._nexus_h5['entry']['DASlogs']['scan_index']['value'].value
+        # Get the time and value from the mantid workspace
+        scan_index_times = self._workspace.run()['scan_index'].times   # absolute times
+        scan_index_value = self._workspace.run()['scan_index'].value
 
         if scan_index_times.shape[0] <= 1:
             raise RuntimeError('Sub scan (time = {}, value = {}) is not valid'
@@ -159,8 +156,8 @@ class NexusProcessor(object):
 
         sub_run_times, sub_runs = self.generate_sub_run_splitter(scan_index_times, scan_index_value)
 
-        # Correct start scan_index time
-        corrected_value = self.correct_starting_scan_index_time()
+        # Move start time to when interesting logs stop moving
+        corrected_value = self.correct_starting_scan_index_time(sub_run_times[0])
         if corrected_value is not None:
             sub_run_times[0] = corrected_value
 
@@ -219,7 +216,7 @@ class NexusProcessor(object):
 
         return sub_run_times, sub_run_numbers
 
-    def correct_starting_scan_index_time(self, abs_tolerance=0.05):
+    def correct_starting_scan_index_time(self, start_time, abs_tolerance=0.05):
         """Correct the DAS-issue for mis-record the first scan_index/sub run before the motor is in position
 
         This goes through a subset of logs and compares when they actually
@@ -228,6 +225,8 @@ class NexusProcessor(object):
 
         Parameters
         ----------
+        start_time: numpy.datetime64
+            The start time according to the scan_index log
         abs_tolerance: float
             When then log is within this absolute tolerance of the setpoint, it is correct
 
@@ -237,35 +236,32 @@ class NexusProcessor(object):
             Corrected value or None
 
         """
+        run_obj = self._workspace.run()
         # loop through the 'special' logs
-        start_time = -1E-9
-
         for log_name in ['sx', 'sy', 'sz', '2theta', 'omega', 'chi', 'phi']:
-            if log_name not in self._nexus_h5['entry']['DASlogs'].keys():
+            if log_name not in run_obj:
                 continue  # log doesn't exist - not a good one to look at
-            if log_name + 'Setpoint' not in self._nexus_h5['entry']['DASlogs'].keys():
+            if log_name + 'Setpoint' not in run_obj:
                 continue  # log doesn't have a setpoint - not a good one to look at
+            if run_obj[log_name].size() == 1:
+                continue  # there is only one value
 
             # get the observed values of the log
-            observed = self._nexus_h5['entry']['DASlogs'][log_name]['value'].value
-            if len(observed) <= 1 or observed.std() <= .5 * abs_tolerance:
+            observed = run_obj[log_name].value
+            if observed.std() <= .5 * abs_tolerance:
                 continue  # don't bother if the log is constant within half of the tolerance
 
             # look for the setpoint and find when the log first got there
             # only look at first setpoint
-            set_point = self._nexus_h5['entry']['DASlogs'][log_name + 'Setpoint']['value'].value[0]
-            for i, value in enumerate(observed):
+            set_point = run_obj[log_name + 'Setpoint'].value[0]
+            for log_time, value in zip(run_obj[log_name].times, observed):
                 if abs(value - set_point) < abs_tolerance:
                     # pick the larger of what was found and the previous largest value
-                    start_time = max(self._nexus_h5['entry']['DASlogs'][log_name]['time'].value[i], 0.)
+                    if log_time > start_time:
+                        start_time = log_time
                     break
 
-        # unset the start time if it is before the actual start of the run
-        if start_time <= 0:
-            start_time = None
-        else:
-            print('[DEBUG] Shift from start_time = {}'
-                  ''.format(start_time))
+        print('[DEBUG] Shift from start_time = {}'.format(np.datetime_as_string(start_time)))
 
         return start_time
 
@@ -290,15 +286,26 @@ class NexusProcessor(object):
             Dictionary of split counts for each sub runs.  key = sub run number, value = numpy.ndarray
 
         """
-        # Get pulse times
-        pulse_time_array = self._nexus_h5['entry']['bank1_events']['event_time_zero'].value
+
+        # Load: this h5 will be opened all the time
+        with h5py.File(self._nexus_name, 'r') as nexus_h5:
+            bank1_events = nexus_h5['entry']['bank1_events']
+            # Check number of neutron events.  Raise exception if there is no neutron event
+            if bank1_events['total_counts'].value[0] < 0.1:
+                # no counts
+                raise RuntimeError('Run {} has no count.  Proper reduction requires the run to have count'
+                                   ''.format(self._nexus_name))
+
+            # get event index array: same size as pulse times
+            event_index_array = bank1_events['event_index'].value
+            # detector id for the events
+            event_id_array = bank1_events['event_id'].value
+
+            # get pulse times
+            pulse_time_array = convert_pulses_to_datetime64(bank1_events['event_time_zero'])
 
         # Search index of sub runs' boundaries (start/stop time) in pulse time array
         subrun_pulseindex_array = np.searchsorted(pulse_time_array, sub_run_times)
-
-        # get event index array: same size as pulse times
-        event_index_array = self._nexus_h5['entry']['bank1_events']['event_index'].value
-        event_id_array = self._nexus_h5['entry']['bank1_events']['event_id'].value
 
         # split data
         num_sub_runs = sub_run_values.shape[0]
@@ -341,67 +348,6 @@ class NexusProcessor(object):
 
         return sub_run_counts_dict
 
-    def split_sample_logs_prototype(self, sub_run_times, sub_run_value):
-        """Split sample logs according to sub runs
-
-        Parameters
-        ----------
-        sub_run_times : numpy.ndarray
-            sub run times
-        sub_run_value : numpy.ndarray
-            sub run numbers
-
-        Returns
-        -------
-        dict
-            split sample logs. key = sub run, value = numpy.ndarray
-
-        """
-        # Log entry
-        das_log_entry = self._nexus_h5['entry']['DASlogs']
-        log_names = list(das_log_entry.keys())  # some version of h5py returns KeyMap instead of list
-        # move scan index
-        log_names.remove('scan_index')
-
-        # make sure sub runs are integer
-        sub_run_value = sub_run_value.astype(int)
-
-        # Import sample logs in Time-Series
-        split_log_dict = dict()
-        irregular_log_names = list()
-        for log_name in log_names:
-
-            single_log_entry = das_log_entry[log_name]
-            try:
-                times = single_log_entry['time']
-                value = single_log_entry['value']
-
-                # check type
-                value_type = str(value.dtype)
-
-                if value_type.count('float') == 0 and value_type.count('int') == 0:
-                    print('[WARNING] Log {} has dtype {}.  No split'.format(log_name, value_type))
-                    continue
-
-                split_log, time_i = split_das_log(times, value, sub_run_times, sub_run_value)
-                split_log_dict[log_name] = split_log
-            except KeyError:
-                irregular_log_names.append(log_name)
-        # END-FOR
-
-        # Warning output
-        if len(irregular_log_names) > 0:
-            print('[WARNING] DAS logs: {} are not time series'.format(irregular_log_names))
-
-        # Add back scan index
-        split_log_dict['scan_index'] = sub_run_value
-
-        # Duration
-        duration_logs = sub_run_times[1::2] - sub_run_times[::2]
-        split_log_dict['duration'] = duration_logs
-
-        return split_log_dict
-
     def split_sample_logs(self, sub_run_times, sub_run_numbers):
         """Create dictionary for sample log of a sub run
 
@@ -422,14 +368,9 @@ class NexusProcessor(object):
         """
         # Check
         if sub_run_numbers.shape[0] * 2 != sub_run_times.shape[0]:
-            raise RuntimeError('....')
+            raise RuntimeError('Should have twice as many times as values')
 
         run_obj = self._workspace.run()
-
-        # Get 'start_time' and create a new sub_run_times in datetime64
-        run_start_abs = np.datetime64(run_obj['start_time'].value)
-        delta_times = (sub_run_times * 1E9).astype(np.timedelta64)  # convert to nanosecond then to timedetal64
-        sub_run_splitter_times = run_start_abs + delta_times
 
         # this contains all of the sample logs
         sample_log_dict = dict()
@@ -437,13 +378,14 @@ class NexusProcessor(object):
         # loop through all available logs
         for log_name in run_obj.keys():
             # create and calculate the sample log
-            sample_log_dict[log_name] = self.split_property(run_obj.getProperty(log_name), sub_run_splitter_times,
+            sample_log_dict[log_name] = self.split_property(run_obj.getProperty(log_name), sub_run_times,
                                                             log_array_size)
         # END-FOR
 
         # create a fictional log for duration
         if HidraConstants.SUB_RUN_DURATION not in sample_log_dict:
-            sample_log_dict[HidraConstants.SUB_RUN_DURATION] = sub_run_times[1::2] - sub_run_times[::2]
+            durations = (sub_run_times[1::2] - sub_run_times[::2]) / np.timedelta64(1, 's')
+            sample_log_dict[HidraConstants.SUB_RUN_DURATION] = durations
 
         return sample_log_dict
 
@@ -507,79 +449,3 @@ class NexusProcessor(object):
         time_average_value = filtered_tsp.timeAverageValue()
 
         return time_average_value
-
-
-def split_das_log(log_times, log_values, sub_run_times, sub_run_numbers):
-    """Split a time series property to sub runs
-
-    Parameters
-    ----------
-    log_times : numpy.ndarray
-        relative sample log time in second to run start
-    log_values : numpy.ndarray
-        sample log value
-    sub_run_times: numpy.ndarray
-        relative sub run start and stop time in second to run start.
-        It is twice size of sub runs. 2n index for run start and (2n + 1) index for run stop
-    sub_run_numbers : numpy.ndarray
-        sub run number, dtype as integer
-
-    Returns
-    -------
-    numpy.nddarry, float
-        split das log in time average for each sub run, duration (second) to split log
-
-    """
-    # Profile
-    start_time = datetime.datetime.now()
-
-    # Initialize the output numpy array
-    split_log_values = np.ndarray(shape=sub_run_numbers.shape, dtype=log_values.dtype)
-
-    # Two cases: single and multiple value
-    if log_values.shape[0] == 1:
-        # single value: no need to split.  all the sub runs will have same value
-        split_log_values[:] = log_values[0]
-
-    else:
-        # multiple values: split
-        split_bound_indexes = np.searchsorted(log_times, sub_run_times)
-
-        # then calculate time average for each sub run
-        for i_sr in range(sub_run_numbers.shape[0]):
-            # the starting value of the log in a sub run shall be the last change before the sub run start,
-            # so the searched index shall be subtracted by 1
-            # avoid (1) breaking lower boundary and (2) breaking the upper boundary
-            start_index = min(max(0, split_bound_indexes[2 * i_sr] - 1), log_times.shape[0] - 1)
-
-            # the stopped value of the log shall be the log value 1 prior to the searched result
-            stop_index = split_bound_indexes[2 * i_sr + 1]
-
-            # re-define the range of the log time
-            sub_times = log_times[start_index:stop_index]
-            if sub_times.shape[0] == 0:
-                raise RuntimeError('Algorithm error!')
-            # change times at the start and append the stop time
-            sub_times[0] = sub_run_times[2 * i_sr]
-            sub_times = np.append(sub_times, sub_run_times[2 * i_sr + 1])
-
-            # get the range value
-            sub_values = log_values[start_index:stop_index]
-
-            # calculate the time average
-            try:
-                weighted_sum = np.sum(sub_values[:] * (sub_times[1:] - sub_times[:-1]))
-            except TypeError as type_err:
-                print('Sub values: {}\nSub times: {}'.format(sub_values, sub_times))
-                print('Sub value type: {}'.format(sub_values.dtype))
-                raise type_err
-            time_averaged = weighted_sum / (sub_times[-1] - sub_times[0])
-
-            # record
-            split_log_values[i_sr] = time_averaged
-        # END-FOR (sub runs)
-    # END-IF
-
-    stop_time = datetime.datetime.now()
-
-    return split_log_values, (stop_time - start_time).total_seconds()
