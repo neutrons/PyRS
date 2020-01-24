@@ -1,8 +1,9 @@
 import os
 from qtpy.QtCore import Qt
-from pyrs.interface.gui_helper import browse_file
-from pyrs.interface.gui_helper import pop_message, parse_line_edit
+from pyrs.interface.gui_helper import pop_message, parse_line_edit, parse_integers, browse_file, browse_dir,\
+    parse_combo_box
 from pyrs.interface.manual_reduction.pyrs_api import ReductionController
+from pyrs.dataobjects.constants import HidraConstants
 
 
 class EventHandler(object):
@@ -111,7 +112,7 @@ class EventHandler(object):
         if ipts_number is None:
             default_dir = self._controller.working_dir
         else:
-            default_dir = self._controller.get_hidra_project_dir(ipts_number)
+            default_dir = self._controller.get_hidra_project_dir(ipts_number, is_auto=True)
 
         # Browse
         hidra_file = browse_file(self.parent,
@@ -121,13 +122,24 @@ class EventHandler(object):
                                  file_list=False, save_file=False)
 
         # Load Nexus
-        self._controller.load_hidra_project(hidra_file)
+        try:
+            no_count_loaded = self._controller.load_hidra_project(hidra_file, allow_no_counts=True)
+        except RuntimeError as run_err:
+            pop_message(self.parent, 'Loading {} failed.\nTry to load diffraction only!'.format(hidra_file),
+                        detailed_message='{}'.format(run_err),
+                        message_type='error')
+            return
 
         # sub runs
         sub_runs = self._controller.get_sub_runs()
 
         # set sub runs to (1) Table and (2) Combo box
         self._set_run_numbers(sub_runs)
+        # Set to first sub run and plot
+        self.ui.comboBox_sub_runs.setCurrentIndex(0)
+        # Fill in self.ui.frame_subRunInfoTable
+        meta_data_array = self._controller.get_sample_logs_values([HidraConstants.SUB_RUNS, HidraConstants.TWO_THETA])
+        self.ui.rawDataTable.add_subruns_info(meta_data_array, clear_table=True)
 
     def browse_calibration_file(self):
         """
@@ -155,26 +167,35 @@ class EventHandler(object):
         """
         idf_name = browse_file(self, 'Instrument definition file', os.getcwd(),
                                'Text (*.txt);;XML (*.xml)', False, False)
-            if len(idf_name) == 0:
-                return   # user cancels operation
-            else:
-                self.ui.lineEdit_idfName.setText(idf_name)
+        if len(idf_name) == 0:
+            return   # user cancels operation
+        else:
+            self.ui.lineEdit_idfName.setText(idf_name)
         # END-IF
 
     def browse_mask_file(self):
-        mask_file_name = browse_file(
-            self, 'Hidra Mask File', DEFAULT_MASK_DIRECTORY, 'hdf5 (*.h5);;xml (*.xml)', False, False)
+        """Browse masking file
+
+        Returns
+        -------
+
+        """
+        mask_file_name = browse_file(self.parent, 'Hidra Mask File', self._controller.get_default_mask_dir(),
+                                     'Mantid Mask(*.xml)', False, False)
         self.ui.lineEdit_maskFile.setText(mask_file_name)
-        # self.load_hydra_file(project_file_name)
         return
 
     def browse_output_dir(self):
+        """Browse output directory
+
+        Returns
+        -------
+
+        """
         output_dir = browse_dir(self, caption='Output directory for reduced data',
-                                           default_dir=os.path.expanduser('~'))
+                                default_dir=self._controller.get_default_output_dir())
         if output_dir != '':
             self.ui.lineEdit_outputDir.setText(output_dir)
-            self._core.reduction_service.set_output_dir(output_dir)
-            self._output_dir = output_dir
 
     def slice_nexus(self):
         """Slice NeXus file by arbitrary log sample parameter
@@ -183,38 +204,38 @@ class EventHandler(object):
         -------
 
         """
-        if self.ui.radioButton_chopByTime.isChecked():
-            # set up slicers by time
-            self.set_slicers_by_time()
-        elif self.ui.radioButton_chopByLogValue.isChecked():
-            # set up slicers by sample log value
-            self.set_slicers_by_sample_log_value()
-        else:
-            # set from the table
-            self.set_slicers_manually()
-        # END-IF-ELSE
+        # if self.ui.radioButton_chopByTime.isChecked():
+        #     # set up slicers by time
+        #     self.set_slicers_by_time()
+        # elif self.ui.radioButton_chopByLogValue.isChecked():
+        #     # set up slicers by sample log value
+        #     self.set_slicers_by_sample_log_value()
+        # else:
+        #     # set from the table
+        #     self.set_slicers_manually()
+        # # END-IF-ELSE
+        #
+        # try:
+        #     data_key = self._core.reduction_service.chop_data()
+        # except RuntimeError as run_err:
+        #     pop_message(self, message='Unable to slice data', detailed_message=str(run_err),
+        #                            message_type='error')
+        #     return
+        #
+        # try:
+        #     self._core.reduction_service.reduced_chopped_data(data_key)
+        # except RuntimeError as run_err:
+        #     pop_message(self, message='Failed to reduce sliced data', detailed_message=str(run_err),
+        #                            message_type='error')
+        #     return
+        #
+        # # fill the run numbers to plot selection
+        # self._setup_plot_selection(append_mode=False, item_list=self._core.reduction_service.get_chopped_names())
+        #
+        # # plot
+        # self._plot_data()
 
-        try:
-            data_key = self._core.reduction_service.chop_data()
-        except RuntimeError as run_err:
-            gui_helper.pop_message(self, message='Unable to slice data', detailed_message=str(run_err),
-                                   message_type='error')
-            return
-
-        try:
-            self._core.reduction_service.reduced_chopped_data(data_key)
-        except RuntimeError as run_err:
-            gui_helper.pop_message(self, message='Failed to reduce sliced data', detailed_message=str(run_err),
-                                   message_type='error')
-            return
-
-        # fill the run numbers to plot selection
-        self._setup_plot_selection(append_mode=False, item_list=self._core.reduction_service.get_chopped_names())
-
-        # plot
-        self._plot_data()
-
-        return
+        raise RuntimeError('Shall be combined with Async slice and reduce with sub runs')
 
     def plot_detector_counts(self):
         """
@@ -223,10 +244,37 @@ class EventHandler(object):
         -------
 
         """
-        sub_run = int(self.ui.comboBox_sub_runs.currentText())
-        # FIXME - TODO - ValueError: invalid literal for int() with base 10: ''
+        # Get valid sub run
+        sub_run = parse_combo_box(self.ui.comboBox_runs, int, default=None)
+        if sub_run is None:
+            return
 
-        return
+        # Get counts
+        try:
+            counts_matrix = self._controller.get_detector_counts(sub_run, output_matrix=True)
+        except RuntimeError as run_err:
+            pop_message(self.parent, 'Unable to plot sub run {} counts on detector view'.format(sub_run),
+                        str(run_err), message_type='error')
+            return
+
+        # Plot
+        # set information
+        det_2theta = self._controller.get_sample_log_value(HidraConstants.TWO_THETA, sub_run)
+        info = 'sub-run: {}, 2theta = {}' \ ''.format(sub_run, det_2theta)
+
+        # If mask ID is not None
+        # if mask_id is not None:
+        #     # Get mask in array and do a AND operation to detector counts (array)
+        #     mask_array = self._core.reduction_service.get_mask_array(self._curr_project_name, mask_id)
+        #     detector_counts_array *= mask_array
+        #     info += ', mask ID = {}'.format(mask_id)
+
+        # Set information
+        self.ui.lineEdit_detViewInfo.setText(info)
+
+        # Plot
+        self.ui.graphicsView_detectorView.plot_detector_view(detector_counts_array, (sub_run_number, mask_id))
+        self.ui.graphicsView_detectorView.plot_detector_view(counts_matrix, (sub_run, None))
 
     def plot_powder_pattern(self):
         """
@@ -235,8 +283,21 @@ class EventHandler(object):
         -------
 
         """
-        sub_run = int(self.ui.comboBox_sub_runs.currentText())
-        # FIXME - TODO - ValueError: invalid literal for int() with base 10: ''
+        # Get valid sub run
+        sub_run = parse_combo_box(self.ui.comboBox_runs, int, default=None)
+        if sub_run is None:
+            return
+
+        # Get diffraction pattern
+        try:
+            pattern = self._controller.get_powder_pattern(sub_run)
+        except RuntimeError as run_err:
+            pop_message(self.parent, 'Unable to plot sub run {} histogram/powder pattern'.format(sub_run),
+                        str(run_err), message_type='error')
+            return
+
+        # Plot
+        self.ui.graphicsView_1DPlot.plot_diffraction(pattern[0], pattern[1])
 
         return
 
@@ -254,7 +315,7 @@ class EventHandler(object):
         # """
         # """
         # #
-        sub_runs = self._core.reduction_service.get_sub_runs(self._project_data_id)
+        sub_runs = self._controller.get_sub_runs()
         sub_runs.sort()
 
         # set sub runs: lock and release
@@ -273,7 +334,7 @@ class EventHandler(object):
         :param run_number_list:
         :return:
         """
-        checkdatatypes.check_list('Run numbers', run_number_list)
+        # checkdatatypes.check_list('Run numbers', run_number_list)
 
         # non-append mode
         self._plot_run_numbers_mutex = True
@@ -300,9 +361,9 @@ class EventHandler(object):
         :param item_list:
         :return:
         """
-        checkdatatypes.check_bool_variable('Flag for appending the items to current combo-box or from start',
-                                           append_mode)
-        checkdatatypes.check_list('Combo-box item list', item_list)
+        # checkdatatypes.check_bool_variable('Flag for appending the items to current combo-box or from start',
+        #                                    append_mode)
+        # checkdatatypes.check_list('Combo-box item list', item_list)
 
         # turn on mutex lock
         self._plot_selection_mutex = True
@@ -330,9 +391,9 @@ class EventHandler(object):
             sub_run_list = list()
         else:
             try:
-                sub_run_list = gui_helper.parse_integers(sub_runs_str)
+                sub_run_list = parse_integers(sub_runs_str)
             except RuntimeError as run_err:
-                gui_helper.pop_message(self, 'Failed to parse integer list',
+                pop_message(self, 'Failed to parse integer list',
                                        '{}'.format(run_err), 'error')
                 return
         # Reduce data
@@ -360,50 +421,13 @@ class EventHandler(object):
         return
 
     def save_project(self):
-        self._event_handler.save_project()
+        self._controller.save_project()
         output_project_name = os.path.join(self._output_dir, os.path.basename(self._project_file_name))
         if output_project_name != self._project_file_name:
             import shutil
             shutil.copyfile(self._project_file_name, output_project_name)
 
         self._core.reduction_service.save_project(self._project_data_id, output_project_name)
-
-
-    def plot_detector_counts(self, sub_run_number, mask_id):
-        """
-        Plot detector counts on the detector view
-        :param sub_run_number:  sub run number (integer)
-        :param mask_id: Mask ID (string) or None
-        :return:
-        """
-        # Check inputs
-        checkdatatypes.check_int_variable('Sub run number', sub_run_number, (0, None))
-
-        # Get the detector counts
-        detector_counts_array = self._core.reduction_service.get_detector_counts(self._project_data_id,
-                                                                                 sub_run_number)
-
-        # set information
-        det_2theta = self._core.reduction_service.get_sample_log_value(self._project_data_id,
-                                                                       HidraConstants.TWO_THETA,
-                                                                       sub_run_number)
-        info = 'sub-run: {}, 2theta = {}' \
-               ''.format(sub_run_number, det_2theta)
-
-        # If mask ID is not None
-        if mask_id is not None:
-            # Get mask in array and do a AND operation to detector counts (array)
-            mask_array = self._core.reduction_service.get_mask_array(self._curr_project_name, mask_id)
-            detector_counts_array *= mask_array
-            info += ', mask ID = {}'.format(mask_id)
-
-        # Set information
-        self.ui.lineEdit_detViewInfo.setText(info)
-
-        # Plot
-        self.ui.graphicsView_detectorView.plot_detector_view(detector_counts_array, (sub_run_number, mask_id))
-
-        return
 
     def plot_reduced_data(self, sub_run_number, mask_id):
         """
@@ -421,7 +445,7 @@ class EventHandler(object):
             if two_theta_array is None:
                 raise NotImplementedError('2theta array is not supposed to be None.')
         except RuntimeError as run_err:
-            gui_helper.pop_message(self, 'Unable to retrieve reduced data',
+            pop_message(self, 'Unable to retrieve reduced data',
                                    'For sub run {} due to {}'.format(sub_run_number, run_err),
                                    'error')
             return

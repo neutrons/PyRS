@@ -77,6 +77,12 @@ class ReductionController(object):
         self._curr_hidra_ws = None
         # record of previously and currently processed HidraWorksapce
         self._hidra_ws_dict = dict()
+        # Working directory
+        self._working_dir = '/HFIR/HB2B/'
+
+    @property
+    def working_dir(self):
+        return self._working_dir
 
     @staticmethod
     def get_default_calibration_dir():
@@ -108,6 +114,11 @@ class ReductionController(object):
         return ipts
 
     @staticmethod
+    def get_nexus_file_by_run(run_number):
+        nexus_file = FileFinder.findRuns('HB2B' + run_number)[0]
+        return nexus_file
+
+    @staticmethod
     def get_default_output_dir(run_number):
         try:
             ipts = ReductionController.get_ipts_from_run(run_number)
@@ -117,12 +128,70 @@ class ReductionController(object):
 
         return project_dir
 
-    def load_hydra_file(self, project_file_name):
+    @staticmethod
+    def get_nexus_dir(ipts_number):
+        """Get NeXus directory
+
+        Parameters
+        ----------
+        ipts_number : int
+            IPTS number
+
+        Returns
+        -------
+        str
+            path to Nexus files
+
+        """
+        return '/HFIR/HB2B/IPTS-{}/nexus'.format(ipts_number)
+
+    @staticmethod
+    def get_hidra_project_dir(ipts_number, is_auto):
+        """Get NeXus directory
+
+        Parameters
+        ----------
+        ipts_number : int
+            IPTS number
+        is_auto : bool
+            Flag for auto reduced data or manual reduced
+
+        Returns
+        -------
+        str
+            path to Nexus files
+
+        """
+        if is_auto:
+            local_dir = 'autoreduce'
+        else:
+            local_dir = 'manualreduce'
+        return '/HFIR/HB2B/IPTS-{}/shared/{}'.format(ipts_number, local_dir)
+
+    def get_sub_runs(self):
+        """Get sub runs of the current loaded HidraWorkspace
+
+        Returns
+        -------
+        numpy.ndarray
+            1D array for sorted sub runs
+
+        """
+        return self._curr_hidra_ws.get_sub_runs()
+
+    def load_nexus_file(self, nexus_name):
+        # TODO - ASAP
+        raise NotImplementedError('ASAP')
+
+    def load_hidra_project(self, project_file_name, allow_no_counts):
         """Load Hidra project file to the core
 
         Parameters
         ----------
-        project_file_name
+        project_file_name : str
+            Hidra project file
+        allow_no_counts : bool
+            Flag ...
 
         Returns
         -------
@@ -133,15 +202,12 @@ class ReductionController(object):
         # Load data file
         project_name = os.path.basename(project_file_name).split('.')[0]
         try:
-            self.parent._hydra_workspace = self.parent._core.load_hidra_project(project_file_name,
-                                                                                project_name=project_name,
-                                                                                load_detector_counts=True,
-                                                                                load_diffraction=True)
+            self._curr_hidra_ws = self.parent._core.load_hidra_project(project_file_name,
+                                                                       project_name=project_name,
+                                                                       load_detector_counts=True,
+                                                                       load_diffraction=True)
         except (KeyError, RuntimeError, IOError) as load_err:
-            self.parent._hydra_workspace = None
-            pop_message(self.parent, 'Loading {} failed.\nTry to load diffraction only!'.format(project_file_name),
-                        detailed_message='{}'.format(load_err),
-                        message_type='error')
+
 
             # Load
             try:
@@ -163,15 +229,6 @@ class ReductionController(object):
 
         # Fill sub runs to self.ui.comboBox_sub_runs
         self.parent._set_sub_runs()
-
-        # Set to first sub run and plot
-        self.parent.ui.comboBox_sub_runs.setCurrentIndex(0)
-
-        # Fill in self.ui.frame_subRunInfoTable
-        meta_data_array = self.parent._core.reduction_service.get_sample_logs_values(self.parent._project_data_id,
-                                                                                     [HidraConstants.SUB_RUNS,
-                                                                                      HidraConstants.TWO_THETA])
-        self.parent.ui.rawDataTable.add_subruns_info(meta_data_array, clear_table=True)
 
         return self.parent._project_data_id
 
@@ -196,7 +253,7 @@ def convert_to_project_file(nexus_filename):
 def load_project_file(parent, file_name):
     try:
         o_load = ReductionController(parent=parent)
-        project_data_id = o_load.load_hydra_file(file_name)
+        project_data_id = o_load.load_hidra_project(file_name)
     except RuntimeError as run_err:
         pop_message(parent,
                     'Failed to load project file {}: {}'.format(file_name, run_err),

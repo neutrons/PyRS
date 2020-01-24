@@ -1,6 +1,6 @@
 # a collection of helper methdos for GUI
 from pyrs.utilities import checkdatatypes
-from qtpy.QtWidgets import QLineEdit, QFileDialog, QMessageBox, QVBoxLayout
+from qtpy.QtWidgets import QLineEdit, QFileDialog, QMessageBox, QVBoxLayout, QComboBox
 
 
 def browse_dir(parent, caption, default_dir):
@@ -115,6 +115,32 @@ def get_save_file_name(parent, dir_name, caption, file_filter):
         file_filter = None
 
     return file_name, file_filter
+
+
+def parse_combo_box(combo_box, data_type):
+    """
+
+    Parameters
+    ----------
+    combo_box
+    data_type
+
+    Returns
+    -------
+
+    """
+    assert isinstance(combo_box, QComboBox), 'Method parse_combo_box expects 0-th input {} to be a ' \
+                                             'QComboBox instance but not a {}' \
+                                             ''.format(combo_box, type(combo_box))
+    assert isinstance(data_type, type), 'Method parse_line_edit expects 1-st input {} to be a type ' \
+                                        'but not a {}'.format(data_type, type(data_type))
+
+    # parse
+    input_str = str(combo_box.currentText()).strip()
+    # cast to specified type
+    return_value = data_type(input_str)
+
+    return return_value
 
 
 def parse_line_edit(line_edit, data_type, throw_if_blank=False, edit_name=None, default=None):
