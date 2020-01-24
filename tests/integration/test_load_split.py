@@ -8,14 +8,12 @@ from pyrs.core.powder_pattern import ReductionApp
 import os
 import pytest
 
+DIAGNOSTIC_PLOTS = False
+FILE_1017 = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5'
+
 
 def test_calibration_json():
-    """Test reduce data with calibration file (.json)
-
-    Returns
-    -------
-    None
-    """
+    """Test reduce data with calibration file (.json)"""
     # Get simulated test data
     project_file_name = 'data/HB2B_000.h5'
     calib_file = 'data/HB2B_CAL_Si333.json'
@@ -39,18 +37,10 @@ def test_calibration_json():
     test_workspace.load_hidra_project(project_file, load_raw_counts=True, load_reduced_diffraction=False)
 
 
+@pytest.mark.skipif(not os.path.exists(FILE_1017), reason='File {} is not accessible'.format(FILE_1017))
 def test_log_time_average():
-    """Test the log time average calculation
-
-    Returns
-    -------
-
-    """
-    nexus_file_name = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5'
-    if os.path.exists(nexus_file_name) is False:
-        pytest.skip('File {} is not accessible'.format(nexus_file_name))
-
-    processor = NexusProcessor(nexus_file_name)
+    """Test the log time average calculation"""
+    processor = NexusProcessor(FILE_1017)
 
     sub_run_times, sub_run_numbers = processor.get_sub_run_times_value()
 
@@ -71,113 +61,54 @@ def test_log_time_average():
     np.testing.assert_allclose(sample_logs['DOSC'], [-0.01139306,  0.00332028,  0.00635049], rtol=1.e-5)
 
 
-@pytest.mark.parametrize('nexus_file_name, mask_file_name',
-                         [('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5', 'data/HB2B_Mask_12-18-19.xml'),
-                          ('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5', None)],
+@pytest.mark.skipif(not os.path.exists(FILE_1017), reason='File {} is not accessible'.format(FILE_1017))
+@pytest.mark.parametrize('mask_file_name, filtered_counts, histogram_counts',
+                         [('data/HB2B_Mask_12-18-19.xml', (540461, 1635432, 1193309), (510.8, 1555.7, 1136.3)),
+                          (None, (548953, 1661711, 1212586), (518.7, 1580.5, 1154.4))],
                          ids=('HB2B_1017_Masked', 'HB2B_1017_NoMask'))
-def test_compare_nexus_reader(nexus_file_name, mask_file_name):
-    """Verify NeXus converters including counts and sample log values
-
-    Returns
-    -------
-
-    """
-    from matplotlib import pyplot as plt
-
-    # Test on a light weight NeXus
-    if os.path.exists(nexus_file_name) is False:
-        pytest.skip('Unable to access test file {}'.format(nexus_file_name))
-
-    # reduce with Mantid
-    nexus_mtd_converter = NeXusConvertingApp(nexus_file_name, mask_file_name=mask_file_name)
-    hidra_mtd_ws = nexus_mtd_converter.convert(use_mantid=True)
+def test_reduce_data(mask_file_name, filtered_counts, histogram_counts):
+    """Verify NeXus converters including counts and sample log values"""
+    SUBRUNS = (1, 2, 3)
+    CENTERS = (69.99525,  80.,  97.50225)
 
     # reduce with PyRS/Python
-    nexus_pyrs_converter = NeXusConvertingApp(nexus_file_name, mask_file_name=mask_file_name)
-    hidra_pyrs_ws = nexus_pyrs_converter.convert(use_mantid=False)
+    nexus_converter = NeXusConvertingApp(FILE_1017, mask_file_name=mask_file_name)
+    hidra_ws = nexus_converter.convert()
 
-    # compare sub runs
-    sub_runs_mtd = hidra_mtd_ws.get_sub_runs()
-    sub_run_pyrs = hidra_pyrs_ws.get_sub_runs()
-    np.testing.assert_allclose(sub_runs_mtd, sub_run_pyrs)
+    # verify subruns
+    np.testing.assert_equal(hidra_ws.get_sub_runs(), SUBRUNS)
 
-    # compare counts
-    for sub_run in sub_runs_mtd:
-        mtd_counts = hidra_mtd_ws.get_detector_counts(sub_run)
-        pyrs_counts = hidra_pyrs_ws.get_detector_counts(sub_run)
-
-        diff_counts = mtd_counts - pyrs_counts
-        print('Sub Run {}: Mantid counts = {}, PyRS counts = {}\n'
-              'Number of pixels with different counts = {}.  Maximum difference = {}'
-              ''.format(sub_run, np.sum(mtd_counts), np.sum(pyrs_counts),
-                        len(np.where(diff_counts != 0)[0]), np.max(np.abs(diff_counts))))
-        np.testing.assert_allclose(mtd_counts, pyrs_counts)
+    for sub_run, total_counts in zip(hidra_ws.get_sub_runs(), filtered_counts):
+        counts_array = hidra_ws.get_detector_counts(sub_run)
+        np.testing.assert_equal(counts_array.shape, (1048576,))
+        assert np.sum(counts_array) == total_counts, 'mismatch in subrun={} for filtered data'.format(sub_run)
 
     # Test reduction to diffraction pattern
-    # instrument = AnglerCameraDetectorGeometry(1024, 1024, 0.0003, 0.0003, 0.985, False)
-    # hidra_mtd_ws.set_instrument_geometry(instrument)
-    reducer_mtd = ReductionApp(False)
-    reducer_mtd.load_hidra_workspace(hidra_mtd_ws)
-    reducer_mtd.reduce_data(sub_runs=None,
-                            instrument_file=None,
-                            calibration_file=None,
-                            mask=None)
-    vec_mtd_x, vec_mtd_y = reducer_mtd.get_diffraction_data(1)
+    reducer = ReductionApp(False)
+    reducer.load_hidra_workspace(hidra_ws)
+    reducer.reduce_data(sub_runs=None,
+                        instrument_file=None,
+                        calibration_file=None,
+                        mask=None)
 
-    # hidra_pyrs_ws.set_instrument_geometry(instrument)
-    reducer_pyrs = ReductionApp(False)
-    reducer_pyrs.load_hidra_workspace(hidra_pyrs_ws)
-    reducer_pyrs.reduce_data(sub_runs=None,
-                             instrument_file=None,
-                             calibration_file=None,
-                             mask=None)
-    vec_rs_x, vec_rs_y = reducer_pyrs.get_diffraction_data(1)
+    # plot the patterns
+    if DIAGNOSTIC_PLOTS:
+        from matplotlib import pyplot as plt
+        for sub_run, angle in zip(SUBRUNS, CENTERS):
+            x, y = reducer.get_diffraction_data(sub_run)
+            plt.plot(x, y, label='SUBRUN {} at {:.1f} deg'.format(sub_run, angle))
+        plt.legend()
+        plt.show()
 
-    plt.plot(vec_mtd_x, vec_mtd_y)
-    plt.plot(vec_rs_x, vec_rs_y, color='red')
-    plt.show()
+    # check ranges and total counts
+    for sub_run, angle, total_counts in zip(SUBRUNS, CENTERS, histogram_counts):
+        assert_label = 'mismatch in subrun={} for histogrammed data'.format(sub_run)
+        x, y = reducer.get_diffraction_data(sub_run)
+        assert x[0] < angle < x[-1], assert_label
+        assert np.isnan(np.sum(y)), assert_label
+        np.testing.assert_almost_equal(np.nansum(y), total_counts, decimal=1, err_msg=assert_label)
 
-    for sub_run in [1, 2, 3]:
-        print('Comparing pattern of sub run {}'.format(sub_run))
-        vec_mtd_x, vec_mtd_y = reducer_mtd.get_diffraction_data(sub_run)
-        vec_rs_x, vec_rs_y = reducer_pyrs.get_diffraction_data(sub_run)
-        np.testing.assert_allclose(vec_mtd_y, vec_rs_y)
-
-    # compare number of sample logs
-    log_names_mantid = hidra_mtd_ws.get_sample_log_names()
-    log_names_pyrs = hidra_pyrs_ws.get_sample_log_names()
-
-    print('Diff set Mantid vs PyRS: {} ... {}'
-          ''.format(set(log_names_mantid) - set(log_names_pyrs),
-                    set(log_names_pyrs) - set(log_names_mantid)))
-    if len(log_names_mantid) != len(log_names_pyrs):
-        raise AssertionError('Sample logs entries are not same')
-
-    not_compare_output = ''
-    # compare sample log values
-    for log_name in log_names_pyrs:
-        if log_name == 'pulse_flags':
-            continue
-
-        mtd_log_values = hidra_mtd_ws.get_sample_log_values(log_name)
-        pyrs_log_values = hidra_pyrs_ws.get_sample_log_values(log_name)
-
-        if str(pyrs_log_values.dtype).count('float') == 0 and str(pyrs_log_values.dtype).count('int') == 0:
-            # Not float or integer: cannot be compared
-            not_compare_output += '{}: Mantid {} vs PyRS {}\n'.format(log_name, mtd_log_values, pyrs_log_values)
-        else:
-            # Int or float: comparable
-            log_diff = np.sqrt(np.sum((mtd_log_values - pyrs_log_values) ** 2))
-            print('{}: sum(diff) = {}, size = {}'.format(log_name, log_diff, len(mtd_log_values)))
-            try:
-                np.testing.assert_allclose(mtd_log_values, pyrs_log_values)
-                print()
-            except AssertionError as ass_err:
-                print('........... Not matched!: \n{}'.format(ass_err))
-                print('----------------------------------------------------\n')
-    # END-FOR
-
-    print(not_compare_output)
+    # TODO add checks for against golden version
 
 
 if __name__ == '__main__':
