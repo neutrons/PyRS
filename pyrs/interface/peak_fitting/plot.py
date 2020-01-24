@@ -121,6 +121,8 @@ class Plot:
         # get the sample log/meta data name
         x_axis_name = str(self.parent.ui.comboBox_xaxisNames.currentText())
         y_axis_name = str(self.parent.ui.comboBox_yaxisNames.currentText())
+        x_axis_peak_index = self.parent.ui.plot1d_xaxis_peak_label_comboBox.currentIndex()
+        y_axis_peak_index = self.parent.ui.plot1d_yaxis_peak_label_comboBox.currentIndex()
 
         hidra_workspace = self.parent.hidra_workspace
         if x_axis_name == 'Sub-runs':
@@ -130,11 +132,18 @@ class Plot:
             elif y_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
                 axis_y = hidra_workspace._sample_logs[y_axis_name]
             elif y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
-                print("self.parent.fit_results: {}".format(self.parent.fit_result.fitted))
+
+                value, error = self.get_fitted_value(peak=self.parent.fit_result.peakcollections[y_axis_peak_index],
+                                                     value_to_display=y_axis_name)
+                import pprint
+                pprint.pprint("value: {}".format(value))
+
+
+
             #     vec_y, vec_x = self.get_function_parameter_data(x_axis_name)
             #     print("vec_y: " + format(vec_y))
             #     print("vec_x: " + format(vec_x))
-            # else:
+            else:
                 raise NotImplementedError("y_axis choice not supported yet: {}".format(y_axis_name))
         elif x_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
             axis_x = hidra_workspace._sample_logs[x_axis_name]
@@ -195,6 +204,16 @@ class Plot:
         #                        ''.format(x_axis_name, y_axis_name, vec_x, vec_y))
         #
         # self.parent.ui.graphicsView_fitResult.plot_scatter(vec_x, vec_y, x_axis_name, y_axis_name)
+
+    def get_fitted_value(self, peak=None, value_to_display='Center'):
+
+        print(peak)
+
+
+
+        return []
+
+
 
     def get_function_parameter_data(self, param_name):
         """ get the parameter function data

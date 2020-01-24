@@ -191,23 +191,9 @@ class FitPeaksWindow(QMainWindow):
         o_plot = Plot(parent=self)
         o_plot.plot_1d()
 
-    # def yaxis_1d_changed(self):
-    #     o_gui = GuiUtilities(parent=self)
-    #     o_gui.check_axis1d_status()
-    #     o_plot = Plot(parent=self)
-    #     o_plot.plot_1d()
-
     def axis_2d_changed(self):
         o_gui = GuiUtilities(parent=self)
         o_gui.check_axis2d_status()
-
-    # def yaxis_2d_changed(self):
-    #     o_gui = GuiUtilities(parent=self)
-    #     o_gui.check_axis2d_status()
-    #
-    # def zaxis_2d_changed(self):
-    #     o_gui = GuiUtilities(parent=self)
-    #     o_gui.check_axis2d_status()
 
     def export_csv(self):
         o_export = ExportCSV(parent=self)
