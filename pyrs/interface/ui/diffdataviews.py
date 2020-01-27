@@ -101,12 +101,18 @@ class DetectorView(MplGraphicsView2D):
         title = 'Sub run {}, Mask: {}'.format(sub_run_number, mask_id)
         self.set_title(title)
 
-        image_size = int(np.sqrt(detector_counts.shape[0]))
-        if image_size * image_size != detector_counts.shape[0]:
-            raise RuntimeError('Detector with {} counts cannot convert to a 2D view without further information'
-                               ''.format(detector_counts.shape))
-
-        counts2d = detector_counts.reshape(image_size, image_size)
+        # Resize detector count array
+        if len(detector_counts.shape) == 1:
+            # 1D array: reshape to 2D
+            image_size = int(np.sqrt(detector_counts.shape[0]))
+            if image_size * image_size != detector_counts.shape[0]:
+                raise RuntimeError('Detector with {} counts cannot convert to a 2D view without further information'
+                                   ''.format(detector_counts.shape))
+            counts2d = detector_counts.reshape(image_size, image_size)
+        else:
+            # As Is
+            counts2d = detector_counts
+            image_size = counts2d.shape[0]
 
         # Rotate 90 degree to match the view: IT COULD BE WRONG!
         self.add_2d_plot(np.rot90(counts2d), 0, image_size, 0, image_size)

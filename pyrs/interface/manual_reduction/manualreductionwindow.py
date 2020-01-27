@@ -85,6 +85,7 @@ class ManualReductionWindow(QMainWindow):
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.progressBar.setVisible(False)
         # event handling for combobox
+        # TODO - Make this work properly
         # self.ui.comboBox_sub_runs.currentIndexChanged.connect(self.event_different_sub_run_selected)
 
         # TODO - ASAP - Use these 2 buttons to enable/disable write access to configuration
@@ -118,6 +119,8 @@ class ManualReductionWindow(QMainWindow):
         init setup widgets
         :return:
         """
+        self.ui.tabWidget_reduceRuns.setCurrentIndex(0)
+
         # Event slicer type is set to log value as default
         self.ui.radioButton_chopByLogValue.setChecked(True)
 

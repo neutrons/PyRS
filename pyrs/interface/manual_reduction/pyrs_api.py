@@ -354,6 +354,8 @@ class ReductionController(object):
 
         self._hidra_ws_dict[self._curr_hidra_ws.name] = self._curr_hidra_ws
 
+        return self._curr_hidra_ws
+
 
 def reduce_hidra_workflow(nexus, output_dir, progressbar, instrument=None, calibration=None, mask=None,
                           project_file_name=None):

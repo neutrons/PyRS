@@ -58,8 +58,10 @@ class EventHandler(object):
         -------
 
         """
-        # TODO - ASAP
-        return
+        self.ui.comboBox_sub_runs.clear()
+
+        for sub_run in sorted(sub_runs):
+            self.ui.comboBox_sub_runs.addItem('{}'.format(sub_run))
 
     # TEST: Use menu bar to load a file
     def browse_load_nexus(self):
@@ -195,46 +197,6 @@ class EventHandler(object):
         if output_dir != '':
             self.ui.lineEdit_outputDir.setText(output_dir)
 
-    def slice_nexus(self):
-        """Slice NeXus file by arbitrary log sample parameter
-
-        Returns
-        -------
-
-        """
-        # if self.ui.radioButton_chopByTime.isChecked():
-        #     # set up slicers by time
-        #     self.set_slicers_by_time()
-        # elif self.ui.radioButton_chopByLogValue.isChecked():
-        #     # set up slicers by sample log value
-        #     self.set_slicers_by_sample_log_value()
-        # else:
-        #     # set from the table
-        #     self.set_slicers_manually()
-        # # END-IF-ELSE
-        #
-        # try:
-        #     data_key = self._core.reduction_service.chop_data()
-        # except RuntimeError as run_err:
-        #     pop_message(self, message='Unable to slice data', detailed_message=str(run_err),
-        #                            message_type='error')
-        #     return
-        #
-        # try:
-        #     self._core.reduction_service.reduced_chopped_data(data_key)
-        # except RuntimeError as run_err:
-        #     pop_message(self, message='Failed to reduce sliced data', detailed_message=str(run_err),
-        #                            message_type='error')
-        #     return
-        #
-        # # fill the run numbers to plot selection
-        # self._setup_plot_selection(append_mode=False, item_list=self._core.reduction_service.get_chopped_names())
-        #
-        # # plot
-        # self._plot_data()
-
-        raise RuntimeError('Shall be combined with Async slice and reduce with sub runs')
-
     def plot_detector_counts(self):
         """
 
@@ -243,7 +205,7 @@ class EventHandler(object):
 
         """
         # Get valid sub run
-        sub_run = parse_combo_box(self.ui.comboBox_runs, int)
+        sub_run = parse_combo_box(self.ui.comboBox_sub_runs, int)
         if sub_run is None:
             return
 
@@ -281,7 +243,7 @@ class EventHandler(object):
 
         """
         # Get valid sub run
-        sub_run = parse_combo_box(self.ui.comboBox_runs, int)
+        sub_run = parse_combo_box(self.ui.comboBox_sub_runs, int)
         print('[TEST-OUTPUT] sub run = {},  type = {}'.format(sub_run, type(sub_run)))
         if sub_run is None:
             return
@@ -403,18 +365,29 @@ class EventHandler(object):
             calibration_file = None
 
         # Start task
-        task = BlockingAsyncTaskWithCallback(self._controller.reduce_hidra_workflow,
-                                             args=(nexus_file, project_file, self.ui.progressBar),
-                                             kwargs={'mask': mask_file, 'calibration': calibration_file},
-                                             blocking_cb=QApplication.processEvents)
-        # TODO - catch RuntimeError! ...
-        # FIXME - check output directory
-        task.start()
+        if True:
+            # single thread:
+            hidra_ws = self._controller.reduce_hidra_workflow(nexus_file, project_file,
+                                                              self.ui.progressBar, mask=mask_file,
+                                                              calibration=calibration_file)
 
-        # Update table
-        # TODO - Need to fill the table!
-        for sub_run in list():
-            self.ui.rawDataTable.update_reduction_state(sub_run, True)
+            # Update table
+            # TODO - Need to fill the table!
+            sub_runs = list(hidra_ws.get_sub_runs())
+            # for sub_run in sub_runs:
+            #     self.ui.rawDataTable.update_reduction_state(sub_run, True)
+
+            # Set the sub runs combo box
+            self._set_sub_run_numbers(sub_runs)
+
+        else:
+            task = BlockingAsyncTaskWithCallback(self._controller.reduce_hidra_workflow,
+                                                 args=(nexus_file, project_file, self.ui.progressBar),
+                                                 kwargs={'mask': mask_file, 'calibration': calibration_file},
+                                                 blocking_cb=QApplication.processEvents)
+            # TODO - catch RuntimeError! ...
+            # FIXME - check output directory
+            task.start()
 
         return
 
