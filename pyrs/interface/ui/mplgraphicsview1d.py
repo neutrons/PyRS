@@ -787,31 +787,31 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         # color must be RGBA (4-tuple)
         if plot_error is False:
             # return: list of matplotlib.lines.Line2D object
-            r = self.axes_main[row_index, col_index].plot(vec_x, vec_y, color=color,
-                                                          marker=marker, markersize=markersize,
-                                                          linestyle=line_style, label=label,
-                                                          linewidth=line_width)
+            self.axes_main[row_index, col_index].plot(vec_x, vec_y, color=color,
+                                                      marker=marker, markersize=markersize,
+                                                      linestyle=line_style, label=label,
+                                                      linewidth=line_width)
             self.axes_main[row_index, col_index].autoscale()
 
         else:
             if y_err is None:
-                r = self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
-                                                                  xerr=x_err,
-                                                                  color=color, marker=marker,
-                                                                  linestyle=line_style, label=label,
-                                                                  linewidth=line_width)
+                self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
+                                                              xerr=x_err,
+                                                              color=color, marker=marker,
+                                                              linestyle=line_style, label=label,
+                                                              linewidth=line_width)
             elif x_err is None:
-                r = self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
-                                                                  yerr=y_err,
-                                                                  color=color, marker=marker,
-                                                                  linestyle=line_style, label=label,
-                                                                  linewidth=line_width)
+                self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
+                                                              yerr=y_err,
+                                                              color=color, marker=marker,
+                                                              linestyle=line_style, label=label,
+                                                              linewidth=line_width)
             else:
-                r = self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
-                                                                  xerr=x_err, yerr=y_err,
-                                                                  color=color, marker=marker,
-                                                                  linestyle=line_style, label=label,
-                                                                  linewidth=line_width)
+                self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
+                                                              xerr=x_err, yerr=y_err,
+                                                              color=color, marker=marker,
+                                                              linestyle=line_style, label=label,
+                                                              linewidth=line_width)
 
         # set aspect ratio
         self.axes_main[row_index, col_index].set_aspect('auto')

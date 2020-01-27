@@ -247,10 +247,6 @@ class Qt4Mpl2DCanvas(FigureCanvas):
 
         self._flush()
 
-    def add_scatter_with_error(self, x, y, error_y):
-        self.axes.errorbar(x, y, 'ko', yerr=error_y,ms=3)
-        self._flush()
-
     def add_image_plot(self, array2d, xmin, xmax, ymin, ymax, yticklabels=None):
         """
 
