@@ -63,11 +63,15 @@ class ReductionController(object):
 
         Returns
         -------
-        str
-            IPTS path: example '/HFIR/HB2B/IPTS-22731/'
+        str or None
+            IPTS path: example '/HFIR/HB2B/IPTS-22731/', None for not supported IPTS
 
         """
-        ipts = GetIPTS(RunNumber=run_number, Instrument='HB2B')
+        try:
+            ipts = GetIPTS(RunNumber=run_number, Instrument='HB2B')
+        except RuntimeError:
+            ipts = None
+
         return ipts
 
     @staticmethod

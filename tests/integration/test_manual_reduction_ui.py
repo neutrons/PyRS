@@ -23,13 +23,15 @@ def test_get_ipts():
 
     # Test no such run
     test_ipts_dir = ReductionController.get_ipts_from_run(112123260)
-    assert test_ipts_dir == '/HFIR/HB2B/IPTS-22731/', 'IPTS dir {} is not correct for run {}' \
-                                                      ''.format(test_ipts_dir, 112123260)
+    assert test_ipts_dir is None
 
     # Test exception
-    ReductionController.get_ipts_from_run(1.2)
-    ReductionController.get_ipts_from_run('1.2')
-    ReductionController.get_ipts_from_run('abc')
+    with pytest.raises(TypeError):
+        ReductionController.get_ipts_from_run(1.2)
+    with pytest.raises(ValueError):
+        ReductionController.get_ipts_from_run('1.2')
+    with pytest.raises(ValueError):
+        ReductionController.get_ipts_from_run('abc')
 
 
 def test_find_run():
@@ -54,23 +56,26 @@ def test_default_calibration_file():
     -------
 
     """
-    default_calib_file = ReductionController.get_default_calibration_dir()
+    default_calib_file = os.path.join(ReductionController.get_default_calibration_dir(),
+                                      'HB2B_Latest.json')
 
     if os.path.exists('/HFIR/HB2B/shared'):
         assert os.path.exists(default_calib_file)
+        print(default_calib_file)
+        print(default_calib_file.lower())
         assert default_calib_file.lower().endswith('.json'), 'Must be a JSON file'
     else:
         pytest.skip('Unable to access HB2B archive')
 
 
 @pytest.mark.parametrize('nexus_file, calibration_file, mask_file, gold_file',
-                         [('/HFIR/HB2B/nexus/IPTS-22732/nexus/HB2B_1017.nxs.h5', None, None,
+                         [('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5', None, None,
                            'data/gold/1017_NoMask.h5'),
-                          ('/HFIR/HB2B/nexus/IPTS-22732/nexus/HB2B_1017.nxs.h5', None,
+                          ('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5', None,
                            'data/HB2B_Mask_12-18-19.xml', 'data/gold/1017_Mask.h5'),
-                          ('/HFIR/HB2B/nexus/IPTS-22732/nexus/HB2B_1017.nxs.h5', 'data/HB2B_CAL_Si333.json',
+                          ('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5', 'data/HB2B_CAL_Si333.json',
                            'data/HB2B_Mask_12-18-19.xml', 'data/gold/1017_Mask.h5')],
-                         ids=('HB2B_1017_Masked', 'HB2B_1017_NoMask'))
+                         ids=('HB2B_1017_NoCal_NoMask', 'HB2B_1017_NoCal_Mask', 'HB2B_1017_Cal_Mask'))
 def test_manual_reduction(nexus_file, calibration_file, mask_file, gold_file):
     """Test the workflow to do manual reduction.
 
