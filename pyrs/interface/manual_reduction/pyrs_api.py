@@ -1,69 +1,12 @@
 import os
 from mantid.simpleapi import Logger, GetIPTS
 from mantid.api import FileFinder
+import numpy as np
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
-from mantidqt.utils.asynchronous import BlockingAsyncTaskWithCallback
-import numpy as np
-
-from pyrs.core.pyrscore import PyRsCore
-from pyrs.utilities import calibration_file_io
-from pyrs.interface import gui_helper
-from pyrs.utilities import checkdatatypes
-from pyrs.dataobjects import HidraConstants
 
 DEFAULT_MASK_DIRECTORY = '/HFIR/HB2B/shared/CALIBRATION/'
 DEFAULT_CALIBRATION_DIRECTORY = DEFAULT_MASK_DIRECTORY
-
-
-def _nexus_to_subscans(nexusfile, projectfile, mask_file_name, save_project_file, logger):
-    """Split raw data from NeXus file to sub runs/scans
-    Parameters
-    ----------
-    nexusfile : str
-        HB2B event NeXus file's name
-    projectfile : str
-        Target HB2B HiDRA project file's name
-    mask_file_name : str
-        Mask file name; None for no mask
-    save_project_file : str
-        Project file to save to.  None for not being saved
-    Returns
-    -------
-    pyrs.core.workspaces.HidraWorkspace
-        Hidra workspace containing the raw counts and sample logs
-    """
-
-    if os.path.exists(projectfile):
-        logger.information('Removing existing projectfile {}'.format(projectfile))
-        os.remove(projectfile)
-
-    logger.notice('Creating subscans from {} into project file {}'.format(nexusfile, projectfile))
-    converter = NeXusConvertingApp(nexusfile, mask_file_name)
-    hidra_ws = converter.convert()
-
-    converter.save(projectfile)
-
-    # save project file as an option
-    if save_project_file:
-        converter.save(projectfile)
-
-    return hidra_ws
-
-
-def _create_powder_patterns(hidra_workspace, instrument, calibration, mask, subruns, project_file_name, logger):
-    logger.notice('Adding powder patterns to project file {}'.format(hidra_workspace))
-
-    reducer = ReductionApp(False)
-    reducer.load_hidra_workspace(hidra_workspace)
-
-    # TODO - Need to add some debugging output for user to feel good
-    reducer.reduce_data(instrument_file=instrument,
-                        calibration_file=calibration,
-                        mask=mask,
-                        sub_runs=subruns)
-
-    reducer.save_diffraction_data(project_file_name)
 
 
 class ReductionController(object):
@@ -111,19 +54,62 @@ class ReductionController(object):
 
     @staticmethod
     def get_ipts_from_run(run_number):
-        ipts = GetIPTS(run_number)
+        """Get IPTS number from run number
+
+        Parameters
+        ----------
+        run_number : int
+            run number
+
+        Returns
+        -------
+        str
+            IPTS path: example '/HFIR/HB2B/IPTS-22731/'
+
+        """
+        ipts = GetIPTS(RunNumber=run_number, Instrument='HB2B')
         return ipts
 
     @staticmethod
     def get_nexus_file_by_run(run_number):
-        nexus_file = FileFinder.findRuns('HB2B' + run_number)[0]
+        """Get the Nexus path iin SNS data archive by run number
+
+        Parameters
+        ----------
+        run_number : int or str
+            run number
+
+        Returns
+        -------
+        str or None
+            file path to NeXus
+
+        """
+        # Find run: successful return is a size-one str array
+        try:
+            nexus_file = FileFinder.findRuns('HB2B{}'.format(run_number))[0]
+        except RuntimeError:
+            nexus_file = None
+
         return nexus_file
 
     @staticmethod
     def get_default_output_dir(run_number):
+        """Get default output directory for run number
+
+        Exception: RuntimeError
+
+        Parameters
+        ----------
+        run_number
+
+        Returns
+        -------
+
+        """
         try:
-            ipts = ReductionController.get_ipts_from_run(run_number)
-            project_dir = ipts + 'shared/manualreduce/'
+            ipts_dir = ReductionController.get_ipts_from_run(run_number)
+            project_dir = ipts_dir + 'shared/manualreduce/'
         except RuntimeError:
             project_dir = None
 
@@ -178,44 +164,107 @@ class ReductionController(object):
             1D array for sorted sub runs
 
         """
+        if self._curr_hidra_ws is None:
+            raise RuntimeError('No HidraWorkspace is created or loaded')
+
         return self._curr_hidra_ws.get_sub_runs()
 
     def get_detector_counts(self, sub_run_number, output_matrix):
-        """
+        """Get detector counts
+
+        Exception: RuntimeError
+            1. self._curr_hidra_ws does not exist
+            2. sub run does not exist
 
         Parameters
         ----------
-        sub_run_number
+        sub_run_number : int
+            sub run number
         output_matrix : bool
             True: output 2D, otherwise 1D
 
         Returns
         -------
         numpy.ndarray
+            detector counts in 1D or 2D array
 
         """
-        # TODO - ASAP
-        return np.ndarray((1024, 1024), dtype=int)
+        if self._curr_hidra_ws is None:
+            raise RuntimeError('No HidraWorkspace is created or loaded')
+
+        # Get detector counts from HidraWorkspace.  Possibly raise a RuntimeError from called method
+        det_counts_array = self._curr_hidra_ws.get_detector_counts(sub_run_number)
+
+        # Convert to 2D array for plotting as an option
+        if output_matrix:
+            # sanity check for array size
+            counts_size = det_counts_array.shape[0]
+            linear_size = int(np.sqrt(counts_size))
+            assert linear_size == 1024
+
+            # convert
+            det_counts_array = det_counts_array.reshape((linear_size, linear_size))
+        # END-IF
+
+        return det_counts_array
 
     def get_powder_pattern(self, sub_run_number):
-        """
+        """Retrieve powder pattern from current HidraWorkspace
+
+        Exception: RuntimeError
+            1. self._curr_hidra_ws does not exist
+            2. sub run does not exist
 
         Parameters
         ----------
-        sub_run_number
+        sub_run_number : int
+            sub run number
 
         Returns
         -------
+        numpy.ndarray, numpy.ndarray
+            vector of 2theta and intensity
 
         """
-        return np.arange(1000).astype(float) * 0.1,  np.arange(1000).astype(float) * 0.1
+        if self._curr_hidra_ws is None:
+            raise RuntimeError('No HidraWorkspace is created or loaded')
+
+        # Get powder pattern
+        vec_2theta, vec_intensity = self._curr_hidra_ws.get_reduced_diffraction_data(sub_run=sub_run_number,
+                                                                                     mask_id=None)
+
+        return vec_2theta, vec_intensity
 
     def get_sample_log_value(self, log_name, sub_run_number):
-        # TODO - ASAP
-        return 69.5
+        """Get sample log value
+
+        Exception: RuntimeError
+            1. self._curr_hidra_ws does not exist
+            2. sub run does not exist
+
+        Parameters
+        ----------
+        log_name : str
+            log name
+        sub_run_number : int
+            sub run number
+
+        Returns
+        -------
+        object
+            sample log value
+
+        """
+        if self._curr_hidra_ws is None:
+            raise RuntimeError('No HidraWorkspace is created or loaded')
+
+        return self._curr_hidra_ws.get_sample_log_value(log_name, sub_run_number)
 
     def get_sample_logs_values(self, sample_log_names):
-        """Get sample logs' value
+        """Get sample logs' values
+
+        Note: as the heterogeneous type of sample logs, a dictionary as the return type is more
+         convenient than numpy.ndarray
 
         Parameters
         ----------
@@ -224,117 +273,151 @@ class ReductionController(object):
 
         Returns
         -------
-        numpy.ndarray
+        ~dict
+            sample log values in format of dictionary of numpy.ndarray
 
         """
-        # TODO - ASAP
-        return np.ndarray(shape=(2, 100))
+        if self._curr_hidra_ws is None:
+            raise RuntimeError('No HidraWorkspace is created or loaded')
+
+        # Create a dictionary for sample logs
+        logs_value_dict = dict()
+
+        for log_name in sample_log_names:
+            log_value_array = self._curr_hidra_ws.get_sample_log_values(log_name)
+            logs_value_dict[log_name] = log_value_array
+        # END-FOR
+
+        return logs_value_dict
 
     def load_nexus_file(self, nexus_name):
-        # TODO - ASAP
+        # TODO - ASAP - Need use case to decide functionality
         raise NotImplementedError('ASAP')
 
-    def load_hidra_project(self, project_file_name, allow_no_counts):
-        """Load Hidra project file to the core
+    def load_project_file(self, file_name, load_counts, load_pattern):
+        from pyrs.core.pyrscore import PyRsCore
+        core = PyRsCore()
+        project_name = os.path.basename(file_name).split('.')[0]
+        try:
+            self._curr_hidra_ws = core.load_hidra_project(file_name, project_name, load_counts, load_pattern)
+        except RuntimeError as run_err:
+            raise RuntimeError('Failed to load project file {}: {}'.format(file_name, run_err))
 
-        Parameters
-        ----------
-        project_file_name : str
-            Hidra project file
-        allow_no_counts : bool
-            Flag ...
+        return
+
+    def save_project(self):
+        """Save HidraWorkspace to project file
+
+        Exception: RuntimeError if
+            (1) no curr_hidra_ws
+            (2) curr_hidra_ws does not have file name associated
 
         Returns
         -------
-        str
-            project ID to refer
 
         """
-        # Load data file
-        project_name = os.path.basename(project_file_name).split('.')[0]
-        try:
-            self._curr_hidra_ws = self.parent._core.load_hidra_project(project_file_name,
-                                                                       project_name=project_name,
-                                                                       load_detector_counts=True,
-                                                                       load_diffraction=True)
-        except (KeyError, RuntimeError, IOError) as load_err:
-            # Load
-            try:
-                self.parent._hydra_workspace = self.parent._core.load_hidra_project(project_file_name,
-                                                                                    project_name=project_name,
-                                                                                    load_detector_counts=False,
-                                                                                    load_diffraction=True)
-            except (KeyError, RuntimeError, IOError) as load_err:
-                self.parent._hydra_workspace = None
-                raise RuntimeError('Loading {} failed.\nNothing is loaded'.format(project_file_name))
+        if self._curr_hidra_ws is None:
+            raise RuntimeError('No HidraWorkspace is created or loaded')
 
-            return
+        project_file_name = self._curr_hidra_ws.hidra_project_file
+        if project_file_name is None:
+            raise RuntimeError('HiDRA workspace {} is not associated with any project file'
+                               ''.format(self._curr_hidra_ws.name))
 
-        # Set value for the loaded project
-        self.parent._project_file_name = project_file_name
-        self.parent._project_data_id = project_name
+        # TODO - Need to find out the scenario!
+        raise NotImplementedError('Need use cases!')
 
-        # Fill sub runs to self.ui.comboBox_sub_runs
-        self.parent._set_sub_runs()
+    def reduce_hidra_workflow(self, nexus, output_dir, progressbar, instrument=None, calibration=None, mask=None,
+                              project_file_name=None):
+        """Full workflow to reduce NeXus file
 
-        return self.parent._project_data_id
+        Parameters
+        ----------
+        nexus
+        output_dir
+        progressbar
+        instrument
+        calibration
+        mask
+        project_file_name
 
-    def set_user_idf(self, idf_name):
-        # set
-        instrument = calibration_file_io.import_instrument_setup(idf_name)
-        self._core.reduction_service.set_instrument(instrument)
+        Returns
+        -------
 
-    def save_project(self):
-        output_project_name = os.path.join(self._output_dir, os.path.basename(self._project_file_name))
-        if output_project_name != self._project_file_name:
-            import shutil
-            shutil.copyfile(self._project_file_name, output_project_name)
+        """
+        self._curr_hidra_ws = reduce_hidra_workflow(nexus, output_dir, progressbar, instrument,
+                                                    calibration, mask, project_file_name)
 
-        self._core.reduction_service.save_project(self._project_data_id, output_project_name)
+        self._hidra_ws_dict[self._curr_hidra_ws.name] = self._curr_hidra_ws
 
 
-@staticmethod
-def convert_to_project_file(nexus_filename):
+def reduce_hidra_workflow(nexus, output_dir, progressbar, instrument=None, calibration=None, mask=None,
+                          project_file_name=None):
+    """Workflow of algorithms to reduce HB2B NeXus file to powder patterns
+
+    Parameters
+    ----------
+    nexus
+    output_dir
+    progressbar
+    instrument
+    calibration
+    mask
+    project_file_name : str or None
+        if str, then the output file name won't use the default
+
+    Returns
+    -------
+    pyrs.core.workspaces.HidraWorkspace
+        HiDRA workspace
+
     """
-    Convert nexus_filename into a project file
-    :param nexus_filename:
-    """
-    # TODO - Implement!
-
-    return
-
-
-@staticmethod
-def load_project_file(parent, file_name):
-    try:
-        o_load = ReductionController(parent=parent)
-        project_data_id = o_load.load_hidra_project(file_name)
-    except RuntimeError as run_err:
-        pop_message(parent,
-                    'Failed to load project file {}: {}'.format(file_name, run_err),
-                    None, 'error')
-        project_data_id = None
-    else:
-        print('Loaded {} to {}'.format(file_name, project_data_id))
-
-    return project_data_id
-
-
-# TODO - Need to input a dictionary for HidraWorksapce generated
-# TODO - Need to input the table to write the workspace result!
-def reduce_hidra_workflow(nexus, outputdir, progressbar, subruns=list(), instrument=None, calibration=None, mask=None):
-
-    project = os.path.basename(nexus).split('.')[0] + '.h5'
-    project = os.path.join(outputdir, project)
-
     logger = Logger('reduce_HB2B')
+
+    # Create project file (name) for default
+    if project_file_name is None:
+        project_file_name = os.path.basename(nexus).split('.')[0] + '.h5'
+    project_file_name = os.path.join(output_dir, project_file_name)
+
+    # Remove previous existing file
+    if os.path.exists(project_file_name):
+        logger.information('Will overwrite existing projectfile {}'.format(project_file_name))
+
+    # Init logger
+    logger = Logger('reduce_HB2B')
+
+    # Set progress bar
+    if progressbar:
+        progressbar.setVisible(True)
+        progressbar.setValue(0.)
+
     # process the data
-    progressbar.setVisible(True)
-    progressbar.setValue(0.)
-    hidra_ws = _nexus_to_subscans(nexus, project, mask, False, logger)
-    progressbar.setValue(50.)
+    converter = NeXusConvertingApp(nexus, mask)
+    hidra_ws = converter.convert(use_mantid=False)
+
+    # Update
+    if progressbar:
+        progressbar.setValue(50.)
     # add powder patterns
-    _create_powder_patterns(hidra_ws, instrument, calibration,
-                            None, subruns, project, logger)
-    progressbar.setValue(100.)
-    progressbar.setVisible(False)
+
+    # Calculate powder pattern
+    logger.notice('Adding powder patterns to Hidra Workspace {}'.format(hidra_ws))
+
+    reducer = ReductionApp(False)
+    reducer.reduce_data(instrument_file=instrument,
+                        calibration_file=calibration,
+                        mask=mask,
+                        sub_runs=hidra_ws.get_sub_runs())
+
+    if progressbar:
+        progressbar.setVisible(True)
+        progressbar.setValue(95.)
+
+    # Save
+    reducer.save_diffraction_data(project_file_name)
+
+    if progressbar:
+        progressbar.setVisible(True)
+        progressbar.setValue(100.)
+
+    return hidra_ws

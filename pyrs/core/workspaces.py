@@ -56,6 +56,16 @@ class HidraWorkspace(object):
         """
         return self._name
 
+    @property
+    def hidra_project_file(self):
+        """Name of the associated HiDRA project file
+
+        Returns
+        -------
+
+        """
+        return self._project_file_name
+
     def _load_raw_counts(self, hidra_file):
         """ Load raw detector counts from HIDRA file
         :param hidra_file:
@@ -222,12 +232,19 @@ class HidraWorkspace(object):
         return self._instrument_setup
 
     def get_detector_counts(self, sub_run):
+        """Get the detector counts of a sub run (split)
+
+        Parameters
+        ----------
+        sub_run : int
+            sub run number
+
+        Returns
+        -------
+        numpy.ndarray
+
         """
-        Get raw detector counts in the order of pixel IDs by a given sub run
-        :param sub_run:
-        :return:
-        """
-        checkdatatypes.check_int_variable('Sub run number', sub_run, (1, None))
+        checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))  # consider 0 as a single sub run
         if int(sub_run) not in self._raw_counts:
             raise RuntimeError('Sub run {} does not exist in loaded raw counts. FYI loaded '
                                'sub runs are {}'.format(sub_run, self._raw_counts.keys()))

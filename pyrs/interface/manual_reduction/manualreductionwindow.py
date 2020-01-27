@@ -45,30 +45,37 @@ class ManualReductionWindow(QMainWindow):
         # promote some widgets
         self._promote_widgets()
 
+        # Hide some not-yet-implemented
+        self.ui.tabWidget_reduceRuns.setTabEnabled(2, False)  # advanced slicing tab
+
         # Event handler: handler must be set up after UI is loaded
         self._event_handler = EventHandler(parent=self)
 
-        # set up the event handling
-        # TODO : self._mask_state(self.ui.checkBox_defaultMaskFile.checkState())
-        # TODO:  self.checkBox_defaultMaskFile.stateChanged.connect(self._mask_state)
+        # Mask file: check box and line edit
+        # set default
+        self._mask_state(self.ui.checkBox_defaultMaskFile.checkState())
+        # link event handling
+        self.checkBox_defaultMaskFile.stateChanged.connect(self._mask_state)
         self.ui.pushButton_browseMaskFile.clicked.connect(self.browse_mask_file)
 
-        # TODO: self.ui.spinBox_runNumber.valueChanged.connect(self._update_output_ipts)
-
-        # TODO: self._calibration_state(self.ui.checkBox_defaultCalibrationFile.checkState())
-        # TODO:  self.checkBox_defaultCalibrationFile.stateChanged.connect(self._calibration_state)
+        # Calibration file: check box and line edit
+        self._calibration_state(self.ui.checkBox_defaultCalibrationFile.checkState())
+        self.checkBox_defaultCalibrationFile.stateChanged.connect(self._calibration_state)
         self.ui.pushButton_browseCalibrationFile.clicked.connect(self.browse_calibration_file)
 
-        # TODO: self._output_state(self.ui.checkBox_defaultOutputDirectory.checkState())
-        # TODO: self.checkBox_defaultOutputDirectory.stateChanged.connect(self._output_state)
+        # Output directory: check box, spin box and line edit
+        # change of run number won't trigger the scan of NeXus file
+        self.ui.spinBox_runNumber.valueChanged.connect(self._event_handler.update_output_dir)
+        self._output_state(self.ui.checkBox_defaultOutputDirectory.checkState())
+        self.checkBox_defaultOutputDirectory.stateChanged.connect(self._output_state)
         self.ui.pushButton_browseOutputDirectory.clicked.connect(self.browse_output_dir)
 
-        self.ui.pushButton_batchReduction.clicked.connect(self.manual_reduction)
-        self.ui.pushButton_saveProject.clicked.connect(self.do_save_project)
-        self.ui.pushButton_chopReduce.clicked.connect(self.slice_nexus)
+        # Push button for split, convert and save project file
+        self.ui.pushButton_splitConvertSaveProject.clicked.connect(self.split_convert_save_nexus)
+        # Next: self.ui.pushButton_chopReduce.clicked.connect(self.slice_nexus)
 
-        # FIXME - useful??? self.ui.pushButton_launchAdvSetupWindow.clicked.connect(self.do_launch_slice_setup)
-        self.ui.pushButton_plotDetView.clicked.connect(self.do_plot)
+        # Plotting
+        self.ui.pushButton_plotDetView.clicked.connect(self.plot_sub_runs)
 
         # radio button operation
         self.ui.radioButton_chopByTime.toggled.connect(self.event_change_slice_type)
@@ -142,10 +149,53 @@ class ManualReductionWindow(QMainWindow):
 
         return
 
-    # Menu event handler
+    def _mask_state(self, state):
+        """Set the default value of HB2B mask XML
 
+        Parameters
+        ----------
+        state : Qt.State
+            Qt state as unchecked or checked
+
+        Returns
+        -------
+        None
+
+        """
+        self._event_handler.set_mask_file_widgets(state)
+
+    def _calibration_state(self, state):
+        """Set the default value of HB2B geometry calibration file
+
+        Parameters
+        ----------
+        state : Qt.State
+            Qt state as unchecked or checked
+
+        Returns
+        -------
+
+        """
+        self._event_handler.set_calibration_file_widgets(state)
+
+    def _output_state(self, state):
+        """Set the default value of directory for output files
+
+        Parameters
+        ----------
+        state : Qt.State
+            Qt state as unchecked or checked
+
+        Returns
+        -------
+        None
+
+        """
+        self._event_handler.set_output_dir_widgets(state)
+
+    # Menu event handler
     def load_nexus_file(self):
-        """Browse and load Mantid NeXus file
+        """Browse NeXus file
 
         Returns
         -------
@@ -169,7 +219,7 @@ class ManualReductionWindow(QMainWindow):
         """
         self._event_handler.browse_calibration_file()
 
-    def do_browse_idf(self):
+    def browse_idf(self):
         """
         Browse (optonally) and set instrument definition file
         :return:
@@ -183,14 +233,14 @@ class ManualReductionWindow(QMainWindow):
         """
         self._event_handler.browse_output_dir()
 
-    def slice_nexus(self):
+    def browse_mask_file(self):
         """
-        chop and reduce the selected run
+        set IPTS number
         :return:
         """
-        self._event_handler.slice_nexus()
+        self._event_handler.browse_mask_file()
 
-    def do_plot(self):
+    def plot_sub_runs(self):
         """ Plot detector counts as 2D detector view view OR reduced data according to the tab that is current on
         :return:
         """
@@ -225,27 +275,17 @@ class ManualReductionWindow(QMainWindow):
 
         return
 
-    def manual_reduction(self):
+    def split_convert_save_nexus(self):
         """Reduce (split sub runs, convert to powder pattern and save) manually
 
-        i.e., repeat the auto reduction with user specified setting
-        :return:
+        Returns
+        -------
+        None
+
         """
         self._event_handler.manual_reduce_run()
 
-    def do_save_project(self):
-        """Save project
-        :return:
-        """
-        self._event_handler.save_project()
-
-    def browse_mask_file(self):
-        """
-        set IPTS number
-        :return:
-        """
-        self._event_handler.browse_mask_file()
-
+    # Next: it is not implemented now
     def event_change_slice_type(self):
         """Handle the event as the event slicing type is changed
 

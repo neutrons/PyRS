@@ -19,22 +19,8 @@
      <layout class="QVBoxLayout" name="verticalLayout">
       <item>
        <layout class="QGridLayout" name="gridLayout">
-        <item row="2" column="0">
-         <widget class="QLabel" name="label_4">
-          <property name="text">
-           <string>Calibration File</string>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="0">
-         <widget class="QLabel" name="label_5">
-          <property name="text">
-           <string>Output DIR</string>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="4">
-         <widget class="QPushButton" name="pushButton_browseOutputDirectory">
+        <item row="1" column="4">
+         <widget class="QPushButton" name="pushButton_browseMaskFile">
           <property name="text">
            <string>Browse</string>
           </property>
@@ -50,30 +36,6 @@
           </property>
          </widget>
         </item>
-        <item row="2" column="2">
-         <widget class="QLineEdit" name="lineEdit_calibrationFile">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="0">
-         <widget class="QLabel" name="label_14">
-          <property name="text">
-           <string>Run Number</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="0">
-         <widget class="QLabel" name="label">
-          <property name="text">
-           <string>Mask File</string>
-          </property>
-         </widget>
-        </item>
         <item row="1" column="2">
          <widget class="QLineEdit" name="lineEdit_maskFile">
           <property name="text">
@@ -81,10 +43,13 @@
           </property>
          </widget>
         </item>
-        <item row="1" column="4">
-         <widget class="QPushButton" name="pushButton_browseMaskFile">
-          <property name="text">
-           <string>Browse</string>
+        <item row="2" column="2">
+         <widget class="QLineEdit" name="lineEdit_calibrationFile">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
           </property>
          </widget>
         </item>
@@ -107,6 +72,16 @@
           </property>
          </widget>
         </item>
+        <item row="1" column="6">
+         <widget class="QCheckBox" name="checkBox_defaultMaskFile">
+          <property name="text">
+           <string>Default</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
         <item row="3" column="6">
          <widget class="QCheckBox" name="checkBox_defaultOutputDirectory">
           <property name="text">
@@ -114,6 +89,20 @@
           </property>
           <property name="checked">
            <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="label">
+          <property name="text">
+           <string>Mask File</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="label_4">
+          <property name="text">
+           <string>Calibration File</string>
           </property>
          </widget>
         </item>
@@ -127,13 +116,10 @@
           </property>
          </widget>
         </item>
-        <item row="1" column="6">
-         <widget class="QCheckBox" name="checkBox_defaultMaskFile">
+        <item row="3" column="0">
+         <widget class="QLabel" name="label_5">
           <property name="text">
-           <string>Default</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
+           <string>Output DIR</string>
           </property>
          </widget>
         </item>
@@ -144,14 +130,35 @@
           </property>
          </widget>
         </item>
+        <item row="3" column="4">
+         <widget class="QPushButton" name="pushButton_browseOutputDirectory">
+          <property name="text">
+           <string>Browse</string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="2">
+         <widget class="QPushButton" name="pushButton_splitConvertSaveProject">
+          <property name="text">
+           <string>Split (sub run) / Convert (powder pattern) / Save</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_14">
+          <property name="text">
+           <string>Run Number</string>
+          </property>
+         </widget>
+        </item>
        </layout>
       </item>
       <item>
        <widget class="QTabWidget" name="tabWidget_reduceRuns">
         <property name="currentIndex">
-         <number>0</number>
+         <number>1</number>
         </property>
-        <widget class="QWidget" name="tab_4">
+        <widget class="QWidget" name="Simple_Reduction">
          <attribute name="title">
           <string>Simple Reduction</string>
          </attribute>
@@ -161,16 +168,15 @@
             <item>
              <layout class="QHBoxLayout" name="horizontalLayout_4">
               <item>
-               <widget class="QPushButton" name="pushButton">
+               <widget class="QPushButton" name="pushButton_splitSubRun">
+                <property name="enabled">
+                 <bool>false</bool>
+                </property>
+                <property name="toolTip">
+                 <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Split sub runs (only)&lt;/p&gt;&lt;p&gt;No sample log is split&lt;/p&gt;&lt;p&gt;Purpose is unclear and open to discuss&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                </property>
                 <property name="text">
                  <string>Split Sub Runs</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QPushButton" name="pushButton_saveProject">
-                <property name="text">
-                 <string>Save</string>
                 </property>
                </widget>
               </item>
@@ -214,6 +220,22 @@
              <string>Calibration</string>
             </property>
             <layout class="QGridLayout" name="gridLayout_2">
+             <item row="0" column="3">
+              <widget class="QLineEdit" name="lineEdit_13">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>120</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+              </widget>
+             </item>
              <item row="0" column="1">
               <widget class="QLineEdit" name="lineEdit_17">
                <property name="sizePolicy">
@@ -242,15 +264,29 @@
                </property>
               </widget>
              </item>
-             <item row="1" column="2">
-              <widget class="QLabel" name="label_25">
-               <property name="font">
-                <font>
-                 <pointsize>9</pointsize>
-                </font>
+             <item row="1" column="1">
+              <widget class="QLineEdit" name="lineEdit_15">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>120</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="1">
+              <widget class="QPushButton" name="pushButton_convertPowderPattern">
+               <property name="enabled">
+                <bool>false</bool>
                </property>
                <property name="text">
-                <string>2theta Zero</string>
+                <string>Convert to Powder Pattern</string>
                </property>
               </widget>
              </item>
@@ -263,18 +299,6 @@
                </property>
                <property name="text">
                 <string>Arm Length</string>
-               </property>
-              </widget>
-             </item>
-             <item row="0" column="2">
-              <widget class="QLabel" name="label_22">
-               <property name="font">
-                <font>
-                 <pointsize>9</pointsize>
-                </font>
-               </property>
-               <property name="text">
-                <string>Shift Y</string>
                </property>
               </widget>
              </item>
@@ -294,44 +318,42 @@
                </property>
               </widget>
              </item>
-             <item row="1" column="1">
-              <widget class="QLineEdit" name="lineEdit_15">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
+             <item row="1" column="2">
+              <widget class="QLabel" name="label_25">
+               <property name="font">
+                <font>
+                 <pointsize>9</pointsize>
+                </font>
                </property>
-               <property name="maximumSize">
-                <size>
-                 <width>120</width>
-                 <height>16777215</height>
-                </size>
-               </property>
-              </widget>
-             </item>
-             <item row="0" column="3">
-              <widget class="QLineEdit" name="lineEdit_13">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="maximumSize">
-                <size>
-                 <width>120</width>
-                 <height>16777215</height>
-                </size>
-               </property>
-              </widget>
-             </item>
-             <item row="2" column="1">
-              <widget class="QPushButton" name="pushButton_batchReduction">
                <property name="text">
-                <string>Convert to Powder Pattern</string>
+                <string>2theta Zero</string>
                </property>
               </widget>
+             </item>
+             <item row="0" column="2">
+              <widget class="QLabel" name="label_22">
+               <property name="font">
+                <font>
+                 <pointsize>9</pointsize>
+                </font>
+               </property>
+               <property name="text">
+                <string>Shift Y</string>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="1">
+              <spacer name="verticalSpacer_2">
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>20</width>
+                 <height>40</height>
+                </size>
+               </property>
+              </spacer>
              </item>
             </layout>
            </widget>
