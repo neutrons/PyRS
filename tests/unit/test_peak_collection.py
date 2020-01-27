@@ -6,7 +6,7 @@ import pytest
 
 
 def check_peak_shape_enum(peak_shape, num_native_params):
-    """Set peak fitting values
+    """check peak shape enum
 
     Parameters
     ----------
@@ -47,7 +47,7 @@ def test_background_enum():
 
 def check_peak_collection(peak_shape, NUM_SUBRUN, target_error):
 
-    """check the peak callection
+    """check the peak collection
 
     Parameters
     ----------
