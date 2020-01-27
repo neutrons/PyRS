@@ -167,7 +167,12 @@ class Plot:
                                                            'sub_runs', y_axis_name)
 
     def get_fitted_value(self, peak=None, value_to_display='Center'):
-
+        """
+        return the values and errors of the fitted parameters of the given peak
+        :param peak:
+        :param value_to_display:
+        :return:
+        """
         value, error = peak.get_effective_params()
         mantid_value_to_display = fit_dict[value_to_display]
         value_selected = value[mantid_value_to_display]

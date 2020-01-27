@@ -97,10 +97,15 @@ class FitPeaksWindow(QMainWindow):
 
         self.ui.comboBox_xaxisNames.currentIndexChanged.connect(self.axis_1d_changed)
         self.ui.comboBox_yaxisNames.currentIndexChanged.connect(self.axis_1d_changed)
+        self.ui.plot1d_xaxis_peak_label_comboBox.currentIndexChanged.connect(self.axis_1d_changed)
+        self.ui.plot1d_yaxis_peak_label_comboBox.currentIndexChanged.connect(self.axis_1d_changed)
 
         self.ui.comboBox_xaxisNames_2dplot.currentIndexChanged.connect(self.axis_2d_changed)
         self.ui.comboBox_yaxisNames_2dplot.currentIndexChanged.connect(self.axis_2d_changed)
         self.ui.comboBox_zaxisNames_2dplot.currentIndexChanged.connect(self.axis_2d_changed)
+        self.ui.plot2d_xaxis_peak_label_comboBox.currentIndexChanged.connect(self.axis_2d_changed)
+        self.ui.plot2d_yaxis_peak_label_comboBox.currentIndexChanged.connect(self.axis_2d_changed)
+        self.ui.plot2d_zaxis_peak_label_comboBox.currentIndexChanged.connect(self.axis_2d_changed)
 
         self.ui.peak_range_table.cellChanged.connect(self.peak_range_table_changed)
 
