@@ -186,7 +186,9 @@ class GeneralDiffDataView(MplGraphicsView1D):
         self._last_line_reference = ref_id
         self._current_x_axis_name = x_label
 
-    def plot_scatter_with_errors(self, vec_x, vec_y, vec_y_error, x_label, y_label):
+    def plot_scatter_with_errors(self, vec_x=None, vec_y=None,
+                                 vec_x_error=None, vec_y_error=None,
+                                 x_label="", y_label=""):
 
         # # TODO Future: Need to write use cases.  Now it is for demo
         # # It is not allowed to plot 2 plot with different x-axis
@@ -197,6 +199,7 @@ class GeneralDiffDataView(MplGraphicsView1D):
         # plot data in a scattering plot with auto re-scale
         ref_id = self.add_plot(vec_x,
                                vec_y,
+                               x_err=vec_x_error,
                                y_err=vec_y_error,
                                line_style='',
                                marker='*',

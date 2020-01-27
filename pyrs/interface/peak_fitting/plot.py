@@ -135,10 +135,11 @@ class Plot:
             elif y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
                 value, error = self.get_fitted_value(peak=self.parent.fit_result.peakcollections[y_axis_peak_index],
                                                      value_to_display=y_axis_name)
-                self.parent.ui.graphicsView_fitResult.plot_scatter_with_errors(axis_x, value, error,
-                                                                               'sub_runs', y_axis_name)
+                self.parent.ui.graphicsView_fitResult.plot_scatter_with_errors(vec_x=axis_x, vec_y=value,
+                                                                               vec_y_error=error,
+                                                                               x_label='sub_runs',
+                                                                               y_label=y_axis_name)
                 return
-
             else:
                 raise NotImplementedError("y_axis choice not supported yet: {}".format(y_axis_name))
         elif x_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():

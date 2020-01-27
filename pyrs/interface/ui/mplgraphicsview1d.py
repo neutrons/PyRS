@@ -183,7 +183,7 @@ class MplGraphicsView1D(QWidget):
         # Add default to (0, 0) figure
         self._myCanvas.add_arrow(0, 0, start_x, start_y, stop_x, stop_y)
 
-    def add_plot(self, vec_x, vec_y, y_err=None, row_index=0, col_index=0, is_right=False,
+    def add_plot(self, vec_x, vec_y, x_err=None, y_err=None, row_index=0, col_index=0, is_right=False,
                  color=None, label='',
                  x_label=None, y_label=None, marker=None, markersize=2, line_style=None,
                  line_width=1, show_legend=True):
@@ -206,7 +206,8 @@ class MplGraphicsView1D(QWidget):
 
         else:
             # plot at the main axis
-            line_key = self._myCanvas.add_main_plot(row_index, col_index, vec_x, vec_y, y_err, color, label, x_label,
+            line_key = self._myCanvas.add_main_plot(row_index, col_index, vec_x, vec_y, x_err, y_err,
+                                                    color, label, x_label,
                                                     y_label, marker, line_style,
                                                     line_width, show_legend,
                                                     markersize=markersize)
@@ -727,9 +728,13 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
 
         return
 
-    def add_main_plot(self, row_index, col_index, vec_x, vec_y, y_err=None, color=None, label='',
+    def add_main_plot(self, row_index, col_index,
+                      vec_x, vec_y,
+                      x_err=None, y_err=None,
+                      color=None, label='',
                       x_label=None, y_label=None,
-                      marker=None, line_style=None, line_width=1, show_legend=True, markersize=4,):
+                      marker=None, line_style=None,
+                      line_width=1, show_legend=True, markersize=4,):
         """Add 1D plot on the main side (left)
         :param row_index: numpy array X
         :param col_index: numpy array Y
@@ -754,7 +759,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         if isinstance(vec_x, np.ndarray) is False or isinstance(vec_y, np.ndarray) is False:
             raise NotImplementedError('Input vec_x or vec_y for addPlot() must be numpy.array,'
                                       'but not {} and {}.'.format(type(vec_x), type(vec_y)))
-        plot_error = y_err is not None
+        plot_error = (y_err is not None) or (x_err is not None)
         if plot_error is True:
             if isinstance(y_err, np.ndarray) is False:
                 raise NotImplementedError('Input y_err must be either None or numpy.array.')
@@ -789,10 +794,24 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
             self.axes_main[row_index, col_index].autoscale()
 
         else:
-            r = self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
-                                                              yerr=y_err, color=color, marker=marker,
-                                                              linestyle=line_style, label=label,
-                                                              linewidth=line_width)
+            if y_err is None:
+                r = self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
+                                                                  xerr=x_err,
+                                                                  color=color, marker=marker,
+                                                                  linestyle=line_style, label=label,
+                                                                  linewidth=line_width)
+            elif x_err is None:
+                r = self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
+                                                                  yerr=y_err,
+                                                                  color=color, marker=marker,
+                                                                  linestyle=line_style, label=label,
+                                                                  linewidth=line_width)
+            else:
+                r = self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
+                                                                  xerr=x_err, yerr=y_err,
+                                                                  color=color, marker=marker,
+                                                                  linestyle=line_style, label=label,
+                                                                  linewidth=line_width)
 
         # set aspect ratio
         self.axes_main[row_index, col_index].set_aspect('auto')
