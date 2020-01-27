@@ -142,6 +142,8 @@ def test_load_split():
     """
     # Init load/split service instance
     nexus_file = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5'
+    if os.path.exists(nexus_file) is False:
+        pytest.skip('Unable to access {}'.format(nexus_file))
 
     # Get list of sub runs
     # Get output directory and reduce
