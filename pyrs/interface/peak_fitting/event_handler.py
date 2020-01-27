@@ -73,6 +73,7 @@ class EventHandler:
             # o_gui.enabled_fitting_widgets(True)
             o_gui.enabled_data_fit_plot(True)
             o_gui.enabled_peak_ranges_widgets(True)
+            o_gui.enabled_1dplot_widgets(True)
 
         except RuntimeError as run_err:
             pop_message(self, 'Failed to initialize widgets for {}'.format(hidra_file_name),
