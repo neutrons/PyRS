@@ -160,7 +160,7 @@ class Plot:
                 raise NotImplementedError("y_axis choice not supported yet: {}!".format(y_axis_name))
         elif x_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
             axis_x, error_x = self.get_fitted_value(peak=self.parent.fit_result.peakcollections[x_axis_peak_index],
-                                                 value_to_display=x_axis_name)
+                                                    value_to_display=x_axis_name)
             if y_axis_name == 'Sub-runs':
                 axis_y = np.array(hidra_workspace.get_sub_runs())
                 error_y = None
@@ -169,7 +169,7 @@ class Plot:
                 error_y = None
             elif y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
                 axis_y, error_y = self.get_fitted_value(peak=self.parent.fit_result.peakcollections[y_axis_peak_index],
-                                                     value_to_display=y_axis_name)
+                                                        value_to_display=y_axis_name)
             else:
                 raise NotImplementedError("y_axis choice not supported yet: {}!".format(y_axis_name))
 
