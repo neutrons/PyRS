@@ -407,11 +407,15 @@ def reduce_hidra_workflow(nexus, output_dir, progressbar, instrument=None, calib
     # Calculate powder pattern
     logger.notice('Adding powder patterns to Hidra Workspace {}'.format(hidra_ws))
 
+    # Initialize a reducer
     reducer = ReductionApp(False)
+    # add workspace to reducer
+    reducer.load_hidra_workspace(hidra_ws)
+    # reduce
     reducer.reduce_data(instrument_file=instrument,
                         calibration_file=calibration,
                         mask=mask,
-                        sub_runs=hidra_ws.get_sub_runs())
+                        sub_runs=list(hidra_ws.get_sub_runs()))
 
     if progressbar:
         progressbar.setVisible(True)

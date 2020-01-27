@@ -137,7 +137,7 @@ class ReductionApp(object):
 
         Parameters
         ----------
-        sub_runs : List or None
+        sub_runs : List or numpy.ndarray or None
             sub run numbers to reduce
         instrument_file
         calibration_file
@@ -158,8 +158,6 @@ class ReductionApp(object):
         # Check inputs
         if sub_runs is None or not bool(sub_runs):  # None or empty list
             sub_runs = self._hydra_ws.get_sub_runs()
-        else:
-            checkdatatypes.check_list('Sub runs', sub_runs)
 
         # instrument file
         if instrument_file is not None:
