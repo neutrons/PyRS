@@ -65,8 +65,8 @@ class ManualReductionWindow(QMainWindow):
 
         # Output directory: check box, spin box and line edit
         # change of run number won't trigger the scan of NeXus file
-        self.ui.spinBox_runNumber.valueChanged.connect(self._event_handler.update_output_dir)
-        self._output_state(self.ui.checkBox_defaultOutputDirectory.checkState())
+        self.ui.spinBox_runNumber.valueChanged.connect(self._event_handler.update_run_changed)
+        # self._output_state(self.ui.checkBox_defaultOutputDirectory.checkState())
         self.checkBox_defaultOutputDirectory.stateChanged.connect(self._output_state)
         self.ui.pushButton_browseOutputDirectory.clicked.connect(self.browse_output_dir)
 

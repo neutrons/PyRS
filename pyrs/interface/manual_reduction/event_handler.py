@@ -393,8 +393,14 @@ class EventHandler(object):
         # Files names: NeXus, (output) project, mask, calibration
         nexus_file = self._controller.get_nexus_file_by_run(run_number)
         project_file = str(self.ui.lineEdit_outputDirectory.text().strip())
+        # mask file
         mask_file = str(self.ui.lineEdit_maskFile.text().strip())
+        if mask_file == '':
+            mask_file = None
+        # calibration file
         calibration_file = str(self.ui.lineEdit_calibrationFile.text().strip())
+        if calibration_file == '':
+            calibration_file = None
 
         # Start task
         task = BlockingAsyncTaskWithCallback(self._controller.reduce_hidra_workflow,
@@ -466,12 +472,12 @@ class EventHandler(object):
 
         """
         if state != Qt.Unchecked:
-            self.update_output_dir(self.ui.spinBox_runNumber.value())
+            self.update_run_changed(self.ui.spinBox_runNumber.value())
         self.ui.lineEdit_outputDirectory.setEnabled(state == Qt.Unchecked)
         self.ui.pushButton_browseOutputDirectory.setEnabled(state == Qt.Unchecked)
 
-    def update_output_dir(self, run_number):
-        """Update output directory with run number
+    def update_run_changed(self, run_number):
+        """Update widgets including output directory and etc due to change of run number
 
         Parameters
         ----------
@@ -483,6 +489,14 @@ class EventHandler(object):
         None
 
         """
+        try:
+            ipts = self._controller.get_ipts_from_run(run_number)
+            if ipts is None:
+                return
+        except RuntimeError:
+            # wrong run number
+            return
+
         # new default
         project_dir = self._controller.get_default_output_dir(run_number)
         # set to line edit
