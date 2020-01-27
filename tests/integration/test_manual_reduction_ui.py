@@ -104,7 +104,7 @@ def test_manual_reduction(nexus_file, calibration_file, mask_file, gold_file):
     -------
 
     """
-    if mask_file is not None:
+    if calibration_file is not None:
         pytest.skip('Masking file is not supported well yet.')
 
     if os.path.exists(nexus_file) is False:
@@ -117,9 +117,14 @@ def test_manual_reduction(nexus_file, calibration_file, mask_file, gold_file):
     if os.path.exists(target_file_path):
         os.remove(target_file_path)
 
-    reduce_hidra_workflow(nexus_file, output_dir, progressbar=None,
-                          calibration=calibration_file, mask=mask_file,
-                          project_file_name=target_file_path)
+    # reduce data
+    test_ws = reduce_hidra_workflow(nexus_file, output_dir, progressbar=None,
+                                    calibration=calibration_file, mask=mask_file,
+                                    project_file_name=target_file_path)
+
+    # get sub run 2
+    sub_run_2_pattern = test_ws.get_reduced_diffraction_data(2, mask_id=None)
+    write_gold_file('Gold_{}.h5'.format(mask_file is not None), {'sub run 2': sub_run_2_pattern})
 
     # Check whether the target file generated
     assert os.path.exists(target_file_path), 'Hidra project file {} is not generated'.format(target_file_path)
@@ -128,7 +133,7 @@ def test_manual_reduction(nexus_file, calibration_file, mask_file, gold_file):
     parse_gold_file(gold_file)
 
     # delete
-    # os.remove(target_file_path)
+    os.remove(target_file_path)
 
     return
 
@@ -280,3 +285,36 @@ def parse_gold_file(file_name):
         return data_dict['data']
 
     return data_dict
+
+
+def write_gold_file(file_name, data):
+    """Write value to gold file (format)
+
+    Parameters
+    ----------
+    file_name : str
+        output file
+    data : ~tuple or ~dict
+        numpy array data or dictionary of data
+    Returns
+    -------
+
+    """
+    gold_file = h5py.File(file_name, 'w')
+
+    if isinstance(data, np.ndarray):
+        dataset = {'data': data}
+    else:
+        dataset = data
+
+    for data_name in dataset:
+        if isinstance(dataset[data_name], tuple):
+            # write (x, y)
+            group = gold_file.create_group(data_name)
+            group.create_dataset('x', data=dataset[data_name][0])
+            group.create_dataset('y', data=dataset[data_name][1])
+        else:
+            # write value directly
+            gold_file.create_dataset(data_name, data=dataset[data_name])
+
+    gold_file.close()

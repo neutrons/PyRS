@@ -186,6 +186,10 @@ class ReductionApp(object):
             # no vanadium
             van_array = None
 
+        # TODO - Implement ASAP
+        # retrieve default mask from hidra workspace
+        # default_mask_array = ... ...
+
         self._reduction_manager.reduce_diffraction_data(self._session,
                                                         apply_calibrated_geometry=geometry_calibration,
                                                         num_bins=num_bins,

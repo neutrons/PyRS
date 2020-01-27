@@ -780,6 +780,9 @@ class HidraWorkspace(object):
             hidra_project.append_experiment_log(log_name, sample_log_value)
         # END-FOR
 
+        # Save default mask
+        # TODO - Implement ASAP
+
     def save_reduced_diffraction_data(self, hidra_project):
         """ Export reduced diffraction data to project
         :param hidra_project: HidraProjectFile instance

@@ -268,6 +268,12 @@ def test_apply_mantid_mask():
     assert no_mask_data_set[0].min() <= masked_data_set[0].min()
     assert no_mask_data_set[0].max() >= masked_data_set[0].max()
 
+    # from matplotlib import pyplot as plt
+    # plt.plot(no_mask_data_set[0], no_mask_data_set[1], color='red')
+    # plt.plot(masked_data_set[0], masked_data_set[1], color='blue')
+    # plt.plot()
+    # plt.show()
+
 
 def test_hidra_workflow(tmpdir):
     nexus = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1060.nxs.h5'

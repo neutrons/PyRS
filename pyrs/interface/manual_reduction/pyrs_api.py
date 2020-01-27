@@ -416,7 +416,7 @@ def reduce_hidra_workflow(nexus, output_dir, progressbar, instrument=None, calib
     # reduce
     reducer.reduce_data(instrument_file=instrument,
                         calibration_file=calibration,
-                        mask=mask,
+                        mask=None,
                         sub_runs=list(hidra_ws.get_sub_runs()))
 
     if progressbar:
