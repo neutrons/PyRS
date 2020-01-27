@@ -6,6 +6,19 @@ import pytest
 
 
 def check_peak_shape_enum(peak_shape, num_native_params):
+    """Set peak fitting values
+
+    Parameters
+    ----------
+     peak_shape : str
+            Peak shape
+    num_native_params : integer
+        number of native parameters
+
+    Returns
+    -------
+
+    """
     assert PeakShape.getShape(peak_shape) == PeakShape[peak_shape.upper()]
     assert PeakShape.getShape(peak_shape.upper()) == PeakShape[peak_shape.upper()]
     with pytest.raises(KeyError):
@@ -33,7 +46,22 @@ def test_background_enum():
 
 
 def check_peak_collection(peak_shape, NUM_SUBRUN, target_error):
-    # create test data with two peaks - both peaks will be normalized gaussians
+
+    """check the peak callection
+
+    Parameters
+    ----------
+    subruns : numpy.array
+        1D numpy array for sub run numbers
+    peak_shape : str
+            Peak shape
+    target_errors : numpy.ndarray
+        numpy structured array for peak/background parameter fitted target error
+
+    Returns
+    -------
+
+    """
     subruns = np.arange(NUM_SUBRUN) + 1
     chisq = np.array([42., 43.])
     raw_peaks_array = np.zeros(NUM_SUBRUN, dtype=get_parameter_dtype(peak_shape, 'Linear'))
@@ -78,13 +106,11 @@ def check_peak_collection(peak_shape, NUM_SUBRUN, target_error):
 
 
 def test_peak_collection_Gaussian():
-    # create test data with two peaks - both peaks will be normalized gaussians
     NUM_SUBRUN = 2
     check_peak_collection('Gaussian', NUM_SUBRUN, np.zeros(NUM_SUBRUN, dtype=get_parameter_dtype(effective=True)))
 
 
 def test_peak_collection_PseudoVoigt():
-    # create test data with two peaks - both peaks will be normalized gaussians
     NUM_SUBRUN = 2
     check_peak_collection('PseudoVoigt', NUM_SUBRUN, np.array([(3.0, 0.0, 4.0, 0.0, 0.0, 0.0, 1.0),
                                                                (4.0, 0.0, 5.0, 0.0, 0.0, 0.0, 2.0)],
