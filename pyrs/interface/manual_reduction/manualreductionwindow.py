@@ -1,4 +1,4 @@
-from qtpy.QtWidgets import QMainWindow, QVBoxLayout, QApplication
+from qtpy.QtWidgets import QMainWindow, QVBoxLayout
 import os
 from pyrs.utilities import load_ui
 from pyrs.interface.gui_helper import promote_widget

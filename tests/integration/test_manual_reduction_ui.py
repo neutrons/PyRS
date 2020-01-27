@@ -16,6 +16,10 @@ def test_get_ipts():
     -------
 
     """
+    # skip on build server
+    if os.path.exists('/HFIR/HB2B/shared/') is False:
+        pytest.skip('SNS/HFIR archive is not mounted')
+
     # Test good
     test_ipts_dir = ReductionController.get_ipts_from_run(1060)
     assert test_ipts_dir == '/HFIR/HB2B/IPTS-22731/', 'IPTS dir {} is not correct for run {}' \
@@ -41,6 +45,10 @@ def test_find_run():
     -------
 
     """
+    # skip on build server
+    if os.path.exists('/HFIR/HB2B/shared/') is False:
+        pytest.skip('SNS/HFIR archive is not mounted')
+
     test_nexus = ReductionController.get_nexus_file_by_run(1017)
     assert test_nexus == '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5'
 
