@@ -209,7 +209,6 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         time_f = time.time()
         print('[DB...BAT] Stopping time (float) = {}.  Used {} second for plotting'.format(time_f,
                                                                                            time_f - time_s))
-
         labels = [item.get_text() for item in self.axes.get_yticklabels()]
 
         # TODO/ISSUE/NOW: how to make this part more flexible
@@ -246,6 +245,10 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         # TODO - 20180824 - shall be an option
         self.axes.plot(x, y, 'ko', ms=3)
 
+        self._flush()
+
+    def add_scatter_with_error(self, x, y, error_y):
+        self.axes.errorbar(x, y, 'ko', yerr=error_y,ms=3)
         self._flush()
 
     def add_image_plot(self, array2d, xmin, xmax, ymin, ymax, yticklabels=None):

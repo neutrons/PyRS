@@ -187,23 +187,7 @@ class MplGraphicsView1D(QWidget):
                  color=None, label='',
                  x_label=None, y_label=None, marker=None, markersize=2, line_style=None,
                  line_width=1, show_legend=True):
-        """Add a plot in 1D
-        :param row_index:
-        :param col_index:
-        :param is_right: flag to show whether the line is added to the right axis
-        :param vec_x:
-        :param vec_y:
-        :param y_err:
-        :param color:
-        :param label:
-        :param x_label:
-        :param y_label:
-        :param marker:
-        :param line_style:
-        :param line_width:
-        :param show_legend:
-        :return: string/integer as line reference ID
-        """
+
         # check whether the input is empty
         if len(vec_y) == 0:
             print('[WARNING] Input is an empty vector set')
@@ -346,6 +330,8 @@ class MplGraphicsView1D(QWidget):
         # about zoom
         self._isZoomed = False
         self._homeXYLimit = None
+
+        self._myCanvas.clear_canvas()
 
     def clear_canvas(self):
         """ Clear canvas
@@ -819,16 +805,16 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         if show_legend:
             self._setup_legend(row_index, col_index, is_main=True)
 
-        # Register
+        # # Register
         line_key = self._line_count
-        if len(r) == 1:
-            self._mainLineDict[row_index, col_index][line_key] = r[0]
-            self._line_count += 1
-        else:
-            msg = 'Return from plot is a %d-tuple: %s.. \n' % (len(r), r)
-            for i_r in range(len(r)):
-                msg += 'r[%d] = %s\n' % (i_r, str(r[i_r]))
-            raise NotImplementedError(msg)
+        # if len(r) == 1:
+        #     self._mainLineDict[row_index, col_index][line_key] = r[0]
+        #     self._line_count += 1
+        # else:
+        #     msg = 'Return from plot is a %d-tuple: %s.. \n' % (len(r), r)
+        #     for i_r in range(len(r)):
+        #         msg += 'r[%d] = %s\n' % (i_r, str(r[i_r]))
+        #     raise NotImplementedError(msg)
 
         # Flush/commit
         self.draw()

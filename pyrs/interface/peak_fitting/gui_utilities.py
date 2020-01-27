@@ -56,7 +56,8 @@ class GuiUtilities:
 
     def enabled_1dplot_widgets(self, enabled=True):
         list_widgets = [self.parent.ui.frame_1dplot,
-                        self.parent.ui.graphicsView_fitResult_frame,
+                        # self.parent.ui.graphicsView_fitResult_frame,
+                        self.parent.ui.graphicsView_fitResult,
                         ]
         self.enabled_list_widgets(list_widgets=list_widgets,
                                   enabled=enabled)

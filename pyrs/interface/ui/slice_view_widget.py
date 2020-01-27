@@ -292,10 +292,6 @@ class SliceViewWidget(QWidget):
         if flush:
             self.main_canvas._flush()
 
-        return
-
-# END-CLASS-DEF
-
 
 class IndicatorManager(object):
     """ Manager for all indicator lines

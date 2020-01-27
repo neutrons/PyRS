@@ -186,6 +186,30 @@ class GeneralDiffDataView(MplGraphicsView1D):
         self._last_line_reference = ref_id
         self._current_x_axis_name = x_label
 
+    def plot_scatter_with_errors(self, vec_x, vec_y, vec_y_error, x_label, y_label):
+
+        # # TODO Future: Need to write use cases.  Now it is for demo
+        # # It is not allowed to plot 2 plot with different x-axis
+        # if self._last_line_reference is not None:
+        #     if x_label != self.get_label_x():
+        #         self.reset_viewer()
+
+        # plot data in a scattering plot with auto re-scale
+        ref_id = self.add_plot(vec_x,
+                               vec_y,
+                               y_err=vec_y_error,
+                               line_style='',
+                               marker='*',
+                               markersize=6,
+                               color='red',
+                               x_label=x_label,
+                               y_label=y_label)
+
+        # TODO - 20181101 - Enable after auto_scale is fixed: self.auto_rescale()
+        self._line_reference_list.append(ref_id)
+        self._last_line_reference = ref_id
+        self._current_x_axis_name = x_label
+
     def plot_scatter(self, vec_x, vec_y, x_label, y_label):
         """ plot figure in scatter-style
         :param vec_x:
@@ -218,7 +242,6 @@ class GeneralDiffDataView(MplGraphicsView1D):
     def reset_viewer(self):
         """
         reset current graphics view
-        :return:
         """
         # reset all the management data structures
         self._last_line_reference = None
