@@ -104,9 +104,6 @@ def test_manual_reduction(nexus_file, calibration_file, mask_file, gold_file):
     -------
 
     """
-    if calibration_file is not None:
-        pytest.skip('Masking file is not supported well yet.')
-
     if os.path.exists(nexus_file) is False:
         pytest.skip('Testing file {} cannot be accessed'.format(nexus_file))
 
@@ -124,7 +121,8 @@ def test_manual_reduction(nexus_file, calibration_file, mask_file, gold_file):
 
     # get sub run 2
     sub_run_2_pattern = test_ws.get_reduced_diffraction_data(2, mask_id=None)
-    write_gold_file('Gold_{}.h5'.format(mask_file is not None), {'sub run 2': sub_run_2_pattern})
+    write_gold_file('Gold_{}_Cal{}.h5'.format(mask_file is not None,
+                                              calibration_file is not None), {'sub run 2': sub_run_2_pattern})
 
     # Check whether the target file generated
     assert os.path.exists(target_file_path), 'Hidra project file {} is not generated'.format(target_file_path)
@@ -185,61 +183,6 @@ def test_load_split():
     assert abs(controller.get_sample_log_value('2theta', 1) - 69.99525) < 1E-5
     assert controller.get_sample_log_value('2theta', 2) == 80.0
     assert abs(controller.get_sample_log_value('2theta', 3) - 97.50225) < 1E-5
-
-
-@pytest.mark.parametrize('project_file, calibration_file, mask_file, gold_file',
-                         [('data/HB2B_1017.h5', None, None, 'data/gold/1017_NoMask.h5'),
-                          ('data/HB2B_1017.h5', None, 'data/HB2B_Mask_12-18-19.xml', 'data/gold/1017_Mask.h5')],
-                         ids=('HB2B_1017_Masked', 'HB2B_1017_NoMask'))
-def test_diffraction_pattern(project_file, calibration_file, mask_file, gold_file):
-    """
-
-    Parameters
-    ----------
-    project_file
-    calibration_file
-    mask_file : str or None
-        mask file name
-    gold_file
-
-    Returns
-    -------
-
-    """
-    pytest.skip('Manual reduction UI classes has not been refactored yet.')
-
-    controller = ReductionController()
-
-    # Load gold Hidra project file for diffraction pattern (run 1017)
-    test_workspace = controller.load_project_file(project_file, True, False)
-
-    # Convert to diffraction pattern
-    powder_red_service = ReductionApp(use_mantid_engine=False)
-
-    # Set workspace
-    powder_red_service.load_hidra_workspace(test_workspace)
-
-    # Reduction
-    powder_red_service.reduce_data(sub_runs=None,
-                                   instrument_file=None,
-                                   calibration_file=calibration_file,
-                                   mask=mask_file,
-                                   mask_id=None,
-                                   van_file=None,
-                                   num_bins=1000)
-
-    # Load gold data
-    gold_data_set = parse_gold_file(gold_file)
-    gold_sub_runs = np.array(gold_data_set.keys())
-    gold_sub_runs.sort()
-
-    #  Test number of sub runs
-    np.testing.assert_allclose(gold_sub_runs, powder_red_service.get_sub_runs())
-
-    # Get diffraction pattern
-    for sub_run_i in gold_sub_runs:
-        np.testing.assert_allclose(gold_data_set[sub_run_i], powder_red_service.get_diffraction_data(sub_run_i),
-                                   rtol=1e-8)
 
 
 def test_diffraction_pattern_geometry_shift():
