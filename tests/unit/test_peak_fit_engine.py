@@ -631,7 +631,8 @@ def test_1_pv_1_subrun(setup_1_subrun, fit_domain):
 
     if fit_costs[0] > 1.0:
         # Plot
-        model_x, model_y = fit_engine.calculate_fitted_peaks(1, None)
+        model_x = fit_result.fitted.readX(0)
+        model_y = fit_result.fitted.readY(0)
         data_x, data_y = setup_1_subrun['workspace'].get_reduced_diffraction_data(1, None)
         assert data_x.shape == model_x.shape
         assert data_y.shape == model_y.shape
