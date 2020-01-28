@@ -1,8 +1,9 @@
 # Zoo of methods to work with file properties
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import time
 import os
 import h5py
-import checkdatatypes
+from . import checkdatatypes
 import platform
 from mantid.simpleapi import mtd, CreateWorkspace, SaveNexusProcessed
 from skimage import io

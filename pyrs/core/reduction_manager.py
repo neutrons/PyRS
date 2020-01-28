@@ -1,4 +1,5 @@
 # Reduction engine including slicing
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import os
 import numpy as np
 from pyrs.core import workspaces
@@ -75,7 +76,7 @@ class HB2BReductionManager(object):
         :param mask_id:
         :return: 2-vectors: 2theta and intensity
         """
-        checkdatatypes.check_string_variable('Session name', session_name, self._session_dict.keys())
+        checkdatatypes.check_string_variable('Session name', session_name, list(self._session_dict.keys()))
         workspace = self._session_dict[session_name]
 
         data_set = workspace.get_reduced_diffraction_data(sub_run, mask_id)
@@ -88,7 +89,7 @@ class HB2BReductionManager(object):
         :param session_name:
         :return:
         """
-        checkdatatypes.check_string_variable('Session name', session_name, self._session_dict.keys())
+        checkdatatypes.check_string_variable('Session name', session_name, list(self._session_dict.keys()))
         workspace = self._session_dict[session_name]
 
         return workspace.get_sub_runs()
@@ -100,7 +101,7 @@ class HB2BReductionManager(object):
         :param sub_run:
         :return:
         """
-        checkdatatypes.check_string_variable('Session name', session_name, self._session_dict.keys())
+        checkdatatypes.check_string_variable('Session name', session_name, list(self._session_dict.keys()))
         workspace = self._session_dict[session_name]
 
         return workspace.get_detector_counts(sub_run)
@@ -154,7 +155,7 @@ class HB2BReductionManager(object):
         :param sub_run:
         :return:
         """
-        checkdatatypes.check_string_variable('Session name', session_name, self._session_dict.keys())
+        checkdatatypes.check_string_variable('Session name', session_name, list(self._session_dict.keys()))
         workspace = self._session_dict[session_name]
 
         return workspace.get_detector_2theta(sub_run)
@@ -175,7 +176,7 @@ class HB2BReductionManager(object):
         :param session_name: string as the session/workspace name
         :return: HidraWorkspace instance
         """
-        checkdatatypes.check_string_variable('Session name', session_name, self._session_dict.keys())
+        checkdatatypes.check_string_variable('Session name', session_name, list(self._session_dict.keys()))
 
         # Check availability
         if session_name not in self._session_dict:
@@ -367,7 +368,7 @@ class HB2BReductionManager(object):
         :param mask_id:  String as ID
         :return: a 1D array (0: mask, 1: keep)
         """
-        checkdatatypes.check_string_variable('Mask ID', mask_id, self._loaded_mask_dict.keys())
+        checkdatatypes.check_string_variable('Mask ID', mask_id, list(self._loaded_mask_dict.keys()))
 
         return self._loaded_mask_dict[mask_id][0]
 
