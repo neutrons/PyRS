@@ -190,10 +190,8 @@ class EventHandler(object):
         -------
 
         """
-        # TODO - good run number!
-        run_number = 1060
-        output_dir = browse_dir(self, caption='Output directory for reduced data',
-                                default_dir=self._controller.get_default_output_dir(run_number))
+        output_dir = browse_dir(self.parent, caption='Output directory for reduced data',
+                                default_dir='/HFIR/HB2B/')
         if output_dir != '':
             self.ui.lineEdit_outputDir.setText(output_dir)
 
