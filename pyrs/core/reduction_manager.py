@@ -443,19 +443,22 @@ class HB2BReductionManager(object):
             workspace = self._session_dict[session_name]
 
         # Process mask: No mask, Mask ID and mask vector
+        default_mask = workspace.get_detector_mask(is_default=True, mask_id=None)
         if mask is None:
-            mask_vec = None
-            # mask_id = None
+            # No use mask:  use default detector mask.  It could be None but does not matter
+            mask_vec = default_mask
         elif isinstance(mask, str):
             # mask is determined by mask ID
             mask_vec = self.get_mask_vector(mask)
-            # mask_id = mask
         else:
             # user supplied an array for mask
             checkdatatypes.check_numpy_arrays('Mask', [mask], dimension=1, check_same_shape=False)
             mask_vec = mask
-            # mask_id = 'Mask_{0:04}'.format(random.randint(1, 1000))
         # END-IF-ELSE
+
+        # Operate AND with default mask
+        if default_mask is not None:
+            mask_vec *= default_mask
 
         # Apply (or not) instrument geometry calibration shift
         if isinstance(apply_calibrated_geometry, instrument_geometry.AnglerCameraDetectorShift):
@@ -591,7 +594,8 @@ class HB2BReductionManager(object):
         det_counts_array
         two_theta_range
         num_bins
-        mask_array
+        mask_array : numpy.ndarray or None
+            mask: 1 to keep, 0 to mask (exclude)
         vanadium_array
 
         Returns

@@ -126,10 +126,10 @@ class ReductionApp(object):
         -------
 
         """
-        # set workspace to reduction manager
-        self._reduction_manager.init_session(self._session, hd_workspace)
         # set the workspace to self
         self._hydra_ws = hd_workspace
+        # set workspace to reduction manager
+        self._reduction_manager.init_session(self._session, self._hydra_ws)
 
     def reduce_data(self, sub_runs, instrument_file, calibration_file, mask, mask_id=None,
                     van_file=None, num_bins=1000):
@@ -185,10 +185,6 @@ class ReductionApp(object):
         else:
             # no vanadium
             van_array = None
-
-        # TODO - Implement ASAP
-        # retrieve default mask from hidra workspace
-        # default_mask_array = ... ...
 
         self._reduction_manager.reduce_diffraction_data(self._session,
                                                         apply_calibrated_geometry=geometry_calibration,
