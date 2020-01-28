@@ -206,8 +206,6 @@ class Plot:
         :return:
         """
 
-        print(param_name)
-
         # get data key
         if self.parent._project_name is None:
             pop_message(self, 'No data loaded', 'error')

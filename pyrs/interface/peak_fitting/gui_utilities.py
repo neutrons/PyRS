@@ -163,6 +163,9 @@ class GuiUtilities:
         for _ui in list_ui:
             _ui.clear()
 
+    def get_number_of_peak_selected(self):
+        return len(self.get_list_of_peak_label())
+
     def get_list_of_peak_label(self):
         return self.parent._ui_graphicsView_fitSetup.list_fit_peak_labels
 
@@ -221,15 +224,19 @@ class GuiUtilities:
             else:
                 self.make_visible_d01d_widgets(False)
 
-            if xaxis_selected in LIST_AXIS_TO_PLOT['fit']:
-                self.parent.ui.plot1d_xaxis_peak_label_comboBox.setVisible(True)
-            else:
+            if self.get_number_of_peak_selected() < 2:
                 self.parent.ui.plot1d_xaxis_peak_label_comboBox.setVisible(False)
-
-            if yaxis_selected in LIST_AXIS_TO_PLOT['fit']:
-                self.parent.ui.plot1d_yaxis_peak_label_comboBox.setVisible(True)
-            else:
                 self.parent.ui.plot1d_yaxis_peak_label_comboBox.setVisible(False)
+            else:
+                if xaxis_selected in LIST_AXIS_TO_PLOT['fit']:
+                    self.parent.ui.plot1d_xaxis_peak_label_comboBox.setVisible(True)
+                else:
+                    self.parent.ui.plot1d_xaxis_peak_label_comboBox.setVisible(False)
+
+                if yaxis_selected in LIST_AXIS_TO_PLOT['fit']:
+                    self.parent.ui.plot1d_yaxis_peak_label_comboBox.setVisible(True)
+                else:
+                    self.parent.ui.plot1d_yaxis_peak_label_comboBox.setVisible(False)
         else:
             self.make_visible_d01d_widgets(False)
             self.parent.ui.plot1d_xaxis_peak_label_comboBox.setVisible(False)
