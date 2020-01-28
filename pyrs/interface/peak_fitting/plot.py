@@ -1,3 +1,4 @@
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import numpy as np
 
 from pyrs.interface.gui_helper import parse_integers
@@ -21,7 +22,7 @@ class Plot:
         # gather the information
         try:
             scan_log_index_list = parse_integers(str(self.parent.ui.lineEdit_listSubRuns.text()))
-        except RuntimeError as run_err:
+        except RuntimeError:
             pop_message(self, "Unable to parse the string", message_type='error')
             return
 

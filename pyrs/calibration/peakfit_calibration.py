@@ -1,6 +1,7 @@
 # Migrated from /HFIR/HB2B/shared/Quick_Calibration.py
 # Original can be found at ./Quick_Calibration_v3.py
 # Renamed from  ./prototypes/calibration/Quick_Calibration_Class.py
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import numpy as np
 import time
 import json
@@ -312,7 +313,7 @@ class PeakFitCalibration(object):
                 except ValueError:
                     error[i] = (0.00)
 
-            print [pfit, np.array(error), success]
+            print([pfit, np.array(error), success])
             return [pfit, np.array(error), success]
 
         else:
@@ -528,7 +529,7 @@ class PeakFitCalibration(object):
         paramVec = np.copy(self._calib)
         paramVec[i_index] = x[0]
 
-        print x
+        print(x)
         residual = self.get_alignment_residual(paramVec, roi_vec_set, ConstrainPosition, False, start, stop)
 
         if ReturnScalar:
@@ -599,7 +600,7 @@ class PeakFitCalibration(object):
         :return:
         """
 
-        print x
+        print(x)
         residual = self.get_alignment_residual(x, roi_vec_set, True, False, start, stop)
 
         if ReturnScalar:
