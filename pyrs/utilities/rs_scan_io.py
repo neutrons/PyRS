@@ -1,7 +1,9 @@
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from pyrs.utilities import checkdatatypes
 import h5py
 import math
 import numpy
+import six
 from shutil import copyfile
 
 
@@ -216,11 +218,8 @@ class DiffractionDataFile(object):
                         item_name_str = str(item_name)
                         if item_name_str not in sample_logs:
                             # create entry as ndarray if it does not exist
-                            if isinstance(item_i, str):
+                            if isinstance(item_i, six.string_types):
                                 # string can only be object type
-                                sample_logs[item_name_str] = numpy.ndarray(shape=(num_scan_logs,), dtype=object)
-                            elif isinstance(item_i, unicode):
-                                # unicode
                                 sample_logs[item_name_str] = numpy.ndarray(shape=(num_scan_logs,), dtype=object)
                             else:
                                 # raw type

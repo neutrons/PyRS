@@ -1,3 +1,4 @@
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from mantid.simpleapi import mtd
 from pygments.lexer import RegexLexer
 import threading
@@ -35,7 +36,7 @@ try:
     from qtconsole.rich_ipython_widget import RichIPythonWidget
     from qtconsole.inprocess import QtInProcessKernelManager
     print('mantidipythonwidget: import PyQt5')
-except ImportError as import_err:
+except ImportError:
     # This is PyQt4 compatible
     from IPython.qt.console.rich_ipython_widget import RichIPythonWidget
     from IPython.qt.inprocess import QtInProcessKernelManager

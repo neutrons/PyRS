@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # Test utilities methods without GUI
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from pyrs.interface import gui_helper
 import pytest
 
@@ -15,7 +16,7 @@ def test_parse_integers():
     try:
         int_list = gui_helper.parse_integers('3.2, 4')
     except RuntimeError as run_err:
-        print run_err
+        print(run_err)
     else:
         raise AssertionError('Shall be failed but get {0}'.format(int_list))
 

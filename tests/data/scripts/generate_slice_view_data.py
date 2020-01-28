@@ -1,4 +1,5 @@
 # Generate a list of 3D data for testing slice view
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import numpy as np
 import random
 
@@ -32,8 +33,8 @@ for k in range(num_layer):
 # END-FOR
 
 data_set = np.array(data_set)
-print data_set
-print data_set.shape
+print(data_set)
+print(data_set.shape)
 
 
 def get_height(x, y, z):
@@ -68,7 +69,7 @@ vec_height = get_height(data_set[:, 0], data_set[:, 1], data_set[:, 2])
 print(vec_height, '\n', vec_height.shape)
 
 vec_width = get_width(data_set[:, 0], data_set[:, 1], data_set[:, 2])
-print vec_width
+print(vec_width)
 
 
 wbuf = '# {0:12}{1:12}{2:12}{3:12}{4:12}\n'.format('X', 'Y', 'Z', 'Height', 'Width')
@@ -77,7 +78,7 @@ for index in range(len(data_set)):
                                                            '{0:.5f}'.format(vec_height[index]),
                                                            '{0:.5f}'.format(vec_width[index]))
 
-print wbuf
+print(wbuf)
 
 # write to file
 ofile = open('slice_test.dat', 'w')
