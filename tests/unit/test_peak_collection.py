@@ -68,6 +68,7 @@ def check_peak_collection(peak_shape, NUM_SUBRUN, target_error):
     if peak_shape == 'PseudoVoigt':
         raw_peaks_array['Intensity'] = [1, 2]
         raw_peaks_array['FWHM'] = np.array([4, 5], dtype=float)
+        raw_peaks_array['Mixing'] = [0, 1]
     else:
         raw_peaks_array['Height'] = [1, 2]
         raw_peaks_array['Sigma'] = np.array([4, 5], dtype=float)
@@ -98,6 +99,7 @@ def check_peak_collection(peak_shape, NUM_SUBRUN, target_error):
     if peak_shape == 'PseudoVoigt':
         np.testing.assert_equal(obs_eff_peaks['Intensity'], raw_peaks_array['Intensity'])
         np.testing.assert_equal(obs_eff_peaks['FWHM'], raw_peaks_array['FWHM'])
+        np.testing.assert_equal(obs_eff_peaks['Mixing'], raw_peaks_array['Mixing'])
     else:
         np.testing.assert_equal(obs_eff_peaks['Height'], raw_peaks_array['Height'])
         np.testing.assert_equal(obs_eff_peaks['FWHM'], 2. * np.sqrt(2. * np.log(2.)) * raw_peaks_array['Sigma'])
@@ -113,7 +115,7 @@ def test_peak_collection_Gaussian():
 def test_peak_collection_PseudoVoigt():
     NUM_SUBRUN = 2
     check_peak_collection('PseudoVoigt', NUM_SUBRUN, np.array([(3.0, 0.0, 4.0, 0.0, 0.0, 0.0, 1.0),
-                                                               (4.0, 0.0, 5.0, 0.0, 0.0, 0.0, 2.0)],
+                                                               (4.0, 0.0, 5.0, 1.0, 0.0, 0.0, 2.0)],
                                                               dtype=get_parameter_dtype(effective=True)))
 
 
