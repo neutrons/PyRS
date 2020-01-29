@@ -67,7 +67,7 @@ class MplGraphicsView1D(QWidget):
         self._vBox.addWidget(self._myToolBar)
 
     def button_clicked_in_canvas(self, event):
-        print("button pressed here!")
+        # print("button pressed here!")
         print("-> %s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f".format(event.dblclick, event.button,
                                                                               event.x, event.y, event.xdata,
                                                                               event.ydata))

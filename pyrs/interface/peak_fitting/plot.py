@@ -1,10 +1,11 @@
 from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import numpy as np
+from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 
 from pyrs.interface.gui_helper import parse_integers
 from pyrs.interface.gui_helper import pop_message
 from pyrs.dataobjects import HidraConstants
-from pyrs.interface.peak_fitting.config import fit_dict
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
 from pyrs.interface.peak_fitting.data_retriever import DataRetriever
 
@@ -128,10 +129,20 @@ class Plot:
         y_axis_peak_index = o_gui.get_plot2d_axis_peak_label_index(axis='y')
         z_axis_peak_index = o_gui.get_plot2d_axis_peak_label_index(axis='z')
 
-        # x_data = self.get_data(name=x_axis_name)
-        # y_data =
+        o_data_retriever = DataRetriever(parent=self.parent)
 
+        axis_x_data, axis_x_error = o_data_retriever.get_data(name=x_axis_name, peak_index=x_axis_peak_index)
+        axis_y_data, axis_y_error = o_data_retriever.get_data(name=y_axis_name, peak_index=y_axis_peak_index)
+        axis_z_data, axis_z_error = o_data_retriever.get_data(name=z_axis_name, peak_index=z_axis_peak_index)
 
+        from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
+
+        figure = Figure()
+        self.parent.ui.graphicsView_plot2D._myCanvas = FigureCanvas(figure)
+        ax = figure.add_subplot(111)
+        ax.clear()
+        ax.plot(np.arange(10), np.arange(10)+20, '*-')
+        self.parent.ui.graphicsView_plot2D._myCanvas.draw()
 
 
     def plot_1d(self):
@@ -168,73 +179,6 @@ class Plot:
                                                                axis_y_data,
                                                                x_axis_name,
                                                                y_axis_name)
-
-
-        # if x_axis_name == 'Sub-runs':
-        #     # axis_x = np.array(hidra_workspace.get_sub_runs())
-        #     axis_x = o_data_retriever.get_data(name=x_axis_name)
-        #     if y_axis_name == 'Sub-runs':
-        #         # axis_y = np.array(hidra_workspace.get_sub_runs())
-        #         axis_y = o_data_retriever.get_data(name=y_axis_name)
-        #     elif y_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
-        #         # axis_y = hidra_workspace._sample_logs[y_axis_name]
-        #         axis_y = o_data_retriever.get_data(name=y_axis_name)
-        #     elif y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
-        #         value, error = o_data_retriever.get_data(name=y_axis_name, peak_index=y_axis_peak_index)
-        #         # value, error = self.get_fitted_value(peak=self.parent.fit_result.peakcollections[y_axis_peak_index],
-        #         #                                      value_to_display=y_axis_name)
-        #         self.parent.ui.graphicsView_fitResult.plot_scatter_with_errors(vec_x=axis_x, vec_y=value,
-        #                                                                        vec_y_error=error,
-        #                                                                        x_label=x_axis_name,
-        #                                                                        y_label=y_axis_name)
-        #         return
-        #     else:
-        #         raise NotImplementedError("y_axis choice not supported yet: {}".format(y_axis_name))
-        # elif x_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
-        #     # axis_x = hidra_workspace._sample_logs[x_axis_name]
-        #     axis_x = o_data_retriever.get_data(name=x_axis_name)
-        #     if y_axis_name == 'Sub-runs':
-        #         axis_y = np.array(hidra_workspace.get_sub_runs())
-        #     elif y_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
-        #         axis_y = hidra_workspace._sample_logs[y_axis_name]
-        #     elif y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
-        #         value, error = self.get_fitted_value(peak=self.parent.fit_result.peakcollections[y_axis_peak_index],
-        #                                              value_to_display=y_axis_name)
-        #         self.parent.ui.graphicsView_fitResult.plot_scatter_with_errors(vec_x=axis_x, vec_y=value,
-        #                                                                        vec_y_error=error,
-        #                                                                        x_label=x_axis_name,
-        #                                                                        y_label=y_axis_name)
-        #         return
-        #     else:
-        #         raise NotImplementedError("y_axis choice not supported yet: {}!".format(y_axis_name))
-        # elif x_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
-        #     axis_x, error_x = self.get_fitted_value(peak=self.parent.fit_result.peakcollections[x_axis_peak_index],
-        #                                             value_to_display=x_axis_name)
-        #     if y_axis_name == 'Sub-runs':
-        #         axis_y = np.array(hidra_workspace.get_sub_runs())
-        #         error_y = None
-        #     elif y_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
-        #         axis_y = hidra_workspace._sample_logs[y_axis_name]
-        #         error_y = None
-        #     elif y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
-        #         axis_y, error_y = self.get_fitted_value(peak=self.parent.fit_result.peakcollections[y_axis_peak_index],
-        #                                                 value_to_display=y_axis_name)
-        #     else:
-        #         raise NotImplementedError("y_axis choice not supported yet: {}!".format(y_axis_name))
-        #
-        #     self.parent.ui.graphicsView_fitResult.plot_scatter_with_errors(vec_x=axis_x, vec_y=axis_y,
-        #                                                                    vec_x_error=error_x,
-        #                                                                    vec_y_error=error_y,
-        #                                                                    x_label=x_axis_name,
-        #                                                                    y_label=y_axis_name)
-        #
-        #     return
-        #
-        # else:
-        #     raise NotImplementedError("x_axis choice not supported yet: {}!".format(x_axis_name))
-        #
-        # self.parent.ui.graphicsView_fitResult.plot_scatter(axis_x, axis_y,
-        #                                                    'sub_runs', y_axis_name)
 
     def get_function_parameter_data(self, param_name):
         """ get the parameter function data

@@ -13,6 +13,8 @@ class DataRetriever:
 
     def get_data(self, name='Sub-runs', peak_index=0):
 
+        print("name is : {}".format(name))
+
         if name == 'Sub-runs':
             return [np.array(self.hidra_workspace.get_sub_runs()), None]
 
