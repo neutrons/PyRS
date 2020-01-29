@@ -56,6 +56,7 @@ def load_split_nexus_python(nexus_name, mask_file_name):
     log_split_end = datetime.datetime.now()
     print('[INFO] Sub run splitting duration = {} second from {} to {}'
           ''.format((log_split_end - time_split_end).total_seconds(), time_split_end, log_split_end))
+    del nexus_processor
 
     return sub_run_counts, sample_logs, mask_array
 
