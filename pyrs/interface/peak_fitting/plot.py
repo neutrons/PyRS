@@ -6,6 +6,7 @@ from pyrs.interface.gui_helper import pop_message
 from pyrs.dataobjects import HidraConstants
 from pyrs.interface.peak_fitting.config import fit_dict
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
+from pyrs.interface.peak_fitting.data_retriever import DataRetriever
 
 from pyrs.interface.peak_fitting.config import LIST_AXIS_TO_PLOT
 
@@ -117,6 +118,22 @@ class Plot:
 
         self.parent.ui.label_SubRunsValue.setText('{}'.format(scan_value))
 
+    def plot_2d(self):
+        o_gui = GuiUtilities(parent=self.parent)
+        x_axis_name = str(self.parent.ui.comboBox_xaxisNames_2dplot.currentText())
+        y_axis_name = str(self.parent.ui.comboBox_yaxisNames_2dplot.currentText())
+        z_axis_name = str(self.parent.ui.comboBox_zaxisNames_2dplot.currentText())
+
+        x_axis_peak_index = o_gui.get_plot2d_axis_peak_label_index(axis='x')
+        y_axis_peak_index = o_gui.get_plot2d_axis_peak_label_index(axis='y')
+        z_axis_peak_index = o_gui.get_plot2d_axis_peak_label_index(axis='z')
+
+        # x_data = self.get_data(name=x_axis_name)
+        # y_data =
+
+
+
+
     def plot_1d(self):
 
         self.parent.ui.graphicsView_fitResult.reset_viewer()
@@ -128,80 +145,96 @@ class Plot:
         x_axis_peak_index = o_gui.get_plot1d_axis_peak_label_index(is_xaxis=True)
         y_axis_peak_index = o_gui.get_plot1d_axis_peak_label_index(is_xaxis=False)
 
-        hidra_workspace = self.parent.hidra_workspace
-        if x_axis_name == 'Sub-runs':
-            axis_x = np.array(hidra_workspace.get_sub_runs())
-            if y_axis_name == 'Sub-runs':
-                axis_y = np.array(hidra_workspace.get_sub_runs())
-            elif y_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
-                axis_y = hidra_workspace._sample_logs[y_axis_name]
-            elif y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
-                value, error = self.get_fitted_value(peak=self.parent.fit_result.peakcollections[y_axis_peak_index],
-                                                     value_to_display=y_axis_name)
-                self.parent.ui.graphicsView_fitResult.plot_scatter_with_errors(vec_x=axis_x, vec_y=value,
-                                                                               vec_y_error=error,
-                                                                               x_label=x_axis_name,
-                                                                               y_label=y_axis_name)
-                return
-            else:
-                raise NotImplementedError("y_axis choice not supported yet: {}".format(y_axis_name))
-        elif x_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
-            axis_x = hidra_workspace._sample_logs[x_axis_name]
-            if y_axis_name == 'Sub-runs':
-                axis_y = np.array(hidra_workspace.get_sub_runs())
-            elif y_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
-                axis_y = hidra_workspace._sample_logs[y_axis_name]
-            elif y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
-                value, error = self.get_fitted_value(peak=self.parent.fit_result.peakcollections[y_axis_peak_index],
-                                                     value_to_display=y_axis_name)
-                self.parent.ui.graphicsView_fitResult.plot_scatter_with_errors(vec_x=axis_x, vec_y=value,
-                                                                               vec_y_error=error,
-                                                                               x_label=x_axis_name,
-                                                                               y_label=y_axis_name)
-                return
-            else:
-                raise NotImplementedError("y_axis choice not supported yet: {}!".format(y_axis_name))
-        elif x_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
-            axis_x, error_x = self.get_fitted_value(peak=self.parent.fit_result.peakcollections[x_axis_peak_index],
-                                                    value_to_display=x_axis_name)
-            if y_axis_name == 'Sub-runs':
-                axis_y = np.array(hidra_workspace.get_sub_runs())
-                error_y = None
-            elif y_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
-                axis_y = hidra_workspace._sample_logs[y_axis_name]
-                error_y = None
-            elif y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
-                axis_y, error_y = self.get_fitted_value(peak=self.parent.fit_result.peakcollections[y_axis_peak_index],
-                                                        value_to_display=y_axis_name)
-            else:
-                raise NotImplementedError("y_axis choice not supported yet: {}!".format(y_axis_name))
+        o_data_retriever = DataRetriever(parent=self.parent)
 
-            self.parent.ui.graphicsView_fitResult.plot_scatter_with_errors(vec_x=axis_x, vec_y=axis_y,
-                                                                           vec_x_error=error_x,
-                                                                           vec_y_error=error_y,
+        is_plot_with_error = False
+
+        axis_x_data, axis_x_error = o_data_retriever.get_data(name=x_axis_name, peak_index=x_axis_peak_index)
+        axis_y_data, axis_y_error = o_data_retriever.get_data(name=y_axis_name, peak_index=y_axis_peak_index)
+
+        if ((x_axis_name in LIST_AXIS_TO_PLOT['fit'].keys()) or \
+                (y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys())):
+            is_plot_with_error = True
+
+        if is_plot_with_error:
+            self.parent.ui.graphicsView_fitResult.plot_scatter_with_errors(vec_x=axis_x_data,
+                                                                           vec_y=axis_y_data,
+                                                                           vec_x_error=axis_x_error,
+                                                                           vec_y_error=axis_y_error,
                                                                            x_label=x_axis_name,
                                                                            y_label=y_axis_name)
-
-            return
-
         else:
-            raise NotImplementedError("x_axis choice not supported yet: {}!".format(x_axis_name))
+            self.parent.ui.graphicsView_fitResult.plot_scatter(axis_x_data,
+                                                               axis_y_data,
+                                                               x_axis_name,
+                                                               y_axis_name)
 
-        self.parent.ui.graphicsView_fitResult.plot_scatter(axis_x, axis_y,
-                                                           'sub_runs', y_axis_name)
 
-    def get_fitted_value(self, peak=None, value_to_display='Center'):
-        """
-        return the values and errors of the fitted parameters of the given peak
-        :param peak:
-        :param value_to_display:
-        :return:
-        """
-        value, error = peak.get_effective_params()
-        mantid_value_to_display = fit_dict[value_to_display]
-        value_selected = value[mantid_value_to_display]
-        error_selected = error[mantid_value_to_display]
-        return value_selected, error_selected
+        # if x_axis_name == 'Sub-runs':
+        #     # axis_x = np.array(hidra_workspace.get_sub_runs())
+        #     axis_x = o_data_retriever.get_data(name=x_axis_name)
+        #     if y_axis_name == 'Sub-runs':
+        #         # axis_y = np.array(hidra_workspace.get_sub_runs())
+        #         axis_y = o_data_retriever.get_data(name=y_axis_name)
+        #     elif y_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
+        #         # axis_y = hidra_workspace._sample_logs[y_axis_name]
+        #         axis_y = o_data_retriever.get_data(name=y_axis_name)
+        #     elif y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
+        #         value, error = o_data_retriever.get_data(name=y_axis_name, peak_index=y_axis_peak_index)
+        #         # value, error = self.get_fitted_value(peak=self.parent.fit_result.peakcollections[y_axis_peak_index],
+        #         #                                      value_to_display=y_axis_name)
+        #         self.parent.ui.graphicsView_fitResult.plot_scatter_with_errors(vec_x=axis_x, vec_y=value,
+        #                                                                        vec_y_error=error,
+        #                                                                        x_label=x_axis_name,
+        #                                                                        y_label=y_axis_name)
+        #         return
+        #     else:
+        #         raise NotImplementedError("y_axis choice not supported yet: {}".format(y_axis_name))
+        # elif x_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
+        #     # axis_x = hidra_workspace._sample_logs[x_axis_name]
+        #     axis_x = o_data_retriever.get_data(name=x_axis_name)
+        #     if y_axis_name == 'Sub-runs':
+        #         axis_y = np.array(hidra_workspace.get_sub_runs())
+        #     elif y_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
+        #         axis_y = hidra_workspace._sample_logs[y_axis_name]
+        #     elif y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
+        #         value, error = self.get_fitted_value(peak=self.parent.fit_result.peakcollections[y_axis_peak_index],
+        #                                              value_to_display=y_axis_name)
+        #         self.parent.ui.graphicsView_fitResult.plot_scatter_with_errors(vec_x=axis_x, vec_y=value,
+        #                                                                        vec_y_error=error,
+        #                                                                        x_label=x_axis_name,
+        #                                                                        y_label=y_axis_name)
+        #         return
+        #     else:
+        #         raise NotImplementedError("y_axis choice not supported yet: {}!".format(y_axis_name))
+        # elif x_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
+        #     axis_x, error_x = self.get_fitted_value(peak=self.parent.fit_result.peakcollections[x_axis_peak_index],
+        #                                             value_to_display=x_axis_name)
+        #     if y_axis_name == 'Sub-runs':
+        #         axis_y = np.array(hidra_workspace.get_sub_runs())
+        #         error_y = None
+        #     elif y_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
+        #         axis_y = hidra_workspace._sample_logs[y_axis_name]
+        #         error_y = None
+        #     elif y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
+        #         axis_y, error_y = self.get_fitted_value(peak=self.parent.fit_result.peakcollections[y_axis_peak_index],
+        #                                                 value_to_display=y_axis_name)
+        #     else:
+        #         raise NotImplementedError("y_axis choice not supported yet: {}!".format(y_axis_name))
+        #
+        #     self.parent.ui.graphicsView_fitResult.plot_scatter_with_errors(vec_x=axis_x, vec_y=axis_y,
+        #                                                                    vec_x_error=error_x,
+        #                                                                    vec_y_error=error_y,
+        #                                                                    x_label=x_axis_name,
+        #                                                                    y_label=y_axis_name)
+        #
+        #     return
+        #
+        # else:
+        #     raise NotImplementedError("x_axis choice not supported yet: {}!".format(x_axis_name))
+        #
+        # self.parent.ui.graphicsView_fitResult.plot_scatter(axis_x, axis_y,
+        #                                                    'sub_runs', y_axis_name)
 
     def get_function_parameter_data(self, param_name):
         """ get the parameter function data
@@ -213,33 +246,6 @@ class Plot:
         if self.parent._project_name is None:
             pop_message(self, 'No data loaded', 'error')
             return
-
-        # fitted_peak = self.parent._core._peak_fitting_dict[self.parent._project_name]
-        # from pyrs.core import peak_profile_utility
-
-        # param_set = fitted_peak.get_effective_parameters_values()
-        # eff_params_list, sub_run_array, fit_cost_array, eff_param_value_array, eff_param_error_array = param_set
-
-        # retrieve Center: EFFECTIVE_PEAK_PARAMETERS = ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
-        # i_center = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS.index('Center')
-        # centers = eff_param_value_array[i_center]
-
-        # retrieve Height
-        # i_height = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS.index('Height')
-        # heights = eff_param_value_array[i_height]
-
-        # retrieve intensity
-        # i_intensity = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS.index('Intensity')
-        # intensities = eff_param_value_array[i_intensity]
-
-        # retrieve FWHM
-        # i_fwhm = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS.index('FWHM')
-        # fwhms = eff_param_value_array[i_fwhm]
-
-        # import pprint
-        # pprint.pprint("fwhms: {}".format(fwhms))
-
-        return
 
         param_names, param_data = self.parent._core.get_peak_fitting_result(self.parent._project_name,
                                                                             0,

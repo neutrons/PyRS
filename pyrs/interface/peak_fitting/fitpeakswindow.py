@@ -205,6 +205,8 @@ class FitPeaksWindow(QMainWindow):
     def axis_2d_changed(self):
         o_gui = GuiUtilities(parent=self)
         o_gui.check_axis2d_status()
+        o_plot = Plot(parent=self)
+        o_plot.plot_2d()
 
     def export_csv(self):
         o_export = ExportCSV(parent=self)

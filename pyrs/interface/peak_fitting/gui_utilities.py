@@ -253,6 +253,19 @@ class GuiUtilities:
         else:
             return 0
 
+    def get_plot2d_axis_peak_label_index(self, axis='x'):
+        if axis == 'x':
+            ui = self.parent.ui.plot2d_xaxis_peak_label_comboBox
+        elif axis == 'y':
+            ui = self.parent.ui.plot2d_yaxis_peak_label_comboBox
+        else:
+            ui = self.parent.ui.plot2d_zaxis_peak_label_comboBox
+
+        if ui.isVisible():
+            return ui.currentIndex()
+        else:
+            return 0
+
     def check_axis2d_status(self):
 
         if self.parent.ui.comboBox_xaxisNames_2dplot.isEnabled():
