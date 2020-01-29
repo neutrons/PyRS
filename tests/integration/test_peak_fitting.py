@@ -392,8 +392,8 @@ EXPECTED_HEADER_1065 = '''# IPTS number = 22731
 # Manual vs auto reduction
 # missing: S1width, S1height, S1distance, RadialDistance
 # chi = 0 +/- 0
-# phi = 0 +/- 0
-# omega = 135 +/- 0'''.split('\n')
+# omega = 135 +/- 0
+# phi = 0 +/- 0'''.split('\n')
 
 EXPECTED_HEADER_938 = '''# IPTS number = 22731
 # Run = 938
@@ -407,13 +407,13 @@ EXPECTED_HEADER_938 = '''# IPTS number = 22731
 # Hidra project file = /some/place/random.h5
 # Manual vs auto reduction
 # missing: S1width, S1height, S1distance, RadialDistance
-# sx = 0.00073674 +/- 0
+# 2theta = 90.001 +/- 0
 # chi = 0 +/- 0
-# phi = 0 +/- 0
 # omega = 0 +/- 0
-# sz = 3.8844 +/- 0
+# phi = 0 +/- 0
+# sx = 0.00073674 +/- 0
 # sy = 0.00057072 +/- 0
-# 2theta = 90.001 +/- 0'''.split('\n')
+# sz = 3.8844 +/- 0'''.split('\n')
 
 
 @pytest.mark.parametrize('project_file_name, csv_filename, expected_header, num_subruns, num_logs,'
