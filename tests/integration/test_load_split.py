@@ -56,7 +56,6 @@ def test_log_time_average():
 
     # verify two of the properties
     np.testing.assert_allclose(sample_logs['2theta'], [69.99525,  80.,  97.50225])
-    np.testing.assert_allclose(sample_logs['DOSC'], [-0.01139306,  0.00332028,  0.00635049], rtol=1.e-5)
 
 
 if __name__ == '__main__':
