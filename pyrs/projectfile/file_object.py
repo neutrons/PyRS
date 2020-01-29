@@ -658,15 +658,15 @@ class HidraProjectFile(object):
         single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS_ERROR, data=peak_errors)
 
     def read_wavelengths(self):
-        """
-        Get calibrated wave length
+        """Get calibrated wave length
+
         Returns
         -------
-        Float or None
-            Calibrated wave length or No wave length ever set
+        Float
+            Calibrated wave length.  NaN for wave length is not ever set
         """
         # Init wave length
-        wl = None
+        wl = numpy.nan
 
         # Get the node
         try:
@@ -674,8 +674,8 @@ class HidraProjectFile(object):
             if HidraConstants.WAVELENGTH in mono_node:
                 wl = self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.MONO][HidraConstants.WAVELENGTH].value
                 if wl.shape[0] == 0:
-                    # empty numpy array: no data
-                    wl = None
+                    # empty numpy array: no data. keep as nan
+                    pass
                 elif wl.shape[0] == 1:
                     # 1 calibrated wave length
                     wl = wl[0]
@@ -704,6 +704,11 @@ class HidraProjectFile(object):
         """
         checkdatatypes.check_float_variable('Wave length', wave_length, (0, 1000))
 
+        # Create 'monochromator setting' node if it does not exist
+        if HidraConstants.MONO not in list(self._project_h5[HidraConstants.INSTRUMENT].keys()):
+            self._project_h5[HidraConstants.INSTRUMENT].create_group(HidraConstants.MONO)
+
+        # Get node and write value
         wl_entry = self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.MONO]
         wl_entry.create_dataset(HidraConstants.WAVELENGTH, data=numpy.array([wave_length]))
 

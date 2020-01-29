@@ -136,7 +136,7 @@ def test_wave_length_rw():
 
     # Read wave length (not exist)
     wave_length_test = verify_project_file.read_wavelengths()
-    assert wave_length_test is None, 'No wave length read out'
+    assert np.isnan(wave_length_test), 'No wave length read out'
 
     # Close
     verify_project_file.close()
