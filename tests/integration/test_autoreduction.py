@@ -73,11 +73,17 @@ def addPowderToProject(projectfile, use_mantid_engine=False, calibration_file=No
     assert os.path.exists(projectfile)
 
 
+def test_no_counts():
+    '''File when reactor was off'''
+    with pytest.raises(RuntimeError) as error_msg:
+        _ = convertNeXusToProject('/HFIR/HB2B/IPTS-22731/nexus/HB2B_439.nxs.h5', 'HB2B_439.h5', skippable=True)
+    assert 'has no count' in str(error_msg.value)
+
+
 @pytest.mark.parametrize('nexusfile, projectfile',
-                         [('/HFIR/HB2B/IPTS-22731/nexus/HB2B_439.nxs.h5', 'HB2B_439.h5'),  # file when reactor was off
-                          ('/HFIR/HB2B/IPTS-22731/nexus/HB2B_931.nxs.h5', 'HB2B_931.h5'),  # Vanadium
+                         [('/HFIR/HB2B/IPTS-22731/nexus/HB2B_931.ORIG.nxs.h5', 'HB2B_931.h5'),  # Vanadium
                           ('data/HB2B_938.nxs.h5', 'HB2B_938.h5')],  # A good peak
-                         ids=('HB2B_439', 'HB2B_931', 'RW_938'))
+                         ids=('HB2B_931', 'RW_938'))
 def test_nexus_to_project(nexusfile, projectfile):
     """Test converting NeXus to project and convert to diffraction pattern
 
@@ -94,13 +100,7 @@ def test_nexus_to_project(nexusfile, projectfile):
 
     """
     # convert the nexus file to a project file and do the "simple" checks
-    try:
-        test_hidra_ws = convertNeXusToProject(nexusfile, projectfile, skippable=True)
-    except RuntimeError as run_err:
-        if str(run_err).count('has no count') > 0:
-            pytest.skip('{} has not count and thus not supported now'.format(nexusfile))
-        else:
-            raise run_err
+    test_hidra_ws = convertNeXusToProject(nexusfile, projectfile, skippable=True)
 
     # verify sub run duration
     sub_runs = test_hidra_ws.get_sub_runs()
@@ -129,8 +129,8 @@ def test_reduce_data(mask_file_name, filtered_counts, histogram_counts):
     CENTERS = (69.99525,  80.,  97.50225)
 
     # reduce with PyRS/Python
-    hidra_ws = convertNeXusToProject('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5', projectfile=None, skippable=True,
-                                     mask_file_name=mask_file_name)
+    hidra_ws = convertNeXusToProject('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.ORIG.nxs.h5',
+                                     projectfile=None, skippable=True, mask_file_name=mask_file_name)
 
     # verify subruns
     np.testing.assert_equal(hidra_ws.get_sub_runs(), SUBRUNS)
@@ -175,7 +175,7 @@ def test_split_log_time_average():
 
     """
     # Convert the NeXus to project
-    nexus_file = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1086.nxs.h5'
+    nexus_file = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1086.ORIG.nxs.h5'
     project_file = 'HB2B_1086.h5'
     convertNeXusToProject(nexus_file, project_file, skippable=True)
 
@@ -276,7 +276,7 @@ def test_apply_mantid_mask():
 
 
 def test_hidra_workflow(tmpdir):
-    nexus = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1060.nxs.h5'
+    nexus = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1060.ORIG.nxs.h5'
     mask = '/HFIR/HB2B/shared/CALIBRATION/HB2B_MASK_Latest.xml'
     calibration = '/HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json'
     project = os.path.basename(nexus).split('.')[0] + '.h5'
