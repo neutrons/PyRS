@@ -7,7 +7,7 @@ from pyrs.utilities import checkdatatypes
 from pyrs.dataobjects.constants import HidraConstants
 import datetime
 import os
-from mantid.simpleapi import LoadEventNexus, LoadMask
+from mantid.simpleapi import mtd, DeleteWorkspace, LoadEventNexus, LoadMask
 from mantid.kernel import BoolTimeSeriesProperty, FloatFilteredTimeSeriesProperty, FloatTimeSeriesProperty
 from mantid.kernel import Int32TimeSeriesProperty, Int64TimeSeriesProperty, Int32FilteredTimeSeriesProperty,\
     Int64FilteredTimeSeriesProperty
@@ -56,6 +56,7 @@ def load_split_nexus_python(nexus_name, mask_file_name):
     log_split_end = datetime.datetime.now()
     print('[INFO] Sub run splitting duration = {} second from {} to {}'
           ''.format((log_split_end - time_split_end).total_seconds(), time_split_end, log_split_end))
+    del nexus_processor
 
     return sub_run_counts, sample_logs, mask_array
 
@@ -108,6 +109,10 @@ class NexusProcessor(object):
             scan_index_value = self._workspace.run()['scan_index'].value
             raise RuntimeError('Sub scan (time = {}, value = {}) is not valid'
                                ''.format(scan_index_times, scan_index_value))
+
+    def __del__(self):
+        if self._ws_name in mtd:
+            DeleteWorkspace(Workspace=self._ws_name)
 
     def process_mask(self, mask_file_name):
         """
@@ -448,5 +453,6 @@ class NexusProcessor(object):
         # END-IF
 
         time_average_value = filtered_tsp.timeAverageValue()
+        del filtered_tsp
 
         return time_average_value
