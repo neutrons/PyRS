@@ -1,12 +1,54 @@
+from contextlib import contextmanager
 import os
 from mantid.simpleapi import Logger, GetIPTS
 from mantid.api import FileFinder
+from mantid.kernel import ConfigService
 import numpy as np
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
 
 DEFAULT_MASK_DIRECTORY = '/HFIR/HB2B/shared/CALIBRATION/'
 DEFAULT_CALIBRATION_DIRECTORY = DEFAULT_MASK_DIRECTORY
+
+
+@contextmanager
+def archive_search():
+    DEFAULT_FACILITY = 'default.facility'
+    DEFAULT_INSTRUMENT = 'default.instrument'
+    SEARCH_ARCHIVE = 'datasearch.searcharchive'
+    HFIR = 'HFIR'
+    HB2B = 'HB2B'
+
+    # get the old values
+    config = ConfigService.Instance()
+    old_config = {}
+    for property in [DEFAULT_FACILITY, DEFAULT_INSTRUMENT, SEARCH_ARCHIVE]:
+        old_config[property] = config[property]
+
+    # don't update things that are already set correctly
+    if config[DEFAULT_FACILITY] == HFIR:
+        del old_config[DEFAULT_FACILITY]
+    else:
+        config[DEFAULT_FACILITY] = HFIR
+
+    if config[DEFAULT_INSTRUMENT] == HB2B:
+        del old_config[DEFAULT_INSTRUMENT]
+    else:
+        config[DEFAULT_INSTRUMENT] = HB2B
+
+    if HFIR in config[SEARCH_ARCHIVE]:
+        del old_config[SEARCH_ARCHIVE]
+    else:
+        config[SEARCH_ARCHIVE] = HFIR
+
+    try:
+        # give back context
+        yield
+
+    finally:
+        # set properties back to original values
+        for property in old_config.keys():
+            config[property] = old_config[property]
 
 
 class ReductionController(object):
@@ -67,12 +109,14 @@ class ReductionController(object):
             IPTS path: example '/HFIR/HB2B/IPTS-22731/', None for not supported IPTS
 
         """
+        # try with GetIPTS
         try:
-            ipts = GetIPTS(RunNumber=run_number, Instrument='HB2B')
-        except RuntimeError:
-            ipts = None
-
-        return ipts
+            with archive_search():
+                ipts = GetIPTS(RunNumber=run_number, Instrument='HB2B')
+            return ipts
+        except RuntimeError as e:
+            print(e)
+            return None  # indicate it wasn't found
 
     @staticmethod
     def get_nexus_file_by_run(run_number):
@@ -91,11 +135,12 @@ class ReductionController(object):
         """
         # Find run: successful return is a size-one str array
         try:
-            nexus_file = FileFinder.findRuns('HB2B{}'.format(run_number))[0]
-        except RuntimeError:
-            nexus_file = None
-
-        return nexus_file
+            with archive_search():
+                nexus_file = FileFinder.findRuns('HB2B{}'.format(run_number))[0]
+            return nexus_file
+        except RuntimeError as e:
+            print(e)
+            return None
 
     @staticmethod
     def get_default_output_dir(run_number):
@@ -111,11 +156,11 @@ class ReductionController(object):
         -------
 
         """
-        try:
-            ipts_dir = ReductionController.get_ipts_from_run(run_number)
-            project_dir = ipts_dir + 'shared/manualreduce/'
-        except RuntimeError:
-            project_dir = None
+        project_dir = None
+
+        ipts_dir = ReductionController.get_ipts_from_run(run_number)
+        if ipts_dir is not None:
+            project_dir = os.path.join(ipts_dir, 'shared', 'manualreduce')
 
         return project_dir
 
