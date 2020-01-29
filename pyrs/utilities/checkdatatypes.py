@@ -1,6 +1,8 @@
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 # PyRS static helper methods
 import os
 import numpy
+import six
 
 
 def check_bool_variable(var_name, bool_var):
@@ -208,8 +210,8 @@ def check_string_variable(var_name, variable, allowed_values=None, allow_empty=T
     assert isinstance(var_name, str), 'Variable name {0} must be a string but not a {1}'\
         .format(var_name, type(var_name))
 
-    assert isinstance(variable, (str, unicode)), '{0} {1} must be a string or unicode but not a {2}' \
-                                                 ''.format(var_name, variable, type(variable))
+    assert isinstance(variable, six.string_types), '{0} {1} must be a string or unicode but not a {2}'\
+        .format(var_name, variable, type(variable))
 
     if isinstance(allowed_values, list):
         if variable not in allowed_values:

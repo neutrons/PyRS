@@ -226,7 +226,7 @@ class NeXusConvertingApp(object):
         #     # initialize instrument: hard code!
         #     instrument = AnglerCameraDetectorGeometry(1024, 1024, 0.0003, 0.0003, 0.985, False)
         hydra_file.write_instrument_geometry(HidraSetup(self._hydra_workspace.get_instrument_setup()))
-
+        # save experimental data/detector counts
         self._hydra_workspace.save_experimental_data(hydra_file)
 
     @staticmethod

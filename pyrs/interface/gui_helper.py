@@ -1,4 +1,5 @@
 # a collection of helper methdos for GUI
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from pyrs.utilities import checkdatatypes
 from qtpy.QtWidgets import QLineEdit, QFileDialog, QMessageBox, QVBoxLayout, QComboBox
 
@@ -321,7 +322,7 @@ def get_boolean_from_dialog(window_title, message):
     """
     def msgbtn(i):
         # debugging output
-        print "Button pressed is:", i.text()
+        print("Button pressed is:", i.text())
 
     message_box = QMessageBox()
     message_box.setIcon(QMessageBox.Information)

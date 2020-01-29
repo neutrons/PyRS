@@ -1,3 +1,4 @@
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import numpy
 import time
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
@@ -30,7 +31,7 @@ def SaveCalibError(calibrator, fName):
     for i_tth in tths:
         for j in list(calibrator.ReductionResults[i_tth].keys()):
             tempdata = calibrator.ReductionResults[i_tth][j]
-            print i_tth, j
+            print(i_tth, j)
 
             lcv += 1
             DataOut[:, lcv*3+0] = tempdata[0]
@@ -41,7 +42,7 @@ def SaveCalibError(calibrator, fName):
 
     DataOut = DataOut[:, :lcv*3+3]
 
-    print DataOut.shape
+    print(DataOut.shape)
     numpy.savetxt(fName, DataOut, delimiter=',', header=header[1:])
 
 
@@ -100,7 +101,7 @@ if __name__ == '__main__':
     if options.method in [DEFAULT_CALIBRATION, 'geometry']:
         SaveCalibError(calibrator, 'HB2B_{}_before.csv'.format(options.pin))
         calibrator.CalibrateGeometry()
-        print calibrator.get_calib()
+        print(calibrator.get_calib())
 
     if options.method in [DEFAULT_CALIBRATION, 'testshift']:
         SaveCalibError(calibrator, 'HB2B_{}_shift1.txt'.format(options.pin))
@@ -110,38 +111,38 @@ if __name__ == '__main__':
     if options.method in ['shift']:
         calibrator.singlepeak = False
         calibrator.CalibrateShift(ConstrainPosition=True)
-        print calibrator.get_calib()
+        print(calibrator.get_calib())
 
     if options.method in ['rotate']:
         calibrator.CalibrateRotation(ConstrainPosition=True)
-        print calibrator.get_calib()
+        print(calibrator.get_calib())
 
     if options.method in ['wavelength']:
         calibrator.singlepeak = False
         calibrator.calibrate_wave_length()
-        print calibrator.get_calib()
+        print(calibrator.get_calib())
 
     if options.method in ['full']:
         calibrator.singlepeak = False
         calibrator.FullCalibration(ConstrainPosition=True)
-        print calibrator.get_calib()
+        print(calibrator.get_calib())
 
     if options.method == 'distance':
         calibrator.calibrate_distance(ConstrainPosition=True, Brute=True)
-        print calibrator.get_calib()
+        print(calibrator.get_calib())
 
     if options.method == 'geoNew':
-        print 'Calibrating Geometry in Steps'
+        print('Calibrating Geometry in Steps')
         calibrator.calibrate_shiftx(ConstrainPosition=True)
-        print calibrator.get_calib()
+        print(calibrator.get_calib())
         calibrator.calibrate_distance(ConstrainPosition=False)
-        print calibrator.get_calib()
+        print(calibrator.get_calib())
         calibrator.calibrate_wave_length(ConstrainPosition=True)
-        print calibrator.get_calib()
+        print(calibrator.get_calib())
         calibrator.CalibrateRotation()
-        print calibrator.get_calib()
+        print(calibrator.get_calib())
         calibrator.FullCalibration()
-        print calibrator.get_calib()
+        print(calibrator.get_calib())
 
     if options.method in [DEFAULT_CALIBRATION, 'runAll']:
         calibrator = peakfit_calibration.PeakFitCalibration(hb2b, pin_engine, powder_engine)
@@ -164,11 +165,11 @@ if __name__ == '__main__':
         calibrator.calibrate_wave_length()
         LambdaCalib = calibrator.get_calib()
 
-        print FullCalib
-        print GeoCalib
-        print RotateCalib
-        print ShiftCalib
-        print LambdaCalib
+        print(FullCalib)
+        print(GeoCalib)
+        print(RotateCalib)
+        print(ShiftCalib)
+        print(LambdaCalib)
 
     datatime = time.strftime('%Y-%m-%dT%H-%M', time.localtime())
     fName = '/HFIR/HB2B/shared/CAL/cycle{}/HB2B_{}_{}.json'.format(options.cycle, calibrator.mono, datatime)

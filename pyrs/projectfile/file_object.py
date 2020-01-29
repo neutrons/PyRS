@@ -236,10 +236,12 @@ class HidraProjectFile(object):
 
         Returns
         -------
+        numpy.ndarray
+            mask array
 
         """
         try:
-            mask_array = self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK][mask_name]
+            mask_array = self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK][mask_name].value
         except KeyError as key_err:
             if HidraConstants.MASK not in self._project_h5.keys():
                 err_msg = 'Project file {} does not have "{}" entry.  Its format is not up-to-date.' \

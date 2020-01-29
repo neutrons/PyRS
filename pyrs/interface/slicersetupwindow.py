@@ -4,6 +4,7 @@
 # Migrated from LogPickerWindow.py in PyVDrive
 #
 ########################################################################
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import os
 import numpy
 import ManualSlicerSetupDialog
@@ -210,7 +211,7 @@ class EventSlicerSetupWindow(QMainWindow):
         # enable to disable
         if self.ui.radioButton_timeSlicer.isChecked():
             # time slicer
-            print '[DB...BAT] Turn on 1; Turn off 2 and 3'
+            print('[DB...BAT] Turn on 1; Turn off 2 and 3')
             self.ui.groupBox_sliceSetupAuto.setEnabled(True)
             self.ui.groupBox_slicerSetupManual.setEnabled(False)
 
@@ -234,7 +235,7 @@ class EventSlicerSetupWindow(QMainWindow):
 
         elif self.ui.radioButton_logValueSlicer.isChecked():
             # log value slicer
-            print '[DB...BAT] Turn on 2; Turn off 1 and 3'
+            print('[DB...BAT] Turn on 2; Turn off 1 and 3')
             self.ui.groupBox_sliceSetupAuto.setEnabled(True)
             self.ui.groupBox_slicerSetupManual.setEnabled(False)
 
@@ -263,7 +264,7 @@ class EventSlicerSetupWindow(QMainWindow):
 
         else:
             # manual slicer
-            print '[DB...BAT] Turn on 3; Turn off 1 and 2'
+            print('[DB...BAT] Turn on 3; Turn off 1 and 2')
             self.ui.groupBox_sliceSetupAuto.setEnabled(False)
             self.ui.groupBox_slicerSetupManual.setEnabled(True)
 
@@ -390,7 +391,7 @@ class EventSlicerSetupWindow(QMainWindow):
         delta_points = self.get_data_size_to_load()
         if delta_points <= 0:
             # no point to load
-            print '[DB INFO] calculated delta-points = %d < 0. No loading' % delta_points
+            print('[DB INFO] calculated delta-points = %d < 0. No loading' % delta_points)
 
         # get the file
         mts_log_file = str(self.ui.lineEdit_logFileName.text())
@@ -724,7 +725,7 @@ class EventSlicerSetupWindow(QMainWindow):
         self._mutexLockSwitchSliceMethod = True
 
         # Only 1 situation requires
-        print '[DB...BAT] called!'
+        print('[DB...BAT] called!')
         self._set_main_slice_method()
 
         # Unlock

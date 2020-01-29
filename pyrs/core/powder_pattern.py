@@ -126,10 +126,10 @@ class ReductionApp(object):
         -------
 
         """
-        # set workspace to reduction manager
-        self._reduction_manager.init_session(self._session, hd_workspace)
         # set the workspace to self
         self._hydra_ws = hd_workspace
+        # set workspace to reduction manager
+        self._reduction_manager.init_session(self._session, self._hydra_ws)
 
     def reduce_data(self, sub_runs, instrument_file, calibration_file, mask, mask_id=None,
                     van_file=None, num_bins=1000):

@@ -142,11 +142,12 @@ class HidraWorkspace(object):
         self._instrument_setup = hidra_file.read_instrument_geometry()
 
     def _load_masks(self, hidra_file):
-        """
+        """Load masks from Hidra project file
 
         Parameters
         ----------
-        hidra_file
+        hidra_file :  pyrs.projectfile.file_object.HidraProjectFile
+            Hidra project file instance
 
         Returns
         -------
@@ -339,8 +340,8 @@ class HidraWorkspace(object):
 
         Returns
         -------
-        numpy.ndarray
-            detector mask
+        numpy.ndarray or None
+            detector mask.  None in case no default detector mask
 
         """
         # Default mask
@@ -779,6 +780,13 @@ class HidraWorkspace(object):
             # Add log value to project file
             hidra_project.append_experiment_log(log_name, sample_log_value)
         # END-FOR
+
+        # Save default mask
+        if self._default_mask is not None:
+            hidra_project.write_mask_detector_array(HidraConstants.DEFAULT_MASK, self._default_mask)
+        # Save other masks
+        for mask_id in self._mask_dict:
+            hidra_project.write_mask_detector_array(mask_id, self._mask_dict[mask_id])
 
     def save_reduced_diffraction_data(self, hidra_project):
         """ Export reduced diffraction data to project
