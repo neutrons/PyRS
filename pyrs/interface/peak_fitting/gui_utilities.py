@@ -242,6 +242,17 @@ class GuiUtilities:
             self.parent.ui.plot1d_xaxis_peak_label_comboBox.setVisible(False)
             self.parent.ui.plot1d_yaxis_peak_label_comboBox.setVisible(False)
 
+    def get_plot1d_axis_peak_label_index(self, is_xaxis=True):
+        if is_xaxis:
+            ui = self.parent.ui.plot1d_xaxis_peak_label_comboBox
+        else:
+            ui = self.parent.ui.plot1d_yaxis_peak_label_comboBox
+
+        if ui.isVisible():
+            return ui.currentIndex()
+        else:
+            return 0
+
     def check_axis2d_status(self):
 
         if self.parent.ui.comboBox_xaxisNames_2dplot.isEnabled():

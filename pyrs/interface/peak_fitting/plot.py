@@ -5,6 +5,7 @@ from pyrs.interface.gui_helper import parse_integers
 from pyrs.interface.gui_helper import pop_message
 from pyrs.dataobjects import HidraConstants
 from pyrs.interface.peak_fitting.config import fit_dict
+from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
 
 from pyrs.interface.peak_fitting.config import LIST_AXIS_TO_PLOT
 
@@ -121,10 +122,11 @@ class Plot:
         self.parent.ui.graphicsView_fitResult.reset_viewer()
 
         # get the sample log/meta data name
+        o_gui = GuiUtilities(parent=self.parent)
         x_axis_name = str(self.parent.ui.comboBox_xaxisNames.currentText())
         y_axis_name = str(self.parent.ui.comboBox_yaxisNames.currentText())
-        x_axis_peak_index = self.parent.ui.plot1d_xaxis_peak_label_comboBox.currentIndex()
-        y_axis_peak_index = self.parent.ui.plot1d_yaxis_peak_label_comboBox.currentIndex()
+        x_axis_peak_index = o_gui.get_plot1d_axis_peak_label_index(is_xaxis=True)
+        y_axis_peak_index = o_gui.get_plot1d_axis_peak_label_index(is_xaxis=False)
 
         hidra_workspace = self.parent.hidra_workspace
         if x_axis_name == 'Sub-runs':
