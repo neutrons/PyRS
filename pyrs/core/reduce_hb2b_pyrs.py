@@ -510,7 +510,7 @@ class PyHB2BReduction(object):
         two_theta_bins : numpy.ndarray
             2theta bin boundaries to binned to
         mask_array : numpy.ndarray or None
-            mask
+            mask: 1 to keep, 0 to mask (exclude)
         is_point_data : bool
             Flag whether the output is point data (numbers of X and Y are same)
         vanadium_counts_array : None or numpy.ndarray
