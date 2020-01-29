@@ -140,7 +140,8 @@ class ReductionApp(object):
         sub_runs : List or numpy.ndarray or None
             sub run numbers to reduce
         instrument_file
-        calibration_file
+        calibration_file : str or None
+            path of calibration file (optionally)
         mask : str or numpy.ndarray or None
             Mask name or mask (value) array.  None for no mask
         mask_id : str or None
@@ -169,8 +170,10 @@ class ReductionApp(object):
         geometry_calibration = False
         if calibration_file is not None:
             if calibration_file.lower().endswith('.json'):
-                geometry_calibration =\
-                    calibration_file_io.read_calibration_json_file(calibration_file_name=calibration_file)[0]
+                calib_values = calibration_file_io.read_calibration_json_file(calibration_file_name=calibration_file)
+                geometry_calibration = calib_values[0]
+                wave_length = calib_values[2]
+                self._hydra_ws.set_wavelength(wave_length, True)
             else:
                 geometry_calibration =\
                     calibration_file_io.import_calibration_ascii_file(geometry_file_name=calibration_file)
