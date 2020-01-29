@@ -1,5 +1,5 @@
-from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 # PyRS static helper methods
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import os
 import numpy
 import six
@@ -73,7 +73,7 @@ def check_int_variable(var_name, variable, value_range):
     :param value_range: if not None, then must be a 2 tuple as [min, max)
     '''
     check_string_variable('var_name', var_name)
-    assert isinstance(variable, (int, numpy.int8, numpy.int16, numpy.int32)), '{0} "{1}" must be an integer ' \
+    assert isinstance(variable, (int, numpy.integer)), '{0} "{1}" must be an integer ' \
         'but not a {2}'.format(var_name, variable, type(variable))
 
     if value_range is not None:
@@ -99,7 +99,7 @@ def check_float_variable(var_name, variable, value_range):
     :param value_range: if not None, then must be a 2 tuple as [min, max)
     '''
     check_string_variable('var_name', var_name)
-    assert isinstance(variable, (float, int, numpy.float32, numpy.float)), '{0} {1} must be a float but not a {2}'\
+    assert isinstance(variable, (float, int, numpy.integer, numpy.floating)), '{0} {1} must be a float but not a {2}'\
         .format(var_name, variable, type(variable))
 
     if value_range is not None:

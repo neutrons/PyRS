@@ -62,7 +62,7 @@ def load_split_nexus_python(nexus_name, mask_file_name):
 
 def convert_pulses_to_datetime64(h5obj):
     '''The h5object is the h5py handle to ``event_time_zero``. This only supports pulsetimes in seconds'''
-    if h5obj.attrs['units'] != 'second':
+    if h5obj.attrs['units'].decode() != 'second':
         raise RuntimeError('Do not understand time units "{}"'.format(h5obj.attrs['units']))
 
     # the value is number of seconds as a float

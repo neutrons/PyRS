@@ -66,7 +66,7 @@ def test_mask():
     # Test to read all user detector mask
     user_mask_dict = dict()
     verify_project_file.read_user_masks(user_mask_dict)
-    assert user_mask_dict.keys()[0] == 'test'
+    assert list(user_mask_dict.keys())[0] == 'test'
 
     # Read solid angle mask & compare
     verify_solid_mask = verify_project_file.read_mask_solid_angle('test')

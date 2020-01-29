@@ -1,4 +1,5 @@
 # extentable version of dict https://treyhunner.com/2019/04/why-you-shouldnt-inherit-from-list-and-dict-in-python/
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from collections import Iterable, MutableMapping
 import numpy as np
 from pyrs.dataobjects import HidraConstants
@@ -174,7 +175,7 @@ class SampleLogs(MutableMapping):
             Logs with a smaller stddev than the atol (inclusive) will be considered constant'''
         result = list()
         # plottable logs are the numeric ones
-        for key in self.keys():
+        for key in sorted(self.keys()):
             if key == self.SUBRUN_KEY:
                 continue
             elif key in self._plottable:  # plottable things are numbers
