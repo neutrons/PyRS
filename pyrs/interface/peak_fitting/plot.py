@@ -135,13 +135,8 @@ class Plot:
         axis_y_data, axis_y_error = o_data_retriever.get_data(name=y_axis_name, peak_index=y_axis_peak_index)
         axis_z_data, axis_z_error = o_data_retriever.get_data(name=z_axis_name, peak_index=z_axis_peak_index)
 
-        from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
-
-        figure = Figure()
-        self.parent.ui.graphicsView_plot2D._myCanvas = FigureCanvas(figure)
-        ax = figure.add_subplot(111)
-        ax.clear()
-        ax.plot(np.arange(10), np.arange(10)+20, '*-')
+        self.parent.ui.graphicsView_plot2D.ax.clear()
+        self.parent.ui.graphicsView_plot2D.ax.plot([0,1,2,3,4,5], [10,20,30,20,20,1], '*-')
         self.parent.ui.graphicsView_plot2D._myCanvas.draw()
 
 

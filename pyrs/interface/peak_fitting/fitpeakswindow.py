@@ -5,6 +5,7 @@ from qtpy import QtGui, PYQT4, PYQT5
 from pyrs.utilities import load_ui
 from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.diffdataviews import GeneralDiffDataView
+from pyrs.interface.ui.mplgraphicsviewcontourplot import MplGraphicsViewContourPlot
 from pyrs.interface.ui.rstables import FitResultTable
 from pyrs.interface.ui.diffdataviews import PeakFitSetupView
 import pyrs.interface.advpeakfitdialog
@@ -70,8 +71,10 @@ class FitPeaksWindow(QMainWindow):
                                                                 GeneralDiffDataView)
         self.ui.graphicsView_fitResult.setEnabled(False)
         self.ui.graphicsView_fitResult.set_subplots(1, 1)
+        # self.ui.graphicsView_plot2D = qt_util.promote_widget(self, self.ui.graphicsView_2dPlot_frame,
+        #                                                      GeneralDiffDataView)
         self.ui.graphicsView_plot2D = qt_util.promote_widget(self, self.ui.graphicsView_2dPlot_frame,
-                                                             GeneralDiffDataView)
+                                                             MplGraphicsViewContourPlot)
         self.ui.tableView_fitSummary = qt_util.promote_widget(self, self.ui.tableView_fitSummary_frame,
                                                               FitResultTable)
         self._promote_peak_fit_setup()
