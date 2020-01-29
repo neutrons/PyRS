@@ -203,9 +203,11 @@ class SummaryGenerator(object):
         for peak_collection in peak_collections:
             tag = peak_collection.peak_tag  # name of the peak
             # values first
+            column_names.append('{}_dspacing_center'.format(tag))
             for param in EFFECTIVE_PEAK_PARAMETERS:
                 column_names.append('{}_{}'.format(tag, param))
             # errors after values
+            column_names.append('{}_dspacing_center_error'.format(tag))
             for param in EFFECTIVE_PEAK_PARAMETERS:
                 column_names.append('{}_{}_error'.format(tag, param))
             column_names.append('{}_chisq'.format(tag))
@@ -232,9 +234,12 @@ class SummaryGenerator(object):
 
             for peak_collection in peak_collections:
                 fit_cost = peak_collection.fitting_costs
+                dspacing_center, dspacing_center_error = peak_collection.get_dspacing_center()
                 values, errors = peak_collection.get_effective_params()
+                line.append(str(dspacing_center))
                 for value in values[i]:
                     line.append(str(value))
+                line.append(str(dspacing_center_error))
                 for value in errors[i]:
                     line.append(str(value))
                 line.append(str(fit_cost[i]))
