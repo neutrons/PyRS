@@ -787,27 +787,28 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         # color must be RGBA (4-tuple)
         if plot_error is False:
             # return: list of matplotlib.lines.Line2D object
-            self.axes_main[row_index, col_index].plot(vec_x, vec_y, color=color,
-                                                      marker=marker, markersize=markersize,
-                                                      linestyle=line_style, label=label,
-                                                      linewidth=line_width)
+            r = self.axes_main[row_index, col_index].plot(vec_x, vec_y, color=color,
+                                                          marker=marker, markersize=markersize,
+                                                          linestyle=line_style, label=label,
+                                                          linewidth=line_width)
             self.axes_main[row_index, col_index].autoscale()
 
         else:
             if y_err is None:
-                self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
+                r = self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
                                                               xerr=x_err,
                                                               color=color, marker=marker,
                                                               linestyle=line_style, label=label,
                                                               linewidth=line_width)
             elif x_err is None:
-                self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
+                r = self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
                                                               yerr=y_err,
                                                               color=color, marker=marker,
                                                               linestyle=line_style, label=label,
                                                               linewidth=line_width)
             else:
-                self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
+                # both error
+                r = self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
                                                               xerr=x_err, yerr=y_err,
                                                               color=color, marker=marker,
                                                               linestyle=line_style, label=label,
@@ -826,9 +827,10 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
 
         # # Register
         line_key = self._line_count
-        # if len(r) == 1:
-        #     self._mainLineDict[row_index, col_index][line_key] = r[0]
-        #     self._line_count += 1
+        if len(r) == 1:
+            self._mainLineDict[row_index, col_index][line_key] = r[0]
+            self._line_count += 1
+        # FIXME - there can be some issue without record the handlers to lines plot on canvas
         # else:
         #     msg = 'Return from plot is a %d-tuple: %s.. \n' % (len(r), r)
         #     for i_r in range(len(r)):
@@ -1256,7 +1258,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
             is_on_main = False
         else:
             # unable to locate plot key
-            raise RuntimeError('Line with ID %s is not recorded.' % plot_key)
+            raise RuntimeError('Line with ID %s is not recorded.'.format(plot_key))
 
         self._setup_legend(row_index, col_index, location='best', font_size=self._legend_font_size, is_main=is_on_main)
 
