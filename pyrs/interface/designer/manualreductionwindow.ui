@@ -19,50 +19,6 @@
      <layout class="QVBoxLayout" name="verticalLayout">
       <item>
        <layout class="QGridLayout" name="gridLayout">
-        <item row="4" column="6">
-         <widget class="QCheckBox" name="checkBox_defaultOutputDirectory">
-          <property name="text">
-           <string>Default</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="4">
-         <widget class="QPushButton" name="pushButton_browseCalibrationFile">
-          <property name="text">
-           <string>Browse</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="6">
-         <widget class="QCheckBox" name="checkBox_defaultMaskFile">
-          <property name="text">
-           <string>Default</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="2">
-         <widget class="QLineEdit" name="lineEdit_outputDirectory">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="0">
-         <widget class="QLabel" name="label_5">
-          <property name="text">
-           <string>Output DIR</string>
-          </property>
-         </widget>
-        </item>
         <item row="1" column="2" colspan="2">
          <widget class="QSpinBox" name="spinBox_runNumber">
           <property name="layoutDirection">
@@ -82,8 +38,42 @@
           </property>
          </widget>
         </item>
+        <item row="5" column="6">
+         <widget class="QCheckBox" name="checkBox_defaultOutputDirectory">
+          <property name="text">
+           <string>Default</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="2">
+         <widget class="QLineEdit" name="lineEdit_outputDirectory">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="4">
+         <widget class="QPushButton" name="pushButton_browseMaskFile">
+          <property name="text">
+           <string>Browse</string>
+          </property>
+         </widget>
+        </item>
+        <item row="6" column="2">
+         <widget class="QPushButton" name="pushButton_splitConvertSaveProject">
+          <property name="text">
+           <string>Split (sub run) / Convert (powder pattern) / Save</string>
+          </property>
+         </widget>
+        </item>
         <item row="3" column="6">
-         <widget class="QCheckBox" name="checkBox_defaultCalibrationFile">
+         <widget class="QCheckBox" name="checkBox_defaultMaskFile">
           <property name="text">
            <string>Default</string>
           </property>
@@ -93,19 +83,9 @@
          </widget>
         </item>
         <item row="3" column="2">
-         <widget class="QLineEdit" name="lineEdit_calibrationFile">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="4">
-         <widget class="QPushButton" name="pushButton_browseMaskFile">
+         <widget class="QLineEdit" name="lineEdit_maskFile">
           <property name="text">
-           <string>Browse</string>
+           <string/>
           </property>
          </widget>
         </item>
@@ -116,38 +96,65 @@
           </property>
          </widget>
         </item>
-        <item row="3" column="0">
+        <item row="4" column="0">
          <widget class="QLabel" name="label_4">
           <property name="text">
            <string>Calibration File</string>
           </property>
          </widget>
         </item>
-        <item row="5" column="2">
-         <widget class="QPushButton" name="pushButton_splitConvertSaveProject">
-          <property name="text">
-           <string>Split (sub run) / Convert (powder pattern) / Save</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="0">
+        <item row="3" column="0">
          <widget class="QLabel" name="label">
           <property name="text">
            <string>Mask File</string>
           </property>
          </widget>
         </item>
-        <item row="2" column="2">
-         <widget class="QLineEdit" name="lineEdit_maskFile">
+        <item row="5" column="0">
+         <widget class="QLabel" name="label_5">
           <property name="text">
-           <string/>
+           <string>Output DIR</string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="2">
+         <widget class="QLineEdit" name="lineEdit_calibrationFile">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
           </property>
          </widget>
         </item>
         <item row="4" column="4">
+         <widget class="QPushButton" name="pushButton_browseCalibrationFile">
+          <property name="text">
+           <string>Browse</string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="6">
+         <widget class="QCheckBox" name="checkBox_defaultCalibrationFile">
+          <property name="text">
+           <string>Default</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="4">
          <widget class="QPushButton" name="pushButton_browseOutputDirectory">
           <property name="text">
            <string>Browse</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="2">
+         <widget class="QLineEdit" name="lineEdit_iptsNumber">
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;IPTS number is only required when translation service or ONCAT does not well to retrieve IPTS or NeXus file path from run number&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
          </widget>
         </item>
@@ -158,10 +165,25 @@
           </property>
          </widget>
         </item>
-        <item row="0" column="2">
-         <widget class="QLineEdit" name="lineEdit_iptsNumber">
+        <item row="2" column="2">
+         <widget class="QLineEdit" name="lineEdit_vanRunNumber">
           <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;IPTS number is only required when translation service or ONCAT does not well to retrieve IPTS or NeXus file path from run number&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Vanadium run number (integer) for detector pixels' efficiecy correction.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="label_3">
+          <property name="font">
+           <font>
+            <pointsize>13</pointsize>
+           </font>
+          </property>
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Vanadium run number for detector pixels' efficiecy correction.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="text">
+           <string>Vanadium</string>
           </property>
          </widget>
         </item>

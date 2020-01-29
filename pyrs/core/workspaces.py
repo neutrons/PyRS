@@ -26,6 +26,7 @@ class HidraWorkspace(object):
         self._raw_counts = dict()  # dict [sub-run] = count vector
 
         # wave length
+        self._wave_length = None  # single wave length for all sub runs
         self._wave_length_dict = None
         self._wave_length_calibrated_dict = None
 
@@ -266,12 +267,27 @@ class HidraWorkspace(object):
 
         return self._sample_logs.subruns
 
-    def get_wavelength(self, calibrated, throw_if_not_set):
-        """ Get the wave length from the workspace
-        :param calibrated: Flag for returning calibrated wave length
-        :param throw_if_not_set: Flag to throw an exception if relative wave length (dict) is not set
-        :return:
+    def get_wavelength(self, calibrated, throw_if_not_set, sub_run=None):
+        """Get wave length
+
+        Parameters
+        ----------
+        calibrated : bool
+            whether the wave length is calibrated or raw
+        throw_if_not_set : bool
+            throw an exception if wave length is not set to workspace
+        sub_run : None or int
+            sub run number for the wave length associated with
+
+        Returns
+        -------
+        float or dict
+
         """
+        # Return the universal wave length if it is set
+        if sub_run is None and self._wave_length is not None:
+            return self._wave_length
+
         if calibrated:
             # calibrated wave length
             if self._wave_length_calibrated_dict is None:
@@ -291,6 +307,10 @@ class HidraWorkspace(object):
                     wave_length_dict = None
             else:
                 wave_length_dict = self._wave_length_dict
+
+        # Return the wave length of the sub run
+        if sub_run is not None:
+            return wave_length_dict[sub_run]
 
         return wave_length_dict
 
@@ -817,6 +837,9 @@ class HidraWorkspace(object):
         :param calibrated: Flag for calibrated wave length
         :return:
         """
+        # Set universal wave length
+        self._wave_length = wave_length
+
         # Get the sub runs
         sub_runs = self.get_sub_runs()
 
