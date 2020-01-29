@@ -120,7 +120,7 @@ def test_nexus_to_project(nexusfile, projectfile):
 
 
 @pytest.mark.parametrize('mask_file_name, filtered_counts, histogram_counts',
-                         [('data/HB2B_Mask_12-18-19.xml', (540461, 1635432, 1193309), (510.8, 1555.7, 1136.3)),
+                         [('data/HB2B_Mask_12-18-19.xml', (540461, 1635432, 1193309), (590.1, 1788.2, 1306.3)),
                           (None, (548953, 1661711, 1212586), (518.7, 1580.5, 1154.4))],
                          ids=('HB2B_1017_Masked', 'HB2B_1017_NoMask'))
 def test_reduce_data(mask_file_name, filtered_counts, histogram_counts):
