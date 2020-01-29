@@ -154,7 +154,7 @@ class EventHandler(object):
             return
 
         # set to the browser
-        self.ui.lineEdit_calibratonFile.setText(calibration_file)
+        self.ui.lineEdit_calibrationFile.setText(calibration_file)
 
     def browse_idf(self):
         """
