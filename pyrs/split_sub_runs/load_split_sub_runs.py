@@ -7,7 +7,7 @@ from pyrs.utilities import checkdatatypes
 from pyrs.dataobjects.constants import HidraConstants
 import datetime
 import os
-from mantid.simpleapi import LoadEventNexus, LoadMask
+from mantid.simpleapi import mtd, DeleteWorkspace, LoadEventNexus, LoadMask
 from mantid.kernel import BoolTimeSeriesProperty, FloatFilteredTimeSeriesProperty, FloatTimeSeriesProperty
 from mantid.kernel import Int32TimeSeriesProperty, Int64TimeSeriesProperty, Int32FilteredTimeSeriesProperty,\
     Int64FilteredTimeSeriesProperty
@@ -108,6 +108,10 @@ class NexusProcessor(object):
             scan_index_value = self._workspace.run()['scan_index'].value
             raise RuntimeError('Sub scan (time = {}, value = {}) is not valid'
                                ''.format(scan_index_times, scan_index_value))
+
+    def __del__(self):
+        if self._ws_name in mtd:
+            DeleteWorkspace(Workspace=self._ws_name)
 
     def process_mask(self, mask_file_name):
         """
@@ -448,5 +452,6 @@ class NexusProcessor(object):
         # END-IF
 
         time_average_value = filtered_tsp.timeAverageValue()
+        del filtered_tsp
 
         return time_average_value
