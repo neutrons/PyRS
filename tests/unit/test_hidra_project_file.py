@@ -114,6 +114,54 @@ def test_detector_efficiency():
     return
 
 
+def test_wave_length_rw():
+    """Test writing and reading for wave length
+
+    Returns
+    -------
+
+    """
+    # Set up for testing
+    test_file_name = 'test_wave_length.h5'
+    # Create a detector mask
+    gold_wave_length = 1.23456
+
+    # Generate a HiDRA project file
+    test_project_file = HidraProjectFile(test_file_name, HidraProjectFileMode.OVERWRITE)
+    test_project_file.save(True)
+    test_project_file.close()
+
+    # Open file
+    verify_project_file = HidraProjectFile(test_file_name, HidraProjectFileMode.READONLY)
+
+    # Read wave length (not exist)
+    wave_length_test = verify_project_file.read_wavelengths()
+    assert wave_length_test is None, 'No wave length read out'
+
+    # Close
+    verify_project_file.close()
+
+    # Generate a HiDRA project file
+    test_project_file = HidraProjectFile(test_file_name, HidraProjectFileMode.READWRITE)
+
+    # Write wave length
+    test_project_file.write_wavelength(gold_wave_length)
+
+    # Save and close
+    test_project_file.save(True)
+    test_project_file.close()
+
+    # Open file again to verify
+    verify_project_file2 = HidraProjectFile(test_file_name, HidraProjectFileMode.READONLY)
+
+    # Read wave length (not exist)
+    wave_length_test = verify_project_file2.read_wavelengths()
+    assert wave_length_test == gold_wave_length
+
+    # Clean
+    os.remove(test_file_name)
+
+
 def next_test_monochromator_setup():
     """
     Test methods to read and write monochromator setup including
