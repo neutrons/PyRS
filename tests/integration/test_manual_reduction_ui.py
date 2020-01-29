@@ -5,7 +5,6 @@ import numpy as np
 import os
 import pytest
 from pyrs.interface.manual_reduction.pyrs_api import ReductionController, reduce_hidra_workflow
-from pyrs.core.powder_pattern import ReductionApp
 import h5py
 
 
