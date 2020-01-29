@@ -1,4 +1,5 @@
 # Data manager
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import numpy
 from pyrs.dataobjects import HidraConstants, SampleLogs
 from pyrs.projectfile import HidraProjectFile
@@ -460,7 +461,7 @@ class HidraWorkspace(object):
         return vec_2theta, vec_intensity
 
     def get_sample_log_names(self):
-        return self._sample_logs.keys()
+        return sorted(self._sample_logs.keys())
 
     def get_sample_log_value(self, sample_log_name, sub_run=None):
         """
@@ -477,7 +478,7 @@ class HidraWorkspace(object):
 
         """
         checkdatatypes.check_string_variable('Sample log name', sample_log_name,
-                                             self._sample_logs.keys())
+                                             list(self._sample_logs.keys()))
 
         log_value = self._sample_logs[sample_log_name, sub_run]
 
@@ -512,7 +513,7 @@ class HidraWorkspace(object):
             return self.get_sub_runs()
 
         checkdatatypes.check_string_variable('Sample log name', sample_log_name,
-                                             self._sample_logs.keys())
+                                             list(self._sample_logs.keys()))
 
         return self._sample_logs[sample_log_name, sub_runs]
 
@@ -803,7 +804,7 @@ class HidraWorkspace(object):
         return the sample log names
         :return:
         """
-        return self._sample_logs.keys()
+        return sorted(self._sample_logs.keys())
 
     @property
     def sample_logs_for_plot(self):

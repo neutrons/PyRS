@@ -1,6 +1,7 @@
 """
 This module generates reduction summary for user in plain text CSV file
 """
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from pyrs.core.peak_profile_utility import EFFECTIVE_PEAK_PARAMETERS  # TODO get from the first peak collection
 
 # Default summary titles shown in the CSV file. This is a list of tuples ot enforce order
@@ -141,6 +142,10 @@ class SummaryGenerator(object):
                 value = ''
                 if logname in sample_logs:
                     value = sample_logs[logname][0]  # only use first value
+                try:  # for python 3
+                    value.decode()
+                except (UnicodeDecodeError, AttributeError):
+                    pass
                 self._header_information[logname] = value
 
             # fix up particular values
@@ -148,11 +153,19 @@ class SummaryGenerator(object):
                 if logname == 'run_number':
                     self._header_information[logname] = int(self._header_information[logname])
                 elif logname == 'experiment_identifier':
-                    self._header_information[logname] = self._header_information[logname].split('-')[-1]
+                    try:  # for python 3
+                        experiment_identifier = self._header_information[logname].decode()
+                    except (UnicodeDecodeError, AttributeError):
+                        experiment_identifier = self._header_information[logname]
+                    self._header_information[logname] = experiment_identifier.split('-')[-1]
 
         # write out the text
         for logname, label in HEADER_MAPPING:
             value = self._header_information[logname]
+            try:  # for python 3
+                value = value.decode()
+            except (UnicodeDecodeError, AttributeError):
+                pass
             if value:
                 line = ' = '.join((label, str(value)))
             else:
@@ -168,13 +181,17 @@ class SummaryGenerator(object):
         '''Write only the sample logs that are constants into the header. These do not appear in the body.
         '''
         for name in self._constant_logs:
+            try:  # for python 3
+                value = sample_logs[name].decode()
+            except (UnicodeDecodeError, AttributeError):
+                value = sample_logs[name]
             try:
-                handle.write('# {} = {:.5g} +/- {:.2g}\n'.format(name, sample_logs[name].mean(),
-                                                                 sample_logs[name].std()))
+                handle.write('# {} = {:.5g} +/- {:.2g}\n'.format(name, value.mean(),
+                                                                 value.std()))
             except TypeError:
                 # strings don't have a "mean" or "std" so use the first value
                 # this is intended for strings
-                handle.write('# {} = {}\n'.format(name, sample_logs[name][0]))
+                handle.write('# {} = {}\n'.format(name, value[0]))
 
     def _write_column_names(self, handle, peak_collections):
         '''This writes the names of all of the columns'''

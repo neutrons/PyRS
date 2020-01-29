@@ -20,6 +20,10 @@ class PeakShape(Enum):
 
     @staticmethod
     def getShape(shape):
+        try:  # for python 3
+            shape = shape.decode()
+        except (UnicodeDecodeError, AttributeError):
+            pass
         if shape in PeakShape:
             return shape
         else:
@@ -46,6 +50,10 @@ class BackgroundFunction(Enum):
 
     @staticmethod
     def getFunction(function):
+        try:  # for python 3
+            function = function.decode()
+        except (UnicodeDecodeError, AttributeError):
+            pass
         if function in BackgroundFunction:
             return function
         else:

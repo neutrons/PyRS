@@ -209,7 +209,7 @@ class HidraProjectFile(object):
         """
         # Get mask names except default mask
         try:
-            mask_names = self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK].keys()
+            mask_names = sorted(self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK].keys())
         except KeyError:
             # return if the file has an old format
             return
@@ -374,7 +374,8 @@ class HidraProjectFile(object):
         if mask_id is None:
             mask_id = HidraConstants.REDUCED_MAIN
 
-        checkdatatypes.check_string_variable('Mask ID', mask_id, self._project_h5[HidraConstants.REDUCED_DATA].keys())
+        checkdatatypes.check_string_variable('Mask ID', mask_id,
+                                             list(self._project_h5[HidraConstants.REDUCED_DATA].keys()))
 
         # Get data to return
         if sub_run is None:
@@ -397,7 +398,7 @@ class HidraProjectFile(object):
         """
         Get the list of masks
         """
-        masks = self._project_h5[HidraConstants.REDUCED_DATA].keys()
+        masks = list(self._project_h5[HidraConstants.REDUCED_DATA].keys())
 
         # Clean up data entry '2theta' (or '2Theta')
         if HidraConstants.TWO_THETA in masks:
