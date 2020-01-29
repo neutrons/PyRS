@@ -3,14 +3,15 @@
 # General-purposed plotting window
 #
 ########################################################################
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import datetime
 
 from qtpy import QtCore
 from qtpy.QtWidgets import QWidget, QVBoxLayout
 from pyrs.utilities import load_ui
 
-from mplgraphicsview import MplGraphicsView
-import NTableWidget as baseTable
+from .mplgraphicsview import MplGraphicsView
+from . import NTableWidget as baseTable
 from pyrs.interface.ui.mantidipythonwidget import MantidIPythonWidget
 
 from mantid.api import mtd

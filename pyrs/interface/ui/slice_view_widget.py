@@ -1,5 +1,6 @@
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import matplotlib.tri as tri
-import sliceviewwidgets
+from . import sliceviewwidgets
 import numpy as np
 from qtpy.QtWidgets import QGridLayout, QWidget, QSizePolicy
 from pyrs.interface.ui.mplconstants import MplBasicColors

@@ -1,10 +1,11 @@
-from mplgraphicsview1d import MplGraphicsView1D
-from mplgraphicsview2d import MplGraphicsView2D
-from mplgraphicsviewpolar import MplGraphicsPolarView
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
+from .mplgraphicsview1d import MplGraphicsView1D
+from .mplgraphicsview2d import MplGraphicsView2D
+from .mplgraphicsviewpolar import MplGraphicsPolarView
 import numpy as np
-import mplgraphicsviewpolar
-import slice_view_widget
-from mplfitplottingwidget import MplFitPlottingWidget
+from . import mplgraphicsviewpolar
+from . import slice_view_widget
+from .mplfitplottingwidget import MplFitPlottingWidget
 
 
 class Diffraction2DPlot(MplGraphicsPolarView):
