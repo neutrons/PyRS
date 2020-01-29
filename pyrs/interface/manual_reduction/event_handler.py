@@ -146,7 +146,7 @@ class EventHandler(object):
         -------
 
         """
-        calibration_file = browse_file(self, caption='Choose and set up the calibration file',
+        calibration_file = browse_file(self.parent, caption='Choose and set up the calibration file',
                                        default_dir=self._controller.get_default_calibration_dir(),
                                        file_filter='hdf5 (*hdf)', file_list=False, save_file=False)
         if calibration_file is None or calibration_file == '':
@@ -163,7 +163,7 @@ class EventHandler(object):
         -------
 
         """
-        idf_name = browse_file(self, 'Instrument definition file', os.getcwd(),
+        idf_name = browse_file(self.parent, 'Instrument definition file', os.getcwd(),
                                'Text (*.txt);;XML (*.xml)', False, False)
         if len(idf_name) == 0:
             return   # user cancels operation
@@ -193,7 +193,7 @@ class EventHandler(object):
         output_dir = browse_dir(self.parent, caption='Output directory for reduced data',
                                 default_dir='/HFIR/HB2B/')
         if output_dir != '':
-            self.ui.lineEdit_outputDir.setText(output_dir)
+            self.ui.lineEdit_outputDirectory.setText(output_dir)
 
     def plot_detector_counts(self):
         """
