@@ -182,14 +182,22 @@ class HidraWorkspace(object):
         self._sample_logs = hidra_file.read_sample_logs()
 
     def _load_wave_length(self, hidra_file):
-        """ Load wave length
-        :param hidra_file:  HIDRA project file instance
-        :return:
+        """Load wave length from HidraProject file
+
+        Parameters
+        ----------
+        hidra_file : pyrs.projectfile.file_object.HidraProjectFile
+            Project file (instance)
+
+        Returns
+        -------
+        None
+
         """
         checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
 
         # reset the wave length (dictionary) from HIDRA project file
-        self._wave_length_dict = hidra_file.read_wavelengths()
+        self._wave_length = hidra_file.read_wavelengths()
 
     def get_detector_2theta(self, sub_run):
         """ Get 2theta value from sample log
@@ -808,6 +816,10 @@ class HidraWorkspace(object):
         # Save other masks
         for mask_id in self._mask_dict:
             hidra_project.write_mask_detector_array(mask_id, self._mask_dict[mask_id])
+
+        # Save wave length
+        if self._wave_length is not None:
+            hidra_project.write_wavelength(self._wave_length)
 
     def save_reduced_diffraction_data(self, hidra_project):
         """ Export reduced diffraction data to project
