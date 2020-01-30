@@ -222,26 +222,26 @@ class SummaryGenerator(object):
         log_names = [name for name in self._present_logs
                      if name not in self._constant_logs]
 
-        for i in range(len(sample_logs.subruns)):
+        for subrun_index in range(len(sample_logs.subruns)):
             line = []
 
             # sub-run goes in first
-            line.append(str(sample_logs.subruns[i]))
+            line.append(str(sample_logs.subruns[subrun_index]))
 
             # then sample logs
             for name in log_names:
-                line.append(str(sample_logs[name][i]))  # get by index rather than subrun
+                line.append(str(sample_logs[name][subrun_index]))  # get by index rather than subrun
 
             for peak_collection in peak_collections:
                 fit_cost = peak_collection.fitting_costs
                 dspacing_center, dspacing_center_error = peak_collection.get_dspacing_center()
                 values, errors = peak_collection.get_effective_params()
-                line.append(str(dspacing_center))
-                for value in values[i]:
+                line.append(str(dspacing_center[subrun_index]))
+                for value in values[subrun_index]:
                     line.append(str(value))
-                line.append(str(dspacing_center_error))
-                for value in errors[i]:
+                line.append(str(dspacing_center_error[subrun_index]))
+                for value in errors[subrun_index]:
                     line.append(str(value))
-                line.append(str(fit_cost[i]))
+                line.append(str(fit_cost[subrun_index]))
 
             handle.write(self.separator.join(line) + '\n')

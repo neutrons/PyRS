@@ -180,7 +180,8 @@ class PeakCollection(object):
             A two-item tuple containing the peak center and its uncertainty.
         """
         effective_values, effective_errors = self.get_effective_params()
-        theta_center_value, theta_center_error = effective_values['Center'] / 2, effective_errors['Center'] / 2
+        theta_center_value = np.array([value['Center'] / 2 for value in effective_values])
+        theta_center_error = np.array([error['Center'] / 2 for error in effective_errors])
         dspacing_center = self._wavelength / (2 * np.sin(theta_center_value))
         dspacing_center_error = self._wavelength * abs(np.cos(theta_center_value)) * theta_center_error /\
             (2 * np.sin(theta_center_value)**2)
