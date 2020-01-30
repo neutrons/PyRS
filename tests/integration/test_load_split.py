@@ -23,7 +23,7 @@ def test_calibration_json():
     # Verify result
     assert shift
     assert shift_error
-    assert wave_length
+    assert wave_length == pytest.approx(1.456274820626443, 1E-8)
     assert wl_error
     assert status == 3
 
@@ -33,6 +33,11 @@ def test_calibration_json():
     # Reduce
     test_workspace = workspaces.HidraWorkspace('test calibration')
     test_workspace.load_hidra_project(project_file, load_raw_counts=True, load_reduced_diffraction=False)
+
+    # Test set and get wave length
+    test_workspace.set_wavelength(wave_length, True)
+    wave_length_i = test_workspace.get_wavelength(True, True)
+    assert wave_length_i == wave_length
 
 
 @pytest.mark.skipif(not os.path.exists(FILE_1017), reason='File {} is not accessible'.format(FILE_1017))

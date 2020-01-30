@@ -413,7 +413,8 @@ def reduce_hidra_workflow(nexus, output_dir, progressbar, instrument=None, calib
     output_dir
     progressbar
     instrument
-    calibration
+    calibration : str
+        calibration file name
     mask
     project_file_name : str or None
         if str, then the output file name won't use the default

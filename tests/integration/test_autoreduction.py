@@ -3,6 +3,8 @@ import os
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
 from pyrs.dataobjects import HidraConstants
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
+from pyrs.core.workspaces import HidraWorkspace
 from matplotlib import pyplot as plt
 import numpy as np
 import pytest
@@ -36,7 +38,7 @@ def convertNeXusToProject(nexusfile, projectfile, skippable, mask_file_name=None
         Path to the project file to save. If this is :py:obj:`None`, then the project file is not created
     skippable: bool
         Whether missing the nexus file skips the test or fails it
-    mask_file_name: str
+    mask_file_name: str or None
         Name of the masking file to use
     :return:
     '''
@@ -105,7 +107,7 @@ def test_nexus_to_project(nexusfile, projectfile):
     # verify sub run duration
     sub_runs = test_hidra_ws.get_sub_runs()
     durations = test_hidra_ws.get_sample_log_values(HidraConstants.SUB_RUN_DURATION, sub_runs=sub_runs)
-    plt.plot(sub_runs, durations)
+    # plt.plot(sub_runs, durations)
 
     if projectfile == 'HB2B_439.h5':
         np.testing.assert_equal(sub_runs, [1, 2, 3, 4])
@@ -147,7 +149,6 @@ def test_reduce_data(mask_file_name, filtered_counts, histogram_counts):
 
     # plot the patterns
     if DIAGNOSTIC_PLOTS:
-        from matplotlib import pyplot as plt
         for sub_run, angle in zip(SUBRUNS, CENTERS):
             x, y = reducer.get_diffraction_data(sub_run)
             plt.plot(x, y, label='SUBRUN {} at {:.1f} deg'.format(sub_run, angle))
@@ -228,6 +229,10 @@ def test_apply_mantid_mask():
 
     # Convert the NeXus to file to a project without mask and convert to 2theta diffraction pattern
     no_mask_project_file = 'HB2B_938_no_mask.h5'
+    if os.path.exists(no_mask_project_file):
+        os.remove(no_mask_project_file)
+
+    # Convert to NeXust
     no_mask_hidra_ws = convertNeXusToProject(nexus_file, no_mask_project_file, skippable=False,
                                              mask_file_name=None)
 
@@ -243,6 +248,9 @@ def test_apply_mantid_mask():
 
     # Convert the NeXus to file to a project with mask and convert to 2theta diffraction pattern
     project_file = 'HB2B_938_mask.h5'
+    if os.path.exists(project_file):
+        os.remove(project_file)
+    # Convert
     masked_hidra_ws = convertNeXusToProject(nexus_file, project_file, skippable=False,
                                             mask_file_name='data/HB2B_Mask_12-18-19.xml')
     mask_array = masked_hidra_ws.get_detector_mask(True)
@@ -284,6 +292,35 @@ def test_hidra_workflow(tmpdir):
     try:
         _ = convertNeXusToProject(nexus, project, True, mask_file_name=mask)
         addPowderToProject(project, calibration_file=calibration)
+    finally:
+        if os.path.exists(project):
+            os.remove(project)
+
+
+def test_reduce_with_calibration():
+    """Test reduction with calibration file
+
+    Returns
+    -------
+
+    """
+    nexus = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5'
+    mask = '/HFIR/HB2B/shared/CALIBRATION/HB2B_MASK_Latest.xml'
+    calibration = '/HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json'
+    project = os.path.basename(nexus).split('.')[0] + '_WL.h5'
+    project = os.path.join(os.getcwd(), project)
+    try:
+        # convert from NeXus to powder pattern
+        _ = convertNeXusToProject(nexus, project, True, mask_file_name=mask)
+        addPowderToProject(project, calibration_file=calibration)
+
+        # load file
+        verify_project = HidraProjectFile(project, HidraProjectFileMode.READONLY)
+        verify_workspace = HidraWorkspace('verify calib')
+        verify_workspace.load_hidra_project(verify_project, load_raw_counts=False, load_reduced_diffraction=True)
+        wave_length = verify_workspace.get_wavelength(True, True)
+        assert not np.isnan(wave_length)
+
     finally:
         if os.path.exists(project):
             os.remove(project)

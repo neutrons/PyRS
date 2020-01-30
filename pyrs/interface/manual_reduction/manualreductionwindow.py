@@ -46,6 +46,7 @@ class ManualReductionWindow(QMainWindow):
         self._promote_widgets()
 
         # Hide some not-yet-implemented
+        self.ui.tabWidget_reduceRuns.setTabEnabled(1, False)  # User specified instrument parameter (shifts)
         self.ui.tabWidget_reduceRuns.setTabEnabled(2, False)  # advanced slicing tab
 
         # Event handler: handler must be set up after UI is loaded
