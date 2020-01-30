@@ -240,5 +240,8 @@ class ReductionApp(object):
         if mode == HidraProjectFileMode.OVERWRITE:
             self._hydra_ws.save_experimental_data(out_file, ignore_raw_counts=True)
 
+        # Calibrated wave length shall be written
+        self._hydra_ws.save_wavelength(out_file)
+
         # Write & close
         self._hydra_ws.save_reduced_diffraction_data(out_file)

@@ -818,6 +818,9 @@ class HidraWorkspace(object):
             hidra_project.write_mask_detector_array(mask_id, self._mask_dict[mask_id])
 
         # Save wave length
+        self.save_wavelength(hidra_project)
+
+    def save_wavelength(self, hidra_project):
         if self._wave_length is not None:
             hidra_project.write_wavelength(self._wave_length)
 

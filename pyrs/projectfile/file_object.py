@@ -711,6 +711,9 @@ class HidraProjectFile(object):
 
         # Get node and write value
         wl_entry = self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.MONO]
+        # delete the dataset if it does exist to replace
+        if HidraConstants.WAVELENGTH in list(wl_entry.keys()):
+            del wl_entry[HidraConstants.WAVELENGTH]
         wl_entry.create_dataset(HidraConstants.WAVELENGTH, data=numpy.array([wave_length]))
 
     def read_efficiency_correction(self):
