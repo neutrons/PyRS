@@ -149,7 +149,6 @@ def test_reduce_data(mask_file_name, filtered_counts, histogram_counts):
 
     # plot the patterns
     if DIAGNOSTIC_PLOTS:
-        from matplotlib import pyplot as plt
         for sub_run, angle in zip(SUBRUNS, CENTERS):
             x, y = reducer.get_diffraction_data(sub_run)
             plt.plot(x, y, label='SUBRUN {} at {:.1f} deg'.format(sub_run, angle))
