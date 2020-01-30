@@ -1,3 +1,4 @@
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from qtpy import QtCore
 from qtpy.QtWidgets import QMainWindow, QSizePolicy, QWidget, QLabel, QMenuBar, QToolBar, QStatusBar, QGridLayout
 from pyrs.utilities import load_ui
@@ -25,7 +26,7 @@ class WorkspacesView(QMainWindow):
         Init
         :param parent:
         """
-        from ui.workspaceviewwidget import WorkspaceViewWidget
+        from .ui.workspaceviewwidget import WorkspaceViewWidget
 
         QMainWindow.__init__(self)
 

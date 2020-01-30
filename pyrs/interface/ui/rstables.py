@@ -1,5 +1,6 @@
 # Module containing extended TableWidgets for PyRS project
-import NTableWidget
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
+from . import NTableWidget
 from pyrs.utilities import checkdatatypes
 import numpy
 from qtpy import QtWidgets

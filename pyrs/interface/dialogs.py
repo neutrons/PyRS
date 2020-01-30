@@ -1,3 +1,4 @@
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from pyrs.utilities import load_ui
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QDialog, QMainWindow
@@ -6,7 +7,7 @@ from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.rstables import GridAlignmentTable, GridsStatisticsTable, ParamValueGridTable,\
     ParamValueMapAnalysisTable, MismatchedGridsTable, StrainStressValueTable
 
-import gui_helper
+from . import gui_helper
 from pyrs.utilities import checkdatatypes
 import os
 
