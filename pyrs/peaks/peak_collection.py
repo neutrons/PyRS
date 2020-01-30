@@ -11,7 +11,7 @@ class PeakCollection(object):
     """
     Object to contain peak parameters (names and values) of a collection of peaks for sub runs
     """
-    def __init__(self, peak_tag, peak_profile, background_type):
+    def __init__(self, peak_tag, peak_profile, background_type, wavelength=np.nan):
         """Initialization
 
         Parameters
@@ -30,6 +30,7 @@ class PeakCollection(object):
         # Init other parameters
         self._peak_profile = PeakShape.getShape(peak_profile)
         self._background_type = BackgroundFunction.getFunction(background_type)
+        self._wavelength = wavelength
 
         # sub run numbers: 1D array
         self._sub_run_array = SubRuns()
@@ -168,6 +169,23 @@ class PeakCollection(object):
             converter.calculate_effective_parameters(self._params_value_array, self._params_error_array)
 
         return eff_values, eff_errors
+
+    def get_dspacing_center(self):
+        r"""
+        peak center in unit of d spacing.
+
+        Returns
+        -------
+        tuple
+            A two-item tuple containing the peak center and its uncertainty.
+        """
+        effective_values, effective_errors = self.get_effective_params()
+        theta_center_value = np.array([value['Center'] / 2 for value in effective_values])
+        theta_center_error = np.array([error['Center'] / 2 for error in effective_errors])
+        dspacing_center = self._wavelength / (2 * np.sin(theta_center_value))
+        dspacing_center_error = self._wavelength * abs(np.cos(theta_center_value)) * theta_center_error /\
+            (2 * np.sin(theta_center_value)**2)
+        return dspacing_center, dspacing_center_error
 
     def get_integrated_intensity(self):
         pass
