@@ -34,11 +34,8 @@ class MantidPeakFitEngine(PeakFitEngine):
         # add in extra parameters for starting values
         kwargs = {}
         if self._peak_function == PeakShape.PSEUDOVOIGT:
-            # max_intensity = PseudoVoigt.cal_intensity(max_estimated_height, hidra_fwhm, default_mixing)
-            intensity = self._mtd_wksp.extractY().max() - self._mtd_wksp.extractY().mean()  # TODO improve this
-
-            kwargs['PeakParameterNames'] = 'Mixing, Intensity'  # FWHM also available
-            kwargs['PeakParameterValues'] = '{}, {}'.format(0.6, intensity)  # mixing agreed upon default
+            kwargs['PeakParameterNames'] = 'Mixing'  # FWHM and Intensity also available
+            kwargs['PeakParameterValues'] = '0.6'  # mixing agreed upon default
 
         # Fit peak by Mantid.FitPeaks
         fit_return = FitPeaks(InputWorkspace=self._mtd_wksp,
