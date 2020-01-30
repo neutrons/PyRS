@@ -3,6 +3,8 @@ import os
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
 from pyrs.dataobjects import HidraConstants
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
+from pyrs.core.workspaces import HidraWorkspace
 from matplotlib import pyplot as plt
 import numpy as np
 import pytest
@@ -284,6 +286,35 @@ def test_hidra_workflow(tmpdir):
     try:
         _ = convertNeXusToProject(nexus, project, True, mask_file_name=mask)
         addPowderToProject(project, calibration_file=calibration)
+    finally:
+        if os.path.exists(project):
+            os.remove(project)
+
+
+def test_reduce_with_calibration():
+    """Test reduction with calibration file
+
+    Returns
+    -------
+
+    """
+    nexus = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5'
+    mask = '/HFIR/HB2B/shared/CALIBRATION/HB2B_MASK_Latest.xml'
+    calibration = '/HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json'
+    project = os.path.basename(nexus).split('.')[0] + '.h5'
+    project = os.path.join(os.getcwd(), project)
+    try:
+        # convert from NeXus to powder pattern
+        _ = convertNeXusToProject(nexus, project, True, mask_file_name=mask)
+        addPowderToProject(project, calibration_file=calibration)
+
+        # load file
+        verify_project = HidraProjectFile(project, HidraProjectFileMode.READONLY)
+        verify_workspace = HidraWorkspace('verify calib')
+        verify_workspace.load_hidra_project(verify_project, load_raw_counts=False, load_reduced_diffraction=True)
+        wave_length = verify_workspace.get_wavelength(True, True)
+        assert not np.isnan(wave_length)
+
     finally:
         if os.path.exists(project):
             os.remove(project)
