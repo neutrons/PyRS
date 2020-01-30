@@ -45,8 +45,8 @@ def test_background_enum():
     assert len(BackgroundFunction.getFunction('linear').native_parameters) == 2
 
 
-def check_peak_collection(peak_shape, NUM_SUBRUN, target_error):
-
+def check_peak_collection(peak_shape, NUM_SUBRUN, target_errors, wavelength=None, target_d_spacing_center=np.nan,
+                          target_d_spacing_center_error=np.nan):
     """check the peak collection
 
     Parameters
@@ -57,6 +57,12 @@ def check_peak_collection(peak_shape, NUM_SUBRUN, target_error):
             Peak shape
     target_errors : numpy.ndarray
         numpy structured array for peak/background parameter fitted target error
+    wavelength : float
+        neutron wavelength
+    target_d_spacing_center : list
+        d spacing center target value
+    target_d_spacing_center_error : list
+        d spacing center target error
 
     Returns
     -------
@@ -78,6 +84,14 @@ def check_peak_collection(peak_shape, NUM_SUBRUN, target_error):
     raw_peaks_errors = np.zeros(NUM_SUBRUN, dtype=get_parameter_dtype(peak_shape, 'Linear'))
 
     peaks = PeakCollection('testing', peak_shape, 'Linear')
+
+    # background terms are both zeros
+    raw_peaks_errors = np.zeros(NUM_SUBRUN, dtype=get_parameter_dtype(peak_shape, 'Linear'))
+    if wavelength is None:
+        peaks = PeakCollection('testing', peak_shape, 'Linear')
+    else:
+        peaks = PeakCollection('testing', peak_shape, 'Linear', wavelength=wavelength)
+
     # uncertainties are being set to zero
     peaks.set_peak_fitting_values(subruns, raw_peaks_array,
                                   raw_peaks_errors, chisq)
@@ -94,7 +108,7 @@ def check_peak_collection(peak_shape, NUM_SUBRUN, target_error):
     # check effective parameters
     obs_eff_peaks, obs_eff_errors = peaks.get_effective_params()
     assert obs_eff_peaks.size == NUM_SUBRUN
-    np.testing.assert_equal(obs_eff_errors, target_error)
+    np.testing.assert_equal(obs_eff_errors, target_errors)
     np.testing.assert_equal(obs_eff_peaks['Center'], raw_peaks_array['PeakCentre'])
     if peak_shape == 'PseudoVoigt':
         np.testing.assert_equal(obs_eff_peaks['Intensity'], raw_peaks_array['Intensity'])
@@ -106,17 +120,34 @@ def check_peak_collection(peak_shape, NUM_SUBRUN, target_error):
     np.testing.assert_equal(obs_eff_peaks['A0'], NUM_SUBRUN * [0.])
     np.testing.assert_equal(obs_eff_peaks['A1'], NUM_SUBRUN * [0.])
 
+    # check d spacing
+    obs_dspacing, obs_dspacing_errors = peaks.get_dspacing_center()
+    np.testing.assert_allclose(obs_dspacing, target_d_spacing_center, atol=0.01)
+    np.testing.assert_allclose(obs_dspacing_errors, target_d_spacing_center_error, atol=0.01)
+
 
 def test_peak_collection_Gaussian():
     NUM_SUBRUN = 2
+    # without wavelength
     check_peak_collection('Gaussian', NUM_SUBRUN, np.zeros(NUM_SUBRUN, dtype=get_parameter_dtype(effective=True)))
+    # with wavelength
+    check_peak_collection('Gaussian', NUM_SUBRUN, np.zeros(NUM_SUBRUN, dtype=get_parameter_dtype(effective=True)),
+                          wavelength=3.15, target_d_spacing_center=[1.57, 1.73],
+                          target_d_spacing_center_error=[0.0, 0.0])
 
 
 def test_peak_collection_PseudoVoigt():
     NUM_SUBRUN = 2
+    # without wavelength
     check_peak_collection('PseudoVoigt', NUM_SUBRUN, np.array([(3.0, 0.0, 4.0, 0.0, 0.0, 0.0, 1.0),
                                                                (4.0, 0.0, 5.0, 1.0, 0.0, 0.0, 2.0)],
                                                               dtype=get_parameter_dtype(effective=True)))
+    # with wavelength
+    check_peak_collection('PseudoVoigt', NUM_SUBRUN, np.array([(3.0, 0.0, 4.0, 0.0, 0.0, 0.0, 1.0),
+                                                               (4.0, 0.0, 5.0, 1.0, 0.0, 0.0, 2.0)],
+                                                              dtype=get_parameter_dtype(effective=True)),
+                          wavelength=3.15, target_d_spacing_center=[1.57, 1.73],
+                          target_d_spacing_center_error=[0.16, 1.58])
 
 
 if __name__ == '__main__':
