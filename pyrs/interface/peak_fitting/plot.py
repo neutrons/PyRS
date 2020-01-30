@@ -136,7 +136,8 @@ class Plot:
         axis_z_data, axis_z_error = o_data_retriever.get_data(name=z_axis_name, peak_index=z_axis_peak_index)
 
         self.parent.ui.graphicsView_plot2D.ax.clear()
-        self.parent.ui.graphicsView_plot2D.ax.plot([0,1,2,3,4,5], [10,20,30,20,20,1], '*-')
+
+        self.parent.ui.graphicsView_plot2D.ax.plot(axis_x_data, axis_y_data)
         self.parent.ui.graphicsView_plot2D._myCanvas.draw()
 
 
