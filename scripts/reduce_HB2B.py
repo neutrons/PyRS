@@ -80,7 +80,7 @@ def reduce_hidra_workflow(user_options):
     # split into sub runs fro NeXus file
     hidra_ws = _nexus_to_subscans(user_options.nexus, user_options.project,
                                   mask_file_name=user_options.mask,
-                                  save_project_file=False)
+                                  save_project_file=user_options.savecounts)
 
     if user_options.viewraw:  # plot data
         _view_raw(hidra_ws, None, user_options.subruns, user_options.engine)
@@ -98,6 +98,8 @@ if __name__ == '__main__':
     parser.add_argument('--project',
                         help='Project file with subscans and powder patterns (default is based on'
                         ' nexus filename in <outputdir>)')
+    parser.add_argument('--savecounts', action='store_true',
+                        help='Save the counts array to the project file which will be significantly larger')
     parser.add_argument('--instrument', nargs='?', default=DEFAULT_INSTRUMENT,
                         help='instrument configuration file overriding embedded (arm, pixel number'
                         ' and size) (default=%(default)s)')
