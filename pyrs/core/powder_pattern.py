@@ -210,12 +210,14 @@ class ReductionApp(object):
             plt.plot(vec_x, vec_y)
         plt.show()
 
-    def save_diffraction_data(self, output_file_name=None):
+    def save_diffraction_data(self, output_file_name=None, append_mode=False):
         """Save reduced diffraction data to Hidra project file
         Parameters
         ----------
         output_file_name: None or str
             if None, then append result to the input file
+        append_mode : bool
+            flag to force project file in appending/READWRITE mode
         Returns
         -------
 
@@ -223,6 +225,10 @@ class ReductionApp(object):
         # Determine output file name and writing mode
         if output_file_name is None or output_file_name == self._hydra_file_name:
             file_name = self._hydra_file_name
+            mode = HidraProjectFileMode.READWRITE
+        elif append_mode:
+            # Append to existing file
+            file_name = output_file_name
             mode = HidraProjectFileMode.READWRITE
         else:
             file_name = output_file_name
