@@ -389,7 +389,7 @@ class PseudoVoigt(PeakParametersConverter):
                                               param_error_array['Mixing'])
 
         # Set
-        eff_error_array['Center'] = param_value_array['PeakCentre']  # center
+        eff_error_array['Center'] = param_error_array['PeakCentre']  # center
         eff_error_array['Height'] = heights_error[:]  # height
         eff_error_array['FWHM'] = param_value_array['FWHM']  # FWHM
         eff_error_array['Mixing'] = param_value_array['Mixing']  # no mixing for Gaussian
