@@ -1,11 +1,9 @@
 from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import os
 from mantid.simpleapi import Logger
-from mantid.api import FileFinder
 import numpy as np
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
-from pyrs.utilities.file_util import archive_search
 
 DEFAULT_MASK_DIRECTORY = '/HFIR/HB2B/shared/CALIBRATION/'
 DEFAULT_CALIBRATION_DIRECTORY = DEFAULT_MASK_DIRECTORY
@@ -53,30 +51,6 @@ class ReductionController(object):
 
         """
         return DEFAULT_MASK_DIRECTORY
-
-    @staticmethod
-    def get_nexus_file_by_run(run_number):
-        """Get the Nexus path iin SNS data archive by run number
-
-        Parameters
-        ----------
-        run_number : int or str
-            run number
-
-        Returns
-        -------
-        str or None
-            file path to NeXus
-
-        """
-        # Find run: successful return is a size-one str array
-        try:
-            with archive_search():
-                nexus_file = FileFinder.findRuns('HB2B{}'.format(run_number))[0]
-            return nexus_file
-        except RuntimeError as e:
-            print(e)
-            return None
 
     def get_sub_runs(self):
         """Get sub runs of the current loaded HidraWorkspace
