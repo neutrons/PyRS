@@ -139,15 +139,15 @@ def test_peak_collection_Gaussian():
 def test_peak_collection_PseudoVoigt():
     NUM_SUBRUN = 2
     # without wavelength
-    check_peak_collection('PseudoVoigt', NUM_SUBRUN, np.array([(3.0, 0.0, 4.0, 0.0, 0.0, 0.0, 1.0),
-                                                               (4.0, 0.0, 5.0, 1.0, 0.0, 0.0, 2.0)],
+    check_peak_collection('PseudoVoigt', NUM_SUBRUN, np.array([(0.0, 0.0, 4.0, 0.0, 0.0, 0.0, 1.0),
+                                                               (0.0, 0.0, 5.0, 1.0, 0.0, 0.0, 2.0)],
                                                               dtype=get_parameter_dtype(effective=True)))
     # with wavelength
-    check_peak_collection('PseudoVoigt', NUM_SUBRUN, np.array([(3.0, 0.0, 4.0, 0.0, 0.0, 0.0, 1.0),
-                                                               (4.0, 0.0, 5.0, 1.0, 0.0, 0.0, 2.0)],
+    check_peak_collection('PseudoVoigt', NUM_SUBRUN, np.array([(0.0, 0.0, 4.0, 0.0, 0.0, 0.0, 1.0),
+                                                               (0.0, 0.0, 5.0, 1.0, 0.0, 0.0, 2.0)],
                                                               dtype=get_parameter_dtype(effective=True)),
                           wavelength=3.15, target_d_spacing_center=[1.57, 1.73],
-                          target_d_spacing_center_error=[0.16, 1.58])
+                          target_d_spacing_center_error=[0.0, 0.0])
 
 
 if __name__ == '__main__':
