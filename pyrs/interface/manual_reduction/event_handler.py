@@ -5,7 +5,7 @@ from pyrs.interface.gui_helper import pop_message, parse_line_edit,  browse_file
 from mantidqt.utils.asynchronous import BlockingAsyncTaskWithCallback
 from pyrs.interface.manual_reduction.pyrs_api import ReductionController
 from pyrs.dataobjects.constants import HidraConstants
-from pyrs.utilities.file_util import get_ipts_dir
+from pyrs.utilities.file_util import get_default_output_dir, get_ipts_dir
 
 
 class EventHandler(object):
@@ -31,25 +31,12 @@ class EventHandler(object):
     def controller(self):
         return self._controller
 
-    def _retrieve_ipts_number(self):
-        """Get IPTS number from
-
-        Returns
-        -------
-        int or None
-            IPTS number
-
-        """
+    def _current_runnumber(self):
         run_number = parse_line_edit(self.ui.lineEdit_runNumbersList, int, False, default=None)
         if run_number is None:
             return None
-
-        try:
-            ipts_number = get_ipts_dir(run_number)
-            return ipts_number
-        except RuntimeError as e:
-            print(e)
-            return None
+        else:
+            return int(run_number)
 
     def _set_sub_run_numbers(self, sub_runs):
         """Set sub run numbers to (1) Table and (2) Combo box
@@ -75,12 +62,19 @@ class EventHandler(object):
         -------
 
         """
-        # Get default directory
-        ipts_number = self._retrieve_ipts_number()
-        if ipts_number is None:
-            default_dir = self._controller.working_dir
-        else:
-            default_dir = self._controller.get_nexus_dir(ipts_number)
+        # default is current working directory
+        default_dir = self._controller.working_dir
+        try:
+            run_number = self._current_runnumber()
+            if run_number is not None:
+                default_dir = get_ipts_dir(run_number)
+                nexus_file = 'HB2B_{}.nxs.h5'.format(run_number)
+                if os.path.exists(os.path.join(default_dir, 'nexus', nexus_file)):
+                    default_dir = os.path.join(default_dir, 'nexus')
+                del nexus_file
+        except RuntimeError as e:
+            print('While looking for {}:'.format(run_number))
+            print(e)
 
         # If specified information is not sufficient, browse
         nexus_file = browse_file(self.parent,
@@ -109,12 +103,17 @@ class EventHandler(object):
         -------
 
         """
-        # Get default directory
-        ipts_number = self._retrieve_ipts_number()
-        if ipts_number is None:
-            default_dir = self._controller.working_dir
-        else:
-            default_dir = self._controller.get_hidra_project_dir(ipts_number, is_auto=True)
+        # default is current working directory
+        default_dir = self._controller.working_dir
+
+        # get default output directory for the run
+        try:
+            run_number = self._current_runnumber()
+            if run_number is not None:
+                default_dir = get_default_output_dir(self._current_runnumber())
+        except RuntimeError as e:
+            print('While looking for {}:'.format(run_number))
+            print(e)
 
         # Browse
         hidra_file = browse_file(self.parent,
@@ -122,6 +121,8 @@ class EventHandler(object):
                                  default_dir=default_dir,
                                  file_filter='HiDRA project (*.h5)',
                                  file_list=False, save_file=False)
+        if not hidra_file:
+            return
 
         # Load Nexus
         try:
@@ -144,12 +145,6 @@ class EventHandler(object):
         self.ui.rawDataTable.add_subruns_info(meta_data_array, clear_table=True)
 
     def browse_calibration_file(self):
-        """
-
-        Returns
-        -------
-
-        """
         calibration_file = browse_file(self.parent, caption='Choose and set up the calibration file',
                                        default_dir=self._controller.get_default_calibration_dir(),
                                        file_filter='hdf5 (*hdf)', file_list=False, save_file=False)

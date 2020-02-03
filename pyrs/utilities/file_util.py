@@ -266,3 +266,23 @@ def get_ipts_dir(run_number):
     with archive_search():
         ipts = GetIPTS(RunNumber=run_number, Instrument='HB2B')
     return ipts
+
+
+def get_default_output_dir(run_number):
+    """Get NeXus directory
+
+    Parameters
+    ----------
+    run_number : int
+        run number
+
+    Returns
+    -------
+    str
+        path to Nexus files
+
+    """
+    # this can generate an exception
+    ipts_dir = get_ipts_dir(run_number)
+    # /HFIR/IPTS-####/shared/manualreduce
+    return os.path.join(ipts_dir, 'shared', 'manualreduce')

@@ -1,11 +1,11 @@
 from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import os
-from mantid.simpleapi import Logger, GetIPTS
+from mantid.simpleapi import Logger
 from mantid.api import FileFinder
 import numpy as np
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
-from pyrs.utilities.file_util import archive_search, get_ipts_dir
+from pyrs.utilities.file_util import archive_search
 
 DEFAULT_MASK_DIRECTORY = '/HFIR/HB2B/shared/CALIBRATION/'
 DEFAULT_CALIBRATION_DIRECTORY = DEFAULT_MASK_DIRECTORY
@@ -55,30 +55,6 @@ class ReductionController(object):
         return DEFAULT_MASK_DIRECTORY
 
     @staticmethod
-    def get_ipts_from_run(run_number):
-        """Get IPTS number from run number
-
-        Parameters
-        ----------
-        run_number : int
-            run number
-
-        Returns
-        -------
-        str or None
-            IPTS path: example '/HFIR/HB2B/IPTS-22731/', None for not supported IPTS
-
-        """
-        # try with GetIPTS
-        try:
-            with archive_search():
-                ipts = GetIPTS(RunNumber=run_number, Instrument='HB2B')
-            return ipts
-        except RuntimeError as e:
-            print(e)
-            return None  # indicate it wasn't found
-
-    @staticmethod
     def get_nexus_file_by_run(run_number):
         """Get the Nexus path iin SNS data archive by run number
 
@@ -101,63 +77,6 @@ class ReductionController(object):
         except RuntimeError as e:
             print(e)
             return None
-
-    @staticmethod
-    def get_default_output_dir(run_number):
-        """Get default output directory for run number
-
-        Exception: RuntimeError
-
-        Parameters
-        ----------
-        run_number
-
-        Returns
-        -------
-
-        """
-        ipts_dir = get_ipts_dir(run_number)  # can throw an exception
-        return os.path.join(ipts_dir, 'shared', 'manualreduce')
-
-    @staticmethod
-    def get_nexus_dir(ipts_number):
-        """Get NeXus directory
-
-        Parameters
-        ----------
-        ipts_number : int
-            IPTS number
-
-        Returns
-        -------
-        str
-            path to Nexus files
-
-        """
-        return '/HFIR/HB2B/IPTS-{}/nexus'.format(ipts_number)
-
-    @staticmethod
-    def get_hidra_project_dir(ipts_number, is_auto):
-        """Get NeXus directory
-
-        Parameters
-        ----------
-        ipts_number : int
-            IPTS number
-        is_auto : bool
-            Flag for auto reduced data or manual reduced
-
-        Returns
-        -------
-        str
-            path to Nexus files
-
-        """
-        if is_auto:
-            local_dir = 'autoreduce'
-        else:
-            local_dir = 'manualreduce'
-        return '/HFIR/HB2B/IPTS-{}/shared/{}'.format(ipts_number, local_dir)
 
     def get_sub_runs(self):
         """Get sub runs of the current loaded HidraWorkspace
