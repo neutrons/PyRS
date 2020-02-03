@@ -279,10 +279,39 @@ def get_default_output_dir(run_number):
     Returns
     -------
     str
-        path to Nexus files
+        path to Nexus files ``/HFIR/IPTS-####/shared/manualreduce``
 
     """
     # this can generate an exception
     ipts_dir = get_ipts_dir(run_number)
-    # /HFIR/IPTS-####/shared/manualreduce
+
     return os.path.join(ipts_dir, 'shared', 'manualreduce')
+
+
+def get_input_project_file(run_number, preferredType='manual'):
+    # this can generate an exception
+    shared_dir = os.path.join(get_ipts_dir(run_number), 'shared')
+
+    if not os.path.exists(shared_dir):
+        raise RuntimeError('Shared directory "{}" does not exist'.format(shared_dir))
+
+    # generate places to look for
+    auto_dir = os.path.join(shared_dir, 'autoreduce')
+    manual_dir = os.path.join(shared_dir, 'manualreduce')
+    err_msg = 'Failed to find project file for run "{}" in "{}"'.format(run_number, shared_dir)
+
+    preferredType = preferredType.lower()
+    if preferredType.startswith('manual'):
+        if os.path.exists(manual_dir):
+            return manual_dir
+        elif os.path.exists(auto_dir):
+            return auto_dir
+        else:
+            raise RuntimeError(err_msg)
+    elif preferredType.startswith('auto'):
+        if os.path.exists(auto_dir):
+            return auto_dir
+        else:
+            raise RuntimeError(err_msg)
+    else:
+        raise ValueError('Do not understand preferred type "{}"'.format(preferredType))

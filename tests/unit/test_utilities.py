@@ -3,8 +3,11 @@
 from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import os
 from pyrs.interface import gui_helper
-from pyrs.utilities.file_util import get_ipts_dir, get_default_output_dir
+from pyrs.utilities.file_util import get_default_output_dir, get_input_project_file, get_ipts_dir
 import pytest
+
+
+MISSING_RUNNUMBER = 112123260
 
 
 def test_parse_integers():
@@ -36,7 +39,7 @@ def test_get_ipts_dir():
 
     # Test no such run
     with pytest.raises(RuntimeError):
-        get_ipts_dir(112123260)
+        get_ipts_dir(MISSING_RUNNUMBER)
 
     # Test exception
     with pytest.raises(TypeError):
@@ -54,7 +57,21 @@ def test_get_default_output_dir():
 
     # Test no such run
     with pytest.raises(RuntimeError):
-        get_default_output_dir(112123260)
+        get_default_output_dir(MISSING_RUNNUMBER)
+
+
+@pytest.mark.skipif(not os.path.exists('/HFIR/HB2B/shared/'), reason='HFIR data archive is not mounted')
+def test_get_input_project_file():
+    assert get_input_project_file(1060) == '/HFIR/HB2B/IPTS-22731/shared/manualreduce', 'Output directory is not '\
+                                                                                        'correct for run 1060'
+
+    # Test no such run
+    with pytest.raises(RuntimeError):
+        get_input_project_file(MISSING_RUNNUMBER)
+
+    # Test bad preferred type
+    with pytest.raises(ValueError):
+        get_input_project_file(1060, preferredType='nonsense')
 
 
 if __name__ == '__main__':

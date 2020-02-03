@@ -1,7 +1,7 @@
 import os
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QApplication
-from pyrs.interface.gui_helper import pop_message, parse_line_edit,  browse_file, browse_dir, parse_combo_box
+from pyrs.interface.gui_helper import pop_message, browse_file, browse_dir, parse_combo_box
 from mantidqt.utils.asynchronous import BlockingAsyncTaskWithCallback
 from pyrs.interface.manual_reduction.pyrs_api import ReductionController
 from pyrs.dataobjects.constants import HidraConstants
@@ -24,16 +24,15 @@ class EventHandler(object):
 
         # controller
         self._controller = ReductionController()
-
-        return
+        self.__last_run_number = ''
 
     @property
     def controller(self):
         return self._controller
 
     def _current_runnumber(self):
-        run_number = parse_line_edit(self.ui.lineEdit_runNumbersList, int, False, default=None)
-        if run_number is None:
+        run_number = self.ui.spinBox_runNumber.text().strip()
+        if len(run_number) == 0:
             return None
         else:
             return int(run_number)
@@ -346,8 +345,9 @@ class EventHandler(object):
 
         """
         # Get run number
-        run_number = self.ui.spinBox_runNumber.text().strip()
-        # No need: self.update_output_dir(run_number)
+        run_number = self._current_runnumber()
+        if not run_number:
+            return  # no need to update
 
         # Files names: NeXus, (output) project, mask, calibration
         nexus_file = self._controller.get_nexus_file_by_run(run_number)
@@ -442,7 +442,7 @@ class EventHandler(object):
 
         """
         if state != Qt.Unchecked:
-            self.update_run_changed(self.ui.spinBox_runNumber.value())
+            self.update_run_changed(self._current_runnumber())
         self.ui.lineEdit_outputDirectory.setEnabled(state == Qt.Unchecked)
         self.ui.pushButton_browseOutputDirectory.setEnabled(state == Qt.Unchecked)
 
@@ -459,12 +459,16 @@ class EventHandler(object):
         None
 
         """
+        # don't do anything if the run number didn't change
+        if run_number == self.__last_run_number:
+            return
+
         # new default
         try:
-            project_dir = get_ipts_dir(run_number)
+            project_dir = get_default_output_dir(run_number)
             # set to line edit
-            if project_dir is not None:
-                self.ui.lineEdit_outputDirectory.setText(project_dir)
+            self.ui.lineEdit_outputDirectory.setText(project_dir)
+            self.__last_run_number = run_number
         except RuntimeError as e:
             print('Failed to find project directory for {}'.format(run_number))
             print(e)
