@@ -290,8 +290,11 @@ class GuiUtilities:
 
     @staticmethod
     def get_row_selected(table_ui=None):
-        selection = table_ui.selectedRanges()[0]
-        return selection.topRow()
+        selection = table_ui.selectedRanges()
+        if len(selection) > 0:
+            return selection[0].topRow()
+        else:
+            return None
 
     @staticmethod
     def make_visible_ui(list_ui=[], visible=True):
