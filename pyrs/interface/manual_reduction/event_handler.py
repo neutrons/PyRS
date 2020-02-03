@@ -5,7 +5,7 @@ from pyrs.interface.gui_helper import pop_message, browse_file, browse_dir, pars
 from mantidqt.utils.asynchronous import BlockingAsyncTaskWithCallback
 from pyrs.interface.manual_reduction.pyrs_api import ReductionController
 from pyrs.dataobjects.constants import HidraConstants
-from pyrs.utilities.file_util import get_default_output_dir, get_ipts_dir
+from pyrs.utilities.file_util import get_default_output_dir, get_ipts_dir, get_nexus_file
 
 
 class EventHandler(object):
@@ -350,7 +350,7 @@ class EventHandler(object):
             return  # no need to update
 
         # Files names: NeXus, (output) project, mask, calibration
-        nexus_file = self._controller.get_nexus_file_by_run(run_number)
+        nexus_file = get_nexus_file(run_number)
         project_file = str(self.ui.lineEdit_outputDirectory.text().strip())
         # mask file
         mask_file = str(self.ui.lineEdit_maskFile.text().strip())

@@ -4,6 +4,7 @@ from . import checkdatatypes
 from contextlib import contextmanager
 import h5py
 from mantid import ConfigService
+from mantid.api import FileFinder
 from mantid.simpleapi import mtd, CreateWorkspace, GetIPTS, SaveNexusProcessed
 import numpy as np
 import os
@@ -220,8 +221,8 @@ def archive_search():
     # get the old values
     config = ConfigService.Instance()
     old_config = {}
-    for property in [DEFAULT_FACILITY, DEFAULT_INSTRUMENT, SEARCH_ARCHIVE]:
-        old_config[property] = config[property]
+    for property_name in [DEFAULT_FACILITY, DEFAULT_INSTRUMENT, SEARCH_ARCHIVE]:
+        old_config[property_name] = config[property_name]
 
     # don't update things that are already set correctly
     if config[DEFAULT_FACILITY] == HFIR:
@@ -245,8 +246,8 @@ def archive_search():
 
     finally:
         # set properties back to original values
-        for property in old_config.keys():
-            config[property] = old_config[property]
+        for property_name in old_config.keys():
+            config[property_name] = old_config[property_name]
 
 
 def get_ipts_dir(run_number):
@@ -315,3 +316,10 @@ def get_input_project_file(run_number, preferredType='manual'):
             raise RuntimeError(err_msg)
     else:
         raise ValueError('Do not understand preferred type "{}"'.format(preferredType))
+
+
+def get_nexus_file(run_number):
+    with archive_search():
+        nexus_file = FileFinder.findRuns('HB2B{}'.format(run_number))[0]
+    # return after `with` scope so cleanup is run
+    return nexus_file

@@ -3,7 +3,7 @@
 from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import os
 from pyrs.interface import gui_helper
-from pyrs.utilities.file_util import get_default_output_dir, get_input_project_file, get_ipts_dir
+from pyrs.utilities.file_util import get_default_output_dir, get_input_project_file, get_ipts_dir, get_nexus_file
 import pytest
 
 
@@ -72,6 +72,16 @@ def test_get_input_project_file():
     # Test bad preferred type
     with pytest.raises(ValueError):
         get_input_project_file(1060, preferredType='nonsense')
+
+
+@pytest.mark.skipif(not os.path.exists('/HFIR/HB2B/shared/'), reason='HFIR data archive is not mounted')
+def test_get_nexus_file():
+    assert get_nexus_file(1060) == '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1060.nxs.h5'
+    assert get_nexus_file(1017) == '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5'
+
+    # Test no such run
+    with pytest.raises(RuntimeError):
+        get_nexus_file(MISSING_RUNNUMBER)
 
 
 if __name__ == '__main__':

@@ -8,25 +8,6 @@ from pyrs.interface.manual_reduction.pyrs_api import ReductionController, reduce
 import h5py
 
 
-def test_find_run():
-    """Test to find NeXus file
-
-    Returns
-    -------
-
-    """
-    # skip on build server
-    if os.path.exists('/HFIR/HB2B/shared/') is False:
-        pytest.skip('SNS/HFIR archive is not mounted')
-
-    test_nexus = ReductionController.get_nexus_file_by_run(1017)
-    assert test_nexus == '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5'
-
-    # case for invalid run number
-    test_nexus = ReductionController.get_nexus_file_by_run(1)
-    assert test_nexus is None
-
-
 def test_default_calibration_file():
     """Test to find current/latest calibration file
 
