@@ -3,7 +3,7 @@
 from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import os
 from pyrs.interface import gui_helper
-from pyrs.utilities.file_util import get_default_output_dir, get_input_project_file, get_ipts_dir, get_nexus_file
+from pyrs.utilities import get_default_output_dir, get_input_project_file, get_ipts_dir, get_nexus_file
 import pytest
 
 

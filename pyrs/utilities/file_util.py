@@ -6,6 +6,8 @@ from mantid.api import FileFinder
 from mantid.simpleapi import mtd, GetIPTS, SaveNexusProcessed
 import os
 
+__all__ = ['get_ipts_dir', 'get_default_output_dir', 'get_ipts_dir', 'get_input_project_file', 'get_nexus_file']
+
 
 def save_mantid_nexus(workspace_name, file_name, title=''):
     """

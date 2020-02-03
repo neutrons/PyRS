@@ -5,7 +5,7 @@ from pyrs.interface.gui_helper import pop_message, browse_file, browse_dir, pars
 from mantidqt.utils.asynchronous import BlockingAsyncTaskWithCallback
 from pyrs.interface.manual_reduction.pyrs_api import ReductionController
 from pyrs.dataobjects.constants import HidraConstants
-from pyrs.utilities.file_util import get_default_output_dir, get_ipts_dir, get_nexus_file
+from pyrs.utilities import get_default_output_dir, get_ipts_dir, get_nexus_file
 
 
 class EventHandler(object):
