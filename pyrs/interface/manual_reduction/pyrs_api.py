@@ -1,55 +1,14 @@
 from __future__ import (absolute_import, division, print_function)  # python3 compatibility
-from contextlib import contextmanager
 import os
 from mantid.simpleapi import Logger, GetIPTS
 from mantid.api import FileFinder
-from mantid.kernel import ConfigService
 import numpy as np
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
+from pyrs.utilities.file_util import archive_search, get_ipts_dir
 
 DEFAULT_MASK_DIRECTORY = '/HFIR/HB2B/shared/CALIBRATION/'
 DEFAULT_CALIBRATION_DIRECTORY = DEFAULT_MASK_DIRECTORY
-
-
-@contextmanager
-def archive_search():
-    DEFAULT_FACILITY = 'default.facility'
-    DEFAULT_INSTRUMENT = 'default.instrument'
-    SEARCH_ARCHIVE = 'datasearch.searcharchive'
-    HFIR = 'HFIR'
-    HB2B = 'HB2B'
-
-    # get the old values
-    config = ConfigService.Instance()
-    old_config = {}
-    for property in [DEFAULT_FACILITY, DEFAULT_INSTRUMENT, SEARCH_ARCHIVE]:
-        old_config[property] = config[property]
-
-    # don't update things that are already set correctly
-    if config[DEFAULT_FACILITY] == HFIR:
-        del old_config[DEFAULT_FACILITY]
-    else:
-        config[DEFAULT_FACILITY] = HFIR
-
-    if config[DEFAULT_INSTRUMENT] == HB2B:
-        del old_config[DEFAULT_INSTRUMENT]
-    else:
-        config[DEFAULT_INSTRUMENT] = HB2B
-
-    if HFIR in config[SEARCH_ARCHIVE]:
-        del old_config[SEARCH_ARCHIVE]
-    else:
-        config[SEARCH_ARCHIVE] = HFIR
-
-    try:
-        # give back context
-        yield
-
-    finally:
-        # set properties back to original values
-        for property in old_config.keys():
-            config[property] = old_config[property]
 
 
 class ReductionController(object):
@@ -157,13 +116,8 @@ class ReductionController(object):
         -------
 
         """
-        project_dir = None
-
-        ipts_dir = ReductionController.get_ipts_from_run(run_number)
-        if ipts_dir is not None:
-            project_dir = os.path.join(ipts_dir, 'shared', 'manualreduce')
-
-        return project_dir
+        ipts_dir = get_ipts_dir(run_number)  # can throw an exception
+        return os.path.join(ipts_dir, 'shared', 'manualreduce')
 
     @staticmethod
     def get_nexus_dir(ipts_number):

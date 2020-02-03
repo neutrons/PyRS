@@ -5,6 +5,7 @@ from pyrs.interface.gui_helper import pop_message, parse_line_edit,  browse_file
 from mantidqt.utils.asynchronous import BlockingAsyncTaskWithCallback
 from pyrs.interface.manual_reduction.pyrs_api import ReductionController
 from pyrs.dataobjects.constants import HidraConstants
+from pyrs.utilities.file_util import get_ipts_dir
 
 
 class EventHandler(object):
@@ -43,9 +44,12 @@ class EventHandler(object):
         if run_number is None:
             return None
 
-        ipts_number = self._controller.get_ipts_from_run(run_number)
-
-        return ipts_number
+        try:
+            ipts_number = get_ipts_dir(run_number)
+            return ipts_number
+        except RuntimeError as e:
+            print(e)
+            return None
 
     def _set_sub_run_numbers(self, sub_runs):
         """Set sub run numbers to (1) Table and (2) Combo box
@@ -460,16 +464,12 @@ class EventHandler(object):
         None
 
         """
-        try:
-            ipts = self._controller.get_ipts_from_run(run_number)
-            if ipts is None:
-                return
-        except RuntimeError:
-            # wrong run number
-            return
-
         # new default
-        project_dir = self._controller.get_default_output_dir(run_number)
-        # set to line edit
-        if project_dir is not None:
-            self.ui.lineEdit_outputDirectory.setText(project_dir)
+        try:
+            project_dir = get_ipts_dir(run_number)
+            # set to line edit
+            if project_dir is not None:
+                self.ui.lineEdit_outputDirectory.setText(project_dir)
+        except RuntimeError as e:
+            print('Failed to find project directory for {}'.format(run_number))
+            print(e)

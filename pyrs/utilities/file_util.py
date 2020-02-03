@@ -1,14 +1,16 @@
 # Zoo of methods to work with file properties
 from __future__ import (absolute_import, division, print_function)  # python3 compatibility
-import time
-import os
-import h5py
 from . import checkdatatypes
-import platform
-from mantid.simpleapi import mtd, CreateWorkspace, SaveNexusProcessed
-from skimage import io
-from PIL import Image
+from contextlib import contextmanager
+import h5py
+from mantid import ConfigService
+from mantid.simpleapi import mtd, CreateWorkspace, GetIPTS, SaveNexusProcessed
 import numpy as np
+import os
+from PIL import Image
+import platform
+from skimage import io
+import time
 
 
 def export_md_array_hdf5(md_array, sliced_dir_list, file_name):
@@ -207,3 +209,60 @@ def get_temp_directory():
 
 # testing
 # print (check_creation_date('__init__.py'))
+@contextmanager
+def archive_search():
+    DEFAULT_FACILITY = 'default.facility'
+    DEFAULT_INSTRUMENT = 'default.instrument'
+    SEARCH_ARCHIVE = 'datasearch.searcharchive'
+    HFIR = 'HFIR'
+    HB2B = 'HB2B'
+
+    # get the old values
+    config = ConfigService.Instance()
+    old_config = {}
+    for property in [DEFAULT_FACILITY, DEFAULT_INSTRUMENT, SEARCH_ARCHIVE]:
+        old_config[property] = config[property]
+
+    # don't update things that are already set correctly
+    if config[DEFAULT_FACILITY] == HFIR:
+        del old_config[DEFAULT_FACILITY]
+    else:
+        config[DEFAULT_FACILITY] = HFIR
+
+    if config[DEFAULT_INSTRUMENT] == HB2B:
+        del old_config[DEFAULT_INSTRUMENT]
+    else:
+        config[DEFAULT_INSTRUMENT] = HB2B
+
+    if HFIR in config[SEARCH_ARCHIVE]:
+        del old_config[SEARCH_ARCHIVE]
+    else:
+        config[SEARCH_ARCHIVE] = HFIR
+
+    try:
+        # give back context
+        yield
+
+    finally:
+        # set properties back to original values
+        for property in old_config.keys():
+            config[property] = old_config[property]
+
+
+def get_ipts_dir(run_number):
+    """Get IPTS directory from run number. Throws an exception if the file wasn't found.
+
+    Parameters
+    ----------
+    run_number : int
+        run number
+
+    Returns
+    -------
+    str
+        IPTS path: example '/HFIR/HB2B/IPTS-22731/', None for not supported IPTS
+    """
+    # try with GetIPTS
+    with archive_search():
+        ipts = GetIPTS(RunNumber=run_number, Instrument='HB2B')
+    return ipts

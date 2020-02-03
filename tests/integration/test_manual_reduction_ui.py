@@ -8,35 +8,6 @@ from pyrs.interface.manual_reduction.pyrs_api import ReductionController, reduce
 import h5py
 
 
-def test_get_ipts():
-    """Test to get IPTS directory from run number
-
-    Returns
-    -------
-
-    """
-    # skip on build server
-    if os.path.exists('/HFIR/HB2B/shared/') is False:
-        pytest.skip('SNS/HFIR archive is not mounted')
-
-    # Test good
-    test_ipts_dir = ReductionController.get_ipts_from_run(1060)
-    assert test_ipts_dir == '/HFIR/HB2B/IPTS-22731/', 'IPTS dir {} is not correct for run {}' \
-                                                      ''.format(test_ipts_dir, 1060)
-
-    # Test no such run
-    test_ipts_dir = ReductionController.get_ipts_from_run(112123260)
-    assert test_ipts_dir is None
-
-    # Test exception
-    with pytest.raises(TypeError):
-        ReductionController.get_ipts_from_run(1.2)
-    with pytest.raises(ValueError):
-        ReductionController.get_ipts_from_run('1.2')
-    with pytest.raises(ValueError):
-        ReductionController.get_ipts_from_run('abc')
-
-
 def test_find_run():
     """Test to find NeXus file
 
