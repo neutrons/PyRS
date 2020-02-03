@@ -1,10 +1,11 @@
 import os
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QApplication
-from pyrs.interface.gui_helper import pop_message, parse_line_edit,  browse_file, browse_dir, parse_combo_box
+from pyrs.interface.gui_helper import pop_message, browse_file, browse_dir, parse_combo_box
 from mantidqt.utils.asynchronous import BlockingAsyncTaskWithCallback
 from pyrs.interface.manual_reduction.pyrs_api import ReductionController
 from pyrs.dataobjects.constants import HidraConstants
+from pyrs.utilities import get_default_output_dir, get_ipts_dir, get_nexus_file
 
 
 class EventHandler(object):
@@ -23,29 +24,18 @@ class EventHandler(object):
 
         # controller
         self._controller = ReductionController()
-
-        return
+        self.__last_run_number = ''
 
     @property
     def controller(self):
         return self._controller
 
-    def _retrieve_ipts_number(self):
-        """Get IPTS number from
-
-        Returns
-        -------
-        int or None
-            IPTS number
-
-        """
-        run_number = parse_line_edit(self.ui.lineEdit_runNumbersList, int, False, default=None)
-        if run_number is None:
+    def _current_runnumber(self):
+        run_number = self.ui.spinBox_runNumber.text().strip()
+        if len(run_number) == 0:
             return None
-
-        ipts_number = self._controller.get_ipts_from_run(run_number)
-
-        return ipts_number
+        else:
+            return int(run_number)
 
     def _set_sub_run_numbers(self, sub_runs):
         """Set sub run numbers to (1) Table and (2) Combo box
@@ -71,12 +61,19 @@ class EventHandler(object):
         -------
 
         """
-        # Get default directory
-        ipts_number = self._retrieve_ipts_number()
-        if ipts_number is None:
-            default_dir = self._controller.working_dir
-        else:
-            default_dir = self._controller.get_nexus_dir(ipts_number)
+        # default is current working directory
+        default_dir = self._controller.working_dir
+        try:
+            run_number = self._current_runnumber()
+            if run_number is not None:
+                default_dir = get_ipts_dir(run_number)
+                nexus_file = 'HB2B_{}.nxs.h5'.format(run_number)
+                if os.path.exists(os.path.join(default_dir, 'nexus', nexus_file)):
+                    default_dir = os.path.join(default_dir, 'nexus')
+                del nexus_file
+        except RuntimeError as e:
+            print('While looking for {}:'.format(run_number))
+            print(e)
 
         # If specified information is not sufficient, browse
         nexus_file = browse_file(self.parent,
@@ -105,12 +102,17 @@ class EventHandler(object):
         -------
 
         """
-        # Get default directory
-        ipts_number = self._retrieve_ipts_number()
-        if ipts_number is None:
-            default_dir = self._controller.working_dir
-        else:
-            default_dir = self._controller.get_hidra_project_dir(ipts_number, is_auto=True)
+        # default is current working directory
+        default_dir = self._controller.working_dir
+
+        # get default output directory for the run
+        try:
+            run_number = self._current_runnumber()
+            if run_number is not None:
+                default_dir = get_default_output_dir(self._current_runnumber())
+        except RuntimeError as e:
+            print('While looking for {}:'.format(run_number))
+            print(e)
 
         # Browse
         hidra_file = browse_file(self.parent,
@@ -118,6 +120,8 @@ class EventHandler(object):
                                  default_dir=default_dir,
                                  file_filter='HiDRA project (*.h5)',
                                  file_list=False, save_file=False)
+        if not hidra_file:
+            return
 
         # Load Nexus
         try:
@@ -140,12 +144,6 @@ class EventHandler(object):
         self.ui.rawDataTable.add_subruns_info(meta_data_array, clear_table=True)
 
     def browse_calibration_file(self):
-        """
-
-        Returns
-        -------
-
-        """
         calibration_file = browse_file(self.parent, caption='Choose and set up the calibration file',
                                        default_dir=self._controller.get_default_calibration_dir(),
                                        file_filter='hdf5 (*hdf)', file_list=False, save_file=False)
@@ -347,11 +345,12 @@ class EventHandler(object):
 
         """
         # Get run number
-        run_number = self.ui.spinBox_runNumber.text().strip()
-        # No need: self.update_output_dir(run_number)
+        run_number = self._current_runnumber()
+        if not run_number:
+            return  # no need to update
 
         # Files names: NeXus, (output) project, mask, calibration
-        nexus_file = self._controller.get_nexus_file_by_run(run_number)
+        nexus_file = get_nexus_file(run_number)
         project_file = str(self.ui.lineEdit_outputDirectory.text().strip())
         # mask file
         mask_file = str(self.ui.lineEdit_maskFile.text().strip())
@@ -443,7 +442,7 @@ class EventHandler(object):
 
         """
         if state != Qt.Unchecked:
-            self.update_run_changed(self.ui.spinBox_runNumber.value())
+            self.update_run_changed(self._current_runnumber())
         self.ui.lineEdit_outputDirectory.setEnabled(state == Qt.Unchecked)
         self.ui.pushButton_browseOutputDirectory.setEnabled(state == Qt.Unchecked)
 
@@ -460,16 +459,16 @@ class EventHandler(object):
         None
 
         """
-        try:
-            ipts = self._controller.get_ipts_from_run(run_number)
-            if ipts is None:
-                return
-        except RuntimeError:
-            # wrong run number
+        # don't do anything if the run number didn't change
+        if run_number == self.__last_run_number:
             return
 
         # new default
-        project_dir = self._controller.get_default_output_dir(run_number)
-        # set to line edit
-        if project_dir is not None:
+        try:
+            project_dir = get_default_output_dir(run_number)
+            # set to line edit
             self.ui.lineEdit_outputDirectory.setText(project_dir)
+            self.__last_run_number = run_number
+        except RuntimeError as e:
+            print('Failed to find project directory for {}'.format(run_number))
+            print(e)
