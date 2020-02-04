@@ -65,7 +65,7 @@ if __name__ == "__main__":
     main
     """
     scripts = ['scripts/pyrsplot',
-               'scripts/reduce_HB2B.py',
+               'scripts/reduce_manual_HB2B.py',
                'scripts/pyrs_calibration.py',
                'scripts/create_mask.py']
     setup(
