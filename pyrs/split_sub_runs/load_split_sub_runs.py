@@ -12,7 +12,6 @@ from mantid.kernel import BoolTimeSeriesProperty, FloatFilteredTimeSeriesPropert
 from mantid.kernel import Int32TimeSeriesProperty, Int64TimeSeriesProperty, Int32FilteredTimeSeriesProperty,\
     Int64FilteredTimeSeriesProperty
 
-
 HIDRA_PIXEL_NUMBER = 1024**2
 
 
@@ -46,6 +45,7 @@ def load_split_nexus_python(nexus_name, mask_file_name):
 
     # Split counts
     time_split_start = datetime.datetime.now()
+
     sub_run_counts = nexus_processor.split_events_sub_runs(sub_run_times, sub_runs, mask_array)
     time_split_end = datetime.datetime.now()
     print('[INFO] Sub run splitting duration = {} second from {} to {}'
@@ -74,7 +74,10 @@ def convert_pulses_to_datetime64(h5obj):
     pulse_time = pulse_time * 1.e9 * np.timedelta64(1, 'ns')
 
     # get absolute offset and convert to absolute time
-    start_time = np.datetime64(h5obj.attrs['offset'])
+    try:
+        start_time = np.datetime64(h5obj.attrs['offset'])
+    except RuntimeError:
+        start_time = np.datetime64(h5obj.attrs['start'])
 
     return pulse_time + start_time
 
@@ -152,9 +155,17 @@ class NexusProcessor(object):
             sub run (scan index) times
 
         """
-        # Get the time and value from the mantid workspace
-        scan_index_times = self._workspace.run()['scan_index'].times   # absolute times
-        scan_index_value = self._workspace.run()['scan_index'].value
+#        # Get the time and value from the mantid workspace
+#        scan_index_times = self._workspace.run()['scan_index'].times   # absolute times
+#        scan_index_value = self._workspace.run()['scan_index'].value
+
+        with h5py.File(self._nexus_name, 'r') as nexus_h5:
+            bank1_events = nexus_h5['entry']['DASlogs']
+
+            scan_index_times = bank1_events['scan_index']['time']   # absolute times
+            scan_index_value = bank1_events['scan_index']['value'][()]
+            # get pulse times
+            scan_index_times = convert_pulses_to_datetime64(scan_index_times)
 
         if scan_index_times.shape[0] <= 1:
             raise RuntimeError('Sub scan (time = {}, value = {}) is not valid'
