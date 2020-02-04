@@ -76,7 +76,7 @@ def convert_pulses_to_datetime64(h5obj):
     # get absolute offset and convert to absolute time
     try:
         start_time = np.datetime64(h5obj.attrs['offset'])
-    except RuntimeError:
+    except KeyError:
         start_time = np.datetime64(h5obj.attrs['start'])
 
     return pulse_time + start_time
