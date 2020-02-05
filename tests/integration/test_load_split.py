@@ -23,7 +23,7 @@ def test_calibration_json():
     # Verify result
     assert shift
     assert shift_error
-    assert wave_length == pytest.approx(1.456274820626443, 1E-8)
+    assert wave_length == pytest.approx(1.4499332864, 1E-8)
     assert wl_error
     assert status == 3
 
