@@ -7,7 +7,7 @@ from pyrs.split_sub_runs.load_split_sub_runs import NexusProcessor
 import os
 import pytest
 
-FILE_1017 = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5'
+FILE_1017 = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.ORIG.nxs.h5'
 
 
 def test_calibration_json():
@@ -23,7 +23,7 @@ def test_calibration_json():
     # Verify result
     assert shift
     assert shift_error
-    assert wave_length == pytest.approx(1.4499332864, 1E-8)
+    assert abs(wave_length - 1.4499332864) < 1E-8
     assert wl_error
     assert status == 3
 
