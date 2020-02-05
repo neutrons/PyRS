@@ -85,7 +85,9 @@ def test_2theta_calculation():
 
     """
     # Create geometry setup
-    test_setup = AnglerCameraDetectorGeometry(1024, 1024, 0.0003, 0.0003, 0.985, False)
+    pixel_size = 0.3 / 1024.0
+    arm_length = 0.985
+    test_setup = AnglerCameraDetectorGeometry(1024, 1024, pixel_size, pixel_size, arm_length, False)
     # Create instrument
     instrument = ResidualStressInstrument(test_setup)
 
@@ -131,7 +133,9 @@ def test_powder_pattern_engine(project_file_name, mask_file_name, gold_file):
     test_project.close()
 
     # Create geometry setup: this is the default instrument setup
-    test_setup = AnglerCameraDetectorGeometry(1024, 1024, 0.0003, 0.0003, 0.985, False)
+    pixel_size = 0.3/1024.0
+    arm_length = 0.985
+    test_setup = AnglerCameraDetectorGeometry(1024, 1024, pixel_size, pixel_size, arm_length, False)
     # Create instrument
     # instrument = ResidualStressInstrument(test_setup)
     pyrs_engine = PyHB2BReduction(test_setup, None)
