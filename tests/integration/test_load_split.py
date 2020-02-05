@@ -45,7 +45,7 @@ def test_log_time_average():
     """Test the log time average calculation"""
     processor = NexusProcessor(FILE_1017)
 
-    sub_run_times, sub_run_numbers = processor.get_sub_run_times_value()
+    sub_run_times, sub_run_numbers = processor._splitter.times, processor._splitter.subruns
 
     # verify splitting information
     # 2theta is the motor that determines the first start time
@@ -57,7 +57,7 @@ def test_log_time_average():
     np.testing.assert_equal(sub_run_times, exp_times, err_msg='subrun filtering')
 
     # split the sample logs
-    sample_logs = processor.split_sample_logs(sub_run_times, sub_run_numbers)
+    sample_logs = processor.split_sample_logs()
 
     # verify two of the properties
     np.testing.assert_allclose(sample_logs['2theta'], [69.99525,  80.,  97.50225])

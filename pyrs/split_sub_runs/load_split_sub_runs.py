@@ -8,7 +8,7 @@ from pyrs.dataobjects.constants import HidraConstants
 import datetime
 import os
 from mantid.simpleapi import mtd, DeleteWorkspace, LoadEventNexus, LoadMask
-from mantid.kernel import BoolTimeSeriesProperty, FloatFilteredTimeSeriesProperty, FloatTimeSeriesProperty
+from mantid.kernel import Logger, BoolTimeSeriesProperty, FloatFilteredTimeSeriesProperty, FloatTimeSeriesProperty
 from mantid.kernel import Int32TimeSeriesProperty, Int64TimeSeriesProperty, Int32FilteredTimeSeriesProperty,\
     Int64FilteredTimeSeriesProperty
 
@@ -35,18 +35,15 @@ def load_split_nexus_python(nexus_name, mask_file_name):
     # Init processor
     nexus_processor = NexusProcessor(nexus_name, mask_file_name)
 
-    # Get splitters
-    sub_run_times, sub_runs = nexus_processor.get_sub_run_times_value()
-
     # Split counts
     time_split_start = datetime.datetime.now()
-    sub_run_counts = nexus_processor.split_events_sub_runs(sub_run_times, sub_runs)
+    sub_run_counts = nexus_processor.split_events_sub_runs()
     time_split_end = datetime.datetime.now()
     print('[INFO] Sub run splitting duration = {} second from {} to {}'
           ''.format((time_split_end - time_split_start).total_seconds(), time_split_start, time_split_end))
 
     # Split logs
-    sample_logs = nexus_processor.split_sample_logs(sub_run_times, sub_runs)
+    sample_logs = nexus_processor.split_sample_logs()
     log_split_end = datetime.datetime.now()
     print('[INFO] Sub run splitting duration = {} second from {} to {}'
           ''.format((log_split_end - time_split_end).total_seconds(), time_split_end, log_split_end))
@@ -74,94 +71,28 @@ def convert_pulses_to_datetime64(h5obj):
     return pulse_time + start_time
 
 
-class NexusProcessor(object):
-    """
-    Class to process NeXus files in PyRS
-    """
-    def __init__(self, nexus_file_name, mask_file_name):
-        """Init
+class Splitter(object):
+    def __init__(self, runObj):
+        self._log = Logger(__name__)
 
-        Parameters
-        ----------
-        nexus_file_name : str
-            HB2B Event NeXus file name
-        """
-        self._nexus_name = nexus_file_name
+        if runObj['scan_index'].size() == 0:
+            raise RuntimeError('"scan_index" is empty')
 
-        # check and load
-        checkdatatypes.check_file_name(nexus_file_name, True, False, False, 'HB2B event NeXus file name')
+        # Get the time and value from the run object
+        scan_index_times = runObj['scan_index'].times   # absolute times
+        scan_index_value = runObj['scan_index'].value
+        # TODO add final time from pcharge logs + 1s with scan_index=0
 
-        # Create workspace for sample logs and optionally mask
-        # Load file
-        self._ws_name = os.path.basename(self._nexus_name).split('.')[0]
-        self._workspace = LoadEventNexus(Filename=self._nexus_name, OutputWorkspace=self._ws_name,
-                                         MetaDataOnly=True, LoadMonitors=False)
-        # raise an exception if there is only one scan index entry
-        # this is an underlying assumption of the rest of the code
-        if self._workspace.run()['scan_index'].size == 1:
-            # Get the time and value of 'scan_index' (entry) in H5
-            scan_index_times = self._workspace.run()['scan_index'].times
-            scan_index_value = self._workspace.run()['scan_index'].value
-            raise RuntimeError('Sub scan (time = {}, value = {}) is not valid'
-                               ''.format(scan_index_times, scan_index_value))
+        if np.unique(scan_index_value).size == 1:
+            raise RuntimeError('WARNING: only one scan_index value')  # TODO should be something else
 
-        self.mask_array = None  # TODO to promote direct access
-        if mask_file_name:
-            self.__load_mask(mask_file_name)
+        self.times = None
+        self.subruns = None
+        self.__generate_sub_run_splitter(scan_index_times, scan_index_value)
+        self.__correct_starting_scan_index_time(runObj)
+        print('****************', self.times.size, self.subruns.size)
 
-    def __del__(self):
-        if self._ws_name in mtd:
-            DeleteWorkspace(Workspace=self._ws_name)
-
-    def __load_mask(self, mask_file_name):
-        # Check input
-        checkdatatypes.check_file_name(mask_file_name, True, False, False, 'Mask XML file')
-        if self._workspace is None:
-            raise RuntimeError('Meta data only workspace {} does not exist'.format(self._ws_name))
-
-        # Load mask XML to workspace
-        mask_ws_name = os.path.basename(mask_file_name.split('.')[0])
-        mask_ws = LoadMask(Instrument='nrsf2', InputFile=mask_file_name, RefWorkspace=self._workspace,
-                           OutputWorkspace=mask_ws_name)
-
-        # Extract mask out
-        # get the Y array from mask workspace: shape = (1048576, 1)
-        self.mask_array = mask_ws.extractY().flatten()
-        # in Mantid's mask workspace: one stands delete, zero stands for keep
-        # we multiply by the value: zero is delete, one is keep
-        self.mask_array = 1 - self.mask_array.astype(int)
-
-        # clean up
-        DeleteWorkspace(Workspace=mask_ws_name)
-
-    def get_sub_run_times_value(self):
-        """Get the sample log (time and value) of sub run (aka scan indexes)
-
-        Returns
-        -------
-        numpy.ndarray, numpy.ndarray
-            sub run (scan index) times
-
-        """
-        # Get the time and value from the mantid workspace
-        scan_index_times = self._workspace.run()['scan_index'].times   # absolute times
-        scan_index_value = self._workspace.run()['scan_index'].value
-
-        if scan_index_times.shape[0] <= 1:
-            raise RuntimeError('Sub scan (time = {}, value = {}) is not valid'
-                               ''.format(scan_index_times, scan_index_value))
-
-        sub_run_times, sub_runs = self.generate_sub_run_splitter(scan_index_times, scan_index_value)
-
-        # Move start time to when interesting logs stop moving
-        corrected_value = self.correct_starting_scan_index_time(sub_run_times[0])
-        if corrected_value is not None:
-            sub_run_times[0] = corrected_value
-
-        return sub_run_times, sub_runs
-
-    @staticmethod
-    def generate_sub_run_splitter(scan_index_times, scan_index_value):
+    def __generate_sub_run_splitter(self, scan_index_times, scan_index_value):
         """Generate event splitters according to sub runs
 
         """
@@ -198,22 +129,20 @@ class NexusProcessor(object):
             sub_run_time_list.append(np.nan)
 
         # Convert from list to array
-        sub_run_times = np.array(sub_run_time_list)
-        sub_run_numbers = np.array(sub_run_value_list)
+        self.times = np.array(sub_run_time_list)
+        self.subruns = np.array(sub_run_value_list)
 
         # Sanity check
-        if sub_run_times.shape[0] % 2 == 1 or sub_run_times.shape[0] == 0:
+        if self.times.shape[0] % 2 == 1 or self.times.shape[0] == 0:
             raise RuntimeError('Algorithm error: Failed to parse\nTime: {}\nValue: {}.\n'
                                'Current resulted time ({}) is incorrect as odd/even'
-                               ''.format(scan_index_times, scan_index_value, sub_run_times))
+                               ''.format(scan_index_times, scan_index_value, self.times))
 
-        if sub_run_times.shape[0] != sub_run_numbers.shape[0] * 2:
+        if self.times.shape[0] != self.subruns.shape[0] * 2:
             raise RuntimeError('Sub run number {} and sub run times do not match (as twice)'
-                               ''.format(sub_run_numbers, sub_run_times))
+                               ''.format(self.subruns, self.times))
 
-        return sub_run_times, sub_run_numbers
-
-    def correct_starting_scan_index_time(self, start_time, abs_tolerance=0.05):
+    def __correct_starting_scan_index_time(self, runObj, abs_tolerance=0.05):
         """Correct the DAS-issue for mis-record the first scan_index/sub run before the motor is in position
 
         This goes through a subset of logs and compares when they actually
@@ -233,55 +162,100 @@ class NexusProcessor(object):
             Corrected value or None
 
         """
-        run_obj = self._workspace.run()
+        start_time = self.times[0]
         # loop through the 'special' logs
         for log_name in ['sx', 'sy', 'sz', '2theta', 'omega', 'chi', 'phi']:
-            if log_name not in run_obj:
+            if log_name not in runObj:
                 continue  # log doesn't exist - not a good one to look at
-            if log_name + 'Setpoint' not in run_obj:
+            if log_name + 'Setpoint' not in runObj:
                 continue  # log doesn't have a setpoint - not a good one to look at
-            if run_obj[log_name].size() == 1:
+            if runObj[log_name].size() == 1:
                 continue  # there is only one value
 
             # get the observed values of the log
-            observed = run_obj[log_name].value
+            observed = runObj[log_name].value
             if observed.std() <= .5 * abs_tolerance:
                 continue  # don't bother if the log is constant within half of the tolerance
 
             # look for the setpoint and find when the log first got there
             # only look at first setpoint
-            set_point = run_obj[log_name + 'Setpoint'].value[0]
-            for log_time, value in zip(run_obj[log_name].times, observed):
+            set_point = runObj[log_name + 'Setpoint'].value[0]
+            for log_time, value in zip(runObj[log_name].times, observed):
                 if abs(value - set_point) < abs_tolerance:
                     # pick the larger of what was found and the previous largest value
                     if log_time > start_time:
                         start_time = log_time
                     break
 
-        print('[DEBUG] Shift from start_time = {}'.format(np.datetime_as_string(start_time)))
+        self._log.debug('Shift from start_time {} to {}'.format(np.datetime_as_string(self.times[0]),
+                        np.datetime_as_string(start_time)))
+        self.times[0] = start_time
 
-        return start_time
 
-    def split_events_sub_runs(self, sub_run_times, sub_run_values):
-        """Split events by sub runs
-
-        Note: this filters events in the resolution of pulse time.  It is same as Mantid.FilterByLogValue
+class NexusProcessor(object):
+    """
+    Class to process NeXus files in PyRS
+    """
+    def __init__(self, nexus_file_name, mask_file_name=None):
+        """Init
 
         Parameters
         ----------
-        sub_run_times: numpy.ndarray
-            sub run times.  T[2n] = sub run start time, T[2n + 1] = sub run stop time
-        sub_run_values: numpy.ndarray
-            sub run value: V[n] = sub run number
-            V.shape[0] = T.shape[0] / 2
-
-        Returns
-        -------
-        dict
-            Dictionary of split counts for each sub runs.  key = sub run number, value = numpy.ndarray
-
+        nexus_file_name : str
+            HB2B Event NeXus file name
         """
+        self._nexus_name = nexus_file_name
 
+        # check and load
+        checkdatatypes.check_file_name(nexus_file_name, True, False, False, 'HB2B event NeXus file name')
+
+        # Create workspace for sample logs and optionally mask
+        # Load file
+        self._ws_name = os.path.basename(self._nexus_name).split('.')[0]
+        self._workspace = LoadEventNexus(Filename=self._nexus_name, OutputWorkspace=self._ws_name,
+                                         MetaDataOnly=True, LoadMonitors=False)
+        # raise an exception if there is only one scan index entry
+        # this is an underlying assumption of the rest of the code
+        if self._workspace.run()['scan_index'].size == 1:
+            # Get the time and value of 'scan_index' (entry) in H5
+            scan_index_times = self._workspace.run()['scan_index'].times
+            scan_index_value = self._workspace.run()['scan_index'].value
+            raise RuntimeError('Sub scan (time = {}, value = {}) is not valid'
+                               ''.format(scan_index_times, scan_index_value))
+
+        # object to be used for splitting times
+        self._splitter = Splitter(self._workspace.run())
+
+        self.mask_array = None  # TODO to promote direct access
+        if mask_file_name:
+            self.__load_mask(mask_file_name)
+
+    def __del__(self):
+        if self._ws_name in mtd:
+            DeleteWorkspace(Workspace=self._ws_name)
+
+    def __load_mask(self, mask_file_name):
+        # Check input
+        checkdatatypes.check_file_name(mask_file_name, True, False, False, 'Mask XML file')
+        if self._workspace is None:
+            raise RuntimeError('Meta data only workspace {} does not exist'.format(self._ws_name))
+
+        # Load mask XML to workspace
+        mask_ws_name = os.path.basename(mask_file_name.split('.')[0])
+        mask_ws = LoadMask(Instrument='nrsf2', InputFile=mask_file_name, RefWorkspace=self._workspace,
+                           OutputWorkspace=mask_ws_name)
+
+        # Extract mask out
+        # get the Y array from mask workspace: shape = (1048576, 1)
+        self.mask_array = mask_ws.extractY().flatten()
+        # in Mantid's mask workspace: one stands delete, zero stands for keep
+        # we multiply by the value: zero is delete, one is keep
+        self.mask_array = 1 - self.mask_array.astype(int)
+
+        # clean up
+        DeleteWorkspace(Workspace=mask_ws_name)
+
+    def split_events_sub_runs(self):
         # Load: this h5 will be opened all the time
         with h5py.File(self._nexus_name, 'r') as nexus_h5:
             bank1_events = nexus_h5['entry']['bank1_events']
@@ -300,10 +274,10 @@ class NexusProcessor(object):
             pulse_time_array = convert_pulses_to_datetime64(bank1_events['event_time_zero'])
 
         # Search index of sub runs' boundaries (start/stop time) in pulse time array
-        subrun_pulseindex_array = np.searchsorted(pulse_time_array, sub_run_times)
+        subrun_pulseindex_array = np.searchsorted(pulse_time_array, self._splitter.times)
 
         # split data
-        num_sub_runs = sub_run_values.shape[0]
+        num_sub_runs = self._splitter.subruns.size
         sub_run_counts_dict = dict()
 
         for i_sub_run in range(num_sub_runs):
@@ -339,47 +313,41 @@ class NexusProcessor(object):
                 assert hist.shape == self.mask_array.shape
                 hist *= self.mask_array
 
-            sub_run_counts_dict[int(sub_run_values[i_sub_run])] = hist
+            sub_run_counts_dict[int(self._splitter.subruns[i_sub_run])] = hist
 
         return sub_run_counts_dict
 
-    def split_sample_logs(self, sub_run_times, sub_run_numbers):
+    def split_sample_logs(self):
         """Create dictionary for sample log of a sub run
 
         Goal:
             1. set self._sample_log_dict[log_name][sub_run_index] with log value (single or time-averaged)
             2. set self._sample_log_dict[HidraConstants.SUB_RUN_DURATION][sub_run_index] with duration
 
-        Parameters
-        ----------
-        sub_run_times : numpy.ndarray
-            sub run times as the relative time to 'start_time'
-        sub_run_numbers : numpy.ndarray
-            sub run values
-
         Returns
         -------
 
         """
         # Check
-        if sub_run_numbers.shape[0] * 2 != sub_run_times.shape[0]:
-            raise RuntimeError('Should have twice as many times as values')
+        if self._splitter.subruns.size * 2 != self._splitter.times.size:
+            raise RuntimeError('Should have twice as many times as values 2 * {} != {}'
+                               ''.format(self._splitter.subruns.size, self._splitter.times.size))
 
         run_obj = self._workspace.run()
 
         # this contains all of the sample logs
         sample_log_dict = dict()
-        log_array_size = sub_run_numbers.shape[0]
+        log_array_size = self._splitter.subruns.shape[0]
         # loop through all available logs
         for log_name in run_obj.keys():
             # create and calculate the sample log
-            sample_log_dict[log_name] = self.split_property(run_obj.getProperty(log_name), sub_run_times,
+            sample_log_dict[log_name] = self.split_property(run_obj.getProperty(log_name), self._splitter.times,
                                                             log_array_size)
         # END-FOR
 
         # create a fictional log for duration
         if HidraConstants.SUB_RUN_DURATION not in sample_log_dict:
-            durations = (sub_run_times[1::2] - sub_run_times[::2]) / np.timedelta64(1, 's')
+            durations = (self._splitter.times[1::2] - self._splitter.times[::2]) / np.timedelta64(1, 's')
             sample_log_dict[HidraConstants.SUB_RUN_DURATION] = durations
 
         return sample_log_dict
