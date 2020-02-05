@@ -45,8 +45,9 @@ def test_background_enum():
     assert len(BackgroundFunction.getFunction('linear').native_parameters) == 2
 
 
-def check_peak_collection(peak_shape, NUM_SUBRUN, target_errors, wavelength=None, target_d_spacing_center=np.nan,
-                          target_d_spacing_center_error=np.nan):
+def check_peak_collection(peak_shape, NUM_SUBRUN, target_errors,
+                          wavelength=None, d_reference=None, target_d_spacing_center=np.nan,
+                          target_d_spacing_center_error=np.nan, target_strain=np.nan, target_strain_error=np.nan):
     """check the peak collection
 
     Parameters
@@ -79,11 +80,6 @@ def check_peak_collection(peak_shape, NUM_SUBRUN, target_errors, wavelength=None
         raw_peaks_array['Height'] = [1, 2]
         raw_peaks_array['Sigma'] = np.array([4, 5], dtype=float)
     raw_peaks_array['PeakCentre'] = [3, 4]
-
-    # background terms are both zeros
-    raw_peaks_errors = np.zeros(NUM_SUBRUN, dtype=get_parameter_dtype(peak_shape, 'Linear'))
-
-    peaks = PeakCollection('testing', peak_shape, 'Linear')
 
     # background terms are both zeros
     raw_peaks_errors = np.zeros(NUM_SUBRUN, dtype=get_parameter_dtype(peak_shape, 'Linear'))
@@ -125,6 +121,15 @@ def check_peak_collection(peak_shape, NUM_SUBRUN, target_errors, wavelength=None
     np.testing.assert_allclose(obs_dspacing, target_d_spacing_center, atol=0.01)
     np.testing.assert_allclose(obs_dspacing_errors, target_d_spacing_center_error, atol=0.01)
 
+    # check strain
+
+    if d_reference is None:
+        strain, strain_error = peaks.get_strain()
+    else:
+        strain, strain_error = peaks.get_strain(values=d_reference)
+    np.testing.assert_allclose(strain, target_strain, atol=0.01)
+    np.testing.assert_allclose(strain_error, target_strain_error, atol=0.01)
+
 
 def test_peak_collection_Gaussian():
     NUM_SUBRUN = 2
@@ -132,8 +137,9 @@ def test_peak_collection_Gaussian():
     check_peak_collection('Gaussian', NUM_SUBRUN, np.zeros(NUM_SUBRUN, dtype=get_parameter_dtype(effective=True)))
     # with wavelength
     check_peak_collection('Gaussian', NUM_SUBRUN, np.zeros(NUM_SUBRUN, dtype=get_parameter_dtype(effective=True)),
-                          wavelength=3.15, target_d_spacing_center=[1.57, 1.73],
-                          target_d_spacing_center_error=[0.0, 0.0])
+                          wavelength=3.15, d_reference=2.5, target_d_spacing_center=[1.57, 1.73],
+                          target_d_spacing_center_error=[0.0, 0.0], target_strain=[-0.378, -0.308],
+                          target_strain_error=[0.4, 0.4])
 
 
 def test_peak_collection_PseudoVoigt():
@@ -146,8 +152,9 @@ def test_peak_collection_PseudoVoigt():
     check_peak_collection('PseudoVoigt', NUM_SUBRUN, np.array([(0.0, 0.0, 4.0, 0.0, 0.0, 0.0, 1.0),
                                                                (0.0, 0.0, 5.0, 1.0, 0.0, 0.0, 2.0)],
                                                               dtype=get_parameter_dtype(effective=True)),
-                          wavelength=3.15, target_d_spacing_center=[1.57, 1.73],
-                          target_d_spacing_center_error=[0.0, 0.0])
+                          wavelength=3.15, d_reference=2.5, target_d_spacing_center=[1.57, 1.73],
+                          target_d_spacing_center_error=[0.0, 0.0], target_strain=[-0.378, -0.308],
+                          target_strain_error=[0.4, 0.4])
 
 
 if __name__ == '__main__':
