@@ -56,6 +56,10 @@ def test_log_time_average():
     np.testing.assert_equal(sub_run_numbers, [1, 2, 3], err_msg='subrun numbers')
     np.testing.assert_equal(sub_run_times, exp_times, err_msg='subrun filtering')
 
+    # previous calculations
+    exp_durations = np.array([600., 1800., 1200.])
+    np.testing.assert_almost_equal(processor._splitter.durations, exp_durations, decimal=0)
+
     # split the sample logs
     sample_logs = processor.split_sample_logs()
 

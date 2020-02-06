@@ -191,6 +191,10 @@ class Splitter(object):
                         np.datetime_as_string(start_time)))
         self.times[0] = start_time
 
+    @property
+    def durations(self):
+        return (self.times[1::2] - self.times[::2]) / np.timedelta64(1, 's')
+
 
 class NexusProcessor(object):
     """
@@ -347,8 +351,7 @@ class NexusProcessor(object):
 
         # create a fictional log for duration
         if HidraConstants.SUB_RUN_DURATION not in sample_log_dict:
-            durations = (self._splitter.times[1::2] - self._splitter.times[::2]) / np.timedelta64(1, 's')
-            sample_log_dict[HidraConstants.SUB_RUN_DURATION] = durations
+            sample_log_dict[HidraConstants.SUB_RUN_DURATION] = self._splitter.durations
 
         return sample_log_dict
 
