@@ -88,9 +88,11 @@ class Splitter(object):
 
         self.times = None
         self.subruns = None
+        self.propertyFilters = list()
+
         self.__generate_sub_run_splitter(scan_index_times, scan_index_value)
         self.__correct_starting_scan_index_time(runObj)
-        print('****************', self.times.size, self.subruns.size)
+        self._createPropertyFilters()
 
     def __generate_sub_run_splitter(self, scan_index_times, scan_index_value):
         """Generate event splitters according to sub runs
@@ -195,6 +197,22 @@ class Splitter(object):
     def durations(self):
         return (self.times[1::2] - self.times[::2]) / np.timedelta64(1, 's')
 
+    def _createPropertyFilters(self):
+        self.propertyFilters = list()
+        if self.subruns.size == 1:
+            self.propertyFilters.append(None)
+        else:
+            for subrun_index in range(self.subruns.size):
+                subrun_start_time = self.times[2 * subrun_index]
+                subrun_stop_time = self.times[2 * subrun_index + 1]
+
+                # create a Boolean time series property as the filter
+                time_filter = BoolTimeSeriesProperty('filter')
+                time_filter.addValue(subrun_start_time, True)
+                time_filter.addValue(subrun_stop_time, False)
+
+                self.propertyFilters.append(time_filter)
+
 
 class NexusProcessor(object):
     """
@@ -220,7 +238,7 @@ class NexusProcessor(object):
                                          MetaDataOnly=True, LoadMonitors=False)
         # raise an exception if there is only one scan index entry
         # this is an underlying assumption of the rest of the code
-        if self._workspace.run()['scan_index'].size == 1:
+        if self._workspace.run()['scan_index'].size() == 1:
             # Get the time and value of 'scan_index' (entry) in H5
             scan_index_times = self._workspace.run()['scan_index'].times
             scan_index_value = self._workspace.run()['scan_index'].value
@@ -345,8 +363,7 @@ class NexusProcessor(object):
         # loop through all available logs
         for log_name in run_obj.keys():
             # create and calculate the sample log
-            sample_log_dict[log_name] = self.split_property(run_obj.getProperty(log_name), self._splitter.times,
-                                                            log_array_size)
+            sample_log_dict[log_name] = self.split_property(run_obj, log_name, log_array_size)
         # END-FOR
 
         # create a fictional log for duration
@@ -355,7 +372,7 @@ class NexusProcessor(object):
 
         return sample_log_dict
 
-    def split_property(self, log_property, splitter_times, log_array_size):
+    def split_property(self, runObj, log_name, log_array_size):
         """Calculate the mean value of the sample log "within" the sub run time range
 
         Parameters
@@ -368,51 +385,49 @@ class NexusProcessor(object):
         -------
         numpy.ndarray
             split logs
-
         """
         # Init split sample logs
+        log_property = runObj[log_name]
         log_dtype = log_property.dtype()
         split_log = np.ndarray(shape=(log_array_size,), dtype=log_dtype)
 
         if isinstance(log_property.value, np.ndarray) and str(log_dtype) in ['f', 'i']:
             # Float or integer time series property: split and get time average
             for i_sb in range(log_array_size):
-                split_log[i_sb] = self._calculate_sub_run_time_average(log_property, splitter_times[2 * i_sb],
-                                                                       splitter_times[2 * i_sb + 1])
-            # END-FOR
-        elif isinstance(log_property.value, np.ndarray) and str(log_dtype) in ['f', 'i']:
-            # value is ndarray. but not float or integer: get the first value
-            split_log[:] = log_property.value[0]
-        elif isinstance(log_property.value, list):
-            # list, but not time series property: get the first value
-            split_log[:] = log_property.value[0]
+                split_log[i_sb] = self._calculate_sub_run_time_average(log_property,
+                                                                       self._splitter.propertyFilters[i_sb])
         else:
-            # single value log
-            split_log[:] = log_property.value
+            try:
+                split_log[:] = runObj.getPropertyAsSingleValue(log_name)
+            except ValueError:
+                if isinstance(log_property.value, str):
+                    split_log[:] = log_property.value
+                elif isinstance(log_property.value, list):
+                    split_log[:] = log_property.value[0]
+                else:
+                    raise ValueError('Cannot filter log "{}" of type "{}"'.format(log_name, log_dtype))
 
         return split_log
 
     @staticmethod
-    def _calculate_sub_run_time_average(log_property, sub_run_start_time, sub_run_stop_time):
-
-        # create a Boolean time series property as the filter
-        time_filter = BoolTimeSeriesProperty('filter')
-        time_filter.addValue(sub_run_start_time, True)
-        time_filter.addValue(sub_run_stop_time, False)
-
-        # filter and get time average value
-        if isinstance(log_property, FloatTimeSeriesProperty):
-            filtered_tsp = FloatFilteredTimeSeriesProperty(log_property, time_filter)
-        elif isinstance(log_property, Int32TimeSeriesProperty):
-            filtered_tsp = Int32FilteredTimeSeriesProperty(log_property, time_filter)
-        elif isinstance(log_property, Int64TimeSeriesProperty):
-            filtered_tsp = Int64FilteredTimeSeriesProperty(log_property, time_filter)
+    def _calculate_sub_run_time_average(log_property, time_filter):
+        if log_property.size() == 1:  # single value property just copy
+            time_average_value = log_property.value
+        elif time_filter is None:  # no filtering means use all values
+            time_average_value = log_property.timeAverageValue()
         else:
-            raise NotImplementedError('TSP log property {} of type {} is not supported'
-                                      ''.format(log_property.name, type(log_property)))
-        # END-IF
+            # filter and get time average value
+            if isinstance(log_property, FloatTimeSeriesProperty):
+                filtered_tsp = FloatFilteredTimeSeriesProperty(log_property, time_filter)
+            elif isinstance(log_property, Int32TimeSeriesProperty):
+                filtered_tsp = Int32FilteredTimeSeriesProperty(log_property, time_filter)
+            elif isinstance(log_property, Int64TimeSeriesProperty):
+                filtered_tsp = Int64FilteredTimeSeriesProperty(log_property, time_filter)
+            else:
+                raise NotImplementedError('TSP log property {} of type {} is not supported'
+                                          ''.format(log_property.name, type(log_property)))
 
-        time_average_value = filtered_tsp.timeAverageValue()
-        del filtered_tsp
+            time_average_value = filtered_tsp.timeAverageValue()
+            del filtered_tsp
 
         return time_average_value
