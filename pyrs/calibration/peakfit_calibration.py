@@ -304,7 +304,7 @@ class PeakFitCalibration(object):
                 s_sq = (residual**2).sum()/(len(residual)-len(x0))
                 pcov = pcov * s_sq
             else:
-                pcov = np.inf
+                pcov = np.diag([np.inf]*len(pfit))
 
             error = [0.0] * len(pfit)
             for i in range(len(pfit)):
