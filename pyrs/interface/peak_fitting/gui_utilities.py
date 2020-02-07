@@ -283,12 +283,12 @@ class GuiUtilities:
                 self.parent.ui.plot2d_yaxis_peak_label_comboBox.setVisible(False)
                 self.parent.ui.plot2d_zaxis_peak_label_comboBox.setVisible(False)
             else:
-                if xaxis_selected in LIST_AXIS_TO_PLOT['fit']:
+                if xaxis_selected in LIST_AXIS_TO_PLOT['3d_axis']:
                     self.parent.ui.plot2d_xaxis_peak_label_comboBox.setVisible(True)
                 else:
                     self.parent.ui.plot2d_xaxis_peak_label_comboBox.setVisible(False)
 
-                if yaxis_selected in LIST_AXIS_TO_PLOT['fit']:
+                if yaxis_selected in LIST_AXIS_TO_PLOT['3d_axis']:
                     self.parent.ui.plot2d_yaxis_peak_label_comboBox.setVisible(True)
                 else:
                     self.parent.ui.plot2d_yaxis_peak_label_comboBox.setVisible(False)

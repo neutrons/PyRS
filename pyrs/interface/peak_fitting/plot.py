@@ -135,11 +135,45 @@ class Plot:
         axis_y_data, axis_y_error = o_data_retriever.get_data(name=y_axis_name, peak_index=y_axis_peak_index)
         axis_z_data, axis_z_error = o_data_retriever.get_data(name=z_axis_name, peak_index=z_axis_peak_index)
 
+        array_dict = self.format_3D_axis_data(axis_x=axis_x_data, axis_y=axis_y_data, axis_z=axis_z_data)
+        x_axis = array_dict['x_axis']
+        y_axis = array_dict['y_axis']
+        z_axis = array_dict['z_axis']
+
         self.parent.ui.graphicsView_plot2D.ax.clear()
 
         self.parent.ui.graphicsView_plot2D.ax.plot(axis_x_data, axis_y_data)
         self.parent.ui.graphicsView_plot2D._myCanvas.draw()
 
+
+    def format_3D_axis_data(self, axis_x=[], axis_y=[], axis_z=[]):
+
+        axis_x_set = list(set(axis_x))
+        axis_y_set = list(set(axis_y))
+
+        axis_x_set.sort()
+        axis_y_set.sort()
+
+        list_axis_x = list(axis_x_set)
+        list_axis_y = list(axis_y_set)
+
+        size_axis_x = len(list_axis_x)
+        size_axis_y = len(list_axis_y)
+
+        array_3d = np.zeros((size_axis_x, size_axis_y)).flatten()
+        axis_xy_zip = zip(axis_x, axis_y)
+        axis_xy_meshgrid = [[_x, _y] for _x in list_axis_x for _y in list_axis_y]
+
+        for _xy in enumerate(axis_xy_meshgrid):
+            for _index, _xy_zip in enumerate(axis_xy_zip):
+                if np.array_equal(_xy, _xy_zip):
+                    array_3d[_index] = axis_z[_index]
+
+        array_3d = array_3d.reshape(size_axis_x, size_axis_y)
+
+        return {'x_axis': list_axis_x,
+                'y_axis': list_axis_y,
+                'z_axis': array_3d}
 
     def plot_1d(self):
 

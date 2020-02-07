@@ -28,6 +28,8 @@ full_dict = OrderedDict([('Sub-runs', 'subrun'),
 LIST_AXIS_TO_PLOT = {'raw': raw_dict,
                      'fit': fit_dict,
                      'full': full_dict,
+                     '3d_axis': [('sx', 'sx'), ('sy', 'sy'), ('sz', 'sz'),
+                                   ('vx', 'vx'), ('vy', 'vy'), ('vz', 'vz')]
                      }
 DEFAUT_AXIS = {'1d': {'xaxis': 'Sub-runs',
                       'yaxis': 'sx'},
