@@ -225,7 +225,7 @@ class ReductionController(object):
         raise NotImplementedError('Need use cases!')
 
     def reduce_hidra_workflow(self, nexus, output_dir, progressbar, instrument=None, calibration=None, mask=None,
-                              project_file_name=None):
+                              vanadium_file=None, project_file_name=None):
         """Full workflow to reduce NeXus file
 
         Parameters
@@ -236,6 +236,8 @@ class ReductionController(object):
         instrument
         calibration
         mask
+        vanadium_file : str or None
+            Vanadium file (reduced project file with vanadium counts at sub run 1)
         project_file_name
 
         Returns
@@ -243,7 +245,7 @@ class ReductionController(object):
 
         """
         self._curr_hidra_ws = reduce_hidra_workflow(nexus, output_dir, progressbar, instrument,
-                                                    calibration, mask, project_file_name)
+                                                    calibration, mask, vanadium_file, project_file_name)
 
         self._hidra_ws_dict[self._curr_hidra_ws.name] = self._curr_hidra_ws
 
@@ -251,7 +253,7 @@ class ReductionController(object):
 
 
 def reduce_hidra_workflow(nexus, output_dir, progressbar, instrument=None, calibration=None, mask=None,
-                          project_file_name=None):
+                          vanadium_file=None, project_file_name=None):
     """Workflow of algorithms to reduce HB2B NeXus file to powder patterns
 
     Parameters
@@ -262,7 +264,10 @@ def reduce_hidra_workflow(nexus, output_dir, progressbar, instrument=None, calib
     instrument
     calibration : str
         calibration file name
-    mask
+    mask : str or None
+        Mask file (so far, only Mantid XML file)
+    vanadium_file : str or None
+        Vanadium file (reduced project file with vanadium counts at sub run 1)
     project_file_name : str or None
         if str, then the output file name won't use the default
 
@@ -311,6 +316,7 @@ def reduce_hidra_workflow(nexus, output_dir, progressbar, instrument=None, calib
     reducer.reduce_data(instrument_file=instrument,
                         calibration_file=calibration,
                         mask=None,
+                        van_file=vanadium_file,
                         sub_runs=list(hidra_ws.get_sub_runs()))
 
     if progressbar:

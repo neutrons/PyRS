@@ -58,6 +58,7 @@ class ManualReductionWindow(QMainWindow):
         # link event handling
         self.checkBox_defaultMaskFile.stateChanged.connect(self._mask_state)
         self.ui.pushButton_browseMaskFile.clicked.connect(self.browse_mask_file)
+        self.ui.pushButton_browseVanadium.clicked.connect(self.browse_vanadium_file)
 
         # Calibration file: check box and line edit
         self._calibration_state(self.ui.checkBox_defaultCalibrationFile.checkState())
@@ -236,6 +237,16 @@ class ManualReductionWindow(QMainWindow):
         :return:
         """
         self._event_handler.browse_output_dir()
+
+    def browse_vanadium_file(self):
+        """Browse vanadium HiDRA file
+
+        Returns
+        -------
+        None
+
+        """
+        self._event_handler.browse_vanadium_file()
 
     def browse_mask_file(self):
         """

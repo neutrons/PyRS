@@ -154,7 +154,7 @@
         <item row="4" column="2">
          <widget class="QLineEdit" name="lineEdit_vanRunNumber">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="toolTip">
            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Vanadium run number (integer) for detector pixels' efficiecy correction.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -165,6 +165,13 @@
          <widget class="QLineEdit" name="lineEdit_maskFile">
           <property name="text">
            <string/>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="4">
+         <widget class="QPushButton" name="pushButton_browseVanadium">
+          <property name="text">
+           <string>Browse</string>
           </property>
          </widget>
         </item>
