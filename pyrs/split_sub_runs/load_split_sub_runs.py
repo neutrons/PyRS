@@ -277,6 +277,26 @@ class NexusProcessor(object):
         # clean up
         DeleteWorkspace(Workspace=mask_ws_name)
 
+    def _generate_subrun_event_indices(self, pulse_time_array, event_index_array, num_events):
+        # convert times to array indices
+        subrun_pulseindex_array = np.searchsorted(pulse_time_array, self._splitter.times)
+
+        # locations that are greater than the number of pixels
+        mask = subrun_pulseindex_array < event_index_array.size
+
+        # it doesn't matter what the initial values are
+        subrun_event_index = np.empty(subrun_pulseindex_array.size, dtype=subrun_pulseindex_array.dtype)
+        # standard method is mappping
+        subrun_event_index[mask] = event_index_array[subrun_pulseindex_array[mask]]
+        # things off the end should be set to consume the rest of the events
+        subrun_event_index[np.logical_not(mask)] = num_events + 1
+
+        # make sure filter is sorted
+        if not np.all(subrun_event_index[:-1] <= subrun_event_index[1:]):
+            raise RuntimeError('Filter indices are not ordered: {}'.format(subrun_event_index))
+
+        return subrun_event_index
+
     def split_events_sub_runs(self):
         # Load: this h5 will be opened all the time
         with h5py.File(self._nexus_name, 'r') as nexus_h5:
@@ -296,46 +316,27 @@ class NexusProcessor(object):
             pulse_time_array = convert_pulses_to_datetime64(bank1_events['event_time_zero'])
 
         # Search index of sub runs' boundaries (start/stop time) in pulse time array
-        subrun_pulseindex_array = np.searchsorted(pulse_time_array, self._splitter.times)
+        subrun_eventindex_array = self._generate_subrun_event_indices(pulse_time_array, event_index_array,
+                                                                      event_id_array.size)
+        # reduce memory foot print
+        del pulse_time_array, event_index_array
 
         # split data
-        num_sub_runs = self._splitter.subruns.size
         sub_run_counts_dict = dict()
 
-        for i_sub_run in range(num_sub_runs):
-            # get the start and stop index in pulse array
-            start_pulse_index = subrun_pulseindex_array[2 * i_sub_run]
-            stop_pulse_index = subrun_pulseindex_array[2 * i_sub_run + 1]
-
-            # In case of start
-            if start_pulse_index >= event_index_array.size:
-                # event ID out of boundary
-                start_event_id = event_id_array.shape[0]
-            else:
-                # get start andn stop event ID from event index array
-                start_event_id = event_index_array[start_pulse_index]
-            if stop_pulse_index >= event_index_array.size:
-                print('[WARNING] for sub run {} out of {}, stop pulse index {} is out of boundary of {}'
-                      ''.format(i_sub_run, num_sub_runs, stop_pulse_index, event_index_array.shape))
-                # stop_pulse_index = event_index_array.size - 1
-                # supposed to be the last pulse and thus use the last + 1 event ID's index
-                stop_event_id = event_id_array.shape[0]
-            else:
-                # natural one
-                stop_event_id = event_index_array[stop_pulse_index]
-
+        for subrun, start_event_index, stop_event_index in zip(self._splitter.subruns.tolist(),
+                                                               subrun_eventindex_array[::2].tolist(),
+                                                               subrun_eventindex_array[1::2].tolist()):
             # get sub set of the events falling into this range
-            sub_run_events = event_id_array[start_event_id:stop_event_id]
+            # and count the occurrence of each event ID (aka detector ID) as counts on each detector pixel
+            hist = np.bincount(event_id_array[start_event_index:stop_event_index], minlength=HIDRA_PIXEL_NUMBER)
 
-            # Count the occurrence of each event ID (aka detector ID) as counts on each detector pixel
-            hist = np.bincount(sub_run_events, minlength=HIDRA_PIXEL_NUMBER)
-
-            # Mask
+            # mask (set to zero) the pixels that are not wanted
             if self.mask_array is not None:
                 assert hist.shape == self.mask_array.shape
                 hist *= self.mask_array
 
-            sub_run_counts_dict[int(self._splitter.subruns[i_sub_run])] = hist
+            sub_run_counts_dict[int(subrun)] = hist
 
         return sub_run_counts_dict
 
