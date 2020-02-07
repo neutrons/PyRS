@@ -5,7 +5,6 @@ import h5py
 import numpy as np
 from pyrs.utilities import checkdatatypes
 from pyrs.dataobjects.constants import HidraConstants
-import datetime
 import os
 from mantid.simpleapi import mtd, DeleteWorkspace, LoadEventNexus, LoadMask
 from mantid.kernel import Logger, BoolTimeSeriesProperty, FloatFilteredTimeSeriesProperty, FloatTimeSeriesProperty
@@ -14,43 +13,6 @@ from mantid.kernel import Int32TimeSeriesProperty, Int64TimeSeriesProperty, Int3
 
 
 HIDRA_PIXEL_NUMBER = 1024**2
-
-
-def load_split_nexus_python(nexus_name, mask_file_name):
-    """Wrapping method to load and split event NeXus by sub runs
-
-    Parameters
-    ----------
-    nexus_name : str
-        NeXus file name
-    mask_file_name: str or None
-        Mantid mask file in XML
-
-    Returns
-    -------
-    dict, dict
-        counts, sample logs
-
-    """
-    # Init processor
-    nexus_processor = NexusProcessor(nexus_name, mask_file_name)
-
-    # Split counts
-    time_split_start = datetime.datetime.now()
-    sub_run_counts = nexus_processor.split_events_sub_runs()
-    time_split_end = datetime.datetime.now()
-    print('[INFO] Sub run splitting duration = {} second from {} to {}'
-          ''.format((time_split_end - time_split_start).total_seconds(), time_split_start, time_split_end))
-
-    # Split logs
-    sample_logs = nexus_processor.split_sample_logs()
-    log_split_end = datetime.datetime.now()
-    print('[INFO] Sub run splitting duration = {} second from {} to {}'
-          ''.format((log_split_end - time_split_end).total_seconds(), time_split_end, log_split_end))
-    mask_array = nexus_processor.mask_array
-    del nexus_processor  # object is no longer needed
-
-    return sub_run_counts, sample_logs, mask_array
 
 
 def convert_pulses_to_datetime64(h5obj):

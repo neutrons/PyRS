@@ -11,7 +11,7 @@ from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSet
 from pyrs.dataobjects import HidraConstants
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 from pyrs.utilities import checkdatatypes
-from pyrs.split_sub_runs.load_split_sub_runs import load_split_nexus_python
+from pyrs.split_sub_runs.load_split_sub_runs import NexusProcessor
 
 SUBRUN_LOGNAME = 'scan_index'
 
@@ -92,16 +92,22 @@ class NeXusConvertingApp(object):
         if not use_mantid:
             # Use PyRS/converter to load and split sub runs
             try:
-                sub_run_counts, self._sample_log_dict, mask_array = load_split_nexus_python(self._nexus_name,
-                                                                                            self._mask_file_name)
+                processor = NexusProcessor(self._nexus_name, self._mask_file_name)
+
                 # set counts to each sub run
+                sub_run_counts = processor.split_events_sub_runs()
                 for sub_run in sub_run_counts:
                     self._hydra_workspace.set_raw_counts(sub_run, sub_run_counts[sub_run])
-                # set mask
-                if mask_array is not None:
-                    self._hydra_workspace.set_detector_mask(mask_array, is_default=True)
-                # get sub runs
+
+                # set the sample logs# get sub runs
                 sub_runs = numpy.array(sorted(sub_run_counts.keys()))
+
+                self._sample_log_dict = processor.split_sample_logs()
+
+                # set mask
+                if processor.mask_array is not None:
+                    self._hydra_workspace.set_detector_mask(processor.mask_array, is_default=True)
+
             except RuntimeError as run_err:
                 if str(run_err).count('Sub scan') == 1 and str(run_err).count('is not valid') == 1:
                     # RuntimeError: Sub scan (time = [0.], value = [0]) is not valid
