@@ -1,55 +1,12 @@
 from __future__ import (absolute_import, division, print_function)  # python3 compatibility
-from contextlib import contextmanager
 import os
-from mantid.simpleapi import Logger, GetIPTS
-from mantid.api import FileFinder
-from mantid.kernel import ConfigService
+from mantid.simpleapi import Logger
 import numpy as np
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
 
 DEFAULT_MASK_DIRECTORY = '/HFIR/HB2B/shared/CALIBRATION/'
 DEFAULT_CALIBRATION_DIRECTORY = DEFAULT_MASK_DIRECTORY
-
-
-@contextmanager
-def archive_search():
-    DEFAULT_FACILITY = 'default.facility'
-    DEFAULT_INSTRUMENT = 'default.instrument'
-    SEARCH_ARCHIVE = 'datasearch.searcharchive'
-    HFIR = 'HFIR'
-    HB2B = 'HB2B'
-
-    # get the old values
-    config = ConfigService.Instance()
-    old_config = {}
-    for property in [DEFAULT_FACILITY, DEFAULT_INSTRUMENT, SEARCH_ARCHIVE]:
-        old_config[property] = config[property]
-
-    # don't update things that are already set correctly
-    if config[DEFAULT_FACILITY] == HFIR:
-        del old_config[DEFAULT_FACILITY]
-    else:
-        config[DEFAULT_FACILITY] = HFIR
-
-    if config[DEFAULT_INSTRUMENT] == HB2B:
-        del old_config[DEFAULT_INSTRUMENT]
-    else:
-        config[DEFAULT_INSTRUMENT] = HB2B
-
-    if HFIR in config[SEARCH_ARCHIVE]:
-        del old_config[SEARCH_ARCHIVE]
-    else:
-        config[SEARCH_ARCHIVE] = HFIR
-
-    try:
-        # give back context
-        yield
-
-    finally:
-        # set properties back to original values
-        for property in old_config.keys():
-            config[property] = old_config[property]
 
 
 class ReductionController(object):
@@ -94,116 +51,6 @@ class ReductionController(object):
 
         """
         return DEFAULT_MASK_DIRECTORY
-
-    @staticmethod
-    def get_ipts_from_run(run_number):
-        """Get IPTS number from run number
-
-        Parameters
-        ----------
-        run_number : int
-            run number
-
-        Returns
-        -------
-        str or None
-            IPTS path: example '/HFIR/HB2B/IPTS-22731/', None for not supported IPTS
-
-        """
-        # try with GetIPTS
-        try:
-            with archive_search():
-                ipts = GetIPTS(RunNumber=run_number, Instrument='HB2B')
-            return ipts
-        except RuntimeError as e:
-            print(e)
-            return None  # indicate it wasn't found
-
-    @staticmethod
-    def get_nexus_file_by_run(run_number):
-        """Get the Nexus path iin SNS data archive by run number
-
-        Parameters
-        ----------
-        run_number : int or str
-            run number
-
-        Returns
-        -------
-        str or None
-            file path to NeXus
-
-        """
-        # Find run: successful return is a size-one str array
-        try:
-            with archive_search():
-                nexus_file = FileFinder.findRuns('HB2B{}'.format(run_number))[0]
-            return nexus_file
-        except RuntimeError as e:
-            print(e)
-            return None
-
-    @staticmethod
-    def get_default_output_dir(run_number):
-        """Get default output directory for run number
-
-        Exception: RuntimeError
-
-        Parameters
-        ----------
-        run_number
-
-        Returns
-        -------
-
-        """
-        project_dir = None
-
-        ipts_dir = ReductionController.get_ipts_from_run(run_number)
-        if ipts_dir is not None:
-            project_dir = os.path.join(ipts_dir, 'shared', 'manualreduce')
-
-        return project_dir
-
-    @staticmethod
-    def get_nexus_dir(ipts_number):
-        """Get NeXus directory
-
-        Parameters
-        ----------
-        ipts_number : int
-            IPTS number
-
-        Returns
-        -------
-        str
-            path to Nexus files
-
-        """
-        return '/HFIR/HB2B/IPTS-{}/nexus'.format(ipts_number)
-
-    @staticmethod
-    def get_hidra_project_dir(ipts_number, is_auto):
-        """Get NeXus directory
-
-        Parameters
-        ----------
-        ipts_number : int
-            IPTS number
-        is_auto : bool
-            Flag for auto reduced data or manual reduced
-
-        Returns
-        -------
-        str
-            path to Nexus files
-
-        """
-        if is_auto:
-            local_dir = 'autoreduce'
-        else:
-            local_dir = 'manualreduce'
-        return '/HFIR/HB2B/IPTS-{}/shared/{}'.format(ipts_number, local_dir)
 
     def get_sub_runs(self):
         """Get sub runs of the current loaded HidraWorkspace
@@ -378,7 +225,7 @@ class ReductionController(object):
         raise NotImplementedError('Need use cases!')
 
     def reduce_hidra_workflow(self, nexus, output_dir, progressbar, instrument=None, calibration=None, mask=None,
-                              project_file_name=None):
+                              vanadium_file=None, project_file_name=None):
         """Full workflow to reduce NeXus file
 
         Parameters
@@ -389,6 +236,8 @@ class ReductionController(object):
         instrument
         calibration
         mask
+        vanadium_file : str or None
+            Vanadium file (reduced project file with vanadium counts at sub run 1)
         project_file_name
 
         Returns
@@ -396,7 +245,7 @@ class ReductionController(object):
 
         """
         self._curr_hidra_ws = reduce_hidra_workflow(nexus, output_dir, progressbar, instrument,
-                                                    calibration, mask, project_file_name)
+                                                    calibration, mask, vanadium_file, project_file_name)
 
         self._hidra_ws_dict[self._curr_hidra_ws.name] = self._curr_hidra_ws
 
@@ -404,7 +253,7 @@ class ReductionController(object):
 
 
 def reduce_hidra_workflow(nexus, output_dir, progressbar, instrument=None, calibration=None, mask=None,
-                          project_file_name=None):
+                          vanadium_file=None, project_file_name=None):
     """Workflow of algorithms to reduce HB2B NeXus file to powder patterns
 
     Parameters
@@ -413,8 +262,12 @@ def reduce_hidra_workflow(nexus, output_dir, progressbar, instrument=None, calib
     output_dir
     progressbar
     instrument
-    calibration
-    mask
+    calibration : str
+        calibration file name
+    mask : str or None
+        Mask file (so far, only Mantid XML file)
+    vanadium_file : str or None
+        Vanadium file (reduced project file with vanadium counts at sub run 1)
     project_file_name : str or None
         if str, then the output file name won't use the default
 
@@ -463,6 +316,7 @@ def reduce_hidra_workflow(nexus, output_dir, progressbar, instrument=None, calib
     reducer.reduce_data(instrument_file=instrument,
                         calibration_file=calibration,
                         mask=None,
+                        van_file=vanadium_file,
                         sub_runs=list(hidra_ws.get_sub_runs()))
 
     if progressbar:

@@ -273,6 +273,8 @@ class EventHandler:
     def fit_table_selection_changed(self):
         '''as soon as a row is selected, switch to the slider view and go to right sub_run'''
         row_selected = GuiUtilities.get_row_selected(table_ui=self.parent.ui.tableView_fitSummary)
+        if row_selected is None:
+            return
         self.parent.ui.radioButton_individualSubRuns.setChecked(True)
         self.parent.check_subRunsDisplayMode()
         self.parent.ui.horizontalScrollBar_SubRuns.setValue(row_selected+1)

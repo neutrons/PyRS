@@ -8,54 +8,6 @@ from pyrs.interface.manual_reduction.pyrs_api import ReductionController, reduce
 import h5py
 
 
-def test_get_ipts():
-    """Test to get IPTS directory from run number
-
-    Returns
-    -------
-
-    """
-    # skip on build server
-    if os.path.exists('/HFIR/HB2B/shared/') is False:
-        pytest.skip('SNS/HFIR archive is not mounted')
-
-    # Test good
-    test_ipts_dir = ReductionController.get_ipts_from_run(1060)
-    assert test_ipts_dir == '/HFIR/HB2B/IPTS-22731/', 'IPTS dir {} is not correct for run {}' \
-                                                      ''.format(test_ipts_dir, 1060)
-
-    # Test no such run
-    test_ipts_dir = ReductionController.get_ipts_from_run(112123260)
-    assert test_ipts_dir is None
-
-    # Test exception
-    with pytest.raises(TypeError):
-        ReductionController.get_ipts_from_run(1.2)
-    with pytest.raises(ValueError):
-        ReductionController.get_ipts_from_run('1.2')
-    with pytest.raises(ValueError):
-        ReductionController.get_ipts_from_run('abc')
-
-
-def test_find_run():
-    """Test to find NeXus file
-
-    Returns
-    -------
-
-    """
-    # skip on build server
-    if os.path.exists('/HFIR/HB2B/shared/') is False:
-        pytest.skip('SNS/HFIR archive is not mounted')
-
-    test_nexus = ReductionController.get_nexus_file_by_run(1017)
-    assert test_nexus == '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5'
-
-    # case for invalid run number
-    test_nexus = ReductionController.get_nexus_file_by_run(1)
-    assert test_nexus is None
-
-
 def test_default_calibration_file():
     """Test to find current/latest calibration file
 
@@ -133,6 +85,34 @@ def test_manual_reduction(nexus_file, calibration_file, mask_file, gold_file):
     os.remove(target_file_path)
 
     return
+
+
+def test_reduction_with_vanadium():
+    """Test manual reduction workflow with vanadium correction
+
+    Returns
+    -------
+
+    """
+    # Set up
+    nexus_file = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5'
+    calibration_file = 'data/HB2B_CAL_Si333.json'
+    mask_file = 'data/HB2B_Mask_12-18-19.xml'
+    vanadium_file = 'data/HB2B_931.h5'
+    output_dir = os.getcwd()
+    target_file_path = 'HB2B_1017_Cal_Mask_Van.h5'
+
+    if os.path.exists(nexus_file) is False:
+        pytest.skip('Skip as {} cannot be accessed'.format(nexus_file))
+
+    # Reduce
+    # reduce data
+    test_ws = reduce_hidra_workflow(nexus_file, output_dir, progressbar=None,
+                                    calibration=calibration_file, mask=mask_file,
+                                    vanadium_file=vanadium_file,
+                                    project_file_name=target_file_path)
+
+    assert test_ws
 
 
 def test_load_split():

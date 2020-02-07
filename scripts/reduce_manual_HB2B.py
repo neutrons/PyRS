@@ -45,7 +45,8 @@ def _nexus_to_subscans(nexusfile, projectfile, mask_file_name, save_project_file
     return hydra_ws
 
 
-def _create_powder_patterns(hidra_workspace, instrument, calibration, mask, subruns, project_file_name):
+def _create_powder_patterns(hidra_workspace, instrument, calibration, mask, subruns, project_file_name,
+                            append_mode):
     logger.notice('Adding powder patterns to Hidra Workspace{}'.format(hidra_workspace))
 
     reducer = ReductionApp(bool(options.engine == 'mantid'))
@@ -56,9 +57,10 @@ def _create_powder_patterns(hidra_workspace, instrument, calibration, mask, subr
     reducer.reduce_data(instrument_file=instrument,
                         calibration_file=calibration,
                         mask=mask,
-                        sub_runs=subruns)
+                        sub_runs=subruns,
+                        van_file=None)
 
-    reducer.save_diffraction_data(project_file_name)
+    reducer.save_diffraction_data(project_file_name, append_mode)
 
 
 def _view_raw(hidra_workspace, mask, subruns, engine):
@@ -80,13 +82,14 @@ def reduce_hidra_workflow(user_options):
     # split into sub runs fro NeXus file
     hidra_ws = _nexus_to_subscans(user_options.nexus, user_options.project,
                                   mask_file_name=user_options.mask,
-                                  save_project_file=False)
+                                  save_project_file=user_options.savecounts)
 
     if user_options.viewraw:  # plot data
         _view_raw(hidra_ws, None, user_options.subruns, user_options.engine)
     else:  # add powder patterns
         _create_powder_patterns(hidra_ws, user_options.instrument, user_options.calibration,
-                                None, user_options.subruns, user_options.project)
+                                None, user_options.subruns, user_options.project,
+                                append_mode=user_options.savecounts)
         logger.notice('Successful reduced {}'.format(user_options.nexus))
 
 
@@ -98,6 +101,8 @@ if __name__ == '__main__':
     parser.add_argument('--project',
                         help='Project file with subscans and powder patterns (default is based on'
                         ' nexus filename in <outputdir>)')
+    parser.add_argument('--savecounts', action='store_true',
+                        help='Save the counts array to the project file which will be significantly larger')
     parser.add_argument('--instrument', nargs='?', default=DEFAULT_INSTRUMENT,
                         help='instrument configuration file overriding embedded (arm, pixel number'
                         ' and size) (default=%(default)s)')

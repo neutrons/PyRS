@@ -3,5 +3,5 @@
 arm = 0.985
 rows = 1024
 columns = 1024
-pixel_size_x = 0.0003
-pixel_size_y = 0.0003
+pixel_size_x = 0.00029296875
+pixel_size_y = 0.00029296875

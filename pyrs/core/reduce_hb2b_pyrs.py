@@ -547,7 +547,7 @@ class PyHB2BReduction(object):
             # exclude mask from histogramming
             counts_array = counts_array[np.where(mask_array == 1)]
             pixel_2theta_array = pixel_2theta_array[np.where(mask_array == 1)]
-            if vanadium_counts_array:
+            if vanadium_counts_array is not None:
                 vanadium_counts_array = vanadium_counts_array[np.where(mask_array == 1)]
         else:
             # no mask: do nothing

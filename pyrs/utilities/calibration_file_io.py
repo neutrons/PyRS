@@ -59,7 +59,8 @@ def read_calibration_json_file(calibration_file_name):
 
     Returns
     -------
-    AnglerCameraDetectorShift, AnglerCameraDetectorShift, float, float, int
+    ~tuple
+        (AnglerCameraDetectorShift, AnglerCameraDetectorShift, float, float, int)
         detector position shifts as the calibration result,detector position shifts error from fitting
         status
 
