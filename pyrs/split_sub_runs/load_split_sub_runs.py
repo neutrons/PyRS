@@ -198,17 +198,14 @@ class NexusProcessor(object):
         self._ws_name = os.path.basename(self._nexus_name).split('.')[0]
         self._workspace = LoadEventNexus(Filename=self._nexus_name, OutputWorkspace=self._ws_name,
                                          MetaDataOnly=True, LoadMonitors=False)
+
         # raise an exception if there is only one scan index entry
         # this is an underlying assumption of the rest of the code
         if self._workspace.run()['scan_index'].size() == 1:
-            # Get the time and value of 'scan_index' (entry) in H5
-            scan_index_times = self._workspace.run()['scan_index'].times
-            scan_index_value = self._workspace.run()['scan_index'].value
-            raise RuntimeError('Sub scan (time = {}, value = {}) is not valid'
-                               ''.format(scan_index_times, scan_index_value))
-
-        # object to be used for splitting times
-        self._splitter = Splitter(self._workspace.run())
+            self._splitter = None
+        else:
+            # object to be used for splitting times
+            self._splitter = Splitter(self._workspace.run())
 
         self.mask_array = None  # TODO to promote direct access
         if mask_file_name:
@@ -278,27 +275,38 @@ class NexusProcessor(object):
             pulse_time_array = convert_pulses_to_datetime64(bank1_events['event_time_zero'])
 
         # Search index of sub runs' boundaries (start/stop time) in pulse time array
-        subrun_eventindex_array = self._generate_subrun_event_indices(pulse_time_array, event_index_array,
-                                                                      event_id_array.size)
+        if self._splitter:
+            subrun_eventindex_array = self._generate_subrun_event_indices(pulse_time_array, event_index_array,
+                                                                          event_id_array.size)
         # reduce memory foot print
         del pulse_time_array, event_index_array
 
         # split data
         sub_run_counts_dict = dict()
 
-        for subrun, start_event_index, stop_event_index in zip(self._splitter.subruns.tolist(),
-                                                               subrun_eventindex_array[::2].tolist(),
-                                                               subrun_eventindex_array[1::2].tolist()):
-            # get sub set of the events falling into this range
-            # and count the occurrence of each event ID (aka detector ID) as counts on each detector pixel
-            hist = np.bincount(event_id_array[start_event_index:stop_event_index], minlength=HIDRA_PIXEL_NUMBER)
+        if self._splitter:
+            for subrun, start_event_index, stop_event_index in zip(self._splitter.subruns.tolist(),
+                                                                   subrun_eventindex_array[::2].tolist(),
+                                                                   subrun_eventindex_array[1::2].tolist()):
+                # get sub set of the events falling into this range
+                # and count the occurrence of each event ID (aka detector ID) as counts on each detector pixel
+                hist = np.bincount(event_id_array[start_event_index:stop_event_index], minlength=HIDRA_PIXEL_NUMBER)
+
+                # mask (set to zero) the pixels that are not wanted
+                if self.mask_array is not None:
+                    assert hist.shape == self.mask_array.shape
+                    hist *= self.mask_array
+
+                sub_run_counts_dict[int(subrun)] = hist
+        else:
+            hist = np.bincount(event_id_array, minlength=HIDRA_PIXEL_NUMBER)
 
             # mask (set to zero) the pixels that are not wanted
             if self.mask_array is not None:
                 assert hist.shape == self.mask_array.shape
                 hist *= self.mask_array
 
-            sub_run_counts_dict[int(subrun)] = hist
+            sub_run_counts_dict[1] = hist
 
         return sub_run_counts_dict
 
@@ -313,16 +321,16 @@ class NexusProcessor(object):
         -------
 
         """
-        # Check
-        if self._splitter.subruns.size * 2 != self._splitter.times.size:
-            raise RuntimeError('Should have twice as many times as values 2 * {} != {}'
-                               ''.format(self._splitter.subruns.size, self._splitter.times.size))
-
         run_obj = self._workspace.run()
 
         # this contains all of the sample logs
         sample_log_dict = dict()
-        log_array_size = self._splitter.subruns.shape[0]
+
+        if self._splitter:
+            log_array_size = self._splitter.subruns.shape[0]
+        else:
+            log_array_size = 1
+
         # loop through all available logs
         for log_name in run_obj.keys():
             # create and calculate the sample log
@@ -331,7 +339,12 @@ class NexusProcessor(object):
 
         # create a fictional log for duration
         if HidraConstants.SUB_RUN_DURATION not in sample_log_dict:
-            sample_log_dict[HidraConstants.SUB_RUN_DURATION] = self._splitter.durations
+            if self._splitter:
+                sample_log_dict[HidraConstants.SUB_RUN_DURATION] = self._splitter.durations
+            else:
+                duration = np.ndarray(shape=(log_array_size,), dtype=float)
+                duration[0] = run_obj.getPropertyAsSingleValue('duration')
+                sample_log_dict[HidraConstants.SUB_RUN_DURATION] = duration
 
         return sample_log_dict
 
@@ -354,7 +367,7 @@ class NexusProcessor(object):
         log_dtype = log_property.dtype()
         split_log = np.ndarray(shape=(log_array_size,), dtype=log_dtype)
 
-        if isinstance(log_property.value, np.ndarray) and str(log_dtype) in ['f', 'i']:
+        if self._splitter and isinstance(log_property.value, np.ndarray) and str(log_dtype) in ['f', 'i']:
             # Float or integer time series property: split and get time average
             for i_sb in range(log_array_size):
                 split_log[i_sb] = self._calculate_sub_run_time_average(log_property,

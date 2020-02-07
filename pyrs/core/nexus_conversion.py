@@ -91,31 +91,22 @@ class NeXusConvertingApp(object):
         # This is a quick fix: TODO will make a proper refactor in future
         if not use_mantid:
             # Use PyRS/converter to load and split sub runs
-            try:
-                processor = NexusProcessor(self._nexus_name, self._mask_file_name)
+            processor = NexusProcessor(self._nexus_name, self._mask_file_name)
 
-                # set counts to each sub run
-                sub_run_counts = processor.split_events_sub_runs()
-                for sub_run in sub_run_counts:
-                    self._hydra_workspace.set_raw_counts(sub_run, sub_run_counts[sub_run])
+            # set counts to each sub run
+            sub_run_counts = processor.split_events_sub_runs()
+            for sub_run in sub_run_counts:
+                self._hydra_workspace.set_raw_counts(sub_run, sub_run_counts[sub_run])
 
-                # set the sample logs# get sub runs
-                sub_runs = numpy.array(sorted(sub_run_counts.keys()))
+            # set the sample logs# get sub runs
+            sub_runs = numpy.array(sorted(sub_run_counts.keys()))
 
-                self._sample_log_dict = processor.split_sample_logs()
+            self._sample_log_dict = processor.split_sample_logs()
 
-                # set mask
-                if processor.mask_array is not None:
-                    self._hydra_workspace.set_detector_mask(processor.mask_array, is_default=True)
-
-            except RuntimeError as run_err:
-                if str(run_err).count('Sub scan') == 1 and str(run_err).count('is not valid') == 1:
-                    # RuntimeError: Sub scan (time = [0.], value = [0]) is not valid
-                    # use Mantid to reduce
-                    use_mantid = True
-                else:
-                    # unhandled exception: re-throw
-                    raise run_err
+            # set mask
+            if processor.mask_array is not None:
+                self._hydra_workspace.set_detector_mask(processor.mask_array, is_default=True)
+            del processor
 
         if use_mantid:
             # Use Mantid algorithms to load and split sub runs
