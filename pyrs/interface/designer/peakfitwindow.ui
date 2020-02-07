@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1363</width>
+    <width>1527</width>
     <height>966</height>
    </rect>
   </property>
@@ -193,6 +193,9 @@
                    <height>200</height>
                   </size>
                  </property>
+                 <property name="contextMenuPolicy">
+                  <enum>Qt::CustomContextMenu</enum>
+                 </property>
                  <property name="alternatingRowColors">
                   <bool>true</bool>
                  </property>
@@ -200,7 +203,7 @@
                   <enum>QAbstractItemView::SingleSelection</enum>
                  </property>
                  <property name="selectionBehavior">
-                  <enum>QAbstractItemView::SelectItems</enum>
+                  <enum>QAbstractItemView::SelectRows</enum>
                  </property>
                  <attribute name="horizontalHeaderStretchLastSection">
                   <bool>true</bool>
@@ -980,8 +983,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1363</width>
-     <height>22</height>
+     <width>1527</width>
+     <height>23</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -1048,5 +1051,25 @@
  <resources>
   <include location="../../icons/icons.qrc"/>
  </resources>
- <connections/>
+ <connections>
+  <connection>
+   <sender>peak_range_table</sender>
+   <signal>customContextMenuRequested(QPoint)</signal>
+   <receiver>MainWindow</receiver>
+   <slot>peak_range_table_right_click()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>162</x>
+     <y>519</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>763</x>
+     <y>482</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+ <slots>
+  <slot>peak_range_table_right_click()</slot>
+ </slots>
 </ui>
