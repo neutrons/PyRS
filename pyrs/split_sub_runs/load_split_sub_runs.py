@@ -266,20 +266,18 @@ class NexusProcessor(object):
                 raise RuntimeError('Run {} has no count.  Proper reduction requires the run to have count'
                                    ''.format(self._nexus_name))
 
-            # get event index array: same size as pulse times
-            event_index_array = bank1_events['event_index'].value
             # detector id for the events
             event_id_array = bank1_events['event_id'].value
 
-            # get pulse times
-            pulse_time_array = convert_pulses_to_datetime64(bank1_events['event_time_zero'])
-
-        # Search index of sub runs' boundaries (start/stop time) in pulse time array
-        if self._splitter:
-            subrun_eventindex_array = self._generate_subrun_event_indices(pulse_time_array, event_index_array,
-                                                                          event_id_array.size)
-        # reduce memory foot print
-        del pulse_time_array, event_index_array
+            if self._splitter:
+                # get event index array: same size as pulse times
+                event_index_array = bank1_events['event_index'].value
+                # get pulse times
+                pulse_time_array = convert_pulses_to_datetime64(bank1_events['event_time_zero'])
+                subrun_eventindex_array = self._generate_subrun_event_indices(pulse_time_array, event_index_array,
+                                                                              event_id_array.size)
+                # reduce memory foot print
+                del pulse_time_array, event_index_array
 
         # split data
         sub_run_counts_dict = dict()
