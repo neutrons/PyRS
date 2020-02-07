@@ -193,6 +193,19 @@ class EventHandler(object):
         if output_dir != '':
             self.ui.lineEdit_outputDirectory.setText(output_dir)
 
+    def browse_vanadium_file(self):
+        """Browse vanadium HiDRA project file and set to line edit
+
+        Returns
+        -------
+
+        """
+        vanadium_file_name = browse_file(self.parent, 'HiDRA Vanadium File', self._controller.get_default_mask_dir(),
+                                         'HiDRA project(*.h5)', False, False)
+
+        if vanadium_file_name is not None and vanadium_file_name != '':
+            self.ui.lineEdit_vanRunNumber.setText(vanadium_file_name)
+
     def plot_detector_counts(self):
         """
 
@@ -360,13 +373,18 @@ class EventHandler(object):
         calibration_file = str(self.ui.lineEdit_calibrationFile.text().strip())
         if calibration_file == '':
             calibration_file = None
+        # vanadium file
+        vanadium_file = str(self.ui.lineEdit_vanRunNumber.text().strip())
+        if vanadium_file == '':
+            vanadium_file = None
 
         # Start task
         if True:
             # single thread:
             hidra_ws = self._controller.reduce_hidra_workflow(nexus_file, project_file,
                                                               self.ui.progressBar, mask=mask_file,
-                                                              calibration=calibration_file)
+                                                              calibration=calibration_file,
+                                                              vanadium_file=vanadium_file)
 
             # Update table
             # TODO - Need to fill the table!

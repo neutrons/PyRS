@@ -87,6 +87,34 @@ def test_manual_reduction(nexus_file, calibration_file, mask_file, gold_file):
     return
 
 
+def test_reduction_with_vanadium():
+    """Test manual reduction workflow with vanadium correction
+
+    Returns
+    -------
+
+    """
+    # Set up
+    nexus_file = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5'
+    calibration_file = 'data/HB2B_CAL_Si333.json'
+    mask_file = 'data/HB2B_Mask_12-18-19.xml'
+    vanadium_file = 'data/HB2B_931.h5'
+    output_dir = os.getcwd()
+    target_file_path = 'HB2B_1017_Cal_Mask_Van.h5'
+
+    if os.path.exists(nexus_file) is False:
+        pytest.skip('Skip as {} cannot be accessed'.format(nexus_file))
+
+    # Reduce
+    # reduce data
+    test_ws = reduce_hidra_workflow(nexus_file, output_dir, progressbar=None,
+                                    calibration=calibration_file, mask=mask_file,
+                                    vanadium_file=vanadium_file,
+                                    project_file_name=target_file_path)
+
+    assert test_ws
+
+
 def test_load_split():
     """Test method to load, split, convert to powder pattern and save
 
