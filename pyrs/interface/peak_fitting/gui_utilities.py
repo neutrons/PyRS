@@ -144,8 +144,12 @@ class GuiUtilities:
                    self.parent.ui.plot2d_yaxis_peak_label_comboBox,
                    self.parent.ui.plot2d_zaxis_peak_label_comboBox]
 
+        GuiUtilities.block_widgets(list_ui)
+
         GuiUtilities.clear_comboboxes(list_ui=list_ui)
         GuiUtilities.fill_comboboxes(list_ui=list_ui, list_values=list_of_labels)
+
+        GuiUtilities.unblock_widgets(list_ui)
 
     @staticmethod
     def fill_comboboxes(list_ui=[], list_values=[]):
