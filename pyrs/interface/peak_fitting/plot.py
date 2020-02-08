@@ -120,6 +120,10 @@ class Plot:
         self.parent.ui.label_SubRunsValue.setText('{}'.format(scan_value))
 
     def plot_2d(self):
+
+        print("--------->> trying to plot 2d here <<------------------------")
+        return
+
         o_gui = GuiUtilities(parent=self.parent)
         x_axis_name = str(self.parent.ui.comboBox_xaxisNames_2dplot.currentText())
         y_axis_name = str(self.parent.ui.comboBox_yaxisNames_2dplot.currentText())
@@ -135,17 +139,23 @@ class Plot:
         axis_y_data, axis_y_error = o_data_retriever.get_data(name=y_axis_name, peak_index=y_axis_peak_index)
         axis_z_data, axis_z_error = o_data_retriever.get_data(name=z_axis_name, peak_index=z_axis_peak_index)
 
+        debug_dic = {'axis_x_data': axis_x_data,
+                     'axis_y_data': axis_y_data,
+                     'axis_z_data': axis_z_data}
+        import json
+        with open("/SNS/users/j35/debug.json", 'w') as outfile:
+            json.dump(debug_dic, outfile)
+
+        return
+
         array_dict = self.format_3D_axis_data(axis_x=axis_x_data, axis_y=axis_y_data, axis_z=axis_z_data)
         x_axis = array_dict['x_axis']
         y_axis = array_dict['y_axis']
         z_axis = array_dict['z_axis']
 
         self.parent.ui.graphicsView_plot2D.ax.clear()
-
-        # self.parent.ui.graphicsView_plot2D.ax.plot([0, 1, 2, 3, 4, 5], [10, 20, 30, 20, 20, 1], '*')
-        # self.parent.ui.graphicsView_plot2D._myCanvas.draw()
-
         self.parent.ui.graphicsView_plot2D.ax.contourf(x_axis, y_axis, z_axis)
+        # plt.colorbar(self.parent.ui.graphicsView_plot2D.ax)
         self.parent.ui.graphicsView_plot2D._myCanvas.draw()
 
     def format_3D_axis_data(self, axis_x=[], axis_y=[], axis_z=[]):
@@ -162,17 +172,26 @@ class Plot:
         size_axis_x = len(list_axis_x)
         size_axis_y = len(list_axis_y)
 
-        array_3d = np.zeros((size_axis_x, size_axis_y)).flatten()
+        array_3d = np.zeros((size_axis_x, size_axis_y), dtype=np.float32).flatten()
         axis_xy_zip = zip(axis_x, axis_y)
         axis_xy_meshgrid = [[_x, _y] for _x in list_axis_x for _y in list_axis_y]
 
-        for _xy in enumerate(axis_xy_meshgrid):
+        list_of_index = []
+        for _xy in axis_xy_meshgrid:
             for _index, _xy_zip in enumerate(axis_xy_zip):
                 if np.array_equal(_xy, _xy_zip):
+                    print("found a match at index{} of _xy:{} and _xy_zip:{}".format(_index,
+                                                                                     _xy,
+                                                                                     _xy_zip))
+                    list_of_index.append(_index)
                     array_3d[_index] = axis_z[_index]
+                    break
 
+        print("set(index): {}".format(set(list_of_index)))
+        print("size is: {}".format(len(set(list_of_index))))
+        print("size of axis_y_set: {}".format(len(axis_y_set)))
+        print("size of axis_x:{} and axis_y:{}".format(len(axis_x), len(axis_y)))
         array_3d = array_3d.reshape(size_axis_x, size_axis_y)
-
         return {'x_axis': list_axis_x,
                 'y_axis': list_axis_y,
                 'z_axis': np.transpose(array_3d)}

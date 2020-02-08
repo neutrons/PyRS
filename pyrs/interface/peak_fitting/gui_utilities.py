@@ -104,7 +104,7 @@ class GuiUtilities:
 
         list_ui = [self.parent.ui.comboBox_xaxisNames,
                    self.parent.ui.comboBox_yaxisNames,
-                   self.parent.ui.comboBox_yaxisNames_2dplot,
+                   self.parent.ui.comboBox_xaxisNames_2dplot,
                    self.parent.ui.comboBox_yaxisNames_2dplot,
                    self.parent.ui.comboBox_zaxisNames_2dplot]
         GuiUtilities.block_widgets(list_ui=list_ui)
@@ -170,12 +170,17 @@ class GuiUtilities:
         self.parent.ui.comboBox_yaxisNames.setCurrentIndex(_index_yaxis)
 
     def initialize_combobox_2d(self):
+        list_ui = [self.parent.ui.comboBox_xaxisNames_2dplot,
+                   self.parent.ui.comboBox_yaxisNames_2dplot,
+                   self.parent.ui.comboBox_zaxisNames_2dplot]
+        GuiUtilities.__block_widgets(list_ui, True)
         _index_xaxis = self.parent.ui.comboBox_xaxisNames_2dplot.findText(DEFAUT_AXIS['2d']['xaxis'])
         self.parent.ui.comboBox_xaxisNames_2dplot.setCurrentIndex(_index_xaxis)
         _index_yaxis = self.parent.ui.comboBox_yaxisNames_2dplot.findText(DEFAUT_AXIS['2d']['yaxis'])
         self.parent.ui.comboBox_yaxisNames_2dplot.setCurrentIndex(_index_yaxis)
         _index_zaxis = self.parent.ui.comboBox_zaxisNames_2dplot.findText(DEFAUT_AXIS['2d']['zaxis'])
         self.parent.ui.comboBox_zaxisNames_2dplot.setCurrentIndex(_index_zaxis)
+        GuiUtilities.__block_widgets(list_ui, False)
 
     def _update_plots_1D_combobox_items(self, list_axis_to_plot=[]):
         _list_comboboxes = [self.parent.ui.comboBox_xaxisNames,
