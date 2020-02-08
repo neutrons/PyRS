@@ -124,9 +124,10 @@ def check_peak_collection(peak_shape, NUM_SUBRUN, target_errors,
     # check strain
 
     if d_reference is None:
-        strain, strain_error = peaks.get_strain()
+        peaks.set_d_reference()
     else:
-        strain, strain_error = peaks.get_strain(values=d_reference)
+        peaks.set_d_reference(values=d_reference)
+    strain, strain_error = peaks.get_strain()
     np.testing.assert_allclose(strain, target_strain, atol=0.01)
     np.testing.assert_allclose(strain_error, target_strain_error, atol=0.01)
 
@@ -139,7 +140,7 @@ def test_peak_collection_Gaussian():
     check_peak_collection('Gaussian', NUM_SUBRUN, np.zeros(NUM_SUBRUN, dtype=get_parameter_dtype(effective=True)),
                           wavelength=3.15, d_reference=2.5, target_d_spacing_center=[1.57, 1.73],
                           target_d_spacing_center_error=[0.0, 0.0], target_strain=[-0.378, -0.308],
-                          target_strain_error=[0.4, 0.4])
+                          target_strain_error=[0.0, 0.0])
 
 
 def test_peak_collection_PseudoVoigt():
@@ -154,7 +155,7 @@ def test_peak_collection_PseudoVoigt():
                                                               dtype=get_parameter_dtype(effective=True)),
                           wavelength=3.15, d_reference=2.5, target_d_spacing_center=[1.57, 1.73],
                           target_d_spacing_center_error=[0.0, 0.0], target_strain=[-0.378, -0.308],
-                          target_strain_error=[0.4, 0.4])
+                          target_strain_error=[0.0, 0.0])
 
 
 if __name__ == '__main__':

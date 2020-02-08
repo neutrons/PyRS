@@ -159,7 +159,7 @@ class PeakCollection(object):
     def get_d_reference(self):
         return self._d_reference
 
-    def set_d_reference(self, values):
+    def set_d_reference(self, values=np.nan):
         """Set d reference values
 
         Parameters
@@ -171,9 +171,12 @@ class PeakCollection(object):
         -------
 
         """
-        self._d_reference = [values] * self._sub_run_array.size
+        if isinstance(values, np.ndarray):
+            self._d_reference = values
+        else:
+            self._d_reference = np.array([values] * self._sub_run_array.size)
 
-    def get_strain(self, values=np.nan):
+    def get_strain(self):
         """get strain values and uncertainties
 
           Parameters
@@ -187,10 +190,8 @@ class PeakCollection(object):
                 A two-item tuple containing the strain and its uncertainty.
           """
         d_fitted, d_fitted_error = self.get_dspacing_center()
-        self.set_d_reference(values)
-        strain = (d_fitted - self.get_d_reference())/self.get_d_reference()
-        strain_error = np.reciprocal(self.get_d_reference())
-        strain_error = strain_error.tolist()
+        strain = (d_fitted - self._d_reference)/self._d_reference
+        strain_error = d_fitted_error/self._d_reference
         return strain, strain_error
 
     def get_native_params(self):
