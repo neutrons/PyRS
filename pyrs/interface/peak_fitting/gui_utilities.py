@@ -172,9 +172,9 @@ class GuiUtilities:
     def initialize_combobox_2d(self):
         _index_xaxis = self.parent.ui.comboBox_xaxisNames_2dplot.findText(DEFAUT_AXIS['2d']['xaxis'])
         self.parent.ui.comboBox_xaxisNames_2dplot.setCurrentIndex(_index_xaxis)
-        _index_yaxis = self.parent.ui.comboBox_xaxisNames_2dplot.findText(DEFAUT_AXIS['2d']['yaxis'])
+        _index_yaxis = self.parent.ui.comboBox_yaxisNames_2dplot.findText(DEFAUT_AXIS['2d']['yaxis'])
         self.parent.ui.comboBox_yaxisNames_2dplot.setCurrentIndex(_index_yaxis)
-        _index_zaxis = self.parent.ui.comboBox_xaxisNames_2dplot.findText(DEFAUT_AXIS['2d']['zaxis'])
+        _index_zaxis = self.parent.ui.comboBox_zaxisNames_2dplot.findText(DEFAUT_AXIS['2d']['zaxis'])
         self.parent.ui.comboBox_zaxisNames_2dplot.setCurrentIndex(_index_zaxis)
 
     def _update_plots_1D_combobox_items(self, list_axis_to_plot=[]):

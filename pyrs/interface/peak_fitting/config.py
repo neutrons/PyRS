@@ -37,6 +37,6 @@ DEFAUT_AXIS = {'1d': {'xaxis': 'Sub-runs',
                       'yaxis': 'sx'},
                '2d': {'xaxis': 'sx',
                       'yaxis': 'sy',
-                      'zaxis': 'PeakCenter'}}
+                      'zaxis': 'Peak Center'}}
 
 RAW_LIST_COLORS = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black']

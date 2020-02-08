@@ -13,8 +13,6 @@ class DataRetriever:
 
     def get_data(self, name='Sub-runs', peak_index=0):
 
-        print("name is : {}".format(name))
-
         if name == 'Sub-runs':
             return [np.array(self.hidra_workspace.get_sub_runs()), None]
 
@@ -33,6 +31,7 @@ class DataRetriever:
         :return:
         """
         value, error = peak.get_effective_params()
+
         mantid_value_to_display = FIT_DICT[value_to_display]
         value_selected = value[mantid_value_to_display]
         error_selected = error[mantid_value_to_display]

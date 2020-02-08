@@ -46,10 +46,6 @@ class MplGraphicsViewContourPlot(QWidget):
 
         self._hasImage = False
 
-        self.ax.plot([0,1,2,3,4,5], [10,20,30,20,20,1], '*')
-        self._myCanvas.draw()
-
-
     def add_arrow(self, start_x, start_y, stop_x, stop_y):
         """
 

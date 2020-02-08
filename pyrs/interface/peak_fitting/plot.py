@@ -142,7 +142,10 @@ class Plot:
 
         self.parent.ui.graphicsView_plot2D.ax.clear()
 
-        self.parent.ui.graphicsView_plot2D.ax.plot(axis_x_data, axis_y_data)
+        # self.parent.ui.graphicsView_plot2D.ax.plot([0, 1, 2, 3, 4, 5], [10, 20, 30, 20, 20, 1], '*')
+        # self.parent.ui.graphicsView_plot2D._myCanvas.draw()
+
+        self.parent.ui.graphicsView_plot2D.ax.contourf(x_axis, y_axis, z_axis)
         self.parent.ui.graphicsView_plot2D._myCanvas.draw()
 
     def format_3D_axis_data(self, axis_x=[], axis_y=[], axis_z=[]):
@@ -172,7 +175,7 @@ class Plot:
 
         return {'x_axis': list_axis_x,
                 'y_axis': list_axis_y,
-                'z_axis': array_3d}
+                'z_axis': np.transpose(array_3d)}
 
     def plot_1d(self):
 
