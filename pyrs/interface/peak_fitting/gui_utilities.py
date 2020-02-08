@@ -121,20 +121,14 @@ class GuiUtilities:
 
         if fill_raw:
             _list_axis_to_plot = LIST_AXIS_TO_PLOT['raw']
-            print("filling raw")
-            print(_list_axis_to_plot)
-            print("------------")
-            self._update_plots_combobox_items(list_axis_to_plot=_list_axis_to_plot)
+            self._update_plots_1D_combobox_items(list_axis_to_plot=_list_axis_to_plot)
 
         if fill_fit:
             _list_axis_to_plot = LIST_AXIS_TO_PLOT['fit']
-            self._update_plots_combobox_items(list_axis_to_plot=_list_axis_to_plot)
+            self._update_plots_1D_combobox_items(list_axis_to_plot=_list_axis_to_plot)
+            self._update_plots_2D_combobox_items()
 
         GuiUtilities.unblock_widgets(list_ui=list_ui)
-
-        # enabled the 1D and 2D plot widgets
-        self.enabled_1dplot_widgets(enabled=True)
-        self.enabled_2dplot_widgets(enabled=True)
 
     def initialize_combobox(self):
         self.initialize_combobox_1d()
@@ -183,14 +177,24 @@ class GuiUtilities:
         _index_zaxis = self.parent.ui.comboBox_xaxisNames_2dplot.findText(DEFAUT_AXIS['2d']['zaxis'])
         self.parent.ui.comboBox_zaxisNames_2dplot.setCurrentIndex(_index_zaxis)
 
-    def _update_plots_combobox_items(self, list_axis_to_plot=[]):
+    def _update_plots_1D_combobox_items(self, list_axis_to_plot=[]):
         _list_comboboxes = [self.parent.ui.comboBox_xaxisNames,
-                            self.parent.ui.comboBox_yaxisNames,
-                            self.parent.ui.comboBox_xaxisNames_2dplot,
-                            self.parent.ui.comboBox_yaxisNames_2dplot,
-                            self.parent.ui.comboBox_zaxisNames_2dplot]
+                            self.parent.ui.comboBox_yaxisNames]
         for sample_log in list_axis_to_plot:
             for _ui in _list_comboboxes:
+                _ui.addItem(sample_log)
+            self.parent._sample_log_name_set.add(sample_log)
+
+    def _update_plots_2D_combobox_items(self):
+        _list_xy_comboboxes = [self.parent.ui.comboBox_xaxisNames_2dplot,
+                               self.parent.ui.comboBox_yaxisNames_2dplot]
+        _list_z_comboboxes = [self.parent.ui.comboBox_zaxisNames_2dplot]
+        for sample_log in LIST_AXIS_TO_PLOT['3d_axis']['xy_axis']:
+            for _ui in _list_xy_comboboxes:
+                _ui.addItem(sample_log)
+            self.parent._sample_log_name_set.add(sample_log)
+        for sample_log in LIST_AXIS_TO_PLOT['3d_axis']['z_axis']:
+            for _ui in _list_z_comboboxes:
                 _ui.addItem(sample_log)
             self.parent._sample_log_name_set.add(sample_log)
 

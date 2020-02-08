@@ -49,6 +49,7 @@ class Fit:
         o_gui.set_1D_2D_axis_comboboxes(with_clear=True, fill_raw=True, fill_fit=True)
         o_gui.initialize_combobox()
         o_gui.enabled_export_csv_widgets(enabled=True)
+        o_gui.enabled_2dplot_widgets(enabled=True)
 
         QApplication.restoreOverrideCursor()
 

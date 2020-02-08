@@ -145,7 +145,6 @@ class Plot:
         self.parent.ui.graphicsView_plot2D.ax.plot(axis_x_data, axis_y_data)
         self.parent.ui.graphicsView_plot2D._myCanvas.draw()
 
-
     def format_3D_axis_data(self, axis_x=[], axis_y=[], axis_z=[]):
 
         axis_x_set = list(set(axis_x))
