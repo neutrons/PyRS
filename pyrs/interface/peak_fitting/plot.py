@@ -150,22 +150,33 @@ class Plot:
         z_axis = array_dict['z_axis']
 
         self.parent.ui.graphicsView_plot2D.ax.clear()
-        # self.parent.ui.graphicsView_plot2D.ax.contourf(x_axis, y_axis, z_axis)
-        # # plt.colorbar(self.parent.ui.graphicsView_plot2D.ax)
-        # self.parent.ui.graphicsView_plot2D._myCanvas.draw()
+        if self.parent.ui.graphicsView_plot2D.colorbar:
+            self.parent.ui.graphicsView_plot2D.colorbar.remove()
+            self.parent.ui.graphicsView_plot2D.colorbar = None
 
-        from mpl_toolkits.mplot3d import Axes3D
-        from matplotlib import cm
+        if self.parent.ui.radioButton_contour.isChecked():
+            self.parent.ui.graphicsView_plot2D.ax.contourf(x_axis, y_axis, z_axis)
+            # plt.colorbar(self.parent.ui.graphicsView_plot2D.ax)
+            self.parent.ui.graphicsView_plot2D._myCanvas.draw()
 
-        X, Y = np.meshgrid(x_axis, y_axis)
+        elif self.parent.ui.radioButton_3dline.isChecked():
+            from mpl_toolkits.mplot3d import Axes3D
+            from matplotlib import cm
 
-        self.parent.ui.graphicsView_plot2D.ax = self.parent.ui.graphicsView_plot2D.figure.gca(projection='3d')
-        my_plot = self.parent.ui.graphicsView_plot2D.ax.plot_surface(X, Y, z_axis,
-                                                                     cmap=cm.coolwarm,
-                                                                     linewidth=0,
-                                                                     antialiased=False)
-        self.parent.ui.graphicsView_plot2D.figure.colorbar(my_plot, shrink=0.5, aspect=5)
-        self.parent.ui.graphicsView_plot2D._myCanvas.draw()
+            x, y = np.meshgrid(x_axis, y_axis)
+
+            self.parent.ui.graphicsView_plot2D.ax = self.parent.ui.graphicsView_plot2D.figure.gca(projection='3d')
+            my_plot = self.parent.ui.graphicsView_plot2D.ax.plot_surface(x, y, z_axis,
+                                                                         cmap=cm.coolwarm,
+                                                                         linewidth=0,
+                                                                         antialiased=False)
+            self.parent.ui.graphicsView_plot2D.colorbar = self.parent.ui.graphicsView_plot2D.figure.colorbar(my_plot, shrink=0.5, aspect=5)
+            self.parent.ui.graphicsView_plot2D._myCanvas.draw()
+
+        else:
+            self.parent.ui.graphicsView_plot2D.ax.scatter(axis_x_data, axis_y_data, axis_z_data)
+            # plt.colorbar(self.parent.ui.graphicsView_plot2D.ax)
+            self.parent.ui.graphicsView_plot2D._myCanvas.draw()
 
     def format_3D_axis_data(self, axis_x=[], axis_y=[], axis_z=[]):
 
