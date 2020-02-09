@@ -1,7 +1,6 @@
 from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import numpy as np
-from matplotlib.figure import Figure
-import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D   # noqa: F401
 
 from pyrs.interface.gui_helper import parse_integers
 from pyrs.interface.gui_helper import pop_message
@@ -136,13 +135,13 @@ class Plot:
         axis_y_data, axis_y_error = o_data_retriever.get_data(name=y_axis_name, peak_index=y_axis_peak_index)
         axis_z_data, axis_z_error = o_data_retriever.get_data(name=z_axis_name, peak_index=z_axis_peak_index)
 
-        str_axis_x_data = [str(_value) for _value in axis_x_data]
-        str_axis_y_data = [str(_value) for _value in axis_y_data]
-        str_axis_z_data = [str(_value) for _value in axis_z_data]
-
-        debug_dic = {'axis_x_data': str_axis_x_data,
-                     'axis_y_data': str_axis_y_data,
-                     'axis_z_data': str_axis_z_data}
+        # str_axis_x_data = [str(_value) for _value in axis_x_data]
+        # str_axis_y_data = [str(_value) for _value in axis_y_data]
+        # str_axis_z_data = [str(_value) for _value in axis_z_data]
+        #
+        # debug_dic = {'axis_x_data': str_axis_x_data,
+        #              'axis_y_data': str_axis_y_data,
+        #              'axis_z_data': str_axis_z_data}
 
         array_dict = self.format_3D_axis_data(axis_x=axis_x_data, axis_y=axis_y_data, axis_z=axis_z_data)
         x_axis = array_dict['x_axis']
@@ -156,11 +155,11 @@ class Plot:
 
         if self.parent.ui.radioButton_contour.isChecked():
             my_plot = self.parent.ui.graphicsView_plot2D.ax.contourf(x_axis, y_axis, z_axis)
-            self.parent.ui.graphicsView_plot2D.colorbar = self.parent.ui.graphicsView_plot2D.figure.colorbar(my_plot)
+            self.parent.ui.graphicsView_plot2D.colorbar = \
+                self.parent.ui.graphicsView_plot2D.figure.colorbar(my_plot)
             self.parent.ui.graphicsView_plot2D._myCanvas.draw()
 
         elif self.parent.ui.radioButton_3dline.isChecked():
-            from mpl_toolkits.mplot3d import Axes3D
             from matplotlib import cm
 
             x, y = np.meshgrid(x_axis, y_axis)
@@ -171,13 +170,10 @@ class Plot:
                                                                          linewidth=0,
                                                                          antialiased=False)
             self.parent.ui.graphicsView_plot2D.colorbar = self.parent.ui.graphicsView_plot2D.figure.colorbar(my_plot)
-            # self.parent.ui.graphicsView_plot2D.colorbar = self.parent.ui.graphicsView_plot2D.figure.colorbar(my_plot, shrink=0.5, aspect=5)
             self.parent.ui.graphicsView_plot2D._myCanvas.draw()
 
         else:
-            from mpl_toolkits.mplot3d import Axes3D
             my_plot = self.parent.ui.graphicsView_plot2D.ax.scatter(axis_x_data, axis_y_data, axis_z_data)
-            # self.parent.ui.graphicsView_plot2D.colorbar = self.parent.ui.graphicsView_plot2D.figure.colorbar(my_plot)
             self.parent.ui.graphicsView_plot2D._myCanvas.draw()
 
     def format_3D_axis_data(self, axis_x=[], axis_y=[], axis_z=[]):

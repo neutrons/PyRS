@@ -10,7 +10,6 @@ class DataRetriever:
         self.parent = parent
         self.hidra_workspace = self.parent.hidra_workspace
 
-
     def get_data(self, name='Sub-runs', peak_index=0):
 
         if name == 'Sub-runs':
@@ -21,7 +20,7 @@ class DataRetriever:
 
         if name in LIST_AXIS_TO_PLOT['fit'].keys():
             return self.get_fitted_value(peak=self.parent.fit_result.peakcollections[peak_index],
-                                  value_to_display=name)
+                                         value_to_display=name)
 
     def get_fitted_value(self, peak=None, value_to_display='Center'):
         """
