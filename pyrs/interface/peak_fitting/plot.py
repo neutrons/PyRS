@@ -150,8 +150,21 @@ class Plot:
         z_axis = array_dict['z_axis']
 
         self.parent.ui.graphicsView_plot2D.ax.clear()
-        self.parent.ui.graphicsView_plot2D.ax.contourf(x_axis, y_axis, z_axis)
-        # plt.colorbar(self.parent.ui.graphicsView_plot2D.ax)
+        # self.parent.ui.graphicsView_plot2D.ax.contourf(x_axis, y_axis, z_axis)
+        # # plt.colorbar(self.parent.ui.graphicsView_plot2D.ax)
+        # self.parent.ui.graphicsView_plot2D._myCanvas.draw()
+
+        from mpl_toolkits.mplot3d import Axes3D
+        from matplotlib import cm
+
+        X, Y = np.meshgrid(x_axis, y_axis)
+
+        self.parent.ui.graphicsView_plot2D.ax = self.parent.ui.graphicsView_plot2D.figure.gca(projection='3d')
+        my_plot = self.parent.ui.graphicsView_plot2D.ax.plot_surface(X, Y, z_axis,
+                                                                     cmap=cm.coolwarm,
+                                                                     linewidth=0,
+                                                                     antialiased=False)
+        self.parent.ui.graphicsView_plot2D.figure.colorbar(my_plot, shrink=0.5, aspect=5)
         self.parent.ui.graphicsView_plot2D._myCanvas.draw()
 
     def format_3D_axis_data(self, axis_x=[], axis_y=[], axis_z=[]):
