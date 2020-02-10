@@ -20,6 +20,9 @@
       <property name="orientation">
        <enum>Qt::Horizontal</enum>
       </property>
+      <property name="handleWidth">
+       <number>7</number>
+      </property>
       <widget class="QSplitter" name="splitter_4">
        <property name="orientation">
         <enum>Qt::Vertical</enum>
