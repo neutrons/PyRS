@@ -224,6 +224,8 @@ class Plot:
 
         self.parent.ui.graphicsView_fitResult.reset_viewer()
 
+        # try:
+
         # get the sample log/meta data name
         o_gui = GuiUtilities(parent=self.parent)
         x_axis_name = str(self.parent.ui.comboBox_xaxisNames.currentText())
@@ -254,6 +256,10 @@ class Plot:
                                                                axis_y_data,
                                                                x_axis_name,
                                                                y_axis_name)
+        # except:
+        #     pop_message(self, 'Failed to load {}'.format(hidra_file_name),
+        #                 str(run_err), 'error')
+
 
     def get_function_parameter_data(self, param_name):
         """ get the parameter function data
