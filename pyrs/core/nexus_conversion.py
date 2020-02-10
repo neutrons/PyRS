@@ -408,7 +408,7 @@ class NeXusConvertingApp(object):
                 sample_log_dict[HidraConstants.SUB_RUN_DURATION] = duration
 
         # set the logs on the hidra workspace
-        for log_name, log_value in sample_log_dict.iteritems():
+        for log_name, log_value in sample_log_dict.items():
             if log_name in ['scan_index', HidraConstants.SUB_RUNS]:
                 continue  # skip 'SUB_RUNS'
             self._hidra_workspace.set_sample_log(log_name, subruns, log_value)
