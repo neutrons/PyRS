@@ -123,6 +123,7 @@ class SummaryGenerator(object):
     def _classify_logs(self, sample_logs, tolerance):
         self._constant_logs = [logname for logname in sample_logs.constant_logs(tolerance)
                                if logname in self._sample_log_list]
+        self._constant_logs.sort()  # keep the order stable for python3 tests
 
         # loop through all of the requested logs and classify as present or missing
         for logname in self._sample_log_list:

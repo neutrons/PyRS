@@ -7,6 +7,7 @@ from pyrs.core.workspaces import HidraWorkspace
 from pyrs.core.peak_profile_utility import pseudo_voigt, PeakShape, BackgroundFunction
 from pyrs.core.peak_profile_utility import Gaussian, PseudoVoigt
 import pytest
+import sys
 
 # set to True when running on build servers
 ON_TRAVIS = (os.environ.get('TRAVIS', 'false').upper() == 'TRUE')
@@ -578,7 +579,7 @@ def test_3_gaussian_3_subruns(target_values):
 
 
 # pseudo-Voigt peak fitting only works on mantid versions with https://github.com/mantidproject/mantid/pull/27809
-@pytest.mark.skipif(ON_TRAVIS, reason='Need mantid version > 4.2.20200128')
+@pytest.mark.skipif(ON_TRAVIS and sys.version_info.major == 2, reason='Need mantid version > 4.2.20200128')
 @pytest.mark.parametrize("setup_1_subrun", [{'peak_profile_type': 'PseudoVoigt', 'min_x': 75., 'max_x': 85.,
                                              'num_x': 500, 'peak_center': [80.], 'peak_range': [10. * 0.25],
                                              'peak_intensities':[100.]}], indirect=True)
