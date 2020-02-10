@@ -1,7 +1,9 @@
 <RCC>
   <qresource prefix="fitting">
     <file>horizontal_splitter.png</file>
+    <file>horizontal_splitter_short.png</file>
     <file>vertical_splitter.png</file>
+    <file>vertical_splitter_short.png</file>
     <file>warning_icon.png</file>
   </qresource>
 </RCC>

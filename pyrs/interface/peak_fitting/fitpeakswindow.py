@@ -25,7 +25,9 @@ else:
     raise RuntimeError('Do not know pyqt version')
 
 VERTICAL_SPLITTER = """QSplitter::handle {image: url(':/fitting/vertical_splitter.png'); }"""
+VERTICAL_SPLITTER_SHORT = """QSplitter::handle {image: url(':/fitting/vertical_splitter_short.png'); }"""
 HORIZONTAL_SPLITTER = """QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }"""
+HORIZONTAL_SPLITTER_SHORT = """QSplitter::handle {image: url(':/fitting/horizontal_splitter_short.png'); }"""
 
 MICROSTRAIN = u"\u212B"
 D0 = u"d\u2080"
@@ -280,12 +282,12 @@ class FitPeaksWindow(QMainWindow):
         self.ui.actionSave.setEnabled(False)
         self.ui.actionSaveAs.setEnabled(False)
 
-        self.ui.splitter_4.setStyleSheet(VERTICAL_SPLITTER)
-        self.ui.splitter_4.setSizes([100, 0])
+        self.ui.splitter.setStyleSheet(VERTICAL_SPLITTER_SHORT)
         self.ui.splitter_2.setStyleSheet(HORIZONTAL_SPLITTER)
-        self.ui.splitter_2.setSizes([100, 0])
-        self.ui.splitter_3.setStyleSheet(HORIZONTAL_SPLITTER)
-        # self.ui.splitter.setStyleSheet(HORIZONTAL_SPLITTER)
+        self.ui.splitter_4.setStyleSheet(HORIZONTAL_SPLITTER)
+        self.ui.splitter_5.setStyleSheet(HORIZONTAL_SPLITTER)
+        self.ui.splitter_3.setStyleSheet(VERTICAL_SPLITTER)
+        self.ui.splitter_3.setSizes([80, 20])
 
         # status bar
         self.setStyleSheet("QStatusBar{padding-left:8px;color:green;}")
@@ -302,6 +304,10 @@ class FitPeaksWindow(QMainWindow):
         o_gui = GuiUtilities(parent=self)
         o_gui.make_visible_d01d_widgets(visible=False)
         o_gui.make_visible_d02d_widgets(visible=False)
+
+        # until issue with plot3d has been found
+        self.ui.radioButton_contour.setEnabled(False)
+        self.ui.radioButton_3dline.setEnabled(False)
 
     def do_launch_adv_fit(self):
         """

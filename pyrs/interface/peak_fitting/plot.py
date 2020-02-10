@@ -1,5 +1,6 @@
 from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import numpy as np
+from matplotlib import cm
 from mpl_toolkits.mplot3d import Axes3D   # noqa: F401
 
 from pyrs.interface.gui_helper import parse_integers
@@ -157,6 +158,7 @@ class Plot:
 
         if self.parent.ui.radioButton_contour.isChecked():
 
+            self.parent.ui.graphicsView_plot2D.ax = self.parent.ui.graphicsView_plot2D.figure.gca()
             my_plot = self.parent.ui.graphicsView_plot2D.ax.contourf(x_axis, y_axis, z_axis)
 
             self.parent.ui.graphicsView_plot2D.colorbar = \
@@ -167,7 +169,6 @@ class Plot:
             self.parent.ui.graphicsView_plot2D.ax.set_ylabel(y_axis_name)
 
         elif self.parent.ui.radioButton_3dline.isChecked():
-            from matplotlib import cm
 
             x, y = np.meshgrid(x_axis, y_axis)
 
@@ -181,10 +182,20 @@ class Plot:
             self.parent.ui.graphicsView_plot2D.ax.set_ylabel(y_axis_name)
             self.parent.ui.graphicsView_plot2D.ax.set_zlabel(z_axis_name)
 
+            # maybe look at projections on the wall (matplotlib.org/gallery/mplot3d/contour3d_3.html)
+            self.parent.ui.graphicsView_plot2D.ax.contour(x, y, z_axis, zdir='z', offset=np.nanmin(z_axis),
+                                                          cmap=cm.coolwarm)
+            self.parent.ui.graphicsView_plot2D.ax.contour(x, y, z_axis, zdir='y', offset=np.nanmax(y),
+                                                          cmap=cm.coolwarm)
+            self.parent.ui.graphicsView_plot2D.ax.contour(x, y, z_axis, zdir='x', offset=np.nanmax(x),
+                                                          cmap=cm.coolwarm)
+
             self.parent.ui.graphicsView_plot2D._myCanvas.draw()
 
         else:
-            my_plot = self.parent.ui.graphicsView_plot2D.ax.scatter(axis_x_data, axis_y_data, axis_z_data)
+
+            self.parent.ui.graphicsView_plot2D.ax = self.parent.ui.graphicsView_plot2D.figure.gca(projection='3d')
+            self.parent.ui.graphicsView_plot2D.ax.scatter(axis_x_data, axis_y_data, axis_z_data)
             self.parent.ui.graphicsView_plot2D._myCanvas.draw()
 
             self.parent.ui.graphicsView_plot2D.ax.set_xlabel(x_axis_name)

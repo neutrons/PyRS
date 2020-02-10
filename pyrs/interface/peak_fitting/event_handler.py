@@ -46,6 +46,9 @@ class EventHandler:
         except RuntimeError as run_err:
             pop_message(self, 'Failed to load {}'.format(hidra_file_name),
                         str(run_err), 'error')
+        except KeyError as key_err:
+            pop_message(self, 'Failed to load {}'.format(hidra_file_name),
+                        str(key_err), 'error')
 
         self.parent.current_root_statusbar_message = "Working with: {} " \
                                                      "\t\t\t\t Project Name: {}" \
