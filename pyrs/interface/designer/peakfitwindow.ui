@@ -764,13 +764,13 @@
                  <property name="minimumSize">
                   <size>
                    <width>0</width>
-                   <height>75</height>
+                   <height>110</height>
                   </size>
                  </property>
                  <property name="maximumSize">
                   <size>
                    <width>16777215</width>
-                   <height>75</height>
+                   <height>110</height>
                   </size>
                  </property>
                  <property name="frameShape">

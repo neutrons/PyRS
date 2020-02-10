@@ -135,18 +135,13 @@ class Plot:
         axis_y_data, axis_y_error = o_data_retriever.get_data(name=y_axis_name, peak_index=y_axis_peak_index)
         axis_z_data, axis_z_error = o_data_retriever.get_data(name=z_axis_name, peak_index=z_axis_peak_index)
 
-        # str_axis_x_data = [str(_value) for _value in axis_x_data]
-        # str_axis_y_data = [str(_value) for _value in axis_y_data]
-        # str_axis_z_data = [str(_value) for _value in axis_z_data]
-        #
-        # debug_dic = {'axis_x_data': str_axis_x_data,
-        #              'axis_y_data': str_axis_y_data,
-        #              'axis_z_data': str_axis_z_data}
-
         array_dict = self.format_3D_axis_data(axis_x=axis_x_data, axis_y=axis_y_data, axis_z=axis_z_data)
         x_axis = array_dict['x_axis']
         y_axis = array_dict['y_axis']
         z_axis = array_dict['z_axis']
+
+        if len(x_axis) < 2:
+            return
 
         self.parent.ui.graphicsView_plot2D.ax.clear()
         if self.parent.ui.graphicsView_plot2D.colorbar:
@@ -154,10 +149,15 @@ class Plot:
             self.parent.ui.graphicsView_plot2D.colorbar = None
 
         if self.parent.ui.radioButton_contour.isChecked():
+
             my_plot = self.parent.ui.graphicsView_plot2D.ax.contourf(x_axis, y_axis, z_axis)
+
             self.parent.ui.graphicsView_plot2D.colorbar = \
                 self.parent.ui.graphicsView_plot2D.figure.colorbar(my_plot)
             self.parent.ui.graphicsView_plot2D._myCanvas.draw()
+
+            self.parent.ui.graphicsView_plot2D.ax.set_xlabel(x_axis_name)
+            self.parent.ui.graphicsView_plot2D.ax.set_ylabel(y_axis_name)
 
         elif self.parent.ui.radioButton_3dline.isChecked():
             from matplotlib import cm
@@ -170,11 +170,19 @@ class Plot:
                                                                          linewidth=0,
                                                                          antialiased=False)
             self.parent.ui.graphicsView_plot2D.colorbar = self.parent.ui.graphicsView_plot2D.figure.colorbar(my_plot)
+            self.parent.ui.graphicsView_plot2D.ax.set_xlabel(x_axis_name)
+            self.parent.ui.graphicsView_plot2D.ax.set_ylabel(y_axis_name)
+            self.parent.ui.graphicsView_plot2D.ax.set_zlabel(z_axis_name)
+
             self.parent.ui.graphicsView_plot2D._myCanvas.draw()
 
         else:
             my_plot = self.parent.ui.graphicsView_plot2D.ax.scatter(axis_x_data, axis_y_data, axis_z_data)
             self.parent.ui.graphicsView_plot2D._myCanvas.draw()
+
+            self.parent.ui.graphicsView_plot2D.ax.set_xlabel(x_axis_name)
+            self.parent.ui.graphicsView_plot2D.ax.set_ylabel(y_axis_name)
+            self.parent.ui.graphicsView_plot2D.ax.set_zlabel(z_axis_name)
 
     def format_3D_axis_data(self, axis_x=[], axis_y=[], axis_z=[]):
 
@@ -199,27 +207,6 @@ class Plot:
                 if np.array_equal(_xy, _xy_zip):
                     array3d[_index] = axis_z[_index]
                     break
-
-        # list_axis_x = list(set(axis_x))
-        # list_axis_y = list(set(axis_y))
-        #
-        # list_axis_x.sort()
-        # list_axis_y.sort()
-        #
-        # size_axis_x = len(list_axis_x)
-        # size_axis_y = len(list_axis_y)
-        #
-        # array_3d = np.zeros((size_axis_x, size_axis_y), dtype=np.float32).flatten()
-        # axis_xy_zip = list(zip(axis_x, axis_y))
-        # axis_xy_meshgrid = [[_x, _y] for _x in list_axis_x for _y in list_axis_y]
-        #
-        # list_of_index = []
-        # for _xy in axis_xy_meshgrid:
-        #     for _index, _xy_zip in enumerate(axis_xy_zip):
-        #         if np.array_equal(_xy, _xy_zip):
-        #             list_of_index.append(_index)
-        #             array_3d[_index] = axis_z[_index]
-        #             break
 
         array_3d = np.reshape(array3d, (size_set_x, size_set_y))
         return {'x_axis': list(set_axis_x_data),
@@ -260,6 +247,7 @@ class Plot:
                                                                axis_y_data,
                                                                x_axis_name,
                                                                y_axis_name)
+
 
     def get_function_parameter_data(self, param_name):
         """ get the parameter function data
