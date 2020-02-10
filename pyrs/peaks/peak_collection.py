@@ -11,7 +11,7 @@ class PeakCollection(object):
     """
     Object to contain peak parameters (names and values) of a collection of peaks for sub runs
     """
-    def __init__(self, peak_tag, peak_profile, background_type, wavelength=np.nan):
+    def __init__(self, peak_tag, peak_profile, background_type, wavelength=np.nan, d_reference=np.nan):
         """Initialization
 
         Parameters
@@ -31,6 +31,7 @@ class PeakCollection(object):
         self._peak_profile = PeakShape.getShape(peak_profile)
         self._background_type = BackgroundFunction.getFunction(background_type)
         self._wavelength = wavelength
+        self._d_reference = d_reference
 
         # sub run numbers: 1D array
         self._sub_run_array = SubRuns()
@@ -154,6 +155,44 @@ class PeakCollection(object):
         self._params_error_array = self.__convertParameters(parameter_errors)
         self._fit_cost_array = np.copy(fit_costs)
         self.__set_fit_status()
+
+    def get_d_reference(self):
+        return self._d_reference
+
+    def set_d_reference(self, values=np.nan):
+        """Set d reference values
+
+        Parameters
+        ----------
+        values :
+            1D numpy array or floats
+
+        Returns
+        -------
+
+        """
+        if isinstance(values, np.ndarray):
+            self._d_reference = values
+        else:
+            self._d_reference = np.array([values] * self._sub_run_array.size)
+
+    def get_strain(self):
+        """get strain values and uncertainties
+
+          Parameters
+          ----------
+          values :
+              1D numpy array or floats
+
+          Returns
+          -------
+            tuple
+                A two-item tuple containing the strain and its uncertainty.
+          """
+        d_fitted, d_fitted_error = self.get_dspacing_center()
+        strain = (d_fitted - self._d_reference)/self._d_reference
+        strain_error = d_fitted_error/self._d_reference
+        return strain, strain_error
 
     def get_native_params(self):
         return self._params_value_array, self._params_error_array
