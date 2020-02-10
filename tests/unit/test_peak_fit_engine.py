@@ -302,7 +302,8 @@ def test_1_gaussian_1_subrun(setup_1_subrun, fit_domain):
     """
     # initialize fit engine
     fit_engine = PeakFitEngineFactory.getInstance(setup_1_subrun['workspace'], peak_function_name='Gaussian',
-                                                  background_function_name='Linear', out_of_plane_angle=None)
+                                                  background_function_name='Linear', wavelength=np.nan,
+                                                  out_of_plane_angle=None)
 
     # Fit
     peak_tag = 'UnitTestGaussian'
@@ -360,7 +361,7 @@ def test_2_gaussian_1_subrun(setup_1_subrun, fit_domain):
 
     """
     fit_engine = PeakFitEngineFactory.getInstance(setup_1_subrun['workspace'], peak_function_name='Gaussian',
-                                                  background_function_name='Linear')
+                                                  background_function_name='Linear', wavelength=np.nan)
 
     # Fit
 
@@ -443,7 +444,7 @@ def test_2_gaussian_3_subruns(target_values):
 
     # Fit
     fit_engine = PeakFitEngineFactory.getInstance(test_hd_ws, peak_function_name='Gaussian',
-                                                  background_function_name='Linear')
+                                                  background_function_name='Linear', wavelength=np.nan)
     fit_result = fit_engine.fit_multiple_peaks(peak_tags=['Left', 'Right'],
                                                x_mins=(72.5, 77.5), x_maxs=(77.5, 82.5))
 
@@ -554,7 +555,7 @@ def test_3_gaussian_3_subruns(target_values):
 
     # Fit
     fit_engine = PeakFitEngineFactory.getInstance(test_hd_ws, peak_function_name='Gaussian',
-                                                  background_function_name='Linear')
+                                                  background_function_name='Linear', wavelength=np.nan)
     fit_result = fit_engine.fit_multiple_peaks(peak_tags=['Left', 'Middle', 'Right'],
                                                x_mins=(72.5, 77.5, 82.5),
                                                x_maxs=(77.5, 82.5, 87.5))
@@ -595,7 +596,7 @@ def test_1_pv_1_subrun(setup_1_subrun, fit_domain):
     # Generate test workspace and initialize fit engine
 
     fit_engine = PeakFitEngineFactory.getInstance(setup_1_subrun['workspace'], peak_function_name='PseudoVoigt',
-                                                  background_function_name='Linear')
+                                                  background_function_name='Linear', wavelength=np.nan)
 
     # Fit
     peak_tag = 'UnitTestPseudoVoigt'
