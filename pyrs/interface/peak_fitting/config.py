@@ -28,11 +28,15 @@ full_dict = OrderedDict([('Sub-runs', 'subrun'),
 LIST_AXIS_TO_PLOT = {'raw': raw_dict,
                      'fit': fit_dict,
                      'full': full_dict,
+                     '3d_axis': {'xy_axis': OrderedDict([('sx', 'sx'), ('sy', 'sy'), ('sz', 'sz'),
+                                                         ('vx', 'vx'), ('vy', 'vy'), ('vz', 'vz')]),
+                                 'z_axis': fit_dict,
+                                 },
                      }
 DEFAUT_AXIS = {'1d': {'xaxis': 'Sub-runs',
                       'yaxis': 'sx'},
-               '2d': {'xaxis': 'Sub-runs',
-                      'yaxis': 'sx',
-                      'zaxis': 'sy'}}
+               '2d': {'xaxis': 'sx',
+                      'yaxis': 'sy',
+                      'zaxis': 'Peak Center'}}
 
 RAW_LIST_COLORS = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black']

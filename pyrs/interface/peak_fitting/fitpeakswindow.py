@@ -5,6 +5,7 @@ from qtpy import QtGui, PYQT4, PYQT5
 from pyrs.utilities import load_ui
 from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.diffdataviews import GeneralDiffDataView
+from pyrs.interface.ui.mplgraphicsviewcontourplot import MplGraphicsViewContourPlot
 from pyrs.interface.ui.rstables import FitResultTable
 from pyrs.interface.ui.diffdataviews import PeakFitSetupView
 import pyrs.interface.advpeakfitdialog
@@ -70,8 +71,10 @@ class FitPeaksWindow(QMainWindow):
                                                                 GeneralDiffDataView)
         self.ui.graphicsView_fitResult.setEnabled(False)
         self.ui.graphicsView_fitResult.set_subplots(1, 1)
+        # self.ui.graphicsView_plot2D = qt_util.promote_widget(self, self.ui.graphicsView_2dPlot_frame,
+        #                                                      GeneralDiffDataView)
         self.ui.graphicsView_plot2D = qt_util.promote_widget(self, self.ui.graphicsView_2dPlot_frame,
-                                                             GeneralDiffDataView)
+                                                             MplGraphicsViewContourPlot)
         self.ui.tableView_fitSummary = qt_util.promote_widget(self, self.ui.tableView_fitSummary_frame,
                                                               FitResultTable)
         self._promote_peak_fit_setup()
@@ -112,6 +115,10 @@ class FitPeaksWindow(QMainWindow):
         self.ui.plot2d_xaxis_peak_label_comboBox.currentIndexChanged.connect(self.axis_2d_changed)
         self.ui.plot2d_yaxis_peak_label_comboBox.currentIndexChanged.connect(self.axis_2d_changed)
         self.ui.plot2d_zaxis_peak_label_comboBox.currentIndexChanged.connect(self.axis_2d_changed)
+
+        self.ui.radioButton_contour.clicked.connect(self.axis_2d_changed)
+        self.ui.radioButton_3dline.clicked.connect(self.axis_2d_changed)
+        self.ui.radioButton_3dscatter.clicked.connect(self.axis_2d_changed)
 
         self.ui.peak_range_table.cellChanged.connect(self.peak_range_table_changed)
 
@@ -205,6 +212,8 @@ class FitPeaksWindow(QMainWindow):
     def axis_2d_changed(self):
         o_gui = GuiUtilities(parent=self)
         o_gui.check_axis2d_status()
+        o_plot = Plot(parent=self)
+        o_plot.plot_2d()
 
     def export_csv(self):
         o_export = ExportCSV(parent=self)
@@ -216,8 +225,7 @@ class FitPeaksWindow(QMainWindow):
         o_handle.update_fit_peak_ranges_table(**kwargs)
 
     def update_list_of_2d_plots_axis(self):
-        print("in update_list_of_2d_plots_axis")
-        print(self.fit_result.fitted)
+        pass
 
     def _promote_peak_fit_setup(self):
         # 2D detector view

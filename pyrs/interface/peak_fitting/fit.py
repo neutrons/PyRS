@@ -42,13 +42,19 @@ class Fit:
         fit_result = fit_engine.fit_multiple_peaks(_peak_tag_list,
                                                    _peak_xmin_list,
                                                    _peak_xmax_list)
+        self.parent.fit_result = fit_result
+
         self.parent.populate_fit_result_table(fit_result=fit_result)
-        self.parent.update_list_of_2d_plots_axis()
+        # self.parent.update_list_of_2d_plots_axis()
 
         o_gui = GuiUtilities(parent=self.parent)
         o_gui.set_1D_2D_axis_comboboxes(with_clear=True, fill_raw=True, fill_fit=True)
         o_gui.initialize_combobox()
         o_gui.enabled_export_csv_widgets(enabled=True)
+        o_gui.enabled_2dplot_widgets(enabled=True)
+
+        o_plot = Plot(parent=self.parent)
+        o_plot.plot_2d()
 
         QApplication.restoreOverrideCursor()
 

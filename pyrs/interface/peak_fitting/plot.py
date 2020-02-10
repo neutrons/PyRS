@@ -1,10 +1,12 @@
 from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import numpy as np
+from mpl_toolkits.mplot3d import Axes3D   # noqa: F401
 
 from pyrs.interface.gui_helper import parse_integers
 from pyrs.interface.gui_helper import pop_message
 from pyrs.dataobjects import HidraConstants
-from pyrs.interface.peak_fitting.config import fit_dict
+from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
+from pyrs.interface.peak_fitting.data_retriever import DataRetriever
 
 from pyrs.interface.peak_fitting.config import LIST_AXIS_TO_PLOT
 
@@ -87,6 +89,13 @@ class Plot:
             y_array = self.parent.fit_result.fitted.readY(sub_run_index)
             self.parent._ui_graphicsView_fitSetup.plot_fitted_data(x_array, y_array)
 
+            err_x_array = self.parent.fit_result.difference.readX(sub_run_index)
+            err_y_array = self.parent.fit_result.difference.readY(sub_run_index)
+            self.parent._ui_graphicsView_fitSetup.plot_fitting_diff_data(x_axis=err_x_array, y_axis=err_y_array)
+            # self.parent._ui_graphicsView_fitSetup.plot_model_data(diff_data_set=model_data_set,
+            #                                                       model_label='fit',
+            #                                                       residual_set=residual_data_set)
+
         # # Plot fitted model data
         # model_data_set = None
         # if plot_model:
@@ -116,90 +125,135 @@ class Plot:
 
         self.parent.ui.label_SubRunsValue.setText('{}'.format(scan_value))
 
+    def plot_2d(self):
+
+        o_gui = GuiUtilities(parent=self.parent)
+        x_axis_name = str(self.parent.ui.comboBox_xaxisNames_2dplot.currentText())
+        y_axis_name = str(self.parent.ui.comboBox_yaxisNames_2dplot.currentText())
+        z_axis_name = str(self.parent.ui.comboBox_zaxisNames_2dplot.currentText())
+
+        x_axis_peak_index = o_gui.get_plot2d_axis_peak_label_index(axis='x')
+        y_axis_peak_index = o_gui.get_plot2d_axis_peak_label_index(axis='y')
+        z_axis_peak_index = o_gui.get_plot2d_axis_peak_label_index(axis='z')
+
+        o_data_retriever = DataRetriever(parent=self.parent)
+
+        axis_x_data, axis_x_error = o_data_retriever.get_data(name=x_axis_name, peak_index=x_axis_peak_index)
+        axis_y_data, axis_y_error = o_data_retriever.get_data(name=y_axis_name, peak_index=y_axis_peak_index)
+        axis_z_data, axis_z_error = o_data_retriever.get_data(name=z_axis_name, peak_index=z_axis_peak_index)
+
+        array_dict = self.format_3D_axis_data(axis_x=axis_x_data, axis_y=axis_y_data, axis_z=axis_z_data)
+        x_axis = array_dict['x_axis']
+        y_axis = array_dict['y_axis']
+        z_axis = array_dict['z_axis']
+
+        if len(x_axis) < 2:
+            return
+
+        self.parent.ui.graphicsView_plot2D.ax.clear()
+        if self.parent.ui.graphicsView_plot2D.colorbar:
+            self.parent.ui.graphicsView_plot2D.colorbar.remove()
+            self.parent.ui.graphicsView_plot2D.colorbar = None
+
+        if self.parent.ui.radioButton_contour.isChecked():
+
+            my_plot = self.parent.ui.graphicsView_plot2D.ax.contourf(x_axis, y_axis, z_axis)
+
+            self.parent.ui.graphicsView_plot2D.colorbar = \
+                self.parent.ui.graphicsView_plot2D.figure.colorbar(my_plot)
+            self.parent.ui.graphicsView_plot2D._myCanvas.draw()
+
+            self.parent.ui.graphicsView_plot2D.ax.set_xlabel(x_axis_name)
+            self.parent.ui.graphicsView_plot2D.ax.set_ylabel(y_axis_name)
+
+        elif self.parent.ui.radioButton_3dline.isChecked():
+            from matplotlib import cm
+
+            x, y = np.meshgrid(x_axis, y_axis)
+
+            self.parent.ui.graphicsView_plot2D.ax = self.parent.ui.graphicsView_plot2D.figure.gca(projection='3d')
+            my_plot = self.parent.ui.graphicsView_plot2D.ax.plot_surface(x, y, z_axis,
+                                                                         cmap=cm.coolwarm,
+                                                                         linewidth=0,
+                                                                         antialiased=False)
+            self.parent.ui.graphicsView_plot2D.colorbar = self.parent.ui.graphicsView_plot2D.figure.colorbar(my_plot)
+            self.parent.ui.graphicsView_plot2D.ax.set_xlabel(x_axis_name)
+            self.parent.ui.graphicsView_plot2D.ax.set_ylabel(y_axis_name)
+            self.parent.ui.graphicsView_plot2D.ax.set_zlabel(z_axis_name)
+
+            self.parent.ui.graphicsView_plot2D._myCanvas.draw()
+
+        else:
+            my_plot = self.parent.ui.graphicsView_plot2D.ax.scatter(axis_x_data, axis_y_data, axis_z_data)
+            self.parent.ui.graphicsView_plot2D._myCanvas.draw()
+
+            self.parent.ui.graphicsView_plot2D.ax.set_xlabel(x_axis_name)
+            self.parent.ui.graphicsView_plot2D.ax.set_ylabel(y_axis_name)
+            self.parent.ui.graphicsView_plot2D.ax.set_zlabel(z_axis_name)
+
+    def format_3D_axis_data(self, axis_x=[], axis_y=[], axis_z=[]):
+
+        set_axis_x_data = set(axis_x)
+        set_axis_y_data = set(axis_y)
+
+        size_set_x = len(set_axis_x_data)
+        size_set_y = len(set_axis_y_data)
+
+        set_x = list(set_axis_x_data)
+        set_y = list(set_axis_y_data)
+
+        set_x.sort()
+        set_y.sort()
+
+        array3d = np.zeros((size_set_x, size_set_y), dtype=np.float32).flatten()
+        axis_xy_meshgrid = [[_x, _y] for _x in set_x for _y in set_y]
+        axis_xy_zip = list(zip(axis_x, axis_y))
+
+        for _xy in axis_xy_meshgrid:
+            for _index, _xy_zip in enumerate(axis_xy_zip):
+                if np.array_equal(_xy, _xy_zip):
+                    array3d[_index] = axis_z[_index]
+                    break
+
+        array_3d = np.reshape(array3d, (size_set_x, size_set_y))
+        return {'x_axis': list(set_axis_x_data),
+                'y_axis': list(set_axis_y_data),
+                'z_axis': np.transpose(array_3d)}
+
     def plot_1d(self):
 
         self.parent.ui.graphicsView_fitResult.reset_viewer()
 
         # get the sample log/meta data name
+        o_gui = GuiUtilities(parent=self.parent)
         x_axis_name = str(self.parent.ui.comboBox_xaxisNames.currentText())
         y_axis_name = str(self.parent.ui.comboBox_yaxisNames.currentText())
-        x_axis_peak_index = self.parent.ui.plot1d_xaxis_peak_label_comboBox.currentIndex()
-        y_axis_peak_index = self.parent.ui.plot1d_yaxis_peak_label_comboBox.currentIndex()
+        x_axis_peak_index = o_gui.get_plot1d_axis_peak_label_index(is_xaxis=True)
+        y_axis_peak_index = o_gui.get_plot1d_axis_peak_label_index(is_xaxis=False)
 
-        hidra_workspace = self.parent.hidra_workspace
-        if x_axis_name == 'Sub-runs':
-            axis_x = np.array(hidra_workspace.get_sub_runs())
-            if y_axis_name == 'Sub-runs':
-                axis_y = np.array(hidra_workspace.get_sub_runs())
-            elif y_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
-                axis_y = hidra_workspace._sample_logs[y_axis_name]
-            elif y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
-                value, error = self.get_fitted_value(peak=self.parent.fit_result.peakcollections[y_axis_peak_index],
-                                                     value_to_display=y_axis_name)
-                self.parent.ui.graphicsView_fitResult.plot_scatter_with_errors(vec_x=axis_x, vec_y=value,
-                                                                               vec_y_error=error,
-                                                                               x_label=x_axis_name,
-                                                                               y_label=y_axis_name)
-                return
-            else:
-                raise NotImplementedError("y_axis choice not supported yet: {}".format(y_axis_name))
-        elif x_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
-            axis_x = hidra_workspace._sample_logs[x_axis_name]
-            if y_axis_name == 'Sub-runs':
-                axis_y = np.array(hidra_workspace.get_sub_runs())
-            elif y_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
-                axis_y = hidra_workspace._sample_logs[y_axis_name]
-            elif y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
-                value, error = self.get_fitted_value(peak=self.parent.fit_result.peakcollections[y_axis_peak_index],
-                                                     value_to_display=y_axis_name)
-                self.parent.ui.graphicsView_fitResult.plot_scatter_with_errors(vec_x=axis_x, vec_y=value,
-                                                                               vec_y_error=error,
-                                                                               x_label=x_axis_name,
-                                                                               y_label=y_axis_name)
-                return
-            else:
-                raise NotImplementedError("y_axis choice not supported yet: {}!".format(y_axis_name))
-        elif x_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
-            axis_x, error_x = self.get_fitted_value(peak=self.parent.fit_result.peakcollections[x_axis_peak_index],
-                                                    value_to_display=x_axis_name)
-            if y_axis_name == 'Sub-runs':
-                axis_y = np.array(hidra_workspace.get_sub_runs())
-                error_y = None
-            elif y_axis_name in LIST_AXIS_TO_PLOT['raw'].keys():
-                axis_y = hidra_workspace._sample_logs[y_axis_name]
-                error_y = None
-            elif y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys():
-                axis_y, error_y = self.get_fitted_value(peak=self.parent.fit_result.peakcollections[y_axis_peak_index],
-                                                        value_to_display=y_axis_name)
-            else:
-                raise NotImplementedError("y_axis choice not supported yet: {}!".format(y_axis_name))
+        o_data_retriever = DataRetriever(parent=self.parent)
 
-            self.parent.ui.graphicsView_fitResult.plot_scatter_with_errors(vec_x=axis_x, vec_y=axis_y,
-                                                                           vec_x_error=error_x,
-                                                                           vec_y_error=error_y,
+        is_plot_with_error = False
+
+        axis_x_data, axis_x_error = o_data_retriever.get_data(name=x_axis_name, peak_index=x_axis_peak_index)
+        axis_y_data, axis_y_error = o_data_retriever.get_data(name=y_axis_name, peak_index=y_axis_peak_index)
+
+        if ((x_axis_name in LIST_AXIS_TO_PLOT['fit'].keys()) or
+                (y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys())):
+            is_plot_with_error = True
+
+        if is_plot_with_error:
+            self.parent.ui.graphicsView_fitResult.plot_scatter_with_errors(vec_x=axis_x_data,
+                                                                           vec_y=axis_y_data,
+                                                                           vec_x_error=axis_x_error,
+                                                                           vec_y_error=axis_y_error,
                                                                            x_label=x_axis_name,
                                                                            y_label=y_axis_name)
-
-            return
-
         else:
-            raise NotImplementedError("x_axis choice not supported yet: {}!".format(x_axis_name))
-
-        self.parent.ui.graphicsView_fitResult.plot_scatter(axis_x, axis_y,
-                                                           'sub_runs', y_axis_name)
-
-    def get_fitted_value(self, peak=None, value_to_display='Center'):
-        """
-        return the values and errors of the fitted parameters of the given peak
-        :param peak:
-        :param value_to_display:
-        :return:
-        """
-        value, error = peak.get_effective_params()
-        mantid_value_to_display = fit_dict[value_to_display]
-        value_selected = value[mantid_value_to_display]
-        error_selected = error[mantid_value_to_display]
-        return value_selected, error_selected
+            self.parent.ui.graphicsView_fitResult.plot_scatter(axis_x_data,
+                                                               axis_y_data,
+                                                               x_axis_name,
+                                                               y_axis_name)
 
     def get_function_parameter_data(self, param_name):
         """ get the parameter function data
@@ -207,39 +261,10 @@ class Plot:
         :return:
         """
 
-        print(param_name)
-
         # get data key
         if self.parent._project_name is None:
             pop_message(self, 'No data loaded', 'error')
             return
-
-        # fitted_peak = self.parent._core._peak_fitting_dict[self.parent._project_name]
-        # from pyrs.core import peak_profile_utility
-
-        # param_set = fitted_peak.get_effective_parameters_values()
-        # eff_params_list, sub_run_array, fit_cost_array, eff_param_value_array, eff_param_error_array = param_set
-
-        # retrieve Center: EFFECTIVE_PEAK_PARAMETERS = ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
-        # i_center = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS.index('Center')
-        # centers = eff_param_value_array[i_center]
-
-        # retrieve Height
-        # i_height = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS.index('Height')
-        # heights = eff_param_value_array[i_height]
-
-        # retrieve intensity
-        # i_intensity = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS.index('Intensity')
-        # intensities = eff_param_value_array[i_intensity]
-
-        # retrieve FWHM
-        # i_fwhm = peak_profile_utility.EFFECTIVE_PEAK_PARAMETERS.index('FWHM')
-        # fwhms = eff_param_value_array[i_fwhm]
-
-        # import pprint
-        # pprint.pprint("fwhms: {}".format(fwhms))
-
-        return
 
         param_names, param_data = self.parent._core.get_peak_fitting_result(self.parent._project_name,
                                                                             0,
