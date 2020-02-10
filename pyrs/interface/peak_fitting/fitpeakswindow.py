@@ -287,7 +287,7 @@ class FitPeaksWindow(QMainWindow):
         self.ui.splitter_4.setStyleSheet(HORIZONTAL_SPLITTER)
         self.ui.splitter_5.setStyleSheet(HORIZONTAL_SPLITTER)
         self.ui.splitter_3.setStyleSheet(VERTICAL_SPLITTER)
-        self.ui.splitter_3.setSizes([100, 0])
+        self.ui.splitter_3.setSizes([80, 20])
 
         # status bar
         self.setStyleSheet("QStatusBar{padding-left:8px;color:green;}")
@@ -304,6 +304,10 @@ class FitPeaksWindow(QMainWindow):
         o_gui = GuiUtilities(parent=self)
         o_gui.make_visible_d01d_widgets(visible=False)
         o_gui.make_visible_d02d_widgets(visible=False)
+
+        # until issue with plot3d has been found
+        self.ui.radioButton_contour.setEnabled(False)
+        self.ui.radioButton_3dline.setEnabled(False)
 
     def do_launch_adv_fit(self):
         """
