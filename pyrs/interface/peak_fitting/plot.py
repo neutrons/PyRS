@@ -231,7 +231,7 @@ class Plot:
         axis_x_data, axis_x_error = o_data_retriever.get_data(name=x_axis_name, peak_index=x_axis_peak_index)
         axis_y_data, axis_y_error = o_data_retriever.get_data(name=y_axis_name, peak_index=y_axis_peak_index)
 
-        if ((x_axis_name in LIST_AXIS_TO_PLOT['fit'].keys()) or \
+        if ((x_axis_name in LIST_AXIS_TO_PLOT['fit'].keys()) or
                 (y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys())):
             is_plot_with_error = True
 
@@ -247,7 +247,6 @@ class Plot:
                                                                axis_y_data,
                                                                x_axis_name,
                                                                y_axis_name)
-
 
     def get_function_parameter_data(self, param_name):
         """ get the parameter function data
