@@ -3,7 +3,7 @@ from pyrs.projectfile import HidraProjectFile
 from pyrs.utilities import calibration_file_io
 from pyrs.core import workspaces
 import numpy as np
-from pyrs.split_sub_runs.load_split_sub_runs import NexusProcessor
+from pyrs.core.nexus_conversion import NeXusConvertingApp
 import os
 import pytest
 
@@ -43,7 +43,7 @@ def test_calibration_json():
 @pytest.mark.skipif(not os.path.exists(FILE_1017), reason='File {} is not accessible'.format(FILE_1017))
 def test_log_time_average():
     """Test the log time average calculation"""
-    processor = NexusProcessor(FILE_1017)
+    processor = NeXusConvertingApp(FILE_1017)
 
     sub_run_times, sub_run_numbers = processor._splitter.times, processor._splitter.subruns
 
