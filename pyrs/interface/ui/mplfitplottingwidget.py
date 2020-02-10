@@ -244,6 +244,7 @@ class MplFitPlottingWidget(QWidget):
         self._color = color
         self._data_set = data_set
         self._line_label = line_label
+        self._diff_data_set = data_set
 
         data_line_id = self._myCanvas.add_plot_upper_axis(data_set, line_color=color, label=line_label)
         self._data_line_list.append(data_line_id)
@@ -260,7 +261,7 @@ class MplFitPlottingWidget(QWidget):
         self._data_line_list.append(data_line_id)
 
     def plot_data_with_fitting_ranges(self):
-        self.clear_canvas()
+        # self.clear_canvas()
 
         for _peak_label in self.list_peak_labels_matplotlib_id:
             _peak_label.remove()
@@ -461,7 +462,7 @@ class QtMplFitCanvas(FigureCanvas):
         self._data_subplot.set_ylim([0, max_value_with_offset])
 
         # set/update legend
-        self._setup_legend()
+        # self._setup_legend()
 
         # Register
         line_id = self._line_index  # share the line ID counter with main axis
