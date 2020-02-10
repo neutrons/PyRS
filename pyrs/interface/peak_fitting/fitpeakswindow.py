@@ -282,16 +282,9 @@ class FitPeaksWindow(QMainWindow):
         self.ui.actionSave.setEnabled(False)
         self.ui.actionSaveAs.setEnabled(False)
 
-        # self.ui.splitter_6.setStyleSheet(HORIZONTAL_SPLITTER)
-        # self.ui.splitter_6.setSizes([100, 0])
-        #
         self.ui.splitter.setStyleSheet(VERTICAL_SPLITTER_SHORT)
-
-        # self.ui.splitter_3.setStyleSheet(VERTICAL_SPLITTER)
-        # self.ui.splitter_3.setSizes([100, 0])
-
-        # self.ui.splitter_3.setStyleSheet(HORIZONTAL_SPLITTER)
-        # self.ui.splitter.setStyleSheet(HORIZONTAL_SPLITTER)
+        self.ui.splitter_2.setStyleSheet(HORIZONTAL_SPLITTER)
+        self.ui.splitter_4.setStyleSheet(HORIZONTAL_SPLITTER)
 
         # status bar
         self.setStyleSheet("QStatusBar{padding-left:8px;color:green;}")
