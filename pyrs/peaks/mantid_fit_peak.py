@@ -13,9 +13,10 @@ DEBUG = False   # Flag for debugging mode
 
 class MantidPeakFitEngine(PeakFitEngine):
     '''Peak fitting engine by calling mantid'''
-    def __init__(self, hidraworkspace, peak_function_name, background_function_name, out_of_plane_angle):
+    def __init__(self, hidraworkspace, peak_function_name, background_function_name, out_of_plane_angle, wavelength):
         super(MantidPeakFitEngine, self).__init__(hidraworkspace, peak_function_name,
-                                                  background_function_name, out_of_plane_angle)
+                                                  background_function_name, wavelength=wavelength,
+                                                  out_of_plane_angle=out_of_plane_angle)
         # configure logging for this class
         self._log = Logger(__name__)
 
@@ -96,7 +97,7 @@ class MantidPeakFitEngine(PeakFitEngine):
 
         # Create PeakCollection instance
         peak_object = PeakCollection(peak_tag=peak_tag, peak_profile=self._peak_function,
-                                     background_type=self._background_function)
+                                     background_type=self._background_function, wavelength=self._wavelength)
         peak_object.set_peak_fitting_values(self._subruns, peak_params_value_array,
                                             peak_params_error_array, fit_cost_array)
 

@@ -391,10 +391,10 @@ EXPECTED_HEADER_1065 = '''# IPTS number = 22731
 # Hidra project file = /some/place/random.h5
 # Manual vs auto reduction
 # missing: S1width, S1height, S1distance, RadialDistance
+# 2theta = 90.993 +/- 0
 # chi = 0 +/- 0
-# phi = 0 +/- 0
 # omega = 135 +/- 0
-# 2theta = 90.993 +/- 0'''.split('\n')
+# phi = 0 +/- 0'''.split('\n')
 
 
 EXPECTED_HEADER_938 = '''# IPTS number = 22731

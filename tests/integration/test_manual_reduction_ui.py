@@ -72,8 +72,9 @@ def test_manual_reduction(nexus_file, calibration_file, mask_file, gold_file):
 
     # get sub run 2
     sub_run_2_pattern = test_ws.get_reduced_diffraction_data(2, mask_id=None)
-    write_gold_file('Gold_{}_Cal{}.h5'.format(mask_file is not None,
-                                              calibration_file is not None), {'sub run 2': sub_run_2_pattern})
+    other_file = 'Gold_{}_Cal{}.h5'.format(mask_file is not None,
+                                           calibration_file is not None)
+    write_gold_file(other_file, {'sub run 2': sub_run_2_pattern})
 
     # Check whether the target file generated
     assert os.path.exists(target_file_path), 'Hidra project file {} is not generated'.format(target_file_path)
@@ -82,9 +83,9 @@ def test_manual_reduction(nexus_file, calibration_file, mask_file, gold_file):
     parse_gold_file(gold_file)
 
     # delete
-    os.remove(target_file_path)
-
-    return
+    for filename in [other_file, target_file_path]:
+        if os.path.isfile(filename):
+            os.remove(filename)
 
 
 def test_reduction_with_vanadium():

@@ -37,8 +37,8 @@ class Fit:
         hd_ws.set_wavelength(_wavelength, False)
 
         fit_engine = PeakFitEngineFactory.getInstance(hd_ws,
-                                                      _peak_function_name,
-                                                      'Linear')
+                                                      _peak_function_name, 'Linear',
+                                                      wavelength=_wavelength)
         fit_result = fit_engine.fit_multiple_peaks(_peak_tag_list,
                                                    _peak_xmin_list,
                                                    _peak_xmax_list)
