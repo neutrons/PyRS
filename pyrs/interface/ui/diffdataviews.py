@@ -301,7 +301,6 @@ class PeakFitSetupView(MplFitPlottingWidget):
         ref_id = self.plot_data(data_set=(x_array, y_array),
                                 line_label='-',
                                 color='black')
-        print(ref_id)
 
     def plot_model_data(self, diff_data_set, model_label, residual_set):
         """Plot model data from fitting
@@ -346,6 +345,9 @@ class PeakFitSetupView(MplFitPlottingWidget):
 
         self._diff_reference_list.append(ref_id)
         self._last_diff_reference = ref_id
+
+    def plot_fitting_diff_data(self, x_axis, y_axis):
+        self._last_fit_diff_reference = self._myCanvas.add_plot_lower_axis((x_axis, y_axis))
 
     def plot_fit_diff(self, diff_data_set, model_data_set):
         """

@@ -248,6 +248,18 @@ class MplFitPlottingWidget(QWidget):
         data_line_id = self._myCanvas.add_plot_upper_axis(data_set, line_color=color, label=line_label)
         self._data_line_list.append(data_line_id)
 
+    def plot_diff_data(self, data_set, color=None, line_label=''):
+        if color is None:
+            color = self._get_next_color()
+
+        self._color = color
+        self._data_set = data_set
+        self._line_label = line_label
+
+        data_line_id = self._myCanvas.add_plot_upper_axis(data_set, line_color=color, label=line_label)
+        self._data_line_list.append(data_line_id)
+
+
     def plot_data_with_fitting_ranges(self):
         self.clear_canvas()
 

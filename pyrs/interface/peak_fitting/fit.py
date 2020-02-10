@@ -42,6 +42,8 @@ class Fit:
         fit_result = fit_engine.fit_multiple_peaks(_peak_tag_list,
                                                    _peak_xmin_list,
                                                    _peak_xmax_list)
+        self.parent.fit_result = fit_result
+
         self.parent.populate_fit_result_table(fit_result=fit_result)
         # self.parent.update_list_of_2d_plots_axis()
 
