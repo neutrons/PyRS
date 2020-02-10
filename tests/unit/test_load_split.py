@@ -43,6 +43,8 @@ def test_calibration_json():
 @pytest.mark.skipif(not os.path.exists(FILE_1017), reason='File {} is not accessible'.format(FILE_1017))
 def test_log_time_average():
     """Test the log time average calculation"""
+    SUBRUNS_EXP = np.array([1, 2, 3])
+
     processor = NeXusConvertingApp(FILE_1017)
 
     sub_run_times, sub_run_numbers = processor._splitter.times, processor._splitter.subruns
@@ -53,7 +55,7 @@ def test_log_time_average():
                           '2019-11-10T16:41:14.238680196-0500', '2019-11-10T17:11:14.249705287-0500',   # scan_index=2
                           '2019-11-10T17:11:33.208056929-0500', '2019-11-10T17:31:33.218615767-0500'],  # scan_index=3
                          dtype='datetime64[ns]')
-    np.testing.assert_equal(sub_run_numbers, [1, 2, 3], err_msg='subrun numbers')
+    np.testing.assert_equal(sub_run_numbers, SUBRUNS_EXP, err_msg='subrun numbers')
     np.testing.assert_equal(sub_run_times, exp_times, err_msg='subrun filtering')
 
     # previous calculations
@@ -61,7 +63,7 @@ def test_log_time_average():
     np.testing.assert_almost_equal(processor._splitter.durations, exp_durations, decimal=0)
 
     # split the sample logs
-    sample_logs = processor.split_sample_logs()
+    sample_logs = processor.split_sample_logs(SUBRUNS_EXP)
 
     # verify two of the properties
     np.testing.assert_allclose(sample_logs['2theta'], [69.99525,  80.,  97.50225])

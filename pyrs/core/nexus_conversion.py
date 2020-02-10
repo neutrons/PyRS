@@ -40,6 +40,30 @@ def convert_pulses_to_datetime64(h5obj):
     return pulse_time + start_time
 
 
+def calculate_sub_run_time_average(log_property, time_filter):
+    '''Determine the time average value of the supplied log'''
+    if log_property.size() == 1:  # single value property just copy
+        time_average_value = log_property.value
+    elif time_filter is None:  # no filtering means use all values
+        time_average_value = log_property.timeAverageValue()
+    else:
+        # filter and get time average value
+        if isinstance(log_property, FloatTimeSeriesProperty):
+            filtered_tsp = FloatFilteredTimeSeriesProperty(log_property, time_filter)
+        elif isinstance(log_property, Int32TimeSeriesProperty):
+            filtered_tsp = Int32FilteredTimeSeriesProperty(log_property, time_filter)
+        elif isinstance(log_property, Int64TimeSeriesProperty):
+            filtered_tsp = Int64FilteredTimeSeriesProperty(log_property, time_filter)
+        else:
+            raise NotImplementedError('TSP log property {} of type {} is not supported'
+                                      ''.format(log_property.name, type(log_property)))
+
+        time_average_value = filtered_tsp.timeAverageValue()
+        del filtered_tsp
+
+    return time_average_value
+
+
 class Splitter(object):
     def __init__(self, runObj):
         self._log = Logger(__name__)
@@ -217,7 +241,6 @@ class NeXusConvertingApp(object):
 
         # workspaces
         self._event_ws_name = os.path.basename(nexus_file_name).split('.')[0]
-        self._sample_log_dict = dict()
         self.__load_logs()
 
         # load the mask
@@ -225,14 +248,14 @@ class NeXusConvertingApp(object):
         if mask_file_name:
             self.__load_mask(mask_file_name)
 
-        self._hydra_workspace = workspaces.HidraWorkspace(self._nexus_name)
+        self._hidra_workspace = workspaces.HidraWorkspace(self._nexus_name)
 
         # Set a default instrument with this workspace
         # set up instrument
         # initialize instrument with hard coded values
         instrument = AnglerCameraDetectorGeometry(NUM_PIXEL_1D, NUM_PIXEL_1D, PIXEL_SIZE, PIXEL_SIZE,
                                                   ARM_LENGTH, False)
-        self._hydra_workspace.set_instrument_geometry(instrument)
+        self._hidra_workspace.set_instrument_geometry(instrument)
 
         # project file
         self._project_file = None
@@ -297,6 +320,7 @@ class NeXusConvertingApp(object):
         return subrun_event_index
 
     def split_events_sub_runs(self):
+        '''Filter the data by ``scan_index`` and set counts array in the hidra_workspace'''
         # Load: this h5 will be opened all the time
         with h5py.File(self._nexus_name, 'r') as nexus_h5:
             bank1_events = nexus_h5['entry']['bank1_events']
@@ -320,12 +344,12 @@ class NeXusConvertingApp(object):
                 del pulse_time_array, event_index_array
 
         # split data
-        sub_run_counts_dict = dict()
-
+        subruns = list()
         if self._splitter:
             for subrun, start_event_index, stop_event_index in zip(self._splitter.subruns.tolist(),
                                                                    subrun_eventindex_array[::2].tolist(),
                                                                    subrun_eventindex_array[1::2].tolist()):
+                subruns.append(subrun)
                 # get sub set of the events falling into this range
                 # and count the occurrence of each event ID (aka detector ID) as counts on each detector pixel
                 hist = np.bincount(event_id_array[start_event_index:stop_event_index], minlength=HIDRA_PIXEL_NUMBER)
@@ -335,8 +359,10 @@ class NeXusConvertingApp(object):
                     assert hist.shape == self.mask_array.shape
                     hist *= self.mask_array
 
-                sub_run_counts_dict[int(subrun)] = hist
-        else:
+                # set it in the workspace
+                self._hidra_workspace.set_raw_counts(int(subrun), hist)
+        else:  # or histogram everything
+            subruns.append(1)
             hist = np.bincount(event_id_array, minlength=HIDRA_PIXEL_NUMBER)
 
             # mask (set to zero) the pixels that are not wanted
@@ -344,20 +370,17 @@ class NeXusConvertingApp(object):
                 assert hist.shape == self.mask_array.shape
                 hist *= self.mask_array
 
-            sub_run_counts_dict[1] = hist
+            # set it in the workspace
+            self._hidra_workspace.set_raw_counts(1, hist)
 
-        return sub_run_counts_dict
+        return np.array(subruns)
 
-    def split_sample_logs(self):
+    def split_sample_logs(self, subruns):
         """Create dictionary for sample log of a sub run
 
         Goal:
-            1. set self._sample_log_dict[log_name][sub_run_index] with log value (single or time-averaged)
-            2. set self._sample_log_dict[HidraConstants.SUB_RUN_DURATION][sub_run_index] with duration
-
-        Returns
-        -------
-
+            1. set sample logs on the hidra workspace
+            2. set duration on the hidra worksapce
         """
         run_obj = self._event_wksp.run()
 
@@ -372,7 +395,7 @@ class NeXusConvertingApp(object):
         # loop through all available logs
         for log_name in run_obj.keys():
             # create and calculate the sample log
-            sample_log_dict[log_name] = self.split_property(run_obj, log_name, log_array_size)
+            sample_log_dict[log_name] = self.__split_property(run_obj, log_name, log_array_size)
         # END-FOR
 
         # create a fictional log for duration
@@ -384,9 +407,15 @@ class NeXusConvertingApp(object):
                 duration[0] = run_obj.getPropertyAsSingleValue('duration')
                 sample_log_dict[HidraConstants.SUB_RUN_DURATION] = duration
 
-        return sample_log_dict
+        # set the logs on the hidra workspace
+        for log_name, log_value in sample_log_dict.iteritems():
+            if log_name in ['scan_index', HidraConstants.SUB_RUNS]:
+                continue  # skip 'SUB_RUNS'
+            self._hidra_workspace.set_sample_log(log_name, subruns, log_value)
 
-    def split_property(self, runObj, log_name, log_array_size):
+        return sample_log_dict  # needed for testing
+
+    def __split_property(self, runObj, log_name, log_array_size):
         """Calculate the mean value of the sample log "within" the sub run time range
 
         Parameters
@@ -408,8 +437,8 @@ class NeXusConvertingApp(object):
         if self._splitter and isinstance(log_property.value, np.ndarray) and str(log_dtype) in ['f', 'i']:
             # Float or integer time series property: split and get time average
             for i_sb in range(log_array_size):
-                split_log[i_sb] = self._calculate_sub_run_time_average(log_property,
-                                                                       self._splitter.propertyFilters[i_sb])
+                split_log[i_sb] = calculate_sub_run_time_average(log_property,
+                                                                 self._splitter.propertyFilters[i_sb])
         else:
             try:
                 split_log[:] = runObj.getPropertyAsSingleValue(log_name)
@@ -422,29 +451,6 @@ class NeXusConvertingApp(object):
                     raise ValueError('Cannot filter log "{}" of type "{}"'.format(log_name, log_dtype))
 
         return split_log
-
-    @staticmethod
-    def _calculate_sub_run_time_average(log_property, time_filter):
-        if log_property.size() == 1:  # single value property just copy
-            time_average_value = log_property.value
-        elif time_filter is None:  # no filtering means use all values
-            time_average_value = log_property.timeAverageValue()
-        else:
-            # filter and get time average value
-            if isinstance(log_property, FloatTimeSeriesProperty):
-                filtered_tsp = FloatFilteredTimeSeriesProperty(log_property, time_filter)
-            elif isinstance(log_property, Int32TimeSeriesProperty):
-                filtered_tsp = Int32FilteredTimeSeriesProperty(log_property, time_filter)
-            elif isinstance(log_property, Int64TimeSeriesProperty):
-                filtered_tsp = Int64FilteredTimeSeriesProperty(log_property, time_filter)
-            else:
-                raise NotImplementedError('TSP log property {} of type {} is not supported'
-                                          ''.format(log_property.name, type(log_property)))
-
-            time_average_value = filtered_tsp.timeAverageValue()
-            del filtered_tsp
-
-        return time_average_value
 
     def convert(self, use_mantid=False):
         """Main method to convert NeXus file to HidraProject File by
@@ -468,25 +474,15 @@ class NeXusConvertingApp(object):
             raise RuntimeError('use_mantid=True is no longer supported')
 
         # set counts to each sub run
-        sub_run_counts = self.split_events_sub_runs()
-        for sub_run in sub_run_counts:
-            self._hydra_workspace.set_raw_counts(sub_run, sub_run_counts[sub_run])
-
-        # set the sample logs# get sub runs
-        sub_runs = np.array(sorted(sub_run_counts.keys()))
-
-        self._sample_log_dict = self.split_sample_logs()
+        sub_runs = self.split_events_sub_runs()
 
         # set mask
         if self.mask_array is not None:
-            self._hydra_workspace.set_detector_mask(self.mask_array, is_default=True)
+            self._hidra_workspace.set_detector_mask(self.mask_array, is_default=True)
 
-        for log_name in self._sample_log_dict:
-            if log_name in ['scan_index', HidraConstants.SUB_RUNS]:
-                continue  # skip 'SUB_RUNS'
-            self._hydra_workspace.set_sample_log(log_name, sub_runs, self._sample_log_dict[log_name])
+        self.split_sample_logs(sub_runs)
 
-        return self._hydra_workspace
+        return self._hidra_workspace
 
     def save(self, projectfile):
         """
@@ -505,6 +501,6 @@ class NeXusConvertingApp(object):
         hydra_file = HidraProjectFile(projectfile, HidraProjectFileMode.OVERWRITE)
 
         # Set geometry
-        hydra_file.write_instrument_geometry(HidraSetup(self._hydra_workspace.get_instrument_setup()))
+        hydra_file.write_instrument_geometry(HidraSetup(self._hidra_workspace.get_instrument_setup()))
         # save experimental data/detector counts
-        self._hydra_workspace.save_experimental_data(hydra_file)
+        self._hidra_workspace.save_experimental_data(hydra_file)
