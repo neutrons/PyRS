@@ -33,9 +33,7 @@ class Fit:
         # Fit peak
         hd_ws = self.parent.hidra_workspace
 
-        _wavelength = 1.071
-        hd_ws.set_wavelength(_wavelength, False)
-
+        _wavelength = hd_ws.get_wavelength(True, True)
         fit_engine = PeakFitEngineFactory.getInstance(hd_ws,
                                                       _peak_function_name, 'Linear',
                                                       wavelength=_wavelength)
