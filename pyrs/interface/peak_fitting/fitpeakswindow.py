@@ -31,6 +31,7 @@ HORIZONTAL_SPLITTER_SHORT = """QSplitter::handle {image: url(':/fitting/horizont
 
 MICROSTRAIN = u"\u212B"
 D0 = u"d\u2080"
+ANGSTROMS = u"\u212B"
 
 
 class FitPeaksWindow(QMainWindow):
@@ -308,6 +309,14 @@ class FitPeaksWindow(QMainWindow):
         # until issue with plot3d has been found
         self.ui.radioButton_contour.setEnabled(False)
         self.ui.radioButton_3dline.setEnabled(False)
+
+        # width of peak region table
+        peak_table_col_width = [120, 120, 200, 150]
+        for _col_index, _width in enumerate(peak_table_col_width):
+            self.ui.peak_range_table.setColumnWidth(_col_index, _width)
+
+        peak_range_table_labels = ['x_left', 'x_right', 'Label', D0 + " (" + ANGSTROMS + ")"]
+        self.ui.peak_range_table.setHorizontalHeaderLabels(peak_range_table_labels)
 
     def do_launch_adv_fit(self):
         """
