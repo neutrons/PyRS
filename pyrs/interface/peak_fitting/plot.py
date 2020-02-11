@@ -193,7 +193,6 @@ class Plot:
             self.parent.ui.graphicsView_plot2D._myCanvas.draw()
 
         else:
-
             self.parent.ui.graphicsView_plot2D.ax = self.parent.ui.graphicsView_plot2D.figure.gca(projection='3d')
             self.parent.ui.graphicsView_plot2D.ax.scatter(axis_x_data, axis_y_data, axis_z_data)
             self.parent.ui.graphicsView_plot2D._myCanvas.draw()

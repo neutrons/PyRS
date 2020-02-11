@@ -125,11 +125,14 @@ class EventHandler:
         #                                                         data_type='array')
         list_fit_peak_labels = __get_kwargs_value('list_fit_peak_labels',
                                                   data_type='array')
+        list_fit_peak_d0 = __get_kwargs_value('list_fit_peak_d0',
+                                              data_type='array')
 
         o_gui = GuiUtilities(parent=self.parent)
         o_gui.reset_peak_range_table()
         o_gui.fill_peak_range_table(list_fit_peak_ranges=list_fit_peak_ranges,
-                                    list_fit_peak_labels=list_fit_peak_labels)
+                                    list_fit_peak_labels=list_fit_peak_labels,
+                                    list_fit_peak_d0=list_fit_peak_d0)
 
         self.parent.ui.peak_range_table.blockSignals(False)
         o_gui.check_if_fitting_widgets_can_be_enabled()
@@ -143,6 +146,7 @@ class EventHandler:
 
         list_peak_ranges = []
         list_fit_peak_labels = []
+        list_fit_peak_d0 = []
         for _row in np.arange(nbr_row):
             _value1 = GuiUtilities.get_item_value(table_ui, _row, 0)
             _value2 = GuiUtilities.get_item_value(table_ui, _row, 1)
@@ -169,9 +173,13 @@ class EventHandler:
             _label = GuiUtilities.get_item_value(table_ui, _row, 2)
             list_fit_peak_labels.append(_label)
 
+            _d0 = np.float(str(GuiUtilities.get_item_value(table_ui, _row, 3)))
+            list_fit_peak_d0.append(_d0)
+
         # replace the list_peak_ranges and list_fit_peak_labels from mplfitplottingwidget.py
         self.parent._ui_graphicsView_fitSetup.list_peak_ranges = list_peak_ranges
         self.parent._ui_graphicsView_fitSetup.list_fit_peak_labels = list_fit_peak_labels
+        self.parent._ui_graphicsView_fitSetup.list_fit_peak_d0 = list_fit_peak_d0
         self.parent._ui_graphicsView_fitSetup.plot_data_with_fitting_ranges()
 
         table_ui.blockSignals(False)
@@ -195,12 +203,14 @@ class EventHandler:
         # retrieve peak infos
         list_peak_ranges = self.parent._ui_graphicsView_fitSetup.list_peak_ranges
         list_peak_labels = self.parent._ui_graphicsView_fitSetup.list_fit_peak_labels
+        list_peak_d0 = self.parent.list_peak_d0
 
         # create dictionary
         dict = {}
         for _index, peak_range in enumerate(list_peak_ranges):
             dict[_index] = {'peak_range': peak_range,
-                            'peak_label': list_peak_labels[_index]}
+                            'peak_label': list_peak_labels[_index],
+                            'd0': list_peak_d0}
 
         with open(json_file_name, 'w') as outfile:
             json.dump(dict, outfile)
@@ -216,17 +226,21 @@ class EventHandler:
 
         peak_range = []
         peak_label = []
+        peak_d0 = []
         for _index in _dict.keys():
             peak_range.append(_dict[_index]['peak_range'])
             peak_label.append(_dict[_index]['peak_label'])
+            peak_d0.append(_dict[_index]['d0'])
 
         # save peak infos
         self.parent._ui_graphicsView_fitSetup.list_peak_ranges = peak_range
         self.parent._ui_graphicsView_fitSetup.list_fit_peak_labels = peak_label
+        self.parent.list_peak_d0 = peak_d0
 
         self.parent.update_peak_ranges_table(release=True,
                                              list_fit_peak_labels=peak_label,
                                              list_fit_peak_ranges=peak_range,
+                                             list_fit_peak_d0=peak_d0,
                                              list_fit_peak_ranges_matplotlib_id=[],
                                              list_fit_peak_labels_matplotlib_id=[])
         self.parent._ui_graphicsView_fitSetup.plot_data_with_fitting_ranges()

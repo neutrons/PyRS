@@ -54,6 +54,9 @@ class FitPeaksWindow(QMainWindow):
         # current/last loaded data
         self._curr_file_name = None
 
+        # list of d0 from peak range/label table
+        self.list_peak_d0 = []
+
         # a copy of sample logs
         self._sample_log_names = list()  # a copy of sample logs' names that are added to combo-box
 
@@ -288,7 +291,7 @@ class FitPeaksWindow(QMainWindow):
         self.ui.splitter_4.setStyleSheet(HORIZONTAL_SPLITTER)
         self.ui.splitter_5.setStyleSheet(HORIZONTAL_SPLITTER)
         self.ui.splitter_3.setStyleSheet(VERTICAL_SPLITTER)
-        self.ui.splitter_3.setSizes([80, 20])
+        self.ui.splitter_3.setSizes([100, 5])
 
         # status bar
         self.setStyleSheet("QStatusBar{padding-left:8px;color:green;}")
@@ -296,26 +299,16 @@ class FitPeaksWindow(QMainWindow):
         # warning icon
         self.ui.listsubruns_warning_icon.setPixmap(QtGui.QPixmap(":/fitting/warning_icon.png"))
 
-        # hide and initialize d0 and microstrength widgets
-        self.ui.label_d0units1d.setText(MICROSTRAIN)
-        self.ui.label_d0units2d.setText(MICROSTRAIN)
-        self.ui.label_d01d.setText(D0)
-        self.ui.label_d02d.setText(D0)
-
-        o_gui = GuiUtilities(parent=self)
-        o_gui.make_visible_d01d_widgets(visible=False)
-        o_gui.make_visible_d02d_widgets(visible=False)
-
         # until issue with plot3d has been found
         self.ui.radioButton_contour.setEnabled(False)
         self.ui.radioButton_3dline.setEnabled(False)
 
         # width of peak region table
-        peak_table_col_width = [120, 120, 200, 150]
+        peak_table_col_width = [100, 100, 150, 200]
         for _col_index, _width in enumerate(peak_table_col_width):
             self.ui.peak_range_table.setColumnWidth(_col_index, _width)
 
-        peak_range_table_labels = ['x_left', 'x_right', 'Label', D0 + " (" + ANGSTROMS + ")"]
+        peak_range_table_labels = ['x_left', 'x_right', 'Label', D0 + " (" + MICROSTRAIN + ")"]
         self.ui.peak_range_table.setHorizontalHeaderLabels(peak_range_table_labels)
 
     def do_launch_adv_fit(self):
