@@ -238,9 +238,11 @@ class FitPeaksWindow(QMainWindow):
         self._ui_graphicsView_fitSetup.setEnabled(False)
         curr_layout.addWidget(self._ui_graphicsView_fitSetup)
 
-    def peak_range_table_changed(self, row, column):
+    def peak_range_table_changed(self, row=0, column=0):
         o_handle = EventHandler(parent=self)
         o_handle.update_fit_peak_ranges_plot()
+        if column == 3:
+            o_handle.update_fit_result_table()
 
     def create_plot_color_range(self):
         pass

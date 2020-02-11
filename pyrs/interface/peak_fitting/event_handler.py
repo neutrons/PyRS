@@ -137,6 +137,10 @@ class EventHandler:
         self.parent.ui.peak_range_table.blockSignals(False)
         o_gui.check_if_fitting_widgets_can_be_enabled()
 
+    def update_fit_result_table(self):
+        if self.parent.fit_result:
+            self.parent.populate_fit_result_table(fit_result=self.parent.fit_result)
+
     def update_fit_peak_ranges_plot(self):
         # retrieve all peaks and labels from table
         table_ui = self.parent.ui.peak_range_table
