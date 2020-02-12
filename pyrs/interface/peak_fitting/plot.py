@@ -143,13 +143,15 @@ class Plot:
         axis_y_data, axis_y_error = o_data_retriever.get_data(name=y_axis_name, peak_index=y_axis_peak_index)
         axis_z_data, axis_z_error = o_data_retriever.get_data(name=z_axis_name, peak_index=z_axis_peak_index)
 
-        array_dict = self.format_3D_axis_data(axis_x=axis_x_data, axis_y=axis_y_data, axis_z=axis_z_data)
-        x_axis = array_dict['x_axis']
-        y_axis = array_dict['y_axis']
-        z_axis = array_dict['z_axis']
+        if not self.parent.ui.radioButton_3dscatter.isChecked():
 
-        if len(x_axis) < 2:
-            return
+            array_dict = self.format_3D_axis_data(axis_x=axis_x_data, axis_y=axis_y_data, axis_z=axis_z_data)
+            x_axis = array_dict['x_axis']
+            y_axis = array_dict['y_axis']
+            z_axis = array_dict['z_axis']
+
+            if len(x_axis) < 2:
+                return
 
         self.parent.ui.graphicsView_plot2D.ax.clear()
         if self.parent.ui.graphicsView_plot2D.colorbar:
@@ -193,6 +195,7 @@ class Plot:
             self.parent.ui.graphicsView_plot2D._myCanvas.draw()
 
         else:
+
             self.parent.ui.graphicsView_plot2D.ax = self.parent.ui.graphicsView_plot2D.figure.gca(projection='3d')
             self.parent.ui.graphicsView_plot2D.ax.scatter(axis_x_data, axis_y_data, axis_z_data)
             self.parent.ui.graphicsView_plot2D._myCanvas.draw()
