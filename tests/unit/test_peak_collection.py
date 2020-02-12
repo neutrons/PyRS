@@ -146,8 +146,8 @@ def test_peak_collection_PseudoVoigt():
     NUM_SUBRUN = 2
     # without wavelength
     check_peak_collection('PseudoVoigt', NUM_SUBRUN,
-                          np.array([(0.0, 0.0, 4.0, 0.0, 0.0, 0.0, 1.0),
-                                    (0.0, 0.0, 5.0, 1.0, 0.0, 0.0, 2.0)],
+                          np.array([(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+                                    (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)],
                                    dtype=get_parameter_dtype(effective=True)))
     # with wavelength
     check_peak_collection('PseudoVoigt', NUM_SUBRUN,
