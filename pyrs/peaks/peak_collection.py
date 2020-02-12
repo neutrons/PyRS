@@ -85,14 +85,6 @@ class PeakCollection(object):
         return self._sub_run_array
 
     @property
-    def parameters_values(self):
-        return self._params_value_array
-
-    @property
-    def parameters_errors(self):
-        return self._params_error_array
-
-    @property
     def fitting_costs(self):
         return self._fit_cost_array
 

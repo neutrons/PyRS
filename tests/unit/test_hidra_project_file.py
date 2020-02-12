@@ -258,13 +258,13 @@ def test_peak_fitting_result_io():
 
     # parameter values
     # print('DEBUG:\n  Expected: {}\n  Found: {}'.format(test_params_array, peak_info[3]))
-    peak_values, _ = peak_info.get_native_params()
+    peak_values, peak_errors = peak_info.get_native_params()
     assert_allclose_structured_numpy_arrays(test_params_array, peak_values)
     # np.testing.assert_allclose(peak_info[3], test_params_array, atol=1E-12)
 
     # parameter values
     # assert np.allclose(peak_info[4], test_error_array, 1E-12)
-    assert_allclose_structured_numpy_arrays(test_error_array, peak_info.parameters_errors)
+    assert_allclose_structured_numpy_arrays(test_error_array, peak_errors)
 
     # Clean
     os.remove(test_file_name)
