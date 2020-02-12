@@ -160,6 +160,14 @@ class Plot:
 
         if self.parent.ui.radioButton_contour.isChecked():
 
+            # my_plot = self.parent.ui.graphicsView_plot2D.ax.contour(axis_x_data, axis_y_data, axis_z_data)
+            # self.parent.ui.graphicsView_plot2D.colorbar = \
+            #     self.parent.ui.graphicsView_plot2D.figure.colorbar(my_plot)
+            # self.parent.ui.graphicsView_plot2D._myCanvas.draw()
+            #
+            # self.parent.ui.graphicsView_plot2D.ax.set_xlabel(x_axis_name)
+            # self.parent.ui.graphicsView_plot2D.ax.set_ylabel(y_axis_name)
+
             self.parent.ui.graphicsView_plot2D.ax = self.parent.ui.graphicsView_plot2D.figure.gca()
             my_plot = self.parent.ui.graphicsView_plot2D.ax.contourf(x_axis, y_axis, z_axis)
 

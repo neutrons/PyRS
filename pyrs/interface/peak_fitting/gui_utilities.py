@@ -69,6 +69,12 @@ class GuiUtilities:
         self.enabled_list_widgets(list_widgets=list_widgets,
                                   enabled=enabled)
 
+    def enabled_save_files_widget(self, enabled=False):
+        list_widgets = [self.parent.ui.actionSave,
+                        self.parent.ui.actionSaveAs]
+        self.enabled_list_widgets(list_widgets=list_widgets,
+                                  enabled=enabled)
+
     def make_visible_listsubruns_warning(self, visible=True):
         self.parent.ui.listsubruns_warning_icon.setVisible(visible)
 

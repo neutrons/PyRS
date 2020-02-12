@@ -301,9 +301,9 @@ class FitPeaksWindow(QMainWindow):
         # warning icon
         self.ui.listsubruns_warning_icon.setPixmap(QtGui.QPixmap(":/fitting/warning_icon.png"))
 
-        # until issue with plot3d has been found
-        self.ui.radioButton_contour.setEnabled(False)
-        self.ui.radioButton_3dline.setEnabled(False)
+        # # until issue with plot3d has been found
+        # self.ui.radioButton_contour.setEnabled(False)
+        # self.ui.radioButton_3dline.setEnabled(False)
 
         # width of peak region table
         peak_table_col_width = [100, 100, 150, 200]
