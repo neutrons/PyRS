@@ -6,7 +6,7 @@ import numpy as np
 import time
 import json
 import os
-from enum import Enum
+from enum import Enum, unique
 from pyrs.core import reduce_hb2b_pyrs
 
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
@@ -77,15 +77,23 @@ class GlobalParameter(object):
     def __init__(self):
         return
 
-
+@unique
 class Monosetting(Enum):
-    Si333 = 0
-    Si511 = 1
-    Si422 = 2
-    Si331 = 3
-    Si400 = 4
-    Si311 = 5
-    Si220 = 6
+    Si333 = 0, 'Si333', 1.452
+    Si511 = 1, 'Si511', 1.452
+    Si422 = 2, 'Si422', 1.540
+    Si331 = 3, 'Si331', 1.731
+    Si400 = 4, 'Si400', 1.886
+    Si311 = 5, 'Si311', 2.275
+    Si220 = 6, 'Si220', 2.667
+
+    def __new__(cls, keycode, name, wavelength):
+        obj = object.__new__(cls)
+        obj._value_ = keycode
+        obj.name = name
+        obj.wavelength = wavelength
+
+
 
 class PeakFitCalibration(object):
     """
@@ -137,8 +145,7 @@ class PeakFitCalibration(object):
         self.tth_ref = '2thetaSetpoint'
 
         # Set wave length
-        self._calib[6] = \
-            np.array([1.452, 1.452, 1.540, 1.731, 1.886, 2.275, 2.667])[monosetting]
+        self._calib[6] = monosetting.wavelength
 
         self._calibstatus = -1
 
