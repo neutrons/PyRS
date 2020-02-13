@@ -11,12 +11,41 @@ from pyrs.interface.peak_fitting.load import Load
 from pyrs.interface.peak_fitting.plot import Plot
 from pyrs.interface.peak_fitting.fit import Fit
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 
 
 class EventHandler:
 
     def __init__(self, parent=None):
         self.parent = parent
+
+    def save_as(self):
+        out_file_name = browse_file(self.parent,
+                                    caption='Choose a file to save fitted peaks to',
+                                    default_dir=self.parent._core.working_dir,
+                                    file_filter='H5 (*.h5);;HDF (*.hdf5)',
+                                    save_file=True)
+        self.save_fit_result(out_file_name)
+
+    def save(self):
+        self.save_fit_result(self.parent.current_hidra_file_name)
+
+    def save_fit_result(self, out_file_name=''):
+        fit_result = self.parent.fit_result
+        if fit_result is None:
+            return
+
+        current_project_file = self.parent._curr_file_name
+        project_h5_file = HidraProjectFile(current_project_file, mode=HidraProjectFileMode.READWRITE)
+        peakcollections = fit_result.peakcollections
+        for peak in peakcollections:
+            project_h5_file.write_peak_fit_result(peak)
+        project_h5_file.save(False)
+        project_h5_file.close()
+
+        # self.parent._core.save_peak_fit_result(self.parent._curr_data_key,
+        #                                        self.parent._curr_file_name,
+        #                                        out_file_name)
 
     def browse_load_plot_hdf(self):
         if self.parent._core is None:
@@ -38,6 +67,7 @@ class EventHandler:
             if hidra_file_name is None:
                 return  # user clicked cancel
 
+        self.parent.current_hidra_file_name = hidra_file_name
         try:
             o_load = Load(parent=self.parent)
             o_load.load(project_file=hidra_file_name)

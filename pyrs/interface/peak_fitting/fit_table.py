@@ -2,6 +2,7 @@ import numpy as np
 from qtpy.QtWidgets import QTableWidgetItem, QTableWidgetSelectionRange
 from qtpy.QtGui import QColor
 
+MICROSTRAIN = u"\u00b5strain"
 SUCCESS = "success"
 COLOR_FAILED_FITTING = QColor(247, 173, 13)  # orange
 
@@ -31,8 +32,7 @@ class FitTable:
         _d_spacing = self._get_d_spacing_to_display(peak_selected=_peak_selected,
                                                     peak_collection=_peak_collection)
 
-        _strain_mapping = self._get_strain_mapping_to_display(peak_selected=_peak_selected,
-                                                              peak_collection=_peak_collection)
+        _microstrain_mapping = self._get_microstrain_mapping_to_display(peak_collection=_peak_collection)
 
         def set_item(value='', fitting_worked=True):
             _item = QTableWidgetItem(value)
@@ -63,7 +63,12 @@ class FitTable:
             _global_col_index += 1
 
             # add strain calculation
-            _item = set_item(value=str(_strain_mapping[_row]), fitting_worked=_fitting_worked)
+            _microstrain = _microstrain_mapping[_row]
+            if np.isnan(_microstrain):
+               str_strain_value = "nan"
+            else:
+                str_strain_value = str(np.int(_microstrain))
+            _item = set_item(value=str_strain_value, fitting_worked=_fitting_worked)
             self.parent.ui.tableView_fitSummary.setItem(_row, _global_col_index, _item)
             _global_col_index += 1
 
@@ -81,12 +86,12 @@ class FitTable:
         else:
             return error
 
-    def _get_strain_mapping_to_display(self, peak_selected=1, peak_collection=None):
+    def _get_microstrain_mapping_to_display(self, peak_collection=None):
         values, error = peak_collection.get_strain()
         if self.parent.ui.radioButton_fit_value.isChecked():
-            return values
+            return values*1e6
         else:
-            return error
+            return error*1e6
 
     def _get_value_to_display(self, peak_collection):
         values, error = peak_collection.get_effective_params()
@@ -156,7 +161,7 @@ class FitTable:
         clean_column_names.append("d spacing")
 
         # add strain-mapping column
-        clean_column_names.append("strain mapping")
+        clean_column_names.append("strain mapping (" + MICROSTRAIN + ")")
 
         # add a status column
         clean_column_names.append("Status message")

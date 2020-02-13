@@ -34,7 +34,6 @@ class Fit:
         hd_ws = self.parent.hidra_workspace
 
         _wavelength = hd_ws.get_wavelength(True, True)
-        print("_wavelength: {}".format(_wavelength))
         fit_engine = PeakFitEngineFactory.getInstance(hd_ws,
                                                       _peak_function_name, 'Linear',
                                                       wavelength=_wavelength)

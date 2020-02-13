@@ -44,7 +44,7 @@ class Load:
         o_gui.set_1D_2D_axis_comboboxes(with_clear=True, fill_raw=True)
         o_gui.enabled_1dplot_widgets(enabled=True)
         o_gui.initialize_combobox()
-        o_gui.enabled_save_files_widget(enabled=True)
+        # o_gui.enabled_save_files_widget(enabled=True)
 
     def __set_up_project_name(self, project_file=""):
         """Keep the basename and removed the nxs and h5 extenstions"""

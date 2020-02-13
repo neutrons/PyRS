@@ -29,7 +29,6 @@ VERTICAL_SPLITTER_SHORT = """QSplitter::handle {image: url(':/fitting/vertical_s
 HORIZONTAL_SPLITTER = """QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }"""
 HORIZONTAL_SPLITTER_SHORT = """QSplitter::handle {image: url(':/fitting/horizontal_splitter_short.png'); }"""
 
-MICROSTRAIN = u"\u212B"
 D0 = u"d\u2080"
 ANGSTROMS = u"\u212B"
 
@@ -47,6 +46,7 @@ class FitPeaksWindow(QMainWindow):
         super(FitPeaksWindow, self).__init__(parent)
 
         # class variables
+        self.current_hidra_file_name = ''  # current loaded nxs (hidra file)
         self._core = fit_peak_core
         self._project_name = None
         self.hidra_workspace = None
@@ -151,8 +151,13 @@ class FitPeaksWindow(QMainWindow):
         o_gui.enabled_save_peak_range_widget(False)
         o_gui.enabled_sub_runs_interation_widgets(False)
 
-    def test(self):
-        print("in test")
+    def save(self):
+        o_handler = EventHandler(parent=self)
+        o_handler.save()
+
+    def save_as(self):
+        o_handler = EventHandler(parent=self)
+        o_handler.save_as()
 
     # Menu event handler
     def browse_hdf(self):
@@ -310,7 +315,7 @@ class FitPeaksWindow(QMainWindow):
         for _col_index, _width in enumerate(peak_table_col_width):
             self.ui.peak_range_table.setColumnWidth(_col_index, _width)
 
-        peak_range_table_labels = ['x_left', 'x_right', 'Label', D0 + " (" + MICROSTRAIN + ")"]
+        peak_range_table_labels = ['x_left', 'x_right', 'Label', D0 + " (" + ANGSTROMS + ")"]
         self.ui.peak_range_table.setHorizontalHeaderLabels(peak_range_table_labels)
 
     def do_launch_adv_fit(self):
@@ -354,21 +359,6 @@ class FitPeaksWindow(QMainWindow):
     def do_plot_2d_data(self):
         # TODO - #84 - Implement this method
         return
-
-    def save(self):
-        pass
-
-    def save_as(self):
-        """ export the peaks to another file
-        :return:
-        """
-        out_file_name = pyrs.interface.gui_helper.browse_file(self,
-                                                              caption='Choose a file to save fitted peaks to',
-                                                              default_dir=self._core.working_dir,
-                                                              file_filter='HDF (*.hdf5)',
-                                                              save_file=True)
-
-        self.save_fit_result(out_file_name)
 
     def do_save_fit(self):
         """
@@ -448,15 +438,3 @@ class FitPeaksWindow(QMainWindow):
         :return:
         """
         self._core.save_nexus(data_key, file_name)
-
-    def save_fit_result(self, out_file_name):
-        """
-        make a copy of the input file and add the fit result into it
-        :param out_file_name:
-        :return:
-        """
-        print('Plan to copy {} to {} and insert fit result'.format(self._curr_file_name,
-                                                                   out_file_name))
-        # TODO FIXME - TONIGHT NOW - Fit the following method!
-        # FIXME Temporarily disabled:
-        # self._core.save_peak_fit_result(self._curr_data_key, self._curr_file_name, out_file_name)
