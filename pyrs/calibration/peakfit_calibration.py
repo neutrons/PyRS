@@ -77,23 +77,23 @@ class GlobalParameter(object):
     def __init__(self):
         return
 
-@unique
+
 class Monosetting(Enum):
-    Si333 = 0, 'Si333', 1.452
-    Si511 = 1, 'Si511', 1.452
-    Si422 = 2, 'Si422', 1.540
-    Si331 = 3, 'Si331', 1.731
-    Si400 = 4, 'Si400', 1.886
-    Si311 = 5, 'Si311', 2.275
-    Si220 = 6, 'Si220', 2.667
+    Si333 = ('Si333', 1.452)
+    Si511 = ('Si511', 1.452)
+    Si422 = ('Si422', 1.540)
+    Si331 = ('Si331', 1.731)
+    Si400 = ('Si400', 1.886)
+    Si311 = ('Si311', 2.275)
+    Si220 = ('Si220', 2.667)
 
-    def __new__(cls, keycode, name, wavelength):
+    def __new__(cls, label, wavelength):
+        value = len(cls.__members__)
         obj = object.__new__(cls)
-        obj._value_ = keycode
-        obj.name = name
+        obj._value_ = value
+        obj.label = label
         obj.wavelength = wavelength
-
-
+        return obj
 
 class PeakFitCalibration(object):
     """
@@ -134,7 +134,7 @@ class PeakFitCalibration(object):
             elif -185.0 < self._engine.read_log_value('mrot')[0] < -180.0:
                 monosetting = MonoSetting(6)
 
-        self.mono = monosetting.name
+        self.mono = monosetting.label
 
         try:
             self._engine.read_log_value('2theta')
