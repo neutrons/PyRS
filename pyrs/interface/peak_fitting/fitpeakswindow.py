@@ -151,6 +151,10 @@ class FitPeaksWindow(QMainWindow):
         o_gui.enabled_save_peak_range_widget(False)
         o_gui.enabled_sub_runs_interation_widgets(False)
 
+        # for debugging only
+        self.ui.radioButton_contour.setEnabled(False)
+        self.ui.radioButton_3dline.setEnabled(False)
+
     def save(self):
         o_handler = EventHandler(parent=self)
         o_handler.save()
