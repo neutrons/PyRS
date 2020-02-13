@@ -6,6 +6,7 @@ import numpy as np
 import time
 import json
 import os
+from enum import Enum
 from pyrs.core import reduce_hb2b_pyrs
 
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
@@ -77,6 +78,15 @@ class GlobalParameter(object):
         return
 
 
+class Monosetting(Enum):
+    Si333 = 0
+    Si511 = 1
+    Si422 = 2
+    Si331 = 3
+    Si400 = 4
+    Si311 = 5
+    Si220 = 6
+
 class PeakFitCalibration(object):
     """
     Calibrate by grid searching algorithm using Brute Force or Monte Carlo random walk
@@ -99,24 +109,25 @@ class PeakFitCalibration(object):
         self._caliberr = np.array(7 * [-1], dtype=np.float)
 
         try:
-            monosetting = self._engine.read_log_value('MonoSetting')[0]
+            monosetting = Monosetting(self._engine.read_log_value('MonoSetting')[0])
         except KeyError:
             if -41.0 < self._engine.read_log_value('mrot')[0] < -38.0:
-                monosetting = 0
+                monosetting = Monosetting(0)
             elif -1.0 < self._engine.read_log_value('mrot')[0] < 1.0:
-                monosetting = 1
+                monosetting = Monosetting(1)
             elif -20.0 < self._engine.read_log_value('mrot')[0] < -19.0:
-                monosetting = 2
+                monosetting = Monosetting(2)
             elif -170.0 < self._engine.read_log_value('mrot')[0] < -166.0:
-                monosetting = 3
+                monosetting = MonoSetting(3)
             elif 14.0 < self._engine.read_log_value('mrot')[0] < 18.0:
-                monosetting = 4
+                monosetting = MonoSetting(4)
             elif -11.0 < self._engine.read_log_value('mrot')[0] < -8.0:
-                monosetting = 5
+                monosetting = MonoSetting(5)
             elif -185.0 < self._engine.read_log_value('mrot')[0] < -180.0:
-                monosetting = 6
+                monosetting = MonoSetting(6)
 
-        self.mono = ['Si333', 'Si511', 'Si422', 'Si331', 'Si400', 'Si311', 'Si220'][monosetting]
+        self.mono = monosetting.name
+
         try:
             self._engine.read_log_value('2theta')
             self.tth_ref = '2theta'
