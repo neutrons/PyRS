@@ -65,7 +65,7 @@ class FitTable:
             # add strain calculation
             _microstrain = _microstrain_mapping[_row]
             if np.isnan(_microstrain):
-               str_strain_value = "nan"
+                str_strain_value = "nan"
             else:
                 str_strain_value = str(np.int(_microstrain))
             _item = set_item(value=str_strain_value, fitting_worked=_fitting_worked)
