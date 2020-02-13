@@ -79,7 +79,7 @@ def check_peak_collection(peak_shape, NUM_SUBRUN, target_errors,
     else:
         raw_peaks_array['Height'] = [1, 2]
         raw_peaks_array['Sigma'] = np.array([4, 5], dtype=float)
-    raw_peaks_array['PeakCentre'] = [3, 4]
+    raw_peaks_array['PeakCentre'] = [90., 91.]
 
     # background terms are both zeros
     raw_peaks_errors = np.zeros(NUM_SUBRUN, dtype=get_parameter_dtype(peak_shape, 'Linear'))
@@ -127,8 +127,8 @@ def check_peak_collection(peak_shape, NUM_SUBRUN, target_errors,
     else:
         peaks.set_d_reference(values=d_reference)
     strain, strain_error = peaks.get_strain()
-    np.testing.assert_allclose(strain, target_strain, atol=0.01)
-    np.testing.assert_allclose(strain_error, target_strain_error, atol=0.01)
+    np.testing.assert_allclose(strain, target_strain, atol=0.0001)
+    np.testing.assert_allclose(strain_error, target_strain_error, atol=0.0001)
 
 
 def test_peak_collection_Gaussian():
@@ -137,8 +137,8 @@ def test_peak_collection_Gaussian():
     check_peak_collection('Gaussian', NUM_SUBRUN, np.zeros(NUM_SUBRUN, dtype=get_parameter_dtype(effective=True)))
     # with wavelength
     check_peak_collection('Gaussian', NUM_SUBRUN, np.zeros(NUM_SUBRUN, dtype=get_parameter_dtype(effective=True)),
-                          wavelength=3.15, d_reference=2.5, target_d_spacing_center=[1.57, 1.73],
-                          target_d_spacing_center_error=[0.0, 0.0], target_strain=[-0.378, -0.308],
+                          wavelength=1.53229, d_reference=1.08, target_d_spacing_center=[1.08, 1.07],
+                          target_d_spacing_center_error=[0.0, 0.0], target_strain=[0.0032, -0.0054],
                           target_strain_error=[0.0, 0.0])
 
 
@@ -154,8 +154,8 @@ def test_peak_collection_PseudoVoigt():
                           np.array([(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
                                     (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)],
                                    dtype=get_parameter_dtype(effective=True)),
-                          wavelength=3.15, d_reference=2.5, target_d_spacing_center=[1.57, 1.73],
-                          target_d_spacing_center_error=[0.0, 0.0], target_strain=[-0.378, -0.308],
+                          wavelength=1.53229, d_reference=1.08, target_d_spacing_center=[1.08, 1.07],
+                          target_d_spacing_center_error=[0.0, 0.0], target_strain=[0.0032, -0.0054],
                           target_strain_error=[0.0, 0.0])
 
 
