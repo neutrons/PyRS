@@ -1,0 +1,32 @@
+from pyrs.core import MonoSetting
+import pytest
+
+
+def test_monosetting_from_index():
+    for index, mono_exp in enumerate([MonoSetting.Si333, MonoSetting.Si511, MonoSetting.Si422, MonoSetting.Si331,
+                                      MonoSetting.Si400, MonoSetting.Si311, MonoSetting.Si220]):
+        mono_obs = MonoSetting.getFromIndex(index)
+        assert mono_obs == mono_exp
+
+    with pytest.raises(IndexError):
+        MonoSetting.getFromIndex(-1)
+
+    with pytest.raises(IndexError):
+        MonoSetting.getFromIndex(8)
+
+
+def test_monosetting_from_rotation():
+    monosetting = MonoSetting.getFromRotation(-182.0)
+    assert monosetting == MonoSetting.Si220
+
+    with pytest.raises(ValueError):
+        monosetting.getFromRotation(-12.)
+
+
+def test_monosetting_conversions():
+    assert str(MonoSetting.Si333) == 'Si333'
+    assert float(MonoSetting.Si333) == 1.452
+
+
+if __name__ == '__main__':
+    pytest.main([__file__])

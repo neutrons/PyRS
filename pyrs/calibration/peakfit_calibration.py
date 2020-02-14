@@ -6,9 +6,8 @@ import numpy as np
 import time
 import json
 import os
-from enum import Enum, unique
+from pyrs.core import MonoSetting
 from pyrs.core import reduce_hb2b_pyrs
-
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
 from pyrs.core.reduction_manager import HB2BReductionManager
 
@@ -78,50 +77,6 @@ class GlobalParameter(object):
         return
 
 
-@unique
-class Monosetting(Enum):
-    Si333 = (0, 'Si333', 1.452)
-    Si511 = (1, 'Si511', 1.452)
-    Si422 = (2, 'Si422', 1.540)
-    Si331 = (3, 'Si331', 1.731)
-    Si400 = (4, 'Si400', 1.886)
-    Si311 = (5, 'Si311', 2.275)
-    Si220 = (6, 'Si220', 2.667)
-
-    def __new__(cls, value, label, wavelength):
-        obj = object.__new__(cls)
-        obj._value_ = value
-        obj.label = label
-        obj.wavelength = wavelength
-        return obj
-
-    def __str__(self):
-        return self.label
-
-    def __float__(self):
-        return self.wavelength
-
-    @staticmethod
-    def getFromRotation(mrot):
-        if -41.0 < mrot < -38.0:
-            monosetting = Monosetting.Si333
-        elif -1.0 < mrot < 1.0:
-            monosetting = Monosetting.Si511
-        elif -20.0 < mrot < -19.0:
-            monosetting = Monosetting.Si422
-        elif -170.0 < mrot < -166.0:
-            monosetting = Monosetting.Si331
-        elif 14.0 < mrot < 18.0:
-            monosetting = Monosetting.Si400
-        elif -11.0 < mrot < -8.0:
-            monosetting = Monosetting.Si311
-        elif -185.0 < mrot < -180.0:
-            monosetting = Monosetting.Si220
-        else:
-            raise ValueError('Unable to determine monosetting from the monochromator rotation angle {}'.format(mrot))
-        return monosetting
-
-
 class PeakFitCalibration(object):
     """
     Calibrate by grid searching algorithm using Brute Force or Monte Carlo random walk
@@ -144,9 +99,9 @@ class PeakFitCalibration(object):
         self._caliberr = np.array(7 * [-1], dtype=np.float)
 
         try:
-            self.monosetting = Monosetting(self._engine.read_log_value('MonoSetting')[0])
+            self.monosetting = MonoSetting.getFromIndex(self._engine.read_log_value('MonoSetting')[0])
         except KeyError:
-            self.monosetting = Monosetting.getFromRotation(self._engine.read_log_value('mrot').value)
+            self.monosetting = MonoSetting.getFromRotation(self._engine.read_log_value('mrot').value)
 
         try:
             self._engine.read_log_value('2theta')
@@ -157,7 +112,7 @@ class PeakFitCalibration(object):
         self.tth_ref = '2thetaSetpoint'
 
         # Set wave length
-        self._calib[6] = self.monosetting.wavelength
+        self._calib[6] = float(self.monosetting)
 
         self._calibstatus = -1
 
@@ -972,8 +927,6 @@ class PeakFitCalibration(object):
             for i in range(len(keys)):
                 self._calib[i] = CalibData[keys[i]]
 
-        return
-
     # TODO - #86 - Clean up!
     def write_calibration(self, file_name=None):
         """Write the calibration to a Json file
@@ -1002,7 +955,7 @@ class PeakFitCalibration(object):
         if file_name is None:
             # default case: write to archive
             if os.access('/HFIR/HB2B/shared', os.W_OK):
-                file_name = '/HFIR/HB2B/shared/CAL/%s/HB2B_CAL_%s.json' % (self.monosetting.value,
+                file_name = '/HFIR/HB2B/shared/CAL/%s/HB2B_CAL_%s.json' % (float(self.monosetting),
                                                                            time.strftime('%Y-%m-%dT%H:%M',
                                                                                          time.localtime()))
             else:
@@ -1010,5 +963,3 @@ class PeakFitCalibration(object):
         # END-IF
 
         write_calibration_to_json(cal_shift, cal_shift_error, wl, wl_error, self._calibstatus, file_name)
-
-        return

@@ -106,24 +106,6 @@ def print_out_json_diff(json_file1_name, json_file2_name):
     return
 
 
-@pytest.mark.parametrize("index, label, wavelength", [(0, 'Si333', 1.452), (1, 'Si511', 1.452), (2, 'Si422', 1.540), (3, 'Si331', 1.731),
-                                               (4, 'Si400', 1.886), (5, 'Si311', 2.275), (6, 'Si220', 2.667)])
-def test_monosetting_index(index, label, wavelength):
-    monosetting = peakfit_calibration.Monosetting(index)
-    assert monosetting.wavelength == wavelength
-    assert float(monosetting) == wavelength
-    assert monosetting.label == label
-    assert str(monosetting) == label
-
-
-def test_monosetting_from_rotation():
-    monosetting = peakfit_calibration.Monosetting.getFromRotation(-182.0)
-    assert monosetting.label == 'Si220'
-    assert monosetting.wavelength == 2.667
-    with pytest.raises(ValueError):
-        monosetting.getFromRotation(-12.)
-
-
 # On analysis cluster, it will fail due to lmfit is not supported
 @pytest.mark.skipif(isinstance(least_squares, str), reason=least_squares)
 def test_least_square():
