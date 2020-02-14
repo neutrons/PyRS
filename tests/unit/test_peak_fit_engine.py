@@ -13,6 +13,7 @@ import sys
 # set to True when running on build servers
 ON_TRAVIS = (os.environ.get('TRAVIS', 'false').upper() == 'TRUE')
 
+
 def generate_test_gaussian(vec_x, peak_center_list, peak_range_list, peak_height_list):
     """
     Generate Gaussian function for test
@@ -738,7 +739,7 @@ def test_pseudovoigt_HB2B_1060(target_values):
     # Set peak fitting engine
     # create a controller from factory
     fit_engine = PeakFitEngineFactory.getInstance(hd_ws, peak_function_name=peak_type,
-                                                  background_function_name='Linear',wavelength=np.nan)
+                                                  background_function_name='Linear', wavelength=np.nan)
 
     # Fit peak @ left and right
     peak_info_left = PeakInfo(91.7, 87., 93., 'Left Peak')
