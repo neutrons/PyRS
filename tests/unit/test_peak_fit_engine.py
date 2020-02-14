@@ -4,7 +4,8 @@ from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.core.peak_profile_utility import pseudo_voigt, PeakShape, BackgroundFunction
 from pyrs.core.peak_profile_utility import Gaussian, PseudoVoigt
-import pytest, os
+import pytest
+import os
 from matplotlib import pyplot as plt
 from collections import namedtuple
 from pyrs.core import pyrscore
@@ -704,14 +705,12 @@ PeakInfo = namedtuple('PeakInfo', 'center left_bound right_bound tag')
 
 
 @pytest.mark.parametrize('target_values', [{'Intensity': [0.4, 0.3], 'peak_center': [91, 95], 'FWHM': [7.76, 7.76],
-                                            'background_A0': [-0.04673, 0.427809], 'background_A1': [0.007, -0.003]}])
+                                            'background_A0': [-0.04, 0.42], 'background_A1': [0.007, -0.003]}])
 def test_pseudovoigt_HB2B_1060(target_values):
     """This is a test of Pseudovoigt peak fitting for HB2B 1060.
 
      Data are from the real HB2B data previously reported problematic
 
-     Returns
-     -------
 
      """
     # Define HiDRA project file name and skip test if it does not exist (on Travis)
@@ -748,16 +747,16 @@ def test_pseudovoigt_HB2B_1060(target_values):
     assert fit_result.difference
 
     # peak 'Left'
-    param_values_lp, param_errors_lp = fit_result.peakcollections[0].get_native_params()
+    param_values_lp, _ = fit_result.peakcollections[0].get_native_params()
 
     # peak 'Right'
-    param_values_rp, param_errors_rp = fit_result.peakcollections[1].get_native_params()
+    param_values_rp, _ = fit_result.peakcollections[1].get_native_params()
 
     assert param_values_lp.size == 3, '3 subruns'
-    assert len(param_values_lp.dtype.names) == 6, '6 effective parameters'
+    assert len(param_values_lp.dtype.names) == 6, '6 native parameters'
 
     assert param_values_rp.size == 3, '3 subruns'
-    assert len(param_values_rp.dtype.names) == 6, '6 effective parameters'
+    assert len(param_values_rp.dtype.names) == 6, '6 native parameters'
 
     np.testing.assert_allclose(param_values_lp['Intensity'], target_values['Intensity'][0], rtol=1.)
     np.testing.assert_allclose(param_values_lp['PeakCentre'], target_values['peak_center'][0], rtol=1.)
