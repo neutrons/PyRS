@@ -562,7 +562,7 @@ class HidraProjectFile(object):
 
         Returns
         -------
-        list
+        ~list
             list of string for all the peak tags
 
         """
@@ -579,7 +579,7 @@ class HidraProjectFile(object):
 
         Returns
         -------
-        ~pyrs.core.peak_collection.PeakCollection
+        ~pyrs.peaks.peak_collection.PeakCollection
             All of the information from fitting a peak across subruns
         """
         # Get main group

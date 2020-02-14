@@ -149,6 +149,14 @@ class PeakCollection(object):
         self.__set_fit_status()
 
     def get_d_reference(self):
+        """Get d reference for all the sub runs
+
+        Returns
+        -------
+        numpy.ndarray
+            1D array for peak's reference position in dSpacing.  NaN for not being set.
+
+        """
         return self._d_reference
 
     def set_d_reference(self, values=np.nan):
