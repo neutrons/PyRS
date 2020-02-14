@@ -9,7 +9,9 @@ import os
 from matplotlib import pyplot as plt
 from collections import namedtuple
 from pyrs.core import pyrscore
-
+import sys
+# set to True when running on build servers
+ON_TRAVIS = (os.environ.get('TRAVIS', 'false').upper() == 'TRUE')
 
 def generate_test_gaussian(vec_x, peak_center_list, peak_range_list, peak_height_list):
     """
