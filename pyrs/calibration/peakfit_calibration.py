@@ -78,26 +78,25 @@ class GlobalParameter(object):
         return
 
 
-
-
-
+@unique
 class Monosetting(Enum):
-    Si333 = ('Si333', 1.452)
-    Si511 = ('Si511', 1.452)
-    Si422 = ('Si422', 1.540)
-    Si331 = ('Si331', 1.731)
-    Si400 = ('Si400', 1.886)
-    Si311 = ('Si311', 2.275)
-    Si220 = ('Si220', 2.667)
+    Si333 = (0, 'Si333', 1.452)
+    Si511 = (1, 'Si511', 1.452)
+    Si422 = (2, 'Si422', 1.540)
+    Si331 = (3, 'Si331', 1.731)
+    Si400 = (4, 'Si400', 1.886)
+    Si311 = (5, 'Si311', 2.275)
+    Si220 = (6, 'Si220', 2.667)
 
-    def __new__(cls, label, wavelength):
+    def __new__(cls, value, label, wavelength):
         obj = object.__new__(cls)
-        obj._value_ = label
+        obj._value_ = value
+        obj.label = label
         obj.wavelength = wavelength
         return obj
 
     def __str__(self):
-        return self.value
+        return self.label
 
     def __float__(self):
         return self.wavelength
@@ -105,19 +104,19 @@ class Monosetting(Enum):
     @staticmethod
     def getFromRotation(mrot):
         if -41.0 < mrot < -38.0:
-            monosetting = Monosetting('Si333')
+            monosetting = Monosetting.Si333
         elif -1.0 < mrot < 1.0:
-            monosetting = Monosetting('Si511')
+            monosetting = Monosetting.Si511
         elif -20.0 < mrot < -19.0:
-            monosetting = Monosetting('Si422')
+            monosetting = Monosetting.Si422
         elif -170.0 < mrot < -166.0:
-            monosetting = MonoSetting('Si331')
+            monosetting = MonoSetting.Si331
         elif 14.0 < mrot < 18.0:
-            monosetting = MonoSetting('Si400')
+            monosetting = MonoSetting.Si400
         elif -11.0 < mrot < -8.0:
-            monosetting = MonoSetting('Si311')
+            monosetting = MonoSetting.Si311
         elif -185.0 < mrot < -180.0:
-            monosetting = MonoSetting('Si220')
+            monosetting = MonoSetting.Si220
         else:
             raise ValueError('Unable to determine monosetting from the monochromator rotation angle')
         return monosetting
@@ -144,7 +143,10 @@ class PeakFitCalibration(object):
         # calibration error: numpy array. size as 7 for ...
         self._caliberr = np.array(7 * [-1], dtype=np.float)
 
-        self.monosetting = Monosetting.getFromRotation(self._engine.read_log_value('mrot')[0])
+        try:
+            self.monosetting = Monosetting(self._engine.read_log_value('Monosetting')[0])
+        except KeyError:
+            self.monosetting = Monosetting.getFromRotation(self._engine.read_log_value('mrot').value)
 
         try:
             self._engine.read_log_value('2theta')
