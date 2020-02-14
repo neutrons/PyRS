@@ -7,6 +7,7 @@ import os
 import json
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 from pyrs.utilities import calibration_file_io
+
 try:
     from pyrs.calibration import peakfit_calibration
 except ImportError as e:

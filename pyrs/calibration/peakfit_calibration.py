@@ -6,8 +6,8 @@ import numpy as np
 import time
 import json
 import os
+from pyrs.core import MonoSetting
 from pyrs.core import reduce_hb2b_pyrs
-
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
 from pyrs.core.reduction_manager import HB2BReductionManager
 
@@ -99,24 +99,10 @@ class PeakFitCalibration(object):
         self._caliberr = np.array(7 * [-1], dtype=np.float)
 
         try:
-            monosetting = self._engine.read_log_value('MonoSetting')[0]
+            self.monosetting = MonoSetting.getFromIndex(self._engine.read_log_value('MonoSetting')[0])
         except KeyError:
-            if -41.0 < self._engine.read_log_value('mrot')[0] < -38.0:
-                monosetting = 0
-            elif -1.0 < self._engine.read_log_value('mrot')[0] < 1.0:
-                monosetting = 1
-            elif -20.0 < self._engine.read_log_value('mrot')[0] < -19.0:
-                monosetting = 2
-            elif -170.0 < self._engine.read_log_value('mrot')[0] < -166.0:
-                monosetting = 3
-            elif 14.0 < self._engine.read_log_value('mrot')[0] < 18.0:
-                monosetting = 4
-            elif -11.0 < self._engine.read_log_value('mrot')[0] < -8.0:
-                monosetting = 5
-            elif -185.0 < self._engine.read_log_value('mrot')[0] < -180.0:
-                monosetting = 6
+            self.monosetting = MonoSetting.getFromRotation(self._engine.read_log_value('mrot').value)
 
-        self.mono = ['Si333', 'Si511', 'Si422', 'Si331', 'Si400', 'Si311', 'Si220'][monosetting]
         try:
             self._engine.read_log_value('2theta')
             self.tth_ref = '2theta'
@@ -126,8 +112,7 @@ class PeakFitCalibration(object):
         self.tth_ref = '2thetaSetpoint'
 
         # Set wave length
-        self._calib[6] = \
-            np.array([1.452, 1.452, 1.540, 1.731, 1.886, 2.275, 2.667])[monosetting]
+        self._calib[6] = float(self.monosetting)
 
         self._calibstatus = -1
 
@@ -936,31 +921,11 @@ class PeakFitCalibration(object):
         -------
         None
         """
-
-        # import glob
-        # import dateutil.parser
-
-        # Monochromator setting
-#        mono_setting_index = self._engine.read_log_value('MonoSetting')[0]
-#        mono_setting = ['Si333', 'Si511', 'Si422', 'Si331', 'Si400', 'Si311', 'Si220'][mono_setting_index]
-
-#        for files in glob.glob('/HFIR/HB2B/shared/CAL/{}/*.json'.format(mono_setting)):
-#            # get date
-#            datetime = files.split('.json')[0].split('_CAL_')[1]
-#            if dateutil.parser.parse(datetime) < dateutil.parser.parse(self._engine.read_log_value('MonoSetting')[0]):
-#                CalibData = json.load(files)
-#                keys = ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda']
-#                for i in range(len(keys)):
-#                    self._calib[i] = CalibData[keys[i]]
-#
-
         with open(file_name) as fIN:
             CalibData = json.load(fIN)
             keys = ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda']
             for i in range(len(keys)):
                 self._calib[i] = CalibData[keys[i]]
-
-        return
 
     # TODO - #86 - Clean up!
     def write_calibration(self, file_name=None):
@@ -976,11 +941,6 @@ class PeakFitCalibration(object):
         None
         """
         from pyrs.core.instrument_geometry import AnglerCameraDetectorShift
-
-        # Year, Month, Day, Hour, Min = time.localtime()[0:5]
-        # mono_setting_index = self._engine.read_log_value('MonoSetting')[0]
-        # Mono = ['Si333', 'Si511', 'Si422', 'Si331', 'Si400', 'Si311', 'Si220'][mono_setting_index]
-        Mono = self.mono
         # Form AnglerCameraDetectorShift objects
         cal_shift = AnglerCameraDetectorShift(self._calib[0], self._calib[1], self._calib[2], self._calib[3],
                                               self._calib[4], self._calib[5])
@@ -995,7 +955,7 @@ class PeakFitCalibration(object):
         if file_name is None:
             # default case: write to archive
             if os.access('/HFIR/HB2B/shared', os.W_OK):
-                file_name = '/HFIR/HB2B/shared/CAL/%s/HB2B_CAL_%s.json' % (Mono,
+                file_name = '/HFIR/HB2B/shared/CAL/%s/HB2B_CAL_%s.json' % (float(self.monosetting),
                                                                            time.strftime('%Y-%m-%dT%H:%M',
                                                                                          time.localtime()))
             else:
@@ -1003,5 +963,3 @@ class PeakFitCalibration(object):
         # END-IF
 
         write_calibration_to_json(cal_shift, cal_shift_error, wl, wl_error, self._calibstatus, file_name)
-
-        return
