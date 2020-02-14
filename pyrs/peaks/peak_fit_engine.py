@@ -18,7 +18,7 @@ class FitResult(namedtuple('FitResult', 'peakcollections fitted difference')):
 class PeakFitEngine(object):
     '''This is the virtual base class as the fitting frame'''
     def __init__(self, hidraworkspace, peak_function_name, background_function_name,
-                 out_of_plane_angle):
+                 wavelength, out_of_plane_angle):
         '''It is not expected that any subclass will need to implement this method. It is
         designed to unpack all of the information necessary for fitting.'''
         # configure logging for this class
@@ -34,6 +34,8 @@ class PeakFitEngine(object):
         # create a
         self._peak_function = PeakShape.getShape(peak_function_name)
         self._background_function = BackgroundFunction.getFunction(background_function_name)
+
+        self._wavelength = wavelength
 
     @staticmethod
     def _check_fit_range(x_min, x_max):

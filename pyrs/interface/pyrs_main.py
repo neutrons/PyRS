@@ -1,3 +1,4 @@
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from qtpy import QtCore
 from qtpy.QtWidgets import QMainWindow, QSizePolicy, QWidget, QLabel, QMenuBar, QToolBar, QStatusBar, QGridLayout
 from pyrs.utilities import load_ui
@@ -25,7 +26,7 @@ class WorkspacesView(QMainWindow):
         Init
         :param parent:
         """
-        from ui.workspaceviewwidget import WorkspaceViewWidget
+        from .ui.workspaceviewwidget import WorkspaceViewWidget
 
         QMainWindow.__init__(self)
 
@@ -80,7 +81,7 @@ class PyRSLauncher(QMainWindow):
         self.ui = load_ui('pyrsmain.ui', baseinstance=self)
 
         # define
-        self.ui.pushButton_manualReduction.clicked.connect(self.do_reduce_manually)
+        self.ui.pushButton_manualReduction.clicked.connect(self.do_launch_manual_reduction)
         self.ui.pushButton_fitPeaks.clicked.connect(self.do_launch_fit_peak_window)
         self.ui.pushButton_launchTextureAnalysis.clicked.connect(self.do_launch_texture_window)
         self.ui.pushButton_launchStrainStressCalculation.clicked.connect(self.do_launch_strain_stress_window)
@@ -187,17 +188,14 @@ class PyRSLauncher(QMainWindow):
 
         return
 
-    def do_reduce_manually(self):
+    def do_launch_manual_reduction(self):
         """
         launch manual data reduction window
         :return:
         """
-        # core
-        reduction_core = pyrscore.PyRsCore()
-
         if self.manual_reduction_window is None:
             self.manual_reduction_window = manualreductionwindow.ManualReductionWindow(self)
-            self.manual_reduction_window.setup_window(reduction_core)
+            # self.manual_reduction_window.setup_window()
 
         # show
         self.manual_reduction_window.show()

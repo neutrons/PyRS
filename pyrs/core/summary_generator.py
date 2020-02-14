@@ -1,6 +1,7 @@
 """
 This module generates reduction summary for user in plain text CSV file
 """
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from pyrs.core.peak_profile_utility import EFFECTIVE_PEAK_PARAMETERS  # TODO get from the first peak collection
 
 # Default summary titles shown in the CSV file. This is a list of tuples ot enforce order
@@ -122,6 +123,7 @@ class SummaryGenerator(object):
     def _classify_logs(self, sample_logs, tolerance):
         self._constant_logs = [logname for logname in sample_logs.constant_logs(tolerance)
                                if logname in self._sample_log_list]
+        self._constant_logs.sort()  # keep the order stable for python3 tests
 
         # loop through all of the requested logs and classify as present or missing
         for logname in self._sample_log_list:
@@ -141,6 +143,10 @@ class SummaryGenerator(object):
                 value = ''
                 if logname in sample_logs:
                     value = sample_logs[logname][0]  # only use first value
+                try:  # for python 3
+                    value.decode()
+                except (UnicodeDecodeError, AttributeError):
+                    pass
                 self._header_information[logname] = value
 
             # fix up particular values
@@ -148,11 +154,19 @@ class SummaryGenerator(object):
                 if logname == 'run_number':
                     self._header_information[logname] = int(self._header_information[logname])
                 elif logname == 'experiment_identifier':
-                    self._header_information[logname] = self._header_information[logname].split('-')[-1]
+                    try:  # for python 3
+                        experiment_identifier = self._header_information[logname].decode()
+                    except (UnicodeDecodeError, AttributeError):
+                        experiment_identifier = self._header_information[logname]
+                    self._header_information[logname] = experiment_identifier.split('-')[-1]
 
         # write out the text
         for logname, label in HEADER_MAPPING:
             value = self._header_information[logname]
+            try:  # for python 3
+                value = value.decode()
+            except (UnicodeDecodeError, AttributeError):
+                pass
             if value:
                 line = ' = '.join((label, str(value)))
             else:
@@ -168,13 +182,17 @@ class SummaryGenerator(object):
         '''Write only the sample logs that are constants into the header. These do not appear in the body.
         '''
         for name in self._constant_logs:
+            try:  # for python 3
+                value = sample_logs[name].decode()
+            except (UnicodeDecodeError, AttributeError):
+                value = sample_logs[name]
             try:
-                handle.write('# {} = {:.5g} +/- {:.2g}\n'.format(name, sample_logs[name].mean(),
-                                                                 sample_logs[name].std()))
+                handle.write('# {} = {:.5g} +/- {:.2g}\n'.format(name, value.mean(),
+                                                                 value.std()))
             except TypeError:
                 # strings don't have a "mean" or "std" so use the first value
                 # this is intended for strings
-                handle.write('# {} = {}\n'.format(name, sample_logs[name][0]))
+                handle.write('# {} = {}\n'.format(name, value[0]))
 
     def _write_column_names(self, handle, peak_collections):
         '''This writes the names of all of the columns'''
@@ -186,9 +204,11 @@ class SummaryGenerator(object):
         for peak_collection in peak_collections:
             tag = peak_collection.peak_tag  # name of the peak
             # values first
+            column_names.append('{}_dspacing_center'.format(tag))
             for param in EFFECTIVE_PEAK_PARAMETERS:
                 column_names.append('{}_{}'.format(tag, param))
             # errors after values
+            column_names.append('{}_dspacing_center_error'.format(tag))
             for param in EFFECTIVE_PEAK_PARAMETERS:
                 column_names.append('{}_{}_error'.format(tag, param))
             column_names.append('{}_chisq'.format(tag))
@@ -203,23 +223,26 @@ class SummaryGenerator(object):
         log_names = [name for name in self._present_logs
                      if name not in self._constant_logs]
 
-        for i in range(len(sample_logs.subruns)):
+        for subrun_index in range(len(sample_logs.subruns)):
             line = []
 
             # sub-run goes in first
-            line.append(str(sample_logs.subruns[i]))
+            line.append(str(sample_logs.subruns[subrun_index]))
 
             # then sample logs
             for name in log_names:
-                line.append(str(sample_logs[name][i]))  # get by index rather than subrun
+                line.append(str(sample_logs[name][subrun_index]))  # get by index rather than subrun
 
             for peak_collection in peak_collections:
                 fit_cost = peak_collection.fitting_costs
+                dspacing_center, dspacing_center_error = peak_collection.get_dspacing_center()
                 values, errors = peak_collection.get_effective_params()
-                for value in values[i]:
+                line.append(str(dspacing_center[subrun_index]))
+                for value in values[subrun_index]:
                     line.append(str(value))
-                for value in errors[i]:
+                line.append(str(dspacing_center_error[subrun_index]))
+                for value in errors[subrun_index]:
                     line.append(str(value))
-                line.append(str(fit_cost[i]))
+                line.append(str(fit_cost[subrun_index]))
 
             handle.write(self.separator.join(line) + '\n')

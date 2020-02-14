@@ -11,7 +11,7 @@ class FitEngineFactory(object):
     """
     @staticmethod
     def getInstance(hidraworkspace, peak_function_name, background_function_name,
-                    out_of_plane_angle=None, engine_name='mantid'):
+                    wavelength, out_of_plane_angle=None, engine_name='mantid'):
         """Get instance of Peak fitting engine
         """
         engine_name = str(engine_name).lower()
@@ -22,7 +22,7 @@ class FitEngineFactory(object):
 
         if engine_name == 'mantid':
             return MantidPeakFitEngine(hidraworkspace, peak_function_name, background_function_name,
-                                       out_of_plane_angle)
+                                       wavelength=wavelength, out_of_plane_angle=out_of_plane_angle)
         elif engine_name == 'pyrs':
             # this is known to be broken 2010-01-09
             return ScipyPeakFitEngine(hidraworkspace, out_of_plane_angle)

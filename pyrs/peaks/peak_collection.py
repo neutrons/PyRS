@@ -11,7 +11,7 @@ class PeakCollection(object):
     """
     Object to contain peak parameters (names and values) of a collection of peaks for sub runs
     """
-    def __init__(self, peak_tag, peak_profile, background_type):
+    def __init__(self, peak_tag, peak_profile, background_type, wavelength=np.nan, d_reference=np.nan):
         """Initialization
 
         Parameters
@@ -30,6 +30,8 @@ class PeakCollection(object):
         # Init other parameters
         self._peak_profile = PeakShape.getShape(peak_profile)
         self._background_type = BackgroundFunction.getFunction(background_type)
+        self._wavelength = wavelength
+        self._d_reference = d_reference
 
         # sub run numbers: 1D array
         self._sub_run_array = SubRuns()
@@ -81,14 +83,6 @@ class PeakCollection(object):
     @property
     def sub_runs(self):
         return self._sub_run_array
-
-    @property
-    def parameters_values(self):
-        return self._params_value_array
-
-    @property
-    def parameters_errors(self):
-        return self._params_error_array
 
     @property
     def fitting_costs(self):
@@ -154,6 +148,44 @@ class PeakCollection(object):
         self._fit_cost_array = np.copy(fit_costs)
         self.__set_fit_status()
 
+    def get_d_reference(self):
+        return self._d_reference
+
+    def set_d_reference(self, values=np.nan):
+        """Set d reference values
+
+        Parameters
+        ----------
+        values :
+            1D numpy array or floats
+
+        Returns
+        -------
+
+        """
+        if isinstance(values, np.ndarray):
+            self._d_reference = values
+        else:
+            self._d_reference = np.array([values] * self._sub_run_array.size)
+
+    def get_strain(self):
+        """get strain values and uncertainties
+
+          Parameters
+          ----------
+          values :
+              1D numpy array or floats
+
+          Returns
+          -------
+            tuple
+                A two-item tuple containing the strain and its uncertainty.
+          """
+        d_fitted, d_fitted_error = self.get_dspacing_center()
+        strain = (d_fitted - self._d_reference)/self._d_reference
+        strain_error = d_fitted_error/self._d_reference
+        return strain, strain_error
+
     def get_native_params(self):
         return self._params_value_array, self._params_error_array
 
@@ -168,6 +200,23 @@ class PeakCollection(object):
             converter.calculate_effective_parameters(self._params_value_array, self._params_error_array)
 
         return eff_values, eff_errors
+
+    def get_dspacing_center(self):
+        r"""
+        peak center in unit of d spacing.
+
+        Returns
+        -------
+        tuple
+            A two-item tuple containing the peak center and its uncertainty.
+        """
+        effective_values, effective_errors = self.get_effective_params()
+        theta_center_value = 0.5 * effective_values['Center']
+        theta_center_error = 0.5 * effective_errors['Center']
+        dspacing_center = 0.5 * self._wavelength / np.sin(np.deg2rad(theta_center_value))
+        dspacing_center_error = 0.5 * self._wavelength * abs(np.cos(theta_center_value)) * theta_center_error /\
+            (np.sin(np.deg2rad(theta_center_value))**2)
+        return dspacing_center, dspacing_center_error
 
     def get_integrated_intensity(self):
         pass

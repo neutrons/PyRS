@@ -1,7 +1,9 @@
 # Module containing extended TableWidgets for PyRS project
-import NTableWidget
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
+from . import NTableWidget
 from pyrs.utilities import checkdatatypes
 import numpy
+from qtpy import QtWidgets
 
 
 class FitResultTable(NTableWidget.NTableWidget):
@@ -36,7 +38,8 @@ class FitResultTable(NTableWidget.NTableWidget):
 
         self._column_names = None
 
-        return
+        self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
 
     def init_exp(self, sub_run_number_list):
         """

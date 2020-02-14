@@ -20,6 +20,10 @@ class PeakShape(Enum):
 
     @staticmethod
     def getShape(shape):
+        try:  # for python 3
+            shape = shape.decode()
+        except (UnicodeDecodeError, AttributeError):
+            pass
         if shape in PeakShape:
             return shape
         else:
@@ -46,6 +50,10 @@ class BackgroundFunction(Enum):
 
     @staticmethod
     def getFunction(function):
+        try:  # for python 3
+            function = function.decode()
+        except (UnicodeDecodeError, AttributeError):
+            pass
         if function in BackgroundFunction:
             return function
         else:
@@ -381,13 +389,13 @@ class PseudoVoigt(PeakParametersConverter):
                                               param_error_array['Mixing'])
 
         # Set
-        eff_error_array['Center'] = param_value_array['PeakCentre']  # center
+        eff_error_array['Center'] = param_error_array['PeakCentre']  # center
         eff_error_array['Height'] = heights_error[:]  # height
-        eff_error_array['FWHM'] = param_value_array['FWHM']  # FWHM
-        eff_error_array['Mixing'] = param_value_array['Mixing']  # no mixing for Gaussian
-        eff_error_array['A0'] = param_value_array['A0']  # A0
-        eff_error_array['A1'] = param_value_array['A1']  # A1
-        eff_error_array['Intensity'] = param_value_array['Intensity']  # intensity
+        eff_error_array['FWHM'] = param_error_array['FWHM']  # FWHM
+        eff_error_array['Mixing'] = param_error_array['Mixing']  # no mixing for Gaussian
+        eff_error_array['A0'] = param_error_array['A0']  # A0
+        eff_error_array['A1'] = param_error_array['A1']  # A1
+        eff_error_array['Intensity'] = param_error_array['Intensity']  # intensity
 
         return eff_value_array, eff_error_array
 

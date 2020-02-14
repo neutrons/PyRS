@@ -67,7 +67,7 @@ class MplGraphicsView1D(QWidget):
         self._vBox.addWidget(self._myToolBar)
 
     def button_clicked_in_canvas(self, event):
-        print("button pressed here!")
+        # print("button pressed here!")
         print("-> %s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f".format(event.dblclick, event.button,
                                                                               event.x, event.y, event.xdata,
                                                                               event.ydata))
@@ -183,27 +183,11 @@ class MplGraphicsView1D(QWidget):
         # Add default to (0, 0) figure
         self._myCanvas.add_arrow(0, 0, start_x, start_y, stop_x, stop_y)
 
-    def add_plot(self, vec_x, vec_y, y_err=None, row_index=0, col_index=0, is_right=False,
+    def add_plot(self, vec_x, vec_y, x_err=None, y_err=None, row_index=0, col_index=0, is_right=False,
                  color=None, label='',
                  x_label=None, y_label=None, marker=None, markersize=2, line_style=None,
                  line_width=1, show_legend=True):
-        """Add a plot in 1D
-        :param row_index:
-        :param col_index:
-        :param is_right: flag to show whether the line is added to the right axis
-        :param vec_x:
-        :param vec_y:
-        :param y_err:
-        :param color:
-        :param label:
-        :param x_label:
-        :param y_label:
-        :param marker:
-        :param line_style:
-        :param line_width:
-        :param show_legend:
-        :return: string/integer as line reference ID
-        """
+
         # check whether the input is empty
         if len(vec_y) == 0:
             print('[WARNING] Input is an empty vector set')
@@ -222,7 +206,8 @@ class MplGraphicsView1D(QWidget):
 
         else:
             # plot at the main axis
-            line_key = self._myCanvas.add_main_plot(row_index, col_index, vec_x, vec_y, y_err, color, label, x_label,
+            line_key = self._myCanvas.add_main_plot(row_index, col_index, vec_x, vec_y, x_err, y_err,
+                                                    color, label, x_label,
                                                     y_label, marker, line_style,
                                                     line_width, show_legend,
                                                     markersize=markersize)
@@ -346,6 +331,8 @@ class MplGraphicsView1D(QWidget):
         # about zoom
         self._isZoomed = False
         self._homeXYLimit = None
+
+        self._myCanvas.clear_canvas()
 
     def clear_canvas(self):
         """ Clear canvas
@@ -741,9 +728,13 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
 
         return
 
-    def add_main_plot(self, row_index, col_index, vec_x, vec_y, y_err=None, color=None, label='',
+    def add_main_plot(self, row_index, col_index,
+                      vec_x, vec_y,
+                      x_err=None, y_err=None,
+                      color=None, label='',
                       x_label=None, y_label=None,
-                      marker=None, line_style=None, line_width=1, show_legend=True, markersize=4,):
+                      marker=None, line_style=None,
+                      line_width=1, show_legend=True, markersize=4,):
         """Add 1D plot on the main side (left)
         :param row_index: numpy array X
         :param col_index: numpy array Y
@@ -768,7 +759,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         if isinstance(vec_x, np.ndarray) is False or isinstance(vec_y, np.ndarray) is False:
             raise NotImplementedError('Input vec_x or vec_y for addPlot() must be numpy.array,'
                                       'but not {} and {}.'.format(type(vec_x), type(vec_y)))
-        plot_error = y_err is not None
+        plot_error = (y_err is not None) or (x_err is not None)
         if plot_error is True:
             if isinstance(y_err, np.ndarray) is False:
                 raise NotImplementedError('Input y_err must be either None or numpy.array.')
@@ -803,10 +794,25 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
             self.axes_main[row_index, col_index].autoscale()
 
         else:
-            r = self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
-                                                              yerr=y_err, color=color, marker=marker,
-                                                              linestyle=line_style, label=label,
-                                                              linewidth=line_width)
+            if y_err is None:
+                r = self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
+                                                                  xerr=x_err,
+                                                                  color=color, marker=marker,
+                                                                  linestyle=line_style, label=label,
+                                                                  linewidth=line_width)
+            elif x_err is None:
+                r = self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
+                                                                  yerr=y_err,
+                                                                  color=color, marker=marker,
+                                                                  linestyle=line_style, label=label,
+                                                                  linewidth=line_width)
+            else:
+                # both error
+                r = self.axes_main[row_index, col_index].errorbar(vec_x, vec_y,
+                                                                  xerr=x_err, yerr=y_err,
+                                                                  color=color, marker=marker,
+                                                                  linestyle=line_style, label=label,
+                                                                  linewidth=line_width)
 
         # set aspect ratio
         self.axes_main[row_index, col_index].set_aspect('auto')
@@ -819,16 +825,18 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         if show_legend:
             self._setup_legend(row_index, col_index, is_main=True)
 
-        # Register
+        # # Register
         line_key = self._line_count
         if len(r) == 1:
+            # single line plot
             self._mainLineDict[row_index, col_index][line_key] = r[0]
             self._line_count += 1
         else:
-            msg = 'Return from plot is a %d-tuple: %s.. \n' % (len(r), r)
-            for i_r in range(len(r)):
-                msg += 'r[%d] = %s\n' % (i_r, str(r[i_r]))
-            raise NotImplementedError(msg)
+            # line with error bars
+            # TODO FIXME - need to find out the returned's data structure
+            self._mainLineDict[row_index, col_index][line_key] = r
+            self._line_count += 1
+        # END-IF
 
         # Flush/commit
         self.draw()
@@ -1228,13 +1236,24 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
                 raise RuntimeError('Plot key {} does not exist in main line dict.  Available plot keys are '
                                    '{}'.format(plot_key, self._mainLineDict.keys()))
             try:
-                self.axes_main[row_index, col_index].lines.remove(self._mainLineDict[(row_index, col_index)][plot_key])
+                line_instance = self._mainLineDict[(row_index, col_index)][plot_key]
+                if isinstance(line_instance, tuple):
+                    # line with error bar and etc
+                    line_instance[0].remove()
+                    for line in line_instance[1]:
+                        line.remove()
+                    for line in line_instance[2]:
+                        line.remove()
+                else:
+                    # single line w/o error bar
+                    self.axes_main[row_index, col_index].lines.remove(line_instance)
             except ValueError as r_error:
                 error_message = 'Unable to remove to 1D line {} (ID={}) due to {}' \
                                 ''.format(self._mainLineDict[(row_index, col_index)][plot_key], plot_key, str(r_error))
                 raise RuntimeError(error_message)
             # remove the plot key from dictionary
             del self._mainLineDict[(row_index, col_index)][plot_key]
+            # set the flag to be on main/left or right
             is_on_main = True
 
         elif (row_index, col_index) in self._rightLineDict and plot_key in self._rightLineDict[row_index, col_index]:
@@ -1251,7 +1270,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
             is_on_main = False
         else:
             # unable to locate plot key
-            raise RuntimeError('Line with ID %s is not recorded.' % plot_key)
+            raise RuntimeError('Line with ID %s is not recorded.'.format(plot_key))
 
         self._setup_legend(row_index, col_index, location='best', font_size=self._legend_font_size, is_main=is_on_main)
 

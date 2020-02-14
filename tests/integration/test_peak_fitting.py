@@ -366,14 +366,14 @@ def test_write_csv():
         assert exp == obs
 
     # verify the column headers
-    assert contents[len(EXPECTED_HEADER)].startswith('sub-run,variable1,fake_Center,')
+    assert contents[len(EXPECTED_HEADER)].startswith('sub-run,variable1,fake_dspacing_center,')
     assert contents[len(EXPECTED_HEADER)].endswith(',fake_chisq')
 
     assert len(contents) == len(EXPECTED_HEADER) + 1 + len(subruns), 'Does not have full body'
     # verify that the number of columns is correct
     # columns are (subruns, one log, parameter values, uncertainties, chisq)
     for line in contents[len(EXPECTED_HEADER) + 1:]:  # skip past header and constant log
-        assert len(line.split(',')) == 1 + 1 + 7 * 2 + 1
+        assert len(line.split(',')) == 1 + 1 + 8 * 2 + 1
 
     # cleanup
     os.remove(csv_filename)
@@ -391,9 +391,11 @@ EXPECTED_HEADER_1065 = '''# IPTS number = 22731
 # Hidra project file = /some/place/random.h5
 # Manual vs auto reduction
 # missing: S1width, S1height, S1distance, RadialDistance
+# 2theta = 90.993 +/- 0
 # chi = 0 +/- 0
-# phi = 0 +/- 0
-# omega = 135 +/- 0'''.split('\n')
+# omega = 135 +/- 0
+# phi = 0 +/- 0'''.split('\n')
+
 
 EXPECTED_HEADER_938 = '''# IPTS number = 22731
 # Run = 938
@@ -407,21 +409,21 @@ EXPECTED_HEADER_938 = '''# IPTS number = 22731
 # Hidra project file = /some/place/random.h5
 # Manual vs auto reduction
 # missing: S1width, S1height, S1distance, RadialDistance
-# sx = 0.00073674 +/- 0
+# 2theta = 90.001 +/- 0
 # chi = 0 +/- 0
-# phi = 0 +/- 0
 # omega = 0 +/- 0
-# sz = 3.8844 +/- 0
+# phi = 0 +/- 0
+# sx = 0.00073674 +/- 0
 # sy = 0.00057072 +/- 0
-# 2theta = 90.001 +/- 0'''.split('\n')
+# sz = 3.8844 +/- 0'''.split('\n')
 
 
 @pytest.mark.parametrize('project_file_name, csv_filename, expected_header, num_subruns, num_logs,'
                          ' startswith, endswith',
-                         [('/HFIR/HB2B/shared/PyRS/HB2B_1065_Peak.h5', 'HB2B_1065.csv', EXPECTED_HEADER_1065, 99, 7,
+                         [('/HFIR/HB2B/shared/PyRS/HB2B_1065_Peak.h5', 'HB2B_1065.csv', EXPECTED_HEADER_1065, 99, 6,
                            'sub-run,vx,vy,vz,', ',311_chisq'),
                           ('data/HB2B_938_peak.h5', 'HB2B_938.csv', EXPECTED_HEADER_938, 1, 3,
-                           'sub-run,vx,vy,vz,Si111_Center', ',Si111_chisq')],
+                           'sub-run,vx,vy,vz,Si111_dspacing_center', ',Si111_chisq')],
                          ids=['HB2B_1065_CSV', 'HB2B_938_CSV'])
 def test_write_csv_from_project(project_file_name, csv_filename, expected_header, num_subruns, num_logs,
                                 startswith, endswith):
@@ -461,9 +463,9 @@ def test_write_csv_from_project(project_file_name, csv_filename, expected_header
 
     assert len(contents) == len(expected_header) + 1 + num_subruns, 'Does not have full body'
     # verify that the number of columns is correct
-    # columns are (subruns, seven logs, parameter values, uncertainties, chisq)
+    # columns are (subruns, seven logs, parameter values, uncertainties, d_spacing values, and uncertainties, chisq)
     for line in contents[len(expected_header) + 1:]:  # skip past header and constant log
-        assert len(line.split(',')) == 1 + num_logs + 7 * 2 + 1
+        assert len(line.split(',')) == 1 + num_logs + 7 * 2 + (1*2) + 1
 
     # cleanup
     os.remove(csv_filename)

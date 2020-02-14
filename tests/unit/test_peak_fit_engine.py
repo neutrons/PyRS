@@ -300,7 +300,8 @@ def test_1_gaussian_1_subrun(setup_1_subrun, fit_domain):
     """
     # initialize fit engine
     fit_engine = PeakFitEngineFactory.getInstance(setup_1_subrun['workspace'], peak_function_name='Gaussian',
-                                                  background_function_name='Linear', out_of_plane_angle=None)
+                                                  background_function_name='Linear', wavelength=np.nan,
+                                                  out_of_plane_angle=None)
 
     # Fit
     peak_tag = 'UnitTestGaussian'
@@ -358,7 +359,7 @@ def test_2_gaussian_1_subrun(setup_1_subrun, fit_domain):
 
     """
     fit_engine = PeakFitEngineFactory.getInstance(setup_1_subrun['workspace'], peak_function_name='Gaussian',
-                                                  background_function_name='Linear')
+                                                  background_function_name='Linear', wavelength=np.nan)
 
     # Fit
 
@@ -441,7 +442,7 @@ def test_2_gaussian_3_subruns(target_values):
 
     # Fit
     fit_engine = PeakFitEngineFactory.getInstance(test_hd_ws, peak_function_name='Gaussian',
-                                                  background_function_name='Linear')
+                                                  background_function_name='Linear', wavelength=np.nan)
     fit_result = fit_engine.fit_multiple_peaks(peak_tags=['Left', 'Right'],
                                                x_mins=(72.5, 77.5), x_maxs=(77.5, 82.5))
 
@@ -552,7 +553,7 @@ def test_3_gaussian_3_subruns(target_values):
 
     # Fit
     fit_engine = PeakFitEngineFactory.getInstance(test_hd_ws, peak_function_name='Gaussian',
-                                                  background_function_name='Linear')
+                                                  background_function_name='Linear', wavelength=np.nan)
     fit_result = fit_engine.fit_multiple_peaks(peak_tags=['Left', 'Middle', 'Right'],
                                                x_mins=(72.5, 77.5, 82.5),
                                                x_maxs=(77.5, 82.5, 87.5))
@@ -576,6 +577,8 @@ def test_3_gaussian_3_subruns(target_values):
                                       ' not {}'.format(fit_cost2_lp[2])
 
 
+# pseudo-Voigt peak fitting only works on mantid versions with https://github.com/mantidproject/mantid/pull/27809
+@pytest.mark.skipif(ON_TRAVIS and sys.version_info.major == 2, reason='Need mantid version > 4.2.20200128')
 @pytest.mark.parametrize("setup_1_subrun", [{'peak_profile_type': 'PseudoVoigt', 'min_x': 75., 'max_x': 85.,
                                              'num_x': 500, 'peak_center': [80.], 'peak_range': [10. * 0.25],
                                              'peak_intensities':[100.]}], indirect=True)
@@ -591,7 +594,7 @@ def test_1_pv_1_subrun(setup_1_subrun, fit_domain):
     # Generate test workspace and initialize fit engine
 
     fit_engine = PeakFitEngineFactory.getInstance(setup_1_subrun['workspace'], peak_function_name='PseudoVoigt',
-                                                  background_function_name='Linear')
+                                                  background_function_name='Linear', wavelength=np.nan)
 
     # Fit
     peak_tag = 'UnitTestPseudoVoigt'
@@ -634,7 +637,8 @@ def test_1_pv_1_subrun(setup_1_subrun, fit_domain):
 
     if fit_costs[0] > 1.0:
         # Plot
-        model_x, model_y = fit_engine.calculate_fitted_peaks(1, None)
+        model_x = fit_result.fitted.readX(0)
+        model_y = fit_result.fitted.readY(0)
         data_x, data_y = setup_1_subrun['workspace'].get_reduced_diffraction_data(1, None)
         assert data_x.shape == model_x.shape
         assert data_y.shape == model_y.shape

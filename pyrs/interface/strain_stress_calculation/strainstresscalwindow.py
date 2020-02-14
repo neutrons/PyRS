@@ -1,3 +1,4 @@
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from qtpy.QtWidgets import QMainWindow
 from pyrs.utilities import load_ui
 
@@ -10,6 +11,7 @@ import pyrs.interface.gui_helper
 import numpy
 import pyrs.interface.dialogs
 import datetime
+import six
 
 # setup of constants
 SLICE_VIEW_RESOLUTION = 0.0001
@@ -648,7 +650,7 @@ class StrainStressCalculationWindow(QMainWindow):
         :return:
         """
         # get new session's name
-        if isinstance(session_name, unicode) or session_name.__class__.__name__.count('QString') == 1:
+        if isinstance(session_name, six.string_types) or session_name.__class__.__name__.count('QString') == 1:
             session_name = str(session_name).strip()
         else:
             checkdatatypes.check_string_variable('Strain/stress session name', session_name)
@@ -882,9 +884,9 @@ class StrainStressCalculationWindow(QMainWindow):
             assert grid_param_value_dict[grid_pos]['dir'] == ss_direction, 'Direction not matching'
 
         grid_vec = numpy.array(grid_list)
-        print grid_vec.shape
+        print(grid_vec.shape)
         value_vec = numpy.array(value_list)
-        print value_vec.shape
+        print(value_vec.shape)
 
         return grid_vec, value_vec
 

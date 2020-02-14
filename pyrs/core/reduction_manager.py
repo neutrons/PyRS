@@ -1,4 +1,5 @@
 # Reduction engine including slicing
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import os
 import numpy as np
 from pyrs.core import workspaces
@@ -75,7 +76,7 @@ class HB2BReductionManager(object):
         :param mask_id:
         :return: 2-vectors: 2theta and intensity
         """
-        checkdatatypes.check_string_variable('Session name', session_name, self._session_dict.keys())
+        checkdatatypes.check_string_variable('Session name', session_name, list(self._session_dict.keys()))
         workspace = self._session_dict[session_name]
 
         data_set = workspace.get_reduced_diffraction_data(sub_run, mask_id)
@@ -88,7 +89,7 @@ class HB2BReductionManager(object):
         :param session_name:
         :return:
         """
-        checkdatatypes.check_string_variable('Session name', session_name, self._session_dict.keys())
+        checkdatatypes.check_string_variable('Session name', session_name, list(self._session_dict.keys()))
         workspace = self._session_dict[session_name]
 
         return workspace.get_sub_runs()
@@ -100,7 +101,7 @@ class HB2BReductionManager(object):
         :param sub_run:
         :return:
         """
-        checkdatatypes.check_string_variable('Session name', session_name, self._session_dict.keys())
+        checkdatatypes.check_string_variable('Session name', session_name, list(self._session_dict.keys()))
         workspace = self._session_dict[session_name]
 
         return workspace.get_detector_counts(sub_run)
@@ -154,7 +155,7 @@ class HB2BReductionManager(object):
         :param sub_run:
         :return:
         """
-        checkdatatypes.check_string_variable('Session name', session_name, self._session_dict.keys())
+        checkdatatypes.check_string_variable('Session name', session_name, list(self._session_dict.keys()))
         workspace = self._session_dict[session_name]
 
         return workspace.get_detector_2theta(sub_run)
@@ -175,7 +176,7 @@ class HB2BReductionManager(object):
         :param session_name: string as the session/workspace name
         :return: HidraWorkspace instance
         """
-        checkdatatypes.check_string_variable('Session name', session_name, self._session_dict.keys())
+        checkdatatypes.check_string_variable('Session name', session_name, list(self._session_dict.keys()))
 
         # Check availability
         if session_name not in self._session_dict:
@@ -367,7 +368,7 @@ class HB2BReductionManager(object):
         :param mask_id:  String as ID
         :return: a 1D array (0: mask, 1: keep)
         """
-        checkdatatypes.check_string_variable('Mask ID', mask_id, self._loaded_mask_dict.keys())
+        checkdatatypes.check_string_variable('Mask ID', mask_id, list(self._loaded_mask_dict.keys()))
 
         return self._loaded_mask_dict[mask_id][0]
 
@@ -443,19 +444,22 @@ class HB2BReductionManager(object):
             workspace = self._session_dict[session_name]
 
         # Process mask: No mask, Mask ID and mask vector
+        default_mask = workspace.get_detector_mask(is_default=True, mask_id=None)
         if mask is None:
-            mask_vec = None
-            # mask_id = None
+            # No use mask:  use default detector mask.  It could be None but does not matter
+            mask_vec = default_mask
         elif isinstance(mask, str):
             # mask is determined by mask ID
             mask_vec = self.get_mask_vector(mask)
-            # mask_id = mask
         else:
             # user supplied an array for mask
             checkdatatypes.check_numpy_arrays('Mask', [mask], dimension=1, check_same_shape=False)
             mask_vec = mask
-            # mask_id = 'Mask_{0:04}'.format(random.randint(1, 1000))
         # END-IF-ELSE
+
+        # Operate AND with default mask
+        if default_mask is not None:
+            mask_vec *= default_mask
 
         # Apply (or not) instrument geometry calibration shift
         if isinstance(apply_calibrated_geometry, instrument_geometry.AnglerCameraDetectorShift):
@@ -591,7 +595,8 @@ class HB2BReductionManager(object):
         det_counts_array
         two_theta_range
         num_bins
-        mask_array
+        mask_array : numpy.ndarray or None
+            mask: 1 to keep, 0 to mask (exclude)
         vanadium_array
 
         Returns

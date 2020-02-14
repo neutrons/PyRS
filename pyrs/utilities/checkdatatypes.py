@@ -1,6 +1,8 @@
 # PyRS static helper methods
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import os
 import numpy
+import six
 
 
 def check_bool_variable(var_name, bool_var):
@@ -71,7 +73,7 @@ def check_int_variable(var_name, variable, value_range):
     :param value_range: if not None, then must be a 2 tuple as [min, max)
     '''
     check_string_variable('var_name', var_name)
-    assert isinstance(variable, (int, numpy.int8, numpy.int16, numpy.int32)), '{0} "{1}" must be an integer ' \
+    assert isinstance(variable, (int, numpy.integer)), '{0} "{1}" must be an integer ' \
         'but not a {2}'.format(var_name, variable, type(variable))
 
     if value_range is not None:
@@ -97,7 +99,7 @@ def check_float_variable(var_name, variable, value_range):
     :param value_range: if not None, then must be a 2 tuple as [min, max)
     '''
     check_string_variable('var_name', var_name)
-    assert isinstance(variable, (float, int, numpy.float32, numpy.float)), '{0} {1} must be a float but not a {2}'\
+    assert isinstance(variable, (float, int, numpy.integer, numpy.floating)), '{0} {1} must be a float but not a {2}'\
         .format(var_name, variable, type(variable))
 
     if value_range is not None:
@@ -208,8 +210,8 @@ def check_string_variable(var_name, variable, allowed_values=None, allow_empty=T
     assert isinstance(var_name, str), 'Variable name {0} must be a string but not a {1}'\
         .format(var_name, type(var_name))
 
-    assert isinstance(variable, (str, unicode)), '{0} {1} must be a string or unicode but not a {2}' \
-                                                 ''.format(var_name, variable, type(variable))
+    assert isinstance(variable, six.string_types), '{0} {1} must be a string or unicode but not a {2}'\
+        .format(var_name, variable, type(variable))
 
     if isinstance(allowed_values, list):
         if variable not in allowed_values:

@@ -13,9 +13,10 @@ DEBUG = False   # Flag for debugging mode
 
 class MantidPeakFitEngine(PeakFitEngine):
     '''Peak fitting engine by calling mantid'''
-    def __init__(self, hidraworkspace, peak_function_name, background_function_name, out_of_plane_angle):
+    def __init__(self, hidraworkspace, peak_function_name, background_function_name, out_of_plane_angle, wavelength):
         super(MantidPeakFitEngine, self).__init__(hidraworkspace, peak_function_name,
-                                                  background_function_name, out_of_plane_angle)
+                                                  background_function_name, wavelength=wavelength,
+                                                  out_of_plane_angle=out_of_plane_angle)
         # configure logging for this class
         self._log = Logger(__name__)
 
@@ -34,11 +35,8 @@ class MantidPeakFitEngine(PeakFitEngine):
         # add in extra parameters for starting values
         kwargs = {}
         if self._peak_function == PeakShape.PSEUDOVOIGT:
-            # max_intensity = PseudoVoigt.cal_intensity(max_estimated_height, hidra_fwhm, default_mixing)
-            intensity = self._mtd_wksp.extractY().max() - self._mtd_wksp.extractY().mean()  # TODO improve this
-
-            kwargs['PeakParameterNames'] = 'Mixing, Intensity'  # FWHM also available
-            kwargs['PeakParameterValues'] = '{}, {}'.format(0.6, intensity)  # mixing agreed upon default
+            kwargs['PeakParameterNames'] = 'Mixing'  # FWHM and Intensity also available
+            kwargs['PeakParameterValues'] = '0.6'  # mixing agreed upon default
 
         # Fit peak by Mantid.FitPeaks
         fit_return = FitPeaks(InputWorkspace=self._mtd_wksp,
@@ -99,7 +97,7 @@ class MantidPeakFitEngine(PeakFitEngine):
 
         # Create PeakCollection instance
         peak_object = PeakCollection(peak_tag=peak_tag, peak_profile=self._peak_function,
-                                     background_type=self._background_function)
+                                     background_type=self._background_function, wavelength=self._wavelength)
         peak_object.set_peak_fitting_values(self._subruns, peak_params_value_array,
                                             peak_params_error_array, fit_cost_array)
 

@@ -66,7 +66,7 @@ def test_mask():
     # Test to read all user detector mask
     user_mask_dict = dict()
     verify_project_file.read_user_masks(user_mask_dict)
-    assert user_mask_dict.keys()[0] == 'test'
+    assert list(user_mask_dict.keys())[0] == 'test'
 
     # Read solid angle mask & compare
     verify_solid_mask = verify_project_file.read_mask_solid_angle('test')
@@ -112,6 +112,54 @@ def test_detector_efficiency():
     os.remove('test_efficient.hdf')
 
     return
+
+
+def test_wave_length_rw():
+    """Test writing and reading for wave length
+
+    Returns
+    -------
+
+    """
+    # Set up for testing
+    test_file_name = 'test_wave_length.h5'
+    # Create a detector mask
+    gold_wave_length = 1.23456
+
+    # Generate a HiDRA project file
+    test_project_file = HidraProjectFile(test_file_name, HidraProjectFileMode.OVERWRITE)
+    test_project_file.save(True)
+    test_project_file.close()
+
+    # Open file
+    verify_project_file = HidraProjectFile(test_file_name, HidraProjectFileMode.READONLY)
+
+    # Read wave length (not exist)
+    wave_length_test = verify_project_file.read_wavelengths()
+    assert np.isnan(wave_length_test), 'No wave length read out'
+
+    # Close
+    verify_project_file.close()
+
+    # Generate a HiDRA project file
+    test_project_file = HidraProjectFile(test_file_name, HidraProjectFileMode.READWRITE)
+
+    # Write wave length
+    test_project_file.write_wavelength(gold_wave_length)
+
+    # Save and close
+    test_project_file.save(True)
+    test_project_file.close()
+
+    # Open file again to verify
+    verify_project_file2 = HidraProjectFile(test_file_name, HidraProjectFileMode.READONLY)
+
+    # Read wave length (not exist)
+    wave_length_test = verify_project_file2.read_wavelengths()
+    assert wave_length_test == gold_wave_length
+
+    # Clean
+    os.remove(test_file_name)
 
 
 def next_test_monochromator_setup():
@@ -210,13 +258,13 @@ def test_peak_fitting_result_io():
 
     # parameter values
     # print('DEBUG:\n  Expected: {}\n  Found: {}'.format(test_params_array, peak_info[3]))
-    peak_values, _ = peak_info.get_native_params()
+    peak_values, peak_errors = peak_info.get_native_params()
     assert_allclose_structured_numpy_arrays(test_params_array, peak_values)
     # np.testing.assert_allclose(peak_info[3], test_params_array, atol=1E-12)
 
     # parameter values
     # assert np.allclose(peak_info[4], test_error_array, 1E-12)
-    assert_allclose_structured_numpy_arrays(test_error_array, peak_info.parameters_errors)
+    assert_allclose_structured_numpy_arrays(test_error_array, peak_errors)
 
     # Clean
     os.remove(test_file_name)

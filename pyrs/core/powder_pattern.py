@@ -126,10 +126,10 @@ class ReductionApp(object):
         -------
 
         """
-        # set workspace to reduction manager
-        self._reduction_manager.init_session(self._session, hd_workspace)
         # set the workspace to self
         self._hydra_ws = hd_workspace
+        # set workspace to reduction manager
+        self._reduction_manager.init_session(self._session, self._hydra_ws)
 
     def reduce_data(self, sub_runs, instrument_file, calibration_file, mask, mask_id=None,
                     van_file=None, num_bins=1000):
@@ -137,10 +137,11 @@ class ReductionApp(object):
 
         Parameters
         ----------
-        sub_runs : List or None
+        sub_runs : List or numpy.ndarray or None
             sub run numbers to reduce
         instrument_file
-        calibration_file
+        calibration_file : str or None
+            path of calibration file (optionally)
         mask : str or numpy.ndarray or None
             Mask name or mask (value) array.  None for no mask
         mask_id : str or None
@@ -158,8 +159,6 @@ class ReductionApp(object):
         # Check inputs
         if sub_runs is None or not bool(sub_runs):  # None or empty list
             sub_runs = self._hydra_ws.get_sub_runs()
-        else:
-            checkdatatypes.check_list('Sub runs', sub_runs)
 
         # instrument file
         if instrument_file is not None:
@@ -171,8 +170,10 @@ class ReductionApp(object):
         geometry_calibration = False
         if calibration_file is not None:
             if calibration_file.lower().endswith('.json'):
-                geometry_calibration =\
-                    calibration_file_io.read_calibration_json_file(calibration_file_name=calibration_file)[0]
+                calib_values = calibration_file_io.read_calibration_json_file(calibration_file_name=calibration_file)
+                geometry_calibration = calib_values[0]
+                wave_length = calib_values[2]
+                self._hydra_ws.set_wavelength(wave_length, True)
             else:
                 geometry_calibration =\
                     calibration_file_io.import_calibration_ascii_file(geometry_file_name=calibration_file)
@@ -209,12 +210,14 @@ class ReductionApp(object):
             plt.plot(vec_x, vec_y)
         plt.show()
 
-    def save_diffraction_data(self, output_file_name=None):
+    def save_diffraction_data(self, output_file_name=None, append_mode=False):
         """Save reduced diffraction data to Hidra project file
         Parameters
         ----------
         output_file_name: None or str
             if None, then append result to the input file
+        append_mode : bool
+            flag to force project file in appending/READWRITE mode
         Returns
         -------
 
@@ -222,6 +225,10 @@ class ReductionApp(object):
         # Determine output file name and writing mode
         if output_file_name is None or output_file_name == self._hydra_file_name:
             file_name = self._hydra_file_name
+            mode = HidraProjectFileMode.READWRITE
+        elif append_mode:
+            # Append to existing file
+            file_name = output_file_name
             mode = HidraProjectFileMode.READWRITE
         else:
             file_name = output_file_name
@@ -238,6 +245,9 @@ class ReductionApp(object):
         # If it is a new file, the sample logs and other information shall be exported too
         if mode == HidraProjectFileMode.OVERWRITE:
             self._hydra_ws.save_experimental_data(out_file, ignore_raw_counts=True)
+
+        # Calibrated wave length shall be written
+        self._hydra_ws.save_wavelength(out_file)
 
         # Write & close
         self._hydra_ws.save_reduced_diffraction_data(out_file)

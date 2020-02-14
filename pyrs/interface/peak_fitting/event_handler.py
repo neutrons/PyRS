@@ -46,6 +46,9 @@ class EventHandler:
         except RuntimeError as run_err:
             pop_message(self, 'Failed to load {}'.format(hidra_file_name),
                         str(run_err), 'error')
+        except KeyError as key_err:
+            pop_message(self, 'Failed to load {}'.format(hidra_file_name),
+                        str(key_err), 'error')
 
         self.parent.current_root_statusbar_message = "Working with: {} " \
                                                      "\t\t\t\t Project Name: {}" \
@@ -69,9 +72,11 @@ class EventHandler:
             # enabled all fitting widgets and main plot
             o_gui = GuiUtilities(parent=self.parent)
             o_gui.check_if_fitting_widgets_can_be_enabled()
+            o_gui.enabled_sub_runs_interation_widgets(True)
             # o_gui.enabled_fitting_widgets(True)
             o_gui.enabled_data_fit_plot(True)
             o_gui.enabled_peak_ranges_widgets(True)
+            o_gui.enabled_1dplot_widgets(True)
 
         except RuntimeError as run_err:
             pop_message(self, 'Failed to initialize widgets for {}'.format(hidra_file_name),
@@ -267,3 +272,13 @@ class EventHandler:
         self.parent._ui_graphicsView_fitSetup.list_peak_labels_matplotlib_id = new_list_matplotlib_id
 
         self.parent._ui_graphicsView_fitSetup.plot_data_with_fitting_ranges()
+
+    def fit_table_selection_changed(self):
+        '''as soon as a row is selected, switch to the slider view and go to right sub_run'''
+        row_selected = GuiUtilities.get_row_selected(table_ui=self.parent.ui.tableView_fitSummary)
+        if row_selected is None:
+            return
+        self.parent.ui.radioButton_individualSubRuns.setChecked(True)
+        self.parent.check_subRunsDisplayMode()
+        self.parent.ui.horizontalScrollBar_SubRuns.setValue(row_selected+1)
+        self.parent.plot_scan()

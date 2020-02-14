@@ -10,9 +10,14 @@ class GuiUtilities:
     def __init__(self, parent=None):
         self.parent = parent
 
+    def enabled_sub_runs_interation_widgets(self, enabled=True):
+        list_widgets = [self.parent.ui.groupBox_SubRuns,
+                        ]
+        self.enabled_list_widgets(list_widgets=list_widgets,
+                                  enabled=enabled)
+
     def enabled_fitting_widgets(self, enabled=True):
         list_widgets = [self.parent.ui.groupBox_FittingFunctions,
-                        self.parent.ui.groupBox_SubRuns,
                         ]
         self.enabled_list_widgets(list_widgets=list_widgets,
                                   enabled=enabled)
@@ -51,7 +56,8 @@ class GuiUtilities:
 
     def enabled_1dplot_widgets(self, enabled=True):
         list_widgets = [self.parent.ui.frame_1dplot,
-                        self.parent.ui.graphicsView_fitResult_frame,
+                        # self.parent.ui.graphicsView_fitResult_frame,
+                        self.parent.ui.graphicsView_fitResult,
                         ]
         self.enabled_list_widgets(list_widgets=list_widgets,
                                   enabled=enabled)
@@ -95,11 +101,13 @@ class GuiUtilities:
         # Set the widgets about viewer: get the sample logs and add the combo boxes for plotting
         sample_log_names = self.parent._core.reduction_service.get_sample_logs_names(self.parent._project_name,
                                                                                      can_plot=True)
-        GuiUtilities.block_widgets(list_ui=[self.parent.ui.comboBox_xaxisNames,
-                                            self.parent.ui.comboBox_yaxisNames,
-                                            self.parent.ui.comboBox_yaxisNames_2dplot,
-                                            self.parent.ui.comboBox_yaxisNames_2dplot,
-                                            self.parent.ui.comboBox_zaxisNames_2dplot])
+
+        list_ui = [self.parent.ui.comboBox_xaxisNames,
+                   self.parent.ui.comboBox_yaxisNames,
+                   self.parent.ui.comboBox_xaxisNames_2dplot,
+                   self.parent.ui.comboBox_yaxisNames_2dplot,
+                   self.parent.ui.comboBox_zaxisNames_2dplot]
+        GuiUtilities.block_widgets(list_ui=list_ui)
 
         if with_clear:
             self.parent.ui.comboBox_xaxisNames.clear()
@@ -113,25 +121,51 @@ class GuiUtilities:
 
         if fill_raw:
             _list_axis_to_plot = LIST_AXIS_TO_PLOT['raw']
-            print("filling raw")
-            print(_list_axis_to_plot)
-            print("------------")
-            self._update_plots_combobox_items(list_axis_to_plot=_list_axis_to_plot)
+            self._update_plots_1D_combobox_items(list_axis_to_plot=_list_axis_to_plot)
 
         if fill_fit:
             _list_axis_to_plot = LIST_AXIS_TO_PLOT['fit']
-            self._update_plots_combobox_items(list_axis_to_plot=_list_axis_to_plot)
+            self._update_plots_1D_combobox_items(list_axis_to_plot=_list_axis_to_plot)
+            self._update_plots_2D_combobox_items()
 
-        GuiUtilities.unblock_widgets(list_ui=[self.parent.ui.comboBox_xaxisNames,
-                                              self.parent.ui.comboBox_yaxisNames])
-
-        # enabled the 1D and 2D plot widgets
-        self.enabled_1dplot_widgets(enabled=True)
-        self.enabled_2dplot_widgets(enabled=True)
+        GuiUtilities.unblock_widgets(list_ui=list_ui)
 
     def initialize_combobox(self):
         self.initialize_combobox_1d()
         self.initialize_combobox_2d()
+        self.initialize_combobox_peak_label()
+
+    def initialize_combobox_peak_label(self):
+        list_of_labels = self.get_list_of_peak_label()
+
+        list_ui = [self.parent.ui.plot1d_xaxis_peak_label_comboBox,
+                   self.parent.ui.plot1d_yaxis_peak_label_comboBox,
+                   self.parent.ui.plot2d_xaxis_peak_label_comboBox,
+                   self.parent.ui.plot2d_yaxis_peak_label_comboBox,
+                   self.parent.ui.plot2d_zaxis_peak_label_comboBox]
+
+        GuiUtilities.block_widgets(list_ui)
+
+        GuiUtilities.clear_comboboxes(list_ui=list_ui)
+        GuiUtilities.fill_comboboxes(list_ui=list_ui, list_values=list_of_labels)
+
+        GuiUtilities.unblock_widgets(list_ui)
+
+    @staticmethod
+    def fill_comboboxes(list_ui=[], list_values=[]):
+        for _ui in list_ui:
+            _ui.addItems(list_values)
+
+    @staticmethod
+    def clear_comboboxes(list_ui=[]):
+        for _ui in list_ui:
+            _ui.clear()
+
+    def get_number_of_peak_selected(self):
+        return len(self.get_list_of_peak_label())
+
+    def get_list_of_peak_label(self):
+        return self.parent._ui_graphicsView_fitSetup.list_fit_peak_labels
 
     def initialize_combobox_1d(self):
         _index_xaxis = self.parent.ui.comboBox_xaxisNames.findText(DEFAUT_AXIS['1d']['xaxis'])
@@ -140,21 +174,36 @@ class GuiUtilities:
         self.parent.ui.comboBox_yaxisNames.setCurrentIndex(_index_yaxis)
 
     def initialize_combobox_2d(self):
+        list_ui = [self.parent.ui.comboBox_xaxisNames_2dplot,
+                   self.parent.ui.comboBox_yaxisNames_2dplot,
+                   self.parent.ui.comboBox_zaxisNames_2dplot]
+        GuiUtilities.__block_widgets(list_ui, True)
         _index_xaxis = self.parent.ui.comboBox_xaxisNames_2dplot.findText(DEFAUT_AXIS['2d']['xaxis'])
         self.parent.ui.comboBox_xaxisNames_2dplot.setCurrentIndex(_index_xaxis)
-        _index_yaxis = self.parent.ui.comboBox_xaxisNames_2dplot.findText(DEFAUT_AXIS['2d']['yaxis'])
+        _index_yaxis = self.parent.ui.comboBox_yaxisNames_2dplot.findText(DEFAUT_AXIS['2d']['yaxis'])
         self.parent.ui.comboBox_yaxisNames_2dplot.setCurrentIndex(_index_yaxis)
-        _index_zaxis = self.parent.ui.comboBox_xaxisNames_2dplot.findText(DEFAUT_AXIS['2d']['zaxis'])
+        _index_zaxis = self.parent.ui.comboBox_zaxisNames_2dplot.findText(DEFAUT_AXIS['2d']['zaxis'])
         self.parent.ui.comboBox_zaxisNames_2dplot.setCurrentIndex(_index_zaxis)
+        GuiUtilities.__block_widgets(list_ui, False)
 
-    def _update_plots_combobox_items(self, list_axis_to_plot=[]):
+    def _update_plots_1D_combobox_items(self, list_axis_to_plot=[]):
         _list_comboboxes = [self.parent.ui.comboBox_xaxisNames,
-                            self.parent.ui.comboBox_yaxisNames,
-                            self.parent.ui.comboBox_xaxisNames_2dplot,
-                            self.parent.ui.comboBox_yaxisNames_2dplot,
-                            self.parent.ui.comboBox_zaxisNames_2dplot]
+                            self.parent.ui.comboBox_yaxisNames]
         for sample_log in list_axis_to_plot:
             for _ui in _list_comboboxes:
+                _ui.addItem(sample_log)
+            self.parent._sample_log_name_set.add(sample_log)
+
+    def _update_plots_2D_combobox_items(self):
+        _list_xy_comboboxes = [self.parent.ui.comboBox_xaxisNames_2dplot,
+                               self.parent.ui.comboBox_yaxisNames_2dplot]
+        _list_z_comboboxes = [self.parent.ui.comboBox_zaxisNames_2dplot]
+        for sample_log in LIST_AXIS_TO_PLOT['3d_axis']['xy_axis']:
+            for _ui in _list_xy_comboboxes:
+                _ui.addItem(sample_log)
+            self.parent._sample_log_name_set.add(sample_log)
+        for sample_log in LIST_AXIS_TO_PLOT['3d_axis']['z_axis']:
+            for _ui in _list_z_comboboxes:
                 _ui.addItem(sample_log)
             self.parent._sample_log_name_set.add(sample_log)
 
@@ -162,6 +211,12 @@ class GuiUtilities:
         list_ui = [self.parent.ui.label_d01d,
                    self.parent.ui.label_d0units1d,
                    self.parent.ui.lineEdit_d01d]
+        GuiUtilities.make_visible_ui(list_ui=list_ui,
+                                     visible=visible)
+
+    def make_visible_peak_label_of_1d_widgets(self, visible=True):
+        list_ui = [self.parent.ui.plot1d_peak_label,
+                   self.parent.ui.plot1d_peak_label_comboBox]
         GuiUtilities.make_visible_ui(list_ui=list_ui,
                                      visible=visible)
 
@@ -173,22 +228,94 @@ class GuiUtilities:
                                      visible=visible)
 
     def check_axis1d_status(self):
-        xaxis_selected = str(self.parent.ui.comboBox_xaxisNames.currentText())
-        yaxis_selected = str(self.parent.ui.comboBox_yaxisNames.currentText())
-        if (xaxis_selected == 'strain') or (yaxis_selected == 'strain'):
-            self.make_visible_d01d_widgets(True)
+        # check first if the widgets are enabled
+        if self.parent.ui.comboBox_xaxisNames.isEnabled():
+            xaxis_selected = str(self.parent.ui.comboBox_xaxisNames.currentText())
+            yaxis_selected = str(self.parent.ui.comboBox_yaxisNames.currentText())
+            if (xaxis_selected == 'strain') or (yaxis_selected == 'strain'):
+                self.make_visible_d01d_widgets(True)
+            else:
+                self.make_visible_d01d_widgets(False)
+
+            if self.get_number_of_peak_selected() < 2:
+                self.parent.ui.plot1d_xaxis_peak_label_comboBox.setVisible(False)
+                self.parent.ui.plot1d_yaxis_peak_label_comboBox.setVisible(False)
+            else:
+                if xaxis_selected in LIST_AXIS_TO_PLOT['fit']:
+                    self.parent.ui.plot1d_xaxis_peak_label_comboBox.setVisible(True)
+                else:
+                    self.parent.ui.plot1d_xaxis_peak_label_comboBox.setVisible(False)
+
+                if yaxis_selected in LIST_AXIS_TO_PLOT['fit']:
+                    self.parent.ui.plot1d_yaxis_peak_label_comboBox.setVisible(True)
+                else:
+                    self.parent.ui.plot1d_yaxis_peak_label_comboBox.setVisible(False)
         else:
             self.make_visible_d01d_widgets(False)
+            self.parent.ui.plot1d_xaxis_peak_label_comboBox.setVisible(False)
+            self.parent.ui.plot1d_yaxis_peak_label_comboBox.setVisible(False)
+
+    def get_plot1d_axis_peak_label_index(self, is_xaxis=True):
+        if is_xaxis:
+            ui = self.parent.ui.plot1d_xaxis_peak_label_comboBox
+        else:
+            ui = self.parent.ui.plot1d_yaxis_peak_label_comboBox
+
+        if ui.isVisible():
+            return ui.currentIndex()
+        else:
+            return 0
+
+    def get_plot2d_axis_peak_label_index(self, axis='x'):
+        if axis == 'x':
+            ui = self.parent.ui.plot2d_xaxis_peak_label_comboBox
+        elif axis == 'y':
+            ui = self.parent.ui.plot2d_yaxis_peak_label_comboBox
+        else:
+            ui = self.parent.ui.plot2d_zaxis_peak_label_comboBox
+
+        if ui.isVisible():
+            return ui.currentIndex()
+        else:
+            return 0
 
     def check_axis2d_status(self):
-        xaxis_selected = str(self.parent.ui.comboBox_xaxisNames_2dplot.currentText())
-        yaxis_selected = str(self.parent.ui.comboBox_yaxisNames_2dplot.currentText())
-        zaxis_selected = str(self.parent.ui.comboBox_zaxisNames_2dplot.currentText())
-        if (xaxis_selected == 'strain') or (yaxis_selected == 'strain') or \
-           (zaxis_selected == 'strain'):
-            self.make_visible_d02d_widgets(True)
+
+        if self.parent.ui.comboBox_xaxisNames_2dplot.isEnabled():
+            xaxis_selected = str(self.parent.ui.comboBox_xaxisNames_2dplot.currentText())
+            yaxis_selected = str(self.parent.ui.comboBox_yaxisNames_2dplot.currentText())
+            zaxis_selected = str(self.parent.ui.comboBox_zaxisNames_2dplot.currentText())
+            if (xaxis_selected == 'strain') or (yaxis_selected == 'strain') or \
+               (zaxis_selected == 'strain'):
+                self.make_visible_d02d_widgets(True)
+            else:
+                self.make_visible_d02d_widgets(False)
+
+            if self.get_number_of_peak_selected() < 2:
+                self.parent.ui.plot2d_xaxis_peak_label_comboBox.setVisible(False)
+                self.parent.ui.plot2d_yaxis_peak_label_comboBox.setVisible(False)
+                self.parent.ui.plot2d_zaxis_peak_label_comboBox.setVisible(False)
+            else:
+                if xaxis_selected in LIST_AXIS_TO_PLOT['3d_axis']:
+                    self.parent.ui.plot2d_xaxis_peak_label_comboBox.setVisible(True)
+                else:
+                    self.parent.ui.plot2d_xaxis_peak_label_comboBox.setVisible(False)
+
+                if yaxis_selected in LIST_AXIS_TO_PLOT['3d_axis']:
+                    self.parent.ui.plot2d_yaxis_peak_label_comboBox.setVisible(True)
+                else:
+                    self.parent.ui.plot2d_yaxis_peak_label_comboBox.setVisible(False)
+
+                if zaxis_selected in LIST_AXIS_TO_PLOT['fit']:
+                    self.parent.ui.plot2d_zaxis_peak_label_comboBox.setVisible(True)
+                else:
+                    self.parent.ui.plot2d_zaxis_peak_label_comboBox.setVisible(False)
+
         else:
             self.make_visible_d02d_widgets(False)
+            self.parent.ui.plot2d_xaxis_peak_label_comboBox.setVisible(False)
+            self.parent.ui.plot2d_yaxis_peak_label_comboBox.setVisible(False)
+            self.parent.ui.plot2d_zaxis_peak_label_comboBox.setVisible(False)
 
     def reset_peak_range_table(self):
         nbr_row = self.parent.ui.peak_range_table.rowCount()
@@ -209,6 +336,14 @@ class GuiUtilities:
 
             _label = QTableWidgetItem(list_fit_peak_labels[_index])
             self.parent.ui.peak_range_table.setItem(_index, 2, _label)
+
+    @staticmethod
+    def get_row_selected(table_ui=None):
+        selection = table_ui.selectedRanges()
+        if len(selection) > 0:
+            return selection[0].topRow()
+        else:
+            return None
 
     @staticmethod
     def make_visible_ui(list_ui=[], visible=True):

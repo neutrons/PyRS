@@ -1,4 +1,5 @@
 # Data manager
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import numpy
 from pyrs.dataobjects import HidraConstants, SampleLogs
 from pyrs.projectfile import HidraProjectFile
@@ -26,6 +27,7 @@ class HidraWorkspace(object):
         self._raw_counts = dict()  # dict [sub-run] = count vector
 
         # wave length
+        self._wave_length = None  # single wave length for all sub runs
         self._wave_length_dict = None
         self._wave_length_calibrated_dict = None
 
@@ -55,6 +57,16 @@ class HidraWorkspace(object):
         :return:
         """
         return self._name
+
+    @property
+    def hidra_project_file(self):
+        """Name of the associated HiDRA project file
+
+        Returns
+        -------
+
+        """
+        return self._project_file_name
 
     def _load_raw_counts(self, hidra_file):
         """ Load raw detector counts from HIDRA file
@@ -132,11 +144,12 @@ class HidraWorkspace(object):
         self._instrument_setup = hidra_file.read_instrument_geometry()
 
     def _load_masks(self, hidra_file):
-        """
+        """Load masks from Hidra project file
 
         Parameters
         ----------
-        hidra_file
+        hidra_file :  pyrs.projectfile.file_object.HidraProjectFile
+            Hidra project file instance
 
         Returns
         -------
@@ -169,14 +182,22 @@ class HidraWorkspace(object):
         self._sample_logs = hidra_file.read_sample_logs()
 
     def _load_wave_length(self, hidra_file):
-        """ Load wave length
-        :param hidra_file:  HIDRA project file instance
-        :return:
+        """Load wave length from HidraProject file
+
+        Parameters
+        ----------
+        hidra_file : pyrs.projectfile.file_object.HidraProjectFile
+            Project file (instance)
+
+        Returns
+        -------
+        None
+
         """
         checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
 
         # reset the wave length (dictionary) from HIDRA project file
-        self._wave_length_dict = hidra_file.read_wavelengths()
+        self._wave_length = hidra_file.read_wavelengths()
 
     def get_detector_2theta(self, sub_run):
         """ Get 2theta value from sample log
@@ -222,12 +243,19 @@ class HidraWorkspace(object):
         return self._instrument_setup
 
     def get_detector_counts(self, sub_run):
+        """Get the detector counts of a sub run (split)
+
+        Parameters
+        ----------
+        sub_run : int
+            sub run number
+
+        Returns
+        -------
+        numpy.ndarray
+
         """
-        Get raw detector counts in the order of pixel IDs by a given sub run
-        :param sub_run:
-        :return:
-        """
-        checkdatatypes.check_int_variable('Sub run number', sub_run, (1, None))
+        checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))  # consider 0 as a single sub run
         if int(sub_run) not in self._raw_counts:
             raise RuntimeError('Sub run {} does not exist in loaded raw counts. FYI loaded '
                                'sub runs are {}'.format(sub_run, self._raw_counts.keys()))
@@ -248,12 +276,27 @@ class HidraWorkspace(object):
 
         return self._sample_logs.subruns
 
-    def get_wavelength(self, calibrated, throw_if_not_set):
-        """ Get the wave length from the workspace
-        :param calibrated: Flag for returning calibrated wave length
-        :param throw_if_not_set: Flag to throw an exception if relative wave length (dict) is not set
-        :return:
+    def get_wavelength(self, calibrated, throw_if_not_set, sub_run=None):
+        """Get wave length
+
+        Parameters
+        ----------
+        calibrated : bool
+            whether the wave length is calibrated or raw
+        throw_if_not_set : bool
+            throw an exception if wave length is not set to workspace
+        sub_run : None or int
+            sub run number for the wave length associated with
+
+        Returns
+        -------
+        float or dict
+
         """
+        # Return the universal wave length if it is set
+        if sub_run is None and self._wave_length is not None:
+            return self._wave_length
+
         if calibrated:
             # calibrated wave length
             if self._wave_length_calibrated_dict is None:
@@ -273,6 +316,10 @@ class HidraWorkspace(object):
                     wave_length_dict = None
             else:
                 wave_length_dict = self._wave_length_dict
+
+        # Return the wave length of the sub run
+        if sub_run is not None:
+            return wave_length_dict[sub_run]
 
         return wave_length_dict
 
@@ -322,8 +369,8 @@ class HidraWorkspace(object):
 
         Returns
         -------
-        numpy.ndarray
-            detector mask
+        numpy.ndarray or None
+            detector mask.  None in case no default detector mask
 
         """
         # Default mask
@@ -442,7 +489,7 @@ class HidraWorkspace(object):
         return vec_2theta, vec_intensity
 
     def get_sample_log_names(self):
-        return self._sample_logs.keys()
+        return sorted(self._sample_logs.keys())
 
     def get_sample_log_value(self, sample_log_name, sub_run=None):
         """
@@ -459,7 +506,7 @@ class HidraWorkspace(object):
 
         """
         checkdatatypes.check_string_variable('Sample log name', sample_log_name,
-                                             self._sample_logs.keys())
+                                             list(self._sample_logs.keys()))
 
         log_value = self._sample_logs[sample_log_name, sub_run]
 
@@ -494,7 +541,7 @@ class HidraWorkspace(object):
             return self.get_sub_runs()
 
         checkdatatypes.check_string_variable('Sample log name', sample_log_name,
-                                             self._sample_logs.keys())
+                                             list(self._sample_logs.keys()))
 
         return self._sample_logs[sample_log_name, sub_runs]
 
@@ -763,6 +810,20 @@ class HidraWorkspace(object):
             hidra_project.append_experiment_log(log_name, sample_log_value)
         # END-FOR
 
+        # Save default mask
+        if self._default_mask is not None:
+            hidra_project.write_mask_detector_array(HidraConstants.DEFAULT_MASK, self._default_mask)
+        # Save other masks
+        for mask_id in self._mask_dict:
+            hidra_project.write_mask_detector_array(mask_id, self._mask_dict[mask_id])
+
+        # Save wave length
+        self.save_wavelength(hidra_project)
+
+    def save_wavelength(self, hidra_project):
+        if self._wave_length is not None:
+            hidra_project.write_wavelength(self._wave_length)
+
     def save_reduced_diffraction_data(self, hidra_project):
         """ Export reduced diffraction data to project
         :param hidra_project: HidraProjectFile instance
@@ -778,7 +839,7 @@ class HidraWorkspace(object):
         return the sample log names
         :return:
         """
-        return self._sample_logs.keys()
+        return sorted(self._sample_logs.keys())
 
     @property
     def sample_logs_for_plot(self):
@@ -792,6 +853,9 @@ class HidraWorkspace(object):
         :param calibrated: Flag for calibrated wave length
         :return:
         """
+        # Set universal wave length
+        self._wave_length = wave_length
+
         # Get the sub runs
         sub_runs = self.get_sub_runs()
 

@@ -1,10 +1,11 @@
-from mplgraphicsview1d import MplGraphicsView1D
-from mplgraphicsview2d import MplGraphicsView2D
-from mplgraphicsviewpolar import MplGraphicsPolarView
+from __future__ import (absolute_import, division, print_function)  # python3 compatibility
+from .mplgraphicsview1d import MplGraphicsView1D
+from .mplgraphicsview2d import MplGraphicsView2D
+from .mplgraphicsviewpolar import MplGraphicsPolarView
 import numpy as np
-import mplgraphicsviewpolar
-import slice_view_widget
-from mplfitplottingwidget import MplFitPlottingWidget
+from . import mplgraphicsviewpolar
+from . import slice_view_widget
+from .mplfitplottingwidget import MplFitPlottingWidget
 
 
 class Diffraction2DPlot(MplGraphicsPolarView):
@@ -101,12 +102,18 @@ class DetectorView(MplGraphicsView2D):
         title = 'Sub run {}, Mask: {}'.format(sub_run_number, mask_id)
         self.set_title(title)
 
-        image_size = int(np.sqrt(detector_counts.shape[0]))
-        if image_size * image_size != detector_counts.shape[0]:
-            raise RuntimeError('Detector with {} counts cannot convert to a 2D view without further information'
-                               ''.format(detector_counts.shape))
-
-        counts2d = detector_counts.reshape(image_size, image_size)
+        # Resize detector count array
+        if len(detector_counts.shape) == 1:
+            # 1D array: reshape to 2D
+            image_size = int(np.sqrt(detector_counts.shape[0]))
+            if image_size * image_size != detector_counts.shape[0]:
+                raise RuntimeError('Detector with {} counts cannot convert to a 2D view without further information'
+                                   ''.format(detector_counts.shape))
+            counts2d = detector_counts.reshape(image_size, image_size)
+        else:
+            # As Is
+            counts2d = detector_counts
+            image_size = counts2d.shape[0]
 
         # Rotate 90 degree to match the view: IT COULD BE WRONG!
         self.add_2d_plot(np.rot90(counts2d), 0, image_size, 0, image_size)
@@ -186,6 +193,33 @@ class GeneralDiffDataView(MplGraphicsView1D):
         self._last_line_reference = ref_id
         self._current_x_axis_name = x_label
 
+    def plot_scatter_with_errors(self, vec_x=None, vec_y=None,
+                                 vec_x_error=None, vec_y_error=None,
+                                 x_label="", y_label=""):
+
+        # # TODO Future: Need to write use cases.  Now it is for demo
+        # # It is not allowed to plot 2 plot with different x-axis
+        # if self._last_line_reference is not None:
+        #     if x_label != self.get_label_x():
+        #         self.reset_viewer()
+
+        # plot data in a scattering plot with auto re-scale
+        ref_id = self.add_plot(vec_x,
+                               vec_y,
+                               x_err=vec_x_error,
+                               y_err=vec_y_error,
+                               line_style='',
+                               marker='*',
+                               markersize=6,
+                               color='red',
+                               x_label=x_label,
+                               y_label=y_label)
+
+        # TODO - 20181101 - Enable after auto_scale is fixed: self.auto_rescale()
+        self._line_reference_list.append(ref_id)
+        self._last_line_reference = ref_id
+        self._current_x_axis_name = x_label
+
     def plot_scatter(self, vec_x, vec_y, x_label, y_label):
         """ plot figure in scatter-style
         :param vec_x:
@@ -218,7 +252,6 @@ class GeneralDiffDataView(MplGraphicsView1D):
     def reset_viewer(self):
         """
         reset current graphics view
-        :return:
         """
         # reset all the management data structures
         self._last_line_reference = None
@@ -265,10 +298,9 @@ class PeakFitSetupView(MplFitPlottingWidget):
         self._last_diff_reference = ref_id
 
     def plot_fitted_data(self, x_array, y_array):
-        ref_id = self.plot_data(data_set=(x_array, y_array),
-                                line_label='-',
-                                color='black')
-        print(ref_id)
+        self.plot_data(data_set=(x_array, y_array),
+                       line_label='-',
+                       color='black')
 
     def plot_model_data(self, diff_data_set, model_label, residual_set):
         """Plot model data from fitting
@@ -313,6 +345,9 @@ class PeakFitSetupView(MplFitPlottingWidget):
 
         self._diff_reference_list.append(ref_id)
         self._last_diff_reference = ref_id
+
+    def plot_fitting_diff_data(self, x_axis, y_axis):
+        self._last_fit_diff_reference = self._myCanvas.add_plot_lower_axis((x_axis, y_axis))
 
     def plot_fit_diff(self, diff_data_set, model_data_set):
         """

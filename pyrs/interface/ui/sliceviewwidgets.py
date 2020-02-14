@@ -209,7 +209,6 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         time_f = time.time()
         print('[DB...BAT] Stopping time (float) = {}.  Used {} second for plotting'.format(time_f,
                                                                                            time_f - time_s))
-
         labels = [item.get_text() for item in self.axes.get_yticklabels()]
 
         # TODO/ISSUE/NOW: how to make this part more flexible
