@@ -144,7 +144,7 @@ class PeakFitCalibration(object):
         self._caliberr = np.array(7 * [-1], dtype=np.float)
 
         try:
-            self.monosetting = Monosetting(self._engine.read_log_value('Monosetting')[0])
+            self.monosetting = Monosetting(self._engine.read_log_value('MonoSetting')[0])
         except KeyError:
             self.monosetting = Monosetting.getFromRotation(self._engine.read_log_value('mrot').value)
 
