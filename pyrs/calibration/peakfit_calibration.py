@@ -110,15 +110,15 @@ class Monosetting(Enum):
         elif -20.0 < mrot < -19.0:
             monosetting = Monosetting.Si422
         elif -170.0 < mrot < -166.0:
-            monosetting = MonoSetting.Si331
+            monosetting = Monosetting.Si331
         elif 14.0 < mrot < 18.0:
-            monosetting = MonoSetting.Si400
+            monosetting = Monosetting.Si400
         elif -11.0 < mrot < -8.0:
-            monosetting = MonoSetting.Si311
+            monosetting = Monosetting.Si311
         elif -185.0 < mrot < -180.0:
-            monosetting = MonoSetting.Si220
+            monosetting = Monosetting.Si220
         else:
-            raise ValueError('Unable to determine monosetting from the monochromator rotation angle')
+            raise ValueError('Unable to determine monosetting from the monochromator rotation angle {}'.format(mrot))
         return monosetting
 
 

@@ -117,8 +117,8 @@ def test_monosetting_index(index, label, wavelength):
 
 
 def test_monosetting_from_rotation():
-    monosetting = Monosetting.getFromRotation(-182.0)
-    assert monosetting.value == 'Si220'
+    monosetting = peakfit_calibration.Monosetting.getFromRotation(-182.0)
+    assert monosetting.label == 'Si220'
     assert monosetting.wavelength == 2.667
     with pytest.Raise(ValueError):
         monosetting.getFromRotation(-12.)
