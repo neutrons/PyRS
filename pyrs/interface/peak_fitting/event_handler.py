@@ -11,13 +11,41 @@ from pyrs.interface.peak_fitting.load import Load
 from pyrs.interface.peak_fitting.plot import Plot
 from pyrs.interface.peak_fitting.fit import Fit
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
-# from pyrs.interface.peak_fitting.utilities import Utilities
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 
 
 class EventHandler:
 
     def __init__(self, parent=None):
         self.parent = parent
+
+    def save_as(self):
+        out_file_name = browse_file(self.parent,
+                                    caption='Choose a file to save fitted peaks to',
+                                    default_dir=self.parent._core.working_dir,
+                                    file_filter='H5 (*.h5);;HDF (*.hdf5)',
+                                    save_file=True)
+        self.save_fit_result(out_file_name)
+
+    def save(self):
+        self.save_fit_result(self.parent.current_hidra_file_name)
+
+    def save_fit_result(self, out_file_name=''):
+        fit_result = self.parent.fit_result
+        if fit_result is None:
+            return
+
+        current_project_file = self.parent._curr_file_name
+        project_h5_file = HidraProjectFile(current_project_file, mode=HidraProjectFileMode.READWRITE)
+        peakcollections = fit_result.peakcollections
+        for peak in peakcollections:
+            project_h5_file.write_peak_fit_result(peak)
+        project_h5_file.save(False)
+        project_h5_file.close()
+
+        # self.parent._core.save_peak_fit_result(self.parent._curr_data_key,
+        #                                        self.parent._curr_file_name,
+        #                                        out_file_name)
 
     def browse_load_plot_hdf(self):
         if self.parent._core is None:
@@ -39,6 +67,7 @@ class EventHandler:
             if hidra_file_name is None:
                 return  # user clicked cancel
 
+        self.parent.current_hidra_file_name = hidra_file_name
         try:
             o_load = Load(parent=self.parent)
             o_load.load(project_file=hidra_file_name)
@@ -125,14 +154,21 @@ class EventHandler:
         #                                                         data_type='array')
         list_fit_peak_labels = __get_kwargs_value('list_fit_peak_labels',
                                                   data_type='array')
+        list_fit_peak_d0 = __get_kwargs_value('list_fit_peak_d0',
+                                              data_type='array')
 
         o_gui = GuiUtilities(parent=self.parent)
         o_gui.reset_peak_range_table()
         o_gui.fill_peak_range_table(list_fit_peak_ranges=list_fit_peak_ranges,
-                                    list_fit_peak_labels=list_fit_peak_labels)
+                                    list_fit_peak_labels=list_fit_peak_labels,
+                                    list_fit_peak_d0=list_fit_peak_d0)
 
         self.parent.ui.peak_range_table.blockSignals(False)
         o_gui.check_if_fitting_widgets_can_be_enabled()
+
+    def update_fit_result_table(self):
+        if self.parent.fit_result:
+            self.parent.populate_fit_result_table(fit_result=self.parent.fit_result)
 
     def update_fit_peak_ranges_plot(self):
         # retrieve all peaks and labels from table
@@ -143,6 +179,7 @@ class EventHandler:
 
         list_peak_ranges = []
         list_fit_peak_labels = []
+        list_fit_peak_d0 = []
         for _row in np.arange(nbr_row):
             _value1 = GuiUtilities.get_item_value(table_ui, _row, 0)
             _value2 = GuiUtilities.get_item_value(table_ui, _row, 1)
@@ -169,9 +206,13 @@ class EventHandler:
             _label = GuiUtilities.get_item_value(table_ui, _row, 2)
             list_fit_peak_labels.append(_label)
 
+            _d0 = np.float(str(GuiUtilities.get_item_value(table_ui, _row, 3)))
+            list_fit_peak_d0.append(_d0)
+
         # replace the list_peak_ranges and list_fit_peak_labels from mplfitplottingwidget.py
         self.parent._ui_graphicsView_fitSetup.list_peak_ranges = list_peak_ranges
         self.parent._ui_graphicsView_fitSetup.list_fit_peak_labels = list_fit_peak_labels
+        self.parent._ui_graphicsView_fitSetup.list_fit_peak_d0 = list_fit_peak_d0
         self.parent._ui_graphicsView_fitSetup.plot_data_with_fitting_ranges()
 
         table_ui.blockSignals(False)
@@ -195,12 +236,14 @@ class EventHandler:
         # retrieve peak infos
         list_peak_ranges = self.parent._ui_graphicsView_fitSetup.list_peak_ranges
         list_peak_labels = self.parent._ui_graphicsView_fitSetup.list_fit_peak_labels
+        list_peak_d0 = self.parent.list_peak_d0
 
         # create dictionary
         dict = {}
         for _index, peak_range in enumerate(list_peak_ranges):
             dict[_index] = {'peak_range': peak_range,
-                            'peak_label': list_peak_labels[_index]}
+                            'peak_label': list_peak_labels[_index],
+                            'd0': list_peak_d0}
 
         with open(json_file_name, 'w') as outfile:
             json.dump(dict, outfile)
@@ -216,17 +259,21 @@ class EventHandler:
 
         peak_range = []
         peak_label = []
+        peak_d0 = []
         for _index in _dict.keys():
             peak_range.append(_dict[_index]['peak_range'])
             peak_label.append(_dict[_index]['peak_label'])
+            peak_d0.append(_dict[_index]['d0'])
 
         # save peak infos
         self.parent._ui_graphicsView_fitSetup.list_peak_ranges = peak_range
         self.parent._ui_graphicsView_fitSetup.list_fit_peak_labels = peak_label
+        self.parent.list_peak_d0 = peak_d0
 
         self.parent.update_peak_ranges_table(release=True,
                                              list_fit_peak_labels=peak_label,
                                              list_fit_peak_ranges=peak_range,
+                                             list_fit_peak_d0=peak_d0,
                                              list_fit_peak_ranges_matplotlib_id=[],
                                              list_fit_peak_labels_matplotlib_id=[])
         self.parent._ui_graphicsView_fitSetup.plot_data_with_fitting_ranges()

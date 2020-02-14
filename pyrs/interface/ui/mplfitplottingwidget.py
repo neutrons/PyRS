@@ -44,6 +44,7 @@ class MplFitPlottingWidget(QWidget):
         self.list_peak_ranges_matplotlib_id = []
         self.list_fit_peak_labels = []
         self.list_peak_labels_matplotlib_id = []
+        self.list_fit_peak_d0 = []
 
         self._working_with_range_index = -1
         self._peak_label_index = 0
@@ -72,6 +73,7 @@ class MplFitPlottingWidget(QWidget):
         self.parent.update_peak_ranges_table(click=True,
                                              list_fit_peak_labels=self.list_fit_peak_labels,
                                              list_fit_peak_ranges=self.list_peak_ranges,
+                                             list_fit_peak_d0=self.list_fit_peak_d0,
                                              list_fit_peak_ranges_matplotlib_id=self.list_peak_ranges_matplotlib_id,
                                              list_fit_peak_labels_matplotlib_id=self.list_peak_labels_matplotlib_id)
 
@@ -84,6 +86,7 @@ class MplFitPlottingWidget(QWidget):
         self.parent.update_peak_ranges_table(release=True,
                                              list_fit_peak_labels=self.list_fit_peak_labels,
                                              list_fit_peak_ranges=self.list_peak_ranges,
+                                             list_fit_peak_d0=self.list_fit_peak_d0,
                                              list_fit_peak_ranges_matplotlib_id=self.list_peak_ranges_matplotlib_id,
                                              list_fit_peak_labels_matplotlib_id=self.list_peak_labels_matplotlib_id)
         self.parent.update_save_peak_range_widget()
@@ -94,6 +97,7 @@ class MplFitPlottingWidget(QWidget):
         self.parent.update_peak_ranges_table(move=True,
                                              list_fit_peak_labels=self.list_fit_peak_labels,
                                              list_fit_peak_ranges=self.list_peak_ranges,
+                                             list_fit_peak_d0=self.list_fit_peak_d0,
                                              list_fit_peak_ranges_matplotlib_id=self.list_peak_ranges_matplotlib_id,
                                              list_fit_peak_labels_matplotlib_id=self.list_peak_labels_matplotlib_id)
 
@@ -102,6 +106,7 @@ class MplFitPlottingWidget(QWidget):
         if not self.list_peak_ranges:
             self.list_peak_ranges = [[x, np.NaN]]
             self.list_fit_peak_labels = ['Peak0']
+            self.list_fit_peak_d0 = [1]
             self._peak_label_index += 1
         else:
             _was_part_of_one_range = False
@@ -115,6 +120,7 @@ class MplFitPlottingWidget(QWidget):
             if _was_part_of_one_range is False:
                 self.list_peak_ranges.append([x, np.NaN])
                 self.list_fit_peak_labels.append("Peak{}".format(self._peak_label_index))
+                self.list_fit_peak_d0.append(1)
                 self._working_with_range_index = -1
                 self._peak_label_index += 1
 
@@ -131,6 +137,7 @@ class MplFitPlottingWidget(QWidget):
             self.list_peak_ranges_matplotlib_id.remove([left_peak, right_peak])
             _peak_label = self.list_fit_peak_labels[self._working_with_range_index]
             self.list_fit_peak_labels.remove(_peak_label)
+            del self.list_fit_peak_d0[self._working_with_range_index]
         else:
             _working_range = [_working_range[0], x]
             self.list_peak_ranges[self._working_with_range_index] = _working_range

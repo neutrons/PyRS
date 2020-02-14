@@ -69,6 +69,12 @@ class GuiUtilities:
         self.enabled_list_widgets(list_widgets=list_widgets,
                                   enabled=enabled)
 
+    def enabled_save_files_widget(self, enabled=False):
+        list_widgets = [self.parent.ui.actionSave,
+                        self.parent.ui.actionSaveAs]
+        self.enabled_list_widgets(list_widgets=list_widgets,
+                                  enabled=enabled)
+
     def make_visible_listsubruns_warning(self, visible=True):
         self.parent.ui.listsubruns_warning_icon.setVisible(visible)
 
@@ -207,23 +213,9 @@ class GuiUtilities:
                 _ui.addItem(sample_log)
             self.parent._sample_log_name_set.add(sample_log)
 
-    def make_visible_d01d_widgets(self, visible=True):
-        list_ui = [self.parent.ui.label_d01d,
-                   self.parent.ui.label_d0units1d,
-                   self.parent.ui.lineEdit_d01d]
-        GuiUtilities.make_visible_ui(list_ui=list_ui,
-                                     visible=visible)
-
     def make_visible_peak_label_of_1d_widgets(self, visible=True):
         list_ui = [self.parent.ui.plot1d_peak_label,
                    self.parent.ui.plot1d_peak_label_comboBox]
-        GuiUtilities.make_visible_ui(list_ui=list_ui,
-                                     visible=visible)
-
-    def make_visible_d02d_widgets(self, visible=True):
-        list_ui = [self.parent.ui.label_d02d,
-                   self.parent.ui.label_d0units2d,
-                   self.parent.ui.lineEdit_d02d]
         GuiUtilities.make_visible_ui(list_ui=list_ui,
                                      visible=visible)
 
@@ -232,10 +224,6 @@ class GuiUtilities:
         if self.parent.ui.comboBox_xaxisNames.isEnabled():
             xaxis_selected = str(self.parent.ui.comboBox_xaxisNames.currentText())
             yaxis_selected = str(self.parent.ui.comboBox_yaxisNames.currentText())
-            if (xaxis_selected == 'strain') or (yaxis_selected == 'strain'):
-                self.make_visible_d01d_widgets(True)
-            else:
-                self.make_visible_d01d_widgets(False)
 
             if self.get_number_of_peak_selected() < 2:
                 self.parent.ui.plot1d_xaxis_peak_label_comboBox.setVisible(False)
@@ -251,7 +239,6 @@ class GuiUtilities:
                 else:
                     self.parent.ui.plot1d_yaxis_peak_label_comboBox.setVisible(False)
         else:
-            self.make_visible_d01d_widgets(False)
             self.parent.ui.plot1d_xaxis_peak_label_comboBox.setVisible(False)
             self.parent.ui.plot1d_yaxis_peak_label_comboBox.setVisible(False)
 
@@ -285,11 +272,6 @@ class GuiUtilities:
             xaxis_selected = str(self.parent.ui.comboBox_xaxisNames_2dplot.currentText())
             yaxis_selected = str(self.parent.ui.comboBox_yaxisNames_2dplot.currentText())
             zaxis_selected = str(self.parent.ui.comboBox_zaxisNames_2dplot.currentText())
-            if (xaxis_selected == 'strain') or (yaxis_selected == 'strain') or \
-               (zaxis_selected == 'strain'):
-                self.make_visible_d02d_widgets(True)
-            else:
-                self.make_visible_d02d_widgets(False)
 
             if self.get_number_of_peak_selected() < 2:
                 self.parent.ui.plot2d_xaxis_peak_label_comboBox.setVisible(False)
@@ -312,7 +294,6 @@ class GuiUtilities:
                     self.parent.ui.plot2d_zaxis_peak_label_comboBox.setVisible(False)
 
         else:
-            self.make_visible_d02d_widgets(False)
             self.parent.ui.plot2d_xaxis_peak_label_comboBox.setVisible(False)
             self.parent.ui.plot2d_yaxis_peak_label_comboBox.setVisible(False)
             self.parent.ui.plot2d_zaxis_peak_label_comboBox.setVisible(False)
@@ -323,7 +304,8 @@ class GuiUtilities:
             self.parent.ui.peak_range_table.removeRow(0)
 
     def fill_peak_range_table(self, list_fit_peak_ranges=[],
-                              list_fit_peak_labels=[]):
+                              list_fit_peak_labels=[],
+                              list_fit_peak_d0=[]):
 
         for _index, _range in enumerate(list_fit_peak_ranges):
             self.parent.ui.peak_range_table.insertRow(_index)
@@ -336,6 +318,9 @@ class GuiUtilities:
 
             _label = QTableWidgetItem(list_fit_peak_labels[_index])
             self.parent.ui.peak_range_table.setItem(_index, 2, _label)
+
+            _value = QTableWidgetItem("{:.3f}".format(list_fit_peak_d0[_index]))
+            self.parent.ui.peak_range_table.setItem(_index, 3, _value)
 
     @staticmethod
     def get_row_selected(table_ui=None):
