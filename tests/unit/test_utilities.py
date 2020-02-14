@@ -76,8 +76,8 @@ def test_get_input_project_file():
 
 @pytest.mark.skipif(not os.path.exists('/HFIR/HB2B/shared/'), reason='HFIR data archive is not mounted')
 def test_get_nexus_file():
-    assert get_nexus_file(1060) == '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1060.nxs.h5'
-    assert get_nexus_file(1017) == '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5'
+    assert get_nexus_file(1060) == '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1060.ORIG.nxs.h5'
+    assert get_nexus_file(1017) == '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.ORIG.nxs.h5'
 
     # Test no such run
     with pytest.raises(RuntimeError):
