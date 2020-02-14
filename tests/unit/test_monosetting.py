@@ -24,8 +24,8 @@ def test_monosetting_from_rotation():
 
 
 def test_monosetting_conversions():
-    assert str(MonoSetting.Si333) == 'Si333'
-    assert float(MonoSetting.Si333) == 1.452
+    assert str(MonoSetting.Si422) == 'Si422'
+    assert float(MonoSetting.Si422) == 1.540
 
 
 if __name__ == '__main__':
