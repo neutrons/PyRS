@@ -78,6 +78,9 @@ class GlobalParameter(object):
         return
 
 
+
+
+
 class Monosetting(Enum):
     Si333 = ('Si333', 1.452)
     Si511 = ('Si511', 1.452)
@@ -88,12 +91,37 @@ class Monosetting(Enum):
     Si220 = ('Si220', 2.667)
 
     def __new__(cls, label, wavelength):
-        value = len(cls.__members__)
         obj = object.__new__(cls)
-        obj._value_ = value
-        obj.label = label
+        obj._value_ = label
         obj.wavelength = wavelength
         return obj
+
+    def __str__(self):
+        return self.value
+
+    def __float__(self):
+        return self.wavelength
+
+    @staticmethod
+    def getFromRotation(mrot):
+        if -41.0 < mrot < -38.0:
+            monosetting = Monosetting('Si333')
+        elif -1.0 < mrot < 1.0:
+            monosetting = Monosetting('Si511')
+        elif -20.0 < mrot < -19.0:
+            monosetting = Monosetting('Si422')
+        elif -170.0 < mrot < -166.0:
+            monosetting = MonoSetting('Si331')
+        elif 14.0 < mrot < 18.0:
+            monosetting = MonoSetting('Si400')
+        elif -11.0 < mrot < -8.0:
+            monosetting = MonoSetting('Si311')
+        elif -185.0 < mrot < -180.0:
+            monosetting = MonoSetting('Si220')
+        else:
+            raise ValueError('Unable to determine monosetting from the monochromator rotation angle')
+        return monosetting
+
 
 class PeakFitCalibration(object):
     """
@@ -116,25 +144,7 @@ class PeakFitCalibration(object):
         # calibration error: numpy array. size as 7 for ...
         self._caliberr = np.array(7 * [-1], dtype=np.float)
 
-        try:
-            monosetting = Monosetting(self._engine.read_log_value('MonoSetting')[0])
-        except KeyError:
-            if -41.0 < self._engine.read_log_value('mrot')[0] < -38.0:
-                monosetting = Monosetting(0)
-            elif -1.0 < self._engine.read_log_value('mrot')[0] < 1.0:
-                monosetting = Monosetting(1)
-            elif -20.0 < self._engine.read_log_value('mrot')[0] < -19.0:
-                monosetting = Monosetting(2)
-            elif -170.0 < self._engine.read_log_value('mrot')[0] < -166.0:
-                monosetting = MonoSetting(3)
-            elif 14.0 < self._engine.read_log_value('mrot')[0] < 18.0:
-                monosetting = MonoSetting(4)
-            elif -11.0 < self._engine.read_log_value('mrot')[0] < -8.0:
-                monosetting = MonoSetting(5)
-            elif -185.0 < self._engine.read_log_value('mrot')[0] < -180.0:
-                monosetting = MonoSetting(6)
-
-        self.mono = monosetting.label
+        self.monosetting = Monosetting.getFromRotation(self._engine.read_log_value('mrot')[0])
 
         try:
             self._engine.read_log_value('2theta')
@@ -145,7 +155,7 @@ class PeakFitCalibration(object):
         self.tth_ref = '2thetaSetpoint'
 
         # Set wave length
-        self._calib[6] = monosetting.wavelength
+        self._calib[6] = self.monosetting.wavelength
 
         self._calibstatus = -1
 
@@ -954,24 +964,6 @@ class PeakFitCalibration(object):
         -------
         None
         """
-
-        # import glob
-        # import dateutil.parser
-
-        # Monochromator setting
-#        mono_setting_index = self._engine.read_log_value('MonoSetting')[0]
-#        mono_setting = ['Si333', 'Si511', 'Si422', 'Si331', 'Si400', 'Si311', 'Si220'][mono_setting_index]
-
-#        for files in glob.glob('/HFIR/HB2B/shared/CAL/{}/*.json'.format(mono_setting)):
-#            # get date
-#            datetime = files.split('.json')[0].split('_CAL_')[1]
-#            if dateutil.parser.parse(datetime) < dateutil.parser.parse(self._engine.read_log_value('MonoSetting')[0]):
-#                CalibData = json.load(files)
-#                keys = ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda']
-#                for i in range(len(keys)):
-#                    self._calib[i] = CalibData[keys[i]]
-#
-
         with open(file_name) as fIN:
             CalibData = json.load(fIN)
             keys = ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda']
@@ -994,11 +986,6 @@ class PeakFitCalibration(object):
         None
         """
         from pyrs.core.instrument_geometry import AnglerCameraDetectorShift
-
-        # Year, Month, Day, Hour, Min = time.localtime()[0:5]
-        # mono_setting_index = self._engine.read_log_value('MonoSetting')[0]
-        # Mono = ['Si333', 'Si511', 'Si422', 'Si331', 'Si400', 'Si311', 'Si220'][mono_setting_index]
-        Mono = self.mono
         # Form AnglerCameraDetectorShift objects
         cal_shift = AnglerCameraDetectorShift(self._calib[0], self._calib[1], self._calib[2], self._calib[3],
                                               self._calib[4], self._calib[5])
@@ -1013,7 +1000,7 @@ class PeakFitCalibration(object):
         if file_name is None:
             # default case: write to archive
             if os.access('/HFIR/HB2B/shared', os.W_OK):
-                file_name = '/HFIR/HB2B/shared/CAL/%s/HB2B_CAL_%s.json' % (Mono,
+                file_name = '/HFIR/HB2B/shared/CAL/%s/HB2B_CAL_%s.json' % (self.monosetting.value,
                                                                            time.strftime('%Y-%m-%dT%H:%M',
                                                                                          time.localtime()))
             else:
