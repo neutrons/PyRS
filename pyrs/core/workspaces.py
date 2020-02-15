@@ -230,6 +230,7 @@ class HidraWorkspace(object):
             except KeyError as key_err:
                 raise RuntimeError('Unable to retrieve L2 value for {} due to {}. Available sun runs are {}'
                                    .format(sub_run, key_err, self._sample_logs[HidraConstants.L2]))
+            raise NotImplementedError('{} is found in sample log'.format(HidraConstants.L2))
         else:
             # L2 might be unchanged
             l2 = None

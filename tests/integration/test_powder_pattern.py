@@ -60,19 +60,19 @@ def write_gold_file(file_name, data):
     gold_file = h5py.File(file_name, 'w')
 
     if isinstance(data, np.ndarray):
-        dataset = {'data': data}
+        data_set_dict = {'data': data}
     else:
-        dataset = data
+        data_set_dict = data
 
-    for data_name in dataset:
-        if isinstance(dataset[data_name], tuple):
+    for data_name in data_set_dict:
+        if isinstance(data_set_dict[data_name], tuple):
             # write (x, y)
             group = gold_file.create_group(data_name)
-            group.create_dataset('x', data=dataset[data_name][0])
-            group.create_dataset('y', data=dataset[data_name][1])
+            group.create_dataset('x', data=data_set_dict[data_name][0])
+            group.create_dataset('y', data=data_set_dict[data_name][1])
         else:
             # write value directly
-            gold_file.create_dataset(data_name, data=dataset[data_name])
+            gold_file.create_dataset(data_name, data=data_set_dict[data_name])
 
     gold_file.close()
 
@@ -104,6 +104,33 @@ def test_2theta_calculation():
     gold_dict = parse_gold_file('data/HB2B_1017_Pixels_Gold.h5')
     np.testing.assert_allclose(pixel_positions, gold_dict['positions'], rtol=1E-8)
     np.testing.assert_allclose(two_theta_arrays, gold_dict['2theta'], rtol=1E-8)
+
+
+def test_moving_2theta():
+    # Create geometry setup
+    test_setup = AnglerCameraDetectorGeometry(1024, 1024, 0.0003, 0.0003, 0.985, False)
+    # Create instrument
+    instrument = ResidualStressInstrument(test_setup)
+
+    # Build instrument
+    instrument.build_instrument(two_theta=0., l2=None, instrument_calibration=None)
+
+    # Move
+    pixel_positions = instrument.rotate_detector_2theta(det_2theta=85.)
+
+    # Calculate pixel positions
+    # pixel_positions = instrument.get_pixel_array()
+
+    # Calculate 2theta values
+    # two_theta_arrays = instrument.get_pixels_2theta(dimension=1)
+    two_theta_arrays = instrument.calculate_pixel_2theta(pixel_positions).flatten()
+
+    # compare with gold file
+    gold_dict = parse_gold_file('data/HB2B_1017_Pixels_Gold.h5')
+    np.testing.assert_allclose(pixel_positions.reshape((1048576, 3)), gold_dict['positions'], rtol=1E-8)
+    np.testing.assert_allclose(two_theta_arrays, gold_dict['2theta'], rtol=1E-8)
+
+    return
 
 
 @pytest.mark.parametrize('project_file_name, mask_file_name, gold_file',
@@ -185,7 +212,7 @@ def test_powder_pattern_engine(project_file_name, mask_file_name, gold_file):
 @pytest.mark.parametrize('project_file_name, mask_file_name, gold_file',
                          [('data/HB2B_1017.h5', 'data/HB2B_Mask_12-18-19.xml', 'data/HB2B_1017_NoMask_RM_Gold.h5'),
                           ('data/HB2B_1017.h5', None, 'data/HB2B_1017_NoMask_RM_Gold.h5')],
-                         ids=('HB2B_1017_Masked', 'HB2B_1017_NoMask'))
+                         ids=('HB2B_1017_RM_Masked', 'HB2B_1017_RM_NoMask'))
 def test_powder_pattern_service(project_file_name, mask_file_name, gold_file):
     """Test the powder pattern calculator (service) with HB2B-specific reduction routine
 
@@ -230,6 +257,8 @@ def test_powder_pattern_service(project_file_name, mask_file_name, gold_file):
     for index, sub_run_i in enumerate(sub_runs):
         pattern = pyrs_service.get_reduced_diffraction_data('test_powder', sub_run_i)
         # data_dict[str(sub_run_i)] = pattern
+
+        print('sub run {}'.format(sub_run_i))
 
         # X
         np.testing.assert_allclose(pattern[0], gold_data_dict[str(sub_run_i)][0], rtol=1E-8)
