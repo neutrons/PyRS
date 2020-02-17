@@ -288,6 +288,7 @@ def test_strain_io():
 
     # Write
     test_project_file.write_peak_parameters(peaks)
+    test_project_file.write_peak_parameters(peaks2)
     # Save
     test_project_file.save(verbose=False)
 
