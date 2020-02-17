@@ -281,7 +281,7 @@ def test_strain_io():
     peaks.set_d_reference(test_ref_d)
 
     # Add 2nd peak
-    peaks2 = PeakCollection(peak_tag_2, PeakShape.GAUSSIAN, BackgroundFunction.LINEAR)
+    peaks2 = PeakCollection(peak_tag_2, PeakShape.PSEUDOVOIGT, BackgroundFunction.LINEAR)
     peaks2.set_peak_fitting_values(np.array([1, 2, 3]), test_params_array, test_error_array,
                                    chi2_array)
     peaks2.set_d_reference(test_ref_d2)
