@@ -667,9 +667,15 @@ class HidraProjectFile(object):
         single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS_ERROR, data=peak_errors)
 
         # Reference peak center in dSpacing: (strain)
-        if not numpy.isnan(fitted_peaks.get_d_reference()):
+        ref_d_array = fitted_peaks.get_d_reference()
+        if isinstance(ref_d_array, numpy.ndarray):
             # if reference peak position in D is set
-            single_peak_entry.create_dataset(HidraConstants.D_REFERENCE, data=fitted_peaks.get_d_reference())
+            single_peak_entry.create_dataset(HidraConstants.D_REFERENCE, data=ref_d_array)
+        elif not numpy.isnan(ref_d_array):
+            # single non-NaN value
+            num_subruns = len(fitted_peaks.sub_runs)
+            single_peak_entry.create_dataset(HidraConstants.D_REFERENCE,
+                                             data=numpy.array([ref_d_array] * num_subruns))
 
     def read_wavelengths(self):
         """Get calibrated wave length
