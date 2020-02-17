@@ -526,8 +526,9 @@ class QtMplFitCanvas(FigureCanvas):
 
         for line_index in line_index_list:
             line_handler = self._data_plot_dict[line_index]
-            self._data_subplot.lines.remove(line_handler)
-            del self._data_plot_dict[line_index]
+            if line_handler:
+                self._data_subplot.lines.remove(line_handler)
+            self._data_plot_dict[line_index] = None
 
     def remove_residual_line(self):
         """
@@ -535,12 +536,21 @@ class QtMplFitCanvas(FigureCanvas):
         :return:
         """
         # skip if there is no residual line on subplot currently
-        if len(self._residual_dict) == 0:
+        if len(self._residual_dict) == 0 or not self._residual_dict:
             return
 
-        line_handler = self._residual_dict.values()[0]
+        if 0 not in self._residual_dict:
+            return
+
+        line_handler = self._residual_dict[0]  # this is the broken line
         self._residual_subplot.lines.remove(line_handler)
         self._residual_dict = dict()
+        # TODO something is wrong with this code
+        '''
+        line_handler = self._residual_dict.values()[0]  # this is the broken line
+        self._residual_subplot.lines.remove(line_handler)
+        self._residual_dict = dict()
+        '''
 
     def reset_plot(self):
         """
