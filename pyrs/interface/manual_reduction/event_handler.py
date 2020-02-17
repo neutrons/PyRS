@@ -31,10 +31,10 @@ class EventHandler(object):
         return self._controller
 
     def _current_runnumber(self):
-        run_number = self.ui.lineEdit_runNumber.text().strip()
+        run_number = str(self.ui.lineEdit_runNumber.text()).strip()
         if len(run_number) == 0:
             return None
-        elif run_number.isidigit():
+        elif run_number.isdigit():
             return int(run_number)
 
         return None
@@ -506,6 +506,8 @@ class EventHandler(object):
         """
         # don't do anything if the run number didn't change
         if run_number == self.__last_run_number:
+            return
+        elif not isinstance(run_number, int):
             return
 
         # new default
