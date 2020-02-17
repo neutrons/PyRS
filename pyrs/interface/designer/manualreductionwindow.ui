@@ -19,24 +19,13 @@
      <layout class="QVBoxLayout" name="verticalLayout">
       <item>
        <layout class="QGridLayout" name="gridLayout">
-        <item row="0" column="0">
-         <widget class="QLabel" name="label_14">
+        <item row="3" column="5">
+         <widget class="QCheckBox" name="checkBox_defaultCalibrationFile">
           <property name="text">
-           <string>Run Number</string>
+           <string>Default</string>
           </property>
-         </widget>
-        </item>
-        <item row="3" column="0">
-         <widget class="QLabel" name="label_4">
-          <property name="text">
-           <string>Calibration File</string>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="0">
-         <widget class="QLabel" name="label_15">
-          <property name="text">
-           <string>Vanadium</string>
+          <property name="checked">
+           <bool>true</bool>
           </property>
          </widget>
         </item>
@@ -47,8 +36,59 @@
           </property>
          </widget>
         </item>
-        <item row="3" column="4">
+        <item row="4" column="2">
+         <widget class="QLineEdit" name="lineEdit_vanRunNumber">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Vanadium run number (integer) for detector pixels' efficiecy correction.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="5">
+         <widget class="QCheckBox" name="checkBox_defaultMaskFile">
+          <property name="text">
+           <string>Default</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="3">
          <widget class="QPushButton" name="pushButton_browseCalibrationFile">
+          <property name="text">
+           <string>Browse</string>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="2">
+         <widget class="QLineEdit" name="lineEdit_outputDirectory">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_14">
+          <property name="text">
+           <string>Run Number</string>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="3">
+         <widget class="QPushButton" name="pushButton_browseOutputDirectory">
+          <property name="text">
+           <string>Browse</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="3">
+         <widget class="QPushButton" name="pushButton_browseMaskFile">
           <property name="text">
            <string>Browse</string>
           </property>
@@ -64,100 +104,17 @@
           </property>
          </widget>
         </item>
-        <item row="5" column="0">
-         <widget class="QLabel" name="label_5">
+        <item row="3" column="0">
+         <widget class="QLabel" name="label_4">
           <property name="text">
-           <string>Output DIR</string>
+           <string>Calibration File</string>
           </property>
          </widget>
         </item>
-        <item row="3" column="6">
-         <widget class="QCheckBox" name="checkBox_defaultCalibrationFile">
-          <property name="text">
-           <string>Default</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="5" column="4">
-         <widget class="QPushButton" name="pushButton_browseOutputDirectory">
-          <property name="text">
-           <string>Browse</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="2" colspan="2">
-         <widget class="QSpinBox" name="spinBox_runNumber">
-          <property name="layoutDirection">
-           <enum>Qt::LeftToRight</enum>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-          </property>
-          <property name="maximum">
-           <number>999999</number>
-          </property>
-          <property name="singleStep">
-           <number>1</number>
-          </property>
-          <property name="value">
-           <number>1</number>
-          </property>
-         </widget>
-        </item>
-        <item row="5" column="6">
-         <widget class="QCheckBox" name="checkBox_defaultOutputDirectory">
-          <property name="text">
-           <string>Default</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="6">
-         <widget class="QCheckBox" name="checkBox_defaultMaskFile">
-          <property name="text">
-           <string>Default</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="5" column="2">
-         <widget class="QLineEdit" name="lineEdit_outputDirectory">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="4">
-         <widget class="QPushButton" name="pushButton_browseMaskFile">
-          <property name="text">
-           <string>Browse</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="4">
+        <item row="0" column="3">
          <widget class="QPushButton" name="pushButton_browseNeXus">
           <property name="text">
            <string>Browse</string>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="2">
-         <widget class="QLineEdit" name="lineEdit_vanRunNumber">
-          <property name="enabled">
-           <bool>true</bool>
-          </property>
-          <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Vanadium run number (integer) for detector pixels' efficiecy correction.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
          </widget>
         </item>
@@ -168,10 +125,41 @@
           </property>
          </widget>
         </item>
-        <item row="4" column="4">
+        <item row="5" column="0">
+         <widget class="QLabel" name="label_5">
+          <property name="text">
+           <string>Output DIR</string>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="5">
+         <widget class="QCheckBox" name="checkBox_defaultOutputDirectory">
+          <property name="text">
+           <string>Default</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="0">
+         <widget class="QLabel" name="label_15">
+          <property name="text">
+           <string>Vanadium</string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="3">
          <widget class="QPushButton" name="pushButton_browseVanadium">
           <property name="text">
            <string>Browse</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="2">
+         <widget class="QLineEdit" name="lineEdit_runNumber">
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Run number or NeXus file name.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
          </widget>
         </item>
@@ -811,7 +799,7 @@
      <x>0</x>
      <y>0</y>
      <width>1308</width>
-     <height>25</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuQuit">

@@ -605,9 +605,17 @@ class HidraProjectFile(object):
         peak_collection = PeakCollection(peak_tag, profile, background)
         peak_collection.set_peak_fitting_values(subruns=sub_run_array, parameter_values=param_values,
                                                 parameter_errors=error_values, fit_costs=chi2_array)
+
+        # Optionally for strain: reference peak center in dSpacing: (strain)
+        if HidraConstants.D_REFERENCE in list(peak_entry.keys()):
+            # If reference position D is ever written to this project
+            ref_d_array = peak_entry[HidraConstants.D_REFERENCE].value
+            # set to PeakCollection
+            peak_collection.set_d_reference(ref_d_array)
+
         return peak_collection
 
-    def write_peak_fit_result(self, fitted_peaks):
+    def write_peak_parameters(self, fitted_peaks):
         """Set the peak fitting results to project file.
 
          The tree structure for fitted peak in all sub runs is defined as
@@ -657,6 +665,11 @@ class HidraProjectFile(object):
         peak_values, peak_errors = fitted_peaks.get_native_params()
         single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS, data=peak_values)
         single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS_ERROR, data=peak_errors)
+
+        # Reference peak center in dSpacing: (strain)
+        if not numpy.isnan(fitted_peaks.get_d_reference()):
+            # if reference peak position in D is set
+            single_peak_entry.create_dataset(HidraConstants.D_REFERENCE, data=fitted_peaks.get_d_reference())
 
     def read_wavelengths(self):
         """Get calibrated wave length

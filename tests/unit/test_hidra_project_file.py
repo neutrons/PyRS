@@ -197,7 +197,7 @@ def test_peak_fitting_result_io():
     peaks.set_peak_fitting_values(np.array([1, 2, 3]), test_params_array, test_error_array,
                                   chi2_array)
 
-    test_project_file.write_peak_fit_result(peaks)
+    test_project_file.write_peak_parameters(peaks)
 
     test_project_file.save(False)
 
@@ -251,7 +251,9 @@ def test_strain_io():
     now = datetime.datetime.now()
     test_file_name = 'test_strain_io_{}.hdf'.format(now.toordinal())
     test_ref_d = 1.23454321
+    test_ref_d2 = np.array([1.23, 1.24, 1.25])
     peak_tag = 'Fake Peak D'
+    peak_tag_2 = 'Fake Peak D Diff'
 
     # Generate a HiDRA project file
     test_project_file = HidraProjectFile(test_file_name, HidraProjectFileMode.OVERWRITE)
@@ -277,8 +279,15 @@ def test_strain_io():
     peaks.set_peak_fitting_values(np.array([1, 2, 3]), test_params_array, test_error_array,
                                   chi2_array)
     peaks.set_d_reference(test_ref_d)
+
+    # Add 2nd peak
+    peaks2 = PeakCollection(peak_tag_2, PeakShape.GAUSSIAN, BackgroundFunction.LINEAR)
+    peaks2.set_peak_fitting_values(np.array([1, 2, 3]), test_params_array, test_error_array,
+                                   chi2_array)
+    peaks2.set_d_reference(test_ref_d2)
+
     # Write
-    test_project_file.write_peak_fit_result(peaks)
+    test_project_file.write_peak_parameters(peaks)
     # Save
     test_project_file.save(verbose=False)
 
@@ -291,16 +300,18 @@ def test_strain_io():
 
     # check tags
     peak_tags = verify_project_file.read_peak_tags()
-    assert peak_tag in peak_tags
-    assert len(peak_tags) == 1
+    assert peak_tag in peak_tags and peak_tag_2 in peak_tags
+    assert len(peak_tags) == 2
 
-    # get PeakCollection
+    # Get d-reference of peak 1 to check
     peak_info = verify_project_file.read_peak_parameters(peak_tag)
-
-    # get d-reference and check
     verify_d_ref = peak_info.get_d_reference()
+    assert_allclose_structured_numpy_arrays(np.array([test_ref_d] * 3), verify_d_ref)
 
-    assert_allclose_structured_numpy_arrays(verify_d_ref, np.array([test_ref_d] * 3))
+    # Get d-reference of peak 2 to check
+    peak_info2 = verify_project_file.read_peak_parameters(peak_tag_2)
+    verify_d_ref_2 = peak_info2.get_d_reference()
+    assert_allclose_structured_numpy_arrays(test_ref_d2, verify_d_ref_2)
 
     # Clean
     os.remove(test_file_name)
