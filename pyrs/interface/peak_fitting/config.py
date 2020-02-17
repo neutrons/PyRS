@@ -11,8 +11,8 @@ fit_dict = OrderedDict([('Peak Height', 'Height'),
                         ('Peak Center', 'Center'),
                         ('A0', 'A0'),
                         ('A1', 'A1'),
-                        # ('d-spacing', 'd-spacing'),
-                        # ('strain', 'strain'),
+                        ('d-spacing', 'd-spacing'),
+                        ('microstrain', 'microstrain'),
                         ])
 
 full_dict = OrderedDict([('Sub-runs', 'subrun'),
@@ -23,7 +23,7 @@ full_dict = OrderedDict([('Sub-runs', 'subrun'),
                          ('Full Width Half Max', 'FWHM'), ('intensity', 'intensity'),
                          ('PeakCenter', 'PeakCenter'),
                          ('d-spacing', 'd-spacing'),
-                         ('strain', 'strain')])
+                         ('microstrain', 'microstrain')])
 
 LIST_AXIS_TO_PLOT = {'raw': raw_dict,
                      'fit': fit_dict,
@@ -39,4 +39,4 @@ DEFAUT_AXIS = {'1d': {'xaxis': 'Sub-runs',
                       'yaxis': 'sy',
                       'zaxis': 'Peak Center'}}
 
-RAW_LIST_COLORS = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black']
+RAW_LIST_COLORS = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow']

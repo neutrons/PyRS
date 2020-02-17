@@ -18,6 +18,18 @@ class DataRetriever:
         if name in LIST_AXIS_TO_PLOT['raw'].keys():
             return [self.hidra_workspace._sample_logs[name], None]
 
+        if name == 'd-spacing':
+            peak_collection = self.parent.fit_result.peakcollections[peak_index]
+            _d_reference = np.float(str(self.parent.ui.peak_range_table.item(peak_index, 3).text()))
+            peak_collection.set_d_reference(values=_d_reference)
+            values, error = peak_collection.get_dspacing_center()
+            return [values, error]
+
+        if name == 'microstrain':
+            peak_collection = self.parent.fit_result.peakcollections[peak_index]
+            values, error = peak_collection.get_strain()
+            return [values*1e6, error*1e6]
+
         if name in LIST_AXIS_TO_PLOT['fit'].keys():
             return self.get_fitted_value(peak=self.parent.fit_result.peakcollections[peak_index],
                                          value_to_display=name)

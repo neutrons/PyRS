@@ -11,6 +11,7 @@ import numpy as np
 import os
 from pyrs.core import workspaces
 from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSetup
+from pyrs.core import MonoSetting
 from pyrs.dataobjects import HidraConstants
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 from pyrs.utilities import checkdatatypes
@@ -248,6 +249,7 @@ class NeXusConvertingApp(object):
         if mask_file_name:
             self.__load_mask(mask_file_name)
 
+        # create the hidra workspace
         self._hidra_workspace = workspaces.HidraWorkspace(self._nexus_name)
 
         # Set a default instrument with this workspace
@@ -481,6 +483,14 @@ class NeXusConvertingApp(object):
             self._hidra_workspace.set_detector_mask(self.mask_array, is_default=True)
 
         self.split_sample_logs(sub_runs)
+
+        # set the nominal wavelength from the nexus file
+        runObj = self._event_wksp.run()
+        if runObj.hasProperty('MonoSetting'):
+            monosetting = MonoSetting.getFromIndex(runObj.getPropertyAsSingleValue('MonoSetting'))
+        else:
+            monosetting = MonoSetting.getFromRotation(runObj.getPropertyAsSingleValue('mrot'))
+        self._hidra_workspace.set_wavelength(float(monosetting), calibrated=False)
 
         return self._hidra_workspace
 

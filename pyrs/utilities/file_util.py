@@ -5,6 +5,7 @@ from mantid import ConfigService
 from mantid.api import FileFinder
 from mantid.simpleapi import mtd, GetIPTS, SaveNexusProcessed
 import os
+from subprocess import check_output
 
 __all__ = ['get_ipts_dir', 'get_default_output_dir', 'get_ipts_dir', 'get_input_project_file', 'get_nexus_file']
 
@@ -97,6 +98,14 @@ def archive_search():
             config[property_name] = old_config[property_name]
 
 
+def __run_finddata(runnumber):
+    '''This is a backup solution while the ...ORIG.nxs.h5 files are floating around'''
+    result = check_output(['finddata', 'hb2b', str(runnumber)]).decode('utf-8').strip()
+    if (not result) or (result == 'None'):
+        raise RuntimeError('Failed to find HB2B_{} using "finddata"'.format(runnumber))
+    return result
+
+
 def get_ipts_dir(run_number):
     """Get IPTS directory from run number. Throws an exception if the file wasn't found.
 
@@ -111,8 +120,21 @@ def get_ipts_dir(run_number):
         IPTS path: example '/HFIR/HB2B/IPTS-22731/', None for not supported IPTS
     """
     # try with GetIPTS
-    with archive_search():
-        ipts = GetIPTS(RunNumber=run_number, Instrument='HB2B')
+    try:
+        with archive_search():
+            ipts = GetIPTS(RunNumber=run_number, Instrument='HB2B')
+    except RuntimeError as e:
+        print('GetIPTS failed:', e)
+        # get the information from the nexus file
+        nexusfile = get_nexus_file(run_number)
+        # take the first 3 directories
+        ipts = nexusfile.split(os.path.sep)[:4]
+        # add the filesystem root
+        ipts.insert(0, os.path.sep)
+        # put the path together
+        ipts = os.path.join(*ipts)
+        # append a trailing path separator
+        ipts = ipts + os.path.sep
     return ipts
 
 
@@ -166,7 +188,12 @@ def get_input_project_file(run_number, preferredType='manual'):
 
 
 def get_nexus_file(run_number):
-    with archive_search():
-        nexus_file = FileFinder.findRuns('HB2B{}'.format(run_number))[0]
+    try:
+        with archive_search():
+            nexus_file = FileFinder.findRuns('HB2B{}'.format(run_number))[0]
+    except RuntimeError as e:
+        print('ArchiveSearch failed:', e)
+        nexus_file = __run_finddata(run_number)
+
     # return after `with` scope so cleanup is run
     return nexus_file
