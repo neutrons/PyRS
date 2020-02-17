@@ -711,7 +711,7 @@ def test_calculate_effective_parameters_pv():
 PeakInfo = namedtuple('PeakInfo', 'center left_bound right_bound tag')
 
 
-@pytest.mark.parametrize('target_values', [{'Intensity': [0.03, 0.0], 'peak_center': [90, 96], 'FWHM': [0, 0],
+@pytest.mark.parametrize('target_values', [{'Intensity': [0.03, 0.0], 'peak_center': [90, 96], 'FWHM': [0, 1],
                                             'background_A0': [-0.04, 0.42], 'background_A1': [0.007, -0.003]}])
 def test_pseudovoigt_HB2B_1060(target_values):
     """This is a test of Pseudovoigt peak fitting for HB2B 1060.
@@ -768,14 +768,14 @@ def test_pseudovoigt_HB2B_1060(target_values):
     np.testing.assert_allclose(param_values_lp['Intensity'], target_values['Intensity'][0], atol=0.9)
     np.testing.assert_allclose(param_values_lp['PeakCentre'], target_values['peak_center'][0], atol=0.8)
     np.testing.assert_allclose(param_values_lp['FWHM'], target_values['FWHM'][0], atol=1.)
-    np.testing.assert_allclose(param_values_lp['A0'], target_values['background_A0'][0], rtol=1.)
-    np.testing.assert_allclose(param_values_lp['A1'], target_values['background_A1'][0], rtol=1.)
+    np.testing.assert_allclose(param_values_lp['A0'], target_values['background_A0'][0], atol=1.)
+    np.testing.assert_allclose(param_values_lp['A1'], target_values['background_A1'][0], atol=1.)
 
     np.testing.assert_allclose(param_values_rp['Intensity'], target_values['Intensity'][1], atol=0.01)
     np.testing.assert_allclose(param_values_rp['PeakCentre'], target_values['peak_center'][1], atol=1)
     np.testing.assert_allclose(param_values_rp['FWHM'], target_values['FWHM'][1], atol=1.)
-    np.testing.assert_allclose(param_values_rp['A0'], target_values['background_A0'][1], rtol=1.)
-    np.testing.assert_allclose(param_values_rp['A1'], target_values['background_A1'][1], rtol=1.)
+    np.testing.assert_allclose(param_values_rp['A0'], target_values['background_A0'][1], atol=1.)
+    np.testing.assert_allclose(param_values_rp['A1'], target_values['background_A1'][1], atol=1.)
 
 
 if __name__ == '__main__':
