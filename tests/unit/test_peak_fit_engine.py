@@ -773,7 +773,7 @@ def test_pseudovoigt_HB2B_1060(target_values):
 
     np.testing.assert_allclose(param_values_rp['Intensity'], target_values['Intensity'][1], atol=0.01)
     np.testing.assert_allclose(param_values_rp['PeakCentre'], target_values['peak_center'][1], atol=1)
-    np.testing.assert_allclose(param_values_rp['FWHM'], target_values['FWHM'][1], atol=1.)
+    np.testing.assert_allclose(param_values_rp['FWHM'], target_values['FWHM'][1], atol=1.2)
     np.testing.assert_allclose(param_values_rp['A0'], target_values['background_A0'][1], atol=1.)
     np.testing.assert_allclose(param_values_rp['A1'], target_values['background_A1'][1], atol=1.)
 
