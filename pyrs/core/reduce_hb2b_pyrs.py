@@ -145,16 +145,34 @@ class ResidualStressInstrument(object):
         # END-IF
         self._pixel_matrix[:, :, 2] += arm_l2
 
-        # rotate 2theta
-        two_theta_rad = two_theta * np.pi / 180.
-        two_theta_rot_matrix = self._cal_rotation_matrix_y(two_theta_rad)
-        self._pixel_matrix = self._rotate_detector(self._pixel_matrix, two_theta_rot_matrix)
+        # rotate detector (2theta) if it is not zero
+        if abs(two_theta) > 1E-7:
+            two_theta_rad = two_theta * np.pi / 180.
+            two_theta_rot_matrix = self._cal_rotation_matrix_y(two_theta_rad)
+            self._pixel_matrix = self._rotate_detector(self._pixel_matrix, two_theta_rot_matrix)
 
         # get 2theta and eta
         self._calculate_pixel_2theta()
         self._calculate_pixel_eta()
 
         return self._pixel_matrix
+
+    def rotate_detector_2theta(self, det_2theta):
+        """Rotate detector, i.e., change 2theta value of the detector
+        Parameters
+        ----------
+        det_2theta : float
+            detector's 2theta (motor) position in degree
+        Returns
+        -------
+        numpy.ndarray
+            multiple dimensional array for detector positions
+        """
+        two_theta_rad = det_2theta * np.pi / 180.
+        two_theta_rot_matrix = self._cal_rotation_matrix_y(two_theta_rad)
+        pixel_matrix = self._rotate_detector(self._pixel_matrix, two_theta_rot_matrix)
+
+        return pixel_matrix
 
     def _calculate_pixel_2theta(self):
         """
