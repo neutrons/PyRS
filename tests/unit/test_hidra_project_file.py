@@ -307,12 +307,13 @@ def test_strain_io():
     # Get d-reference of peak 1 to check
     peak_info = verify_project_file.read_peak_parameters(peak_tag)
     verify_d_ref = peak_info.get_d_reference()
-    assert_allclose_structured_numpy_arrays(np.array([test_ref_d] * 3), verify_d_ref)
+    gold_ref_d = np.array([test_ref_d] * 3)
+    np.testing.assert_allclose(verify_d_ref, gold_ref_d)
 
     # Get d-reference of peak 2 to check
     peak_info2 = verify_project_file.read_peak_parameters(peak_tag_2)
     verify_d_ref_2 = peak_info2.get_d_reference()
-    assert_allclose_structured_numpy_arrays(test_ref_d2, verify_d_ref_2)
+    np.testing.assert_allclose(verify_d_ref_2, test_ref_d2)
 
     # Clean
     os.remove(test_file_name)
