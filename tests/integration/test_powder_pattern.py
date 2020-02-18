@@ -78,7 +78,7 @@ def write_gold_file(file_name, data):
 
 
 def test_2theta_calculation():
-    """Test the calculation of 2theta position
+    """Test the calculation of pixels' 2theta values
 
     Returns
     -------
