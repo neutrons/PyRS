@@ -249,7 +249,7 @@ def test_strain_io():
     """
     # Generate a unique test file
     now = datetime.datetime.now()
-    test_file_name = 'test_strain_io_{}.hdf'.format(now.toordinal())
+    test_file_name = 'test_strain_io_{}.h5'.format(now.toordinal())
     test_ref_d = 1.23454321
     test_ref_d2 = np.array([1.23, 1.24, 1.25])
     peak_tag = 'Fake Peak D'
