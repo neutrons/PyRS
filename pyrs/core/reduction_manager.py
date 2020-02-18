@@ -483,16 +483,6 @@ class HB2BReductionManager(object):
         # Reset workspace's 2theta matrix and intensities
         workspace.reset_diffraction_data()
 
-        # Choose reduction engine
-        # Set up reduction engine and also
-        if not use_pyrs_engine:
-            reduction_engine = reduce_hb2b_mtd.MantidHB2BReduction(self._mantid_idf)
-        else:
-            reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
-            reduction_engine.build_instrument(det_pos_shift)
-        self._last_reduction_engine = reduction_engine
-
-        # Reduce
         for sub_run in sub_run_list:
             # get the duration
             if normalize_by_duration:
@@ -502,7 +492,8 @@ class HB2BReductionManager(object):
                 # not normalized
                 duration_i = 1.
             # reduce sub run
-            self.reduce_sub_run_diffraction(workspace, sub_run, reduction_engine,
+            self.reduce_sub_run_diffraction(workspace, sub_run, det_pos_shift,
+                                            use_mantid_engine=not use_pyrs_engine,
                                             mask_vec_tuple=(mask_id, mask_vec),
                                             num_bins=num_bins,
                                             sub_run_duration=duration_i,
@@ -510,7 +501,7 @@ class HB2BReductionManager(object):
         # END-FOR (sub run)
 
     # NOTE: Refer to compare_reduction_engines_tst
-    def reduce_sub_run_diffraction(self, workspace, sub_run, reduction_engine,
+    def reduce_sub_run_diffraction(self, workspace, sub_run, geometry_calibration, use_mantid_engine,
                                    mask_vec_tuple, min_2theta=None, max_2theta=None,
                                    num_bins=1000, sub_run_duration=None, vanadium_counts=None):
         """Reduce import data (workspace or vector) to 2-theta ~ I
@@ -535,8 +526,10 @@ class HB2BReductionManager(object):
             workspace with detector counts and position
         sub_run : integer
             sub run number in workspace to reduce
-        reduction_engine : pyrs.core.reduce_hb2b_pyrs.PyHB2BReduction
-            Reduction engine
+        geometry_calibration : instrument_geometry.AnglerCameraDetectorShift
+            instrument geometry to calculate diffraction pattern
+        use_mantid_engine : boolean
+            flag to use Mantid as reduction engine which is rarely used
         mask_vec_tuple : tuple (str, numpy.ndarray)
             mask ID and 1D array for masking (1 to keep, 0 to mask out)
         min_2theta : float or None
@@ -566,20 +559,30 @@ class HB2BReductionManager(object):
         two_theta = workspace.get_detector_2theta(sub_run)
         l2 = workspace.get_l2(sub_run)
         # Convert 2-theta from DAS convention to Mantid/PyRS convention
+        # print('[INFO] User specified 2theta = {} is converted to Mantid 2theta = {}'
+        #       ''.format(two_theta, -two_theta))
         mantid_two_theta = -two_theta
 
         # Apply mask
         mask_id, mask_vec = mask_vec_tuple
 
+        # Set up reduction engine and also
+        if use_mantid_engine:
+            reduction_engine = reduce_hb2b_mtd.MantidHB2BReduction(self._mantid_idf)
+        else:
+            reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
+
         # Histogram
         bin_centers, hist = self.convert_counts_to_diffraction(reduction_engine, l2, mantid_two_theta,
-                                                               raw_count_vec, (min_2theta, max_2theta),
+                                                               geometry_calibration, raw_count_vec,
+                                                               (min_2theta, max_2theta),
                                                                num_bins, mask_vec, vanadium_counts)
 
         # record
         workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_centers, hist)
+        self._last_reduction_engine = reduction_engine
 
-    def convert_counts_to_diffraction(self, reduction_engine, l2, instrument_2theta,
+    def convert_counts_to_diffraction(self, reduction_engine, l2, instrument_2theta, geometry_calibration,
                                       det_counts_array, two_theta_range, num_bins, mask_array, vanadium_array):
         """Histogram detector counts with detectors' 2theta angle
 
@@ -588,6 +591,7 @@ class HB2BReductionManager(object):
         reduction_engine
         l2
         instrument_2theta
+        geometry_calibration
         det_counts_array
         two_theta_range
         num_bins
@@ -602,22 +606,21 @@ class HB2BReductionManager(object):
 
         """
         # Set up reduction engine
-        reduction_engine.set_experimental_data(0., l2, det_counts_array)
-
-        # Rotate instrument and calculate each pixel's 2theta
-        pixel_pos_array = reduction_engine.rotate_detector(instrument_2theta)
-        pixel_2theta_array = reduction_engine.instrument.calculate_pixel_2theta(pixel_pos_array).flatten()
+        reduction_engine.set_experimental_data(instrument_2theta, l2, det_counts_array)
+        reduction_engine.build_instrument(geometry_calibration)
 
         # Get the 2theta values for all pixels
+
         # Default minimum and maximum 2theta are related with
         min_2theta, max_2theta = two_theta_range
+        pixel_2theta_array = reduction_engine.instrument.get_pixels_2theta(1)
+
         bin_boundaries_2theta = self.generate_2theta_histogram_vector(min_2theta, num_bins, max_2theta,
                                                                       pixel_2theta_array, mask_array)
 
         # Histogram
         data_set = reduction_engine.reduce_to_2theta_histogram(bin_boundaries_2theta,
                                                                mask_array=mask_array,
-                                                               pixel_2theta_array=pixel_2theta_array,
                                                                is_point_data=True,
                                                                vanadium_counts_array=vanadium_array)
         bin_centers = data_set[0]

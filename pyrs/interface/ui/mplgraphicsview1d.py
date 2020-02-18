@@ -380,7 +380,9 @@ class MplGraphicsView1D(QWidget):
         # record home XY limit if it is never zoomed
         if self._isZoomed is False:
             self._homeXYLimit = list(self.get_x_limit())
-            self._homeXYLimit.extend(list(self.get_y_limit()))
+            ylimit = self.get_y_limit()
+            if not np.isnan(ylimit):
+                self._homeXYLimit.extend(list(ylimit))
 
         # set the state of being zoomed
         self._isZoomed = True
@@ -936,7 +938,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
 
             for line_key in self._mainLineDict[row_index, col_index].keys():
                 mpl_line = self._mainLineDict[row_index, col_index][line_key]
-                if mpl_line is None:
+                if not mpl_line:
                     # removed
                     continue
                 elif isinstance(mpl_line, tuple):
@@ -956,7 +958,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
                 # END-IF-ELSE
 
                 # remove record
-                del self._mainLineDict[row_index, col_index][line_key]
+                self._mainLineDict[row_index, col_index][line_key] = dict()
             # END-FOR
 
             # set up legend
@@ -1071,7 +1073,10 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         -------
         float, float
         """
-        return self.axes_main[row_index, col_index, col_index].get_ylim()
+        if (row_index, col_index, col_index) in self.axes_main and self.axes_main[row_index, col_index, col_index]:
+            return self.axes_main[row_index, col_index, col_index].get_ylim()
+        else:
+            return np.nan
 
     def hide_legend(self, row_number, col_number, is_main, is_right):
         """ Hide the legend if it is not None
