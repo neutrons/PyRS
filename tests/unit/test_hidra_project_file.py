@@ -162,38 +162,6 @@ def test_wave_length_rw():
     os.remove(test_file_name)
 
 
-def next_test_monochromator_setup():
-    """
-    Test methods to read and write monochromator setup including
-
-    Returns
-    -------
-    None
-    """
-    # Generate a HiDRA project file
-
-    # Specify monochromator setting
-
-    # Write to file
-
-    # Specify calibrated wave length
-
-    # Write to file
-
-    # Close file
-
-    # Open file again
-
-    # Read monochromator setting & compare
-
-    # Read calibrated wave length & compare
-
-    # Clean
-    os.remove('')
-
-    return
-
-
 def test_peak_fitting_result_io():
     """Test peak fitting result's writing and reading
 
@@ -229,7 +197,7 @@ def test_peak_fitting_result_io():
     peaks.set_peak_fitting_values(np.array([1, 2, 3]), test_params_array, test_error_array,
                                   chi2_array)
 
-    test_project_file.write_peak_fit_result(peaks)
+    test_project_file.write_peak_parameters(peaks)
 
     test_project_file.save(False)
 
@@ -265,6 +233,87 @@ def test_peak_fitting_result_io():
     # parameter values
     # assert np.allclose(peak_info[4], test_error_array, 1E-12)
     assert_allclose_structured_numpy_arrays(test_error_array, peak_errors)
+
+    # Clean
+    os.remove(test_file_name)
+
+    return
+
+
+def test_strain_io():
+    """Test PeakCollection writing and reading with *D reference*
+
+    Returns
+    -------
+
+    """
+    # Generate a unique test file
+    now = datetime.datetime.now()
+    test_file_name = 'test_strain_io_{}.h5'.format(now.toordinal())
+    test_ref_d = 1.23454321
+    test_ref_d2 = np.array([1.23, 1.24, 1.25])
+    peak_tag = 'Fake Peak D'
+    peak_tag_2 = 'Fake Peak D Diff'
+
+    # Generate a HiDRA project file
+    test_project_file = HidraProjectFile(test_file_name, HidraProjectFileMode.OVERWRITE)
+
+    # Create a ND array for output parameters
+    param_names = PeakShape.PSEUDOVOIGT.native_parameters + BackgroundFunction.LINEAR.native_parameters
+    data_type = list()
+    for param_name in param_names:
+        data_type.append((param_name, np.float32))
+    test_error_array = np.zeros(3, dtype=data_type)
+    test_params_array = np.zeros(3, dtype=data_type)
+
+    for i in range(3):
+        # sub run
+        for j, par_name in enumerate(param_names):
+            test_params_array[par_name][i] = 2**i + 0.1 * 3**j
+            test_error_array[par_name][i] = np.sqrt(abs(test_params_array[par_name][i]))
+    # END-FOR
+    chi2_array = np.array([0.323, 0.423, 0.523])
+
+    # Add test data to output
+    peaks = PeakCollection(peak_tag, PeakShape.PSEUDOVOIGT, BackgroundFunction.LINEAR)
+    peaks.set_peak_fitting_values(np.array([1, 2, 3]), test_params_array, test_error_array,
+                                  chi2_array)
+    peaks.set_d_reference(test_ref_d)
+
+    # Add 2nd peak
+    peaks2 = PeakCollection(peak_tag_2, PeakShape.PSEUDOVOIGT, BackgroundFunction.LINEAR)
+    peaks2.set_peak_fitting_values(np.array([1, 2, 3]), test_params_array, test_error_array,
+                                   chi2_array)
+    peaks2.set_d_reference(test_ref_d2)
+
+    # Write
+    test_project_file.write_peak_parameters(peaks)
+    test_project_file.write_peak_parameters(peaks2)
+    # Save
+    test_project_file.save(verbose=False)
+
+    # Verify
+    assert os.path.exists(test_file_name), 'Test project file for peak fitting result {} cannot be found.' \
+                                           ''.format(test_file_name)
+
+    # import
+    verify_project_file = HidraProjectFile(test_file_name, HidraProjectFileMode.READONLY)
+
+    # check tags
+    peak_tags = verify_project_file.read_peak_tags()
+    assert peak_tag in peak_tags and peak_tag_2 in peak_tags
+    assert len(peak_tags) == 2
+
+    # Get d-reference of peak 1 to check
+    peak_info = verify_project_file.read_peak_parameters(peak_tag)
+    verify_d_ref = peak_info.get_d_reference()
+    gold_ref_d = np.array([test_ref_d] * 3)
+    np.testing.assert_allclose(verify_d_ref, gold_ref_d)
+
+    # Get d-reference of peak 2 to check
+    peak_info2 = verify_project_file.read_peak_parameters(peak_tag_2)
+    verify_d_ref_2 = peak_info2.get_d_reference()
+    np.testing.assert_allclose(verify_d_ref_2, test_ref_d2)
 
     # Clean
     os.remove(test_file_name)

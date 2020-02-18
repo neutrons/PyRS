@@ -52,6 +52,28 @@ class ReductionController(object):
         """
         return DEFAULT_MASK_DIRECTORY
 
+    @staticmethod
+    def get_default_nexus_dir(ipts_number):
+        """Get the default NeXus files' directory
+
+        Parameters
+        ----------
+        ipts_number : int, None
+            IPTS number
+
+        Returns
+        -------
+        str
+            directory
+
+        """
+        nexus_path = '/HFIR/HB2B'
+
+        if ipts_number is not None:
+            nexus_path = os.path.join(nexus_path, 'IPTS-{}/nexus/'.format(ipts_number))
+
+        return nexus_path
+
     def get_sub_runs(self):
         """Get sub runs of the current loaded HidraWorkspace
 
@@ -277,6 +299,7 @@ def reduce_hidra_workflow(nexus, output_dir, progressbar, instrument=None, calib
         HiDRA workspace
 
     """
+    # Init logger
     logger = Logger('reduce_HB2B')
 
     # Create project file (name) for default
@@ -286,10 +309,21 @@ def reduce_hidra_workflow(nexus, output_dir, progressbar, instrument=None, calib
 
     # Remove previous existing file
     if os.path.exists(project_file_name):
-        logger.information('Will overwrite existing projectfile {}'.format(project_file_name))
-
-    # Init logger
-    logger = Logger('reduce_HB2B')
+        # overwrite existing file
+        if os.access(project_file_name, os.W_OK):
+            # log information
+            logger.information('Will overwrite existing projectfile {}'.format(project_file_name))
+        else:
+            # no permission
+            raise RuntimeError('User does not have permission to overwrite existing HiDRA project file {}'
+                               ''.format(project_file_name))
+    else:
+        # file does not exist so far
+        base_dir = os.path.dirname(project_file_name)
+        if not (os.path.exists(base_dir) and os.access(base_dir, os.W_OK)):
+            raise RuntimeError('User specified HiDRA project file path {} either does not exist or '
+                               'user does not have write access.'.format(base_dir))
+    # END-IF-ELSE
 
     # Set progress bar
     if progressbar:

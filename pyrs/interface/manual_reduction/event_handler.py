@@ -31,11 +31,13 @@ class EventHandler(object):
         return self._controller
 
     def _current_runnumber(self):
-        run_number = self.ui.spinBox_runNumber.text().strip()
+        run_number = str(self.ui.lineEdit_runNumber.text()).strip()
         if len(run_number) == 0:
             return None
-        else:
+        elif run_number.isdigit():
             return int(run_number)
+
+        return None
 
     def _set_sub_run_numbers(self, sub_runs):
         """Set sub run numbers to (1) Table and (2) Combo box
@@ -180,6 +182,19 @@ class EventHandler(object):
                                      'Mantid Mask(*.xml)', False, False)
         self.ui.lineEdit_maskFile.setText(mask_file_name)
         return
+
+    def browse_nexus_path(self):
+        """Browse NeXus file path from file system and write the browsed value to lineEdit_runNumber
+
+        Returns
+        -------
+
+        """
+        nexus_file_path = browse_file(self.parent, 'NeXus File',
+                                      self._controller.get_default_nexus_dir(ipts_number=None),
+                                      'NeXus(*.nxs.h5)', False, False)
+        if nexus_file_path is not None:
+            self.ui.lineEdit_runNumber.setText(nexus_file_path)
 
     def browse_output_dir(self):
         """Browse output directory
@@ -357,13 +372,20 @@ class EventHandler(object):
         -------
 
         """
-        # Get run number
-        run_number = self._current_runnumber()
-        if not run_number:
-            return  # no need to update
-
         # Files names: NeXus, (output) project, mask, calibration
-        nexus_file = get_nexus_file(run_number)
+        run_number = self._current_runnumber()
+        if isinstance(run_number, int):
+            # use specify run number (integer)
+            nexus_file = get_nexus_file(run_number)
+        else:
+            nexus_file = str(self.ui.lineEdit_runNumber.text()).strip()
+
+            # quit if the input is not NeXus
+            if not (os.path.exists(nexus_file) and nexus_file.endswith('.nxs.h5')):
+                return
+        # END-IF
+
+        # Output HidraProject file
         project_file = str(self.ui.lineEdit_outputDirectory.text().strip())
         # mask file
         mask_file = str(self.ui.lineEdit_maskFile.text().strip())
@@ -381,10 +403,15 @@ class EventHandler(object):
         # Start task
         if True:
             # single thread:
-            hidra_ws = self._controller.reduce_hidra_workflow(nexus_file, project_file,
-                                                              self.ui.progressBar, mask=mask_file,
-                                                              calibration=calibration_file,
-                                                              vanadium_file=vanadium_file)
+            try:
+                hidra_ws = self._controller.reduce_hidra_workflow(nexus_file, project_file,
+                                                                  self.ui.progressBar, mask=mask_file,
+                                                                  calibration=calibration_file,
+                                                                  vanadium_file=vanadium_file)
+            except RuntimeError as run_err:
+                pop_message(self.parent, 'Failed to reduce {}',
+                            str(run_err), message_type='error')
+                return
 
             # Update table
             # TODO - Need to fill the table!
@@ -479,6 +506,8 @@ class EventHandler(object):
         """
         # don't do anything if the run number didn't change
         if run_number == self.__last_run_number:
+            return
+        elif not isinstance(run_number, int):
             return
 
         # new default
