@@ -1,14 +1,15 @@
 from __future__ import (absolute_import, division, print_function)  # python3 compatibility
-from matplotlib import pyplot as plt
 import numpy as np
-import os
 from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.core.peak_profile_utility import pseudo_voigt, PeakShape, BackgroundFunction
 from pyrs.core.peak_profile_utility import Gaussian, PseudoVoigt
 import pytest
+import os
+from matplotlib import pyplot as plt
+from collections import namedtuple
+from pyrs.core import pyrscore
 import sys
-
 # set to True when running on build servers
 ON_TRAVIS = (os.environ.get('TRAVIS', 'false').upper() == 'TRUE')
 
@@ -704,6 +705,77 @@ def test_calculate_effective_parameters_pv():
                                                   ''.format(exp_height, test_height, exp_height - test_height)
 
     return
+
+
+# Named tuple for peak information
+PeakInfo = namedtuple('PeakInfo', 'center left_bound right_bound tag')
+
+
+@pytest.mark.parametrize('target_values', [{'Intensity': [0.03, 0.0], 'peak_center': [90, 96], 'FWHM': [0, 1],
+                                            'background_A0': [-0.04, 0.42], 'background_A1': [0.007, -0.003]}])
+def test_pseudovoigt_HB2B_1060(target_values):
+    """This is a test of Pseudovoigt peak fitting for HB2B 1060.
+
+     Data are from the real HB2B data previously reported problematic
+
+
+     """
+    # Define HiDRA project file name and skip test if it does not exist (on Travis)
+
+    project_file_name = 'tests/data/HB2B_1060_first3_subruns.h5'
+
+    if not os.path.exists(project_file_name):
+        pytest.skip('{} does not exist on Travis'.format(project_file_name))
+
+    # Create calibration control
+    controller = pyrscore.PyRsCore()
+
+    # Load project file to HidraWorkspace
+    project_name = 'HB2B_1060 Peaks'
+    hd_ws = controller.load_hidra_project(project_file_name, project_name=project_name, load_detector_counts=False,
+                                          load_diffraction=True)
+
+    peak_type = 'PseudoVoigt'
+    # Set peak fitting engine
+    # create a controller from factory
+    fit_engine = PeakFitEngineFactory.getInstance(hd_ws, peak_function_name=peak_type,
+                                                  background_function_name='Linear', wavelength=np.nan)
+
+    # Fit peak @ left and right
+    peak_info_left = PeakInfo(91.7, 87., 93., 'Left Peak')
+    peak_info_right = PeakInfo(95.8, 93.5, 98.5, 'Right Peak')
+
+    fit_result = fit_engine.fit_multiple_peaks(peak_tags=[peak_info_left.tag, peak_info_right.tag],
+                                               x_mins=[peak_info_left.left_bound, peak_info_right.left_bound],
+                                               x_maxs=[peak_info_left.right_bound, peak_info_right.right_bound])
+
+    assert len(fit_result.peakcollections) == 2, 'two PeakCollection'
+    assert fit_result.fitted
+    assert fit_result.difference
+
+    # peak 'Left'
+    param_values_lp, _ = fit_result.peakcollections[0].get_native_params()
+
+    # peak 'Right'
+    param_values_rp, _ = fit_result.peakcollections[1].get_native_params()
+
+    assert param_values_lp.size == 3, '3 subruns'
+    assert len(param_values_lp.dtype.names) == 6, '6 native parameters'
+
+    assert param_values_rp.size == 3, '3 subruns'
+    assert len(param_values_rp.dtype.names) == 6, '6 native parameters'
+
+    np.testing.assert_allclose(param_values_lp['Intensity'], target_values['Intensity'][0], atol=0.9)
+    np.testing.assert_allclose(param_values_lp['PeakCentre'], target_values['peak_center'][0], atol=0.8)
+    np.testing.assert_allclose(param_values_lp['FWHM'], target_values['FWHM'][0], atol=1.)
+    np.testing.assert_allclose(param_values_lp['A0'], target_values['background_A0'][0], atol=1.)
+    np.testing.assert_allclose(param_values_lp['A1'], target_values['background_A1'][0], atol=1.)
+
+    np.testing.assert_allclose(param_values_rp['Intensity'], target_values['Intensity'][1], atol=0.01)
+    np.testing.assert_allclose(param_values_rp['PeakCentre'], target_values['peak_center'][1], atol=1)
+    np.testing.assert_allclose(param_values_rp['FWHM'], target_values['FWHM'][1], atol=1.2)
+    np.testing.assert_allclose(param_values_rp['A0'], target_values['background_A0'][1], atol=1.)
+    np.testing.assert_allclose(param_values_rp['A1'], target_values['background_A1'][1], atol=1.)
 
 
 if __name__ == '__main__':
