@@ -373,7 +373,7 @@ def test_write_csv():
     # verify that the number of columns is correct
     # columns are (subruns, one log, parameter values, uncertainties, chisq)
     for line in contents[len(EXPECTED_HEADER) + 1:]:  # skip past header and constant log
-        assert len(line.split(',')) == 1 + 1 + 8 * 2 + 1
+        assert len(line.split(',')) == 1 + 1 + 9 * 2 + 1
 
     # cleanup
     os.remove(csv_filename)
@@ -423,7 +423,7 @@ EXPECTED_HEADER_938 = '''# IPTS number = 22731
                          [('/HFIR/HB2B/shared/PyRS/HB2B_1065_Peak.h5', 'HB2B_1065.csv', EXPECTED_HEADER_1065, 99, 6,
                            'sub-run,vx,vy,vz,', ',311_chisq'),
                           ('data/HB2B_938_peak.h5', 'HB2B_938.csv', EXPECTED_HEADER_938, 1, 3,
-                           'sub-run,vx,vy,vz,Si111_dspacing_center', ',Si111_chisq')],
+                           'sub-run,vx,vy,vz,Si111_dspacing_center,Si111_strain ', ',Si111_chisq')],
                          ids=['HB2B_1065_CSV', 'HB2B_938_CSV'])
 def test_write_csv_from_project(project_file_name, csv_filename, expected_header, num_subruns, num_logs,
                                 startswith, endswith):
@@ -463,9 +463,9 @@ def test_write_csv_from_project(project_file_name, csv_filename, expected_header
 
     assert len(contents) == len(expected_header) + 1 + num_subruns, 'Does not have full body'
     # verify that the number of columns is correct
-    # columns are (subruns, seven logs, parameter values, uncertainties, d_spacing values, and uncertainties, chisq)
+    # columns are (subruns, seven logs, parameter values, uncertainties, d_spacing values, strain values and uncertainties, chisq)
     for line in contents[len(expected_header) + 1:]:  # skip past header and constant log
-        assert len(line.split(',')) == 1 + num_logs + 7 * 2 + (1*2) + 1
+        assert len(line.split(',')) == 1 + num_logs + 7 * 2 + (2*2) + 1
 
     # cleanup
     os.remove(csv_filename)
