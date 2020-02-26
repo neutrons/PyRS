@@ -423,7 +423,7 @@ EXPECTED_HEADER_938 = '''# IPTS number = 22731
                          [('/HFIR/HB2B/shared/PyRS/HB2B_1065_Peak.h5', 'HB2B_1065.csv', EXPECTED_HEADER_1065, 99, 6,
                            'sub-run,vx,vy,vz,', ',311_chisq'),
                           ('data/HB2B_938_peak.h5', 'HB2B_938.csv', EXPECTED_HEADER_938, 1, 3,
-                           'sub-run,vx,vy,vz,Si111_dspacing_center,Si111_strain ', ',Si111_chisq')],
+                           'sub-run,vx,vy,vz,Si111_dspacing_center', ',Si111_chisq')],
                          ids=['HB2B_1065_CSV', 'HB2B_938_CSV'])
 def test_write_csv_from_project(project_file_name, csv_filename, expected_header, num_subruns, num_logs,
                                 startswith, endswith):
