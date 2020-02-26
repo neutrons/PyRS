@@ -463,7 +463,8 @@ def test_write_csv_from_project(project_file_name, csv_filename, expected_header
 
     assert len(contents) == len(expected_header) + 1 + num_subruns, 'Does not have full body'
     # verify that the number of columns is correct
-    # columns are (subruns, seven logs, parameter values, uncertainties, d_spacing values, strain values and uncertainties, chisq)
+    # columns are (subruns, seven logs, parameter values, uncertainties, d_spacing values,
+    # strain values and uncertainties, chisq)
     for line in contents[len(expected_header) + 1:]:  # skip past header and constant log
         assert len(line.split(',')) == 1 + num_logs + 7 * 2 + (2*2) + 1
 
