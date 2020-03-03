@@ -628,6 +628,7 @@ class PyHB2BReduction(object):
         if vanadium_counts is None:
             # Get the number of pixels in each bin
             hist_bin, be_temp = np.histogram(pixel_2theta_array, bins=two_theta_bins)
+            hist_bin[:] = 1.0
         else:
             # Normalize by vanadium including efficiency calibration
             checkdatatypes.check_numpy_arrays('Vanadium counts', [vanadium_counts], 1, False)
