@@ -782,7 +782,7 @@ class HidraProjectFile(object):
         for info_name in info_dict:
             self._project_h5.attrs[info_name] = info_dict[info_name]
 
-    def write_reduced_diffraction_data_set(self, two_theta_array, diff_data_set):
+    def write_reduced_diffraction_data_set(self, two_theta_array, diff_data_set, var_data_set):
         """Set the reduced diffraction data (set)
 
         Parameters
@@ -791,6 +791,8 @@ class HidraProjectFile(object):
             2D array for 2-theta vector, which could be various to each other among sub runs
         diff_data_set : dict
             dictionary of 2D arrays for reduced diffraction patterns' intensities
+        var_data_set : dict
+            dictionary of 2D arrays for reduced diffraction patterns' variances
         """
         # Check input
         checkdatatypes.check_numpy_arrays('Two theta vector', [two_theta_array], 2, False)
@@ -841,6 +843,41 @@ class HidraProjectFile(object):
             else:
                 # new
                 diff_group.create_dataset(data_name, data=diff_data_matrix_i)
+
+        # Add Variances data
+        if var_data_set is None:
+            var_data_set = diff_data_set
+            for mask_id in var_data_set:
+                var_data_set[mask_id] = numpy.sqrt(var_data_set[mask_id])
+
+        for mask_id in var_data_set:
+            # Get data
+            var_data_matrix_i = var_data_set[mask_id]
+            self._log.information('Mask {} data set shape: {}'.format(mask_id, var_data_matrix_i.shape))
+            # Check
+            checkdatatypes.check_numpy_arrays('Diffraction data (matrix)', [var_data_matrix_i], None, False)
+            if two_theta_array.shape != var_data_matrix_i.shape:
+                raise RuntimeError('Length of 2theta vector ({}) is different from intensities ({})'
+                                   ''.format(two_theta_array.shape, var_data_matrix_i.shape))
+            # Set name for default mask
+            if mask_id is None:
+                data_name = HidraConstants.REDUCED_MAIN + '_var'
+            else:
+                data_name = mask_id + '_var'
+
+            # Write
+            if data_name in diff_group.keys():
+                # overwrite
+                diff_h5_data = diff_group[data_name]
+                try:
+                    diff_h5_data[...] = var_data_matrix_i
+                except TypeError:
+                    # usually two theta vector size changed
+                    del diff_group[data_name]
+                    diff_group.create_dataset(data_name, data=var_data_matrix_i)
+            else:
+                # new
+                diff_group.create_dataset(data_name, data=var_data_matrix_i)
 
     def write_sub_runs(self, sub_runs):
         """ Set sub runs to sample log entry

@@ -201,7 +201,7 @@ class PeakFitCalibration(object):
                                                            is_point_data=True,
                                                            vanadium_counts_array=None)
 
-        vec_2theta, vec_hist = data_set
+        vec_2theta, vec_hist = data_set[:2]
         # two_theta_step = (max_2theta - min_2theta) / num_bins
         # pyrs_reducer.set_mask(roi_vec)
         # vec_2theta, vec_hist = pyrs_reducer.
