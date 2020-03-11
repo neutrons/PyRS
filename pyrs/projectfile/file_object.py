@@ -394,6 +394,42 @@ class HidraProjectFile(object):
 
         return reduced_diff_hist
 
+    def read_diffraction_variance_vector(self, mask_id, sub_run):
+        """ Get the (reduced) diffraction data's intensity
+        :param mask_id:
+        :param sub_run: If sub run = None: ...
+        :return: 1D array or 2D array depending on sub ru
+        """
+        # Get default for mask/main
+        if mask_id is None:
+            mask_id = HidraConstants.REDUCED_MAIN
+
+        if '_var' not in mask_id:
+            mask_id += '_var'
+
+        checkdatatypes.check_string_variable('Mask ID', mask_id,
+                                             list(self._project_h5[HidraConstants.REDUCED_DATA].keys()))
+
+        # Get data to return
+        if sub_run is None:
+            # all the sub runs
+            reduced_variance_hist = self._project_h5[HidraConstants.REDUCED_DATA][mask_id].value
+        else:
+            # specific one sub run
+            sub_run_list = self.read_sub_runs()
+            sub_run_index = sub_run_list.index(sub_run)
+
+            if mask_id is None:
+                mask_id = HidraConstants.REDUCED_MAIN
+
+            if '_var' not in mask_id:
+                mask_id += '_var'
+
+            reduced_variance_hist = self._project_h5[HidraConstants.REDUCED_DATA][mask_id].value[sub_run_index]
+        # END-IF-ELSE
+
+        return reduced_variance_hist
+
     def read_diffraction_masks(self):
         """
         Get the list of masks

@@ -130,6 +130,15 @@ class HidraWorkspace(object):
                 mask_name = None
             self._diff_data_set[mask_name] = hidra_file.read_diffraction_intensity_vector(mask_id=mask_name,
                                                                                           sub_run=None)
+
+        # Load data: all including masks / ROI
+        for mask_name in diff_mask_list:
+            # force to None
+            if mask_name == 'main':
+                mask_name = None
+            self._var_data_set[mask_name] = hidra_file.read_diffraction_variance_vector(mask_id=mask_name,
+                                                                                        sub_run=None)
+
         print('[INFO] Loaded diffraction data from {} includes : {}'
               ''.format(self._project_file_name, self._diff_data_set.keys()))
 
@@ -426,7 +435,14 @@ class HidraWorkspace(object):
                                'The available masks are {}'
                                ''.format(mask_id, self._diff_data_set.keys()))
 
-        return matrix_2theta, intensity_matrix
+        try:
+            variance_matrix = self._var_data_set[mask_id].copy()
+        except KeyError:
+            raise RuntimeError('Mask ID {} does not exist in reduced diffraction pattern. '
+                               'The available masks are {}'
+                               ''.format(mask_id, self._var_data_set.keys()))
+
+        return matrix_2theta, intensity_matrix, variance_matrix
 
     def get_reduced_diffraction_data_2theta(self, sub_run):
         """Get 2theta vector of reduced diffraction data
