@@ -1,4 +1,4 @@
- # Data manager
+# Data manager
 from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import numpy
 from pyrs.dataobjects import HidraConstants, SampleLogs
