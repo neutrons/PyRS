@@ -282,14 +282,15 @@ def test_improve_quality():
 
     # set wave length
     # TODO : @Jean please find out the correct value
-    hd_ws.set_wavelength(1.071, False)
+    wavelength = 1.071
+    hd_ws.set_wavelength(wavelength, False)
 
     peak_type = 'Gaussian'
 
     # Set peak fitting engine
     # create a controller from factory
     fit_engine = PeakFitEngineFactory.getInstance(hd_ws, peak_function_name=peak_type,
-                                                  background_function_name='Linear')
+                                                  background_function_name='Linear', wavelength=wavelength)
 
     # Fit peak @ left
     peak_info_left = PeakInfo(91.7, 87., 93., 'Left Peak')

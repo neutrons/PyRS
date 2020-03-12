@@ -407,26 +407,29 @@ class HidraProjectFile(object):
         if '_var' not in mask_id:
             mask_id += '_var'
 
-        checkdatatypes.check_string_variable('Mask ID', mask_id,
-                                             list(self._project_h5[HidraConstants.REDUCED_DATA].keys()))
+        try:
+            checkdatatypes.check_string_variable('Mask ID', mask_id,
+                                                 list(self._project_h5[HidraConstants.REDUCED_DATA].keys()))
 
-        # Get data to return
-        if sub_run is None:
-            # all the sub runs
-            reduced_variance_hist = self._project_h5[HidraConstants.REDUCED_DATA][mask_id].value
-        else:
-            # specific one sub run
-            sub_run_list = self.read_sub_runs()
-            sub_run_index = sub_run_list.index(sub_run)
+            # Get data to return
+            if sub_run is None:
+                # all the sub runs
+                reduced_variance_hist = self._project_h5[HidraConstants.REDUCED_DATA][mask_id].value
+            else:
+                # specific one sub run
+                sub_run_list = self.read_sub_runs()
+                sub_run_index = sub_run_list.index(sub_run)
 
-            if mask_id is None:
-                mask_id = HidraConstants.REDUCED_MAIN
+                if mask_id is None:
+                    mask_id = HidraConstants.REDUCED_MAIN
 
-            if '_var' not in mask_id:
-                mask_id += '_var'
+                if '_var' not in mask_id:
+                    mask_id += '_var'
 
-            reduced_variance_hist = self._project_h5[HidraConstants.REDUCED_DATA][mask_id].value[sub_run_index]
-        # END-IF-ELSE
+                reduced_variance_hist = self._project_h5[HidraConstants.REDUCED_DATA][mask_id].value[sub_run_index]
+            # END-IF-ELSE
+        except ValueError:
+            reduced_variance_hist = None
 
         return reduced_variance_hist
 

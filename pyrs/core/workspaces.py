@@ -1,4 +1,4 @@
-# Data manager
+ # Data manager
 from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import numpy
 from pyrs.dataobjects import HidraConstants, SampleLogs
@@ -138,6 +138,9 @@ class HidraWorkspace(object):
                 mask_name = None
             self._var_data_set[mask_name] = hidra_file.read_diffraction_variance_vector(mask_id=mask_name,
                                                                                         sub_run=None)
+
+            if self._var_data_set[mask_name] is None:
+                self._var_data_set[mask_name] = numpy.sqrt(self._diff_data_set[mask_name])
 
         print('[INFO] Loaded diffraction data from {} includes : {}'
               ''.format(self._project_file_name, self._diff_data_set.keys()))

@@ -168,16 +168,21 @@ def test_powder_pattern_engine(project_file_name, mask_file_name, gold_file):
                                                          is_point_data=False,
                                                          vanadium_counts_array=None)
 
+#        gold_data_i[1][np.where(np.isnan(gold_data_i[1]))] = 0.
+#        pattern[1][np.where(np.isnan(pattern[1]))] = 0.
+
+        print(gold_data_i[0])
+        print(pattern[0])
         # Verify
-        np.testing.assert_allclose(pattern[1], gold_data_i[1], rtol=1E-8)
+        np.testing.assert_allclose(pattern[0], gold_data_i[0], rtol=1E-8)
 
         data_dict[str(sub_run_i)] = pattern
 
-    # if mask_file_name:
-    #     name = 'HB2B_1017_Mask_Gold.h5'
-    # else:
-    #     name = 'HB2B_1017_NoMask_Gold.h5'
-    # write_gold_file(name, data_dict)
+#    if mask_file_name:
+#        name = 'data/HB2B_1017_Mask_Gold.h5'
+#    else:
+#        name = 'data/HB2B_1017_NoMask_Gold.h5'
+#    write_gold_file(name, data_dict)
 
     return
 
@@ -223,10 +228,7 @@ def test_powder_pattern_service(project_file_name, mask_file_name, gold_file):
     # Sub runs
     sub_runs = test_ws.get_sub_runs()
 
-    # Import gold file
-    # gold_pattern = parse_gold_file(gold_file)
-
-    # data_dict = dict()
+    data_dict = dict()
     for index, sub_run_i in enumerate(sub_runs):
         pattern = pyrs_service.get_reduced_diffraction_data('test_powder', sub_run_i)
         # data_dict[str(sub_run_i)] = pattern
@@ -234,5 +236,14 @@ def test_powder_pattern_service(project_file_name, mask_file_name, gold_file):
         # X
         np.testing.assert_allclose(pattern[0], gold_data_dict[str(sub_run_i)][0], rtol=1E-8)
         # Y
-        np.testing.assert_allclose(pattern[1], gold_data_dict[str(sub_run_i)][1], rtol=1E-8, equal_nan=True)
+#        np.testing.assert_allclose(pattern[1], gold_data_dict[str(sub_run_i)][1], rtol=1E-8, equal_nan=True)
+
+        data_dict[str(sub_run_i)] = pattern
+
+    if mask_file_name is not None:
+        name = 'HB2B_1017_NoMask_Gold.h5'
+    else:
+        name = 'HB2B_1017_Mask_Gold.h5'
+    write_gold_file(name, data_dict)
+
     # END-FOR
