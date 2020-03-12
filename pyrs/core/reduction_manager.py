@@ -7,6 +7,7 @@ from pyrs.core import instrument_geometry
 from pyrs.core import mask_util
 from pyrs.core import reduce_hb2b_mtd
 from pyrs.core import reduce_hb2b_pyrs
+from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.dataobjects import HidraConstants
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 from pyrs.utilities import calibration_file_io
@@ -292,28 +293,32 @@ class HB2BReductionManager(object):
         checkdatatypes.check_file_name(van_project_file, True, False, False, 'Vanadium project/NeXus file')
 
         if van_project_file.endswith('.nxs.h5'):
-            raise NotImplementedError('It has not been implemented to load NeXus file of Vanadium')
+            # Input is nexus file
+            # reduce with PyRS/Python
+            converter = NeXusConvertingApp(van_project_file, mask_file_name=None)
+            self._van_ws = converter.convert(use_mantid=False)
 
-        # Input is HiDRA project file
-        self._van_ws = workspaces.HidraWorkspace(name=van_project_file)
+        else:
+            # Input is HiDRA project file
+            self._van_ws = workspaces.HidraWorkspace(name=van_project_file)
 
-        # PyRS HDF5
-        project_h5_file = HidraProjectFile(van_project_file, mode=HidraProjectFileMode.READONLY)
+            # PyRS HDF5
+            project_h5_file = HidraProjectFile(van_project_file, mode=HidraProjectFileMode.READONLY)
 
-        # Load
-        self._van_ws.load_hidra_project(project_h5_file,
-                                        load_raw_counts=True,
-                                        load_reduced_diffraction=False)
+            # Load
+            self._van_ws.load_hidra_project(project_h5_file,
+                                            load_raw_counts=True,
+                                            load_reduced_diffraction=False)
 
-        # Close project file
-        project_h5_file.close()
+            # Close project file
+            project_h5_file.close()
 
         # Process the vanadium counts
         sub_runs = self._van_ws.get_sub_runs()
         assert len(sub_runs) == 1, 'There shall be more than 1 sub run in vanadium project file'
 
         # get vanadium data
-        van_array = self._van_ws.get_detector_counts(sub_runs[0])
+        van_array = self._van_ws.get_detector_counts(sub_runs[0]).astype(np.float64)
 
         # get vanadium run duration
         van_duration = self._van_ws.get_sample_log_value(HidraConstants.SUB_RUN_DURATION, sub_runs[0])
