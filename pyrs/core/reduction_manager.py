@@ -573,13 +573,13 @@ class HB2BReductionManager(object):
             reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
 
         # Histogram
-        bin_centers, hist = self.convert_counts_to_diffraction(reduction_engine, l2, mantid_two_theta,
-                                                               geometry_calibration, raw_count_vec,
-                                                               (min_2theta, max_2theta),
-                                                               num_bins, mask_vec, vanadium_counts)
+        bin_centers, hist, variances = self.convert_counts_to_diffraction(reduction_engine, l2, mantid_two_theta,
+                                                                          geometry_calibration, raw_count_vec,
+                                                                          (min_2theta, max_2theta),
+                                                                          num_bins, mask_vec, vanadium_counts)
 
         # record
-        workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_centers, hist)
+        workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_centers, hist, variances)
         self._last_reduction_engine = reduction_engine
 
     def convert_counts_to_diffraction(self, reduction_engine, l2, instrument_2theta, geometry_calibration,
@@ -601,8 +601,8 @@ class HB2BReductionManager(object):
 
         Returns
         -------
-        numpy.ndarray, numpy.ndarray
-            2theta bins, histogram of counts
+        numpy.ndarray, numpy.ndarray, numpy.ndarray
+            2theta bins, histogram of counts, variances of counts
 
         """
         # Set up reduction engine
@@ -625,8 +625,9 @@ class HB2BReductionManager(object):
                                                                vanadium_counts_array=vanadium_array)
         bin_centers = data_set[0]
         hist = data_set[1]
+        variances = data_set[2]
 
-        return bin_centers, hist
+        return bin_centers, hist, variances
 
     @staticmethod
     def generate_2theta_histogram_vector(min_2theta, num_bins, max_2theta,

@@ -518,8 +518,8 @@ class PyHB2BReduction(object):
 
         Returns
         -------
-        numpy.ndarray, numpy.ndarray
-            2theta vector and intensity vector
+        numpy.ndarray, numpy.ndarray, numpy.ndarray
+            2theta vector, intensity vector, and variances_vector
 
         """
         # Get two-theta-histogram vector
@@ -560,14 +560,16 @@ class PyHB2BReduction(object):
         #        are not required anymore but both of them will be replaced by integrated vanadium counts
 
         # use numpy.histogram
-        two_theta_bins, intensity_vector = self.histogram_by_numpy(pixel_2theta_array, counts_array,
-                                                                   two_theta_bins,
-                                                                   is_point_data, vanadium_counts_array)
+        two_theta_bins, intensity_vector, variances_vector = self.histogram_by_numpy(pixel_2theta_array,
+                                                                                     counts_array,
+                                                                                     two_theta_bins,
+                                                                                     is_point_data,
+                                                                                     vanadium_counts_array)
 
         # Record
-        self._reduced_diffraction_data = two_theta_bins, intensity_vector
+        self._reduced_diffraction_data = two_theta_bins, intensity_vector, variances_vector
 
-        return two_theta_bins, intensity_vector
+        return two_theta_bins, intensity_vector, variances_vector
 
     def set_experimental_data(self, two_theta, l2, raw_count_vec):
         """ Set experimental data (for a sub-run)
@@ -618,30 +620,49 @@ class PyHB2BReduction(object):
         # Exclude NaN and infinity regions
         masked_pixels = (np.isnan(pixel_count_array)) | (np.isinf(pixel_count_array))
 
+        # get non masked raw count data
         pixel_2theta_array = pixel_2theta_array[~masked_pixels]
         pixel_count_array = pixel_count_array[~masked_pixels]
 
-        # Call numpy to histogram
+        # construct variance array
+        pixel_var_array = np.sqrt(pixel_count_array)
+        pixel_var_array[pixel_var_array == 0.0] = 1.
+
+        # Call numpy to histogram raw counts and variance
         hist, bin_edges = np.histogram(pixel_2theta_array, bins=two_theta_bins, weights=pixel_count_array)
+        var, var_edges = np.histogram(pixel_2theta_array, bins=two_theta_bins, weights=pixel_var_array)
+
+        num_bins, bin_edges = np.histogram(pixel_2theta_array, bins=two_theta_bins,
+                                           weights=np.ones_like(pixel_count_array))
 
         # Optionally to normalize by number of pixels (sampling points) in the 2theta bin
-        if vanadium_counts is None:
-            # Get the number of pixels in each bin
-            hist_bin, be_temp = np.histogram(pixel_2theta_array, bins=two_theta_bins)
-        else:
+        if vanadium_counts is not None:
             # Normalize by vanadium including efficiency calibration
             checkdatatypes.check_numpy_arrays('Vanadium counts', [vanadium_counts], 1, False)
+
+            vanadium_var = np.sqrt(vanadium_counts[~masked_pixels])
+            # vanadium_var[vanadium_var == 0.0] = 1.
+
             hist_bin, be_temp = np.histogram(pixel_2theta_array, bins=two_theta_bins, weights=vanadium_counts)
+            van_var, van_var_temp = np.histogram(pixel_2theta_array, bins=two_theta_bins, weights=vanadium_var)
+
+            # Find out the bin where there is either no vanadium count or no pixel's located
+            # Mask these bins by NaN
+            # make sure it is float
+            hist_bin = hist_bin.astype(float)
+            hist_bin[np.where(hist_bin < 1E-10)] = np.nan
+
+            # propogation of error
+            var = np.sqrt((var / hist)**2 + (van_var / hist_bin)**2 - 2. * (var * van_var) / (hist * hist_bin))
+
+            # Normalize
+            hist /= hist_bin  # normalize
+            var *= hist
+
         # END-IF-ELSE
-
-        # Find out the bin where there is either no vanadium count or no pixel's located
-        # Mask these bins by NaN
-        # make sure it is float
-        hist_bin = hist_bin.astype(float)
-        hist_bin[np.where(hist_bin < 1E-10)] = np.nan
-
-        # Normalize
-        hist /= hist_bin  # normalize
+        num_bins = num_bins.astype(float)
+        num_bins[np.where(num_bins < 1E-10)] = np.nan
+        var /= num_bins
 
         # convert to point data as an option.  Use the center of the 2theta bin as new theta
         if is_point_data:
@@ -651,5 +672,5 @@ class PyHB2BReduction(object):
             # return bin edges
             bins = bin_edges
 
-        return bins, hist
+        return bins, hist, var
 # END-CLASS

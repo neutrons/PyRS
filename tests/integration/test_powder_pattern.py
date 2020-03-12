@@ -5,7 +5,7 @@ from pyrs.projectfile import HidraProjectFile
 import numpy as np
 import h5py
 from pyrs.core.workspaces import HidraWorkspace
-from pyrs.core.reduce_hb2b_pyrs import PyHB2BReduction, ResidualStressInstrument
+from pyrs.core.reduce_hb2b_pyrs import ResidualStressInstrument
 from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry
 from pyrs.core.reduction_manager import HB2BReductionManager
 import pytest
@@ -132,59 +132,52 @@ def test_powder_pattern_engine(project_file_name, mask_file_name, gold_file):
     test_ws.load_hidra_project(test_project, load_raw_counts=True, load_reduced_diffraction=False)
     test_project.close()
 
-    # Create geometry setup: this is the default instrument setup
-    pixel_size = 0.3/1024.0
-    arm_length = 0.985
-    test_setup = AnglerCameraDetectorGeometry(1024, 1024, pixel_size, pixel_size, arm_length, False)
-    # Create instrument
-    # instrument = ResidualStressInstrument(test_setup)
-    pyrs_engine = PyHB2BReduction(test_setup, None)
-
     # Sub runs
     sub_runs = test_ws.get_sub_runs()
 
     # Import gold file
     gold_pattern = parse_gold_file(gold_file)
 
-    two_theta_range = [(74, 93), (79, 98), (88, 107)]
-
     data_dict = dict()
 
-    for index, sub_run_i in enumerate(sub_runs):
-        two_theta_i = test_ws.get_sample_log_value('2theta', sub_run_i)
-        counts_i = test_ws.get_detector_counts(sub_run_i)
-        pyrs_engine.set_experimental_data(two_theta=two_theta_i, l2=None, raw_count_vec=counts_i)
-        pyrs_engine.build_instrument(calibration=None)
+    # Start reduction service
+    pyrs_service = HB2BReductionManager()
+    pyrs_service.init_session(session_name='test_powder', hidra_ws=test_ws)
 
-        # Get gold data of pattern (i).  Note that vector 2theta are bin boundaries!
+    # Reduce raw counts
+    pyrs_service.reduce_diffraction_data('test_powder', False, 1000,
+                                         use_pyrs_engine=True, sub_run_list=None,
+                                         mask=mask_file_name, mask_id=None,
+                                         vanadium_counts=None, normalize_by_duration=False)
+
+    for index, sub_run_i in enumerate(sub_runs):
+        # Get gold data of pattern (i).
         gold_data_i = gold_pattern[str(sub_run_i)]
 
-        bins = (two_theta_range[index][1] -
-                two_theta_range[index][0]) / 1000. * np.arange(1000) + two_theta_range[index][0]
+        # Get powder data of pattern (i).
+        pattern = pyrs_service.get_reduced_diffraction_data('test_powder', sub_run_i)
 
-        # Reduce
-        pattern = pyrs_engine.reduce_to_2theta_histogram(two_theta_bins=bins,  # gold_data_i[0],
-                                                         mask_array=None,
-                                                         is_point_data=False,
-                                                         vanadium_counts_array=None)
+        # ensure NaN are removed
+        gold_data_i[1][np.where(np.isnan(gold_data_i[1]))] = 0.
+        pattern[1][np.where(np.isnan(pattern[1]))] = 0.
 
         # Verify
         np.testing.assert_allclose(pattern[1], gold_data_i[1], rtol=1E-8)
 
         data_dict[str(sub_run_i)] = pattern
 
-    # if mask_file_name:
-    #     name = 'HB2B_1017_Mask_Gold.h5'
-    # else:
-    #     name = 'HB2B_1017_NoMask_Gold.h5'
-    # write_gold_file(name, data_dict)
+#    if mask_file_name:
+#        name = 'data/HB2B_1017_Mask_Gold.h5'
+#    else:
+#        name = 'data/HB2B_1017_NoMask_Gold.h5'
+#    write_gold_file(name, data_dict)
 
     return
 
 
 @pytest.mark.parametrize('project_file_name, mask_file_name, gold_file',
-                         [('data/HB2B_1017.h5', 'data/HB2B_Mask_12-18-19.xml', 'data/HB2B_1017_NoMask_RM_Gold.h5'),
-                          ('data/HB2B_1017.h5', None, 'data/HB2B_1017_NoMask_RM_Gold.h5')],
+                         [('data/HB2B_1017.h5', 'data/HB2B_Mask_12-18-19.xml', 'data/HB2B_1017_NoMask_Gold.h5'),
+                          ('data/HB2B_1017.h5', None, 'data/HB2B_1017_NoMask_Gold.h5')],
                          ids=('HB2B_1017_Masked', 'HB2B_1017_NoMask'))
 def test_powder_pattern_service(project_file_name, mask_file_name, gold_file):
     """Test the powder pattern calculator (service) with HB2B-specific reduction routine
@@ -202,7 +195,7 @@ def test_powder_pattern_service(project_file_name, mask_file_name, gold_file):
     if mask_file_name is not None:
         pytest.skip('Not Ready Yet for Masking')
 
-    # gold file
+    # load gold file
     gold_data_dict = parse_gold_file(gold_file)
 
     # Parse input file
@@ -211,28 +204,35 @@ def test_powder_pattern_service(project_file_name, mask_file_name, gold_file):
     test_ws.load_hidra_project(test_project, load_raw_counts=True, load_reduced_diffraction=False)
     test_project.close()
 
-    # Start the service
+    # Start reduction service
     pyrs_service = HB2BReductionManager()
     pyrs_service.init_session(session_name='test_powder', hidra_ws=test_ws)
 
+    # Reduce raw counts
     pyrs_service.reduce_diffraction_data('test_powder', False, 1000,
                                          use_pyrs_engine=True, sub_run_list=None,
                                          mask=mask_file_name, mask_id=None,
                                          vanadium_counts=None, normalize_by_duration=False)
 
-    # Sub runs
+    # Get sub runs
     sub_runs = test_ws.get_sub_runs()
 
-    # Import gold file
-    # gold_pattern = parse_gold_file(gold_file)
-
-    # data_dict = dict()
     for index, sub_run_i in enumerate(sub_runs):
+        # Get gold data of pattern (i).
+        gold_data_i = gold_data_dict[str(sub_run_i)]
+
+        # Get powder data of pattern (i).
         pattern = pyrs_service.get_reduced_diffraction_data('test_powder', sub_run_i)
         # data_dict[str(sub_run_i)] = pattern
 
-        # X
+        # validate correct two-theta reduction
         np.testing.assert_allclose(pattern[0], gold_data_dict[str(sub_run_i)][0], rtol=1E-8)
-        # Y
-        np.testing.assert_allclose(pattern[1], gold_data_dict[str(sub_run_i)][1], rtol=1E-8, equal_nan=True)
+
+        # remove NaN intensity arrays
+        pattern[1][np.where(np.isnan(pattern[1]))] = 0.
+        gold_data_i[1][np.where(np.isnan(gold_data_i[1]))] = 0.
+
+        # validate correct intesnity reduction
+        np.testing.assert_allclose(pattern[1], gold_data_i[1], rtol=1E-8, equal_nan=True)
+
     # END-FOR
