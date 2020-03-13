@@ -414,7 +414,7 @@ class HB2BReductionManager(object):
 
     def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, num_bins,
                                 use_pyrs_engine, sub_run_list, mask, mask_id,
-                                vanadium_counts=None, normalize_by_duration=True):
+                                vanadium_counts=None, van_duration=None, normalize_by_duration=True):
         """Reduce ALL sub runs in a workspace from detector counts to diffraction data
 
         Parameters
@@ -502,13 +502,14 @@ class HB2BReductionManager(object):
                                             mask_vec_tuple=(mask_id, mask_vec),
                                             num_bins=num_bins,
                                             sub_run_duration=duration_i,
-                                            vanadium_counts=vanadium_counts)
+                                            vanadium_counts=vanadium_counts,
+                                            van_duration=van_duration)
         # END-FOR (sub run)
 
     # NOTE: Refer to compare_reduction_engines_tst
     def reduce_sub_run_diffraction(self, workspace, sub_run, geometry_calibration, use_mantid_engine,
-                                   mask_vec_tuple, min_2theta=None, max_2theta=None,
-                                   num_bins=1000, sub_run_duration=None, vanadium_counts=None):
+                                   mask_vec_tuple, min_2theta=None, max_2theta=None, num_bins=1000,
+                                   sub_run_duration=None, vanadium_counts=None, van_duration=None):
         """Reduce import data (workspace or vector) to 2-theta ~ I
 
         The binning of 2theta is linear in range (min, max) with given resolution
@@ -583,6 +584,9 @@ class HB2BReductionManager(object):
                                                                           (min_2theta, max_2theta),
                                                                           num_bins, mask_vec, vanadium_counts)
 
+        if van_duration is not None:
+            hist *= van_duration
+            variances *= van_duration
         # record
         workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_centers, hist, variances)
         self._last_reduction_engine = reduction_engine

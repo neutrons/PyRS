@@ -617,6 +617,13 @@ class PyHB2BReduction(object):
                                           [pixel_2theta_array, pixel_count_array],
                                           1, True)
 
+        # Exclude Pixels with no vanadium counts
+        if vanadium_counts is not None:
+            vandium_mask = np.where(vanadium_counts > 0.9)[0]
+            pixel_2theta_array = pixel_2theta_array[vandium_mask]
+            pixel_count_array = pixel_count_array[vandium_mask]
+            vanadium_counts = vanadium_counts[vandium_mask]
+
         # Exclude NaN and infinity regions
         masked_pixels = (np.isnan(pixel_count_array)) | (np.isinf(pixel_count_array))
 
@@ -662,7 +669,7 @@ class PyHB2BReduction(object):
         # END-IF-ELSE
         num_bins = num_bins.astype(float)
         num_bins[np.where(num_bins < 1E-10)] = np.nan
-        var /= num_bins
+        var /= np.sqrt(num_bins)
 
         # convert to point data as an option.  Use the center of the 2theta bin as new theta
         if is_point_data:
