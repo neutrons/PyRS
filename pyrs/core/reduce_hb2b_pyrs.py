@@ -660,7 +660,8 @@ class PyHB2BReduction(object):
             hist_bin[np.where(hist_bin < 1E-10)] = np.nan
 
             # propogation of error
-            var = np.sqrt((var / hist)**2 + (van_var / hist_bin)**2 - 2. * (var * van_var) / (hist * hist_bin))
+#            var = np.sqrt((var / hist)**2 + (van_var / hist_bin)**2 - 2. * (var * van_var) / (hist * hist_bin))
+            var = np.sqrt((var / hist)**2 + (van_var / hist_bin)**2)
 
             # Normalize
             hist /= hist_bin  # normalize
