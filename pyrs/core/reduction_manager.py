@@ -7,6 +7,7 @@ from pyrs.core import instrument_geometry
 from pyrs.core import mask_util
 from pyrs.core import reduce_hb2b_mtd
 from pyrs.core import reduce_hb2b_pyrs
+from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.dataobjects import HidraConstants
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 from pyrs.utilities import calibration_file_io
@@ -292,28 +293,32 @@ class HB2BReductionManager(object):
         checkdatatypes.check_file_name(van_project_file, True, False, False, 'Vanadium project/NeXus file')
 
         if van_project_file.endswith('.nxs.h5'):
-            raise NotImplementedError('It has not been implemented to load NeXus file of Vanadium')
+            # Input is nexus file
+            # reduce with PyRS/Python
+            converter = NeXusConvertingApp(van_project_file, mask_file_name=None)
+            self._van_ws = converter.convert(use_mantid=False)
 
-        # Input is HiDRA project file
-        self._van_ws = workspaces.HidraWorkspace(name=van_project_file)
+        else:
+            # Input is HiDRA project file
+            self._van_ws = workspaces.HidraWorkspace(name=van_project_file)
 
-        # PyRS HDF5
-        project_h5_file = HidraProjectFile(van_project_file, mode=HidraProjectFileMode.READONLY)
+            # PyRS HDF5
+            project_h5_file = HidraProjectFile(van_project_file, mode=HidraProjectFileMode.READONLY)
 
-        # Load
-        self._van_ws.load_hidra_project(project_h5_file,
-                                        load_raw_counts=True,
-                                        load_reduced_diffraction=False)
+            # Load
+            self._van_ws.load_hidra_project(project_h5_file,
+                                            load_raw_counts=True,
+                                            load_reduced_diffraction=False)
 
-        # Close project file
-        project_h5_file.close()
+            # Close project file
+            project_h5_file.close()
 
         # Process the vanadium counts
         sub_runs = self._van_ws.get_sub_runs()
         assert len(sub_runs) == 1, 'There shall be more than 1 sub run in vanadium project file'
 
         # get vanadium data
-        van_array = self._van_ws.get_detector_counts(sub_runs[0])
+        van_array = self._van_ws.get_detector_counts(sub_runs[0]).astype(np.float64)
 
         # get vanadium run duration
         van_duration = self._van_ws.get_sample_log_value(HidraConstants.SUB_RUN_DURATION, sub_runs[0])
@@ -409,7 +414,7 @@ class HB2BReductionManager(object):
 
     def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, num_bins,
                                 use_pyrs_engine, sub_run_list, mask, mask_id,
-                                vanadium_counts=None, normalize_by_duration=True):
+                                vanadium_counts=None, van_duration=None, normalize_by_duration=True):
         """Reduce ALL sub runs in a workspace from detector counts to diffraction data
 
         Parameters
@@ -497,13 +502,14 @@ class HB2BReductionManager(object):
                                             mask_vec_tuple=(mask_id, mask_vec),
                                             num_bins=num_bins,
                                             sub_run_duration=duration_i,
-                                            vanadium_counts=vanadium_counts)
+                                            vanadium_counts=vanadium_counts,
+                                            van_duration=van_duration)
         # END-FOR (sub run)
 
     # NOTE: Refer to compare_reduction_engines_tst
     def reduce_sub_run_diffraction(self, workspace, sub_run, geometry_calibration, use_mantid_engine,
-                                   mask_vec_tuple, min_2theta=None, max_2theta=None,
-                                   num_bins=1000, sub_run_duration=None, vanadium_counts=None):
+                                   mask_vec_tuple, min_2theta=None, max_2theta=None, num_bins=1000,
+                                   sub_run_duration=None, vanadium_counts=None, van_duration=None):
         """Reduce import data (workspace or vector) to 2-theta ~ I
 
         The binning of 2theta is linear in range (min, max) with given resolution
@@ -578,6 +584,9 @@ class HB2BReductionManager(object):
                                                                           (min_2theta, max_2theta),
                                                                           num_bins, mask_vec, vanadium_counts)
 
+        if van_duration is not None:
+            hist *= van_duration
+            variances *= van_duration
         # record
         workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_centers, hist, variances)
         self._last_reduction_engine = reduction_engine
