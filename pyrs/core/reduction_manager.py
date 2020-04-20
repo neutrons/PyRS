@@ -503,7 +503,7 @@ class HB2BReductionManager(object):
                 # not normalized
                 duration_i = 1.
 
-            if eta_step is not None:
+            if eta_step is None:
                 # reduce sub run
                 self.reduce_sub_run_diffraction(workspace, sub_run, det_pos_shift,
                                                 use_mantid_engine=not use_pyrs_engine,
