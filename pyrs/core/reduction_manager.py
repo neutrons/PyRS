@@ -412,9 +412,9 @@ class HB2BReductionManager(object):
 
         return van_counts_array
 
-    def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, num_bins,
-                                use_pyrs_engine, sub_run_list, mask, mask_id,
-                                vanadium_counts=None, van_duration=None, normalize_by_duration=True):
+    def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, num_bins, use_pyrs_engine, sub_run_list,
+                                mask, mask_id, vanadium_counts=None, van_duration=None, normalize_by_duration=True,
+                                eta_step=None, eta_min=None, eta_max=None):
         """Reduce ALL sub runs in a workspace from detector counts to diffraction data
 
         Parameters
@@ -436,6 +436,12 @@ class HB2BReductionManager(object):
         vanadium_counts : None or ~numpy.ndarray
             vanadium counts of each detector pixels for normalization
             If vanadium duration is recorded, the vanadium counts are normalized by its duration in seconds
+        eta_step : float
+            angular step size for out-of-plane reduction
+        eta_min : float
+            min angle for out-of-plane reduction
+        eta_max : float
+            max angle for out-of-plane reduction
 
         Returns
         -------
@@ -496,14 +502,31 @@ class HB2BReductionManager(object):
             else:
                 # not normalized
                 duration_i = 1.
-            # reduce sub run
-            self.reduce_sub_run_diffraction(workspace, sub_run, det_pos_shift,
+
+            if eta_step is not None:
+                # reduce sub run
+                self.reduce_sub_run_diffraction(workspace, sub_run, det_pos_shift,
+                                                use_mantid_engine=not use_pyrs_engine,
+                                                mask_vec_tuple=(mask_id, mask_vec),
+                                                num_bins=num_bins,
+                                                sub_run_duration=duration_i,
+                                                vanadium_counts=vanadium_counts,
+                                                van_duration=van_duration)
+            else:
+                # reduce sub run texture
+                self.reduce_sub_run_texture(workspace, sub_run, det_pos_shift,
                                             use_mantid_engine=not use_pyrs_engine,
                                             mask_vec_tuple=(mask_id, mask_vec),
                                             num_bins=num_bins,
                                             sub_run_duration=duration_i,
                                             vanadium_counts=vanadium_counts,
-                                            van_duration=van_duration)
+                                            van_duration=van_duration,
+                                            eta_step=eta_step,
+                                            eta_min=eta_min,
+                                            eta_max=eta_max)
+
+            # END-IF (texture)
+
         # END-FOR (sub run)
 
     # NOTE: Refer to compare_reduction_engines_tst
@@ -578,21 +601,192 @@ class HB2BReductionManager(object):
         else:
             reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
 
+        # Set up reduction engine
+        reduction_engine.set_experimental_data(mantid_two_theta, l2, raw_count_vec)
+        reduction_engine.build_instrument(geometry_calibration)
+
         # Histogram
-        bin_centers, hist, variances = self.convert_counts_to_diffraction(reduction_engine, l2, mantid_two_theta,
-                                                                          geometry_calibration, raw_count_vec,
+        bin_centers, hist, variances = self.convert_counts_to_diffraction(reduction_engine, l2,
+                                                                          geometry_calibration,
                                                                           (min_2theta, max_2theta),
                                                                           num_bins, mask_vec, vanadium_counts)
 
         if van_duration is not None:
             hist *= van_duration
             variances *= van_duration
+
         # record
         workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_centers, hist, variances)
         self._last_reduction_engine = reduction_engine
 
-    def convert_counts_to_diffraction(self, reduction_engine, l2, instrument_2theta, geometry_calibration,
-                                      det_counts_array, two_theta_range, num_bins, mask_array, vanadium_array):
+    def generate_eta_roi_vector(self, eta_step, eta_min, eta_max):
+
+        """Generate vector of out-of-plane angle centers
+
+        Determines list of out-of-plane centers for texture reduction
+        generated list is centered at eta of 0
+        e.g.; 0, +/-step, +/-2step, +/-3step, ...
+
+        ------------------------------
+        Parameters
+        ----------
+        eta_step : float
+            angular step size for out-of-plane reduction
+        eta_min : float
+            min angle for out-of-plane reduction
+        eta_max : float
+            max angle for out-of-plane reduction
+
+        Returns
+        -------
+        numpy array
+
+        """
+
+        # set eta bounds to default if None is provided
+        if eta_min is None:
+            eta_min = -8.2
+        if eta_max is None:
+            eta_max = 8.2
+
+        # center list is generated in two steps to ensure 0 centering
+        if eta_min < 0:
+            eta_roi_start = 0
+        else:
+            eta_roi_start = eta_min
+
+        Upper = np.arange(eta_roi_start, eta_max - eta_step / 2., eta_step)
+
+        if eta_min < 0:
+            Lower = np.arange(-1 * eta_step, eta_min + eta_step / 2., -1 * eta_step)
+        else:
+            Lower = np.array([])
+
+        return np.concatenate((Upper, Lower))
+
+    # NOTE: Refer to compare_reduction_engines_tst
+    def reduce_sub_run_texture(self, workspace, sub_run, geometry_calibration, use_mantid_engine,
+                               mask_vec_tuple, min_2theta=None, max_2theta=None, num_bins=1000,
+                               sub_run_duration=None, vanadium_counts=None, van_duration=None,
+                               eta_step=None, eta_min=None, eta_max=None):
+
+        """Reduce import data (workspace or vector) to 2-theta ~ I
+
+        The binning of 2theta is linear in range (min, max) with given resolution
+
+        1. 2-theta range:
+            If nothing is given, then the default range is from detector arm's 2theta value
+           going up and down with half of default_two_theta_range
+        2. 2-theta resolution/step size:
+            If 2theta resolution is not given, num_bins will be used to determine resolution with 2-theta range;
+            Otherwise, use resolution
+
+        Normalization to time/duration
+        ------------------------------
+        If both sub run duration and vanadium duration are given
+        normalized intensity = raw histogram / vanadium histogram * vanadium duration / sub run duration
+
+        Parameters
+        ----------
+        workspace : HidraWorkspace
+            workspace with detector counts and position
+        sub_run : integer
+            sub run number in workspace to reduce
+        geometry_calibration : instrument_geometry.AnglerCameraDetectorShift
+            instrument geometry to calculate diffraction pattern
+        use_mantid_engine : boolean
+            flag to use Mantid as reduction engine which is rarely used
+        mask_vec_tuple : tuple (str, numpy.ndarray)
+            mask ID and 1D array for masking (1 to keep, 0 to mask out)
+        min_2theta : float or None
+            min 2theta
+        max_2theta : float or None
+            max 2theta
+        num_bins : float or None
+            2theta resolution/step
+        num_bins : int
+            number of bins
+        sub_run_duration: float or None
+            If None, then no normalization to time (duration) will be done. Otherwise, intensity will be
+            normalized by time (duration)
+        vanadium_counts : numpy.ndarray or None
+            detector pixels' vanadium for efficiency and normalization.
+            If vanadium duration is recorded, the vanadium counts are normalized by its duration in seconds
+        eta_step : float
+            angular step size for out-of-plane reduction
+        eta_min : float
+            min angle for out-of-plane reduction
+        eta_max : float
+            max angle for out-of-plane reduction
+
+        Returns
+        -------
+        None
+
+        """
+        # Get the raw data
+        raw_count_vec = workspace.get_detector_counts(sub_run)
+
+        # Retrieve 2-theta and L2 from loaded workspace (DAS)
+        two_theta = workspace.get_detector_2theta(sub_run)
+        l2 = workspace.get_l2(sub_run)
+        # Convert 2-theta from DAS convention to Mantid/PyRS convention
+        # print('[INFO] User specified 2theta = {} is converted to Mantid 2theta = {}'
+        #       ''.format(two_theta, -two_theta))
+        mantid_two_theta = -two_theta
+
+        # Apply mask
+        mask_id, mask_vec = mask_vec_tuple
+
+        # Set up reduction engine and also
+        if use_mantid_engine:
+            reduction_engine = reduce_hb2b_mtd.MantidHB2BReduction(self._mantid_idf)
+        else:
+            reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
+
+        # Set up reduction engine
+        reduction_engine.set_experimental_data(mantid_two_theta, l2, raw_count_vec)
+        reduction_engine.build_instrument(geometry_calibration)
+
+        # Get vector of pixel eta positions
+        eta_vec = reduction_engine.get_eta_value()
+
+        # validate input
+        if abs(eta_step) is not eta_step:
+            eta_step = abs(eta_step)
+
+        # Generate eta roi vector
+        eta_roi_vec = self.generate_eta_roi_vector(eta_step, eta_min, eta_max)
+
+        for eta_cent in eta_roi_vec:
+            # define mask to isolate narrow eta wedge
+            eta_mask = np.zeros_like(eta_vec)
+            eta_mask[eta_vec > (eta_cent + eta_step / 2.)] = 1
+            eta_mask[eta_vec < (eta_cent - eta_step / 2.)] = 1
+            eta_mask[mask_vec] = 1
+
+            # Histogram data
+            bin_centers, hist, variances = self.convert_counts_to_diffraction(reduction_engine, l2,
+                                                                              geometry_calibration,
+                                                                              (min_2theta, max_2theta),
+                                                                              num_bins, mask_vec, vanadium_counts)
+
+            if van_duration is not None:
+                hist *= van_duration
+                variances *= van_duration
+
+            if mask_id is None:
+                mask_id = 'eta_{}'.format(eta_cent)
+            else:
+                mask_id = '{}_eta_{}'.format(mask_id, eta_cent)
+
+            # record
+            workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_centers, hist, variances)
+
+        self._last_reduction_engine = reduction_engine
+
+    def convert_counts_to_diffraction(self, reduction_engine, l2, geometry_calibration,
+                                      two_theta_range, num_bins, mask_array, vanadium_array):
         """Histogram detector counts with detectors' 2theta angle
 
         Parameters
@@ -614,9 +808,6 @@ class HB2BReductionManager(object):
             2theta bins, histogram of counts, variances of counts
 
         """
-        # Set up reduction engine
-        reduction_engine.set_experimental_data(instrument_2theta, l2, det_counts_array)
-        reduction_engine.build_instrument(geometry_calibration)
 
         # Get the 2theta values for all pixels
 

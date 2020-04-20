@@ -132,7 +132,7 @@ class ReductionApp(object):
         self._reduction_manager.init_session(self._session, self._hydra_ws)
 
     def reduce_data(self, sub_runs, instrument_file, calibration_file, mask, mask_id=None,
-                    van_file=None, num_bins=1000):
+                    van_file=None, num_bins=1000, eta_step=None, eta_min=-8.2, eta_max=8.2):
         """Reduce data from HidraWorkspace
 
         Parameters
@@ -151,6 +151,12 @@ class ReductionApp(object):
             HiDRA project file containing vanadium counts or event NeXus file
         num_bins : int
             number of bins
+        eta_step : float
+            angular step size for out-of-plane reduction
+        eta_min : float
+            min angle for out-of-plane reduction
+        eta_max : float
+            max angle for out-of-plane reduction
 
         Returns
         -------
@@ -197,7 +203,10 @@ class ReductionApp(object):
                                                         mask=mask,
                                                         mask_id=mask_id,
                                                         vanadium_counts=van_array,
-                                                        van_duration=van_duration)
+                                                        van_duration=van_duration,
+                                                        eta_step=eta_step,
+                                                        eta_min=eta_min,
+                                                        eta_max=eta_max)
 
     def plot_reduced_data(self, sub_run_number=None):
 
