@@ -776,12 +776,12 @@ class HB2BReductionManager(object):
                 variances *= van_duration
 
             if mask_id is None:
-                mask_id = 'eta_{}'.format(eta_cent)
+                eta_mask_id = 'eta_{}'.format(eta_cent)
             else:
-                mask_id = '{}_eta_{}'.format(mask_id, eta_cent)
+                eta_mask_id = '{}_eta_{}'.format(mask_id, eta_cent)
 
             # record
-            workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_centers, hist, variances)
+            workspace.set_reduced_diffraction_data(sub_run, eta_mask_id, bin_centers, hist, variances)
 
         self._last_reduction_engine = reduction_engine
 
