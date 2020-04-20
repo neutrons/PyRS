@@ -769,7 +769,7 @@ class HB2BReductionManager(object):
             bin_centers, hist, variances = self.convert_counts_to_diffraction(reduction_engine, l2,
                                                                               geometry_calibration,
                                                                               (min_2theta, max_2theta),
-                                                                              num_bins, mask_vec, vanadium_counts)
+                                                                              num_bins, eta_mask, vanadium_counts)
 
             if van_duration is not None:
                 hist *= van_duration
