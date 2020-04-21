@@ -1,25 +1,12 @@
 """
 Integration test for PyRS to calculate powder pattern from detector counts
 """
-<<<<<<< HEAD
 import numpy as np
 import h5py
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
 import pytest
 import os
-=======
-# from pyrs.projectfile import HidraProjectFile
-import numpy as np
-import h5py
-# from pyrs.core.workspaces import HidraWorkspace
-# from pyrs.core.reduce_hb2b_pyrs import ResidualStressInstrument
-# from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry
-# from pyrs.core.reduction_manager import HB2BReductionManager
-from pyrs.core.nexus_conversion import NeXusConvertingApp
-from pyrs.core.powder_pattern import ReductionApp
-import pytest
->>>>>>> added test for texture reduction
 
 
 def parse_gold_file(file_name):
