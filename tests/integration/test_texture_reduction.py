@@ -1,16 +1,12 @@
 """
 Integration test for PyRS to calculate powder pattern from detector counts
 """
-# from pyrs.projectfile import HidraProjectFile
 import numpy as np
 import h5py
-# from pyrs.core.workspaces import HidraWorkspace
-# from pyrs.core.reduce_hb2b_pyrs import ResidualStressInstrument
-# from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry
-# from pyrs.core.reduction_manager import HB2BReductionManager
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
 import pytest
+import os
 
 
 def parse_gold_file(file_name):
@@ -68,8 +64,9 @@ def test_texture_reduction(nexusfile, mask_file_name, gold_file):
     -------
 
     """
-#    if mask_file_name is not None:
-#        pytest.skip('Not Ready Yet for Masking')
+
+    if not os.path.exists('/HFIR/HB2B/shared'):
+        pytest.skip('Unable to access HB2B archive')
 
     CALIBRATION_FILE = "data/HB2B_calib_latest.json"
     VANADIUM_FILE = "/HFIR/HB2B/IPTS-22731/nexus/HB2B_1115.nxs.h5"
