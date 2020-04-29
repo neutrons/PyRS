@@ -9,7 +9,7 @@ import os
 
 # Import pyrs modules
 from pyrs.core import MonoSetting
-from pyrs.core.reduce_hb2b_pyrs import ResidualStressInstrument, PyHB2BReduction
+from pyrs.core.reduce_hb2b_pyrs import PyHB2BReduction
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
 from pyrs.core.reduction_manager import HB2BReductionManager
 # from pyrs.core.nexus_conversion import NeXusConvertingApp
@@ -129,7 +129,8 @@ class PeakFitCalibration(object):
     Calibrate by grid searching algorithm using Brute Force or Monte Carlo random walk
     """
 
-    def __init__(self, hb2b_inst=None, powder_engine=None, pin_engine=None, powder_lines=None, mask_file_name=None):
+    def __init__(self, hb2b_inst=None, powder_engine=None, pin_engine=None, powder_lines=None, mask_file_name=None,
+                 single_material=True):
         """
         Initialization
 
@@ -149,25 +150,25 @@ class PeakFitCalibration(object):
         """
         # define instrument setup
         if hb2b_inst is None:
-            self._instrument = ResidualStressInstrument(AnglerCameraDetectorGeometry(NUM_PIXEL_1D, NUM_PIXEL_1D,
-                                                                                     PIXEL_SIZE, PIXEL_SIZE,
-                                                                                     ARM_LENGTH, False))
+            self._instrument = AnglerCameraDetectorGeometry(NUM_PIXEL_1D, NUM_PIXEL_1D,
+                                                            PIXEL_SIZE, PIXEL_SIZE,
+                                                            ARM_LENGTH, False)
         else:
             self._instrument = hb2b_inst
 
         if pin_engine is None:
-            pin_setup = [pin_engine, [], False, '', '']
+            pin_setup = [pin_engine, [], True]
         else:
             dSpace = 3.59188696 * np.array([1./np.sqrt(11), 1./np.sqrt(12)])
-            pin_setup = [pin_engine, [dSpace], False]
+            pin_setup = [pin_engine, dSpace, True]
 
         if powder_engine is None:
-            pow_setup = [powder_engine, [], False]
+            pow_setup = [powder_engine, [], True]
         else:
             if powder_lines is None:
-                raise RuntimeError('User must define dspace for each scan_index')
+                raise RuntimeError('User must define a list of dspace')
 
-            pow_setup = [powder_engine, [powder_lines], True]
+            pow_setup = [powder_engine, powder_lines, single_material]
 
         self.monosetting, self.tth_ref = get_ref_flags(powder_engine, pin_engine)
 
@@ -373,7 +374,7 @@ class PeakFitCalibration(object):
 
         for engine_setup in self.engines:
 
-            datasets, dSpace, Individual = engine_setup
+            datasets, dSpace, single_material = engine_setup
 
             self._engine = datasets
 
@@ -384,6 +385,10 @@ class PeakFitCalibration(object):
                 stop = start
             elif stop == 0:
                 stop = self._engine.read_log_value(self.tth_ref).shape[0]
+
+                print(start, stop)
+                print(datasets)
+                print(self._engine.read_log_value(self.tth_ref))
 
             for i_tth in range(start, stop):
                 if ReturnFit:
@@ -412,14 +417,18 @@ class PeakFitCalibration(object):
                     eta_roi_vec = np.array(roi_vec_set)
 
                 resq = []
-                if Individual:
-                    CalibPeaks = np.array([two_theta_calib[i_tth]])
-                else:
+
+                if single_material:
                     CalibPeaks = two_theta_calib[np.where((two_theta_calib > mintth+0.75) ==
                                                           (two_theta_calib < maxtth-0.75))[0]]
+                else:
+                    CalibPeaks = np.array([two_theta_calib[i_tth]])
 
-                    if CalibPeaks.shape[0] > 0 and (not ConPeaks or self.singlepeak):
+                if CalibPeaks.shape[0] > 0 and (not ConPeaks or self.singlepeak):
                         CalibPeaks = np.array([CalibPeaks[0]])
+
+                print(CalibPeaks)
+                print(two_theta_calib)
 
                 for ipeak in range(len(CalibPeaks)):
                     Peaks = []
@@ -454,6 +463,9 @@ class PeakFitCalibration(object):
 
                         # fit peaks
                         Fitresult = self.FitPeaks(reduced_i[0], reduced_i[1], pars1, Peaks)
+
+                        for p_index in Peaks:
+                            print(CalibPeaks)
 
                         if ReturnFit:
                             self.ReductionResults[i_tth][(i_roi, GlobalParameter.global_curr_sequence)] = \
