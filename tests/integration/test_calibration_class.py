@@ -5,6 +5,7 @@ import pytest
 import time
 import os
 import json
+import numpy as np
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 from pyrs.utilities import calibration_file_io
 
@@ -120,6 +121,11 @@ def test_least_square():
     project_file_name = 'data/HB2B_000.h5'
     engine = HidraProjectFile(project_file_name, mode=HidraProjectFileMode.READONLY)
 
+    # Define powder dspace
+    dSpace = np.array([4.156826, 2.93931985, 2.39994461, 2.078413, 1.8589891, 1.69701711, 1.46965993,
+                               1.38560867, 1.3145038, 1.2533302, 1.19997231, 1.1528961, 1.11095848, 1.0392065,
+                               1.00817839, 0.97977328, 0.95364129, 0.92949455, 0.9070938, 0.88623828, 0.84850855,
+                               0.8313652, 0.81522065, 0.79998154, 0.77190321, 0.75892912, 0.73482996])
     # instrument geometry
     idf_name = 'data/XRay_Definition_1K.txt'
 
@@ -128,7 +134,8 @@ def test_least_square():
     # instrument
     hb2b = calibration_file_io.import_instrument_setup(idf_name)
 
-    calibrator = peakfit_calibration.PeakFitCalibration(hb2b, engine, scheme=0)
+    calibrator = peakfit_calibration.PeakFitCalibration(hb2b_inst=hb2b, powder_engine=engine, powder_lines=dSpace)
+
 
     calibrator.UseLSQ = False
     calibrator.calibrate_wave_length()
@@ -169,6 +176,11 @@ def test_leastsq():
     project_file_name = 'data/HB2B_000.h5'
     engine = HidraProjectFile(project_file_name, mode=HidraProjectFileMode.READONLY)
 
+    # Define powder dspace
+    dSpace = np.array([4.156826, 2.93931985, 2.39994461, 2.078413, 1.8589891, 1.69701711, 1.46965993,
+                               1.38560867, 1.3145038, 1.2533302, 1.19997231, 1.1528961, 1.11095848, 1.0392065,
+                               1.00817839, 0.97977328, 0.95364129, 0.92949455, 0.9070938, 0.88623828, 0.84850855,
+                               0.8313652, 0.81522065, 0.79998154, 0.77190321, 0.75892912, 0.73482996])
     # instrument geometry
     idf_name = 'data/XRay_Definition_1K.txt'
 
@@ -177,7 +189,7 @@ def test_leastsq():
     # instrument
     hb2b = calibration_file_io.import_instrument_setup(idf_name)
 
-    calibrator = peakfit_calibration.PeakFitCalibration(hb2b, engine, scheme=0)
+    calibrator = peakfit_calibration.PeakFitCalibration(hb2b_inst=hb2b, powder_engine=engine, powder_lines=dSpace)
 
     calibrator.UseLSQ = True
     calibrator.calibrate_wave_length()
