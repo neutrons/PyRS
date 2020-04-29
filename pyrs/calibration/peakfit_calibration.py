@@ -107,10 +107,19 @@ def get_ref_flags(powder_engine, pin_engine):
             monosetting = get_mono_setting(powder_engine)
         else:
             raise RuntimeError('Powder and Pin data measured using different mono settings')
+
         if get_tth_ref(powder_engine) == get_tth_ref(pin_engine):
             tth_ref = get_tth_ref(powder_engine)
         else:
             raise RuntimeError('Powder and Pin data have different 2theta reference keys\n')
+    elif powder_engine is not None:
+        monosetting = get_mono_setting(powder_engine)
+        tth_ref = get_tth_ref(powder_engine)
+    elif pin_engine is not None:
+        monosetting = get_mono_setting(pin_engine)
+        tth_ref = get_tth_ref(pin_engine)
+    else:
+        raise RuntimeError('No data were provided as an input\n')
 
     return monosetting, tth_ref
 
