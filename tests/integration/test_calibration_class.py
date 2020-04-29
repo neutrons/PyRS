@@ -7,7 +7,6 @@ import os
 import json
 import numpy as np
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
-from pyrs.utilities import calibration_file_io
 
 try:
     from pyrs.calibration import peakfit_calibration
@@ -26,6 +25,7 @@ dSpace = np.array([4.156826, 2.93931985, 2.39994461, 2.078413, 1.8589891, 1.6970
                    1.0392065, 1.00817839, 0.97977328, 0.95364129, 0.92949455, 0.9070938,
                    0.88623828, 0.84850855, 0.8313652, 0.81522065, 0.79998154, 0.77190321,
                    0.75892912, 0.73482996])
+
 
 def are_equivalent_jsons(test_json_name, gold_json_name, atol):
     """Print out the difference of two JSON files

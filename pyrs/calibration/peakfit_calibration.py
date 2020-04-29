@@ -129,23 +129,20 @@ class PeakFitCalibration(object):
     Calibrate by grid searching algorithm using Brute Force or Monte Carlo random walk
     """
 
-    def __init__(self, hb2b_inst=None, powder_engine=None, pin_engine=None, powder_lines=None, mask_file_name=None,
+    def __init__(self, hb2b_inst=None, powder_engine=None, pin_engine=None, powder_lines=None,
                  single_material=True):
         """
         Initialization
 
         Parameters
         ----------
-        hb2b_inst : ResidualStressInstrument
-
-        powder_data : str
-            tag for the peak such as 'Si111'
-        powder_data : str
-            Peak profile
-        powder_lines : str
-            Background type
-        mask_file_name : str
-            Background type
+        hb2b_inst : AnglerCameraDetectorGeometry
+        powder_engine : HiDra Worksapce
+        pin_engine : HiDra Worksapce
+        powder_lines : list
+            list of dspace for reflections in the field of view during the experiment
+        single_material : bool
+            Flag if powder data are from a single material
 
         """
         # define instrument setup
@@ -425,7 +422,7 @@ class PeakFitCalibration(object):
                     CalibPeaks = np.array([two_theta_calib[i_tth]])
 
                 if CalibPeaks.shape[0] > 0 and (not ConPeaks or self.singlepeak):
-                        CalibPeaks = np.array([CalibPeaks[0]])
+                    CalibPeaks = np.array([CalibPeaks[0]])
 
                 print(CalibPeaks)
                 print(two_theta_calib)
