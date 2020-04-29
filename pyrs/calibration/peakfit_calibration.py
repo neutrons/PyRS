@@ -12,7 +12,7 @@ from pyrs.core import MonoSetting
 from pyrs.core.reduce_hb2b_pyrs import ResidualStressInstrument, PyHB2BReduction
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
 from pyrs.core.reduction_manager import HB2BReductionManager
-from pyrs.core.nexus_conversion import NeXusConvertingApp
+# from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry
 
 # Import instrument constants
@@ -85,6 +85,36 @@ class GlobalParameter(object):
         return
 
 
+def get_ref_flags(powder_engine, pin_engine):
+    def get_mono_setting(_engine):
+        try:
+            monosetting = MonoSetting.getFromIndex(_engine.read_log_value('MonoSetting')[0])
+        except KeyError:
+            monosetting = MonoSetting.getFromRotation(_engine.read_log_value('mrot').value)
+
+        return monosetting
+
+    def get_tth_ref(_engine):
+        try:
+            _engine.read_log_value('2theta')
+            tth_ref = '2theta'
+        except KeyError:
+            tth_ref = '2Theta'
+        return tth_ref
+
+    if (powder_engine is not None) and (pin_engine is not None):
+        if get_mono_setting(powder_engine) == get_mono_setting(pin_engine):
+            monosetting = get_mono_setting(powder_engine)
+        else:
+            raise RuntimeError('Powder and Pin data measured using different mono settings')
+        if get_tth_ref(powder_engine) == get_tth_ref(pin_engine):
+            tth_ref = get_tth_ref(powder_engine)
+        else:
+            raise RuntimeError('Powder and Pin data have different 2theta reference keys\n')
+
+    return monosetting, tth_ref
+
+
 class PeakFitCalibration(object):
     """
     Calibrate by grid searching algorithm using Brute Force or Monte Carlo random walk
@@ -115,22 +145,28 @@ class PeakFitCalibration(object):
                                                                                      ARM_LENGTH, False))
         else:
             self._instrument = hb2b_inst
-            
+
+        if pin_engine is None:
+            pin_setup = [pin_engine, [], False, '', '']
+        else:
+            dSpace = 3.59188696 * np.array([1./np.sqrt(11), 1./np.sqrt(12)])
+            pin_setup = [pin_engine, dSpace, False]
+
+        if powder_engine is None:
+            pow_setup = [powder_engine, [], False]
+        else:
+            if powder_lines is None:
+                raise RuntimeError('User must define dspace for each scan_index')
+
+            pow_setup = [powder_engine, powder_lines, True]
+
+        self.monosetting, self.tth_ref = get_ref_flags(powder_engine, pin_engine)
+
+        self.engines = [pin_setup, pow_setup]
         # calibration: numpy array. size as 7 for ... [6] for wave length
         self._calib = np.array(7 * [0], dtype=np.float)
         # calibration error: numpy array. size as 7 for ...
         self._caliberr = np.array(7 * [-1], dtype=np.float)
-
-        try:
-            self.monosetting = MonoSetting.getFromIndex(self._engine.read_log_value('MonoSetting')[0])
-        except KeyError:
-            self.monosetting = MonoSetting.getFromRotation(self._engine.read_log_value('mrot').value)
-
-        try:
-            self._engine.read_log_value('2theta')
-            self.tth_ref = '2theta'
-        except KeyError:
-            self.tth_ref = '2Theta'
 
         self.tth_ref = '2thetaSetpoint'
 
@@ -144,22 +180,6 @@ class PeakFitCalibration(object):
         self.singlepeak = False
 
         self.UseLSQ = UseLSQ
-
-        if pin_engine is None:
-            pin_setup = [pin_engine, [], False]
-        else:
-            dSpace = 3.59188696 * np.array([1./np.sqrt(11), 1./np.sqrt(12)])
-            pin_setup = [pin_engine, dSpace, False]
-
-        if powder_engine is None:
-            pow_setup = [powder_engine, [], False]
-        else:
-            if powder_lines is None:
-                raise RuntimeError('User must define dspace for each scan_index')
-            
-            pow_engine = [powder_engine, powder_lines, True]
-
-        self.engines = [pin_setup, pow_setup]
 
         GlobalParameter.global_curr_sequence = 0
 

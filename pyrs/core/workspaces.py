@@ -506,7 +506,7 @@ class HidraWorkspace(object):
             raise RuntimeError('Mask ID {} does not exist in reduced diffraction pattern. '
                                'The available masks are {}'
                                ''.format(mask_id, self._diff_data_set.keys()))
-            
+
         return vec_2theta, vec_intensity
 
     def get_mask_ids(self):
@@ -517,7 +517,7 @@ class HidraWorkspace(object):
 
         """
         return list(self._diff_data_set.keys())
-        
+
     def get_sample_log_names(self):
         return sorted(self._sample_logs.keys())
 
@@ -574,7 +574,7 @@ class HidraWorkspace(object):
                                              list(self._sample_logs.keys()))
 
         return self._sample_logs[sample_log_name, sub_runs]
-        
+
     def get_spectrum_index(self, sub_run):
         """
         Get spectrum (index) from sub run number
