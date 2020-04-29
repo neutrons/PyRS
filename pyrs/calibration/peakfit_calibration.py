@@ -159,7 +159,7 @@ class PeakFitCalibration(object):
             pin_setup = [pin_engine, [], False, '', '']
         else:
             dSpace = 3.59188696 * np.array([1./np.sqrt(11), 1./np.sqrt(12)])
-            pin_setup = [pin_engine, dSpace, False]
+            pin_setup = [pin_engine, [dSpace], False]
 
         if powder_engine is None:
             pow_setup = [powder_engine, [], False]
@@ -167,7 +167,7 @@ class PeakFitCalibration(object):
             if powder_lines is None:
                 raise RuntimeError('User must define dspace for each scan_index')
 
-            pow_setup = [powder_engine, powder_lines, True]
+            pow_setup = [powder_engine, [powder_lines], True]
 
         self.monosetting, self.tth_ref = get_ref_flags(powder_engine, pin_engine)
 
