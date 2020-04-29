@@ -90,12 +90,14 @@ class PeakFitCalibration(object):
     Calibrate by grid searching algorithm using Brute Force or Monte Carlo random walk
     """
 
-    def __init__(self, powder_data=None, pin_data=None, powder_lines=None, mask_file_name=None):
+    def __init__(self, hb2b_inst=None, powder_engine=None, pin_engine=None, powder_lines=None, mask_file_name=None):
         """
         Initialization
 
         Parameters
         ----------
+        hb2b_inst : ResidualStressInstrument
+
         powder_data : str
             tag for the peak such as 'Si111'
         powder_data : str
@@ -107,10 +109,13 @@ class PeakFitCalibration(object):
 
         """
         # define instrument setup
-        self._instrument = ResidualStressInstrument(AnglerCameraDetectorGeometry(NUM_PIXEL_1D, NUM_PIXEL_1D,
-                                                                                 PIXEL_SIZE, PIXEL_SIZE,
-                                                                                 ARM_LENGTH, False))
-
+        if hb2b_inst is None:
+            self._instrument = ResidualStressInstrument(AnglerCameraDetectorGeometry(NUM_PIXEL_1D, NUM_PIXEL_1D,
+                                                                                     PIXEL_SIZE, PIXEL_SIZE,
+                                                                                     ARM_LENGTH, False))
+        else:
+            self._instrument = hb2b_inst
+            
         # calibration: numpy array. size as 7 for ... [6] for wave length
         self._calib = np.array(7 * [0], dtype=np.float)
         # calibration error: numpy array. size as 7 for ...
@@ -140,26 +145,21 @@ class PeakFitCalibration(object):
 
         self.UseLSQ = UseLSQ
 
-        if pin_data is None:
-            pin_engine = [pin_data, [], False]
+        if pin_engine is None:
+            pin_setup = [pin_engine, [], False]
         else:
-            pin_converter = NeXusConvertingApp(pin_data, mask_file_name)
-            pin_ws = pin_converter.convert()
             dSpace = 3.59188696 * np.array([1./np.sqrt(11), 1./np.sqrt(12)])
-            pin_engine = [pin_ws, dSpace, False]
+            pin_setup = [pin_engine, dSpace, False]
 
-        if powder_data is None:
-            pow_engine = [powder_data, [], False]
+        if powder_engine is None:
+            pow_setup = [powder_engine, [], False]
         else:
             if powder_lines is None:
                 raise RuntimeError('User must define dspace for each scan_index')
-
-            powder_converter = NeXusConvertingApp(powder_data, mask_file_name)
-            powder_ws = powder_converter.convert()
             
-            pow_engine = [powder_ws, powder_lines, True]
+            pow_engine = [powder_engine, powder_lines, True]
 
-        self.engines = [pin_engine, pow_engine]
+        self.engines = [pin_setup, pow_setup]
 
         GlobalParameter.global_curr_sequence = 0
 
