@@ -10,7 +10,7 @@ from pyrs.utilities import checkdatatypes
 class HidraSetup(object):
     """A class to work with instrument geometry calculation
 
-    Handle anything to do with HB2B (HYDRA) including geometry, wavelength and calibration
+    Handle anything to do with HB2B (HiDRA) including geometry, wavelength and calibration
 
     """
 
