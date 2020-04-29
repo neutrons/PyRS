@@ -94,17 +94,11 @@ if __name__ == '__main__':
     if options.calibration is not None:
         calibrator.get_archived_calibration(options.calibration)
 
-#    calibrator._calib[0] = 0.002600685374401848
-#    calibrator._calib[2] = -0.020583807174127174
-#    calibrator._calib[6] = 1.537467969479386
-
     if options.method in [DEFAULT_CALIBRATION, 'geometry']:
-        SaveCalibError(calibrator, 'HB2B_{}_before.csv'.format(options.pin))
         calibrator.CalibrateGeometry()
         print(calibrator.get_calib())
 
     if options.method in [DEFAULT_CALIBRATION, 'testshift']:
-        SaveCalibError(calibrator, 'HB2B_{}_shift1.txt'.format(options.pin))
         calibrator._calib[2] = -0.020583807174127174
         # SaveCalibError(calibrator, 'HB2B_{}_shift2.txt'.format(options.pin))
 

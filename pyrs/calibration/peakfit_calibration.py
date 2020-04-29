@@ -6,11 +6,19 @@ import numpy as np
 import time
 import json
 import os
+
+# Import pyrs modules
 from pyrs.core import MonoSetting
-from pyrs.core import reduce_hb2b_pyrs
+from pyrs.core.reduce_hb2b_pyrs import ResidualStressInstrument, PyHB2BReduction
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
 from pyrs.core.reduction_manager import HB2BReductionManager
+from pyrs.core.nexus_conversion import NeXusConvertingApp
+from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry
 
+# Import instrument constants
+from pyrs.core.nexus_conversion import NUM_PIXEL_1D, PIXEL_SIZE, ARM_LENGTH
+
+# Import scipy libraries for minimization
 from scipy.optimize import leastsq  # for older scipy
 from scipy.optimize import minimize
 from scipy.optimize import brute
@@ -82,16 +90,26 @@ class PeakFitCalibration(object):
     Calibrate by grid searching algorithm using Brute Force or Monte Carlo random walk
     """
 
-    def __init__(self, hb2b_instrument, hidra_data=None, hidra_data2=None, scheme=1):
+    def __init__(self, powder_data=None, pin_data=None, powder_lines=None, mask_file_name=None):
         """
         Initialization
-        """
 
-        self._instrument = hb2b_instrument
-        if hidra_data is None:
-            self._engine = hidra_data2
-        else:
-            self._engine = hidra_data
+        Parameters
+        ----------
+        powder_data : str
+            tag for the peak such as 'Si111'
+        powder_data : str
+            Peak profile
+        powder_lines : str
+            Background type
+        mask_file_name : str
+            Background type
+
+        """
+        # define instrument setup
+        self._instrument = ResidualStressInstrument(AnglerCameraDetectorGeometry(NUM_PIXEL_1D, NUM_PIXEL_1D,
+                                                                                 PIXEL_SIZE, PIXEL_SIZE,
+                                                                                 ARM_LENGTH, False))
 
         # calibration: numpy array. size as 7 for ... [6] for wave length
         self._calib = np.array(7 * [0], dtype=np.float)
@@ -122,34 +140,24 @@ class PeakFitCalibration(object):
 
         self.UseLSQ = UseLSQ
 
-        if scheme == 0:
-            dSpace = np.array([4.156826, 2.93931985, 2.39994461, 2.078413, 1.8589891, 1.69701711, 1.46965993,
-                               1.38560867, 1.3145038, 1.2533302, 1.19997231, 1.1528961, 1.11095848, 1.0392065,
-                               1.00817839, 0.97977328, 0.95364129, 0.92949455, 0.9070938, 0.88623828, 0.84850855,
-                               0.8313652, 0.81522065, 0.79998154, 0.77190321, 0.75892912, 0.73482996])
+        if pin_data is None:
+            pin_engine = [pin_data, [], False]
         else:
+            pin_converter = NeXusConvertingApp(pin_data, mask_file_name)
+            pin_ws = pin_converter.convert()
             dSpace = 3.59188696 * np.array([1./np.sqrt(11), 1./np.sqrt(12)])
+            pin_engine = [pin_ws, dSpace, False]
 
-        if hidra_data is None:
-            pin_engine = [hidra_data, [], False]
+        if powder_data is None:
+            pow_engine = [powder_data, [], False]
         else:
-            pin_engine = [hidra_data, dSpace, False]
+            if powder_lines is None:
+                raise RuntimeError('User must define dspace for each scan_index')
 
-        if hidra_data2 is None:
-            pow_engine = [hidra_data2, [], False]
-        else:
-            dSpace_P = np.array([1.433198898,
-                                 1.284838753,
-                                 1.245851,
-                                 1.170202,
-                                 1.112703,
-                                 1.062465303,
-                                 1.017233082,
-                                 1.01342466,
-                                 0.995231819,
-                                 0.906434572])
-
-            pow_engine = [hidra_data2, dSpace_P, True]
+            powder_converter = NeXusConvertingApp(powder_data, mask_file_name)
+            powder_ws = powder_converter.convert()
+            
+            pow_engine = [powder_ws, powder_lines, True]
 
         self.engines = [pin_engine, pow_engine]
 
@@ -202,11 +210,6 @@ class PeakFitCalibration(object):
                                                            vanadium_counts_array=None)
 
         vec_2theta, vec_hist = data_set[:2]
-        # two_theta_step = (max_2theta - min_2theta) / num_bins
-        # pyrs_reducer.set_mask(roi_vec)
-        # vec_2theta, vec_hist = pyrs_reducer.
-        #          reduce_to_2theta_histogram((min_2theta, max_2theta), num_bins, roi_vec,
-        #          is_point_data=True, use_mantid_histogram=False)
 
         return vec_2theta, vec_hist
 
@@ -358,7 +361,7 @@ class PeakFitCalibration(object):
                     self.ReductionResults[i_tth] = {}
 
                 # load instrument: as it changes
-                pyrs_reducer = reduce_hb2b_pyrs.PyHB2BReduction(self._instrument, x[6])
+                pyrs_reducer = PyHB2BReduction(self._instrument, x[6])
                 pyrs_reducer.build_instrument_prototype(-1. * self._engine.read_log_value(self.tth_ref)[i_tth],
                                                         self._instrument._arm_length,
                                                         x[0], x[1], x[2], x[3], x[4], x[5])
