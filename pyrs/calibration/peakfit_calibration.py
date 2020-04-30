@@ -12,7 +12,6 @@ from pyrs.core import MonoSetting
 from pyrs.core.reduce_hb2b_pyrs import PyHB2BReduction
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
 from pyrs.core.reduction_manager import HB2BReductionManager
-# from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry
 
 # Import instrument constants
@@ -137,8 +136,11 @@ class PeakFitCalibration(object):
         Parameters
         ----------
         hb2b_inst : AnglerCameraDetectorGeometry
-        powder_engine : HiDra Worksapce
-        pin_engine : HiDra Worksapce
+            Overide default instrument configuration
+        powder_engine : HiDraWorksapce
+            HiDraWorksapce with powder raw counts and log data
+        pin_engine : HiDraWorksapce
+            HiDraWorksapce with pin raw counts and log data
         powder_lines : list
             list of dspace for reflections in the field of view during the experiment
         single_material : bool
@@ -173,11 +175,12 @@ class PeakFitCalibration(object):
         # calibration error: numpy array. size as 7 for ...
         self._caliberr = np.array(7 * [-1], dtype=np.float)
 
-        self.tth_ref = '2thetaSetpoint'
+        # self.tth_ref = '2thetaSetpoint'
 
         # Set wave length
         self._calib[6] = float(self.monosetting)
 
+        # Initalize calibration status to -1
         self._calibstatus = -1
 
         self.ReductionResults = {}
@@ -326,7 +329,6 @@ class PeakFitCalibration(object):
                 except ValueError:
                     error[i] = (0.00)
 
-            print([pfit, np.array(error), success])
             return [pfit, np.array(error), success]
 
         else:
@@ -544,7 +546,6 @@ class PeakFitCalibration(object):
         paramVec = np.copy(self._calib)
         paramVec[i_index] = x[0]
 
-        print(x)
         residual = self.get_alignment_residual(paramVec, roi_vec_set, ConstrainPosition, False, start, stop)
 
         if ReturnScalar:
@@ -615,7 +616,6 @@ class PeakFitCalibration(object):
         :return:
         """
 
-        print(x)
         residual = self.get_alignment_residual(x, roi_vec_set, True, False, start, stop)
 
         if ReturnScalar:

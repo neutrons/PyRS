@@ -1,9 +1,8 @@
 from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import numpy as np
-# from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
+import time
 from pyrs.calibration import peakfit_calibration
 from pyrs.core.nexus_conversion import NeXusConvertingApp
-from pyrs.core.powder_pattern import ReductionApp
 
 # Define Default Material
 _Materials = {}
@@ -55,7 +54,7 @@ HFIR_CYCLE = None
 REFINE_METHOD = 'full'
 POWDER_LINES = []
 
-# Entry error checking
+# Allow a varriety of inputs to catch errors
 powderlineinput = ['powder lines', 'powder_lines', 'powderlines', 'powder line', 'powder_line', 'powderline']
 powerinput = ['powder scan', 'powder', 'powder_scan', 'powderscan', 'powder scans', 'powder_scans', 'powderscans']
 pininput = ['pin scan', 'pin', 'pin_scan', 'pinscan', 'pin scans', 'pin_scans', 'pinscans']
@@ -64,42 +63,10 @@ methodinput = ['method', 'methods']
 maskinput = ['mask', 'default mask']
 
 
-def SaveCalibError(calibrator, fName):
-    calibrator.singleEval(ConstrainPosition=True)
-
-    tths = sorted(list(calibrator.ReductionResults.keys()))
-
-    Rois = list(calibrator.ReductionResults[tths[0]].keys())
-    DataPoints = len(calibrator.ReductionResults[tths[0]][Rois[0]][0])
-
-    DataOut = np.zeros((DataPoints, 3*len(tths)*len(Rois)))
-    header = ''
-
-    lcv = -1
-    for i_tth in tths:
-        for j in list(calibrator.ReductionResults[i_tth].keys()):
-            tempdata = calibrator.ReductionResults[i_tth][j]
-            print(i_tth, j)
-
-            lcv += 1
-            DataOut[:, lcv*3+0] = tempdata[0]
-            DataOut[:, lcv*3+1] = tempdata[1]
-            DataOut[:, lcv*3+2] = tempdata[2]
-            header += ',pos{}_roi{}_tth,pos{}_roi{}_obs,pos{}_roi{}_calc'.format(i_tth, j[0],
-                                                                                 i_tth, j[0], i_tth, j[0])
-
-    DataOut = DataOut[:, :lcv*3+3]
-
-    print(DataOut.shape)
-    np.savetxt(fName, DataOut, delimiter=',', header=header[1:])
-
-
 def _load_nexus_data(ipts, nexus_run, mask_file):
     nexus_file = '/HFIR/HB2B/IPTS-{}/nexus/HB2B_{}.nxs.h5'.format(ipts, nexus_run)
     converter = NeXusConvertingApp(nexus_file, mask_file)
     hidra_ws = converter.convert()
-    reducer = ReductionApp(bool('pyrs' == 'mantid'))
-    reducer.load_hidra_workspace(hidra_ws)
 
     return hidra_ws
 
@@ -160,10 +127,22 @@ def _parse_powder_line(json_entry):
             dspace.append(item)
 
         if Input_error:
-            raise RuntimeError('{} is not in material list {}'.format(item.split('_')[0].lower(),
+            raise RuntimeError('{} is not in material list {}'.format(item.split(' ')[0].lower(),
                                                                       list(_Materials.keys())))
 
     return dspace
+
+
+def _write_template():
+    with open('template.json', 'w') as out:
+        out.write('{\n')
+        out.write('\t"IPTS": 22731,\n')
+        out.write('\t"Powder scan": 1090,\n')
+        out.write('\t"Pin scan": 1086,\n')
+        out.write('\t"Method": "full",\n')
+        out.write('\t"Powder Lines": ["ffe 200", "Mo 211", "Ni 220", "ffe 211", "Mo 220", "Ni 311", ')
+        out.write('"Ni 222", "fFe 220", "Mo 310", "fFe 310"]\n')
+        out.write('}\n')
 
 
 if __name__ == '__main__':
@@ -171,13 +150,17 @@ if __name__ == '__main__':
     import json
 
     if len(sys.argv) == 1:
-        raise RuntimeError('Requires a json input.\n{}\n{}\n{}'.format(M_options, P_options))
+        print('Requires a json input.\n{}\n{}\n{}'.format(M_options, P_options))
+        _write_template()
+        raise RuntimeError('template.json was created as an example input')
 
-    with open('test.json', 'r') as json_input:
+    with open(sys.argv[1], 'r') as json_input:
         try:
             calibration_inputs = json.load(json_input)
         except ValueError:
-            raise RuntimeError('Formating error in json input file.\n{}\n{}'.format(_options, M_options, P_options))
+            print('Formating error in json input file.\n{}\n{}'.format(_options, M_options, P_options))
+            _write_template()
+            raise RuntimeError('template.json was created as an example input')
 
     for key in list(calibration_inputs.keys()):
         if key.lower() in powderlineinput:
@@ -211,8 +194,10 @@ if __name__ == '__main__':
     for calib_method in REFINE_METHOD.split('+'):
         calibrator = _run_calibration(calibrator, calib_method)
 
-    print(calibrator._calib)
-    # datatime = time.strftime('%Y-%m-%dT%H-%M', time.localtime())
-    # fName = '/HFIR/HB2B/shared/CAL/cycle{}/HB2B_{}_{}.json'.format(options.cycle, calibrator.mono, datatime)
-#    file_name = os.path.join(os.getcwd(), fName)
-    # calibrator.write_calibration(fName)
+    datatime = time.strftime('%Y-%m-%dT%H-%M', time.localtime())
+    if HFIR_CYCLE is not None:
+        fName = '/HFIR/HB2B/shared/CAL/cycle{}/HB2B_{}_{}.json'.format(HFIR_CYCLE, calibrator.mono, datatime)
+    else:
+        fName = '/HFIR/HB2B/shared/CAL/HB2B_{}_{}.json'.format(calibrator.mono, datatime)
+
+    calibrator.write_calibration(fName)
