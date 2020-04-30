@@ -88,17 +88,17 @@ class GlobalParameter(object):
 def get_ref_flags(powder_engine, pin_engine):
     def get_mono_setting(_engine):
         try:
-            monosetting = MonoSetting.getFromIndex(_engine.read_log_value('MonoSetting')[0])
-        except KeyError:
-            monosetting = MonoSetting.getFromRotation(_engine.read_log_value('mrot').value)
+            monosetting = MonoSetting.getFromIndex(_engine.get_sample_log_value('MonoSetting', 1))
+        except ValueError:
+            monosetting = MonoSetting.getFromRotation(_engine.get_sample_log_value('mrot', 1))
 
         return monosetting
 
     def get_tth_ref(_engine):
         try:
-            _engine.read_log_value('2theta')
+            _engine.get_sample_log_value('2theta', 1)
             tth_ref = '2theta'
-        except KeyError:
+        except ValueError:
             tth_ref = '2Theta'
         return tth_ref
 
@@ -145,6 +145,9 @@ class PeakFitCalibration(object):
             Flag if powder data are from a single material
 
         """
+
+        self.engines = []
+
         # define instrument setup
         if hb2b_inst is None:
             self._instrument = AnglerCameraDetectorGeometry(NUM_PIXEL_1D, NUM_PIXEL_1D,
@@ -153,23 +156,18 @@ class PeakFitCalibration(object):
         else:
             self._instrument = hb2b_inst
 
-        if pin_engine is None:
-            pin_setup = [pin_engine, [], True]
-        else:
+        if pin_engine is not None:
             dSpace = 3.59188696 * np.array([1./np.sqrt(11), 1./np.sqrt(12)])
-            pin_setup = [pin_engine, dSpace, True]
+            self.engines.append([pin_engine, dSpace, True])
 
-        if powder_engine is None:
-            pow_setup = [powder_engine, [], True]
-        else:
+        if powder_engine is not None:
             if powder_lines is None:
                 raise RuntimeError('User must define a list of dspace')
 
-            pow_setup = [powder_engine, powder_lines, single_material]
+            self.engines.append([powder_engine, powder_lines, single_material])
 
         self.monosetting, self.tth_ref = get_ref_flags(powder_engine, pin_engine)
 
-        self.engines = [pin_setup, pow_setup]
         # calibration: numpy array. size as 7 for ... [6] for wave length
         self._calib = np.array(7 * [0], dtype=np.float)
         # calibration error: numpy array. size as 7 for ...
@@ -380,25 +378,22 @@ class PeakFitCalibration(object):
 
             if datasets is None:
                 stop = start
+                sub_runs = []
             elif stop == 0:
-                stop = self._engine.read_log_value(self.tth_ref).shape[0]
+                sub_runs = self._engine.get_sub_runs()
 
-                print(start, stop)
-                print(datasets)
-                print(self._engine.read_log_value(self.tth_ref))
-
-            for i_tth in range(start, stop):
+            for i_tth in sub_runs:
                 if ReturnFit:
                     self.ReductionResults[i_tth] = {}
 
                 # load instrument: as it changes
                 pyrs_reducer = PyHB2BReduction(self._instrument, x[6])
-                pyrs_reducer.build_instrument_prototype(-1. * self._engine.read_log_value(self.tth_ref)[i_tth],
+                pyrs_reducer.build_instrument_prototype(-1. * self._engine.get_sample_log_value('2theta', i_tth),
                                                         self._instrument._arm_length,
                                                         x[0], x[1], x[2], x[3], x[4], x[5])
 
                 # Load raw counts
-                pyrs_reducer._detector_counts = self._engine.read_raw_counts(i_tth+1)
+                pyrs_reducer._detector_counts = self._engine.get_detector_counts(i_tth)
 
                 tths = pyrs_reducer._instrument.get_pixels_2theta(1)
                 mintth = np.min(tths) + .5
@@ -419,13 +414,10 @@ class PeakFitCalibration(object):
                     CalibPeaks = two_theta_calib[np.where((two_theta_calib > mintth+0.75) ==
                                                           (two_theta_calib < maxtth-0.75))[0]]
                 else:
-                    CalibPeaks = np.array([two_theta_calib[i_tth]])
+                    CalibPeaks = np.array([two_theta_calib[i_tth - 1]])
 
                 if CalibPeaks.shape[0] > 0 and (not ConPeaks or self.singlepeak):
                     CalibPeaks = np.array([CalibPeaks[0]])
-
-                print(CalibPeaks)
-                print(two_theta_calib)
 
                 for ipeak in range(len(CalibPeaks)):
                     Peaks = []
@@ -460,9 +452,6 @@ class PeakFitCalibration(object):
 
                         # fit peaks
                         Fitresult = self.FitPeaks(reduced_i[0], reduced_i[1], pars1, Peaks)
-
-                        for p_index in Peaks:
-                            print(CalibPeaks)
 
                         if ReturnFit:
                             self.ReductionResults[i_tth][(i_roi, GlobalParameter.global_curr_sequence)] = \
