@@ -7,6 +7,7 @@ import os
 import json
 import numpy as np
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
+from pyrs.core.workspaces import HidraWorkspace
 
 try:
     from pyrs.calibration import peakfit_calibration
@@ -127,11 +128,14 @@ def test_least_square():
     # reduction engine
     project_file_name = 'data/HB2B_000.h5'
     engine = HidraProjectFile(project_file_name, mode=HidraProjectFileMode.READONLY)
+    engine_ws = HidraWorkspace('test')
+    engine_ws._load_sample_logs(engine)
+    engine_ws._load_raw_counts(engine)
 
     t_start = time.time()
 
     # Initalize calibration
-    calibrator = peakfit_calibration.PeakFitCalibration(powder_engine=engine, powder_lines=dSpace)
+    calibrator = peakfit_calibration.PeakFitCalibration(powder_engine=engine_ws, powder_lines=dSpace)
 
     calibrator.UseLSQ = False
     calibrator.calibrate_wave_length()
@@ -172,10 +176,15 @@ def test_leastsq():
     project_file_name = 'data/HB2B_000.h5'
     engine = HidraProjectFile(project_file_name, mode=HidraProjectFileMode.READONLY)
 
+    # Convert HidraProjectFile into HidraWorkspace
+    engine_ws = HidraWorkspace('test')
+    engine_ws._load_sample_logs(engine)
+    engine_ws._load_raw_counts(engine)
+
     t_start = time.time()
 
     # Initalize calibration
-    calibrator = peakfit_calibration.PeakFitCalibration(powder_engine=engine, powder_lines=dSpace)
+    calibrator = peakfit_calibration.PeakFitCalibration(powder_engine=engine_ws, powder_lines=dSpace)
 
     calibrator.UseLSQ = True
     calibrator.calibrate_wave_length()

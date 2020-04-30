@@ -3,6 +3,7 @@ import numpy as np
 # from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 from pyrs.calibration import peakfit_calibration
 from pyrs.core.nexus_conversion import NeXusConvertingApp
+from pyrs.core.powder_pattern import ReductionApp
 
 # Define Default Material
 _Materials = {}
@@ -93,9 +94,14 @@ def SaveCalibError(calibrator, fName):
     np.savetxt(fName, DataOut, delimiter=',', header=header[1:])
 
 
-def _load_nexus_data(nexus_file, mask_file):
+def _load_nexus_data(ipts, nexus_run, mask_file):
+    nexus_file = '/HFIR/HB2B/IPTS-{}/nexus/HB2B_{}.nxs.h5'.format(ipts, nexus_run)
     converter = NeXusConvertingApp(nexus_file, mask_file)
-    return converter.convert()
+    hidra_ws = converter.convert()
+    reducer = ReductionApp(bool('pyrs' == 'mantid'))
+    reducer.load_hidra_workspace(hidra_ws)
+
+    return hidra_ws
 
 
 def _run_calibration(calibrator, calib_method):
@@ -133,9 +139,11 @@ def _run_calibration(calibrator, calib_method):
 
 
 def _parse_powder_line(json_entry):
+    Input_error = False
     dspace = []
     for item in json_entry:
-        if type(item) == str:
+
+        if type(item) == str or type(item) == unicode:
             hkl = item.split(' ')[1]
             h_ = float(hkl[0])
             k_ = float(hkl[1])
@@ -173,7 +181,7 @@ if __name__ == '__main__':
 
     for key in list(calibration_inputs.keys()):
         if key.lower() in powderlineinput:
-            dspace = _parse_powder_line(calibration_inputs[key])
+            POWDER_LINES = _parse_powder_line(calibration_inputs[key])
         elif key.lower() in powerinput:
             POWDER_RUN = calibration_inputs[key]
         elif key.lower() in pininput:
@@ -190,13 +198,12 @@ if __name__ == '__main__':
             DATA_MASK = calibration_inputs[key]
 
     if POWDER_RUN is not None:
-        POWDER_RUN = _load_nexus_data(POWDER_RUN, DATA_MASK)
+        POWDER_RUN = _load_nexus_data(IPTS_, POWDER_RUN, DATA_MASK)
     if PIN_RUN is not None:
-        PIN_RUN = _load_nexus_data(PIN_RUN, DATA_MASK)
+        PIN_RUN = _load_nexus_data(IPTS_, PIN_RUN, DATA_MASK)
 
     calibrator = peakfit_calibration.PeakFitCalibration(powder_engine=POWDER_RUN, pin_engine=PIN_RUN,
-                                                        powder_lines=POWDER_LINES, mask_file_name=DATA_MASK,
-                                                        single_material=True)
+                                                        powder_lines=POWDER_LINES, single_material=False)
 
     if INSTRUMENT_CALIBRATION is not None:
         calibrator.get_archived_calibration(INSTRUMENT_CALIBRATION)
@@ -204,6 +211,7 @@ if __name__ == '__main__':
     for calib_method in REFINE_METHOD.split('+'):
         calibrator = _run_calibration(calibrator, calib_method)
 
+    print(calibrator._calib)
     # datatime = time.strftime('%Y-%m-%dT%H-%M', time.localtime())
     # fName = '/HFIR/HB2B/shared/CAL/cycle{}/HB2B_{}_{}.json'.format(options.cycle, calibrator.mono, datatime)
 #    file_name = os.path.join(os.getcwd(), fName)
