@@ -25,7 +25,7 @@ ARM_LENGTH = 0.985
 DEFAULT_KEEP_LOGS = 'experiment_identifier, run_number, run_title, file_notes, start_time, end_time, SampleId, '
 DEFAULT_KEEP_LOGS += 'SampleName, SampleDescription, StrainDirection, hklPhase, Wavelength, Filename, sub-run, '
 DEFAULT_KEEP_LOGS += 'sub-run duration, mrot, mtilt, mb220, mb511, ISD, ISR:X:Gap, ISR:Y:Gap, DOX, DOY, DOR, omega, '
-DEFAULT_KEEP_LOGS += '2theta, phi, chi, sx, sy, sz, vx, vy, vz'
+DEFAULT_KEEP_LOGS += '2theta, phi, chi, sx, sy, sz, vx, vy, vz, scan_index'
 
 def convert_pulses_to_datetime64(h5obj):
     '''The h5object is the h5py handle to ``event_time_zero``. This only supports pulsetimes in seconds'''
