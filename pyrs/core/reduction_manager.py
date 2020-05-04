@@ -585,6 +585,7 @@ class HB2BReductionManager(object):
         raw_count_vec = workspace.get_detector_counts(sub_run)
 
         # Retrieve 2-theta and L2 from loaded workspace (DAS)
+        print(sub_run)
         two_theta = workspace.get_detector_2theta(sub_run)
         l2 = workspace.get_l2(sub_run)
         # Convert 2-theta from DAS convention to Mantid/PyRS convention
