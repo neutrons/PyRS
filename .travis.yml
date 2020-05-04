@@ -10,7 +10,7 @@ cache:
 
 matrix:
   include:
-  - env: CONDA=2.7
+#  - env: CONDA=2.7
   - env: CONDA=3.6
 
 before_install:
@@ -51,6 +51,8 @@ script:
   - mamba create -q -n PyRS_test python=$CONDA flake8 pylint conda-build=3.17 jupyter_client=5.3.4 anaconda-client pytest pytest-qt pytest-mpl
   - mamba info --envs
   - conda activate PyRS_test
+  - conda config --set always_yes yes --set changeps1 no --set anaconda_upload no
+  - conda config --add channels conda-forge --add channels mantid --add channels mantid/label/nightly --add channels defaults
   - mkdir -p ${CONDA_PREFIX}/conda-bld/linux-64/
   - cp ${PKG_FILE} ${CONDA_PREFIX}/conda-bld/linux-64/
   - ls ${CONDA_PREFIX}/conda-bld
