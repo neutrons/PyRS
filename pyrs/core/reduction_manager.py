@@ -566,7 +566,7 @@ class HB2BReductionManager(object):
         l2 = workspace.get_l2(sub_run)
 
         if sub_run > 1:
-            rebuild_instrument = two_theta == workspace.get_detector_2theta(sub_run - 1)
+            rebuild_instrument = two_theta != workspace.get_detector_2theta(sub_run - 1)
         else:
             rebuild_instrument = True
 
