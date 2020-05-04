@@ -603,7 +603,9 @@ class HB2BReductionManager(object):
         mask_id, mask_vec = mask_vec_tuple
 
         # Set up reduction engine and also
-        if use_mantid_engine:
+        if not rebuild_instrument:
+            reduction_engine = self._last_reduction_engine
+        elif use_mantid_engine:
             reduction_engine = reduce_hb2b_mtd.MantidHB2BReduction(self._mantid_idf)
         else:
             reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
