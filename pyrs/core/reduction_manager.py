@@ -570,7 +570,6 @@ class HB2BReductionManager(object):
         else:
             rebuild_instrument = True
 
-        print(sub_run, two_theta)
         # Convert 2-theta from DAS convention to Mantid/PyRS convention
         # print('[INFO] User specified 2theta = {} is converted to Mantid 2theta = {}'
         #       ''.format(two_theta, -two_theta))
