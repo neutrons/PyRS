@@ -3,6 +3,7 @@ import numpy as np
 import time
 from pyrs.calibration import peakfit_calibration
 from pyrs.core.nexus_conversion import NeXusConvertingApp
+from pyrs.core import MonoSetting
 
 # Define Default Material
 _Materials = {}
@@ -193,6 +194,11 @@ if __name__ == '__main__':
 
     for calib_method in REFINE_METHOD.split('+'):
         calibrator = _run_calibration(calibrator, calib_method)
+
+    if POWDER_RUN is not None:
+        MonoSetting.getFromRotation(POWDER_RUN.get_sample_log_value('mrot', 1))
+    else:
+        MonoSetting.getFromRotation(PIN_RUN.get_sample_log_value('mrot', 1))
 
     datatime = time.strftime('%Y-%m-%dT%H-%M', time.localtime())
     if HFIR_CYCLE is not None:
