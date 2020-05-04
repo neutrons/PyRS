@@ -24,8 +24,9 @@ ARM_LENGTH = 0.985
 
 DEFAULT_KEEP_LOGS = 'experiment_identifier, run_number, run_title, file_notes, start_time, end_time, SampleId, '
 DEFAULT_KEEP_LOGS += 'SampleName, SampleDescription, StrainDirection, hklPhase, Wavelength, Filename, sub-run, '
-DEFAULT_KEEP_LOGS += 'sub-run duration, mrot, mtilt, mb220, mb511, ISD, ISR:X:Gap, ISR:Y:Gap, DOX, DOY, DOR, omega, '
-DEFAULT_KEEP_LOGS += '2theta, phi, chi, sx, sy, sz, vx, vy, vz, '
+DEFAULT_KEEP_LOGS += 'sub-run duration, mrot, mtilt, mb220, mb511, ISD, ISR:X:Gap, ISR:Y:Gap, DOX, DOY, DOR, '
+DEFAULT_KEEP_LOGS += 'omega, 2theta, phi, chi, sx, sy, sz, vx, vy, vz, '
+DEFAULT_KEEP_LOGS += 'omegaSetpoint, 2thetaSetpoint, phiSetpoint, chiSetpoint, sxSetpoint, sySetpoint, szSetpoint, '
 DEFAULT_KEEP_LOGS += 'scan_index, duration, '
 
 def convert_pulses_to_datetime64(h5obj):
