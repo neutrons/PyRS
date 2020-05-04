@@ -585,13 +585,15 @@ class HB2BReductionManager(object):
         raw_count_vec = workspace.get_detector_counts(sub_run)
 
         # Retrieve 2-theta and L2 from loaded workspace (DAS)
-        print(sub_run)
-        print(workspace.get_detector_2theta(sub_run))
-        if sub_run > 1:
-            print(workspace.get_detector_2theta(sub_run) == workspace.get_detector_2theta(sub_run - 1))
-
         two_theta = workspace.get_detector_2theta(sub_run)
         l2 = workspace.get_l2(sub_run)
+
+        if sub_run > 1:
+            rebuild_instrument = two_theta == workspace.get_detector_2theta(sub_run - 1)
+        else:
+            rebuild_instrument = True
+
+        print(sub_run, two_theta)
         # Convert 2-theta from DAS convention to Mantid/PyRS convention
         # print('[INFO] User specified 2theta = {} is converted to Mantid 2theta = {}'
         #       ''.format(two_theta, -two_theta))
@@ -614,7 +616,8 @@ class HB2BReductionManager(object):
         bin_centers, hist, variances = self.convert_counts_to_diffraction(reduction_engine, l2,
                                                                           geometry_calibration,
                                                                           (min_2theta, max_2theta),
-                                                                          num_bins, mask_vec, vanadium_counts)
+                                                                          num_bins, mask_vec, vanadium_counts,
+                                                                          rebuild_instrument)
 
         if van_duration is not None:
             hist *= van_duration
@@ -792,6 +795,7 @@ class HB2BReductionManager(object):
 
     def convert_counts_to_diffraction(self, reduction_engine, l2, geometry_calibration,
                                       two_theta_range, num_bins, mask_array, vanadium_array):
+
         """Histogram detector counts with detectors' 2theta angle
 
         Parameters
@@ -806,6 +810,8 @@ class HB2BReductionManager(object):
         mask_array : numpy.ndarray or None
             mask: 1 to keep, 0 to mask (exclude)
         vanadium_array
+        rebuild_instrument: bool
+            redefines pixel 2theta eta locations because instrument has moved
 
         Returns
         -------
