@@ -29,6 +29,7 @@ DEFAULT_KEEP_LOGS += 'omega, 2theta, phi, chi, sx, sy, sz, vx, vy, vz, '
 DEFAULT_KEEP_LOGS += 'omegaSetpoint, 2thetaSetpoint, phiSetpoint, chiSetpoint, sxSetpoint, sySetpoint, szSetpoint, '
 DEFAULT_KEEP_LOGS += 'scan_index, duration, '
 
+
 def convert_pulses_to_datetime64(h5obj):
     '''The h5object is the h5py handle to ``event_time_zero``. This only supports pulsetimes in seconds'''
     if h5obj.attrs['units'].decode() != 'second':
@@ -250,12 +251,12 @@ class NeXusConvertingApp(object):
 
         # workspaces
         self._event_ws_name = os.path.basename(nexus_file_name).split('.')[0]
-        
+
         if extra_logs is not None:
             logs_to_keep = '{}, {}'.format(DEFAULT_KEEP_LOGS, extra_logs)
         else:
             logs_to_keep = '{}'.format(DEFAULT_KEEP_LOGS)
-            
+
         self.__load_logs(logs_to_keep)
 
         # load the mask
@@ -287,7 +288,7 @@ class NeXusConvertingApp(object):
 
         # remove unwanted sample logs
         RemoveLogs(self._event_wksp, KeepLogs=KeepLogs)
-        
+
         # raise an exception if there is only one scan index entry
         # this is an underlying assumption of the rest of the code
         if self._event_wksp.run()['scan_index'].size() == 1 \
