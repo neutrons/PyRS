@@ -56,7 +56,7 @@ script:
   - ls ${CONDA_PREFIX}/conda-bld
   - ls ${CONDA_PREFIX}/conda-bld/linux-64
   - conda index ${CONDA_PREFIX}/conda-bld
-  - mamba install -c ${CONDA_PREFIX}/conda-bld PyRS
+  - conda install -c ${CONDA_PREFIX}/conda-bld PyRS
 
   - |
     # Mantid pre-requiste - create a properties file that turns off network access
