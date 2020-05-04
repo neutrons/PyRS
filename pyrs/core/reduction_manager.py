@@ -738,6 +738,10 @@ class HB2BReductionManager(object):
 
         # Retrieve 2-theta and L2 from loaded workspace (DAS)
         print(sub_run)
+        print(workspace.get_detector_2theta(sub_run))
+        if sub_run > 1:
+            print(workspace.get_detector_2theta(sub_run) == workspace.get_detector_2theta(sub_run - 1))
+
         two_theta = workspace.get_detector_2theta(sub_run)
         l2 = workspace.get_l2(sub_run)
         # Convert 2-theta from DAS convention to Mantid/PyRS convention
