@@ -1,6 +1,7 @@
 from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import numpy as np
 import time
+import os
 from pyrs.calibration import peakfit_calibration
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core import MonoSetting
@@ -183,11 +184,13 @@ if __name__ == '__main__':
 
     if POWDER_RUN is not None:
         POWDER_RUN = _load_nexus_data(IPTS_, POWDER_RUN, DATA_MASK)
+        single_material = False
     if PIN_RUN is not None:
         PIN_RUN = _load_nexus_data(IPTS_, PIN_RUN, DATA_MASK)
+        single_material = True
 
     calibrator = peakfit_calibration.PeakFitCalibration(powder_engine=POWDER_RUN, pin_engine=PIN_RUN,
-                                                        powder_lines=POWDER_LINES, single_material=False)
+                                                        powder_lines=POWDER_LINES, single_material=single_material)
 
     if INSTRUMENT_CALIBRATION is not None:
         calibrator.get_archived_calibration(INSTRUMENT_CALIBRATION)
@@ -202,8 +205,12 @@ if __name__ == '__main__':
 
     datatime = time.strftime('%Y-%m-%dT%H-%M', time.localtime())
     if HFIR_CYCLE is not None:
-        fName = '/HFIR/HB2B/shared/CAL/cycle{}/HB2B_{}_{}.json'.format(HFIR_CYCLE, mono, datatime)
-    else:
-        fName = '/HFIR/HB2B/shared/CAL/HB2B_{}_{}.json'.format(mono, datatime)
+        FolderName = '/HFIR/HB2B/shared/CALIBRATION/cycle{}'.format(HFIR_CYCLE)
+        if not os.path.exists(FolderName):
+            os.makedirs(FolderName)
+        CalibName = '/HFIR/HB2B/shared/CALIBRATION/cycle{}/HB2B_{}_{}.json'.format(HFIR_CYCLE, mono, datatime)
+        calibrator.write_calibration(CalibName)
 
-    calibrator.write_calibration(fName)
+    CalibName = '/HFIR/HB2B/shared/CALIBRATION/HB2B_{}_{}.json'.format(mono, datatime)
+    calibrator.write_calibration(CalibName)
+
