@@ -196,14 +196,14 @@ if __name__ == '__main__':
         calibrator = _run_calibration(calibrator, calib_method)
 
     if POWDER_RUN is not None:
-        MonoSetting.getFromRotation(POWDER_RUN.get_sample_log_value('mrot', 1))
+        mono = MonoSetting.getFromRotation(POWDER_RUN.get_sample_log_value('mrot', 1))
     else:
-        MonoSetting.getFromRotation(PIN_RUN.get_sample_log_value('mrot', 1))
+        mono = MonoSetting.getFromRotation(PIN_RUN.get_sample_log_value('mrot', 1))
 
     datatime = time.strftime('%Y-%m-%dT%H-%M', time.localtime())
     if HFIR_CYCLE is not None:
-        fName = '/HFIR/HB2B/shared/CAL/cycle{}/HB2B_{}_{}.json'.format(HFIR_CYCLE, calibrator.mono, datatime)
+        fName = '/HFIR/HB2B/shared/CAL/cycle{}/HB2B_{}_{}.json'.format(HFIR_CYCLE, mono, datatime)
     else:
-        fName = '/HFIR/HB2B/shared/CAL/HB2B_{}_{}.json'.format(calibrator.mono, datatime)
+        fName = '/HFIR/HB2B/shared/CAL/HB2B_{}_{}.json'.format(mono, datatime)
 
     calibrator.write_calibration(fName)
