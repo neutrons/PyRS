@@ -156,6 +156,26 @@ class ResidualStressInstrument(object):
 
         return self._pixel_matrix
 
+    def rotate_detector(self, two_theta_motion):
+        """
+        rotae a prebuild instrument about 2theta
+        step 1: rotate instrument according to the calibration
+        step 2: rotate instrument about 2theta
+        :param two_theta_0: float
+        :param two_theta_1: float
+        :return:
+        """
+
+        two_theta_motion_rad = two_theta_motion * np.pi / 180.
+        two_theta_rot_matrix = self._cal_rotation_matrix_y(two_theta_motion_rad)
+        self._pixel_matrix = self._rotate_detector(self._pixel_matrix, two_theta_rot_matrix)
+
+        # get 2theta and eta
+        self._calculate_pixel_2theta()
+        self._calculate_pixel_eta()
+
+        return
+
     def _calculate_pixel_2theta(self):
         """
         convert the pixel position matrix to 2theta. Result is recorded to self._pixel_2theta_matrix
@@ -445,6 +465,19 @@ class PyHB2BReduction(object):
 
         self._instrument.build_instrument(two_theta=two_theta, l2=arm_length,
                                           instrument_calibration=calibration)
+
+        return
+
+    def rotate_two_theta(self, two_theta_0, two_theta_1):
+        """
+        build an instrument
+        :param two_theta_0: inital 2theta position of the detector panel.
+        :param two_theta_1: final 2theta position of the detector panel.
+        """
+        two_theta_0_rad = np.deg2rad(two_theta_0)
+        two_theta_1_rad = np.deg2rad(two_theta_1)
+
+        self._instrument.rotate_detector(two_theta_1_rad - two_theta_0_rad)
 
         return
 
