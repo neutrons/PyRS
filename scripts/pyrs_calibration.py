@@ -195,7 +195,14 @@ if __name__ == '__main__':
     if INSTRUMENT_CALIBRATION is not None:
         calibrator.get_archived_calibration(INSTRUMENT_CALIBRATION)
 
-    for calib_method in REFINE_METHOD.split('+'):
+    if '+' in REFINE_METHOD:
+        SPLITTER = '+'
+    elif ',' in REFINE_METHOD:
+        SPLITTER = ','
+    else:
+        SPLITTER = ' '
+
+    for calib_method in REFINE_METHOD.split(SPLITTER):
         calibrator = _run_calibration(calibrator, calib_method)
 
     if POWDER_RUN is not None:
