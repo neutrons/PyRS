@@ -112,7 +112,7 @@ def _parse_powder_line(json_entry):
     dspace = []
     for item in json_entry:
 
-        if type(item) == str or type(item) == unicode:
+        if isinstance(item, str) or isinstance(item, type(u'a')):
             hkl = item.split(' ')[1]
             h_ = float(hkl[0])
             k_ = float(hkl[1])
@@ -220,4 +220,3 @@ if __name__ == '__main__':
 
     CalibName = '/HFIR/HB2B/shared/CALIBRATION/HB2B_{}_{}.json'.format(mono, datatime)
     calibrator.write_calibration(CalibName)
-

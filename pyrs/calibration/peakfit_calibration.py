@@ -388,11 +388,15 @@ class PeakFitCalibration(object):
                 if ReturnFit:
                     self.ReductionResults[i_tth] = {}
 
-                # load instrument: as it changes
-                pyrs_reducer = PyHB2BReduction(self._instrument, x[6])
-                pyrs_reducer.build_instrument_prototype(-1. * self._engine.get_sample_log_value('2theta', i_tth),
-                                                        self._instrument._arm_length,
-                                                        x[0], x[1], x[2], x[3], x[4], x[5])
+                if i_tth == sub_runs[0]:
+                    # load instrument: as it changes
+                    pyrs_reducer = PyHB2BReduction(self._instrument, x[6])
+                    pyrs_reducer.build_instrument_prototype(-1. * self._engine.get_sample_log_value('2theta', i_tth),
+                                                            self._instrument._arm_length,
+                                                            x[0], x[1], x[2], x[3], x[4], x[5])
+                else:
+                    pyrs_reducer.rotate_two_theta(-1. * self._engine.get_sample_log_value('2theta', i_tth - 1),
+                                                  -1. * self._engine.get_sample_log_value('2theta', i_tth))
 
                 # Load raw counts
                 pyrs_reducer._detector_counts = self._engine.get_detector_counts(i_tth)
