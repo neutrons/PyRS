@@ -474,10 +474,8 @@ class PyHB2BReduction(object):
         :param two_theta_0: inital 2theta position of the detector panel.
         :param two_theta_1: final 2theta position of the detector panel.
         """
-        two_theta_0_rad = np.deg2rad(two_theta_0)
-        two_theta_1_rad = np.deg2rad(two_theta_1)
-
-        self._instrument.rotate_detector(two_theta_1_rad - two_theta_0_rad)
+        print('[INFO] Rotating: 2theta from {} to {}'.format(two_theta_0, two_theta_1))
+        self._instrument.rotate_detector(two_theta_1 - two_theta_0)
 
         return
 

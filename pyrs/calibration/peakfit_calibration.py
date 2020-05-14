@@ -175,10 +175,12 @@ class PeakFitCalibration(object):
         # calibration error: numpy array. size as 7 for ...
         self._caliberr = np.array(7 * [-1], dtype=np.float)
 
-        # self.tth_ref = '2thetaSetpoint'
+        # calibration starting point: numpy array. size as 7 for ...
+        self._calib_start = np.array(7 * [0], dtype=np.float)
 
         # Set wave length
         self._calib[6] = float(self.monosetting)
+        self._calib_start[6] = float(self.monosetting)
 
         # Initalize calibration status to -1
         self._calibstatus = -1
@@ -188,6 +190,8 @@ class PeakFitCalibration(object):
         self.singlepeak = False
 
         self.UseLSQ = UseLSQ
+
+        self.refinement_summary = ''
 
         GlobalParameter.global_curr_sequence = 0
 
@@ -365,6 +369,8 @@ class PeakFitCalibration(object):
         :return:
         """
 
+        pyrs_reducer = PyHB2BReduction(self._instrument, x[6])
+
         GlobalParameter.global_curr_sequence += 1
 
         residual = np.array([])
@@ -388,26 +394,21 @@ class PeakFitCalibration(object):
                 if ReturnFit:
                     self.ReductionResults[i_tth] = {}
 
-                if i_tth == sub_runs[0]:
-                    # load instrument: as it changes
-                    pyrs_reducer = PyHB2BReduction(self._instrument, x[6])
-                    pyrs_reducer.build_instrument_prototype(-1. * self._engine.get_sample_log_value('2theta', i_tth),
-                                                            self._instrument._arm_length,
-                                                            x[0], x[1], x[2], x[3], x[4], x[5])
-                else:
-                    pyrs_reducer.rotate_two_theta(-1. * self._engine.get_sample_log_value('2theta', i_tth - 1),
-                                                  -1. * self._engine.get_sample_log_value('2theta', i_tth))
+                pyrs_reducer.build_instrument_prototype(-1. * self._engine.get_sample_log_value('2theta', i_tth),
+                                                        self._instrument._arm_length,
+                                                        x[0], x[1], x[2], x[3], x[4], x[5])
 
                 # Load raw counts
                 pyrs_reducer._detector_counts = self._engine.get_detector_counts(i_tth)
 
                 tths = pyrs_reducer._instrument.get_pixels_2theta(1)
-                mintth = np.min(tths) + .5
-                maxtth = np.max(tths) - .5
+
+                mintth = tths.min() + .5
+                maxtth = tths.max() - .5
 
                 Eta_val = pyrs_reducer.get_eta_value()
-                maxEta = np.max(Eta_val) - 2
-                minEta = np.min(Eta_val) + 2
+                maxEta = Eta_val.max() - 2
+                minEta = Eta_val.min() + 2
 
                 if roi_vec_set is None:
                     eta_roi_vec = np.arange(minEta, maxEta + 0.2, 2.0)
@@ -662,7 +663,7 @@ class PeakFitCalibration(object):
 
         """
 
-        GlobalParameter.global_curr_sequence = 0
+#        GlobalParameter.global_curr_sequence = 0
 
         if initial_guess is None:
             initial_guess = self.get_wavelength()
@@ -753,8 +754,6 @@ class PeakFitCalibration(object):
         return
 
     def CalibrateShift(self, initalGuess=None, ConstrainPosition=True, start=0, stop=0):
-
-        GlobalParameter.global_curr_sequence = 0
 
         if initalGuess is None:
             initalGuess = self.get_shift()
@@ -961,6 +960,10 @@ class PeakFitCalibration(object):
             for i in range(len(keys)):
                 self._calib[i] = CalibData[keys[i]]
 
+        self._calib_start = np.copy(self._calib)
+
+        return
+
     # TODO - #86 - Clean up!
     def write_calibration(self, file_name=None):
         """Write the calibration to a Json file
@@ -997,3 +1000,42 @@ class PeakFitCalibration(object):
         # END-IF
 
         write_calibration_to_json(cal_shift, cal_shift_error, wl, wl_error, self._calibstatus, file_name)
+
+        return
+
+    def print_calibration(self, print_to_screen=True, refine_step=None):
+        """Print the calibration results to screen
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        None
+        """
+
+        res = self.singleEval()
+
+        keys = ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda']
+        print_string = '\n###########################################'
+        print_string += '\n########### Calibration Summary ###########'
+        print_string += '\n###########################################\n'
+        if refine_step is not None:
+            print_string += '\nrefined using {}\n'.format(refine_step)
+
+        print_string += 'Iterations     {}\n'.format(GlobalParameter.global_curr_sequence)
+        print_string += 'RMSE         = {}\n'.format(np.sqrt((res**2).sum() / res.shape[0]))
+        print_string += 'Residual Sum = {}\n'.format(np.sum(res))
+
+        print_string += "Parameter:  inital guess  refined value\n"
+        for i in range(len(keys)):
+            print_string += '{:10s}{:^15.5f}{:^14.5f}\n'.format(keys[i], self._calib_start[i], self._calib[i])
+
+        self.refinement_summary += print_string
+
+        if print_to_screen:
+            print(print_string)
+
+        return
+
+
