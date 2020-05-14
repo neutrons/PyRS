@@ -55,6 +55,7 @@ PIN_RUN = None
 HFIR_CYCLE = None
 REFINE_METHOD = 'full'
 POWDER_LINES = []
+SAVE_CALIB = True
 
 # Allow a varriety of inputs to catch errors
 powderlineinput = ['powder lines', 'powder_lines', 'powderlines', 'powder line', 'powder_line', 'powderline']
@@ -63,7 +64,11 @@ pininput = ['pin scan', 'pin', 'pin_scan', 'pinscan', 'pin scans', 'pin_scans', 
 calinput = ['calibration', 'old calibration', 'old_calibration']
 methodinput = ['method', 'methods']
 maskinput = ['mask', 'default mask']
+exportinput = ['save', 'export', 'save calibration', 'save_calibration']
 
+# Defualt check for method input
+method_options = ["full", "geometry", "shifts", "shift x", "shift_x", "shift y", "shift_y",
+                  "distance", "rotations", "wavelength"]
 
 def _load_nexus_data(ipts, nexus_run, mask_file):
     nexus_file = '/HFIR/HB2B/IPTS-{}/nexus/HB2B_{}.nxs.h5'.format(ipts, nexus_run)
@@ -86,10 +91,10 @@ def _run_calibration(calibrator, calib_method):
     elif calib_method == "shifts":
         calibrator.singlepeak = False
         calibrator.CalibrateShift(ConstrainPosition=True)
-    elif calib_method == "shift x":
+    elif calib_method in ["shift x", "shift_x"]:
         calibrator.singlepeak = True
         calibrator.calibrate_shiftx(ConstrainPosition=True)
-    elif calib_method == "shift y":
+    elif calib_method in ["shift y", "shift_y"]:
         calibrator.singlepeak = False
         calibrator.calibrate_shifty(ConstrainPosition=True)
     elif calib_method == "distance":
@@ -102,7 +107,9 @@ def _run_calibration(calibrator, calib_method):
         calibrator.singlepeak = True
         calibrator.calibrate_wave_length(ConstrainPosition=True)
     else:
-        raise RuntimeError('{} is not a valid calibration method\n{}'.format(M_options))
+        raise RuntimeError('{} is not a valid calibration method\n{}'.format(calib_method, M_options))
+
+    calibrator.print_calibration(print_to_screen=False, refine_step=calib_method)
 
     return calibrator
 
@@ -147,6 +154,14 @@ def _write_template():
         out.write('}\n')
 
 
+def check_method_input(REFINE_METHOD, SPLITTER):
+    for calib_method in REFINE_METHOD.split(SPLITTER):
+        if calib_method not in method_options:
+            raise RuntimeError('\n{} is not a valid calibration method\n\n{}'.format(calib_method, M_options))
+
+    return
+
+
 if __name__ == '__main__':
     import sys
     import json
@@ -181,19 +196,8 @@ if __name__ == '__main__':
             INSTRUMENT_CALIBRATION = calibration_inputs[key]
         elif key.lower() in maskinput:
             DATA_MASK = calibration_inputs[key]
-
-    if POWDER_RUN is not None:
-        POWDER_RUN = _load_nexus_data(IPTS_, POWDER_RUN, DATA_MASK)
-        single_material = False
-    if PIN_RUN is not None:
-        PIN_RUN = _load_nexus_data(IPTS_, PIN_RUN, DATA_MASK)
-        single_material = True
-
-    calibrator = peakfit_calibration.PeakFitCalibration(powder_engine=POWDER_RUN, pin_engine=PIN_RUN,
-                                                        powder_lines=POWDER_LINES, single_material=single_material)
-
-    if INSTRUMENT_CALIBRATION is not None:
-        calibrator.get_archived_calibration(INSTRUMENT_CALIBRATION)
+        elif key.lower() in exportinput:
+            SAVE_CALIB = bool(str(calibration_inputs[key]).lower() == 'true')
 
     if '+' in REFINE_METHOD:
         SPLITTER = '+'
@@ -202,21 +206,38 @@ if __name__ == '__main__':
     else:
         SPLITTER = ' '
 
+    check_method_input(REFINE_METHOD, SPLITTER)
+
+    if POWDER_RUN is not None:
+        POWDER_RUN = _load_nexus_data(IPTS_, POWDER_RUN, DATA_MASK)
+        single_material = False
+        mono = MonoSetting.getFromRotation(POWDER_RUN.get_sample_log_value('mrot', 1))
+    if PIN_RUN is not None:
+        PIN_RUN = _load_nexus_data(IPTS_, PIN_RUN, DATA_MASK)
+        single_material = True
+        mono = MonoSetting.getFromRotation(PIN_RUN.get_sample_log_value('mrot', 1))
+
+    calibrator = peakfit_calibration.PeakFitCalibration(powder_engine=POWDER_RUN, pin_engine=PIN_RUN,
+                                                        powder_lines=POWDER_LINES, single_material=single_material)
+
+    if INSTRUMENT_CALIBRATION is not None:
+        calibrator.get_archived_calibration(INSTRUMENT_CALIBRATION)
+
     for calib_method in REFINE_METHOD.split(SPLITTER):
         calibrator = _run_calibration(calibrator, calib_method)
 
-    if POWDER_RUN is not None:
-        mono = MonoSetting.getFromRotation(POWDER_RUN.get_sample_log_value('mrot', 1))
-    else:
-        mono = MonoSetting.getFromRotation(PIN_RUN.get_sample_log_value('mrot', 1))
+    if SAVE_CALIB:
+        datatime = time.strftime('%Y-%m-%dT%H-%M', time.localtime())
+        if HFIR_CYCLE is not None:
+            FolderName = '/HFIR/HB2B/shared/CALIBRATION/cycle{}'.format(HFIR_CYCLE)
+            if not os.path.exists(FolderName):
+                os.makedirs(FolderName)
+            CalibName = '/HFIR/HB2B/shared/CALIBRATION/cycle{}/HB2B_{}_{}.json'.format(HFIR_CYCLE, mono, datatime)
+            calibrator.write_calibration(CalibName)
 
-    datatime = time.strftime('%Y-%m-%dT%H-%M', time.localtime())
-    if HFIR_CYCLE is not None:
-        FolderName = '/HFIR/HB2B/shared/CALIBRATION/cycle{}'.format(HFIR_CYCLE)
-        if not os.path.exists(FolderName):
-            os.makedirs(FolderName)
-        CalibName = '/HFIR/HB2B/shared/CALIBRATION/cycle{}/HB2B_{}_{}.json'.format(HFIR_CYCLE, mono, datatime)
+        CalibName = '/HFIR/HB2B/shared/CALIBRATION/HB2B_{}_{}.json'.format(mono, datatime)
         calibrator.write_calibration(CalibName)
-
-    CalibName = '/HFIR/HB2B/shared/CALIBRATION/HB2B_{}_{}.json'.format(mono, datatime)
-    calibrator.write_calibration(CalibName)
+        print(calibrator.refinement_summary)
+    else:
+        calibrator.print_calibration()
+        print(calibrator.refinement_summary)
