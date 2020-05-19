@@ -167,7 +167,7 @@ if __name__ == '__main__':
     import json
 
     if len(sys.argv) == 1:
-        print('Requires a json input.\n{}\n{}\n{}'.format(M_options, P_options))
+        print('Requires a json input.\n{}\n{}\n{}'.format(_options, M_options, P_options))
         _write_template()
         raise RuntimeError('template.json was created as an example input')
 
