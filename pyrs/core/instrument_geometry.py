@@ -102,7 +102,8 @@ class HidraSetup(object):
         checkdatatypes.check_float_variable('Wavelength shift from original value', wave_length_shift, (None, None))
 
         if self._wave_length + wave_length_shift < 0.1:
-            raise RuntimeError('Wavelength shift {} to {} results in an unphysical value'.format(wave_length_shift))
+            raise RuntimeError('Wavelength shift {} to {} results in an unphysical value'.format(self._wave_length,
+                                                                                                 wave_length_shift))
 
     def set_geometry_calibration(self, calibration):
         """
