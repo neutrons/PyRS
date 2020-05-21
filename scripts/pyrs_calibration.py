@@ -70,6 +70,7 @@ exportinput = ['save', 'export', 'save calibration', 'save_calibration']
 method_options = ["full", "geometry", "shifts", "shift x", "shift_x", "shift y", "shift_y",
                   "distance", "rotations", "wavelength"]
 
+
 def _load_nexus_data(ipts, nexus_run, mask_file):
     nexus_file = '/HFIR/HB2B/IPTS-{}/nexus/HB2B_{}.nxs.h5'.format(ipts, nexus_run)
     converter = NeXusConvertingApp(nexus_file, mask_file)
@@ -175,7 +176,7 @@ if __name__ == '__main__':
         try:
             calibration_inputs = json.load(json_input)
         except ValueError:
-            print('Formating error in json input file.\n{}\n{}'.format(_options, M_options, P_options))
+            print('Formating error in json input file.\n{}\n{}\n{}'.format(_options, M_options, P_options))
             _write_template()
             raise RuntimeError('template.json was created as an example input')
 
