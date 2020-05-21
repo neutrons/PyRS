@@ -6,7 +6,7 @@ import h5py
 from mantid.kernel import Logger, BoolTimeSeriesProperty, FloatFilteredTimeSeriesProperty, FloatTimeSeriesProperty
 from mantid.kernel import Int32TimeSeriesProperty, Int64TimeSeriesProperty, Int32FilteredTimeSeriesProperty,\
     Int64FilteredTimeSeriesProperty
-from mantid.simpleapi import mtd, DeleteWorkspace, LoadEventNexus, LoadMask
+from mantid.simpleapi import mtd, DeleteWorkspace, LoadEventNexus, LoadMask, RemoveLogs
 import numpy as np
 import os
 from pyrs.core import workspaces
@@ -21,6 +21,13 @@ NUM_PIXEL_1D = 1024
 HIDRA_PIXEL_NUMBER = NUM_PIXEL_1D * NUM_PIXEL_1D
 PIXEL_SIZE = 0.3 / NUM_PIXEL_1D
 ARM_LENGTH = 0.985
+
+DEFAULT_KEEP_LOGS = ['experiment_identifier', 'run_number', 'run_title', 'file_notes', 'start_time', 'end_time',
+                     'SampleId', 'SampleName', 'SampleDescription', 'StrainDirection', 'hklPhase', 'Wavelength',
+                     'Filename', 'sub-run', 'duration', 'mrot', 'mtilt', 'mb220', 'mb511', 'ISD', 'ISR:X:Gap',
+                     'ISR:Y:Gap', 'DOX', 'DOY', 'DOR', 'omega', '2theta', 'phi', 'chi', 'sx', 'sy', 'sz',
+                     'vx', 'vy', 'vz', 'omegaSetpoint', '2thetaSetpoint', 'phiSetpoint', 'chiSetpoint', 'sxSetpoint',
+                     'sySetpoint', 'szSetpoint', 'scan_index', 'duration']
 
 
 def convert_pulses_to_datetime64(h5obj):
@@ -212,7 +219,7 @@ class NeXusConvertingApp(object):
     """
     Convert NeXus file to Hidra project file
     """
-    def __init__(self, nexus_file_name, mask_file_name=None):
+    def __init__(self, nexus_file_name, mask_file_name=None, extra_logs=list()):
         """Initialization
 
         Parameters
@@ -221,6 +228,8 @@ class NeXusConvertingApp(object):
             Name of NeXus file
         mask_file_name : str
             Name of masking file
+        extra_logs : list, tuple
+            list of string with no default logs to keep in project file
         """
         # configure logging for this class
         self._log = Logger(__name__)
@@ -242,7 +251,11 @@ class NeXusConvertingApp(object):
 
         # workspaces
         self._event_ws_name = os.path.basename(nexus_file_name).split('.')[0]
-        self.__load_logs()
+
+        logs_to_keep = list(extra_logs)
+        logs_to_keep.extend(DEFAULT_KEEP_LOGS)
+
+        self.__load_logs(logs_to_keep)
 
         # load the mask
         self.mask_array = None  # TODO to promote direct access
@@ -266,10 +279,13 @@ class NeXusConvertingApp(object):
         if self._event_ws_name in mtd:
             DeleteWorkspace(Workspace=self._event_ws_name, EnableLogging=False)
 
-    def __load_logs(self):
+    def __load_logs(self, logs_to_keep):
         '''Use mantid to load the logs then set up the Splitters object'''
         self._event_wksp = LoadEventNexus(Filename=self._nexus_name, OutputWorkspace=self._event_ws_name,
                                           MetaDataOnly=True, LoadMonitors=False)
+
+        # remove unwanted sample logs
+        RemoveLogs(self._event_wksp, KeepLogs=logs_to_keep)
 
         # raise an exception if there is only one scan index entry
         # this is an underlying assumption of the rest of the code
