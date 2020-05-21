@@ -1037,4 +1037,3 @@ class PeakFitCalibration(object):
             print(print_string)
 
         return
-
