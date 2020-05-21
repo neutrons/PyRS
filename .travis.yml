@@ -41,7 +41,6 @@ install:
     # BUILD: Create PyRS build environment
   - mamba create -q -n PyRS_build python=$CONDA conda-build=3.17 conda-verify
   - conda activate PyRS_build
-  - python --version
   - mamba build conda.recipe
   - export PKG_FILE=$(mamba build conda.recipe --output)
   - conda activate
@@ -51,7 +50,6 @@ script:
   - mamba create -q -n PyRS_test python=$CONDA flake8 pylint conda-build=3.17 jupyter_client=5.3.4 anaconda-client pytest pytest-qt pytest-mpl mantid-workbench
   - mamba info --envs
   - conda activate PyRS_test
-  - cat ~/.condarc
   - python --version
   - mkdir -p ${CONDA_PREFIX}/conda-bld/linux-64/
   - cp ${PKG_FILE} ${CONDA_PREFIX}/conda-bld/linux-64/
