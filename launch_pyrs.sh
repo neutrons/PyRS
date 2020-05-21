@@ -3,7 +3,7 @@
 if [ -n "$1" ] && [ $(command -v $1) ]; then
     MANTIDPYTHON="$1"
 else
-    MANTIDPYTHON=mantidpythonnightly
+    MANTIDPYTHON=mantidpython50
 fi
 
 # check that a valid mantidpython was specified

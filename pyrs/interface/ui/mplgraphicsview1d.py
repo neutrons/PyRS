@@ -68,9 +68,9 @@ class MplGraphicsView1D(QWidget):
 
     def button_clicked_in_canvas(self, event):
         # print("button pressed here!")
-        print("-> %s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f".format(event.dblclick, event.button,
-                                                                              event.x, event.y, event.xdata,
-                                                                              event.ydata))
+        print("-> {} click: button={:d}, x={:d}, y={:d}, xdata={:f}, ydata={:f}".format(event.dblclick, event.button,
+                                                                                        event.x, event.y, event.xdata,
+                                                                                        event.ydata))
 
     def _get_plot_y_range(self, row_index, col_index, line_id, is_main):
         """
@@ -1275,7 +1275,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
             is_on_main = False
         else:
             # unable to locate plot key
-            raise RuntimeError('Line with ID %s is not recorded.'.format(plot_key))
+            raise RuntimeError('Line with ID "{}" is not recorded.'.format(plot_key))
 
         self._setup_legend(row_index, col_index, location='best', font_size=self._legend_font_size, is_main=is_on_main)
 

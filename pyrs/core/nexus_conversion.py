@@ -135,7 +135,7 @@ class Splitter(object):
                                ''.format(scan_index_times, scan_index_value, self.times))
 
         if self.times.shape[0] != self.subruns.shape[0] * 2:
-            raise RuntimeError('Sub run number {} and sub run times do not match (as twice)'
+            raise RuntimeError('Sub run number {} and sub run times {} do not match (as twice)'
                                ''.format(self.subruns, self.times))
 
     def __correct_starting_scan_index_time(self, runObj, abs_tolerance=0.05):
