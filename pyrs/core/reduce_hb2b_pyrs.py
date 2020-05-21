@@ -147,7 +147,7 @@ class ResidualStressInstrument(object):
 
         # rotate detector (2theta) if it is not zero
         if abs(two_theta) > 1E-7:
-            two_theta_rad = two_theta * np.pi / 180.
+            two_theta_rad = np.deg2rad(two_theta)
             two_theta_rot_matrix = self._cal_rotation_matrix_y(two_theta_rad)
             self._pixel_matrix = self._rotate_detector(self._pixel_matrix, two_theta_rot_matrix)
 
@@ -168,7 +168,7 @@ class ResidualStressInstrument(object):
         numpy.ndarray
             multiple dimensional array for detector positions
         """
-        two_theta_rad = det_2theta * np.pi / 180.
+        two_theta_rad = np.deg2rad(det_2theta)
         two_theta_rot_matrix = self._cal_rotation_matrix_y(two_theta_rad)
         pixel_matrix = self._rotate_detector(self._pixel_matrix, two_theta_rot_matrix)
 
