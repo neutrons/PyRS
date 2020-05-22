@@ -40,10 +40,6 @@ class PoleFigureCalculator(object):
         # flag
         self._cal_successful = False
 
-        self._use_matmul = does_numpy_support_matmul()
-
-        return
-
     def add_input_data_set(self, det_id, peak_intensity_dict, peak_fit_info_dict, log_dict):
         """ set peak intensity log and experiment logs that are required by pole figure calculation
         :param det_id
@@ -80,8 +76,6 @@ class PoleFigureCalculator(object):
         self._peak_info_dict[det_id] = log_dict
         self._peak_fit_info_dict[det_id] = peak_fit_info_dict
 
-        return
-
     def calculate_pole_figure(self, det_id_list):
         """ Calculate pole figures
         :param det_id_list:
@@ -110,7 +104,7 @@ class PoleFigureCalculator(object):
                 intensity_i = peak_intensity_dict[scan_index]
 
                 # rotate Q from instrument coordinate to sample coordinate
-                theta_i = peak_info_dict[scan_index]['center']
+                theta_i = 0.5 * peak_info_dict[scan_index]['center']
                 omega_i = peak_info_dict[scan_index]['omega']
                 if omega_i < 0.:
                     omega_i += 90.
@@ -127,10 +121,6 @@ class PoleFigureCalculator(object):
 
             # convert
             self._pole_figure_dict[det_id] = scan_log_index_list, pole_figure_array
-
-        # END-FOR
-
-        return
 
     def export_pole_figure(self, detector_id_list,  file_name, file_type, file_header=''):
         """
@@ -273,16 +263,15 @@ class PoleFigureCalculator(object):
         cg = np.cos(np.deg2rad(eta))
         ct = np.cos(np.deg2rad(theta))
 
-        h1 = st*(sp*sc*sw+cp*cw) + ct*cg*sp*cc - ct*sg*(sp*sc*cw-cp*sw)
+        h1 =  st*(sp*sc*sw+cp*cw) + ct*cg*sp*cc - ct*sg*(sp*sc*cw-cp*sw)
         h2 = -st*(cp*sc*sw-sp*cw) - ct*cg*cp*cc + ct*sg*(cp*sc*cw+sp*sw)
         # h3 = st*cc*sw - ct*sg*cc*cw - ct*cg*sc
+        h_length = np.sqrt(np.square(h1) + np.square(h2))
 
-        alpha = np.arccos(np.sqrt(h1**2 + h2**2))
-
-        if h2 >= 0:
-            beta = np.rad2deg(np.arccos(h1 / np.sqrt(h1**2 + h2**2)))
-        else:
-            beta = -1. * np.rad2deg(np.arccos(h1 / np.sqrt(h1**2 + h2**2)))
+        alpha = np.arccos(h_length)
+        beta = np.rad2deg(np.arccos(h1 / h_length))
+        if h2 < 0:
+            beta *= -1.
 
         return alpha, beta
 
@@ -293,8 +282,6 @@ class PoleFigureCalculator(object):
         self._peak_info_dict = dict()
         self._peak_intensity_dict = dict()
         self._pole_figure_dict = dict()
-
-        return
 
 # END-OF-CLASS (PoleFigureCalculator)
 
@@ -379,23 +366,3 @@ def export_to_mtex(pole_figure_array_dict, detector_id_list, file_name, header):
     p_file = open(file_name, 'w')
     p_file.write(mtex)
     p_file.close()
-
-    return
-
-
-def does_numpy_support_matmul():
-    """
-    matmul is supported only after numpy version is after 1.10
-    :return:
-    """
-    np_version = np.version.version
-    np_version_main = int(np_version.split('.')[0])
-    np_version_second = int(np_version.split('.')[1])
-
-    print(np_version_main, np_version_second)
-
-    if np_version_main > 1 or np_version_second >= 10:
-        np.matmul
-        return True
-
-    return False
