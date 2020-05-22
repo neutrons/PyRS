@@ -11,7 +11,6 @@ import os
 
 def parse_gold_file(file_name):
     """
-
     Parameters
     ----------
     file_name
@@ -20,7 +19,6 @@ def parse_gold_file(file_name):
     -------
     ~dict or ~numpy.ndarray
         gold data in array or dictionary of arrays
-
     """
     # Init output
     data_dict = dict()
@@ -59,10 +57,6 @@ def test_texture_reduction(nexusfile, mask_file_name, gold_file):
     project_file_name
     mask_file_name
     gold_file
-
-    Returns
-    -------
-
     """
     if not os.path.exists('/HFIR/HB2B/shared'):
         pytest.skip('Unable to access HB2B archive')
