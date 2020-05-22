@@ -219,11 +219,11 @@ class PeakCollection(object):
             A two-item tuple containing the peak center and its uncertainty.
         """
         effective_values, effective_errors = self.get_effective_params()
-        theta_center_value = 0.5 * effective_values['Center']
-        theta_center_error = 0.5 * effective_errors['Center']
-        dspacing_center = 0.5 * self._wavelength / np.sin(np.deg2rad(theta_center_value))
-        dspacing_center_error = 0.5 * self._wavelength * abs(np.cos(theta_center_value)) * theta_center_error /\
-            (np.sin(np.deg2rad(theta_center_value))**2)
+        theta_center_value = 0.5 * np.deg2rad(effective_values['Center'])
+        theta_center_error = 0.5 * np.deg2rad(effective_errors['Center'])
+        dspacing_center = 0.5 * self._wavelength / np.sin(theta_center_value)
+        dspacing_center_error = 0.5 * self._wavelength * np.abs(np.cos(theta_center_value)) * theta_center_error /\
+            np.square(np.sin(theta_center_value))
         return dspacing_center, dspacing_center_error
 
     def get_integrated_intensity(self):
