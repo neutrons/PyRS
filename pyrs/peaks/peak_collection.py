@@ -223,7 +223,7 @@ class PeakCollection(object):
         theta_center_error = 0.5 * np.deg2rad(effective_errors['Center'])
         dspacing_center = 0.5 * self._wavelength / np.sin(theta_center_value)
         dspacing_center_error = 0.5 * self._wavelength * np.abs(np.cos(theta_center_value)) * theta_center_error /\
-            (np.sin(theta_center_value)**2)
+            np.square(np.sin(theta_center_value))
         return dspacing_center, dspacing_center_error
 
     def get_integrated_intensity(self):
