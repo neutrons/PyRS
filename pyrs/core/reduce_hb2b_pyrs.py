@@ -147,9 +147,7 @@ class ResidualStressInstrument(object):
 
         # rotate detector (2theta) if it is not zero
         if abs(two_theta) > 1E-7:
-            two_theta_rad = np.deg2rad(two_theta)
-            two_theta_rot_matrix = self._cal_rotation_matrix_y(two_theta_rad)
-            self._pixel_matrix = self._rotate_detector(self._pixel_matrix, two_theta_rot_matrix)
+            self._pixel_matrix = self.rotate_detector_2theta(two_theta)
 
         # get 2theta and eta
         self._calculate_pixel_2theta()
