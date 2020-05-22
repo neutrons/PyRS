@@ -5,8 +5,9 @@ import pytest
 import time
 import os
 import json
+import numpy as np
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
-from pyrs.utilities import calibration_file_io
+from pyrs.core.workspaces import HidraWorkspace
 
 try:
     from pyrs.calibration import peakfit_calibration
@@ -17,6 +18,14 @@ try:
     from scipy.optimize import least_squares
 except ImportError as e:
     least_squares = str(e)  # import failed exception explains why
+
+
+# Define powder dspace of LaB6 used for synthetic data
+dSpace = np.array([4.156826, 2.93931985, 2.39994461, 2.078413, 1.8589891, 1.69701711, 1.46965993,
+                   1.38560867, 1.3145038, 1.2533302, 1.19997231, 1.1528961, 1.11095848,
+                   1.0392065, 1.00817839, 0.97977328, 0.95364129, 0.92949455, 0.9070938,
+                   0.88623828, 0.84850855, 0.8313652, 0.81522065, 0.79998154, 0.77190321,
+                   0.75892912, 0.73482996])
 
 
 def are_equivalent_jsons(test_json_name, gold_json_name, atol):
@@ -119,16 +128,14 @@ def test_least_square():
     # reduction engine
     project_file_name = 'data/HB2B_000.h5'
     engine = HidraProjectFile(project_file_name, mode=HidraProjectFileMode.READONLY)
-
-    # instrument geometry
-    idf_name = 'data/XRay_Definition_1K.txt'
+    engine_ws = HidraWorkspace('test')
+    engine_ws._load_sample_logs(engine)
+    engine_ws._load_raw_counts(engine)
 
     t_start = time.time()
 
-    # instrument
-    hb2b = calibration_file_io.import_instrument_setup(idf_name)
-
-    calibrator = peakfit_calibration.PeakFitCalibration(hb2b, engine, scheme=0)
+    # Initalize calibration
+    calibrator = peakfit_calibration.PeakFitCalibration(powder_engine=engine_ws, powder_lines=dSpace)
 
     calibrator.UseLSQ = False
     calibrator.calibrate_wave_length()
@@ -169,15 +176,15 @@ def test_leastsq():
     project_file_name = 'data/HB2B_000.h5'
     engine = HidraProjectFile(project_file_name, mode=HidraProjectFileMode.READONLY)
 
-    # instrument geometry
-    idf_name = 'data/XRay_Definition_1K.txt'
+    # Convert HidraProjectFile into HidraWorkspace
+    engine_ws = HidraWorkspace('test')
+    engine_ws._load_sample_logs(engine)
+    engine_ws._load_raw_counts(engine)
 
     t_start = time.time()
 
-    # instrument
-    hb2b = calibration_file_io.import_instrument_setup(idf_name)
-
-    calibrator = peakfit_calibration.PeakFitCalibration(hb2b, engine, scheme=0)
+    # Initalize calibration
+    calibrator = peakfit_calibration.PeakFitCalibration(powder_engine=engine_ws, powder_lines=dSpace)
 
     calibrator.UseLSQ = True
     calibrator.calibrate_wave_length()

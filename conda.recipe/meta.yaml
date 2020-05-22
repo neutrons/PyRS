@@ -20,14 +20,12 @@ requirements:
     - python
     - setuptools
     - pytest-runner
-    - lmfit
 
   run:
     - configparser
     - mantid-workbench
     - psutil
     - python
-    - lmfit
 
 test:
   imports:

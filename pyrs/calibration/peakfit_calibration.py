@@ -6,11 +6,18 @@ import numpy as np
 import time
 import json
 import os
+
+# Import pyrs modules
 from pyrs.core import MonoSetting
-from pyrs.core import reduce_hb2b_pyrs
+from pyrs.core.reduce_hb2b_pyrs import PyHB2BReduction
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
 from pyrs.core.reduction_manager import HB2BReductionManager
+from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry
 
+# Import instrument constants
+from pyrs.core.nexus_conversion import NUM_PIXEL_1D, PIXEL_SIZE, ARM_LENGTH
+
+# Import scipy libraries for minimization
 from scipy.optimize import leastsq  # for older scipy
 from scipy.optimize import minimize
 from scipy.optimize import brute
@@ -77,43 +84,105 @@ class GlobalParameter(object):
         return
 
 
+def get_ref_flags(powder_engine, pin_engine):
+    def get_mono_setting(_engine):
+        try:
+            monosetting = MonoSetting.getFromIndex(_engine.get_sample_log_value('MonoSetting', 1))
+        except ValueError:
+            monosetting = MonoSetting.getFromRotation(_engine.get_sample_log_value('mrot', 1))
+
+        return monosetting
+
+    def get_tth_ref(_engine):
+        try:
+            _engine.get_sample_log_value('2theta', 1)
+            tth_ref = '2theta'
+        except ValueError:
+            tth_ref = '2Theta'
+        return tth_ref
+
+    if (powder_engine is not None) and (pin_engine is not None):
+        if get_mono_setting(powder_engine) == get_mono_setting(pin_engine):
+            monosetting = get_mono_setting(powder_engine)
+        else:
+            raise RuntimeError('Powder and Pin data measured using different mono settings')
+
+        if get_tth_ref(powder_engine) == get_tth_ref(pin_engine):
+            tth_ref = get_tth_ref(powder_engine)
+        else:
+            raise RuntimeError('Powder and Pin data have different 2theta reference keys\n')
+    elif powder_engine is not None:
+        monosetting = get_mono_setting(powder_engine)
+        tth_ref = get_tth_ref(powder_engine)
+    elif pin_engine is not None:
+        monosetting = get_mono_setting(pin_engine)
+        tth_ref = get_tth_ref(pin_engine)
+    else:
+        raise RuntimeError('No data were provided as an input\n')
+
+    return monosetting, tth_ref
+
+
 class PeakFitCalibration(object):
     """
     Calibrate by grid searching algorithm using Brute Force or Monte Carlo random walk
     """
 
-    def __init__(self, hb2b_instrument, hidra_data=None, hidra_data2=None, scheme=1):
+    def __init__(self, hb2b_inst=None, powder_engine=None, pin_engine=None, powder_lines=None,
+                 single_material=True):
         """
         Initialization
+
+        Parameters
+        ----------
+        hb2b_inst : AnglerCameraDetectorGeometry
+            Overide default instrument configuration
+        powder_engine : HiDraWorksapce
+            HiDraWorksapce with powder raw counts and log data
+        pin_engine : HiDraWorksapce
+            HiDraWorksapce with pin raw counts and log data
+        powder_lines : list
+            list of dspace for reflections in the field of view during the experiment
+        single_material : bool
+            Flag if powder data are from a single material
+
         """
 
-        self._instrument = hb2b_instrument
-        if hidra_data is None:
-            self._engine = hidra_data2
+        self.engines = []
+
+        # define instrument setup
+        if hb2b_inst is None:
+            self._instrument = AnglerCameraDetectorGeometry(NUM_PIXEL_1D, NUM_PIXEL_1D,
+                                                            PIXEL_SIZE, PIXEL_SIZE,
+                                                            ARM_LENGTH, False)
         else:
-            self._engine = hidra_data
+            self._instrument = hb2b_inst
+
+        if pin_engine is not None:
+            dSpace = 3.59188696 * np.array([1./np.sqrt(11), 1./np.sqrt(12)])
+            self.engines.append([pin_engine, dSpace, True])
+
+        if powder_engine is not None:
+            if powder_lines is None:
+                raise RuntimeError('User must define a list of dspace')
+
+            self.engines.append([powder_engine, powder_lines, single_material])
+
+        self.monosetting, self.tth_ref = get_ref_flags(powder_engine, pin_engine)
 
         # calibration: numpy array. size as 7 for ... [6] for wave length
         self._calib = np.array(7 * [0], dtype=np.float)
         # calibration error: numpy array. size as 7 for ...
         self._caliberr = np.array(7 * [-1], dtype=np.float)
 
-        try:
-            self.monosetting = MonoSetting.getFromIndex(self._engine.read_log_value('MonoSetting')[0])
-        except KeyError:
-            self.monosetting = MonoSetting.getFromRotation(self._engine.read_log_value('mrot').value)
-
-        try:
-            self._engine.read_log_value('2theta')
-            self.tth_ref = '2theta'
-        except KeyError:
-            self.tth_ref = '2Theta'
-
-        self.tth_ref = '2thetaSetpoint'
+        # calibration starting point: numpy array. size as 7 for ...
+        self._calib_start = np.array(7 * [0], dtype=np.float)
 
         # Set wave length
         self._calib[6] = float(self.monosetting)
+        self._calib_start[6] = float(self.monosetting)
 
+        # Initalize calibration status to -1
         self._calibstatus = -1
 
         self.ReductionResults = {}
@@ -122,36 +191,7 @@ class PeakFitCalibration(object):
 
         self.UseLSQ = UseLSQ
 
-        if scheme == 0:
-            dSpace = np.array([4.156826, 2.93931985, 2.39994461, 2.078413, 1.8589891, 1.69701711, 1.46965993,
-                               1.38560867, 1.3145038, 1.2533302, 1.19997231, 1.1528961, 1.11095848, 1.0392065,
-                               1.00817839, 0.97977328, 0.95364129, 0.92949455, 0.9070938, 0.88623828, 0.84850855,
-                               0.8313652, 0.81522065, 0.79998154, 0.77190321, 0.75892912, 0.73482996])
-        else:
-            dSpace = 3.59188696 * np.array([1./np.sqrt(11), 1./np.sqrt(12)])
-
-        if hidra_data is None:
-            pin_engine = [hidra_data, [], False]
-        else:
-            pin_engine = [hidra_data, dSpace, False]
-
-        if hidra_data2 is None:
-            pow_engine = [hidra_data2, [], False]
-        else:
-            dSpace_P = np.array([1.433198898,
-                                 1.284838753,
-                                 1.245851,
-                                 1.170202,
-                                 1.112703,
-                                 1.062465303,
-                                 1.017233082,
-                                 1.01342466,
-                                 0.995231819,
-                                 0.906434572])
-
-            pow_engine = [hidra_data2, dSpace_P, True]
-
-        self.engines = [pin_engine, pow_engine]
+        self.refinement_summary = ''
 
         GlobalParameter.global_curr_sequence = 0
 
@@ -202,11 +242,6 @@ class PeakFitCalibration(object):
                                                            vanadium_counts_array=None)
 
         vec_2theta, vec_hist = data_set[:2]
-        # two_theta_step = (max_2theta - min_2theta) / num_bins
-        # pyrs_reducer.set_mask(roi_vec)
-        # vec_2theta, vec_hist = pyrs_reducer.
-        #          reduce_to_2theta_histogram((min_2theta, max_2theta), num_bins, roi_vec,
-        #          is_point_data=True, use_mantid_histogram=False)
 
         return vec_2theta, vec_hist
 
@@ -298,7 +333,6 @@ class PeakFitCalibration(object):
                 except ValueError:
                     error[i] = (0.00)
 
-            print([pfit, np.array(error), success])
             return [pfit, np.array(error), success]
 
         else:
@@ -335,13 +369,15 @@ class PeakFitCalibration(object):
         :return:
         """
 
+        pyrs_reducer = PyHB2BReduction(self._instrument, x[6])
+
         GlobalParameter.global_curr_sequence += 1
 
         residual = np.array([])
 
         for engine_setup in self.engines:
 
-            datasets, dSpace, Individual = engine_setup
+            datasets, dSpace, single_material = engine_setup
 
             self._engine = datasets
 
@@ -350,29 +386,29 @@ class PeakFitCalibration(object):
 
             if datasets is None:
                 stop = start
+                sub_runs = []
             elif stop == 0:
-                stop = self._engine.read_log_value(self.tth_ref).shape[0]
+                sub_runs = self._engine.get_sub_runs()
 
-            for i_tth in range(start, stop):
+            for i_tth in sub_runs:
                 if ReturnFit:
                     self.ReductionResults[i_tth] = {}
 
-                # load instrument: as it changes
-                pyrs_reducer = reduce_hb2b_pyrs.PyHB2BReduction(self._instrument, x[6])
-                pyrs_reducer.build_instrument_prototype(-1. * self._engine.read_log_value(self.tth_ref)[i_tth],
+                pyrs_reducer.build_instrument_prototype(-1. * self._engine.get_sample_log_value('2theta', i_tth),
                                                         self._instrument._arm_length,
                                                         x[0], x[1], x[2], x[3], x[4], x[5])
 
                 # Load raw counts
-                pyrs_reducer._detector_counts = self._engine.read_raw_counts(i_tth+1)
+                pyrs_reducer._detector_counts = self._engine.get_detector_counts(i_tth)
 
                 tths = pyrs_reducer._instrument.get_pixels_2theta(1)
-                mintth = np.min(tths) + .5
-                maxtth = np.max(tths) - .5
+
+                mintth = tths.min() + .5
+                maxtth = tths.max() - .5
 
                 Eta_val = pyrs_reducer.get_eta_value()
-                maxEta = np.max(Eta_val) - 2
-                minEta = np.min(Eta_val) + 2
+                maxEta = Eta_val.max() - 2
+                minEta = Eta_val.min() + 2
 
                 if roi_vec_set is None:
                     eta_roi_vec = np.arange(minEta, maxEta + 0.2, 2.0)
@@ -380,14 +416,15 @@ class PeakFitCalibration(object):
                     eta_roi_vec = np.array(roi_vec_set)
 
                 resq = []
-                if Individual:
-                    CalibPeaks = np.array([two_theta_calib[i_tth]])
-                else:
+
+                if single_material:
                     CalibPeaks = two_theta_calib[np.where((two_theta_calib > mintth+0.75) ==
                                                           (two_theta_calib < maxtth-0.75))[0]]
+                else:
+                    CalibPeaks = np.array([two_theta_calib[i_tth - 1]])
 
-                    if CalibPeaks.shape[0] > 0 and (not ConPeaks or self.singlepeak):
-                        CalibPeaks = np.array([CalibPeaks[0]])
+                if CalibPeaks.shape[0] > 0 and (not ConPeaks or self.singlepeak):
+                    CalibPeaks = np.array([CalibPeaks[0]])
 
                 for ipeak in range(len(CalibPeaks)):
                     Peaks = []
@@ -514,7 +551,6 @@ class PeakFitCalibration(object):
         paramVec = np.copy(self._calib)
         paramVec[i_index] = x[0]
 
-        print(x)
         residual = self.get_alignment_residual(paramVec, roi_vec_set, ConstrainPosition, False, start, stop)
 
         if ReturnScalar:
@@ -585,7 +621,6 @@ class PeakFitCalibration(object):
         :return:
         """
 
-        print(x)
         residual = self.get_alignment_residual(x, roi_vec_set, True, False, start, stop)
 
         if ReturnScalar:
@@ -628,7 +663,7 @@ class PeakFitCalibration(object):
 
         """
 
-        GlobalParameter.global_curr_sequence = 0
+#        GlobalParameter.global_curr_sequence = 0
 
         if initial_guess is None:
             initial_guess = self.get_wavelength()
@@ -719,8 +754,6 @@ class PeakFitCalibration(object):
         return
 
     def CalibrateShift(self, initalGuess=None, ConstrainPosition=True, start=0, stop=0):
-
-        GlobalParameter.global_curr_sequence = 0
 
         if initalGuess is None:
             initalGuess = self.get_shift()
@@ -927,6 +960,10 @@ class PeakFitCalibration(object):
             for i in range(len(keys)):
                 self._calib[i] = CalibData[keys[i]]
 
+        self._calib_start = np.copy(self._calib)
+
+        return
+
     # TODO - #86 - Clean up!
     def write_calibration(self, file_name=None):
         """Write the calibration to a Json file
@@ -963,3 +1000,40 @@ class PeakFitCalibration(object):
         # END-IF
 
         write_calibration_to_json(cal_shift, cal_shift_error, wl, wl_error, self._calibstatus, file_name)
+
+        return
+
+    def print_calibration(self, print_to_screen=True, refine_step=None):
+        """Print the calibration results to screen
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        None
+        """
+
+        res = self.singleEval()
+
+        keys = ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda']
+        print_string = '\n###########################################'
+        print_string += '\n########### Calibration Summary ###########'
+        print_string += '\n###########################################\n'
+        if refine_step is not None:
+            print_string += '\nrefined using {}\n'.format(refine_step)
+
+        print_string += 'Iterations     {}\n'.format(GlobalParameter.global_curr_sequence)
+        print_string += 'RMSE         = {}\n'.format(np.sqrt((res**2).sum() / res.shape[0]))
+        print_string += 'Residual Sum = {}\n'.format(np.sum(res))
+
+        print_string += "Parameter:  inital guess  refined value\n"
+        for i in range(len(keys)):
+            print_string += '{:10s}{:^15.5f}{:^14.5f}\n'.format(keys[i], self._calib_start[i], self._calib[i])
+
+        self.refinement_summary += print_string
+
+        if print_to_screen:
+            print(print_string)
+
+        return

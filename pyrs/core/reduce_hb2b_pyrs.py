@@ -148,18 +148,16 @@ class ResidualStressInstrument(object):
         # rotate detector (2theta) if it is not zero
         self.rotate_detector_2theta(two_theta)
 
-        # get 2theta and eta
-        self._calculate_pixel_2theta()
-        self._calculate_pixel_eta()
-
         return self._pixel_matrix
 
     def rotate_detector_2theta(self, det_2theta):
         """Rotate detector, i.e., change 2theta value of the detector
+
         Parameters
         ----------
         det_2theta : float
             detector's 2theta (motor) position in degree
+
         Returns
         -------
         numpy.ndarray
@@ -170,6 +168,10 @@ class ResidualStressInstrument(object):
             two_theta_rad = np.deg2rad(det_2theta)
             two_theta_rot_matrix = self._cal_rotation_matrix_y(two_theta_rad)
             self._pixel_matrix = self._rotate_detector(self._pixel_matrix, two_theta_rot_matrix)
+
+        # get 2theta and eta
+        self._calculate_pixel_2theta()
+        self._calculate_pixel_eta()
 
         return self._pixel_matrix
 
@@ -462,6 +464,17 @@ class PyHB2BReduction(object):
 
         self._instrument.build_instrument(two_theta=two_theta, l2=arm_length,
                                           instrument_calibration=calibration)
+
+        return
+
+    def rotate_two_theta(self, two_theta_0, two_theta_1):
+        """
+        build an instrument
+        :param two_theta_0: inital 2theta position of the detector panel.
+        :param two_theta_1: final 2theta position of the detector panel.
+        """
+        print('[INFO] Rotating: 2theta from {} to {}'.format(two_theta_0, two_theta_1))
+        self._instrument.rotate_detector(two_theta_1 - two_theta_0)
 
         return
 
