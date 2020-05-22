@@ -263,7 +263,7 @@ class PoleFigureCalculator(object):
         cg = np.cos(np.deg2rad(eta))
         ct = np.cos(np.deg2rad(theta))
 
-        h1 =  st*(sp*sc*sw+cp*cw) + ct*cg*sp*cc - ct*sg*(sp*sc*cw-cp*sw)
+        h1 = st*(sp*sc*sw+cp*cw) + ct*cg*sp*cc - ct*sg*(sp*sc*cw-cp*sw)
         h2 = -st*(cp*sc*sw-sp*cw) - ct*cg*cp*cc + ct*sg*(cp*sc*cw+sp*sw)
         # h3 = st*cc*sw - ct*sg*cc*cw - ct*cg*sc
         h_length = np.sqrt(np.square(h1) + np.square(h2))
