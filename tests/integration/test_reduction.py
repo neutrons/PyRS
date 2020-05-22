@@ -1,6 +1,6 @@
 from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import os
-from pyrs.core.nexus_conversion import NeXusConvertingApp
+from pyrs.core.nexus_conversion import NeXusConvertingApp, DEFAULT_KEEP_LOGS
 from pyrs.core.powder_pattern import ReductionApp
 from pyrs.dataobjects import HidraConstants
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
@@ -134,6 +134,22 @@ def test_reduce_data(mask_file_name, filtered_counts, histogram_counts):
     # reduce with PyRS/Python
     hidra_ws = convertNeXusToProject('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.ORIG.nxs.h5',
                                      projectfile=None, skippable=True, mask_file_name=mask_file_name)
+
+    # verify that sample logs exist
+    sample_log_names = hidra_ws.get_sample_log_names()
+    # missing fields for HB2B_1017: SampleDescription, SampleId, SampleName, sub-run, Wavelength
+    # scan_index is not exposed through this method
+    # this list is imported from pyrs/core/nexus_conversion.py
+    EXPECTED_NAMES = DEFAULT_KEEP_LOGS.copy()
+    EXPECTED_NAMES.remove('SampleDescription')
+    EXPECTED_NAMES.remove('SampleId')
+    EXPECTED_NAMES.remove('SampleName')
+    EXPECTED_NAMES.remove('scan_index')
+    EXPECTED_NAMES.remove('sub-run')
+    EXPECTED_NAMES.remove('Wavelength')
+    assert len(sample_log_names) == len(EXPECTED_NAMES), 'Same number of log names'
+    for name in EXPECTED_NAMES:  # check all expected names are found
+        assert name in sample_log_names
 
     # verify subruns
     np.testing.assert_equal(hidra_ws.get_sub_runs(), SUBRUNS)
