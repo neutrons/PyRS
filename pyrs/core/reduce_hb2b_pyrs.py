@@ -618,6 +618,17 @@ class PyHB2BReduction(object):
 
         return
 
+    def set_raw_counts(self, raw_count_vec):
+        """ Set experimental data (for a sub-run)
+        :param raw_count_vec: detector raw counts
+        :return:
+        """
+        checkdatatypes.check_numpy_arrays('Detector (raw) counts', [raw_count_vec], None, False)
+
+        self._detector_counts = raw_count_vec
+
+        return
+
     @staticmethod
     def histogram_by_numpy(pixel_2theta_array, pixel_count_array, two_theta_bins, is_point_data, vanadium_counts):
         """Histogram a data set (X, Y) by numpy histogram algorithm
