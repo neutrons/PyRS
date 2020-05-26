@@ -808,15 +808,18 @@ class HB2BReductionManager(object):
         Parameters
         ----------
         reduction_engine
-        instrument_2theta
-        det_counts_array
-        two_theta_range
-        num_bins
+        two_theta_range : (min_2theta, max_2theta)
+            min_2theta : float or None
+                min 2theta
+            max_2theta : float or None
+                max 2theta
+        num_bins : float or None
+            2theta resolution/step
         mask_array : numpy.ndarray or None
             mask: 1 to keep, 0 to mask (exclude)
-        vanadium_array
-        rebuild_instrument: bool
-            redefines pixel 2theta eta locations because instrument has moved
+        vanadium_counts : numpy.ndarray or None
+            detector pixels' vanadium for efficiency and normalization.
+            If vanadium duration is recorded, the vanadium counts are normalized by its duration in seconds
 
         Returns
         -------
