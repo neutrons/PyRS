@@ -529,6 +529,59 @@ class HB2BReductionManager(object):
 
         # END-FOR (sub run)
 
+    def setup_reduction_engine(self, workspace, sub_run, geometry_calibration, use_mantid_engine):
+        """Setup reduction engine to reduce data (workspace or vector) to 2-theta ~ I
+
+        Builds a new 2theta pixel map if none is present or if the detector has moved
+
+        Parameters
+        ----------
+        workspace : HidraWorkspace
+            workspace with detector counts and position
+        sub_run : integer
+            sub run number in workspace to reduce
+        geometry_calibration : instrument_geometry.AnglerCameraDetectorShift
+            instrument geometry to calculate diffraction pattern
+        use_mantid_engine : boolean
+            flag to use Mantid as reduction engine which is rarely used
+
+        Returns
+        -------
+        None
+
+        """
+
+        # Get the raw data
+        raw_count_vec = workspace.get_detector_counts(sub_run)
+
+        # Retrieve 2-theta and L2 from loaded workspace (DAS)
+        two_theta = workspace.get_detector_2theta(sub_run)
+        l2 = workspace.get_l2(sub_run)
+
+        if sub_run > 1:
+            rebuild_instrument = two_theta != workspace.get_detector_2theta(sub_run - 1)
+        else:
+            rebuild_instrument = True
+
+        # Convert 2-theta from DAS convention to Mantid/PyRS convention
+        mantid_two_theta = -two_theta
+
+        # Set up reduction engine and also
+        if not rebuild_instrument:
+            reduction_engine = self._last_reduction_engine
+            reduction_engine.set_raw_counts(raw_count_vec)
+        else:
+            if use_mantid_engine:
+                reduction_engine = reduce_hb2b_mtd.MantidHB2BReduction(self._mantid_idf)
+            else:
+                reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
+
+            # Set up reduction engine
+            reduction_engine.set_experimental_data(mantid_two_theta, l2, raw_count_vec)
+            reduction_engine.build_instrument(geometry_calibration)
+
+        return reduction_engine
+
     # NOTE: Refer to compare_reduction_engines_tst
     def reduce_sub_run_diffraction(self, workspace, sub_run, geometry_calibration, use_mantid_engine,
                                    mask_vec_tuple, min_2theta=None, max_2theta=None, num_bins=1000,
@@ -581,33 +634,15 @@ class HB2BReductionManager(object):
         None
 
         """
-        # Get the raw data
-        raw_count_vec = workspace.get_detector_counts(sub_run)
 
-        # Retrieve 2-theta and L2 from loaded workspace (DAS)
-        two_theta = workspace.get_detector_2theta(sub_run)
-        l2 = workspace.get_l2(sub_run)
-        # Convert 2-theta from DAS convention to Mantid/PyRS convention
-        # print('[INFO] User specified 2theta = {} is converted to Mantid 2theta = {}'
-        #       ''.format(two_theta, -two_theta))
-        mantid_two_theta = -two_theta
+        # Setup reduction enegine
+        reduction_engine = self.setup_reduction_engine(workspace, sub_run, geometry_calibration, use_mantid_engine)
 
         # Apply mask
         mask_id, mask_vec = mask_vec_tuple
 
-        # Set up reduction engine and also
-        if use_mantid_engine:
-            reduction_engine = reduce_hb2b_mtd.MantidHB2BReduction(self._mantid_idf)
-        else:
-            reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
-
-        # Set up reduction engine
-        reduction_engine.set_experimental_data(mantid_two_theta, l2, raw_count_vec)
-        reduction_engine.build_instrument(geometry_calibration)
-
         # Histogram
-        bin_centers, hist, variances = self.convert_counts_to_diffraction(reduction_engine, l2,
-                                                                          geometry_calibration,
+        bin_centers, hist, variances = self.convert_counts_to_diffraction(reduction_engine,
                                                                           (min_2theta, max_2theta),
                                                                           num_bins, mask_vec, vanadium_counts)
 
@@ -724,29 +759,12 @@ class HB2BReductionManager(object):
         None
 
         """
-        # Get the raw data
-        raw_count_vec = workspace.get_detector_counts(sub_run)
 
-        # Retrieve 2-theta and L2 from loaded workspace (DAS)
-        two_theta = workspace.get_detector_2theta(sub_run)
-        l2 = workspace.get_l2(sub_run)
-        # Convert 2-theta from DAS convention to Mantid/PyRS convention
-        # print('[INFO] User specified 2theta = {} is converted to Mantid 2theta = {}'
-        #       ''.format(two_theta, -two_theta))
-        mantid_two_theta = -two_theta
+        # Setup reduction enegine
+        reduction_engine = self.setup_reduction_engine(workspace, sub_run, geometry_calibration, use_mantid_engine)
 
         # Apply mask
         mask_id, mask_vec = mask_vec_tuple
-
-        # Set up reduction engine and also
-        if use_mantid_engine:
-            reduction_engine = reduce_hb2b_mtd.MantidHB2BReduction(self._mantid_idf)
-        else:
-            reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
-
-        # Set up reduction engine
-        reduction_engine.set_experimental_data(mantid_two_theta, l2, raw_count_vec)
-        reduction_engine.build_instrument(geometry_calibration)
 
         # Get vector of pixel eta positions
         eta_vec = reduction_engine.get_eta_value()
@@ -766,8 +784,7 @@ class HB2BReductionManager(object):
             eta_mask[mask_vec] = 1
 
             # Histogram data
-            bin_centers, hist, variances = self.convert_counts_to_diffraction(reduction_engine, l2,
-                                                                              geometry_calibration,
+            bin_centers, hist, variances = self.convert_counts_to_diffraction(reduction_engine,
                                                                               (min_2theta, max_2theta),
                                                                               num_bins, eta_mask, vanadium_counts)
 
@@ -785,22 +802,26 @@ class HB2BReductionManager(object):
 
         self._last_reduction_engine = reduction_engine
 
-    def convert_counts_to_diffraction(self, reduction_engine, l2, geometry_calibration,
+    def convert_counts_to_diffraction(self, reduction_engine,
                                       two_theta_range, num_bins, mask_array, vanadium_array):
+
         """Histogram detector counts with detectors' 2theta angle
 
         Parameters
         ----------
         reduction_engine
-        l2
-        instrument_2theta
-        geometry_calibration
-        det_counts_array
-        two_theta_range
-        num_bins
+        two_theta_range : (min_2theta, max_2theta)
+            min_2theta : float or None
+                min 2theta
+            max_2theta : float or None
+                max 2theta
+        num_bins : float or None
+            2theta resolution/step
         mask_array : numpy.ndarray or None
             mask: 1 to keep, 0 to mask (exclude)
-        vanadium_array
+        vanadium_counts : numpy.ndarray or None
+            detector pixels' vanadium for efficiency and normalization.
+            If vanadium duration is recorded, the vanadium counts are normalized by its duration in seconds
 
         Returns
         -------
@@ -809,10 +830,10 @@ class HB2BReductionManager(object):
 
         """
 
-        # Get the 2theta values for all pixels
-
         # Default minimum and maximum 2theta are related with
         min_2theta, max_2theta = two_theta_range
+
+        # Get the 2theta values for all pixels
         pixel_2theta_array = reduction_engine.instrument.get_pixels_2theta(1)
 
         bin_boundaries_2theta = self.generate_2theta_histogram_vector(min_2theta, num_bins, max_2theta,
