@@ -1,8 +1,9 @@
 import os
 from qtpy.QtWidgets import QVBoxLayout, QFileDialog, QMainWindow
-from qtpy import QtGui, PYQT4, PYQT5
+from qtpy import QtGui
 
 from pyrs.utilities import load_ui
+from pyrs.icons import icons_rc5 as icons_rc  # noqa: F401
 from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.diffdataviews import GeneralDiffDataView
 from pyrs.interface.ui.mplgraphicsviewcontourplot import MplGraphicsViewContourPlot
@@ -16,13 +17,6 @@ from pyrs.interface.peak_fitting.fit import Fit
 from pyrs.interface.peak_fitting.fit_table import FitTable
 from pyrs.interface.peak_fitting.export import ExportCSV
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
-
-if PYQT5:
-    from pyrs.icons import icons_rc5 as icons_rc  # noqa: F401
-elif PYQT4:
-    from pyrs.icons import icons_rc4 as icons_rc  # noqa: F401
-else:
-    raise RuntimeError('Do not know pyqt version')
 
 VERTICAL_SPLITTER = """QSplitter::handle {image: url(':/fitting/vertical_splitter.png'); }"""
 VERTICAL_SPLITTER_SHORT = """QSplitter::handle {image: url(':/fitting/vertical_splitter_short.png'); }"""
