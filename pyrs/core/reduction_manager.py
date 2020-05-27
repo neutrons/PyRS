@@ -778,6 +778,7 @@ class HB2BReductionManager(object):
 
         for eta_cent in eta_roi_vec:
             # define mask to isolate narrow eta wedge
+            # here a value of zero means do not use
             eta_mask = np.ones_like(eta_vec)
             eta_mask[eta_vec > (eta_cent + eta_step / 2.)] = 0
             eta_mask[eta_vec < (eta_cent - eta_step / 2.)] = 0
