@@ -146,7 +146,7 @@ def test_powder_pattern_engine(project_file_name, mask_file_name, gold_file):
 
     # Reduce raw counts
     pyrs_service.reduce_diffraction_data('test_powder', False, 1000,
-                                         use_pyrs_engine=True, sub_run_list=None,
+                                         sub_run_list=None,
                                          mask=mask_file_name, mask_id=None,
                                          vanadium_counts=None, normalize_by_duration=False)
 
@@ -210,7 +210,7 @@ def test_powder_pattern_service(project_file_name, mask_file_name, gold_file):
 
     # Reduce raw counts
     pyrs_service.reduce_diffraction_data('test_powder', False, 1000,
-                                         use_pyrs_engine=True, sub_run_list=None,
+                                         sub_run_list=None,
                                          mask=mask_file_name, mask_id=None,
                                          vanadium_counts=None, normalize_by_duration=False)
 

@@ -72,7 +72,7 @@ def test_texture_reduction(nexusfile, mask_file_name, gold_file):
     hidra_ws = converter.convert()
 
     # Start reduction service
-    reducer = ReductionApp(bool('pyrs' == 'mantid'))
+    reducer = ReductionApp()
     reducer.load_hidra_workspace(hidra_ws)
 
     # Reduce raw counts

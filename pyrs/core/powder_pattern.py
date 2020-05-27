@@ -1,5 +1,5 @@
 from pyrs.core import reduction_manager
-from pyrs.utilities import checkdatatypes
+# from pyrs.utilities import checkdatatypes
 from pyrs.core import mask_util
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 from pyrs.utilities import calibration_file_io
@@ -22,11 +22,10 @@ class ReductionApp(object):
     Data reduction application
     """
 
-    def __init__(self, use_mantid_engine=False):
+    def __init__(self):
         """
         initialization
         """
-        self._use_mantid_engine = use_mantid_engine
         self._reduction_manager = reduction_manager.HB2BReductionManager()
         self._hydra_ws = None   # HidraWorkspace used for reduction
 
@@ -53,36 +52,6 @@ class ReductionApp(object):
             geometry_config = calibration_file_io.import_calibration_ascii_file(configuration_file)
 
         return geometry_config
-
-    @property
-    def use_mantid_engine(self):
-        """Status to use Mantid as reduction engine to convert counts to diffraction pattern
-
-        Returns
-        -------
-        bool
-            True to indicate the reduction is done by Mantid algorithm and instrument geometry
-
-        """
-        return self._use_mantid_engine
-
-    @use_mantid_engine.setter
-    def use_mantid_engine(self, value):
-        """Set flag to use mantid reduction engine (True) or PyRS reduction engine (False)
-
-        Parameters
-        ----------
-        value
-
-        Returns
-        -------
-
-        """
-        checkdatatypes.check_bool_variable('Flag to use Mantid as reduction engine', value)
-
-        self._use_mantid_engine = value
-
-        return
 
     def get_diffraction_data(self, sub_run, mask_id=None):
         """Get 2theta diffraction data
@@ -198,7 +167,6 @@ class ReductionApp(object):
         self._reduction_manager.reduce_diffraction_data(self._session,
                                                         apply_calibrated_geometry=geometry_calibration,
                                                         num_bins=num_bins,
-                                                        use_pyrs_engine=not self._use_mantid_engine,
                                                         sub_run_list=sub_runs,
                                                         mask=mask,
                                                         mask_id=mask_id,
