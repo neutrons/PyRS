@@ -784,6 +784,7 @@ class HB2BReductionManager(object):
             eta_mask[eta_vec < (eta_cent - eta_step / 2.)] = 0
             eta_mask[mask_vec] = 0
 
+            # in mantid a value of one means do not use
             # invert eta_mask if using mantid engine
             if use_mantid_engine:
                 eta_mask = (~eta_mask.astype(bool)).astype(np.int)
