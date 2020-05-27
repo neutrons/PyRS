@@ -47,8 +47,10 @@ def parse_gold_file(file_name):
 
 
 @pytest.mark.parametrize('nexusfile, mask_file_name, gold_file',
-                         [('data/HB2B_1118.nxs.h5', 'data/HB2B_Mask_12-18-19.xml', 'data/HB2B_1118_texture.h5')],
-                         ids=['HB2B_1118_Texture'])
+                         [('data/HB2B_1118.nxs.h5', 'data/HB2B_Mask_12-18-19.xml', 'data/HB2B_1118_texture.h5'),
+                          ('/HFIR/HB2B/IPTS-22331/nexus/HB2B_1428.nxs.h5', 'data/HB2B_Mask_12-18-19.xml',
+                           'data/HB2B_1428_texture.h5')],
+                         ids=['HB2B_1118_Texture', 'HB2B_1428_Texture'])
 def test_texture_reduction(nexusfile, mask_file_name, gold_file):
     """Test the powder pattern calculator (service) with HB2B-specific reduction routine
 
