@@ -16,4 +16,4 @@ $MANTIDPYTHON setup.py build
 
 # let people know what is going on and launch it
 echo "Using \"$(which $MANTIDPYTHON)\""
-PYTHONPATH=`pwd`/build/lib $MANTIDPYTHON --classic `pwd`/build/scripts-2.7/pyrsplot
+QT_API=pyqt5 PYTHONPATH=`pwd`/build/lib $MANTIDPYTHON --classic `pwd`/build/scripts-2.7/pyrsplot
