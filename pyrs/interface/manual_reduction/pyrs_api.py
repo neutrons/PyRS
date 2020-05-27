@@ -343,7 +343,7 @@ def reduce_hidra_workflow(nexus, output_dir, progressbar, instrument=None, calib
     logger.notice('Adding powder patterns to Hidra Workspace {}'.format(hidra_ws))
 
     # Initialize a reducer
-    reducer = ReductionApp(False)
+    reducer = ReductionApp()
     # add workspace to reducer
     reducer.load_hidra_workspace(hidra_ws)
     # reduce

@@ -160,7 +160,7 @@ def test_reduce_data(mask_file_name, filtered_counts, histogram_counts):
         assert np.sum(counts_array) == total_counts, 'mismatch in subrun={} for filtered data'.format(sub_run)
 
     # Test reduction to diffraction pattern
-    reducer = ReductionApp(False)
+    reducer = ReductionApp()
     reducer.load_hidra_workspace(hidra_ws)
     reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None)
 
