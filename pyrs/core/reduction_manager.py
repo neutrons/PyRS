@@ -767,11 +767,6 @@ class HB2BReductionManager(object):
             eta_mask[eta_vec < (eta_cent - eta_step / 2.)] = 0
             eta_mask[mask_vec] = 0
 
-            # in mantid a value of one means do not use
-            # invert eta_mask if using mantid engine
-            if use_mantid_engine:
-                eta_mask = (~eta_mask.astype(bool)).astype(np.int)
-
             # Histogram data
             bin_centers, hist, variances = self.convert_counts_to_diffraction(reduction_engine,
                                                                               (min_2theta, max_2theta),
