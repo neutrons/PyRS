@@ -61,11 +61,11 @@ def convertNeXusToProject(nexusfile, projectfile, skippable, mask_file_name=None
     return hidra_ws
 
 
-def addPowderToProject(projectfile, use_mantid_engine=False, calibration_file=None):
+def addPowderToProject(projectfile, calibration_file=None):
     checkFileExists(projectfile, feedback='assert')
 
     # extract the powder patterns and add them to the project file
-    reducer = ReductionApp(use_mantid_engine=use_mantid_engine)
+    reducer = ReductionApp()
     # TODO should add versions for testing arguments: instrument_file, calibration_file, mask, sub_runs
     reducer.load_project_file(projectfile)
     reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=calibration_file, mask=None)
@@ -115,7 +115,7 @@ def test_nexus_to_project(nexusfile, projectfile):
         np.testing.assert_allclose(durations, [10, 5, 10, 17], atol=.1)
 
     # extract the powder patterns and add them to the project file
-    addPowderToProject(projectfile, use_mantid_engine=False)
+    addPowderToProject(projectfile)
 
     # cleanup
     os.remove(projectfile)
@@ -160,7 +160,7 @@ def test_reduce_data(mask_file_name, filtered_counts, histogram_counts):
         assert np.sum(counts_array) == total_counts, 'mismatch in subrun={} for filtered data'.format(sub_run)
 
     # Test reduction to diffraction pattern
-    reducer = ReductionApp(False)
+    reducer = ReductionApp()
     reducer.load_hidra_workspace(hidra_ws)
     reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None)
 
@@ -223,7 +223,7 @@ def test_apply_vanadium(project_file, van_project_file, target_project_file):
 
     # Load data
     # extract the powder patterns and add them to the project file
-    reducer = ReductionApp(use_mantid_engine=False)
+    reducer = ReductionApp()
     # instrument_file, calibration_file, mask, sub_runs
     reducer.load_project_file(project_file)
     reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None,
@@ -257,7 +257,7 @@ def test_apply_mantid_mask():
     assert mask_array is None, 'There shall not be any mask'
 
     # Convert the nexus file to a project file and do the "simple" checks
-    no_mask_reducer = ReductionApp(use_mantid_engine=False)
+    no_mask_reducer = ReductionApp()
     no_mask_reducer.load_project_file(no_mask_project_file)
     no_mask_reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None,
                                 van_file=None, num_bins=950)
@@ -275,7 +275,7 @@ def test_apply_mantid_mask():
     assert np.where(mask_array == 0)[0].shape[0] == 135602, 'Mask shall have 135602 pixels masked but not {}' \
                                                             ''.format(np.where(mask_array == 0)[0].shape[0])
 
-    reducer = ReductionApp(use_mantid_engine=False)
+    reducer = ReductionApp()
     reducer.load_project_file(project_file)
     # convert to diffraction pattern with mask
     reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=mask_array,

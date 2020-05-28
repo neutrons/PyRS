@@ -5,7 +5,6 @@ import numpy as np
 from pyrs.core import workspaces
 from pyrs.core import instrument_geometry
 from pyrs.core import mask_util
-from pyrs.core import reduce_hb2b_mtd
 from pyrs.core import reduce_hb2b_pyrs
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.dataobjects import HidraConstants
@@ -37,9 +36,6 @@ class HB2BReductionManager(object):
 
         # Reduction engine
         self._last_reduction_engine = None
-
-        # IDF
-        self._mantid_idf = None
 
         # Vanadium
         self._van_ws = None
@@ -412,7 +408,7 @@ class HB2BReductionManager(object):
 
         return van_counts_array
 
-    def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, num_bins, use_pyrs_engine, sub_run_list,
+    def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, num_bins, sub_run_list,
                                 mask, mask_id, vanadium_counts=None, van_duration=None, normalize_by_duration=True,
                                 eta_step=None, eta_min=None, eta_max=None):
         """Reduce ALL sub runs in a workspace from detector counts to diffraction data
@@ -425,8 +421,6 @@ class HB2BReductionManager(object):
                                           (2) True (use the one in workspace) (3) False (no calibration)
         num_bins : int
             number of bins
-        use_pyrs_engine : bool
-            flag to use PyRS engine; otherwise, use Mantid as diffraction pattern reduction engine
         mask : numpy.ndarray
             Mask
         mask_id : str or None
@@ -506,7 +500,6 @@ class HB2BReductionManager(object):
             if eta_step is None:
                 # reduce sub run
                 self.reduce_sub_run_diffraction(workspace, sub_run, det_pos_shift,
-                                                use_mantid_engine=not use_pyrs_engine,
                                                 mask_vec_tuple=(mask_id, mask_vec),
                                                 num_bins=num_bins,
                                                 sub_run_duration=duration_i,
@@ -515,7 +508,6 @@ class HB2BReductionManager(object):
             else:
                 # reduce sub run texture
                 self.reduce_sub_run_texture(workspace, sub_run, det_pos_shift,
-                                            use_mantid_engine=not use_pyrs_engine,
                                             mask_vec_tuple=(mask_id, mask_vec),
                                             num_bins=num_bins,
                                             sub_run_duration=duration_i,
@@ -529,7 +521,7 @@ class HB2BReductionManager(object):
 
         # END-FOR (sub run)
 
-    def setup_reduction_engine(self, workspace, sub_run, geometry_calibration, use_mantid_engine):
+    def setup_reduction_engine(self, workspace, sub_run, geometry_calibration):
         """Setup reduction engine to reduce data (workspace or vector) to 2-theta ~ I
 
         Builds a new 2theta pixel map if none is present or if the detector has moved
@@ -542,8 +534,6 @@ class HB2BReductionManager(object):
             sub run number in workspace to reduce
         geometry_calibration : instrument_geometry.AnglerCameraDetectorShift
             instrument geometry to calculate diffraction pattern
-        use_mantid_engine : boolean
-            flag to use Mantid as reduction engine which is rarely used
 
         Returns
         -------
@@ -571,10 +561,7 @@ class HB2BReductionManager(object):
             reduction_engine = self._last_reduction_engine
             reduction_engine.set_raw_counts(raw_count_vec)
         else:
-            if use_mantid_engine:
-                reduction_engine = reduce_hb2b_mtd.MantidHB2BReduction(self._mantid_idf)
-            else:
-                reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
+            reduction_engine = reduce_hb2b_pyrs.PyHB2BReduction(workspace.get_instrument_setup())
 
             # Set up reduction engine
             reduction_engine.set_experimental_data(mantid_two_theta, l2, raw_count_vec)
@@ -583,7 +570,7 @@ class HB2BReductionManager(object):
         return reduction_engine
 
     # NOTE: Refer to compare_reduction_engines_tst
-    def reduce_sub_run_diffraction(self, workspace, sub_run, geometry_calibration, use_mantid_engine,
+    def reduce_sub_run_diffraction(self, workspace, sub_run, geometry_calibration,
                                    mask_vec_tuple, min_2theta=None, max_2theta=None, num_bins=1000,
                                    sub_run_duration=None, vanadium_counts=None, van_duration=None):
         """Reduce import data (workspace or vector) to 2-theta ~ I
@@ -610,8 +597,6 @@ class HB2BReductionManager(object):
             sub run number in workspace to reduce
         geometry_calibration : instrument_geometry.AnglerCameraDetectorShift
             instrument geometry to calculate diffraction pattern
-        use_mantid_engine : boolean
-            flag to use Mantid as reduction engine which is rarely used
         mask_vec_tuple : tuple (str, numpy.ndarray)
             mask ID and 1D array for masking (1 to keep, 0 to mask out)
         min_2theta : float or None
@@ -636,7 +621,7 @@ class HB2BReductionManager(object):
         """
 
         # Setup reduction enegine
-        reduction_engine = self.setup_reduction_engine(workspace, sub_run, geometry_calibration, use_mantid_engine)
+        reduction_engine = self.setup_reduction_engine(workspace, sub_run, geometry_calibration)
 
         # Apply mask
         mask_id, mask_vec = mask_vec_tuple
@@ -700,7 +685,7 @@ class HB2BReductionManager(object):
         return np.concatenate((Upper, Lower))
 
     # NOTE: Refer to compare_reduction_engines_tst
-    def reduce_sub_run_texture(self, workspace, sub_run, geometry_calibration, use_mantid_engine,
+    def reduce_sub_run_texture(self, workspace, sub_run, geometry_calibration,
                                mask_vec_tuple, min_2theta=None, max_2theta=None, num_bins=1000,
                                sub_run_duration=None, vanadium_counts=None, van_duration=None,
                                eta_step=None, eta_min=None, eta_max=None):
@@ -729,8 +714,6 @@ class HB2BReductionManager(object):
             sub run number in workspace to reduce
         geometry_calibration : instrument_geometry.AnglerCameraDetectorShift
             instrument geometry to calculate diffraction pattern
-        use_mantid_engine : boolean
-            flag to use Mantid as reduction engine which is rarely used
         mask_vec_tuple : tuple (str, numpy.ndarray)
             mask ID and 1D array for masking (1 to keep, 0 to mask out)
         min_2theta : float or None
@@ -761,7 +744,7 @@ class HB2BReductionManager(object):
         """
 
         # Setup reduction enegine
-        reduction_engine = self.setup_reduction_engine(workspace, sub_run, geometry_calibration, use_mantid_engine)
+        reduction_engine = self.setup_reduction_engine(workspace, sub_run, geometry_calibration)
 
         # Apply mask
         mask_id, mask_vec = mask_vec_tuple
@@ -942,18 +925,6 @@ class HB2BReductionManager(object):
 
         # Close
         project_file.save()
-
-    def set_mantid_idf(self, idf_name):
-        """
-        set the IDF file to reduction engine
-        :param idf_name:
-        :return:
-        """
-        checkdatatypes.check_file_name(idf_name, True, False, False, 'Mantid IDF file')
-        if not idf_name.lower().endswith('.xml'):
-            raise RuntimeError('Mantid IDF {} must end with .xml'.format(idf_name))
-
-        self._mantid_idf = idf_name
 
     def set_output_dir(self, output_dir):
         """
