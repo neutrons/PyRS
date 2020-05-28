@@ -761,10 +761,16 @@ class HB2BReductionManager(object):
 
         for eta_cent in eta_roi_vec:
             # define mask to isolate narrow eta wedge
-            eta_mask = np.zeros_like(eta_vec)
-            eta_mask[eta_vec > (eta_cent + eta_step / 2.)] = 1
-            eta_mask[eta_vec < (eta_cent - eta_step / 2.)] = 1
-            eta_mask[mask_vec] = 1
+            # here a value of zero means do not use
+            eta_mask = np.ones_like(eta_vec)
+            eta_mask[eta_vec > (eta_cent + eta_step / 2.)] = 0
+            eta_mask[eta_vec < (eta_cent - eta_step / 2.)] = 0
+            eta_mask[mask_vec] = 0
+
+            # in mantid a value of one means do not use
+            # invert eta_mask if using mantid engine
+            if use_mantid_engine:
+                eta_mask = (~eta_mask.astype(bool)).astype(np.int)
 
             # Histogram data
             bin_centers, hist, variances = self.convert_counts_to_diffraction(reduction_engine,
