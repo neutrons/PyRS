@@ -3,8 +3,9 @@ import os
 from qtpy.uic import loadUi
 from pyrs.interface import designer
 from .file_util import *
+from .convertdatatypes import *
 
-__all__ = ['load_ui'] + file_util.__all__
+__all__ = ['load_ui'] + file_util.__all__ + convertdatatypes.__all__
 
 
 def load_ui(ui_filename, baseinstance):
