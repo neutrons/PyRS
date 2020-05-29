@@ -4,7 +4,7 @@ import h5py
 from mantid.kernel import Logger
 import numpy
 import os
-from pyrs.utilities import checkdatatypes
+from pyrs.utilities import checkdatatypes, to_float
 from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSetup
 from pyrs.peaks import PeakCollection
 from pyrs.dataobjects import HidraConstants, SampleLogs
@@ -760,7 +760,7 @@ class HidraProjectFile(object):
         :param wave_length: wave length in A
         :return: None
         """
-        checkdatatypes.check_float_variable('Wave length', wave_length, (0, 1000))
+        wave_length = to_float('Wave length', wave_length, min_value=0, max_value=1000)
 
         # Create 'monochromator setting' node if it does not exist
         if HidraConstants.MONO not in list(self._project_h5[HidraConstants.INSTRUMENT].keys()):
