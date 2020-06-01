@@ -3,7 +3,7 @@ import time
 import os
 from pyrs.calibration import peakfit_calibration
 from pyrs.core.nexus_conversion import NeXusConvertingApp
-from pyrs.core import MonoSetting
+from pyrs.core import MonoSetting  # type: ignore
 
 # Define Default Material
 _Materials = {}
