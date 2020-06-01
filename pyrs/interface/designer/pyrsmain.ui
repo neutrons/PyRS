@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>543</width>
-    <height>379</height>
+    <width>271</width>
+    <height>220</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -15,50 +15,10 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
-    <item row="11" column="0">
-     <spacer name="verticalSpacer_5">
-      <property name="orientation">
-       <enum>Qt::Vertical</enum>
-      </property>
-      <property name="sizeType">
-       <enum>QSizePolicy::Preferred</enum>
-      </property>
-      <property name="sizeHint" stdset="0">
-       <size>
-        <width>20</width>
-        <height>40</height>
-       </size>
-      </property>
-     </spacer>
-    </item>
-    <item row="6" column="0">
-     <widget class="QPushButton" name="pushButton_launchStrainStressCalculation">
+    <item row="2" column="0">
+     <widget class="QPushButton" name="pushButton_fitPeaks">
       <property name="text">
-       <string>Strain/Stress Calculation</string>
-      </property>
-     </widget>
-    </item>
-    <item row="8" column="0">
-     <widget class="QPushButton" name="pushButton_launchDebugger">
-      <property name="text">
-       <string>Debugger</string>
-      </property>
-     </widget>
-    </item>
-    <item row="0" column="0">
-     <widget class="QPushButton" name="pushButton_manualReduction">
-      <property name="text">
-       <string>Data Manual Reduction</string>
-      </property>
-     </widget>
-    </item>
-    <item row="12" column="0">
-     <widget class="QCheckBox" name="checkBox_keepWindowOpen">
-      <property name="toolTip">
-       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If being checked, then after launching a sub-module, this main window will still be shown.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-      </property>
-      <property name="text">
-       <string>Keep Window Open</string>
+       <string>Peak Fitting</string>
       </property>
      </widget>
     </item>
@@ -78,36 +38,6 @@
       </property>
      </spacer>
     </item>
-    <item row="4" column="0">
-     <widget class="QPushButton" name="pushButton_launchTextureAnalysis">
-      <property name="text">
-       <string>Texture Analysis</string>
-      </property>
-     </widget>
-    </item>
-    <item row="5" column="0">
-     <spacer name="verticalSpacer_3">
-      <property name="orientation">
-       <enum>Qt::Vertical</enum>
-      </property>
-      <property name="sizeType">
-       <enum>QSizePolicy::Ignored</enum>
-      </property>
-      <property name="sizeHint" stdset="0">
-       <size>
-        <width>20</width>
-        <height>40</height>
-       </size>
-      </property>
-     </spacer>
-    </item>
-    <item row="2" column="0">
-     <widget class="QPushButton" name="pushButton_fitPeaks">
-      <property name="text">
-       <string>Peak Fitting</string>
-      </property>
-     </widget>
-    </item>
     <item row="3" column="0">
      <spacer name="verticalSpacer_2">
       <property name="orientation">
@@ -124,44 +54,22 @@
       </property>
      </spacer>
     </item>
-    <item row="7" column="0">
-     <spacer name="verticalSpacer_4">
-      <property name="orientation">
-       <enum>Qt::Vertical</enum>
-      </property>
-      <property name="sizeType">
-       <enum>QSizePolicy::Ignored</enum>
-      </property>
-      <property name="sizeHint" stdset="0">
-       <size>
-        <width>20</width>
-        <height>40</height>
-       </size>
-      </property>
-     </spacer>
-    </item>
-    <item row="10" column="0">
-     <widget class="QPushButton" name="pushButton_calibration">
+    <item row="0" column="0">
+     <widget class="QPushButton" name="pushButton_manualReduction">
       <property name="text">
-       <string>Instrument Geometry Calibration</string>
+       <string>Data Manual Reduction</string>
       </property>
      </widget>
     </item>
-    <item row="9" column="0">
-     <spacer name="verticalSpacer_6">
-      <property name="orientation">
-       <enum>Qt::Vertical</enum>
+    <item row="7" column="0">
+     <widget class="QCheckBox" name="checkBox_keepWindowOpen">
+      <property name="toolTip">
+       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If being checked, then after launching a sub-module, this main window will still be shown.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
       </property>
-      <property name="sizeType">
-       <enum>QSizePolicy::Ignored</enum>
+      <property name="text">
+       <string>Keep Window Open</string>
       </property>
-      <property name="sizeHint" stdset="0">
-       <size>
-        <width>20</width>
-        <height>40</height>
-       </size>
-      </property>
-     </spacer>
+     </widget>
     </item>
    </layout>
   </widget>
@@ -170,8 +78,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>543</width>
-     <height>25</height>
+     <width>271</width>
+     <height>20</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

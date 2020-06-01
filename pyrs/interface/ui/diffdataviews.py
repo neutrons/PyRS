@@ -1,62 +1,8 @@
 from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from .mplgraphicsview1d import MplGraphicsView1D
 from .mplgraphicsview2d import MplGraphicsView2D
-from .mplgraphicsviewpolar import MplGraphicsPolarView
 import numpy as np
-from . import mplgraphicsviewpolar
-from . import slice_view_widget
 from .mplfitplottingwidget import MplFitPlottingWidget
-
-
-class Diffraction2DPlot(MplGraphicsPolarView):
-    """
-    General 2D plot view for diffraction data set
-    """
-
-    def __init__(self, parent):
-        """
-        initialization
-        :param parent:
-        """
-        super(Diffraction2DPlot, self).__init__(parent)
-
-        return
-
-    def plot_pole_figure(self, vec_alpha, vec_beta, vec_intensity):
-        """
-        plot pole figure in contour
-        :param vec_alpha:
-        :param vec_beta:
-        :param vec_intensity:
-        :return:
-        """
-        # check inputs which are only mattering here
-        mplgraphicsviewpolar.check_1D_array(vec_alpha)
-
-        # clear the image
-        print('[DB...BAT] Plot pole figure for {0} data points!'.format(len(vec_alpha)))
-        # self._myCanvas.axes.clear()
-
-        # project vector to XY plane, i.e., convert alpha (phi) azimuthal angle to r
-        vec_r = np.tan(vec_alpha * np.pi / 360.)  # tan(alpha/2)
-        vec_intensity = vec_intensity
-
-        #     def plot_contour(self, vec_theta, vec_r, vec_values, max_r, r_resolution, theta_resolution):
-        # if True:
-        #     # debug: BAD Move: the canvas is in polar coordinate style
-        #     self._myCanvas.plot_polar_xy(vec_beta, vec_r)
-        # else:
-        # plot contour
-        # TODO - make the grid of r converted from linear grid on alpha
-        init_value = np.nan   # np.nan
-        self._myCanvas.plot_contour(vec_theta=vec_beta, vec_r=vec_r, vec_values=vec_intensity, max_r=90.,
-                                    r_resolution=5., theta_resolution=5., init_value=init_value)
-
-        # TODO - convert (vec_r, vec_beta) to X, Y and do a scattering in another
-
-        self.show()
-
-        return
 
 
 class DetectorView(MplGraphicsView2D):
@@ -119,28 +65,6 @@ class DetectorView(MplGraphicsView2D):
         self.add_2d_plot(np.rot90(counts2d), 0, image_size, 0, image_size)
 
         return
-
-
-class DiffContourView(MplGraphicsView2D):
-    """
-    Diffraction contour viewer
-    """
-
-    def __init__(self, parent):
-        """
-        initialization
-        :param parent:
-        """
-        super(DiffContourView, self).__init__(parent)
-
-        return
-
-    def plot_data_set(self, data_set):
-        """
-
-        :param data_set:
-        :return:
-        """
 
 
 class GeneralDiffDataView(MplGraphicsView1D):
@@ -411,50 +335,3 @@ class PeakFitSetupView(MplFitPlottingWidget):
 
         # call to clean lines
         self.clear_canvas()
-
-
-class SampleSliceView(slice_view_widget.SliceViewWidget):
-    """
-    2D contour view for sliced sample
-    """
-
-    def __init__(self, parent):
-        """
-        initialization
-        :param parent:
-        """
-        super(SampleSliceView, self).__init__(parent)
-
-        return
-
-
-# TODO - TONIGHT 4 - Change to 1 Figure with N patterns
-# TODO - cont.     - Keep ratio comparable!
-class GeomCalibrationView(MplGraphicsView1D):
-    """
-    """
-    LineColor = ['black', 'red', 'blue', 'orange', 'grey']
-
-    def __init__(self, parent):
-        MplGraphicsView1D.__init__(self, parent, row_size=1, col_size=1, tool_bar=True)
-
-        self._mask_line_dict = dict()
-
-        return
-
-    def plot_data(self, vec_x, vec_y, mask_id):
-
-        line_id = self.add_plot(vec_x, vec_y, row_index=0, col_index=0,
-                                color=self.LineColor[mask_id], x_label='2theta',
-                                label='Mask {}'.format(mask_id), show_legend=True)
-        if mask_id in self._mask_line_dict:
-            self.remove_line(0, 0, self._mask_line_dict[mask_id])
-        self._mask_line_dict[mask_id] = line_id
-
-        return
-
-    def set_number_rois(self, num_rois):
-        self.set_subplots(num_rois, 1)
-
-    # TODO - TONIGHT 3 - Add simple vertical indicator to this class
-    # TODO - TONIGHT 4 - Add global control including X/Y range, clear, home,
