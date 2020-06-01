@@ -4,7 +4,8 @@ import h5py
 from mantid.kernel import Logger
 import numpy
 import os
-from pyrs.utilities import checkdatatypes, to_float  # type: ignore
+from pyrs.utilities import checkdatatypes
+from pyrs.utilities.convertdatatypes import to_float
 from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSetup
 from pyrs.peaks import PeakCollection  # type: ignore
 from pyrs.dataobjects import HidraConstants, SampleLogs  # type: ignore

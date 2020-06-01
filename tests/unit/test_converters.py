@@ -1,6 +1,6 @@
 import pytest
 
-from pyrs.utilities import to_float
+from pyrs.utilities.convertdatatypes import to_float
 
 
 def test_convert_to_float():
