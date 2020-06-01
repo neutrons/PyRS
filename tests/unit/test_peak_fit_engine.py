@@ -1,4 +1,3 @@
-from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import numpy as np
 from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory
 from pyrs.core.workspaces import HidraWorkspace

@@ -1,5 +1,4 @@
 # extentable version of dict https://treyhunner.com/2019/04/why-you-shouldnt-inherit-from-list-and-dict-in-python/
-from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from collections import Iterable, MutableMapping
 import numpy as np
 from pyrs.dataobjects import HidraConstants

@@ -1,4 +1,3 @@
-from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from .mplgraphicsview1d import MplGraphicsView1D
 from .mplgraphicsview2d import MplGraphicsView2D
 import numpy as np

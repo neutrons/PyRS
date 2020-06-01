@@ -1,6 +1,5 @@
 # The following line helps with future compatibility with Python 3
 # print must now be used as a function, e.g print('Hello','World')
-from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 # import mantid algorithms, numpy and matplotlib
 import h5py

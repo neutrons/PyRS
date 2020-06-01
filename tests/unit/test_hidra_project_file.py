@@ -1,7 +1,6 @@
 """
 Test for reading and writing components to HiDRA project file
 """
-from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 import os
 import numpy as np

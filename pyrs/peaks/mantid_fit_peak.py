@@ -1,4 +1,3 @@
-from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from .peak_fit_engine import PeakFitEngine, FitResult
 from pyrs.core.peak_profile_utility import PeakShape
 from pyrs.peaks import PeakCollection

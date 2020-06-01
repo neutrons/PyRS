@@ -1,6 +1,5 @@
 # TODO - 20181130 - Implement this class
 # A module contains a set of static methods to provide instrument geometry and data archiving knowledge of HB2B
-from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from . import checkdatatypes
 from pyrs.utilities.calibration_file_io import ResidualStressCalibrationFile
 import os

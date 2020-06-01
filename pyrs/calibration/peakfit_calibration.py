@@ -1,7 +1,6 @@
 # Migrated from /HFIR/HB2B/shared/Quick_Calibration.py
 # Original can be found at ./Quick_Calibration_v3.py
 # Renamed from  ./prototypes/calibration/Quick_Calibration_Class.py
-from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import numpy as np
 import time
 import json

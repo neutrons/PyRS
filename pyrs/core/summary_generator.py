@@ -1,7 +1,6 @@
 """
 This module generates reduction summary for user in plain text CSV file
 """
-from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from pyrs.core.peak_profile_utility import EFFECTIVE_PEAK_PARAMETERS  # TODO get from the first peak collection
 
 # Default summary titles shown in the CSV file. This is a list of tuples ot enforce order
