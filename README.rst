@@ -12,25 +12,25 @@ If you've never used PyRS before, you can get started quickly by doing the follo
 
 .. code-block::
    
-$ conda create -n pyrs -c mantid -c mantid/label/nightly mantid-workbench -c conda-forge
+   $ conda create -n pyrs -c mantid -c mantid/label/nightly mantid-workbench -c conda-forge
 
 3. Activate the conda environment
 
 .. code-block::
    
-$ conda activate pyrs
+   $ conda activate pyrs
 
 4. From the PyRS directory, run the setup script in developer mode
 
 .. code-block::
    
-$ python setup.py develop
+   $ python setup.py develop
 
 5. From the PyRS directory, start the user interface
 
 .. code-block::
    
-$ python scripts/pyrsplot
+   $ python scripts/pyrsplot
 
 -----------------------
 Data reduction workflow
