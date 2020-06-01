@@ -1,5 +1,5 @@
 # flake8: noqa
-
+# type: ignore
 from .file_mode import *
 from .file_object import *
 

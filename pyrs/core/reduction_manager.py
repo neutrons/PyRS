@@ -6,8 +6,8 @@ from pyrs.core import instrument_geometry
 from pyrs.core import mask_util
 from pyrs.core import reduce_hb2b_pyrs
 from pyrs.core.nexus_conversion import NeXusConvertingApp
-from pyrs.dataobjects import HidraConstants
-from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
+from pyrs.dataobjects import HidraConstants  # type: ignore
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.utilities import calibration_file_io
 from pyrs.utilities import checkdatatypes
 

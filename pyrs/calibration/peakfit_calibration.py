@@ -7,7 +7,7 @@ import json
 import os
 
 # Import pyrs modules
-from pyrs.core import MonoSetting
+from pyrs.core import MonoSetting  # type: ignore
 from pyrs.core.reduce_hb2b_pyrs import PyHB2BReduction
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
 from pyrs.core.reduction_manager import HB2BReductionManager

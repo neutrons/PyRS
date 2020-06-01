@@ -1,5 +1,5 @@
 # flake8: noqa
-
+# type: ignore
 from .constants import *
 from .sample_logs import *
 

@@ -1,5 +1,5 @@
 # flake8: noqa
-
+# type: ignore
 from .peak_collection import *
 from .fit_factory import *
 

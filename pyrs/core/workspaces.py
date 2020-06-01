@@ -1,7 +1,7 @@
 # Data manager
 import numpy
-from pyrs.dataobjects import HidraConstants, SampleLogs
-from pyrs.projectfile import HidraProjectFile
+from pyrs.dataobjects import HidraConstants, SampleLogs  # type: ignore
+from pyrs.projectfile import HidraProjectFile  # type: ignore
 from pyrs.utilities import checkdatatypes
 
 

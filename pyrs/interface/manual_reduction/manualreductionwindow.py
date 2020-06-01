@@ -1,6 +1,6 @@
 from qtpy.QtWidgets import QMainWindow, QVBoxLayout
 import os
-from pyrs.utilities import load_ui
+from pyrs.utilities import load_ui  # type: ignore
 from pyrs.interface.gui_helper import promote_widget
 from pyrs.interface.ui.diffdataviews import DetectorView, GeneralDiffDataView
 from pyrs.interface.ui import rstables
