@@ -1,6 +1,5 @@
 # pylint: disable=C0103,R0904
 # N(DAV)TableWidget
-from __future__ import (absolute_import, division, print_function)
 from six.moves import range
 import csv
 

@@ -1,5 +1,4 @@
 # This is rs_scan_io.DiffractionFile's 2.0 version
-from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from enum import Enum
 import h5py
 from mantid.kernel import Logger

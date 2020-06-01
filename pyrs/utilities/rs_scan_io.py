@@ -1,4 +1,3 @@
-from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from pyrs.utilities import checkdatatypes
 import h5py
 import math

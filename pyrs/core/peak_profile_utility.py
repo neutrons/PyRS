@@ -1,7 +1,6 @@
 """
 Containing peak profiles with method to calculate effective peak parameters and error from native values
 """
-from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from enum import Enum
 import numpy as np
 

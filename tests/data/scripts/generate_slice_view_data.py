@@ -1,5 +1,4 @@
 # Generate a list of 3D data for testing slice view
-from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import numpy as np
 import random
 

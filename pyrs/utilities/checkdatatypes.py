@@ -1,5 +1,4 @@
 # PyRS static helper methods
-from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import os
 import numpy
 import six

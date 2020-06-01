@@ -1,4 +1,3 @@
-from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from pyrs.utilities import load_ui
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QDialog, QMainWindow

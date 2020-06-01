@@ -1,7 +1,6 @@
 """
 Convert HB2B NeXus file to Hidra project file for further reduction
 """
-from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import h5py
 from mantid.kernel import Logger, BoolTimeSeriesProperty, FloatFilteredTimeSeriesProperty, FloatTimeSeriesProperty
 from mantid.kernel import Int32TimeSeriesProperty, Int64TimeSeriesProperty, Int32FilteredTimeSeriesProperty,\

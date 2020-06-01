@@ -1,4 +1,3 @@
-from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import numpy as np
 from matplotlib import cm
 from mpl_toolkits.mplot3d import Axes3D   # noqa: F401

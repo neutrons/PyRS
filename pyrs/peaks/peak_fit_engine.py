@@ -1,4 +1,3 @@
-from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 from collections import namedtuple
 from mantid.kernel import Logger
 from mantid.simpleapi import DeleteWorkspace, RenameWorkspace

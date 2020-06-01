@@ -1,4 +1,3 @@
-from __future__ import (absolute_import, division, print_function)  # python3 compatibility
 import os
 from mantid.simpleapi import Logger
 import numpy as np
