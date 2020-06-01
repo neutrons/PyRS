@@ -45,10 +45,6 @@ class ManualReductionWindow(QMainWindow):
         # promote some widgets
         self._promote_widgets()
 
-        # Hide some not-yet-implemented
-        self.ui.tabWidget_reduceRuns.setTabEnabled(1, False)  # User specified instrument parameter (shifts)
-        self.ui.tabWidget_reduceRuns.setTabEnabled(2, False)  # advanced slicing tab
-
         # Event handler: handler must be set up after UI is loaded
         self._event_handler = EventHandler(parent=self)
 
@@ -79,11 +75,6 @@ class ManualReductionWindow(QMainWindow):
 
         # Plotting
         self.ui.pushButton_plotDetView.clicked.connect(self.plot_sub_runs)
-
-        # radio button operation
-        self.ui.radioButton_chopByTime.toggled.connect(self.event_change_slice_type)
-        self.ui.radioButton_chopByLogValue.toggled.connect(self.event_change_slice_type)
-        self.ui.radioButton_chopAdvanced.toggled.connect(self.event_change_slice_type)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.progressBar.setVisible(False)
@@ -123,9 +114,6 @@ class ManualReductionWindow(QMainWindow):
         :return:
         """
         self.ui.tabWidget_reduceRuns.setCurrentIndex(0)
-
-        # Event slicer type is set to log value as default
-        self.ui.radioButton_chopByLogValue.setChecked(True)
 
         # Set up data table
         self.ui.rawDataTable.setup()
@@ -310,35 +298,3 @@ class ManualReductionWindow(QMainWindow):
 
         """
         self._event_handler.manual_reduce_run()
-
-    # Next: it is not implemented now
-    def event_change_slice_type(self):
-        """Handle the event as the event slicing type is changed
-
-        Returns
-        -------
-        None
-        """
-        # TODO - ASAP - Set default radio button
-        disable_time_slice = True
-        disable_value_slice = True
-        disable_adv_slice = True
-
-        # find out which group shall be enabled
-        if self.ui.radioButton_chopByTime.isChecked():
-            disable_time_slice = False
-        elif self.ui.radioButton_chopByLogValue.isChecked():
-            disable_value_slice = False
-        else:
-            disable_adv_slice = False
-
-        print('[DEBUG] Event filtering mode: Time slicer = {}, Value slicer = {}, Adv. Slicer = {}'
-              ''.format(not disable_time_slice, not disable_value_slice, not disable_adv_slice))
-
-        # enable/disable group
-        # FIXME TODO - ASAP - use setTabEnabled(index, false)
-        # self.ui.groupBox_sliceByTime.setEnabled(not disable_time_slice)
-        # self.ui.groupBox_sliceByLogValue.setEnabled(not disable_value_slice)
-        # self.ui.groupBox_advancedSetup.setEnabled(not disable_adv_slice)
-
-        return
