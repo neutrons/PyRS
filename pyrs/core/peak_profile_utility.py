@@ -23,7 +23,7 @@ class PeakShape(Enum):
             shape = shape.decode()
         except (UnicodeDecodeError, AttributeError):
             pass
-        if shape in PeakShape:
+        if isinstance(shape, PeakShape):
             return shape
         else:
             try:
@@ -53,7 +53,7 @@ class BackgroundFunction(Enum):
             function = function.decode()
         except (UnicodeDecodeError, AttributeError):
             pass
-        if function in BackgroundFunction:
+        if isinstance(function, BackgroundFunction):
             return function
         else:
             try:
