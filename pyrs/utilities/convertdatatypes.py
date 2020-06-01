@@ -25,30 +25,30 @@ def to_float(name: str, value,
         raise ValueError('Invalid range ({}, {}) specified for "{}"'.format(min_value, max_value, name))
 
     # validate the value is within range
-    err_msg = []
+    errors = []
 
     # check minimum
     if min_value is not None:
         if min_inclusive:
             if value < min_value:
-                err_msg.append('below minimum')
+                errors.append('below minimum')
         else:
             if value <= min_value:
-                err_msg.append('below minimum')
+                errors.append('below minimum')
 
     # check maximum
     if max_value is not None:
         if max_inclusive:
             if value > max_value:
-                err_msg.append('above maximum')
+                errors.append('above maximum')
         else:
             if value >= max_value:
-                err_msg.append('above maximum')
+                errors.append('above maximum')
 
     # having any error message indicates bad value
-    if err_msg:
+    if errors:
         err_msg = 'Variable "{}" value={} not in range ({}, {}): {}'.format(name, value, min_value, max_value,
-                                                                            ' '.join(err_msg))
+                                                                            ' '.join(errors))
         raise ValueError(err_msg)
     else:  # return the value converted to a float
         return value
