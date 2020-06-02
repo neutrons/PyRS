@@ -33,22 +33,17 @@ install:
   - conda config --set always_yes yes --set changeps1 no --set anaconda_upload no
   - conda config --add channels conda-forge --add channels mantid --add channels mantid/label/nightly --add channels defaults
 
-    # Install mamba
-  - conda install mamba -c conda-forge
-  - mamba update mamba -c conda-forge
-  - mamba info -a
-
     # BUILD: Create PyRS build environment
-  - mamba create -q -n PyRS_build python=$CONDA conda-build=3.17 conda-verify
+  - conda create -q -n PyRS_build python=$CONDA conda-build=3.17 conda-verify
   - conda activate PyRS_build
-  - mamba build conda.recipe
-  - export PKG_FILE=$(mamba build conda.recipe --output)
+  - conda build conda.recipe
+  - export PKG_FILE=$(conda build conda.recipe --output)
   - conda activate
 
 script:
     # TEST: Create test environment and test build
-  - mamba create -q -n PyRS_test python=$CONDA flake8 pylint conda-build=3.17 jupyter_client=5.3.4 anaconda-client pytest pytest-qt pytest-mpl mantid-workbench
-  - mamba info --envs
+  - conda create -q -n PyRS_test python=$CONDA flake8 pylint conda-build=3.17 jupyter_client=5.3.4 anaconda-client pytest pytest-qt pytest-mpl mantid-workbench
+  - conda info --envs
   - conda activate PyRS_test
   - python --version
   - mkdir -p ${CONDA_PREFIX}/conda-bld/linux-64/
@@ -56,7 +51,7 @@ script:
   - ls ${CONDA_PREFIX}/conda-bld
   - ls ${CONDA_PREFIX}/conda-bld/linux-64
   - conda index ${CONDA_PREFIX}/conda-bld
-  - mamba install -c ${CONDA_PREFIX}/conda-bld PyRS
+  - conda install -c ${CONDA_PREFIX}/conda-bld PyRS
 
   - |
     # Mantid pre-requiste - create a properties file that turns off network access
