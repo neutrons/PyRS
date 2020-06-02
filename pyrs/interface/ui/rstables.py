@@ -26,15 +26,6 @@ class FitResultTable(NTableWidget.NTableWidget):
         """
         super(FitResultTable, self).__init__(parent)
 
-        self._colIndexIndex = None
-        self._colIndexCenter = None
-        self._colIndexHeight = None
-        self._colIndexWidth = None
-        self._colIndexChi2 = None
-        self._colIndexCoM = None
-        self._colIndexProfile = None
-        self._colIndexIntensity = None
-
         self._column_names = None
 
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
@@ -175,31 +166,3 @@ class FitResultTable(NTableWidget.NTableWidget):
             status, err_msg = self.append_row(row_value_list=this_value_list)
             if not status:
                 print('[ERROR] {}'.format(err_msg))
-
-    def set_peak_center_of_mass(self, row_number, com):
-        """
-        set the center of mass of a peak
-        :param row_number:
-        :param com:
-        :return:
-        """
-        self.update_cell_value(row_number, self._colIndexCoM, com)
-
-    def set_peak_params(self, row_number, center, height, fwhm, intensity, chi2, profile):
-        """
-        set fitted peak parameters
-        :param row_number:
-        :param center:
-        :param height:
-        :param fwhm:
-        :param intensity:
-        :param chi2:
-        :param profile:
-        :return:
-        """
-        self.update_cell_value(row_number, self._colIndexCenter, center)
-        self.update_cell_value(row_number, self._colIndexHeight, height)
-        self.update_cell_value(row_number, self._colIndexWidth, fwhm)
-        self.update_cell_value(row_number, self._colIndexChi2, chi2)
-        self.update_cell_value(row_number, self._colIndexIntensity, intensity)
-        self.update_cell_value(row_number, self._colIndexProfile, profile)

@@ -178,51 +178,6 @@ class ReductionController:
 
         return self._curr_hidra_ws.get_sample_log_value(log_name, sub_run_number)
 
-    def get_sample_logs_values(self, sample_log_names):
-        """Get sample logs' values
-
-        Note: as the heterogeneous type of sample logs, a dictionary as the return type is more
-         convenient than numpy.ndarray
-
-        Parameters
-        ----------
-        sample_log_names : ~list
-            List of sample logs
-
-        Returns
-        -------
-        ~dict
-            sample log values in format of dictionary of numpy.ndarray
-
-        """
-        if self._curr_hidra_ws is None:
-            raise RuntimeError('No HidraWorkspace is created or loaded')
-
-        # Create a dictionary for sample logs
-        logs_value_dict = dict()
-
-        for log_name in sample_log_names:
-            log_value_array = self._curr_hidra_ws.get_sample_log_values(log_name)
-            logs_value_dict[log_name] = log_value_array
-        # END-FOR
-
-        return logs_value_dict
-
-    def load_nexus_file(self, nexus_name):
-        # TODO - ASAP - Need use case to decide functionality
-        raise NotImplementedError('ASAP')
-
-    def load_project_file(self, file_name, load_counts, load_pattern):
-        from pyrs.core.pyrscore import PyRsCore
-        core = PyRsCore()
-        project_name = os.path.basename(file_name).split('.')[0]
-        try:
-            self._curr_hidra_ws = core.load_hidra_project(file_name, project_name, load_counts, load_pattern)
-        except RuntimeError as run_err:
-            raise RuntimeError('Failed to load project file {}: {}'.format(file_name, run_err))
-
-        return
-
     def save_project(self):
         """Save HidraWorkspace to project file
 

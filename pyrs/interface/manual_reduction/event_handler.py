@@ -5,7 +5,7 @@ from pyrs.interface.gui_helper import pop_message, browse_file, browse_dir, pars
 from mantidqt.utils.asynchronous import BlockingAsyncTaskWithCallback
 from pyrs.interface.manual_reduction.pyrs_api import ReductionController
 from pyrs.dataobjects.constants import HidraConstants  # type: ignore
-from pyrs.utilities import get_default_output_dir, get_ipts_dir, get_nexus_file  # type: ignore
+from pyrs.utilities import get_default_output_dir, get_nexus_file  # type: ignore
 
 
 class EventHandler:
@@ -25,10 +25,6 @@ class EventHandler:
         # controller
         self._controller = ReductionController()
         self.__last_run_number = ''
-
-    @property
-    def controller(self):
-        return self._controller
 
     def _current_runnumber(self):
         run_number = str(self.ui.lineEdit_runNumber.text()).strip()
@@ -55,96 +51,6 @@ class EventHandler:
         for sub_run in sorted(sub_runs):
             self.ui.comboBox_sub_runs.addItem('{}'.format(sub_run))
 
-    # TEST: Use menu bar to load a file
-    def browse_load_nexus(self):
-        """Allow users to manually determine a NeXus file by browsing for a nexus file to convert to project file
-
-        Returns
-        -------
-
-        """
-        # default is current working directory
-        default_dir = self._controller.working_dir
-        try:
-            run_number = self._current_runnumber()
-            if run_number is not None:
-                default_dir = get_ipts_dir(run_number)
-                nexus_file = 'HB2B_{}.nxs.h5'.format(run_number)
-                if os.path.exists(os.path.join(default_dir, 'nexus', nexus_file)):
-                    default_dir = os.path.join(default_dir, 'nexus')
-                del nexus_file
-        except RuntimeError as e:
-            print('While looking for {}:'.format(run_number))
-            print(e)
-
-        # If specified information is not sufficient, browse
-        nexus_file = browse_file(self.parent,
-                                 caption='Select a NeXus file',
-                                 default_dir=default_dir,
-                                 file_filter='NeXus (*.nxs.h5)',
-                                 file_list=False, save_file=False)
-
-        # Return if it is cancelled
-        if nexus_file is None:
-            return
-
-        # Load Nexus
-        self._controller.load_nexus_file(nexus_file)
-
-        # sub runs
-        sub_runs = self._controller.get_sub_runs()
-
-        # set sub runs to (1) Table and (2) Combo box
-        self._set_sub_run_numbers(sub_runs)
-
-    def browse_load_hidra(self):
-        """Allow users to browse for a HiDRA project file
-
-        Returns
-        -------
-
-        """
-        # default is current working directory
-        default_dir = self._controller.working_dir
-
-        # get default output directory for the run
-        try:
-            run_number = self._current_runnumber()
-            if run_number is not None:
-                default_dir = get_default_output_dir(self._current_runnumber())
-        except RuntimeError as e:
-            print('While looking for {}:'.format(run_number))
-            print(e)
-
-        # Browse
-        hidra_file = browse_file(self.parent,
-                                 caption='Select a HIDRA project file',
-                                 default_dir=default_dir,
-                                 file_filter='HiDRA project (*.h5)',
-                                 file_list=False, save_file=False)
-        if not hidra_file:
-            return
-
-        # Load Nexus
-        try:
-            self._controller.load_project_file(hidra_file, load_counts=False, load_pattern=True)
-        except RuntimeError as run_err:
-            pop_message(self.parent, 'Loading {} failed.\nTry to load diffraction only!'.format(hidra_file),
-                        detailed_message='{}'.format(run_err),
-                        message_type='error')
-            return
-
-        # sub runs
-        sub_runs = self._controller.get_sub_runs()
-
-        # set sub runs to (1) Table and (2) Combo box
-        self._set_sub_run_numbers(sub_runs)
-        # Set to first sub run and plot
-        self.ui.comboBox_sub_runs.setCurrentIndex(0)
-        # Fill in self.ui.frame_subRunInfoTable
-        meta_data_array = self._controller.get_sample_logs_values([HidraConstants.SUB_RUNS, HidraConstants.TWO_THETA])
-        self.ui.rawDataTable.add_subruns_info(meta_data_array, clear_table=True)
-
     def browse_calibration_file(self):
         calibration_file = browse_file(self.parent, caption='Choose and set up the calibration file',
                                        default_dir=self._controller.get_default_calibration_dir(),
@@ -155,21 +61,6 @@ class EventHandler:
 
         # set to the browser
         self.ui.lineEdit_calibrationFile.setText(calibration_file)
-
-    def browse_idf(self):
-        """
-
-        Returns
-        -------
-
-        """
-        idf_name = browse_file(self.parent, 'Instrument definition file', os.getcwd(),
-                               'Text (*.txt);;XML (*.xml)', False, False)
-        if len(idf_name) == 0:
-            return   # user cancels operation
-        else:
-            self.ui.lineEdit_idfName.setText(idf_name)
-        # END-IF
 
     def browse_mask_file(self):
         """Browse masking file
@@ -287,81 +178,6 @@ class EventHandler:
         # Plot
         self.ui.graphicsView_1DPlot.plot_diffraction(pattern[0], pattern[1], '2theta', 'intensity',
                                                      line_label=info, keep_prev=False)
-
-    def _set_sub_runs(self):
-        """ set the sub runs to comboBox_sub_runs
-        :return:
-        """
-        # sub_runs = self._core.reduction_manager.get_sub_runs(data_id)
-        #
-        # self.ui.comboBox_sub_runs.clear()
-        # for sub_run in sorted(sub_runs):
-        #     self.ui.comboBox_sub_runs.addItem('{:04}'.format(sub_run))
-        #
-        #
-        # """
-        # """
-        # #
-        sub_runs = self._controller.get_sub_runs()
-        sub_runs.sort()
-
-        # set sub runs: lock and release
-        self._mutexPlotRuns = True
-        # clear and set
-        self.ui.comboBox_sub_runs.clear()
-        for sub_run in sub_runs:
-            self.ui.comboBox_sub_runs.addItem('{:04}'.format(sub_run))
-        self._mutexPlotRuns = False
-
-        return
-
-    def _setup_plot_runs(self, append_mode, run_number_list):
-        """ set the runs (or sliced runs to plot)
-        :param append_mode:
-        :param run_number_list:
-        :return:
-        """
-        # checkdatatypes.check_list('Run numbers', run_number_list)
-
-        # non-append mode
-        self._plot_run_numbers_mutex = True
-        if not append_mode:
-            self.ui.comboBox_runs.clear()
-
-        # add run numbers
-        for run_number in run_number_list:
-            self.ui.comboBox_runs.addItem('{}'.format(run_number))
-
-        # open
-        self._plot_run_numbers_mutex = False
-
-        # if append-mode, then set to first run
-        if append_mode:
-            self.ui.comboBox_runs.setCurrentIndex(0)
-
-        return
-
-    def _setup_plot_selection(self, append_mode, item_list):
-        """
-        set up the combobox to select items to plot
-        :param append_mode:
-        :param item_list:
-        :return:
-        """
-        # checkdatatypes.check_bool_variable('Flag for appending the items to current combo-box or from start',
-        #                                    append_mode)
-        # checkdatatypes.check_list('Combo-box item list', item_list)
-
-        # turn on mutex lock
-        self._plot_selection_mutex = True
-        if append_mode is False:
-            self.ui.comboBox_sampleLogNames.clear()
-        for item in item_list:
-            self.ui.comboBox_sampleLogNames.addItem(item)
-        if append_mode is False:
-            self.ui.comboBox_sampleLogNames.setCurrentIndex(0)
-        self._plot_selection_mutex = False
-        return
 
     def manual_reduce_run(self):
         """
