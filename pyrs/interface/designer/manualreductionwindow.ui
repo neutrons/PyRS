@@ -183,47 +183,10 @@
        </layout>
       </item>
       <item>
-       <widget class="QTabWidget" name="tabWidget_reduceRuns">
-        <property name="currentIndex">
-         <number>0</number>
+       <widget class="QProgressBar" name="progressBar">
+        <property name="value">
+         <number>24</number>
         </property>
-        <widget class="QWidget" name="Simple_Reduction">
-         <attribute name="title">
-          <string>Simple Reduction</string>
-         </attribute>
-         <layout class="QVBoxLayout" name="verticalLayout_6">
-          <item>
-           <layout class="QVBoxLayout" name="verticalLayout_3">
-            <item>
-             <layout class="QHBoxLayout" name="horizontalLayout_4"/>
-            </item>
-            <item>
-             <widget class="QProgressBar" name="progressBar">
-              <property name="value">
-               <number>24</number>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QFrame" name="frame_subRunInfoTable">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="frameShape">
-               <enum>QFrame::StyledPanel</enum>
-              </property>
-              <property name="frameShadow">
-               <enum>QFrame::Raised</enum>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-         </layout>
-        </widget>
        </widget>
       </item>
      </layout>
@@ -335,30 +298,9 @@
     <property name="title">
      <string>File</string>
     </property>
-    <addaction name="actionLoad_nexus_file"/>
-    <addaction name="actionLoad_Project_File"/>
-    <addaction name="actionLoad_Image"/>
-    <addaction name="separator"/>
-    <addaction name="actionSave_Project_File"/>
-    <addaction name="separator"/>
     <addaction name="actionQuit"/>
    </widget>
-   <widget class="QMenu" name="menuEdit">
-    <property name="title">
-     <string>Calibration</string>
-    </property>
-    <addaction name="actionEdit_Calibrations"/>
-    <addaction name="actionFix_Calibrations"/>
-   </widget>
-   <widget class="QMenu" name="menuData_Reduction">
-    <property name="title">
-     <string>Data Reduction</string>
-    </property>
-    <addaction name="actionLoad_Instrument"/>
-   </widget>
    <addaction name="menuQuit"/>
-   <addaction name="menuEdit"/>
-   <addaction name="menuData_Reduction"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionQuit">
