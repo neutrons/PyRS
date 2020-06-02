@@ -31,7 +31,7 @@ install:
 
     # Conda config - behavior and channel setup
   - conda config --set always_yes yes --set changeps1 no --set anaconda_upload no
-  - conda config --add channels conda-forge --add channels mantid --add channels mantid/label/nightly --add channels defaults
+  - conda config --add channels conda-forge --add channels mantid --add channels mantid/label/nightly
 
     # Install mamba
   - conda install mamba -c conda-forge
