@@ -17,7 +17,7 @@ def _mask_detectors(counts_vec, mask_file=None):
     return masked_counts_vec
 
 
-class ReductionApp(object):
+class ReductionApp:
     """
     Data reduction application
     """

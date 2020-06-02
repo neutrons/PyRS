@@ -299,7 +299,7 @@ def write_calibration_to_json(shifts, shifts_error, wave_length, wave_lenngth_er
     return
 
 
-class ResidualStressCalibrationFile(object):
+class ResidualStressCalibrationFile:
     """
     a dedicated file import/export
     """

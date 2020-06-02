@@ -8,7 +8,7 @@ from pyrs.utilities import checkdatatypes
 from pyrs.utilities.convertdatatypes import to_float
 
 
-class HidraSetup(object):
+class HidraSetup:
     """A class to work with instrument geometry calculation
 
     Handle anything to do with HB2B (HiDRA) including geometry, wavelength and calibration
@@ -85,7 +85,7 @@ class HidraSetup(object):
         return 'HB2B'
 
 
-class AnglerCameraDetectorGeometry(object):
+class AnglerCameraDetectorGeometry:
     """
     A class to handle and save instrument geometry setup
     """
@@ -138,7 +138,7 @@ class AnglerCameraDetectorGeometry(object):
         return self._pixel_size_x, self._pixel_size_y
 
 
-class AnglerCameraDetectorShift(object):
+class AnglerCameraDetectorShift:
     """
     A class to handle and save instrument geometry calibration information
     """

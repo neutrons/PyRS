@@ -8,7 +8,7 @@ from pyrs.dataobjects.constants import HidraConstants  # type: ignore
 from pyrs.utilities import get_default_output_dir, get_ipts_dir, get_nexus_file  # type: ignore
 
 
-class EventHandler(object):
+class EventHandler:
     """Class to handle the event sent from UI widget
     """
     def __init__(self, parent):

@@ -14,7 +14,7 @@ from pyrs.utilities.convertdatatypes import to_float
 from typing import Optional
 
 
-class HB2BReductionManager(object):
+class HB2BReductionManager:
     """
     A data reduction manager of HB2B
 

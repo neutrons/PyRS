@@ -10,7 +10,7 @@ import os
 import numpy
 
 
-class PyRsCore(object):
+class PyRsCore:
     """
     PyRS core
     """

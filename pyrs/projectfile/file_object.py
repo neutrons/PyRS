@@ -23,7 +23,7 @@ class DiffractionUnit(Enum):
         return self.value
 
 
-class HidraProjectFile(object):
+class HidraProjectFile:
     '''Read and/or write an HB2B project to an HDF5 with entries for detector counts, sample logs, reduced data,
     fitted peaks and etc.
     All the import/export information will be buffered in order to avoid exception during operation

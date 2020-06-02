@@ -6,7 +6,7 @@ from pyrs.dataobjects import SubRuns  # type: ignore
 __all__ = ['PeakCollection']
 
 
-class PeakCollection(object):
+class PeakCollection:
     """
     Object to contain peak parameters (names and values) of a collection of peaks for sub runs
     """

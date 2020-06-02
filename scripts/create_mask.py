@@ -23,7 +23,7 @@ import os
 from matplotlib import pyplot as plt
 
 
-class MaskProcessApp(object):
+class MaskProcessApp:
     """ Application class to process mask
     """
 
