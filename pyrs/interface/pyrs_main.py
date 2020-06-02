@@ -1,15 +1,8 @@
-from qtpy import QtCore
 from qtpy.QtWidgets import QMainWindow
 from pyrs.utilities import load_ui  # type: ignore
 from pyrs.core import pyrscore
 from pyrs.interface.peak_fitting import fitpeakswindow
 from pyrs.interface.manual_reduction import manualreductionwindow
-
-# include this try/except block to remap QString needed when using IPython
-try:
-    _fromUtf8 = QtCore.QString.fromUtf8
-except (AttributeError, ImportError):
-    def _fromUtf8(s): return s
 
 
 class PyRSLauncher(QMainWindow):
@@ -24,8 +17,6 @@ class PyRSLauncher(QMainWindow):
         super(PyRSLauncher, self).__init__(None)
 
         # set up UI
-        # ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', 'pyrsmain.ui'))
-        # self.ui = load_ui(ui_path, baseinstance=self)
         self.ui = load_ui('pyrsmain.ui', baseinstance=self)
 
         # define
@@ -59,10 +50,6 @@ class PyRSLauncher(QMainWindow):
         self.peak_fit_window = fitpeakswindow.FitPeaksWindow(self, fit_peak_core=fit_peak_core)
         self.peak_fit_window.show()
 
-        # # optionally close the main window
-        # if self.ui.checkBox_keepWindowOpen.isChecked() is False:
-        #     self.hide()
-
     def do_launch_manual_reduction(self):
         """
         launch manual data reduction window
@@ -70,14 +57,9 @@ class PyRSLauncher(QMainWindow):
         """
         if self.manual_reduction_window is None:
             self.manual_reduction_window = manualreductionwindow.ManualReductionWindow(self)
-            # self.manual_reduction_window.setup_window()
 
         # show
         self.manual_reduction_window.show()
-
-        # # optionally close the main window
-        # if self.ui.checkBox_keepWindowOpen.isChecked() is False:
-        #     self.close()
 
     def do_quit(self):
         """
