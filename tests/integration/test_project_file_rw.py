@@ -1,6 +1,6 @@
 from pyrs.core import workspaces
-from pyrs.projectfile import HidraProjectFile
-from pyrs.core.instrument_geometry import HidraSetup
+from pyrs.projectfile import HidraProjectFile  # type: ignore
+from pyrs.core.instrument_geometry import HidraSetup  # type: ignore
 import os
 import pytest
 
