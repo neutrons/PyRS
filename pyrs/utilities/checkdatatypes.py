@@ -1,5 +1,4 @@
 # PyRS static helper methods
-from .convertdatatypes import to_float
 import os
 import numpy
 import six
@@ -90,16 +89,6 @@ def check_int_variable(var_name, variable, value_range):
                                                             ''.format(max_val, value_range, type(max_val))
         if (min_val is not None and variable < min_val) or (max_val is not None and variable >= max_val):
             raise ValueError('{0} (= {1}) is out of range [{2}, {3})'.format(var_name, variable, min_val, max_val))
-
-
-def check_float_variable(var_name, variable, value_range):
-    '''check whether an input variable is a float
-    :except AssertionError:
-    :except ValueError:
-    :param value_range: if not None, then must be a 2 tuple as [min, max)
-    '''
-    # use newer code and ignore return
-    _ = to_float(var_name, variable, value_range[0], value_range[1])
 
 
 def check_list(var_name, variable, allowed_values=None):

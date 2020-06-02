@@ -5,6 +5,7 @@ Containing classes serving for
 """
 import json
 from pyrs.utilities import checkdatatypes
+from pyrs.utilities.convertdatatypes import to_float
 
 
 class HidraSetup(object):
@@ -89,9 +90,7 @@ class HidraSetup(object):
         :param wavelength: wave length in unit A
         :return:
         """
-        checkdatatypes.check_float_variable('Monochromator wavelength (A)', wavelength, (1.E-5, None))
-
-        self._single_wave_length = wavelength
+        self._single_wave_length = to_float('Monochromator wavelength (A)', wavelength, min_value=1.E-5)
 
     def set_wavelength_calibration(self, wave_length_shift):
         """
@@ -99,7 +98,7 @@ class HidraSetup(object):
         :param wave_length_shift:
         :return:
         """
-        checkdatatypes.check_float_variable('Wavelength shift from original value', wave_length_shift, (None, None))
+        wave_length_shift = to_float('Wavelength shift from original value', wave_length_shift)
 
         if self._wave_length + wave_length_shift < 0.1:
             raise RuntimeError('Wavelength shift {} to {} results in an unphysical value'.format(self._wave_length,
@@ -131,20 +130,14 @@ class AnglerCameraDetectorGeometry(object):
         :param calibrated: flag whether these values are calibrated
         """
         # check inputs
-        checkdatatypes.check_float_variable('Arm length', arm_length, (1E-5, None))
-        checkdatatypes.check_float_variable('Pixel size (x)', pixel_size_x, (1E-7, None))
-        checkdatatypes.check_float_variable('Pixel size (y)', pixel_size_y, (1E-7, None))
+        self._arm_length = to_float('Arm length', arm_length, min_value=1E-5)
+        self._pixel_size_x = to_float('Pixel size (x)', pixel_size_x, min_value=1E-7)
+        self._pixel_size_y = to_float('Pixel size (y)', pixel_size_y, min_value=1E-7)
         checkdatatypes.check_int_variable('Number of rows in detector', num_rows, (1, None))
-        checkdatatypes.check_int_variable('Number of columns in detector', num_columns, (1, None))
-        checkdatatypes.check_bool_variable('Flag indicating instrument setup been calibrated', calibrated)
-
-        # geometry parameters for raw parameters
-        self._arm_length = arm_length
-
         self._detector_rows = num_rows
+        checkdatatypes.check_int_variable('Number of columns in detector', num_columns, (1, None))
         self._detector_columns = num_columns
-        self._pixel_size_x = pixel_size_x
-        self._pixel_size_y = pixel_size_y
+        checkdatatypes.check_bool_variable('Flag indicating instrument setup been calibrated', calibrated)
 
     def apply_shift(self, geometry_shift):
         checkdatatypes.check_type('Detector geometry shift', geometry_shift, AnglerCameraDetectorShift)
@@ -205,8 +198,7 @@ class AnglerCameraDetectorShift(object):
 
     @center_shift_x.setter
     def center_shift_x(self, value):
-        checkdatatypes.check_float_variable('Center shift along X direction', value, (None, None))
-        self._center_shift_x = value
+        self._center_shift_x = to_float('Center shift along X direction', value)
 
     @property
     def center_shift_y(self):
@@ -214,8 +206,7 @@ class AnglerCameraDetectorShift(object):
 
     @center_shift_y.setter
     def center_shift_y(self, value):
-        checkdatatypes.check_float_variable('Center shift along Y direction', value, (None, None))
-        self._center_shift_y = value
+        self._center_shift_y = to_float('Center shift along Y direction', value)
 
     @property
     def center_shift_z(self):
@@ -223,8 +214,7 @@ class AnglerCameraDetectorShift(object):
 
     @center_shift_z.setter
     def center_shift_z(self, value):
-        checkdatatypes.check_float_variable('Center shift along Z direction', value, (None, None))
-        self._center_shift_z = value
+        self._center_shift_z = to_float('Center shift along Z direction', value)
 
     @property
     def rotation_x(self):
@@ -232,8 +222,7 @@ class AnglerCameraDetectorShift(object):
 
     @rotation_x.setter
     def rotation_x(self, value):
-        checkdatatypes.check_float_variable('Rotation along X direction', value, (-360, 360))
-        self._rotation_x = value
+        self._rotation_x = to_float('Rotation along X direction', value, -360, 360)
 
     @property
     def rotation_y(self):
@@ -241,8 +230,7 @@ class AnglerCameraDetectorShift(object):
 
     @rotation_y.setter
     def rotation_y(self, value):
-        checkdatatypes.check_float_variable('Rotation along Y direction', value, (-360, 360))
-        self._rotation_y = value
+        self._rotation_y = to_float('Rotation along Y direction', value, -360, 360)
 
     @property
     def rotation_z(self):
@@ -250,8 +238,7 @@ class AnglerCameraDetectorShift(object):
 
     @rotation_z.setter
     def rotation_z(self, value):
-        checkdatatypes.check_float_variable('Rotation along Z direction', value, (-360, 360))
-        self._rotation_z = value
+        self._rotation_z = to_float('Rotation along Z direction', value, -360, 360)
 
     def convert_to_dict(self):
         """

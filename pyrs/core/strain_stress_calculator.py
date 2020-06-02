@@ -1,6 +1,7 @@
 import numpy
 import math
 import pyrs.utilities.checkdatatypes
+from pyrs.utilities.convertdatatypes import to_float
 from scipy.interpolate import griddata
 from pyrs.utilities import rs_scan_io
 
@@ -17,12 +18,12 @@ class StrainStress(object):
         :param d0:
         """
         # check input
-        pyrs.utilities.checkdatatypes.check_float_variable('Peak position (d0)', d0, (0, 30))
+        d0 = to_float('Peak position (d0)', d0, 0, 30)
         pyrs.utilities.checkdatatypes.check_numpy_arrays('Fitted peak positions as d11, d22, d3',
                                                          [peak_pos_matrix],
                                                          dimension=2, check_same_shape=False)
-        pyrs.utilities.checkdatatypes.check_float_variable('Young modulus E', young_modulus, (None, None))
-        pyrs.utilities.checkdatatypes.check_float_variable('Poisson ratio Nu', poisson_ratio, (None, None))
+        young_modulus = to_float('Young modulus E', young_modulus)
+        poisson_ratio = to_float('Poisson ratio Nu', poisson_ratio)
 
         self._epsilon = numpy.zeros(shape=(3, 3), dtype='float')
         self._sigma = numpy.zeros(shape=(3, 3), dtype='float')
@@ -1091,8 +1092,8 @@ class StrainStressCalculator(object):
         """
         pyrs.utilities.checkdatatypes.check_numpy_arrays('Parameter value on grids', [param_grid_array], 2, False)
         pyrs.utilities.checkdatatypes.check_int_variable('Slicing direction', slice_dir, (0, 3))
-        pyrs.utilities.checkdatatypes.check_float_variable('Slicing position', slice_pos, (None, None))
-        pyrs.utilities.checkdatatypes.check_float_variable('Slicing resolution', slice_resolution, (0, None))
+        slice_pos = to_float('Slicing position', slice_pos)
+        slice_resolution = to_float('Slicing resolution', slice_resolution, min_value=0)
 
         min_value = slice_pos - slice_resolution
         max_value = slice_pos + slice_resolution
@@ -1509,35 +1510,7 @@ class StrainStressCalculator(object):
         :param d0:
         :return:
         """
-        pyrs.utilities.checkdatatypes.check_float_variable('d0', d0, (1E-4, None))
-
-        self._d0 = d0
-
-        return
-
-    # def set_2theta(self, twotheta):
-    #     """
-    #
-    #     :param twotheta:
-    #     :return:
-    #     """
-    #     pyrs.utilities.checkdatatypes.check_float_variable('Detector 2theta', twotheta, (-180, 180))
-    #
-    #     self._2theta = twotheta
-    #
-    #     return
-
-    # def set_wavelength(self, wave_length):
-    #     """
-    #
-    #     :param wave_length:
-    #     :return:
-    #     """
-    #     pyrs.utilities.checkdatatypes.check_float_variable('Wave length', wave_length, (1E-10, None))
-    #
-    #     self._lambda = wave_length
-    #
-    #     return
+        self._d0 = to_float('d0', d0, min_value=1E-4)
 
     def set_youngs_modulus(self, young_e):
         """

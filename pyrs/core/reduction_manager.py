@@ -10,6 +10,7 @@ from pyrs.dataobjects import HidraConstants  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.utilities import calibration_file_io
 from pyrs.utilities import checkdatatypes
+from pyrs.utilities.convertdatatypes import to_float
 
 
 class HB2BReductionManager(object):
@@ -880,9 +881,9 @@ class HB2BReductionManager(object):
         step_2theta = (max_2theta - min_2theta) * 1. / num_bins
 
         # Check inputs
-        checkdatatypes.check_float_variable('Minimum 2theta', min_2theta, (-180, 180))
-        checkdatatypes.check_float_variable('Maximum 2theta', max_2theta, (-180, 180))
-        checkdatatypes.check_float_variable('2theta bin size', step_2theta, (0, 180))
+        min_2theta = to_float('Minimum 2theta', min_2theta, -180, 180)
+        max_2theta = to_float('Maximum 2theta', max_2theta, -180, 180)
+        step_2theta = to_float('2theta bin size', step_2theta, 0, 180)
         if min_2theta >= max_2theta:
             raise RuntimeError('2theta range ({}, {}) is invalid for generating histogram'
                                ''.format(min_2theta, max_2theta))

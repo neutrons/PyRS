@@ -3,10 +3,7 @@ import numpy as np
 import numpy
 from pyrs.core import instrument_geometry
 from pyrs.utilities import checkdatatypes
-# from mantid.simpleapi import CreateWorkspace
-# from mantid.simpleapi import ResampleX
-# from mantid.simpleapi import SortXAxis
-# import time
+from pyrs.utilities.convertdatatypes import to_float
 import math
 
 
@@ -103,12 +100,12 @@ class ResidualStressInstrument(object):
         :return:
         """
         # Check input
-        checkdatatypes.check_float_variable('2theta', two_theta, (None, None))
+        two_theta = to_float('2theta', two_theta)
         # Check or set L2
         if l2 is None:
             l2 = self._instrument_geom_params.arm_length
         else:
-            checkdatatypes.check_float_variable('L2', l2, (1E-2, None))
+            l2 = to_float('L2', l2, 1E-2)
 
         # print('[DB...L101] Build instrument: 2theta = {}, arm = {} (diff to default = {})'
         #       ''.format(two_theta, l2, l2 - self._instrument_geom_params.arm_length))
@@ -607,16 +604,14 @@ class PyHB2BReduction(object):
         :param raw_count_vec: detector raw counts
         :return:
         """
-        checkdatatypes.check_float_variable('2-theta', two_theta, (-180, 180))
-        checkdatatypes.check_numpy_arrays('Detector (raw) counts', [raw_count_vec], None, False)
+        self._detector_2theta = to_float('2-theta', two_theta, -180, 180)
+
         if l2 is not None:
-            checkdatatypes.check_float_variable('L2', l2, (1.E-2, None))
-
-        self._detector_2theta = two_theta
+            l2 = to_float('L2', l2, 1.E-2)
         self._detector_l2 = l2
-        self._detector_counts = raw_count_vec
 
-        return
+        checkdatatypes.check_numpy_arrays('Detector (raw) counts', [raw_count_vec], None, False)
+        self._detector_counts = raw_count_vec
 
     def set_raw_counts(self, raw_count_vec):
         """ Set experimental data (for a sub-run)

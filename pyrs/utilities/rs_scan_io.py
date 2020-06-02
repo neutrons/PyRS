@@ -1,4 +1,5 @@
 from pyrs.utilities import checkdatatypes
+from pyrs.utilities.convertdatatypes import to_float
 import h5py
 import math
 import numpy
@@ -364,10 +365,9 @@ class DiffractionDataFile(object):
         checkdatatypes.check_string_variable('2theta unit', unit, ['degree', 'radius'])
 
         if unit == 'degree':
-            two_theta_range = (-180., 180)
+            two_theta = to_float('2theta', two_theta, -180., 180)
         else:
-            two_theta_range = (-math.pi, math.pi)
-        checkdatatypes.check_float_variable('2theta', two_theta, two_theta_range)
+            two_theta = to_float('2theta', two_theta, -math.pi, math.pi)
 
         self._two_theta = two_theta, unit
 
