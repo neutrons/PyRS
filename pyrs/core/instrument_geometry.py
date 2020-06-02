@@ -84,42 +84,15 @@ class HidraSetup(object):
     def name(self):
         return 'HB2B'
 
-    def set_single_wavelength(self, wavelength):
-        """
-        If the instrument has only 1 wave length setup
-        :param wavelength: wave length in unit A
-        :return:
-        """
-        self._single_wave_length = to_float('Monochromator wavelength (A)', wavelength, min_value=1.E-5)
-
-    def set_wavelength_calibration(self, wave_length_shift):
-        """
-        set the wave length shift
-        :param wave_length_shift:
-        :return:
-        """
-        wave_length_shift = to_float('Wavelength shift from original value', wave_length_shift)
-
-        if self._wave_length + wave_length_shift < 0.1:
-            raise RuntimeError('Wavelength shift {} to {} results in an unphysical value'.format(self._wave_length,
-                                                                                                 wave_length_shift))
-
-    def set_geometry_calibration(self, calibration):
-        """
-        Apply instrument geometry calibration to this instrument
-        1. without changing
-        :param calibration:
-        :return:
-        """
-        pass
-
 
 class AnglerCameraDetectorGeometry(object):
     """
     A class to handle and save instrument geometry setup
     """
 
-    def __init__(self, num_rows, num_columns, pixel_size_x, pixel_size_y, arm_length, calibrated):
+    def __init__(self, num_rows: int, num_columns: int,
+                 pixel_size_x: float, pixel_size_y: float,
+                 arm_length: float, calibrated: bool) -> None:
         """
         Initialization of instrument geometry setup for 1 angler camera
         :param num_rows: number of rows of pixels in detector (number of pixels per column)
@@ -197,7 +170,7 @@ class AnglerCameraDetectorShift(object):
         return self._center_shift_x
 
     @center_shift_x.setter
-    def center_shift_x(self, value):
+    def center_shift_x(self, value: float) -> None:
         self._center_shift_x = to_float('Center shift along X direction', value)
 
     @property
@@ -205,7 +178,7 @@ class AnglerCameraDetectorShift(object):
         return self._center_shift_y
 
     @center_shift_y.setter
-    def center_shift_y(self, value):
+    def center_shift_y(self, value: float) -> None:
         self._center_shift_y = to_float('Center shift along Y direction', value)
 
     @property
@@ -213,7 +186,7 @@ class AnglerCameraDetectorShift(object):
         return self._center_shift_z
 
     @center_shift_z.setter
-    def center_shift_z(self, value):
+    def center_shift_z(self, value: float) -> None:
         self._center_shift_z = to_float('Center shift along Z direction', value)
 
     @property
@@ -221,7 +194,7 @@ class AnglerCameraDetectorShift(object):
         return self._rotation_x
 
     @rotation_x.setter
-    def rotation_x(self, value):
+    def rotation_x(self, value: float) -> None:
         self._rotation_x = to_float('Rotation along X direction', value, -360, 360)
 
     @property
@@ -229,7 +202,7 @@ class AnglerCameraDetectorShift(object):
         return self._rotation_y
 
     @rotation_y.setter
-    def rotation_y(self, value):
+    def rotation_y(self, value: float) -> None:
         self._rotation_y = to_float('Rotation along Y direction', value, -360, 360)
 
     @property
@@ -237,7 +210,7 @@ class AnglerCameraDetectorShift(object):
         return self._rotation_z
 
     @rotation_z.setter
-    def rotation_z(self, value):
+    def rotation_z(self, value: float) -> None:
         self._rotation_z = to_float('Rotation along Z direction', value, -360, 360)
 
     def convert_to_dict(self):
