@@ -2,6 +2,7 @@
 from . import NTableWidget
 import numpy
 from qtpy import QtWidgets
+from typing import List, Tuple
 
 
 class FitResultTable(NTableWidget.NTableWidget):
@@ -18,7 +19,7 @@ class FitResultTable(NTableWidget.NTableWidget):
     #                   ('Chi^2', 'float'),
     #                   ('C.O.M', 'float'),  # center of mass
     #                   ('Profile', 'string')]
-    TableSetupList = list()
+    TableSetupList: List[Tuple[str, str]] = list()
 
     def __init__(self, parent):
         """ Initialization

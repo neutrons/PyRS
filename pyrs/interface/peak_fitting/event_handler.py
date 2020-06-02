@@ -11,7 +11,7 @@ from pyrs.interface.peak_fitting.load import Load
 from pyrs.interface.peak_fitting.plot import Plot
 from pyrs.interface.peak_fitting.fit import Fit
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
-from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 
 
 class EventHandler:

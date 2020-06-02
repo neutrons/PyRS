@@ -2,7 +2,7 @@ import os
 from qtpy.QtWidgets import QVBoxLayout, QFileDialog, QMainWindow
 from qtpy import QtGui
 
-from pyrs.utilities import load_ui
+from pyrs.utilities import load_ui  # type: ignore
 from pyrs.icons import icons_rc5 as icons_rc  # noqa: F401
 from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.diffdataviews import GeneralDiffDataView

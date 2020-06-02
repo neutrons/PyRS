@@ -1,7 +1,6 @@
 from qtpy import QtCore
 from qtpy.QtWidgets import QMainWindow
-from pyrs.utilities import load_ui
-
+from pyrs.utilities import load_ui  # type: ignore
 from pyrs.core import pyrscore
 from pyrs.interface.peak_fitting import fitpeakswindow
 from pyrs.interface.manual_reduction import manualreductionwindow

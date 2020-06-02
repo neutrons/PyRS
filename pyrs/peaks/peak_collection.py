@@ -1,7 +1,7 @@
 import numpy as np
 from pyrs.core.peak_profile_utility import get_parameter_dtype, get_effective_parameters_converter, PeakShape, \
     BackgroundFunction
-from pyrs.dataobjects import SubRuns
+from pyrs.dataobjects import SubRuns  # type: ignore
 
 __all__ = ['PeakCollection']
 

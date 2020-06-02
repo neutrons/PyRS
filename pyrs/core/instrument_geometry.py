@@ -5,6 +5,7 @@ Containing classes serving for
 """
 import json
 from pyrs.utilities import checkdatatypes
+from pyrs.utilities.convertdatatypes import to_float
 
 
 class HidraSetup(object):
@@ -83,44 +84,15 @@ class HidraSetup(object):
     def name(self):
         return 'HB2B'
 
-    def set_single_wavelength(self, wavelength):
-        """
-        If the instrument has only 1 wave length setup
-        :param wavelength: wave length in unit A
-        :return:
-        """
-        checkdatatypes.check_float_variable('Monochromator wavelength (A)', wavelength, (1.E-5, None))
-
-        self._single_wave_length = wavelength
-
-    def set_wavelength_calibration(self, wave_length_shift):
-        """
-        set the wave length shift
-        :param wave_length_shift:
-        :return:
-        """
-        checkdatatypes.check_float_variable('Wavelength shift from original value', wave_length_shift, (None, None))
-
-        if self._wave_length + wave_length_shift < 0.1:
-            raise RuntimeError('Wavelength shift {} to {} results in an unphysical value'.format(self._wave_length,
-                                                                                                 wave_length_shift))
-
-    def set_geometry_calibration(self, calibration):
-        """
-        Apply instrument geometry calibration to this instrument
-        1. without changing
-        :param calibration:
-        :return:
-        """
-        pass
-
 
 class AnglerCameraDetectorGeometry(object):
     """
     A class to handle and save instrument geometry setup
     """
 
-    def __init__(self, num_rows, num_columns, pixel_size_x, pixel_size_y, arm_length, calibrated):
+    def __init__(self, num_rows: int, num_columns: int,
+                 pixel_size_x: float, pixel_size_y: float,
+                 arm_length: float, calibrated: bool) -> None:
         """
         Initialization of instrument geometry setup for 1 angler camera
         :param num_rows: number of rows of pixels in detector (number of pixels per column)
@@ -131,20 +103,14 @@ class AnglerCameraDetectorGeometry(object):
         :param calibrated: flag whether these values are calibrated
         """
         # check inputs
-        checkdatatypes.check_float_variable('Arm length', arm_length, (1E-5, None))
-        checkdatatypes.check_float_variable('Pixel size (x)', pixel_size_x, (1E-7, None))
-        checkdatatypes.check_float_variable('Pixel size (y)', pixel_size_y, (1E-7, None))
+        self._arm_length = to_float('Arm length', arm_length, min_value=1E-5)
+        self._pixel_size_x = to_float('Pixel size (x)', pixel_size_x, min_value=1E-7)
+        self._pixel_size_y = to_float('Pixel size (y)', pixel_size_y, min_value=1E-7)
         checkdatatypes.check_int_variable('Number of rows in detector', num_rows, (1, None))
-        checkdatatypes.check_int_variable('Number of columns in detector', num_columns, (1, None))
-        checkdatatypes.check_bool_variable('Flag indicating instrument setup been calibrated', calibrated)
-
-        # geometry parameters for raw parameters
-        self._arm_length = arm_length
-
         self._detector_rows = num_rows
+        checkdatatypes.check_int_variable('Number of columns in detector', num_columns, (1, None))
         self._detector_columns = num_columns
-        self._pixel_size_x = pixel_size_x
-        self._pixel_size_y = pixel_size_y
+        checkdatatypes.check_bool_variable('Flag indicating instrument setup been calibrated', calibrated)
 
     def apply_shift(self, geometry_shift):
         checkdatatypes.check_type('Detector geometry shift', geometry_shift, AnglerCameraDetectorShift)
@@ -204,54 +170,48 @@ class AnglerCameraDetectorShift(object):
         return self._center_shift_x
 
     @center_shift_x.setter
-    def center_shift_x(self, value):
-        checkdatatypes.check_float_variable('Center shift along X direction', value, (None, None))
-        self._center_shift_x = value
+    def center_shift_x(self, value: float) -> None:
+        self._center_shift_x = to_float('Center shift along X direction', value)
 
     @property
     def center_shift_y(self):
         return self._center_shift_y
 
     @center_shift_y.setter
-    def center_shift_y(self, value):
-        checkdatatypes.check_float_variable('Center shift along Y direction', value, (None, None))
-        self._center_shift_y = value
+    def center_shift_y(self, value: float) -> None:
+        self._center_shift_y = to_float('Center shift along Y direction', value)
 
     @property
     def center_shift_z(self):
         return self._center_shift_z
 
     @center_shift_z.setter
-    def center_shift_z(self, value):
-        checkdatatypes.check_float_variable('Center shift along Z direction', value, (None, None))
-        self._center_shift_z = value
+    def center_shift_z(self, value: float) -> None:
+        self._center_shift_z = to_float('Center shift along Z direction', value)
 
     @property
     def rotation_x(self):
         return self._rotation_x
 
     @rotation_x.setter
-    def rotation_x(self, value):
-        checkdatatypes.check_float_variable('Rotation along X direction', value, (-360, 360))
-        self._rotation_x = value
+    def rotation_x(self, value: float) -> None:
+        self._rotation_x = to_float('Rotation along X direction', value, -360, 360)
 
     @property
     def rotation_y(self):
         return self._rotation_y
 
     @rotation_y.setter
-    def rotation_y(self, value):
-        checkdatatypes.check_float_variable('Rotation along Y direction', value, (-360, 360))
-        self._rotation_y = value
+    def rotation_y(self, value: float) -> None:
+        self._rotation_y = to_float('Rotation along Y direction', value, -360, 360)
 
     @property
     def rotation_z(self):
         return self._rotation_z
 
     @rotation_z.setter
-    def rotation_z(self, value):
-        checkdatatypes.check_float_variable('Rotation along Z direction', value, (-360, 360))
-        self._rotation_z = value
+    def rotation_z(self, value: float) -> None:
+        self._rotation_z = to_float('Rotation along Z direction', value, -360, 360)
 
     def convert_to_dict(self):
         """

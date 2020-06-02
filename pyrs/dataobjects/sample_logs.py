@@ -1,7 +1,7 @@
 # extentable version of dict https://treyhunner.com/2019/04/why-you-shouldnt-inherit-from-list-and-dict-in-python/
 from collections import Iterable, MutableMapping
 import numpy as np
-from pyrs.dataobjects import HidraConstants
+from .constants import HidraConstants  # type: ignore
 
 __all__ = ['SampleLogs', 'SubRuns']
 

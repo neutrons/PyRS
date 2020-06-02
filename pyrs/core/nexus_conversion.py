@@ -10,9 +10,9 @@ import numpy as np
 import os
 from pyrs.core import workspaces
 from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSetup
-from pyrs.core import MonoSetting
-from pyrs.dataobjects import HidraConstants
-from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
+from pyrs.core import MonoSetting  # type: ignore
+from pyrs.dataobjects import HidraConstants  # type: ignore
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.utilities import checkdatatypes
 
 SUBRUN_LOGNAME = 'scan_index'

@@ -1,8 +1,8 @@
 # This module is to calculate Pole Figure
-# import mantid_fit_peak
-# import peakfitengine
 from pyrs.utilities import checkdatatypes
+from pyrs.utilities.convertdatatypes import to_float
 import numpy as np
+from typing import Tuple
 
 
 def nice(matrix):
@@ -214,7 +214,7 @@ class PoleFigureCalculator(object):
         if max_cost is None:
             max_cost = 1.E20
         else:
-            checkdatatypes.check_float_variable('Maximum peak fitting cost value', max_cost, (0., None))
+            max_cost = to_float('Maximum peak fitting cost value', max_cost, min_value=0.)
 
         # get raw parameters' fitted value
         log_index_vec, pole_figure_vec = self._pole_figure_dict[det_id]
@@ -233,7 +233,7 @@ class PoleFigureCalculator(object):
 
         return selected_log_index_vec, selected_pole_figure_vec
 
-    def rotate_project_q(self, theta, omega, chi, phi, eta):
+    def rotate_project_q(self, theta: float, omega: float, chi: float, phi: float, eta: float) -> Tuple[float, float]:
         """
         Projection of angular dependent data onto pole sphere. Analytical solution taken from
         Chapter 8.3 in Bob He Two-Dimensional X-ray Diffraction
@@ -245,11 +245,11 @@ class PoleFigureCalculator(object):
         :param phi:
         :return: 2-tuple as the projection (alpha, beta)
         """
-        checkdatatypes.check_float_variable('theta', theta, (None, None))
-        checkdatatypes.check_float_variable('Omega', omega, (None, None))
-        checkdatatypes.check_float_variable('chi', chi, (None, None))
-        checkdatatypes.check_float_variable('phi', phi, (None, None))
-        checkdatatypes.check_float_variable('eta', eta, (None, None))
+        theta = to_float('theta', theta)
+        omega = to_float('Omega', omega)
+        chi = to_float('chi', chi)
+        phi = to_float('phi', phi)
+        eta = to_float('eta', eta)
 
         sp = np.sin(np.deg2rad(phi))
         sw = np.sin(np.deg2rad(omega))

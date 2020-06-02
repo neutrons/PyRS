@@ -47,7 +47,7 @@ install:
 
 script:
     # TEST: Create test environment and test build
-  - mamba create -q -n PyRS_test python=$CONDA flake8 pylint conda-build=3.17 jupyter_client=5.3.4 anaconda-client pytest pytest-qt pytest-mpl mantid-workbench
+  - mamba create -q -n PyRS_test python=$CONDA flake8 pylint conda-build=3.17 jupyter_client=5.3.4 anaconda-client pytest pytest-qt pytest-mpl mantid-workbench=4.2 mypy
   - mamba info --envs
   - conda activate PyRS_test
   - python --version
@@ -71,6 +71,9 @@ script:
 
   # lint the code and generate an error if a warning is introduced
   - flake8 . --count
+  # static analysis for typing
+  - mypy pyrs scripts
+
   # run some basic import tests to confirm things are working
   - python -c "import mantid"
   - python -c "import qtpy"
