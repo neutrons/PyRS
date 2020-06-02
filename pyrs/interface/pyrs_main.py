@@ -38,14 +38,6 @@ class PyRSLauncher(QMainWindow):
         self.peak_fit_window = None
         self.manual_reduction_window = None
 
-    @property
-    def core(self):
-        """
-        offer the access of the reduction core
-        :return:
-        """
-        return self._reduction_core
-
     def do_launch_fit_peak_window(self):
         """
         launch peak fit window

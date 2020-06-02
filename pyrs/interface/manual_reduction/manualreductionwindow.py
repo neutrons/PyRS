@@ -26,16 +26,6 @@ class ManualReductionWindow(QMainWindow):
 
         # class variables
         self._core = None
-        self._currExpNumber = None
-        self._hydra_workspace = None  # HiDRA worksapce instance if any file loaded
-        self._project_data_id = None  # Project name for reference (str)
-        self._project_file_name = None   # last loaded project file
-        self._output_dir = None
-
-        # mutexes
-        self._plot_run_numbers_mutex = False
-        self._plot_sliced_mutex = False
-        self._plot_selection_mutex = False
 
         # set up UI
         ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', 'manualreductionwindow.ui'))
@@ -90,11 +80,6 @@ class ManualReductionWindow(QMainWindow):
         # Child windows
         self._slice_setup_window = None
 
-        # mutexes
-        self._mutexPlotRuns = False
-
-        return
-
     def _promote_widgets(self):
         """
         promote widgets
@@ -111,8 +96,6 @@ class ManualReductionWindow(QMainWindow):
         self.ui.frame_detectorView.setLayout(curr_layout)
         self.ui.graphicsView_detectorView = DetectorView(self)
         curr_layout.addWidget(self.ui.graphicsView_detectorView)
-
-        return
 
     def _mask_state(self, state):
         """Set the default value of HB2B mask XML
@@ -213,8 +196,6 @@ class ManualReductionWindow(QMainWindow):
         else:
             raise NotImplementedError('Tab {} with index {} is not defined'
                                       ''.format(self.ui.tabWidget_View.name(), current_tab_index))
-
-        return
 
     def do_quit(self):
         """
