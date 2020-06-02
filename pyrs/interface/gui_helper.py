@@ -1,6 +1,6 @@
 # a collection of helper methdos for GUI
 from pyrs.utilities import checkdatatypes
-from qtpy.QtWidgets import QLineEdit, QFileDialog, QMessageBox, QVBoxLayout, QComboBox
+from qtpy.QtWidgets import QLineEdit, QFileDialog, QMessageBox, QComboBox
 
 
 def browse_dir(parent, caption, default_dir):
@@ -100,23 +100,6 @@ def browse_file(parent, caption, default_dir, file_filter, file_list=False, save
     return str(file_name)
 
 
-def get_save_file_name(parent, dir_name, caption, file_filter):
-    # TODO - 20181204 - Replace getSaveFileName by a self-extended method to be fine with both Qt4 and Qt5 ASAP(1)
-    file_info = QFileDialog.getSaveFileName(parent, directory=dir_name,
-                                            caption=caption,
-                                            filter=file_filter)
-
-    if isinstance(file_info, tuple):
-        file_name = str(file_info[0])
-        file_filter = file_info[1]
-        print('[DB...Save Pole Figure] File name: {0}, Filter = {1}'.format(file_name, file_filter))
-    else:
-        file_name = str(file_info)
-        file_filter = None
-
-    return file_name, file_filter
-
-
 def parse_combo_box(combo_box, data_type):
     """
 
@@ -141,67 +124,6 @@ def parse_combo_box(combo_box, data_type):
     return_value = data_type(input_str)
 
     return return_value
-
-
-def parse_line_edit(line_edit, data_type, throw_if_blank=False, edit_name=None, default=None):
-    """
-    Parse a LineEdit
-    :param line_edit:
-    :param data_type:
-    :param throw_if_blank:
-    :param edit_name: name of LineEdit for better error message
-    :param default: default value of the returned value
-    :return:
-    """
-    assert isinstance(line_edit, QLineEdit), 'Method parse_line_edit expects 0-th input {} to be a ' \
-                                             'QLineEdit instance but not a {}' \
-                                             ''.format(line_edit, type(line_edit))
-    assert isinstance(data_type, type), 'Method parse_line_edit expects 1-st input {} to be a type ' \
-                                        'but not a {}'.format(data_type, type(data_type))
-    checkdatatypes.check_bool_variable('Method parse_line_edit expects 2nd input "throw"', throw_if_blank)
-
-    # parse
-    input_str = str(line_edit.text()).strip()
-
-    if input_str == '':
-        # empty string
-        if throw_if_blank:
-            raise RuntimeError('Input line edit {} is empty'.format(edit_name))
-        elif default is not None:
-            return_value = default
-        else:
-            return_value = None
-
-    else:
-        try:
-            return_value = data_type(input_str)
-        except ValueError as value_error:
-            raise RuntimeError('Unable to parse LineEdit {} (given value = {}) to '
-                               '{} due to {}'.format(edit_name, input_str, data_type, value_error))
-    # END-IF-ELSE
-
-    return return_value
-
-
-def parse_float(float_str):
-    """
-    parse flaots from a string or a LineEdit
-    :param float_str:
-    :return:
-    """
-    if isinstance(float_str, QLineEdit):
-        # Input is QLineEdit
-        float_str = str(float_str.text())
-    else:
-        # Input has to be string
-        checkdatatypes.check_string_variable('Integer string', float_str)
-
-    try:
-        float_value = float(float_str)
-    except ValueError as value_error:
-        raise RuntimeError('Unable to parse {0} to integer due to {1}'.format(float_str, value_error))
-
-    return float_value
 
 
 def parse_integer(int_str):
@@ -296,84 +218,6 @@ def parse_integers(int_list_string):
     int_list.sort()
 
     return int_list
-
-
-def promote_widget(frame_widget, promoted_widget):
-    """
-    Add a promoted widget to a QFrame in the main window
-    :param frame_widget:
-    :param promoted_widget:
-    :return:
-    """
-    curr_layout = QVBoxLayout()
-    frame_widget.setLayout(curr_layout)
-    curr_layout.addWidget(promoted_widget)
-
-    return
-
-
-def get_boolean_from_dialog(window_title, message):
-    """
-    pop out a dialog showing a message to user.  User will choose OK or Cancel
-    :param window_title
-    :param message:
-    :return:
-    """
-    def msgbtn(i):
-        # debugging output
-        print("Button pressed is:", i.text())
-
-    message_box = QMessageBox()
-    message_box.setIcon(QMessageBox.Information)
-    message_box.setText(message)
-    if window_title is not None:
-        message_box.setWindowTitle(window_title)
-    message_box.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
-    message_box.buttonClicked.connect(msgbtn)
-
-    # get the message executed
-    return_value = message_box.exec_()
-
-    # identify output
-    if return_value == 4194304:
-        return_value = True
-    elif return_value == 1024:
-        return_value = False
-    else:
-        raise RuntimeError('Return value {} of type {} is not recognized.'
-                           ''.format(return_value, type(return_value)))
-
-    return return_value
-
-
-def parse_tuples(tuple_str, data_type, size=None):
-    """
-
-    :param tuple_str:
-    :param data_type:
-    :param size:
-    :return:
-    """
-    # check type ...
-
-    # doc...
-
-    # strip parenthesis
-    tuple_str = tuple_str.replace('(', '').replace(')', '')
-
-    # TODO - 20180906 - Refine!
-    items = tuple_str.strip().split(',')
-
-    if size is not None:
-        assert len(items) == size, '{} vs {}'.format(items, size)
-
-    ret_list = list()
-    for item in items:
-        item = item.strip()
-        item = data_type(item)
-        ret_list.append(item)
-
-    return ret_list
 
 
 def pop_message(parent, message, detailed_message=None, message_type='error'):
