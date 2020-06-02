@@ -4,7 +4,7 @@ import numpy
 from pyrs.core import instrument_geometry
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.convertdatatypes import to_float
-import math
+from typing import Optional
 
 
 class ResidualStressInstrument(object):
@@ -90,7 +90,7 @@ class ResidualStressInstrument(object):
 
         return pixel_matrix
 
-    def build_instrument(self, two_theta, l2, instrument_calibration):
+    def build_instrument(self, two_theta: float, l2: Optional[float] = None, instrument_calibration=None):
         """
         build instrument considering calibration
         step 1: rotate instrument according to the calibration
@@ -503,7 +503,7 @@ class PyHB2BReduction(object):
                 # num detectors
                 num_dets = pixel_array.shape[0]
 
-                linear_size = int(math.sqrt(num_dets))
+                linear_size = int(np.sqrt(num_dets))
                 for i_pos, pos_tuple in enumerate([(0, 0), (0, linear_size - 1),
                                                    (linear_size - 1, 0), (linear_size - 1, linear_size - 1),
                                                    (linear_size / 2, linear_size / 2)]):
@@ -598,7 +598,7 @@ class PyHB2BReduction(object):
 
         return two_theta_bins, intensity_vector, variances_vector
 
-    def set_experimental_data(self, two_theta, l2, raw_count_vec):
+    def set_experimental_data(self, two_theta: float, l2: Optional[float], raw_count_vec):
         """ Set experimental data (for a sub-run)
         :param two_theta: detector position
         :param raw_count_vec: detector raw counts

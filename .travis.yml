@@ -47,7 +47,7 @@ install:
 
 script:
     # TEST: Create test environment and test build
-  - mamba create -q -n PyRS_test python=$CONDA flake8 pylint conda-build=3.17 jupyter_client=5.3.4 anaconda-client pytest pytest-qt pytest-mpl mantid-workbench mypy
+  - mamba create -q -n PyRS_test python=$CONDA flake8 pylint conda-build=3.17 jupyter_client=5.3.4 anaconda-client pytest pytest-qt pytest-mpl mantid-workbench=4.2 mypy
   - mamba info --envs
   - conda activate PyRS_test
   - python --version

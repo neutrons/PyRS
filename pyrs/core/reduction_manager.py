@@ -11,6 +11,7 @@ from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ign
 from pyrs.utilities import calibration_file_io
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.convertdatatypes import to_float
+from typing import Optional
 
 
 class HB2BReductionManager(object):
@@ -835,7 +836,8 @@ class HB2BReductionManager(object):
         return bin_centers, hist, variances
 
     @staticmethod
-    def generate_2theta_histogram_vector(min_2theta, num_bins, max_2theta,
+    def generate_2theta_histogram_vector(min_2theta: Optional[float], num_bins: int,
+                                         max_2theta: Optional[float],
                                          pixel_2theta_array, mask_array):
         """Generate a 1-D array for histogram 2theta bins
 

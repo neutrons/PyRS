@@ -2,6 +2,7 @@
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.convertdatatypes import to_float
 import numpy as np
+from typing import Tuple
 
 
 def nice(matrix):
@@ -232,7 +233,7 @@ class PoleFigureCalculator(object):
 
         return selected_log_index_vec, selected_pole_figure_vec
 
-    def rotate_project_q(self, theta, omega, chi, phi, eta):
+    def rotate_project_q(self, theta: float, omega: float, chi: float, phi: float, eta: float) -> Tuple[float, float]:
         """
         Projection of angular dependent data onto pole sphere. Analytical solution taken from
         Chapter 8.3 in Bob He Two-Dimensional X-ray Diffraction

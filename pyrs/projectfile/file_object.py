@@ -750,7 +750,7 @@ class HidraProjectFile(object):
 
         return wl
 
-    def write_wavelength(self, wave_length):
+    def write_wavelength(self, wave_length: float):
         """ Set the calibrated wave length
         Location:
           .../instrument/monochromator setting/ ... .../

@@ -355,7 +355,7 @@ class DiffractionDataFile(object):
 
         return
 
-    def set_2theta(self, two_theta, unit='degree'):
+    def set_2theta(self, two_theta: float, unit: str = 'degree') -> None:
         """
         Set 2 theta value
         :param two_theta:
@@ -370,8 +370,6 @@ class DiffractionDataFile(object):
             two_theta = to_float('2theta', two_theta, -math.pi, math.pi)
 
         self._two_theta = two_theta, unit
-
-        return
 
     def set_counts(self, counts_array, detector_shape):
         """
