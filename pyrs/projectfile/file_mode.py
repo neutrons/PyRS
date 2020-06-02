@@ -20,7 +20,7 @@ class HidraProjectFileMode(Enum):
     @staticmethod
     def getMode(mode):
         '''Private function to convert anything into :py:obj:`HidraProjectFileMode`'''
-        if mode in HidraProjectFileMode:
+        if isinstance(mode, HidraProjectFileMode):
             return mode  # already a member of the enum
         else:
             # all other checks are for strings

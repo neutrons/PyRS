@@ -5,7 +5,7 @@ from scipy.interpolate import griddata
 from pyrs.utilities import rs_scan_io
 
 
-class StrainStress(object):
+class StrainStress:
     """
     class to take a calculate strain
     """
@@ -129,7 +129,7 @@ class StrainStress(object):
         return self._sigma
 
 
-class StrainStressCalculator(object):
+class StrainStressCalculator:
     """
     class to manage strain stress calculation
     """

@@ -21,7 +21,7 @@ def nice(matrix):
     return nice_out
 
 
-class PoleFigureCalculator(object):
+class PoleFigureCalculator:
     """
     A calculator for Pole Figure.
     It has the memory and result for the last time it is called to calculate

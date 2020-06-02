@@ -12,7 +12,7 @@ from pyrs.utilities import calibration_file_io
 from pyrs.utilities import checkdatatypes
 
 
-class HB2BReductionManager(object):
+class HB2BReductionManager:
     """
     A data reduction manager of HB2B
 

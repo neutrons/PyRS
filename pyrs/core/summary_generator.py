@@ -23,7 +23,7 @@ DEFAULT_BODY_TITLES = ['vx', 'vy', 'vz', 'sx', 'sy', 'sz', 'phi', 'chi', 'omega'
                        'S1height', 'S1distance', 'RadialDistance']
 
 
-class SummaryGenerator(object):
+class SummaryGenerator:
     """
     Generate summary to user about peak
 

@@ -71,7 +71,7 @@ def calculate_sub_run_time_average(log_property, time_filter):
     return time_average_value
 
 
-class Splitter(object):
+class Splitter:
     def __init__(self, runObj):
         self._log = Logger(__name__)
 
@@ -214,7 +214,7 @@ class Splitter(object):
                 self.propertyFilters.append(time_filter)
 
 
-class NeXusConvertingApp(object):
+class NeXusConvertingApp:
     """
     Convert NeXus file to Hidra project file
     """

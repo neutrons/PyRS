@@ -10,7 +10,7 @@ from pyrs.utilities import checkdatatypes
 import math
 
 
-class ResidualStressInstrument(object):
+class ResidualStressInstrument:
     """
     This is a class to define HB2B instrument geometry and related calculation
     """
@@ -398,7 +398,7 @@ class ResidualStressInstrument(object):
         self._wave_length = w_l
 
 
-class PyHB2BReduction(object):
+class PyHB2BReduction:
     """ A class to reduce HB2B data in pure Python and numpy
     """
 

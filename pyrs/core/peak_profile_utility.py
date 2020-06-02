@@ -114,7 +114,7 @@ def get_effective_parameters_converter(peak_profile):
     return converter
 
 
-class PeakParametersConverter(object):
+class PeakParametersConverter:
     """Virtual base class to convert peak parameters from native to effective
 
     """

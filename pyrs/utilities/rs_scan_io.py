@@ -6,7 +6,7 @@ import six
 from shutil import copyfile
 
 
-class DiffractionDataFile(object):
+class DiffractionDataFile:
     """
     class to read and write reduced diffraction data file
     """
