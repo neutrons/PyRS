@@ -1,7 +1,7 @@
 # PyRS static helper methods
 import os
 import numpy
-import six
+from . convertdatatypes import to_int
 from typing import Any, Iterable, Optional, Tuple
 
 
@@ -60,27 +60,9 @@ def check_file_name(file_name: str, check_exist: bool = True, check_writable: bo
 
 def check_int_variable(var_name: str, variable: Any, value_range: Tuple[Optional[int], Optional[int]]) -> None:
     '''check whether an input variable is an integer
-    :except AssertionError:
-    :except ValueError:
     :param value_range: if not None, then must be a 2 tuple as [min, max)
     '''
-    assert isinstance(variable, (int, numpy.integer)), '{0} "{1}" must be an integer ' \
-        'but not a {2}'.format(var_name, variable, type(variable))
-
-    if value_range is not None:
-        assert len(value_range) == 2, '{0}\' value range {1} must be either a None or have 2 elements as [min, max)' \
-                                      ''.format(var_name, value_range)
-
-        min_val = value_range[0]
-        max_val = value_range[1]
-        assert min_val is None or isinstance(min_val, int), 'Minimum value {0} of value range {1} must be either' \
-                                                            ' None or integer but not {2}' \
-                                                            ''.format(min_val, value_range, type(min_val))
-        assert max_val is None or isinstance(max_val, int), 'Maximum value {0} of value range {1} must be either' \
-                                                            ' None or integer but not {2}' \
-                                                            ''.format(max_val, value_range, type(max_val))
-        if (min_val is not None and variable < min_val) or (max_val is not None and variable >= max_val):
-            raise ValueError('{0} (= {1}) is out of range [{2}, {3})'.format(var_name, variable, min_val, max_val))
+    _ = to_int(var_name, variable, value_range[0], value_range[1])
 
 
 def check_list(var_name: str, variable: Any, allowed_values: Optional[list] = None) -> None:
@@ -101,7 +83,7 @@ def check_list(var_name: str, variable: Any, allowed_values: Optional[list] = No
                                    ''.format(var_name, item, allowed_values))
 
 
-def check_numpy_arrays(var_name: str, variables: Any, dimension: Optional[int], check_same_shape: bool) -> None :
+def check_numpy_arrays(var_name: str, variables: Any, dimension: Optional[int], check_same_shape: bool) -> None:
     '''check numpy array or numpy arrays
     :param dimension: None for not checking dimension; Otherwise, a tuple can be compared with numpy.ndarray.shape
     '''
