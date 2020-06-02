@@ -1,5 +1,0 @@
-tests/testdata/masks/Chi_0.hdf5
-tests/testdata/masks/Chi_10.hdf5
-tests/testdata/masks/Chi_Neg10.hdf5
-tests/testdata/masks/Chi_30.hdf5
-tests/testdata/masks/Chi_Neg30.hdf5
