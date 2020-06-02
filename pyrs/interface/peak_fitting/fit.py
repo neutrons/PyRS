@@ -2,11 +2,11 @@ from collections import namedtuple
 import numpy as np
 
 from pyrs.interface.peak_fitting.plot import Plot
-from pyrs.dataobjects import HidraConstants
+from pyrs.dataobjects import HidraConstants  # type: ignore
 from pyrs.interface.peak_fitting.utilities import Utilities
 from pyrs.interface.gui_helper import pop_message
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
-from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory
+from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory  # type: ignore
 from qtpy.QtWidgets import QApplication
 from qtpy.QtCore import Qt
 

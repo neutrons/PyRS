@@ -5,10 +5,11 @@ from mantid.kernel import Logger
 import numpy
 import os
 from pyrs.utilities import checkdatatypes
+from pyrs.utilities.convertdatatypes import to_float
 from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSetup
-from pyrs.peaks import PeakCollection
-from pyrs.dataobjects import HidraConstants, SampleLogs
-from pyrs.projectfile import HidraProjectFileMode
+from pyrs.peaks import PeakCollection  # type: ignore
+from pyrs.dataobjects import HidraConstants, SampleLogs  # type: ignore
+from pyrs.projectfile import HidraProjectFileMode  # type: ignore
 
 __all__ = ['HidraProjectFile']
 
@@ -22,7 +23,7 @@ class DiffractionUnit(Enum):
         return self.value
 
 
-class HidraProjectFile(object):
+class HidraProjectFile:
     '''Read and/or write an HB2B project to an HDF5 with entries for detector counts, sample logs, reduced data,
     fitted peaks and etc.
     All the import/export information will be buffered in order to avoid exception during operation
@@ -749,7 +750,7 @@ class HidraProjectFile(object):
 
         return wl
 
-    def write_wavelength(self, wave_length):
+    def write_wavelength(self, wave_length: float):
         """ Set the calibrated wave length
         Location:
           .../instrument/monochromator setting/ ... .../
@@ -760,7 +761,7 @@ class HidraProjectFile(object):
         :param wave_length: wave length in A
         :return: None
         """
-        checkdatatypes.check_float_variable('Wave length', wave_length, (0, 1000))
+        wave_length = to_float('Wave length', wave_length, min_value=0, max_value=1000)
 
         # Create 'monochromator setting' node if it does not exist
         if HidraConstants.MONO not in list(self._project_h5[HidraConstants.INSTRUMENT].keys()):

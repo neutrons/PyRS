@@ -1,4 +1,4 @@
-class CalibrationManager(object):
+class CalibrationManager:
     """A class to handle all the calibration files
 
     calibration shall be related to date (run cycle), wave length and etc.

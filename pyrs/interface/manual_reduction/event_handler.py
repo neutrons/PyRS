@@ -4,11 +4,11 @@ from qtpy.QtWidgets import QApplication
 from pyrs.interface.gui_helper import pop_message, browse_file, browse_dir, parse_combo_box
 from mantidqt.utils.asynchronous import BlockingAsyncTaskWithCallback
 from pyrs.interface.manual_reduction.pyrs_api import ReductionController
-from pyrs.dataobjects.constants import HidraConstants
-from pyrs.utilities import get_default_output_dir, get_ipts_dir, get_nexus_file
+from pyrs.dataobjects.constants import HidraConstants  # type: ignore
+from pyrs.utilities import get_default_output_dir, get_ipts_dir, get_nexus_file  # type: ignore
 
 
-class EventHandler(object):
+class EventHandler:
     """Class to handle the event sent from UI widget
     """
     def __init__(self, parent):

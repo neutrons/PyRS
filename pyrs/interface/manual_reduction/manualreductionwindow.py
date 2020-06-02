@@ -1,9 +1,7 @@
 from qtpy.QtWidgets import QMainWindow, QVBoxLayout
 import os
-from pyrs.utilities import load_ui
-from pyrs.interface.gui_helper import promote_widget
+from pyrs.utilities import load_ui  # type: ignore
 from pyrs.interface.ui.diffdataviews import DetectorView, GeneralDiffDataView
-from pyrs.interface.ui import rstables
 from pyrs.interface.manual_reduction.event_handler import EventHandler
 
 
@@ -92,31 +90,8 @@ class ManualReductionWindow(QMainWindow):
         # Child windows
         self._slice_setup_window = None
 
-        # menu operation
-
-        # load NeXus
-        self.ui.actionLoad_nexus_file.triggered.connect(self.load_nexus_file)
-
-        # Load project file (*.h5)
-        self.ui.actionLoad_Project_File.triggered.connect(self.load_hidra_project_file)
-
-        # init widgets
-        self._init_widgets_setup()
-
         # mutexes
         self._mutexPlotRuns = False
-
-        return
-
-    def _init_widgets_setup(self):
-        """
-        init setup widgets
-        :return:
-        """
-        self.ui.tabWidget_reduceRuns.setCurrentIndex(0)
-
-        # Set up data table
-        self.ui.rawDataTable.setup()
 
         return
 
@@ -136,10 +111,6 @@ class ManualReductionWindow(QMainWindow):
         self.ui.frame_detectorView.setLayout(curr_layout)
         self.ui.graphicsView_detectorView = DetectorView(self)
         curr_layout.addWidget(self.ui.graphicsView_detectorView)
-
-        # Sub run information table
-        self.ui.rawDataTable = rstables.RawDataTable(self)
-        promote_widget(self.ui.frame_subRunInfoTable, self.ui.rawDataTable)
 
         return
 
@@ -187,26 +158,6 @@ class ManualReductionWindow(QMainWindow):
         """
         self._event_handler.set_output_dir_widgets(state)
 
-    # Menu event handler
-    def load_nexus_file(self):
-        """Browse NeXus file
-
-        Returns
-        -------
-
-        """
-        self._event_handler.browse_load_nexus()
-
-    def load_hidra_project_file(self):
-        """Browse and load Hidra project file
-
-        Returns
-        -------
-        None
-
-        """
-        self._event_handler.browse_load_hidra()
-
     def browse_calibration_file(self):
         """ Browse and set up calibration file
         :return:
@@ -222,13 +173,6 @@ class ManualReductionWindow(QMainWindow):
 
         """
         self._event_handler.browse_nexus_path()
-
-    def browse_idf(self):
-        """
-        Browse (optonally) and set instrument definition file
-        :return:
-        """
-        self._event_handler.browse_idf()
 
     def browse_output_dir(self):
         """

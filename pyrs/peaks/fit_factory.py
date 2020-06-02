@@ -5,7 +5,7 @@ SupportedBackgroundTypes = ['Flat', 'Linear', 'Quadratic']
 __all__ = ['FitEngineFactory', 'SupportedPeakProfiles', 'SupportedBackgroundTypes']
 
 
-class FitEngineFactory(object):
+class FitEngineFactory:
     """
     Peak fitting engine factory
     """

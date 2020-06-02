@@ -1,4 +1,5 @@
 # flake8: noqa
+# type: ignore
 import os
 from qtpy.uic import loadUi
 from pyrs.interface import designer

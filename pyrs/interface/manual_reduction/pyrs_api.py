@@ -8,7 +8,7 @@ DEFAULT_MASK_DIRECTORY = '/HFIR/HB2B/shared/CALIBRATION/'
 DEFAULT_CALIBRATION_DIRECTORY = DEFAULT_MASK_DIRECTORY
 
 
-class ReductionController(object):
+class ReductionController:
     """Control the data objects for manual reduction
 
     """

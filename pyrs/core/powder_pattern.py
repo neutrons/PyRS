@@ -1,7 +1,7 @@
 from pyrs.core import reduction_manager
 # from pyrs.utilities import checkdatatypes
 from pyrs.core import mask_util
-from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.utilities import calibration_file_io
 from matplotlib import pyplot as plt
 
@@ -17,7 +17,7 @@ def _mask_detectors(counts_vec, mask_file=None):
     return masked_counts_vec
 
 
-class ReductionApp(object):
+class ReductionApp:
     """
     Data reduction application
     """

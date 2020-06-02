@@ -1,4 +1,4 @@
-from pyrs.utilities import load_ui
+from pyrs.utilities import load_ui  # type: ignore
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QDialog, QMainWindow
 

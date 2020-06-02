@@ -3,14 +3,11 @@ import numpy as np
 import numpy
 from pyrs.core import instrument_geometry
 from pyrs.utilities import checkdatatypes
-# from mantid.simpleapi import CreateWorkspace
-# from mantid.simpleapi import ResampleX
-# from mantid.simpleapi import SortXAxis
-# import time
-import math
+from pyrs.utilities.convertdatatypes import to_float
+from typing import Optional
 
 
-class ResidualStressInstrument(object):
+class ResidualStressInstrument:
     """
     This is a class to define HB2B instrument geometry and related calculation
     """
@@ -93,7 +90,7 @@ class ResidualStressInstrument(object):
 
         return pixel_matrix
 
-    def build_instrument(self, two_theta, l2, instrument_calibration):
+    def build_instrument(self, two_theta: float, l2: Optional[float] = None, instrument_calibration=None):
         """
         build instrument considering calibration
         step 1: rotate instrument according to the calibration
@@ -103,12 +100,12 @@ class ResidualStressInstrument(object):
         :return:
         """
         # Check input
-        checkdatatypes.check_float_variable('2theta', two_theta, (None, None))
+        two_theta = to_float('2theta', two_theta)
         # Check or set L2
         if l2 is None:
             l2 = self._instrument_geom_params.arm_length
         else:
-            checkdatatypes.check_float_variable('L2', l2, (1E-2, None))
+            l2 = to_float('L2', l2, 1E-2)
 
         # print('[DB...L101] Build instrument: 2theta = {}, arm = {} (diff to default = {})'
         #       ''.format(two_theta, l2, l2 - self._instrument_geom_params.arm_length))
@@ -398,7 +395,7 @@ class ResidualStressInstrument(object):
         self._wave_length = w_l
 
 
-class PyHB2BReduction(object):
+class PyHB2BReduction:
     """ A class to reduce HB2B data in pure Python and numpy
     """
 
@@ -506,7 +503,7 @@ class PyHB2BReduction(object):
                 # num detectors
                 num_dets = pixel_array.shape[0]
 
-                linear_size = int(math.sqrt(num_dets))
+                linear_size = int(np.sqrt(num_dets))
                 for i_pos, pos_tuple in enumerate([(0, 0), (0, linear_size - 1),
                                                    (linear_size - 1, 0), (linear_size - 1, linear_size - 1),
                                                    (linear_size / 2, linear_size / 2)]):
@@ -601,22 +598,20 @@ class PyHB2BReduction(object):
 
         return two_theta_bins, intensity_vector, variances_vector
 
-    def set_experimental_data(self, two_theta, l2, raw_count_vec):
+    def set_experimental_data(self, two_theta: float, l2: Optional[float], raw_count_vec):
         """ Set experimental data (for a sub-run)
         :param two_theta: detector position
         :param raw_count_vec: detector raw counts
         :return:
         """
-        checkdatatypes.check_float_variable('2-theta', two_theta, (-180, 180))
-        checkdatatypes.check_numpy_arrays('Detector (raw) counts', [raw_count_vec], None, False)
+        self._detector_2theta = to_float('2-theta', two_theta, -180, 180)
+
         if l2 is not None:
-            checkdatatypes.check_float_variable('L2', l2, (1.E-2, None))
-
-        self._detector_2theta = two_theta
+            l2 = to_float('L2', l2, 1.E-2)
         self._detector_l2 = l2
-        self._detector_counts = raw_count_vec
 
-        return
+        checkdatatypes.check_numpy_arrays('Detector (raw) counts', [raw_count_vec], None, False)
+        self._detector_counts = raw_count_vec
 
     def set_raw_counts(self, raw_count_vec):
         """ Set experimental data (for a sub-run)

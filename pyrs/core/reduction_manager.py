@@ -6,13 +6,15 @@ from pyrs.core import instrument_geometry
 from pyrs.core import mask_util
 from pyrs.core import reduce_hb2b_pyrs
 from pyrs.core.nexus_conversion import NeXusConvertingApp
-from pyrs.dataobjects import HidraConstants
-from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
+from pyrs.dataobjects import HidraConstants  # type: ignore
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.utilities import calibration_file_io
 from pyrs.utilities import checkdatatypes
+from pyrs.utilities.convertdatatypes import to_float
+from typing import Optional
 
 
-class HB2BReductionManager(object):
+class HB2BReductionManager:
     """
     A data reduction manager of HB2B
 
@@ -834,7 +836,8 @@ class HB2BReductionManager(object):
         return bin_centers, hist, variances
 
     @staticmethod
-    def generate_2theta_histogram_vector(min_2theta, num_bins, max_2theta,
+    def generate_2theta_histogram_vector(min_2theta: Optional[float], num_bins: int,
+                                         max_2theta: Optional[float],
                                          pixel_2theta_array, mask_array):
         """Generate a 1-D array for histogram 2theta bins
 
@@ -880,9 +883,9 @@ class HB2BReductionManager(object):
         step_2theta = (max_2theta - min_2theta) * 1. / num_bins
 
         # Check inputs
-        checkdatatypes.check_float_variable('Minimum 2theta', min_2theta, (-180, 180))
-        checkdatatypes.check_float_variable('Maximum 2theta', max_2theta, (-180, 180))
-        checkdatatypes.check_float_variable('2theta bin size', step_2theta, (0, 180))
+        min_2theta = to_float('Minimum 2theta', min_2theta, -180, 180)
+        max_2theta = to_float('Maximum 2theta', max_2theta, -180, 180)
+        step_2theta = to_float('2theta bin size', step_2theta, 0, 180)
         if min_2theta >= max_2theta:
             raise RuntimeError('2theta range ({}, {}) is invalid for generating histogram'
                                ''.format(min_2theta, max_2theta))

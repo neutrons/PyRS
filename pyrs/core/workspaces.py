@@ -1,11 +1,11 @@
 # Data manager
 import numpy
-from pyrs.dataobjects import HidraConstants, SampleLogs
-from pyrs.projectfile import HidraProjectFile
+from pyrs.dataobjects import HidraConstants, SampleLogs  # type: ignore
+from pyrs.projectfile import HidraProjectFile  # type: ignore
 from pyrs.utilities import checkdatatypes
 
 
-class HidraWorkspace(object):
+class HidraWorkspace:
     """
     This workspace is the central data structure to manage all the raw and/or processed data.
     It provides

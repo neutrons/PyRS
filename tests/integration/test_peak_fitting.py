@@ -20,7 +20,7 @@ import shutil
 PeakInfo = namedtuple('PeakInfo', 'center left_bound right_bound tag')
 
 
-class PeakFittingTest(object):
+class PeakFittingTest:
     """
     Class to test peak fitting related classes and methods
     """

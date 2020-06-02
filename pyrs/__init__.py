@@ -1,3 +1,4 @@
+# type: ignore
 __description__ = "Reduction software for HB2B"
 __url__ = 'https://github.com/neutrons/PyRS'
 

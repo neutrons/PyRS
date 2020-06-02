@@ -4,7 +4,7 @@ from mpl_toolkits.mplot3d import Axes3D   # noqa: F401
 
 from pyrs.interface.gui_helper import parse_integers
 from pyrs.interface.gui_helper import pop_message
-from pyrs.dataobjects import HidraConstants
+from pyrs.dataobjects import HidraConstants  # type: ignore
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
 from pyrs.interface.peak_fitting.data_retriever import DataRetriever
 

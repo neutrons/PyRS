@@ -7,7 +7,7 @@ import json
 import os
 
 # Import pyrs modules
-from pyrs.core import MonoSetting
+from pyrs.core import MonoSetting  # type: ignore
 from pyrs.core.reduce_hb2b_pyrs import PyHB2BReduction
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
 from pyrs.core.reduction_manager import HB2BReductionManager
@@ -76,7 +76,7 @@ def GaussianModel(x, mu, sigma, Amp):
     return Amp/(sigma * np.sqrt(2 * np.pi)) * np.exp(- (x - mu)**2 / (2 * sigma**2))
 
 
-class GlobalParameter(object):
+class GlobalParameter:
     global_curr_sequence = 0
 
     def __init__(self):
@@ -122,7 +122,7 @@ def get_ref_flags(powder_engine, pin_engine):
     return monosetting, tth_ref
 
 
-class PeakFitCalibration(object):
+class PeakFitCalibration:
     """
     Calibrate by grid searching algorithm using Brute Force or Monte Carlo random walk
     """

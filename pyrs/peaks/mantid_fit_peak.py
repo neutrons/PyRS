@@ -1,6 +1,6 @@
 from .peak_fit_engine import PeakFitEngine, FitResult
 from pyrs.core.peak_profile_utility import PeakShape
-from pyrs.peaks import PeakCollection
+from pyrs.peaks import PeakCollection  # type: ignore
 import numpy as np
 from mantid.kernel import Logger
 from mantid.simpleapi import DeleteWorkspace, FitPeaks, RenameWorkspace

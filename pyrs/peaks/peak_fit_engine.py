@@ -14,7 +14,7 @@ class FitResult(namedtuple('FitResult', 'peakcollections fitted difference')):
     pass
 
 
-class PeakFitEngine(object):
+class PeakFitEngine:
     '''This is the virtual base class as the fitting frame'''
     def __init__(self, hidraworkspace, peak_function_name, background_function_name,
                  wavelength, out_of_plane_angle):

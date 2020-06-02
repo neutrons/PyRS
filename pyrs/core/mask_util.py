@@ -2,6 +2,8 @@
 import numpy as np
 import h5py
 from pyrs.utilities import checkdatatypes
+from pyrs.utilities.convertdatatypes import to_float
+from typing import Optional
 
 """
 Note:
@@ -110,7 +112,7 @@ def load_pyrs_mask(mask_h5):
     return mask_vec, two_theta, note
 
 
-def save_mantid_mask(mask_vec, h5_name, two_theta, note):
+def save_mantid_mask(mask_vec, h5_name: str, two_theta: float, note: Optional[str] = None) -> None:
     """
     Save a mask vector to
     :param mask_vec:
@@ -122,7 +124,7 @@ def save_mantid_mask(mask_vec, h5_name, two_theta, note):
     checkdatatypes.check_numpy_arrays('Mask vector', [mask_vec], dimension=1, check_same_shape=False)
     checkdatatypes.check_file_name(h5_name, False, True, False, 'PyRS masking file to export to')
     if two_theta is not None:
-        checkdatatypes.check_float_variable('2-theta', two_theta, (-360., 360))
+        two_theta = to_float('2-theta', two_theta, -360., 360)
     if note is not None:
         checkdatatypes.check_string_variable('Mask note', note, None)
 
@@ -137,5 +139,3 @@ def save_mantid_mask(mask_vec, h5_name, two_theta, note):
         mask_data_set.attrs['note'] = note
     # close file
     mask_file.close()
-
-    return
