@@ -5,7 +5,7 @@ from mantid.kernel import Logger
 import numpy
 import os
 from pyrs.utilities import checkdatatypes
-from pyrs.utilities.convertdatatypes import to_float
+from pyrs.utilities.convertdatatypes import to_float, to_int
 from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSetup
 from pyrs.peaks import PeakCollection  # type: ignore
 from pyrs.dataobjects import HidraConstants, SampleLogs  # type: ignore
@@ -137,7 +137,7 @@ class HidraProjectFile:
         """
         return self._project_h5.name
 
-    def append_raw_counts(self, sub_run_number, counts_array):
+    def append_raw_counts(self, sub_run_number: int, counts_array: numpy.ndarray) -> None:
         """Add raw detector counts collected in a single scan/Pt
 
         Parameters
@@ -150,7 +150,7 @@ class HidraProjectFile:
         # check
         assert self._project_h5 is not None, 'cannot be None'
         assert self._is_writable, 'must be writable'
-        checkdatatypes.check_int_variable('Sub-run index', sub_run_number, (0, None))
+        sub_run_number = to_int('Sub-run index', sub_run_number, min_value=0)
 
         # create group
         scan_i_group = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SUB_RUNS].create_group(
@@ -519,12 +519,12 @@ class HidraProjectFile:
 
         return log_value
 
-    def read_raw_counts(self, sub_run):
+    def read_raw_counts(self, sub_run: int) -> numpy.ndarray:
         """
         get the raw detector counts
         """
         assert self._project_h5 is not None, 'blabla'
-        checkdatatypes.check_int_variable('sun run', sub_run, (0, None))
+        sub_run = to_int('sun run', sub_run, min_value=0)
 
         sub_run_str = '{:04}'.format(sub_run)
         try:

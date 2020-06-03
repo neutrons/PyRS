@@ -1,8 +1,8 @@
 # PyRS static helper methods
 import os
 import numpy
-from . convertdatatypes import to_int
 from typing import Any, Iterable, Optional, Tuple
+from . convertdatatypes import to_int
 
 
 def check_bool_variable(var_name: str, bool_var: bool) -> None:
@@ -58,13 +58,6 @@ def check_file_name(file_name: str, check_exist: bool = True, check_writable: bo
             ''.format(file_name, os.path.isdir(file_name), is_dir)
 
 
-def check_int_variable(var_name: str, variable: Any, value_range: Tuple[Optional[int], Optional[int]]) -> None:
-    '''check whether an input variable is an integer
-    :param value_range: if not None, then must be a 2 tuple as [min, max)
-    '''
-    _ = to_int(var_name, variable, value_range[0], value_range[1])
-
-
 def check_list(var_name: str, variable: Any, allowed_values: Optional[list] = None) -> None:
     '''check whether a variable is a list'''
     if allowed_values is not None:
@@ -101,7 +94,7 @@ def check_numpy_arrays(var_name: str, variables: Any, dimension: Optional[int], 
         assert isinstance(variable, numpy.ndarray), '{0}-th element of variable {1} ({2}) must be an ndarray but not' \
                                                     ' a {3}'.format(index, var_name, variable, type(variable))
         if dimension is not None:
-            check_int_variable('ndarray dimension for {0}'.format(var_name), dimension, (0, None))
+            dimension = to_int('ndarray dimension for {0}'.format(var_name), dimension, min_value=0)
             assert len(variable.shape) == dimension, '{0}-th ndarray of variable {1} must be of {2}-dimension but ' \
                                                      'not have a shape as {3}.'.format(index, var_name, dimension,
                                                                                        variable.shape)
@@ -184,6 +177,6 @@ def check_type(var_name: str, variable: Any, var_type: type) -> None:
 def check_tuple(var_name: str, variable: Tuple, tuple_size: Optional[int] = None) -> None:
     '''check whether a variable is a tuple.  As an option, the tuple size can be checked too.'''
     if tuple_size is not None:
-        check_int_variable('Tuple size', tuple_size, value_range=(0, None))
+        tuple_size = to_int('Tuple size', tuple_size, min_value=0)
         assert len(variable) == tuple_size, 'Tuple {0}\'s size {1} must be equal to {2} as user specifies.' \
                                             ''.format(variable, len(variable), tuple_size)

@@ -1,7 +1,7 @@
 import numpy
 import math
 import pyrs.utilities.checkdatatypes
-from pyrs.utilities.convertdatatypes import to_float
+from pyrs.utilities.convertdatatypes import to_float, to_int
 from scipy.interpolate import griddata
 from pyrs.utilities import rs_scan_io
 
@@ -885,14 +885,14 @@ class StrainStressCalculator:
 
         return new_ss_calculator
 
-    def calculate_max_distance(self, sample_point_index):
+    def calculate_max_distance(self, sample_point_index: int) -> float:
         """
         in the case that all 2 or 3
         :param sample_point_index:
         :return:
         """
-        pyrs.utilities.checkdatatypes.check_int_variable('Sample point index', sample_point_index,
-                                                         (0, self._sample_positions_dict['e11'].shape[0]))
+        sample_point_index = to_int('Sample point index', sample_point_index,
+                                    0, self._sample_positions_dict['e11'].shape[0])
 
         num_dir = len(self._direction_list)
         max_distance = -1
@@ -1091,7 +1091,7 @@ class StrainStressCalculator:
         :return:
         """
         pyrs.utilities.checkdatatypes.check_numpy_arrays('Parameter value on grids', [param_grid_array], 2, False)
-        pyrs.utilities.checkdatatypes.check_int_variable('Slicing direction', slice_dir, (0, 3))
+        slice_dir = to_int('Slicing direction', slice_dir, 0, 3)
         slice_pos = to_float('Slicing position', slice_pos)
         slice_resolution = to_float('Slicing resolution', slice_resolution, min_value=0)
 

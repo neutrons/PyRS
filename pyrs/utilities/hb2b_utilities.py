@@ -1,11 +1,12 @@
 # TODO - 20181130 - Implement this class
 # A module contains a set of static methods to provide instrument geometry and data archiving knowledge of HB2B
 from . import checkdatatypes
+from .convertdatatypes import to_int
 from pyrs.utilities.calibration_file_io import ResidualStressCalibrationFile
 import os
 
 
-def get_hb2b_raw_data(ipts_number, run_number):
+def get_hb2b_raw_data(ipts_number: int, run_number: int) -> str:
     """
     get the archived HB2B raw data
     :param ipts_number:
@@ -13,8 +14,8 @@ def get_hb2b_raw_data(ipts_number, run_number):
     :return:
     """
     # check inputs
-    checkdatatypes.check_int_variable('IPTS number', ipts_number, (1, None))
-    checkdatatypes.check_int_variable('Run number', run_number, (1, None))
+    ipts_number = to_int('IPTS number', ipts_number, min_value=1)
+    run_number = to_int('Run number', run_number, min_value=1)
 
     raw_exp_file_name = '/HFIR/HB2B/IPTS-{0}/datafiles/{1}.h5'.format(ipts_number, run_number)
 
@@ -23,7 +24,7 @@ def get_hb2b_raw_data(ipts_number, run_number):
     return raw_exp_file_name
 
 
-def get_hydra_project_file(ipts_number, run_number):
+def get_hydra_project_file(ipts_number: int, run_number: int) -> str:
     """
     get the archived HB2B raw data
     :param ipts_number: IPTS number (int)
@@ -31,8 +32,8 @@ def get_hydra_project_file(ipts_number, run_number):
     :return:
     """
     # check inputs
-    checkdatatypes.check_int_variable('IPTS number', ipts_number, (1, None))
-    checkdatatypes.check_int_variable('Run number', run_number, (1, None))
+    ipts_number = to_int('IPTS number', ipts_number, min_value=1)
+    run_number = to_int('Run number', run_number, min_value=1)
 
     hydra_file_name = '/HFIR/HB2B/IPTS-{0}/shared/reduced_files/HB2B_{1}.hdf'.format(ipts_number, run_number)
 
@@ -40,7 +41,7 @@ def get_hydra_project_file(ipts_number, run_number):
         checkdatatypes.check_file_name(hydra_file_name, check_exist=True, check_writable=False, is_dir=False)
     except RuntimeError as run_error:
         print('[ERROR] Unable to find Hidra project file {} due to {}'.format(hydra_file_name, run_error))
-        return None
+        return ''
 
     return hydra_file_name
 

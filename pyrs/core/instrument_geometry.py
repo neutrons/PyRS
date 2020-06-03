@@ -5,7 +5,7 @@ Containing classes serving for
 """
 import json
 from pyrs.utilities import checkdatatypes
-from pyrs.utilities.convertdatatypes import to_float
+from pyrs.utilities.convertdatatypes import to_float, to_int
 
 
 class HidraSetup:
@@ -106,10 +106,9 @@ class AnglerCameraDetectorGeometry:
         self._arm_length = to_float('Arm length', arm_length, min_value=1E-5)
         self._pixel_size_x = to_float('Pixel size (x)', pixel_size_x, min_value=1E-7)
         self._pixel_size_y = to_float('Pixel size (y)', pixel_size_y, min_value=1E-7)
-        checkdatatypes.check_int_variable('Number of rows in detector', num_rows, (1, None))
-        self._detector_rows = num_rows
-        checkdatatypes.check_int_variable('Number of columns in detector', num_columns, (1, None))
-        self._detector_columns = num_columns
+        self._detector_rows = to_int('Number of rows in detector', num_rows, min_value=1)
+        self._detector_columns = to_int('Number of columns in detector', num_columns, min_value=1)
+        # TODO this isn't used - BUG?
         checkdatatypes.check_bool_variable('Flag indicating instrument setup been calibrated', calibrated)
 
     def apply_shift(self, geometry_shift):

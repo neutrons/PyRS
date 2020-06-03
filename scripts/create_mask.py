@@ -18,6 +18,7 @@
 import sys
 from math import sqrt
 from pyrs.utilities import checkdatatypes
+from pyrs.utilities.convertdatatypes import to_int
 from pyrs.core import mask_util
 import os
 from matplotlib import pyplot as plt
@@ -31,9 +32,7 @@ class MaskProcessApp:
         """ Initialization as number of pixel
         :param num_pixels:
         """
-        checkdatatypes.check_int_variable('Detector pixel number', num_pixels, (1024**2, 2048**2+1))
-
-        self._num_pixels = num_pixels
+        self._num_pixels = to_int('Detector pixel number', num_pixels, 1024**2, 2048**2+1)
         self._mask_array_dict = dict()
         self._mask_info_dict = dict()   # mask ID, original file, target_file
 
