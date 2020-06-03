@@ -228,7 +228,6 @@ class StrainStressCalculator:
 
         # strain stress parameters
         self._d0 = None
-        # self._2theta = None
 
         self._young_e = None
         self._poisson_nu = None
