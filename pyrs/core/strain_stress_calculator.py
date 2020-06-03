@@ -227,7 +227,7 @@ class StrainStressCalculator:
         self._is_saved = False
 
         # file loader (static kind of)
-        self._file_io = rs_scan_io.DiffractionDataFile()
+        #self._file_io = rs_scan_io.DiffractionDataFile()
 
         # strain stress parameters
         self._d0 = None
@@ -1397,7 +1397,7 @@ class StrainStressCalculator:
             raise RuntimeError('Direction e33 is not used in plane stress or plane strain case.')
 
         # import data
-        diff_data_dict, sample_logs = self._file_io.load_rs_file(file_name)
+        diff_data_dict, sample_logs = rs_scan_io.load_rs_file(file_name)
         # print ('[DB...BAT] data dict: {}... sample logs: {}...'.format(diff_data_dict, sample_logs))
         # print ('[DB...BAT] Data dict type: {}.  Keys: {}'.format(type(diff_data_dict), diff_data_dict.keys()))
         # print ('[DB...BAT] Sample log dict keys: {}'.format(sample_logs.keys()))
