@@ -1,7 +1,6 @@
 # A module contains a set of static methods to provide instrument geometry and data archiving knowledge of HB2B
 from . import checkdatatypes
 from .convertdatatypes import to_int
-from pyrs.utilities.calibration_file_io import ResidualStressCalibrationFile
 import os
 
 
@@ -61,31 +60,3 @@ def is_calibration_dir(cal_sub_dir_name):
     # dir_base_name in hb2b_setup
 
     return False
-
-
-def scan_calibration_in_archive():
-    """
-    search the archive (/HFIR/HB2B/shared/CALIBRATION/) to create a table,
-    which can be used to write the calibration information file
-    :return:
-    """
-    calib_info_table = dict()
-
-    calib_root_dir = '/HFIR/HB2B/CALIBRATION/'
-
-    wavelength_dir_names = os.listdir(calib_root_dir)
-    for wavelength_dir in wavelength_dir_names:
-        # skip non-relevant directories
-        wavelength_dir = os.path.join(calib_root_dir, wavelength_dir)
-        if not is_calibration_dir(wavelength_dir):
-            continue
-
-        calib_info_table[wavelength_dir] = dict()
-        cal_file_names = os.listdir(wavelength_dir)
-        for cal_file_name in cal_file_names:
-            calib_date = ResidualStressCalibrationFile(cal_file_name).retrieve_calibration_date()
-            calib_info_table[wavelength_dir][calib_date] = cal_file_name
-        # END-FOR
-    # END-FOR
-
-    return calib_info_table
