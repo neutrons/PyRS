@@ -2,6 +2,7 @@ import numpy as np
 from pyrs.core.peak_profile_utility import get_parameter_dtype, get_effective_parameters_converter, PeakShape, \
     BackgroundFunction
 from pyrs.dataobjects import SubRuns  # type: ignore
+from typing import Tuple
 
 __all__ = ['PeakCollection']
 
@@ -10,7 +11,8 @@ class PeakCollection:
     """
     Object to contain peak parameters (names and values) of a collection of peaks for sub runs
     """
-    def __init__(self, peak_tag, peak_profile, background_type, wavelength=np.nan, d_reference=np.nan):
+    def __init__(self, peak_tag: str, peak_profile, background_type,
+                 wavelength: float = np.nan, d_reference: float = np.nan) -> None:
         """Initialization
 
         Parameters
@@ -44,7 +46,7 @@ class PeakCollection:
         self._fit_status = None
 
     @property
-    def peak_tag(self):
+    def peak_tag(self) -> str:
         """Peak tag
 
         Returns
@@ -56,7 +58,7 @@ class PeakCollection:
         return self._tag
 
     @property
-    def peak_profile(self):
+    def peak_profile(self) -> str:
         """Get peak profile name
 
         Returns
@@ -68,7 +70,7 @@ class PeakCollection:
         return str(self._peak_profile)
 
     @property
-    def background_type(self):
+    def background_type(self) -> str:
         """Get background type
 
         Returns
@@ -84,7 +86,7 @@ class PeakCollection:
         return self._sub_run_array
 
     @property
-    def fitting_costs(self):
+    def fitting_costs(self) -> np.ndarray:
         return self._fit_cost_array
 
     def __convertParameters(self, parameters):
@@ -147,7 +149,7 @@ class PeakCollection:
         self._fit_cost_array = np.copy(fit_costs)
         self.__set_fit_status()
 
-    def get_d_reference(self):
+    def get_d_reference(self) -> float:
         """Get d reference for all the sub runs
 
         Returns
@@ -175,8 +177,8 @@ class PeakCollection:
         else:
             self._d_reference = np.array([values] * self._sub_run_array.size)
 
-    def get_strain(self):
-        """get strain values and uncertainties
+    def get_microstrain(self) -> Tuple[np.ndarray, np.ndarray]:
+        """get strain values and uncertainties in units of microstrain
 
           Parameters
           ----------
@@ -189,8 +191,9 @@ class PeakCollection:
                 A two-item tuple containing the strain and its uncertainty.
           """
         d_fitted, d_fitted_error = self.get_dspacing_center()
-        strain = (d_fitted - self._d_reference)/self._d_reference
-        strain_error = d_fitted_error/self._d_reference
+        # multiplying by 1e6 converts to micro
+        strain = 1.0e6 * (d_fitted - self._d_reference)/self._d_reference
+        strain_error = 1.e6 * d_fitted_error/self._d_reference
         return strain, strain_error
 
     def get_native_params(self):
@@ -208,7 +211,7 @@ class PeakCollection:
 
         return eff_values, eff_errors
 
-    def get_dspacing_center(self):
+    def get_dspacing_center(self) -> Tuple[np.ndarray, np.ndarray]:
         r"""
         peak center in unit of d spacing.
 
@@ -228,7 +231,7 @@ class PeakCollection:
     def get_integrated_intensity(self):
         pass
 
-    def get_chisq(self):
+    def get_chisq(self) -> np.ndarray:
         return np.copy(self._fit_cost_array)
 
     def get_subruns(self):

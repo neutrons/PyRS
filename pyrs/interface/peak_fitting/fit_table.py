@@ -87,11 +87,11 @@ class FitTable:
             return error
 
     def _get_microstrain_mapping_to_display(self, peak_collection=None):
-        values, error = peak_collection.get_strain()
+        values, error = peak_collection.get_microstrain()
         if self.parent.ui.radioButton_fit_value.isChecked():
-            return values*1e6
+            return values
         else:
-            return error*1e6
+            return error
 
     def _get_value_to_display(self, peak_collection):
         values, error = peak_collection.get_effective_params()
