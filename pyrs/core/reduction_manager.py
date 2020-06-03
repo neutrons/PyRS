@@ -8,7 +8,6 @@ from pyrs.core import reduce_hb2b_pyrs
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.dataobjects import HidraConstants  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
-from pyrs.utilities import calibration_file_io
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.convertdatatypes import to_float, to_int
 from typing import Optional
@@ -26,13 +25,8 @@ class HB2BReductionManager:
     def __init__(self):
         """ initialization
         """
-        # # calibration manager
-        # self._calibration_manager = calibration_file_io.CalibrationManager()
-        # self._geometry_calibration = instrument_geometry.AnglerCameraDetectorShift
-
         # workspace name or array vector
         self._curr_workspace = None
-        self._curr_session_name = None
         self._session_dict = dict()  # [Project name/ID] = workspace / counts vector
 
         # Reduction engine
@@ -47,25 +41,6 @@ class HB2BReductionManager:
         # masks
         self._loaded_mask_files = list()
         self._loaded_mask_dict = dict()
-
-        # Outputs
-        self._output_directory = None
-
-    @staticmethod
-    def _generate_ws_name(file_name, is_nexus):
-        ws_name = os.path.basename(file_name).split('.')[0]
-        if is_nexus:
-            # flag to show that there is no need to load instrument again
-            ws_name = '{}__nexus'.format(ws_name)
-
-        return ws_name
-
-    def get_last_reduction_engine(self):
-        """
-        Get the reduction engine recently used
-        :return:
-        """
-        return self._last_reduction_engine
 
     def get_reduced_diffraction_data(self, session_name, sub_run=None, mask_id=None):
         """ Get the reduce data
@@ -92,18 +67,6 @@ class HB2BReductionManager:
 
         return workspace.get_sub_runs()
 
-    def get_sub_run_detector_counts(self, session_name, sub_run):
-        """
-        Get the detector counts
-        :param session_name:
-        :param sub_run:
-        :return:
-        """
-        checkdatatypes.check_string_variable('Session name', session_name, list(self._session_dict.keys()))
-        workspace = self._session_dict[session_name]
-
-        return workspace.get_detector_counts(sub_run)
-
     def get_sample_log_value(self, session_name, log_name, sub_run):
         """Get an individual sample log's value for a sub run
 
@@ -117,21 +80,6 @@ class HB2BReductionManager:
         log_value = workspace.get_sample_log_value(log_name, sub_run)
 
         return log_value
-
-    def get_sample_logs_values(self, session_name, log_names):
-        """ Get sample logs' value
-        :param session_name:
-        :param log_names:
-        :return: List of ...
-        """
-        workspace = self._session_dict[session_name]
-
-        log_values = list()
-        for log_name in log_names:
-            log_value_array = workspace.get_sample_log_values(log_name)
-            log_values.append(log_value_array)
-
-        return log_values
 
     def get_sample_logs_names(self, session_name, can_plot):
         """
@@ -169,21 +117,6 @@ class HB2BReductionManager:
 
         return workspace.get_detector_counts(sub_run)
 
-    def get_hidra_workspace(self, session_name):
-        """ Get the HIDRA workspace
-        :param session_name: string as the session/workspace name
-        :return: HidraWorkspace instance
-        """
-        checkdatatypes.check_string_variable('Session name', session_name, list(self._session_dict.keys()))
-
-        # Check availability
-        if session_name not in self._session_dict:
-            raise RuntimeError('Session/HidraWorkspace {} does not exist. Available sessions/workspaces are {}'
-                               ''.format(session_name, self._session_dict.keys()))
-
-        workspace = self._session_dict[session_name]
-        return workspace
-
     def init_session(self, session_name, hidra_ws=None):
         """
         Initialize a new session of reduction and thus to store data according to session name
@@ -206,8 +139,6 @@ class HB2BReductionManager:
             checkdatatypes.check_type('HidraWorkspace', hidra_ws, workspaces.HidraWorkspace)
             self._curr_workspace = hidra_ws
 
-        # set the current session name and add HidraWorkspace to dict
-        self._curr_session_name = session_name
         self._session_dict[session_name] = self._curr_workspace
 
     def load_hidra_project(self, project_file_name, load_calibrated_instrument, load_detectors_counts,
@@ -244,19 +175,6 @@ class HB2BReductionManager:
         # Close
         project_h5_file.close()
         return self._curr_workspace
-
-    def load_instrument_file(self, instrument_file_name):
-        """
-        Load instrument (setup) file to current "workspace"
-        :param instrument_file_name:
-        :return:
-        """
-        # Check
-        if self._curr_workspace is None:
-            raise RuntimeError('Call init_session to create a ReductionWorkspace')
-
-        instrument = calibration_file_io.import_instrument_setup(instrument_file_name)
-        self._curr_workspace.set_instrument(instrument)
 
     def load_mask_file(self, mask_file_name):
         """ Load mask file to 1D array and auxiliary information
@@ -322,48 +240,6 @@ class HB2BReductionManager:
 
         return van_array, van_duration
 
-    @staticmethod
-    def _do_stat_to_van(van_array):
-        # DEBUG: do statistic
-        print('[INFO] Vanadium Counts: min = {}, max = {}, average = {}'
-              ''.format(np.min(van_array), np.max(van_array), np.average(van_array)))
-        # do statistic on each pixel with hard-coded range of counts
-        # i.e., do a histogram on the vanadium counts
-        count_range = [0, 2, 5, 10, 20, 30, 40, 50, 60, 80, 150, 300]
-        per_count = 0
-        pixel_count = 0
-        for irange in range(len(count_range) - 1):
-            threshold_min = count_range[irange]
-            threshold_max = count_range[irange + 1]
-            good_van_array = van_array[(van_array >= threshold_min) & (van_array < threshold_max)]
-            print('[INFO] {} <= ... < {}: pixels number = {}  Percentage = {}'
-                  ''.format(threshold_min, threshold_max,  good_van_array.size,
-                            good_van_array.size * 1. / van_array.size))
-            pixel_count += good_van_array.size
-            per_count += good_van_array.size * 1. / van_array.size
-        # END-FOR
-
-        # Mask out zero count
-        print('[DEBUG] VANADIUM Before Mask: {}\n\t# of NaN = {}'
-              ''.format(van_array, np.where(np.isnan(van_array))[0].size))
-        van_array[van_array < 3] = np.nan
-        print('[DEBUG] VANADIUM After  Mask: {}\n\t# of NaN = {}'
-              ''.format(van_array, np.where(np.isnan(van_array))[0].size))
-
-    def get_loaded_mask_files(self):
-        """
-        Get the list of file names (full path) that have been loaded
-        :return:
-        """
-        return self._loaded_mask_files[:]
-
-    def get_mask_ids(self):
-        """
-        get IDs for loaded masks
-        :return:
-        """
-        return sorted(self._loaded_mask_dict.keys())
-
     def get_mask_vector(self, mask_id):
         """
         Get the detector mask
@@ -373,41 +249,6 @@ class HB2BReductionManager:
         checkdatatypes.check_string_variable('Mask ID', mask_id, list(self._loaded_mask_dict.keys()))
 
         return self._loaded_mask_dict[mask_id][0]
-
-    def set_geometry_calibration(self, geometry_calibration):
-        """ Load and apply calibration file
-        :param geometry_calibration:
-        :return:
-        """
-        # TODO FIXME - #81 NOWNOW - Still not sure how to apply!
-        checkdatatypes.check_type('Geometry calibration', geometry_calibration,
-                                  instrument_geometry.AnglerCameraDetectorShift)
-
-        self._geometry_calibration = geometry_calibration
-
-    def get_vanadium_counts(self, normalized):
-        """Get vanadium counts of each pixel from current/default vanadium (HidraWorkspace)
-
-        Usage: this will be called in order to fetch vanadium counts to reduce_diffraction_data()
-
-        Returns
-        -------
-        numpy.ndarray
-            1D vanadium counts array
-
-        """
-        if self._van_ws is None:
-            raise RuntimeError('There is no default vanadium set up in reduction service')
-        else:
-            # get vanadium
-            sub_run = self._van_ws.get_sub_runs()[0]
-            van_counts_array = self._van_ws.get_detector_counts(sub_run)
-
-            if normalized:
-                van_duration = self._van_ws.get_sample_log_value(HidraConstants.SUB_RUN_DURATION, sub_run)
-                van_counts_array /= van_duration
-
-        return van_counts_array
 
     def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, num_bins, sub_run_list,
                                 mask, mask_id, vanadium_counts=None, van_duration=None, normalize_by_duration=True,
@@ -461,7 +302,6 @@ class HB2BReductionManager:
             # user supplied an array for mask
             checkdatatypes.check_numpy_arrays('Mask', [mask], dimension=1, check_same_shape=False)
             mask_vec = mask
-        # END-IF-ELSE
 
         # Operate AND with default mask
         if default_mask is not None:
@@ -474,7 +314,7 @@ class HB2BReductionManager:
             det_pos_shift = workspace.get_detector_shift()
         else:
             det_pos_shift = None
-        # END-IF-ELSE
+
         print('[DB...BAT] Det Position Shift: {}'.format(det_pos_shift))
 
         if sub_run_list is None:
@@ -517,10 +357,6 @@ class HB2BReductionManager:
                                             eta_step=eta_step,
                                             eta_min=eta_min,
                                             eta_max=eta_max)
-
-            # END-IF (texture)
-
-        # END-FOR (sub run)
 
     def setup_reduction_engine(self, workspace, sub_run, geometry_calibration):
         """Setup reduction engine to reduce data (workspace or vector) to 2-theta ~ I
@@ -870,7 +706,6 @@ class HB2BReductionManager:
                                                   [pixel_2theta_array, mask_array], 1, True)
                 # mask
                 pixel_2theta_array = pixel_2theta_array[np.where(mask_array == 1)]
-            # END-IF
 
             if min_2theta is None:
                 # lower boundary of 2theta for bins is the minimum 2theta angle of all the pixels
@@ -878,7 +713,6 @@ class HB2BReductionManager:
             if max_2theta is None:
                 # upper boundary of 2theta for bins is the maximum 2theta angle of all the pixels
                 max_2theta = np.max(pixel_2theta_array)
-        # END-IF
 
         step_2theta = (max_2theta - min_2theta) * 1. / num_bins
 
@@ -928,13 +762,3 @@ class HB2BReductionManager:
 
         # Close
         project_file.save()
-
-    def set_output_dir(self, output_dir):
-        """
-        set the directory for output data
-        :param output_dir:
-        :return:
-        """
-        checkdatatypes.check_file_name(output_dir, True, True, True, 'Output directory')
-
-        self._output_directory = output_dir
