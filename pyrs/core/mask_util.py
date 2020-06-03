@@ -2,7 +2,7 @@
 import numpy as np
 import h5py
 from pyrs.utilities import checkdatatypes
-from pyrs.utilities.convertdatatypes import to_float
+from pyrs.utilities.convertdatatypes import to_float, to_int
 from typing import Optional
 
 """
@@ -26,7 +26,7 @@ def load_mantid_mask(pixel_number, mantid_mask_xml, is_mask):
     :return: a vector
     """
     checkdatatypes.check_file_name(mantid_mask_xml, True, False, False, 'Mantid XML mask file')
-    checkdatatypes.check_int_variable('(Total) pixel number', pixel_number, (1024**2, 2048**2 + 1))
+    pixel_number = to_int('(Total) pixel number', pixel_number, 1024**2, 2048**2 + 1)
 
     # load file to lines
     mask_file = open(mantid_mask_xml, 'r')

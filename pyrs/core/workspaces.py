@@ -3,6 +3,8 @@ import numpy
 from pyrs.dataobjects import HidraConstants, SampleLogs  # type: ignore
 from pyrs.projectfile import HidraProjectFile  # type: ignore
 from pyrs.utilities import checkdatatypes
+from pyrs.utilities.convertdatatypes import to_int
+from typing import Any, Optional, Tuple
 
 
 class HidraWorkspace:
@@ -211,13 +213,13 @@ class HidraWorkspace:
         # reset the wave length (dictionary) from HIDRA project file
         self._wave_length = hidra_file.read_wavelengths()
 
-    def get_detector_2theta(self, sub_run):
+    def get_detector_2theta(self, sub_run: int) -> float:
         """ Get 2theta value from sample log
         This is a special one
         :param sub_run: sub run number (integer)
         :return: float number as 2theta
         """
-        checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
+        sub_run = to_int('Sub run number', sub_run, min_value=0)
         try:
             two_theta = self._sample_logs[HidraConstants.TWO_THETA, sub_run]
         except KeyError as key_err:
@@ -227,12 +229,12 @@ class HidraWorkspace:
                                        sub_run, key_err, self._sample_logs.keys()))
         return two_theta[0]  # convert from numpy array of length 1 to a scalar
 
-    def get_l2(self, sub_run):
+    def get_l2(self, sub_run: int) -> float:
         """ Get L2 for a specific sub run
         :param sub_run: sub run number (integer)
         :return: L2 or None (i.e., using default L2)
         """
-        checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
+        sub_run = to_int('Sub run number', sub_run, min_value=0)
 
         if HidraConstants.L2 in self._sample_logs:
             # L2 is a valid sample log: get L2
@@ -254,7 +256,7 @@ class HidraWorkspace:
         """
         return self._instrument_setup
 
-    def get_detector_counts(self, sub_run):
+    def get_detector_counts(self, sub_run: int):
         """Get the detector counts of a sub run (split)
 
         Parameters
@@ -267,8 +269,8 @@ class HidraWorkspace:
         numpy.ndarray
 
         """
-        checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))  # consider 0 as a single sub run
-        if int(sub_run) not in self._raw_counts:
+        sub_run = to_int('Sub run number', sub_run, min_value=0)  # consider 0 as a single sub run
+        if sub_run not in self._raw_counts:
             raise RuntimeError('Sub run {} does not exist in loaded raw counts. FYI loaded '
                                'sub runs are {}'.format(sub_run, self._raw_counts.keys()))
 
@@ -446,7 +448,7 @@ class HidraWorkspace:
 
         return matrix_2theta, intensity_matrix, variance_matrix
 
-    def get_reduced_diffraction_data_2theta(self, sub_run):
+    def get_reduced_diffraction_data_2theta(self, sub_run: int) -> numpy.ndarray:
         """Get 2theta vector of reduced diffraction data
 
         Parameters
@@ -461,7 +463,7 @@ class HidraWorkspace:
 
         """
         # Check inputs
-        checkdatatypes.check_int_variable('Sub run number', sub_run, (1, None))
+        sub_run = to_int('Sub run number', sub_run, min_value=1)
         # Get spectrum index
         spec_index = self._sample_logs.get_subrun_indices(sub_run)[0]
         # Vector 2theta
@@ -469,7 +471,8 @@ class HidraWorkspace:
 
         return vec_2theta
 
-    def get_reduced_diffraction_data(self, sub_run, mask_id=None):
+    def get_reduced_diffraction_data(self, sub_run: int,
+                                     mask_id: Optional[str] = None) -> Tuple[numpy.ndarray, numpy.ndarray]:
         """Get data set of a single diffraction pattern
 
         Parameters
@@ -486,7 +489,7 @@ class HidraWorkspace:
         """
         # Check inputs
         # sub run number might start from 0
-        checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
+        sub_run = to_int('Sub run number', sub_run, min_value=0)
         if mask_id is None:
             # mask_id = 'main'
             pass
@@ -574,13 +577,13 @@ class HidraWorkspace:
 
         return self._sample_logs[sample_log_name, sub_runs]
 
-    def get_spectrum_index(self, sub_run):
+    def get_spectrum_index(self, sub_run: int) -> Any:
         """
         Get spectrum (index) from sub run number
         :param sub_run: sub run number (integer)
         :return:
         """
-        checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
+        sub_run = to_int('Sub run number', sub_run, min_value=0)
 
         return self._sample_logs.get_subrun_indices(sub_run)[0]
 
@@ -594,12 +597,12 @@ class HidraWorkspace:
 
         return self._sample_logs.subruns[spectra]
 
-    def has_raw_data(self, sub_run):
+    def has_raw_data(self, sub_run: int) -> bool:
         """ Check whether a raw file that has been loaded
         :param sub_run: sub run number (integer)
         :return:
         """
-        checkdatatypes.check_int_variable('Sub run', sub_run, (1, None))
+        sub_run = to_int('Sub run', sub_run, min_value=1)
 
         return sub_run in self._raw_counts
 
@@ -670,7 +673,10 @@ class HidraWorkspace:
 
         self._raw_counts[int(sub_run_number)] = counts
 
-    def set_reduced_diffraction_data(self, sub_run, mask_id, two_theta_array, intensity_array, variances_array=None):
+    def set_reduced_diffraction_data(self, sub_run: int, mask_id: Optional[str],
+                                     two_theta_array: numpy.ndarray,
+                                     intensity_array: numpy.ndarray,
+                                     variances_array: Optional[numpy.ndarray] = None) -> None:
         """Set reduced diffraction data to workspace
 
         Parameters
@@ -697,7 +703,7 @@ class HidraWorkspace:
 
         # Check inputs
         # sub run number valid or not
-        checkdatatypes.check_int_variable('Sub run number', sub_run, (1, None))
+        sub_run = to_int('Sub run number', sub_run, min_value=1)
         if mask_id is not None:
             checkdatatypes.check_string_variable('Mask ID', mask_id)
         # two theta array and intensity array shall match on size
@@ -734,8 +740,11 @@ class HidraWorkspace:
 
             # set the diffraction data (2D) array with new dimension
             num_sub_runs = len(self._sample_logs.subruns)
-            self._var_data_set[mask_id] = numpy.ndarray(shape=(num_sub_runs, variances_array.shape[0]),
-                                                        dtype=variances_array.dtype)
+            if variances_array is None:
+                raise RuntimeError('Did not expect None for variances')
+            else:
+                self._var_data_set[mask_id] = numpy.ndarray(shape=(num_sub_runs, variances_array.shape[0]),
+                                                            dtype=variances_array.dtype)
 
         # END-IF
 

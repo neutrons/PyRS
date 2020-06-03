@@ -1,6 +1,6 @@
 # This module is to calculate Pole Figure
 from pyrs.utilities import checkdatatypes
-from pyrs.utilities.convertdatatypes import to_float
+from pyrs.utilities.convertdatatypes import to_float, to_int
 import numpy as np
 from typing import Tuple
 
@@ -40,7 +40,8 @@ class PoleFigureCalculator:
         # flag
         self._cal_successful = False
 
-    def add_input_data_set(self, det_id, peak_intensity_dict, peak_fit_info_dict, log_dict):
+    def add_input_data_set(self, det_id: int,
+                           peak_intensity_dict: dict, peak_fit_info_dict: dict, log_dict: dict) -> None:
         """ set peak intensity log and experiment logs that are required by pole figure calculation
         :param det_id
         :param peak_intensity_dict : dictionary (key = scan log index (int), value = peak intensity (float)
@@ -52,7 +53,7 @@ class PoleFigureCalculator:
         if det_id in self._peak_intensity_dict:
             raise RuntimeError('Detector ID {0} already been added.  Must be reset calculator.'
                                ''.format(det_id))
-        checkdatatypes.check_int_variable('Detector ID', det_id, (0, None))
+        det_id = to_int('Detector ID', det_id, min_value=0)
         checkdatatypes.check_dict('Peak intensities', peak_intensity_dict)
         checkdatatypes.check_dict('Peak fitting information', peak_fit_info_dict)
         checkdatatypes.check_dict('Log values for pole figure', log_dict)
@@ -160,14 +161,13 @@ class PoleFigureCalculator:
         """
         return self._peak_intensity_dict.keys()
 
-    def get_peak_fit_parameter_vec(self, param_name, det_id):
+    def get_peak_fit_parameter_vec(self, param_name: str, det_id: int) -> np.ndarray:
         """ get the fitted parameters and return in vector
         :param param_name:
         :param det_id:
         :return:
         """
-        checkdatatypes.check_string_variable('Peak fitting parameter name', param_name)
-        checkdatatypes.check_int_variable('Detector ID', det_id, (0, None))
+        det_id = to_int('Detector ID', det_id, min_value=0)
 
         param_vec = np.ndarray(shape=(len(self._peak_fit_info_dict[det_id]), ), dtype='float')
         log_index_list = sorted(self._peak_fit_info_dict[det_id].keys())
@@ -182,13 +182,14 @@ class PoleFigureCalculator:
 
         return param_vec
 
-    def get_pole_figure_1_pt(self, det_id, log_index):
+    def get_pole_figure_1_pt(self, det_id: int, log_index: int) -> Tuple[float, float]:
         """ get 1 pole figure value determined by detector and sample log index
         :param det_id:
         :param log_index:
         :return:
         """
-        checkdatatypes.check_int_variable('Sample log index', log_index, (None, None))
+        det_id = to_int('Detector id', det_id, min_value=0)
+        log_index = to_int('Sample log index', log_index)
 
         # get raw parameters' fitted value
         log_index_vec, pole_figure_vec = self._pole_figure_dict[det_id]

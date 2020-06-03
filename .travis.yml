@@ -33,30 +33,12 @@ install:
   - conda config --set always_yes yes --set changeps1 no --set anaconda_upload no
   - conda config --add channels conda-forge --add channels mantid --add channels mantid/label/nightly
 
-    # Install mamba
-  - conda install mamba -c conda-forge
-  - mamba update mamba -c conda-forge
-  - mamba info -a
-
-    # BUILD: Create PyRS build environment
-  - mamba create -q -n PyRS_build python=$CONDA conda-build=3.17 conda-verify
-  - conda activate PyRS_build
-  - mamba build conda.recipe
-  - export PKG_FILE=$(mamba build conda.recipe --output)
-  - conda activate
-
 script:
     # TEST: Create test environment and test build
-  - mamba create -q -n PyRS_test python=$CONDA flake8 pylint conda-build=3.17 jupyter_client=5.3.4 anaconda-client pytest pytest-qt pytest-mpl mantid-workbench=4.2 mypy
-  - mamba info --envs
+  - conda create -q -n PyRS_test python=$CONDA flake8 pylint conda-build=3.17 jupyter_client=5.3.4 anaconda-client pytest pytest-qt pytest-mpl mantid-workbench=4.2 mypy
+  - conda info --envs
   - conda activate PyRS_test
   - python --version
-  - mkdir -p ${CONDA_PREFIX}/conda-bld/linux-64/
-  - cp ${PKG_FILE} ${CONDA_PREFIX}/conda-bld/linux-64/
-  - ls ${CONDA_PREFIX}/conda-bld
-  - ls ${CONDA_PREFIX}/conda-bld/linux-64
-  - conda index ${CONDA_PREFIX}/conda-bld
-  - mamba install -c ${CONDA_PREFIX}/conda-bld PyRS
 
   - |
     # Mantid pre-requiste - create a properties file that turns off network access
@@ -69,10 +51,13 @@ script:
   # - source activate PyRS_env
   # - conda install -c mantid/label/nightly mantid-workbench=4.0.20190416.1125
 
+    # Coverage pre-requisite pytest-cov
+  - pip install pytest-cov
+
   # lint the code and generate an error if a warning is introduced
   - flake8 . --count
   # static analysis for typing
-  - mypy pyrs scripts
+  - mypy pyrs scripts tests
 
   # run some basic import tests to confirm things are working
   - python -c "import mantid"
@@ -86,15 +71,7 @@ script:
   # - xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum mantidworkbench -q -x workbenchshutdown.py
 
   # run PyRS tests
-  - xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum pytest --mpl tests --disable-pytest-warnings -vv -r w
-  #- xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum PyRS --version
+  - xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum pytest --cov=pyrs --cov-report=xml --mpl tests --disable-pytest-warnings -vv -r w
 
-#deploy:
-# # Deploy conda package to Anaconda.org https://anaconda.org/PyRS-diffraction/PyRS
-# - provider: script
-#   script: cd conda.recipe && chmod +x anaconda_upload.sh && ./anaconda_upload.sh ${PKG_FILE}
-#   skip_cleanup: true
-#   skip_existing: true
-#   on:
-#     branch: master
-#     tags: true
+  # upload coverage report to codecov
+  - bash <(curl -s https://codecov.io/bash) -f coverage.xml -t 025073dd-c1bf-4e65-839f-bc952c888c22

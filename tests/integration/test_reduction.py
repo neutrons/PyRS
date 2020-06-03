@@ -1,8 +1,8 @@
 import os
 from pyrs.core.nexus_conversion import NeXusConvertingApp, DEFAULT_KEEP_LOGS
 from pyrs.core.powder_pattern import ReductionApp
-from pyrs.dataobjects import HidraConstants
-from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
+from pyrs.dataobjects import HidraConstants  # type: ignore
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
 from matplotlib import pyplot as plt
 import numpy as np

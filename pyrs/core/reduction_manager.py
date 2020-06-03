@@ -9,7 +9,7 @@ from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.dataobjects import HidraConstants  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.utilities import checkdatatypes
-from pyrs.utilities.convertdatatypes import to_float
+from pyrs.utilities.convertdatatypes import to_float, to_int
 from typing import Optional
 
 
@@ -94,13 +94,26 @@ class HB2BReductionManager:
 
         return sample_logs
 
-    def get_detector_counts(self, session_name, sub_run):
+    def get_sub_run_2theta(self, session_name, sub_run):
+        """
+        Get the detector arm's 2theta position of a sub run
+        :param session_name: name of the session for locating workspace
+        :param sub_run:
+        :return:
+        """
+        checkdatatypes.check_string_variable('Session name', session_name, list(self._session_dict.keys()))
+        workspace = self._session_dict[session_name]
+
+        return workspace.get_detector_2theta(sub_run)
+
+    def get_detector_counts(self, session_name, sub_run: int):
+
         """ Get the raw counts from detector of the specified sub run
         :param session_name: name of the session for locating workspace
         :param sub_run: sub run number (integer)
         :return: array of detector counts
         """
-        checkdatatypes.check_int_variable('Sub run number', sub_run, (0, None))
+        sub_run = to_int('Sub run number', sub_run, min_value=0)
         workspace = self._session_dict[session_name]
 
         return workspace.get_detector_counts(sub_run)
