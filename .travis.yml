@@ -51,7 +51,7 @@ script:
   # - source activate PyRS_env
   # - conda install -c mantid/label/nightly mantid-workbench=4.0.20190416.1125
 
-  # Coverage pre-requisite pytest-cov 
+    # Coverage pre-requisite pytest-cov
   - pip install pytest-cov
 
   # lint the code and generate an error if a warning is introduced
