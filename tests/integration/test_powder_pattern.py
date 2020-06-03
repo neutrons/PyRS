@@ -1,7 +1,7 @@
 """
 Integration test for PyRS to calculate powder pattern from detector counts
 """
-from pyrs.projectfile import HidraProjectFile
+from pyrs.projectfile import HidraProjectFile  # type: ignore
 import numpy as np
 import h5py
 from pyrs.core.workspaces import HidraWorkspace

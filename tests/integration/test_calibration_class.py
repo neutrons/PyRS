@@ -6,13 +6,14 @@ import time
 import os
 import json
 import numpy as np
-from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
 
 try:
     from pyrs.calibration import peakfit_calibration
 except ImportError as e:
-    peakfit_calibration = str(e)  # import failed exception explains why
+    # import failed exception explains why - typing doesn't like changing type of variable
+    peakfit_calibration = str(e)  # type: ignore
 
 try:
     from scipy.optimize import least_squares

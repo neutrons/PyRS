@@ -2,12 +2,12 @@
 # Test class and methods implemented for peak fitting
 import numpy
 from pyrs.core import pyrscore
-from pyrs.peaks import PeakCollection
+from pyrs.peaks import PeakCollection  # type: ignore
 from pyrs.core.peak_profile_utility import PeakShape, BackgroundFunction
 from pyrs.core.summary_generator import SummaryGenerator
-from pyrs.dataobjects import SampleLogs
-from pyrs.projectfile import HidraProjectFile
-from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory
+from pyrs.dataobjects import SampleLogs  # type: ignore
+from pyrs.projectfile import HidraProjectFile  # type: ignore
+from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory  # type: ignore
 import h5py
 from matplotlib import pyplot as plt
 import pytest
