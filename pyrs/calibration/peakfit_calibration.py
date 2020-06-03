@@ -27,12 +27,6 @@ try:
 except ImportError:
     UseLSQ = True
 
-colors = ['black', 'red', 'blue', 'green', 'yellow']
-
-
-def runCalib():
-    return
-
 
 def quadratic_background(x, p0, p1, p2):
     """Quadratic background

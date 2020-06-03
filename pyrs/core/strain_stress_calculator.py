@@ -2,7 +2,6 @@ import numpy
 import math
 import pyrs.utilities.checkdatatypes
 from pyrs.utilities.convertdatatypes import to_float
-from scipy.interpolate import griddata
 from pyrs.utilities import rs_scan_io
 
 
