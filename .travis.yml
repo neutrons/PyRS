@@ -67,5 +67,11 @@ script:
   # this requires the mantid-workbench package to be fixed
   # - xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum mantidworkbench -q -x workbenchshutdown.py
 
+  # Install pytest-cov from pip
+  - pip install pytest-cov
+
   # run PyRS tests
-  - xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum pytest --mpl tests --disable-pytest-warnings -vv -r w
+  - xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum pytest --cov=pyrs --cov-report=xml --mpl tests --disable-pytest-warnings -vv -r w
+
+  # upload coverage report to codecov
+  - bash <(curl -s https://codecov.io/bash) -f coverage.xml -t 025073dd-c1bf-4e65-839f-bc952c888c22
