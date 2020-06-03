@@ -1,7 +1,7 @@
 import numpy as np
-
 from pyrs.interface.peak_fitting.config import LIST_AXIS_TO_PLOT
 from pyrs.interface.peak_fitting.config import fit_dict as FIT_DICT
+from typing import Optional, Tuple
 
 
 class DataRetriever:
@@ -10,29 +10,33 @@ class DataRetriever:
         self.parent = parent
         self.hidra_workspace = self.parent.hidra_workspace
 
-    def get_data(self, name='Sub-runs', peak_index=0):
+    def get_data(self, name: str = 'Sub-runs', peak_index: int = 0) -> Tuple[np.ndarray, Optional[np.ndarray]]:
 
         if name == 'Sub-runs':
-            return [np.array(self.hidra_workspace.get_sub_runs()), None]
+            return (np.array(self.hidra_workspace.get_sub_runs()), None)
 
-        if name in LIST_AXIS_TO_PLOT['raw'].keys():
-            return [self.hidra_workspace._sample_logs[name], None]
+        # do not have typing information for object
+        if name in LIST_AXIS_TO_PLOT['raw'].keys():  # type: ignore
+            return (self.hidra_workspace._sample_logs[name], None)
 
         if name == 'd-spacing':
             peak_collection = self.parent.fit_result.peakcollections[peak_index]
             _d_reference = np.float(str(self.parent.ui.peak_range_table.item(peak_index, 3).text()))
             peak_collection.set_d_reference(values=_d_reference)
             values, error = peak_collection.get_dspacing_center()
-            return [values, error]
+            return (values, error)
 
         if name == 'microstrain':
             peak_collection = self.parent.fit_result.peakcollections[peak_index]
-            values, error = peak_collection.get_strain()
-            return [values*1e6, error*1e6]
+            values, error = peak_collection.get_microstrain()
+            return (values, error)
 
-        if name in LIST_AXIS_TO_PLOT['fit'].keys():
+        # do not have typing information for object
+        if name in LIST_AXIS_TO_PLOT['fit'].keys():  # type: ignore
             return self.get_fitted_value(peak=self.parent.fit_result.peakcollections[peak_index],
                                          value_to_display=name)
+
+        raise RuntimeError('Do not know how to get values for "{}"'.format(name))
 
     def get_fitted_value(self, peak=None, value_to_display='Center'):
         """
