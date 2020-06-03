@@ -125,9 +125,9 @@ def check_peak_collection(peak_shape, NUM_SUBRUN, target_errors,
         peaks.set_d_reference()
     else:
         peaks.set_d_reference(values=d_reference)
-    strain, strain_error = peaks.get_strain()
-    np.testing.assert_allclose(strain, target_strain, atol=0.0001)
-    np.testing.assert_allclose(strain_error, target_strain_error, atol=0.0001)
+    strain, strain_error = peaks.get_microstrain()
+    np.testing.assert_allclose(strain, target_strain, atol=0.5)
+    np.testing.assert_allclose(strain_error, target_strain_error, atol=0.5)
 
 
 def test_peak_collection_Gaussian():
@@ -137,7 +137,7 @@ def test_peak_collection_Gaussian():
     # with wavelength
     check_peak_collection('Gaussian', NUM_SUBRUN, np.zeros(NUM_SUBRUN, dtype=get_parameter_dtype(effective=True)),
                           wavelength=1.53229, d_reference=1.08, target_d_spacing_center=[1.08, 1.07],
-                          target_d_spacing_center_error=[0.0, 0.0], target_strain=[0.0032, -0.0054],
+                          target_d_spacing_center_error=[0.0, 0.0], target_strain=[3234., -5408.],
                           target_strain_error=[0.0, 0.0])
 
 
@@ -154,7 +154,7 @@ def test_peak_collection_PseudoVoigt():
                                     (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)],
                                    dtype=get_parameter_dtype(effective=True)),
                           wavelength=1.53229, d_reference=1.08, target_d_spacing_center=[1.08, 1.07],
-                          target_d_spacing_center_error=[0.0, 0.0], target_strain=[0.0032, -0.0054],
+                          target_d_spacing_center_error=[0.0, 0.0], target_strain=[3234., -5408.],
                           target_strain_error=[0.0, 0.0])
 
 
