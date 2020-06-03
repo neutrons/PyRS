@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>271</width>
-    <height>220</height>
+    <height>132</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -15,10 +15,10 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
-    <item row="2" column="0">
-     <widget class="QPushButton" name="pushButton_fitPeaks">
+    <item row="0" column="0">
+     <widget class="QPushButton" name="pushButton_manualReduction">
       <property name="text">
-       <string>Peak Fitting</string>
+       <string>Data Manual Reduction</string>
       </property>
      </widget>
     </item>
@@ -38,36 +38,10 @@
       </property>
      </spacer>
     </item>
-    <item row="3" column="0">
-     <spacer name="verticalSpacer_2">
-      <property name="orientation">
-       <enum>Qt::Vertical</enum>
-      </property>
-      <property name="sizeType">
-       <enum>QSizePolicy::Ignored</enum>
-      </property>
-      <property name="sizeHint" stdset="0">
-       <size>
-        <width>20</width>
-        <height>40</height>
-       </size>
-      </property>
-     </spacer>
-    </item>
-    <item row="0" column="0">
-     <widget class="QPushButton" name="pushButton_manualReduction">
+    <item row="2" column="0">
+     <widget class="QPushButton" name="pushButton_fitPeaks">
       <property name="text">
-       <string>Data Manual Reduction</string>
-      </property>
-     </widget>
-    </item>
-    <item row="7" column="0">
-     <widget class="QCheckBox" name="checkBox_keepWindowOpen">
-      <property name="toolTip">
-       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If being checked, then after launching a sub-module, this main window will still be shown.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-      </property>
-      <property name="text">
-       <string>Keep Window Open</string>
+       <string>Peak Fitting</string>
       </property>
      </widget>
     </item>
