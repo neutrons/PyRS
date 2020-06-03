@@ -51,6 +51,7 @@ def test_manual_reduction(qtbot, tmpdir):
     assert window.ui.progressBar.value() == 100
 
     # check that the output file was made
+    # should actaully check the contents, not just that it exist
     assert os.path.isfile(tmpdir.join("HB2B_938.h5"))
 
     # plot the detector view
