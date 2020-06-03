@@ -26,10 +26,6 @@ class HB2BReductionManager:
     def __init__(self):
         """ initialization
         """
-        # # calibration manager
-        # self._calibration_manager = calibration_file_io.CalibrationManager()
-        # self._geometry_calibration = instrument_geometry.AnglerCameraDetectorShift
-
         # workspace name or array vector
         self._curr_workspace = None
         self._curr_session_name = None
@@ -373,17 +369,6 @@ class HB2BReductionManager:
         checkdatatypes.check_string_variable('Mask ID', mask_id, list(self._loaded_mask_dict.keys()))
 
         return self._loaded_mask_dict[mask_id][0]
-
-    def set_geometry_calibration(self, geometry_calibration):
-        """ Load and apply calibration file
-        :param geometry_calibration:
-        :return:
-        """
-        # TODO FIXME - #81 NOWNOW - Still not sure how to apply!
-        checkdatatypes.check_type('Geometry calibration', geometry_calibration,
-                                  instrument_geometry.AnglerCameraDetectorShift)
-
-        self._geometry_calibration = geometry_calibration
 
     def get_vanadium_counts(self, normalized):
         """Get vanadium counts of each pixel from current/default vanadium (HidraWorkspace)

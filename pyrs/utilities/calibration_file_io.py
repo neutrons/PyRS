@@ -25,8 +25,6 @@ def import_calibration_info_file(cal_info_file):
         # TODO - NEED TO FIND OUT HOW TO PARSE 2 Column Value
         for cal_date, cal_file in wavelength_entry.value:
             cal_info_table[entry_name][cal_date] = cal_file
-        # END-FOR
-    # END-FOR
 
     cal_file.close()
 
@@ -312,7 +310,6 @@ class ResidualStressCalibrationFile:
         """
         # init some parameters
         self._h5_file = None  # HDF5 handler
-        self._geometry_calibration = AnglerCameraDetectorShift(0, 0, 0, 0, 0, 0)
         self._calibration_date = ''
 
         # check
@@ -332,7 +329,6 @@ class ResidualStressCalibrationFile:
             # write mode
             self._cal_file_name = None
             self._file_mode = 'w'
-        # END-IF-ELSE
 
         return
 
@@ -345,75 +341,3 @@ class ResidualStressCalibrationFile:
         self._h5_file = h5py.File(h5_name, self._file_mode)
 
         return
-
-    def close_file(self):
-        """
-        close h5 file
-        :return:
-        """
-        if self._h5_file:
-            self._h5_file.close()
-        self._h5_file = None
-
-    def retrieve_calibration_date(self):
-        """ get the starting date of the calibration shall be applied
-        :return:
-        """
-        if not self._h5_file:
-            raise RuntimeError('No calibration file (*.h5) has been specified and thus imported in '
-                               'constructor')
-
-        # get the calibrated geometry parameters
-        calib_param_entry = self._h5_file['calibration']
-
-        # TODO - 20181210 - Need a prototype file to continue
-        self._geometry_calibration.two_theta0 = calib_param_entry['2theta0'].values[0]
-        raise NotImplementedError('Functionality for setting "center_shift_x" does not exist')
-        # self._geometry_calibration.center_shift_x = blabla
-
-        # get the date from the calibration file inside?
-
-
-# END-CLASS
-
-
-def update_calibration_info_file(cal_info_file, cal_info_table, append):
-    """ Search archive in order to keep calibration up-to-date
-    if in append mode, the additional information will be written to an existing calibration information hdf5 file
-    otherwise, From scratch, a calibration information file will be created
-    :param cal_info_file:
-    :param cal_info_table: calibration information to append to calibration information file
-    :param append: flag whether the mode is append or new
-    :return:
-    """
-    # check inputs
-    if append:
-        checkdatatypes.check_file_name(cal_info_file, True, True, False, 'Calibration information file to create')
-    else:
-        checkdatatypes.check_file_name(cal_info_file, False, True, False, 'Calibration information file to append')
-    checkdatatypes.check_dict('Calibration information table', cal_info_table)
-    checkdatatypes.check_bool_variable('Append mode', append)
-
-    # open file
-    if append:
-        cal_info_file = h5py.File(cal_info_file, mdoe='rw')
-    else:
-        cal_info_file = h5py.File(cal_info_file, mode='w')
-
-    # write to file
-    for wavelength_entry in cal_info_table:
-        if wavelength_entry not in cal_info_file:
-            # TODO fix this
-            # cal_info_file[wavelength_entry] = whatever
-            raise RuntimeError('encountered unknown wavelength_entry: {}'.format(wavelength_entry))
-
-        for cal_date in cal_info_table[wavelength_entry]:
-            cal_file_name = cal_info_table[wavelength_entry][cal_date]
-            cal_info_file[wavelength_entry].append((cal_date, cal_file_name))
-        # END-FOR
-    # END-FOR
-
-    # close
-    cal_info_file.close()
-
-    return
