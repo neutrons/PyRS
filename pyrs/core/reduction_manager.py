@@ -107,7 +107,6 @@ class HB2BReductionManager:
         return workspace.get_detector_2theta(sub_run)
 
     def get_detector_counts(self, session_name, sub_run: int):
-
         """ Get the raw counts from detector of the specified sub run
         :param session_name: name of the session for locating workspace
         :param sub_run: sub run number (integer)
