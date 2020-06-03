@@ -51,6 +51,9 @@ script:
   # - source activate PyRS_env
   # - conda install -c mantid/label/nightly mantid-workbench=4.0.20190416.1125
 
+  # Coverage pre-requisite pytest-cov 
+  - pip install pytest-cov
+
   # lint the code and generate an error if a warning is introduced
   - flake8 . --count
   # static analysis for typing
@@ -66,9 +69,6 @@ script:
   - echo "import time;time.sleep(5)" > workbenchshutdown.py
   # this requires the mantid-workbench package to be fixed
   # - xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum mantidworkbench -q -x workbenchshutdown.py
-
-  # Install pytest-cov from pip
-  - pip install pytest-cov
 
   # run PyRS tests
   - xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum pytest --cov=pyrs --cov-report=xml --mpl tests --disable-pytest-warnings -vv -r w

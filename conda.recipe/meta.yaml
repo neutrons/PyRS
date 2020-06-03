@@ -20,7 +20,6 @@ requirements:
     - python
     - setuptools
     - pytest-runner
-    - pytest-cov
 
   run:
     - configparser
