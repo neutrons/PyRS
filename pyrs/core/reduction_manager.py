@@ -56,13 +56,6 @@ class HB2BReductionManager:
 
         return ws_name
 
-    def get_last_reduction_engine(self):
-        """
-        Get the reduction engine recently used
-        :return:
-        """
-        return self._last_reduction_engine
-
     def get_reduced_diffraction_data(self, session_name, sub_run=None, mask_id=None):
         """ Get the reduce data
         :param session_name:
@@ -369,30 +362,6 @@ class HB2BReductionManager:
         checkdatatypes.check_string_variable('Mask ID', mask_id, list(self._loaded_mask_dict.keys()))
 
         return self._loaded_mask_dict[mask_id][0]
-
-    def get_vanadium_counts(self, normalized):
-        """Get vanadium counts of each pixel from current/default vanadium (HidraWorkspace)
-
-        Usage: this will be called in order to fetch vanadium counts to reduce_diffraction_data()
-
-        Returns
-        -------
-        numpy.ndarray
-            1D vanadium counts array
-
-        """
-        if self._van_ws is None:
-            raise RuntimeError('There is no default vanadium set up in reduction service')
-        else:
-            # get vanadium
-            sub_run = self._van_ws.get_sub_runs()[0]
-            van_counts_array = self._van_ws.get_detector_counts(sub_run)
-
-            if normalized:
-                van_duration = self._van_ws.get_sample_log_value(HidraConstants.SUB_RUN_DURATION, sub_run)
-                van_counts_array /= van_duration
-
-        return van_counts_array
 
     def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, num_bins, sub_run_list,
                                 mask, mask_id, vanadium_counts=None, van_duration=None, normalize_by_duration=True,

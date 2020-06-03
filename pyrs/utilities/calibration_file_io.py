@@ -229,40 +229,6 @@ def import_instrument_setup(instrument_ascii_file):
     return instrument
 
 
-def write_calibration_ascii_file(two_theta, arm_length, calib_config, note, geom_file_name):
-    """Write a geometry ascii file as standard
-
-    Parameters
-    ----------
-    two_theta
-    arm_length
-    calib_config
-    note
-    geom_file_name
-
-    Returns
-    -------
-
-    """
-    checkdatatypes.check_file_name(geom_file_name, False, True, False, 'Output geometry configuration file in ASCII')
-
-    wbuf = '# {}\n'.format(note)
-    wbuf += '2theta = {}\n'.format(two_theta)
-    wbuf += 'arm = {} meter\n'.format(arm_length)
-    wbuf += 'cal::shift_x = {} meter\n'.format(calib_config.shift_x)
-    wbuf += 'cal::shift_y = {} meter\n'.format(calib_config.shift_y)
-    wbuf += 'cal::arm = {} meter\n'.format(calib_config.arm_calibration)
-    wbuf += 'cal::rot_x = {} degree\n'.format(calib_config.tilt_x)
-    wbuf += 'cal::rot_y = {} degree\n'.format(calib_config.rotation_y)
-    wbuf += 'cal::rot_z = {} degree\n'.format(calib_config.spin_z)
-
-    out_file = open(geom_file_name, 'w')
-    out_file.write(wbuf)
-    out_file.close()
-
-    return
-
-
 def write_calibration_to_json(shifts, shifts_error, wave_length, wave_lenngth_error,
                               calibration_status, file_name=None):
     """Write geometry and wave length calibration to a JSON file
@@ -293,5 +259,3 @@ def write_calibration_to_json(shifts, shifts_error, wave_length, wave_lenngth_er
     with open(file_name, 'w') as outfile:
         json.dump(calibration_dict, outfile)
     print('[INFO] Calibration file is written to {}'.format(file_name))
-
-    return

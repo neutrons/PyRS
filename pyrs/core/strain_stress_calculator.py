@@ -226,9 +226,6 @@ class StrainStressCalculator:
         # status
         self._is_saved = False
 
-        # file loader (static kind of)
-        #self._file_io = rs_scan_io.DiffractionDataFile()
-
         # strain stress parameters
         self._d0 = None
         # self._2theta = None
