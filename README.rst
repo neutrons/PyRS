@@ -1,6 +1,8 @@
 .. image:: https://travis-ci.org/neutrons/PyRS.svg?branch=master
     :target: https://travis-ci.org/neutrons/PyRS
-[![codecov](https://codecov.io/gh/neutrons/PyRS/branch/master/graph/badge.svg)](https://codecov.io/gh/neutrons/PyRS)
+
+.. image:: https://codecov.io/gh/neutrons/PyRS/branch/master/graph/badge.svg
+  :target: https://codecov.io/gh/neutrons/PyRS
 
 -----------------------
 Developer Quick Start
