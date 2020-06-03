@@ -2,7 +2,8 @@ import numpy as np
 from pyrs.core.peak_profile_utility import get_parameter_dtype, get_effective_parameters_converter, PeakShape, \
     BackgroundFunction
 from pyrs.dataobjects import SubRuns  # type: ignore
-from typing import Tuple
+from typing import Tuple, Union
+from uncertainties import unumpy
 
 __all__ = ['PeakCollection']
 
@@ -11,8 +12,9 @@ class PeakCollection:
     """
     Object to contain peak parameters (names and values) of a collection of peaks for sub runs
     """
-    def __init__(self, peak_tag: str, peak_profile, background_type,
-                 wavelength: float = np.nan, d_reference: float = np.nan) -> None:
+    def __init__(self, peak_tag: str, peak_profile, background_type, wavelength: float = np.nan,
+                 d_reference: Union[float, np.ndarray] = np.nan,
+                 d_reference_error: Union[float, np.ndarray] = 0.) -> None:
         """Initialization
 
         Parameters
@@ -32,7 +34,6 @@ class PeakCollection:
         self._peak_profile = PeakShape.getShape(peak_profile)
         self._background_type = BackgroundFunction.getFunction(background_type)
         self._wavelength = wavelength
-        self._d_reference = d_reference
 
         # sub run numbers: 1D array
         self._sub_run_array = SubRuns()
@@ -44,6 +45,9 @@ class PeakCollection:
         self._fit_cost_array = None
         # status messages: list of strings
         self._fit_status = None
+
+        # must happen after the sub_run array is set
+        self.set_d_reference(d_reference, d_reference_error)
 
     @property
     def peak_tag(self) -> str:
@@ -149,7 +153,7 @@ class PeakCollection:
         self._fit_cost_array = np.copy(fit_costs)
         self.__set_fit_status()
 
-    def get_d_reference(self) -> float:
+    def get_d_reference(self) -> Tuple[np.ndarray, np.ndarray]:
         """Get d reference for all the sub runs
 
         Returns
@@ -158,9 +162,10 @@ class PeakCollection:
             1D array for peak's reference position in dSpacing.  NaN for not being set.
 
         """
-        return self._d_reference
+        return unumpy.nominal_values(self._d_reference), unumpy.std_devs(self._d_reference)
 
-    def set_d_reference(self, values=np.nan):
+    def set_d_reference(self, values: Union[float, np.ndarray] = np.nan,
+                        errors: Union[float, np.ndarray] = 0.) -> None:
         """Set d reference values
 
         Parameters
@@ -172,10 +177,21 @@ class PeakCollection:
         -------
 
         """
+        # d-reference should be, at minimum, length one
+        num_values = self._sub_run_array.size if self._sub_run_array.size else 1
+
         if isinstance(values, np.ndarray):
-            self._d_reference = values
+            nd_values = values
         else:
-            self._d_reference = np.array([values] * self._sub_run_array.size)
+            nd_values = np.array([values] * num_values)
+
+        if isinstance(errors, np.ndarray):
+            nd_errors = errors
+        else:
+            nd_errors = np.array([errors] * num_values)
+
+        # store value and uncertainties together
+        self._d_reference = unumpy.uarray(nd_values, nd_errors)
 
     def get_microstrain(self) -> Tuple[np.ndarray, np.ndarray]:
         """get strain values and uncertainties in units of microstrain
@@ -190,11 +206,13 @@ class PeakCollection:
             tuple
                 A two-item tuple containing the strain and its uncertainty.
           """
-        d_fitted, d_fitted_error = self.get_dspacing_center()
+        d_fitted = self._get_dspacing_center()
+
         # multiplying by 1e6 converts to micro
         strain = 1.0e6 * (d_fitted - self._d_reference)/self._d_reference
-        strain_error = 1.e6 * d_fitted_error/self._d_reference
-        return strain, strain_error
+
+        # unpack the values to return
+        return unumpy.nominal_values(strain), unumpy.std_devs(strain)
 
     def get_native_params(self):
         return self._params_value_array, self._params_error_array
@@ -211,6 +229,21 @@ class PeakCollection:
 
         return eff_values, eff_errors
 
+    def _get_dspacing_center(self):
+        '''Internal function for getting d-spacing position'''
+        effective_values, effective_errors = self.get_effective_params()
+        theta_center = unumpy.uarray(0.5 * np.deg2rad(effective_values['Center']),
+                                     0.5 * np.deg2rad(effective_errors['Center']))
+        sine_theta = unumpy.sin(theta_center)
+        try:
+            dspacing_center = 0.5 * self._wavelength / sine_theta
+        except ZeroDivisionError:
+            # replace zeros in the denomenator with nan explicitly
+            dspacing_center = np.where(unumpy.nominal_values(sine_theta) != 0.,
+                                       unumpy.std_devs(0.5 * self._wavelength / sine_theta.clip(1e-9)), np.nan)
+
+        return dspacing_center
+
     def get_dspacing_center(self) -> Tuple[np.ndarray, np.ndarray]:
         r"""
         peak center in unit of d spacing.
@@ -220,13 +253,8 @@ class PeakCollection:
         tuple
             A two-item tuple containing the peak center and its uncertainty.
         """
-        effective_values, effective_errors = self.get_effective_params()
-        theta_center_value = 0.5 * np.deg2rad(effective_values['Center'])
-        theta_center_error = 0.5 * np.deg2rad(effective_errors['Center'])
-        dspacing_center = 0.5 * self._wavelength / np.sin(theta_center_value)
-        dspacing_center_error = 0.5 * self._wavelength * np.abs(np.cos(theta_center_value)) * theta_center_error /\
-            np.square(np.sin(theta_center_value))
-        return dspacing_center, dspacing_center_error
+        d_spacing = self._get_dspacing_center()
+        return unumpy.nominal_values(d_spacing), unumpy.std_devs(d_spacing)
 
     def get_integrated_intensity(self):
         pass
