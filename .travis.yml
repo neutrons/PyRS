@@ -51,6 +51,9 @@ script:
   # - source activate PyRS_env
   # - conda install -c mantid/label/nightly mantid-workbench=4.0.20190416.1125
 
+    # Coverage pre-requisite pytest-cov
+  - pip install pytest-cov
+
   # lint the code and generate an error if a warning is introduced
   - flake8 . --count
   # static analysis for typing
@@ -68,4 +71,7 @@ script:
   # - xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum mantidworkbench -q -x workbenchshutdown.py
 
   # run PyRS tests
-  - xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum pytest --mpl tests --disable-pytest-warnings -vv -r w
+  - xvfb-run --server-args="-screen 0 640x480x24" --auto-servernum pytest --cov=pyrs --cov-report=xml --mpl tests --disable-pytest-warnings -vv -r w
+
+  # upload coverage report to codecov
+  - bash <(curl -s https://codecov.io/bash) -f coverage.xml -t 025073dd-c1bf-4e65-839f-bc952c888c22
