@@ -3,8 +3,12 @@
 # Disable codecov comments in every PR
 comment: off
 
+# files to ignore
+ignore:
+  - pyrs/_version.py
+  - pyrs/icons/icons_*.py
+
 # Fixes report prefix paths from CI dynamic coverage action
 # from https://docs.codecov.io/docs/fixing-paths
 fixes:
   - "*/pyrs/::/pyrs/"
-
