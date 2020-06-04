@@ -17,15 +17,8 @@ from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry
 from pyrs.core.nexus_conversion import NUM_PIXEL_1D, PIXEL_SIZE, ARM_LENGTH
 
 # Import scipy libraries for minimization
-from scipy.optimize import leastsq  # for older scipy
-from scipy.optimize import minimize
+from scipy.optimize import least_squares
 from scipy.optimize import brute
-
-try:
-    from scipy.optimize import least_squares
-    UseLSQ = False
-except ImportError:
-    UseLSQ = True
 
 
 def quadratic_background(x, p0, p1, p2):
@@ -182,8 +175,6 @@ class PeakFitCalibration:
         self._residualpoints = None
         self.singlepeak = False
 
-        self.UseLSQ = UseLSQ
-
         self.refinement_summary = ''
 
         GlobalParameter.global_curr_sequence = 0
@@ -266,19 +257,12 @@ class PeakFitCalibration:
 
             ParamNames.append(pkey)
 
-        if self.UseLSQ:
-            pfit, pcov, infodict, errmsg, success = leastsq(residual, x0, args=(x, y, ParamNames, Peak_Num),
-                                                            Dfun=None, ftol=1e-8, xtol=1e-8, full_output=1,
-                                                            gtol=1e-8, maxfev=1500, factor=100.0)
+        # fit the functions
+        out = least_squares(residual, x0, bounds=[LL, UL], method='dogbox', ftol=1e-8, xtol=1e-8, gtol=1e-8,
+                            f_scale=1.0, max_nfev=None, args=(x, y, ParamNames, Peak_Num))
 
-            returnSetup = [dict(zip(ParamNames, pfit)), CalcPatt(x, y, dict(zip(ParamNames, pfit)), Peak_Num),
-                           success]
-        else:
-            out = least_squares(residual, x0, bounds=[LL, UL], method='dogbox', ftol=1e-8, xtol=1e-8, gtol=1e-8,
-                                f_scale=1.0, max_nfev=None, args=(x, y, ParamNames, Peak_Num))
-
-            returnSetup = [dict(zip(ParamNames, out.x)), CalcPatt(x, y, dict(zip(ParamNames, out.x)), Peak_Num),
-                           out.status]
+        returnSetup = [dict(zip(ParamNames, out.x)), CalcPatt(x, y, dict(zip(ParamNames, out.x)), Peak_Num),
+                       out.status]
 
         return returnSetup
 
@@ -298,35 +282,6 @@ class PeakFitCalibration:
         if Brute:
             out1 = brute(fun, ranges=BOUNDS, args=(ROI, ConPos, True, i_index), Ns=11)
             return [out1, np.array([0]), 1]
-
-        elif self.UseLSQ:
-            if max_nfev is None:
-                max_nfev = 0
-
-            self._residualpoints = self.singleEval(ConstrainPosition=ConPos).shape[0]
-            GlobalParameter.global_curr_sequence = 0
-
-            out = minimize(fun, x0, args=(ROI, ConPos, True), method='L-BFGS-B', jac='2-point', bounds=BOUNDS)
-
-            pfit, pcov, infodict, errmsg, success = leastsq(fun, out.x, args=(ROI, ConPos, False, i_index), ftol=ftol,
-                                                            xtol=xtol, gtol=gtol, maxfev=5000, full_output=1,
-                                                            factor=factor)
-
-            if pcov is not None:
-                residual = fun(x0, ROI, ConPos)
-                s_sq = (residual**2).sum()/(len(residual)-len(x0))
-                pcov = pcov * s_sq
-            else:
-                pcov = np.diag([np.inf]*len(pfit))
-
-            error = [0.0] * len(pfit)
-            for i in range(len(pfit)):
-                try:
-                    error[i] = (np.absolute(pcov[i][i])**0.5)
-                except ValueError:
-                    error[i] = (0.00)
-
-            return [pfit, np.array(error), success]
 
         else:
             if len(bounds[0]) != len(bounds[1]):
