@@ -1,6 +1,0 @@
-# Instrument configuration file for HZB (256)
-arm  = 1.13268
-rows = 256
-columns = 256
-pixel_size_x = 0.001171875
-pixel_size_y = 0.001171875
