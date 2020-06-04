@@ -1,9 +1,61 @@
 # Reduction engine including slicing
 import numpy as np
+from uncertainties import unumpy
 import pyrs.utilities.checkdatatypes
 # TODO:
 #   1) check that vx, vy, vz positions of peakcollections align
 #   2) Check for duplicate entries (can happen if two runs are combined)
+
+
+class MacroStrain:
+    def __init__(self, ):
+        self._strain = None
+
+    def trace(self):
+        r"""
+        Trace of the strain tensor
+        """
+        return unumpy.trace(self._strain)
+
+
+class MacroStrainCollection:
+    def __init__(self, peak_collections):
+        r"""
+
+        Parameters
+        ----------
+        peak_collections: list
+            A list of ~pyrs.peaks.peak_collection.PeakCollection
+        """
+        self._collection = None
+
+
+class MacroStress:
+    def __init__(self, macro_strain, poisson_ratio, young_modulus):
+        r"""
+
+        Parameters
+        ----------
+        macro_strain: ~pyrs.core_strain_stress_calculator.MacroStrain
+        poisson_ratio: float, ~uncertainties.ufloat
+        young_modulus: float, ~uncertainties.ufloat
+        """
+        shear_modulus = young_modulus / (1 + poisson_ratio)
+        trace_factor = poisson_ratio / (1 - 2 * poisson_ratio)
+        self._stress = shear_modulus * (macro_strain + trace_factor * macro_strain.trace)
+
+
+class MacroStressCollection:
+    def __init__(self, macro_strains, poisson_ratio, young_modulus):
+        r"""
+
+        Parameters
+        ----------
+        macro_strain: ~pyrs.core_strain_stress_calculator.MacroStrainCollection
+        poisson_ratio: float, ~uncertainties.ufloat
+        young_modulus: float, ~uncertainties.ufloat
+        """
+        self._collection = None
 
 
 class StrainStress:
