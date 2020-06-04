@@ -44,9 +44,24 @@ def test_background_enum():
     assert len(BackgroundFunction.getFunction('linear').native_parameters) == 2
 
 
+def test_peak_collection_init():
+    assert PeakCollection('test1', 'Gaussian', 'Linear')
+
+    assert PeakCollection('test2', 'Gaussian', 'Linear', wavelength=22.)
+
+    d_peak_collection = PeakCollection('test3', 'Gaussian', 'Linear', d_reference=1.26)
+    assert d_peak_collection
+    d_ref, d_ref_err = d_peak_collection.get_d_reference()
+    np.testing.assert_equal(d_ref, np.asarray((1.26,)))
+    np.testing.assert_equal(d_ref_err, np.asarray((0.,)))
+
+
 def check_peak_collection(peak_shape, NUM_SUBRUN, target_errors,
-                          wavelength=None, d_reference=None, target_d_spacing_center=np.nan,
-                          target_d_spacing_center_error=np.nan, target_strain=np.nan, target_strain_error=np.nan):
+                          wavelength=None, d_reference=None,
+                          target_d_spacing_center=np.nan,
+                          target_d_spacing_center_error=np.asarray([0., 0.]),
+                          target_strain=np.nan,
+                          target_strain_error=np.asarray([0., 0.])):
     """check the peak collection
 
     Parameters

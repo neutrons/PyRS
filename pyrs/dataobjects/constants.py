@@ -42,6 +42,7 @@ class HidraConstants:
 
     # constants for strain
     D_REFERENCE = 'd reference'   # reference peak position in d-spacing for strain calculation
+    D_REFERENCE_ERROR = 'd reference error'
 
     # Special sample logs
     SUB_RUN_DURATION = 'sub-run duration'
