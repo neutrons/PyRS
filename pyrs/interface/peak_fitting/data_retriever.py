@@ -28,7 +28,7 @@ class DataRetriever:
 
         if name == 'microstrain':
             peak_collection = self.parent.fit_result.peakcollections[peak_index]
-            values, error = peak_collection.get_microstrain()
+            values, error = peak_collection.get_strain(units='microstrain')
             return (values, error)
 
         # do not have typing information for object
