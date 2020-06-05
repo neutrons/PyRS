@@ -1,34 +1,7 @@
 # Class providing a series of static methods to work with files
 from pyrs.utilities import checkdatatypes
 from pyrs.core.instrument_geometry import AnglerCameraDetectorShift, AnglerCameraDetectorGeometry
-import h5py
 import json
-
-
-def import_calibration_info_file(cal_info_file):
-    """
-    import calibration information file
-    :param cal_info_file:
-    :return:
-    """
-    checkdatatypes.check_file_name(cal_info_file, check_exist=True, check_writable=False,
-                                   is_dir=False, description='HB2B calibration information file')
-
-    cal_info_table = dict()
-
-    cal_file = h5py.File(cal_info_file, mdoe='r')
-    for wavelength_entry in cal_file:
-        # each wave length
-        entry_name = wavelength_entry.name
-        cal_info_table[entry_name] = dict()
-
-        # TODO - NEED TO FIND OUT HOW TO PARSE 2 Column Value
-        for cal_date, cal_file in wavelength_entry.value:
-            cal_info_table[entry_name][cal_date] = cal_file
-
-    cal_file.close()
-
-    return cal_info_table
 
 
 def read_calibration_json_file(calibration_file_name):
