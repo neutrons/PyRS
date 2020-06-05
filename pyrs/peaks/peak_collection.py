@@ -193,23 +193,32 @@ class PeakCollection:
         # store value and uncertainties together
         self._d_reference = unumpy.uarray(nd_values, nd_errors)
 
-    def get_microstrain(self) -> Tuple[np.ndarray, np.ndarray]:
-        """get strain values and uncertainties in units of microstrain
+    def get_strain(self, units: str = 'strain') -> Tuple[np.ndarray, np.ndarray]:
+        """get strain values and uncertainties in units of strain
 
           Parameters
           ----------
-          values :
-              1D numpy array or floats
+          units: str
+              Can be ``strain`` or ``microstrain``
 
           Returns
           -------
             tuple
                 A two-item tuple containing the strain and its uncertainty.
           """
+        # prepare to return the requested units
+        conversion_factor = 1.
+        if units == 'strain':
+            pass  # data is calculated as strain
+        elif units == 'microstrain':
+            conversion_factor = 1.e6
+        else:
+            raise ValueError('Cannot return units of "{}". Must be "strain" or "microstrain"'.format(units))
+
         d_fitted = self._get_dspacing_center()
 
         # multiplying by 1e6 converts to micro
-        strain = 1.0e6 * (d_fitted - self._d_reference)/self._d_reference
+        strain = conversion_factor * (d_fitted - self._d_reference)/self._d_reference
 
         # unpack the values to return
         return unumpy.nominal_values(strain), unumpy.std_devs(strain)

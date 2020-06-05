@@ -140,9 +140,14 @@ def check_peak_collection(peak_shape, NUM_SUBRUN, target_errors,
         peaks.set_d_reference()
     else:
         peaks.set_d_reference(values=d_reference)
-    strain, strain_error = peaks.get_microstrain()
-    np.testing.assert_allclose(strain, target_strain, atol=0.5)
-    np.testing.assert_allclose(strain_error, target_strain_error, atol=0.5)
+    microstrain, microstrain_error = peaks.get_strain(units='microstrain')
+    np.testing.assert_allclose(microstrain, target_strain, atol=0.5)
+    np.testing.assert_allclose(microstrain_error, target_strain_error, atol=0.5)
+
+    # check the alternate units
+    strain, strain_error = peaks.get_strain(units='strain')
+    np.testing.assert_allclose(strain, microstrain / 1e6, atol=0.5)
+    np.testing.assert_allclose(strain_error, microstrain_error / 1e6, atol=0.5)
 
 
 def test_peak_collection_Gaussian():

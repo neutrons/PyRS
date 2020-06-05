@@ -237,7 +237,7 @@ class SummaryGenerator:
             for peak_collection in peak_collections:
                 fit_cost = peak_collection.fitting_costs
                 dspacing_center, dspacing_center_error = peak_collection.get_dspacing_center()
-                strain, strain_error = peak_collection.get_microstrain()
+                strain, strain_error = peak_collection.get_strain(units='microstrain')
                 values, errors = peak_collection.get_effective_params()
                 line.append(str(dspacing_center[subrun_index]))
                 line.append(str(strain[subrun_index]))

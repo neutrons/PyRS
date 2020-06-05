@@ -64,10 +64,10 @@ class StrainStress:
         -------
         """
 
-        eps_1, delta_eps_1 = self._peak_1.get_microstrain()
+        eps_1, delta_eps_1 = self._peak_1.get_strain()
         eps_1 *= 1.e-6  # convert to strain
         delta_eps_1 *= 1.e-6  # convert to strain
-        eps_2, delta_eps_2 = self._peak_2.get_microstrain()
+        eps_2, delta_eps_2 = self._peak_2.get_strain()
         eps_2 *= 1.e-6  # convert to strain
         delta_eps_2 *= 1.e-6  # convert to strain
 
@@ -77,7 +77,7 @@ class StrainStress:
         elif is_plane_stress:
             eps_3 = self._nu / (self._nu - 1.) * (eps_1 + eps_2)
         else:
-            eps_3, delta_eps_3 = self._peak_3.get_microstrain()
+            eps_3, delta_eps_3 = self._peak_3.get_strain()
             eps_3 *= 1.e-6  # convert to strain
             delta_eps_3 *= 1.e-6  # convert to strain
 
