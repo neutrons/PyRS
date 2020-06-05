@@ -1,7 +1,4 @@
 from mantid.simpleapi import CreateWorkspace
-from mantid.simpleapi import Transpose
-from mantid.simpleapi import AddSampleLog, SaveNexusProcessed
-from mantid.api import MatrixWorkspace
 from pyrs.core import workspaces
 from pyrs.utilities import checkdatatypes
 import numpy as np
