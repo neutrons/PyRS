@@ -7,55 +7,87 @@ import pyrs.utilities.checkdatatypes
 #   2) Check for duplicate entries (can happen if two runs are combined)
 
 
-class MacroStrain:
-    def __init__(self, ):
-        self._strain = None
 
-    def trace(self):
+class StrainDiagonalsCollection:
+    def __init__(self, peak_collections, in_plane=None, poisson_ratio=None):
         r"""
-        Trace of the strain tensor
-        """
-        return unumpy.trace(self._strain)
-
-
-class MacroStrainCollection:
-    def __init__(self, peak_collections):
-        r"""
+        A sequence of strain tensor diagonals, the order is as that of the lattice spacings provided by the peak
+        collections. It is assumed the peak collections have the same ordering.
 
         Parameters
         ----------
         peak_collections: list
-            A list of ~pyrs.peaks.peak_collection.PeakCollection
+            A list of ~pyrs.peaks.peak_collection.PeakCollection. Usually three but maybe
+            two if measurements are done in-plane.
+        in_plane: str
+            If measurements in-plane, then the third component is zero
+        poisson_ratio: float
+
         """
-        self._collection = None
+        strain_uniaxial_collections = [peak_coll.get_strain(units='strain') for peak_coll in peak_collections]
+        subruns_count = len(strain_uniaxial_collections[0][0])
+
+        # Verify the collections have the same number of subruns
+        if len(set([len(collection) for collection in strain_uniaxial_collections])) > 1:
+            raise RuntimeError('strain collections have different lengths for different orientations')
+
+        # Verify we have three collections or two collections plus one in-plane condition
+        in_plane_categories = ('strain', 'stress')
+        if len(strain_uniaxial_collections) == 2 and in_plane not in in_plane_categories:
+            raise RuntimeError('A valid in-plane condition is required with two collections')
+
+        if in_plane == 'strain':
+            # Include the third, zero component
+            strain_uniaxial_collections.append((np.zeros(subruns_count, dtype=float),  # values
+                                                np.zeros(subruns_count, dtype=float))  # errors
+                                               )
+
+        # shape = (peak_collections_count, subruns_count)
+        strain_uniaxial_values  = np.array( collection[0] for collection in strain_uniaxial_collections)
+        strain_uniaxial_errors = np.array( collection[1] for collection in strain_uniaxial_collections)
+        strain_uniaxials = unumpy.uarray(strain_uniaxial_values, strain_uniaxial_errors)
+
+        if in_plane == 'stress':
+            # Calculate the third stress tensor diagonal with the in-plane stress condition
+            if poisson_ratio is None:
+                raise RuntimeError('Cannot calculate the last strain component without the Poisson Ratio')
+            factor = poisson_ratio / (poisson_ratio - 1)
+            strain_third_component = factor * np.sum(strain_uniaxials, axis=0)  # add the two collections
+            strain_uniaxials = unumpy.append(strain_uniaxials, strain_third_component[np.newaxis, :], axis=0)
+
+        self._strains_diagonal = unumpy.transpose(strain_uniaxials)  # shape = (subruns_count, 3)
+
+    @property
+    def strains(self):
+        r"""A sequence of strain tensor diagonals"""
+        return unumpy.copy(self._strains_diagonal)
+
+    @@property
+    def traces(self):
+        r"""A sequence of traces of the strain tensors"""
+        return unumpy.sum(self._strains_diagonal, axis=1)
 
 
-class MacroStress:
-    def __init__(self, macro_strain, poisson_ratio, young_modulus):
-        r"""
+class StressDiagonalsCollection:
+    r"""
+    A list of stress tensor diagonals
 
-        Parameters
-        ----------
-        macro_strain: ~pyrs.core_strain_stress_calculator.MacroStrain
-        poisson_ratio: float, ~uncertainties.ufloat
-        young_modulus: float, ~uncertainties.ufloat
-        """
+    Parameters
+    ----------
+    macro_strain: ~pyrs.core_strain_stress_calculator.MacroStrainCollection
+    poisson_ratio: float, ~uncertainties.ufloat
+    young_modulus: float, ~uncertainties.ufloat
+    """
+
+    def __init__(self, strains_diagonals, young_modulus, poisson_ratio):
         shear_modulus = young_modulus / (1 + poisson_ratio)
         trace_factor = poisson_ratio / (1 - 2 * poisson_ratio)
-        self._stress = shear_modulus * (macro_strain + trace_factor * macro_strain.trace)
+        self._stress_diagonals = shear_modulus * (strains_diagonals + trace_factor * strains_diagonals.traces)
 
-
-class MacroStressCollection:
-    def __init__(self, macro_strains, poisson_ratio, young_modulus):
-        r"""
-
-        Parameters
-        ----------
-        macro_strain: ~pyrs.core_strain_stress_calculator.MacroStrainCollection
-        poisson_ratio: float, ~uncertainties.ufloat
-        young_modulus: float, ~uncertainties.ufloat
-        """
-        self._collection = None
+    @property
+    def stresses(self):
+        r"""List of stress tensor diagonals"""
+        return unumpy.copy(self._stress_diagonal)
 
 
 class StrainStress:
