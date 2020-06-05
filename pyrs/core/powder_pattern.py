@@ -35,24 +35,6 @@ class ReductionApp:
 
         return
 
-    @staticmethod
-    def import_calibration_file(configuration_file):
-        """ set up the geometry configuration file
-        :param configuration_file:
-        :return:
-        """
-        if configuration_file.lower().endswith('.h5'):
-            # this returns a dict
-            geometry_config = calibration_file_io.import_calibration_info_file(configuration_file)
-        elif configuration_file.lower().endswith('.json'):
-            # this returns a AnglerCameraDetectorShift
-            geometry_config = calibration_file_io.read_calibration_json_file(configuration_file)[0]
-        else:
-            # this returns a AnglerCameraDetectorShift
-            geometry_config = calibration_file_io.import_calibration_ascii_file(configuration_file)
-
-        return geometry_config
-
     def get_diffraction_data(self, sub_run, mask_id=None):
         """Get 2theta diffraction data
 

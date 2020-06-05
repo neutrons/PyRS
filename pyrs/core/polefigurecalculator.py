@@ -5,22 +5,6 @@ import numpy as np
 from typing import Tuple
 
 
-def nice(matrix):
-    """
-    export a string for print a matrix nicely
-    :param matrix:
-    :return:
-    """
-    nice_out = ''
-    for i_row in range(matrix.shape[0]):
-        row = ''
-        for j_col in range(matrix.shape[1]):
-            row += '{0:5.5f}\t'.format(matrix[i_row, j_col])
-        nice_out += row + '\n'
-
-    return nice_out
-
-
 class PoleFigureCalculator:
     """
     A calculator for Pole Figure.
