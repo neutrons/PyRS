@@ -1,9 +1,56 @@
 # Reduction engine including slicing
 import numpy as np
 import pyrs.utilities.checkdatatypes
+from mantid.simpleapi import mtd, CreateMDWorkspace, BinMD
+from mantid.api import IMDHistoWorkspace
+
 # TODO:
 #   1) check that vx, vy, vz positions of peakcollections align
 #   2) Check for duplicate entries (can happen if two runs are combined)
+
+
+def _extent_to_createmd(extent) -> str:
+    # TODO change to attributes of extents NamedTuple
+    if extent[0] > extent[1]:
+        raise ValueError('Extents must be increasing order: [{},{}]'.format(extent[0], extent[1]))
+    return '{},{}'.format(extent[0], extent[1])
+
+
+def _extent_to_numpoints(extent) -> int:
+    return int(float(extent[1]) - float(extent[0]) / float(extent[2]))
+
+
+def _extent_to_binmd(label, extent) -> str:
+    # TODO change to attributes of extents NamedTuple
+    delta = float(extent[2])
+    if delta <= 0:
+        raise ValueError('Negative step size: {}'.format(delta))
+
+    extent_str = _extent_to_createmd(extent)
+    numpoint = _extent_to_numpoints(extent)
+
+    return f'{label},{extent_str},{numpoint}'
+
+
+def _to_md(name: str, x_extent, y_extent, z_extent, signal, errors, units: str) -> IMDHistoWorkspace:
+    extents_str = ','.join([_extent_to_createmd(extent) for extent in (x_extent, y_extent, z_extent)])
+    # create an empty event workspace of the correct dimensions
+    CreateMDWorkspace(OutputWorkspace=name, Dimensions=3, Extents=extents_str,
+                      Names='x,y,z', Units=units)
+    # set the bins for the workspace correctly
+    BinMD(InputWorkspace=name, OutputWorkspace=name,
+          AlignedDim0=_extent_to_binmd('x', x_extent),
+          AlignedDim1=_extent_to_binmd('y', y_extent),
+          AlignedDim2=_extent_to_binmd('z', z_extent))
+
+    # get a handle to the workspace
+    wksp = mtd[name]
+    # set the signal and errors
+    dims = [_extent_to_numpoints(extent) for extent in (x_extent, y_extent, z_extent)]
+    wksp.setSignalArray(signal.reshape(dims))
+    wksp.setErrorSquaredArray(np.square(errors.reshape(dims)))
+
+    return wksp
 
 
 class StrainStress:
