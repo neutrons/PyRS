@@ -1,6 +1,6 @@
 # extentable version of dict https://treyhunner.com/2019/04/why-you-shouldnt-inherit-from-list-and-dict-in-python/
 from collections import Iterable, MutableMapping
-from typing import NamedTuple
+from typing import List, NamedTuple
 import numpy as np
 from .constants import HidraConstants  # type: ignore
 
@@ -14,6 +14,20 @@ def _coerce_to_ndarray(value):
         return value._value  # pylint: disable=protected-access
     else:
         return np.atleast_1d(value)
+
+
+class DirectionExtents(NamedTuple('DirectionExtents', 'min max delta')):
+    r"""class mimicking a namedtuple(min, max, delta)"""
+
+    precision = 1.e-03  # two coordinates values differing by less that this amount are considered the same value
+
+    def __new__(cls, coordinates: List[float]):
+        min = min(coordinates)
+        max = max(coordinates)
+        # unique number of different coordinates using and assumed precision in the coordinate values
+        coordinates_count_unique = len(set([int(x / cls.precision) for x in coordinates]))
+        delta = (max - min) / coordinates_count_unique
+        return super(DirectionExtents, cls).__new__(cls, min, max, delta)
 
 
 class PointList:
@@ -47,16 +61,15 @@ class PointList:
 
         point_list.vx returns the list of coordinates along the first axis
         point_list[42] return the vx, vy, vz coordinates of point 42
-        point_list.coordinates returns a numpy array of shape (N, 3)
-        point_list.sort() sorts the coordinates by distance to the origin
+        Iteration is over the 3D points, not over the axes
         """
         coordinates = self.__class__.sample_coordinates_importer(input_source)
         self._points = self.__class__.PointNamedTuple(*coordinates)
 
-    def __len__(self):
-        return self.points[0]
+    def __len__(self) -> int:
+        return len(self.points[0])  # assumed all the three directions have the same number of coordinate values
 
-    def __getattr__(self, item):
+    def __getattr__(self, item: str):
         r"""Enable self.vx, self.vy, self.vz"""
         try:
             points = self.__dict__['_points']
@@ -64,14 +77,14 @@ class PointList:
         except AttributeError:
             getattr(self, item)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: int):
         r"""Enable self[0],... self[N]"""
         return [coordinate_list[item] for coordinate_list in self]
 
     @property
-    def coordinates(self):
-        r"""numpy array of coordinates"""
-        return np.array(self.points)
+    def extents(self):
+        r"""Extents along each direction"""
+        return [DirectionExtents(axes_coords) for axes_coords in self._points]
 
 
 class SubRuns(Iterable):
