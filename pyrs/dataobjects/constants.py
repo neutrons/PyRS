@@ -46,3 +46,4 @@ class HidraConstants:
 
     # Special sample logs
     SUB_RUN_DURATION = 'sub-run duration'
+    SAMPLE_COORDINATE_NAMES = ('vx', 'vy', 'vz')

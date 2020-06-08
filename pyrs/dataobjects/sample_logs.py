@@ -1,5 +1,5 @@
 # extentable version of dict https://treyhunner.com/2019/04/why-you-shouldnt-inherit-from-list-and-dict-in-python/
-from collections import Iterable, MutableMapping
+from collections import Iterable, MutableMapping, namedtuple
 import numpy as np
 from .constants import HidraConstants  # type: ignore
 
@@ -13,6 +13,64 @@ def _coerce_to_ndarray(value):
         return value._value  # pylint: disable=protected-access
     else:
         return np.atleast_1d(value)
+
+
+class PointList:
+
+    # Data structure holding the coordinates
+    PointNamedTuple = namedtuple('PointNamedTuple', HidraConstants.SAMPLE_COORDINATE_NAMES)
+
+    @staticmethod
+    def sample_coordinates_importer(input_source):
+        r"""
+        Import the sample coordinates from different types of sources
+
+        Parameters
+        ----------
+        input_source: ~pyrs.dataobjects.SampleLogs
+
+        Returns
+        -------
+        list
+            A three item list, where each item is a list of sample positions along one axis
+        """
+        if isinstance(input_source, SampleLogs):
+            # assumes the coordinate logs have been already loaded into the SampleLogs object
+            return [input_source[name] for name in HidraConstants.SAMPLE_COORDINATE_NAMES]
+        else:  # assumed workspace
+            raise NotImplemented('No coordinate importer from workspaces has yet been implemented')
+
+    def __init__(self, input_source):
+        r"""
+        List of sample coordinates.
+
+        point_list.vx returns the list of coordinates along the first axis
+        point_list[42] return the vx, vy, vz coordinates of point 42
+        point_list.coordinates returns a numpy array of shape (N, 3)
+        point_list.sort() sorts the coordinates by distance to the origin
+        """
+        coordinates = self.__class__.sample_coordinates_importer(input_source)
+        self._points = self.__class__.PointNamedTuple(*coordinates)
+
+    def __len__(self):
+        return self.points[0]
+
+    def __getattr__(self, item):
+        r"""Enable self.vx, self.vy, self.vz"""
+        try:
+            points = self.__dict__['_points']
+            return getattr(points, item)
+        except AttributeError:
+            getattr(self, item)
+
+    def __getitem__(self, item):
+        r"""Enable self[0],... self[N]"""
+        return [coordinate_list[item] for coordinate_list in self]
+
+    @property
+    def coordinates(self):
+        r"""numpy array of coordinates"""
+        return np.array(self.points)
 
 
 class SubRuns(Iterable):
