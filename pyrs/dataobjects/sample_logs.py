@@ -1,6 +1,6 @@
 # extentable version of dict https://treyhunner.com/2019/04/why-you-shouldnt-inherit-from-list-and-dict-in-python/
 from collections import Iterable, MutableMapping
-from typing import List, NamedTuple
+from typing import Any, List, NamedTuple
 import numpy as np
 from .constants import HidraConstants  # type: ignore
 
@@ -14,77 +14,6 @@ def _coerce_to_ndarray(value):
         return value._value  # pylint: disable=protected-access
     else:
         return np.atleast_1d(value)
-
-
-class DirectionExtents(NamedTuple('DirectionExtents', 'min max delta')):
-    r"""class mimicking a namedtuple(min, max, delta)"""
-
-    precision = 1.e-03  # two coordinates values differing by less that this amount are considered the same value
-
-    def __new__(cls, coordinates: List[float]):
-        min = min(coordinates)
-        max = max(coordinates)
-        # unique number of different coordinates using and assumed precision in the coordinate values
-        coordinates_count_unique = len(set([int(x / cls.precision) for x in coordinates]))
-        delta = (max - min) / coordinates_count_unique
-        return super(DirectionExtents, cls).__new__(cls, min, max, delta)
-
-
-class PointList:
-
-    # Data structure holding the coordinates
-    PointNamedTuple = NamedTuple('PointNamedTuple', HidraConstants.SAMPLE_COORDINATE_NAMES)
-
-    @staticmethod
-    def sample_coordinates_importer(input_source):
-        r"""
-        Import the sample coordinates from different types of sources
-
-        Parameters
-        ----------
-        input_source: ~pyrs.dataobjects.SampleLogs
-
-        Returns
-        -------
-        list
-            A three item list, where each item is a list of sample positions along one axis
-        """
-        if isinstance(input_source, SampleLogs):
-            # assumes the coordinate logs have been already loaded into the SampleLogs object
-            return [input_source[name] for name in HidraConstants.SAMPLE_COORDINATE_NAMES]
-        else:  # assumed workspace
-            raise NotImplementedError('No coordinate importer from workspaces has yet been implemented')
-
-    def __init__(self, input_source):
-        r"""
-        List of sample coordinates.
-
-        point_list.vx returns the list of coordinates along the first axis
-        point_list[42] return the vx, vy, vz coordinates of point 42
-        Iteration is over the 3D points, not over the axes
-        """
-        coordinates = self.__class__.sample_coordinates_importer(input_source)
-        self._points = self.__class__.PointNamedTuple(*coordinates)
-
-    def __len__(self) -> int:
-        return len(self.points[0])  # assumed all the three directions have the same number of coordinate values
-
-    def __getattr__(self, item: str):
-        r"""Enable self.vx, self.vy, self.vz"""
-        try:
-            points = self.__dict__['_points']
-            return getattr(points, item)
-        except AttributeError:
-            getattr(self, item)
-
-    def __getitem__(self, item: int):
-        r"""Enable self[0],... self[N]"""
-        return [coordinate_list[item] for coordinate_list in self]
-
-    @property
-    def extents(self):
-        r"""Extents along each direction"""
-        return [DirectionExtents(axes_coords) for axes_coords in self._points]
 
 
 class SubRuns(Iterable):
@@ -272,3 +201,78 @@ class SampleLogs(MutableMapping):
 
     def get_subrun_indices(self, subruns):
         return self._subruns.get_indices(subruns)
+
+
+class _DirectionExtents(NamedTuple):
+    min: float  # minimum value of the sample coordinate along one particular direction
+    max: float  # maximum value of the sample coordinate along one particular direction
+    delta: float  #
+
+
+class DirectionExtents(_DirectionExtents):
+    r"""class mimicking a namedtuple(min, max, delta) but with a different initialization argument"""
+
+    precision = 1.e-03  # two coordinates values differing by less that this amount are considered the same value
+
+    def __new__(cls, coordinates: List[float]):
+        min = min(coordinates)
+        max = max(coordinates)
+        # unique number of different coordinates using and assumed precision in the coordinate values
+        coordinates_count_unique = len(set([int(x / cls.precision) for x in coordinates]))
+        delta = (max - min) / coordinates_count_unique
+        return super(DirectionExtents, cls).__new__(cls, min, max, delta)
+
+
+class PointList:
+
+    class _PointList(NamedTuple):
+        r"""Data structure containing the list of coordinates"""
+        vx: List[float]  # coordinates stored in log name HidraConstants.SAMPLE_COORDINATE_NAMES[0]
+        vy: List[float]  # coordinates stored in log name HidraConstants.SAMPLE_COORDINATE_NAMES[1]
+        vz: List[float]  # coordinates stored in log name HidraConstants.SAMPLE_COORDINATE_NAMES[2]
+
+    def __init__(self, input_source: SampleLogs):
+        r"""
+        List of sample coordinates.
+
+        point_list.vx returns the list of coordinates along the first axis
+        point_list[42] return the (vx, vy, vz) coordinates of point 42
+        Iteration is over the 3D points, not over the three directions
+
+        Parameters
+        ----------
+        input_source: ~pyrs.dataobjects.sample_logs.SampleLogs
+            data structure containing the values of the coordinates for each direction.
+        """
+        coordinates = [input_source[name] for name in HidraConstants.SAMPLE_COORDINATE_NAMES]
+        # Check the number of coordinate values on each direction is the same for all directions
+        assert len(set([len(c) for c in coordinates])) == 1, 'Directions have different number of coordinates'
+        self._points = self.__class__._PointList(*coordinates)
+
+    def __len__(self) -> int:
+        return len(self._points.vx)  # assumed all the three directions have the same number of coordinate values
+
+    def __getattr__(self, item: str) -> Any:
+        r"""Enable self.vx, self.vy, self.vz"""
+        try:
+            points = self.__dict__['_points']
+            return getattr(points, item)
+        except AttributeError:
+            getattr(self, item)
+
+    def __getitem__(self, item: int) -> List[float]:
+        r"""Enable self[0],... self[N] as well as making this class iterable over the 3D points."""
+        return [coordinate_list[item] for coordinate_list in self]
+
+    @property
+    def extents(self) -> List[DirectionExtents]:
+        r"""
+        Extents along each direction. Each extent is composed of the minimum and maximum coordinates,
+        as well a coordinate increment.
+
+        Returns
+        -------
+        list
+            three-item list, where each item is an object of type ~pyrs.dataobjects.sample_logs.DirectionExtents.
+        """
+        return [DirectionExtents(axes_coords) for axes_coords in self._points]
