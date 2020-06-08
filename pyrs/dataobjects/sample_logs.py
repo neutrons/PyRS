@@ -1,5 +1,6 @@
 # extentable version of dict https://treyhunner.com/2019/04/why-you-shouldnt-inherit-from-list-and-dict-in-python/
-from collections import Iterable, MutableMapping, namedtuple
+from collections import Iterable, MutableMapping
+from typing import NamedTuple
 import numpy as np
 from .constants import HidraConstants  # type: ignore
 
@@ -18,7 +19,7 @@ def _coerce_to_ndarray(value):
 class PointList:
 
     # Data structure holding the coordinates
-    PointNamedTuple = namedtuple('PointNamedTuple', HidraConstants.SAMPLE_COORDINATE_NAMES)
+    PointNamedTuple = NamedTuple('PointNamedTuple', HidraConstants.SAMPLE_COORDINATE_NAMES)
 
     @staticmethod
     def sample_coordinates_importer(input_source):
@@ -38,7 +39,7 @@ class PointList:
             # assumes the coordinate logs have been already loaded into the SampleLogs object
             return [input_source[name] for name in HidraConstants.SAMPLE_COORDINATE_NAMES]
         else:  # assumed workspace
-            raise NotImplemented('No coordinate importer from workspaces has yet been implemented')
+            raise NotImplementedError('No coordinate importer from workspaces has yet been implemented')
 
     def __init__(self, input_source):
         r"""
