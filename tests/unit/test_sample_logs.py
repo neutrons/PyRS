@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from pyrs.dataobjects import SampleLogs
+from pyrs.dataobjects import SampleLogs  # type: ignore
 
 
 def test_reassign_subruns():
