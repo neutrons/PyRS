@@ -1,4 +1,4 @@
-\documentclass[12pt,bezier,amstex]{report}  % include bezier curves
+\documentclass[12pt]{report}  % include bezier curves
 \renewcommand\baselinestretch{1.0}           % single space
 %\pagestyle{empty}                            % no headers and page numbers
 \oddsidemargin -10 true pt      % Left margin on odd-numbered pages.
@@ -21,7 +21,7 @@
 
 \begin{document}
 
-\maketitle
+%\maketitle
 
 {\bf Strain}, aka, unconstrained strain, is measured as the fraction change from a reference state ($d_0$).
 \begin{eqnarray}
@@ -31,35 +31,55 @@
 {\bf Residual stress} is determined by measuring stress along {\bf\it 3} orthogonal directions
 \begin{eqnarray}
 \sigma_{ij} &=&
-	\frac{E}{(1 + \nu)}[\epsilon_{ij} + \frac{\nu}{1-2\nu}(\epsilon_{11} + \epsilon_{22} + \epsilon_{33})]
+	\frac{E}{(1 + \nu)}\left[\epsilon_{ij} + \frac{\nu}{1-2\nu}(\epsilon_{11} + \epsilon_{22} + \epsilon_{33})\right]
 \end{eqnarray}
 
-where 
+where
 \begin{itemize}
 \item $\nu$ is {\it Poisson's Ratio}.
 \item $E$ is {\it Young's Modulus}.
-\item $\epsilon_{ij}$ are strains.  Be noted that 
+\item $\epsilon_{ij}$ are strains.  Be noted that
 	\begin{itemize}
 	\item  $\epsilon_{ij}$ with $i = j$ are principle strains.  But not all all three orthogonal strains are equivalent to principle strains.
 	\item The off-diagonal strain component, i.e., $\epsilon_{ij}$ with $i\neq j$ are all set to {\bf zero}.  It is very hard to measure these values in HB2B's setup.
 	\end{itemize}
 \end{itemize}
 
-In {\bf plane strain}, $\epsilon_{33}$ is {\bf zero}.
+Therefore the stress that is calculated is
+%
+\begin{equation}
+\sigma_{ii} =
+	\frac{E}{(1 + \nu)}\left[\epsilon_{ii} + \frac{\nu}{1-2\nu}(\epsilon_{11} + \epsilon_{22} + \epsilon_{33})\right]
+\end{equation}
+%
+where the second term in the sum is the same between all 3 principle strain directions, ($\sigma_{11}$, $\sigma_{22}$, and $\sigma_{33}$).
 
-In {\bf plane stress}, $\sigma_{33}$ is {\bf zero}.  
-Therefore, $\epsilon_{33}$ can be calculated from $\epsilon_{11}$ and $\epsilon_{22}$ from $\sigma_{33} = 0$. 
+There are also two simplified cases when only two strain components are measured. The first is {\bf in-plane strain}, where $\epsilon_{33}=0$. Then the strain equations become
+%
 \begin{eqnarray}
-\sigma_{33}
-	&=&	0	\\
-	&=& \frac{E}{(1 + \nu)}[\epsilon_{33} + \frac{\nu}{1-2\nu}(\epsilon_{11} + \epsilon_{22} + \epsilon_{33})]	\\
-\epsilon_{33}
-	&=& - \frac{\nu}{(1-2\nu)} (\epsilon_{11} + \epsilon_{22}) + - \frac{\nu}{(1-2\nu)} \epsilon_{33} \\
-\epsilon_{33} 
-	&=& \frac{\nu}{\nu-1}(\epsilon_{11} + \epsilon_{22})
+\sigma_{11} &=&
+	\frac{E}{(1 + \nu)}\left[\epsilon_{11} + \frac{\nu}{1-2\nu}(\epsilon_{11} + \epsilon_{22})\right] \\
+\sigma_{22} &=&
+	\frac{E}{(1 + \nu)}\left[\epsilon_{22} + \frac{\nu}{1-2\nu}(\epsilon_{11} + \epsilon_{22})\right] \\
+\sigma_{33} &=&
+	\frac{E \nu (\epsilon_{11} + \epsilon_{22})}{(1 + \nu)(1-2\nu)}
 \end{eqnarray}
 
-Therefore, for both plain stress and plain strain, $d$ from 2 principle directions are enough, but not 3.
+The {\bf in-plane stress}, assumes $\sigma_{33} = 0$.
+Therefore, $\epsilon_{33}$ can be calculated from $\epsilon_{11}$ and $\epsilon_{22}$ from $\sigma_{33} = 0$. Then the missing strain can be determined to be
+%
+\begin{equation}
+\epsilon_{33} = \frac{\nu}{\nu-1}(\epsilon_{11} + \epsilon_{22})
+\end{equation}
+%
+With that relation, the stresses (with the in-plane stress assumption) are
+%
+\begin{eqnarray}
+\sigma_{11} &=&
+	\frac{E}{(1 + \nu)}\left[\epsilon_{11} + \frac{\nu (\epsilon_{11} + \epsilon_{22})}{1-\nu}\right] \\
+\sigma_{22} &=&
+	\frac{E}{(1 + \nu)}\left[\epsilon_{22} + \frac{\nu (\epsilon_{11} + \epsilon_{22})}{1-\nu}\right] \\
+\sigma_{33} &=& 0
+\end{eqnarray}
 
 \end{document}
-
