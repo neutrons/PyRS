@@ -1,6 +1,6 @@
 import numpy as np
 from pyrs.core.peak_profile_utility import PeakShape, BackgroundFunction, get_parameter_dtype
-from pyrs.peaks import PeakCollection
+from pyrs.peaks import PeakCollection  # type: ignore
 import pytest
 
 

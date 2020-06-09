@@ -1,12 +1,12 @@
 """
 Test for reading and writing components to HiDRA project file
 """
-from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 import os
 import numpy as np
 import datetime
 from pyrs.core.peak_profile_utility import PeakShape, BackgroundFunction
-from pyrs.peaks import PeakCollection
+from pyrs.peaks import PeakCollection  # type: ignore
 import pytest
 
 

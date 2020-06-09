@@ -2,7 +2,7 @@
 # Test utilities methods without GUI
 import os
 from pyrs.interface import gui_helper
-from pyrs.utilities import get_default_output_dir, get_input_project_file, get_ipts_dir, get_nexus_file
+from pyrs.utilities import get_default_output_dir, get_input_project_file, get_ipts_dir, get_nexus_file  # type: ignore
 import pytest
 
 

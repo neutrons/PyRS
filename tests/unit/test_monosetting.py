@@ -1,4 +1,4 @@
-from pyrs.core import MonoSetting
+from pyrs.core import MonoSetting  # type: ignore
 import pytest
 
 
