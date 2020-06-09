@@ -1,6 +1,6 @@
 # extentable version of dict https://treyhunner.com/2019/04/why-you-shouldnt-inherit-from-list-and-dict-in-python/
 from collections import Iterable, MutableMapping
-from typing import Any, List, NamedTuple
+from typing import Any, List, NamedTuple, Tuple
 import numpy as np
 from .constants import HidraConstants  # type: ignore
 
@@ -265,7 +265,7 @@ class PointList:
         return [coordinate_list[item] for coordinate_list in self]
 
     @property
-    def extents(self) -> List[DirectionExtents]:
+    def extents(self) -> Tuple[DirectionExtents, DirectionExtents, DirectionExtents]:
         r"""
         Extents along each direction. Each extent is composed of the minimum and maximum coordinates,
         as well a coordinate increment.
@@ -275,4 +275,4 @@ class PointList:
         list
             three-item list, where each item is an object of type ~pyrs.dataobjects.sample_logs.DirectionExtents.
         """
-        return [DirectionExtents(axes_coords) for axes_coords in self._points]
+        return tuple([DirectionExtents(axes_coords) for axes_coords in self._points])
