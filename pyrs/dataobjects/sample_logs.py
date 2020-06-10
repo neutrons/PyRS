@@ -210,17 +210,48 @@ class _DirectionExtents(NamedTuple):
 
 
 class DirectionExtents(_DirectionExtents):
-    r"""class mimicking a namedtuple(min, max, delta) but with a different initialization argument"""
+    r"""
+    Spacing parameters for sample positions sampled along a particular direction.
+
+    Two sample positions are deemed the same if they differ by less than some distance, here a
+    class attribute termed 'precision'.
+
+    Attributes:
+        min: minimum sample position sampled
+        max: maximum sample position sampled
+        delta: average spacing between unique sample positions sampled
+    """
 
     precision = 1.e-03  # two coordinates values differing by less that this amount are considered the same value
 
     def __new__(cls, coordinates: List[float]):
-        min = min(coordinates)
-        max = max(coordinates)
+        min_coord = min(coordinates)
+        max_coord = max(coordinates)
         # unique number of different coordinates using and assumed precision in the coordinate values
         coordinates_count_unique = len(set([int(x / cls.precision) for x in coordinates]))
-        delta = (max - min) / coordinates_count_unique
-        return super(DirectionExtents, cls).__new__(cls, min, max, delta)
+        # delta is the spacing between unique coordinates
+        delta = (max_coord - min_coord) / (coordinates_count_unique - 1)
+
+        extents_tuple = super(DirectionExtents, cls).__new__(cls, min_coord, max_coord, delta)
+        extents_tuple._numpoints = coordinates_count_unique
+        return extents_tuple
+
+    @property
+    def numpoints(self):
+        r"""
+        Number of centerpoints where self.min and self.max are the first and last centerpoints
+        """
+        return self._numpoints
+
+    @property
+    def to_createmd(self):
+        r"""???"""
+        return f'{self.min},{self.max}'
+
+    @property
+    def to_binmd(self, label: str):
+        r"""???"""
+        return f'{label},{self.to_createmd},{self.numpoints}'
 
 
 class PointList:
