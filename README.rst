@@ -14,26 +14,29 @@ If you've never used PyRS before, you can get started quickly by doing the follo
 2. Create a new Conda environment with additional dependencies:
 
 .. code-block::
-   
+
    $ conda create -n pyrs -c mantid -c mantid/label/nightly mantid-workbench -c conda-forge
 
 3. Activate the conda environment
 
 .. code-block::
-   
+
    $ conda activate pyrs
 
 4. From the PyRS directory, run the setup script in developer mode
 
 .. code-block::
-   
+
    $ python setup.py develop
 
 5. From the PyRS directory, start the user interface
 
 .. code-block::
-   
+
    $ python scripts/pyrsplot
+
+For those setting up in a virtual environment, the dependencies are listed in ``requirements.txt`` and ``requirements_dev.txt``.
+They can be supplide to ``conda create`` using the `--file`` argument, or to ``pip install`` using the ``-R`` argument.
 
 -----------------------
 Data reduction workflow

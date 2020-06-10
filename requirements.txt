@@ -1,0 +1,2 @@
+uncertainties
+scipy>=0.18
