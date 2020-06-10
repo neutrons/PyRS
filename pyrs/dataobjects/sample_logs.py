@@ -298,7 +298,7 @@ class PointList:
         input_source: ~pyrs.dataobjects.sample_logs.SampleLogs
             data structure containing the values of the coordinates for each direction.
         """
-        coordinates = [input_source[name] for name in HidraConstants.SAMPLE_COORDINATE_NAMES]
+        coordinates = [list(input_source[name]) for name in HidraConstants.SAMPLE_COORDINATE_NAMES]
         # Check the number of coordinate values on each direction is the same for all directions
         assert len(set([len(c) for c in coordinates])) == 1, 'Directions have different number of coordinates'
         self._points = self.__class__._PointList(*coordinates)
@@ -316,7 +316,7 @@ class PointList:
 
     def __getitem__(self, item: int) -> List[float]:
         r"""Enable self[0],... self[N] as well as making this class iterable over the 3D points."""
-        return [coordinate_list[item] for coordinate_list in self]
+        return [coordinate_list[item] for coordinate_list in self._points]
 
     @property
     def extents(self) -> Tuple[DirectionExtents, DirectionExtents, DirectionExtents]:
