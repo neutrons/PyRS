@@ -244,14 +244,37 @@ class DirectionExtents(_DirectionExtents):
         return self._numpoints
 
     @property
-    def to_createmd(self):
-        r"""???"""
-        return f'{self.min},{self.max}'
+    def number_of_bins(self):
+        r"""
+        Number of spacings separating consecutive bin boundaries
+        """
+        return self._numpoints  # same as number of center points
 
     @property
-    def to_binmd(self, label: str):
-        r"""???"""
-        return f'{label},{self.to_createmd},{self.numpoints}'
+    def to_createmd(self) -> str:
+        r"""
+        Minimum and maximum extents to be passed as argument Extent of Mantid algorithm
+        `CreateMDWorkspace <https://docs.mantidproject.org/nightly/algorithms/CreateMDWorkspace-v1.html>`_.
+
+        Input extents for CreateMDWorkspace become the first and last bin boundaries, but `self.min` and
+        `self.max` are the first and last center-points
+
+        Returns
+        -------
+        str
+        """
+        return f'{self.min - self.delta / 2},{self.max + self.delta / 2}'
+
+    def to_binmd(self, label: str) -> str:
+        r"""
+        Binning parameters to be passed as one of the AlignedDimX arguments of Mantid algorithm
+        `BinMD <>`_.
+
+        Returns
+        -------
+        str
+        """
+        return f'{label},{self.to_createmd},{self.number_of_bins}'
 
 
 class PointList:
