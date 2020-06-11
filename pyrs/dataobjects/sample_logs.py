@@ -229,6 +229,7 @@ class DirectionExtents(_DirectionExtents):
         max_coord = max(coordinates)
         # unique number of different coordinates using and assumed precision in the coordinate values
         coordinates_count_unique = len(set([int(x / cls.precision) for x in coordinates]))
+        assert coordinates_count_unique > 1, 'We could not resolve more than one coordinate'
         # delta is the spacing between unique coordinates
         delta = (max_coord - min_coord) / (coordinates_count_unique - 1)
 
@@ -265,7 +266,8 @@ class DirectionExtents(_DirectionExtents):
         """
         return f'{self.min - self.delta / 2},{self.max + self.delta / 2}'
 
-    def to_binmd(self, label: str) -> str:
+    @property
+    def to_binmd(self) -> str:
         r"""
         Binning parameters to be passed as one of the AlignedDimX arguments of Mantid algorithm
         `BinMD <>`_.
@@ -274,7 +276,7 @@ class DirectionExtents(_DirectionExtents):
         -------
         str
         """
-        return f'{label},{self.to_createmd},{self.number_of_bins}'
+        return f'{self.to_createmd},{self.number_of_bins}'
 
 
 class PointList:

@@ -15,12 +15,15 @@ from pyrs.dataobjects.sample_logs import DirectionExtents
 def _to_md(name: str,
            extents: Tuple[DirectionExtents, DirectionExtents, DirectionExtents],
            signal, errors, units: str) -> IMDHistoWorkspace:
+    for extent in extents:
+        assert extent[0] < extent[1], f'min value of {extent} is not smaller than max value'
     extents_str = ','.join([extent.to_createmd for extent in extents])
     # create an empty event workspace of the correct dimensions
+    axis_labels = ('x', 'y', 'z')
     CreateMDWorkspace(OutputWorkspace=name, Dimensions=3, Extents=extents_str,
-                      Names='x,y,z', Units=units)
+                      Names=','.join(axis_labels), Units=units)
     # set the bins for the workspace correctly
-    aligned_dimensions = [extent.to_binmd(label) for extent, label in zip(extents, ('x', 'y', 'z'))]
+    aligned_dimensions = [f'{label},{extent.to_binmd}' for extent, label in zip(extents, axis_labels)]
     aligned_kwargs = {f'AlignedDim{i}': aligned_dimensions[i] for i in range(len(aligned_dimensions))}
     BinMD(InputWorkspace=name, OutputWorkspace=name, **aligned_kwargs)
 

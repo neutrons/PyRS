@@ -28,7 +28,7 @@ class TestDirectionExtents:
 
     def test_to_binmd(self):
         d = DirectionExtents(range(42))
-        assert d.to_binmd('label') == 'label,-0.5,41.5,42'
+        assert d.to_binmd == '-0.5,41.5,42'
 
 
 @pytest.fixture(scope='module')
