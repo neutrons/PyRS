@@ -234,7 +234,7 @@ class DirectionExtents(_DirectionExtents):
         delta = (max_coord - min_coord) / (coordinates_count_unique - 1)
 
         extents_tuple = super(DirectionExtents, cls).__new__(cls, min_coord, max_coord, delta)
-        extents_tuple._numpoints = coordinates_count_unique
+        super(DirectionExtents, cls).__setattr__(extents_tuple, '_numpoints', coordinates_count_unique)
         return extents_tuple
 
     @property
@@ -331,4 +331,4 @@ class PointList:
         list
             three-item list, where each item is an object of type ~pyrs.dataobjects.sample_logs.DirectionExtents.
         """
-        return tuple([DirectionExtents(axes_coords) for axes_coords in self._points])
+        return DirectionExtents(self.vx), DirectionExtents(self.vy), DirectionExtents(self.vz)

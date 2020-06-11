@@ -23,7 +23,7 @@ def _to_md(name: str,
     CreateMDWorkspace(OutputWorkspace=name, Dimensions=3, Extents=extents_str,
                       Names=','.join(axis_labels), Units=units)
     # set the bins for the workspace correctly
-    aligned_dimensions = [f'{label},{extent.to_binmd}' for extent, label in zip(extents, axis_labels)]
+    aligned_dimensions = [f'{label},{extent.to_binmd}' for label, extent in zip(axis_labels, extents)]  # type: ignore
     aligned_kwargs = {f'AlignedDim{i}': aligned_dimensions[i] for i in range(len(aligned_dimensions))}
     BinMD(InputWorkspace=name, OutputWorkspace=name, **aligned_kwargs)
 
