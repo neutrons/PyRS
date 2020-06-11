@@ -25,11 +25,21 @@ CLASSIFIERS = [
     "Programming Language :: Python :: Implementation :: PyPy",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-INSTALL_REQUIRES = []
 
 ###################################################################
 
-HERE = os.path.abspath(os.path.dirname(__file__))
+THIS_DIR = os.path.abspath(os.path.dirname(__file__))
+
+
+def read_requirements_from_file(filepath):
+    '''Read a list of requirements from the given file and split into a
+    list of strings. It is assumed that the file is a flat
+    list with one requirement per line.
+    :param filepath: Path to the file to read
+    :return: A list of strings containing the requirements
+    '''
+    with open(filepath, 'rU') as req_file:
+        return req_file.readlines()
 
 
 def read(*parts):
@@ -37,7 +47,7 @@ def read(*parts):
     Build an absolute path from *parts* and and return the contents of the
     resulting file.  Assume UTF-8 encoding.
     """
-    with codecs.open(os.path.join(HERE, *parts), "rb", "utf-8") as f:
+    with codecs.open(os.path.join(THIS_DIR, *parts), "rb", "utf-8") as f:
         return f.read()
 
 
@@ -58,6 +68,10 @@ def find_meta(meta):
     if meta_match:
         return meta_match.group(1)
     raise RuntimeError("Unable to find __{meta}__ string.".format(meta=meta))
+
+
+install_requires = read_requirements_from_file(os.path.join(THIS_DIR, 'requirements.txt'))
+test_requires = read_requirements_from_file(os.path.join(THIS_DIR, 'requirements_dev.txt'))
 
 
 if __name__ == "__main__":
@@ -84,11 +98,10 @@ if __name__ == "__main__":
         packages=find_packages(exclude=['tests', 'tests.*']),
         zip_safe=False,
         classifiers=CLASSIFIERS,
-        install_requires=INSTALL_REQUIRES,
-        # from ours
+        install_requires=install_requires,
+        tests_require=test_requires,
         package_dir={},
         package_data={'': ['*.ui']},
         scripts=scripts,
         setup_requires=['pytest-runner'],
-        # tests_require=setup_args['install_requires'] + setup_args['tests_require'],
     )

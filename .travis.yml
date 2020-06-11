@@ -35,7 +35,7 @@ install:
 
 script:
     # TEST: Create test environment and test build
-  - conda create -q -n PyRS_test python=$CONDA flake8 pytest pytest-qt mantid-workbench=4.2 mypy uncertainties pytest-cov codecov scipy>=1.18
+  - conda create -q -n PyRS_test python=$CONDA mantid-workbench>=4.2 --file requirements.txt --file requirements_dev.txt
   - conda info --envs
   - conda activate PyRS_test
   - python --version
