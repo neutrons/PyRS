@@ -1,5 +1,6 @@
 # extentable version of dict https://treyhunner.com/2019/04/why-you-shouldnt-inherit-from-list-and-dict-in-python/
 from collections import Iterable, MutableMapping
+from typing import Any, List, NamedTuple, Tuple
 import numpy as np
 from .constants import HidraConstants  # type: ignore
 
@@ -200,3 +201,134 @@ class SampleLogs(MutableMapping):
 
     def get_subrun_indices(self, subruns):
         return self._subruns.get_indices(subruns)
+
+
+class _DirectionExtents(NamedTuple):
+    min: float  # minimum value of the sample coordinate along one particular direction
+    max: float  # maximum value of the sample coordinate along one particular direction
+    delta: float  #
+
+
+class DirectionExtents(_DirectionExtents):
+    r"""
+    Spacing parameters for sample positions sampled along a particular direction.
+
+    Two sample positions are deemed the same if they differ by less than some distance, here a
+    class attribute termed 'precision'.
+
+    Attributes:
+        min: minimum sample position sampled
+        max: maximum sample position sampled
+        delta: average spacing between unique sample positions sampled
+    """
+
+    precision = 1.e-03  # two coordinates values differing by less that this amount are considered the same value
+
+    def __new__(cls, coordinates: List[float]):
+        min_coord = min(coordinates)
+        max_coord = max(coordinates)
+        # unique number of different coordinates using and assumed precision in the coordinate values
+        coordinates_count_unique = len(set([int(x / cls.precision) for x in coordinates]))
+        assert coordinates_count_unique > 1, 'We could not resolve more than one coordinate'
+        # delta is the spacing between unique coordinates
+        delta = (max_coord - min_coord) / (coordinates_count_unique - 1)
+
+        extents_tuple = super(DirectionExtents, cls).__new__(cls, min_coord, max_coord, delta)
+        super(DirectionExtents, cls).__setattr__(extents_tuple, '_numpoints', coordinates_count_unique)
+        return extents_tuple
+
+    @property
+    def numpoints(self):
+        r"""
+        Number of centerpoints where self.min and self.max are the first and last centerpoints
+        """
+        return self._numpoints
+
+    @property
+    def number_of_bins(self):
+        r"""
+        Number of spacings separating consecutive bin boundaries
+        """
+        return self._numpoints  # same as number of center points
+
+    @property
+    def to_createmd(self) -> str:
+        r"""
+        Minimum and maximum extents to be passed as argument Extent of Mantid algorithm
+        `CreateMDWorkspace <https://docs.mantidproject.org/nightly/algorithms/CreateMDWorkspace-v1.html>`_.
+
+        Input extents for CreateMDWorkspace become the first and last bin boundaries, but `self.min` and
+        `self.max` are the first and last center-points
+
+        Returns
+        -------
+        str
+        """
+        return f'{self.min - self.delta / 2},{self.max + self.delta / 2}'
+
+    @property
+    def to_binmd(self) -> str:
+        r"""
+        Binning parameters to be passed as one of the AlignedDimX arguments of Mantid algorithm
+        `BinMD <>`_.
+
+        Returns
+        -------
+        str
+        """
+        return f'{self.to_createmd},{self.number_of_bins}'
+
+
+class PointList:
+
+    class _PointList(NamedTuple):
+        r"""Data structure containing the list of coordinates"""
+        vx: List[float]  # coordinates stored in log name HidraConstants.SAMPLE_COORDINATE_NAMES[0]
+        vy: List[float]  # coordinates stored in log name HidraConstants.SAMPLE_COORDINATE_NAMES[1]
+        vz: List[float]  # coordinates stored in log name HidraConstants.SAMPLE_COORDINATE_NAMES[2]
+
+    def __init__(self, input_source: SampleLogs):
+        r"""
+        List of sample coordinates.
+
+        point_list.vx returns the list of coordinates along the first axis
+        point_list[42] return the (vx, vy, vz) coordinates of point 42
+        Iteration is over the 3D points, not over the three directions
+
+        Parameters
+        ----------
+        input_source: ~pyrs.dataobjects.sample_logs.SampleLogs
+            data structure containing the values of the coordinates for each direction.
+        """
+        coordinates = [list(input_source[name]) for name in HidraConstants.SAMPLE_COORDINATE_NAMES]
+        # Check the number of coordinate values on each direction is the same for all directions
+        assert len(set([len(c) for c in coordinates])) == 1, 'Directions have different number of coordinates'
+        self._points = self.__class__._PointList(*coordinates)
+
+    def __len__(self) -> int:
+        return len(self._points.vx)  # assumed all the three directions have the same number of coordinate values
+
+    def __getattr__(self, item: str) -> Any:
+        r"""Enable self.vx, self.vy, self.vz"""
+        try:
+            points = self.__dict__['_points']
+            return getattr(points, item)
+        except AttributeError:
+            getattr(self, item)
+
+    def __getitem__(self, item: int) -> List[float]:
+        r"""Enable self[0],... self[N] as well as making this class iterable over the 3D points."""
+        return [coordinate_list[item] for coordinate_list in self._points]
+
+    @property
+    def extents(self) -> Tuple[DirectionExtents, DirectionExtents, DirectionExtents]:
+        r"""
+        Extents along each direction. Each extent is composed of the minimum and maximum coordinates,
+        as well a coordinate increment.
+
+        Returns
+        -------
+        list
+            three-item list, where each item is an object of type ~pyrs.dataobjects.sample_logs.DirectionExtents.
+        """
+        return DirectionExtents(self.vx), DirectionExtents(self.vy), DirectionExtents(self.vz)
