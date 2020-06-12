@@ -56,15 +56,17 @@ class TestPointList:
     def test_init(self, sample_logs_mock):
         point_list = PointList(sample_logs_mock['logs'])
         # dereference attributes 'vx', 'vy', 'vz'
-        assert [point_list.vx, point_list.vy, point_list.vz] == pytest.approx(sample_logs_mock['xyz'])
+        assert list(point_list.vx) == pytest.approx(sample_logs_mock['xyz'][0])
+        assert list(point_list.vy) == pytest.approx(sample_logs_mock['xyz'][1])
+        assert list(point_list.vz) == pytest.approx(sample_logs_mock['xyz'][2])
         # dereference by item index
         xyz = np.array(sample_logs_mock['xyz'])
         assert point_list[5] == pytest.approx(list(xyz[:, 5]))
 
     def test_getattr(self, sample_logs_mock):
         point_list = PointList(sample_logs_mock['logs'])
-        assert point_list.vy == pytest.approx(sample_logs_mock['xyz'][1])
-        assert point_list._points == pytest.approx(sample_logs_mock['xyz'])
+        assert list(point_list.vy) == pytest.approx(sample_logs_mock['xyz'][1])
+        assert list(point_list._points.vx) == pytest.approx(sample_logs_mock['xyz'][0])
 
     def test_extents(self, sample_logs_mock):
         point_list = PointList(sample_logs_mock['logs'])
