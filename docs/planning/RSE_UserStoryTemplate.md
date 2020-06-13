@@ -1,13 +1,11 @@
 *Note: If document form is used, one document could/should hold a
 complete set of user stories, not just one.*
 
-*Note: **Remove** the blue text when ready to use the template.*
+User Story Title:
+=================
 
-User Story Title: \<*title*\>
-=============================
-
-*Note: The story is the statemen below would be the part that would go
-on a sticky note is using them. However, it is important to capture
+*Note: The story in the statement below would be the part that would go
+on a sticky note when notes are used. However, it is important to capture
 these other attributes for tracking purposes:*
 
 -   ***ID** -- Some unique ID*
@@ -35,9 +33,9 @@ achieve some goal*\> so that \<*some reason, e.g. I get this benefit*\>
 Acceptance Criteria:
 --------------------
 
-*Note: The Acceptance Criteria specify how the use story will be
+*Note: The Acceptance Criteria specifies how the user story will be
 evaluated and determined to have been implemented successfully --
-"done". This is often done by listing a set of steps or actions and the
+"done". This is often accomplised by listing a set of steps or actions, and the
 expected result of those actions.*
 
 When I \<*take this action*\>, this happens \<*description of result*\>
