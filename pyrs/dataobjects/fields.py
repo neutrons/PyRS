@@ -5,7 +5,7 @@ from uncertainties import unumpy
 from pyrs.dataobjects.sample_logs import PointList
 
 # two points in real space separated by less than this amount (in mili meters) are considered the same point
-DEFAULT_POINT_RESOLUTION = 0.01
+from .constants import DEFAULT_POINT_RESOLUTION
 SCALAR_FIELD_NAMES = ('lattice', 'strain', 'stress')  # standard names for most used fields
 
 

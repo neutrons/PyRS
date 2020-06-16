@@ -86,11 +86,24 @@ class TestPointList:
         assert list(point_list.vy) == pytest.approx(sample_logs_mock['xyz'][1] + sample_logs_mock['xyz'][1])
         assert list(point_list.vz) == pytest.approx(sample_logs_mock['xyz'][2] + sample_logs_mock['xyz'][2])
 
+    def test_cluster(self):
+        xyz = [[0.0, 1.0, 2.0, 3.0, 1.009, 0.995, 2.0, 3.005, 4.0],
+               [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+               [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]
+        clusters = PointList(xyz).cluster()
+        assert clusters == pytest.approx([[1, 4, 5], [2, 6], [3, 7], [0], [8]])
+
     def test_coordinates(self, sample_logs_mock):
         point_list = PointList(sample_logs_mock['logs'])
         np.testing.assert_allclose(point_list.coordinates, np.array(sample_logs_mock['xyz']).transpose())
 
-    def test_fuse(self, sample_logs_mock):
+    def test_intersection(self):
+        xyz1 = [[0.0, 1.0, 2.0, 3.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]]
+        xyz2 = [[1.009, 0.995, 2.0, 3.005, 4.0], [0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0]]
+        common = PointList(xyz1).intersection(PointList(xyz2))
+        assert common.vx == pytest.approx([1.0, 2.0, 3.0, 1.009, 0.995, 2.0, 3.005])
+
+    def test_fuse(self):
         xyz1 = [[0.0, 1.0, 2.0, 3.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]]
         xyz2 = [[1.009, 0.995, 2.0, 3.005, 4.0], [0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0]]
         point_list = PointList(xyz1)

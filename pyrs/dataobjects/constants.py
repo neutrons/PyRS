@@ -1,5 +1,7 @@
-__all__ = ['HidraConstants']
+__all__ = ['HidraConstants', 'DEFAULT_POINT_RESOLUTION']
 
+# two points in real space separated by less than this amount (in mili meters) are considered the same point
+DEFAULT_POINT_RESOLUTION = 0.01
 
 class HidraConstants:
     """
