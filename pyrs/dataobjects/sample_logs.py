@@ -314,7 +314,7 @@ class PointList:
             return input_source.tolist()  # assumed shape = (3, number_points)
         raise RuntimeError(f'Could not cast {input_source} to a list of list')
 
-    def __init__(self, input_source: Union[SampleLogs, List[List[float]], Iterable]):
+    def __init__(self, input_source: Union[SampleLogs, List[List[float]], Iterable]) -> None:
         r"""
         List of sample coordinates.
 
@@ -397,11 +397,11 @@ class PointList:
         # fclusterdata returns a vector T of length equal to the number of points. T[i] is the cluster number to
         # which point i belongs
         cluster_assignments = fclusterdata(all_points.coordinates, resolution, criterion='distance', method='single')
-        # Select one point out of each cluster. The point selected will have the lowest index when all points are 
-        # ordered as in object `all_points`. 
+        # Select one point out of each cluster. The point selected will have the lowest index when all points are
+        # ordered as in object `all_points`
         assert 0 not in cluster_assignments  # cluster numbers begin at one, not zero
         number_clusters = max(cluster_assignments)
-        common_point_indexes = [-1] * (1 + number_clusters)  # excess of one because cluster numbers begin at one 
+        common_point_indexes = [-1] * (1 + number_clusters)  # excess of one because cluster numbers begin at one
         for point_index, cluster_number in enumerate(cluster_assignments):
             if common_point_indexes[cluster_number] < 0:
                 common_point_indexes[cluster_number] = point_index
