@@ -349,9 +349,9 @@ class PointList:
         r"""Enable self[0],... self[N] as well as making this class iterable over the 3D points."""
         return [coordinate_list[item] for coordinate_list in self._points]
 
-    def __add__(self, other: 'PointList') -> 'PointList':
+    def aggregate(self, other: 'PointList') -> 'PointList':
         r"""
-        Combine points between two lists by adding them. Because points are ordered, this operation
+        Bring the points from other list into the list of points. Because points are ordered, this operation
         is not commutative.
 
         The order of the combined points is the order of points in the first list, followed by the
@@ -379,9 +379,11 @@ class PointList:
         """
         return np.array([self.vx, self.vy, self.vz]).transpose()
 
-    def intersection(self, other: 'PointList', resolution: float = 0.01) -> 'PointList':
+    def fuse(self, other: 'PointList', resolution: float = 0.01) -> 'PointList':
         r"""
-        Find the points common to two point lists.
+        Add the points from two lists and discard redundant points.
+
+        When two points are within a small distance from each other, one point is redundant and can be discarded.
 
         Parameters
         ----------
@@ -393,7 +395,7 @@ class PointList:
         -------
         ~pyrs.dataobjects.sample_logs.PointList
         """
-        all_points = self + other
+        all_points = self.aggregate(other)
         # fclusterdata returns a vector T of length equal to the number of points. T[i] is the cluster number to
         # which point i belongs
         cluster_assignments = fclusterdata(all_points.coordinates, resolution, criterion='distance', method='single')

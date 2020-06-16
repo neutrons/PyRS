@@ -80,8 +80,8 @@ class TestPointList:
         assert list(point_list.vy) == pytest.approx(sample_logs_mock['xyz'][1])
         assert list(point_list._points.vx) == pytest.approx(sample_logs_mock['xyz'][0])
 
-    def test_add(self, sample_logs_mock):
-        point_list = PointList(sample_logs_mock['logs']) + PointList(sample_logs_mock['xyz'])
+    def test_aggregate(self, sample_logs_mock):
+        point_list = PointList(sample_logs_mock['logs']).aggregate(PointList(sample_logs_mock['xyz']))
         assert list(point_list.vx) == pytest.approx(sample_logs_mock['xyz'][0] + sample_logs_mock['xyz'][0])
         assert list(point_list.vy) == pytest.approx(sample_logs_mock['xyz'][1] + sample_logs_mock['xyz'][1])
         assert list(point_list.vz) == pytest.approx(sample_logs_mock['xyz'][2] + sample_logs_mock['xyz'][2])
@@ -90,11 +90,11 @@ class TestPointList:
         point_list = PointList(sample_logs_mock['logs'])
         np.testing.assert_allclose(point_list.coordinates, np.array(sample_logs_mock['xyz']).transpose())
 
-    def test_intersection(self, sample_logs_mock):
+    def test_fuse(self, sample_logs_mock):
         xyz1 = [[0.0, 1.0, 2.0, 3.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]]
         xyz2 = [[1.009, 0.995, 2.0, 3.005, 4.0], [0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0]]
         point_list = PointList(xyz1)
-        common = point_list.intersection(PointList(xyz2))
+        common = point_list.fuse(PointList(xyz2))
         assert common.vx == pytest.approx([0.0, 1.0, 2.0, 3.0, 4.0])
 
     def test_extents(self, sample_logs_mock):
