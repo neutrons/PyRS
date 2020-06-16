@@ -49,7 +49,7 @@ def _create_powder_patterns(hidra_workspace, instrument, calibration, mask, subr
                             append_mode):
     logger.notice('Adding powder patterns to Hidra Workspace{}'.format(hidra_workspace))
 
-    reducer = ReductionApp(bool(options.engine == 'mantid'))
+    reducer = ReductionApp()
     # reducer.load_project_file(projectfile)
     # load HidraWorkspace
     reducer.load_hidra_workspace(hidra_workspace)
