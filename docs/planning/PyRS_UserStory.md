@@ -17,7 +17,7 @@ Description, Additional Detail, Context
 The Strain/Stress formulas can be found at: https://github.com/neutrons/PyRS/blob/master/docs/stress_strain.pdf
 
 
-User Story Title: Grid Visualization 
+User Story Title: Grid Visualization
 =============================
 
 | **ID** | **Complexity** |  **Est.** |  **Author** |
@@ -25,12 +25,12 @@ User Story Title: Grid Visualization
 | Grid-Vis | Medium | ? | Jeff Bunn |
 
 
-As a neutron beamline user, I want to visualize a set of 2D or 3D data of strain, stress, or peak parameters from measured project files such that this set can be output as a figure or as data to be compared to, or used as, an input for material behavior modeling. 
+As a neutron beamline user, I want to visualize a set of 2D or 3D data of strain, stress, or peak parameters from measured project files such that this set can be output as a figure or as data to be compared to, or used as, an input for material behavior modeling.
 
 Acceptance Criteria:
 --------------------
-I will define either files (or a saved grid file) as defined previously in the Strain-Stress user story. A visualization window will visualize the grid data previously calculated by the strain-stress user story. I will define through a drop down the desired peak_label to be visualized. 
-In the case of 2D/3D data, either a 3D colorized version will be shown as in Fig.1 in additional content. This 3D dataset should be able to be rotated and viewed at various angles. 
+I will define either files (or a saved grid file) as defined previously in the Strain-Stress user story. A visualization window will visualize the grid data previously calculated by the strain-stress user story. I will define through a drop down the desired peak_label to be visualized.
+In the case of 2D/3D data, either a 3D colorized version will be shown as in Fig.1 in additional content. This 3D dataset should be able to be rotated and viewed at various angles.
 Furthermore, I should be able to define a specific plane (example being the vx,vy plane) and then use a slider and/or box to enter a value to step through various values of vz to create a 2D contour plot showing the spatial values contained in the grid. An example of what this could look like is shown in Fig.2. I should be able to define via a dropdown menu what direction (11,22, or 33) I wish to be visualized. I should be able to define what peak_label via dropdown (is multiple) I wish to be visualized. I should be able to easily change the scale of the contour map. I should be able to see on the plot ‘dots’ which represent the points in which the measurements were taken (shown in Fig 1 and Fig 2 as example), this showing of ‘measurement dots’ should be able to be toggled via a gui control. I should be able to save an image of any of the above contour plots such that it can be used in presentations and/or publications.
 Both the 3D and 2D ‘sliced views’ should be able to visualize any of the parameters which are taken in the grid. These include, Strain, Strain, full-width half maximum, d-spacing, peak intensity, etc. These should also be done for any defined peak_label. An example wireframe layout is shown in Fig.3 below.
 
@@ -39,6 +39,6 @@ Description, Additional Detail, Context
 
 Figures below are also saved in the repository
 
-![grid visualization](stress_strain_ui_1.tif)
+![grid visualization example 1](stress_strain_ui_1.tif)
 
-![grid visualization](stress_strain_ui_2.tif)
+![grid visualization example 2](stress_strain_ui_2.tif)
