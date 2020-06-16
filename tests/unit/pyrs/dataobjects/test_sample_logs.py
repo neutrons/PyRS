@@ -53,20 +53,49 @@ def sample_logs_mock():
 
 class TestPointList:
 
+    def test_tolist(self, sample_logs_mock):
+        for input_source in (sample_logs_mock['xyz'],
+                             sample_logs_mock['logs'],
+                             np.array(sample_logs_mock['xyz'])):
+            list_of_list = PointList.tolist(input_source)
+            assert isinstance(list_of_list, list)
+            for i in range(3):
+                assert isinstance(list_of_list[i], list)
+                assert list_of_list[i] == pytest.approx(sample_logs_mock['xyz'][i])
+
     def test_init(self, sample_logs_mock):
-        point_list = PointList(sample_logs_mock['logs'])
-        # dereference attributes 'vx', 'vy', 'vz'
-        assert list(point_list.vx) == pytest.approx(sample_logs_mock['xyz'][0])
-        assert list(point_list.vy) == pytest.approx(sample_logs_mock['xyz'][1])
-        assert list(point_list.vz) == pytest.approx(sample_logs_mock['xyz'][2])
-        # dereference by item index
-        xyz = np.array(sample_logs_mock['xyz'])
-        assert point_list[5] == pytest.approx(list(xyz[:, 5]))
+        for input_source_type in ('logs', 'xyz'):
+            input_source = sample_logs_mock[input_source_type]
+            point_list = PointList(input_source)
+            # dereference attributes 'vx', 'vy', 'vz'
+            assert list(point_list.vx) == pytest.approx(sample_logs_mock['xyz'][0])
+            assert list(point_list.vy) == pytest.approx(sample_logs_mock['xyz'][1])
+            assert list(point_list.vz) == pytest.approx(sample_logs_mock['xyz'][2])
+            # dereference by item index
+            xyz = np.array(sample_logs_mock['xyz'])
+            assert point_list[5] == pytest.approx(list(xyz[:, 5]))
 
     def test_getattr(self, sample_logs_mock):
         point_list = PointList(sample_logs_mock['logs'])
         assert list(point_list.vy) == pytest.approx(sample_logs_mock['xyz'][1])
         assert list(point_list._points.vx) == pytest.approx(sample_logs_mock['xyz'][0])
+
+    def test_add(self, sample_logs_mock):
+        point_list = PointList(sample_logs_mock['logs']) + PointList(sample_logs_mock['xyz'])
+        assert list(point_list.vx) == pytest.approx(sample_logs_mock['xyz'][0] + sample_logs_mock['xyz'][0])
+        assert list(point_list.vy) == pytest.approx(sample_logs_mock['xyz'][1] + sample_logs_mock['xyz'][1])
+        assert list(point_list.vz) == pytest.approx(sample_logs_mock['xyz'][2] + sample_logs_mock['xyz'][2])
+
+    def test_coordinates(self, sample_logs_mock):
+        point_list = PointList(sample_logs_mock['logs'])
+        np.testing.assert_allclose(point_list.coordinates, np.array(sample_logs_mock['xyz']).transpose())
+
+    def test_intersection(self, sample_logs_mock):
+        xyz1 = [[0.0, 1.0, 2.0, 3.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]]
+        xyz2 = [[1.009, 0.995, 2.0, 3.005, 4.0], [0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0]]
+        point_list = PointList(xyz1)
+        common = point_list.intersection(PointList(xyz2))
+        assert common.vx == pytest.approx([0.0, 1.0, 2.0, 3.0, 4.0])
 
     def test_extents(self, sample_logs_mock):
         point_list = PointList(sample_logs_mock['logs'])

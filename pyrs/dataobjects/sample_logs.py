@@ -1,7 +1,9 @@
 # extentable version of dict https://treyhunner.com/2019/04/why-you-shouldnt-inherit-from-list-and-dict-in-python/
 from collections import Iterable, MutableMapping
-from typing import Any, List, NamedTuple, Tuple
 import numpy as np
+from scipy.cluster.hierarchy import fclusterdata
+from typing import Union, Any, List, NamedTuple, Tuple
+
 from .constants import HidraConstants  # type: ignore
 
 __all__ = ['SampleLogs', 'SubRuns']
@@ -287,21 +289,48 @@ class PointList:
         vy: List[float]  # coordinates stored in log name HidraConstants.SAMPLE_COORDINATE_NAMES[1]
         vz: List[float]  # coordinates stored in log name HidraConstants.SAMPLE_COORDINATE_NAMES[2]
 
-    def __init__(self, input_source: SampleLogs):
+    @staticmethod
+    def tolist(input_source: Union[SampleLogs, List[List[float]], Iterable]) -> List[List[float]]:
         r"""
-        List of sample coordinates.
+        Cast coordinate points of some input data structure into a list of list.
 
-        point_list.vx returns the list of coordinates along the first axis
-        point_list[42] return the (vx, vy, vz) coordinates of point 42
-        Iteration is over the 3D points, not over the three directions
+        This function makes sure we initialize a `_PointList` namedtuple with a list of list
 
         Parameters
         ----------
-        input_source: ~pyrs.dataobjects.sample_logs.SampleLogs
+        input_source: SampleLogs, list, np.ndarray
+
+        Returns
+        -------
+        list
+            A three item list, where each item are the coordinates of the points along one of the three
+            dimensions
+        """
+        if isinstance(input_source, list):
+            return input_source  # assume it's a list of list
+        elif isinstance(input_source, SampleLogs):
+            return [list(input_source[name]) for name in HidraConstants.SAMPLE_COORDINATE_NAMES]
+        elif isinstance(input_source, np.ndarray):
+            return input_source.tolist()  # assumed shape = (3, number_points)
+        raise RuntimeError(f'Could not cast {input_source} to a list of list')
+
+    def __init__(self, input_source: Union[SampleLogs, List[List[float]], Iterable]):
+        r"""
+        List of sample coordinates.
+
+        Some remarks:
+        point_list.vx returns the list of coordinates along the first axis
+        point_list[42] return the (vx, vy, vz) coordinates of point 42
+        point_list.coordinates retuns a numpy array of shape (number_points, 3)
+        Iteration iterates over each point, not over each direction.
+
+        Parameters
+        ----------
+        input_source: ~pyrs.dataobjects.sample_logs.SampleLogs, ~collections.abc.Iterable
             data structure containing the values of the coordinates for each direction.
         """
-        coordinates = [list(input_source[name]) for name in HidraConstants.SAMPLE_COORDINATE_NAMES]
-        # Check the number of coordinate values on each direction is the same for all directions
+        coordinates = PointList.tolist(input_source)
+        assert len(coordinates) == 3, 'One set of coordinates is required for each direction'
         assert len(set([len(c) for c in coordinates])) == 1, 'Directions have different number of coordinates'
         self._points = self.__class__._PointList(*coordinates)
 
@@ -319,6 +348,67 @@ class PointList:
     def __getitem__(self, item: int) -> List[float]:
         r"""Enable self[0],... self[N] as well as making this class iterable over the 3D points."""
         return [coordinate_list[item] for coordinate_list in self._points]
+
+    def __add__(self, other: 'PointList') -> 'PointList':
+        r"""
+        Combine points between two lists by adding them. Because points are ordered, this operation
+        is not commutative.
+
+        The order of the combined points is the order of points in the first list, followed by the
+        points from the second list as originally ordered.
+
+        Parameters
+        ----------
+        other: ~pyrs.dataobjects.sample_logs.PointList
+
+        Returns
+        -------
+        ~pyrs.dataobjects.sample_logs.PointList
+        """
+        coordinates = [self._points[i] + other._points[i] for i in range(3)]
+        return PointList(coordinates)
+
+    @property
+    def coordinates(self) -> np.ndarray:
+        r"""
+        Array of point coordinates with shape (number_points, 3)
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+        return np.array([self.vx, self.vy, self.vz]).transpose()
+
+    def intersection(self, other: 'PointList', resolution: float = 0.01) -> 'PointList':
+        r"""
+        Find the points common to two point lists.
+
+        Parameters
+        ----------
+        other: ~pyrs.dataobjects.sample_logs.PointList
+        resolution: float
+            Points separated by less than this quantity are considered the same point. Units are mili meters.
+
+        Returns
+        -------
+        ~pyrs.dataobjects.sample_logs.PointList
+        """
+        all_points = self + other
+        # fclusterdata returns a vector T of length equal to the number of points. T[i] is the cluster number to
+        # which point i belongs
+        cluster_assignments = fclusterdata(all_points.coordinates, resolution, criterion='distance', method='single')
+        # Select one point out of each cluster. The point selected will have the lowest index when all points are 
+        # ordered as in object `all_points`. 
+        assert 0 not in cluster_assignments  # cluster numbers begin at one, not zero
+        number_clusters = max(cluster_assignments)
+        common_point_indexes = [-1] * (1 + number_clusters)  # excess of one because cluster numbers begin at one 
+        for point_index, cluster_number in enumerate(cluster_assignments):
+            if common_point_indexes[cluster_number] < 0:
+                common_point_indexes[cluster_number] = point_index
+        common_point_indexes = sorted(common_point_indexes[1:])
+        assert -1 not in common_point_indexes  # selection of points was carried out for all clusters
+        common_points_coordinates = all_points.coordinates[common_point_indexes]  # shape = number_common_points x 3
+        return PointList(common_points_coordinates.transpose())  # needed (3 x number_common_points) shaped array
 
     @property
     def extents(self) -> Tuple[DirectionExtents, DirectionExtents, DirectionExtents]:
