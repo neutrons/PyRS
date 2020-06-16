@@ -379,7 +379,7 @@ class PointList:
         coordinates = [self._points[i] + other._points[i] for i in range(3)]
         return PointList(coordinates)
 
-    def cluster(self, resolution=DEFAULT_POINT_RESOLUTION):
+    def cluster(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> dict:
         r"""
         Cluster the points according to mutual euclidean distance.
 
@@ -411,7 +411,7 @@ class PointList:
         # Sort the points indexes within each cluster according to increasing index
         return [sorted(indexes) for indexes in clusters]
 
-    def intersection(self, other, resolution=DEFAULT_POINT_RESOLUTION):
+    def intersection(self, other: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> 'PointList':
         r"""
         Bring the points from another list and find the points common to both lists.
 
