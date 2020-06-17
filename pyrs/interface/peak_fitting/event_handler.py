@@ -39,7 +39,7 @@ class EventHandler:
         project_h5_file = HidraProjectFile(current_project_file, mode=HidraProjectFileMode.READWRITE)
         peakcollections = fit_result.peakcollections
         for peak in peakcollections:
-            project_h5_file.write_peak_fit_result(peak)
+            project_h5_file.write_peak_parameters(peak)
         project_h5_file.save(False)
         project_h5_file.close()
 

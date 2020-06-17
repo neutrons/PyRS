@@ -288,7 +288,7 @@ class FitPeaksWindow(QMainWindow):
         initialize the some widgets
         :return:
         """
-        self.ui.actionSave.setEnabled(False)
+        self.ui.actionSave.setEnabled(True)
         self.ui.actionSaveAs.setEnabled(False)
 
         self.ui.splitter.setStyleSheet(VERTICAL_SPLITTER_SHORT)
