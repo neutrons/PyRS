@@ -9,4 +9,4 @@ fi
 DIREC=$(dirname $0)
 
 # launch pyrs
-PYTHONPATH=$DIREC/build/lib $MANTIDPYTHON --classic $DIREC/build/scripts-2.7/reduce_manual_HB2B.py $@
+PYTHONPATH=$DIREC/build/lib $MANTIDPYTHON --classic $DIREC/build/scripts-3.6/reduce_manual_HB2B.py $@
