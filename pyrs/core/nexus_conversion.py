@@ -47,7 +47,7 @@ def convert_pulses_to_datetime64(h5obj):
     return pulse_time + start_time
 
 
-def calculate_sub_run_time_average(log_property, time_filter):
+def calculate_sub_run_time_average(log_property, time_filter) -> float:
     '''Determine the time average value of the supplied log'''
     if log_property.size() == 1:  # single value property just copy
         time_average_value = log_property.value
@@ -75,8 +75,12 @@ class Splitter:
     def __init__(self, runObj):
         self._log = Logger(__name__)
 
-        if runObj['scan_index'].size() == 0:
-            raise RuntimeError('"scan_index" is empty')
+        # verify the scan index exists
+        try:
+            if runObj['scan_index'].size() == 0:
+                raise RuntimeError('"scan_index" is empty')
+        except KeyError as e:
+            raise RuntimeError('"scan_index" does not exist') from e
 
         # Get the time and value from the run object
         scan_index_times = runObj['scan_index'].times   # absolute times
@@ -94,7 +98,7 @@ class Splitter:
         self.__correct_starting_scan_index_time(runObj)
         self._createPropertyFilters()
 
-    def __generate_sub_run_splitter(self, scan_index_times, scan_index_value):
+    def __generate_sub_run_splitter(self, scan_index_times, scan_index_value) -> None:
         """Generate event splitters according to sub runs
 
         """
@@ -127,8 +131,8 @@ class Splitter:
 
         # Check the ending
         if curr_sub_run > 0:
-            # In case the stop (scan_index = 0) is not recorded
-            sub_run_time_list.append(np.nan)
+            # In case the stop (scan_index = 0) is not recorded - add end time one day into the future
+            sub_run_time_list.append(sub_run_time_list[-1] + np.timedelta64(1, 'D'))
 
         # Convert from list to array
         self.times = np.array(sub_run_time_list)
@@ -144,7 +148,7 @@ class Splitter:
             raise RuntimeError('Sub run number {} and sub run times {} do not match (as twice)'
                                ''.format(self.subruns, self.times))
 
-    def __correct_starting_scan_index_time(self, runObj, abs_tolerance=0.05):
+    def __correct_starting_scan_index_time(self, runObj, abs_tolerance: float = 0.05) -> None:
         """Correct the DAS-issue for mis-record the first scan_index/sub run before the motor is in position
 
         This goes through a subset of logs and compares when they actually
@@ -197,7 +201,11 @@ class Splitter:
     def durations(self):
         return (self.times[1::2] - self.times[::2]) / np.timedelta64(1, 's')
 
-    def _createPropertyFilters(self):
+    @property
+    def size(self) -> int:
+        return self.subruns.size
+
+    def _createPropertyFilters(self) -> None:
         self.propertyFilters = list()
         if self.subruns.size == 1:
             self.propertyFilters.append(None)
@@ -317,7 +325,7 @@ class NeXusConvertingApp:
         DeleteWorkspace(Workspace=mask_ws_name)
 
     def _generate_subrun_event_indices(self, pulse_time_array, event_index_array, num_events):
-        # convert times to array indices
+        # convert times to array indices - a[i-1] < v <= a[i]
         subrun_pulseindex_array = np.searchsorted(pulse_time_array, self._splitter.times)
 
         # locations that are greater than the number of pixels
