@@ -411,6 +411,35 @@ class PointList:
         # Sort the points indexes within each cluster according to increasing index
         return [sorted(indexes) for indexes in clusters]
 
+    def intersection_aggregated_indexes(self, other: 'PointList',
+                                        resolution: float = DEFAULT_POINT_RESOLUTION) -> List:
+        r"""
+        Bring the points from another list and find the indexes of the aggregated point list
+        corresponding to the common points.
+
+        Two points are considered common if they are within a certain distance. Both points are kept when
+        returning the common points.
+
+        Parameters
+        ----------
+        other: ~pyrs.dataobjects.sample_logs.PointList
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity
+
+        Returns
+        -------
+        list
+        """
+        all_points = self.aggregate(other)
+        clusters = all_points.cluster(resolution=resolution)
+        # Find the clusters having more than one index. These clusters contain common elements
+        points_common_indexes = list()
+        for point_indexes in clusters:
+            if len(point_indexes) == 1:
+                break
+            points_common_indexes.extend(point_indexes)
+        return sorted(points_common_indexes)
+
     def intersection(self, other: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> 'PointList':
         r"""
         Bring the points from another list and find the points common to both lists.
@@ -428,17 +457,32 @@ class PointList:
         -------
         ~pyrs.dataobjects.sample_logs.PointList
         """
+        points_common_indexes = self.intersection_aggregated_indexes(other, resolution=resolution)
+        # common_points_coordinates.shape == number_common_points x 3
+        common_points_coordinates = self.aggregate(other).coordinates[points_common_indexes]
+        return PointList(common_points_coordinates.transpose())  # needed (3 x number_common_points) shaped array
+
+    def fuse_aggregated_indexes(self, other: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> 'PointList':
+        r"""
+        Add the points from two lists and find the indexes of the aggregated point list
+        corresponding to non redundant.
+
+        When two points are within a small distance from each other, one point is redundant and can be discarded.
+
+        Parameters
+        ----------
+        other: ~pyrs.dataobjects.sample_logs.PointList
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity
+
+        Returns
+        -------
+        list
+        """
         all_points = self.aggregate(other)
         clusters = all_points.cluster(resolution=resolution)
-        # Find the clusters having more than one index. These clusters contain common elements
-        points_common_indexes = list()
-        for point_indexes in clusters:
-            if len(point_indexes) == 1:
-                break
-            points_common_indexes.extend(point_indexes)
-        points_common_indexes = sorted(points_common_indexes)
-        common_points_coordinates = all_points.coordinates[points_common_indexes]  # shape = number_common_points x 3
-        return PointList(common_points_coordinates.transpose())  # needed (3 x number_common_points) shaped array
+        # Pick only the first point out of each cluster
+        return sorted([point_indexes[0] for point_indexes in clusters])
 
     def fuse(self, other: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> 'PointList':
         r"""
@@ -456,11 +500,9 @@ class PointList:
         -------
         ~pyrs.dataobjects.sample_logs.PointList
         """
-        all_points = self.aggregate(other)
-        clusters = all_points.cluster(resolution=resolution)
-        # Pick only the first point out of each cluster
-        points_unique_indexes = sorted([point_indexes[0] for point_indexes in clusters])
-        points_unique_coordinates = all_points.coordinates[points_unique_indexes]  # shape = number_common_points x 3
+        points_unique_indexes = self.fuse_aggregated_indexes(other, resolution=resolution)
+        # points_unique_coordinates.shape == number_common_points x 3
+        points_unique_coordinates = self.aggregate(other).coordinates[points_unique_indexes]
         return PointList(points_unique_coordinates.transpose())  # needed (3 x number_common_points) shaped array
 
     @property
