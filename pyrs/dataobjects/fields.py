@@ -1,5 +1,4 @@
-import enum
-import uncertainties
+import numpy as np
 from uncertainties import unumpy
 
 from pyrs.dataobjects.sample_logs import PointList
@@ -34,6 +33,8 @@ class ScalarFieldSample:
     """
 
     def __init__(self, name, values, errors, x, y, z):
+        all_lengths = [len(values), len(errors), len(x), len(y), len(z)]
+        assert len(set(all_lengths)) == 1, 'input lists must all have the same lengths'
         self._sample = unumpy.uarray(values, errors)
         self._point_list = PointList([x, y, z])
         self._name = name
@@ -52,16 +53,48 @@ class ScalarFieldSample:
         return unumpy.std_devs(self._sample).tolist()
 
     @property
+    def point_list(self):
+        return self._point_list
+
+    @property
     def coordinates(self):
         return self._point_list.coordinates
 
     @property
-    def point_list(self):
-        return self._point_list
+    def x(self):
+        return self._point_list.vx
+
+    @property
+    def y(self):
+        return self._point_list.vy
+
+    @property
+    def z(self):
+        return self._point_list.vz
+
+    def extract(self, target_indexes):
+        r"""
+        Create a scalar field sample with a subset of the sampled points.
+
+        Parameters
+        ----------
+        target_indexes: list
+
+        Returns
+        -------
+
+        """
+
+        subset = {}
+        for member in ('values', 'errors', 'x', 'y', 'z'):
+            member_value = getattr(self, member)
+            subset[member] = [member_value[i] for i in target_indexes]
+        return ScalarFieldSample(self.name, subset['values'], subset['errors'],
+                                 subset['x'], subset['y'], subset['z'])
 
     def aggregate(self, other):
         r"""
-        Bring in another scalar field sample. Overlaps can occur if a point is present in both samples
+        Bring in another scalar field sample. Overlaps can occur if a sample point is present in both samples.
 
         Parameters
         ----------
@@ -80,24 +113,68 @@ class ScalarFieldSample:
 
     def intersection(self, other, resolution=DEFAULT_POINT_RESOLUTION):
         r"""
-        Find the scalar field sample common to both scalar field samples.
+        Find the scalar field sample common to two scalar field samples.
 
-        Two points are common if they are apart from each other a distance smaller than the resolution distance
+        Two samples are common if their corresponding sample points are apart from each other a distance
+        smaller than the resolution distance.
 
         Parameters
         ----------
         other: ~pyrs.dataobjects.fields.ScalarFieldSample
         resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity
 
         Returns
         -------
         ~pyrs.dataobjects.fields.ScalarFieldSample
         """
-        aggregated_points = self.aggregate(other)
+        # find the intersection of the aggregated point list
+        target_indexes = self.point_list.intersection_aggregated_indexes(other.point_list, resolution=resolution)
+        # extract those samples corresponding to the intersection of the aggregated point list
+        return self.aggregate(other).extract(target_indexes)
 
-
-    def fuse(self, other, resolution=DEFAULT_POINT_RESOLUTION, selector='min_error'):
+    def fuse(self, other, resolution=DEFAULT_POINT_RESOLUTION, criterion='min_error'):
         r"""
-        Bring in another scalar field sample and resolve the overlaps according to a selection criteria
+        Bring in another scalar field sample and resolve the overlaps according to a selection criteria.
+
+        Two samples are common if their corresponding sample points are apart from each other a distance
+        smaller than the resolution distance.
+
+        Parameters
+        ----------
+        other: ~pyrs.dataobjects.fields.ScalarFieldSample
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity
+        criterion: str
+            Criterion by which to resolve which out of two (or more) samples is selected, while the rest is
+            discarded. Possible values are:
+            'min_error': the sample with the minimal uncertainty is selected
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.ScalarFieldSample
         """
-        aggregate = self.aggregate(other)
+        aggregate_sample = self.aggregate(other)  # combine both scalar field samples
+
+        def min_error(indexes):
+            r"""Find index of sample point with minimum error of the scalar field"""
+            error_min_index = np.argmin(aggregate_sample.errors[indexes])
+            return indexes[error_min_index]
+        criterion_functions = {'min_error': min_error}
+        assert criterion in criterion_functions, f'The criterion must be one of {criterion_functions.keys()}'
+
+        # cluster sample points by their mutual distance. Points within a cluster are closer than `resolution`
+        clusters = aggregate_sample.point_list.cluster(resolution=resolution)
+
+        # find the indexes of the aggregated point list that we want to keep, and discard the rest
+        target_indexes = list()
+        # Iterate over the cluster, selecting only one index (one sample point) from each cluster
+        # the clusters are sorted by size
+        for cluster_index, point_indexes in enumerate(clusters):
+            if len(point_indexes) == 1:
+                break  # remaining clusters have all only one index, thus the selection process is irrelevant
+            target_indexes.append(criterion_functions[criterion](point_indexes))
+        # append point indexes from all clusters having only one member
+        target_indexes.extend([point_indexes[0] for point_indexes in clusters[cluster_index, :]])
+
+        # create a ScalarFieldSample with the sample points corresponding to the target indexes
+        return aggregate_sample.extract(sorted(target_indexes))

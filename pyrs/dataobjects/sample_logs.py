@@ -465,7 +465,7 @@ class PointList:
     def fuse_aggregated_indexes(self, other: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> 'PointList':
         r"""
         Add the points from two lists and find the indexes of the aggregated point list
-        corresponding to non redundant.
+        corresponding to non redundant points.
 
         When two points are within a small distance from each other, one point is redundant and can be discarded.
 
