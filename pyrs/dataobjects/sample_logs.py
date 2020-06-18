@@ -379,7 +379,7 @@ class PointList:
         coordinates = [self._points[i] + other._points[i] for i in range(3)]
         return PointList(coordinates)
 
-    def cluster(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> dict:
+    def cluster(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> List[List]:
         r"""
         Cluster the points according to mutual euclidean distance.
 
