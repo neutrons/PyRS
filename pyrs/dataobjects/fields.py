@@ -2,6 +2,7 @@ import numpy as np
 from uncertainties import unumpy
 
 from pyrs.dataobjects.sample_logs import PointList
+from typing import List
 
 # two points in real space separated by less than this amount (in mili meters) are considered the same point
 from .constants import DEFAULT_POINT_RESOLUTION
@@ -32,50 +33,51 @@ class ScalarFieldSample:
         List of coordinates along some Z-axis for the set of sample points.
     """
 
-    def __init__(self, name, values, errors, x, y, z):
+    def __init__(self, name: str, values: List[float], errors: List[float],
+                 x: List[float], y: List[float], z: List[float]) -> None:
         all_lengths = [len(values), len(errors), len(x), len(y), len(z)]
         assert len(set(all_lengths)) == 1, 'input lists must all have the same lengths'
         self._sample = unumpy.uarray(values, errors)
         self._point_list = PointList([x, y, z])
         self._name = name
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._sample)
 
     @property
-    def name(self):
+    def name(self) -> str:
         r"""The identifying name of the scalar field"""
         return self._name
 
     @property
-    def values(self):
+    def values(self) -> List[float]:
         return unumpy.nominal_values(self._sample).tolist()
 
     @property
-    def errors(self):
+    def errors(self) -> List[float]:
         return unumpy.std_devs(self._sample).tolist()
 
     @property
-    def point_list(self):
+    def point_list(self) -> PointList:
         return self._point_list
 
     @property
-    def coordinates(self):
+    def coordinates(self) -> np.ndarray:
         return self._point_list.coordinates
 
     @property
-    def x(self):
+    def x(self) -> List[float]:
         return self._point_list.vx
 
     @property
-    def y(self):
+    def y(self) -> List[float]:
         return self._point_list.vy
 
     @property
-    def z(self):
+    def z(self) -> List[float]:
         return self._point_list.vz
 
-    def extract(self, target_indexes):
+    def extract(self, target_indexes: List[int]) -> 'ScalarFieldSample':
         r"""
         Create a scalar field sample with a subset of the sampled points.
 
@@ -95,7 +97,7 @@ class ScalarFieldSample:
         return ScalarFieldSample(self.name, subset['values'], subset['errors'],
                                  subset['x'], subset['y'], subset['z'])
 
-    def aggregate(self, other):
+    def aggregate(self, other: 'ScalarFieldSample') -> 'ScalarFieldSample':
         r"""
         Bring in another scalar field sample. Overlaps can occur if a sample point is present in both samples.
 
@@ -114,7 +116,8 @@ class ScalarFieldSample:
         errors = self.errors + other.errors
         return ScalarFieldSample(self.name, values, errors, points.vx, points.vy, points.vz)
 
-    def intersection(self, other, resolution=DEFAULT_POINT_RESOLUTION):
+    def intersection(self, other: 'ScalarFieldSample',
+                     resolution: float = DEFAULT_POINT_RESOLUTION) -> 'ScalarFieldSample':
         r"""
         Find the scalar field sample common to two scalar field samples.
 
@@ -136,7 +139,9 @@ class ScalarFieldSample:
         # extract those samples corresponding to the intersection of the aggregated point list
         return self.aggregate(other).extract(target_indexes)
 
-    def fuse(self, other, resolution=DEFAULT_POINT_RESOLUTION, criterion='min_error'):
+    def fuse(self, other: 'ScalarFieldSample',
+             resolution: float = DEFAULT_POINT_RESOLUTION,
+             criterion: str = 'min_error') -> 'ScalarFieldSample':
         r"""
         Bring in another scalar field sample and resolve the overlaps according to a selection criteria.
 
