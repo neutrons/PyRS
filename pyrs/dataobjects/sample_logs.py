@@ -403,7 +403,9 @@ class PointList:
         # fclusterdata returns a vector T of length equal to the number of points. T[i] is the cluster number to
         # which point i belongs. Notice that cluster numbers begin at 1, not 0.
         cluster_assignments = fclusterdata(self.coordinates, resolution, criterion='distance', method='single')
-        clusters = [[] for _ in range(max(cluster_assignments))]  # each list will hold the point indexes of a cluster
+        clusters: List[List] = [[] for _ in range(max(cluster_assignments))]  # each list will hold the point indexes
+        # of a
+        # cluster
         for point_index, cluster_number in enumerate(cluster_assignments):
             clusters[cluster_number - 1].append(point_index)
         # Sort the clusters by size
