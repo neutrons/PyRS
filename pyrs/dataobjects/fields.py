@@ -39,6 +39,9 @@ class ScalarFieldSample:
         self._point_list = PointList([x, y, z])
         self._name = name
 
+    def __len__(self):
+        return len(self._sample)
+
     @property
     def name(self):
         r"""The identifying name of the scalar field"""
@@ -157,7 +160,7 @@ class ScalarFieldSample:
 
         def min_error(indexes):
             r"""Find index of sample point with minimum error of the scalar field"""
-            error_min_index = np.argmin(aggregate_sample.errors[indexes])
+            error_min_index = np.argmin(np.array(aggregate_sample.errors)[indexes])
             return indexes[error_min_index]
         criterion_functions = {'min_error': min_error}
         assert criterion in criterion_functions, f'The criterion must be one of {criterion_functions.keys()}'
@@ -174,7 +177,7 @@ class ScalarFieldSample:
                 break  # remaining clusters have all only one index, thus the selection process is irrelevant
             target_indexes.append(criterion_functions[criterion](point_indexes))
         # append point indexes from all clusters having only one member
-        target_indexes.extend([point_indexes[0] for point_indexes in clusters[cluster_index, :]])
+        target_indexes.extend([point_indexes[0] for point_indexes in clusters[cluster_index:]])
 
         # create a ScalarFieldSample with the sample points corresponding to the target indexes
         return aggregate_sample.extract(sorted(target_indexes))
