@@ -464,7 +464,7 @@ class PointList:
         common_points_coordinates = self.aggregate(other).coordinates[points_common_indexes]
         return PointList(common_points_coordinates.transpose())  # needed (3 x number_common_points) shaped array
 
-    def fuse_aggregated_indexes(self, other: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> 'PointList':
+    def fuse_aggregated_indexes(self, other: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> List:
         r"""
         Add the points from two lists and find the indexes of the aggregated point list
         corresponding to non redundant points.
