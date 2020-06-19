@@ -4,7 +4,7 @@ import numpy as np
 from scipy.cluster.hierarchy import fclusterdata
 from typing import Union, Any, List, NamedTuple, Tuple
 
-from .constants import HidraConstants  # type: ignore
+from .constants import HidraConstants, DEFAULT_POINT_RESOLUTION  # type: ignore
 
 __all__ = ['SampleLogs', 'SubRuns']
 
@@ -349,6 +349,17 @@ class PointList:
         r"""Enable self[0],... self[N] as well as making this class iterable over the 3D points."""
         return [coordinate_list[item] for coordinate_list in self._points]
 
+    @property
+    def coordinates(self) -> np.ndarray:
+        r"""
+        Array of point coordinates with shape (number_points, 3)
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+        return np.array([self.vx, self.vy, self.vz]).transpose()
+
     def aggregate(self, other: 'PointList') -> 'PointList':
         r"""
         Bring the points from other list into the list of points. Because points are ordered, this operation
@@ -368,18 +379,114 @@ class PointList:
         coordinates = [self._points[i] + other._points[i] for i in range(3)]
         return PointList(coordinates)
 
-    @property
-    def coordinates(self) -> np.ndarray:
+    def cluster(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> List[List]:
         r"""
-        Array of point coordinates with shape (number_points, 3)
+        Cluster the points according to mutual euclidean distance.
+
+        Parameters
+        ----------
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity
+
+        The return value is a dictionary with as many elements as clusters. Each dictionary element is made up of a
+        key and a value. The key is the cluster number (running from 1 to the number of clusters). The value
+        is a list containing the indexes of the points that belong to the cluster.
+
+        The dictionary is sorted by cluster size, with the biggest cluster being the first. Each list of
+        point indexes within a cluster is sorted by increasing index.
 
         Returns
         -------
-        numpy.ndarray
-        """
-        return np.array([self.vx, self.vy, self.vz]).transpose()
+        dict
 
-    def fuse(self, other: 'PointList', resolution: float = 0.01) -> 'PointList':
+        """
+        # fclusterdata returns a vector T of length equal to the number of points. T[i] is the cluster number to
+        # which point i belongs. Notice that cluster numbers begin at 1, not 0.
+        cluster_assignments = fclusterdata(self.coordinates, resolution, criterion='distance', method='single')
+        clusters: List[List] = [[] for _ in range(max(cluster_assignments))]  # each list will hold the point indexes
+        # of a
+        # cluster
+        for point_index, cluster_number in enumerate(cluster_assignments):
+            clusters[cluster_number - 1].append(point_index)
+        # Sort the clusters by size
+        clusters = sorted(clusters, key=lambda x: len(x), reverse=True)
+        # Sort the points indexes within each cluster according to increasing index
+        return [sorted(indexes) for indexes in clusters]
+
+    def intersection_aggregated_indexes(self, other: 'PointList',
+                                        resolution: float = DEFAULT_POINT_RESOLUTION) -> List:
+        r"""
+        Bring the points from another list and find the indexes of the aggregated point list
+        corresponding to the common points.
+
+        Two points are considered common if they are within a certain distance. Both points are kept when
+        returning the common points.
+
+        Parameters
+        ----------
+        other: ~pyrs.dataobjects.sample_logs.PointList
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity
+
+        Returns
+        -------
+        list
+        """
+        all_points = self.aggregate(other)
+        clusters = all_points.cluster(resolution=resolution)
+        # Find the clusters having more than one index. These clusters contain common elements
+        points_common_indexes = list()
+        for point_indexes in clusters:
+            if len(point_indexes) == 1:
+                break
+            points_common_indexes.extend(point_indexes)
+        return sorted(points_common_indexes)
+
+    def intersection(self, other: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> 'PointList':
+        r"""
+        Bring the points from another list and find the points common to both lists.
+
+        Two points are considered common if they are within a certain distance. Both points are kept when
+        returning the common points.
+
+        Parameters
+        ----------
+        other: ~pyrs.dataobjects.sample_logs.PointList
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity
+
+        Returns
+        -------
+        ~pyrs.dataobjects.sample_logs.PointList
+        """
+        points_common_indexes = self.intersection_aggregated_indexes(other, resolution=resolution)
+        # common_points_coordinates.shape == number_common_points x 3
+        common_points_coordinates = self.aggregate(other).coordinates[points_common_indexes]
+        return PointList(common_points_coordinates.transpose())  # needed (3 x number_common_points) shaped array
+
+    def fuse_aggregated_indexes(self, other: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> List:
+        r"""
+        Add the points from two lists and find the indexes of the aggregated point list
+        corresponding to non redundant points.
+
+        When two points are within a small distance from each other, one point is redundant and can be discarded.
+
+        Parameters
+        ----------
+        other: ~pyrs.dataobjects.sample_logs.PointList
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity
+
+        Returns
+        -------
+        list
+        """
+        all_points = self.aggregate(other)
+        clusters = all_points.cluster(resolution=resolution)
+        # Pick only the first point out of each cluster
+        return sorted([point_indexes[0] for point_indexes in clusters])
+
+    def fuse(self, other: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> 'PointList':
         r"""
         Add the points from two lists and discard redundant points.
 
@@ -395,22 +502,10 @@ class PointList:
         -------
         ~pyrs.dataobjects.sample_logs.PointList
         """
-        all_points = self.aggregate(other)
-        # fclusterdata returns a vector T of length equal to the number of points. T[i] is the cluster number to
-        # which point i belongs
-        cluster_assignments = fclusterdata(all_points.coordinates, resolution, criterion='distance', method='single')
-        # Select one point out of each cluster. The point selected will have the lowest index when all points are
-        # ordered as in object `all_points`
-        assert 0 not in cluster_assignments  # cluster numbers begin at one, not zero
-        number_clusters = max(cluster_assignments)
-        common_point_indexes = [-1] * (1 + number_clusters)  # excess of one because cluster numbers begin at one
-        for point_index, cluster_number in enumerate(cluster_assignments):
-            if common_point_indexes[cluster_number] < 0:
-                common_point_indexes[cluster_number] = point_index
-        common_point_indexes = sorted(common_point_indexes[1:])
-        assert -1 not in common_point_indexes  # selection of points was carried out for all clusters
-        common_points_coordinates = all_points.coordinates[common_point_indexes]  # shape = number_common_points x 3
-        return PointList(common_points_coordinates.transpose())  # needed (3 x number_common_points) shaped array
+        points_unique_indexes = self.fuse_aggregated_indexes(other, resolution=resolution)
+        # points_unique_coordinates.shape == number_common_points x 3
+        points_unique_coordinates = self.aggregate(other).coordinates[points_unique_indexes]
+        return PointList(points_unique_coordinates.transpose())  # needed (3 x number_common_points) shaped array
 
     @property
     def extents(self) -> Tuple[DirectionExtents, DirectionExtents, DirectionExtents]:
