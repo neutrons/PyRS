@@ -106,6 +106,21 @@ class TestScalarFieldSample:
         assert sample.errors[6: 11] == pytest.approx([0.006, 0.007, 0.008, 0.008, 0.0])
         assert sample.x[6: 11] == pytest.approx([6.000, 7.000, 8.000, 9.005, 10.00])
 
+    def test_export(self):
+        # Create a scalar field
+        xyz = [list(range(0, 10)), list(range(10, 20)), list(range(20, 30))]
+        xyz = np.vstack(np.meshgrid(*xyz)).reshape(3, -1)  # shape = (3, 1000)
+        signal, errors = np.arange(0, 1000, 1, dtype=float), np.zeros(1000, dtype=float)
+        sample = ScalarFieldSample('strain', signal, errors, *xyz)
+
+        # Test export to MDHistoWorkspace
+        workspace = sample.export(form='MDHistoWorkspace', name='strain1', units='mm')
+        assert workspace.name() == 'strain1'
+
+        # Test export to CSV file
+        with pytest.raises(NotImplementedError):
+            sample.export(form='CSV', file='/tmp/csv.txt')
+
 
 if __name__ == '__main__':
     pytest.main()
