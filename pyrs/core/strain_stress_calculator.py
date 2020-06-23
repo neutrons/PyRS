@@ -6,37 +6,10 @@ from typing import Tuple
 from mantid.simpleapi import mtd, CreateMDWorkspace, BinMD
 from mantid.api import IMDHistoWorkspace
 from pyrs.dataobjects.sample_logs import DirectionExtents
-from pyrs.dataobjects.fields import ScalarFieldSample
 
 # TODO:
 #   1) check that vx, vy, vz positions of peakcollections align
 #   2) Check for duplicate entries (can happen if two runs are combined)
-
-
-def create_strain_field(hidraworkspace, peak_collection):
-    '''Converts a HidraWorkspace into a ScalarField'''
-    VX, VY, VZ = 'vx', 'vy', 'vz'
-
-    if hidraworkspace.get_sub_runs() != peak_collection.sub_runs:
-        raise RuntimeError('Need to have matching subruns')
-
-    lognames = hidraworkspace.get_sample_log_names()
-    missing = []
-    for logname in VX, VY, VZ:
-        if logname not in lognames:
-            missing.append(logname)
-    if missing:
-        raise RuntimeError('Failed to find positions in logs. Missing {}'.format(', '.join(missing)))
-
-    # extract positions
-    x = hidraworkspace.get_sample_log_values('vx')
-    y = hidraworkspace.get_sample_log_values('vy')
-    z = hidraworkspace.get_sample_log_values('vz')
-
-    strain, strain_error = peak_collection.get_strain()
-
-    # TODO rather than a fixed name it should selected through inheritence
-    return ScalarFieldSample('strain', strain, strain_error, x, y, z)
 
 
 def _to_md(name: str,

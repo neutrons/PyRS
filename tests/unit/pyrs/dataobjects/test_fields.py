@@ -3,9 +3,8 @@ from collections import namedtuple
 import numpy as np
 import pytest
 # PyRs libraries
-from pyrs.core.strain_stress_calculator import create_strain_field
 from pyrs.core.workspaces import HidraWorkspace
-from pyrs.dataobjects.fields import ScalarFieldSample
+from pyrs.dataobjects.fields import ScalarFieldSample, StrainField
 from pyrs.core.peak_profile_utility import get_parameter_dtype
 from pyrs.peaks import PeakCollection  # type: ignore
 
@@ -128,11 +127,7 @@ class TestScalarFieldSample:
 
 def test_create_strain_field():
     # 2 points in each direction
-    subruns = np.arange(1,9, dtype=int)
-
-    vx = [0., 1.]
-    vy = [2., 3.]
-    vz = [4., 5.]
+    subruns = np.arange(1, 9, dtype=int)
 
     # create the test peak collection - d-refernce is 1 to make checks easier
     # uncertainties are all zero
@@ -147,12 +142,13 @@ def test_create_strain_field():
     # create the test workspace - only sample logs are needed
     workspace = HidraWorkspace()
     workspace.set_sub_runs(subruns)
+    # arbitray points in space
     workspace.set_sample_log('vx', subruns, np.arange(1, 9, dtype=int))
-    workspace.set_sample_log('vy', subruns, np.arange(1, 9, dtype=int))
-    workspace.set_sample_log('vz', subruns, np.arange(1, 9, dtype=int))
+    workspace.set_sample_log('vy', subruns, np.arange(11, 19, dtype=int))
+    workspace.set_sample_log('vz', subruns, np.arange(21, 29, dtype=int))
 
     # call the function
-    strain = create_strain_field(workspace, peak_collection)
+    strain = StrainField(workspace, peak_collection)
 
     # test the result
     assert strain
