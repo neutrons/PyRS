@@ -3,7 +3,11 @@ from collections import namedtuple
 import numpy as np
 import pytest
 # PyRs libraries
+from pyrs.core.strain_stress_calculator import create_strain_field
+from pyrs.core.workspaces import HidraWorkspace
 from pyrs.dataobjects.fields import ScalarFieldSample
+from pyrs.core.peak_profile_utility import get_parameter_dtype
+from pyrs.peaks import PeakCollection  # type: ignore
 
 SampleMock = namedtuple('SampleMock', 'name values errors x y z')
 
@@ -120,6 +124,41 @@ class TestScalarFieldSample:
         # Test export to CSV file
         with pytest.raises(NotImplementedError):
             sample.export(form='CSV', file='/tmp/csv.txt')
+
+
+def test_create_strain_field():
+    # 2 points in each direction
+    subruns = np.arange(1,9, dtype=int)
+
+    vx = [0., 1.]
+    vy = [2., 3.]
+    vz = [4., 5.]
+
+    # create the test peak collection - d-refernce is 1 to make checks easier
+    # uncertainties are all zero
+    peaks_array = np.zeros(subruns.size, dtype=get_parameter_dtype('gaussian', 'Linear'))
+    peaks_array['PeakCentre'][:] = 180.  # position of two-theta in degrees
+    peaks_error = np.zeros(subruns.size, dtype=get_parameter_dtype('gaussian', 'Linear'))
+    peak_collection = PeakCollection('dummy', 'gaussian', 'linear', wavelength=2.,
+                                     d_reference=1., d_reference_error=0.)
+    peak_collection.set_peak_fitting_values(subruns, peaks_array, parameter_errors=peaks_error,
+                                            fit_costs=np.zeros(subruns.size, dtype=float))
+
+    # create the test workspace - only sample logs are needed
+    workspace = HidraWorkspace()
+    workspace.set_sub_runs(subruns)
+    workspace.set_sample_log('vx', subruns, np.arange(1, 9, dtype=int))
+    workspace.set_sample_log('vy', subruns, np.arange(1, 9, dtype=int))
+    workspace.set_sample_log('vz', subruns, np.arange(1, 9, dtype=int))
+
+    # call the function
+    strain = create_strain_field(workspace, peak_collection)
+
+    # test the result
+    assert strain
+    assert len(strain) == subruns.size
+    np.testing.assert_almost_equal(strain.values, 0.)
+    np.testing.assert_equal(strain.errors, np.zeros(subruns.size, dtype=float))
 
 
 if __name__ == '__main__':
