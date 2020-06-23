@@ -1,8 +1,9 @@
 import numpy as np
+from typing import List, Union
 from uncertainties import unumpy
 
 from pyrs.dataobjects.sample_logs import PointList
-from typing import List
+from pyrs.core.strain_stress_calculator import _to_md
 
 # two points in real space separated by less than this amount (in mili meters) are considered the same point
 from .constants import DEFAULT_POINT_RESOLUTION
@@ -33,7 +34,7 @@ class ScalarFieldSample:
         List of coordinates along some Z-axis for the set of sample points.
     """
 
-    def __init__(self, name: str, values: List[float], errors: List[float],
+    def __init__(self, name: str, values: Union[List[float], np.ndarray], errors: Union[List[float], np.ndarray],
                  x: List[float], y: List[float], z: List[float]) -> None:
         all_lengths = [len(values), len(errors), len(x), len(y), len(z)]
         assert len(set(all_lengths)) == 1, 'input lists must all have the same lengths'
@@ -50,12 +51,12 @@ class ScalarFieldSample:
         return self._name
 
     @property
-    def values(self) -> List[float]:
-        return unumpy.nominal_values(self._sample).tolist()
+    def values(self) -> np.ndarray:
+        return unumpy.nominal_values(self._sample)
 
     @property
-    def errors(self) -> List[float]:
-        return unumpy.std_devs(self._sample).tolist()
+    def errors(self) -> np.ndarray:
+        return unumpy.std_devs(self._sample)
 
     @property
     def point_list(self) -> PointList:
@@ -112,8 +113,8 @@ class ScalarFieldSample:
         if self._name != other.name:
             raise TypeError('Aggregation not allowed for ScalarFieldSample objects of different names')
         points = self._point_list.aggregate(other.point_list)
-        values = self.values + other.values
-        errors = self.errors + other.errors
+        values = np.concatenate([self.values, other.values])
+        errors = np.concatenate([self.errors, other.errors])
         return ScalarFieldSample(self.name, values, errors, points.vx, points.vy, points.vz)
 
     def intersection(self, other: 'ScalarFieldSample',
@@ -186,3 +187,49 @@ class ScalarFieldSample:
 
         # create a ScalarFieldSample with the sample points corresponding to the target indexes
         return aggregate_sample.extract(sorted(target_indexes))
+
+    def to_md_histo_workspace(self, name, units='meter'):
+        r"""
+        Save the scalar field into a MDHistoWorkspace
+
+        Parameters
+        ----------
+        name: str
+            Name of the output workspace
+        units: str
+            Units of the sample points
+
+        Returns
+        -------
+        MDHistoWorkspace
+        """
+        extents = self.point_list.extents  # triad of DirectionExtents objects
+        units_triad = ','.join([units] * 3)  # 'meter,meter,meter'
+        return _to_md(name, extents, self.values, self.errors, units=units_triad)
+
+    def to_csv(self, file):
+        raise NotImplementedError('This functionality has yet to be implemented')
+
+    def export(self, *args, form='MDHistoWokspace', **kwargs):
+        r"""
+        Export the scalar field to a particular format. Each format has additional arguments
+
+        Allowed formats, along with additional arguments and return object:
+        - 'MDHistoWorkspace'
+            name: str, name of the workspace
+            units ('meter'): str, length units of the sample points
+            Returns: MDHistoWorkspace, handle to the workspace
+        - 'CSV'
+            file: str, name of the output file
+            Returns: str, the file as a string
+
+        Parameters
+        ----------
+        form: str
+        """
+        exporters = dict(MDHistoWorkspace=self.to_md_histo_workspace,
+                         CSV=self.to_csv)
+        exporters_arguments = dict(MDHistoWorkspace=('name', 'units'), CSV=('file',))
+        # Call the exporter
+        exporter_arguments = {arg: kwargs[arg] for arg in exporters_arguments[form]}
+        return exporters[form](*args, **exporter_arguments)
