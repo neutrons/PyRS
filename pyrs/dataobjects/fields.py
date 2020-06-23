@@ -113,8 +113,8 @@ class ScalarFieldSample:
         if self._name != other.name:
             raise TypeError('Aggregation not allowed for ScalarFieldSample objects of different names')
         points = self._point_list.aggregate(other.point_list)
-        values = np.concatenate([self.values, other.values])
-        errors = np.concatenate([self.errors, other.errors])
+        values = np.concatenate((self.values, other.values))
+        errors = np.concatenate((self.errors, other.errors))
         return ScalarFieldSample(self.name, values, errors, points.vx, points.vy, points.vz)
 
     def intersection(self, other: 'ScalarFieldSample',
