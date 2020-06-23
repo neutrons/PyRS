@@ -706,6 +706,13 @@ class PyHB2BReduction:
 
         # END-IF-ELSE
 
+        # set indexs in histograms that do not have any neturon counts to 0 with var = 1
+        # set NaN in propogation of error to 1
+        var[var == np.NaN] = 1.
+
+        # set 0s in histogram vanadium counts to 1 to prevent
+        hist[hist == np.NaN] = 0.
+
         # convert to point data as an option.  Use the center of the 2theta bin as new theta
         if is_point_data:
             # calculate bin centers
