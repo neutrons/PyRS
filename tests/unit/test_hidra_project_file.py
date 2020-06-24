@@ -174,6 +174,7 @@ def test_peak_fitting_result_io():
 
     # Generate a HiDRA project file
     test_project_file = HidraProjectFile(test_file_name, HidraProjectFileMode.OVERWRITE)
+    test_project_file.write_wavelength(1.54)
 
     # Create a ND array for output parameters
     param_names = PeakShape.PSEUDOVOIGT.native_parameters + BackgroundFunction.LINEAR.native_parameters
@@ -232,6 +233,9 @@ def test_peak_fitting_result_io():
     # parameter values
     # assert np.allclose(peak_info[4], test_error_array, 1E-12)
     assert_allclose_structured_numpy_arrays(test_error_array, peak_errors)
+
+    dspacing, _ = peak_info.get_dspacing_center()
+    np.testing.assert_allclose(dspacing, [46.441864, 30.429281, 18.012734])
 
     # Clean
     os.remove(test_file_name)
