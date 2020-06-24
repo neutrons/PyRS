@@ -113,8 +113,8 @@ class ScalarFieldSample:
         if self._name != other.name:
             raise TypeError('Aggregation not allowed for ScalarFieldSample objects of different names')
         points = self._point_list.aggregate(other.point_list)
-        values = np.concatenate([self.values, other.values])
-        errors = np.concatenate([self.errors, other.errors])
+        values = np.concatenate((self.values, other.values))
+        errors = np.concatenate((self.errors, other.errors))
         return ScalarFieldSample(self.name, values, errors, points.vx, points.vy, points.vz)
 
     def intersection(self, other: 'ScalarFieldSample',
@@ -233,3 +233,30 @@ class ScalarFieldSample:
         # Call the exporter
         exporter_arguments = {arg: kwargs[arg] for arg in exporters_arguments[form]}
         return exporters[form](*args, **exporter_arguments)
+
+
+class StrainField(ScalarFieldSample):
+    def __init__(self, hidraworkspace, peak_collection) -> None:
+        '''Converts a HidraWorkspace into a ScalarField'''
+        VX, VY, VZ = 'vx', 'vy', 'vz'
+
+        if hidraworkspace.get_sub_runs() != peak_collection.sub_runs:
+            raise RuntimeError('Need to have matching subruns')
+
+        lognames = hidraworkspace.get_sample_log_names()
+        missing = []
+        for logname in VX, VY, VZ:
+            if logname not in lognames:
+                missing.append(logname)
+        if missing:
+            raise RuntimeError('Failed to find positions in logs. Missing {}'.format(', '.join(missing)))
+
+        # extract positions
+        x = hidraworkspace.get_sample_log_values('vx')
+        y = hidraworkspace.get_sample_log_values('vy')
+        z = hidraworkspace.get_sample_log_values('vz')
+
+        strain, strain_error = peak_collection.get_strain()
+
+        # TODO the fixed name shouldn't bee needed with inheritence
+        return super().__init__('strain', strain, strain_error, x, y, z)
