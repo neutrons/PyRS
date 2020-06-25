@@ -4,7 +4,9 @@ from mantid import ConfigService
 from mantid.api import FileFinder
 from mantid.simpleapi import mtd, GetIPTS, SaveNexusProcessed
 import os
+from pathlib import Path
 from subprocess import check_output
+from typing import Union
 
 __all__ = ['get_ipts_dir', 'get_default_output_dir', 'get_ipts_dir', 'get_input_project_file', 'get_nexus_file']
 
@@ -32,6 +34,23 @@ def save_mantid_nexus(workspace_name, file_name, title=''):
         raise RuntimeError('Workspace {0} does not exist in Analysis data service. Available '
                            'workspaces are {1}.'
                            ''.format(workspace_name, mtd.getObjectNames()))
+
+
+def to_filepath(filename: Union[str, Path], check_exists: bool = True) -> Path:
+    '''Asserts that a file exists and is a file.
+    Raises an exception if anything is wrongither assumption is incorrect'''
+    if not filename:  # empty value
+        raise ValueError('Encountered empty filename')
+
+    filepath = Path(filename)
+
+    if check_exists:
+        if not filepath.exists():
+            raise IOError('File "{}" not found'.format(filename))
+        if not filepath.is_file():
+            raise IOError('Path "{}" is not a file'.format(filename))
+
+    return filepath
 
 
 def get_temp_directory():
