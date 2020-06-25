@@ -107,6 +107,10 @@ class TestScalarFieldSample:
         assert sample.errors == pytest.approx([0.007, 0.008, 0.009, 0.008, 0.008, 0.008])
         assert sample.x == pytest.approx([7.000, 8.000, 9.000, 7.009, 8.001, 9.005])
 
+    # TODO
+    def test_coalesce(self):
+        pass
+
     def test_fuse(self):
         sample1 = ScalarFieldSample(*TestScalarFieldSample.sample1)
         sample = sample1.fuse(ScalarFieldSample(*TestScalarFieldSample.sample2), criterion='min_error')
@@ -200,6 +204,11 @@ def test_create_strain_field_from_file_no_peaks():
 def test_create_strain_field_from_file_one_peak():
     filename = 'tests/data/HB2B_1320.h5'
     assert StrainField(filename)
+
+
+def test_stack_fields():
+    pass
+
 
 
 if __name__ == '__main__':

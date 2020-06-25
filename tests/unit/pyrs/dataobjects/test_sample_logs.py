@@ -117,5 +117,9 @@ class TestPointList:
             assert list(extent) == pytest.approx(sample_logs_mock['extents'][i])
 
 
+# TODO
+def test_aggregate_point_list():
+    pass
+
 if __name__ == '__main__':
     pytest.main()
