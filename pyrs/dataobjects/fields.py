@@ -1,10 +1,13 @@
 import numpy as np
-from typing import List, Union
+from typing import TYPE_CHECKING, cast, List, Optional, Union
 from uncertainties import unumpy
 from mantid.simpleapi import mtd, CreateMDWorkspace, BinMD
 from mantid.api import IMDHistoWorkspace
-
+from pyrs.core.workspaces import HidraWorkspace
 from pyrs.dataobjects.sample_logs import PointList
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
+from pyrs.utilities.file_util import to_filepath
+from pyrs.peaks import PeakCollection  # type: ignore
 
 # two points in real space separated by less than this amount (in mili meters) are considered the same point
 from .constants import DEFAULT_POINT_RESOLUTION
@@ -38,8 +41,6 @@ class ScalarFieldSample:
     def __init__(self, name: str, values: Union[List[float], np.ndarray], errors: Union[List[float], np.ndarray],
                  x: List[float], y: List[float], z: List[float]) -> None:
         all_lengths = [len(values), len(errors), len(x), len(y), len(z)]
-        for item in [values, errors, x, y, z]:
-            print('***', len(item))
         assert len(set(all_lengths)) == 1, 'input lists must all have the same lengths'
         self._sample = unumpy.uarray(values, errors)
         self._point_list = PointList([x, y, z])
@@ -262,11 +263,39 @@ class ScalarFieldSample:
 
 
 class StrainField(ScalarFieldSample):
-    def __init__(self, hidraworkspace, peak_collection) -> None:
-        '''Converts a HidraWorkspace into a ScalarField'''
+    def __init__(self, filename: Optional[str] = '',
+                 hidraworkspace: Optional[HidraProjectFile] = None,
+                 peak_collection: Optional[PeakCollection] = None) -> None:
+        '''Converts a HidraWorkspace and PeakCollection into a ScalarField'''
         VX, VY, VZ = 'vx', 'vy', 'vz'
 
-        if hidraworkspace.get_sub_runs() != peak_collection.sub_runs:
+        # loat information from a file
+        if filename:
+            filepath = to_filepath(filename)
+            projectfile = HidraProjectFile(filepath, HidraProjectFileMode.READONLY)
+
+            # create HidraWorkspace
+            hidraworkspace = HidraWorkspace()
+            hidraworkspace.load_hidra_project(projectfile, load_raw_counts=False, load_reduced_diffraction=False)
+
+            # get the PeakCollection
+            peak_tags = projectfile.read_peak_tags()
+            if len(peak_tags) == 0:
+                raise IOError('File "{}" does not have peaks defined'.format(filepath))
+            elif len(peak_tags) == 1:  # read in the only peaks
+                peak_collection = projectfile.read_peak_parameters(peak_tags[0])
+            elif len(peak_tags) > 1:
+                raise NotImplementedError('Need to add code for selecting peak')
+
+            # cleanup
+            projectfile.close()
+            del projectfile
+        elif TYPE_CHECKING:
+            hidraworkspace = cast(HidraWorkspace, hidraworkspace)
+            peak_collection = cast(PeakCollection, peak_collection)
+
+        # convert the information into a usable form for setting up this object
+        if hidraworkspace.get_sub_runs() != peak_collection.sub_runs:  # type: ignore
             raise RuntimeError('Need to have matching subruns')
 
         lognames = hidraworkspace.get_sample_log_names()
@@ -282,7 +311,7 @@ class StrainField(ScalarFieldSample):
         y = hidraworkspace.get_sample_log_values('vy')
         z = hidraworkspace.get_sample_log_values('vz')
 
-        strain, strain_error = peak_collection.get_strain()
+        strain, strain_error = peak_collection.get_strain()  # type: ignore
 
         # TODO the fixed name shouldn't bee needed with inheritence
         return super().__init__('strain', strain, strain_error, x, y, z)

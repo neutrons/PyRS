@@ -178,13 +178,28 @@ def test_create_strain_field():
     workspace.set_sample_log('vz', subruns, np.arange(21, 29, dtype=int))
 
     # call the function
-    strain = StrainField(workspace, peak_collection)
+    strain = StrainField(hidraworkspace=workspace, peak_collection=peak_collection)
 
     # test the result
     assert strain
     assert len(strain) == subruns.size
     np.testing.assert_almost_equal(strain.values, 0.)
     np.testing.assert_equal(strain.errors, np.zeros(subruns.size, dtype=float))
+
+
+def test_create_strain_field_from_file_no_peaks():
+    # this project file doesn't have peaks in it
+    filename = 'tests/data/HB2B_1060_first3_subruns.h5'
+    try:
+        _ = StrainField(filename)
+        assert False, 'Should not be able to read ' + filename
+    except IOError:
+        pass  # this is what should happen
+
+
+def test_create_strain_field_from_file_one_peak():
+    filename = 'tests/data/HB2B_1320.h5'
+    assert StrainField(filename)
 
 
 if __name__ == '__main__':
