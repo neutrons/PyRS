@@ -608,7 +608,7 @@ class HidraProjectFile:
         # Get main group
         peak_main_group = self._project_h5[HidraConstants.PEAKS]
 
-        return peak_main_group.keys()
+        return list(peak_main_group.keys())
 
     def read_peak_parameters(self, peak_tag):
         """Get the parameters related to a peak
