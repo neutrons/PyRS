@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from pyrs.dataobjects.constants import HidraConstants
-from pyrs.dataobjects.sample_logs import DirectionExtents, PointList, SampleLogs
+from pyrs.dataobjects.sample_logs import DirectionExtents, PointList, aggregate_point_lists, SampleLogs
 
 
 class TestDirectionExtents:
@@ -117,9 +117,13 @@ class TestPointList:
             assert list(extent) == pytest.approx(sample_logs_mock['extents'][i])
 
 
-# TODO
-def test_aggregate_point_list():
-    pass
+def test_aggregate_point_list(sample_logs_mock):
+    point_list = aggregate_point_lists(*[PointList(sample_logs_mock['logs']) for _ in range(3)])  # three lists
+    list_x, list_y, list_z = sample_logs_mock['xyz'][0], sample_logs_mock['xyz'][1], sample_logs_mock['xyz'][2]
+    assert list(point_list.vx) == pytest.approx(list_x + list_x + list_x)
+    assert list(point_list.vy) == pytest.approx(list_y + list_y + list_y)
+    assert list(point_list.vz) == pytest.approx(list_z + list_z + list_z)
+
 
 if __name__ == '__main__':
     pytest.main()
