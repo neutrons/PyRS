@@ -227,8 +227,8 @@ class DirectionExtents(_DirectionExtents):
     precision = 1.e-03  # two coordinates values differing by less that this amount are considered the same value
 
     def __new__(cls, coordinates: List[float]):
-        min_coord = min(coordinates)
-        max_coord = max(coordinates)
+        min_coord = np.min(coordinates)
+        max_coord = np.max(coordinates)
         # unique number of different coordinates using and assumed precision in the coordinate values
         coordinates_count_unique = len(set([int(x / cls.precision) for x in coordinates]))
         assert coordinates_count_unique > 1, 'We could not resolve more than one coordinate'

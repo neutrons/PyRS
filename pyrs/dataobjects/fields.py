@@ -1,9 +1,10 @@
 import numpy as np
 from typing import List, Union
 from uncertainties import unumpy
+from mantid.simpleapi import mtd, CreateMDWorkspace, BinMD
+from mantid.api import IMDHistoWorkspace
 
 from pyrs.dataobjects.sample_logs import PointList
-from pyrs.core.strain_stress_calculator import _to_md
 
 # two points in real space separated by less than this amount (in mili meters) are considered the same point
 from .constants import DEFAULT_POINT_RESOLUTION
@@ -37,6 +38,8 @@ class ScalarFieldSample:
     def __init__(self, name: str, values: Union[List[float], np.ndarray], errors: Union[List[float], np.ndarray],
                  x: List[float], y: List[float], z: List[float]) -> None:
         all_lengths = [len(values), len(errors), len(x), len(y), len(z)]
+        for item in [values, errors, x, y, z]:
+            print('***', len(item))
         assert len(set(all_lengths)) == 1, 'input lists must all have the same lengths'
         self._sample = unumpy.uarray(values, errors)
         self._point_list = PointList([x, y, z])
@@ -188,7 +191,7 @@ class ScalarFieldSample:
         # create a ScalarFieldSample with the sample points corresponding to the target indexes
         return aggregate_sample.extract(sorted(target_indexes))
 
-    def to_md_histo_workspace(self, name, units='meter'):
+    def to_md_histo_workspace(self, name: str, units: str = 'meter') -> IMDHistoWorkspace:
         r"""
         Save the scalar field into a MDHistoWorkspace
 
@@ -203,9 +206,32 @@ class ScalarFieldSample:
         -------
         MDHistoWorkspace
         """
+        # TODO units should be a member of this class
         extents = self.point_list.extents  # triad of DirectionExtents objects
+        for extent in extents:
+            assert extent[0] < extent[1], f'min value of {extent} is not smaller than max value'
+        extents_str = ','.join([extent.to_createmd for extent in extents])
+
         units_triad = ','.join([units] * 3)  # 'meter,meter,meter'
-        return _to_md(name, extents, self.values, self.errors, units=units_triad)
+
+        # create an empty event workspace of the correct dimensions
+        axis_labels = ('x', 'y', 'z')
+        CreateMDWorkspace(OutputWorkspace=name, Dimensions=3, Extents=extents_str,
+                          Names=','.join(axis_labels), Units=units_triad)
+        # set the bins for the workspace correctly
+        aligned_dimensions = [f'{label},{extent.to_binmd}'  # type: ignore
+                              for label, extent in zip(axis_labels, extents)]
+        aligned_kwargs = {f'AlignedDim{i}': aligned_dimensions[i] for i in range(len(aligned_dimensions))}
+        BinMD(InputWorkspace=name, OutputWorkspace=name, **aligned_kwargs)
+
+        # get a handle to the workspace
+        wksp = mtd[name]
+        # set the signal and errors
+        dims = [extent.number_of_bins for extent in extents]
+        wksp.setSignalArray(self.values.reshape(dims))
+        wksp.setErrorSquaredArray(np.square(self.errors.reshape(dims)))
+
+        return wksp
 
     def to_csv(self, file):
         raise NotImplementedError('This functionality has yet to be implemented')
