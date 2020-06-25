@@ -107,9 +107,17 @@ class TestScalarFieldSample:
         assert sample.errors == pytest.approx([0.007, 0.008, 0.009, 0.008, 0.008, 0.008])
         assert sample.x == pytest.approx([7.000, 8.000, 9.000, 7.009, 8.001, 9.005])
 
-    # TODO
     def test_coalesce(self):
-        pass
+        sample1 = ScalarFieldSample(*TestScalarFieldSample.sample1)
+        sample = sample1.aggregate(ScalarFieldSample(*TestScalarFieldSample.sample2))
+        sample = sample.coalesce(criterion='min_error')
+        assert len(sample) == 17  # discard the last point from sample1 and the first two points from sample2
+        assert sample.name == 'lattice'
+        # index 6 of aggregate sample corresponds to index 6 of sample1
+        # index 11 of aggregate sample corresponds to index 3 of sample2
+        assert sample.values[6: 11] == pytest.approx([1.060, 1.070, 1.080, 1.091, 1.10])
+        assert sample.errors[6: 11] == pytest.approx([0.006, 0.007, 0.008, 0.008, 0.0])
+        assert sample.x[6: 11] == pytest.approx([6.000, 7.000, 8.000, 9.005, 10.00])
 
     def test_fuse(self):
         sample1 = ScalarFieldSample(*TestScalarFieldSample.sample1)
