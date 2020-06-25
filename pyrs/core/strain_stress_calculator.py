@@ -1,40 +1,10 @@
 # Reduction engine including slicing
 import numpy as np
 import pyrs.utilities.checkdatatypes
-from typing import Tuple
-
-from mantid.simpleapi import mtd, CreateMDWorkspace, BinMD
-from mantid.api import IMDHistoWorkspace
-from pyrs.dataobjects.sample_logs import DirectionExtents
 
 # TODO:
 #   1) check that vx, vy, vz positions of peakcollections align
 #   2) Check for duplicate entries (can happen if two runs are combined)
-
-
-def _to_md(name: str,
-           extents: Tuple[DirectionExtents, DirectionExtents, DirectionExtents],
-           signal, errors, units: str) -> IMDHistoWorkspace:
-    for extent in extents:
-        assert extent[0] < extent[1], f'min value of {extent} is not smaller than max value'
-    extents_str = ','.join([extent.to_createmd for extent in extents])
-    # create an empty event workspace of the correct dimensions
-    axis_labels = ('x', 'y', 'z')
-    CreateMDWorkspace(OutputWorkspace=name, Dimensions=3, Extents=extents_str,
-                      Names=','.join(axis_labels), Units=units)
-    # set the bins for the workspace correctly
-    aligned_dimensions = [f'{label},{extent.to_binmd}' for label, extent in zip(axis_labels, extents)]  # type: ignore
-    aligned_kwargs = {f'AlignedDim{i}': aligned_dimensions[i] for i in range(len(aligned_dimensions))}
-    BinMD(InputWorkspace=name, OutputWorkspace=name, **aligned_kwargs)
-
-    # get a handle to the workspace
-    wksp = mtd[name]
-    # set the signal and errors
-    dims = [extent.number_of_bins for extent in extents]
-    wksp.setSignalArray(signal.reshape(dims))
-    wksp.setErrorSquaredArray(np.square(errors.reshape(dims)))
-
-    return wksp
 
 
 class StrainStress:

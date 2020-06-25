@@ -30,9 +30,18 @@ class TestScalarFieldSample:
                          [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]  # z
                          )
 
+    sample3 = SampleMock('strain',
+                         [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],  # values
+                         [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],  # errors
+                         [0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.5],  # x
+                         [1.0, 1.0, 1.5, 1.5, 1.0, 1.0, 1.5, 1.5],  # y
+                         [2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5],  # z
+                         )
+
     def test_init(self):
-        ScalarFieldSample(*TestScalarFieldSample.sample1)
-        ScalarFieldSample(*TestScalarFieldSample.sample2)
+        assert ScalarFieldSample(*TestScalarFieldSample.sample1)
+        assert ScalarFieldSample(*TestScalarFieldSample.sample2)
+        assert ScalarFieldSample(*TestScalarFieldSample.sample3)
         sample_bad = list(TestScalarFieldSample.sample1)
         sample_bad[1] = [1.000, 1.010, 1.020, 1.030, 1.040, 1.050, 1.060, 1.070, 1.080]  # one less value
         with pytest.raises(AssertionError):
@@ -123,6 +132,27 @@ class TestScalarFieldSample:
         # Test export to CSV file
         with pytest.raises(NotImplementedError):
             sample.export(form='CSV', file='/tmp/csv.txt')
+
+    def test_to_md(self):
+        field = ScalarFieldSample(*TestScalarFieldSample.sample3)
+        assert field
+        histo = field.to_md_histo_workspace('sample3')
+        assert histo
+        assert histo.id() == 'MDHistoWorkspace'
+
+        for i, (min_value, max_value) in enumerate(((0.0, 0.5), (1.0, 1.5), (2.0, 2.5))):
+            dimension = histo.getDimension(i)
+            assert dimension.getUnits() == 'meter'
+            # adding half a bin each direction since values from mdhisto are boundaries and constructor uses centers
+            assert dimension.getMinimum() == min_value - .25
+            assert dimension.getMaximum() == max_value + .25
+            assert dimension.getNBins() == 2
+
+        np.testing.assert_equal(histo.getSignalArray().ravel(), self.sample3.values, err_msg='Signal')
+        np.testing.assert_equal(histo.getErrorSquaredArray().ravel(), np.square(self.sample3.errors), err_msg='Errors')
+
+        # clean up
+        histo.delete()
 
 
 def test_create_strain_field():
