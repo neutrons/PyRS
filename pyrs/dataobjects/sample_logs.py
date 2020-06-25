@@ -362,8 +362,8 @@ class PointList:
 
     def aggregate(self, other: 'PointList') -> 'PointList':
         r"""
-        Bring the points from other list into the list of points. Because points are ordered, this operation
-        is not commutative.
+        Bring the points from other list into the list of points. Because points are ordered,
+        this operation is not commutative.
 
         The order of the combined points is the order of points in the first list, followed by the
         points from the second list as originally ordered.
@@ -519,3 +519,20 @@ class PointList:
             three-item list, where each item is an object of type ~pyrs.dataobjects.sample_logs.DirectionExtents.
         """
         return DirectionExtents(self.vx), DirectionExtents(self.vy), DirectionExtents(self.vz)
+
+
+def aggregate_point_lists(*args):
+    r"""
+    Aggregate a number of ~pyrs.dataobjects.sample_logs.PointList objects into one.
+
+    Returns
+    -------
+    ~pyrs.dataobjects.sample_logs.PointList
+    """
+    assert len(args) > 1, 'We need at least two PointList objects to aggregate'
+    for arg in args:
+        assert isinstance(arg, PointList), 'one of the arguments to aggreage_point_list if not a PointList object'
+    aggregated_points = args[0]  # start with the point list of the first scalar field
+    for point_list in args[1:]:
+        aggregated_points = aggregated_points.aggregate(point_list)  # aggregate remaining lists, one by one
+    return aggregated_points
