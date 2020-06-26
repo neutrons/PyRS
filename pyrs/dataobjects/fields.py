@@ -6,7 +6,6 @@ from mantid.simpleapi import mtd, CreateMDWorkspace, BinMD
 from mantid.api import IMDHistoWorkspace
 
 from pyrs.core.workspaces import HidraWorkspace
-from pyrs.core.strain_stress_calculator import _to_md
 from pyrs.dataobjects.sample_logs import PointList, aggregate_point_lists
 from pyrs.peaks import PeakCollection  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
@@ -406,8 +405,8 @@ def stack_scalar_field_samples(*fields,
     # The sample point associated to the cluster will be the average of the sample points contained in the
     # cluster. Remember all this sample points are within `resolution` distance from each other.
     #
-    field_values = [[] for _ in fields_indexes]  # evaluations of each field at the cluster's sample points
-    field_errors = [[] for _ in fields_indexes]  # shape = (number of input fields, number of aggregated points)
+    field_values: List[List] = [[] for _ in fields_indexes]  # evaluations of each field at the cluster's sample points
+    field_errors: List[List] = [[] for _ in fields_indexes]  # shape = (input fields, aggregated points)
     x, y, z = [], [], []  # coordinates for the cluster's sample points
     for aggregated_indexes in clusters:
         if stack_mode == 'common' and len(aggregated_indexes) < fields_count:
@@ -423,8 +422,9 @@ def stack_scalar_field_samples(*fields,
             cluster_x += field.x[point_index]
             cluster_y += field.y[point_index]
             cluster_z += field.z[point_index]
-        [field_values[field_index].append(fields_value_in_cluster[field_index]) for field_index in fields_indexes]
-        [field_errors[field_index].append(fields_error_in_cluster[field_index]) for field_index in fields_indexes]
+        for field_index in fields_indexes:
+            field_values[field_index].append(fields_value_in_cluster[field_index])
+            field_errors[field_index].append(fields_error_in_cluster[field_index])
         x.append(cluster_x / len(aggregated_indexes))
         y.append(cluster_y / len(aggregated_indexes))
         z.append(cluster_z / len(aggregated_indexes))
