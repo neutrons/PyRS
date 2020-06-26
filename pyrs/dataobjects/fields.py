@@ -377,7 +377,7 @@ def stack_scalar_field_samples(*fields,
 
     # If it so happens for one of the input fields that it contains two (or more) sampled points separated by
     # less than `resolution` distance, we have to discard all but one of them.
-    fields = [field.coalesce(resolution) for field in fields]
+    fields = tuple([field.coalesce(resolution) for field in fields])
     fields_count, fields_indexes = len(fields), list(range(len(fields)))
 
     # list `field_point_index_pair` gives us the scalar field index and the point index in the list
