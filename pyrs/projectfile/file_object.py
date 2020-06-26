@@ -3,13 +3,15 @@ from enum import Enum
 import h5py
 from mantid.kernel import Logger
 import numpy
-import os
+from pathlib import Path
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.convertdatatypes import to_float, to_int
+from pyrs.utilities.file_util import to_filepath
 from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSetup
 from pyrs.peaks import PeakCollection  # type: ignore
 from pyrs.dataobjects import HidraConstants, SampleLogs  # type: ignore
 from pyrs.projectfile import HidraProjectFileMode  # type: ignore
+from typing import Union
 
 __all__ = ['HidraProjectFile']
 
@@ -46,7 +48,8 @@ class HidraProjectFile:
           - ...
     '''
 
-    def __init__(self, project_file_name, mode=HidraProjectFileMode.READONLY):
+    def __init__(self, project_file_name: Union[str, Path],
+                 mode: HidraProjectFileMode = HidraProjectFileMode.READONLY):
         """
         Initialization
         :param project_file_name: project file name
@@ -61,7 +64,9 @@ class HidraProjectFile:
         # check the file
         if not project_file_name:
             raise RuntimeError('Must supply a filename')
-        self._file_name = str(project_file_name)  # force it to be a string
+        # force the file to be a Path
+        self._file_name = to_filepath(project_file_name,
+                                      check_exists=bool(self._io_mode != HidraProjectFileMode.OVERWRITE))
         self._checkFileAccess()
 
         # open the file using h5py
@@ -88,7 +93,7 @@ class HidraProjectFile:
             raise RuntimeError('Hidra project file I/O mode {} is not supported'.format(HidraProjectFileMode))
 
         # convert the filename to an absolute path so error messages are clearer
-        self._file_name = os.path.abspath(self._file_name)
+        self._file_name = self._file_name.absolute()
 
         # do the check
         checkdatatypes.check_file_name(self._file_name, check_exist, self._is_writable, is_dir=False,
@@ -542,7 +547,7 @@ class HidraProjectFile:
         get list of the sub runs
         """
         self._log.debug(str(self._project_h5.keys()))
-        self._log.debug(self._file_name)
+        self._log.debug(str(self._file_name))
         # coded a little wacky to be less than 120 characters across
         sub_runs_str_list = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS]
         if HidraConstants.SUB_RUNS in sub_runs_str_list:
