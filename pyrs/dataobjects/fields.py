@@ -1,5 +1,5 @@
 import numpy as np
-from typing import TYPE_CHECKING, cast, List, Optional, Union
+from typing import TYPE_CHECKING, cast, List, Optional, Tuple, Union
 from uncertainties import unumpy
 
 from mantid.simpleapi import mtd, CreateMDWorkspace, BinMD
@@ -9,8 +9,6 @@ from pyrs.core.workspaces import HidraWorkspace
 from pyrs.dataobjects.sample_logs import PointList, aggregate_point_lists
 from pyrs.peaks import PeakCollection  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
-from pyrs.utilities.file_util import to_filepath
-
 
 # two points in real space separated by less than this amount (in mili meters) are considered the same point
 from .constants import DEFAULT_POINT_RESOLUTION
@@ -284,40 +282,18 @@ class ScalarFieldSample:
 
 
 class StrainField(ScalarFieldSample):
-    def __init__(self, filename: Optional[str] = '',
-                 hidraworkspace: Optional[HidraProjectFile] = None,
+    def __init__(self, filename: str = '',
+                 projectfile: Optional[HidraProjectFile] = None,
+                 peak_tag: str = '',
+                 hidraworkspace: Optional[HidraWorkspace] = None,
                  peak_collection: Optional[PeakCollection] = None) -> None:
         '''Converts a HidraWorkspace and PeakCollection into a ScalarField'''
         VX, VY, VZ = 'vx', 'vy', 'vz'
 
-        # loat information from a file
-        if filename:
-            filepath = to_filepath(filename)
-            projectfile = HidraProjectFile(filepath, HidraProjectFileMode.READONLY)
-
-            # create HidraWorkspace
-            hidraworkspace = HidraWorkspace()
-            hidraworkspace.load_hidra_project(projectfile, load_raw_counts=False, load_reduced_diffraction=False)
-
-            # get the PeakCollection
-            peak_tags = projectfile.read_peak_tags()
-            if len(peak_tags) == 0:
-                raise IOError('File "{}" does not have peaks defined'.format(filepath))
-            elif len(peak_tags) == 1:  # read in the only peaks
-                peak_collection = projectfile.read_peak_parameters(peak_tags[0])
-            elif len(peak_tags) > 1:
-                raise NotImplementedError('Need to add code for selecting peak')
-
-            # cleanup
-            projectfile.close()
-            del projectfile
-        elif TYPE_CHECKING:
-            hidraworkspace = cast(HidraWorkspace, hidraworkspace)
-            peak_collection = cast(PeakCollection, peak_collection)
-
-        # convert the information into a usable form for setting up this object
-        if hidraworkspace.get_sub_runs() != peak_collection.sub_runs:  # type: ignore
-            raise RuntimeError('Need to have matching subruns')
+        # get the workspace and peaks by resolving the supplied inputs
+        hidraworkspace, peak_collection = StrainField.__to_wksp_and_peaks(filename, peak_tag,
+                                                                          projectfile, hidraworkspace,
+                                                                          peak_collection)
 
         lognames = hidraworkspace.get_sample_log_names()
         missing = []
@@ -336,6 +312,64 @@ class StrainField(ScalarFieldSample):
 
         # TODO the fixed name shouldn't bee needed with inheritence
         return super().__init__('strain', strain, strain_error, x, y, z)
+
+    @staticmethod
+    def __to_wksp_and_peaks(filename: str,
+                            peak_tag: str,
+                            projectfile: Optional[HidraProjectFile],
+                            hidraworkspace: Optional[HidraWorkspace],
+                            peak_collection: Optional[PeakCollection]) -> Tuple[HidraWorkspace, PeakCollection]:
+        # load information from a file
+        closeproject = False
+        if filename:
+            projectfile = HidraProjectFile(filename, HidraProjectFileMode.READONLY)
+            closeproject = True
+        elif TYPE_CHECKING:
+            projectfile = cast(HidraProjectFile, projectfile)
+
+        # create objects from the project file
+        if projectfile:
+            # create HidraWorkspace
+            if not hidraworkspace:
+                hidraworkspace = HidraWorkspace()
+                hidraworkspace.load_hidra_project(projectfile, load_raw_counts=False, load_reduced_diffraction=False)
+
+            # get the PeakCollection
+            if not peak_collection:
+                peak_tags = projectfile.read_peak_tags()
+                # verify peaks were savsed in the file
+                if len(peak_tags) == 0:
+                    raise IOError('File "{}" does not have peaks defined'.format(filename))
+                if peak_tag:  # verify the tag is in the file
+                    if peak_tag not in peak_tags:
+                        raise ValueError('Failed to find tag "{}" in file with tags {}'.format(peak_tag, peak_tags))
+                else:
+                    # use the only one if nothing is specified
+                    if len(peak_tags) == 1:
+                        peak_tag = peak_tags[0]
+                    else:
+                        raise RuntimeError('Need to specify peak tag: {}'.format(peak_tags))
+
+                # load the peak_tag from the file
+                peak_collection = projectfile.read_peak_parameters(peak_tag)
+
+            # cleanup
+            if closeproject:
+                projectfile.close()
+                del projectfile
+        elif TYPE_CHECKING:
+            hidraworkspace = cast(HidraWorkspace, hidraworkspace)
+            peak_collection = cast(PeakCollection, peak_collection)
+
+        # verify that everything is set by now
+        if (not hidraworkspace) or (not peak_collection):
+            raise RuntimeError('Do not have both hidraworkspace and peak_collection defined')
+
+        # convert the information into a usable form for setting up this object
+        if hidraworkspace.get_sub_runs() != peak_collection.sub_runs:  # type: ignore
+            raise RuntimeError('Need to have matching subruns')
+
+        return hidraworkspace, peak_collection
 
 
 def stack_scalar_field_samples(*fields,

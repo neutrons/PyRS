@@ -7,6 +7,7 @@ from pyrs.core.workspaces import HidraWorkspace
 from pyrs.dataobjects.fields import ScalarFieldSample, StrainField, stack_scalar_field_samples
 from pyrs.core.peak_profile_utility import get_parameter_dtype
 from pyrs.peaks import PeakCollection  # type: ignore
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 
 SampleMock = namedtuple('SampleMock', 'name values errors x y z')
 
@@ -209,9 +210,19 @@ def test_create_strain_field_from_file_no_peaks():
         pass  # this is what should happen
 
 
-def test_create_strain_field_from_file_one_peak():
-    filename = 'tests/data/HB2B_1320.h5'
-    assert StrainField(filename)
+# 1320 has one peak defined
+# 1628 has three peaks defined
+@pytest.mark.parametrize('filename,peaknames', [('tests/data/HB2B_1320.h5', ('', 'peak0')),
+                                                ('tests/data/HB2B_1628.h5', ('peak0', 'peak1', 'peak2'))])
+def test_create_strain_field_from_file(filename, peaknames):
+    # directly from a filename
+    for tag in peaknames:
+        assert StrainField(filename=filename, peak_tag=tag)
+
+    # from a project file
+    projectfile = HidraProjectFile(filename, HidraProjectFileMode.READONLY)
+    for tag in peaknames:
+        assert StrainField(projectfile=projectfile, peak_tag=tag)
 
 
 @pytest.fixture(scope='module')
