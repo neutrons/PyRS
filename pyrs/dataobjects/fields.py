@@ -339,9 +339,9 @@ class StrainField(ScalarFieldSample):
         return super().__init__('strain', strain, strain_error, x, y, z)
 
 
-def stack_fields(fields: List[ScalarFieldSample],
-                 stack_mode: str = 'complete',
-                 resolution: float = DEFAULT_POINT_RESOLUTION) -> List[ScalarFieldSample]:
+def stack_scalar_field_samples(*fields,
+                               stack_mode: str = 'complete',
+                               resolution: float = DEFAULT_POINT_RESOLUTION) -> List[ScalarFieldSample]:
     r"""
     Evaluate a list of scalar field samples on a list of points, obtained by combining the list of points of each
     scalar field sample.
@@ -378,7 +378,8 @@ def stack_fields(fields: List[ScalarFieldSample],
 
     # If it so happens for one of the input fields that it contains two (or more) sampled points separated by
     # less than `resolution` distance, we have to discard all but one of them.
-    fields = [fields.coalesce(resolution) for field in fields]
+    fields = [field.coalesce(resolution) for field in fields]
+    fields_count, fields_indexes = len(fields), list(range(len(fields)))
 
     # list `field_point_index_pair` gives us the scalar field index and the point index in the list
     # of sample points of that scalar field, for a given aggregated point index, that is:
@@ -405,15 +406,15 @@ def stack_fields(fields: List[ScalarFieldSample],
     # The sample point associated to the cluster will be the average of the sample points contained in the
     # cluster. Remember all this sample points are within `resolution` distance from each other.
     #
-    field_values = [[] for _ in range(len(fields))]  # evaluations of each field at the cluster's sample points
-    field_errors = [[] for _ in range(len(fields))]  # shape = (number of input fields, number of aggregated points)
+    field_values = [[] for _ in fields_indexes]  # evaluations of each field at the cluster's sample points
+    field_errors = [[] for _ in fields_indexes]  # shape = (number of input fields, number of aggregated points)
     x, y, z = [], [], []  # coordinates for the cluster's sample points
-    for cluster_index, aggregated_indexes in clusters.items():
-        if stack_mode == 'common' and len(aggregated_indexes) < len(fields):
+    for aggregated_indexes in clusters:
+        if stack_mode == 'common' and len(aggregated_indexes) < fields_count:
             break  # there's a field missing in this cluster, thus it's not a sample point common to all fields
         cluster_x, cluster_y, cluster_z = 0, 0, 0  # cluster's sample point coordinates
-        fields_value_in_cluster = [float('nan')] * len(fields)  # value of each field at the cluster's sample point
-        fields_error_in_cluster = [float('nan')] * len(fields)
+        fields_value_in_cluster = [float('nan')] * fields_count  # value of each field at the cluster's sample point
+        fields_error_in_cluster = [float('nan')] * fields_count
         for aggregated_index in aggregated_indexes:
             field_index, point_index = field_point_index_pair[aggregated_index]
             field = fields[field_index]  # ScalarFieldSample object, one of the input fields
@@ -422,15 +423,11 @@ def stack_fields(fields: List[ScalarFieldSample],
             cluster_x += field.x[point_index]
             cluster_y += field.y[point_index]
             cluster_z += field.z[point_index]
-        [field_values[field_index].append(fields_value_in_cluster[field_index]) for field_index in range(len(fields))]
-        [field_errors[field_index].append(fields_error_in_cluster[field_index]) for field_index in range(len(fields))]
+        [field_values[field_index].append(fields_value_in_cluster[field_index]) for field_index in fields_indexes]
+        [field_errors[field_index].append(fields_error_in_cluster[field_index]) for field_index in fields_indexes]
         x.append(cluster_x / len(aggregated_indexes))
         y.append(cluster_y / len(aggregated_indexes))
         z.append(cluster_z / len(aggregated_indexes))
 
     # Construct the output ScalarFieldSample objects evaluated at the cluster's sample points
-    scalar_fields = []
-    for field_index in range(len(fields)):
-        scalar_fields.append(fields[field_index].name, field_values[field_index], field_errors[field_index], x, y, z)
-    return scalar_fields
-
+    return [ScalarFieldSample(fields[i].name, field_values[i], field_errors[i], x, y, z) for i in fields_indexes]
