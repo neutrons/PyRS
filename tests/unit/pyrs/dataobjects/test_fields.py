@@ -245,7 +245,7 @@ def field_sample_collection():
     }
 
 
-def test_stack_fields(field_sample_collection):
+def test_stack_scalar_field_samples(field_sample_collection):
     sample1 = ScalarFieldSample(*field_sample_collection['sample1'])
     sample2 = ScalarFieldSample(*field_sample_collection['sample2'])
     sample3 = ScalarFieldSample(*field_sample_collection['sample3'])
