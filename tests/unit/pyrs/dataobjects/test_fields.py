@@ -257,10 +257,32 @@ def field_sample_collection():
 
 
 def test_stack_scalar_field_samples(field_sample_collection):
+    # test stacking with the 'common' mode
     sample1 = ScalarFieldSample(*field_sample_collection['sample1'])
     sample2 = ScalarFieldSample(*field_sample_collection['sample2'])
     sample3 = ScalarFieldSample(*field_sample_collection['sample3'])
-    sample1, sample2, sample3 = stack_scalar_field_samples(sample1, sample2, sample3)
+    sample1, sample2, sample3 = stack_scalar_field_samples(sample1, sample2, sample3, stack_mode='common')
+
+    for sample in (sample1, sample2, sample3):
+        assert len(sample) == 6
+        assert sample.x == pytest.approx([5.0, 4.0, 3.003, 2.003, 1.003, 0.003])
+
+    # Assert evaluations for sample1
+    sample1_values = [1.05, 1.04, 1.03, 1.02, 1.01, 1.0]
+    assert np.allclose(sample1.values, sample1_values)
+    # Assert evaluations for sample2
+    sample2_values = [1.12, 1.11, 1.1, 1.091, 1.081, 1.071]
+    assert np.allclose(sample2.values, sample2_values)
+    # Assert evaluations for sample3
+    sample3_values = [1.05, 1.04, 1.03, 1.02, 1.01, 1.0]
+    assert np.allclose(sample3.values, sample3_values)
+
+    # test stacking with the 'complete' mode
+    sample1 = ScalarFieldSample(*field_sample_collection['sample1'])
+    sample2 = ScalarFieldSample(*field_sample_collection['sample2'])
+    sample3 = ScalarFieldSample(*field_sample_collection['sample3'])
+    sample1, sample2, sample3 = stack_scalar_field_samples(sample1, sample2, sample3, stack_mode='complete')
+
     for sample in (sample1, sample2, sample3):
         assert len(sample) == 14
         try:
