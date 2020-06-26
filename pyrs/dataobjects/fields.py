@@ -1,13 +1,16 @@
 import numpy as np
 from typing import TYPE_CHECKING, cast, List, Optional, Union
 from uncertainties import unumpy
+
 from mantid.simpleapi import mtd, CreateMDWorkspace, BinMD
 from mantid.api import IMDHistoWorkspace
+
 from pyrs.core.workspaces import HidraWorkspace
-from pyrs.dataobjects.sample_logs import PointList
+from pyrs.dataobjects.sample_logs import PointList, aggregate_point_lists
+from pyrs.peaks import PeakCollection  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.utilities.file_util import to_filepath
-from pyrs.peaks import PeakCollection  # type: ignore
+
 
 # two points in real space separated by less than this amount (in mili meters) are considered the same point
 from .constants import DEFAULT_POINT_RESOLUTION
@@ -144,6 +147,47 @@ class ScalarFieldSample:
         # extract those samples corresponding to the intersection of the aggregated point list
         return self.aggregate(other).extract(target_indexes)
 
+    def coalesce(self, resolution: float = DEFAULT_POINT_RESOLUTION,
+                 criterion: str = 'min_error') -> 'ScalarFieldSample':
+        r"""
+        Merge sampled points separated by less than certain distance into one.
+
+        Parameters
+        ----------
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity
+        criterion: str
+            Criterion by which to resolve which out of two (or more) samples is selected, while the rest is
+            discarded. Possible values are:
+            'min_error': the sample with the minimal uncertainty is selected
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.ScalarFieldSample
+        """
+        def min_error(indexes):
+            r"""Find index of sample point with minimum error of the scalar field"""
+            error_min_index = np.argmin(np.array(self.errors)[indexes])
+            return indexes[error_min_index]
+        criterion_functions = {'min_error': min_error}
+        assert criterion in criterion_functions, f'The criterion must be one of {criterion_functions.keys()}'
+
+        # cluster sample points by their mutual distance. Points within a cluster are closer than `resolution`
+        clusters = self.point_list.cluster(resolution=resolution)
+
+        # find the indexes of the aggregated point list that we want to keep, and discard the rest
+        target_indexes = list()
+        # Iterate over the cluster, selecting only one index (one sample point) from each cluster
+        # the clusters are sorted by size
+        for cluster_index, point_indexes in enumerate(clusters):
+            if len(point_indexes) == 1:
+                break  # remaining clusters have all only one index, thus the selection process is irrelevant
+            target_indexes.append(criterion_functions[criterion](point_indexes))
+        # append point indexes from all clusters having only one member
+        target_indexes.extend([point_indexes[0] for point_indexes in clusters[cluster_index:]])
+
+        # create a ScalarFieldSample with the sample points corresponding to the target indexes
+        return self.extract(sorted(target_indexes))
+
     def fuse(self, other: 'ScalarFieldSample',
              resolution: float = DEFAULT_POINT_RESOLUTION,
              criterion: str = 'min_error') -> 'ScalarFieldSample':
@@ -167,30 +211,7 @@ class ScalarFieldSample:
         ~pyrs.dataobjects.fields.ScalarFieldSample
         """
         aggregate_sample = self.aggregate(other)  # combine both scalar field samples
-
-        def min_error(indexes):
-            r"""Find index of sample point with minimum error of the scalar field"""
-            error_min_index = np.argmin(np.array(aggregate_sample.errors)[indexes])
-            return indexes[error_min_index]
-        criterion_functions = {'min_error': min_error}
-        assert criterion in criterion_functions, f'The criterion must be one of {criterion_functions.keys()}'
-
-        # cluster sample points by their mutual distance. Points within a cluster are closer than `resolution`
-        clusters = aggregate_sample.point_list.cluster(resolution=resolution)
-
-        # find the indexes of the aggregated point list that we want to keep, and discard the rest
-        target_indexes = list()
-        # Iterate over the cluster, selecting only one index (one sample point) from each cluster
-        # the clusters are sorted by size
-        for cluster_index, point_indexes in enumerate(clusters):
-            if len(point_indexes) == 1:
-                break  # remaining clusters have all only one index, thus the selection process is irrelevant
-            target_indexes.append(criterion_functions[criterion](point_indexes))
-        # append point indexes from all clusters having only one member
-        target_indexes.extend([point_indexes[0] for point_indexes in clusters[cluster_index:]])
-
-        # create a ScalarFieldSample with the sample points corresponding to the target indexes
-        return aggregate_sample.extract(sorted(target_indexes))
+        return aggregate_sample.coalesce(resolution=resolution, criterion=criterion)
 
     def to_md_histo_workspace(self, name: str, units: str = 'meter') -> IMDHistoWorkspace:
         r"""
@@ -315,3 +336,98 @@ class StrainField(ScalarFieldSample):
 
         # TODO the fixed name shouldn't bee needed with inheritence
         return super().__init__('strain', strain, strain_error, x, y, z)
+
+
+def stack_scalar_field_samples(*fields,
+                               stack_mode: str = 'complete',
+                               resolution: float = DEFAULT_POINT_RESOLUTION) -> List[ScalarFieldSample]:
+    r"""
+    Evaluate a list of scalar field samples on a list of points, obtained by combining the list of points of each
+    scalar field sample.
+
+    The selection of the evaluation points, as well as the evaluation values for the fields depends on the
+    `stack_mode`.
+
+    In the 'complete' stack mode, the evaluation list of points result from the union of the sample points
+    from all the input scalar field samples. If, say, a sample point :math:`p_a` of field A is not
+    a sample point of field B, then we assign an evaluation value of :math:`nan` for field B
+    at sample point :math:`p_a`.
+
+    In the 'common' stack mode, the evaluation list of points result from the intersection of the sample points
+    from all the input scalar fields. Hence, all input fields are guaranteed to have values at these
+    common evaluation  points.
+
+    Parameters
+    ----------
+    fields: list
+        A list of ~pyrs.dataobjects.fields.ScalarFieldSample objects
+    stack_mode: str
+        A mode to stack the scalar fields. Valid values are 'complete' and 'common'
+    resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity
+
+    Returns
+    -------
+    list
+        List of ~pyrs.dataobjects.fields.ScalarFieldSample stacked objects. Input order is preserved
+    """
+    valid_stack_modes = ('complete', 'common')
+    if stack_mode not in valid_stack_modes:
+        raise ValueError(f'{stack_mode} is not a valid stack mode. Valid modes are {valid_stack_modes}')
+
+    # If it so happens for one of the input fields that it contains two (or more) sampled points separated by
+    # less than `resolution` distance, we have to discard all but one of them.
+    fields = tuple([field.coalesce(resolution) for field in fields])
+    fields_count, fields_indexes = len(fields), list(range(len(fields)))
+
+    # list `field_point_index_pair` gives us the scalar field index and the point index in the list
+    # of sample points of that scalar field, for a given aggregated point index, that is:
+    #     field_point_index_pair[aggregated_point_index] == (field_index, point_index)
+    field_point_index_pair = list()
+    current_field_index = 0
+    for field in fields:
+        field_point_index_pair.extend([(current_field_index, i) for i in range(len(field))])
+        current_field_index += 1
+
+    # aggregate the sample points from all scalar fields
+    aggregated_points = aggregate_point_lists(*[field.point_list for field in fields])
+
+    # cluster the aggregated sample points according to euclidean distance and resolution distance
+    # Each cluster amounts to one sample point that can be resolved from the rest of sample points.
+    # This sample point will have evaluations of one or more of the input fields.
+    # If the cluster contains evaluations of all input fields, the associated sample point is a point
+    # common to all input fields.
+    # If one or more fields are not evaluated at the cluster's sample points, we set the evaluations
+    # to `nan` for those missin fields when `stack_mode=complete`
+    clusters = aggregated_points.cluster(resolution=resolution)
+
+    # Look up each cluster.
+    # The sample point associated to the cluster will be the average of the sample points contained in the
+    # cluster. Remember all this sample points are within `resolution` distance from each other.
+    #
+    field_values: List[List] = [[] for _ in fields_indexes]  # evaluations of each field at the cluster's sample points
+    field_errors: List[List] = [[] for _ in fields_indexes]  # shape = (input fields, aggregated points)
+    x, y, z = [], [], []  # coordinates for the cluster's sample points
+    for aggregated_indexes in clusters:
+        if stack_mode == 'common' and len(aggregated_indexes) < fields_count:
+            break  # there's a field missing in this cluster, thus it's not a sample point common to all fields
+        cluster_x, cluster_y, cluster_z = 0, 0, 0  # cluster's sample point coordinates
+        fields_value_in_cluster = [float('nan')] * fields_count  # value of each field at the cluster's sample point
+        fields_error_in_cluster = [float('nan')] * fields_count
+        for aggregated_index in aggregated_indexes:
+            field_index, point_index = field_point_index_pair[aggregated_index]
+            field = fields[field_index]  # ScalarFieldSample object, one of the input fields
+            fields_value_in_cluster[field_index] = field.values[point_index]
+            fields_error_in_cluster[field_index] = field.errors[point_index]
+            cluster_x += field.x[point_index]
+            cluster_y += field.y[point_index]
+            cluster_z += field.z[point_index]
+        for field_index in fields_indexes:
+            field_values[field_index].append(fields_value_in_cluster[field_index])
+            field_errors[field_index].append(fields_error_in_cluster[field_index])
+        x.append(cluster_x / len(aggregated_indexes))
+        y.append(cluster_y / len(aggregated_indexes))
+        z.append(cluster_z / len(aggregated_indexes))
+
+    # Construct the output ScalarFieldSample objects evaluated at the cluster's sample points
+    return [ScalarFieldSample(fields[i].name, field_values[i], field_errors[i], x, y, z) for i in fields_indexes]

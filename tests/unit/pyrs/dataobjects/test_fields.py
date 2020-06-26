@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 # PyRs libraries
 from pyrs.core.workspaces import HidraWorkspace
-from pyrs.dataobjects.fields import ScalarFieldSample, StrainField
+from pyrs.dataobjects.fields import ScalarFieldSample, StrainField, stack_scalar_field_samples
 from pyrs.core.peak_profile_utility import get_parameter_dtype
 from pyrs.peaks import PeakCollection  # type: ignore
 
@@ -107,6 +107,18 @@ class TestScalarFieldSample:
         assert sample.errors == pytest.approx([0.007, 0.008, 0.009, 0.008, 0.008, 0.008])
         assert sample.x == pytest.approx([7.000, 8.000, 9.000, 7.009, 8.001, 9.005])
 
+    def test_coalesce(self):
+        sample1 = ScalarFieldSample(*TestScalarFieldSample.sample1)
+        sample = sample1.aggregate(ScalarFieldSample(*TestScalarFieldSample.sample2))
+        sample = sample.coalesce(criterion='min_error')
+        assert len(sample) == 17  # discard the last point from sample1 and the first two points from sample2
+        assert sample.name == 'lattice'
+        # index 6 of aggregate sample corresponds to index 6 of sample1
+        # index 11 of aggregate sample corresponds to index 3 of sample2
+        assert sample.values[6: 11] == pytest.approx([1.060, 1.070, 1.080, 1.091, 1.10])
+        assert sample.errors[6: 11] == pytest.approx([0.006, 0.007, 0.008, 0.008, 0.0])
+        assert sample.x[6: 11] == pytest.approx([6.000, 7.000, 8.000, 9.005, 10.00])
+
     def test_fuse(self):
         sample1 = ScalarFieldSample(*TestScalarFieldSample.sample1)
         sample = sample1.fuse(ScalarFieldSample(*TestScalarFieldSample.sample2), criterion='min_error')
@@ -200,6 +212,63 @@ def test_create_strain_field_from_file_no_peaks():
 def test_create_strain_field_from_file_one_peak():
     filename = 'tests/data/HB2B_1320.h5'
     assert StrainField(filename)
+
+
+@pytest.fixture(scope='module')
+def field_sample_collection():
+    return {
+        'sample1': SampleMock('strain',
+                              [1.000, 1.010, 1.020, 1.030, 1.040, 1.050, 1.060, 1.070, 1.080, 1.090],  # values
+                              [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],  # errors
+                              [0.000, 1.000, 2.000, 3.000, 4.000, 5.000, 6.000, 7.000, 8.000, 9.000],  # x
+                              [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000],  # y
+                              [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]  # z
+                              ),
+        # distance resolution is assumed to be 0.01
+        # The first four points of sample2 still overlaps with the first four points of sample1
+        # the last four points of sample1 are not in sample2, and viceversa
+        'sample2': SampleMock('strain',
+                              [1.071, 1.081, 1.091, 1.10, 1.11, 1.12, 1.13, 1.14, 1.15, 1.16],  # values
+                              [0.008, 0.008, 0.008, 0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06],  # errors
+                              [0.009, 1.009, 2.009, 3.009, 4.000, 5.000, 6.011, 7.011, 8.011, 9.011],  # x
+                              [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000],  # y
+                              [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]  # z
+                              ),
+        # the last two points of sample3 are redundant, as they are within resolution distance
+        'sample3': SampleMock('strain',
+                              [1.000, 1.010, 1.020, 1.030, 1.040, 1.050, 1.060, 1.070, 1.080, 1.090, 1.091],  # values
+                              [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.008],  # errors
+                              [0.000, 1.000, 2.000, 3.000, 4.000, 5.000, 6.000, 7.000, 8.000, 8.991, 9.000],  # x
+                              [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000],  # y
+                              [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]  # z
+                              ),
+    }
+
+
+def test_stack_scalar_field_samples(field_sample_collection):
+    sample1 = ScalarFieldSample(*field_sample_collection['sample1'])
+    sample2 = ScalarFieldSample(*field_sample_collection['sample2'])
+    sample3 = ScalarFieldSample(*field_sample_collection['sample3'])
+    sample1, sample2, sample3 = stack_scalar_field_samples(sample1, sample2, sample3)
+    for sample in (sample1, sample2, sample3):
+        assert len(sample) == 14
+        assert sample.x == pytest.approx([5.0, 4.0, 3.003, 2.003, 1.003, 0.003, 9.0,
+                                          8.0, 6.0, 7.0, 9.011, 8.011, 6.011, 7.011])
+    # Assert evaluations for sample1
+    sample1_values = [1.05, 1.04, 1.03, 1.02, 1.01, 1.0,
+                      1.09, 1.08, 1.06, 1.07,
+                      float('nan'), float('nan'), float('nan'), float('nan')]
+    assert np.allclose(sample1.values, sample1_values, equal_nan=True)
+    # Assert evaluations for sample2
+    sample2_values = [1.12, 1.11, 1.1, 1.091, 1.081, 1.071,
+                      float('nan'), float('nan'), float('nan'), float('nan'),
+                      1.16, 1.15, 1.13, 1.14]
+    assert np.allclose(sample2.values, sample2_values, equal_nan=True)
+    # Assert evaluations for sample3
+    sample3_values = [1.05, 1.04, 1.03, 1.02, 1.01, 1.0,
+                      1.091, 1.08, 1.06, 1.07,
+                      float('nan'), float('nan'), float('nan'), float('nan')]
+    assert np.allclose(sample3.values, sample3_values, equal_nan=True)
 
 
 if __name__ == '__main__':
