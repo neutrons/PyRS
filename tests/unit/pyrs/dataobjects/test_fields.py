@@ -81,12 +81,12 @@ class TestScalarFieldSample:
         field.z == pytest.approx(TestScalarFieldSample.sample1.z)
 
     # TODO implement this test
-    @pytest.skip(reason='not implemented')
+    @pytest.mark.skip(reason='not implemented')
     def test_isfinite(self):
         pass
 
     # TODO implement this test
-    @pytest.skip(reason='not implemented')
+    @pytest.mark.skip(reason='not implemented')
     def test_interpolated_sample(self):
         pass
 

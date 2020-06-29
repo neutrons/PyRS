@@ -45,7 +45,7 @@ def sample_logs_mock():
     for i, name in enumerate(HidraConstants.SAMPLE_COORDINATE_NAMES):
         logs[name] = xyz[i]
     # Extents
-    extents = [[-0.6, 0.7, 0.1],
+    extents = [[-0.6, 0.7, 0.1],  # min, max, delta
                [0.4995, 0.6001, (0.6001 - 0.4995) / 3],  # notice that 0.5009 - 0.4995 > PointList.precision
                [1.4998, 1.7, (1.7 - 1.4998) / 3]]
     return {'logs': logs, 'xyz': xyz, 'extents': extents}
@@ -116,13 +116,16 @@ class TestPointList:
         for i, extent in enumerate(point_list.extents):
             assert list(extent) == pytest.approx(sample_logs_mock['extents'][i])
 
-    # TODO implement this test
-    @pytest.skip(reason='not implemented')
-    def test_linspace(self):
-        pass
+    def test_linspace(self, sample_logs_mock):
+        point_list = PointList(sample_logs_mock['logs'])
+        extents = sample_logs_mock['extents']
+        vx, vy, vz = point_list.linspace
+        assert [vx[0], vx[-1], (vx[-1] - vx[0]) / (len(vx) -1)] == pytest.approx(extents[0])
+        assert [vy[0], vy[-1], (vy[-1] - vy[0]) / (len(vy) -1)] == pytest.approx(extents[1])
+        assert [vz[0], vz[-1], (vz[-1] - vz[0]) / (len(vz) -1)] == pytest.approx(extents[2])
 
     # TODO implement this test
-    @pytest.skip(reason='not implemented')
+    @pytest.mark.skip(reason='not implemented')
     def test_mgrid(self):
         pass
 
