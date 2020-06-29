@@ -1,5 +1,7 @@
 import numpy as np
-from typing import TYPE_CHECKING, cast, List, Optional, Tuple, Union
+from scipy.interpolate import griddata
+from scipy.spatial import cKDTree
+from typing import TYPE_CHECKING, cast, List, Optional, Tuple Union
 from uncertainties import unumpy
 
 from mantid.simpleapi import mtd, CreateMDWorkspace, BinMD
@@ -83,6 +85,56 @@ class ScalarFieldSample:
     def z(self) -> List[float]:
         return self._point_list.vz
 
+    @property
+    def isfinite(self):
+        r"""
+        Clean the scalar field values of non-finite values, such as :math:`nan`.
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.ScalarFieldSample
+        """
+        pass
+
+    def interpolated_sample(self, keep_nan=True):
+        r"""
+        Interpolate the scalar field sample of a regular 3D grid given by the extents of the sample points.
+
+        :math:`nan` values are disregarded when doing the interpolation, but they can be incorporated into
+        the interpolated values by finding the point in the regular grid closest to a sample point
+        containing a :math:`nan` value.
+
+        Parameters
+        ----------
+        keep_nan: bool
+            Incorporate :math:`nan` found in the sample points into the interpolated field sample.
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.ScalarFieldSample
+        """
+        grid_x, grid_y, grid_z = self.point_list.mgrid  # regular 3D grids using the `extents` of the sample points
+        field_finite = self.isfinite  # We need to remove non-finite values prior to interpolation
+        # Corner case: if scalar field sample `self` has `nan` values at the extrema of its extents,
+        # then removing these non-finite values will result in scalar field sample `field_finite`
+        # having `extents` smaller than those of`self`. Later when interpolating, some of the grid
+        # points (determined using `extents` of `self`) will fall outside the `extents` of `field_finite`
+        # and their values will have to be filled with the `fill_value` being passed on to function `griddata`.
+        xyz = field_finite.coordinates
+        values = griddata(xyz, field_finite.values, (grid_x, grid_y, grid_z), method='linear', fill_value=float('nan'))
+        if keep_nan is True:
+            # For each sample point of `self` that has a `nan` field value, find the closest grid point and assign
+            # a `nan` value to this point
+            point_indexes_with_nan = np.where(np.isnan(self.values))[0]  # points of `self` with field values of `nan`
+            if len(point_indexes_with_nan) > 0:
+                coordinates = np.array(self.point_list.linspace).transpose()
+                coordinates_with_nan = self.coordinates[point_indexes_with_nan]
+                _, grid_indexes = cKDTree(coordinates).query(coordinates_with_nan, k=1)
+                values[grid_indexes] = float('nan')
+        errors = griddata(xyz, field_finite.errors, (grid_x, grid_y, grid_z), method='linear', fill_value=float('nan'))
+        return ScalarFieldSample(self.name, values, errors, self.point_list.linspace)
+
+
     def extract(self, target_indexes: List[int]) -> 'ScalarFieldSample':
         r"""
         Create a scalar field sample with a subset of the sampled points.
@@ -90,10 +142,11 @@ class ScalarFieldSample:
         Parameters
         ----------
         target_indexes: list
+            List of sample point indexes to extract field values from.
 
         Returns
         -------
-
+        ~pyrs.dataobjects.fields.ScalarFieldSample
         """
 
         subset = {}
@@ -109,11 +162,11 @@ class ScalarFieldSample:
 
         Parameters
         ----------
-        other
+        other: ~pyrs.dataobjects.fields.ScalarFieldSample
 
         Returns
         -------
-
+        ~pyrs.dataobjects.fields.ScalarFieldSample
         """
         if self._name != other.name:
             raise TypeError('Aggregation not allowed for ScalarFieldSample objects of different names')
