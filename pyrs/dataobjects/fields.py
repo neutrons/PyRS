@@ -264,23 +264,28 @@ class ScalarFieldSample:
         aggregate_sample = self.aggregate(other)  # combine both scalar field samples
         return aggregate_sample.coalesce(resolution=resolution, criterion=criterion)
 
-    def to_md_histo_workspace(self, name: str, units: str = 'meter') -> IMDHistoWorkspace:
+    def to_md_histo_workspace(self, name: str, units: str = 'meter',
+                              interpolate=True, keep_nan=True) -> IMDHistoWorkspace:
         r"""
         Save the scalar field into a MDHistoWorkspace
 
         Parameters
         ----------
         name: str
-            Name of the output workspace
+            Name of the output workspace.
         units: str
-            Units of the sample points
-
+            Units of the sample points.
+        interpolate: bool
+            Interpolate the scalar field sample of a regular 3D grid given by the extents of the sample points.
+        keep_nan: bool
+            Incorporate :math:`nan` found in the sample points into the interpolated field sample.
         Returns
         -------
         MDHistoWorkspace
         """
         # TODO units should be a member of this class
-        extents = self.point_list.extents  # triad of DirectionExtents objects
+        sample = self.interpolated_sample(keep_nan=keep_nan) if interpolate is True else self
+        extents = sample.point_list.extents  # triad of DirectionExtents objects
         for extent in extents:
             assert extent[0] < extent[1], f'min value of {extent} is not smaller than max value'
         extents_str = ','.join([extent.to_createmd for extent in extents])
@@ -301,8 +306,8 @@ class ScalarFieldSample:
         wksp = mtd[name]
         # set the signal and errors
         dims = [extent.number_of_bins for extent in extents]
-        wksp.setSignalArray(self.values.reshape(dims))
-        wksp.setErrorSquaredArray(np.square(self.errors.reshape(dims)))
+        wksp.setSignalArray(sample.values.reshape(dims))
+        wksp.setErrorSquaredArray(np.square(sample.errors.reshape(dims)))
 
         return wksp
 
@@ -314,11 +319,13 @@ class ScalarFieldSample:
         Export the scalar field to a particular format. Each format has additional arguments
 
         Allowed formats, along with additional arguments and return object:
-        - 'MDHistoWorkspace'
+        - 'MDHistoWorkspace' calls function `to_md_histo_workspace`
             name: str, name of the workspace
             units ('meter'): str, length units of the sample points
+            interpolate (`True`): bool, interpolate values to a regular coordinate grid
+            keep_nan (`True`): bool, transfer `nan` values to the interpolated sample
             Returns: MDHistoWorkspace, handle to the workspace
-        - 'CSV'
+        - 'CSV' calls function `to_csv`
             file: str, name of the output file
             Returns: str, the file as a string
 
