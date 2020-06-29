@@ -116,6 +116,16 @@ class TestPointList:
         for i, extent in enumerate(point_list.extents):
             assert list(extent) == pytest.approx(sample_logs_mock['extents'][i])
 
+    # TODO implement this test
+    @pytest.skip(reason='not implemented')
+    def test_linspace(self):
+        pass
+
+    # TODO implement this test
+    @pytest.skip(reason='not implemented')
+    def test_mgrid(self):
+        pass
+
 
 def test_aggregate_point_list(sample_logs_mock):
     point_list = aggregate_point_lists(*[PointList(sample_logs_mock['logs']) for _ in range(3)])  # three lists

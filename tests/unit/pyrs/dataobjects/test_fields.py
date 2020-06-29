@@ -80,6 +80,16 @@ class TestScalarFieldSample:
         field = ScalarFieldSample(*TestScalarFieldSample.sample1)
         field.z == pytest.approx(TestScalarFieldSample.sample1.z)
 
+    # TODO implement this test
+    @pytest.skip(reason='not implemented')
+    def test_isfinite(self):
+        pass
+
+    # TODO implement this test
+    @pytest.skip(reason='not implemented')
+    def test_interpolated_sample(self):
+        pass
+
     def test_extract(self):
         field = ScalarFieldSample(*TestScalarFieldSample.sample1)
         target_indexes = range(0, 10, 2)
