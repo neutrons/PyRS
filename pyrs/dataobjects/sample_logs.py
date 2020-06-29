@@ -520,6 +520,38 @@ class PointList:
         """
         return DirectionExtents(self.vx), DirectionExtents(self.vy), DirectionExtents(self.vz)
 
+    @property
+    def linspace(self):
+        r"""
+        Evenly spaced coordinates over each of the direction, using the `extents`
+
+        Uses ~numpy.linspace
+
+        Returns
+        -------
+        list
+            A three-item list where each item is a list of evenly spaced coordinates, one item per direction.
+        """
+        return [np.linspace(extent.min, extent.max, num=extent.numpoints, endpoint=True) for extent in self.extents]
+
+    @property
+    def mgrid(self):
+        r"""
+        Create a regular 3D point grid, using the `extents`.
+
+        Uses ~numpy.mgrid
+
+        Returns
+        -------
+        ~numpy.ndarray
+            A three item array, where each items is an array specifying the value of each
+            coordinate (vx, vy, or vz) at the points of the regular grid
+        """
+        x_vx, x_vy, x_vz = self.extents
+        return np.mgrid[x_vx.min: x_vx.max: complex(0, x_vx.numpoints - 1),
+                        x_vy.min: x_vy.max: complex(0, x_vy.numpoints - 1),
+                        x_vz.min: x_vz.max: complex(0, x_vz.numpoints - 1)]
+
 
 def aggregate_point_lists(*args):
     r"""
