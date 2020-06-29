@@ -15,7 +15,7 @@ If you've never used PyRS before, you can get started quickly by doing the follo
 
 .. code-block::
 
-   $ conda create -n pyrs -c mantid -c mantid/label/nightly mantid-workbench -c conda-forge
+   $ conda create -n pyrs -c mantid -c mantid/label/nightly mantid-workbench -c conda-forge  --file requirements.txt --file requirements_dev.txt
 
 3. Activate the conda environment
 
@@ -29,14 +29,16 @@ If you've never used PyRS before, you can get started quickly by doing the follo
 
    $ python setup.py develop
 
-5. From the PyRS directory, start the user interface
+5. From the PyRS directory, start the user interface (``develop`` mode puts it in your ``PATH``)
 
 .. code-block::
 
-   $ python scripts/pyrsplot
+   $ pyrsplot
 
-For those setting up in a virtual environment, the dependencies are listed in ``requirements.txt`` and ``requirements_dev.txt``.
-They can be supplide to ``conda create`` using the `--file`` argument, or to ``pip install`` using the ``-R`` argument.
+For those setting up in a virtual environment, the dependencies are
+listed in ``requirements.txt`` and ``requirements_dev.txt``.  They can
+be supplide to ``conda create`` using the `--file`` argument, or to
+``pip install`` using the ``-R`` argument.
 
 -----------------------
 Data reduction workflow
@@ -72,9 +74,18 @@ To develop
 
    $ pyrsdev.sh
 
-To run the tests
+To run all of the tests
 
 
 .. code-block::
 
-   $ pyrstest.sh
+   $ python -m pytest
+
+Running specific tests can be done `through standard ways`
+<https://docs.pytest.org/en/stable/usage.html>`_. For example
+
+.. code-block::
+
+   $ python -m pytest tests/unit
+
+will only run the unit tests
