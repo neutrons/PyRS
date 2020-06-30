@@ -47,6 +47,15 @@ class TestScalarFieldSample:
                          [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],  # z
                          )
 
+    # Points 2 and 3 overlap
+    sample5 = SampleMock('lattice',
+                         [float('nan'), 1.0, 1.0, 2.0, 3.0, float('nan'), 0.1, 1.1, 2.1, 3.1, 4.1],
+                         [0.0, 0.10, 0.11, 0.2, 0.3, 0.4, 0.1, 0.1, 0.2, 0.3, 0.4],
+                         [0.0, 1.000, 1.001, 2.0, 3.0, 4.0, 0.0, 1.0, 2.0, 3.0, 4.0],  # x
+                         [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0],  # y
+                         [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0],  # z
+                         )
+
     def test_init(self):
         assert ScalarFieldSample(*TestScalarFieldSample.sample1)
         assert ScalarFieldSample(*TestScalarFieldSample.sample2)
@@ -93,10 +102,15 @@ class TestScalarFieldSample:
         for attribute in ('values', 'errors', 'x', 'y', 'z'):
             assert getattr(field, attribute) == pytest.approx([0.1, 0.2, 0.5, 0.6])
 
-    # TODO implement this test
-    @pytest.mark.skip(reason='not implemented')
     def test_interpolated_sample(self):
-        pass
+        field = ScalarFieldSample(*TestScalarFieldSample.sample5)
+        interpolated = field.interpolated_sample(method='nearest', keep_nan=True,
+                                                 resolution=0.01, criterion='min_error')
+        assert list(np.where(np.isnan(interpolated.values))[0]) == [0, 4]
+        assert list(interpolated.coordinates[4]) == pytest.approx([4.0, 0.0, 0.0])
+        assert interpolated.values[9] == pytest.approx(2.0)
+        assert list(interpolated.coordinates[9]) == pytest.approx([4.0, 1.0, 0.0])
+        # TODO interpolation using method='linear'
 
     def test_extract(self):
         field = ScalarFieldSample(*TestScalarFieldSample.sample1)

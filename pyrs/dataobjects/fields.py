@@ -97,7 +97,9 @@ class ScalarFieldSample:
         indexes_finite = np.where(np.isfinite(self.values))[0]
         return self.extract(indexes_finite)
 
-    def interpolated_sample(self, keep_nan: bool = True, resolution: float = DEFAULT_POINT_RESOLUTION,
+    def interpolated_sample(self, method='linear', fill_value=float('nan'),
+                            keep_nan: bool = True,
+                            resolution: float = DEFAULT_POINT_RESOLUTION,
                             criterion: str = 'min_error') -> 'ScalarFieldSample':
         r"""
         Interpolate the scalar field sample of a regular 3D grid given by the extents of the sample points.
@@ -111,6 +113,10 @@ class ScalarFieldSample:
 
         Parameters
         ----------
+        method: str
+            Method of interpolation. Allowed values are 'nearest' and 'linear'
+        fill_value: float
+            Value used to fill in for requested points outside the input points.
         keep_nan: bool
             Incorporate :math:`nan` found in the sample points into the interpolated field sample.
         resolution: float
@@ -134,19 +140,20 @@ class ScalarFieldSample:
         # points (determined using `extents` of `self`) will fall outside the `extents` of `field_finite`
         # and their values will have to be filled with the `fill_value` being passed on to function `griddata`.
         xyz = field_finite.coordinates
-        values = griddata(xyz, field_finite.values, (grid_x, grid_y, grid_z), method='linear', fill_value=float('nan'))
+        values = griddata(xyz, field_finite.values, (grid_x, grid_y, grid_z), method=method, fill_value=fill_value)
+        values = values.ravel()  # values has same shape as any of the x, y, z grids
+        coordinates = np.array((grid_x, grid_y, grid_z)).T.reshape(-1, 3)
         if keep_nan is True:
             # For each sample point of `self` that has a `nan` field value, find the closest grid point and assign
             # a `nan` value to this point
             point_indexes_with_nan = np.where(np.isnan(self.values))[0]  # points of `self` with field values of `nan`
             if len(point_indexes_with_nan) > 0:
-                coordinates = np.array(self.point_list.linspace(resolution=resolution)).transpose()
                 coordinates_with_nan = self.coordinates[point_indexes_with_nan]
                 _, grid_indexes = cKDTree(coordinates).query(coordinates_with_nan, k=1)
                 values[grid_indexes] = float('nan')
-        errors = griddata(xyz, field_finite.errors, (grid_x, grid_y, grid_z), method='linear', fill_value=float('nan'))
-        return ScalarFieldSample(self.name, values, errors, self.point_list.linspace(resolution=resolution))
-
+        errors = griddata(xyz, field_finite.errors, (grid_x, grid_y, grid_z), method=method, fill_value=fill_value)
+        errors = errors.ravel()
+        return ScalarFieldSample(self.name, values, errors, *list(coordinates.T))
 
     def extract(self, target_indexes: List[int]) -> 'ScalarFieldSample':
         r"""
