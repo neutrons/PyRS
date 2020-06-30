@@ -585,9 +585,9 @@ class PointList:
             coordinate (vx, vy, or vz) at the points of the regular grid
         """
         x_vx, x_vy, x_vz = self.extents(resolution=resolution)
-        return np.mgrid[x_vx.min: x_vx.max: complex(0, x_vx.numpoints),
-                        x_vy.min: x_vy.max: complex(0, x_vy.numpoints),
-                        x_vz.min: x_vz.max: complex(0, x_vz.numpoints)]
+        return np.mgrid[x_vx.min: x_vx.max: complex(0, x_vx.numpoints),  # type: ignore
+                        x_vy.min: x_vy.max: complex(0, x_vy.numpoints),  # type: ignore
+                        x_vz.min: x_vz.max: complex(0, x_vz.numpoints)]  # type: ignore
 
 
 def aggregate_point_lists(*args):
