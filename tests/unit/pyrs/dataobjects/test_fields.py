@@ -39,6 +39,14 @@ class TestScalarFieldSample:
                          [2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5],  # z
                          )
 
+    sample4 = SampleMock('strain',
+                         [float('nan'), 0.1, 0.2, float('nan'), float('nan'), 0.5, 0.6, float('nan')],  # values
+                         [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],  # errors
+                         [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],  # x
+                         [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],  # y
+                         [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],  # z
+                         )
+
     def test_init(self):
         assert ScalarFieldSample(*TestScalarFieldSample.sample1)
         assert ScalarFieldSample(*TestScalarFieldSample.sample2)
@@ -80,10 +88,10 @@ class TestScalarFieldSample:
         field = ScalarFieldSample(*TestScalarFieldSample.sample1)
         field.z == pytest.approx(TestScalarFieldSample.sample1.z)
 
-    # TODO implement this test
-    @pytest.mark.skip(reason='not implemented')
     def test_isfinite(self):
-        pass
+        field = ScalarFieldSample(*TestScalarFieldSample.sample4).isfinite
+        for attribute in ('values', 'errors', 'x', 'y', 'z'):
+            assert getattr(field, attribute) == pytest.approx([0.1, 0.2, 0.5, 0.6])
 
     # TODO implement this test
     @pytest.mark.skip(reason='not implemented')
@@ -159,7 +167,7 @@ class TestScalarFieldSample:
     def test_to_md(self):
         field = ScalarFieldSample(*TestScalarFieldSample.sample3)
         assert field
-        histo = field.to_md_histo_workspace('sample3')
+        histo = field.to_md_histo_workspace('sample3', interpolate=False)
         assert histo
         assert histo.id() == 'MDHistoWorkspace'
 

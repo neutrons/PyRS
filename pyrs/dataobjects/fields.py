@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.interpolate import griddata
 from scipy.spatial import cKDTree
-from typing import TYPE_CHECKING, cast, List, Optional, Tuple Union
+from typing import TYPE_CHECKING, cast, List, Optional, Tuple, Union
 from uncertainties import unumpy
 
 from mantid.simpleapi import mtd, CreateMDWorkspace, BinMD
@@ -88,13 +88,14 @@ class ScalarFieldSample:
     @property
     def isfinite(self):
         r"""
-        Clean the scalar field values of non-finite values, such as :math:`nan`.
+        Filterout scalar field values with non-finite values, such as :math:`nan`.
 
         Returns
         -------
         ~pyrs.dataobjects.fields.ScalarFieldSample
         """
-        pass
+        indexes_finite = np.where(np.isfinite(self.values))[0]
+        return self.extract(indexes_finite)
 
     def interpolated_sample(self, keep_nan: bool = True, resolution: float = DEFAULT_POINT_RESOLUTION,
                             criterion: str = 'min_error') -> 'ScalarFieldSample':
