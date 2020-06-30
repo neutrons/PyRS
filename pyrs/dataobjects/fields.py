@@ -86,9 +86,9 @@ class ScalarFieldSample:
         return self._point_list.vz
 
     @property
-    def isfinite(self):
+    def isfinite(self) -> 'ScalarFieldSample':
         r"""
-        Filterout scalar field values with non-finite values, such as :math:`nan`.
+        Filter out scalar field values with non-finite values, such as :math:`nan`.
 
         Returns
         -------
@@ -97,7 +97,8 @@ class ScalarFieldSample:
         indexes_finite = np.where(np.isfinite(self.values))[0]
         return self.extract(indexes_finite)
 
-    def interpolated_sample(self, method='linear', fill_value=float('nan'),
+    def interpolated_sample(self,
+                            method: str = 'linear', fill_value: float = float('nan'),
                             keep_nan: bool = True,
                             resolution: float = DEFAULT_POINT_RESOLUTION,
                             criterion: str = 'min_error') -> 'ScalarFieldSample':
@@ -262,8 +263,7 @@ class ScalarFieldSample:
         return self.extract(sorted(target_indexes))
 
     def fuse(self, other: 'ScalarFieldSample',
-             resolution: float = DEFAULT_POINT_RESOLUTION,
-             criterion: str = 'min_error') -> 'ScalarFieldSample':
+             resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = 'min_error') -> 'ScalarFieldSample':
         r"""
         Bring in another scalar field sample and resolve the overlaps according to a selection criteria.
 
@@ -287,15 +287,16 @@ class ScalarFieldSample:
         return aggregate_sample.coalesce(resolution=resolution, criterion=criterion)
 
     def to_md_histo_workspace(self, name: str, units: str = 'meter',
-                              interpolate=True, keep_nan=True,
-                              resolution: float = DEFAULT_POINT_RESOLUTION,
-                              criterion: str = 'min_error'
+                              interpolate=True,
+                              method: str = 'linear', fill_value: float = float('nan'), keep_nan: bool = True,
+                              resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = 'min_error'
                               ) -> IMDHistoWorkspace:
         r"""
         Save the scalar field into a MDHistoWorkspace. Interpolation of the sample points is carried out
         by default.
 
-        Parameters `keep_nan`, `resolution` , and `criterion` are  used only if `interpolate` is `True`.
+        Parameters `method`, `fill_value`, `keep_nan`, `resolution` , and `criterion` are  used only if
+        `interpolate` is `True`.
 
         Parameters
         ----------
@@ -305,6 +306,10 @@ class ScalarFieldSample:
             Units of the sample points.
         interpolate: bool
             Interpolate the scalar field sample of a regular 3D grid given by the extents of the sample points.
+        method: str
+            Method of interpolation. Allowed values are 'nearest' and 'linear'
+        fill_value: float
+            Value used to fill in for requested points outside the input points.
         keep_nan: bool
             Incorporate :math:`nan` found in the sample points into the interpolated field sample.
         resolution: float
@@ -348,7 +353,7 @@ class ScalarFieldSample:
 
         return wksp
 
-    def to_csv(self, file):
+    def to_csv(self, file: str):
         raise NotImplementedError('This functionality has yet to be implemented')
 
     def export(self, *args, form='MDHistoWokspace', **kwargs):
@@ -360,6 +365,8 @@ class ScalarFieldSample:
             name: str, name of the workspace
             units ('meter'): str, length units of the sample points
             interpolate (`True`): bool, interpolate values to a regular coordinate grid
+            method: ('linear'): str, method of interpolation. Allowed values are 'nearest' and 'linear'
+            fill_value: (float('nan'): float, value used to fill in for requested points outside the input points.
             keep_nan (`True`): bool, transfer `nan` values to the interpolated sample
             Returns: MDHistoWorkspace, handle to the workspace
         - 'CSV' calls function `to_csv`

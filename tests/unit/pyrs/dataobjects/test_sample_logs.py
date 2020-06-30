@@ -19,7 +19,8 @@ class TestDirectionExtents:
 
         too_close_together = 0.1 * DEFAULT_POINT_RESOLUTION
         d = DirectionExtents(np.arange(0, 1, too_close_together))
-        assert d.numpoints == int(1 / DEFAULT_POINT_RESOLUTION)  # we cannot resolve more coords than those limited by the precision
+        # we cannot resolve more coords than those limited by the precision
+        assert d.numpoints == int(1 / DEFAULT_POINT_RESOLUTION)
         assert list(d) == [0, 1 - too_close_together, (1 - too_close_together) / (d.numpoints - 1)]
 
     def test_to_createmd(self):

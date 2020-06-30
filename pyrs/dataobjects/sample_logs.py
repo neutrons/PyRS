@@ -543,10 +543,10 @@ class PointList:
             three-item list, where each item is an object of type ~pyrs.dataobjects.sample_logs.DirectionExtents.
         """
         return DirectionExtents(self.vx, resolution=resolution),\
-               DirectionExtents(self.vy, resolution=resolution),\
-               DirectionExtents(self.vz, resolution=resolution)
+            DirectionExtents(self.vy, resolution=resolution),\
+            DirectionExtents(self.vz, resolution=resolution)
 
-    def linspace(self, resolution=DEFAULT_POINT_RESOLUTION):
+    def linspace(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> List[np.ndarray]:
         r"""
         Evenly spaced coordinates over each of the direction, using the `extents`
 
@@ -566,7 +566,7 @@ class PointList:
         extents = self.extents(resolution=resolution)
         return [np.linspace(extent.min, extent.max, num=extent.numpoints, endpoint=True) for extent in extents]
 
-    def mgrid(self, resolution=DEFAULT_POINT_RESOLUTION):
+    def mgrid(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> np.ndarray:
         r"""
         Create a regular 3D point grid, using the `extents`.
 
