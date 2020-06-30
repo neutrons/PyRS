@@ -130,6 +130,8 @@ class ScalarFieldSample:
         -------
         ~pyrs.dataobjects.fields.ScalarFieldSample
         """
+        # TODO smarten the algorithm: are self.x(.y,.z) already a regular 3D lattice?
+        # TODO deal with corner case when self.x (or .y or .z) only have one unique coordinate value
         # regular 3D grids using the `extents` of the sample points
         grid_x, grid_y, grid_z = self.point_list.mgrid(resolution=resolution)
         field_finite = self.isfinite  # We need to remove non-finite values prior to interpolation
