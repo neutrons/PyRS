@@ -224,19 +224,25 @@ class DirectionExtents(_DirectionExtents):
         delta: average spacing between unique sample positions sampled
     """
 
-    precision = 1.e-03  # two coordinates values differing by less that this amount are considered the same value
+    def __new__(cls, coordinates: List[float], resolution=DEFAULT_POINT_RESOLUTION):
+        r"""
 
-    def __new__(cls, coordinates: List[float]):
+        Parameters
+        ----------
+        coordinates: list
+        resolution: float
+            Two coordinates are considered the same if their distance is less than this value.
+        """
         min_coord = np.min(coordinates)
         max_coord = np.max(coordinates)
-        # unique number of different coordinates using and assumed precision in the coordinate values
-        coordinates_count_unique = len(set([int(x / cls.precision) for x in coordinates]))
+        coordinates_count_unique = len(set([int(x / resolution) for x in coordinates]))
         assert coordinates_count_unique > 1, 'We could not resolve more than one coordinate'
         # delta is the spacing between unique coordinates
         delta = (max_coord - min_coord) / (coordinates_count_unique - 1)
 
         extents_tuple = super(DirectionExtents, cls).__new__(cls, min_coord, max_coord, delta)
         super(DirectionExtents, cls).__setattr__(extents_tuple, '_numpoints', coordinates_count_unique)
+        super(DirectionExtents, cls).__setattr__(extents_tuple, '_resolution', resolution)
         return extents_tuple
 
     @property
@@ -252,6 +258,13 @@ class DirectionExtents(_DirectionExtents):
         Number of spacings separating consecutive bin boundaries
         """
         return self._numpoints  # same as number of center points
+
+    @property
+    def resolution(self):
+        r"""
+        Discriminating distance to assert if two original coordinate values were one and the same
+        """
+        return self._resolution  # same as number of center points
 
     @property
     def to_createmd(self) -> str:
@@ -279,6 +292,9 @@ class DirectionExtents(_DirectionExtents):
         str
         """
         return f'{self.to_createmd},{self.number_of_bins}'
+
+
+ExtentTriad = Tuple[DirectionExtents, DirectionExtents, DirectionExtents]  # a shortcut
 
 
 class PointList:
@@ -507,18 +523,71 @@ class PointList:
         points_unique_coordinates = self.aggregate(other).coordinates[points_unique_indexes]
         return PointList(points_unique_coordinates.transpose())  # needed (3 x number_common_points) shaped array
 
-    @property
-    def extents(self) -> Tuple[DirectionExtents, DirectionExtents, DirectionExtents]:
+    def extents(self, resolution=DEFAULT_POINT_RESOLUTION) -> ExtentTriad:
         r"""
         Extents along each direction. Each extent is composed of the minimum and maximum coordinates,
         as well a coordinate increment.
+
+        A resolution distance is needed to discriminate among coordinate values that are considered
+        too close. Two coordinates within a `resolution` distance are considered one and the same.
+        The number of unique coordinate values is used to determine the coordinate increment.
+
+        Parameters
+        ----------
+        resolution: float
+            Two coordinates are considered the same if their distance is less than this value.
 
         Returns
         -------
         list
             three-item list, where each item is an object of type ~pyrs.dataobjects.sample_logs.DirectionExtents.
         """
-        return DirectionExtents(self.vx), DirectionExtents(self.vy), DirectionExtents(self.vz)
+        return DirectionExtents(self.vx, resolution=resolution),\
+            DirectionExtents(self.vy, resolution=resolution),\
+            DirectionExtents(self.vz, resolution=resolution)
+
+    def linspace(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> List[np.ndarray]:
+        r"""
+        Evenly spaced coordinates over each of the direction, using the `extents`
+
+        Uses ~numpy.linspace
+
+        Parameters
+        ----------
+        resolution: float
+            Two coordinates are considered the same if their distance is less than this value. Determines the
+            coordinate increment in the extents.
+
+        Returns
+        -------
+        list
+            A three-item list where each item is a list of evenly spaced coordinates, one item per direction.
+        """
+        extents = self.extents(resolution=resolution)
+        return [np.linspace(extent.min, extent.max, num=extent.numpoints, endpoint=True) for extent in extents]
+
+    def mgrid(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> np.ndarray:
+        r"""
+        Create a regular 3D point grid, using the `extents`.
+
+        Uses ~numpy.mgrid
+
+        Parameters
+        ----------
+        resolution: float
+            Two coordinates are considered the same if their distance is less than this value. Determines the
+            coordinate increment in the extents.
+
+        Returns
+        -------
+        ~numpy.ndarray
+            A three item array, where each items is an array specifying the value of each
+            coordinate (vx, vy, or vz) at the points of the regular grid
+        """
+        x_vx, x_vy, x_vz = self.extents(resolution=resolution)
+        return np.mgrid[x_vx.min: x_vx.max: complex(0, x_vx.numpoints),  # type: ignore
+                        x_vy.min: x_vy.max: complex(0, x_vy.numpoints),  # type: ignore
+                        x_vz.min: x_vz.max: complex(0, x_vz.numpoints)]  # type: ignore
 
 
 def aggregate_point_lists(*args):

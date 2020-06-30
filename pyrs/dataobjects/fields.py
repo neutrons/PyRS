@@ -1,4 +1,6 @@
 import numpy as np
+from scipy.interpolate import griddata
+from scipy.spatial import cKDTree
 from typing import TYPE_CHECKING, cast, List, Optional, Tuple, Union
 from uncertainties import unumpy
 
@@ -83,6 +85,79 @@ class ScalarFieldSample:
     def z(self) -> List[float]:
         return self._point_list.vz
 
+    @property
+    def isfinite(self) -> 'ScalarFieldSample':
+        r"""
+        Filter out scalar field values with non-finite values, such as :math:`nan`.
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.ScalarFieldSample
+        """
+        indexes_finite = np.where(np.isfinite(self.values))[0]
+        return self.extract(indexes_finite)
+
+    def interpolated_sample(self,
+                            method: str = 'linear', fill_value: float = float('nan'),
+                            keep_nan: bool = True,
+                            resolution: float = DEFAULT_POINT_RESOLUTION,
+                            criterion: str = 'min_error') -> 'ScalarFieldSample':
+        r"""
+        Interpolate the scalar field sample of a regular 3D grid given by the extents of the sample points.
+
+        :math:`nan` values are disregarded when doing the interpolation, but they can be incorporated into
+        the interpolated values by finding the point in the regular grid closest to a sample point
+        containing a :math:`nan` value.
+
+        When the scalar field contains two sample points within `resolution` distance, only one can
+        be chosen as data point for the interpolation.
+
+        Parameters
+        ----------
+        method: str
+            Method of interpolation. Allowed values are 'nearest' and 'linear'
+        fill_value: float
+            Value used to fill in for requested points outside the input points.
+        keep_nan: bool
+            Incorporate :math:`nan` found in the sample points into the interpolated field sample.
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity.
+        criterion: str
+            Criterion by which to resolve which out of two (or more) samples is selected, while the rest is
+            discarded. Possible values are:
+            'min_error': the sample with the minimal uncertainty is selected.
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.ScalarFieldSample
+        """
+        # TODO smarten the algorithm: are self.x(.y,.z) already a regular 3D lattice?
+        # TODO deal with corner case when self.x (or .y or .z) only have one unique coordinate value
+        # regular 3D grids using the `extents` of the sample points
+        grid_x, grid_y, grid_z = self.point_list.mgrid(resolution=resolution)
+        field_finite = self.isfinite  # We need to remove non-finite values prior to interpolation
+        field_finite = field_finite.coalesce(resolution=resolution, criterion=criterion)  # for neighbor sample points
+        # Corner case: if scalar field sample `self` has `nan` values at the extrema of its extents,
+        # then removing these non-finite values will result in scalar field sample `field_finite`
+        # having `extents` smaller than those of`self`. Later when interpolating, some of the grid
+        # points (determined using `extents` of `self`) will fall outside the `extents` of `field_finite`
+        # and their values will have to be filled with the `fill_value` being passed on to function `griddata`.
+        xyz = field_finite.coordinates
+        values = griddata(xyz, field_finite.values, (grid_x, grid_y, grid_z), method=method, fill_value=fill_value)
+        values = values.ravel()  # values has same shape as any of the x, y, z grids
+        coordinates = np.array((grid_x, grid_y, grid_z)).T.reshape(-1, 3)
+        if keep_nan is True:
+            # For each sample point of `self` that has a `nan` field value, find the closest grid point and assign
+            # a `nan` value to this point
+            point_indexes_with_nan = np.where(np.isnan(self.values))[0]  # points of `self` with field values of `nan`
+            if len(point_indexes_with_nan) > 0:
+                coordinates_with_nan = self.coordinates[point_indexes_with_nan]
+                _, grid_indexes = cKDTree(coordinates).query(coordinates_with_nan, k=1)
+                values[grid_indexes] = float('nan')
+        errors = griddata(xyz, field_finite.errors, (grid_x, grid_y, grid_z), method=method, fill_value=fill_value)
+        errors = errors.ravel()
+        return ScalarFieldSample(self.name, values, errors, *list(coordinates.T))
+
     def extract(self, target_indexes: List[int]) -> 'ScalarFieldSample':
         r"""
         Create a scalar field sample with a subset of the sampled points.
@@ -90,10 +165,11 @@ class ScalarFieldSample:
         Parameters
         ----------
         target_indexes: list
+            List of sample point indexes to extract field values from.
 
         Returns
         -------
-
+        ~pyrs.dataobjects.fields.ScalarFieldSample
         """
 
         subset = {}
@@ -109,11 +185,11 @@ class ScalarFieldSample:
 
         Parameters
         ----------
-        other
+        other: ~pyrs.dataobjects.fields.ScalarFieldSample
 
         Returns
         -------
-
+        ~pyrs.dataobjects.fields.ScalarFieldSample
         """
         if self._name != other.name:
             raise TypeError('Aggregation not allowed for ScalarFieldSample objects of different names')
@@ -187,8 +263,7 @@ class ScalarFieldSample:
         return self.extract(sorted(target_indexes))
 
     def fuse(self, other: 'ScalarFieldSample',
-             resolution: float = DEFAULT_POINT_RESOLUTION,
-             criterion: str = 'min_error') -> 'ScalarFieldSample':
+             resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = 'min_error') -> 'ScalarFieldSample':
         r"""
         Bring in another scalar field sample and resolve the overlaps according to a selection criteria.
 
@@ -211,23 +286,48 @@ class ScalarFieldSample:
         aggregate_sample = self.aggregate(other)  # combine both scalar field samples
         return aggregate_sample.coalesce(resolution=resolution, criterion=criterion)
 
-    def to_md_histo_workspace(self, name: str, units: str = 'meter') -> IMDHistoWorkspace:
+    def to_md_histo_workspace(self, name: str, units: str = 'meter',
+                              interpolate=True,
+                              method: str = 'linear', fill_value: float = float('nan'), keep_nan: bool = True,
+                              resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = 'min_error'
+                              ) -> IMDHistoWorkspace:
         r"""
-        Save the scalar field into a MDHistoWorkspace
+        Save the scalar field into a MDHistoWorkspace. Interpolation of the sample points is carried out
+        by default.
+
+        Parameters `method`, `fill_value`, `keep_nan`, `resolution` , and `criterion` are  used only if
+        `interpolate` is `True`.
 
         Parameters
         ----------
         name: str
-            Name of the output workspace
+            Name of the output workspace.
         units: str
-            Units of the sample points
-
+            Units of the sample points.
+        interpolate: bool
+            Interpolate the scalar field sample of a regular 3D grid given by the extents of the sample points.
+        method: str
+            Method of interpolation. Allowed values are 'nearest' and 'linear'
+        fill_value: float
+            Value used to fill in for requested points outside the input points.
+        keep_nan: bool
+            Incorporate :math:`nan` found in the sample points into the interpolated field sample.
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity.
+        criterion: str
+            Criterion by which to resolve which out of two (or more) samples is selected, while the rest is
+            discarded. Possible values are:
+            'min_error': the sample with the minimal uncertainty is selected.
         Returns
         -------
         MDHistoWorkspace
         """
         # TODO units should be a member of this class
-        extents = self.point_list.extents  # triad of DirectionExtents objects
+        if interpolate is True:
+            sample = self.interpolated_sample(keep_nan=keep_nan, resolution=resolution, criterion=criterion)
+        else:
+            sample = self
+        extents = sample.point_list.extents(resolution=resolution)  # triad of DirectionExtents objects
         for extent in extents:
             assert extent[0] < extent[1], f'min value of {extent} is not smaller than max value'
         extents_str = ','.join([extent.to_createmd for extent in extents])
@@ -248,12 +348,12 @@ class ScalarFieldSample:
         wksp = mtd[name]
         # set the signal and errors
         dims = [extent.number_of_bins for extent in extents]
-        wksp.setSignalArray(self.values.reshape(dims))
-        wksp.setErrorSquaredArray(np.square(self.errors.reshape(dims)))
+        wksp.setSignalArray(sample.values.reshape(dims))
+        wksp.setErrorSquaredArray(np.square(sample.errors.reshape(dims)))
 
         return wksp
 
-    def to_csv(self, file):
+    def to_csv(self, file: str):
         raise NotImplementedError('This functionality has yet to be implemented')
 
     def export(self, *args, form='MDHistoWokspace', **kwargs):
@@ -261,11 +361,15 @@ class ScalarFieldSample:
         Export the scalar field to a particular format. Each format has additional arguments
 
         Allowed formats, along with additional arguments and return object:
-        - 'MDHistoWorkspace'
+        - 'MDHistoWorkspace' calls function `to_md_histo_workspace`
             name: str, name of the workspace
             units ('meter'): str, length units of the sample points
+            interpolate (`True`): bool, interpolate values to a regular coordinate grid
+            method: ('linear'): str, method of interpolation. Allowed values are 'nearest' and 'linear'
+            fill_value: (float('nan'): float, value used to fill in for requested points outside the input points.
+            keep_nan (`True`): bool, transfer `nan` values to the interpolated sample
             Returns: MDHistoWorkspace, handle to the workspace
-        - 'CSV'
+        - 'CSV' calls function `to_csv`
             file: str, name of the output file
             Returns: str, the file as a string
 

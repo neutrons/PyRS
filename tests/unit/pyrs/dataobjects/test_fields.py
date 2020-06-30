@@ -39,6 +39,23 @@ class TestScalarFieldSample:
                          [2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5],  # z
                          )
 
+    sample4 = SampleMock('strain',
+                         [float('nan'), 0.1, 0.2, float('nan'), float('nan'), 0.5, 0.6, float('nan')],  # values
+                         [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],  # errors
+                         [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],  # x
+                         [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],  # y
+                         [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],  # z
+                         )
+
+    # Points 2 and 3 overlap
+    sample5 = SampleMock('lattice',
+                         [float('nan'), 1.0, 1.0, 2.0, 3.0, float('nan'), 0.1, 1.1, 2.1, 3.1, 4.1],
+                         [0.0, 0.10, 0.11, 0.2, 0.3, 0.4, 0.1, 0.1, 0.2, 0.3, 0.4],
+                         [0.0, 1.000, 1.001, 2.0, 3.0, 4.0, 0.0, 1.0, 2.0, 3.0, 4.0],  # x
+                         [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0],  # y
+                         [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0],  # z
+                         )
+
     def test_init(self):
         assert ScalarFieldSample(*TestScalarFieldSample.sample1)
         assert ScalarFieldSample(*TestScalarFieldSample.sample2)
@@ -79,6 +96,21 @@ class TestScalarFieldSample:
     def test_z(self):
         field = ScalarFieldSample(*TestScalarFieldSample.sample1)
         field.z == pytest.approx(TestScalarFieldSample.sample1.z)
+
+    def test_isfinite(self):
+        field = ScalarFieldSample(*TestScalarFieldSample.sample4).isfinite
+        for attribute in ('values', 'errors', 'x', 'y', 'z'):
+            assert getattr(field, attribute) == pytest.approx([0.1, 0.2, 0.5, 0.6])
+
+    def test_interpolated_sample(self):
+        field = ScalarFieldSample(*TestScalarFieldSample.sample5)
+        interpolated = field.interpolated_sample(method='nearest', keep_nan=True,
+                                                 resolution=0.01, criterion='min_error')
+        assert list(np.where(np.isnan(interpolated.values))[0]) == [0, 4]
+        assert list(interpolated.coordinates[4]) == pytest.approx([4.0, 0.0, 0.0])
+        assert interpolated.values[9] == pytest.approx(2.0)
+        assert list(interpolated.coordinates[9]) == pytest.approx([4.0, 1.0, 0.0])
+        # TODO interpolation using method='linear'
 
     def test_extract(self):
         field = ScalarFieldSample(*TestScalarFieldSample.sample1)
@@ -149,7 +181,7 @@ class TestScalarFieldSample:
     def test_to_md(self):
         field = ScalarFieldSample(*TestScalarFieldSample.sample3)
         assert field
-        histo = field.to_md_histo_workspace('sample3')
+        histo = field.to_md_histo_workspace('sample3', interpolate=False)
         assert histo
         assert histo.id() == 'MDHistoWorkspace'
 
@@ -257,10 +289,32 @@ def field_sample_collection():
 
 
 def test_stack_scalar_field_samples(field_sample_collection):
+    # test stacking with the 'common' mode
     sample1 = ScalarFieldSample(*field_sample_collection['sample1'])
     sample2 = ScalarFieldSample(*field_sample_collection['sample2'])
     sample3 = ScalarFieldSample(*field_sample_collection['sample3'])
-    sample1, sample2, sample3 = stack_scalar_field_samples(sample1, sample2, sample3)
+    sample1, sample2, sample3 = stack_scalar_field_samples(sample1, sample2, sample3, stack_mode='common')
+
+    for sample in (sample1, sample2, sample3):
+        assert len(sample) == 6
+        assert sample.x == pytest.approx([5.0, 4.0, 3.003, 2.003, 1.003, 0.003])
+
+    # Assert evaluations for sample1
+    sample1_values = [1.05, 1.04, 1.03, 1.02, 1.01, 1.0]
+    assert np.allclose(sample1.values, sample1_values)
+    # Assert evaluations for sample2
+    sample2_values = [1.12, 1.11, 1.1, 1.091, 1.081, 1.071]
+    assert np.allclose(sample2.values, sample2_values)
+    # Assert evaluations for sample3
+    sample3_values = [1.05, 1.04, 1.03, 1.02, 1.01, 1.0]
+    assert np.allclose(sample3.values, sample3_values)
+
+    # test stacking with the 'complete' mode
+    sample1 = ScalarFieldSample(*field_sample_collection['sample1'])
+    sample2 = ScalarFieldSample(*field_sample_collection['sample2'])
+    sample3 = ScalarFieldSample(*field_sample_collection['sample3'])
+    sample1, sample2, sample3 = stack_scalar_field_samples(sample1, sample2, sample3, stack_mode='complete')
+
     for sample in (sample1, sample2, sample3):
         assert len(sample) == 14
         try:
