@@ -4,7 +4,8 @@ from qtpy.QtWidgets import (QHBoxLayout, QVBoxLayout, QLabel, QWidget,
                             QGroupBox, QSplitter, QTabWidget,
                             QTableWidget, QTableWidgetItem,
                             QFormLayout, QFileDialog,
-                            QStyledItemDelegate, QDoubleSpinBox)
+                            QStyledItemDelegate, QDoubleSpinBox,
+                            QStackedWidget)
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtGui import QDoubleValidator
 import numpy as np
@@ -35,6 +36,7 @@ class FileLoad(QWidget):
         if fileName:
             self.lineEdit.setText(fileName)
             self.parent.controller.fileSelected(self.name, fileName)
+            self.parent.update_plot()
 
 
 class DimSwitch(QWidget):
@@ -150,13 +152,13 @@ class D0(QGroupBox):
             self.d0_grid.setItem(n, 1, QTableWidgetItem(d0_item))
         self.d0_grid.cellChanged.connect(self.cellChanged)
         self.d0_grid.cellChanged.emit(0, 0)
+        self._parent.update_plot()
 
     def get_d0(self):
         return [float(self.d0_grid.item(n, 1).text()) for n in range(self.d0_grid.rowCount())]
 
     def cellChanged(self, row, column):
         self.d0.clear()
-        print(row, column, float(self.d0_grid.item(row, column).text()))
         self._parent.controller.update_d0(self.get_d0())
 
 
@@ -165,9 +167,9 @@ class FileLoading(QGroupBox):
         super().__init__(parent)
         self.setTitle("Define Project Files")
         layout = QVBoxLayout()
-        self.file_load_e11 = FileLoad("ε11", parent=parent)
-        self.file_load_e22 = FileLoad("ε22", parent=parent)
-        self.file_load_e33 = FileLoad("ε33", parent=parent)
+        self.file_load_e11 = FileLoad("e11", parent=parent)
+        self.file_load_e22 = FileLoad("e22", parent=parent)
+        self.file_load_e33 = FileLoad("e33", parent=parent)
         self.file_load_e33.setDisabled(True)
         layout.addWidget(self.file_load_e11)
         layout.addWidget(self.file_load_e22)
@@ -224,13 +226,14 @@ class PlotSelect(QGroupBox):
                                   "integrated intensity",
                                   "strain",
                                   "stress"])
+        self.plot_param.setCurrentIndex(5)
         self.setStressEnabled(False)
         layout.addRow(QLabel("Plot"), self.plot_param)
-        measure_dir = QComboBox()
-        measure_dir.addItems(["11",
-                              "22",
-                              "33"])
-        layout.addRow(QLabel("Measurement Direction "), measure_dir)
+        self.measure_dir = QComboBox()
+        self.measure_dir.addItems(["11",
+                                   "22",
+                                   "33"])
+        layout.addRow(QLabel("Measurement Direction "), self.measure_dir)
         self.setLayout(layout)
 
     def setStressEnabled(self, enabled=True):
@@ -243,6 +246,12 @@ class PlotSelect(QGroupBox):
                                                      Qt.ItemIsEnabled)
         else:
             self.plot_param.model().item(6).setFlags(Qt.NoItemFlags)
+
+    def get_direction(self):
+        return self.measure_dir.currentText()
+
+    def get_plot_param(self):
+        return self.plot_param.currentText()
 
 
 class PeakSelection(QGroupBox):
@@ -265,9 +274,9 @@ class PeakSelection(QGroupBox):
 class VizTabs(QTabWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.plot_2d = QWidget()
-        self.plot_2d_layout = QVBoxLayout()
-        self.plot_2d.setLayout(self.plot_2d_layout)
+        self.strainSliceViewer = None
+
+        self.plot_2d = QStackedWidget()
 
         self.addTab(self.plot_2d, "2D")
         self.addTab(QWidget(), "3D")
@@ -275,12 +284,13 @@ class VizTabs(QTabWidget):
         self.setCornerWidget(QLabel("Visualization Pane    "), corner=Qt.TopLeftCorner)
 
     def set_ws(self, ws):
-        ssv = StrainSliceViewer(ws, parent=self)
-        # Remove all previous widgets
-        for child in self.plot_2d_layout.children():
-            self.plot_2d_layout.removeWidget(child)
-        # add in new viewer
-        self.plot_2d_layout.addWidget(ssv.view)
+        if self.strainSliceViewer:
+            self.plot_2d.removeWidget(self.strainSliceViewer)
+        if ws:
+            self.strainSliceViewer = StrainSliceViewer(ws, parent=self).view
+            self.plot_2d.addWidget(self.strainSliceViewer)
+        else:
+            self.strainSliceViewer = None
 
 
 class StrainStressViewer(QSplitter):
@@ -326,6 +336,7 @@ class StrainStressViewer(QSplitter):
         right_layout = QVBoxLayout()
 
         self.plot_select = PlotSelect(self)
+        self.plot_select.measure_dir.currentTextChanged.connect(self.update_plot)
         right_layout.addWidget(self.plot_select)
 
         self.viz_tab = VizTabs(self)
@@ -348,6 +359,16 @@ class StrainStressViewer(QSplitter):
     def dimChanged(self, bool2d):
         self.fileLoading.file_load_e33.setDisabled(bool2d)
         self.viz_tab.setTabEnabled(1, not bool2d)
+
+    def measure_dir_changed(self):
+        self.update_plot()
+
+    def update_plot(self):
+        try:
+            self.viz_tab.set_ws(self.model.get_field_md(direction=self.plot_select.get_direction(),
+                                                        plot_param=self.plot_select.get_plot_param()))
+        except KeyError:
+            self.viz_tab.set_ws(None)
 
     def updatePropertyFromModel(self, name):
         setattr(self, name, getattr(self.model, name))

@@ -1,21 +1,8 @@
 import numpy as np
-from pyrs.core.strain_stress_calculator import _to_md
-from pyrs.dataobjects.sample_logs import DirectionExtents
+from pyrs.dataobjects.fields import StrainField
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
+from pyrs.core.workspaces import HidraWorkspace
 from qtpy.QtCore import Signal, QObject
-
-
-def get_test_ws():
-    wksp_name = 'test_simple'
-    xyz = [list(range(0, 10)), list(range(10, 20)), list(range(20, 30))]
-    extents = tuple([DirectionExtents(coordinates) for coordinates in xyz])
-
-    # we have one signal and one error for each of the 10 x 10 x 10 xyz coordinates
-    signal, errors = np.random.normal(size=1000), np.zeros(1000, dtype=float)
-
-    # create MDhisto
-    ws = _to_md(wksp_name, extents, signal, errors, units='mm,mm,mm')
-    return ws
 
 
 class Model(QObject):
@@ -23,12 +10,9 @@ class Model(QObject):
 
     def __init__(self):
         super().__init__()
-        self._e11 = None
-        self._e22 = None
-        self._e33 = None
-        self._e11_logs = None
-        self._e22_logs = None
-        self._e33_logs = None
+        self._e11 = HidraWorkspace('11')
+        self._e22 = HidraWorkspace('22')
+        self._e33 = HidraWorkspace('33')
         self._e11_peaks = dict()
         self._e22_peaks = dict()
         self._e33_peaks = dict()
@@ -46,17 +30,14 @@ class Model(QObject):
     def e11_peaks(self):
         return self._e11_peaks
 
-    @property
-    def e11_logs(self):
-        return self._e11_logs
-
     @e11.setter
     def e11(self, filename):
-        self._e11 = HidraProjectFile(filename, mode=HidraProjectFileMode.READONLY)
-        self._e11_logs = self._e11.read_sample_logs()
+        source_project = HidraProjectFile(filename, mode=HidraProjectFileMode.READONLY)
+        self._e11 = HidraWorkspace('11')
+        self._e11.load_hidra_project(source_project, False, False)
         self._e11_peaks = dict()  # clear out existing peaks
-        for peak in self._e11.read_peak_tags():
-            self._e11_peaks[peak] = self._e11.read_peak_parameters(peak)
+        for peak in source_project.read_peak_tags():
+            self._e11_peaks[peak] = source_project.read_peak_parameters(peak)
         self._peakTags = list(self._e11_peaks.keys())
         self.propertyUpdated.emit("peakTags")
 
@@ -66,19 +47,16 @@ class Model(QObject):
 
     @property
     def e22_peaks(self):
-        return self._e11_peaks
-
-    @property
-    def e22_logs(self):
-        return self._e11_logs
+        return self._e22_peaks
 
     @e22.setter
     def e22(self, filename):
-        self._e22 = HidraProjectFile(filename, mode=HidraProjectFileMode.READONLY)
-        self._e22_logs = self._e22.read_sample_logs()
+        source_project = HidraProjectFile(filename, mode=HidraProjectFileMode.READONLY)
+        self._e22 = HidraWorkspace('22')
+        self._e22.load_hidra_project(source_project, False, False)
         self._e22_peaks = dict()  # clear out existing peaks
-        for peak in self._e22.read_peak_tags():
-            self._e22_peaks[peak] = self._e22.read_peak_parameters(peak)
+        for peak in source_project.read_peak_tags():
+            self._e22_peaks[peak] = source_project.read_peak_parameters(peak)
 
     @property
     def e33(self):
@@ -86,19 +64,16 @@ class Model(QObject):
 
     @property
     def e33_peaks(self):
-        return self._e11_peaks
-
-    @property
-    def e33_logs(self):
-        return self._e11_logs
+        return self._e33_peaks
 
     @e33.setter
     def e33(self, filename):
-        self._e33 = HidraProjectFile(filename, mode=HidraProjectFileMode.READONLY)
-        self._e33_logs = self._e33.read_sample_logs()
+        source_project = HidraProjectFile(filename, mode=HidraProjectFileMode.READONLY)
+        self._e33 = HidraWorkspace('33')
+        self._e33.load_hidra_project(source_project, False, False)
         self._e33_peaks = dict()  # clear out existing peaks
-        for peak in self._e33.read_peak_tags():
-            self._e33_peaks[peak] = self._e33.read_peak_parameters(peak)
+        for peak in source_project.read_peak_tags():
+            self._e33_peaks[peak] = source_project.read_peak_parameters(peak)
 
     @property
     def subruns(self):
@@ -124,5 +99,10 @@ class Model(QObject):
     @d0.setter
     def d0(self, d0):
         for peaks in [self.e11_peaks, self.e22_peaks, self.e33_peaks]:
-            if peaks is not None:
+            if self.selectedPeak in peaks:
                 peaks[self.selectedPeak].set_d_reference(np.array(d0))
+
+    def get_field_md(self, direction='11', plot_param='strain'):
+        return StrainField(hidraworkspace=getattr(self, f'e{direction}'),
+                           peak_collection=getattr(self, f'e{direction}_peaks')[self.selectedPeak]
+                           ).to_md_histo_workspace(f'e{direction} {plot_param}')

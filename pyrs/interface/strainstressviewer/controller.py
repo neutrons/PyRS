@@ -3,8 +3,7 @@ class Controller:
         self._model = model
 
     def fileSelected(self, name, filename):
-        print(f'{name=}, {filename=}')
-        self._model.set_workspace(name.replace("ε", "e"), filename)
+        self._model.set_workspace(name, filename)
 
     def peakSelected(self, name):
         if name != "":
