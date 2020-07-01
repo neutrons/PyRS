@@ -3,6 +3,9 @@ from pyrs.utilities import load_ui  # type: ignore
 from pyrs.core import pyrscore
 from pyrs.interface.peak_fitting import fitpeakswindow
 from pyrs.interface.manual_reduction import manualreductionwindow
+from pyrs.interface.strainstressviewer.strain_stress_view import StrainStressViewer
+from pyrs.interface.strainstressviewer.model import Model
+from pyrs.interface.strainstressviewer.controller import Controller
 
 
 class PyRSLauncher(QMainWindow):
@@ -22,12 +25,14 @@ class PyRSLauncher(QMainWindow):
         # define
         self.ui.pushButton_manualReduction.clicked.connect(self.do_launch_manual_reduction)
         self.ui.pushButton_fitPeaks.clicked.connect(self.do_launch_fit_peak_window)
+        self.ui.pushButton_launchStrainStressCalculation.clicked.connect(self.do_launch_strain_stress_window)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
 
         # child windows
         self.peak_fit_window = None
         self.manual_reduction_window = None
+        self.strain_stress_window = None
 
     def do_launch_fit_peak_window(self):
         """
@@ -53,6 +58,19 @@ class PyRSLauncher(QMainWindow):
         # show
         self.manual_reduction_window.show()
 
+    def do_launch_strain_stress_window(self):
+        """
+        launch the strain/stress calculation and visualization window
+        """
+
+        if self.strain_stress_window is None:
+            self.strain_stress_model = Model()
+            self.strain_stress_ctrl = Controller(self.strain_stress_model)
+            self.strain_stress_window = StrainStressViewer(self.strain_stress_model, self.strain_stress_ctrl)
+
+        # launch
+        self.strain_stress_window.show()
+
     def do_quit(self):
         """
         close window
@@ -64,5 +82,8 @@ class PyRSLauncher(QMainWindow):
 
         if self.manual_reduction_window is not None:
             self.manual_reduction_window.close()
+
+        if self.strain_stress_window is not None:
+            self.strain_stress_window.close()
 
         self.close()
