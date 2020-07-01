@@ -226,6 +226,7 @@ class DirectionExtents(_DirectionExtents):
 
     def __new__(cls, coordinates: List[float], resolution=DEFAULT_POINT_RESOLUTION):
         r"""
+        Find the minimum, maximum, and spacing in a list of coordinates.
 
         Parameters
         ----------
@@ -233,36 +234,39 @@ class DirectionExtents(_DirectionExtents):
         resolution: float
             Two coordinates are considered the same if their distance is less than this value.
         """
-        min_coord = np.min(coordinates)
-        max_coord = np.max(coordinates)
-        coordinates_count_unique = len(set([int(x / resolution) for x in coordinates]))
-        assert coordinates_count_unique > 1, 'We could not resolve more than one coordinate'
-        # delta is the spacing between unique coordinates
-        delta = (max_coord - min_coord) / (coordinates_count_unique - 1)
-
+        coordinates_rounded = [resolution * int(x / resolution) for x in coordinates]
+        coordinates_rounded_count = len(set(coordinates_rounded))
+        # `delta` is the spacing between unique coordinates. Use resolution if only one unique coordinate
+        if coordinates_rounded_count == 1:
+            min_coord = max_coord = np.average(coordinates)
+            delta = resolution
+        else:
+            min_coord = np.min(coordinates)
+            max_coord = np.max(coordinates)
+            delta = (max_coord - min_coord) / (coordinates_rounded_count - 1)
         extents_tuple = super(DirectionExtents, cls).__new__(cls, min_coord, max_coord, delta)
-        super(DirectionExtents, cls).__setattr__(extents_tuple, '_numpoints', coordinates_count_unique)
+        super(DirectionExtents, cls).__setattr__(extents_tuple, '_numpoints', coordinates_rounded_count)
         super(DirectionExtents, cls).__setattr__(extents_tuple, '_resolution', resolution)
         return extents_tuple
 
     @property
     def numpoints(self):
         r"""
-        Number of centerpoints where self.min and self.max are the first and last centerpoints
+        Number of centerpoints, where the mininum and maximum extents are the first and last center-points.
         """
         return self._numpoints
 
     @property
     def number_of_bins(self):
         r"""
-        Number of spacings separating consecutive bin boundaries
+        Number of spacings separating consecutive bin boundaries.
         """
         return self._numpoints  # same as number of center points
 
     @property
     def resolution(self):
         r"""
-        Discriminating distance to assert if two original coordinate values were one and the same
+        Discriminating distance to assert if two original coordinate values are one and the same.
         """
         return self._resolution  # same as number of center points
 
@@ -272,14 +276,18 @@ class DirectionExtents(_DirectionExtents):
         Minimum and maximum extents to be passed as argument Extent of Mantid algorithm
         `CreateMDWorkspace <https://docs.mantidproject.org/nightly/algorithms/CreateMDWorkspace-v1.html>`_.
 
-        Input extents for CreateMDWorkspace become the first and last bin boundaries, but `self.min` and
-        `self.max` are the first and last center-points
+        Input extents for CreateMDWorkspace become the first and last bin boundaries, and the
+        minimum and maximum extents are the first and last center-points
+
+        Note: precision is limited to three decimal places.
 
         Returns
         -------
         str
         """
-        return f'{self.min - self.delta / 2},{self.max + self.delta / 2}'
+        pair = f'{self.min - self.delta / 2: .3f},{self.max + self.delta / 2: .3f}'
+        pair = pair.replace(' ', '').replace('-0.000', '0.000')  # remove white-spacnes and deal with corner case
+        return pair
 
     @property
     def to_binmd(self) -> str:
@@ -287,11 +295,13 @@ class DirectionExtents(_DirectionExtents):
         Binning parameters to be passed as one of the AlignedDimX arguments of Mantid algorithm
         `BinMD <>`_.
 
+        Note: precision is limited to three decimal places.
+
         Returns
         -------
         str
         """
-        return f'{self.to_createmd},{self.number_of_bins}'
+        return f'{self.to_createmd},{self.number_of_bins}'.replace(' ', '')
 
 
 ExtentTriad = Tuple[DirectionExtents, DirectionExtents, DirectionExtents]  # a shortcut

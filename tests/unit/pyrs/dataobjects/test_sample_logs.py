@@ -20,16 +20,26 @@ class TestDirectionExtents:
         too_close_together = 0.1 * DEFAULT_POINT_RESOLUTION
         d = DirectionExtents(np.arange(0, 1, too_close_together))
         # we cannot resolve more coords than those limited by the precision
-        assert d.numpoints == int(1 / DEFAULT_POINT_RESOLUTION)
+        assert d.numpoints == int(1 / DEFAULT_POINT_RESOLUTION)  # extra 1 due to function round()
         assert list(d) == [0, 1 - too_close_together, (1 - too_close_together) / (d.numpoints - 1)]
+
+        # Corner cases
+        d = DirectionExtents([0.001, 0.009], resolution=0.01)  # round() floors 0.004 and ceilings 0.006
+        assert list(d) == pytest.approx([0.005, 0.005, 0.01])
+        d = DirectionExtents([0.009, 0.011], resolution=0.01)
+        assert list(d) == [0.009, 0.011, 0.002]
 
     def test_to_createmd(self):
         d = DirectionExtents(range(42))
-        assert d.to_createmd == '-0.5,41.5'
+        assert d.to_createmd == '-0.500,41.500'
+        d = DirectionExtents([0.001, 0.009], resolution=0.01)
+        assert d.to_createmd == '0.000,0.010'
 
     def test_to_binmd(self):
         d = DirectionExtents(range(42))
-        assert d.to_binmd == '-0.5,41.5,42'
+        assert d.to_binmd == '-0.500,41.500,42'
+        d = DirectionExtents([0.001, 0.009], resolution=0.01)
+        assert d.to_binmd == '0.000,0.010,1'
 
 
 @pytest.fixture(scope='module')
