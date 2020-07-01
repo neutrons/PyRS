@@ -2,8 +2,8 @@
 from collections import Iterable, MutableMapping
 import numpy as np
 from scipy.cluster.hierarchy import fclusterdata
-from typing import Union, Any, List, NamedTuple, Tuple
-
+from typing import Union, List, NamedTuple, Tuple
+from pyrs.utilities.convertdatatypes import to_int
 from .constants import HidraConstants, DEFAULT_POINT_RESOLUTION  # type: ignore
 
 __all__ = ['SampleLogs', 'SubRuns']
@@ -308,6 +308,7 @@ ExtentTriad = Tuple[DirectionExtents, DirectionExtents, DirectionExtents]  # a s
 
 
 class PointList:
+    ATOL: float = 0.01
 
     class _PointList(NamedTuple):
         r"""Data structure containing the list of coordinates"""
@@ -316,7 +317,8 @@ class PointList:
         vz: List[float]  # coordinates stored in log name HidraConstants.SAMPLE_COORDINATE_NAMES[2]
 
     @staticmethod
-    def tolist(input_source: Union[SampleLogs, List[List[float]], Iterable]) -> List[List[float]]:
+    def tolist(input_source: Union[SampleLogs, List[List[float]], Iterable]) \
+            -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         r"""
         Cast coordinate points of some input data structure into a list of list.
 
@@ -332,13 +334,18 @@ class PointList:
             A three item list, where each item are the coordinates of the points along one of the three
             dimensions
         """
-        if isinstance(input_source, list):
-            return input_source  # assume it's a list of list
+        if isinstance(input_source, list) or isinstance(input_source, tuple):
+            return (np.asarray(input_source[0], dtype=float),
+                    np.asarray(input_source[1], dtype=float),
+                    np.asarray(input_source[2], dtype=float))
         elif isinstance(input_source, SampleLogs):
-            return [list(input_source[name]) for name in HidraConstants.SAMPLE_COORDINATE_NAMES]
+            return tuple([np.asarray(input_source[name]) for name  # type: ignore
+                          in HidraConstants.SAMPLE_COORDINATE_NAMES])
         elif isinstance(input_source, np.ndarray):
-            return input_source.tolist()  # assumed shape = (3, number_points)
-        raise RuntimeError(f'Could not cast {input_source} to a list of list')
+            if input_source.shape[0] != 3:
+                raise RuntimeError('Cannot unpack ndarray with shape {}'.format(input_source.shape))
+            return (input_source[0], input_source[1], input_source[2])
+        raise RuntimeError(f'Could not convert {input_source} to a tuple of ndarray.')
 
     def __init__(self, input_source: Union[SampleLogs, List[List[float]], Iterable]) -> None:
         r"""
@@ -358,22 +365,41 @@ class PointList:
         coordinates = PointList.tolist(input_source)
         assert len(coordinates) == 3, 'One set of coordinates is required for each direction'
         assert len(set([len(c) for c in coordinates])) == 1, 'Directions have different number of coordinates'
-        self._points = self.__class__._PointList(*coordinates)
+        self._vx: np.ndarray = coordinates[0]
+        self._vy: np.ndarray = coordinates[1]
+        self._vz: np.ndarray = coordinates[2]
 
     def __len__(self) -> int:
-        return len(self._points.vx)  # assumed all the three directions have the same number of coordinate values
+        return len(self._vx)  # assumed all the three directions have the same number of coordinate values
 
-    def __getattr__(self, item: str) -> Any:
-        r"""Enable self.vx, self.vy, self.vz"""
-        try:
-            points = self.__dict__['_points']
-            return getattr(points, item)
-        except AttributeError:
-            getattr(self, item)
+    @property
+    def vx(self):
+        return self._vx
 
-    def __getitem__(self, item: int) -> List[float]:
+    @property
+    def vy(self):
+        return self._vy
+
+    @property
+    def vz(self):
+        return self._vz
+
+    def __getitem__(self, item: Union[int, str]) -> Tuple[float, float, float]:
         r"""Enable self[0],... self[N] as well as making this class iterable over the 3D points."""
-        return [coordinate_list[item] for coordinate_list in self._points]
+        key = to_int('item', item, min_value=0, max_value=len(self) + 1)
+        return (self._vx[key], self._vy[key], self._vz[key])
+
+    def __eq__(self, other) -> bool:
+        # default implementation of __ne__ is to not the call to __eq__
+        # this is not current resilient against points in different order
+        if len(self) != len(other):
+            return False
+
+        if (len(self.vx) != len(other.vx)) or (len(self.vy) != len(other.vy)) or (len(self.vz) != len(other.vz)):
+            return False
+
+        return np.allclose(self.vx, other.vx, atol=self.ATOL) and np.allclose(self.vy, other.vy, atol=self.ATOL) \
+            and np.allclose(self.vz, other.vz, atol=self.ATOL)
 
     @property
     def coordinates(self) -> np.ndarray:
@@ -402,8 +428,9 @@ class PointList:
         -------
         ~pyrs.dataobjects.sample_logs.PointList
         """
-        coordinates = [self._points[i] + other._points[i] for i in range(3)]
-        return PointList(coordinates)
+        return PointList((np.concatenate((self._vx, other._vx)),
+                          np.concatenate((self._vy, other._vy)),
+                          np.concatenate((self._vz, other._vz))))
 
     def cluster(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> List[List]:
         r"""

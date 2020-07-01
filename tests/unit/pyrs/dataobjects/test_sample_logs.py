@@ -69,33 +69,38 @@ class TestPointList:
                              sample_logs_mock['logs'],
                              np.array(sample_logs_mock['xyz'])):
             list_of_list = PointList.tolist(input_source)
-            assert isinstance(list_of_list, list)
+            assert isinstance(list_of_list, tuple)
             for i in range(3):
-                assert isinstance(list_of_list[i], list)
-                assert list_of_list[i] == pytest.approx(sample_logs_mock['xyz'][i])
+                assert isinstance(list_of_list[i], np.ndarray)
+                np.testing.assert_equal(list_of_list[i], sample_logs_mock['xyz'][i])
 
     def test_init(self, sample_logs_mock):
         for input_source_type in ('logs', 'xyz'):
             input_source = sample_logs_mock[input_source_type]
             point_list = PointList(input_source)
             # dereference attributes 'vx', 'vy', 'vz'
-            assert list(point_list.vx) == pytest.approx(sample_logs_mock['xyz'][0])
-            assert list(point_list.vy) == pytest.approx(sample_logs_mock['xyz'][1])
-            assert list(point_list.vz) == pytest.approx(sample_logs_mock['xyz'][2])
+            np.testing.assert_equal(point_list.vx, sample_logs_mock['xyz'][0])
+            np.testing.assert_equal(point_list.vy, sample_logs_mock['xyz'][1])
+            np.testing.assert_equal(point_list.vz, sample_logs_mock['xyz'][2])
             # dereference by item index
             xyz = np.array(sample_logs_mock['xyz'])
             assert point_list[5] == pytest.approx(list(xyz[:, 5]))
 
     def test_getattr(self, sample_logs_mock):
         point_list = PointList(sample_logs_mock['logs'])
+        assert list(point_list.vx) == pytest.approx(sample_logs_mock['xyz'][0])
         assert list(point_list.vy) == pytest.approx(sample_logs_mock['xyz'][1])
-        assert list(point_list._points.vx) == pytest.approx(sample_logs_mock['xyz'][0])
+        try:
+            _ = point_list.dummy
+            assert False, 'Should not have been able to access attribute'
+        except AttributeError:
+            pass  # this is the correct behavior
 
     def test_aggregate(self, sample_logs_mock):
         point_list = PointList(sample_logs_mock['logs']).aggregate(PointList(sample_logs_mock['xyz']))
-        assert list(point_list.vx) == pytest.approx(sample_logs_mock['xyz'][0] + sample_logs_mock['xyz'][0])
-        assert list(point_list.vy) == pytest.approx(sample_logs_mock['xyz'][1] + sample_logs_mock['xyz'][1])
-        assert list(point_list.vz) == pytest.approx(sample_logs_mock['xyz'][2] + sample_logs_mock['xyz'][2])
+        np.testing.assert_equal(point_list.vx, sample_logs_mock['xyz'][0] + sample_logs_mock['xyz'][0])
+        np.testing.assert_equal(point_list.vy, sample_logs_mock['xyz'][1] + sample_logs_mock['xyz'][1])
+        np.testing.assert_equal(point_list.vz, sample_logs_mock['xyz'][2] + sample_logs_mock['xyz'][2])
 
     def test_cluster(self):
         xyz = [[0.0, 1.0, 2.0, 3.0, 1.009, 0.995, 2.0, 3.005, 4.0],
