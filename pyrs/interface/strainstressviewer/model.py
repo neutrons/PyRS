@@ -1,6 +1,6 @@
 import numpy as np
 from pyrs.dataobjects.fields import StrainField
-from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
 from qtpy.QtCore import Signal, QObject
 
@@ -26,10 +26,6 @@ class Model(QObject):
     def e11(self):
         return self._e11
 
-    @property
-    def e11_peaks(self):
-        return self._e11_peaks
-
     @e11.setter
     def e11(self, filename):
         source_project = HidraProjectFile(filename, mode=HidraProjectFileMode.READONLY)
@@ -42,12 +38,12 @@ class Model(QObject):
         self.propertyUpdated.emit("peakTags")
 
     @property
-    def e22(self):
-        return self._e22
+    def e11_peaks(self):
+        return self._e11_peaks
 
     @property
-    def e22_peaks(self):
-        return self._e22_peaks
+    def e22(self):
+        return self._e22
 
     @e22.setter
     def e22(self, filename):
@@ -59,12 +55,12 @@ class Model(QObject):
             self._e22_peaks[peak] = source_project.read_peak_parameters(peak)
 
     @property
-    def e33(self):
-        return self._e33
+    def e22_peaks(self):
+        return self._e22_peaks
 
     @property
-    def e33_peaks(self):
-        return self._e33_peaks
+    def e33(self):
+        return self._e33
 
     @e33.setter
     def e33(self, filename):
@@ -74,6 +70,10 @@ class Model(QObject):
         self._e33_peaks = dict()  # clear out existing peaks
         for peak in source_project.read_peak_tags():
             self._e33_peaks[peak] = source_project.read_peak_parameters(peak)
+
+    @property
+    def e33_peaks(self):
+        return self._e33_peaks
 
     @property
     def subruns(self):

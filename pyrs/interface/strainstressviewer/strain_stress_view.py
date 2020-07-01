@@ -371,7 +371,7 @@ class StrainStressViewer(QSplitter):
             self.viz_tab.set_ws(None)
 
     def updatePropertyFromModel(self, name):
-        setattr(self, name, getattr(self.model, name))
+        getattr(self, name)(getattr(self.model, name))
 
     def peakTags(self, peak_tags):
         self.peak_selection.peak_select.currentTextChanged.disconnect()
@@ -379,9 +379,5 @@ class StrainStressViewer(QSplitter):
         self.peak_selection.peak_select.currentTextChanged.connect(self.controller.peakSelected)
         self.peak_selection.set_peak_tags(peak_tags)
 
-    peakTags = property(None, peakTags)
-
     def subruns(self, subruns):
         self.d0.set_sub_runs(subruns, self.model.d0[0])
-
-    subruns = property(None, subruns)
