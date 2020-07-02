@@ -336,13 +336,16 @@ class ScalarFieldSample:
 
         # create an empty event workspace of the correct dimensions
         axis_labels = ('x', 'y', 'z')
-        CreateMDWorkspace(OutputWorkspace=name, Dimensions=3, Extents=extents_str,
+        CreateMDWorkspace(OutputWorkspace='__tmp', Dimensions=3, Extents=extents_str,
                           Names=','.join(axis_labels), Units=units_triad)
         # set the bins for the workspace correctly
         aligned_dimensions = [f'{label},{extent.to_binmd}'  # type: ignore
                               for label, extent in zip(axis_labels, extents)]
         aligned_kwargs = {f'AlignedDim{i}': aligned_dimensions[i] for i in range(len(aligned_dimensions))}
-        BinMD(InputWorkspace=name, OutputWorkspace=name, **aligned_kwargs)
+        BinMD(InputWorkspace='__tmp', OutputWorkspace=name, **aligned_kwargs)
+
+        # remove original workspace, so sliceviewer doesn't try to use it
+        mtd.remove('__tmp')
 
         # get a handle to the workspace
         wksp = mtd[name]
