@@ -665,17 +665,17 @@ class PyHB2BReduction:
         pixel_2theta_array = np.ma.masked_where(masked_pixels, pixel_2theta_array).compressed()
         pixel_count_array = np.ma.masked_where(masked_pixels, pixel_count_array).compressed()
 
-        # construct variance array
+        # construct data variance array
         pixel_var_array = np.sqrt(pixel_count_array)
         pixel_var_array[pixel_var_array == 0.0] = 1.
 
         # Call numpy to histogram raw counts and variance
-        hist, bin_edges = np.histogram(pixel_2theta_array, bins=two_theta_bins, weights=pixel_count_array)
-        var, var_edges = np.histogram(pixel_2theta_array, bins=two_theta_bins, weights=pixel_var_array**2)
-        var = np.sqrt(var)
+        data_hist, bin_edges = np.histogram(pixel_2theta_array, bins=two_theta_bins, weights=pixel_count_array)
+        data_var, var_edges = np.histogram(pixel_2theta_array, bins=two_theta_bins, weights=pixel_var_array**2)
+        data_var = np.sqrt(data_var)
 
-        # define mask to set edge of histogram to zero with var 1
-        zero_mask = hist == 0.0
+        # get indexs in histograms that do not have neturon counts
+        zero_count_mask = data_hist == 0.0
 
         # Optionally to normalize by number of pixels (sampling points) in the 2theta bin
         if vanadium_counts is not None:
@@ -685,36 +685,33 @@ class PyHB2BReduction:
             # Exclude NaN and infinity regions
             vanadium_counts = np.ma.masked_where(masked_pixels, vanadium_counts).compressed()
 
-            # construct variance array
+            # construct vanadium variance array
             vanadium_var = np.sqrt(vanadium_counts)
             vanadium_var[vanadium_var == 0.0] = 1.
 
             # Call numpy to histogram vanadium counts and variance
-            hist_bin, be_temp = np.histogram(pixel_2theta_array, bins=two_theta_bins, weights=vanadium_counts)
+            van_hist, be_temp = np.histogram(pixel_2theta_array, bins=two_theta_bins, weights=vanadium_counts)
             van_var, van_var_temp = np.histogram(pixel_2theta_array, bins=two_theta_bins, weights=vanadium_var**2)
             van_var = np.sqrt(van_var)
 
-            # Set edge of histograms with no counts to 1
-            hist[zero_mask] = 1.0
-            hist_bin[zero_mask] = 1.0
-            var[zero_mask] = 1.0
-            van_var[zero_mask] = 1.0
+            # get indexs in histograms with no counts to 1
+            data_hist[zero_count_mask] = 1.0
+            van_hist[zero_count_mask] = 1.0
+            data_var[zero_count_mask] = 1.0
+            van_var[zero_count_mask] = 1.0
 
             # propogation of error
-            var = np.sqrt((var / hist)**2 + (van_var / hist_bin)**2)
+            data_var = np.sqrt((data_var / data_hist)**2 + (van_var / van_hist)**2)
 
             # Normalize diffraction data
-            hist /= hist_bin  # normalize
-            var *= hist
+            data_hist /= van_hist  # normalize
+            data_var *= data_hist
 
         # END-IF-ELSE
 
         # set indexs in histograms that do not have any neturon counts to 0 with var = 1
-        # set NaN in propogation of error to 1
-        var[zero_mask] = 1.
-
-        # set 0s in histogram vanadium counts to 1 to prevent
-        hist[zero_mask] = 0.
+        data_hist[zero_count_mask] = 0.
+        data_var[zero_count_mask] = 1.
 
         # convert to point data as an option.  Use the center of the 2theta bin as new theta
         if is_point_data:
@@ -724,5 +721,5 @@ class PyHB2BReduction:
             # return bin edges
             bins = bin_edges
 
-        return bins, hist, var
+        return bins, data_hist, data_var
 # END-CLASS
