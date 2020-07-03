@@ -274,11 +274,11 @@ class ScalarFieldSample:
         ----------
         other: ~pyrs.dataobjects.fields.ScalarFieldSample
         resolution: float
-            Two points are considered the same if they are separated by a distance smaller than this quantity
+            Two points are considered the same if they are separated by a distance smaller than this quantity.
         criterion: str
             Criterion by which to resolve which out of two (or more) samples is selected, while the rest is
             discarded. Possible values are:
-            'min_error': the sample with the minimal uncertainty is selected
+            'min_error': the sample with the minimal uncertainty is selected.
         Returns
         -------
         ~pyrs.dataobjects.fields.ScalarFieldSample
@@ -420,7 +420,7 @@ class StrainField(ScalarFieldSample):
         # TODO the fixed name shouldn't bee needed with inheritence
         return super().__init__('strain', strain, strain_error, x, y, z)
 
-    @staticmethod
+    @staticmethod  # noqa: C901
     def __to_wksp_and_peaks(filename: str,
                             peak_tag: str,
                             projectfile: Optional[HidraProjectFile],
@@ -477,6 +477,53 @@ class StrainField(ScalarFieldSample):
             raise RuntimeError('Need to have matching subruns')
 
         return hidraworkspace, peak_collection
+
+
+def aggregate_scalar_field_samples(*args) -> 'ScalarFieldSample':
+    r"""
+    Bring in together several scalar field samples of the same name. Overlaps can occur
+    if a sample point is present in both samples.
+
+    Parameters
+    ----------
+    args: list
+        multiple ~pyrs.dataobjects.fields.ScalarFieldSample objects.
+
+    Returns
+    -------
+    ~pyrs.dataobjects.fields.ScalarFieldSample
+    """
+    assert len(args) > 1, 'We need at least two PointList objects to aggregate'
+    for arg in args:
+        assert isinstance(arg, ScalarFieldSample), 'One of the arguments is not a ScalarFieldSample object.'
+    aggregated_field = args[0]  # start with the point list of the first scalar field
+    for field_sample in args[1:]:
+        aggregated_field = aggregated_field.aggregate(field_sample)  # aggregate remaining lists, one by one
+    return aggregated_field
+
+
+def fuse_scalar_field_samples(*args, resolution: float = DEFAULT_POINT_RESOLUTION,
+                              criterion: str = 'min_error') -> 'ScalarFieldSample':
+    r"""
+    Bring in together several scalar field samples of the same name. Overlaps are resolved
+    according to a selection criteria.
+
+    Parameters
+    ----------
+    args list
+        multiple ~pyrs.dataobjects.fields.ScalarFieldSample objects.
+    resolution
+    criterion: str
+        Criterion by which to resolve which out of two (or more) samples is selected, while the rest is
+        discarded. Possible values are:
+        'min_error': the sample with the minimal uncertainty is selected.
+
+    Returns
+    -------
+    ~pyrs.dataobjects.fields.ScalarFieldSample
+    """
+    aggregated_field = aggregate_scalar_field_samples(*args)
+    return aggregated_field.coalesce(criterion=criterion, resolution=resolution)
 
 
 def stack_scalar_field_samples(*fields,

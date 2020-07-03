@@ -4,7 +4,8 @@ import numpy as np
 import pytest
 # PyRs libraries
 from pyrs.core.workspaces import HidraWorkspace
-from pyrs.dataobjects.fields import ScalarFieldSample, StrainField, stack_scalar_field_samples
+from pyrs.dataobjects.fields import (aggregate_scalar_field_samples, fuse_scalar_field_samples, ScalarFieldSample,
+                                     StrainField, stack_scalar_field_samples)
 from pyrs.core.peak_profile_utility import get_parameter_dtype
 from pyrs.peaks import PeakCollection  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
@@ -268,7 +269,7 @@ def field_sample_collection():
                               [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]  # z
                               ),
         # distance resolution is assumed to be 0.01
-        # The first four points of sample2 still overlaps with the first four points of sample1
+        # The first four points of sample2 overlaps with the first four points of sample1
         # the last four points of sample1 are not in sample2, and viceversa
         'sample2': SampleMock('strain',
                               [1.071, 1.081, 1.091, 1.10, 1.11, 1.12, 1.13, 1.14, 1.15, 1.16],  # values
@@ -286,6 +287,36 @@ def field_sample_collection():
                               [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]  # z
                               ),
     }
+
+
+def test_aggregate_scalar_field_samples(field_sample_collection):
+    sample1 = ScalarFieldSample(*field_sample_collection['sample1'])
+    sample2 = ScalarFieldSample(*field_sample_collection['sample2'])
+    sample3 = ScalarFieldSample(*field_sample_collection['sample3'])
+    aggregated_sample = aggregate_scalar_field_samples(sample1, sample2, sample3)
+    assert len(aggregated_sample) == len(sample1) + len(sample2) + len(sample3)
+    # check some key field values
+    assert aggregated_sample.values[len(sample1)] == pytest.approx(sample2.values[0])
+    assert aggregated_sample.values[len(sample1) + len(sample2)] == pytest.approx(sample3.values[0])
+    assert aggregated_sample.values[-1] == pytest.approx(sample3.values[-1])
+    # check some key point coordinate values
+    assert aggregated_sample.x[len(sample1)] == pytest.approx(sample2.x[0])
+    assert aggregated_sample.x[len(sample1) + len(sample2)] == pytest.approx(sample3.x[0])
+    assert aggregated_sample.x[-1] == pytest.approx(sample3.x[-1])
+
+
+def test_fuse_scalar_field_samples(field_sample_collection):
+    sample1 = ScalarFieldSample(*field_sample_collection['sample1'])
+    sample2 = ScalarFieldSample(*field_sample_collection['sample2'])
+    sample3 = ScalarFieldSample(*field_sample_collection['sample3'])
+    fused_sample = fuse_scalar_field_samples(sample1, sample2, sample3, resolution=0.01, criterion='min_error')
+    assert len(fused_sample) == 14
+    assert sorted(fused_sample.values) == pytest.approx([1., 1.01, 1.02, 1.04, 1.05, 1.06, 1.07, 1.08,
+                                                         1.091, 1.1, 1.13, 1.14, 1.15, 1.16])
+    assert sorted(fused_sample.errors) == pytest.approx([0., 0., 0.001, 0.002, 0.004, 0.005, 0.006,
+                                                         0.007, 0.008, 0.008, 0.03, 0.04, 0.05, 0.06])
+    assert sorted(fused_sample.x) == pytest.approx([0.0, 1.0, 2.0, 3.009, 4.0, 5.0, 6.0, 6.011,
+                                                    7.0, 7.011, 8.0, 8.011, 9.0, 9.011])
 
 
 def test_stack_scalar_field_samples(field_sample_collection):

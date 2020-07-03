@@ -637,7 +637,7 @@ def aggregate_point_lists(*args):
     """
     assert len(args) > 1, 'We need at least two PointList objects to aggregate'
     for arg in args:
-        assert isinstance(arg, PointList), 'one of the arguments to aggreage_point_list if not a PointList object'
+        assert isinstance(arg, PointList), 'one of the arguments to aggreage_point_list is not a PointList object'
     aggregated_points = args[0]  # start with the point list of the first scalar field
     for point_list in args[1:]:
         aggregated_points = aggregated_points.aggregate(point_list)  # aggregate remaining lists, one by one
