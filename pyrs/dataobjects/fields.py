@@ -417,7 +417,7 @@ class StrainField(ScalarFieldSample):
         # TODO the fixed name shouldn't bee needed with inheritence
         return super().__init__('strain', strain, strain_error, x, y, z)
 
-    @staticmethod
+    @staticmethod  # noqa: C901
     def __to_wksp_and_peaks(filename: str,
                             peak_tag: str,
                             projectfile: Optional[HidraProjectFile],
@@ -426,7 +426,7 @@ class StrainField(ScalarFieldSample):
         # load information from a file
         closeproject = False
         if filename:
-            projectfile  = HidraProjectFile(filename, HidraProjectFileMode.READONLY)
+            projectfile = HidraProjectFile(filename, HidraProjectFileMode.READONLY)
             closeproject = True
         elif TYPE_CHECKING:
             projectfile = cast(HidraProjectFile, projectfile)
