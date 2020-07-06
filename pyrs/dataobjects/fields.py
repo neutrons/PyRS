@@ -1,3 +1,5 @@
+from enum import Enum
+from enum import unique as unique_enum
 import numpy as np
 from scipy.interpolate import griddata
 from scipy.spatial import cKDTree
@@ -41,7 +43,8 @@ class ScalarFieldSample:
         List of coordinates along some Z-axis for the set of sample points.
     """
 
-    def __init__(self, name: str, values: Union[List[float], np.ndarray], errors: Union[List[float], np.ndarray],
+    def __init__(self, name: str,
+                 values: Union[List[float], np.ndarray], errors: Union[List[float], np.ndarray],
                  x: List[float], y: List[float], z: List[float]) -> None:
         all_lengths = [len(values), len(errors), len(x), len(y), len(z)]
         assert len(set(all_lengths)) == 1, 'input lists must all have the same lengths'
@@ -50,7 +53,7 @@ class ScalarFieldSample:
         self._name = name
 
     def __len__(self) -> int:
-        return len(self._sample)
+        return len(self.values)
 
     @property
     def name(self) -> str:
@@ -411,9 +414,9 @@ class StrainField(ScalarFieldSample):
             raise RuntimeError('Failed to find positions in logs. Missing {}'.format(', '.join(missing)))
 
         # extract positions
-        x = hidraworkspace.get_sample_log_values('vx')
-        y = hidraworkspace.get_sample_log_values('vy')
-        z = hidraworkspace.get_sample_log_values('vz')
+        x = hidraworkspace.get_sample_log_values(VX)
+        y = hidraworkspace.get_sample_log_values(VY)
+        z = hidraworkspace.get_sample_log_values(VZ)
 
         strain, strain_error = peak_collection.get_strain()  # type: ignore
 
@@ -524,6 +527,134 @@ def fuse_scalar_field_samples(*args, resolution: float = DEFAULT_POINT_RESOLUTIO
     """
     aggregated_field = aggregate_scalar_field_samples(*args)
     return aggregated_field.coalesce(criterion=criterion, resolution=resolution)
+
+
+@unique_enum
+class StressType(Enum):
+    DIAGONAL = 'diagonal'  # full calculation
+    IN_PLANE_STRAIN = 'in-plane-strain'  # assumes strain33 is zero
+    IN_PLANE_STRESS = 'in-plane-stress'  # assumes stress33 is zero
+
+    @staticmethod
+    def get(stresstype):
+        if isinstance(stresstype, StressType):
+            return stresstype
+        else:
+            try:
+                stresskey = str(stresstype).upper().replace('-', '_')
+                return StressType[stresskey]
+            except KeyError:  # give clearer error message
+                raise KeyError('Cannot determine stress type from "{}"'.format(stresstype))
+
+
+class Direction(Enum):
+    X = 'x'
+    Y = 'y'
+    Z = 'z'
+
+    @staticmethod
+    def get(direction):
+        if isinstance(direction, Direction):
+            return direction
+        else:
+            if direction == '11':
+                return Direction.X
+            elif direction == '22':
+                return Direction.Y
+            elif direction == '33':
+                return Direction.Z
+            try:
+                return Direction(str(direction).upper())
+            except KeyError:  # give clearer error message
+                raise KeyError('Cannot determine direction type from "{}"'.format(direction))
+
+
+class StressField(ScalarFieldSample):
+    def __init__(self, strain11, strain22, strain33, youngs_modulus: float, poisson_ratio: float,
+                 stress_type=StressType.DIAGONAL) -> None:
+        self.direction = Direction.X  # as good of a default as any
+        self.stress_type = StressType.get(stress_type)
+
+        # currently only supports equal sized strains
+        if len(strain11.values) != len(strain22.values) != len(strain33.values):
+            raise RuntimeError('Number of StrainField values must be equal')
+
+        # compare point lists to make sure they are identical
+        if strain11.point_list != strain22.point_list:
+            raise RuntimeError('Point lists for strain11 and strain22 are not compatible')
+        if (self.stress_type == StressType.DIAGONAL) and (strain11.point_list != strain33.point_list):
+            raise RuntimeError('Point lists for strain11 and strain33 are not compatible')
+
+        # extract strain values - these are the epsilons in the equations
+        # currently assumes all strains are parallel
+        epsilon11 = unumpy.uarray(strain11.values, strain11.errors)
+        epsilon22 = unumpy.uarray(strain22.values, strain22.errors)
+        epsilon33 = unumpy.uarray(strain33.values, strain33.errors)
+
+        # calculate stress
+        if self.stress_type == StressType.DIAGONAL:
+            self.__calc_diagonal_stress(youngs_modulus, poisson_ratio, epsilon11, epsilon22, epsilon33)
+        elif self.stress_type == StressType.IN_PLANE_STRAIN:
+            self.__calc_in_plane_strain(youngs_modulus, poisson_ratio, epsilon11, epsilon22)
+        elif self.stress_type == StressType.IN_PLANE_STRESS:
+            self.__calc_in_plane_stress(youngs_modulus, poisson_ratio,  epsilon11, epsilon22, epsilon33)
+        else:
+            raise ValueError('Cannot calculate stress of type {}'.format(self.stress_type))
+
+        # set-up information for PointList
+        x = strain11.point_list.vx
+        y = strain11.point_list.vy
+        z = strain11.point_list.vz
+        # TODO need to fix up super.__init__ to not need the copy
+        return super().__init__('stress', self.values, self.errors, x, y, z)
+
+    def __calc_diagonal_stress(self, youngs_modulus, poisson_ratio, strain11, strain22, strain33):
+        prefactor = youngs_modulus / (1 + poisson_ratio)
+        additive = poisson_ratio * (strain11 + strain22 + strain33) / (1 - 2 * poisson_ratio)
+
+        self.stress11 = prefactor * (strain11 + additive)
+        self.stress22 = prefactor * (strain22 + additive)
+        self.stress33 = prefactor * (strain33 + additive)
+
+    def __calc_in_plane_strain(self, youngs_modulus, poisson_ratio, strain11, strain22):
+        '''This assumes strain in the 33 direction (epsilon33) is zero'''
+        prefactor = youngs_modulus / (1 + poisson_ratio)
+        additive = poisson_ratio * (strain11 + strain22) / (1 - 2 * poisson_ratio)
+
+        self.stress11 = prefactor * (strain11 + additive)
+        self.stress22 = prefactor * (strain22 + additive)
+        self.stress33 = prefactor * additive
+
+    def __calc_in_plane_stress(self, youngs_modulus, poisson_ratio, strain11, strain22, strain33):
+        '''This assumes stress in the 33 direction (sigma33) is zero'''
+        prefactor = youngs_modulus / (1 + poisson_ratio)
+        additive = poisson_ratio * (strain11 + strain22) / (1 - poisson_ratio)
+
+        self.stress11 = prefactor * (strain11 + additive)
+        self.stress22 = prefactor * (strain22 + additive)
+        length = len(strain33)  # assumed to be zero
+        self.stress33 = unumpy.uarray(np.zeros(length, dtype=float), np.zeros(length, dtype=float))
+
+    @property
+    def values(self) -> np.ndarray:
+        if self.direction == Direction.X:
+            return unumpy.nominal_values(self.stress11)
+        elif self.direction == Direction.Y:
+            return unumpy.nominal_values(self.stress22)
+        elif self.direction == Direction.Z:
+            return unumpy.nominal_values(self.stress33)
+
+    @property
+    def errors(self) -> np.ndarray:
+        if self.direction == Direction.X:
+            return unumpy.std_devs(self.stress11)
+        elif self.direction == Direction.Y:
+            return unumpy.std_devs(self.stress22)
+        elif self.direction == Direction.Z:
+            return unumpy.std_devs(self.stress33)
+
+    def select(self, direction: str):
+        self.direction = Direction.get(direction)
 
 
 def stack_scalar_field_samples(*fields,
