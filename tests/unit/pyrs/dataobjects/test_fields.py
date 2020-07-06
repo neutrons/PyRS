@@ -320,6 +320,7 @@ def test_fuse_scalar_field_samples(field_sample_collection):
 
 
 def test_stack_scalar_field_samples(field_sample_collection):
+    r"""Stack three scalar fields"""
     # test stacking with the 'common' mode
     sample1 = ScalarFieldSample(*field_sample_collection['sample1'])
     sample2 = ScalarFieldSample(*field_sample_collection['sample2'])
