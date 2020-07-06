@@ -84,7 +84,7 @@ class TestScalarFieldSample:
     def test_coordinates(self):
         sample = list(TestScalarFieldSample.sample1)
         field = ScalarFieldSample(*sample)
-        np.testing.assert_equal(field.coordinates, np.array(sample[2:]).transpose())
+        np.testing.assert_equal(field.coordinates, np.array(sample[3:]).transpose())
 
     def test_x(self):
         field = ScalarFieldSample(*TestScalarFieldSample.sample1)
