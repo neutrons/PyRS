@@ -71,32 +71,32 @@ class TestScalarFieldSample:
 
     def test_values(self):
         field = ScalarFieldSample(*TestScalarFieldSample.sample1)
-        assert field.values == pytest.approx(TestScalarFieldSample.sample1.values)
+        np.testing.assert_equal(field.values, TestScalarFieldSample.sample1.values)
 
     def test_errors(self):
         field = ScalarFieldSample(*TestScalarFieldSample.sample1)
-        assert field.errors == pytest.approx(TestScalarFieldSample.sample1.errors)
+        np.testing.assert_equal(field.errors, TestScalarFieldSample.sample1.errors)
 
     def test_point_list(self):
         field = ScalarFieldSample(*TestScalarFieldSample.sample1)
-        field.point_list.vx == pytest.approx(TestScalarFieldSample.sample1.x)
+        np.testing.assert_equal(field.point_list.vx, TestScalarFieldSample.sample1.x)
 
     def test_coordinates(self):
         sample = list(TestScalarFieldSample.sample1)
         field = ScalarFieldSample(*sample)
-        field.coordinates == pytest.approx(np.array(sample[2:]).transpose())
+        np.testing.assert_equal(field.coordinates, np.array(sample[2:]).transpose())
 
     def test_x(self):
         field = ScalarFieldSample(*TestScalarFieldSample.sample1)
-        field.x == pytest.approx(TestScalarFieldSample.sample1.x)
+        np.testing.assert_equal(field.x, TestScalarFieldSample.sample1.x)
 
     def test_y(self):
         field = ScalarFieldSample(*TestScalarFieldSample.sample1)
-        field.y == pytest.approx(TestScalarFieldSample.sample1.y)
+        np.testing.assert_equal(field.y, TestScalarFieldSample.sample1.y)
 
     def test_z(self):
         field = ScalarFieldSample(*TestScalarFieldSample.sample1)
-        field.z == pytest.approx(TestScalarFieldSample.sample1.z)
+        np.testing.assert_equal(field.z, TestScalarFieldSample.sample1.z)
 
     def test_isfinite(self):
         field = ScalarFieldSample(*TestScalarFieldSample.sample4).isfinite
@@ -107,20 +107,20 @@ class TestScalarFieldSample:
         field = ScalarFieldSample(*TestScalarFieldSample.sample5)
         interpolated = field.interpolated_sample(method='nearest', keep_nan=True,
                                                  resolution=0.01, criterion='min_error')
-        assert list(np.where(np.isnan(interpolated.values))[0]) == [0, 4]
-        assert list(interpolated.coordinates[4]) == pytest.approx([4.0, 0.0, 0.0])
+        np.testing.assert_equal(np.where(np.isnan(interpolated.values))[0], [0, 4])
+        np.testing.assert_equal(interpolated.coordinates[4], [4.0, 0.0, 0.0])
         assert interpolated.values[9] == pytest.approx(2.0)
-        assert list(interpolated.coordinates[9]) == pytest.approx([4.0, 1.0, 0.0])
+        np.testing.assert_equal(interpolated.coordinates[9], [4.0, 1.0, 0.0])
         # TODO interpolation using method='linear'
 
     def test_extract(self):
         field = ScalarFieldSample(*TestScalarFieldSample.sample1)
         target_indexes = range(0, 10, 2)
         selection = field.extract(target_indexes)
-        selection.name == 'lattice'
-        selection.values == pytest.approx([1.000, 1.020, 1.040, 1.060, 1.080])
-        selection.errors == pytest.approx([0.000, 0.002, 0.004, 0.006, 0.008])
-        selection.x == pytest.approx([0.000, 2.000, 4.000, 6.000, 8.000])
+        assert selection.name == 'lattice'
+        np.testing.assert_equal(selection.values, [1.000, 1.020, 1.040, 1.060, 1.080])
+        np.testing.assert_equal(selection.errors, [0.000, 0.002, 0.004, 0.006, 0.008])
+        np.testing.assert_equal(selection.x, [0.000, 2.000, 4.000, 6.000, 8.000])
 
     def test_aggregate(self):
         sample1 = ScalarFieldSample(*TestScalarFieldSample.sample1)
@@ -128,18 +128,18 @@ class TestScalarFieldSample:
         sample = sample1.aggregate(sample2)
         # index 9 of aggregate sample corresponds to the last point of sample1
         # index 10 of aggregate sample corresponds to the first point of sample2
-        assert sample.values[9: 11] == pytest.approx([1.090, 1.071])
-        assert sample.errors[9: 11] == pytest.approx([0.009, 0.008])
-        assert sample.x[9: 11] == pytest.approx([9.000, 7.009])
+        np.testing.assert_equal(sample.values[9: 11], [1.090, 1.071])
+        np.testing.assert_equal(sample.errors[9: 11], [0.009, 0.008])
+        np.testing.assert_equal(sample.x[9: 11], [9.000, 7.009])
 
     def test_intersection(self):
         sample1 = ScalarFieldSample(*TestScalarFieldSample.sample1)
         sample = sample1.intersection(ScalarFieldSample(*TestScalarFieldSample.sample2))
         assert len(sample) == 6  # three points from sample1 and three points from sample2
         assert sample.name == 'lattice'
-        assert sample.values == pytest.approx([1.070, 1.080, 1.090, 1.071, 1.081, 1.091])
-        assert sample.errors == pytest.approx([0.007, 0.008, 0.009, 0.008, 0.008, 0.008])
-        assert sample.x == pytest.approx([7.000, 8.000, 9.000, 7.009, 8.001, 9.005])
+        np.testing.assert_equal(sample.values, [1.070, 1.080, 1.090, 1.071, 1.081, 1.091])
+        np.testing.assert_equal(sample.errors, [0.007, 0.008, 0.009, 0.008, 0.008, 0.008])
+        np.testing.assert_equal(sample.x, [7.000, 8.000, 9.000, 7.009, 8.001, 9.005])
 
     def test_coalesce(self):
         sample1 = ScalarFieldSample(*TestScalarFieldSample.sample1)
@@ -149,9 +149,9 @@ class TestScalarFieldSample:
         assert sample.name == 'lattice'
         # index 6 of aggregate sample corresponds to index 6 of sample1
         # index 11 of aggregate sample corresponds to index 3 of sample2
-        assert sample.values[6: 11] == pytest.approx([1.060, 1.070, 1.080, 1.091, 1.10])
-        assert sample.errors[6: 11] == pytest.approx([0.006, 0.007, 0.008, 0.008, 0.0])
-        assert sample.x[6: 11] == pytest.approx([6.000, 7.000, 8.000, 9.005, 10.00])
+        np.testing.assert_equal(sample.values[6: 11], [1.060, 1.070, 1.080, 1.091, 1.10])
+        np.testing.assert_equal(sample.errors[6: 11], [0.006, 0.007, 0.008, 0.008, 0.0])
+        np.testing.assert_equal(sample.x[6: 11], [6.000, 7.000, 8.000, 9.005, 10.00])
 
     def test_fuse(self):
         sample1 = ScalarFieldSample(*TestScalarFieldSample.sample1)
@@ -160,9 +160,9 @@ class TestScalarFieldSample:
         assert sample.name == 'lattice'
         # index 6 of aggregate sample corresponds to index 6 of sample1
         # index 11 of aggregate sample corresponds to index 3 of sample2
-        assert sample.values[6: 11] == pytest.approx([1.060, 1.070, 1.080, 1.091, 1.10])
-        assert sample.errors[6: 11] == pytest.approx([0.006, 0.007, 0.008, 0.008, 0.0])
-        assert sample.x[6: 11] == pytest.approx([6.000, 7.000, 8.000, 9.005, 10.00])
+        np.testing.assert_equal(sample.values[6: 11], [1.060, 1.070, 1.080, 1.091, 1.10])
+        np.testing.assert_equal(sample.errors[6: 11], [0.006, 0.007, 0.008, 0.008, 0.0])
+        np.testing.assert_equal(sample.x[6: 11], [6.000, 7.000, 8.000, 9.005, 10.00])
 
     def test_export(self):
         # Create a scalar field
@@ -269,7 +269,7 @@ def field_sample_collection():
                               [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]  # z
                               ),
         # distance resolution is assumed to be 0.01
-        # The first four points of sample2 overlaps with the first four points of sample1
+        # The first four points of sample2 still overlaps with the first four points of sample1
         # the last four points of sample1 are not in sample2, and viceversa
         'sample2': SampleMock('strain',
                               [1.071, 1.081, 1.091, 1.10, 1.11, 1.12, 1.13, 1.14, 1.15, 1.16],  # values
@@ -328,7 +328,7 @@ def test_stack_scalar_field_samples(field_sample_collection):
 
     for sample in (sample1, sample2, sample3):
         assert len(sample) == 6
-        assert sample.x == pytest.approx([5.0, 4.0, 3.003, 2.003, 1.003, 0.003])
+        np.testing.assert_almost_equal(sample.x, [5.0, 4.0, 3.003, 2.003, 1.003, 0.003])
 
     # Assert evaluations for sample1
     sample1_values = [1.05, 1.04, 1.03, 1.02, 1.01, 1.0]
