@@ -96,6 +96,25 @@ class TestPointList:
         except AttributeError:
             pass  # this is the correct behavior
 
+    def test_is_contained_in(self, sample_logs_mock):
+        point_list = PointList(sample_logs_mock['logs'])
+        subset = np.array(sample_logs_mock['xyz'])[:, 0:5]  # pick only the first five coordinates
+        other_list = PointList(subset)
+        assert other_list.is_contained_in(point_list) is True
+        assert point_list.is_contained_in(other_list) is False
+
+    def test_is_equal_within_resolution(self, sample_logs_mock):
+        point_list = PointList(sample_logs_mock['logs'])
+        # perturb the positions of point_list within resolution
+        original = np.array(sample_logs_mock['xyz'])
+        perturbation = (sample_logs_mock['resolution'] / 3.0) * (np.random.random(original.shape) - 0.5)
+        other_list = PointList(original + perturbation)
+        assert point_list.is_equal_within_resolution(other_list, resolution=sample_logs_mock['resolution']) is True
+        # perturb the very first coordinate too much
+        perturbation[0][0] += 2 * sample_logs_mock['resolution']
+        other_list = PointList(original + perturbation)
+        assert point_list.is_equal_within_resolution(other_list, resolution=sample_logs_mock['resolution']) is False
+
     def test_aggregate(self, sample_logs_mock):
         point_list = PointList(sample_logs_mock['logs']).aggregate(PointList(sample_logs_mock['xyz']))
         np.testing.assert_equal(point_list.vx, sample_logs_mock['xyz'][0] + sample_logs_mock['xyz'][0])
