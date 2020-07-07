@@ -172,6 +172,22 @@ class TestPointList:
         assert grid_z[0][0] == pytest.approx([1.498, 1.565, 1.633, 1.700], abs=0.001)
         assert grid_z[13][-1] == pytest.approx([1.498, 1.565, 1.633, 1.700], abs=0.001)
 
+    def test_grid_point_list(self):
+        # Passing the orthonormal vectors along each direction as three points
+        point_list = PointList([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        other_list = point_list.grid_point_list(resolution=DEFAULT_POINT_RESOLUTION)
+        # The regular grid spanned by the three orthonormal vectors is the unit cube, with eight points
+        cube_coordinates = [[0., 0., 0.], [1., 0., 0.], [0., 1., 0.], [1., 1., 0.],
+                            [0., 0., 1.], [1., 0., 1.], [0., 1., 1.], [1., 1., 1.]]
+        cube_point_list = PointList(np.array(cube_coordinates).T)
+        assert other_list.is_equal_within_resolution(cube_point_list, resolution=1.e-06) is True
+
+    def test_is_a_grid(self, sample_logs_mock):
+        point_list = PointList(sample_logs_mock['logs'])
+        assert point_list.is_a_grid(resolution=sample_logs_mock['resolution']) is False
+        regular_point_list = point_list.grid_point_list(resolution=sample_logs_mock['resolution'])
+        assert regular_point_list.is_a_grid(resolution=sample_logs_mock['resolution']) is True
+
 
 def test_aggregate_point_list(sample_logs_mock):
     point_list = aggregate_point_lists(*[PointList(sample_logs_mock['logs']) for _ in range(3)])  # three lists
