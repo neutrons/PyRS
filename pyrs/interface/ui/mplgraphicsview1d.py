@@ -818,8 +818,15 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
 
         # set aspect ratio
         self.axes_main[row_index, col_index].set_aspect('auto')
-        delta_x = vec_x[1] - vec_x[0]
+
+        # just checking bounds, need to add tests for other situations (empty vec_x)
+        if len(vec_x) == 1:
+            delta_x = vec_x[0]
+        else:
+            delta_x = vec_x[1] - vec_x[0]
+
         x_left = vec_x[0] - delta_x
+        # TODO more bounds check
         x_right = vec_x[-1] + delta_x
         self.axes_main[row_index, col_index].set_xlim(x_left, x_right)
 
