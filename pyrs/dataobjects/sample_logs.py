@@ -2,6 +2,7 @@
 from collections import Iterable, MutableMapping
 import numpy as np
 from scipy.cluster.hierarchy import fclusterdata
+from scipy.spatial import cKDTree
 from typing import Union, List, NamedTuple, Tuple
 from pyrs.utilities.convertdatatypes import to_int
 from .constants import HidraConstants, DEFAULT_POINT_RESOLUTION  # type: ignore
@@ -400,6 +401,46 @@ class PointList:
 
         return np.allclose(self.vx, other.vx, atol=self.ATOL) and np.allclose(self.vy, other.vy, atol=self.ATOL) \
             and np.allclose(self.vz, other.vz, atol=self.ATOL)
+
+    def is_contained_in(self, other: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> bool:
+        r"""
+        For every point in the list, check that a point in the other list exist within
+        a distance smaller than the resolution.
+
+        Parameters
+        ----------
+        other: ~pyrs.dataobjects.sample_logs.PointList
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity.
+
+        Returns
+        -------
+        bool
+        """
+        # For every self.coordinate, find the closest neighbor in other.coordinates
+        distances, other_indexes = cKDTree(other.coordinates).query(self.coordinates, k=1)
+        return bool(np.all(distances < resolution))
+
+    def is_equal_within_resolution(self, other: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> bool:
+        r"""
+        Check two lists are equal within resolution by checking that the other list is contained in the
+        current list, and viceversa.
+
+        It is not required that the two lists have equal length, because either list may contain
+        redundant points (points within resolution)
+
+        Parameters
+        ----------
+        other: ~pyrs.dataobjects.sample_logs.PointList
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity
+
+        Returns
+        -------
+        bool
+        """
+        return self.is_contained_in(other, resolution=resolution) \
+            and other.is_contained_in(self, resolution=resolution)
 
     @property
     def coordinates(self) -> np.ndarray:
