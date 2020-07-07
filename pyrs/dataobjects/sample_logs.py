@@ -667,6 +667,40 @@ class PointList:
                         x_vy.min: x_vy.max: complex(0, x_vy.numpoints),  # type: ignore
                         x_vz.min: x_vz.max: complex(0, x_vz.numpoints)]  # type: ignore
 
+    def grid_point_list(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> 'PointList':
+        r"""
+        Using the extents of the list, create a new `PointList` filling the points of the regular grid
+        constructed using the extents.
+
+        Parameters
+        ----------
+        resolution: float
+            Two coordinates are considered the same if their distance is less than this value.
+
+        Returns
+        -------
+        ~pyrs.dataobjects.sample_logs.PointList
+        """
+        grid_coordinates = np.array(self.mgrid(resolution=resolution)).T.reshape(-1, 3).T  # shape = (3, number points)
+        return PointList(grid_coordinates)
+
+    def is_a_grid(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> bool:
+        r"""
+        Check that the points fill the regular 3D grid created by the extents of the points.
+
+        Parameters
+        ----------
+        resolution: float
+            Two coordinates are considered the same if their distance is less than this value. Determines the
+            coordinate increment in the extents.
+
+        Returns
+        -------
+        bool
+        """
+        other_list = self.grid_point_list(resolution=resolution)
+        return self.is_equal_within_resolution(other_list)
+
 
 def aggregate_point_lists(*args):
     r"""
