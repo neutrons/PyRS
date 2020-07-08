@@ -134,8 +134,10 @@ class ScalarFieldSample:
         -------
         ~pyrs.dataobjects.fields.ScalarFieldSample
         """
-        # TODO smarten the algorithm: are self.x(.y,.z) already a regular 3D lattice?
         # TODO deal with corner case when self.x (or .y or .z) only have one unique coordinate value
+        # Corner case: the points fill a regular grid. Thus, there's no need to interpolate.
+        if self.point_list.is_a_grid(resolution=resolution):
+            return self.coalesce(resolution=resolution, criterion=criterion)  # get rid of duplicate points
         # regular 3D grids using the `extents` of the sample points
         grid_x, grid_y, grid_z = self.point_list.mgrid(resolution=resolution)
         field_finite = self.isfinite  # We need to remove non-finite values prior to interpolation
@@ -236,14 +238,15 @@ class ScalarFieldSample:
         criterion: str
             Criterion by which to resolve which out of two (or more) samples is selected, while the rest is
             discarded. Possible values are:
-            'min_error': the sample with the minimal uncertainty is selected
+            'min_error': the sample with the minimal uncertainty is selected (Nan values ignored).
         Returns
         -------
         ~pyrs.dataobjects.fields.ScalarFieldSample
         """
         def min_error(indexes):
             r"""Find index of sample point with minimum error of the scalar field"""
-            error_min_index = np.argmin(np.array(self.errors)[indexes])
+            error_values = np.array(self.errors)[indexes]
+            error_min_index = np.nanargmin(error_values)  # ignore 'nan' values
             return indexes[error_min_index]
         criterion_functions = {'min_error': min_error}
         assert criterion in criterion_functions, f'The criterion must be one of {criterion_functions.keys()}'

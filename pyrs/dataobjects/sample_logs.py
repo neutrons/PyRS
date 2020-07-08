@@ -2,6 +2,7 @@
 from collections import Iterable, MutableMapping
 import numpy as np
 from scipy.cluster.hierarchy import fclusterdata
+from scipy.spatial import cKDTree
 from typing import Union, List, NamedTuple, Tuple
 from pyrs.utilities.convertdatatypes import to_int
 from .constants import HidraConstants, DEFAULT_POINT_RESOLUTION  # type: ignore
@@ -401,6 +402,46 @@ class PointList:
         return np.allclose(self.vx, other.vx, atol=self.ATOL) and np.allclose(self.vy, other.vy, atol=self.ATOL) \
             and np.allclose(self.vz, other.vz, atol=self.ATOL)
 
+    def is_contained_in(self, other: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> bool:
+        r"""
+        For every point in the list, check that a point in the other list exist within
+        a distance smaller than the resolution.
+
+        Parameters
+        ----------
+        other: ~pyrs.dataobjects.sample_logs.PointList
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity.
+
+        Returns
+        -------
+        bool
+        """
+        # For every self.coordinate, find the closest neighbor in other.coordinates
+        distances, other_indexes = cKDTree(other.coordinates).query(self.coordinates, k=1)
+        return bool(np.all(distances < resolution))
+
+    def is_equal_within_resolution(self, other: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> bool:
+        r"""
+        Check two lists are equal within resolution by checking that the other list is contained in the
+        current list, and viceversa.
+
+        It is not required that the two lists have equal length, because either list may contain
+        redundant points (points within resolution)
+
+        Parameters
+        ----------
+        other: ~pyrs.dataobjects.sample_logs.PointList
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity
+
+        Returns
+        -------
+        bool
+        """
+        return self.is_contained_in(other, resolution=resolution) \
+            and other.is_contained_in(self, resolution=resolution)
+
     @property
     def coordinates(self) -> np.ndarray:
         r"""
@@ -625,6 +666,40 @@ class PointList:
         return np.mgrid[x_vx.min: x_vx.max: complex(0, x_vx.numpoints),  # type: ignore
                         x_vy.min: x_vy.max: complex(0, x_vy.numpoints),  # type: ignore
                         x_vz.min: x_vz.max: complex(0, x_vz.numpoints)]  # type: ignore
+
+    def grid_point_list(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> 'PointList':
+        r"""
+        Using the extents of the list, create a new `PointList` filling the points of the regular grid
+        constructed using the extents.
+
+        Parameters
+        ----------
+        resolution: float
+            Two coordinates are considered the same if their distance is less than this value.
+
+        Returns
+        -------
+        ~pyrs.dataobjects.sample_logs.PointList
+        """
+        grid_coordinates = np.array(self.mgrid(resolution=resolution)).T.reshape(-1, 3).T  # shape = (3, number points)
+        return PointList(grid_coordinates)
+
+    def is_a_grid(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> bool:
+        r"""
+        Check that the points fill the regular 3D grid created by the extents of the points.
+
+        Parameters
+        ----------
+        resolution: float
+            Two coordinates are considered the same if their distance is less than this value. Determines the
+            coordinate increment in the extents.
+
+        Returns
+        -------
+        bool
+        """
+        other_list = self.grid_point_list(resolution=resolution)
+        return self.is_equal_within_resolution(other_list)
 
 
 def aggregate_point_lists(*args):
