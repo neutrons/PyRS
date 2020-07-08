@@ -3,7 +3,7 @@ from collections import Iterable, MutableMapping
 import numpy as np
 from scipy.cluster.hierarchy import fclusterdata
 from scipy.spatial import cKDTree
-from typing import Union, List, NamedTuple, Tuple
+from typing import Optional, Union, List, NamedTuple, Tuple
 from pyrs.utilities.convertdatatypes import to_int
 from .constants import HidraConstants, DEFAULT_POINT_RESOLUTION  # type: ignore
 
@@ -235,18 +235,18 @@ class DirectionExtents(_DirectionExtents):
         resolution: float
             Two coordinates are considered the same if their distance is less than this value.
         """
-        coordinates_rounded = [resolution * int(x / resolution) for x in coordinates]
-        coordinates_rounded_count = len(set(coordinates_rounded))
+        coordinates_floored = [resolution * int(x / resolution) for x in coordinates]
+        coordinates_floored_count = len(set(coordinates_floored))
         # `delta` is the spacing between unique coordinates. Use resolution if only one unique coordinate
-        if coordinates_rounded_count == 1:
+        if coordinates_floored_count == 1:
             min_coord = max_coord = np.average(coordinates)
             delta = resolution
         else:
             min_coord = np.min(coordinates)
             max_coord = np.max(coordinates)
-            delta = (max_coord - min_coord) / (coordinates_rounded_count - 1)
+            delta = (max_coord - min_coord) / (coordinates_floored_count - 1)
         extents_tuple = super(DirectionExtents, cls).__new__(cls, min_coord, max_coord, delta)
-        super(DirectionExtents, cls).__setattr__(extents_tuple, '_numpoints', coordinates_rounded_count)
+        super(DirectionExtents, cls).__setattr__(extents_tuple, '_numpoints', coordinates_floored_count)
         super(DirectionExtents, cls).__setattr__(extents_tuple, '_resolution', resolution)
         return extents_tuple
 
@@ -452,6 +452,31 @@ class PointList:
         numpy.ndarray
         """
         return np.array([self.vx, self.vy, self.vz]).transpose()
+
+    def linear_scan(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> Optional[np.ndarray]:
+        r"""
+        For linear scans, find the direction of the scan.
+
+        A `PointList` represents a linear scan when two of the vx, vy, and vz directions contain
+        only a unique value that can discerned given a `resolution`.
+
+        Parameters
+        ----------
+        resolution: float
+            Two coordinates are considered the same if their distance is less than this value.
+
+        Returns
+        -------
+        np.ndarray, None
+        """
+        values_count = [extent.numpoints for extent in self.extents(resolution=resolution)]
+        if values_count.count(1) == 2:  # two directions have only one unique value
+            direction_vector = [0, 0, 0]  # initialize the vector pointing along the direction of the linear scan
+            for direction_index in range(3):  # probe each of the vx, vy, and vz directions
+                if values_count[direction_index] > 1:
+                    direction_vector[direction_index] = 1  # e.g. [1, 0, 0] if linear scan along vx
+                    return np.array(direction_vector)
+        return None  # the list of points do not represent a linear scan
 
     def aggregate(self, other: 'PointList') -> 'PointList':
         r"""
