@@ -133,14 +133,14 @@ class TestPointList:
         point_list = PointList(sample_logs_mock['logs'])
         np.testing.assert_allclose(point_list.coordinates, np.array(sample_logs_mock['xyz']).transpose())
 
-    def test_linear_scan(self):
+    def test_linear_scan_vector(self):
         # vx and vy are only one point, within resolution
         xyz = [[0, 0, 0.003, 0.004, 0], [0, 1, 2, 3, 4], [1, 1.001, 1.002, 1.003, 1.009]]
         point_list = PointList(xyz)
-        assert point_list.linear_scan(resolution=DEFAULT_POINT_RESOLUTION) == pytest.approx([0, 1, 0])
+        assert point_list.linear_scan_vector(resolution=DEFAULT_POINT_RESOLUTION) == pytest.approx([0, 1, 0])
         xyz[0][0] = 0.011  # this point is beyond resolution with the rest of the other vx points
         point_list = PointList(xyz)
-        assert point_list.linear_scan(resolution=DEFAULT_POINT_RESOLUTION) is None
+        assert point_list.linear_scan_vector(resolution=DEFAULT_POINT_RESOLUTION) is None
 
     def test_intersection(self):
         xyz1 = [[0.0, 1.0, 2.0, 3.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]]

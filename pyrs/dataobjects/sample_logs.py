@@ -453,7 +453,7 @@ class PointList:
         """
         return np.array([self.vx, self.vy, self.vz]).transpose()
 
-    def linear_scan(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> Optional[np.ndarray]:
+    def linear_scan_vector(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> Optional[np.ndarray]:
         r"""
         For linear scans, find the direction of the scan.
 
