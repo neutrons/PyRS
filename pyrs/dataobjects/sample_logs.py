@@ -453,6 +453,31 @@ class PointList:
         """
         return np.array([self.vx, self.vy, self.vz]).transpose()
 
+    def coordinates_irreducible(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> np.ndarray:
+        r"""
+        Array of point coordinates where dimensions orthogonal to a linear or surface scan are removed.
+
+        For linear scans, the coordinates are 1D, and for surface scans the coordinates are 2D.
+
+        Parameters
+        ----------
+        resolution: float
+            Two coordinates are considered the same if their distance is less than this value. Determines the
+            coordinate increment in the extents.
+
+        Returns
+        -------
+        ~numpy.ndarray
+            Array with shape = (number of scanned points, D), where D is one for linear scans, 2 for surface scans,
+            and 3 for volume scans.
+        """
+        dimension_coordinates = list()
+        for dimension_index, extent in enumerate(self.extents(resolution=resolution)):
+            if extent.numpoints == 1:
+                continue  # discard this dimension
+            dimension_coordinates.append(self[dimension_index])
+        return np.array(dimension_coordinates).transpose()
+
     def linear_scan_vector(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> Optional[np.ndarray]:
         r"""
         For linear scans, find the direction of the scan.
@@ -669,7 +694,7 @@ class PointList:
         extents = self.extents(resolution=resolution)
         return [np.linspace(extent.min, extent.max, num=extent.numpoints, endpoint=True) for extent in extents]
 
-    def mgrid(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> np.ndarray:
+    def mgrid(self, resolution: float = DEFAULT_POINT_RESOLUTION, irreducible: bool = False) -> np.ndarray:
         r"""
         Create a regular 3D point grid, using the `extents`.
 
@@ -680,6 +705,8 @@ class PointList:
         resolution: float
             Two coordinates are considered the same if their distance is less than this value. Determines the
             coordinate increment in the extents.
+        irreducible: bool
+            For surface and linear scans, discard the dimensions orthogonal to the scan direction or surface.
 
         Returns
         -------
@@ -687,10 +714,14 @@ class PointList:
             A three item array, where each items is an array specifying the value of each
             coordinate (vx, vy, or vz) at the points of the regular grid
         """
-        x_vx, x_vy, x_vz = self.extents(resolution=resolution)
-        return np.mgrid[x_vx.min: x_vx.max: complex(0, x_vx.numpoints),  # type: ignore
-                        x_vy.min: x_vy.max: complex(0, x_vy.numpoints),  # type: ignore
-                        x_vz.min: x_vz.max: complex(0, x_vz.numpoints)]  # type: ignore
+        epsilon = 1.e-09
+        slices = list()
+        for extent in self.extents(resolution=resolution):
+            if extent.numpoints == 1 and irreducible is True:
+                continue  # discard this dimension
+            step = (extent.max - extent.min) / (extent.numpoints - 1)
+            slices.append(slice(extent.min, extent.max + epsilon, step))
+        return np.mgrid[slices]
 
     def grid_point_list(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> 'PointList':
         r"""
