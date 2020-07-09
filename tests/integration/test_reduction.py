@@ -83,7 +83,7 @@ def test_no_counts():
 
 @pytest.mark.parametrize('nexusfile, projectfile',
                          [('/HFIR/HB2B/IPTS-22731/nexus/HB2B_931.ORIG.nxs.h5', 'HB2B_931.h5'),  # Vanadium
-                          ('data/HB2B_938.nxs.h5', 'HB2B_938.h5')],  # A good peak
+                          ('tests/data/HB2B_938.nxs.h5', 'HB2B_938.h5')],  # A good peak
                          ids=('HB2B_931', 'RW_938'))
 def test_nexus_to_project(nexusfile, projectfile):
     """Test converting NeXus to project and convert to diffraction pattern
@@ -121,8 +121,8 @@ def test_nexus_to_project(nexusfile, projectfile):
 
 
 @pytest.mark.parametrize('mask_file_name, filtered_counts, histogram_counts',
-                         [('data/HB2B_Mask_12-18-19.xml', (540461, 1635432, 1193309),
-                                                          (540435.0, 1634566.0, 1192944.0)),
+                         [('tests/data/HB2B_Mask_12-18-19.xml', (540461, 1635432, 1193309),
+                           (540435.0, 1634566.0, 1192944.0)),
                           (None, (548953, 1661711, 1212586), (548953.0, 1661711.0, 1212586.0))],
                          ids=('HB2B_1017_Masked', 'HB2B_1017_NoMask'))
 def test_reduce_data(mask_file_name, filtered_counts, histogram_counts):
@@ -198,7 +198,7 @@ def test_split_log_time_average():
 
 
 @pytest.mark.parametrize('project_file, van_project_file, target_project_file',
-                         [('data/HB2B_938.h5', 'data/HB2B_931.h5', 'HB2B_938_van.h5')],
+                         [('tests/data/HB2B_938.h5', 'tests/data/HB2B_931.h5', 'HB2B_938_van.h5')],
                          ids=['HB2B_938V'])
 def test_apply_vanadium(project_file, van_project_file, target_project_file):
     """Test applying vanadium to the raw data in project file
@@ -241,7 +241,7 @@ def test_apply_mantid_mask():
 
     """
     # Specify NeXus
-    nexus_file = 'data/HB2B_938.nxs.h5'
+    nexus_file = 'tests/data/HB2B_938.nxs.h5'
 
     # Convert the NeXus to file to a project without mask and convert to 2theta diffraction pattern
     no_mask_project_file = 'HB2B_938_no_mask.h5'
@@ -268,7 +268,7 @@ def test_apply_mantid_mask():
         os.remove(project_file)
     # Convert
     masked_hidra_ws = convertNeXusToProject(nexus_file, project_file, skippable=False,
-                                            mask_file_name='data/HB2B_Mask_12-18-19.xml')
+                                            mask_file_name='tests/data/HB2B_Mask_12-18-19.xml')
     mask_array = masked_hidra_ws.get_detector_mask(True)
     # check on Mask: num_masked_pixels = (135602,)
     assert np.where(mask_array == 0)[0].shape[0] == 135602, 'Mask shall have 135602 pixels masked but not {}' \

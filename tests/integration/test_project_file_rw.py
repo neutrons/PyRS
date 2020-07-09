@@ -12,7 +12,7 @@ def test_rw_raw():
     -------
 
     """
-    raw_project_name = os.path.join(os.getcwd(), 'data/HZB_Raw_Project.h5')
+    raw_project_name = os.path.join(os.getcwd(), 'tests/data/HZB_Raw_Project.h5')
 
     # Read to workspace
     source_project = HidraProjectFile(raw_project_name, 'r')

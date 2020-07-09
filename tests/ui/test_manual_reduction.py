@@ -15,7 +15,7 @@ def test_manual_reduction(qtbot, tmpdir):
     assert window.isVisible()
 
     # set data
-    qtbot.keyClicks(window.ui.lineEdit_runNumber, "data/HB2B_938.nxs.h5")
+    qtbot.keyClicks(window.ui.lineEdit_runNumber, "tests/data/HB2B_938.nxs.h5")
     qtbot.wait(wait)
 
     # set mask
@@ -24,7 +24,7 @@ def test_manual_reduction(qtbot, tmpdir):
     for _ in range(100):
         qtbot.keyClick(window.ui.lineEdit_maskFile, QtCore.Qt.Key_Backspace)
     qtbot.wait(wait)
-    qtbot.keyClicks(window.ui.lineEdit_maskFile, "data/HB2B_Mask_12-18-19.xml")
+    qtbot.keyClicks(window.ui.lineEdit_maskFile, "tests/data/HB2B_Mask_12-18-19.xml")
     qtbot.wait(wait)
 
     # set calibration
@@ -33,11 +33,11 @@ def test_manual_reduction(qtbot, tmpdir):
     for _ in range(100):
         qtbot.keyClick(window.ui.lineEdit_calibrationFile, QtCore.Qt.Key_Backspace)
     qtbot.wait(wait)
-    qtbot.keyClicks(window.ui.lineEdit_calibrationFile, "data/HB2B_CAL_Si333.json")
+    qtbot.keyClicks(window.ui.lineEdit_calibrationFile, "tests/data/HB2B_CAL_Si333.json")
     qtbot.wait(wait)
 
     # set vanadium
-    qtbot.keyClicks(window.ui.lineEdit_vanRunNumber, "data/HB2B_1118.nxs.h5")
+    qtbot.keyClicks(window.ui.lineEdit_vanRunNumber, "tests/data/HB2B_1118.nxs.h5")
     qtbot.wait(wait)
 
     # set output directory

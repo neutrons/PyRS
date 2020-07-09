@@ -101,14 +101,15 @@ def test_2theta_calculation():
     two_theta_arrays = instrument.get_pixels_2theta(dimension=1)
 
     # compare with gold file
-    gold_dict = parse_gold_file('data/HB2B_1017_Pixels_Gold.h5')
+    gold_dict = parse_gold_file('tests/data/HB2B_1017_Pixels_Gold.h5')
     np.testing.assert_allclose(pixel_positions, gold_dict['positions'], rtol=1E-8)
     np.testing.assert_allclose(two_theta_arrays, gold_dict['2theta'], rtol=1E-8)
 
 
 @pytest.mark.parametrize('project_file_name, mask_file_name, gold_file',
-                         [('data/HB2B_1017.h5', 'data/HB2B_Mask_12-18-19.xml', 'data/HB2B_1017_NoMask_Gold.h5'),
-                          ('data/HB2B_1017.h5', None, 'data/HB2B_1017_NoMask_Gold.h5')],
+                         [('tests/data/HB2B_1017.h5', 'tests/data/HB2B_Mask_12-18-19.xml',
+                           'tests/data/HB2B_1017_NoMask_Gold.h5'),
+                          ('tests/data/HB2B_1017.h5', None, 'tests/data/HB2B_1017_NoMask_Gold.h5')],
                          ids=('HB2B_1017_Masked', 'HB2B_1017_NoMask'))
 def test_powder_pattern_engine(project_file_name, mask_file_name, gold_file):
     """Test the powder pattern calculator (service) with HB2B-specific reduction routine
@@ -167,17 +168,18 @@ def test_powder_pattern_engine(project_file_name, mask_file_name, gold_file):
         data_dict[str(sub_run_i)] = pattern
 
 #    if mask_file_name:
-#        name = 'data/HB2B_1017_Mask_Gold.h5'
+#        name = 'tests/data/HB2B_1017_Mask_Gold.h5'
 #    else:
-#        name = 'data/HB2B_1017_NoMask_Gold.h5'
+#        name = 'tests/data/HB2B_1017_NoMask_Gold.h5'
 #    write_gold_file(name, data_dict)
 
     return
 
 
 @pytest.mark.parametrize('project_file_name, mask_file_name, gold_file',
-                         [('data/HB2B_1017.h5', 'data/HB2B_Mask_12-18-19.xml', 'data/HB2B_1017_NoMask_Gold.h5'),
-                          ('data/HB2B_1017.h5', None, 'data/HB2B_1017_NoMask_Gold.h5')],
+                         [('tests/data/HB2B_1017.h5', 'tests/data/HB2B_Mask_12-18-19.xml',
+                           'tests/data/HB2B_1017_NoMask_Gold.h5'),
+                          ('tests/data/HB2B_1017.h5', None, 'tests/data/HB2B_1017_NoMask_Gold.h5')],
                          ids=('HB2B_1017_Masked', 'HB2B_1017_NoMask'))
 def test_powder_pattern_service(project_file_name, mask_file_name, gold_file):
     """Test the powder pattern calculator (service) with HB2B-specific reduction routine

@@ -15,7 +15,7 @@ def test_calibration_json_io():
     None
     """
     # Set test data
-    gold_calib_file = 'data/HB2B_CAL_Si333.json'
+    gold_calib_file = 'tests/data/HB2B_CAL_Si333.json'
     assert os.path.exists(gold_calib_file), 'Test calibration file {} does not exist'.format(gold_calib_file)
 
     # Import for future test
