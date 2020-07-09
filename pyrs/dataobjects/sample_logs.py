@@ -470,7 +470,7 @@ class PointList:
         int_to_attr = ('vx', 'vy', 'vz')
         if isinstance(direction, int):
             direction = int_to_attr[direction]
-        return  getattr(self, direction)
+        return getattr(self, direction)
 
     def coordinates_irreducible(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> np.ndarray:
         r"""
@@ -490,12 +490,12 @@ class PointList:
             Array with shape = (number of scanned points, D), where D is one for linear scans, 2 for surface scans,
             and 3 for volume scans.
         """
-        direction_index = list()
+        direction_coordinates = list()
         for direction_index, extent in enumerate(self.extents(resolution=resolution)):
             if extent.numpoints == 1:
                 continue  # discard this dimension
-            direction_index.append(self.coordinates_along_direction(direction_index))
-        return np.array(direction_index).transpose()
+            direction_coordinates.append(self.coordinates_along_direction(direction_index))
+        return np.array(direction_coordinates).transpose()
 
     def linear_scan_vector(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> Optional[np.ndarray]:
         r"""

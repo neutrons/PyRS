@@ -147,18 +147,26 @@ class TestPointList:
         point_list = PointList(xyz)
         # Volume scan
         coordinates_irreducible = point_list.coordinates_irreducible(resolution=DEFAULT_POINT_RESOLUTION)
+        assert coordinates_irreducible[0] == pytest.approx([0.0, 0.0, 0.0])  # check first point
+        assert coordinates_irreducible[-1] == pytest.approx([4.0, 1.0, 1.0])  # check last point
         assert coordinates_irreducible.shape[-1] == 3  # xyz if a volume scan, thus three dimensions
         assert coordinates_irreducible == pytest.approx(np.array(xyz).transpose())
         # Surface scan
         xyz[2] = [0] * 11
+        point_list = PointList(xyz)
         coordinates_irreducible = point_list.coordinates_irreducible(resolution=DEFAULT_POINT_RESOLUTION)
+        assert coordinates_irreducible[0] == pytest.approx([0.0, 0.0])  # check first point
+        assert coordinates_irreducible[-1] == pytest.approx([4.0, 1.0])  # check last point
         assert coordinates_irreducible.shape[-1] == 2  # xyz if a surface scan, thus two dimensions
         assert coordinates_irreducible == pytest.approx(np.array(xyz[0:2]).transpose())
         # Linear scan
         xyz[1] = [0] * 11
+        point_list = PointList(xyz)
         coordinates_irreducible = point_list.coordinates_irreducible(resolution=DEFAULT_POINT_RESOLUTION)
+        assert coordinates_irreducible[0] == pytest.approx([0.0])  # check first point
+        assert coordinates_irreducible[-1] == pytest.approx([4.0])  # check last point
         assert coordinates_irreducible.shape[-1] == 1  # xyz if a linear scan, thus one dimensions
-        assert coordinates_irreducible == pytest.approx(np.array(xyz[0]).transpose())
+        assert coordinates_irreducible == pytest.approx(np.array(xyz[0]).reshape((11, 1)))
 
     def test_linear_scan_vector(self):
         # vx and vy are only one point, within resolution
