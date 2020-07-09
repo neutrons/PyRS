@@ -127,7 +127,7 @@ def test_least_square():
     """
     # Set up
     # reduction engine
-    project_file_name = 'data/HB2B_000.h5'
+    project_file_name = 'tests/data/HB2B_000.h5'
     engine = HidraProjectFile(project_file_name, mode=HidraProjectFileMode.READONLY)
     engine_ws = HidraWorkspace('test')
     engine_ws._load_sample_logs(engine)
@@ -154,12 +154,13 @@ def test_least_square():
     print('Total Time: {}'.format(t_stop - t_start))
 
     # Compare output file with gold file for test
-    if are_equivalent_jsons('data/HB2B_CAL_Si333.json', file_name, atol=5E-3):
+    if are_equivalent_jsons('tests/data/HB2B_CAL_Si333.json', file_name, atol=5E-3):
         # Same: remove file generated in test
         os.remove(file_name)
     else:
-        print_out_json_diff('data/HB2B_CAL_Si333.json', 'HB2B_CAL_Test.json')
-        assert False, 'Test output {} is different from gold file {}'.format(file_name, 'data/HB2B_CAL_Si333.json')
+        print_out_json_diff('tests/data/HB2B_CAL_Si333.json', 'HB2B_CAL_Test.json')
+        assert False, 'Test output {} is different from gold file {}'.format(file_name,
+                                                                             'tests/data/HB2B_CAL_Si333.json')
 
     return
 
@@ -174,7 +175,7 @@ def test_leastsq():
     """
     # Set up
     # reduction engine
-    project_file_name = 'data/HB2B_000.h5'
+    project_file_name = 'tests/data/HB2B_000.h5'
     engine = HidraProjectFile(project_file_name, mode=HidraProjectFileMode.READONLY)
 
     # Convert HidraProjectFile into HidraWorkspace
@@ -203,12 +204,13 @@ def test_leastsq():
     print('Total Time: {}'.format(t_stop - t_start))
 
     # Compare output file with gold file for test
-    if are_equivalent_jsons('data/HB2B_CAL_Si333.json', file_name, atol=5E-3):
+    if are_equivalent_jsons('tests/data/HB2B_CAL_Si333.json', file_name, atol=5E-3):
         # Same: remove file generated in test
         os.remove(file_name)
     else:
-        print_out_json_diff('data/HB2B_CAL_Si333.json', 'HB2B_CAL_Test.json')
-        assert False, 'Test output {} is different from gold file {}'.format(file_name, 'data/HB2B_CAL_Si333.json')
+        print_out_json_diff('tests/data/HB2B_CAL_Si333.json', 'HB2B_CAL_Test.json')
+        assert False, 'Test output {} is different from gold file {}'.format(file_name,
+                                                                             'tests/data/HB2B_CAL_Si333.json')
 
     return
 

@@ -29,11 +29,11 @@ def test_default_calibration_file():
 
 @pytest.mark.parametrize('nexus_file, calibration_file, mask_file, gold_file',
                          [('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5', None, None,
-                           'data/HB2B_1017_NoMask_Gold.h5'),
+                           'tests/data/HB2B_1017_NoMask_Gold.h5'),
                           ('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5', None,
-                           'data/HB2B_Mask_12-18-19.xml', 'data/HB2B_1017_NoMask_Gold.h5'),
-                          ('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5', 'data/HB2B_CAL_Si333.json',
-                           'data/HB2B_Mask_12-18-19.xml', 'data/HB2B_1017_NoMask_Gold.h5')],
+                           'tests/data/HB2B_Mask_12-18-19.xml', 'tests/data/HB2B_1017_NoMask_Gold.h5'),
+                          ('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5', 'tests/data/HB2B_CAL_Si333.json',
+                           'tests/data/HB2B_Mask_12-18-19.xml', 'tests/data/HB2B_1017_NoMask_Gold.h5')],
                          ids=('HB2B_1017_NoCal_NoMask', 'HB2B_1017_NoCal_Mask', 'HB2B_1017_Cal_Mask'))
 def test_manual_reduction(nexus_file, calibration_file, mask_file, gold_file):
     """Test the workflow to do manual reduction.
@@ -97,9 +97,9 @@ def test_reduction_with_vanadium():
     """
     # Set up
     nexus_file = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5'
-    calibration_file = 'data/HB2B_CAL_Si333.json'
-    mask_file = 'data/HB2B_Mask_12-18-19.xml'
-    vanadium_file = 'data/HB2B_931.h5'
+    calibration_file = 'tests/data/HB2B_CAL_Si333.json'
+    mask_file = 'tests/data/HB2B_Mask_12-18-19.xml'
+    vanadium_file = 'tests/data/HB2B_931.h5'
     output_dir = os.getcwd()
     target_file_path = 'HB2B_1017_Cal_Mask_Van.h5'
 

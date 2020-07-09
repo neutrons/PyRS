@@ -33,7 +33,7 @@ def test_peak_fitting(qtbot, tmpdir):
     # Browser Exp. Data File ...
     # wait until dialog is loaded then handle it, this is required
     # because the dialog is modal
-    QtCore.QTimer.singleShot(500, functools.partial(handle_dialog, "data/HB2B_1423.h5"))
+    QtCore.QTimer.singleShot(500, functools.partial(handle_dialog, "tests/data/HB2B_1423.h5"))
     qtbot.mouseClick(window.ui.pushButton_browseHDF, QtCore.Qt.LeftButton)
     qtbot.wait(wait)
 
