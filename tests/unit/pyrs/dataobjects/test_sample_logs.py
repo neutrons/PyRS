@@ -133,6 +133,33 @@ class TestPointList:
         point_list = PointList(sample_logs_mock['logs'])
         np.testing.assert_allclose(point_list.coordinates, np.array(sample_logs_mock['xyz']).transpose())
 
+    def test_coordinates_along_direction(self):
+        xyz = [[0, 1], [2, 3], [4, 5]]
+        point_list = PointList(xyz)
+        for r, index, label in zip(xyz, range(3), ('vx', 'vy', 'vz')):
+            assert point_list.coordinates_along_direction(index) == pytest.approx(r)
+            assert point_list.coordinates_along_direction(label) == pytest.approx(r)
+
+    def test_coordinates_irreducible(self):
+        xyz = [[0.0, 1.000, 1.001, 2.0, 3.0, 4.0, 0.0, 1.0, 2.0, 3.0, 4.0],  # x
+               [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0],  # y
+               [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0]]  # z
+        point_list = PointList(xyz)
+        # Volume scan
+        coordinates_irreducible = point_list.coordinates_irreducible(resolution=DEFAULT_POINT_RESOLUTION)
+        assert coordinates_irreducible.shape[-1] == 3  # xyz if a volume scan, thus three dimensions
+        assert coordinates_irreducible == pytest.approx(np.array(xyz).transpose())
+        # Surface scan
+        xyz[2] = [0] * 11
+        coordinates_irreducible = point_list.coordinates_irreducible(resolution=DEFAULT_POINT_RESOLUTION)
+        assert coordinates_irreducible.shape[-1] == 2  # xyz if a surface scan, thus two dimensions
+        assert coordinates_irreducible == pytest.approx(np.array(xyz[0:2]).transpose())
+        # Linear scan
+        xyz[1] = [0] * 11
+        coordinates_irreducible = point_list.coordinates_irreducible(resolution=DEFAULT_POINT_RESOLUTION)
+        assert coordinates_irreducible.shape[-1] == 1  # xyz if a linear scan, thus one dimensions
+        assert coordinates_irreducible == pytest.approx(np.array(xyz[0]).transpose())
+
     def test_linear_scan_vector(self):
         # vx and vy are only one point, within resolution
         xyz = [[0, 0, 0.003, 0.004, 0], [0, 1, 2, 3, 4], [1, 1.001, 1.002, 1.003, 1.009]]

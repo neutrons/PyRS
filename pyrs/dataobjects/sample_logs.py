@@ -453,6 +453,25 @@ class PointList:
         """
         return np.array([self.vx, self.vy, self.vz]).transpose()
 
+    def coordinates_along_direction(self, direction: Union[int, str]):
+        r"""
+        Coordinate values along one of the three directions.
+
+        Parameters
+        ----------
+        direction: int, str
+            Either a number from 0 to 2 or a string, one of 'vx', 'vy', or 'vz'
+
+        Returns
+        -------
+        np.ndarray
+            1D array with shape (number of points,)
+        """
+        int_to_attr = ('vx', 'vy', 'vz')
+        if isinstance(direction, int):
+            direction = int_to_attr[direction]
+        return  getattr(self, direction)
+
     def coordinates_irreducible(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> np.ndarray:
         r"""
         Array of point coordinates where dimensions orthogonal to a linear or surface scan are removed.
@@ -471,12 +490,12 @@ class PointList:
             Array with shape = (number of scanned points, D), where D is one for linear scans, 2 for surface scans,
             and 3 for volume scans.
         """
-        dimension_coordinates = list()
-        for dimension_index, extent in enumerate(self.extents(resolution=resolution)):
+        direction_index = list()
+        for direction_index, extent in enumerate(self.extents(resolution=resolution)):
             if extent.numpoints == 1:
                 continue  # discard this dimension
-            dimension_coordinates.append(self[dimension_index])
-        return np.array(dimension_coordinates).transpose()
+            direction_index.append(self.coordinates_along_direction(direction_index))
+        return np.array(direction_index).transpose()
 
     def linear_scan_vector(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> Optional[np.ndarray]:
         r"""
