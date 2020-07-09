@@ -192,7 +192,14 @@ def test_peak_fitting_result_io():
     # END-FOR
     chi2_array = np.array([0.323, 0.423, 0.523])
 
-    # Add test data to output
+    # Add some original test data
+    peaks = PeakCollection('test fake', PeakShape.PSEUDOVOIGT, BackgroundFunction.LINEAR)
+    peaks.set_peak_fitting_values(np.array([11, 21, 31]), np.ones(3, dtype=data_type), np.ones(3, dtype=data_type),
+                                  np.array([1.323, 1.423, 1.523]))
+
+    test_project_file.write_peak_parameters(peaks)
+
+    # Replace the peaks data with the real data that will be tested for
     peaks = PeakCollection('test fake', PeakShape.PSEUDOVOIGT, BackgroundFunction.LINEAR)
     peaks.set_peak_fitting_values(np.array([1, 2, 3]), test_params_array, test_error_array,
                                   chi2_array)
