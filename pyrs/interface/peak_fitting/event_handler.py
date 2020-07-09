@@ -3,6 +3,7 @@ import json
 import numpy as np
 from qtpy.QtWidgets import QTableWidgetItem, QMenu
 from qtpy.QtGui import QCursor
+from shutil import copyfile
 
 from pyrs.interface.gui_helper import pop_message
 from pyrs.interface.gui_helper import browse_file
@@ -31,11 +32,26 @@ class EventHandler:
         self.save_fit_result(self.parent.current_hidra_file_name)
 
     def save_fit_result(self, out_file_name=''):
+        """
+        Save the fit result, including a copy of the rest of the file if it does not exist at the specified path. 
+        
+        If out_file_name is empty or if it matches the parent's current file, this updates the file.
+        
+        Otherwise, the parent's file is copied to out_file_name and then the updated peak fit data is written to the copy.
+
+        :param out_file_name: string absolute fill path for the place to save the file
+        """
+        
         fit_result = self.parent.fit_result
         if fit_result is None:
             return
 
-        current_project_file = self.parent._curr_file_name
+        if out_file_name != None and self.parent._curr_file_name != out_file_name:
+            copyfile(self.parent._curr_file_name, out_file_name)
+            current_project_file = out_file_name
+        else:
+            current_project_file = self.parent._curr_file_name
+            
         project_h5_file = HidraProjectFile(current_project_file, mode=HidraProjectFileMode.READWRITE)
         peakcollections = fit_result.peakcollections
         for peak in peakcollections:
