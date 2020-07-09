@@ -738,8 +738,7 @@ class PointList:
         for extent in self.extents(resolution=resolution):
             if extent.numpoints == 1 and irreducible is True:
                 continue  # discard this dimension
-            step = (extent.max - extent.min) / (extent.numpoints - 1)
-            slices.append(slice(extent.min, extent.max + epsilon, step))
+            slices.append(slice(extent.min, extent.max + epsilon, extent.delta))
         return np.mgrid[slices]
 
     def grid_point_list(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> 'PointList':

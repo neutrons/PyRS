@@ -215,6 +215,24 @@ class TestPointList:
         assert grid_y[13][-1] == pytest.approx([0.601, 0.601, 0.601, 0.601])
         assert grid_z[0][0] == pytest.approx([1.498, 1.565, 1.633, 1.700], abs=0.001)
         assert grid_z[13][-1] == pytest.approx([1.498, 1.565, 1.633, 1.700], abs=0.001)
+        # Test irreducibility option
+        # volume scan: all three directions have more than unique point
+        xyz = [[0.0, 1.000, 1.001, 2.0, 3.0, 4.0, 0.0, 1.0, 2.0, 3.0, 4.0],  # x
+               [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0],  # y
+               [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0]]  # z
+        point_list = PointList(xyz)
+        grid = point_list.mgrid(resolution=sample_logs_mock['resolution'], irreducible=True)
+        assert grid.shape == (3, 5, 2, 2)
+        # Surface scan on the {vx, vy} plane
+        xyz[2] = [0] * 11
+        point_list = PointList(xyz)
+        grid = point_list.mgrid(resolution=sample_logs_mock['resolution'], irreducible=True)
+        assert grid.shape == (2, 5, 2)
+        # Linear scan on the vx axis
+        xyz[1] = [0] * 11
+        point_list = PointList(xyz)
+        grid = point_list.mgrid(resolution=sample_logs_mock['resolution'], irreducible=True)
+        assert grid.shape == (1, 5)
 
     def test_grid_point_list(self):
         # Passing the orthonormal vectors along each direction as three points
