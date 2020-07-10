@@ -1,4 +1,5 @@
 from mantidqt.widgets.sliceviewer.presenter import SliceViewer
+from mantidqt.widgets.sliceviewer.model import SliceViewerModel
 from qtpy.QtWidgets import (QHBoxLayout, QVBoxLayout, QLabel, QWidget,
                             QLineEdit, QPushButton, QComboBox,
                             QGroupBox, QSplitter, QTabWidget,
@@ -213,6 +214,10 @@ class StrainSliceViewer(SliceViewer):
             self.scatter.remove()
             self.view.data_view.canvas.draw_idle()
 
+    def set_new_workspace(self, ws):
+        self.model = SliceViewerModel(ws)
+        self.new_plot()
+
 
 class PlotSelect(QGroupBox):
     def __init__(self, parent=None):
@@ -284,12 +289,14 @@ class VizTabs(QTabWidget):
         self.setCornerWidget(QLabel("Visualization Pane    "), corner=Qt.TopLeftCorner)
 
     def set_ws(self, ws):
-        if self.strainSliceViewer:
-            self.plot_2d.removeWidget(self.strainSliceViewer)
         if ws:
-            self.strainSliceViewer = StrainSliceViewer(ws, parent=self).view
-            self.plot_2d.addWidget(self.strainSliceViewer)
+            if self.strainSliceViewer:
+                self.strainSliceViewer.set_new_workspace(ws)
+            else:
+                self.strainSliceViewer = StrainSliceViewer(ws, parent=self)
+                self.plot_2d.addWidget(self.strainSliceViewer.view)
         else:
+            self.plot_2d.removeWidget(self.strainSliceViewer.view)
             self.strainSliceViewer = None
 
 
