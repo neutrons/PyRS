@@ -76,14 +76,20 @@ class StressCase(QGroupBox):
         self.switch.dimChanged.connect(self.set_2D)
         layout.addWidget(self.switch)
         self.combo = QComboBox()
-        self.combo.addItems(["In-plain stress",
-                             "In-plain strain"])
+        self.combo.addItems(["In-plane stress",
+                             "In-plane strain"])
         layout.addWidget(self.combo)
         self.setLayout(layout)
 
     def set_2D(self, bool2d):
         self.combo.setDisabled(not bool2d)
         self.dimChanged.emit(bool2d)
+
+    def get_stress_case(self):
+        if self.switch.button_3d.isChecked():
+            return "diagonal"
+        else:
+            return self.combo.currentText()
 
 
 class SpinBoxDelegate(QStyledItemDelegate):
@@ -332,6 +338,7 @@ class StrainStressViewer(QSplitter):
         left_layout.addWidget(self.mechanicalConstants)
 
         self.calculate = QPushButton("Calculate Stress/Strain")
+        self.calculate.clicked.connect(self.calculate_stress)
         left_layout.addWidget(self.calculate)
         left_layout.addStretch(0)
 
@@ -344,6 +351,7 @@ class StrainStressViewer(QSplitter):
 
         self.plot_select = PlotSelect(self)
         self.plot_select.measure_dir.currentTextChanged.connect(self.update_plot)
+        self.plot_select.plot_param.currentTextChanged.connect(self.update_plot)
         right_layout.addWidget(self.plot_select)
 
         self.viz_tab = VizTabs(self)
@@ -368,6 +376,13 @@ class StrainStressViewer(QSplitter):
         self.viz_tab.setTabEnabled(1, not bool2d)
 
     def measure_dir_changed(self):
+        self.update_plot()
+
+    def calculate_stress(self):
+        self.controller.calculate_stress(self.stressCase.get_stress_case(),
+                                         self.mechanicalConstants.youngModulus.text(),
+                                         self.mechanicalConstants.poissonsRatio.text())
+        self.plot_select.setStressEnabled(True)
         self.update_plot()
 
     def update_plot(self):

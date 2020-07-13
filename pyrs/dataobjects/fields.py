@@ -579,7 +579,9 @@ class StressField(ScalarFieldSample):
         self.stress_type = StressType.get(stress_type)
 
         # currently only supports equal sized strains
-        if len(strain11.values) != len(strain22.values) != len(strain33.values):
+        if len(strain11.values) != len(strain22.values):
+            raise RuntimeError('Number of StrainField values must be equal')
+        if (self.stress_type == StressType.DIAGONAL) and (len(strain11.values) != len(strain33.values)):
             raise RuntimeError('Number of StrainField values must be equal')
 
         # compare point lists to make sure they are identical
@@ -592,7 +594,8 @@ class StressField(ScalarFieldSample):
         # currently assumes all strains are parallel
         epsilon11 = unumpy.uarray(strain11.values, strain11.errors)
         epsilon22 = unumpy.uarray(strain22.values, strain22.errors)
-        epsilon33 = unumpy.uarray(strain33.values, strain33.errors)
+        if self.stress_type == StressType.DIAGONAL:
+            epsilon33 = unumpy.uarray(strain33.values, strain33.errors)
 
         # calculate stress
         if self.stress_type == StressType.DIAGONAL:
@@ -600,7 +603,7 @@ class StressField(ScalarFieldSample):
         elif self.stress_type == StressType.IN_PLANE_STRAIN:
             self.__calc_in_plane_strain(youngs_modulus, poisson_ratio, epsilon11, epsilon22)
         elif self.stress_type == StressType.IN_PLANE_STRESS:
-            self.__calc_in_plane_stress(youngs_modulus, poisson_ratio,  epsilon11, epsilon22, epsilon33)
+            self.__calc_in_plane_stress(youngs_modulus, poisson_ratio,  epsilon11, epsilon22)
         else:
             raise ValueError('Cannot calculate stress of type {}'.format(self.stress_type))
 
@@ -628,14 +631,14 @@ class StressField(ScalarFieldSample):
         self.stress22 = prefactor * (strain22 + additive)
         self.stress33 = prefactor * additive
 
-    def __calc_in_plane_stress(self, youngs_modulus, poisson_ratio, strain11, strain22, strain33):
+    def __calc_in_plane_stress(self, youngs_modulus, poisson_ratio, strain11, strain22):
         '''This assumes stress in the 33 direction (sigma33) is zero'''
         prefactor = youngs_modulus / (1 + poisson_ratio)
         additive = poisson_ratio * (strain11 + strain22) / (1 - poisson_ratio)
 
         self.stress11 = prefactor * (strain11 + additive)
         self.stress22 = prefactor * (strain22 + additive)
-        length = len(strain33)  # assumed to be zero
+        length = len(strain11)  # assumed to be zero
         self.stress33 = unumpy.uarray(np.zeros(length, dtype=float), np.zeros(length, dtype=float))
 
     @property
