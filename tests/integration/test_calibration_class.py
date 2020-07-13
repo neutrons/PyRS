@@ -165,7 +165,7 @@ def test_least_square():
     return
 
 
-@pytest.mark.skipif(isinstance(peakfit_calibration, str), reason=peakfit_calibration)
+@pytest.mark.skipif(isinstance(peakfit_calibration, str), reason=peakfit_calibration)  # type: ignore
 def test_leastsq():
     """Main test for the script
 
