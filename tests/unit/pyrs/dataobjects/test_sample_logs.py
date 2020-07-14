@@ -91,7 +91,7 @@ class TestPointList:
         assert list(point_list.vx) == pytest.approx(sample_logs_mock['xyz'][0])
         assert list(point_list.vy) == pytest.approx(sample_logs_mock['xyz'][1])
         try:
-            _ = point_list.dummy
+            _ = point_list.dummy  # noqa F841
             assert False, 'Should not have been able to access attribute'
         except AttributeError:
             pass  # this is the correct behavior
@@ -133,6 +133,50 @@ class TestPointList:
         point_list = PointList(sample_logs_mock['logs'])
         np.testing.assert_allclose(point_list.coordinates, np.array(sample_logs_mock['xyz']).transpose())
 
+    def test_coordinates_along_direction(self):
+        xyz = [[0, 1], [2, 3], [4, 5]]
+        point_list = PointList(xyz)
+        for r, index, label in zip(xyz, range(3), ('vx', 'vy', 'vz')):
+            assert point_list.coordinates_along_direction(index) == pytest.approx(r)
+            assert point_list.coordinates_along_direction(label) == pytest.approx(r)
+
+    def test_coordinates_irreducible(self):
+        xyz = [[0.0, 1.000, 1.001, 2.0, 3.0, 4.0, 0.0, 1.0, 2.0, 3.0, 4.0],  # x
+               [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0],  # y
+               [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0]]  # z
+        point_list = PointList(xyz)
+        # Volume scan
+        coordinates_irreducible = point_list.coordinates_irreducible(resolution=DEFAULT_POINT_RESOLUTION)
+        assert coordinates_irreducible[0] == pytest.approx([0.0, 0.0, 0.0])  # check first point
+        assert coordinates_irreducible[-1] == pytest.approx([4.0, 1.0, 1.0])  # check last point
+        assert coordinates_irreducible.shape[-1] == 3  # xyz if a volume scan, thus three dimensions
+        assert coordinates_irreducible == pytest.approx(np.array(xyz).transpose())
+        # Surface scan
+        xyz[2] = [0] * 11
+        point_list = PointList(xyz)
+        coordinates_irreducible = point_list.coordinates_irreducible(resolution=DEFAULT_POINT_RESOLUTION)
+        assert coordinates_irreducible[0] == pytest.approx([0.0, 0.0])  # check first point
+        assert coordinates_irreducible[-1] == pytest.approx([4.0, 1.0])  # check last point
+        assert coordinates_irreducible.shape[-1] == 2  # xyz if a surface scan, thus two dimensions
+        assert coordinates_irreducible == pytest.approx(np.array(xyz[0:2]).transpose())
+        # Linear scan
+        xyz[1] = [0] * 11
+        point_list = PointList(xyz)
+        coordinates_irreducible = point_list.coordinates_irreducible(resolution=DEFAULT_POINT_RESOLUTION)
+        assert coordinates_irreducible[0] == pytest.approx([0.0])  # check first point
+        assert coordinates_irreducible[-1] == pytest.approx([4.0])  # check last point
+        assert coordinates_irreducible.shape[-1] == 1  # xyz if a linear scan, thus one dimensions
+        assert coordinates_irreducible == pytest.approx(np.array(xyz[0]).reshape((11, 1)))
+
+    def test_linear_scan_vector(self):
+        # vx and vy are only one point, within resolution
+        xyz = [[0, 0, 0.003, 0.004, 0], [0, 1, 2, 3, 4], [1, 1.001, 1.002, 1.003, 1.009]]
+        point_list = PointList(xyz)
+        assert point_list.linear_scan_vector(resolution=DEFAULT_POINT_RESOLUTION) == pytest.approx([0, 1, 0])
+        xyz[0][0] = 0.011  # this point is beyond resolution with the rest of the other vx points
+        point_list = PointList(xyz)
+        assert point_list.linear_scan_vector(resolution=DEFAULT_POINT_RESOLUTION) is None
+
     def test_intersection(self):
         xyz1 = [[0.0, 1.0, 2.0, 3.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]]
         xyz2 = [[1.009, 0.995, 2.0, 3.005, 4.0], [0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0]]
@@ -171,6 +215,24 @@ class TestPointList:
         assert grid_y[13][-1] == pytest.approx([0.601, 0.601, 0.601, 0.601])
         assert grid_z[0][0] == pytest.approx([1.498, 1.565, 1.633, 1.700], abs=0.001)
         assert grid_z[13][-1] == pytest.approx([1.498, 1.565, 1.633, 1.700], abs=0.001)
+        # Test irreducibility option
+        # volume scan: all three directions have more than unique point
+        xyz = [[0.0, 1.000, 1.001, 2.0, 3.0, 4.0, 0.0, 1.0, 2.0, 3.0, 4.0],  # x
+               [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0],  # y
+               [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0]]  # z
+        point_list = PointList(xyz)
+        grid = point_list.mgrid(resolution=sample_logs_mock['resolution'], irreducible=True)
+        assert grid.shape == (3, 5, 2, 2)
+        # Surface scan on the {vx, vy} plane
+        xyz[2] = [0] * 11
+        point_list = PointList(xyz)
+        grid = point_list.mgrid(resolution=sample_logs_mock['resolution'], irreducible=True)
+        assert grid.shape == (2, 5, 2)
+        # Linear scan on the vx axis
+        xyz[1] = [0] * 11
+        point_list = PointList(xyz)
+        grid = point_list.mgrid(resolution=sample_logs_mock['resolution'], irreducible=True)
+        assert grid.shape == (1, 5)
 
     def test_grid_point_list(self):
         # Passing the orthonormal vectors along each direction as three points

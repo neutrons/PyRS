@@ -3,7 +3,7 @@ from collections import Iterable, MutableMapping
 import numpy as np
 from scipy.cluster.hierarchy import fclusterdata
 from scipy.spatial import cKDTree
-from typing import Union, List, NamedTuple, Tuple
+from typing import Optional, Union, List, NamedTuple, Tuple
 from pyrs.utilities.convertdatatypes import to_int
 from .constants import HidraConstants, DEFAULT_POINT_RESOLUTION  # type: ignore
 
@@ -235,18 +235,18 @@ class DirectionExtents(_DirectionExtents):
         resolution: float
             Two coordinates are considered the same if their distance is less than this value.
         """
-        coordinates_rounded = [resolution * int(x / resolution) for x in coordinates]
-        coordinates_rounded_count = len(set(coordinates_rounded))
+        coordinates_floored = [resolution * int(x / resolution) for x in coordinates]
+        coordinates_floored_count = len(set(coordinates_floored))
         # `delta` is the spacing between unique coordinates. Use resolution if only one unique coordinate
-        if coordinates_rounded_count == 1:
+        if coordinates_floored_count == 1:
             min_coord = max_coord = np.average(coordinates)
             delta = resolution
         else:
             min_coord = np.min(coordinates)
             max_coord = np.max(coordinates)
-            delta = (max_coord - min_coord) / (coordinates_rounded_count - 1)
+            delta = (max_coord - min_coord) / (coordinates_floored_count - 1)
         extents_tuple = super(DirectionExtents, cls).__new__(cls, min_coord, max_coord, delta)
-        super(DirectionExtents, cls).__setattr__(extents_tuple, '_numpoints', coordinates_rounded_count)
+        super(DirectionExtents, cls).__setattr__(extents_tuple, '_numpoints', coordinates_floored_count)
         super(DirectionExtents, cls).__setattr__(extents_tuple, '_resolution', resolution)
         return extents_tuple
 
@@ -453,6 +453,75 @@ class PointList:
         """
         return np.array([self.vx, self.vy, self.vz]).transpose()
 
+    def coordinates_along_direction(self, direction: Union[int, str]):
+        r"""
+        Coordinate values along one of the three directions.
+
+        Parameters
+        ----------
+        direction: int, str
+            Either a number from 0 to 2 or a string, one of 'vx', 'vy', or 'vz'
+
+        Returns
+        -------
+        np.ndarray
+            1D array with shape (number of points,)
+        """
+        int_to_attr = ('vx', 'vy', 'vz')
+        if isinstance(direction, int):
+            direction = int_to_attr[direction]
+        return getattr(self, direction)
+
+    def coordinates_irreducible(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> np.ndarray:
+        r"""
+        Array of point coordinates where dimensions orthogonal to a linear or surface scan are removed.
+
+        For linear scans, the coordinates are 1D, and for surface scans the coordinates are 2D.
+
+        Parameters
+        ----------
+        resolution: float
+            Two coordinates are considered the same if their distance is less than this value. Determines the
+            coordinate increment in the extents.
+
+        Returns
+        -------
+        ~numpy.ndarray
+            Array with shape = (number of scanned points, D), where D is one for linear scans, 2 for surface scans,
+            and 3 for volume scans.
+        """
+        direction_coordinates = list()
+        for direction_index, extent in enumerate(self.extents(resolution=resolution)):
+            if extent.numpoints == 1:
+                continue  # discard this dimension
+            direction_coordinates.append(self.coordinates_along_direction(direction_index))
+        return np.array(direction_coordinates).transpose()
+
+    def linear_scan_vector(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> Optional[np.ndarray]:
+        r"""
+        For linear scans, find the direction of the scan.
+
+        A `PointList` represents a linear scan when two of the vx, vy, and vz directions contain
+        only a unique value that can discerned given a `resolution`.
+
+        Parameters
+        ----------
+        resolution: float
+            Two coordinates are considered the same if their distance is less than this value.
+
+        Returns
+        -------
+        np.ndarray, None
+        """
+        values_count = [extent.numpoints for extent in self.extents(resolution=resolution)]
+        if values_count.count(1) == 2:  # two directions have only one unique value
+            direction_vector = [0, 0, 0]  # initialize the vector pointing along the direction of the linear scan
+            for direction_index in range(3):  # probe each of the vx, vy, and vz directions
+                if values_count[direction_index] > 1:
+                    direction_vector[direction_index] = 1  # e.g. [1, 0, 0] if linear scan along vx
+                    return np.array(direction_vector)
+        return None  # the list of points do not represent a linear scan
+
     def aggregate(self, other: 'PointList') -> 'PointList':
         r"""
         Bring the points from other list into the list of points. Because points are ordered,
@@ -644,7 +713,7 @@ class PointList:
         extents = self.extents(resolution=resolution)
         return [np.linspace(extent.min, extent.max, num=extent.numpoints, endpoint=True) for extent in extents]
 
-    def mgrid(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> np.ndarray:
+    def mgrid(self, resolution: float = DEFAULT_POINT_RESOLUTION, irreducible: bool = False) -> np.ndarray:
         r"""
         Create a regular 3D point grid, using the `extents`.
 
@@ -655,6 +724,8 @@ class PointList:
         resolution: float
             Two coordinates are considered the same if their distance is less than this value. Determines the
             coordinate increment in the extents.
+        irreducible: bool
+            For surface and linear scans, discard the dimensions orthogonal to the scan direction or surface.
 
         Returns
         -------
@@ -662,10 +733,13 @@ class PointList:
             A three item array, where each items is an array specifying the value of each
             coordinate (vx, vy, or vz) at the points of the regular grid
         """
-        x_vx, x_vy, x_vz = self.extents(resolution=resolution)
-        return np.mgrid[x_vx.min: x_vx.max: complex(0, x_vx.numpoints),  # type: ignore
-                        x_vy.min: x_vy.max: complex(0, x_vy.numpoints),  # type: ignore
-                        x_vz.min: x_vz.max: complex(0, x_vz.numpoints)]  # type: ignore
+        epsilon = 1.e-09
+        slices = list()
+        for extent in self.extents(resolution=resolution):
+            if extent.numpoints == 1 and irreducible is True:
+                continue  # discard this dimension
+            slices.append(slice(extent.min, extent.max + epsilon, extent.delta))
+        return np.mgrid[slices]
 
     def grid_point_list(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> 'PointList':
         r"""
