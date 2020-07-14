@@ -1,7 +1,6 @@
 # Standard and third party libraries
 from collections import namedtuple
 import numpy as np
-import random
 import pytest
 import random
 # PyRs libraries
