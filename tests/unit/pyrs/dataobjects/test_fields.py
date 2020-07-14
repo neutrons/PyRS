@@ -296,7 +296,7 @@ def test_create_stress_field():
     diagonal.select('33')
     np.testing.assert_allclose(diagonal.values, sample33.values + second)
 
-    in_plane_strain = StressField(sample11, sample22, sample33, YOUNG, POISSON, 'in-plane-strain')
+    in_plane_strain = StressField(sample11, sample22, None, YOUNG, POISSON, 'in-plane-strain')
     assert in_plane_strain
     # check coordinates
     np.testing.assert_equal(in_plane_strain.point_list.vx, X)
@@ -315,7 +315,7 @@ def test_create_stress_field():
     POISSON = 1. / 2.  # makes nu / (1 - nu) == 1
     YOUNG = 1 + POISSON  # makes E / (1 + nu) == 1
 
-    in_plane_stress = StressField(sample11, sample22, sample33, YOUNG, POISSON, 'in-plane-stress')
+    in_plane_stress = StressField(sample11, sample22, None, YOUNG, POISSON, 'in-plane-stress')
     assert in_plane_stress
     # check coordinates
     np.testing.assert_equal(in_plane_stress.point_list.vx, X)

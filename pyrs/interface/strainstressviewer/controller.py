@@ -11,3 +11,8 @@ class Controller:
 
     def update_d0(self, d0):
         self._model.d0 = d0
+
+    def calculate_stress(self, stress_case, youngModulus, poissonsRatio):
+        self._model.calculate_stress(stress_case.replace(' ', '-'),
+                                     float(youngModulus),
+                                     float(poissonsRatio))
