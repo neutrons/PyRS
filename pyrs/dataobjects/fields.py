@@ -577,6 +577,7 @@ class StressField(ScalarFieldSample):
                  stress_type=StressType.DIAGONAL) -> None:
         self.direction = Direction.X  # as good of a default as any
         self.stress_type = StressType.get(stress_type)
+        self._youngs_modulus = youngs_modulus
         self._poisson_ratio = poisson_ratio
 
         # currently only supports equal sized strains
@@ -614,6 +615,10 @@ class StressField(ScalarFieldSample):
         z = strain11.point_list.vz
         # TODO need to fix up super.__init__ to not need the copy
         return super().__init__('stress', self.values, self.errors, x, y, z)
+
+    @property
+    def youngs_modulus(self):
+        return self._youngs_modulus
 
     @property
     def poisson_ratio(self):

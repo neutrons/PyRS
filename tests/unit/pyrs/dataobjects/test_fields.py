@@ -283,6 +283,12 @@ def strains_for_stress_field_1():
 
 class TestStressField:
 
+    def test_youngs_modulus(self, strains_for_stress_field_1):
+        r"""Test poisson_ratio property"""
+        youngs_modulus = random.random()
+        field = StressField(*strains_for_stress_field_1, youngs_modulus, 1.0)
+        assert field.youngs_modulus == pytest.approx(youngs_modulus)
+
     def test_poisson_ratio(self, strains_for_stress_field_1):
         r"""Test poisson_ratio property"""
         poisson_ratio = random.random()
