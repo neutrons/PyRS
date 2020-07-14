@@ -289,7 +289,7 @@ class FitPeaksWindow(QMainWindow):
         :return:
         """
         self.ui.actionSave.setEnabled(True)
-        self.ui.actionSaveAs.setEnabled(False)
+        self.ui.actionSaveAs.setEnabled(True)
 
         self.ui.splitter.setStyleSheet(VERTICAL_SPLITTER_SHORT)
         self.ui.splitter_2.setStyleSheet(HORIZONTAL_SPLITTER)
