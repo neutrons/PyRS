@@ -100,16 +100,17 @@ class ScalarFieldSample:
         indexes_finite = np.where(np.isfinite(self.values))[0]
         return self.extract(indexes_finite)
 
-    def interpolated_sample(self,
-                            method: str = 'linear', fill_value: float = float('nan'),
-                            keep_nan: bool = True,
+    def interpolated_sample(self, method: str = 'linear', fill_value: float = float('nan'), keep_nan: bool = True,
                             resolution: float = DEFAULT_POINT_RESOLUTION,
                             criterion: str = 'min_error') -> 'ScalarFieldSample':
         r"""
-        Interpolate the scalar field sample of a regular 3D grid given by the extents of the sample points.
+        Interpolate the scalar field sample of a regular grid given by the extents of the sample points.
+
+        Interpolation for linear scans is done along the scan direction, and interpolation for surface scans
+        is done on the 2D surface.
 
         :math:`nan` values are disregarded when doing the interpolation, but they can be incorporated into
-        the interpolated values by finding the point in the regular grid closest to a sample point
+        the interpolated values by finding the point in the regular grid lying closest to a sample point
         containing a :math:`nan` value.
 
         When the scalar field contains two sample points within `resolution` distance, only one can
@@ -134,23 +135,24 @@ class ScalarFieldSample:
         -------
         ~pyrs.dataobjects.fields.ScalarFieldSample
         """
-        # TODO deal with corner case when self.x (or .y or .z) only have one unique coordinate value
         # Corner case: the points fill a regular grid. Thus, there's no need to interpolate.
         if self.point_list.is_a_grid(resolution=resolution):
             return self.coalesce(resolution=resolution, criterion=criterion)  # get rid of duplicate points
-        # regular 3D grids using the `extents` of the sample points
-        grid_x, grid_y, grid_z = self.point_list.mgrid(resolution=resolution)
         field_finite = self.isfinite  # We need to remove non-finite values prior to interpolation
         field_finite = field_finite.coalesce(resolution=resolution, criterion=criterion)  # for neighbor sample points
+        # Regular grid using the `extents` of the sample points but reduced in dimension for linear or surface scans
+        # Reduction dimension is required for griddata() to work `method == 'linear'`.
+        irreducible = False if method == 'nearest' else True
+        grid_irreducible = self.point_list.mgrid(resolution=resolution, irreducible=irreducible)
+        coordinates_irreducible = field_finite.point_list.coordinates_irreducible(resolution=resolution)
         # Corner case: if scalar field sample `self` has `nan` values at the extrema of its extents,
         # then removing these non-finite values will result in scalar field sample `field_finite`
         # having `extents` smaller than those of`self`. Later when interpolating, some of the grid
         # points (determined using `extents` of `self`) will fall outside the `extents` of `field_finite`
         # and their values will have to be filled with the `fill_value` being passed on to function `griddata`.
-        xyz = field_finite.coordinates
-        values = griddata(xyz, field_finite.values, (grid_x, grid_y, grid_z), method=method, fill_value=fill_value)
-        values = values.ravel()  # values has same shape as any of the x, y, z grids
-        coordinates = np.array((grid_x, grid_y, grid_z)).T.reshape(-1, 3)
+        values = griddata(coordinates_irreducible, field_finite.values, tuple(grid_irreducible),
+                          method=method, fill_value=fill_value).ravel()
+        coordinates = self.point_list.grid_point_list(resolution=resolution).coordinates  # coords spanned by the grid
         if keep_nan is True:
             # For each sample point of `self` that has a `nan` field value, find the closest grid point and assign
             # a `nan` value to this point
@@ -159,8 +161,8 @@ class ScalarFieldSample:
                 coordinates_with_nan = self.coordinates[point_indexes_with_nan]
                 _, grid_indexes = cKDTree(coordinates).query(coordinates_with_nan, k=1)
                 values[grid_indexes] = float('nan')
-        errors = griddata(xyz, field_finite.errors, (grid_x, grid_y, grid_z), method=method, fill_value=fill_value)
-        errors = errors.ravel()
+        errors = griddata(coordinates_irreducible, field_finite.errors, tuple(grid_irreducible),
+                          method=method, fill_value=fill_value).ravel()
         return ScalarFieldSample(self.name, values, errors, *list(coordinates.T))
 
     def extract(self, target_indexes: List[int]) -> 'ScalarFieldSample':
@@ -263,7 +265,8 @@ class ScalarFieldSample:
                 break  # remaining clusters have all only one index, thus the selection process is irrelevant
             target_indexes.append(criterion_functions[criterion](point_indexes))
         # append point indexes from all clusters having only one member
-        target_indexes.extend([point_indexes[0] for point_indexes in clusters[cluster_index:]])
+        if 1 + cluster_index < len(clusters):  # the previous for-loop did not exhaust all the clusters
+            target_indexes.extend([point_indexes[0] for point_indexes in clusters[cluster_index:]])
 
         # create a ScalarFieldSample with the sample points corresponding to the target indexes
         return self.extract(sorted(target_indexes))

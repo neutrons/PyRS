@@ -3,8 +3,10 @@ from collections import namedtuple
 import numpy as np
 import random
 import pytest
+import random
 # PyRs libraries
 from pyrs.core.workspaces import HidraWorkspace
+from pyrs.dataobjects.constants import DEFAULT_POINT_RESOLUTION
 from pyrs.dataobjects.fields import (aggregate_scalar_field_samples, fuse_scalar_field_samples, ScalarFieldSample,
                                      StrainField, StressField, stack_scalar_field_samples)
 from pyrs.core.peak_profile_utility import get_parameter_dtype
@@ -12,6 +14,165 @@ from pyrs.peaks import PeakCollection  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 
 SampleMock = namedtuple('SampleMock', 'name values errors x y z')
+
+
+@pytest.fixture(scope='module')
+def field_cube_regular():
+    r"""
+    A volume, surface, and linear scan in a cube of side 4, with a linear intensity function.
+    The sample points represent a regular 3D lattice
+    """
+    def intensity(x, y, z):
+        return x + y + z
+
+    def assert_checks(field):
+        all_finite = np.all(np.isfinite(field.values))
+        assert all_finite, 'some values are not finite'
+        assert np.allclose(field.values, [intensity(*r) for r in list(field.coordinates)])
+
+    values_returned = {'assert checks': assert_checks, 'edge length': 4}
+    coordinates = np.mgrid[0:3:4j, 0:3:4j, 0:3:4j].T.reshape(-1, 3)  # shape = (64, 3)
+    values = np.array([intensity(*xyz) for xyz in coordinates])
+    errors = 0.1 * values
+    vx, vy, vz = list(coordinates.T)
+    values_returned['volume scan'] = ScalarFieldSample('stress', values, errors, vx, vy, vz)
+    # Surface scan perpendicular to vz
+    coordinates_surface = np.copy(coordinates)
+    coordinates_surface[:, 2] = 0.0  # each coordinate is now repeated four times
+    values = np.array([intensity(*xyz) for xyz in coordinates_surface])
+    errors = 0.1 * values
+    vx, vy, vz = list(coordinates_surface.T)
+    values_returned['surface scan'] = ScalarFieldSample('stress', values, errors, vx, vy, vz)
+    # Linear scan along vx
+    coordinates_linear = np.copy(coordinates_surface)
+    coordinates_linear[:, 1] = 0.0  # each coordinate is now repeated 16 times
+    values = np.array([intensity(*xyz) for xyz in coordinates_linear])
+    errors = 0.1 * values
+    vx, vy, vz = list(coordinates_linear.T)
+    values_returned['linear scan'] = ScalarFieldSample('stress', values, errors, vx, vy, vz)
+    return values_returned
+
+
+@pytest.fixture(scope='module')
+def field_cube_with_vacancies():
+    r"""
+    A volume scan in a cube of side 6, with a linear intensity function.
+    The cube contains 6^3 = 216 points, of which 4^3 = 64 are interior points. We randomly delete
+    half the interior points. Thus, the extents of the cube are still 0 and 6.
+    """
+    def intensity(x, y, z):
+        return x + y + z
+
+    def assert_checks(field):
+        all_finite = np.all(np.isfinite(field.values))
+        assert all_finite, 'some values are not finite'
+        assert np.allclose(field.values, [intensity(*r) for r in list(field.coordinates)])
+
+    values_returned = {'assert checks': assert_checks, 'edge length': 6}
+    indexes_interior = list(range(64))  # a counter for the sample points not in the surface of the cube
+    random.shuffle(indexes_interior)  # we will randomly select half of these indexes as vacancies
+    indexes_vacancy = indexes_interior[::2]  # flag every other interior point index as a vacancy
+    index_interior = 0  # start the counter for the interior points
+    coordinates = list()
+    for vx in range(0, 6):
+        vx_is_interior = 0 < vx < 5  # vx is not on the surface of the cube
+        for vy in range(0, 6):
+            vy_is_interior = 0 < vy < 5  # vx and vy are not on the surface of the cube
+            for vz in range(0, 6):
+                xyz = [vx, vy, vz]
+                if vx_is_interior and vy_is_interior and 0 < vz < 5:
+                    if index_interior not in indexes_vacancy:
+                        coordinates.append(xyz)
+                    index_interior += 1
+                else:
+                    coordinates.append(xyz)  # no vacancies on the surface of the cube
+    coordinates = np.array(coordinates)  # shape = (216 - 32, 3)
+    assert len(coordinates) == 6 ** 3 - 32
+    vx, vy, vz = list(coordinates.transpose())
+    values = np.array([intensity(*r) for r in coordinates])
+    errors = 0.1 * values
+    values_returned['volume scan'] = ScalarFieldSample('stress', values, errors, vx, vy, vz)
+    return values_returned
+
+
+@pytest.fixture(scope='module')
+def field_surface_with_vacancies():
+    r"""
+    A surface scan in a square of side 10, with a linear intensity function.
+    The cube contains 10^2 = 100 points, of which 8^2 = 64 are interior points. We randomly delete
+    half the interior points. Thus, the extents of the square are still 0 and 10.
+    """
+    def intensity(x, y, z):
+        return x + y + z
+
+    def assert_checks(field):
+        all_finite = np.all(np.isfinite(field.values))
+        assert all_finite, 'some values are not finite'
+        assert np.allclose(field.values, [intensity(*r) for r in list(field.coordinates)])
+
+    values_returned = {'assert checks': assert_checks, 'edge length': 10}
+    indexes_interior = list(range(64))  # a counter for the sample points not in the surface of the cube
+    random.shuffle(indexes_interior)  # we will randomly select half of these indexes as vacancies
+    indexes_vacancy = indexes_interior[::2]  # flag every other interior point index as a vacancy
+    index_interior = 0  # start the counter for the interior points
+    coordinates = list()
+    for vx in range(0, 10):
+        vx_is_interior = 0 < vx < 9  # vx is not on the perimeter of the square
+        for vy in range(0, 10):
+            vz = 0  # declare a surface scan perpendicular to the vz-axis
+            xyz = [vx, vy, vz]
+            if vx_is_interior and 0 < vy < 9:
+                if index_interior not in indexes_vacancy:
+                    coordinates.append(xyz)
+                index_interior += 1
+            else:
+                coordinates.append(xyz)  # no vacancies on the perimeter of the square
+    coordinates = np.array(coordinates)  # shape = (100 - 32, 3)
+    assert len(coordinates) == 10 ** 2 - 32
+    vx, vy, vz = list(coordinates.transpose())
+    values = np.array([intensity(*r) for r in coordinates])
+    errors = 0.1 * values
+    values_returned['surface scan'] = ScalarFieldSample('stress', values, errors, vx, vy, vz)
+    return values_returned
+
+
+@pytest.fixture(scope='module')
+def field_linear_with_vacancies():
+    r"""
+    A linear scan in a line of side 100, with a linear intensity function.
+    The line contains 100 points, of which 98 interior points. We randomly delete
+    10 interior points. Thus, the extents of the line are still 0 and 100.
+    """
+    def intensity(x, y, z):
+        return x + y + z
+
+    def assert_checks(field):
+        all_finite = np.all(np.isfinite(field.values))
+        assert all_finite, 'some values are not finite'
+        assert np.allclose(field.values, [intensity(*r) for r in list(field.coordinates)])
+
+    values_returned = {'assert checks': assert_checks, 'edge length': 10}
+    indexes_interior = list(range(98))  # a counter for the sample points not in the edges of the line
+    random.shuffle(indexes_interior)  # we will randomly select 10 of these indexes as vacancies
+    indexes_vacancy = indexes_interior[0: 10]  # flag the first 10 indexes as vacancies
+    index_interior = 0  # start the counter for the interior points
+    coordinates = list()
+    for vx in range(0, 100):
+        vy, vz = 0, 0  # declare a linear scan along the vx-axis
+        xyz = [vx, vy, vz]
+        if 0 < vx < 99:  # vx is not on the edge of the linear scan
+            if index_interior not in indexes_vacancy:
+                coordinates.append(xyz)
+            index_interior += 1
+        else:
+            coordinates.append(xyz)  # no vacancies on the perimeter of the square
+    coordinates = np.array(coordinates)  # shape = (90, 3)
+    assert len(coordinates) == 100 - 10
+    vx, vy, vz = list(coordinates.transpose())
+    values = np.array([intensity(*r) for r in coordinates])
+    errors = 0.1 * values
+    values_returned['linear scan'] = ScalarFieldSample('stress', values, errors, vx, vy, vz)
+    return values_returned
 
 
 class TestScalarFieldSample:
@@ -104,15 +265,116 @@ class TestScalarFieldSample:
         for attribute in ('values', 'errors', 'x', 'y', 'z'):
             assert getattr(field, attribute) == pytest.approx([0.1, 0.2, 0.5, 0.6])
 
-    def test_interpolated_sample(self):
-        field = ScalarFieldSample(*TestScalarFieldSample.sample5)
-        interpolated = field.interpolated_sample(method='nearest', keep_nan=True,
-                                                 resolution=0.01, criterion='min_error')
-        np.testing.assert_equal(np.where(np.isnan(interpolated.values))[0], [0, 4])
-        np.testing.assert_equal(interpolated.coordinates[4], [4.0, 0.0, 0.0])
-        assert interpolated.values[9] == pytest.approx(2.0)
-        np.testing.assert_equal(interpolated.coordinates[9], [4.0, 1.0, 0.0])
-        # TODO interpolation using method='linear'
+    def test_interpolated_sample_regular(self, field_cube_regular):
+        r"""
+        Test with an input regular grid. No interpolation should be necessary because
+        the regular grid built using the extents of the field coincide with the input
+        sample points
+        """
+        # A volumetric sample in a cube of side 4, with an linear intensity function
+        field = field_cube_regular['volume scan']
+        interpolated = field.interpolated_sample(method='linear', keep_nan=True, resolution=DEFAULT_POINT_RESOLUTION,
+                                                 criterion='min_error')
+        assert len(interpolated) == field_cube_regular['edge length'] ** 3  # sample list spans a cube
+        assert interpolated.point_list.is_equal_within_resolution(field.point_list,
+                                                                  resolution=DEFAULT_POINT_RESOLUTION)
+        field_cube_regular['assert checks'](interpolated)
+        # A surface scan
+        field = field_cube_regular['surface scan']  # 64 points, each point repeated once
+        interpolated = field.interpolated_sample(method='linear', keep_nan=True, resolution=DEFAULT_POINT_RESOLUTION,
+                                                 criterion='min_error')
+        assert len(interpolated) == field_cube_regular['edge length'] ** 2  # sample list spans a square
+        # `field` has 64 points, each point repeated four times. `interpolated` has 16 points, each is unique
+        assert interpolated.point_list.is_equal_within_resolution(field.point_list,
+                                                                  resolution=DEFAULT_POINT_RESOLUTION)
+        field_cube_regular['assert checks'](interpolated)
+        # A linear scan
+        field = field_cube_regular['linear scan']  # 64 points, each point is repeated 16 times
+        interpolated = field.interpolated_sample(method='linear', keep_nan=True, resolution=DEFAULT_POINT_RESOLUTION,
+                                                 criterion='min_error')
+        assert len(interpolated) == field_cube_regular['edge length']  # sample list spans a line of sampled points
+        # `field` has 64 points, each point repeated 16 times. `interpolated` has 4 points, each is unique
+        assert interpolated.point_list.is_equal_within_resolution(field.point_list,
+                                                                  resolution=DEFAULT_POINT_RESOLUTION)
+        field_cube_regular['assert checks'](interpolated)
+
+    def test_interpolated_sample_cube_vacancies(self, field_cube_with_vacancies):
+        r"""
+        Test with an input regular grid spanning a cube, where some interior points are missing.
+        `field` has 32 vacancies, thus a total of 6^3 - 32 points. Interpolated, on the other hand, has no
+        vacancies. The reason lies in how the extents are calculated. See the example below for a square of
+        side four on the [vx, vy] surface (vz=0 here) with two internal vacancies:
+         o o o o
+         o x o o
+         o o x o
+         o o o o
+        the list of vx, vy, and vz have missing coordinates [1, 1, 0] and [2, 2, 0]:
+        vx = [0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3]  # 14 points, two (interior) points missing
+        vy = [0, 1, 2, 3, 0, 2, 3, 0, 1, 3, 0, 1, 2, 3]  # 14 points, two (interior) points missing
+        vz = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        When calculating the extents, we look separately to each list, and find out the number of unique coordinates
+        unique vx = [0, 1, 2, 3]  # there are three instances of vx==1 (same for vx==2), so they are captured
+        unique vy = [0, 1, 2, 3]  # same scenario than that of vx
+        unique vz = [0]
+        Extents for vx are:
+             minimum = 0
+             maximum = 3
+             step =(maximum - minimum) / (unique_count -1) = (3 - 0) / (4 - 1) = 1
+        When calculating the grid spanned by these extents, we have a grid from zero to 3 with four points,
+        and same for vy and vz (let's generalize here of a cube, not a square). Thus, the interpolated grid
+        has no vacancies.
+        This situation will happen only when the number of vacancies is sufficiently small that all values
+        of vx, vy, and vz are captured.
+        """
+        field = field_cube_with_vacancies['volume scan']
+        interpolated = field.interpolated_sample(method='linear', keep_nan=True, resolution=DEFAULT_POINT_RESOLUTION,
+                                                 criterion='min_error')
+        assert len(interpolated) == 6 ** 3
+        field_cube_with_vacancies['assert checks'](interpolated)
+
+    def test_interpolated_sample_surface_vacancies(self, field_surface_with_vacancies):
+        r"""
+        Test with an input regular grid spanning a square, where some interior points are missing.
+                Test with an input regular grid spanning a cube, where some interior points are missing.
+        `field` has 32 vacancies, thus a total of 6^3 - 32 points. Interpolated, on the other hand, has no
+        vacancies. The reason lies in how the extents are calculated. See the example below for a square of
+        side four on the [vx, vy] surface (vz=0 here) with two internal vacancies:
+         o o o o
+         o x o o
+         o o x o
+         o o o o
+        the list of vx, vy, and vz have missing coordinates [1, 1, 0] and [2, 2, 0]:
+        vx = [0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3]  # 14 points, two (interior) points missing
+        vy = [0, 1, 2, 3, 0, 2, 3, 0, 1, 3, 0, 1, 2, 3]  # 14 points, two (interior) points missing
+        vz = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        When calculating the extents, we look separately to each list, and find out the number of unique coordinates
+        unique vx = [0, 1, 2, 3]  # there are three instances of vx==1 (same for vx==2), so they are captured
+        unique vy = [0, 1, 2, 3]  # same scenario than that of vx
+        unique vz = [0]
+        Extents for vx are:
+             minimum = 0
+             maximum = 3
+             step =(maximum - minimum) / (unique_count -1) = (3 - 0) / (4 - 1) = 1
+        When calculating the grid spanned by these extents, we have a grid from zero to 3 with four points,
+        and same for vy. Thus, the interpolated grid has no vacancies.
+        This situation will happen only when the number of vacancies is sufficiently small that all values
+        of vx, and vy are captured.
+        """
+        field = field_surface_with_vacancies['surface scan']
+        interpolated = field.interpolated_sample(method='linear', keep_nan=True, resolution=DEFAULT_POINT_RESOLUTION,
+                                                 criterion='min_error')
+        assert len(interpolated) == 10 ** 2
+        field_surface_with_vacancies['assert checks'](interpolated)
+
+    def test_interpolated_sample_linear_vacancies(self, field_linear_with_vacancies):
+        r"""
+        Test with an input regular grid spanning a square, where some interior points are missing.
+        """
+        field = field_linear_with_vacancies['linear scan']
+        interpolated = field.interpolated_sample(method='linear', keep_nan=True, resolution=DEFAULT_POINT_RESOLUTION,
+                                                 criterion='min_error')
+        assert len(interpolated) == 90
+        field_linear_with_vacancies['assert checks'](interpolated)
 
     def test_extract(self):
         field = ScalarFieldSample(*TestScalarFieldSample.sample1)
@@ -238,7 +500,7 @@ def test_create_strain_field_from_file_no_peaks():
     # this project file doesn't have peaks in it
     filename = 'tests/data/HB2B_1060_first3_subruns.h5'
     try:
-        _ = StrainField(filename)
+        _ = StrainField(filename)  # noqa F841
         assert False, 'Should not be able to read ' + filename
     except IOError:
         pass  # this is what should happen
