@@ -210,7 +210,12 @@ class StrainSliceViewer(SliceViewer):
         self.overlay = False
         self.scatter = None
 
+    def new_plot_MDH(self):
+        """redefine this function so we can change the default plot interpolation"""
+        self.view.data_view.plot_MDH(self.model.get_ws(), slicepoint=self.get_slicepoint(), interpolation='bilinear')
+
     def overlay(self):
+        """Demo only of potential plotting of measurement points"""
         self.overlay = not self.overlay
         if self.overlay:
             X, Y = np.meshgrid(range(20), range(20))
