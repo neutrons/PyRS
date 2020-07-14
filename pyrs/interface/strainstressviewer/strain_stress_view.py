@@ -230,14 +230,16 @@ class PlotSelect(QGroupBox):
         super().__init__(parent)
         layout = QFormLayout()
         self.plot_param = QComboBox()
-        self.plot_param.addItems(["chi sqaured",
-                                  "d spacing",
-                                  "d referance",
-                                  "fit status",
-                                  "integrated intensity",
+        self.plot_param.addItems(["dspacing_center",
+                                  "d_reference",
+                                  "Center",
+                                  "Height",
+                                  "FWHM",
+                                  "Mixing",
+                                  "Intensity",
                                   "strain",
                                   "stress"])
-        self.plot_param.setCurrentIndex(5)
+        self.plot_param.setCurrentIndex(self.plot_param.findText('strain'))
         self.setStressEnabled(False)
         layout.addRow(QLabel("Plot"), self.plot_param)
         self.measure_dir = QComboBox()
@@ -248,15 +250,16 @@ class PlotSelect(QGroupBox):
         self.setLayout(layout)
 
     def setStressEnabled(self, enabled=True):
+        index = self.plot_param.findText('stress')
         if enabled:
-            self.plot_param.model().item(6).setFlags(Qt.ItemIsSelectable |
-                                                     Qt.ItemIsEditable |
-                                                     Qt.ItemIsDragEnabled |
-                                                     Qt.ItemIsDropEnabled |
-                                                     Qt.ItemIsUserCheckable |
-                                                     Qt.ItemIsEnabled)
+            self.plot_param.model().item(index).setFlags(Qt.ItemIsSelectable |
+                                                         Qt.ItemIsEditable |
+                                                         Qt.ItemIsDragEnabled |
+                                                         Qt.ItemIsDropEnabled |
+                                                         Qt.ItemIsUserCheckable |
+                                                         Qt.ItemIsEnabled)
         else:
-            self.plot_param.model().item(6).setFlags(Qt.NoItemFlags)
+            self.plot_param.model().item(index).setFlags(Qt.NoItemFlags)
 
     def get_direction(self):
         return self.measure_dir.currentText()
