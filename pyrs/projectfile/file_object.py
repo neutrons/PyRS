@@ -707,24 +707,24 @@ class HidraProjectFile:
         self.set_attributes(single_peak_entry, HidraConstants.PEAK_PROFILE, peak_profile)
         self.set_attributes(single_peak_entry, HidraConstants.BACKGROUND_TYPE, background_type)
 
-        #Create or replace each dataset as appropriate
-        if(not HidraConstants.SUB_RUNS in single_peak_entry):
+        # Create or replace each dataset as appropriate
+        if(HidraConstants.SUB_RUNS not in single_peak_entry):
             single_peak_entry.create_dataset(HidraConstants.SUB_RUNS, data=fitted_peaks.sub_runs)
         else:
             single_peak_entry[HidraConstants.SUB_RUNS][...] = fitted_peaks.sub_runs
-            
-        if(not HidraConstants.PEAK_FIT_CHI2 in single_peak_entry):
+
+        if(HidraConstants.PEAK_FIT_CHI2 not in single_peak_entry):
             single_peak_entry.create_dataset(HidraConstants.PEAK_FIT_CHI2, data=fitted_peaks.fitting_costs)
         else:
             single_peak_entry[HidraConstants.PEAK_FIT_CHI2][...] = fitted_peaks.fitting_costs
-            
+
         peak_values, peak_errors = fitted_peaks.get_native_params()
-        if(not HidraConstants.PEAK_PARAMS in single_peak_entry):
+        if(HidraConstants.PEAK_PARAMS not in single_peak_entry):
             single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS, data=peak_values)
         else:
             single_peak_entry[HidraConstants.PEAK_PARAMS][...] = peak_values
-            
-        if(not HidraConstants.PEAK_PARAMS_ERROR in single_peak_entry):
+
+        if(HidraConstants.PEAK_PARAMS_ERROR not in single_peak_entry):
             single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS_ERROR, data=peak_errors)
         else:
             single_peak_entry[HidraConstants.PEAK_PARAMS_ERROR][...] = peak_errors
@@ -733,12 +733,12 @@ class HidraProjectFile:
         ref_d_array, ref_d_errors = fitted_peaks.get_d_reference()
         if isinstance(ref_d_array, numpy.ndarray):
             # if reference peak position in D is set
-            if(not HidraConstants.D_REFERENCE in single_peak_entry):
+            if(HidraConstants.D_REFERENCE not in single_peak_entry):
                 single_peak_entry.create_dataset(HidraConstants.D_REFERENCE, data=ref_d_array)
             else:
                 single_peak_entry[HidraConstants.D_REFERENCE][...] = ref_d_array
 
-            if(not HidraConstants.D_REFERENCE_ERROR in single_peak_entry):
+            if(HidraConstants.D_REFERENCE_ERROR not in single_peak_entry):
                 single_peak_entry.create_dataset(HidraConstants.D_REFERENCE_ERROR, data=ref_d_errors)
             else:
                 single_peak_entry[HidraConstants.D_REFERENCE_ERROR][...] = ref_d_errors
