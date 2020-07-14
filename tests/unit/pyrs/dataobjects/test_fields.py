@@ -1,6 +1,7 @@
 # Standard and third party libraries
 from collections import namedtuple
 import numpy as np
+import random
 import pytest
 # PyRs libraries
 from pyrs.core.workspaces import HidraWorkspace
@@ -258,7 +259,8 @@ def test_create_strain_field_from_file(filename, peaknames):
         assert StrainField(projectfile=projectfile, peak_tag=tag)
 
 
-def test_create_stress_field():
+@pytest.fixture(scope='module')
+def strains_for_stress_field_1():
     X = [0.000, 1.000, 2.000, 3.000, 4.000, 5.000, 6.000, 7.000, 8.000, 9.000]
     Y = [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
     Z = [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
@@ -276,60 +278,95 @@ def test_create_stress_field():
                                  [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.080, 0.009],  # values
                                  [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],  # errors
                                  X, Y, Z)
+    return sample11, sample22, sample33
 
-    POISSON = 1. / 3.  # makes nu / (1 - 2*nu) == 1
-    YOUNG = 1 + POISSON  # makes E / (1 + nu) == 1
 
-    # test diagonal calculation
-    diagonal = StressField(sample11, sample22, sample33, YOUNG, POISSON)
-    assert diagonal
-    # check coordinates
-    np.testing.assert_equal(diagonal.point_list.vx, X)
-    np.testing.assert_equal(diagonal.point_list.vy, Y)
-    np.testing.assert_equal(diagonal.point_list.vz, Z)
-    # check values
-    second = (sample11.values + sample22.values + sample33.values)
-    diagonal.select('11')
-    np.testing.assert_allclose(diagonal.values, sample11.values + second)
-    diagonal.select('22')
-    np.testing.assert_allclose(diagonal.values, sample22.values + second)
-    diagonal.select('33')
-    np.testing.assert_allclose(diagonal.values, sample33.values + second)
+class TestStressField:
 
-    in_plane_strain = StressField(sample11, sample22, None, YOUNG, POISSON, 'in-plane-strain')
-    assert in_plane_strain
-    # check coordinates
-    np.testing.assert_equal(in_plane_strain.point_list.vx, X)
-    np.testing.assert_equal(in_plane_strain.point_list.vy, Y)
-    np.testing.assert_equal(in_plane_strain.point_list.vz, Z)
-    # check values
-    second = (sample11.values + sample22.values)
-    in_plane_strain.select('11')
-    np.testing.assert_allclose(in_plane_strain.values, sample11.values + second)
-    in_plane_strain.select('22')
-    np.testing.assert_allclose(in_plane_strain.values, sample22.values + second)
-    in_plane_strain.select('33')
-    np.testing.assert_allclose(in_plane_strain.values, second)
+    def test_youngs_modulus(self, strains_for_stress_field_1):
+        r"""Test poisson_ratio property"""
+        youngs_modulus = random.random()
+        field = StressField(*strains_for_stress_field_1, youngs_modulus, 1.0)
+        assert field.youngs_modulus == pytest.approx(youngs_modulus)
 
-    # redefine values to simplify things
-    POISSON = 1. / 2.  # makes nu / (1 - nu) == 1
-    YOUNG = 1 + POISSON  # makes E / (1 + nu) == 1
+    def test_poisson_ratio(self, strains_for_stress_field_1):
+        r"""Test poisson_ratio property"""
+        poisson_ratio = random.random()
+        field = StressField(*strains_for_stress_field_1, 1.0, poisson_ratio)
+        assert field.poisson_ratio == pytest.approx(poisson_ratio)
 
-    in_plane_stress = StressField(sample11, sample22, None, YOUNG, POISSON, 'in-plane-stress')
-    assert in_plane_stress
-    # check coordinates
-    np.testing.assert_equal(in_plane_stress.point_list.vx, X)
-    np.testing.assert_equal(in_plane_stress.point_list.vy, Y)
-    np.testing.assert_equal(in_plane_stress.point_list.vz, Z)
-    # check values
-    second = (sample11.values + sample22.values)
-    in_plane_stress.select('11')
-    np.testing.assert_allclose(in_plane_stress.values, sample11.values + second)
-    in_plane_stress.select('22')
-    np.testing.assert_allclose(in_plane_stress.values, sample22.values + second)
-    in_plane_stress.select('33')
-    np.testing.assert_equal(in_plane_stress.values, 0.)
-    np.testing.assert_equal(in_plane_stress.errors, 0.)
+    def test_create_stress_field(self):
+        X = [0.000, 1.000, 2.000, 3.000, 4.000, 5.000, 6.000, 7.000, 8.000, 9.000]
+        Y = [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
+        Z = [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
+        # selected to make terms drop out
+
+        sample11 = ScalarFieldSample('strain',
+                                     [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.080, 0.009],  # values
+                                     [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],  # errors
+                                     X, Y, Z)
+        sample22 = ScalarFieldSample('strain',
+                                     [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.080, 0.009],  # values
+                                     [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],  # errors
+                                     X, Y, Z)
+        sample33 = ScalarFieldSample('strain',
+                                     [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.080, 0.009],  # values
+                                     [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],  # errors
+                                     X, Y, Z)
+
+        POISSON = 1. / 3.  # makes nu / (1 - 2*nu) == 1
+        YOUNG = 1 + POISSON  # makes E / (1 + nu) == 1
+
+        # test diagonal calculation
+        diagonal = StressField(sample11, sample22, sample33, YOUNG, POISSON)
+        assert diagonal
+        # check coordinates
+        np.testing.assert_equal(diagonal.point_list.vx, X)
+        np.testing.assert_equal(diagonal.point_list.vy, Y)
+        np.testing.assert_equal(diagonal.point_list.vz, Z)
+        # check values
+        second = (sample11.values + sample22.values + sample33.values)
+        diagonal.select('11')
+        np.testing.assert_allclose(diagonal.values, sample11.values + second)
+        diagonal.select('22')
+        np.testing.assert_allclose(diagonal.values, sample22.values + second)
+        diagonal.select('33')
+        np.testing.assert_allclose(diagonal.values, sample33.values + second)
+
+        in_plane_strain = StressField(sample11, sample22, None, YOUNG, POISSON, 'in-plane-strain')
+        assert in_plane_strain
+        # check coordinates
+        np.testing.assert_equal(in_plane_strain.point_list.vx, X)
+        np.testing.assert_equal(in_plane_strain.point_list.vy, Y)
+        np.testing.assert_equal(in_plane_strain.point_list.vz, Z)
+        # check values
+        second = (sample11.values + sample22.values)
+        in_plane_strain.select('11')
+        np.testing.assert_allclose(in_plane_strain.values, sample11.values + second)
+        in_plane_strain.select('22')
+        np.testing.assert_allclose(in_plane_strain.values, sample22.values + second)
+        in_plane_strain.select('33')
+        np.testing.assert_allclose(in_plane_strain.values, second)
+
+        # redefine values to simplify things
+        POISSON = 1. / 2.  # makes nu / (1 - nu) == 1
+        YOUNG = 1 + POISSON  # makes E / (1 + nu) == 1
+
+        in_plane_stress = StressField(sample11, sample22, None, YOUNG, POISSON, 'in-plane-stress')
+        assert in_plane_stress
+        # check coordinates
+        np.testing.assert_equal(in_plane_stress.point_list.vx, X)
+        np.testing.assert_equal(in_plane_stress.point_list.vy, Y)
+        np.testing.assert_equal(in_plane_stress.point_list.vz, Z)
+        # check values
+        second = (sample11.values + sample22.values)
+        in_plane_stress.select('11')
+        np.testing.assert_allclose(in_plane_stress.values, sample11.values + second)
+        in_plane_stress.select('22')
+        np.testing.assert_allclose(in_plane_stress.values, sample22.values + second)
+        in_plane_stress.select('33')
+        np.testing.assert_equal(in_plane_stress.values, 0.)
+        np.testing.assert_equal(in_plane_stress.errors, 0.)
 
 
 @pytest.fixture(scope='module')
