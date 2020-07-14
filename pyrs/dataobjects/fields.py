@@ -292,8 +292,8 @@ class ScalarFieldSample:
         aggregate_sample = self.aggregate(other)  # combine both scalar field samples
         return aggregate_sample.coalesce(resolution=resolution, criterion=criterion)
 
-    def to_md_histo_workspace(self, name: str, units: str = 'meter',
-                              interpolate=True,
+    def to_md_histo_workspace(self, name: str = '', units: str = 'meter',
+                              interpolate: bool = True,
                               method: str = 'linear', fill_value: float = float('nan'), keep_nan: bool = True,
                               resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = 'min_error'
                               ) -> IMDHistoWorkspace:
@@ -328,6 +328,11 @@ class ScalarFieldSample:
         -------
         MDHistoWorkspace
         """
+
+        # use ScalarFieldSample name is one isn't defined
+        if not name:
+            name = self.name
+
         # TODO units should be a member of this class
         if interpolate is True:
             sample = self.interpolated_sample(keep_nan=keep_nan, resolution=resolution, criterion=criterion)
@@ -483,6 +488,35 @@ class StrainField(ScalarFieldSample):
             raise RuntimeError('Need to have matching subruns')
 
         return hidraworkspace, peak_collection
+
+
+def generateParameterField(parameter: str,
+                           hidraworkspace: HidraWorkspace,
+                           peak_collection: PeakCollection) -> ScalarFieldSample:
+    '''Converts a HidraWorkspace and PeakCollection into a ScalarFieldSample for a specify peak parameter'''
+    VX, VY, VZ = 'vx', 'vy', 'vz'
+
+    lognames = hidraworkspace.get_sample_log_names()
+    missing = []
+    for logname in VX, VY, VZ:
+        if logname not in lognames:
+            missing.append(logname)
+    if missing:
+        raise RuntimeError('Failed to find positions in logs. Missing {}'.format(', '.join(missing)))
+
+    # extract positions
+    x = hidraworkspace.get_sample_log_values(VX)
+    y = hidraworkspace.get_sample_log_values(VY)
+    z = hidraworkspace.get_sample_log_values(VZ)
+
+    if parameter in ('Center', 'Height', 'FWHM', 'Mixing', 'A0', 'A1', 'Intensity'):
+        values, errors = peak_collection.get_effective_params()  # type: ignore
+        values = values[parameter]
+        errors = errors[parameter]
+    else:  # dspacing_center, d_reference, strain
+        values, errors = getattr(peak_collection, f'get_{parameter}')()  # type: ignore
+
+    return ScalarFieldSample(parameter, values, errors, x, y, z)
 
 
 def aggregate_scalar_field_samples(*args) -> 'ScalarFieldSample':

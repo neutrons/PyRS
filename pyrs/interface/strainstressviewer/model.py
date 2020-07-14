@@ -1,5 +1,5 @@
 import numpy as np
-from pyrs.dataobjects.fields import StrainField, StressField
+from pyrs.dataobjects.fields import generateParameterField, StressField
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
 from qtpy.QtCore import Signal, QObject
@@ -103,21 +103,22 @@ class Model(QObject):
             if self.selectedPeak in peaks:
                 peaks[self.selectedPeak].set_d_reference(np.array(d0))
 
-    def get_field_md(self, direction='11', plot_param='strain'):
+    def get_field_md(self, direction, plot_param):
         if plot_param == "stress":
             self._stress.select(direction)
             return self._stress.to_md_histo_workspace(f'e{direction} {plot_param}')
         else:
-            return StrainField(hidraworkspace=getattr(self, f'e{direction}'),
-                               peak_collection=getattr(self, f'e{direction}_peaks')[self.selectedPeak]
-                               ).to_md_histo_workspace(f'e{direction} {plot_param}')
+            return generateParameterField(plot_param,
+                                          hidraworkspace=getattr(self, f'e{direction}'),
+                                          peak_collection=getattr(self, f'e{direction}_peaks')[self.selectedPeak],
+                                          ).to_md_histo_workspace(f'e{direction} {plot_param}')
 
     def calculate_stress(self, stress_case, youngModulus, poissonsRatio):
-        self._stress = StressField(StrainField(hidraworkspace=self.e11,
-                                               peak_collection=self.e11_peaks[self.selectedPeak]),
-                                   StrainField(hidraworkspace=self.e22,
-                                               peak_collection=self.e22_peaks[self.selectedPeak]),
-                                   StrainField(hidraworkspace=self.e33,
-                                               peak_collection=self.e33_peaks[self.selectedPeak])
+        self._stress = StressField(generateParameterField('strain', hidraworkspace=self.e11,
+                                                          peak_collection=self.e11_peaks[self.selectedPeak]),
+                                   generateParameterField('strain', hidraworkspace=self.e22,
+                                                          peak_collection=self.e22_peaks[self.selectedPeak]),
+                                   generateParameterField('strain', hidraworkspace=self.e33,
+                                                          peak_collection=self.e33_peaks[self.selectedPeak])
                                    if stress_case == "diagonal" else None,
                                    youngModulus, poissonsRatio, stress_case)

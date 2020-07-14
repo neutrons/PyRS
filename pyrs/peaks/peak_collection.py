@@ -265,9 +265,6 @@ class PeakCollection:
         d_spacing = self._get_dspacing_center()
         return unumpy.nominal_values(d_spacing), unumpy.std_devs(d_spacing)
 
-    def get_integrated_intensity(self):
-        pass
-
     def get_chisq(self) -> np.ndarray:
         return np.copy(self._fit_cost_array)
 
