@@ -62,5 +62,66 @@ def test_fuse(fuse_data):
         list(item_sorted) == pytest.approx(fuse_data['fused'][item])
 
 
+@pytest.fixture(scope='module')
+def data_interpolate():
+    r"""
+    Three scans taken on the (vx, vy, vz=0) plane
+    """
+    x_max, y_max = 52.0, 16.0  # in mili-meters
+
+    def _lf(vx, vy):
+        r"""Mimic variations of a lattice constant"""
+        x, y = np.array(vx), np.array(vy)
+        lc0, dlc = 1.5, 0.1  # strain-free lattice constant and its maximum variation
+        # values vary from lc0-dlc to lc0+dlc
+        values = lc0 + dlc * np.cos(2 * np.pi * x / x_max) * np.sin(np.pi * y / y_max)
+        errors = 0.1 * values
+        return {'values': list(values), 'errors': list(errors), 'x': vx, 'y': vy, 'z': [0] * len(x)}
+
+    return {
+        'name': 'lattice_constant',
+        'logs_count': 3,
+        'logs1': _lf([0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 6, 6, 6, 6, 6],
+                     [0, 4, 8, 12, 16, 0, 4, 8, 12, 16, 0, 4, 8, 12, 16]),
+        'logs2': _lf([10, 10, 10, 10, 10, 14, 14, 14, 14, 14, 18, 18, 18, 18, 18, 22, 22, 22, 22, 22,
+                      26, 26, 26, 26, 26, 30, 30, 30, 30, 30, 34, 34, 34, 34, 34],
+                     [0, 4, 8, 12, 16, 0, 4, 8, 12, 16, 0, 4, 8, 12, 16, 0, 4, 8, 12, 16,
+                      0, 4, 8, 12, 16, 0, 4, 8, 12, 16, 0, 4, 8, 12, 16]),
+        'logs3': _lf([38, 38, 38, 38, 38, 38, 38, 38, 40, 40, 40, 40, 40, 40, 40, 40, 42, 42, 42, 42, 42, 42, 42, 42,
+                      44, 44, 44, 44, 44, 44, 44, 44, 46, 46, 46, 46, 46, 46, 46, 46, 48, 48, 48, 48, 48, 48, 48, 48,
+                      50, 50, 50, 50, 50, 50, 50, 50, 52, 52, 52, 52, 52, 52, 52, 52],
+                     [0, 2, 4, 6, 8, 10, 12, 14, 0, 2, 4, 6, 8, 10, 12, 14, 0, 2, 4, 6, 8, 10, 12, 14,
+                      0, 2, 4, 6, 8, 10, 12, 14, 0, 2, 4, 6, 8, 10, 12, 14, 0, 2, 4, 6, 8, 10, 12, 14,
+                      0, 2, 4, 6, 8, 10, 12, 14, 0, 2, 4, 6, 8, 10, 12, 14]),
+        'criterion': 'min_error',
+        'resolution': 0.01,
+        'fused': {
+            'values': [],  # expected values after combining runs
+            'errors': [],
+            'x': [], 'y': [], 'z': []
+        }
+    }
+
+
+def test_interpolate(data_interpolate, allclose_with_sorting):
+    # Boiler-plate code to create a ScalarFieldSample object for every subrun
+    scalar_field_samples = list()
+    for i in range(1, 1 + data_interpolate['logs_count']):
+        logs = data_interpolate[f'logs{i}']
+        scalar_field_samples.append(ScalarFieldSample(data_interpolate['name'], logs['values'], logs['errors'],
+                                                      logs['x'], logs['y'], logs['z']))
+
+    # Fuse the scalar field sample objects
+    fused = fuse_scalar_field_samples(*scalar_field_samples, criterion=data_interpolate['criterion'],
+                                      resolution=data_interpolate['resolution'])
+    assert len(fused) == sum([len(sample) for sample in scalar_field_samples])
+    assert allclose_with_sorting(fused.values, np.concatenate([sample.values for sample in scalar_field_samples]))
+
+    interpolated = fused.interpolated_sample(method='linear', fill_value=float('nan'), keep_nan=True,
+                                             criterion=data_interpolate['criterion'],
+                                             resolution=data_interpolate['resolution'])
+
+
+
 if __name__ == '__main__':
     pytest.main()
