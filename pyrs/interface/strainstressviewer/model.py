@@ -7,6 +7,7 @@ from qtpy.QtCore import Signal, QObject
 
 class Model(QObject):
     propertyUpdated = Signal(str)
+    failureMsg = Signal(str, str)
 
     def __init__(self):
         super().__init__()
@@ -29,12 +30,7 @@ class Model(QObject):
 
     @e11.setter
     def e11(self, filename):
-        source_project = HidraProjectFile(filename, mode=HidraProjectFileMode.READONLY)
-        self._e11 = HidraWorkspace('11')
-        self._e11.load_hidra_project(source_project, False, False)
-        self._e11_peaks = dict()  # clear out existing peaks
-        for peak in source_project.read_peak_tags():
-            self._e11_peaks[peak] = source_project.read_peak_parameters(peak)
+        self._e11, self._e11_peaks = self.load_hidra_project_file(filename, '11')
         self._peakTags = list(self._e11_peaks.keys())
         self.propertyUpdated.emit("peakTags")
 
@@ -48,12 +44,7 @@ class Model(QObject):
 
     @e22.setter
     def e22(self, filename):
-        source_project = HidraProjectFile(filename, mode=HidraProjectFileMode.READONLY)
-        self._e22 = HidraWorkspace('22')
-        self._e22.load_hidra_project(source_project, False, False)
-        self._e22_peaks = dict()  # clear out existing peaks
-        for peak in source_project.read_peak_tags():
-            self._e22_peaks[peak] = source_project.read_peak_parameters(peak)
+        self._e22, self._e22_peaks = self.load_hidra_project_file(filename, '22')
 
     @property
     def e22_peaks(self):
@@ -65,12 +56,7 @@ class Model(QObject):
 
     @e33.setter
     def e33(self, filename):
-        source_project = HidraProjectFile(filename, mode=HidraProjectFileMode.READONLY)
-        self._e33 = HidraWorkspace('33')
-        self._e33.load_hidra_project(source_project, False, False)
-        self._e33_peaks = dict()  # clear out existing peaks
-        for peak in source_project.read_peak_tags():
-            self._e33_peaks[peak] = source_project.read_peak_parameters(peak)
+        self._e33, self._e33_peaks = self.load_hidra_project_file(filename, '33')
 
     @property
     def e33_peaks(self):
@@ -135,3 +121,16 @@ class Model(QObject):
                                                           peak_collection=self.e33_peaks[self.selectedPeak])
                                    if stress_case == "diagonal" else None,
                                    youngModulus, poissonsRatio, stress_case)
+
+    def load_hidra_project_file(self, filename, direction):
+        try:
+            source_project = HidraProjectFile(filename, mode=HidraProjectFileMode.READONLY)
+            ws = HidraWorkspace(direction)
+            ws.load_hidra_project(source_project, False, False)
+            peaks = dict()
+            for peak in source_project.read_peak_tags():
+                peaks[peak] = source_project.read_peak_parameters(peak)
+            return ws, peaks
+        except Exception as e:
+            self.failureMsg.emit(f"Failed to load {filename}", str(e))
+            return None, dict()

@@ -6,7 +6,7 @@ from qtpy.QtWidgets import (QHBoxLayout, QVBoxLayout, QLabel, QWidget,
                             QTableWidget, QTableWidgetItem,
                             QFormLayout, QFileDialog,
                             QStyledItemDelegate, QDoubleSpinBox,
-                            QStackedWidget)
+                            QStackedWidget, QMessageBox)
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtGui import QDoubleValidator
 import numpy as np
@@ -35,8 +35,11 @@ class FileLoad(QWidget):
                                                   "",
                                                   self.fileType)
         if fileName:
-            self.lineEdit.setText(fileName)
-            self.parent.controller.fileSelected(self.name, fileName)
+            success = self.parent.controller.fileSelected(self.name, fileName)
+            if success:
+                self.lineEdit.setText(fileName)
+            else:
+                self.lineEdit.setText(None)
             self.parent.update_plot()
 
 
@@ -321,6 +324,7 @@ class StrainStressViewer(QSplitter):
     def __init__(self, model, ctrl, parent=None):
         self._model = model
         self._model.propertyUpdated.connect(self.updatePropertyFromModel)
+        self._model.failureMsg.connect(self.show_failure_msg)
         self._ctrl = ctrl
 
         super().__init__(parent)
@@ -421,3 +425,10 @@ class StrainStressViewer(QSplitter):
 
     def subruns(self, subruns):
         self.d0.set_sub_runs(subruns, self.model.d0[0])
+
+    def show_failure_msg(self, msg, details):
+        msgBox = QMessageBox()
+        msgBox.setText(msg)
+        msgBox.setInformativeText("Check that this is a Hidra Project File")
+        msgBox.setDetailedText(details)
+        msgBox.exec()
