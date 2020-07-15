@@ -78,12 +78,16 @@ class StressCase(QGroupBox):
         self.combo = QComboBox()
         self.combo.addItems(["In-plane stress",
                              "In-plane strain"])
+        self.combo.currentTextChanged.connect(self.stress_case_changed)
         layout.addWidget(self.combo)
         self.setLayout(layout)
 
     def set_2D(self, bool2d):
         self.combo.setDisabled(not bool2d)
         self.dimChanged.emit(bool2d)
+
+    def stress_case_changed(self):
+        self.dimChanged.emit(True)
 
     def get_stress_case(self):
         if self.switch.button_3d.isChecked():
@@ -245,7 +249,6 @@ class PlotSelect(QGroupBox):
                                   "strain",
                                   "stress"])
         self.plot_param.setCurrentIndex(self.plot_param.findText('strain'))
-        self.setStressEnabled(False)
         layout.addRow(QLabel("Plot"), self.plot_param)
         self.measure_dir = QComboBox()
         self.measure_dir.addItems(["11",
@@ -253,18 +256,6 @@ class PlotSelect(QGroupBox):
                                    "33"])
         layout.addRow(QLabel("Measurement Direction "), self.measure_dir)
         self.setLayout(layout)
-
-    def setStressEnabled(self, enabled=True):
-        index = self.plot_param.findText('stress')
-        if enabled:
-            self.plot_param.model().item(index).setFlags(Qt.ItemIsSelectable |
-                                                         Qt.ItemIsEditable |
-                                                         Qt.ItemIsDragEnabled |
-                                                         Qt.ItemIsDropEnabled |
-                                                         Qt.ItemIsUserCheckable |
-                                                         Qt.ItemIsEnabled)
-        else:
-            self.plot_param.model().item(index).setFlags(Qt.NoItemFlags)
 
     def get_direction(self):
         return self.measure_dir.currentText()
@@ -297,6 +288,13 @@ class VizTabs(QTabWidget):
 
         self.plot_2d = QStackedWidget()
 
+        self.message = QLabel("Load project files")
+        self.message.setAlignment(Qt.AlignCenter)
+        font = self.message.font()
+        font.setPointSize(20)
+        self.message.setFont(font)
+        self.plot_2d.addWidget(self.message)
+
         self.addTab(self.plot_2d, "2D")
         self.addTab(QWidget(), "3D")
         self.setTabEnabled(1, False)
@@ -309,9 +307,14 @@ class VizTabs(QTabWidget):
             else:
                 self.strainSliceViewer = StrainSliceViewer(ws, parent=self)
                 self.plot_2d.addWidget(self.strainSliceViewer.view)
+                self.plot_2d.setCurrentIndex(1)
         else:
-            self.plot_2d.removeWidget(self.strainSliceViewer.view)
-            self.strainSliceViewer = None
+            if self.strainSliceViewer is not None:
+                self.plot_2d.removeWidget(self.strainSliceViewer.view)
+                self.strainSliceViewer = None
+
+    def set_message(self, text):
+        self.message.setText(text)
 
 
 class StrainStressViewer(QSplitter):
@@ -343,11 +346,10 @@ class StrainStressViewer(QSplitter):
         left_layout.addWidget(self.d0)
 
         self.mechanicalConstants = MechanicalConstants(self)
+        self.mechanicalConstants.youngModulus.editingFinished.connect(self.update_plot)
+        self.mechanicalConstants.poissonsRatio.editingFinished.connect(self.update_plot)
         left_layout.addWidget(self.mechanicalConstants)
 
-        self.calculate = QPushButton("Calculate Stress/Strain")
-        self.calculate.clicked.connect(self.calculate_stress)
-        left_layout.addWidget(self.calculate)
         left_layout.addStretch(0)
 
         left.setLayout(left_layout)
@@ -382,23 +384,31 @@ class StrainStressViewer(QSplitter):
     def dimChanged(self, bool2d):
         self.fileLoading.file_load_e33.setDisabled(bool2d)
         self.viz_tab.setTabEnabled(1, not bool2d)
+        self.update_plot()
 
     def measure_dir_changed(self):
         self.update_plot()
 
-    def calculate_stress(self):
-        self.controller.calculate_stress(self.stressCase.get_stress_case(),
-                                         self.mechanicalConstants.youngModulus.text(),
-                                         self.mechanicalConstants.poissonsRatio.text())
-        self.plot_select.setStressEnabled(True)
-        self.update_plot()
-
     def update_plot(self):
-        try:
+        if self.plot_select.get_plot_param() == 'stress':
+            validated = self.controller.validate_stress_selection(self.stressCase.get_stress_case(),
+                                                                  self.mechanicalConstants.youngModulus.text(),
+                                                                  self.mechanicalConstants.poissonsRatio.text())
+        else:
+            validated = self.controller.validate_selection(self.plot_select.get_direction(),
+                                                           self.stressCase.get_stress_case() != 'diagonal')
+
+        if validated is None:
+            if self.plot_select.get_plot_param() == 'stress':
+                self.controller.calculate_stress(self.stressCase.get_stress_case(),
+                                                 self.mechanicalConstants.youngModulus.text(),
+                                                 self.mechanicalConstants.poissonsRatio.text())
+
             self.viz_tab.set_ws(self.model.get_field_md(direction=self.plot_select.get_direction(),
                                                         plot_param=self.plot_select.get_plot_param()))
-        except KeyError:
+        else:
             self.viz_tab.set_ws(None)
+            self.viz_tab.set_message(validated)
 
     def updatePropertyFromModel(self, name):
         getattr(self, name)(getattr(self.model, name))
