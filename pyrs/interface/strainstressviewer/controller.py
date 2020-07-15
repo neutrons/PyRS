@@ -16,3 +16,34 @@ class Controller:
         self._model.calculate_stress(stress_case.replace(' ', '-'),
                                      float(youngModulus),
                                      float(poissonsRatio))
+
+    def validate_selection(self, direction, twoD):
+        if twoD and direction == '33':
+            return "Cannot plot peak parameter for unused 33 direction in 2D stress case"
+
+        return self._model.validate_selection(direction)
+
+    def validate_stress_selection(self, stress_case, youngModulus, poissonsRatio):
+        errors = ""
+
+        directions = ('11', '22', '33') if stress_case == 'diagonal' else ('11', '22')
+
+        for direction in directions:
+            valid = self._model.validate_selection(direction)
+            if valid:
+                errors += valid + '\n'
+
+        try:
+            float(youngModulus)
+        except ValueError:
+            errors += "Need to specify Young Modulus\n"
+
+        try:
+            float(poissonsRatio)
+        except ValueError:
+            errors += "Need to specify Poissons Ratio\n"
+
+        if errors:
+            return errors
+        else:
+            return None

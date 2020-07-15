@@ -10,9 +10,9 @@ class Model(QObject):
 
     def __init__(self):
         super().__init__()
-        self._e11 = HidraWorkspace('11')
-        self._e22 = HidraWorkspace('22')
-        self._e33 = HidraWorkspace('33')
+        self._e11 = None
+        self._e22 = None
+        self._e33 = None
         self._e11_peaks = dict()
         self._e22_peaks = dict()
         self._e33_peaks = dict()
@@ -102,6 +102,19 @@ class Model(QObject):
         for peaks in [self.e11_peaks, self.e22_peaks, self.e33_peaks]:
             if self.selectedPeak in peaks:
                 peaks[self.selectedPeak].set_d_reference(np.array(d0))
+
+    def validate_selection(self, direction):
+        if getattr(self, f'e{direction}') is None:
+            return f"e{direction} file hasn't been loaded"
+
+        if self.e11 is None:
+            return "e11 is not loaded, the peak tags from this file will be used"
+
+        if not self.e11_peaks:
+            return "e11 contains no peaks, fit peaks first"
+
+        if self.selectedPeak not in getattr(self, f'e{direction}_peaks'):
+            return f"Peak {self.selectedPeak} is not in e{direction}"
 
     def get_field_md(self, direction, plot_param):
         if plot_param == "stress":
