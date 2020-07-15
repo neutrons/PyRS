@@ -426,9 +426,11 @@ class StrainStressViewer(QSplitter):
     def subruns(self, subruns):
         self.d0.set_sub_runs(subruns, self.model.d0[0])
 
-    def show_failure_msg(self, msg, details):
+    def show_failure_msg(self, msg, info, details):
+        self.viz_tab.set_message(msg)
         msgBox = QMessageBox()
+        msgBox.setIcon(QMessageBox.Critical)
         msgBox.setText(msg)
-        msgBox.setInformativeText("Check that this is a Hidra Project File")
+        msgBox.setInformativeText(info)
         msgBox.setDetailedText(details)
         msgBox.exec()

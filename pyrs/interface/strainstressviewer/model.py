@@ -7,7 +7,7 @@ from qtpy.QtCore import Signal, QObject
 
 class Model(QObject):
     propertyUpdated = Signal(str)
-    failureMsg = Signal(str, str)
+    failureMsg = Signal(str, str, str)
 
     def __init__(self):
         super().__init__()
@@ -107,10 +107,16 @@ class Model(QObject):
             self._stress.select(direction)
             return self._stress.to_md_histo_workspace(f'e{direction} {plot_param}')
         else:
-            return generateParameterField(plot_param,
-                                          hidraworkspace=getattr(self, f'e{direction}'),
-                                          peak_collection=getattr(self, f'e{direction}_peaks')[self.selectedPeak],
-                                          ).to_md_histo_workspace(f'e{direction} {plot_param}')
+            try:
+                return generateParameterField(plot_param,
+                                              hidraworkspace=getattr(self, f'e{direction}'),
+                                              peak_collection=getattr(self, f'e{direction}_peaks')[self.selectedPeak],
+                                              ).to_md_histo_workspace(f'e{direction} {plot_param}')
+            except Exception as e:
+                self.failureMsg.emit(f"Failed to generate field for parameter {plot_param} in direction {direction}",
+                                     None,
+                                     str(e))
+                return None
 
     def calculate_stress(self, stress_case, youngModulus, poissonsRatio):
         self._stress = StressField(generateParameterField('strain', hidraworkspace=self.e11,
@@ -132,5 +138,7 @@ class Model(QObject):
                 peaks[peak] = source_project.read_peak_parameters(peak)
             return ws, peaks
         except Exception as e:
-            self.failureMsg.emit(f"Failed to load {filename}", str(e))
+            self.failureMsg.emit(f"Failed to load {filename}",
+                                 "Check that this is a Hidra Project File",
+                                 str(e))
             return None, dict()
