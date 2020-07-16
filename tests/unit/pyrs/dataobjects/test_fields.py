@@ -10,8 +10,8 @@ from pyrs.dataobjects.constants import DEFAULT_POINT_RESOLUTION
 from pyrs.dataobjects.fields import (aggregate_scalar_field_samples, fuse_scalar_field_samples, ScalarFieldSample,
                                      StrainField, StressField, stack_scalar_field_samples, generateParameterField)
 from pyrs.core.peak_profile_utility import get_parameter_dtype
-from pyrs.peaks import PeakCollection
-from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
+from pyrs.peaks import PeakCollection  # type: ignore
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 
 SampleMock = namedtuple('SampleMock', 'name values errors x y z')
 
