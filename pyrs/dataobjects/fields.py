@@ -660,12 +660,29 @@ class StressField(ScalarFieldSample):
         else:
             raise ValueError('Cannot calculate stress of type {}'.format(self.stress_type))
 
+        # set references to strain directions
+        self._strain11 = strain11
+        self._strain22 = strain22
+        self._strain33 = strain33
+
         # set-up information for PointList
         x = strain11.point_list.vx
         y = strain11.point_list.vy
         z = strain11.point_list.vz
         # TODO need to fix up super.__init__ to not need the copy
         return super().__init__('stress', self.values, self.errors, x, y, z)
+
+    @property
+    def get_strain11(self):
+        return self._strain11
+
+    @property
+    def get_strain22(self):
+        return self._strain22
+
+    @property
+    def get_strain33(self):
+        return self._strain33
 
     @property
     def youngs_modulus(self):
