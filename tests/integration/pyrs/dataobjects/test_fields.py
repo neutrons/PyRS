@@ -118,5 +118,68 @@ def test_interpolate_surface_scans(data_interpolate_surface_scans, allclose_with
     data['assert checks'](interpolated)
 
 
+@pytest.fixture(scope='module')
+def data_interpolate_volume_scan():
+    r"""
+    Three surface scans on the (vx, vy) plane, taken at vz=0, vz=1, and vz=4. Their extents on
+    the (vx, vy) plane are the same, but differ on the spacing.
+    Scan at vz=0 is very detailed, mimicking and inspection of the surface. Scan at vz=1 is less
+    detailed, and scan at vz=4 is even less detailed.
+    Scans are elongated along the vx axis, to mimic inspecting a soldering
+    - scan at vz=0:  0 <= vx <= 50, step = 1;  0 <= vy <= 20, step=1.  A total of 51 * 21 = 1071 points
+    - scan at vz=1:  0 <= vz <= 50, step = 2,  0 <= vy <= 20, step=2.  A total of 25 * 11 = 275
+    - scan at vz=4:  0 <= vz <= 50, step = 5,  0 <= vy <= 20, step=5.  A total of 11 * 5 = 55
+    """
+
+    def _field_generator(vx_extent, vy_extent, vz_extent):
+        r"""
+        Provide the start, end, and step along each axis.
+        Intensities are the sum of the values of the coordinate components along each axis
+        """
+        epsilon = 1.e-9
+        slices = [slice(e[0], e[1] + epsilon, e[2]) for e in (vx_extent, vy_extent, vz_extent)]
+        coordinates = np.transpose(np.mgrid[slices], (1, 2, 3, 0)).reshape(-1, 3)
+        values = np.sum(coordinates, axis=1)
+        errors = 0.1 * values
+        vx, vy, vz = coordinates.T
+        return ScalarFieldSample('strain', values, errors, vx, vy, vz)
+
+    def assert_checks(field):
+        r"""Assert the intensity in the interpolated values is the sum of the value of the coordinate
+        component along each axis."""
+        is_finite = np.isfinite(field.values)
+        assert field.values[is_finite] == pytest.approx(np.sum(field.coordinates[is_finite], axis=1))
+
+    return {
+        'assert checks': assert_checks,
+        'name': 'strain',
+        'sample1': _field_generator((0, 50, 1), (0, 20, 1), (0, 0, 1)),  # scan at vz=0
+        'sample2': _field_generator((0, 50, 2), (0, 20, 2), (1, 1, 1)),  # scan at vz=1
+        'sample3': _field_generator((0, 50, 5), (0, 20, 5), (3, 3, 1)),  # scan at vz=3
+        'criterion': 'min_error',
+        'resolution': DEFAULT_POINT_RESOLUTION,
+        'fused': {
+            'values': [],  # expected values after combining runs
+            'errors': [],
+            'x': [], 'y': [], 'z': []
+        }
+    }
+
+
+# TODO implementation of this test is a duplication of test_interpolate_surface_scans, except of the data fixture.
+def test_interpolate_volume_scan(data_interpolate_volume_scan, allclose_with_sorting):
+    data = data_interpolate_volume_scan  # handy shortcut
+    scalar_field_samples = [data['sample1'], data['sample2'], data['sample3']]
+    # There are no sample points within resolution distance, thus fusing simply concatenate the three samples
+    fused = fuse_scalar_field_samples(*scalar_field_samples, criterion=data['criterion'],
+                                      resolution=data['resolution'])
+    assert len(fused) == sum([len(sample) for sample in scalar_field_samples])
+    assert allclose_with_sorting(fused.values, np.concatenate([sample.values for sample in scalar_field_samples]))
+
+    interpolated = fused.interpolated_sample(keep_nan=True,
+                                             criterion=data['criterion'], resolution=data['resolution'])
+    data['assert checks'](interpolated)
+
+
 if __name__ == '__main__':
     pytest.main()
