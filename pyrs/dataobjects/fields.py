@@ -1,3 +1,4 @@
+import copy
 from enum import Enum
 from enum import unique as unique_enum
 import numpy as np
@@ -87,6 +88,10 @@ class ScalarFieldSample:
     @property
     def z(self) -> List[float]:
         return self._point_list.vz
+
+    def clone(self):
+        r"""Obtain an identical copy of this field"""
+        return copy.deepcopy(self)
 
     @property
     def isfinite(self) -> 'ScalarFieldSample':
@@ -436,6 +441,14 @@ class StrainField(ScalarFieldSample):
 
         # TODO the fixed name shouldn't bee needed with inheritence
         return super().__init__('strain', strain, strain_error, x, y, z)
+
+    def clone(self):
+        r"""
+        Obtain an identical copy of this strain field.
+
+        All attributes are replicated, except `_peak_collection`
+        """
+        return copy.deepcopy(self, memo={id(self._peak_collection): self._peak_collection})
 
     @property
     def get_peak_collection(self):

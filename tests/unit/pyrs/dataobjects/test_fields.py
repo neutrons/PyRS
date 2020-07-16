@@ -1,5 +1,6 @@
 # Standard and third party libraries
 from collections import namedtuple
+import enum
 import numpy as np
 import pytest
 import random
@@ -259,6 +260,19 @@ class TestScalarFieldSample:
         field = ScalarFieldSample(*TestScalarFieldSample.sample1)
         np.testing.assert_equal(field.z, TestScalarFieldSample.sample1.z)
 
+    def test_clone(self):
+        field = ScalarFieldSample(*TestScalarFieldSample.sample1)
+        clone = field.clone()
+        assert id(clone) != id(field)
+        for attribute in ('name', 'values', 'errors', 'x', 'y', 'z'):
+            clone_attribute = getattr(clone, attribute)
+            field_attribute = getattr(field, attribute)
+            if isinstance(field_attribute, str) is True:
+                assert clone_attribute == field_attribute
+            else:
+                assert id(clone_attribute) != id(field_attribute)  # different addresses in memory
+                assert np.allclose(clone_attribute, field_attribute)  # compare the values
+
     def test_isfinite(self):
         field = ScalarFieldSample(*TestScalarFieldSample.sample4).isfinite
         for attribute in ('values', 'errors', 'x', 'y', 'z'):
@@ -463,8 +477,11 @@ class TestScalarFieldSample:
         histo.delete()
 
 
-def test_create_strain_field():
-    # 2 points in each direction
+@pytest.fixture(scope='module')
+def strain_field_samples():
+    sample_fields = {}
+
+    # The first sample has 2 points in each direction
     subruns = np.arange(1, 9, dtype=int)
 
     # create the test peak collection - d-refernce is 1 to make checks easier
@@ -494,6 +511,25 @@ def test_create_strain_field():
     assert strain.get_peak_collection == peak_collection
     np.testing.assert_almost_equal(strain.values, 0.)
     np.testing.assert_equal(strain.errors, np.zeros(subruns.size, dtype=float))
+    sample_fields['strain with two points per direction'] = strain
+
+    return sample_fields
+
+
+class TestStrainField:
+
+    def test_clone(self, strain_field_samples):
+        field = strain_field_samples['strain with two points per direction']
+        clone = field.clone()
+        assert id(clone) != id(field)
+        for attribute in ('_peak_collection', 'name', 'values', 'errors', 'x', 'y', 'z'):
+            clone_attribute = getattr(clone, attribute)
+            field_attribute = getattr(field, attribute)
+            if isinstance(field_attribute, (PeakCollection, str)) is True:
+                assert id(clone_attribute) == id(field_attribute)
+            else:
+                assert id(clone_attribute) != id(field_attribute)  # different addresses in memory
+                assert np.allclose(clone_attribute, field_attribute)  # compare the values
 
 
 def test_create_strain_field_from_file_no_peaks():
@@ -610,6 +646,14 @@ def strains_for_stress_field_1():
     return sample11, sample22, sample33
 
 
+@pytest.fixture(scope='module')
+def stress_samples(strains_for_stress_field_1):
+    POISSON = 1. / 3.  # makes nu / (1 - 2*nu) == 1
+    YOUNG = 1 + POISSON  # makes E / (1 + nu) == 1
+    sample11, sample22, sample33 = strains_for_stress_field_1
+    return {'stress diagonal': StressField(sample11, sample22, sample33, YOUNG, POISSON)}
+
+
 class TestStressField:
 
     def test_youngs_modulus(self, strains_for_stress_field_1):
@@ -623,6 +667,27 @@ class TestStressField:
         poisson_ratio = random.random()
         field = StressField(*strains_for_stress_field_1, 1.0, poisson_ratio)
         assert field.poisson_ratio == pytest.approx(poisson_ratio)
+
+    def test_clone(self, stress_samples):
+        field = stress_samples['stress diagonal']
+        clone = field.clone()
+        assert clone.__class__ == field.__class__
+        assert id(clone) != id(field)
+        for attribute in ('name', 'values', 'errors', 'x', 'y', 'z',
+                          'direction', 'stress_type', '_youngs_modulus', '_poisson_ratio'):
+            clone_attribute = getattr(clone, attribute)
+            field_attribute = getattr(field, attribute)
+            if isinstance(field_attribute, (str, enum.Enum)) is True:
+                assert clone_attribute == field_attribute
+            elif isinstance(field_attribute, float):  # we have id(clone_attribute) == id(field_attribute)
+                assert clone_attribute == field_attribute
+                setattr(clone, attribute, field_attribute + 1.0)
+                clone_attribute = getattr(clone, attribute)
+                assert clone_attribute == field_attribute + 1.0
+                assert id(clone_attribute) != id(field_attribute)
+            else:
+                assert id(clone_attribute) != id(field_attribute)  # different addresses in memory
+                assert np.allclose(clone_attribute, field_attribute)  # compare the values
 
     def test_create_stress_field(self):
         X = [0.000, 1.000, 2.000, 3.000, 4.000, 5.000, 6.000, 7.000, 8.000, 9.000]
