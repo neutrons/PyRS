@@ -235,14 +235,19 @@ class TestPointList:
         assert grid.shape == (1, 5)
 
     def test_grid_point_list(self):
+        r"""
+        The regular grid spanned by the three orthonormal vectors is the unit cube, with eight points
+         The order of the coordinates must follow this nested loop structure:
+         for vx in ...:
+             for vy in ...:
+                 for vz in ...:
+        """
         # Passing the orthonormal vectors along each direction as three points
         point_list = PointList([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
         other_list = point_list.grid_point_list(resolution=DEFAULT_POINT_RESOLUTION)
-        # The regular grid spanned by the three orthonormal vectors is the unit cube, with eight points
-        cube_coordinates = [[0., 0., 0.], [1., 0., 0.], [0., 1., 0.], [1., 1., 0.],
-                            [0., 0., 1.], [1., 0., 1.], [0., 1., 1.], [1., 1., 1.]]
-        cube_point_list = PointList(np.array(cube_coordinates).T)
-        assert other_list.is_equal_within_resolution(cube_point_list, resolution=1.e-06) is True
+        cube_coordinates = [[0., 0., 0.], [0., 0., 1.], [0., 1., 0.], [0., 1., 1.],
+                            [1., 0., 0.], [1., 0., 1.], [1., 1., 0.], [1., 1., 1.]]
+        assert np.allclose(cube_coordinates, other_list.coordinates)
 
     def test_is_a_grid(self, sample_logs_mock):
         point_list = PointList(sample_logs_mock['logs'])

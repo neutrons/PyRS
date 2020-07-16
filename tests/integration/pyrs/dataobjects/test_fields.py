@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+from pyrs.dataobjects.constants import DEFAULT_POINT_RESOLUTION
 from pyrs.dataobjects.fields import ScalarFieldSample, fuse_scalar_field_samples
 
 
@@ -60,6 +61,61 @@ def test_fuse(fuse_data):
     for item in ('values', 'errors', 'x', 'y', 'z'):
         item_sorted = np.array(getattr(fused_field, item))[permutation]
         list(item_sorted) == pytest.approx(fuse_data['fused'][item])
+
+
+@pytest.fixture(scope='module')
+def data_interpolate_surface_scans():
+    r"""Three scans taken on the vz=0 plane"""
+
+    def _lf(vx, vy):
+        r"""Intensities are the sum of the absolute value of the coordinate"""
+        assert len(vx) == len(vy)
+        values = np.array(vx) + np.array(vy)
+        errors = 0.1 * values
+        return ScalarFieldSample('strain', values, errors, vx, vy, [0] * len(vx))
+
+    def assert_checks(field):
+        r""""""
+        is_finite = np.isfinite(field.values)
+        assert field.values[is_finite] == pytest.approx(np.sum(field.coordinates[is_finite], axis=1))
+
+    return {
+        'assert checks': assert_checks,
+        'name': 'strain',
+        'sample1': _lf([0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 6, 6, 6, 6, 6],
+                       [0, 4, 8, 12, 16, 0, 4, 8, 12, 16, 0, 4, 8, 12, 16]),
+        'sample2': _lf([10, 10, 10, 10, 10, 14, 14, 14, 14, 14, 18, 18, 18, 18, 18, 22, 22, 22, 22, 22,
+                        26, 26, 26, 26, 26, 30, 30, 30, 30, 30, 34, 34, 34, 34, 34],
+                       [0, 4, 8, 12, 16, 0, 4, 8, 12, 16, 0, 4, 8, 12, 16, 0, 4, 8, 12, 16,
+                        0, 4, 8, 12, 16, 0, 4, 8, 12, 16, 0, 4, 8, 12, 16]),
+        'sample3': _lf([38, 38, 38, 38, 38, 38, 38, 38, 40, 40, 40, 40, 40, 40, 40, 40, 42, 42, 42, 42, 42, 42, 42, 42,
+                        44, 44, 44, 44, 44, 44, 44, 44, 46, 46, 46, 46, 46, 46, 46, 46, 48, 48, 48, 48, 48, 48, 48, 48,
+                        50, 50, 50, 50, 50, 50, 50, 50, 52, 52, 52, 52, 52, 52, 52, 52],
+                       [0, 2, 4, 6, 8, 10, 12, 14, 0, 2, 4, 6, 8, 10, 12, 14, 0, 2, 4, 6, 8, 10, 12, 14,
+                        0, 2, 4, 6, 8, 10, 12, 14, 0, 2, 4, 6, 8, 10, 12, 14, 0, 2, 4, 6, 8, 10, 12, 14,
+                        0, 2, 4, 6, 8, 10, 12, 14, 0, 2, 4, 6, 8, 10, 12, 14]),
+        'criterion': 'min_error',
+        'resolution': DEFAULT_POINT_RESOLUTION,
+        'fused': {
+            'values': [],  # expected values after combining runs
+            'errors': [],
+            'x': [], 'y': [], 'z': []
+        }
+    }
+
+
+def test_interpolate_surface_scans(data_interpolate_surface_scans, allclose_with_sorting):
+    data = data_interpolate_surface_scans  # handy shortcut
+    scalar_field_samples = [data['sample1'], data['sample2'], data['sample3']]
+    # There are no sample points within resolution distance, thus fusing simply concatenate the three samples
+    fused = fuse_scalar_field_samples(*scalar_field_samples, criterion=data['criterion'],
+                                      resolution=data['resolution'])
+    assert len(fused) == sum([len(sample) for sample in scalar_field_samples])
+    assert allclose_with_sorting(fused.values, np.concatenate([sample.values for sample in scalar_field_samples]))
+
+    interpolated = fused.interpolated_sample(keep_nan=True,
+                                             criterion=data['criterion'], resolution=data['resolution'])
+    data['assert checks'](interpolated)
 
 
 if __name__ == '__main__':

@@ -733,7 +733,7 @@ class PointList:
             A three item array, where each items is an array specifying the value of each
             coordinate (vx, vy, or vz) at the points of the regular grid
         """
-        epsilon = 1.e-09
+        epsilon = 1.e-09  # ensures extent.max is included in each slice
         slices = list()
         for extent in self.extents(resolution=resolution):
             if extent.numpoints == 1 and irreducible is True:
@@ -755,8 +755,11 @@ class PointList:
         -------
         ~pyrs.dataobjects.sample_logs.PointList
         """
-        grid_coordinates = np.array(self.mgrid(resolution=resolution)).T.reshape(-1, 3).T  # shape = (3, number points)
-        return PointList(grid_coordinates)
+        grid = self.mgrid(resolution=resolution)
+        scan_dimension = grid.ndim - 1  # 3 for volume, 2 for surface, and 1 for linear scans
+        permutation = list(range(1, scan_dimension + 1)) + [0]  # move the (vx, vy, vz) selector to the end
+        vx_vy_vz = np.transpose(grid, permutation).reshape(-1, 3).T  # shape = (3, number points)
+        return PointList(vx_vy_vz)
 
     def is_a_grid(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> bool:
         r"""

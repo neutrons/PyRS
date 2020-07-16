@@ -30,7 +30,7 @@ def field_cube_regular():
         assert np.allclose(field.values, [intensity(*r) for r in list(field.coordinates)])
 
     values_returned = {'assert checks': assert_checks, 'edge length': 4}
-    coordinates = np.mgrid[0:3:4j, 0:3:4j, 0:3:4j].T.reshape(-1, 3)  # shape = (64, 3)
+    coordinates = np.transpose(np.mgrid[0:3:4j, 0:3:4j, 0:3:4j], (1, 2, 3, 0)).reshape(-1, 3)  # shape = (64, 3)
     values = np.array([intensity(*xyz) for xyz in coordinates])
     errors = 0.1 * values
     vx, vy, vz = list(coordinates.T)
