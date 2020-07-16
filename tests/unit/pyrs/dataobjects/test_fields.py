@@ -10,8 +10,8 @@ from pyrs.dataobjects.constants import DEFAULT_POINT_RESOLUTION
 from pyrs.dataobjects.fields import (aggregate_scalar_field_samples, fuse_scalar_field_samples, ScalarFieldSample,
                                      StrainField, StressField, stack_scalar_field_samples, generateParameterField)
 from pyrs.core.peak_profile_utility import get_parameter_dtype
-from pyrs.peaks import PeakCollection  # type: ignore
-from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
+from pyrs.peaks import PeakCollection
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode
 
 SampleMock = namedtuple('SampleMock', 'name values errors x y z')
 
@@ -477,7 +477,8 @@ class TestScalarFieldSample:
         histo.delete()
 
 
-def test_create_strain_field():
+@pytest.fixture(scope='module')
+def strain_field_samples():
     sample_fields = {}
 
     # The first sample has 2 points in each direction
@@ -511,6 +512,24 @@ def test_create_strain_field():
     np.testing.assert_almost_equal(strain.values, 0.)
     np.testing.assert_equal(strain.errors, np.zeros(subruns.size, dtype=float))
     sample_fields['strain with two points per direction'] = strain
+
+    return sample_fields
+
+
+class TestStrainField:
+
+    def test_clone(self, strain_field_samples):
+        field = strain_field_samples['strain with two points per direction']
+        clone = field.clone()
+        assert id(clone) != id(field)
+        for attribute in ('_peak_collection', 'name', 'values', 'errors', 'x', 'y', 'z'):
+            clone_attribute = getattr(clone, attribute)
+            field_attribute = getattr(field, attribute)
+            if isinstance(field_attribute, (PeakCollection, str)) is True:
+                assert id(clone_attribute) == id(field_attribute)
+            else:
+                assert id(clone_attribute) != id(field_attribute)  # different addresses in memory
+                assert np.allclose(clone_attribute, field_attribute)  # compare the values
 
 
 def test_create_strain_field_from_file_no_peaks():
@@ -632,7 +651,7 @@ def stress_samples(strains_for_stress_field_1):
     POISSON = 1. / 3.  # makes nu / (1 - 2*nu) == 1
     YOUNG = 1 + POISSON  # makes E / (1 + nu) == 1
     sample11, sample22, sample33 = strains_for_stress_field_1
-    return  {'stress diagonal': StressField(sample11, sample22, sample33, YOUNG, POISSON)}
+    return {'stress diagonal': StressField(sample11, sample22, sample33, YOUNG, POISSON)}
 
 
 class TestStressField:
