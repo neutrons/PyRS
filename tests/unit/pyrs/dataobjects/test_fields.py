@@ -491,6 +491,7 @@ def test_create_strain_field():
     # test the result
     assert strain
     assert len(strain) == subruns.size
+    assert strain.get_peak_collection == peak_collection
     np.testing.assert_almost_equal(strain.values, 0.)
     np.testing.assert_equal(strain.errors, np.zeros(subruns.size, dtype=float))
 
