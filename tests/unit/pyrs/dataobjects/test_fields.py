@@ -714,6 +714,10 @@ class TestStressField:
         # test diagonal calculation
         diagonal = StressField(sample11, sample22, sample33, YOUNG, POISSON)
         assert diagonal
+        # check strains
+        assert diagonal.get_strain11 == sample11
+        assert diagonal.get_strain22 == sample22
+        assert diagonal.get_strain33 == sample33
         # check coordinates
         np.testing.assert_equal(diagonal.point_list.vx, X)
         np.testing.assert_equal(diagonal.point_list.vy, Y)
