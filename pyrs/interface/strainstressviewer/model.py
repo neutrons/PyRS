@@ -1,3 +1,4 @@
+import traceback
 import numpy as np
 from pyrs.dataobjects.fields import generateParameterField, StressField
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
@@ -114,8 +115,8 @@ class Model(QObject):
                                               ).to_md_histo_workspace(f'e{direction} {plot_param}')
             except Exception as e:
                 self.failureMsg.emit(f"Failed to generate field for parameter {plot_param} in direction {direction}",
-                                     None,
-                                     str(e))
+                                     str(e),
+                                     traceback.format_exc())
                 return None
 
     def calculate_stress(self, stress_case, youngModulus, poissonsRatio):
@@ -138,7 +139,7 @@ class Model(QObject):
                 peaks[peak] = source_project.read_peak_parameters(peak)
             return ws, peaks
         except Exception as e:
-            self.failureMsg.emit(f"Failed to load {filename}",
-                                 "Check that this is a Hidra Project File",
-                                 str(e))
+            self.failureMsg.emit(f"Failed to load {filename}. Check that this is a Hidra Project File",
+                                 str(e),
+                                 traceback.format_exc())
             return None, dict()
