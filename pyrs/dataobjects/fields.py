@@ -1,3 +1,4 @@
+import copy
 from enum import Enum
 from enum import unique as unique_enum
 import numpy as np
@@ -87,6 +88,10 @@ class ScalarFieldSample:
     @property
     def z(self) -> List[float]:
         return self._point_list.vz
+
+    def clone(self):
+        r"""Obtain an identical copy of this field"""
+        return copy.deepcopy(self)
 
     @property
     def isfinite(self) -> 'ScalarFieldSample':

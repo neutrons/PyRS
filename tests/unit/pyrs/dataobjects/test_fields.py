@@ -259,6 +259,19 @@ class TestScalarFieldSample:
         field = ScalarFieldSample(*TestScalarFieldSample.sample1)
         np.testing.assert_equal(field.z, TestScalarFieldSample.sample1.z)
 
+    def test_clone(self):
+        field = ScalarFieldSample(*TestScalarFieldSample.sample1)
+        clone = field.clone()
+        assert id(clone) != id(field)
+        for attribute in ('name', 'values', 'errors', 'x', 'y', 'z'):
+            clone_attribute = getattr(clone, attribute)
+            field_attribute = getattr(field, attribute)
+            if isinstance(field_attribute, str) is True:
+                assert clone_attribute == field_attribute
+            else:
+                assert id(clone_attribute) != id(field_attribute)  # different addresses in memory
+                assert np.allclose(clone_attribute, field_attribute)  # compare the values
+
     def test_isfinite(self):
         field = ScalarFieldSample(*TestScalarFieldSample.sample4).isfinite
         for attribute in ('values', 'errors', 'x', 'y', 'z'):
