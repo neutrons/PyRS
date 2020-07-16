@@ -431,8 +431,22 @@ class StrainField(ScalarFieldSample):
 
         strain, strain_error = peak_collection.get_strain()  # type: ignore
 
+        # hold on to the peak collection that generated the strain field for this direction
+        self._peak_collection = peak_collection
+
         # TODO the fixed name shouldn't bee needed with inheritence
         return super().__init__('strain', strain, strain_error, x, y, z)
+
+    @property
+    def get_peak_collection(self):
+        r"""
+        Retrieve peak_collection either passed to constructor or generated from project file
+
+        Returns
+        -------
+            Peak collection
+        """
+        return self._peak_collection
 
     @staticmethod  # noqa: C901
     def __to_wksp_and_peaks(filename: str,
