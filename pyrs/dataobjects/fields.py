@@ -412,15 +412,16 @@ class StrainField:
         r"""
         Converts a HidraWorkspace and PeakCollection into a ScalarField
         """
-        self._peak_collection = None
-        self._single_scans = []  # when the strain is composed of more than one scan, we keep references to them
-        self._field = None
+        self._peak_collection: Optional[PeakCollection] = None
+        # when the strain is composed of more than one scan, we keep references to them
+        self._single_scans: List['StrainField'] = []
+        self._field: Optional[ScalarFieldSample] = None
 
         # Create a strain field from a single scan, if so requested
         single_scan_kwargs = dict(filename=filename, projectfile=projectfile, peak_tag=peak_tag,
                                   hidraworkspace=hidraworkspace, peak_collection=peak_collection)
         if True in [bool(v) for v in single_scan_kwargs.values()]:  # at least one argument is not empty
-            self._initialize_with_single_scan(**single_scan_kwargs)
+            self._initialize_with_single_scan(**single_scan_kwargs)  # type: ignore
 
     def __add__(self, other_strain):
         r"""Fuse the current strain with another strain using the default resolution distance and overlap criterium"""
