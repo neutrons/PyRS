@@ -321,7 +321,7 @@ class PointList:
     def tolist(input_source: Union[SampleLogs, List[List[float]], Iterable]) \
             -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         r"""
-        Cast coordinate points of some input data structure into a list of list.
+        Cast coordinate points of some input data structure into a list of numpy arrays.
 
         This function makes sure we initialize a `_PointList` namedtuple with a list of list
 
@@ -364,8 +364,13 @@ class PointList:
             data structure containing the values of the coordinates for each direction.
         """
         coordinates = PointList.tolist(input_source)
+
+        # A few validation on the coordinates before assignment to attributes
         assert len(coordinates) == 3, 'One set of coordinates is required for each direction'
         assert len(set([len(c) for c in coordinates])) == 1, 'Directions have different number of coordinates'
+        for coordinates_along_axis in coordinates:  # coordinates must have
+            assert np.all(np.isfinite(coordinates_along_axis)), 'some coordinates do not have finite values'
+
         self._vx: np.ndarray = coordinates[0]
         self._vy: np.ndarray = coordinates[1]
         self._vz: np.ndarray = coordinates[2]
