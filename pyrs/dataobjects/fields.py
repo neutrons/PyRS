@@ -274,7 +274,7 @@ class ScalarFieldSample:
     def fuse(self, other: 'ScalarFieldSample',
              resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = 'min_error') -> 'ScalarFieldSample':
         r"""
-        Bring in another scalar field sample and resolve the overlaps according to a selection criteria.
+        Bring in another scalar field sample and resolve the overlaps according to a selection criterum.
 
         Two samples are common if their corresponding sample points are apart from each other a distance
         smaller than the resolution distance.
@@ -403,12 +403,34 @@ class ScalarFieldSample:
 
 
 class StrainField:
+
     def __init__(self, filename: str = '',
                  projectfile: Optional[HidraProjectFile] = None,
                  peak_tag: str = '',
                  hidraworkspace: Optional[HidraWorkspace] = None,
                  peak_collection: Optional[PeakCollection] = None) -> None:
-        '''Converts a HidraWorkspace and PeakCollection into a ScalarField'''
+        r"""
+        Converts a HidraWorkspace and PeakCollection into a ScalarField
+        """
+        self._peak_collection = None
+        self._field_scans = []  # when the strain is composed of more than one scan, we keep references to them
+        self._field = None
+
+        # Create a strain field from a single scan, if so requested
+        single_scan_kwargs = dict(filename=filename, projectfile=projectfile, peak_tag=peak_tag,
+                                  hidraworkspace=hidraworkspace, peak_collection=peak_collection)
+        if True in [bool(v for v in single_scan_kwargs.values())]:  # at least one argument is not empty
+            self.initialize_with_single_scan(**single_scan_kwargs)
+
+    def initialize_with_single_scan(self,
+                               filename: str = '',
+                               projectfile: Optional[HidraProjectFile] = None,
+                               peak_tag: str = '',
+                               hidraworkspace: Optional[HidraWorkspace] = None,
+                               peak_collection: Optional[PeakCollection] = None) -> None:
+        r"""
+
+        """
         VX, VY, VZ = 'vx', 'vy', 'vz'
 
         # get the workspace and peaks by resolving the supplied inputs
@@ -598,7 +620,7 @@ def fuse_scalar_field_samples(*args, resolution: float = DEFAULT_POINT_RESOLUTIO
                               criterion: str = 'min_error') -> 'ScalarFieldSample':
     r"""
     Bring in together several scalar field samples of the same name. Overlaps are resolved
-    according to a selection criteria.
+    according to a selection criterum.
 
     Parameters
     ----------
