@@ -482,7 +482,7 @@ class StrainField:
 
     @property
     def coordinates(self) -> np.ndarray:
-        return self._field.coordinates
+        return self._field.coordinates  # type: ignore
 
     @staticmethod  # noqa: C901
     def __to_wksp_and_peaks(filename: str,
@@ -600,7 +600,9 @@ class StrainField:
         """
         strain = StrainField()  # New empty strain object
         strain._single_scans = [self, other_strain]
-        strain._field = self._field.fuse(other_strain._field, resolution=resolution, criterion=criterion)
+        strain._field = self._field.fuse(other_strain._field,
+                                         resolution=resolution,
+                                         criterion=criterion)  # type: ignore
         return strain
 
 
