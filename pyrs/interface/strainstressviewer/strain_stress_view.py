@@ -11,6 +11,7 @@ from qtpy.QtWidgets import (QHBoxLayout, QVBoxLayout, QLabel, QWidget,
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtGui import QDoubleValidator
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
+from vtk.util.numpy_support import numpy_to_vtk, get_vtk_array_type
 import vtk
 import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -487,12 +488,14 @@ class VizTabs(QTabWidget):
         self.addTab(self.plot_2d, "2D")
         self.addTab(self.plot_3d, "3D")
 
+        self.set_1d_mode(False)
+
         self.setCornerWidget(QLabel("Visualization Pane    "), corner=Qt.TopLeftCorner)
 
     def set_1d_mode(self, oned):
         self.setTabEnabled(0, oned)
         self.setTabEnabled(1, not oned)
-        self.setTabEnabled(2, False)
+        self.setTabEnabled(2, not oned)
 
     def set_ws(self, field):
 
@@ -572,13 +575,11 @@ class VTK3DView(QWidget):
         self.mapper.SetInputData(vti)
 
         self.mapper.ScalarVisibilityOn()
-        self.mapper.SetScalarModeToUsePointData()
+        self.mapper.SetScalarModeToUseCellData()
         self.mapper.SetColorModeToMapScalars()
 
         self.actor = vtk.vtkActor()
         self.actor.SetMapper(self.mapper)
-        self.actor.GetProperty().BackfaceCullingOn()
-        self.actor.GetProperty().FrontfaceCullingOff()
 
         scalarBar = vtk.vtkScalarBarActor()
         scalarBar.SetLookupTable(self.mapper.GetLookupTable())
@@ -596,10 +597,21 @@ class VTK3DView(QWidget):
 
         self.renderer = vtk.vtkRenderer()
         self.renderer.GradientBackgroundOn()
-        self.renderer.SetBackground(1, 1, 1)
+        self.renderer.SetBackground(0.8, 0.8, 0.8)
         self.renderer.SetBackground2(0, 0, 0)
 
+        axes = vtk.vtkCubeAxesActor()
+        axes.SetUseTextActor3D(1)
+        axes.SetBounds(vti.GetBounds())
+        axes.SetCamera(self.renderer.GetActiveCamera())
+
+        axes.DrawXGridlinesOn()
+        axes.DrawYGridlinesOn()
+        axes.DrawZGridlinesOn()
+        axes.SetFlyModeToOuterEdges()
+
         self.renderer.AddActor(self.actor)
+        self.renderer.AddActor(axes)
         self.renderer.AddActor2D(scalarBar)
         self.renderer.ResetCamera()
 
@@ -622,12 +634,7 @@ class VTK3DView(QWidget):
         array = md.getSignalArray()
         origin = [md.getDimension(n).getMinimum() for n in range(3)]
         spacing = [md.getDimension(n).getBinWidth() for n in range(3)]
-
-        if array.ndim != 3:
-            raise ValueError("Only works with 3 dimensional arrays")
-
-        import vtk
-        from vtk.util.numpy_support import numpy_to_vtk, get_vtk_array_type
+        dimensions = [n+1 for n in array.shape]
 
         vtkArray = numpy_to_vtk(num_array=array.flatten('F'), deep=True,
                                 array_type=get_vtk_array_type(array.dtype))
@@ -635,8 +642,8 @@ class VTK3DView(QWidget):
         imageData = vtk.vtkImageData()
         imageData.SetOrigin(origin)
         imageData.SetSpacing(spacing)
-        imageData.SetDimensions(array.shape)
-        imageData.GetPointData().SetScalars(vtkArray)
+        imageData.SetDimensions(dimensions)
+        imageData.GetCellData().SetScalars(vtkArray)
 
         return imageData
 

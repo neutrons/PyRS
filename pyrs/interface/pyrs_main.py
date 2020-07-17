@@ -3,9 +3,13 @@ from pyrs.utilities import load_ui  # type: ignore
 from pyrs.core import pyrscore
 from pyrs.interface.peak_fitting import fitpeakswindow
 from pyrs.interface.manual_reduction import manualreductionwindow
-from pyrs.interface.strainstressviewer.strain_stress_view import StrainStressViewer
-from pyrs.interface.strainstressviewer.model import Model
-from pyrs.interface.strainstressviewer.controller import Controller
+
+import vtk.qt
+# https://stackoverflow.com/questions/51357630/vtk-rendering-not-working-as-expected-inside-pyqt
+vtk.qt.QVTKRWIBase = "QGLWidget"  # noqa: E402
+from pyrs.interface.strainstressviewer.strain_stress_view import StrainStressViewer  # noqa: E402
+from pyrs.interface.strainstressviewer.model import Model  # noqa: E402
+from pyrs.interface.strainstressviewer.controller import Controller  # noqa: E402
 
 
 class PyRSLauncher(QMainWindow):
