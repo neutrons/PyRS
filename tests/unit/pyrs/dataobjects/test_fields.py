@@ -1,6 +1,5 @@
 # Standard and third party libraries
 from collections import namedtuple
-import enum
 import numpy as np
 import pytest
 import random
@@ -638,7 +637,6 @@ class TestStressField:
         poisson_ratio = random.random()
         field = StressField(*strains_for_stress_field_1, 1.0, poisson_ratio)
         assert field.poisson_ratio == pytest.approx(poisson_ratio)
-
 
     def test_create_stress_field(self):
         X = [0.000, 1.000, 2.000, 3.000, 4.000, 5.000, 6.000, 7.000, 8.000, 9.000]
