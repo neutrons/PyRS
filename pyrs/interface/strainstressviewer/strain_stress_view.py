@@ -538,8 +538,10 @@ class VizTabs(QTabWidget):
                     self.plot_2d.setCurrentIndex(1)
                 self.strainSliceViewer.set_new_field(field,
                                                      bin_widths=[ws.getDimension(n).getBinWidth() for n in range(3)])
+
                 if self.vtk3dviewer:
-                    self.plot_3d.removeWidget(self.vtk3dviewer)
+                    self.vtk3dviewer.set_ws(ws)
+                else:
                     self.vtk3dviewer = VTK3DView(ws)
                     self.plot_3d.addWidget(self.vtk3dviewer)
                     self.plot_3d.setCurrentIndex(1)
@@ -551,6 +553,9 @@ class VizTabs(QTabWidget):
             if self.strainSliceViewer is not None:
                 self.plot_2d.removeWidget(self.strainSliceViewer.view)
                 self.strainSliceViewer = None
+            if self.vtk3dviewer:
+                self.plot_3d.removeWidget(self.vtk3dviewer)
+                self.vtk3dviewer = None
 
     def set_message(self, text):
         self.message.setText(text)
@@ -563,38 +568,38 @@ class VTK3DView(QWidget):
         self.vtkWidget = QVTKRenderWindowInteractor(self)
 
         vti = self.md_to_vti(ws)
-        mapper = vtk.vtkDataSetMapper()
-        mapper.SetInputData(vti)
+        self.mapper = vtk.vtkDataSetMapper()
+        self.mapper.SetInputData(vti)
 
-        mapper.ScalarVisibilityOn()
-        mapper.SetScalarModeToUsePointData()
-        mapper.SetColorModeToMapScalars()
+        self.mapper.ScalarVisibilityOn()
+        self.mapper.SetScalarModeToUsePointData()
+        self.mapper.SetColorModeToMapScalars()
 
-        actor = vtk.vtkActor()
-        actor.SetMapper(mapper)
-        actor.GetProperty().BackfaceCullingOn()
-        actor.GetProperty().FrontfaceCullingOff()
+        self.actor = vtk.vtkActor()
+        self.actor.SetMapper(self.mapper)
+        self.actor.GetProperty().BackfaceCullingOn()
+        self.actor.GetProperty().FrontfaceCullingOff()
 
         scalarBar = vtk.vtkScalarBarActor()
-        scalarBar.SetLookupTable(mapper.GetLookupTable())
+        scalarBar.SetLookupTable(self.mapper.GetLookupTable())
         scalarBar.SetNumberOfLabels(4)
 
         srange = vti.GetScalarRange()
 
-        lut = vtk.vtkLookupTable()
-        lut.SetTableRange(srange)
-        lut.Build()
+        self.lut = vtk.vtkLookupTable()
+        self.lut.SetTableRange(srange)
+        self.lut.Build()
 
-        mapper.UseLookupTableScalarRangeOn()
-        mapper.SetLookupTable(lut)
-        scalarBar.SetLookupTable(lut)
+        self.mapper.UseLookupTableScalarRangeOn()
+        self.mapper.SetLookupTable(self.lut)
+        scalarBar.SetLookupTable(self.lut)
 
         self.renderer = vtk.vtkRenderer()
         self.renderer.GradientBackgroundOn()
         self.renderer.SetBackground(1, 1, 1)
         self.renderer.SetBackground2(0, 0, 0)
 
-        self.renderer.AddActor(actor)
+        self.renderer.AddActor(self.actor)
         self.renderer.AddActor2D(scalarBar)
         self.renderer.ResetCamera()
 
@@ -606,6 +611,12 @@ class VTK3DView(QWidget):
         self.setLayout(layout)
 
         self.iren.Initialize()
+
+    def set_ws(self, ws):
+        vti = self.md_to_vti(ws)
+        self.mapper.SetInputData(vti)
+        self.lut.SetTableRange(vti.GetScalarRange())
+        self.vtkWidget.Render()
 
     def md_to_vti(self, md):
         array = md.getSignalArray()
