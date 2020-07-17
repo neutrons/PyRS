@@ -413,49 +413,18 @@ class StrainField:
         Converts a HidraWorkspace and PeakCollection into a ScalarField
         """
         self._peak_collection = None
-        self._field_scans = []  # when the strain is composed of more than one scan, we keep references to them
+        self._single_scans = []  # when the strain is composed of more than one scan, we keep references to them
         self._field = None
 
         # Create a strain field from a single scan, if so requested
         single_scan_kwargs = dict(filename=filename, projectfile=projectfile, peak_tag=peak_tag,
                                   hidraworkspace=hidraworkspace, peak_collection=peak_collection)
-        if True in [bool(v for v in single_scan_kwargs.values())]:  # at least one argument is not empty
-            self.initialize_with_single_scan(**single_scan_kwargs)
+        if True in [bool(v) for v in single_scan_kwargs.values()]:  # at least one argument is not empty
+            self._initialize_with_single_scan(**single_scan_kwargs)
 
-    def initialize_with_single_scan(self,
-                               filename: str = '',
-                               projectfile: Optional[HidraProjectFile] = None,
-                               peak_tag: str = '',
-                               hidraworkspace: Optional[HidraWorkspace] = None,
-                               peak_collection: Optional[PeakCollection] = None) -> None:
-        r"""
-
-        """
-        VX, VY, VZ = 'vx', 'vy', 'vz'
-
-        # get the workspace and peaks by resolving the supplied inputs
-        hidraworkspace, peak_collection = StrainField.__to_wksp_and_peaks(filename, peak_tag,
-                                                                          projectfile, hidraworkspace,
-                                                                          peak_collection)
-
-        lognames = hidraworkspace.get_sample_log_names()
-        missing = []
-        for logname in VX, VY, VZ:
-            if logname not in lognames:
-                missing.append(logname)
-        if missing:
-            raise RuntimeError('Failed to find positions in logs. Missing {}'.format(', '.join(missing)))
-
-        # extract positions
-        x = hidraworkspace.get_sample_log_values(VX)
-        y = hidraworkspace.get_sample_log_values(VY)
-        z = hidraworkspace.get_sample_log_values(VZ)
-
-        strain, strain_error = peak_collection.get_strain()  # type: ignore
-
-        self._peak_collection = peak_collection
-        self._field_scans = [self]  # when the strain is composed of more than one scan, we keep references to them
-        self._field = ScalarFieldSample('strain', strain, strain_error, x, y, z)
+    def __add__(self, other_strain):
+        r"""Fuse the current strain with another strain using the default resolution distance and overlap criterium"""
+        return self.fuse_with(other_strain)
 
     def __len__(self):
         return len(self._field)
@@ -466,11 +435,16 @@ class StrainField:
         Retrieve the peak collection associated to the strain field. Only valid when the field is not
         a composite of more than one scan.
 
+        Raises
+        ------
+        RuntimeError
+            There is more than one peak collection associated to this strain field
+
         Returns
         -------
         ~pyrs.dataobjects.fields.StrainField
         """
-        if len(self._field_scans) > 1:
+        if len(self._single_scans) > 1:
             raise RuntimeError('There is more than one peak collection associated to this strain field')
         return self._peak_collection
 
@@ -483,7 +457,7 @@ class StrainField:
         -------
         list
         """
-        return [field._peak_collection for field in self._field_scans]
+        return [field._peak_collection for field in self._single_scans]
 
     @property
     def values(self):
@@ -504,6 +478,10 @@ class StrainField:
     @property
     def z(self):
         return self._field.z
+
+    @property
+    def coordinates(self) -> np.ndarray:
+        return self._field.coordinates
 
     @staticmethod  # noqa: C901
     def __to_wksp_and_peaks(filename: str,
@@ -562,6 +540,67 @@ class StrainField:
             raise RuntimeError('Need to have matching subruns')
 
         return hidraworkspace, peak_collection
+
+    def _initialize_with_single_scan(self,
+                               filename: str = '',
+                               projectfile: Optional[HidraProjectFile] = None,
+                               peak_tag: str = '',
+                               hidraworkspace: Optional[HidraWorkspace] = None,
+                               peak_collection: Optional[PeakCollection] = None) -> None:
+        r"""
+
+        """
+        VX, VY, VZ = 'vx', 'vy', 'vz'
+
+        # get the workspace and peaks by resolving the supplied inputs
+        hidraworkspace, peak_collection = StrainField.__to_wksp_and_peaks(filename, peak_tag,
+                                                                          projectfile, hidraworkspace,
+                                                                          peak_collection)
+
+        lognames = hidraworkspace.get_sample_log_names()
+        missing = []
+        for logname in VX, VY, VZ:
+            if logname not in lognames:
+                missing.append(logname)
+        if missing:
+            raise RuntimeError('Failed to find positions in logs. Missing {}'.format(', '.join(missing)))
+
+        # extract positions
+        x = hidraworkspace.get_sample_log_values(VX)
+        y = hidraworkspace.get_sample_log_values(VY)
+        z = hidraworkspace.get_sample_log_values(VZ)
+
+        strain, strain_error = peak_collection.get_strain()  # type: ignore
+
+        self._peak_collection = peak_collection
+        self._single_scans = [self]  # when the strain is composed of more than one scan, we keep references to them
+        self._field = ScalarFieldSample('strain', strain, strain_error, x, y, z)
+
+    def fuse_with(self, other_strain: 'StrainField',
+                  resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = 'min_error') -> 'StrainField':
+        r"""
+        Fuse the current strain scan with another scan taken along the same direction.
+
+        Resolve any occurring overlaps between the scans according to a selection criterion.
+
+        Parameters
+        ----------
+        other_strain:  ~pyrs.dataobjects.fields.StrainField
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity
+        criterion: str
+            Criterion by which to resolve which out of two (or more) samples is selected, while the rest is
+            discarded. Possible values are:
+            'min_error': the sample with the minimal uncertainty is selected.
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.StrainField
+        """
+        strain = StrainField()  # New empty strain object
+        strain._single_scans = [self, other_strain]
+        strain._field = self._field.fuse(other_strain._field, resolution=resolution, criterion=criterion)
+        return strain
 
 
 def generateParameterField(parameter: str,
@@ -740,6 +779,10 @@ class StressField:
     @property
     def get_strain33(self):
         return self._strain33
+
+    @property
+    def coordinates(self) -> np.ndarray:
+        return self._field.coordinates
 
     @property
     def point_list(self):
