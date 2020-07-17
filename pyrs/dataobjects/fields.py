@@ -542,11 +542,11 @@ class StrainField:
         return hidraworkspace, peak_collection
 
     def _initialize_with_single_scan(self,
-                               filename: str = '',
-                               projectfile: Optional[HidraProjectFile] = None,
-                               peak_tag: str = '',
-                               hidraworkspace: Optional[HidraWorkspace] = None,
-                               peak_collection: Optional[PeakCollection] = None) -> None:
+                                     filename: str = '',
+                                     projectfile: Optional[HidraProjectFile] = None,
+                                     peak_tag: str = '',
+                                     hidraworkspace: Optional[HidraWorkspace] = None,
+                                     peak_collection: Optional[PeakCollection] = None) -> None:
         r"""
 
         """
