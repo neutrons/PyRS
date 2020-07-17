@@ -600,9 +600,9 @@ class StrainField:
         """
         strain = StrainField()  # New empty strain object
         strain._single_scans = [self, other_strain]
-        strain._field = self._field.fuse(other_strain._field,
+        strain._field = self._field.fuse(other_strain._field,  # type: ignore
                                          resolution=resolution,
-                                         criterion=criterion)  # type: ignore
+                                         criterion=criterion)
         return strain
 
 
