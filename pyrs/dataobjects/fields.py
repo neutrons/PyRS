@@ -402,7 +402,7 @@ class ScalarFieldSample:
         return exporters[form](*args, **exporter_arguments)
 
 
-class StrainField(ScalarFieldSample):
+class StrainField:
     def __init__(self, filename: str = '',
                  projectfile: Optional[HidraProjectFile] = None,
                  peak_tag: str = '',
@@ -434,8 +434,7 @@ class StrainField(ScalarFieldSample):
         # hold on to the peak collection that generated the strain field for this direction
         self._peak_collection = peak_collection
 
-        # TODO the fixed name shouldn't bee needed with inheritence
-        return super().__init__('strain', strain, strain_error, x, y, z)
+        self._field = ScalarFieldSample('strain', strain, strain_error, x, y, z)
 
     @property
     def get_peak_collection(self):
