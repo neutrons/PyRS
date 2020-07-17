@@ -684,6 +684,10 @@ class StressField:
         return self._strain33
 
     @property
+    def point_list(self):
+        return self._field.point_list
+
+    @property
     def youngs_modulus(self):
         return self._youngs_modulus
 
