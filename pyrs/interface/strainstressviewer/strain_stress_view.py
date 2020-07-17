@@ -10,6 +10,8 @@ from qtpy.QtWidgets import (QHBoxLayout, QVBoxLayout, QLabel, QWidget,
                             QStackedWidget, QMessageBox)
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtGui import QDoubleValidator
+from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
+import vtk
 import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -462,21 +464,29 @@ class VizTabs(QTabWidget):
         super().__init__(parent)
         self.oneDViewer = None
         self.strainSliceViewer = None
+        self.vtk3dviewer = None
 
         self.plot_1d = QStackedWidget()
         self.plot_2d = QStackedWidget()
+        self.plot_3d = QStackedWidget()
 
         self.message = QLabel("Load project files")
         self.message.setAlignment(Qt.AlignCenter)
         font = self.message.font()
         font.setPointSize(20)
         self.message.setFont(font)
+
+        self.message2 = QLabel("Load project files")
+        self.message2.setAlignment(Qt.AlignCenter)
+        self.message2.setFont(font)
+
         self.plot_2d.addWidget(self.message)
+        self.plot_3d.addWidget(self.message2)
 
         self.addTab(self.plot_1d, "1D")
         self.addTab(self.plot_2d, "2D")
-        self.addTab(QWidget(), "3D")
-        self.set_1d_mode(False)
+        self.addTab(self.plot_3d, "3D")
+
         self.setCornerWidget(QLabel("Visualization Pane    "), corner=Qt.TopLeftCorner)
 
     def set_1d_mode(self, oned):
@@ -528,6 +538,11 @@ class VizTabs(QTabWidget):
                     self.plot_2d.setCurrentIndex(1)
                 self.strainSliceViewer.set_new_field(field,
                                                      bin_widths=[ws.getDimension(n).getBinWidth() for n in range(3)])
+                if self.vtk3dviewer:
+                    self.plot_3d.removeWidget(self.vtk3dviewer)
+                    self.vtk3dviewer = VTK3DView(ws)
+                    self.plot_3d.addWidget(self.vtk3dviewer)
+                    self.plot_3d.setCurrentIndex(1)
         else:
             self.set_1d_mode(False)
             if self.oneDViewer is not None:
@@ -539,6 +554,80 @@ class VizTabs(QTabWidget):
 
     def set_message(self, text):
         self.message.setText(text)
+        self.message2.setText(text)
+
+
+class VTK3DView(QWidget):
+    def __init__(self, ws, parent=None):
+        super().__init__(parent)
+        self.vtkWidget = QVTKRenderWindowInteractor(self)
+
+        vti = self.md_to_vti(ws)
+        mapper = vtk.vtkDataSetMapper()
+        mapper.SetInputData(vti)
+
+        mapper.ScalarVisibilityOn()
+        mapper.SetScalarModeToUsePointData()
+        mapper.SetColorModeToMapScalars()
+
+        actor = vtk.vtkActor()
+        actor.SetMapper(mapper)
+        actor.GetProperty().BackfaceCullingOn()
+        actor.GetProperty().FrontfaceCullingOff()
+
+        scalarBar = vtk.vtkScalarBarActor()
+        scalarBar.SetLookupTable(mapper.GetLookupTable())
+        scalarBar.SetNumberOfLabels(4)
+
+        srange = vti.GetScalarRange()
+
+        lut = vtk.vtkLookupTable()
+        lut.SetTableRange(srange)
+        lut.Build()
+
+        mapper.UseLookupTableScalarRangeOn()
+        mapper.SetLookupTable(lut)
+        scalarBar.SetLookupTable(lut)
+
+        self.renderer = vtk.vtkRenderer()
+        self.renderer.GradientBackgroundOn()
+        self.renderer.SetBackground(1, 1, 1)
+        self.renderer.SetBackground2(0, 0, 0)
+
+        self.renderer.AddActor(actor)
+        self.renderer.AddActor2D(scalarBar)
+        self.renderer.ResetCamera()
+
+        self.vtkWidget.GetRenderWindow().AddRenderer(self.renderer)
+        self.iren = self.vtkWidget.GetRenderWindow().GetInteractor()
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.vtkWidget)
+        self.setLayout(layout)
+
+        self.iren.Initialize()
+
+    def md_to_vti(self, md):
+        array = md.getSignalArray()
+        origin = [md.getDimension(n).getMinimum() for n in range(3)]
+        spacing = [md.getDimension(n).getBinWidth() for n in range(3)]
+
+        if array.ndim != 3:
+            raise ValueError("Only works with 3 dimensional arrays")
+
+        import vtk
+        from vtk.util.numpy_support import numpy_to_vtk, get_vtk_array_type
+
+        vtkArray = numpy_to_vtk(num_array=array.flatten('F'), deep=True,
+                                array_type=get_vtk_array_type(array.dtype))
+
+        imageData = vtk.vtkImageData()
+        imageData.SetOrigin(origin)
+        imageData.SetSpacing(spacing)
+        imageData.SetDimensions(array.shape)
+        imageData.GetPointData().SetScalars(vtkArray)
+
+        return imageData
 
 
 class StrainStressViewer(QSplitter):
