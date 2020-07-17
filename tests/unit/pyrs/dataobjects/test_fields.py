@@ -629,6 +629,15 @@ def stress_samples(strains_for_stress_field_1):
 
 class TestStressField:
 
+    def test_point_list(self, strains_for_stress_field_1):
+        r"""Test point_list property"""
+        vx = [0.000, 1.000, 2.000, 3.000, 4.000, 5.000, 6.000, 7.000, 8.000, 9.000]
+        vy = [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
+        vz = [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
+        coordinates = np.array([vx, vy, vz]).T
+        field = StressField(*strains_for_stress_field_1, 1.0, 1.0)
+        np.allclose(field.point_list.coordinates, coordinates)
+
     def test_youngs_modulus(self, strains_for_stress_field_1):
         r"""Test poisson_ratio property"""
         youngs_modulus = random.random()
