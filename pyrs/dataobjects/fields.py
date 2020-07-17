@@ -431,21 +431,57 @@ class StrainField:
 
         strain, strain_error = peak_collection.get_strain()  # type: ignore
 
-        # hold on to the peak collection that generated the strain field for this direction
         self._peak_collection = peak_collection
-
+        self._field_scans = [self]  # when the strain is composed of more than one scan, we keep references to them
         self._field = ScalarFieldSample('strain', strain, strain_error, x, y, z)
 
+    def __len__(self):
+        return len(self._field)
+
     @property
-    def get_peak_collection(self):
+    def peak_collection(self):
         r"""
-        Retrieve peak_collection either passed to constructor or generated from project file
+        Retrieve the peak collection associated to the strain field. Only valid when the field is not
+        a composite of more than one scan.
 
         Returns
         -------
-            Peak collection
+        ~pyrs.dataobjects.fields.StrainField
         """
+        if len(self._field_scans) > 1:
+            raise RuntimeError('There is more than one peak collection associated to this strain field')
         return self._peak_collection
+
+    @property
+    def peak_collections(self):
+        r"""
+        Retrieve the peak collection objects associated to this (possibly composite) strain field.
+
+        Returns
+        -------
+        list
+        """
+        return [field._peak_collection for field in self._field_scans]
+
+    @property
+    def values(self):
+        return self._field.values
+
+    @property
+    def errors(self):
+        return self._field.errors
+
+    @property
+    def x(self):
+        return self._field.x
+
+    @property
+    def y(self):
+        return self._field.y
+
+    @property
+    def z(self):
+        return self._field.z
 
     @staticmethod  # noqa: C901
     def __to_wksp_and_peaks(filename: str,

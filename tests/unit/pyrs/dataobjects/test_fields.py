@@ -495,12 +495,25 @@ def strain_field_samples():
     # test the result
     assert strain
     assert len(strain) == subruns.size
-    assert strain.get_peak_collection == peak_collection
+    assert strain.peak_collection == peak_collection
     np.testing.assert_almost_equal(strain.values, 0.)
     np.testing.assert_equal(strain.errors, np.zeros(subruns.size, dtype=float))
     sample_fields['strain with two points per direction'] = strain
 
     return sample_fields
+
+
+class TestStrainField:
+
+    def test_peak_collection(self, strain_field_samples):
+        strain = strain_field_samples['strain with two points per direction']
+        assert isinstance(strain.peak_collection, PeakCollection)
+        # TODO: test the RuntimeError when the strain is a composite
+
+    def test_peak_collections(self, strain_field_samples):
+        strain = strain_field_samples['strain with two points per direction']
+        assert len(strain.peak_collections) == 1
+        assert isinstance(strain.peak_collections[0], PeakCollection)
 
 
 def test_create_strain_field_from_file_no_peaks():
