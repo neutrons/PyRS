@@ -1,5 +1,14 @@
 import numpy as np
+import os
 import pytest
+import sys
+
+
+@pytest.fixture(scope='session')
+def test_data_dir():
+    this_module_path = sys.modules[__name__].__file__
+    this_module_directory = os.path.dirname(this_module_path)
+    return os.path.join(this_module_directory, 'data')
 
 
 @pytest.fixture(scope='session')

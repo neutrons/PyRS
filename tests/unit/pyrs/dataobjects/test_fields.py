@@ -1,6 +1,7 @@
 # Standard and third party libraries
 from collections import namedtuple
 import numpy as np
+import os
 import pytest
 import random
 # PyRs libraries
@@ -514,24 +515,26 @@ def test_create_strain_field_from_file_no_peaks():
 
 # 1320 has one peak defined
 # 1628 has three peaks defined
-@pytest.mark.parametrize('filename,peaknames', [('tests/data/HB2B_1320.h5', ('', 'peak0')),
-                                                ('tests/data/HB2B_1628.h5', ('peak0', 'peak1', 'peak2'))])
-def test_create_strain_field_from_file(filename, peaknames):
+@pytest.mark.parametrize('filename,peaknames', [('HB2B_1320.h5', ('', 'peak0')),
+                                                ('HB2B_1628.h5', ('peak0', 'peak1', 'peak2'))])
+def test_create_strain_field_from_file(test_data_dir, filename, peaknames):
+    file_path = os.path.join(test_data_dir, filename)
+
     # directly from a filename
     for tag in peaknames:
-        assert StrainField(filename=filename, peak_tag=tag)
+        assert StrainField(filename=file_path, peak_tag=tag)
 
     # from a project file
-    projectfile = HidraProjectFile(filename, HidraProjectFileMode.READONLY)
+    projectfile = HidraProjectFile(file_path, HidraProjectFileMode.READONLY)
     for tag in peaknames:
         assert StrainField(projectfile=projectfile, peak_tag=tag)
 
 
-def test_generateParameterField():
-    filename = 'tests/data/HB2B_1320.h5'
+def test_generateParameterField(test_data_dir):
+    file_path = os.path.join(test_data_dir, 'HB2B_1320.h5')
 
-    source_project = HidraProjectFile(filename, mode=HidraProjectFileMode.READONLY)
-    workspace = HidraWorkspace(filename)
+    source_project = HidraProjectFile(file_path, mode=HidraProjectFileMode.READONLY)
+    workspace = HidraWorkspace(file_path)
     workspace.load_hidra_project(source_project, False, False)
     x = workspace.get_sample_log_values('vx')
     y = workspace.get_sample_log_values('vy')
