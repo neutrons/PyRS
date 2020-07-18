@@ -599,11 +599,51 @@ class StrainField:
         ~pyrs.dataobjects.fields.StrainField
         """
         strain = StrainField()  # New empty strain object
-        strain._single_scans = [self, other_strain]
+
+        # Check there are no repeated scans
+        for scan1 in self._single_scans:
+            for scan2 in other_strain._single_scans:
+                # Verify if the labels are references to the same object
+                if scan1 == scan2:
+                    raise RuntimeError(f'{self} and {other_strain} both contain scan {scan1}')
+        strain._single_scans = self._single_scans + other_strain._single_scans
         strain._field = self._field.fuse(other_strain._field,  # type: ignore
                                          resolution=resolution,
                                          criterion=criterion)
         return strain
+
+
+def fuse_strains(*args, resolution: float = DEFAULT_POINT_RESOLUTION,
+                 criterion: str = 'min_error') -> 'ScalarFieldSample':
+    r"""
+    Bring in together several strains measured along the same direction. Overlaps are resolved
+    according to a selection criterion.
+
+    Parameters
+    ----------
+    args list
+        multiple ~pyrs.dataobjects.fields.StrainField objects.
+    resolution: float
+        Two points are considered the same if they are separated by a distance smaller than this quantity
+    criterion: str
+        Criterion by which to resolve which out of two (or more) samples is selected, while the rest is
+        discarded. Possible values are:
+        'min_error': the sample with the minimal uncertainty is selected.
+
+    Returns
+    -------
+    ~pyrs.dataobjects.fields.StrainField
+    """
+    # Validation checks
+    assert len(args) > 1, 'More than one strain is needed'
+    for strain in args:
+        assert isinstance(strain, StrainField), 'This input is not a StrainField object'
+    # Iterative fusing
+    strain, strain_other = args[0: 2]  # first two strains in the list
+    strain_fused = strain.fuse_with(strain_other, resolution=resolution, criterion=criterion)
+    for strain_other in args[2:]:  # fuse remaining strains, one at a time
+        strain_fused = strain_fused.fuse_with(strain_other, resolution=resolution, criterion=criterion)
+    return strain_fused
 
 
 def generateParameterField(parameter: str,
@@ -662,7 +702,7 @@ def fuse_scalar_field_samples(*args, resolution: float = DEFAULT_POINT_RESOLUTIO
                               criterion: str = 'min_error') -> 'ScalarFieldSample':
     r"""
     Bring in together several scalar field samples of the same name. Overlaps are resolved
-    according to a selection criterum.
+    according to a selection criterion.
 
     Parameters
     ----------
@@ -874,7 +914,7 @@ def stack_scalar_field_samples(*fields,
     stack_mode: str
         A mode to stack the scalar fields. Valid values are 'complete' and 'common'
     resolution: float
-            Two points are considered the same if they are separated by a distance smaller than this quantity
+        Two points are considered the same if they are separated by a distance smaller than this quantity
 
     Returns
     -------
