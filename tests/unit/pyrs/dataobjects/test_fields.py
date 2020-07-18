@@ -584,7 +584,7 @@ class TestStrainField:
         for strain in (strain_fused, strain_sum):
             assert len(strain) == 312 + 8  # strain1 and strain2 give strain1 because they contain the same data
             assert strain.peak_collections == [s.peak_collection for s in (strain1, strain2, strain3)]
-            values = np.concatenate((strain1.values, strain3.values))  # again, no strain2 because it's the same as strain1
+            values = np.concatenate((strain1.values, strain3.values))  # no strain2 because it's the same as strain1
             assert allclose_with_sorting(strain.values, values)
 
     def test_stack_strains(self, strain_field_samples, allclose_with_sorting):
