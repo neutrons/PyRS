@@ -7,7 +7,7 @@ import random
 # PyRs libraries
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.dataobjects.constants import DEFAULT_POINT_RESOLUTION
-from pyrs.dataobjects.fields import (aggregate_scalar_field_samples, fuse_scalar_field_samples, fuse_strains,
+from pyrs.dataobjects.fields import (aggregate_scalar_field_samples, fuse_scalar_field_samples,
                                      ScalarFieldSample, StrainField, StressField, stack_scalar_field_samples,
                                      generateParameterField)
 from pyrs.core.peak_profile_utility import get_parameter_dtype
@@ -571,21 +571,63 @@ class TestStrainField:
         except IOError:
             pass  # this is what should happen
 
+    def test_fuse_strains(self, strain_field_samples, allclose_with_sorting):
+        # TODO HB2B_1320_peak0 and HB2B_1320_ are the same scan. We need two different scans
+        strain1 = strain_field_samples['HB2B_1320_peak0']
+        strain2 = strain_field_samples['HB2B_1320_']
+        strain3 = strain_field_samples['strain with two points per direction']
+        # Use fuse_strains().
+        strain_fused = StrainField.fuse_strains(strain1, strain2, strain3, resolution=DEFAULT_POINT_RESOLUTION,
+                                                criterion='min_error')
+        # the sum should give the same, since we passed default resolution and criterion options
+        strain_sum = strain1 + strain2 + strain3
+        for strain in (strain_fused, strain_sum):
+            assert len(strain) == 312 + 8  # strain1 and strain2 give strain1 because they contain the same data
+            assert strain.peak_collections == [s.peak_collection for s in (strain1, strain2, strain3)]
+            values = np.concatenate((strain1.values, strain3.values))  # again, no strain2 because it's the same as strain1
+            assert allclose_with_sorting(strain.values, values)
 
-def test_fuse_strains(strain_field_samples, allclose_with_sorting):
-    # TODO HB2B_1320_peak0 and HB2B_1320_ are the same scan. We need two different scans
-    strain1 = strain_field_samples['HB2B_1320_peak0']
-    strain2 = strain_field_samples['HB2B_1320_']
-    strain3 = strain_field_samples['strain with two points per direction']
-    # Use fuse_strains().
-    strain_fused = fuse_strains(strain1, strain2, strain3, resolution=DEFAULT_POINT_RESOLUTION, criterion='min_error')
-    # the sum should give the same, since we passed default resolution and criterion options
-    strain_sum = strain1 + strain2 + strain3
-    for strain in (strain_fused, strain_sum):
-        assert len(strain) == 312 + 8  # strain1 and strain2 give strain1 because they contain the same data
-        assert strain.peak_collections == [s.peak_collection for s in (strain1, strain2, strain3)]
-        values = np.concatenate((strain1.values, strain3.values))  # again, no strain2 because it's the same as strain1
-        assert allclose_with_sorting(strain.values, values)
+    def test_stack_strains(self, strain_field_samples, allclose_with_sorting):
+        strain1 = strain_field_samples['HB2B_1320_peak0']
+        strain2 = strain_field_samples['HB2B_1320_']
+        # Stack two strains having the same evaluation points.
+        strain1_stacked, strain2_stacked = strain1 * strain2  # default resolution and stacking mode
+        for strain in (strain1_stacked, strain2_stacked):
+            assert len(strain) == len(strain1)
+            assert bool(np.all(np.isfinite(strain.values))) is True  # all points are common to strain1 and strain2
+        # Stack two strains having completely different evaluation points.
+        strain3 = strain_field_samples['strain with two points per direction']
+        strain2_stacked, strain3_stacked = strain2 * strain3  # default resolution and stacking mode
+        # The common list of points is the sum of the points from each strain
+        for strain in (strain2_stacked, strain3_stacked):
+            assert len(strain) == len(strain2) + len(strain3)
+        # There's no common point that is common to both strain2 and strain3
+        # Each stacked strain only have finite measurements on points coming from the un-stacked strain
+        for strain_stacked, strain in ((strain2_stacked, strain2), (strain3_stacked, strain3)):
+            finite_measurements_count = len(np.where(np.isfinite(strain_stacked.values))[0])
+            assert finite_measurements_count == len(strain)
+        # The points evaluated as 'nan' must come from the other scan
+        for strain_stacked, strain_other in ((strain2_stacked, strain3), (strain3_stacked, strain2)):
+            nan_measurements_count = len(np.where(np.isnan(strain_stacked.values))[0])
+            assert nan_measurements_count == len(strain_other)
+
+    def test_fuse_and_stack_strains(self, strain_field_samples, allclose_with_sorting):
+        # TODO HB2B_1320_peak0 and HB2B_1320_ are the same scan. We need two different scans
+        strain1 = strain_field_samples['HB2B_1320_peak0']
+        strain2 = strain_field_samples['HB2B_1320_']
+        strain3 = strain_field_samples['strain with two points per direction']
+        strain1_stacked, strain23_stacked = strain1 * (strain2 + strain3)  # default resolution and stacking mode
+        # Check number of points with finite strains measuments
+        for strain_stacked in (strain1_stacked, strain23_stacked):
+            assert len(strain_stacked) == len(strain2) + len(strain3)
+        for strain_stacked, finite_count, nan_count in zip((strain1_stacked, strain23_stacked), (312, 320), (8, 0)):
+            finite_measurements_count = len(np.where(np.isfinite(strain_stacked.values))[0])
+            assert finite_measurements_count == finite_count
+            nan_measurements_count = len(np.where(np.isnan(strain_stacked.values))[0])
+            assert nan_measurements_count == nan_count
+        # Check peak collections carry-over
+        assert strain1_stacked.peak_collection == strain1.peak_collection
+        assert strain23_stacked.peak_collections == [strain2.peak_collection, strain3.peak_collection]
 
 
 def test_generateParameterField(test_data_dir):
