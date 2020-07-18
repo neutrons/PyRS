@@ -465,10 +465,14 @@ class TestScalarFieldSample:
 
 
 @pytest.fixture(scope='module')
-def strain_field_samples():
+def strain_field_samples(test_data_dir):
+    r"""
+    A number of StrainField objects from mock and real data
+    """
     sample_fields = {}
-
+    #####
     # The first sample has 2 points in each direction
+    #####
     subruns = np.arange(1, 9, dtype=int)
 
     # create the test peak collection - d-refernce is 1 to make checks easier
@@ -495,39 +499,72 @@ def strain_field_samples():
     # test the result
     assert strain
     assert len(strain) == subruns.size
-    assert strain.get_peak_collection == peak_collection
+    assert strain.peak_collection == peak_collection
     np.testing.assert_almost_equal(strain.values, 0.)
     np.testing.assert_equal(strain.errors, np.zeros(subruns.size, dtype=float))
     sample_fields['strain with two points per direction'] = strain
 
+    #####
+    # Create StrainField samples from two files and different peak tags
+    #####
+    # TODO: substitute/fix HB2B_1628.h5 with other data, because reported vx, vy, and vz are all 'nan'
+    # filename_tags_pairs = [('HB2B_1320.h5', ('', 'peak0')), ('HB2B_1628.h5', ('peak0', 'peak1', 'peak2'))]
+    filename_tags_pairs = [('HB2B_1320.h5', ('', 'peak0'))]
+    for filename, tags in filename_tags_pairs:
+        file_path = os.path.join(test_data_dir, filename)
+        prefix = filename.split('.')[0] + '_'
+        for tag in tags:
+            sample_fields[prefix + tag] = StrainField(filename=file_path, peak_tag=tag)
+
     return sample_fields
 
 
-def test_create_strain_field_from_file_no_peaks():
-    # this project file doesn't have peaks in it
-    filename = 'tests/data/HB2B_1060_first3_subruns.h5'
-    try:
-        _ = StrainField(filename)  # noqa F841
-        assert False, 'Should not be able to read ' + filename
-    except IOError:
-        pass  # this is what should happen
+class TestStrainField:
 
+    def test_peak_collection(self, strain_field_samples):
+        strain = strain_field_samples['strain with two points per direction']
+        assert isinstance(strain.peak_collection, PeakCollection)
+        # TODO: test the RuntimeError when the strain is a composite
 
-# 1320 has one peak defined
-# 1628 has three peaks defined
-@pytest.mark.parametrize('filename,peaknames', [('HB2B_1320.h5', ('', 'peak0')),
-                                                ('HB2B_1628.h5', ('peak0', 'peak1', 'peak2'))])
-def test_create_strain_field_from_file(test_data_dir, filename, peaknames):
-    file_path = os.path.join(test_data_dir, filename)
+    def test_peak_collections(self, strain_field_samples):
+        strain = strain_field_samples['strain with two points per direction']
+        assert len(strain.peak_collections) == 1
+        assert isinstance(strain.peak_collections[0], PeakCollection)
 
-    # directly from a filename
-    for tag in peaknames:
-        assert StrainField(filename=file_path, peak_tag=tag)
+    def test_coordinates(self, strain_field_samples):
+        strain = strain_field_samples['strain with two points per direction']
+        coordinates = np.array([[1., 11., 21.], [2., 12., 22.], [3., 13., 23.], [4., 14., 24.],
+                                [5., 15., 25.], [6., 16., 26.], [7., 17., 27.], [8., 18., 28.]])
+        assert np.allclose(strain.coordinates, coordinates)
 
-    # from a project file
-    projectfile = HidraProjectFile(file_path, HidraProjectFileMode.READONLY)
-    for tag in peaknames:
-        assert StrainField(projectfile=projectfile, peak_tag=tag)
+    def test_fuse_with(self, strain_field_samples):
+        strain1 = strain_field_samples['HB2B_1320_peak0']
+        strain2 = strain_field_samples['strain with two points per direction']
+        strain = strain1.fuse_with(strain2)
+        with pytest.raises(RuntimeError) as exception_info:
+            strain.peak_collection
+        assert 'more than one peak collection' in str(exception_info.value)
+        assert strain.peak_collections == [strain1.peak_collection, strain2.peak_collection]
+        assert np.allclose(strain.coordinates, np.concatenate((strain1.coordinates, strain2.coordinates)))
+
+    def test_add(self, strain_field_samples):
+        strain1 = strain_field_samples['HB2B_1320_peak0']
+        strain2 = strain_field_samples['strain with two points per direction']
+        strain = strain1 + strain2
+        with pytest.raises(RuntimeError) as exception_info:
+            strain.peak_collection
+        assert 'more than one peak collection' in str(exception_info.value)
+        assert strain.peak_collections == [strain1.peak_collection, strain2.peak_collection]
+        assert np.allclose(strain.coordinates, np.concatenate((strain1.coordinates, strain2.coordinates)))
+
+    def test_create_strain_field_from_file_no_peaks(self, test_data_dir):
+        # this project file doesn't have peaks in it
+        file_path = os.path.join(test_data_dir, 'HB2B_1060_first3_subruns.h5')
+        try:
+            _ = StrainField(file_path)  # noqa F841
+            assert False, 'Should not be able to read ' + file_path
+        except IOError:
+            pass  # this is what should happen
 
 
 def test_generateParameterField(test_data_dir):
