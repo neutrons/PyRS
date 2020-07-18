@@ -7,8 +7,9 @@ import random
 # PyRs libraries
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.dataobjects.constants import DEFAULT_POINT_RESOLUTION
-from pyrs.dataobjects.fields import (aggregate_scalar_field_samples, fuse_scalar_field_samples, ScalarFieldSample,
-                                     StrainField, StressField, stack_scalar_field_samples, generateParameterField)
+from pyrs.dataobjects.fields import (aggregate_scalar_field_samples, fuse_scalar_field_samples, fuse_strains,
+                                     ScalarFieldSample, StrainField, StressField, stack_scalar_field_samples,
+                                     generateParameterField)
 from pyrs.core.peak_profile_utility import get_parameter_dtype
 from pyrs.peaks import PeakCollection  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
@@ -547,6 +548,10 @@ class TestStrainField:
         assert strain.peak_collections == [strain1.peak_collection, strain2.peak_collection]
         assert np.allclose(strain.coordinates, np.concatenate((strain1.coordinates, strain2.coordinates)))
 
+        with pytest.raises(RuntimeError) as exception_info:
+            strain1.fuse_with(strain1)  # fusing a scan with itself should raise a runtime error
+        assert 'both contain scan' in str(exception_info.value)
+
     def test_add(self, strain_field_samples):
         strain1 = strain_field_samples['HB2B_1320_peak0']
         strain2 = strain_field_samples['strain with two points per direction']
@@ -565,6 +570,22 @@ class TestStrainField:
             assert False, 'Should not be able to read ' + file_path
         except IOError:
             pass  # this is what should happen
+
+
+def test_fuse_strains(strain_field_samples, allclose_with_sorting):
+    # TODO HB2B_1320_peak0 and HB2B_1320_ are the same scan. We need two different scans
+    strain1 = strain_field_samples['HB2B_1320_peak0']
+    strain2 = strain_field_samples['HB2B_1320_']
+    strain3 = strain_field_samples['strain with two points per direction']
+    # Use fuse_strains().
+    strain_fused = fuse_strains(strain1, strain2, strain3, resolution=DEFAULT_POINT_RESOLUTION, criterion='min_error')
+    # the sum should give the same, since we passed default resolution and criterion options
+    strain_sum = strain1 + strain2 + strain3
+    for strain in (strain_fused, strain_sum):
+        assert len(strain) == 312 + 8  # strain1 and strain2 give strain1 because they contain the same data
+        assert strain.peak_collections == [s.peak_collection for s in (strain1, strain2, strain3)]
+        values = np.concatenate((strain1.values, strain3.values))  # again, no strain2 because it's the same as strain1
+        assert allclose_with_sorting(strain.values, values)
 
 
 def test_generateParameterField(test_data_dir):
