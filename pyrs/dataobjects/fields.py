@@ -505,8 +505,9 @@ class StrainField:
         if isinstance(other, StrainField):
             return self.__class__.stack_strains(self, other, **stack_kwargs)
         elif isinstance(other, (list, tuple)):
-            if False in [isinstance(s, StrainField) for s in other]:
-                raise TypeError(f'Unable to stack {self} and {s}')
+            for strain in other:
+                if isinstance(strain, StrainField) is False:
+                    raise TypeError(f'{strain} is not a {str(self.__class__)} object')
             return self.__class__.stack_strains(self, *other, **stack_kwargs)
 
     @property
