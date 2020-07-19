@@ -809,7 +809,7 @@ class Direction(Enum):
                 raise KeyError('Cannot determine direction type from "{}"'.format(direction))
 
 
-class StressField:
+class StressField(ScalarFieldSample):
     def __init__(self, strain11, strain22, strain33, youngs_modulus: float, poisson_ratio: float,
                  stress_type=StressType.DIAGONAL) -> None:
         self.direction = Direction.X  # as good of a default as any
@@ -856,7 +856,8 @@ class StressField:
         y = strain11.point_list.vy
         z = strain11.point_list.vz
 
-        self._field = ScalarFieldSample('stress', self.values, self.errors, x, y, z)
+        # TODO need to fix up super.__init__ to not need the copy
+        return super().__init__('stress', self.values, self.errors, x, y, z)
 
     @property
     def get_strain11(self):
@@ -869,14 +870,6 @@ class StressField:
     @property
     def get_strain33(self):
         return self._strain33
-
-    @property
-    def coordinates(self) -> np.ndarray:
-        return self._field.coordinates
-
-    @property
-    def point_list(self):
-        return self._field.point_list
 
     @property
     def youngs_modulus(self):
