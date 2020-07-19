@@ -404,6 +404,76 @@ class ScalarFieldSample:
 
 class StrainField:
 
+    @staticmethod
+    def fuse_strains(*args, resolution: float = DEFAULT_POINT_RESOLUTION,
+                     criterion: str = 'min_error') -> 'ScalarFieldSample':
+        r"""
+        Bring in together several strains measured along the same direction. Overlaps are resolved
+        according to a selection criterion.
+
+        Parameters
+        ----------
+        args list
+            multiple ~pyrs.dataobjects.fields.StrainField objects.
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity
+        criterion: str
+            Criterion by which to resolve which out of two (or more) samples is selected, while the rest is
+            discarded. Possible values are:
+            'min_error': the sample with the minimal uncertainty is selected.
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.StrainField
+        """
+        # Validation checks
+        assert len(args) > 1, 'More than one strain is needed'
+        for strain in args:
+            assert isinstance(strain, StrainField), 'This input is not a StrainField object'
+        # Iterative fusing
+        strain, strain_other = args[0: 2]  # first two strains in the list
+        strain_fused = strain.fuse_with(strain_other, resolution=resolution, criterion=criterion)
+        for strain_other in args[2:]:  # fuse remaining strains, one at a time
+            strain_fused = strain_fused.fuse_with(strain_other, resolution=resolution, criterion=criterion)
+        return strain_fused
+
+    @staticmethod
+    def stack_strains(*strains,
+                      stack_mode: str = 'complete',
+                      resolution: float = DEFAULT_POINT_RESOLUTION) -> List['StrainField']:
+        r"""
+        Evaluate a list of strain fields taken at different directions on a list of commont points.
+
+        The list of common points is obtained by combining the list of points from each strain field.
+
+        Parameters
+        ----------
+        strains: list
+            List of input strain fields.
+        stack_mode: str
+            A mode to stack the scalar fields. Valid values are 'complete' and 'common'
+        resolution: float
+        Two points are considered the same if they are separated by a distance smaller than this quantity
+
+
+        Returns
+        -------
+
+        """
+        # Validate all strains are strain fields
+        for strain in strains:
+            assert isinstance(strain, StrainField), f'{strain} is not a StrainField object'
+        fields = [strain._field for strain in strains]
+        fields_stacked = stack_scalar_field_samples(*fields, stack_mode=stack_mode, resolution=resolution)
+        strains_stacked = list()
+        for strain, field_stacked in zip(strains, fields_stacked):
+            strain_stacked = StrainField()
+            strain_stacked._field = field_stacked
+            strain_stacked._peak_collection = strain._peak_collection
+            strain_stacked._single_scans = strain._single_scans
+            strains_stacked.append(strain_stacked)
+        return strains_stacked
+
     def __init__(self, filename: str = '',
                  projectfile: Optional[HidraProjectFile] = None,
                  peak_tag: str = '',
@@ -429,6 +499,16 @@ class StrainField:
 
     def __len__(self):
         return len(self._field)
+
+    def __mul__(self, other):
+        stack_kwargs = dict(resolution=DEFAULT_POINT_RESOLUTION, stack_mode='complete')
+        if isinstance(other, StrainField):
+            return self.__class__.stack_strains(self, other, **stack_kwargs)
+        elif isinstance(other, (list, tuple)):
+            for strain in other:
+                if isinstance(strain, StrainField) is False:
+                    raise TypeError(f'{strain} is not a {str(self.__class__)} object')
+            return self.__class__.stack_strains(self, *other, **stack_kwargs)
 
     @property
     def peak_collection(self):
@@ -611,39 +691,6 @@ class StrainField:
                                          resolution=resolution,
                                          criterion=criterion)
         return strain
-
-
-def fuse_strains(*args, resolution: float = DEFAULT_POINT_RESOLUTION,
-                 criterion: str = 'min_error') -> 'ScalarFieldSample':
-    r"""
-    Bring in together several strains measured along the same direction. Overlaps are resolved
-    according to a selection criterion.
-
-    Parameters
-    ----------
-    args list
-        multiple ~pyrs.dataobjects.fields.StrainField objects.
-    resolution: float
-        Two points are considered the same if they are separated by a distance smaller than this quantity
-    criterion: str
-        Criterion by which to resolve which out of two (or more) samples is selected, while the rest is
-        discarded. Possible values are:
-        'min_error': the sample with the minimal uncertainty is selected.
-
-    Returns
-    -------
-    ~pyrs.dataobjects.fields.StrainField
-    """
-    # Validation checks
-    assert len(args) > 1, 'More than one strain is needed'
-    for strain in args:
-        assert isinstance(strain, StrainField), 'This input is not a StrainField object'
-    # Iterative fusing
-    strain, strain_other = args[0: 2]  # first two strains in the list
-    strain_fused = strain.fuse_with(strain_other, resolution=resolution, criterion=criterion)
-    for strain_other in args[2:]:  # fuse remaining strains, one at a time
-        strain_fused = strain_fused.fuse_with(strain_other, resolution=resolution, criterion=criterion)
-    return strain_fused
 
 
 def generateParameterField(parameter: str,
@@ -925,53 +972,70 @@ def stack_scalar_field_samples(*fields,
     if stack_mode not in valid_stack_modes:
         raise ValueError(f'{stack_mode} is not a valid stack mode. Valid modes are {valid_stack_modes}')
 
-    # If it so happens for one of the input fields that it contains two (or more) sampled points separated by
+    # If it so happens that one of the input fields contains two (or more) sampled points separated by
     # less than `resolution` distance, we have to discard all but one of them.
     fields = tuple([field.coalesce(resolution) for field in fields])
+
     fields_count, fields_indexes = len(fields), list(range(len(fields)))
 
-    # list `field_point_index_pair` gives us the scalar field index and the point index in the list
-    # of sample points of that scalar field, for a given aggregated point index, that is:
+    # We are going to aggregate the sample points for all the input fields. An index,
+    # `aggregated_point_index`, will index all these aggregated points. Thus, each
+    # point will have two indexes associated. Index `point_index` will identify the point
+    # in the list of points associated to a particular input field.
+    # For every aggregated point, we want to remember which input field it came from. Index
+    # field_index will identify the input field within list `fields`.
+    #
+    # List `field_point_index_pair` will give us the `field_index` and the `point_index`
+    # for every `aggregated_point_index`.
     #     field_point_index_pair[aggregated_point_index] == (field_index, point_index)
     field_point_index_pair = list()
     current_field_index = 0
     for field in fields:
         field_point_index_pair.extend([(current_field_index, i) for i in range(len(field))])
         current_field_index += 1
-
     # aggregate the sample points from all scalar fields
     aggregated_points = aggregate_point_lists(*[field.point_list for field in fields])
 
-    # cluster the aggregated sample points according to euclidean distance and resolution distance
-    # Each cluster amounts to one sample point that can be resolved from the rest of sample points.
-    # This sample point will have evaluations of one or more of the input fields.
-    # If the cluster contains evaluations of all input fields, the associated sample point is a point
-    # common to all input fields.
-    # If one or more fields are not evaluated at the cluster's sample points, we set the evaluations
-    # to `nan` for those missin fields when `stack_mode=complete`
+    # We cluster the aggregated sample points according to euclidean distance. Points within
+    # one cluster have mutual distances below resolution, so they can be considered the same sample point.
+    # We will associate a "common point" to each cluster, wich is the geometrical center
+    # of all the points in the cluster.
+    # Each cluster amounts to one common point that can be resolved from the the sample points belonging
+    # to other clusters.
+    # Each cluster may (or may not) contain one point from each input field. If the cluster contains
+    # one point from each input field, then we assert that all the input fields have been measured
+    # at the common point.
+    # If the cluster is missing a point from one (or more) of the input fields, and we have selected
+    # `stack_mode=complete`, then we assign a value of`nan` to those fields not present in the cluster.
     clusters = aggregated_points.cluster(resolution=resolution)
 
-    # Look up each cluster.
-    # The sample point associated to the cluster will be the average of the sample points contained in the
-    # cluster. Remember all this sample points are within `resolution` distance from each other.
-    #
-    field_values: List[List] = [[] for _ in fields_indexes]  # evaluations of each field at the cluster's sample points
+    field_values: List[List] = [[] for _ in fields_indexes]  # measurements of each field at the common points
     field_errors: List[List] = [[] for _ in fields_indexes]  # shape = (input fields, aggregated points)
-    x, y, z = [], [], []  # coordinates for the cluster's sample points
+    x, y, z = [], [], []  # coordinates of the common points
+    # Process one cluster at a time. Clusters are returned as a list, with biggest cluster the first and smallest
+    # cluster the last one. Each item (each cluster) in a list of aggregated point indexes, representing
+    # the points within the cluster
     for aggregated_indexes in clusters:
+        # if we selected stack_mode='common' and the cluster is missing at least one point from an input field,
+        # then the common point is not common to all fields, so we discard the point
         if stack_mode == 'common' and len(aggregated_indexes) < fields_count:
-            break  # there's a field missing in this cluster, thus it's not a sample point common to all fields
-        cluster_x, cluster_y, cluster_z = 0, 0, 0  # cluster's sample point coordinates
-        fields_value_in_cluster = [float('nan')] * fields_count  # value of each field at the cluster's sample point
+            break  # common point not common to all fields. Discard and go to the next cluster
+        # Here we either selected stack_mode=complete or the common point is common to all input fields
+        cluster_x, cluster_y, cluster_z = 0, 0, 0  # cluster's common point coordinates
+        # initialize the measurements of the input fields in this cluster as 'nan'
+        fields_value_in_cluster = [float('nan')] * fields_count
         fields_error_in_cluster = [float('nan')] * fields_count
+        # Look up each point within this cluster, finding out the value of each input field.
         for aggregated_index in aggregated_indexes:
             field_index, point_index = field_point_index_pair[aggregated_index]
-            field = fields[field_index]  # ScalarFieldSample object, one of the input fields
-            fields_value_in_cluster[field_index] = field.values[point_index]
+            field = fields[field_index]  # input field associated to the field_index
+            fields_value_in_cluster[field_index] = field.values[point_index]  # update the list of measurments
             fields_error_in_cluster[field_index] = field.errors[point_index]
             cluster_x += field.x[point_index]
             cluster_y += field.y[point_index]
             cluster_z += field.z[point_index]
+        # Now we have the coordinates of the common point as well as measurements for all the input fields
+        # to be associated to the common point. We update the appropriate lists to store this information
         for field_index in fields_indexes:
             field_values[field_index].append(fields_value_in_cluster[field_index])
             field_errors[field_index].append(fields_error_in_cluster[field_index])
@@ -979,5 +1043,5 @@ def stack_scalar_field_samples(*fields,
         y.append(cluster_y / len(aggregated_indexes))
         z.append(cluster_z / len(aggregated_indexes))
 
-    # Construct the output ScalarFieldSample objects evaluated at the cluster's sample points
+    # For each input field we now have a new, stacked, field. This field is measured at the common points
     return [ScalarFieldSample(fields[i].name, field_values[i], field_errors[i], x, y, z) for i in fields_indexes]
