@@ -826,27 +826,19 @@ class Direction(Enum):
                 raise KeyError('Cannot determine direction type from "{}"'.format(direction))
 
 
-class StressField(ScalarFieldSample):
+class StressField:
+
     def __init__(self, strain11, strain22, strain33, youngs_modulus: float, poisson_ratio: float,
                  stress_type=StressType.DIAGONAL) -> None:
-        # as good of a default as any, set by member function select
-        # direction represents an internal state for each object for values, errors, and strain functions
-        self.direction = Direction.X
-        self.stress_type = StressType.get(stress_type)
+
+        self.direction = Direction.X  # as good of a default as any
         self._youngs_modulus = youngs_modulus
         self._poisson_ratio = poisson_ratio
 
-        # currently only supports equal sized strains
-        if len(strain11.values) != len(strain22.values):
-            raise RuntimeError('Number of StrainField values must be equal')
-        if (self.stress_type == StressType.DIAGONAL) and (len(strain11.values) != len(strain33.values)):
-            raise RuntimeError('Number of StrainField values must be equal')
+        # Stack strains and set references to strain directions
+        self.stress_type = StressType.get(stress_type)
+        self._strain11, self._strain22, self._strain33 = self.stack_strains(strain11, strain22, strain33)\
 
-        # compare point lists to make sure they are identical
-        if strain11.point_list != strain22.point_list:
-            raise RuntimeError('Point lists for strain11 and strain22 are not compatible')
-        if (self.stress_type == StressType.DIAGONAL) and (strain11.point_list != strain33.point_list):
-            raise RuntimeError('Point lists for strain11 and strain33 are not compatible')
 
         # extract strain values - these are the epsilons in the equations
         # currently assumes all strains are parallel
@@ -865,18 +857,33 @@ class StressField(ScalarFieldSample):
         else:
             raise ValueError('Cannot calculate stress of type {}'.format(self.stress_type))
 
-        # set references to strain directions
-        self._strain11 = strain11
-        self._strain22 = strain22
-        self._strain33 = strain33
+    def stack_strains(self, strain11, strain22, strain33):
+        if self.stress_type == StressType.DIAGONAL:
+            return strain11 * strain22 * strain33
 
-        # set-up information for PointList
-        x = strain11.point_list.vx
-        y = strain11.point_list.vy
-        z = strain11.point_list.vz
+    @property
+    def x(self):
+        return self._strain11.x
 
-        # TODO need to fix up super.__init__ to not need the copy
-        return super().__init__('stress', self.values, self.errors, x, y, z)
+    @property
+    def y(self):
+        return self._strain11.y
+
+    @property
+    def z(self):
+        return self._strain11.z
+
+    @property
+    def diagonal_strains(self):
+        r"""
+        The three diagonal strains strain11, strain22, and strain33
+
+        Returns
+        -------
+        list
+            Each item is a ~pyrs.dataobjects.fields.StrainField object.
+        """
+        return self._strain11, self._strain22, self._strain33
 
     @property
     def youngs_modulus(self):
@@ -885,6 +892,18 @@ class StressField(ScalarFieldSample):
     @property
     def poisson_ratio(self):
         return self._poisson_ratio
+
+    def __calc_diagonal_stress_v2(self):
+        prefactor = self.youngs_modulus / (1 + self.poisson_ratio)
+        # `strain.sample` below is a unumpy.array object
+        strain_tensor_trace = sum([strain.sample for strain in self.diagonal_strains])
+        additive = self.poisson_ratio * strain_tensor_trace / (1 - 2 * self.poisson_ratio)
+        # Create a ScalarField for each stress diagonal
+        for attr, strain in zip(('stress11', 'stress22', 'stress22'), self.diagonal_strains):
+            stress_sample = prefactor * (strain.sample + additive)  # values an errors as unumpy.array
+            values, errors = unumpy.nominal_values(stress_sample), unumpy.std_devs(stress_sample)
+            stress_field = ScalarFieldSample(values, errors, self.x, self.y, self.z)
+            setattr(self, attr, stress_field)
 
     def __calc_diagonal_stress(self, youngs_modulus, poisson_ratio, strain11, strain22, strain33):
         prefactor = youngs_modulus / (1 + poisson_ratio)
@@ -1008,7 +1027,7 @@ def stack_scalar_field_samples(*fields,
 
     # We cluster the aggregated sample points according to euclidean distance. Points within
     # one cluster have mutual distances below resolution, so they can be considered the same sample point.
-    # We will associate a "common point" to each cluster, wich is the geometrical center
+==    # We will associate a "common point" to each cluster, wich is the geometrical center
     # of all the points in the cluster.
     # Each cluster amounts to one common point that can be resolved from the the sample points belonging
     # to other clusters.
