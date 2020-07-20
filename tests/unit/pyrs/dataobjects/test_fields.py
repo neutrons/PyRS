@@ -499,6 +499,7 @@ def strain_field_samples(test_data_dir):
 
     # test the result
     assert strain
+    assert not strain.filenames
     assert len(strain) == subruns.size
     assert strain.peak_collection == peak_collection
     np.testing.assert_almost_equal(strain.values, 0.)
@@ -516,6 +517,7 @@ def strain_field_samples(test_data_dir):
         prefix = filename.split('.')[0] + '_'
         for tag in tags:
             sample_fields[prefix + tag] = StrainField(filename=file_path, peak_tag=tag)
+            assert sample_fields[prefix + tag].filenames == [filename]
 
     return sample_fields
 

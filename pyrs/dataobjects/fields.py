@@ -8,6 +8,7 @@ from uncertainties import unumpy
 
 from mantid.simpleapi import mtd, CreateMDWorkspace, BinMD
 from mantid.api import IMDHistoWorkspace
+from pathlib import Path
 
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.dataobjects.sample_logs import PointList, aggregate_point_lists
@@ -511,6 +512,10 @@ class StrainField:
             return self.__class__.stack_strains(self, *other, **stack_kwargs)
 
     @property
+    def filenames(self):
+        return self._filenames
+
+    @property
     def peak_collection(self):
         r"""
         Retrieve the peak collection associated to the strain field. Only valid when the field is not
@@ -653,6 +658,13 @@ class StrainField:
 
         strain, strain_error = peak_collection.get_strain()  # type: ignore
 
+        # set the names of files used to create the strain
+        if filename:  #
+            self._filenames = [Path(filename).name]
+        elif hidraworkspace and hidraworkspace.hidra_project_file:  # get it from the workspace
+            self._filenames = [Path(hidraworkspace.hidra_project_file).name]
+        else:
+            self._filenames = []  # do not know filenames
         self._peak_collection = peak_collection
         self._single_scans = [self]  # when the strain is composed of more than one scan, we keep references to them
         self._field = ScalarFieldSample('strain', strain, strain_error, x, y, z)
@@ -690,6 +702,11 @@ class StrainField:
         strain._field = self._field.fuse(other_strain._field,  # type: ignore
                                          resolution=resolution,
                                          criterion=criterion)
+        # copy over the filenames
+        strain._filenames = []
+        strain._filenames.extend(self._filenames)
+        strain._filenames.extend(other_strain._filenames)
+
         return strain
 
 
