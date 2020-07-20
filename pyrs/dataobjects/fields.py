@@ -922,7 +922,7 @@ class StressField(ScalarFieldSample):
             return self._strain22
         elif self.direction == Direction.Z:
             return self._strain33
-        return None
+        return StrainField()
 
     def select(self, direction: str):
         self.direction = Direction.get(direction)
