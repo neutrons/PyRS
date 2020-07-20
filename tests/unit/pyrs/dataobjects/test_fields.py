@@ -904,13 +904,13 @@ def test_stack_scalar_field_samples(field_sample_collection,
 
     # Assert evaluations for sample1
     sample1_values = [1.05, 1.04, 1.03, 1.02, 1.01, 1.0]
-    assert np.allclose(sample1.values, sample1_values)
+    assert allclose_with_sorting(sample1.values, sample1_values)
     # Assert evaluations for sample2
     sample2_values = [1.12, 1.11, 1.1, 1.091, 1.081, 1.071]
-    assert np.allclose(sample2.values, sample2_values)
+    assert allclose_with_sorting(sample2.values, sample2_values)
     # Assert evaluations for sample3
     sample3_values = [1.05, 1.04, 1.03, 1.02, 1.01, 1.0]
-    assert np.allclose(sample3.values, sample3_values)
+    assert allclose_with_sorting(sample3.values, sample3_values)
 
     # test stacking with the 'complete' mode
     sample1 = ScalarFieldSample(*field_sample_collection['sample1'])
