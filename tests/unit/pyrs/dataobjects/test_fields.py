@@ -783,13 +783,13 @@ class TestStressField:
         second = (sample11.values + sample22.values + sample33.values)
         diagonal.select('11')
         np.testing.assert_allclose(diagonal.values, sample11.values + second)
-        assert diagonal.get_strain == sample11
+        assert diagonal.strain == sample11
         diagonal.select('22')
         np.testing.assert_allclose(diagonal.values, sample22.values + second)
-        assert diagonal.get_strain == sample22
+        assert diagonal.strain == sample22
         diagonal.select('33')
         np.testing.assert_allclose(diagonal.values, sample33.values + second)
-        assert diagonal.get_strain == sample33
+        assert diagonal.strain == sample33
 
         in_plane_strain = StressField(sample11, sample22, None, YOUNG, POISSON, 'in-plane-strain')
         assert in_plane_strain

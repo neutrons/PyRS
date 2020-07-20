@@ -813,7 +813,7 @@ class StressField(ScalarFieldSample):
     def __init__(self, strain11, strain22, strain33, youngs_modulus: float, poisson_ratio: float,
                  stress_type=StressType.DIAGONAL) -> None:
         # as good of a default as any, set by member function select
-        # direction represents an internal state for each object for values, errors, and get_strain functions
+        # direction represents an internal state for each object for values, errors, and strain functions
         self.direction = Direction.X
         self.stress_type = StressType.get(stress_type)
         self._youngs_modulus = youngs_modulus
@@ -915,7 +915,7 @@ class StressField(ScalarFieldSample):
             return unumpy.std_devs(self.stress33)
 
     @property
-    def get_strain(self) -> StrainField:
+    def strain(self) -> StrainField:
         if self.direction == Direction.X:
             return self._strain11
         elif self.direction == Direction.Y:
