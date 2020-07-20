@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # Test utilities methods without GUI
 import os
+from pathlib import Path
 from pyrs.interface import gui_helper
 from pyrs.utilities import get_default_output_dir, get_input_project_file, get_ipts_dir, get_nexus_file  # type: ignore
 import pytest
@@ -33,8 +34,13 @@ def test_get_ipts_dir():
     -------
 
     """
-    # Test good
-    assert get_ipts_dir(1060) == '/HFIR/HB2B/IPTS-22731/', 'IPTS directory is not correct for run 1060'
+    IPTS_22731 = Path('/HFIR/HB2B/IPTS-22731/')
+    # test run number
+    assert get_ipts_dir(1060) == IPTS_22731, 'IPTS directory is not correct for run 1060'
+
+    # test absolute path
+    assert get_ipts_dir('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1060.nxs.h5') == IPTS_22731, \
+        'IPTS directory is not correct for run 1060'
 
     # Test no such run
     with pytest.raises(RuntimeError):

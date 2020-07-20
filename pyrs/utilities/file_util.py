@@ -8,7 +8,7 @@ from pathlib import Path
 from subprocess import check_output
 from typing import Union
 
-__all__ = ['get_ipts_dir', 'get_default_output_dir', 'get_ipts_dir', 'get_input_project_file', 'get_nexus_file']
+__all__ = ['get_ipts_dir', 'get_default_output_dir', 'get_input_project_file', 'get_nexus_file']
 
 
 def save_mantid_nexus(workspace_name, file_name, title=''):
@@ -124,35 +124,34 @@ def __run_finddata(runnumber):
     return result
 
 
-def get_ipts_dir(run_number):
+def get_ipts_dir(hint: Union[int, str, Path]) -> Path:
     """Get IPTS directory from run number. Throws an exception if the file wasn't found.
 
     Parameters
     ----------
-    run_number : int
-        run number
+    hint : int, str, Path
+        run number or path to nexus file
 
     Returns
     -------
     str
         IPTS path: example '/HFIR/HB2B/IPTS-22731/', None for not supported IPTS
     """
-    # try with GetIPTS
-    try:
-        with archive_search():
-            ipts = GetIPTS(RunNumber=run_number, Instrument='HB2B')
-    except RuntimeError as e:
-        print('GetIPTS failed:', e)
-        # get the information from the nexus file
-        nexusfile = get_nexus_file(run_number)
-        # take the first 3 directories
-        ipts = nexusfile.split(os.path.sep)[:4]
-        # add the filesystem root
-        ipts.insert(0, os.path.sep)
-        # put the path together
-        ipts = os.path.join(*ipts)
-        # append a trailing path separator
-        ipts = ipts + os.path.sep
+    filepath = Path(str(hint))
+    if filepath.exists() and filepath.parts[1] == 'HFIR':
+        ipts = Path(*filepath.parts[:4])
+    else:
+        # try with GetIPTS
+        try:
+            with archive_search():
+                ipts = Path(GetIPTS(RunNumber=hint, Instrument='HB2B'))
+        except RuntimeError as e:
+            print('GetIPTS failed:', e)
+            # get the information from the nexus file
+            nexusfile = get_nexus_file(hint)
+            # take the first 3 directories
+            ipts = get_ipts_dir(nexusfile)
+
     return ipts
 
 
