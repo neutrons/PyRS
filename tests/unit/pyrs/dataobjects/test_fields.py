@@ -775,10 +775,6 @@ class TestStressField:
         # test diagonal calculation
         diagonal = StressField(sample11, sample22, sample33, YOUNG, POISSON)
         assert diagonal
-        # check strains
-        assert diagonal.get_strain11 == sample11
-        assert diagonal.get_strain22 == sample22
-        assert diagonal.get_strain33 == sample33
         # check coordinates
         np.testing.assert_equal(diagonal.point_list.vx, X)
         np.testing.assert_equal(diagonal.point_list.vy, Y)
@@ -787,10 +783,13 @@ class TestStressField:
         second = (sample11.values + sample22.values + sample33.values)
         diagonal.select('11')
         np.testing.assert_allclose(diagonal.values, sample11.values + second)
+        assert diagonal.get_strain == sample11
         diagonal.select('22')
         np.testing.assert_allclose(diagonal.values, sample22.values + second)
+        assert diagonal.get_strain == sample22
         diagonal.select('33')
         np.testing.assert_allclose(diagonal.values, sample33.values + second)
+        assert diagonal.get_strain == sample33
 
         in_plane_strain = StressField(sample11, sample22, None, YOUNG, POISSON, 'in-plane-strain')
         assert in_plane_strain

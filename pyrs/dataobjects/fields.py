@@ -812,7 +812,9 @@ class Direction(Enum):
 class StressField(ScalarFieldSample):
     def __init__(self, strain11, strain22, strain33, youngs_modulus: float, poisson_ratio: float,
                  stress_type=StressType.DIAGONAL) -> None:
-        self.direction = Direction.X  # as good of a default as any
+        # as good of a default as any, set by member function select
+        # direction represents an internal state for each object for values, errors, and get_strain functions
+        self.direction = Direction.X
         self.stress_type = StressType.get(stress_type)
         self._youngs_modulus = youngs_modulus
         self._poisson_ratio = poisson_ratio
@@ -858,18 +860,6 @@ class StressField(ScalarFieldSample):
 
         # TODO need to fix up super.__init__ to not need the copy
         return super().__init__('stress', self.values, self.errors, x, y, z)
-
-    @property
-    def get_strain11(self):
-        return self._strain11
-
-    @property
-    def get_strain22(self):
-        return self._strain22
-
-    @property
-    def get_strain33(self):
-        return self._strain33
 
     @property
     def youngs_modulus(self):
@@ -923,6 +913,15 @@ class StressField(ScalarFieldSample):
             return unumpy.std_devs(self.stress22)
         elif self.direction == Direction.Z:
             return unumpy.std_devs(self.stress33)
+
+    @property
+    def get_strain(self) -> StrainField:
+        if self.direction == Direction.X:
+            return self._strain11
+        elif self.direction == Direction.Y:
+            return self._strain22
+        elif self.direction == Direction.Z:
+            return self._strain33
 
     def select(self, direction: str):
         self.direction = Direction.get(direction)
