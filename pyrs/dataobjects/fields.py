@@ -356,7 +356,7 @@ class ScalarFieldSample:
             sample = self
         extents = sample.point_list.extents(resolution=resolution)  # triad of DirectionExtents objects
         for extent in extents:
-            assert extent[0] < extent[1], f'min value of {extent} is not smaller than max value'
+            assert extent[0] <= extent[1], f'min value of {extent} is greater than max value'
         extents_str = ','.join([extent.to_createmd for extent in extents])
 
         units_triad = ','.join([units] * 3)  # 'meter,meter,meter'
@@ -806,7 +806,6 @@ class StrainField:
         -------
         MDHistoWorkspace
         """
-        method = 'nearest'  # TODO remove this line to allow interpolation issue #586
         export_kwags = dict(units=units, interpolate=interpolate, method=method, fill_value=fill_value,
                             keep_nan=keep_nan, resolution=resolution, criterion=criterion)
         return self._field.to_md_histo_workspace(name, **export_kwags)  # type: ignore
@@ -1099,7 +1098,6 @@ class StressField:
         -------
         MDHistoWorkspace
         """
-        method = 'nearest'  # TODO remove this line to allow interpolation issue #586
         export_kwags = dict(units=units, interpolate=interpolate, method=method, fill_value=fill_value,
                             keep_nan=keep_nan, resolution=resolution, criterion=criterion)
         return self._stress_selected.to_md_histo_workspace(name, **export_kwags)  # type: ignore
