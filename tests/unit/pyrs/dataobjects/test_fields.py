@@ -631,6 +631,19 @@ class TestStrainField:
         assert strain1_stacked.peak_collection == strain1.peak_collection
         assert strain23_stacked.peak_collections == [strain2.peak_collection, strain3.peak_collection]
 
+    def test_to_md_histo_workspace(self, strain_field_samples):
+        strain = strain_field_samples['HB2B_1320_peak0']
+        histo = strain.to_md_histo_workspace(method='linear', resolution=DEFAULT_POINT_RESOLUTION)
+        assert histo.id() == 'MDHistoWorkspace'
+        minimum_values = (-31.76, -7.20, -15.00)
+        maximum_values = (31.76, 7.20, 15.00)
+        bin_counts = (18, 6, 3)
+        for i, (min_value, max_value, bin_count) in enumerate(zip(minimum_values, maximum_values, bin_counts)):
+            dimension = histo.getDimension(i)
+            assert dimension.getUnits() == 'meter'
+            assert dimension.getMinimum() == pytest.approx(min_value, abs=1.e-02)
+            assert dimension.getMaximum() == pytest.approx(max_value, abs=1.e-02)
+            assert dimension.getNBins() == bin_count
 
 def test_generateParameterField(test_data_dir):
     file_path = os.path.join(test_data_dir, 'HB2B_1320.h5')
@@ -838,6 +851,11 @@ class TestStressField:
         in_plane_stress.select('33')
         assert allclose_with_sorting(in_plane_stress.values, 0.)
         assert allclose_with_sorting(in_plane_stress.errors, 0.)
+
+    def test_to_md_histo_workspace(self, stress_samples):
+        stress = stress_samples['stress diagonal']
+        histo = stress.to_md_histo_workspace(method='linear')
+        assert histo.id() == 'MDHistoWorkspace'
 
 
 @pytest.fixture(scope='module')
