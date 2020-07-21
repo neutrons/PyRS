@@ -507,7 +507,17 @@ class StrainField:
             self._initialize_with_single_scan(**single_scan_kwargs)  # type: ignore
 
     def __add__(self, other_strain):
-        r"""Fuse the current strain with another strain using the default resolution distance and overlap criterium"""
+        r"""
+        Fuse the current strain with another strain using the default resolution distance and overlap criterion
+
+        resolution = ~pyrs.dataobjects.constants.DEFAULT_POINT_RESOLUTION
+        criterion = 'min_error'
+
+        Parameters
+        ----------
+        other_strain:  ~pyrs.dataobjects.fields.StrainField
+            Right-hand side of operation addition
+        """
         return self.fuse_with(other_strain)
 
     def __len__(self):
