@@ -645,6 +645,7 @@ class TestStrainField:
             assert dimension.getMaximum() == pytest.approx(max_value, abs=1.e-02)
             assert dimension.getNBins() == bin_count
 
+
 def test_generateParameterField(test_data_dir):
     file_path = os.path.join(test_data_dir, 'HB2B_1320.h5')
 
