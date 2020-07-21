@@ -139,8 +139,8 @@ class ScalarFieldSample:
         resolution: float
             Two points are considered the same if they are separated by a distance smaller than this quantity.
         criterion: str
-            Criterion by which to resolve which out of two (or more) samples is selected, while the rest is
-            discarded. Possible values are:
+            Criterion by which to resolve which sample points out of two (or more) ends up being selected,
+            while the rest of the sample points are discarded is discarded. Possible values are:
             'min_error': the sample with the minimal uncertainty is selected.
 
         Returns
@@ -250,9 +250,9 @@ class ScalarFieldSample:
         resolution: float
             Two points are considered the same if they are separated by a distance smaller than this quantity
         criterion: str
-            Criterion by which to resolve which out of two (or more) samples is selected, while the rest is
-            discarded. Possible values are:
-            'min_error': the sample with the minimal uncertainty is selected (Nan values ignored).
+            Criterion by which to resolve which sample points out of two (or more) ends up being selected,
+            while the rest of the sample points are discarded is discarded. Possible values are:
+            'min_error': the sample with the minimal uncertainty is selected.
         Returns
         -------
         ~pyrs.dataobjects.fields.ScalarFieldSample
@@ -297,8 +297,8 @@ class ScalarFieldSample:
         resolution: float
             Two points are considered the same if they are separated by a distance smaller than this quantity.
         criterion: str
-            Criterion by which to resolve which out of two (or more) samples is selected, while the rest is
-            discarded. Possible values are:
+            Criterion by which to resolve which sample points out of two (or more) ends up being selected,
+            while the rest of the sample points are discarded is discarded. Possible values are:
             'min_error': the sample with the minimal uncertainty is selected.
         Returns
         -------
@@ -336,8 +336,8 @@ class ScalarFieldSample:
         resolution: float
             Two points are considered the same if they are separated by a distance smaller than this quantity.
         criterion: str
-            Criterion by which to resolve which out of two (or more) samples is selected, while the rest is
-            discarded. Possible values are:
+            Criterion by which to resolve which sample points out of two (or more) ends up being selected,
+            while the rest of the sample points are discarded is discarded. Possible values are:
             'min_error': the sample with the minimal uncertainty is selected.
         Returns
         -------
@@ -350,7 +350,8 @@ class ScalarFieldSample:
 
         # TODO units should be a member of this class
         if interpolate is True:
-            sample = self.interpolated_sample(keep_nan=keep_nan, resolution=resolution, criterion=criterion)
+            sample = self.interpolated_sample(method=method, fill_value=fill_value, keep_nan=keep_nan,
+                                              resolution=resolution, criterion=criterion)
         else:
             sample = self
         extents = sample.point_list.extents(resolution=resolution)  # triad of DirectionExtents objects
@@ -430,8 +431,8 @@ class StrainField:
         resolution: float
             Two points are considered the same if they are separated by a distance smaller than this quantity
         criterion: str
-            Criterion by which to resolve which out of two (or more) samples is selected, while the rest is
-            discarded. Possible values are:
+            Criterion by which to resolve which sample points out of two (or more) ends up being selected,
+            while the rest of the sample points are discarded is discarded. Possible values are:
             'min_error': the sample with the minimal uncertainty is selected.
 
         Returns
@@ -742,8 +743,8 @@ class StrainField:
         resolution: float
             Two points are considered the same if they are separated by a distance smaller than this quantity
         criterion: str
-            Criterion by which to resolve which out of two (or more) samples is selected, while the rest is
-            discarded. Possible values are:
+            Criterion by which to resolve which sample points out of two (or more) ends up being selected,
+            while the rest of the sample points are discarded is discarded. Possible values are:
             'min_error': the sample with the minimal uncertainty is selected.
 
         Returns
@@ -768,6 +769,48 @@ class StrainField:
         strain._filenames.extend(other_strain._filenames)
 
         return strain
+
+    def to_md_histo_workspace(self, name: str = '', units: str = 'meter',
+                              interpolate: bool = True,
+                              method: str = 'linear', fill_value: float = float('nan'), keep_nan: bool = True,
+                              resolution: float = DEFAULT_POINT_RESOLUTION,
+                              criterion: str = 'min_error'
+                              ) -> IMDHistoWorkspace:
+        r"""
+        Save the strain field into a MDHistoWorkspace. Interpolation of the sample points is carried out
+        by default.
+
+        Parameters `method`, `fill_value`, `keep_nan`, `resolution` , and `criterion` are  used only if
+        `interpolate` is `True`.
+
+        Parameters
+        ----------
+        name: str
+            Name of the output workspace.
+        units: str
+            Units of the sample points.
+        interpolate: bool
+            Interpolate the scalar field sample of a regular 3D grid given by the extents of the sample points.
+        method: str
+            Method of interpolation. Allowed values are 'nearest' and 'linear'
+        fill_value: float
+            Value used to fill in for requested points outside the input points.
+        keep_nan: bool
+            Incorporate :math:`nan` found in the sample points into the interpolated field sample.
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity.
+        criterion: str
+            Criterion by which to resolve which sample points out of two (or more) ends up being selected,
+            while the rest of the sample points are discarded is discarded. Possible values are:
+            'min_error': the sample with the minimal uncertainty is selected.
+        Returns
+        -------
+        MDHistoWorkspace
+        """
+        method = 'nearest'  # TODO remove this line to allow interpolation issue #586
+        export_kwags = dict(units=units, interpolate=interpolate, method=method, fill_value=fill_value,
+                            keep_nan=keep_nan, resolution=resolution, criterion=criterion)
+        return self._field.to_md_histo_workspace(name, **export_kwags)  # type: ignore
 
 
 def generateParameterField(parameter: str,
@@ -834,8 +877,8 @@ def fuse_scalar_field_samples(*args, resolution: float = DEFAULT_POINT_RESOLUTIO
         multiple ~pyrs.dataobjects.fields.ScalarFieldSample objects.
     resolution
     criterion: str
-        Criterion by which to resolve which out of two (or more) samples is selected, while the rest is
-        discarded. Possible values are:
+        Criterion by which to resolve which sample points out of two (or more) ends up being selected,
+        while the rest of the sample points are discarded is discarded. Possible values are:
         'min_error': the sample with the minimal uncertainty is selected.
 
     Returns
@@ -1019,6 +1062,48 @@ class StressField:
         direction_to_strain = {Direction.X: self._strain11, Direction.Y: self._strain22, Direction.Z: self._strain33}
         self._stress_selected = direction_to_stress[self.direction]  # type: ignore
         self._strain_selected = direction_to_strain[self.direction]  # type: ignore
+
+    def to_md_histo_workspace(self, name: str = '', units: str = 'meter',
+                              interpolate: bool = True,
+                              method: str = 'linear', fill_value: float = float('nan'), keep_nan: bool = True,
+                              resolution: float = DEFAULT_POINT_RESOLUTION,
+                              criterion: str = 'min_error'
+                              ) -> IMDHistoWorkspace:
+        r"""
+        Save the selected stress field into a MDHistoWorkspace. Interpolation of the sample points is carried out
+        by default.
+
+        Parameters `method`, `fill_value`, `keep_nan`, `resolution` , and `criterion` are  used only if
+        `interpolate` is `True`.
+
+        Parameters
+        ----------
+        name: str
+            Name of the output workspace.
+        units: str
+            Units of the sample points.
+        interpolate: bool
+            Interpolate the scalar field sample of a regular 3D grid given by the extents of the sample points.
+        method: str
+            Method of interpolation. Allowed values are 'nearest' and 'linear'
+        fill_value: float
+            Value used to fill in for requested points outside the input points.
+        keep_nan: bool
+            Incorporate :math:`nan` found in the sample points into the interpolated field sample.
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity.
+        criterion: str
+            Criterion by which to resolve which sample points out of two (or more) ends up being selected,
+            while the rest of the sample points are discarded is discarded. Possible values are:
+            'min_error': the sample with the minimal uncertainty is selected.
+        Returns
+        -------
+        MDHistoWorkspace
+        """
+        method = 'nearest'  # TODO remove this line to allow interpolation issue #586
+        export_kwags = dict(units=units, interpolate=interpolate, method=method, fill_value=fill_value,
+                            keep_nan=keep_nan, resolution=resolution, criterion=criterion)
+        return self._stress_selected.to_md_histo_workspace(name, **export_kwags)  # type: ignore
 
 
 def stack_scalar_field_samples(*fields,
