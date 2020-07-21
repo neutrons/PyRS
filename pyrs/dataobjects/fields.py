@@ -56,6 +56,24 @@ class ScalarFieldSample:
     def __len__(self) -> int:
         return len(self.values)
 
+    def __add__(self, other_field: 'ScalarFieldSample') -> 'ScalarFieldSample':
+        r"""
+        Fuse the current strain with another strain using the default resolution distance and overlap criterion
+
+        resolution = ~pyrs.dataobjects.constants.DEFAULT_POINT_RESOLUTION
+        criterion = 'min_error'
+
+        Parameters
+        ----------
+        other_strain:  ~pyrs.dataobjects.fields.ScalarFieldSample
+            Right-hand side of operation addition
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.ScalarFieldSample
+        """
+        return self.fuse_with(other_field)
+
     @property
     def name(self) -> str:
         r"""The identifying name of the scalar field"""
@@ -517,6 +535,10 @@ class StrainField:
         ----------
         other_strain:  ~pyrs.dataobjects.fields.StrainField
             Right-hand side of operation addition
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.StrainField
         """
         return self.fuse_with(other_strain)
 
