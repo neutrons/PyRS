@@ -181,5 +181,21 @@ def test_interpolate_volume_scan(data_interpolate_volume_scan, allclose_with_sor
     data['assert checks'](interpolated)
 
 
+#######################################
+# Integration tests involving strains #
+#######################################
+
+
+def test_combine_strains():
+    r"""
+    Combine strains from the following runs: 1331,1332,1327,1328
+
+    Returns
+    -------
+
+    """
+    pass
+
+
 if __name__ == '__main__':
     pytest.main()
