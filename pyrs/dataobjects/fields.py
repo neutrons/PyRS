@@ -906,8 +906,8 @@ class StressField:
         self._initialize_stress_fields(stress11, stress22, stress33)
 
         # At any given time, the StresField object selects one of 11, 22, and 33 directions
-        self.direction, self._stress_selected = None, None
-        self.select(Direction.X)
+        self.direction, self._stress_selected, self._strain_selected = None, None, None
+        self.select(Direction.X)  # initialize the selected direction
 
     def _initialize_stress_fields(self, stress11, stress22, stress33):
         for stress, attr in zip((stress11, stress22, stress33), ('stress11', 'stress22', 'stress33')):
@@ -1009,18 +1009,14 @@ class StressField:
 
     @property
     def strain(self) -> StrainField:
-        if self.direction == Direction.X:
-            return self._strain11
-        elif self.direction == Direction.Y:
-            return self._strain22
-        elif self.direction == Direction.Z:
-            return self._strain33
-        return StrainField()
+        return self._strain_selected
 
     def select(self, direction: str):
         self.direction = Direction.get(direction)
         direction_to_stress = {Direction.X: self.stress11, Direction.Y: self.stress22, Direction.Z: self.stress33}
+        direction_to_strain = {Direction.X: self._strain11, Direction.Y: self._strain22, Direction.Z: self._strain33}
         self._stress_selected = direction_to_stress[self.direction]
+        self._strain_selected = direction_to_strain[self.direction]
 
 
 def stack_scalar_field_samples(*fields,
@@ -1086,7 +1082,7 @@ def stack_scalar_field_samples(*fields,
 
     # We cluster the aggregated sample points according to euclidean distance. Points within
     # one cluster have mutual distances below resolution, so they can be considered the same sample point.
-==    # We will associate a "common point" to each cluster, wich is the geometrical center
+    # We will associate a "common point" to each cluster, wich is the geometrical center
     # of all the points in the cluster.
     # Each cluster amounts to one common point that can be resolved from the the sample points belonging
     # to other clusters.

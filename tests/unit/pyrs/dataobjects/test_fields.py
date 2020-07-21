@@ -788,9 +788,9 @@ class TestStressField:
         diagonal = StressField(sample11, sample22, sample33, YOUNG, POISSON)
         assert diagonal
         # check strains
-        assert allclose_with_sorting(diagonal.get_strain11.values, sample11.values)
-        assert allclose_with_sorting(diagonal.get_strain22.values, sample22.values)
-        assert allclose_with_sorting(diagonal.get_strain33.values, sample33.values)
+        for direction, sample in zip(('11', '22', '33'), (sample11, sample22, sample33)):
+            diagonal.select(direction)
+            assert allclose_with_sorting(diagonal.strain.values, sample.values)
         # check coordinates
         assert allclose_with_sorting(diagonal.x, X)
         assert allclose_with_sorting(diagonal.y, Y)
