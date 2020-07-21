@@ -807,7 +807,6 @@ class StrainField:
         -------
         MDHistoWorkspace
         """
-        method = 'nearest'  # TODO remove this line to allow interpolation issue #586
         export_kwags = dict(units=units, interpolate=interpolate, method=method, fill_value=fill_value,
                             keep_nan=keep_nan, resolution=resolution, criterion=criterion)
         return self._field.to_md_histo_workspace(name, **export_kwags)  # type: ignore
@@ -1100,7 +1099,6 @@ class StressField:
         -------
         MDHistoWorkspace
         """
-        method = 'nearest'  # TODO remove this line to allow interpolation issue #586
         export_kwags = dict(units=units, interpolate=interpolate, method=method, fill_value=fill_value,
                             keep_nan=keep_nan, resolution=resolution, criterion=criterion)
         return self._stress_selected.to_md_histo_workspace(name, **export_kwags)  # type: ignore
