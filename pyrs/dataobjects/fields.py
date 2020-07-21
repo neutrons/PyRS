@@ -772,7 +772,7 @@ class StrainField:
 
     def to_md_histo_workspace(self, name: str = '', units: str = 'meter',
                               interpolate: bool = True,
-                              method: str = 'nearest', fill_value: float = float('nan'), keep_nan: bool = True,
+                              method: str = 'linear', fill_value: float = float('nan'), keep_nan: bool = True,
                               resolution: float = DEFAULT_POINT_RESOLUTION,
                               criterion: str = 'min_error'
                               ) -> IMDHistoWorkspace:
@@ -807,6 +807,7 @@ class StrainField:
         -------
         MDHistoWorkspace
         """
+        method = 'nearest'  # TODO remove this line to allow interpolation issue #586
         export_kwags = dict(units=units, interpolate=interpolate, method=method, fill_value=fill_value,
                             keep_nan=keep_nan, resolution=resolution, criterion=criterion)
         return self._field.to_md_histo_workspace(name, **export_kwags)
@@ -1064,7 +1065,7 @@ class StressField:
 
     def to_md_histo_workspace(self, name: str = '', units: str = 'meter',
                               interpolate: bool = True,
-                              method: str = 'nearest', fill_value: float = float('nan'), keep_nan: bool = True,
+                              method: str = 'linear', fill_value: float = float('nan'), keep_nan: bool = True,
                               resolution: float = DEFAULT_POINT_RESOLUTION,
                               criterion: str = 'min_error'
                               ) -> IMDHistoWorkspace:
@@ -1099,6 +1100,7 @@ class StressField:
         -------
         MDHistoWorkspace
         """
+        method = 'nearest'  # TODO remove this line to allow interpolation issue #586
         export_kwags = dict(units=units, interpolate=interpolate, method=method, fill_value=fill_value,
                             keep_nan=keep_nan, resolution=resolution, criterion=criterion)
         return self._stress_selected.to_md_histo_workspace(name, **export_kwags)
