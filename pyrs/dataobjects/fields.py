@@ -283,8 +283,8 @@ class ScalarFieldSample:
         # create a ScalarFieldSample with the sample points corresponding to the target indexes
         return self.extract(sorted(target_indexes))
 
-    def fuse(self, other: 'ScalarFieldSample',
-             resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = 'min_error') -> 'ScalarFieldSample':
+    def fuse_with(self, other: 'ScalarFieldSample',
+                  resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = 'min_error') -> 'ScalarFieldSample':
         r"""
         Bring in another scalar field sample and resolve the overlaps according to a selection criterum.
 
@@ -446,7 +446,7 @@ class StrainField:
         # Iterative fusing
         strain, strain_other = args[0: 2]  # first two strains in the list
         strain_fused = strain.fuse_with(strain_other, resolution=resolution, criterion=criterion)
-        for strain_other in args[2:]:  # fuse remaining strains, one at a time
+        for strain_other in args[2:]:  # fuse with remaining strains, one at a time
             strain_fused = strain_fused.fuse_with(strain_other, resolution=resolution, criterion=criterion)
         return strain_fused
 
@@ -760,9 +760,8 @@ class StrainField:
                 if scan1 == scan2:
                     raise RuntimeError(f'{self} and {other_strain} both contain scan {scan1}')
         strain._single_scans = self._single_scans + other_strain._single_scans
-        strain._field = self._field.fuse(other_strain._field,  # type: ignore
-                                         resolution=resolution,
-                                         criterion=criterion)
+        strain._field = self._field.fuse_with(other_strain._field,  # type: ignore
+                                              resolution=resolution, criterion=criterion)
         # copy over the filenames
         strain._filenames = []
         strain._filenames.extend(self._filenames)

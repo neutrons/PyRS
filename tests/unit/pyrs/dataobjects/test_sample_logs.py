@@ -183,11 +183,11 @@ class TestPointList:
         common = PointList(xyz1).intersection(PointList(xyz2), resolution=DEFAULT_POINT_RESOLUTION)
         assert common.vx == pytest.approx([1.0, 2.0, 3.0, 1.009, 0.995, 2.0, 3.005])
 
-    def test_fuse(self):
+    def test_fuse_with(self):
         xyz1 = [[0.0, 1.0, 2.0, 3.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]]
         xyz2 = [[1.009, 0.995, 2.0, 3.005, 4.0], [0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0]]
         point_list = PointList(xyz1)
-        common = point_list.fuse(PointList(xyz2), resolution=DEFAULT_POINT_RESOLUTION)
+        common = point_list.fuse_with(PointList(xyz2), resolution=DEFAULT_POINT_RESOLUTION)
         assert common.vx == pytest.approx([0.0, 1.0, 2.0, 3.0, 4.0])
 
     def test_extents(self, sample_logs_mock):

@@ -654,7 +654,7 @@ class PointList:
         # Pick only the first point out of each cluster
         return sorted([point_indexes[0] for point_indexes in clusters])
 
-    def fuse(self, other: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> 'PointList':
+    def fuse_with(self, other: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> 'PointList':
         r"""
         Add the points from two lists and discard redundant points.
 

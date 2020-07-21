@@ -417,9 +417,9 @@ class TestScalarFieldSample:
         np.testing.assert_equal(sample.errors[6: 11], [0.006, 0.007, 0.008, 0.008, 0.0])
         np.testing.assert_equal(sample.x[6: 11], [6.000, 7.000, 8.000, 9.005, 10.00])
 
-    def test_fuse(self):
+    def test_fuse_with(self):
         sample1 = ScalarFieldSample(*TestScalarFieldSample.sample1)
-        sample = sample1.fuse(ScalarFieldSample(*TestScalarFieldSample.sample2), criterion='min_error')
+        sample = sample1.fuse_with(ScalarFieldSample(*TestScalarFieldSample.sample2), criterion='min_error')
         assert len(sample) == 17  # discard the last point from sample1 and the first two points from sample2
         assert sample.name == 'lattice'
         # index 6 of aggregate sample corresponds to index 6 of sample1

@@ -42,7 +42,7 @@ def fuse_data():
     }
 
 
-def test_fuse(fuse_data):
+def test_fuse_with(fuse_data):
     # Boiler-plate code to create a ScalarFieldSample object for every subrun
     scalar_field_samples = list()
     for i in range(1, 1 + fuse_data['logs_count']):
