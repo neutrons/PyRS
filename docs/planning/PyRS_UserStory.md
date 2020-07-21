@@ -6,7 +6,7 @@ User Story Title: Strain-Stress
 | ------------- | ---------------|-----------|-------------|
 | Strain-Stress | Medium | ? | Jeff Bunn |
 
-As a neutron beamline user, I want to create a set of 1D, 2D or 3D data of strain, stress, or peak parameters from measured neutron data such that this set can be visualized, and output to be compared to, or used as, an input for material behavior modeling. 
+As a neutron beamline user, I want to create a set of 1D, 2D or 3D data of strain, stress, or peak parameters from measured neutron data such that this set can be visualized, and output to be compared to, or used as, an input for material behavior modeling.
 
 Acceptance Criteria:
 --------------------
@@ -42,3 +42,26 @@ Figures below are also saved in the repository
 ![grid visualization example 1](stress_strain_ui_1.tif)
 
 ![grid visualization example 2](stress_strain_ui_2.tif)
+
+User Story Title: Texture Analysis
+=============================
+
+| **ID** | **Complexity** |  **Est.** |  **Author** |
+| ------------- | ---------------|-----------|-------------|
+| Texture | Low | ? | Chris Fancher |
+
+
+As a neutron beamline user, I want the ability to extract peak intensities from texture data (raw data reduced by out-of-plan angle) and export these data for further analysis using third-party analysis packages.
+
+Acceptance Criteria:
+--------------------
+I will define a run number or select a specific project file through the texture UI. I will then specify the peak fitting ranges, background and peakshape functions (using the same mechanisms as the peak_fitting UI). The texture UI will provide an option to switch the peak fit summary bettween different out of plane angles, and plot changes in peak paratmers. The user will either export a csv summary of the peak collections or export a pole figure per peak collection.
+
+
+Description, Additional Detail, Context
+---------------------------------------
+The formulas to map extract peak intensity on top a pole figure are shown in: https://github.com/neutrons/PyRS/blob/master/docs/pole_figure.pdf
+Figures below are also saved in the repository
+
+![Mockup of the texture UI](texture_ui_1.tif)
+
