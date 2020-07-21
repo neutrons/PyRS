@@ -635,9 +635,9 @@ class TestStrainField:
         strain = strain_field_samples['HB2B_1320_peak0']
         histo = strain.to_md_histo_workspace(method='linear', resolution=DEFAULT_POINT_RESOLUTION)
         assert histo.id() == 'MDHistoWorkspace'
-        minimum_values = (-31.76, -7.20, -15.00)
-        maximum_values = (31.76, 7.20, 15.00)
-        bin_counts = (18, 6, 3)
+        minimum_values = (-31.76, -7.20, -15.00)  # bin boundary with the smallest coordinate along X, Y, and Z
+        maximum_values = (31.76, 7.20, 15.00)  # bin boundary with the largest coordinate along X, Y, and Z
+        bin_counts = (18, 6, 3)  # number of bins along  X, Y, and Z
         for i, (min_value, max_value, bin_count) in enumerate(zip(minimum_values, maximum_values, bin_counts)):
             dimension = histo.getDimension(i)
             assert dimension.getUnits() == 'meter'
@@ -854,8 +854,17 @@ class TestStressField:
 
     def test_to_md_histo_workspace(self, stress_samples):
         stress = stress_samples['stress diagonal']
-        histo = stress.to_md_histo_workspace(method='linear')
+        histo = stress.to_md_histo_workspace(method='linear', resolution=DEFAULT_POINT_RESOLUTION)
+        minimum_values = (-0.5, -0.0005, -0.0005)  # bin boundary with the smallest coordinate along X, Y, and Z
+        maximum_values = (9.5, 0.0005, 0.0005)  # bin boundary with the largest coordinate along X, Y, and Z
+        bin_counts = (10, 1, 1)  # number of bins along  X, Y, and Z
         assert histo.id() == 'MDHistoWorkspace'
+        for i, (min_value, max_value, bin_count) in enumerate(zip(minimum_values, maximum_values, bin_counts)):
+            dimension = histo.getDimension(i)
+            assert dimension.getUnits() == 'meter'
+            assert dimension.getMinimum() == pytest.approx(min_value, abs=1.e-02)
+            assert dimension.getMaximum() == pytest.approx(max_value, abs=1.e-02)
+            assert dimension.getNBins() == bin_count
 
 
 @pytest.fixture(scope='module')
