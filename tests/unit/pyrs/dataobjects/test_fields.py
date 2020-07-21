@@ -706,18 +706,23 @@ def strains_for_stress_field_1():
     Z = [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
     # selected to make terms drop out
 
-    sample11 = ScalarFieldSample('strain',
-                                 [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.080, 0.009],  # values
-                                 [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],  # errors
-                                 X, Y, Z)
-    sample22 = ScalarFieldSample('strain',
-                                 [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.080, 0.009],  # values
-                                 [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],  # errors
-                                 X, Y, Z)
-    sample33 = ScalarFieldSample('strain',
-                                 [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.080, 0.009],  # values
-                                 [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],  # errors
-                                 X, Y, Z)
+    def strain_instantiator(name, values, errors, x, y, z):
+        strain = StrainField()
+        strain._field = ScalarFieldSample(name, values, errors, x, y, z)
+        return strain
+
+    sample11 = strain_instantiator('strain',
+                                   [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.080, 0.009],  # values
+                                   [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],  # errors
+                                   X, Y, Z)
+    sample22 = strain_instantiator('strain',
+                                   [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.080, 0.009],  # values
+                                   [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],  # errors
+                                   X, Y, Z)
+    sample33 = strain_instantiator('strain',
+                                   [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.080, 0.009],  # values
+                                   [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],  # errors
+                                   X, Y, Z)
     return sample11, sample22, sample33
 
 
@@ -738,7 +743,7 @@ class TestStressField:
         vz = [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
         coordinates = np.array([vx, vy, vz]).T
         field = StressField(*strains_for_stress_field_1, 1.0, 1.0)
-        np.allclose(field.point_list.coordinates, coordinates)
+        np.allclose(field.coordinates, coordinates)
 
     def test_youngs_modulus(self, strains_for_stress_field_1):
         r"""Test poisson_ratio property"""
@@ -752,24 +757,29 @@ class TestStressField:
         field = StressField(*strains_for_stress_field_1, 1.0, poisson_ratio)
         assert field.poisson_ratio == pytest.approx(poisson_ratio)
 
-    def test_create_stress_field(self):
+    def test_create_stress_field(self, allclose_with_sorting):
         X = [0.000, 1.000, 2.000, 3.000, 4.000, 5.000, 6.000, 7.000, 8.000, 9.000]
         Y = [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
         Z = [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
         # selected to make terms drop out
 
-        sample11 = ScalarFieldSample('strain',
-                                     [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.080, 0.009],  # values
-                                     [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],  # errors
-                                     X, Y, Z)
-        sample22 = ScalarFieldSample('strain',
-                                     [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.080, 0.009],  # values
-                                     [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],  # errors
-                                     X, Y, Z)
-        sample33 = ScalarFieldSample('strain',
-                                     [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.080, 0.009],  # values
-                                     [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],  # errors
-                                     X, Y, Z)
+        def strain_instantiator(name, values, errors, x, y, z):
+            strain = StrainField()
+            strain._field = ScalarFieldSample(name, values, errors, x, y, z)
+            return strain
+
+        sample11 = strain_instantiator('strain',
+                                       [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],
+                                       [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],
+                                       X, Y, Z)
+        sample22 = strain_instantiator('strain',
+                                       [0.010, 0.011, 0.012, 0.013, 0.014, 0.015, 0.016, 0.017, 0.018, 0.019],
+                                       [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],
+                                       X, Y, Z)
+        sample33 = strain_instantiator('strain',
+                                       [0.020, 0.021, 0.022, 0.023, 0.024, 0.025, 0.026, 0.027, 0.028, 0.029],
+                                       [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],
+                                       X, Y, Z)
 
         POISSON = 1. / 3.  # makes nu / (1 - 2*nu) == 1
         YOUNG = 1 + POISSON  # makes E / (1 + nu) == 1
@@ -777,36 +787,37 @@ class TestStressField:
         # test diagonal calculation
         diagonal = StressField(sample11, sample22, sample33, YOUNG, POISSON)
         assert diagonal
+        # check strains
+        for direction, sample in zip(('11', '22', '33'), (sample11, sample22, sample33)):
+            diagonal.select(direction)
+            assert allclose_with_sorting(diagonal.strain.values, sample.values)
         # check coordinates
-        np.testing.assert_equal(diagonal.point_list.vx, X)
-        np.testing.assert_equal(diagonal.point_list.vy, Y)
-        np.testing.assert_equal(diagonal.point_list.vz, Z)
+        assert allclose_with_sorting(diagonal.x, X)
+        assert allclose_with_sorting(diagonal.y, Y)
+        assert allclose_with_sorting(diagonal.z, Z)
         # check values
         second = (sample11.values + sample22.values + sample33.values)
         diagonal.select('11')
-        np.testing.assert_allclose(diagonal.values, sample11.values + second)
-        assert diagonal.strain == sample11
+        assert allclose_with_sorting(diagonal.values, sample11.values + second)
         diagonal.select('22')
-        np.testing.assert_allclose(diagonal.values, sample22.values + second)
-        assert diagonal.strain == sample22
+        assert allclose_with_sorting(diagonal.values, sample22.values + second)
         diagonal.select('33')
-        np.testing.assert_allclose(diagonal.values, sample33.values + second)
-        assert diagonal.strain == sample33
+        assert allclose_with_sorting(diagonal.values, sample33.values + second)
 
         in_plane_strain = StressField(sample11, sample22, None, YOUNG, POISSON, 'in-plane-strain')
         assert in_plane_strain
         # check coordinates
-        np.testing.assert_equal(in_plane_strain.point_list.vx, X)
-        np.testing.assert_equal(in_plane_strain.point_list.vy, Y)
-        np.testing.assert_equal(in_plane_strain.point_list.vz, Z)
+        assert allclose_with_sorting(in_plane_strain.x, X)
+        assert allclose_with_sorting(in_plane_strain.y, Y)
+        assert allclose_with_sorting(in_plane_strain.z, Z)
         # check values
         second = (sample11.values + sample22.values)
         in_plane_strain.select('11')
-        np.testing.assert_allclose(in_plane_strain.values, sample11.values + second)
+        allclose_with_sorting(in_plane_strain.values, sample11.values + second)
         in_plane_strain.select('22')
-        np.testing.assert_allclose(in_plane_strain.values, sample22.values + second)
+        allclose_with_sorting(in_plane_strain.values, sample22.values + second)
         in_plane_strain.select('33')
-        np.testing.assert_allclose(in_plane_strain.values, second)
+        allclose_with_sorting(in_plane_strain.values, second)
 
         # redefine values to simplify things
         POISSON = 1. / 2.  # makes nu / (1 - nu) == 1
@@ -815,18 +826,18 @@ class TestStressField:
         in_plane_stress = StressField(sample11, sample22, None, YOUNG, POISSON, 'in-plane-stress')
         assert in_plane_stress
         # check coordinates
-        np.testing.assert_equal(in_plane_stress.point_list.vx, X)
-        np.testing.assert_equal(in_plane_stress.point_list.vy, Y)
-        np.testing.assert_equal(in_plane_stress.point_list.vz, Z)
+        assert allclose_with_sorting(in_plane_stress.point_list.vx, X)
+        assert allclose_with_sorting(in_plane_stress.point_list.vy, Y)
+        assert allclose_with_sorting(in_plane_stress.point_list.vz, Z)
         # check values
         second = (sample11.values + sample22.values)
         in_plane_stress.select('11')
-        np.testing.assert_allclose(in_plane_stress.values, sample11.values + second)
+        assert allclose_with_sorting(in_plane_stress.values, sample11.values + second)
         in_plane_stress.select('22')
-        np.testing.assert_allclose(in_plane_stress.values, sample22.values + second)
+        assert allclose_with_sorting(in_plane_stress.values, sample22.values + second)
         in_plane_stress.select('33')
-        np.testing.assert_equal(in_plane_stress.values, 0.)
-        np.testing.assert_equal(in_plane_stress.errors, 0.)
+        assert allclose_with_sorting(in_plane_stress.values, 0.)
+        assert allclose_with_sorting(in_plane_stress.errors, 0.)
 
 
 @pytest.fixture(scope='module')
