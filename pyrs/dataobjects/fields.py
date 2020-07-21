@@ -96,7 +96,7 @@ class ScalarFieldSample:
         """
         stack_kwargs = dict(resolution=DEFAULT_POINT_RESOLUTION, stack_mode='complete')
         if isinstance(other, ScalarFieldSample):
-            return stack_scalar_field_samples(self, other, **stack_kwargs)
+            return stack_scalar_field_samples(self, other, **stack_kwargs)  # type: ignore
         elif isinstance(other, (list, tuple)):
             for field in other:
                 if isinstance(field, ScalarFieldSample) is False:
@@ -125,6 +125,8 @@ class ScalarFieldSample:
                 if isinstance(strain, ScalarFieldSample) is False:
                     raise TypeError(f'{strain} is not a {str(self.__class__)} object')
             return stack_scalar_field_samples(*other, self, **stack_kwargs)
+        else:
+            raise RuntimeError('Unable to multiply these two objects')
 
     @property
     def name(self) -> str:
@@ -327,7 +329,7 @@ class ScalarFieldSample:
         -------
         ~pyrs.dataobjects.fields.ScalarFieldSample
         """
-        def min_error(indexes):
+        def min_error(indexes: List[int]) -> List[int]:
             r"""Find index of sample point with minimum error of the scalar field"""
             error_values = np.array(self.errors)[indexes]
             error_min_index = np.nanargmin(error_values)  # ignore 'nan' values
