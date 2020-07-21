@@ -104,20 +104,20 @@ class Model(QObject):
             return f"Peak {self.selectedPeak} is not in e{direction}"
 
     def get_field_md(self, direction, plot_param):
-        if plot_param == "stress":
-            self._stress.select(direction)
-            return self._stress.to_md_histo_workspace(f'e{direction} {plot_param}')
-        else:
-            try:
+        try:
+            if plot_param == "stress":
+                self._stress.select(direction)
+                return self._stress.to_md_histo_workspace(f'e{direction} {plot_param}')
+            else:
                 return generateParameterField(plot_param,
                                               hidraworkspace=getattr(self, f'e{direction}'),
                                               peak_collection=getattr(self, f'e{direction}_peaks')[self.selectedPeak],
                                               ).to_md_histo_workspace(f'e{direction} {plot_param}')
-            except Exception as e:
-                self.failureMsg.emit(f"Failed to generate field for parameter {plot_param} in direction {direction}",
-                                     str(e),
-                                     traceback.format_exc())
-                return None
+        except Exception as e:
+            self.failureMsg.emit(f"Failed to generate field for parameter {plot_param} in direction {direction}",
+                                 str(e),
+                                 traceback.format_exc())
+            return None
 
     def calculate_stress(self, stress_case, youngModulus, poissonsRatio):
         self._stress = StressField(StrainField(hidraworkspace=self.e11,
