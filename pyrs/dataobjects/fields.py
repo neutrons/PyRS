@@ -353,7 +353,7 @@ class ScalarFieldSample:
             target_indexes.extend([point_indexes[0] for point_indexes in clusters[cluster_index:]])
 
         # create a ScalarFieldSample with the sample points corresponding to the target indexes
-        return self.extract(sorted(target_indexes))
+        return self.extract(sorted(target_indexes))  # type: ignore
 
     def fuse_with(self, other: 'ScalarFieldSample',
                   resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = 'min_error') -> 'ScalarFieldSample':
