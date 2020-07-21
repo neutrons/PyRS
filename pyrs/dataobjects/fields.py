@@ -56,6 +56,79 @@ class ScalarFieldSample:
     def __len__(self) -> int:
         return len(self.values)
 
+    def __add__(self, other_field: 'ScalarFieldSample') -> 'ScalarFieldSample':
+        r"""
+        Fuse the current strain with another strain using the default resolution distance and overlap criterion
+
+        resolution = ~pyrs.dataobjects.constants.DEFAULT_POINT_RESOLUTION
+        criterion = 'min_error'
+
+        Parameters
+        ----------
+        other_strain:  ~pyrs.dataobjects.fields.ScalarFieldSample
+            Right-hand side of operation addition
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.ScalarFieldSample
+        """
+        return self.fuse_with(other_field)
+
+    def __mul__(self, other: 'ScalarFieldSample') -> List['ScalarFieldSample']:
+        r"""
+        Stack this field with another field, or with a list of field
+
+        Stacking two fields
+            field1_stacked, field2_stacked = field1 * field2
+        Stacking three fields proceeds by first stacking the two leftmost fields:
+           field1 * field2 * field3 --> [field1_stacked, field2_stacked] * field3
+        which is why we need to implement '*' between a list and field object
+
+        Parameters
+        ----------
+        other: ~pyrs.dataobjects.fields.ScalarFieldSample, list
+            If a list, each item is a ~pyrs.dataobjects.fields.ScalarFieldSample object
+
+        Returns
+        -------
+        list
+            list of stacked ~pyrs.dataobjects.fields.ScalarFieldSample objects.
+        """
+        stack_kwargs = dict(resolution=DEFAULT_POINT_RESOLUTION, stack_mode='complete')
+        if isinstance(other, ScalarFieldSample):
+            return stack_scalar_field_samples(self, other, **stack_kwargs)  # type: ignore
+        elif isinstance(other, (list, tuple)):
+            for field in other:
+                if isinstance(field, ScalarFieldSample) is False:
+                    raise TypeError(f'{field} is not a {str(self.__class__)} object')
+            return stack_scalar_field_samples(self, *other, **stack_kwargs)
+
+    def __rmul__(self, other: 'ScalarFieldSample') -> List['ScalarFieldSample']:
+        r"""
+        Stack a list of fields along with this field.
+
+        Example: [field1, field2] * field3 --> field1_stacked, field3_stacked, field3_stacked
+
+        Parameters
+        ----------
+        other: list
+            Each item is a ~pyrs.dataobjects.fields.ScalarFieldSample object.
+
+        Return
+        ------
+        list
+            List of stacked strains. Each item is a ~pyrs.dataobjects.fields.ScalarFieldSample object.
+        """
+        stack_kwargs = dict(resolution=DEFAULT_POINT_RESOLUTION, stack_mode='complete')
+        if isinstance(other, (list, tuple)):
+            for strain in other:
+                if isinstance(strain, ScalarFieldSample) is False:
+                    raise TypeError(f'{strain} is not a {str(self.__class__)} object')
+            return stack_scalar_field_samples(*other, self, **stack_kwargs)
+        else:
+            error_message = f'Unable to multiply objects of type {str(other.__class__)} and ScalarFieldSample'
+            raise NotImplementedError(error_message)
+
     @property
     def name(self) -> str:
         r"""The identifying name of the scalar field"""
@@ -257,7 +330,7 @@ class ScalarFieldSample:
         -------
         ~pyrs.dataobjects.fields.ScalarFieldSample
         """
-        def min_error(indexes):
+        def min_error(indexes: List[int]) -> List[int]:
             r"""Find index of sample point with minimum error of the scalar field"""
             error_values = np.array(self.errors)[indexes]
             error_min_index = np.nanargmin(error_values)  # ignore 'nan' values
@@ -281,7 +354,7 @@ class ScalarFieldSample:
             target_indexes.extend([point_indexes[0] for point_indexes in clusters[cluster_index:]])
 
         # create a ScalarFieldSample with the sample points corresponding to the target indexes
-        return self.extract(sorted(target_indexes))
+        return self.extract(sorted(target_indexes))  # type: ignore
 
     def fuse_with(self, other: 'ScalarFieldSample',
                   resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = 'min_error') -> 'ScalarFieldSample':
@@ -507,7 +580,21 @@ class StrainField:
             self._initialize_with_single_scan(**single_scan_kwargs)  # type: ignore
 
     def __add__(self, other_strain):
-        r"""Fuse the current strain with another strain using the default resolution distance and overlap criterium"""
+        r"""
+        Fuse the current strain with another strain using the default resolution distance and overlap criterion
+
+        resolution = ~pyrs.dataobjects.constants.DEFAULT_POINT_RESOLUTION
+        criterion = 'min_error'
+
+        Parameters
+        ----------
+        other_strain:  ~pyrs.dataobjects.fields.StrainField
+            Right-hand side of operation addition
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.StrainField
+        """
         return self.fuse_with(other_strain)
 
     def __len__(self):
@@ -554,8 +641,10 @@ class StrainField:
         if isinstance(other, (list, tuple)):
             for strain in other:
                 if isinstance(strain, StrainField) is False:
-                    raise TypeError(f'{strain} is not a {str(self.__class__)} object')
+                    raise TypeError(f'{strain} is not a StrainField object')
             return self.__class__.stack_strains(*other, self, **stack_kwargs)
+        else:
+            raise NotImplementedError(f'Unable to multiply objects of type {str(other.__class__)} and StrainField')
 
     @property
     def filenames(self):

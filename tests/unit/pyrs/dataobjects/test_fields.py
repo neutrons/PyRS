@@ -428,6 +428,17 @@ class TestScalarFieldSample:
         np.testing.assert_equal(sample.errors[6: 11], [0.006, 0.007, 0.008, 0.008, 0.0])
         np.testing.assert_equal(sample.x[6: 11], [6.000, 7.000, 8.000, 9.005, 10.00])
 
+    def test_add(self):
+        sample1 = ScalarFieldSample(*TestScalarFieldSample.sample1)
+        sample = sample1 + ScalarFieldSample(*TestScalarFieldSample.sample2)
+        assert len(sample) == 17  # discard the last point from sample1 and the first two points from sample2
+        assert sample.name == 'lattice'
+        # index 6 of aggregate sample corresponds to index 6 of sample1
+        # index 11 of aggregate sample corresponds to index 3 of sample2
+        np.testing.assert_equal(sample.values[6: 11], [1.060, 1.070, 1.080, 1.091, 1.10])
+        np.testing.assert_equal(sample.errors[6: 11], [0.006, 0.007, 0.008, 0.008, 0.0])
+        np.testing.assert_equal(sample.x[6: 11], [6.000, 7.000, 8.000, 9.005, 10.00])
+
     def test_export(self):
         # Create a scalar field
         xyz = [list(range(0, 10)), list(range(10, 20)), list(range(20, 30))]
@@ -927,6 +938,39 @@ def test_fuse_scalar_field_samples(field_sample_collection):
                                                          0.007, 0.008, 0.008, 0.03, 0.04, 0.05, 0.06])
     assert sorted(fused_sample.x) == pytest.approx([0.0, 1.0, 2.0, 3.009, 4.0, 5.0, 6.0, 6.011,
                                                     7.0, 7.011, 8.0, 8.011, 9.0, 9.011])
+
+
+def test_mul(field_sample_collection, approx_with_sorting, allclose_with_sorting):
+    # test stacking with the 'complete' mode
+    sample1_unstacked = ScalarFieldSample(*field_sample_collection['sample1'])
+    sample2_unstacked = ScalarFieldSample(*field_sample_collection['sample2'])
+    sample3_unstacked = ScalarFieldSample(*field_sample_collection['sample3'])
+
+    # stack using '*' operator
+    sample1, sample2, sample3 = sample1_unstacked * sample2_unstacked * sample3_unstacked
+
+    for sample in (sample1, sample2, sample3):
+        assert len(sample) == 14
+        approx_with_sorting(sample.x,
+                            [5.0, 4.0, 3.003, 2.003, 1.003, 0.003, 9.0, 8.0, 6.0, 7.0, 9.011, 8.011, 6.011, 7.011])
+
+    # Assert evaluations for sample1
+    sample1_values = [1.05, 1.04, 1.03, 1.02, 1.01, 1.0,
+                      1.09, 1.08, 1.06, 1.07,
+                      float('nan'), float('nan'), float('nan'), float('nan')]
+    assert allclose_with_sorting(sample1.values, sample1_values, equal_nan=True)
+
+    # Assert evaluations for sample2
+    sample2_values = [1.12, 1.11, 1.1, 1.091, 1.081, 1.071,
+                      float('nan'), float('nan'), float('nan'), float('nan'),
+                      1.16, 1.15, 1.13, 1.14]
+    assert allclose_with_sorting(sample2.values, sample2_values, equal_nan=True)
+
+    # Assert evaluations for sample3
+    sample3_values = [1.05, 1.04, 1.03, 1.02, 1.01, 1.0,
+                      1.091, 1.08, 1.06, 1.07,
+                      float('nan'), float('nan'), float('nan'), float('nan')]
+    assert allclose_with_sorting(sample3.values, sample3_values, equal_nan=True)
 
 
 def test_stack_scalar_field_samples(field_sample_collection,

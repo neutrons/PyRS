@@ -33,7 +33,12 @@ def allclose_with_sorting():
     """
     def inner_function(left, right, *args, **kwargs):
         if np.allclose(left, right, *args, **kwargs) is False:
-            return np.allclose(sorted(left), sorted(right), *args, **kwargs)
+            equal_nan = kwargs.pop('equal_nan', False)
+            if equal_nan is True:
+                assert len(np.where(np.isnan(left))[0]) == len(np.where(np.isnan(right))[0])  # same number of nan
+            left_array, right_array = np.array(left), np.array(right)  # cast to numpy array
+            left_array, right_array = sorted(left_array[np.isfinite(left)]), sorted(right_array[np.isfinite(right)])
+            return np.allclose(left_array, right_array, *args, **kwargs)
         return True
     return inner_function
 
