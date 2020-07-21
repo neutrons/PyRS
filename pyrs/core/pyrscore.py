@@ -3,7 +3,6 @@ from pyrs.utilities import checkdatatypes
 from pyrs.core import instrument_geometry
 from pyrs.utilities import file_util
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
-from pyrs.core import strain_stress_calculator
 from pyrs.core import reduction_manager
 from pyrs.core import polefigurecalculator
 import os
@@ -258,22 +257,6 @@ class PyRsCore:
         """
         raise NotImplementedError('{}/{}/{}/{} need to be implemented'
                                   ''.format(data_key, detectors, file_name, file_type))
-
-    def new_strain_stress_session(self, session_name, is_plane_stress, is_plane_strain):
-        """ Create a new strain/stress session by initializing a new StrainStressCalculator instance
-        :param session_name: name of strain/stress session to query
-        :param is_plane_stress: flag for being plane stress (specific equation)
-        :param is_plane_strain:
-        :return:
-        """
-        ss_type = self._get_strain_stress_type_key(is_plane_strain, is_plane_stress)
-        new_ss_calculator = strain_stress_calculator.StrainStressCalculator(session_name, is_plane_strain,
-                                                                            is_plane_stress)
-
-        self._ss_calculator_dict[session_name] = dict()
-        self._ss_calculator_dict[session_name][ss_type] = new_ss_calculator
-        self._curr_ss_session = session_name
-        self._curr_ss_type = ss_type
 
     def reduce_diffraction_data(self, session_name, num_bins, pyrs_engine, mask_file_name=None,
                                 geometry_calibration=None, sub_run_list=None):
