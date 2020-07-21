@@ -70,7 +70,7 @@ class ScalarFieldSample:
         return unumpy.std_devs(self._sample)
 
     @property
-    def sample(self):
+    def sample(self) -> np.ndarray:
         r"""
         Uncertainties arrays containing both values and errors.
 
