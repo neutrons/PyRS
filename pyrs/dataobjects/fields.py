@@ -126,7 +126,8 @@ class ScalarFieldSample:
                     raise TypeError(f'{strain} is not a {str(self.__class__)} object')
             return stack_scalar_field_samples(*other, self, **stack_kwargs)
         else:
-            raise RuntimeError('Unable to multiply these two objects')
+            error_message = f'Unable to multiply objects of type {str(other.__class__)} and ScalarFieldSample'
+            raise NotImplementedError(error_message)
 
     @property
     def name(self) -> str:
@@ -640,8 +641,10 @@ class StrainField:
         if isinstance(other, (list, tuple)):
             for strain in other:
                 if isinstance(strain, StrainField) is False:
-                    raise TypeError(f'{strain} is not a {str(self.__class__)} object')
+                    raise TypeError(f'{strain} is not a StrainField object')
             return self.__class__.stack_strains(*other, self, **stack_kwargs)
+        else:
+            raise NotImplementedError(f'Unable to multiply objects of type {str(other.__class__)} and StrainField')
 
     @property
     def filenames(self):
