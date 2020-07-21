@@ -1,6 +1,6 @@
 import traceback
 import numpy as np
-from pyrs.dataobjects.fields import generateParameterField, StressField
+from pyrs.dataobjects.fields import generateParameterField, StressField, StrainField
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
 from qtpy.QtCore import Signal, QObject
@@ -120,12 +120,12 @@ class Model(QObject):
                 return None
 
     def calculate_stress(self, stress_case, youngModulus, poissonsRatio):
-        self._stress = StressField(generateParameterField('strain', hidraworkspace=self.e11,
-                                                          peak_collection=self.e11_peaks[self.selectedPeak]),
-                                   generateParameterField('strain', hidraworkspace=self.e22,
-                                                          peak_collection=self.e22_peaks[self.selectedPeak]),
-                                   generateParameterField('strain', hidraworkspace=self.e33,
-                                                          peak_collection=self.e33_peaks[self.selectedPeak])
+        self._stress = StressField(StrainField(hidraworkspace=self.e11,
+                                               peak_collection=self.e11_peaks[self.selectedPeak]),
+                                   StrainField(hidraworkspace=self.e22,
+                                               peak_collection=self.e22_peaks[self.selectedPeak]),
+                                   StrainField(hidraworkspace=self.e33,
+                                               peak_collection=self.e33_peaks[self.selectedPeak])
                                    if stress_case == "diagonal" else None,
                                    youngModulus, poissonsRatio, stress_case)
 
