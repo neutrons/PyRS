@@ -1001,22 +1001,24 @@ class StressField:
 
     @property
     def values(self) -> np.ndarray:
+        assert self._stress_selected, 'No direction has yet been selected'
         return self._stress_selected.values
 
     @property
     def errors(self) -> np.ndarray:
+        assert self._stress_selected, 'No direction has yet been selected'
         return self._stress_selected.errors
 
     @property
-    def strain(self) -> StrainField:
+    def strain(self) -> Optional[StrainField]:
         return self._strain_selected
 
-    def select(self, direction: str):
+    def select(self, direction: Union[Direction, str]):
         self.direction = Direction.get(direction)
         direction_to_stress = {Direction.X: self.stress11, Direction.Y: self.stress22, Direction.Z: self.stress33}
         direction_to_strain = {Direction.X: self._strain11, Direction.Y: self._strain22, Direction.Z: self._strain33}
-        self._stress_selected = direction_to_stress[self.direction]
-        self._strain_selected = direction_to_strain[self.direction]
+        self._stress_selected = direction_to_stress[self.direction]  # type: ignore
+        self._strain_selected = direction_to_strain[self.direction]  # type: ignore
 
 
 def stack_scalar_field_samples(*fields,
