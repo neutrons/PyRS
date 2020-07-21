@@ -74,6 +74,58 @@ class ScalarFieldSample:
         """
         return self.fuse_with(other_field)
 
+    def __mul__(self, other: 'ScalarFieldSample') -> List['ScalarFieldSample']:
+        r"""
+        Stack this field with another field, or with a list of field
+
+        Stacking two fields
+            field1_stacked, field2_stacked = field1 * field2
+        Stacking three fields proceeds by first stacking the two leftmost fields:
+           field1 * field2 * field3 --> [field1_stacked, field2_stacked] * field3
+        which is why we need to implement '*' between a list and field object
+
+        Parameters
+        ----------
+        other: ~pyrs.dataobjects.fields.ScalarFieldSample, list
+            If a list, each item is a ~pyrs.dataobjects.fields.ScalarFieldSample object
+
+        Returns
+        -------
+        list
+            list of stacked ~pyrs.dataobjects.fields.ScalarFieldSample objects.
+        """
+        stack_kwargs = dict(resolution=DEFAULT_POINT_RESOLUTION, stack_mode='complete')
+        if isinstance(other, ScalarFieldSample):
+            return stack_scalar_field_samples(self, other, **stack_kwargs)
+        elif isinstance(other, (list, tuple)):
+            for field in other:
+                if isinstance(field, ScalarFieldSample) is False:
+                    raise TypeError(f'{field} is not a {str(self.__class__)} object')
+            return stack_scalar_field_samples(self, *other, **stack_kwargs)
+
+    def __rmul__(self, other: 'ScalarFieldSample') -> List['ScalarFieldSample']:
+        r"""
+        Stack a list of fields along with this field.
+
+        Example: [field1, field2] * field3 --> field1_stacked, field3_stacked, field3_stacked
+
+        Parameters
+        ----------
+        other: list
+            Each item is a ~pyrs.dataobjects.fields.ScalarFieldSample object.
+
+        Return
+        ------
+        list
+            List of stacked strains. Each item is a ~pyrs.dataobjects.fields.ScalarFieldSample object.
+        """
+        stack_kwargs = dict(resolution=DEFAULT_POINT_RESOLUTION, stack_mode='complete')
+        if isinstance(other, (list, tuple)):
+            for strain in other:
+                if isinstance(strain, ScalarFieldSample) is False:
+                    raise TypeError(f'{strain} is not a {str(self.__class__)} object')
+            return stack_scalar_field_samples(*other, self, **stack_kwargs)
+
     @property
     def name(self) -> str:
         r"""The identifying name of the scalar field"""
