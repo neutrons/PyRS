@@ -912,6 +912,39 @@ def test_fuse_scalar_field_samples(field_sample_collection):
                                                     7.0, 7.011, 8.0, 8.011, 9.0, 9.011])
 
 
+def test_mul(field_sample_collection, approx_with_sorting, allclose_with_sorting):
+    # test stacking with the 'complete' mode
+    sample1_unstacked = ScalarFieldSample(*field_sample_collection['sample1'])
+    sample2_unstacked = ScalarFieldSample(*field_sample_collection['sample2'])
+    sample3_unstacked = ScalarFieldSample(*field_sample_collection['sample3'])
+
+    # stack using '*' operator
+    sample1, sample2, sample3 = sample1_unstacked * sample2_unstacked * sample3_unstacked
+
+    for sample in (sample1, sample2, sample3):
+        assert len(sample) == 14
+        approx_with_sorting(sample.x,
+                            [5.0, 4.0, 3.003, 2.003, 1.003, 0.003, 9.0, 8.0, 6.0, 7.0, 9.011, 8.011, 6.011, 7.011])
+
+    # Assert evaluations for sample1
+    sample1_values = [1.05, 1.04, 1.03, 1.02, 1.01, 1.0,
+                      1.09, 1.08, 1.06, 1.07,
+                      float('nan'), float('nan'), float('nan'), float('nan')]
+    assert allclose_with_sorting(sample1.values, sample1_values, equal_nan=True)
+
+    # Assert evaluations for sample2
+    sample2_values = [1.12, 1.11, 1.1, 1.091, 1.081, 1.071,
+                      float('nan'), float('nan'), float('nan'), float('nan'),
+                      1.16, 1.15, 1.13, 1.14]
+    assert allclose_with_sorting(sample2.values, sample2_values, equal_nan=True)
+
+    # Assert evaluations for sample3
+    sample3_values = [1.05, 1.04, 1.03, 1.02, 1.01, 1.0,
+                      1.091, 1.08, 1.06, 1.07,
+                      float('nan'), float('nan'), float('nan'), float('nan')]
+    assert allclose_with_sorting(sample3.values, sample3_values, equal_nan=True)
+
+
 def test_stack_scalar_field_samples(field_sample_collection,
                                     approx_with_sorting, assert_almost_equal_with_sorting, allclose_with_sorting):
     r"""Stack three scalar fields"""
