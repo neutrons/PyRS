@@ -428,6 +428,17 @@ class TestScalarFieldSample:
         np.testing.assert_equal(sample.errors[6: 11], [0.006, 0.007, 0.008, 0.008, 0.0])
         np.testing.assert_equal(sample.x[6: 11], [6.000, 7.000, 8.000, 9.005, 10.00])
 
+    def test_add(self):
+        sample1 = ScalarFieldSample(*TestScalarFieldSample.sample1)
+        sample = sample1 + ScalarFieldSample(*TestScalarFieldSample.sample2)
+        assert len(sample) == 17  # discard the last point from sample1 and the first two points from sample2
+        assert sample.name == 'lattice'
+        # index 6 of aggregate sample corresponds to index 6 of sample1
+        # index 11 of aggregate sample corresponds to index 3 of sample2
+        np.testing.assert_equal(sample.values[6: 11], [1.060, 1.070, 1.080, 1.091, 1.10])
+        np.testing.assert_equal(sample.errors[6: 11], [0.006, 0.007, 0.008, 0.008, 0.0])
+        np.testing.assert_equal(sample.x[6: 11], [6.000, 7.000, 8.000, 9.005, 10.00])
+
     def test_export(self):
         # Create a scalar field
         xyz = [list(range(0, 10)), list(range(10, 20)), list(range(20, 30))]
