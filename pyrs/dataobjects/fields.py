@@ -1034,7 +1034,7 @@ class StressField:
         self._strain11, self._strain22, self._strain33 = self._stack_strains(strain11, strain22, strain33)
 
         # Back calculate self._strain33 when in-plane stress
-        if stress_type == StressType.IN_PLANE_STRESS:
+        if self.stress_type == StressType.IN_PLANE_STRESS:
             self._strain33 = self._strain33_when_inplane_stress()
 
         # Calculate stress fields, and strain33 if stress_type=StressType.IN_PLANE_STRESS

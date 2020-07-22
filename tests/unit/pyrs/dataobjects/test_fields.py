@@ -868,12 +868,22 @@ class TestStressField:
         # check values
         second = (sample11.values + sample22.values)
         in_plane_stress.select('11')
+        strain11 = in_plane_stress.strain.values
         assert allclose_with_sorting(in_plane_stress.values, sample11.values + second)
         in_plane_stress.select('22')
+        strain22 = in_plane_stress.strain.values
         assert allclose_with_sorting(in_plane_stress.values, sample22.values + second)
         in_plane_stress.select('33')
-        assert allclose_with_sorting(in_plane_stress.values, 0.)
+        strain33 = in_plane_stress.strain.values
+        assert allclose_with_sorting(in_plane_stress.values, 0.)  # no stress on the 33 direction
         assert allclose_with_sorting(in_plane_stress.errors, 0.)
+        factor = POISSON / (POISSON - 1)
+        assert np.allclose(strain33, factor * (strain11 + strain22))
+
+    def test_strain33_when_inplane_stress(self, strains_for_stress_field_1):
+        sample11, sample22 = strains_for_stress_field_1[0:2]
+        stress = StressField(sample11, sample22, None, 1.0, 2.0, 'in-plane-stress')
+        assert np.allclose(stress._strain33.values, 2 * (stress._strain11.values + stress._strain22.values))
 
     def test_to_md_histo_workspace(self, stress_samples):
         stress = stress_samples['stress diagonal']
