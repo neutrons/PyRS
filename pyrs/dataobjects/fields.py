@@ -1146,7 +1146,7 @@ class StressField:
 
         # calculate the additive trace
         if self.stress_type == StressType.DIAGONAL:
-            strain33 = self._strain33.sample
+            strain33 = self._strain33.sample  # type: ignore
         else:
             strain33 = sample_zero
         f = 1.0 if self.stress_type == StressType.IN_PLANE_STRESS else 2.0
@@ -1279,7 +1279,7 @@ class StressField:
         list
             Each item is a ~pyrs.dataobjects.fields.StrainField object.
         """
-        return self._strain11, self._strain22, self._strain33
+        return self._strain11, self._strain22, self._strain33  # type: ignore
 
     @property
     def youngs_modulus(self) -> float:
