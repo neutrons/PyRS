@@ -1,2 +1,4 @@
 uncertainties
 scipy>=0.18
+qtpy
+h5py
