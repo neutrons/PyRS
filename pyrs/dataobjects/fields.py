@@ -1104,8 +1104,7 @@ class StressField:
         factor = self.poisson_ratio / (self.poisson_ratio - 1)
         strain33 = factor * (self._strain11.sample + self._strain22.sample)  # unumpy.array
         values, errors = unumpy.nominal_values(strain33), unumpy.std_devs(strain33)
-        field_sample = ScalarFieldSample('strain', values, errors, self.x, self.y, self.z)
-        return StrainField(field_sample=field)
+        return StrainField(field_sample=ScalarFieldSample('strain', values, errors, self.x, self.y, self.z))
 
     @property
     def size(self):
