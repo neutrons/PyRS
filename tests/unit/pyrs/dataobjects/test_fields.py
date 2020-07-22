@@ -614,22 +614,30 @@ class TestStrainField:
     def test_stack_strains(self, strain_field_samples, allclose_with_sorting):
         strain1 = strain_field_samples['HB2B_1320_peak0']
         strain2 = strain_field_samples['HB2B_1320_']
+
         # Stack two strains having the same evaluation points.
         strain1_stacked, strain2_stacked = strain1 * strain2  # default resolution and stacking mode
         for strain in (strain1_stacked, strain2_stacked):
             assert len(strain) == len(strain1)
             assert bool(np.all(np.isfinite(strain.values))) is True  # all points are common to strain1 and strain2
+
         # Stack two strains having completely different evaluation points.
         strain3 = strain_field_samples['strain with two points per direction']
         strain2_stacked, strain3_stacked = strain2 * strain3  # default resolution and stacking mode
         # The common list of points is the sum of the points from each strain
         for strain in (strain2_stacked, strain3_stacked):
             assert len(strain) == len(strain2) + len(strain3)
+
+        # verify the filenames got copied over
+        for strain_stacked, strain in ((strain2_stacked, strain2), (strain3_stacked, strain3)):
+            assert strain_stacked.filenames == strain.filenames
+
         # There's no common point that is common to both strain2 and strain3
         # Each stacked strain only have finite measurements on points coming from the un-stacked strain
         for strain_stacked, strain in ((strain2_stacked, strain2), (strain3_stacked, strain3)):
             finite_measurements_count = len(np.where(np.isfinite(strain_stacked.values))[0])
             assert finite_measurements_count == len(strain)
+
         # The points evaluated as 'nan' must come from the other scan
         for strain_stacked, strain_other in ((strain2_stacked, strain3), (strain3_stacked, strain2)):
             nan_measurements_count = len(np.where(np.isnan(strain_stacked.values))[0])

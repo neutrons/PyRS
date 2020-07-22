@@ -557,6 +557,7 @@ class StrainField:
             strain_stacked._field = field_stacked
             strain_stacked._peak_collection = strain._peak_collection
             strain_stacked._single_scans = strain._single_scans
+            strain_stacked._filenames = strain.filenames[:]
             strains_stacked.append(strain_stacked)
         return strains_stacked
 
@@ -574,6 +575,7 @@ class StrainField:
         # when the strain is composed of more than one scan, we keep references to them
         self._single_scans: List['StrainField'] = []
         self._field = field_sample
+        self._filenames: List[str] = []
 
         # Create a strain field from a single scan, if so requested
         single_scan_kwargs = dict(filename=filename, projectfile=projectfile, peak_tag=peak_tag,
@@ -1029,11 +1031,11 @@ class StressField:
     - in plane stress: the stress along the third direction is, by definition, zero.
 
     The formulas for the calculation of the stress for the different types of sampling are:
-    
+
     Diagonal (:math:`i` runs from 1 to 3):
     .. math:
         \sigma_{ii} = \frac{E}{1 + \nu} \left( \epsilon_{ii} + \frac{\nu}{1 - 2 \nu} (\epsilon_{11} + \epsilon_{22} + \epsilon_{33}) \right)
-        
+
     In plane strain (:math:`i` runs from 1 to 3):
     .. math:
         \sigma_{ii} = \frac{E}{1 + \nu} \left( \epsilon_{ii} + \frac{\nu}{1 - 2 \nu} (\epsilon_{11} + \epsilon_{22}) \right(
