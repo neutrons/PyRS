@@ -1067,7 +1067,7 @@ class StressField:
 
     def __init__(self, strain11: StrainField, strain22: StrainField, strain33: StrainField,
                  youngs_modulus: float, poisson_ratio: float,
-                 stress_type : Union[StressType, str] = StressType.DIAGONAL) -> None:
+                 stress_type: Union[StressType, str] = StressType.DIAGONAL) -> None:
         self.stress11, self.stress22, self.stress33 = None, None, None
 
         self._youngs_modulus = youngs_modulus
@@ -1077,17 +1077,20 @@ class StressField:
         self.stress_type = StressType.get(stress_type)
         self._strain11, self._strain22, self._strain33 = self._stack_strains(strain11, strain22, strain33)
 
-        # Back calculate self._strain33 when in-plane stress
-        if self.stress_type == StressType.IN_PLANE_STRESS:
+        # Enforce self._strain33 is zero for in-plane strain, or back-calculate it when in-plane stress
+        if self.stress_type == StressType.IN_PLANE_STRAIN:
+            field_zero = ScalarFieldSample('strain', [0.0] * self.size, [0.0] * self.size, self.x, self.y, self.z)
+            self._strain33 = StrainField(field_sample=field_zero)
+        elif self.stress_type == StressType.IN_PLANE_STRESS:
             self._strain33 = self._strain33_when_inplane_stress()
 
         # Calculate stress fields, and strain33 if stress_type=StressType.IN_PLANE_STRESS
         stress11, stress22, stress33 = self._calc_stress_components()  # returns unumpy.array objects
         self._initialize_stress_fields(stress11, stress22, stress33)
 
-        # At any given time, the StresField object selects one of 11, 22, and 33 directions
+        # At any given time, the StresField object access only one of the 11, 22, and 33 directions
         self.direction, self._stress_selected, self._strain_selected = None, None, None
-        self.select(Direction.X)  # initialize the selected direction
+        self.select(Direction.X)  # initialize the selected direction to be the 11 direction
 
     def _initialize_stress_fields(self, stress11: np.ndarray, stress22: np.ndarray, stress33: np.ndarray) -> None:
         r"""
@@ -1108,7 +1111,7 @@ class StressField:
             values, errors = unumpy.nominal_values(stress), unumpy.std_devs(stress)
             setattr(self, attr, ScalarFieldSample('stress', values, errors, self.x, self.y, self.z))
 
-    def _calc_stress_components(self) -> List[np.ndarray]:
+    def _calc_stress_components(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         r"""
         Calculate the values and errors for each of the diagonal stress fields
 
@@ -1163,7 +1166,7 @@ class StressField:
 
     def _stack_strains(self, strain11: StrainField,
                        strain22: StrainField,
-                       strain33: StrainField) -> List[StrainField]:
+                       strain33: StrainField) -> Tuple[StrainField, StrainField, Optional[StrainField]]:
         r"""
         Stach the strain samples taken along the the three different directions
 
@@ -1267,7 +1270,7 @@ class StressField:
         return self._strain11.coordinates
 
     @property
-    def diagonal_strains(self) -> List[StrainField]:
+    def diagonal_strains(self) -> Tuple[StrainField, StrainField, StrainField]:
         r"""
         Diagonal strains :math:`\epsilon{11}`, :math:`\epsilon{22}`, and :math:`\epsilon{33}` after stacking.
 

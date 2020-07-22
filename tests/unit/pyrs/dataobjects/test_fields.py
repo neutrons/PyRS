@@ -854,6 +854,9 @@ class TestStressField:
         allclose_with_sorting(in_plane_strain.values, sample22.values + second)
         in_plane_strain.select('33')
         allclose_with_sorting(in_plane_strain.values, second)
+        # The strain along the 33 direction is zero by definition
+        assert np.allclose(in_plane_strain.strain.values, [0.0] * in_plane_strain.size)
+        assert np.allclose(in_plane_strain.strain.errors, [0.0] * in_plane_strain.size)
 
         # redefine values to simplify things
         POISSON = 1. / 2.  # makes nu / (1 - nu) == 1
