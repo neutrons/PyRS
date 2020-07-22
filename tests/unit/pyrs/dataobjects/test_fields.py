@@ -1058,5 +1058,24 @@ def test_stack_scalar_field_samples(field_sample_collection,
     assert allclose_with_sorting(sample3.values, sample3_values, equal_nan=True)
 
 
+def test_stress_field_from_files():
+    HB2B_1320_PROJECT = 'tests/data/HB2B_1320.h5'
+
+    # create 3 strain objects
+    sample11 = StrainField(HB2B_1320_PROJECT)
+    sample22 = StrainField(HB2B_1320_PROJECT)
+    sample33 = StrainField(HB2B_1320_PROJECT)
+    # create the stress field (with very uninteresting values
+    stress = StressField(sample11, sample22, sample33, 200, 0.3)
+
+    # use the 11 direction as what everything else should match
+    stress.select('11')
+    epsilon_11 = stress.values
+    stress.select('22')
+    np.testing.assert_equal(stress.values, epsilon_11)
+    stress.select('33')
+    np.testing.assert_equal(stress.values, epsilon_11)
+
+
 if __name__ == '__main__':
     pytest.main()
