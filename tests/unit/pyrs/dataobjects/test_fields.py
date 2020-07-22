@@ -575,6 +575,17 @@ class TestStrainField:
         assert strain.peak_collections == [strain1.peak_collection, strain2.peak_collection]
         assert np.allclose(strain.coordinates, np.concatenate((strain1.coordinates, strain2.coordinates)))
 
+    def test_create_strain_field_from_scalar_field_sample(self):
+        values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],  # values
+        errors = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],  # errors
+        x = [0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.5],  # x
+        y = [1.0, 1.0, 1.5, 1.5, 1.0, 1.0, 1.5, 1.5],  # y
+        z = [2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5],  # z
+        field = ScalarFieldSample('strain', values, errors, x, y, z)
+        strain = StrainField(field_sample=field)
+        assert np.allclose(strain.values, values)
+        assert np.allclose(strain.x, x)
+
     def test_create_strain_field_from_file_no_peaks(self, test_data_dir):
         # this project file doesn't have peaks in it
         file_path = os.path.join(test_data_dir, 'HB2B_1060_first3_subruns.h5')
@@ -843,6 +854,9 @@ class TestStressField:
         allclose_with_sorting(in_plane_strain.values, sample22.values + second)
         in_plane_strain.select('33')
         allclose_with_sorting(in_plane_strain.values, second)
+        # The strain along the 33 direction is zero by definition
+        assert np.allclose(in_plane_strain.strain.values, [0.0] * in_plane_strain.size)
+        assert np.allclose(in_plane_strain.strain.errors, [0.0] * in_plane_strain.size)
 
         # redefine values to simplify things
         POISSON = 1. / 2.  # makes nu / (1 - nu) == 1
@@ -857,12 +871,22 @@ class TestStressField:
         # check values
         second = (sample11.values + sample22.values)
         in_plane_stress.select('11')
+        strain11 = in_plane_stress.strain.values
         assert allclose_with_sorting(in_plane_stress.values, sample11.values + second)
         in_plane_stress.select('22')
+        strain22 = in_plane_stress.strain.values
         assert allclose_with_sorting(in_plane_stress.values, sample22.values + second)
         in_plane_stress.select('33')
-        assert allclose_with_sorting(in_plane_stress.values, 0.)
+        strain33 = in_plane_stress.strain.values
+        assert allclose_with_sorting(in_plane_stress.values, 0.)  # no stress on the 33 direction
         assert allclose_with_sorting(in_plane_stress.errors, 0.)
+        factor = POISSON / (POISSON - 1)
+        assert np.allclose(strain33, factor * (strain11 + strain22))
+
+    def test_strain33_when_inplane_stress(self, strains_for_stress_field_1):
+        sample11, sample22 = strains_for_stress_field_1[0:2]
+        stress = StressField(sample11, sample22, None, 1.0, 2.0, 'in-plane-stress')
+        assert np.allclose(stress._strain33.values, 2 * (stress._strain11.values + stress._strain22.values))
 
     def test_to_md_histo_workspace(self, stress_samples):
         stress = stress_samples['stress diagonal']
