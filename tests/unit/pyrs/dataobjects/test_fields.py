@@ -575,6 +575,17 @@ class TestStrainField:
         assert strain.peak_collections == [strain1.peak_collection, strain2.peak_collection]
         assert np.allclose(strain.coordinates, np.concatenate((strain1.coordinates, strain2.coordinates)))
 
+    def test_create_strain_field_from_scalar_field_sample(self):
+        values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],  # values
+        errors = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],  # errors
+        x = [0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.5],  # x
+        y = [1.0, 1.0, 1.5, 1.5, 1.0, 1.0, 1.5, 1.5],  # y
+        z = [2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5],  # z
+        field = ScalarFieldSample('strain', values, errors, x, y, z)
+        strain = StrainField(field_sample=field)
+        assert np.allclose(strain.values, values)
+        assert np.allclose(strain.x, x)
+
     def test_create_strain_field_from_file_no_peaks(self, test_data_dir):
         # this project file doesn't have peaks in it
         file_path = os.path.join(test_data_dir, 'HB2B_1060_first3_subruns.h5')

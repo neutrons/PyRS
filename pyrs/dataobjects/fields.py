@@ -566,14 +566,14 @@ class StrainField:
                  peak_tag: str = '',
                  hidraworkspace: Optional[HidraWorkspace] = None,
                  peak_collection: Optional[PeakCollection] = None,
-                 sample_field: Optional[ScalarFieldSample] = None) -> None:
+                 field_sample: Optional[ScalarFieldSample] = None) -> None:
         r"""
         Converts a HidraWorkspace and PeakCollection into a ScalarField
         """
         self._peak_collection: Optional[PeakCollection] = None
         # when the strain is composed of more than one scan, we keep references to them
         self._single_scans: List['StrainField'] = []
-        self._field = sample_field
+        self._field = field_sample
 
         # Create a strain field from a single scan, if so requested
         single_scan_kwargs = dict(filename=filename, projectfile=projectfile, peak_tag=peak_tag,
