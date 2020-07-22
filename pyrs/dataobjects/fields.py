@@ -1019,11 +1019,55 @@ class Direction(Enum):
 
 
 class StressField:
+    r"""
+    Calculate the three diagonal components of the stress tensor, assuming a diagonal strain tensor.
 
-    def __init__(self, strain11, strain22, strain33,
+    Strains along two or three directions are used to calculate the stress. Three types of sampling
+    are considered:
+    - diagonal: strains along three different directions are used
+    - in plane strain: the strain along the third direction is, by definition, zero.
+    - in plane stress: the stress along the third direction is, by definition, zero.
+
+    The formulas for the calculation of the stress for the different types of sampling are:
+    
+    Diagonal (:math:`i` runs from 1 to 3):
+    .. math:
+        \sigma_{ii} = \frac{E}{1 + \nu} \left( \epsilon_{ii} + \frac{\nu}{1 - 2 \nu} (\epsilon_{11} + \epsilon_{22} + \epsilon_{33}) \right)
+        
+    In plane strain (:math:`i` runs from 1 to 3):
+    .. math:
+        \sigma_{ii} = \frac{E}{1 + \nu} \left( \epsilon_{ii} + \frac{\nu}{1 - 2 \nu} (\epsilon_{11} + \epsilon_{22}) \right(
+        \epsilon_{33} \equiv 0
+
+    In plane stress (:math:`i` runs from 1 to 2):
+    .. math:
+        \sigma_{ii} = \frac{E}{1 + \nu} \left( \epsilon_{ii} + \frac{\nu}{1 - \nu} (\epsilon_{11} + \epsilon_{22} + \epsilon_{33}) \right)
+        \sigma_{33} \equiv 0
+
+    where :math:`E` is Young's modulus, and :math:`\nu` is Poisson's ratio/
+
+    Objects of this class store strains and stresses along the three directions, but only
+    one direction is accessible at any given time. Function ~pyrs.dataobjects.fields.StressField.select
+    allows the user to change the accessible direction. After selection, the strain and stress
+    are accessed via properties ~pyrs.dataobjects.fields.StressField.strain
+    and ~pyrs.dataobjects.fields.StressField.stress
+
+    Parameters
+    ----------
+    strain11: ~pyrs.dataobjects.fields.StrainField
+        Strain sample along the first direction
+    strain22: ~pyrs.dataobjects.fields.StrainField
+        Strain sample along the second direction
+    strain33: ~pyrs.dataobjects.fields.StrainField
+        Strain sample along the third direction
+    youngs_modulus: float
+    poisson_ratio: float
+    stress_type: str, ~pyrs.dataobjects.fields.StressType
+    """  # noqa E501
+
+    def __init__(self, strain11: StrainField, strain22: StrainField, strain33: StrainField,
                  youngs_modulus: float, poisson_ratio: float,
-                 stress_type=StressType.DIAGONAL) -> None:
-
+                 stress_type : Union[StressType, str] = StressType.DIAGONAL) -> None:
         self.stress11, self.stress22, self.stress33 = None, None, None
 
         self._youngs_modulus = youngs_modulus
@@ -1045,20 +1089,52 @@ class StressField:
         self.direction, self._stress_selected, self._strain_selected = None, None, None
         self.select(Direction.X)  # initialize the selected direction
 
-    def _initialize_stress_fields(self, stress11, stress22, stress33):
+    def _initialize_stress_fields(self, stress11: np.ndarray, stress22: np.ndarray, stress33: np.ndarray) -> None:
+        r"""
+        Instantiate ScalarFieldSample objects, to represent the stresses.
+
+        The sampling spatial points are those given by the private strain object _strain11
+
+        Parameters
+        ----------
+        stress11: np.ndarray
+            Values and errors of the stress along the first direction
+        stress22 np.ndarray
+            Values and errors of the stress along the second direction
+        stress33 np.ndarray
+            Values and errors of the stress along the third direction
+        """
         for stress, attr in zip((stress11, stress22, stress33), ('stress11', 'stress22', 'stress33')):
             values, errors = unumpy.nominal_values(stress), unumpy.std_devs(stress)
             setattr(self, attr, ScalarFieldSample('stress', values, errors, self.x, self.y, self.z))
 
-    def _calc_stress_components(self):
+    def _calc_stress_components(self) -> List[np.ndarray]:
         r"""
         Calculate the values and errors for each of the diagonal stress fields
+
+        The formulas for the calculation of the stress for the different types of sampling are:
+
+        Diagonal (:math:`i` runs from 1 to 3):
+        .. math:
+            \sigma_{ii} = \frac{E}{1 + \nu} \left( \epsilon_{ii} + \frac{\nu}{1 - 2 \nu} (\epsilon_{11} + \epsilon_{22} + \epsilon_{33}) \right)
+
+        In plane strain (:math:`i` runs from 1 to 3):
+        .. math:
+            \sigma_{ii} = \frac{E}{1 + \nu} \left( \epsilon_{ii} + \frac{\nu}{1 - 2 \nu} (\epsilon_{11} + \epsilon_{22}) \right(
+            \epsilon_{33} \equiv 0
+
+        In plane stress (:math:`i` runs from 1 to 2):
+        .. math:
+            \sigma_{ii} = \frac{E}{1 + \nu} \left( \epsilon_{ii} + \frac{\nu}{1 - \nu} (\epsilon_{11} + \epsilon_{22} + \epsilon_{33}) \right)
+            \sigma_{33} \equiv 0
+
+        where :math:`E` is Young's modulus, and :math:`\nu` is Poisson's ratio/
 
         Returns
         -------
         list
             Each item is a ~unumpy.array object, corresponding to the values and error for one of the stress fields
-        """
+        """  # noqa: E501
         youngs_modulus, poisson_ratio = self.youngs_modulus, self.poisson_ratio
         prefactor = youngs_modulus / (1 + poisson_ratio)
 
@@ -1085,17 +1161,41 @@ class StressField:
 
         return stress11, stress22, stress33
 
-    def _stack_strains(self, strain11, strain22, strain33):
+    def _stack_strains(self, strain11: StrainField,
+                       strain22: StrainField,
+                       strain33: StrainField) -> List[StrainField]:
+        r"""
+        Stach the strain samples taken along the the three different directions
+
+        Calculation of the stresses require that the three strain samples are defined over the same set
+        of sampling points, but this is not usually the case. It is necessary to stack them first. Thus,
+        there will be sample points for which only one or two of the strain have been measured. For
+        instance, the strain along the third direction (strain33) may be missing at one sample point.
+        We then insert `strain33 = nan` at this particular sample point.
+
+        Parameters
+        ----------
+        strain11: ~pyrs.dataobjects.fields.StrainField
+            strain sample along the first direction
+        strain22: ~pyrs.dataobjects.fields.StrainField
+            strain sample along the second direction
+        strain33: ~pyrs.dataobjects.fields.StrainField
+            strain sample along the third direction
+
+        Returns
+        -------
+        list
+        """
         if self.stress_type == StressType.DIAGONAL:
             return strain11 * strain22 * strain33
         return strain11 * strain22 + [None]  # strain33 is yet undefined, so it's assigned a value of `None`
 
     def _strain33_when_inplane_stress(self) -> StrainField:
         r"""
-        Calculate strain33 assuming stress33 == 0.
+        Calculate :math:`\epsilon_{33}` under the assumption :math:`\sigma_{33} \equiv 0`.
 
         .. math::
-            strain33 = \frac{\nu}{\nu - 1} (strain11 + strain22)
+            \epsilon_{33} = \frac{\nu}{\nu - 1} (\epsilon_{11} + \epsilon_{22})
 
         Returns
         -------
@@ -1107,34 +1207,69 @@ class StressField:
         return StrainField(field_sample=ScalarFieldSample('strain', values, errors, self.x, self.y, self.z))
 
     @property
-    def size(self):
-        r"""Total number of sampling points"""
+    def size(self) -> int:
+        r"""Total number of sampling points, after stacking"""
         return len(self._strain11)
 
     @property
-    def point_list(self):
+    def point_list(self) -> PointList:
+        r"""
+        The stacked set of sample points
+
+        Returns
+        -------
+        pyrs.dataobjects.sample_logs.PointList
+        """
         return self._strain11.point_list
 
     @property
-    def x(self):
+    def x(self) -> np.ndarray:
+        r"""
+        Coordinates of the stacked set of sample points along the first direction
+
+        Returns
+        -------
+        np.ndarray
+        """
         return self._strain11.x
 
     @property
-    def y(self):
+    def y(self) -> np.ndarray:
+        r"""
+        Coordinates of the stacked set of sample points along the second direction
+
+        Returns
+        -------
+        np.ndarray
+        """
         return self._strain11.y
 
     @property
-    def z(self):
+    def z(self) -> np.ndarray:
+        r"""
+        Coordinates of the stacked set of sample points along the third direction
+
+        Returns
+        -------
+        np.ndarray
+        """
         return self._strain11.z
 
     @property
-    def coordinates(self):
+    def coordinates(self) -> np.ndarray:
+        r"""
+        Coordinates of the stacked set of sample points
+
+        Returns
+        -------
+        np.ndarray
+        """
         return self._strain11.coordinates
 
     @property
-    def diagonal_strains(self):
+    def diagonal_strains(self) -> List[StrainField]:
         r"""
-        The three diagonal strains strain11, strain22, and strain33
+        Diagonal strains :math:`\epsilon{11}`, :math:`\epsilon{22}`, and :math:`\epsilon{33}` after stacking.
 
         Returns
         -------
@@ -1144,28 +1279,85 @@ class StressField:
         return self._strain11, self._strain22, self._strain33
 
     @property
-    def youngs_modulus(self):
+    def youngs_modulus(self) -> float:
+        r"""
+        Input Young's mudulus
+
+        Returns
+        -------
+        float
+        """
         return self._youngs_modulus
 
     @property
-    def poisson_ratio(self):
+    def poisson_ratio(self) -> float:
+        r"""
+        Input Poisson's ratio
+
+        Returns
+        -------
+        float
+        """
         return self._poisson_ratio
 
     @property
     def values(self) -> np.ndarray:
+        r"""
+        Stress values along the currently selected direction
+
+        Returns
+        -------
+        np.ndarray
+        """
         assert self._stress_selected, 'No direction has yet been selected'
         return self._stress_selected.values
 
     @property
     def errors(self) -> np.ndarray:
+        r"""
+        Stress uncertainties along the currently selected direction
+
+        Returns
+        -------
+        np.ndarray
+        """
         assert self._stress_selected, 'No direction has yet been selected'
         return self._stress_selected.errors
 
     @property
     def strain(self) -> Optional[StrainField]:
+        r"""
+        Strain (after stacking) along the currently selected direction
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.StrainField
+        """
         return self._strain_selected
 
-    def select(self, direction: Union[Direction, str]):
+    @property
+    def stress(self) -> Optional[StrainField]:
+        r"""
+        Strain (after stacking) along the currently selected direction
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.ScalarSampleField
+        """
+        return self._stress_selected
+
+    def select(self, direction: Union[Direction, str]) -> None:
+        r"""
+        Select one of the three directions
+
+        Selecting a direction updates the accessible ~pyrs.dataobjects.fields.StressField.strain
+        and ~pyrs.dataobjects.fields.StressField.
+
+        Parameters
+        ----------
+        direction: str, ~pyrs.dataobjects.fields.Direction
+            One of strigs '11', '22', '33', or a Direction enumeration object.
+        """
         self.direction = Direction.get(direction)
         direction_to_stress = {Direction.X: self.stress11, Direction.Y: self.stress22, Direction.Z: self.stress33}
         direction_to_strain = {Direction.X: self._strain11, Direction.Y: self._strain22, Direction.Z: self._strain33}
