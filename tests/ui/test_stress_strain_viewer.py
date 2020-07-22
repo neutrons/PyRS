@@ -13,11 +13,26 @@ def test_model():
     assert model.e33 is None
     assert model._stress is None
 
+    assert model.validate_selection('11') == "e11 file hasn't been loaded"
+    assert model.validate_selection('22') == "e22 file hasn't been loaded"
+    assert model.validate_selection('33') == "e33 file hasn't been loaded"
+
+    # load file without fitted peaks
+    model.e11 = 'tests/data/HB2B_1423.h5'
+    assert model.validate_selection('11') == "e11 contains no peaks, fit peaks first"
+
+    # load file with fitted peaks
     model.e11 = 'tests/data/HB2B_1320.h5'
     assert model.e11.name == '11'
     assert model.peakTags == ['peak0']
     assert 'peak0' in model.e11_peaks
 
+    # select non-existing peak
+    model.selectedPeak = 'peak_label'
+    assert model.selectedPeak == 'peak_label'
+    assert model.validate_selection('11') == "Peak peak_label is not in e11"
+
+    # select existing peak
     model.selectedPeak = 'peak0'
     assert model.selectedPeak == 'peak0'
 
@@ -93,3 +108,18 @@ def test_model():
 
     # Should be all non-zero for diagonal stress case
     assert np.count_nonzero(model.get_field_md('33', 'stress').getSignalArray()) == 18*6*3
+
+    # Check message when 22 is loaded without 11
+    model = Model()
+    model.e22 = 'tests/data/HB2B_1320.h5'
+    assert model.e22 is not None
+    assert model.validate_selection('22') == "e11 is not loaded, the peak tags from this file will be used"
+
+    # try loading a file that isn't a HidraProjectFile
+    model.e22 = 'tests/data/HB2B_938.nxs.h5'
+    assert model.e22 is None
+
+    # Check set_workspace, this is what is called by the controller
+    model.e11 is None
+    model.set_workspace('11', 'tests/data/HB2B_1320.h5')
+    model.e11 is not None
