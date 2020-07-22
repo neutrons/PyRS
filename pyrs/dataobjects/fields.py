@@ -560,18 +560,20 @@ class StrainField:
             strains_stacked.append(strain_stacked)
         return strains_stacked
 
-    def __init__(self, filename: str = '',
+    def __init__(self,
+                 filename: str = '',
                  projectfile: Optional[HidraProjectFile] = None,
                  peak_tag: str = '',
                  hidraworkspace: Optional[HidraWorkspace] = None,
-                 peak_collection: Optional[PeakCollection] = None) -> None:
+                 peak_collection: Optional[PeakCollection] = None,
+                 sample_field: Optional[ScalarFieldSample] = None) -> None:
         r"""
         Converts a HidraWorkspace and PeakCollection into a ScalarField
         """
         self._peak_collection: Optional[PeakCollection] = None
         # when the strain is composed of more than one scan, we keep references to them
         self._single_scans: List['StrainField'] = []
-        self._field: Optional[ScalarFieldSample] = None
+        self._field = sample_field
 
         # Create a strain field from a single scan, if so requested
         single_scan_kwargs = dict(filename=filename, projectfile=projectfile, peak_tag=peak_tag,
@@ -1031,8 +1033,12 @@ class StressField:
         self.stress_type = StressType.get(stress_type)
         self._strain11, self._strain22, self._strain33 = self._stack_strains(strain11, strain22, strain33)
 
+        # Back calculate self._strain33 when in-plane stress
+        if stress_type == StressType.IN_PLANE_STRESS:
+            self._strain33 = self._strain33_when_inplane_stress()
+
         # Calculate stress fields, and strain33 if stress_type=StressType.IN_PLANE_STRESS
-        stress11, stress22, stress33 = self._calc_stress_strain()  # returns unumpy.array objects
+        stress11, stress22, stress33 = self._calc_stress_components()  # returns unumpy.array objects
         self._initialize_stress_fields(stress11, stress22, stress33)
 
         # At any given time, the StresField object selects one of 11, 22, and 33 directions
@@ -1044,7 +1050,7 @@ class StressField:
             values, errors = unumpy.nominal_values(stress), unumpy.std_devs(stress)
             setattr(self, attr, ScalarFieldSample('stress', values, errors, self.x, self.y, self.z))
 
-    def _calc_stress_strain(self):
+    def _calc_stress_components(self):
         r"""
         Calculate the values and errors for each of the diagonal stress fields
 
@@ -1083,6 +1089,23 @@ class StressField:
         if self.stress_type == StressType.DIAGONAL:
             return strain11 * strain22 * strain33
         return strain11 * strain22 + [None]  # strain33 is yet undefined, so it's assigned a value of `None`
+
+    def _strain33_when_inplane_stress(self) -> StrainField:
+        r"""
+        Calculate strain33 assuming stress33 == 0.
+
+        .. math::
+            strain33 = \frac{\nu}{\nu - 1} (strain11 + strain22)
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.StrainField
+        """
+        factor = self.poisson_ratio / (self.poisson_ratio - 1)
+        strain33 = factor * (self._strain11.sample + self._strain22.sample)  # unumpy.array
+        values, errors = unumpy.nominal_values(strain33), unumpy.std_devs(strain33)
+        field_sample = ScalarFieldSample('strain', values, errors, self.x, self.y, self.z)
+        return StrainField(field_sample=field)
 
     @property
     def size(self):
