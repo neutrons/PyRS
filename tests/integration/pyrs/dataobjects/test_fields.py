@@ -227,6 +227,7 @@ def test_combine_strains_1(test_data_dir):
     assert len(np.where(np.isnan(signal))[0]) == 1552  # number of nan
     assert bool(np.all(np.isnan(signal) == np.isnan(errors)))  # if the value is nan at a point, the error is nan too
 
+
 @pytest.fixture(scope='session')
 def data_stack_strains_1(test_data_dir):
     #
@@ -255,7 +256,12 @@ def test_stack_strains_1(data_stack_strains_1):
     assert strain11.point_list == strain22.point_list
     assert strain22.point_list == strain33.point_list
 
-    
+
+########################################
+# Integration tests involving stresses #
+########################################
+
+
 @pytest.fixture(scope='session')
 def data_create_stress_1(test_data_dir):
     #
