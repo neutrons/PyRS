@@ -1,8 +1,9 @@
 import numpy as np
+from os.path import join as pjoin
 import pytest
 
 from pyrs.dataobjects.constants import DEFAULT_POINT_RESOLUTION
-from pyrs.dataobjects.fields import ScalarFieldSample, fuse_scalar_field_samples
+from pyrs.dataobjects.fields import ScalarFieldSample, fuse_scalar_field_samples, StrainField
 
 
 @pytest.fixture(scope='module')
@@ -179,6 +180,51 @@ def test_interpolate_volume_scan(data_interpolate_volume_scan, allclose_with_sor
     interpolated = fused.interpolated_sample(keep_nan=True,
                                              criterion=data['criterion'], resolution=data['resolution'])
     data['assert checks'](interpolated)
+
+
+#######################################
+# Integration tests involving strains #
+#######################################
+
+def test_combine_strains_1(test_data_dir):
+    r"""Combine strains along the same direction with StrainField.fuse_strains"""
+    #
+    # Load the strains from the project files
+    file_names = [f'HB2B_{run_number}.h5' for run_number in (1331, 1332, 1327, 1328)]
+    strains = [StrainField(filename=pjoin(test_data_dir, file_name), peak_tag='peak0') for file_name in file_names]
+    #
+    # Fuse the strains, assume they were taken along the same direction
+    strain = StrainField.fuse_strains(*strains)
+    assert np.all(np.isfinite(strain.values))  # all sample points have a finite value
+    assert strain.filenames == file_names
+    with pytest.raises(RuntimeError) as exception_info:
+        strain.peak_collection
+    assert 'more than one peak collection' in str(exception_info.value)
+    assert strain.peak_collections == [s.peak_collection for s in strains]
+    assert len(strain) == sum([len(s) for s in strains]) - 1  # -1 because of one overlap
+    #
+    # The extents of the fused strain encompass the extents of the individual strain
+    strain_extents = strain.point_list.extents()
+    strains_extents = [s.point_list.extents() for s in strains]
+    for i in range(3):  # vx, vy, vz
+        assert strain_extents[i].min == min([e[i].min for e in strains_extents])
+        assert strain_extents[i].max == max([e[i].max for e in strains_extents])
+    #
+    # Export to Workspace
+    histo = strain.to_md_histo_workspace()
+    minimum_values = (-33.0, -12.25, -15.0)  # bin boundary with the smallest coordinate along X, Y, and Z
+    maximum_values = (81.0, 12.25, 15.0)  # bin boundary with the largest coordinate along X, Y, and Z
+    bin_counts = (19, 49, 3)  # number of bins along  X, Y, and Z
+    for i, (min_value, max_value, bin_count) in enumerate(zip(minimum_values, maximum_values, bin_counts)):
+        dimension = histo.getDimension(i)
+        assert dimension.getUnits() == 'meter'
+        assert dimension.getMinimum() == pytest.approx(min_value, abs=1.e-02)
+        assert dimension.getMaximum() == pytest.approx(max_value, abs=1.e-02)
+        assert dimension.getNBins() == bin_count
+    signal, errors = histo.getSignalArray(), histo.getErrorSquaredArray()
+    assert len(signal.ravel()) == 2793
+    assert len(np.where(np.isnan(signal))[0]) == 1552  # number of nan
+    assert bool(np.all(np.isnan(signal) == np.isnan(errors)))  # if the value is nan at a point, the error is nan too
 
 
 if __name__ == '__main__':
