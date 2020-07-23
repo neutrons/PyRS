@@ -195,7 +195,7 @@ def test_combine_strains_1(test_data_dir):
     #
     # Fuse the strains, assume they were taken along the same direction
     strain = StrainField.fuse_strains(*strains)
-    assert (True in np.isnan(strain.values)) is False  # all sample points have a finite value
+    assert np.all(np.isfinite(strain.values))  # all sample points have a finite value
     assert strain.filenames == file_names
     with pytest.raises(RuntimeError) as exception_info:
         strain.peak_collection
