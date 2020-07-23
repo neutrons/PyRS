@@ -1019,6 +1019,17 @@ class Direction(Enum):
             except KeyError:  # give clearer error message
                 raise KeyError('Cannot determine direction type from "{}"'.format(direction))
 
+    @property
+    def ii(self) -> str:
+        r"""
+        Two-number string representation of the direction. One of ('11', '22', '33')
+
+        Returns
+        -------
+        str
+        """
+        one_to_two = dict(x='11', y='22', z='33')
+        return one_to_two[self.value]
 
 class StressField:
     r"""
@@ -1065,6 +1076,7 @@ class StressField:
     youngs_modulus: float
     poisson_ratio: float
     stress_type: str, ~pyrs.dataobjects.fields.StressType
+        If a string, one of ('diagonal', 'in-plane-strain', 'in-plane-stress')
     """  # noqa E501
 
     def __init__(self, strain11: StrainField, strain22: StrainField, strain33: StrainField,
@@ -1093,6 +1105,37 @@ class StressField:
         # At any given time, the StresField object access only one of the 11, 22, and 33 directions
         self.direction, self._stress_selected, self._strain_selected = None, None, None
         self.select(Direction.X)  # initialize the selected direction to be the 11 direction
+
+    def __getitem__(self, direction) -> ScalarFieldSample:
+        r"""
+        Stress along one of the directions.
+
+        This operation doesn't change the currently accessible direction.
+
+        Parameters
+        ----------
+        direction: str
+            One of ('11', '22', '33')
+
+        Returns
+        -------
+        ~pyrs.databojects.fields.ScalarFieldSample
+        """
+        assert direction in ('11', '22', '33'), 'The direction is not one of ("11", "22", "33")'
+        return getattr(self, f'stress{direction}')
+
+    def __iter__(self) -> ScalarFieldSample:
+        r"""
+        Access the stress along the different directions
+
+        This operation doesn't change the currently accessible direction.
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.ScalarFieldSample
+        """
+        for stress_component in (self.stress11, self.stress22, self.stress33):
+            yield stress_component
 
     def _initialize_stress_fields(self, stress11: np.ndarray, stress22: np.ndarray, stress33: np.ndarray) -> None:
         r"""
@@ -1192,6 +1235,7 @@ class StressField:
         list
         """
         if self.stress_type == StressType.DIAGONAL:
+            assert strain33 is not None, 'strain33 is None but the selected stress type is "diagonal"'
             return strain11 * strain22 * strain33
         return strain11 * strain22 + [None]  # strain33 is yet undefined, so it's assigned a value of `None`
 
@@ -1272,16 +1316,16 @@ class StressField:
         return self._strain11.coordinates
 
     @property
-    def diagonal_strains(self) -> Tuple[StrainField, StrainField, StrainField]:
-        r"""
-        Diagonal strains :math:`\epsilon{11}`, :math:`\epsilon{22}`, and :math:`\epsilon{33}` after stacking.
+    def strain11(self) -> StrainField:
+        return self._strain11
 
-        Returns
-        -------
-        list
-            Each item is a ~pyrs.dataobjects.fields.StrainField object.
-        """
-        return self._strain11, self._strain22, self._strain33  # type: ignore
+    @property
+    def strain22(self) -> StrainField:
+        return self._strain22
+
+    @property
+    def strain33(self) -> StrainField:
+        return self._strain33
 
     @property
     def youngs_modulus(self) -> float:

@@ -780,6 +780,29 @@ def stress_samples(strains_for_stress_field_1):
 
 class TestStressField:
 
+    def test_strain_properties(self, strains_for_stress_field_1):
+        field = StressField(*strains_for_stress_field_1, 1, 1)
+        field.select('11')
+        assert field.strain11 == field._strain11
+        assert field.strain22 == field._strain22
+        assert field.strain33 == field._strain33
+        assert field.strain == field._strain11  # the accessible direction is still 11
+
+    def test_getitem(self, strains_for_stress_field_1):
+        field = StressField(*strains_for_stress_field_1, 1, 1)
+        field.select('11')
+        assert field['11'] == field.stress11
+        assert field['22'] == field.stress22
+        assert field['33'] == field.stress33
+        assert field.stress == field.stress11
+
+    def test_iter(self, strains_for_stress_field_1):
+        field = StressField(*strains_for_stress_field_1, 1, 1)
+        field.select('11')
+        for stress_from_iterable, stress_component in zip(field, (field.stress11, field.stress22, field.stress33)):
+            assert stress_from_iterable == stress_component
+        assert field.stress == field.stress11  # the accessible direction is still 11
+
     def test_point_list(self, strains_for_stress_field_1):
         r"""Test point_list property"""
         vx = [0.000, 1.000, 2.000, 3.000, 4.000, 5.000, 6.000, 7.000, 8.000, 9.000]
@@ -827,6 +850,11 @@ class TestStressField:
 
         POISSON = 1. / 3.  # makes nu / (1 - 2*nu) == 1
         YOUNG = 1 + POISSON  # makes E / (1 + nu) == 1
+
+        # The default stress type is "diagonal", thus strain33 cannot be None
+        with pytest.raises(AssertionError) as exception_info:
+            StressField(sample11, sample22, None, YOUNG, POISSON)
+        assert 'strain33 is None' in str(exception_info.value)
 
         # test diagonal calculation
         diagonal = StressField(sample11, sample22, sample33, YOUNG, POISSON)
