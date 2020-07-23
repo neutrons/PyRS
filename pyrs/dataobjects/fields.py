@@ -1136,7 +1136,7 @@ class StressField:
         ~pyrs.dataobjects.fields.ScalarFieldSample
         """
         for stress_component in (self.stress11, self.stress22, self.stress33):
-            yield stress_component
+            yield stress_component  # type: ignore
 
     def _initialize_stress_fields(self, stress11: np.ndarray, stress22: np.ndarray, stress33: np.ndarray) -> None:
         r"""
