@@ -1,5 +1,4 @@
 import traceback
-import numpy as np
 from pyrs.dataobjects.fields import generateParameterField, StressField, StrainField
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
@@ -64,10 +63,6 @@ class Model(QObject):
         return self._e33_peaks
 
     @property
-    def subruns(self):
-        return self.e11_peaks[self.selectedPeak].sub_runs
-
-    @property
     def peakTags(self):
         return self._peakTags
 
@@ -78,17 +73,17 @@ class Model(QObject):
     @selectedPeak.setter
     def selectedPeak(self, tag):
         self._selectedPeak = tag
-        self.propertyUpdated.emit("subruns")
+        self.propertyUpdated.emit("selectedPeak")
 
     @property
     def d0(self):
-        return self.e11_peaks[self.selectedPeak].get_d_reference()
+        return self.e11_peaks[self.selectedPeak].get_d_reference()[0][0]
 
     @d0.setter
     def d0(self, d0):
         for peaks in [self.e11_peaks, self.e22_peaks, self.e33_peaks]:
             if self.selectedPeak in peaks:
-                peaks[self.selectedPeak].set_d_reference(np.array(d0))
+                peaks[self.selectedPeak].set_d_reference(d0)
 
     def validate_selection(self, direction):
         if getattr(self, f'e{direction}') is None:

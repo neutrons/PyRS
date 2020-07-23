@@ -36,20 +36,14 @@ def test_model():
     model.selectedPeak = 'peak0'
     assert model.selectedPeak == 'peak0'
 
-    assert model.subruns == range(1, 313)
-
     assert model.validate_selection('11') is None
     assert model.validate_selection('22') == "e22 file hasn't been loaded"
     assert model.validate_selection('33') == "e33 file hasn't been loaded"
 
-    d0, d0_e = model.d0
-    np.testing.assert_equal(d0, np.ones(312))
-    np.testing.assert_equal(d0_e, np.zeros(312))
+    assert model.d0 == 1
 
-    model.d0 = np.linspace(1, 1.05, 312)
-    d0, d0_e = model.d0
-    np.testing.assert_equal(d0, np.linspace(1, 1.05, 312))
-    np.testing.assert_equal(d0_e, np.zeros(312))
+    model.d0 = 1.05
+    assert model.d0 == 1.05
 
     for plot_param in ("dspacing_center",
                        "d_reference",

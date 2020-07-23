@@ -3,7 +3,6 @@ from mantidqt.widgets.sliceviewer.model import SliceViewerModel
 from qtpy.QtWidgets import (QHBoxLayout, QVBoxLayout, QLabel, QWidget,
                             QLineEdit, QPushButton, QComboBox,
                             QGroupBox, QSplitter, QTabWidget,
-                            QTableWidget, QTableWidgetItem,
                             QFormLayout, QFileDialog,
                             QStyledItemDelegate, QDoubleSpinBox,
                             QStackedWidget, QMessageBox)
@@ -124,56 +123,18 @@ class D0(QGroupBox):
         validator.setBottom(0)
         self.d0 = QLineEdit()
         self.d0.setValidator(validator)
-        self.d0.editingFinished.connect(self.set_d0)
+        self.d0.editingFinished.connect(self.update_d0)
         d0_box_layout.addWidget(self.d0)
         d0_box.setLayout(d0_box_layout)
         layout.addWidget(d0_box)
-        load_grid = FileLoad("d₀ Grid", parent=self)
-        load_grid.setEnabled(False)
-        layout.addWidget(load_grid)
-
-        self.d0_grid = QTableWidget()
-        self.d0_grid.setColumnCount(2)
-        self.d0_grid.verticalHeader().setVisible(False)
-        self.d0_grid.horizontalHeader().setStretchLastSection(True)
-        self.d0_grid.setHorizontalHeaderLabels(['Sub-run', "d₀"])
-        self.d0_grid.cellChanged.connect(self.cellChanged)
-        self.d0_grid.setItemDelegateForColumn(1, SpinBoxDelegate())
-
-        layout.addWidget(self.d0_grid)
         self.setLayout(layout)
 
-    def set_sub_runs(self, sub_runs, d0_list):
-        self.d0_grid.cellChanged.disconnect()
-        self.d0_grid.setRowCount(len(sub_runs))
-        for n, (sub_run, d0) in enumerate(zip(sub_runs, d0_list)):
-            subrun_item = QTableWidgetItem(str(sub_run))
-            subrun_item.setFlags(subrun_item.flags() ^ Qt.ItemIsEditable)
-            d0_item = QTableWidgetItem()
-            d0_item.setData(Qt.EditRole, float(d0))
-            self.d0_grid.setItem(n, 0, QTableWidgetItem(subrun_item))
-            self.d0_grid.setItem(n, 1, QTableWidgetItem(d0_item))
-        self.d0_grid.cellChanged.connect(self.cellChanged)
-
-    def set_d0(self, d0=None):
-        self.d0_grid.cellChanged.disconnect()
-        if d0 is None:
-            d0 = self.d0.text()
-
-        d0_item = QTableWidgetItem()
-        d0_item.setData(Qt.EditRole, float(d0))
-        for n in range(self.d0_grid.rowCount()):
-            self.d0_grid.setItem(n, 1, QTableWidgetItem(d0_item))
-        self.d0_grid.cellChanged.connect(self.cellChanged)
-        self.d0_grid.cellChanged.emit(0, 0)
+    def update_d0(self):
+        self._parent.controller.update_d0(float(self.d0.text()))
         self._parent.update_plot()
 
-    def get_d0(self):
-        return [float(self.d0_grid.item(n, 1).text()) for n in range(self.d0_grid.rowCount())]
-
-    def cellChanged(self, row, column):
-        self.d0.clear()
-        self._parent.controller.update_d0(self.get_d0())
+    def set_d0(self, d0):
+        self.d0.setText(str(d0))
 
 
 class FileLoading(QGroupBox):
@@ -425,8 +386,9 @@ class StrainStressViewer(QSplitter):
         self.peak_selection.peak_select.currentTextChanged.connect(self.controller.peakSelected)
         self.peak_selection.set_peak_tags(peak_tags)
 
-    def subruns(self, subruns):
-        self.d0.set_sub_runs(subruns, self.model.d0[0])
+    def selectedPeak(self, peak):
+        self.d0.set_d0(self.model.d0)
+        self.update_plot()
 
     def show_failure_msg(self, msg, info, details):
         self.viz_tab.set_message(msg)
