@@ -1,8 +1,9 @@
 import numpy as np
+import os
 import pytest
 
 from pyrs.dataobjects.constants import DEFAULT_POINT_RESOLUTION
-from pyrs.dataobjects.fields import ScalarFieldSample, fuse_scalar_field_samples
+from pyrs.dataobjects.fields import ScalarFieldSample, fuse_scalar_field_samples, StrainField
 
 
 @pytest.fixture(scope='module')
@@ -186,7 +187,18 @@ def test_interpolate_volume_scan(data_interpolate_volume_scan, allclose_with_sor
 #######################################
 
 
-def test_combine_strains():
+@pytest.mark.fixture(scope='module')
+def data_combine_strains_1(test_data_dir):
+    r"""Create StrainField objects for runs 1331,1332,1327,1328"""
+    strain = sum([StrainField(filename=os.path.join(test_data_dir, f'HB2B_{run_number}.h5'))])
+    for run_number in (1331, 1332, 1327, 1328):
+        file_path = os.path.join(test_data_dir, f'HB2B_{run_number}.h5')
+
+
+
+
+
+def test_combine_strains_1(data_combine_strains_1):
     r"""
     Combine strains from the following runs: 1331,1332,1327,1328
 
