@@ -3,7 +3,7 @@ from enum import unique as unique_enum
 import numpy as np
 from scipy.interpolate import griddata
 from scipy.spatial import cKDTree
-from typing import TYPE_CHECKING, cast, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, cast, Generator, List, Optional, Tuple, Union
 from uncertainties import unumpy
 
 from mantid.simpleapi import mtd, CreateMDWorkspace, BinMD
@@ -1125,7 +1125,7 @@ class StressField:
         assert direction in ('11', '22', '33'), 'The direction is not one of ("11", "22", "33")'
         return getattr(self, f'stress{direction}')
 
-    def __iter__(self) -> ScalarFieldSample:
+    def __iter__(self) -> Generator[ScalarFieldSample]:
         r"""
         Access the stress along the different directions
 
@@ -1326,7 +1326,7 @@ class StressField:
 
     @property
     def strain33(self) -> StrainField:
-        return self._strain33
+        return self._strain33  # type: ignore
 
     @property
     def youngs_modulus(self) -> float:
