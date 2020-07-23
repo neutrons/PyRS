@@ -1031,6 +1031,7 @@ class Direction(Enum):
         one_to_two = dict(x='11', y='22', z='33')
         return one_to_two[self.value]
 
+
 class StressField:
     r"""
     Calculate the three diagonal components of the stress tensor, assuming a diagonal strain tensor.
