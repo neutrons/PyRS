@@ -214,5 +214,3 @@ def get_nexus_file(run_number):
 
     # return after `with` scope so cleanup is run
     return nexus_file
-
-

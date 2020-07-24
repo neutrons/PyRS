@@ -1,326 +1,200 @@
 """
 This module generates reduction summary for stress in plain text CSV file
 """
-from typing import List, Tuple, Dict
+from typing import Optional
 
-from pyrs.peaks import peak_collection
 from pyrs.dataobjects.fields import StressField
 from pyrs.dataobjects.fields import StrainField
-from builtins import int
+from builtins import int, isinstance
 from pyrs.peaks.peak_collection import PeakCollection
+import math
 
 
 class SummaryGeneratorStress:
     """
-    Generate summary to user about peak
-
-    Format is like
-
-    Header: p is the peak index
-      # Hidra project files 
-      # Peak Tags (PeakLabel[p-1])
-      # Young\'s Modulus (E)[GPa] (PeakLabel[p-1])
-      # Poisson\'s Ratio (PeakLabel[p-1]) 
-    Body:
-      vx_`PeakLabel[0]`, vy_`PeakLabel[p-1]`, vz_`PeakLabel[p-1]`, d-spacing_, d_spacing_22, d_spacing_33,  
-
-      sub-run, vx, vy, vz, sx, sy, sz, phi, chi, omega, 2theta, S1 width, S1 height, S1 Distance, Radial distance,
-      effective peak parameters
-
+        Generates a CSV summary from stress fields inputs from multiple project files on a grid point basis.
     """
+
     directions = ['11', '22', '33']
     fields_3dir = ['d', 'FWHM', 'Peak_Height', 'Strain', 'Stress']
-    dir_tags = ['_Dir11_', '_Dir22_', '_Dir33_']
 
-    def __init__(self, filename: str, stress_fields: [StressField], separator=','):
+    def __init__(self, filename: str, stress: StressField):
         """Initialization
 
         Parameters
         ----------
         filename: str
-            Name of the ``.csv`` file to write
-        stress_fields: list[StressField]
-            list of stress fields to summarize, they must include desired directions
-        separator: str
-            The column separator in the output file
+            Name of the '.csv' file to write
+        stress: StressField
+            stress field input to generate summary or full csv files
         """
-
         # do file name checks
         if not filename:
             raise RuntimeError('Failed to supply output filename for Stress CSV output')
 
+        self._error_postfix = ' when creating stress file: ' + str(filename) + '\n'
+
         if not filename.endswith('.csv'):
-            raise RuntimeError('Filename "{}" must end with ".csv"'.format(self._filename))
+            raise RuntimeError('File name must end with extension ".csv"' + self._error_postfix)
 
         # check for length of lists
-        self._filename = str(filename)
+        self._filename: str = str(filename)
 
-        if not stress_fields:
+        if not stress:
             raise RuntimeError(
-                'Error: stress_fields list can\'t be empty when creating stress file: ' + self._filename)
+                'Error: stress of type StressField input can\'t be invalid' + self._error_postfix)
 
-        self._stress_fields = stress_fields
-        self._separator = separator
+        self._stress = stress
 
-        # derived members
-        self._project_tags, self._peak_tags, self._sorted_entries = self._init_project_peak_tags()
+        # check for filenames in StrainField per direction
+        for direction in SummaryGeneratorStress.directions:
+            strain = self._get_strain_field(direction)
+            assert isinstance(strain, StrainField)
 
-        # 0 -> 11, 1-> 22, 2-> 33
-        # sorted_entries[dir][tag] -> List of stress IDs
-        # self._sorted_entries:Dict[Dict[str,List[int]]]
-
-        print('Projects:')
-        print(self._project_tags)
-        print('Peaks:')
-        print(self._peak_tags)
-        print('Sorted entries:')
-        print(self._sorted_entries)
-
-        self._global_coordinates, self._stress_field_index = self._init_global_coordinates()
-        # print(self._global_coordinates)
-        # print(self._stress_field_index)
-
-    def _init_project_peak_tags(self) -> Tuple[List[str], List[str], Dict[str, Dict[str, List[int]]]]:
-        """
-            Init peak tags from strain fields in stress fields
-            @return: peak_tags: List[str]
-        """
-
-        def _check_add_project_tag(filenames, global_project_tags):
-            """
-                Inline function to check existence of project tags in global_project_tags, 
-                if not adds to it
-            """
-            for filename in filenames:
-                tag = filename[filename.index('HB2B_') + 5: filename.index('.h5')]
-                if tag not in global_project_tags:
-                    global_project_tags.append(tag)
-
-        def _check_add_peak_tag(peak_collections, global_peak_tags):
-            """
-                Inline function to check existence of collection peak tags in global_peak_tags,
-                if not adds to it
-            """
-            for peak_collection in peak_collections:
-                peak_tag = peak_collection.peak_tag
-                if peak_tag not in global_peak_tags:
-                    global_peak_tags.append(peak_tag)
-
-        project_tags: List[str] = []
-        peak_tags: List[str] = []
-        sorted_entries: Dict[str, Dict[str, List[int]]] = {}
-
-        for stress_field_id, stress_field in enumerate(self._stress_fields):
-            for direction in SummaryGeneratorStress.directions:
-
-                sorted_entries[direction] = {}  # initialize
-
-                stress_field.select(direction)
-
-                _check_add_project_tag(stress_field.strain.filenames, project_tags)
-                _check_add_peak_tag(stress_field.strain.peak_collections, peak_tags)
-
-                for filename in stress_field.strain.filenames:
-                    tag = filename[filename.index('HB2B_') + 5: filename.index('.h5')]
-
-                    if tag not in sorted_entries[direction].keys():
-                        sorted_entries[direction][tag] = []
-
-                    sorted_entries[direction][tag].append(stress_field_id)
-
-        return project_tags, peak_tags, sorted_entries
-
-    def _init_global_coordinates(self) -> Tuple[List[Tuple[float, float, float]], List[List[int]]]:
-        """
-            Init global coordinates as list of [vx, vy, vz] and list of included stress fields per point
-            Merge points if necessary for multiple meshes
-            @return: Tuple: 1st -> global coordinate, 2nd -> list of original stress mesh per point
-        """
-
-        global_coordinates = self._stress_fields[0].coordinates
-        stress_field_index = [[] for i in range(len(global_coordinates))]
-
-        for i in range(0, len(global_coordinates)):
-            stress_field_index[i].append(0)
-
-        nfields = len(self._stress_fields)
-
-        # no need to merge, only one field
-        if nfields == 1:
-            return global_coordinates, stress_field_index
-
-        # TODO
-        # merge looping through the rest of the fields
-        for i in range(1, nfields):
-            new_coordinates = self._stress_fields[i].coordinates
+            # add exception if filenames is empty
+            if not strain.filenames:
+                raise RuntimeError('StrainField filenames in direction ' + str(direction) +
+                                   'can\'t be empty for Stress CSV output ' + self._filename)
 
     def _write_csv_header(self, handle):
+        """
+          write projects names, peak_tags, Young's modulus and Poisson ratio
+        """
+        header = ''
 
-        # write projects names, peak_tags,
-        # Young's modulus and Poisson ratio for each stress field
+        for direction in SummaryGeneratorStress.directions:
+            strain = self._get_strain_field(direction)
+            assert isinstance(strain, StrainField)
 
-        # write projects names
-        header = '# Hidra Project Names = '
-        for project_tag in self._project_tags:
-            header += str(project_tag) + ', '
-        header = header[:-2] + '\n'
+            line = '# Direction ' + str(direction) + ': '
+            for filename in strain.filenames:
+                run_number = filename[filename.index('HB2B_') + 5: filename.index('.h5')]
+                line += str(run_number) + ', '
 
-        # write peak_tags
-        header += '# Peak Tags = '
-        for peak_tag in self._peak_tags:
-            header += str(peak_tag) + ', '
-        header = header[:-2] + '\n'
+            line = line[:-2] + '\n'
+            header += line
 
-        # write Young's Modulus for each peak
-        header += '# Young\'s Modulus (E)[GPa] = '
-        for stress_field in self._stress_fields:
-            header += str(stress_field.youngs_modulus) + ', '
-        header = header[:-2] + '\n'
-
-        # write Poisson Ratio for each peak
-        header += '# Poisson Ratio = '
-        for stress_field in self._stress_fields:
-            header += str(stress_field.poisson_ratio) + ', '
-        header = header[:-2] + '\n'
+        header += '# E: ' + str(self._stress.youngs_modulus) + '\n'
+        header += '# v: ' + str(self._stress.poisson_ratio) + '\n'
 
         handle.write(header)
 
-    def _write_csv_column_names(self, handle):
+    def write_summary_csv(self):
+        """
+            Public function to generate a summary csv file for stress and input fields
+        """
+        def _write_summary_csv_column_names(handle):
+            column_names = 'vx, vy, vz, d0, d0_error '
+            # directional variables
+            for field_3dir in SummaryGeneratorStress.fields_3dir:
+                for direction in SummaryGeneratorStress.directions:
+                    column_names += field_3dir + '_Dir' + direction + ', '
+                    column_names += field_3dir + '_Dir' + direction + '_error, '
 
-        column_names = 'vx, vy, vz, '
+            column_names = column_names[:-2] + '\n'
+            handle.write(column_names)
+            return
 
-        # d0 doesn't depend on direction
-        for project_tag in self._project_tags:
-            column_names += 'd0_' + project_tag + ', '
+        def _write_summary_csv_body(handle):
 
-        def __column_3dir(field, dir_tags, project_tags) -> str:
-            names = ''
-            for dir_tag in dir_tags:
-                for project_tag in project_tags:
-                    names += field + dir_tag + project_tag + ', '
-            return names
+            def _write_number(number) -> str:
+                if math.isnan(number):
+                    return ', '
+                return str(number) + ', '
 
-        # directional variables
-
-        for field_3dir in SummaryGeneratorStress.fields_3dir:
-            column_names += __column_3dir(field_3dir, SummaryGeneratorStress.dir_tags, self._project_tags)
-
-        column_names = column_names[:-2] + '\n'
-        handle.write(column_names)
-
-    def _write_csv_body(self, handle):
-
-        def __write_d0(row: int) -> str:
-            for direction in SummaryGeneratorStress.directions:
-                for project_tag in self._project_tags:
-                    peak_collection: PeakCollection = self._get_peak_collection(row, direction, project_tag)
-
-                    if not peak_collection:
-                        continue
-
-                    # d0 doesn't depend on direction so just picking the first peak_collection
-                    return str(peak_collection.get_d_reference()[0][row]) + ', '
-
-        def __write_3dir(row: int, field) -> str:
-
-            values = ''
-            for direction in SummaryGeneratorStress.directions:
-                for project_tag in self._project_tags:
-
+            def _write_field_3d(row: int, field: str):
+                entries = ''
+                for direction in SummaryGeneratorStress.directions:
                     if field == 'Strain':
-                        strain_field = self._get_strain_field(row, direction, project_tag)
-                        if not strain_field:
-                            values += ', '
-                            continue
+                        # TODO add check for strain?
+                        strain = self._get_strain_field(direction)
+                        assert(isinstance(strain, StrainField))
 
-                        values += str(strain_field.values[row])
+                        strain_value = strain.values[row]
+                        strain_error = strain.errors[row]
+                        entries += _write_number(strain_value) + _write_number(strain_error)
 
                     elif field == 'Stress':
-                        stress_field = self._get_stress_field(row, direction, project_tag)
-                        if not stress_field:
-                            values += ', '
-                            continue
-
-                        values += str(stress_field.values[row])
+                        self._stress.select(direction)
+                        stress_value = self._stress.values[row]
+                        stress_error = self._stress.errors[row]
+                        entries += _write_number(stress_value) + _write_number(stress_error)
 
                     else:
-                        peak_collection: PeakCollection = self._get_peak_collection(row, direction, project_tag)
-
-                        if not peak_collection:
-                            values += ', '
-                            continue
+                        peak_collection = self._get_peak_collection(direction)
+                        assert(isinstance(peak_collection, PeakCollection))
 
                         if field == 'd':
-                            values += str(peak_collection.get_dspacing_center()[0][row])
+                            d_value = peak_collection.get_dspacing_center()[0][row]
+                            d_error = peak_collection.get_dspacing_center()[1][row]
+                            entries += _write_number(d_value) + _write_number(d_error)
+
                         elif field == 'FWHM':
-                            values += str(peak_collection.get_effective_params()[0]['FWHM'][row])
+                            fwhm_value = peak_collection.get_effective_params()[0]['FWHM'][row]
+                            fwhm_error = peak_collection.get_effective_params()[1]['FWHM'][row]
+                            entries += _write_number(fwhm_value) + _write_number(fwhm_error)
+
                         elif field == 'Peak_Height':
-                            values += str(peak_collection.get_effective_params()[0]['Height'][row])
+                            height_value = peak_collection.get_effective_params()[0]['Height'][row]
+                            height_error = peak_collection.get_effective_params()[1]['Height'][row]
+                            entries += _write_number(height_value) + _write_number(height_error)
 
-                    values += ', '
+                return entries
 
-            return values
+            # Function starts here
+            body = ''
+            for row, coordinate in enumerate(self._stress.coordinates):
 
-        lines = ''
-        nrows = len(self._global_coordinates)
-        for row in range(0, nrows):
+                line = str(coordinate[0]) + ', ' + str(coordinate[1]) + ', ' + str(coordinate[2]) + ', '
 
-            for global_coordinate in self._global_coordinates[row]:
-                lines += str(global_coordinate) + ', '
+                # d0 doesn't depend on direction so just picking the first peak_collection
+                for direction in SummaryGeneratorStress.directions:
+                    peak_collection = self._get_peak_collection(direction)
+                    if not peak_collection:
+                        continue
+                    d0_value = peak_collection.get_d_reference()[0][row]
+                    d0_error = peak_collection.get_d_reference()[1][row]
 
-            lines += __write_d0(row)
-            lines += __write_3dir(row, 'd')
-            lines += __write_3dir(row, 'FWHM')
-            lines += __write_3dir(row, 'Peak_Height')
-            lines += __write_3dir(row, 'Strain')
-            lines += __write_3dir(row, 'Stress')
+                    line += _write_number(d0_value) + _write_number(d0_error)
+                    break
 
-            lines = lines[:-2] + '\n'
+                # fields_3dir = ['d', 'FWHM', 'Peak_Height', 'Strain', 'Stress']
+                for field_3dir in SummaryGeneratorStress.fields_3dir:
+                    line += _write_field_3d(row, field_3dir)
 
-        handle.write(lines)
+                line = line[:-2] + '\n'
 
-    def write_csv(self):
+                body += line
 
+            handle.write(body)
+            return
+
+        # function starts here
         with open(self._filename, 'w') as handle:
             self._write_csv_header(handle)
-            self._write_csv_column_names(handle)
-            self._write_csv_body(handle)
+            _write_summary_csv_column_names(handle)
+            _write_summary_csv_body(handle)
 
-    def _get_stress_field(self, row: int, direction: str, project_tag: str) -> StressField:
-        """
-            Returns a StressField for a particular row, direction and project_tag
-        """
-        stress_ids = self._sorted_entries[direction][project_tag]
-        for stress_id in stress_ids:
-            if stress_id in self._stress_field_index[row]:
-                stress_field: StressField = self._stress_fields[stress_id]
-                stress_field.select(direction)
-                return stress_field
+        return
 
-        return StressField()
-
-    def _get_strain_field(self, row: int, direction: str, project_tag: str) -> StrainField:
+    def _get_strain_field(self, direction: str) -> Optional[StrainField]:
         """
-            Returns a StrainField for a particular row, direction and project_tag
+            Returns a StrainField for a particular direction from self._stress
         """
-        stress_ids = self._sorted_entries[direction][project_tag]
-        for stress_id in stress_ids:
-            if stress_id in self._stress_field_index[row]:
-                stress_field: StressField = self._stress_fields[stress_id]
-                stress_field.select(direction)
-                return stress_field.strain
+        stress: StressField = self._stress
+        stress.select(direction)
+        strain = self._stress.strain
+        if isinstance(strain, StrainField):
+            return strain
 
-        return StrainField()
+        return None
 
-    def _get_peak_collection(self, row: int, direction: str, project_tag: str) -> PeakCollection:
+    def _get_peak_collection(self, direction: str) -> Optional[PeakCollection]:
         """
-            Returns a peak collection for a particular row, direction and project_tag
+            Returns a peak_collection for a particular direction from self._stress
         """
-        stress_ids = self._sorted_entries[direction][project_tag]
-        for stress_id in stress_ids:
-            if stress_id in self._stress_field_index[row]:
-                stress_field = self._stress_fields[stress_id]
-                stress_field.select(direction)
-                return stress_field.strain.peak_collection
+        strain = self._get_strain_field(direction)
+        if isinstance(strain, StrainField):
+            return strain.peak_collection
 
-        return PeakCollection()
+        return None
