@@ -39,9 +39,9 @@ Description, Additional Detail, Context
 
 Figures below are also saved in the repository
 
-![grid visualization example 1](stress_strain_ui_1.tif)
+![grid visualization example 1](stress_strain_ui_1.png)
 
-![grid visualization example 2](stress_strain_ui_2.tif)
+![grid visualization example 2](stress_strain_ui_2.png)
 
 User Story Title: Texture Analysis
 =============================
@@ -63,5 +63,5 @@ Description, Additional Detail, Context
 The formulas to map extract peak intensity on top a pole figure are shown in: https://github.com/neutrons/PyRS/blob/master/docs/pole_figure.pdf
 Figures below are also saved in the repository
 
-![Mockup of the texture UI](texture_ui_1.tif)
+![Mockup of the texture UI](texture_ui_1.png)
 
