@@ -724,11 +724,11 @@ class StrainField:
         return self._field.coordinates  # type: ignore
 
     @staticmethod  # noqa: C901
-    def __to_wksp_and_peaks(filename: str,
-                            peak_tag: str,
-                            projectfile: Optional[HidraProjectFile],
-                            hidraworkspace: Optional[HidraWorkspace],
-                            peak_collection: Optional[PeakCollection]) -> Tuple[HidraWorkspace, PeakCollection]:
+    def __to_pointlist_and_peaks(filename: str,
+                                 peak_tag: str,
+                                 projectfile: Optional[HidraProjectFile],
+                                 hidraworkspace: Optional[HidraWorkspace],
+                                 peak_collection: Optional[PeakCollection]) -> Tuple[PointList, PeakCollection]:
         # load information from a file
         closeproject = False
         if filename:
@@ -779,7 +779,9 @@ class StrainField:
         if hidraworkspace.get_sub_runs() != peak_collection.sub_runs:  # type: ignore
             raise RuntimeError('Need to have matching subruns')
 
-        return hidraworkspace, peak_collection
+        pointlist = hidraworkspace.get_pointlist()
+
+        return pointlist, peak_collection
 
     def _initialize_with_single_scan(self,
                                      filename: str = '',
@@ -787,28 +789,10 @@ class StrainField:
                                      peak_tag: str = '',
                                      hidraworkspace: Optional[HidraWorkspace] = None,
                                      peak_collection: Optional[PeakCollection] = None) -> None:
-        r"""
-
-        """
-        VX, VY, VZ = 'vx', 'vy', 'vz'
-
         # get the workspace and peaks by resolving the supplied inputs
-        hidraworkspace, peak_collection = StrainField.__to_wksp_and_peaks(filename, peak_tag,
+        pointlist, peak_collection = StrainField.__to_pointlist_and_peaks(filename, peak_tag,
                                                                           projectfile, hidraworkspace,
                                                                           peak_collection)
-
-        lognames = hidraworkspace.get_sample_log_names()
-        missing = []
-        for logname in VX, VY, VZ:
-            if logname not in lognames:
-                missing.append(logname)
-        if missing:
-            raise RuntimeError('Failed to find positions in logs. Missing {}'.format(', '.join(missing)))
-
-        # extract positions
-        x = hidraworkspace.get_sample_log_values(VX)
-        y = hidraworkspace.get_sample_log_values(VY)
-        z = hidraworkspace.get_sample_log_values(VZ)
 
         strain, strain_error = peak_collection.get_strain()  # type: ignore
 
@@ -821,7 +805,8 @@ class StrainField:
             self._filenames = []  # do not know filenames
         self._peak_collection = peak_collection
         self._single_scans = [self]  # when the strain is composed of more than one scan, we keep references to them
-        self._field = ScalarFieldSample('strain', strain, strain_error, x, y, z)
+        self._field = ScalarFieldSample('strain', strain, strain_error,
+                                        pointlist.vx, pointlist.vy, pointlist.vz)
 
     def fuse_with(self, other_strain: 'StrainField',
                   resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = 'min_error') -> 'StrainField':

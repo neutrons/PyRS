@@ -577,6 +577,10 @@ class HidraWorkspace:
 
         return self._sample_logs[sample_log_name, sub_runs]
 
+    def get_pointlist(self, subruns=None):
+        '''Get list PointList from the SampleLogs'''
+        return self._sample_logs.get_pointlist(subruns)
+
     def get_spectrum_index(self, sub_run: int) -> Any:
         """
         Get spectrum (index) from sub run number
