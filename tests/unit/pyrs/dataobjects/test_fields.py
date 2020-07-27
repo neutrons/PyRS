@@ -577,13 +577,13 @@ class TestStrainField:
         assert np.allclose(strain.coordinates, np.concatenate((strain1.coordinates, strain2.coordinates)))
 
     def test_create_strain_field_from_scalar_field_sample(self):
-        values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],  # values
-        errors = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],  # errors
-        x = [0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.5],  # x
-        y = [1.0, 1.0, 1.5, 1.5, 1.0, 1.0, 1.5, 1.5],  # y
-        z = [2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5],  # z
-        field = ScalarFieldSample('strain', values, errors, x, y, z)
-        strain = StrainField(field_sample=field)
+        values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]  # values
+        errors = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]  # errors
+        x = [0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.5]  # x
+        y = [1.0, 1.0, 1.5, 1.5, 1.0, 1.0, 1.5, 1.5]  # y
+        z = [2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5]  # z
+        strain = StrainField(peak_collection=PeakCollectionLite('strain', strain=values, strain_error=errors),
+                             point_list=PointList([x, y, z]))
         assert np.allclose(strain.values, values)
         assert np.allclose(strain.x, x)
 

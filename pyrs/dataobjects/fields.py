@@ -12,7 +12,7 @@ from pathlib import Path
 
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.dataobjects.sample_logs import PointList, aggregate_point_lists
-from pyrs.peaks import PeakCollection  # type: ignore
+from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 
 # two points in real space separated by less than this amount (in mili meters) are considered the same point
@@ -567,16 +567,16 @@ class StrainField:
                  peak_tag: str = '',
                  hidraworkspace: Optional[HidraWorkspace] = None,
                  peak_collection: Optional[PeakCollection] = None,
-                 point_list: Optional[PointList] = None,
-                 field_sample: Optional[ScalarFieldSample] = None) -> None:
+                 point_list: Optional[PointList] = None) -> None:
         r"""
         Converts a HidraWorkspace and PeakCollection into a ScalarField
         """
         self._peak_collection: Optional[PeakCollection] = None
-        # when the strain is composed of more than one scan, we keep references to them
-        self._single_scans: List['StrainField'] = []
-        self._field = field_sample
         self._filenames: List[str] = []
+        # when the strain is composed of more than one scan, we keep references to the individual ones
+        self._single_scans: List['StrainField'] = []
+        # the resolved ScalarFieldSample with the math done
+        self._field: Optional[ScalarFieldSample] = None
 
         # Create a strain field from a single scan, if so requested
         single_scan_kwargs = dict(filename=filename, projectfile=projectfile, peak_tag=peak_tag,  # type: ignore
@@ -1099,8 +1099,12 @@ class StressField:
 
         # Enforce self._strain33 is zero for in-plane strain, or back-calculate it when in-plane stress
         if self.stress_type == StressType.IN_PLANE_STRAIN:
-            field_zero = ScalarFieldSample('strain', [0.0] * self.size, [0.0] * self.size, self.x, self.y, self.z)
-            self._strain33 = StrainField(field_sample=field_zero)
+            # there is no in-plane strain component
+            points = PointList([self.x, self.y, self.z])
+            peaks = PeakCollectionLite(str(StressType.IN_PLANE_STRAIN),
+                                       np.zeros(self.size, dtype=float),
+                                       np.zeros(self.size, dtype=float))
+            self._strain33 = StrainField(peak_collection=peaks, point_list=points)
         elif self.stress_type == StressType.IN_PLANE_STRESS:
             self._strain33 = self._strain33_when_inplane_stress()
 
@@ -1259,7 +1263,10 @@ class StressField:
         factor = self.poisson_ratio / (self.poisson_ratio - 1)
         strain33 = factor * (self._strain11.sample + self._strain22.sample)  # unumpy.array
         values, errors = unumpy.nominal_values(strain33), unumpy.std_devs(strain33)
-        return StrainField(field_sample=ScalarFieldSample('strain', values, errors, self.x, self.y, self.z))
+        peaks = PeakCollectionLite(str(StressType.IN_PLANE_STRESS),
+                                   values, errors)
+        return StrainField(peak_collection=peaks,
+                           point_list=PointList([self.x, self.y, self.z]))
 
     @property
     def size(self) -> int:
