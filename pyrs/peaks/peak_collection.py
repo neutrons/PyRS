@@ -40,11 +40,6 @@ class PeakCollectionLite:
                  strain_error: np.ndarray,
                  d_reference: Union[float, np.ndarray] = np.nan,
                  d_reference_error: Union[float, np.ndarray] = 0.) -> None:
-        print('PeakCollectionLite(', peak_tag, strain)
-
-        if strain.size != strain_error.size:
-            raise ValueError('strain and error must have identical size ({} != {})'.format(strain.size,
-                                                                                           strain_error.size))
         self._tag: str = peak_tag
         self._strain = unumpy.uarray(strain, strain_error)
 
