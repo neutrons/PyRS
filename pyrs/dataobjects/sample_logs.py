@@ -205,6 +205,21 @@ class SampleLogs(MutableMapping):
     def get_subrun_indices(self, subruns):
         return self._subruns.get_indices(subruns)
 
+    def get_pointlist(self, subruns=None):
+        VX, VY, VZ = 'vx', 'vy', 'vz'
+
+        # check the values exist
+        missing = []
+        for logname in (VX, VY, VZ):
+            if logname not in self:
+                missing.append(logname)
+        if missing:
+            raise ValueError('Failed to find positions in logs. Missing {}'.format(', '.join(missing)))
+
+        # create a PointList on the fly
+        # passing the subruns down allow for slicing/selecting
+        return PointList([self[VX, subruns], self[VY, subruns], self[VZ, subruns]])
+
 
 class _DirectionExtents(NamedTuple):
     min: float  # minimum value of the sample coordinate along one particular direction
