@@ -11,8 +11,9 @@ from pyrs.dataobjects.fields import (aggregate_scalar_field_samples, fuse_scalar
                                      ScalarFieldSample, StrainField, StressField, stack_scalar_field_samples,
                                      generateParameterField)
 from pyrs.core.peak_profile_utility import get_parameter_dtype
-from pyrs.peaks import PeakCollection  # type: ignore
+from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
+from pyrs.dataobjects.sample_logs import PointList
 
 SampleMock = namedtuple('SampleMock', 'name values errors x y z')
 
@@ -674,6 +675,17 @@ class TestStrainField:
             assert dimension.getMinimum() == pytest.approx(min_value, abs=1.e-02)
             assert dimension.getMaximum() == pytest.approx(max_value, abs=1.e-02)
             assert dimension.getNBins() == bin_count
+
+
+def test_calculated_strain():
+    SIZE = 10
+
+    peaks = PeakCollectionLite('dummy',
+                               strain=np.zeros(SIZE, dtype=float),
+                               strain_error=np.zeros(SIZE, dtype=float))
+    pointlist = PointList([np.arange(SIZE, dtype=float), np.arange(SIZE, dtype=float), np.arange(SIZE, dtype=float)])
+    strain = StrainField(point_list=pointlist, peak_collection=peaks)
+    np.testing.assert_equal(strain.values, 0.)
 
 
 def test_generateParameterField(test_data_dir):

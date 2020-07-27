@@ -567,6 +567,7 @@ class StrainField:
                  peak_tag: str = '',
                  hidraworkspace: Optional[HidraWorkspace] = None,
                  peak_collection: Optional[PeakCollection] = None,
+                 point_list: Optional[PointList] = None,
                  field_sample: Optional[ScalarFieldSample] = None) -> None:
         r"""
         Converts a HidraWorkspace and PeakCollection into a ScalarField
@@ -578,8 +579,9 @@ class StrainField:
         self._filenames: List[str] = []
 
         # Create a strain field from a single scan, if so requested
-        single_scan_kwargs = dict(filename=filename, projectfile=projectfile, peak_tag=peak_tag,
-                                  hidraworkspace=hidraworkspace, peak_collection=peak_collection)
+        single_scan_kwargs = dict(filename=filename, projectfile=projectfile, peak_tag=peak_tag,  # type: ignore
+                                  hidraworkspace=hidraworkspace, peak_collection=peak_collection,  # type: ignore
+                                  point_list=point_list)  # type: ignore
         if True in [bool(v) for v in single_scan_kwargs.values()]:  # at least one argument is not empty
             self._initialize_with_single_scan(**single_scan_kwargs)  # type: ignore
 
@@ -728,7 +730,8 @@ class StrainField:
                                  peak_tag: str,
                                  projectfile: Optional[HidraProjectFile],
                                  hidraworkspace: Optional[HidraWorkspace],
-                                 peak_collection: Optional[PeakCollection]) -> Tuple[PointList, PeakCollection]:
+                                 peak_collection: Optional[PeakCollection],
+                                 point_list: Optional[PointList]) -> Tuple[PointList, PeakCollection]:
         # load information from a file
         closeproject = False
         if filename:
@@ -739,10 +742,15 @@ class StrainField:
 
         # create objects from the project file
         if projectfile:
+            if not hidraworkspace:
+                hidraworkspace = HidraWorkspace()
+                hidraworkspace.load_hidra_project(projectfile, load_raw_counts=False,
+                                                  load_reduced_diffraction=False)
             # create HidraWorkspace
             if not hidraworkspace:
                 hidraworkspace = HidraWorkspace()
-                hidraworkspace.load_hidra_project(projectfile, load_raw_counts=False, load_reduced_diffraction=False)
+                hidraworkspace.load_hidra_project(projectfile, load_raw_counts=False,
+                                                  load_reduced_diffraction=False)
 
             # get the PeakCollection
             if not peak_collection:
@@ -767,32 +775,44 @@ class StrainField:
             if closeproject:
                 projectfile.close()
                 del projectfile
+
+            # verify the subruns are parallel
+            if hidraworkspace and hidraworkspace.get_sub_runs() != peak_collection.sub_runs:  # type: ignore
+                raise RuntimeError('Need to have matching subruns')
         elif TYPE_CHECKING:
             hidraworkspace = cast(HidraWorkspace, hidraworkspace)
             peak_collection = cast(PeakCollection, peak_collection)
 
+        # extract the PointList
+        if hidraworkspace:
+            if not point_list:
+                point_list = hidraworkspace.get_pointlist()
+        elif TYPE_CHECKING:
+            point_list = cast(PointList, point_list)
+
         # verify that everything is set by now
-        if (not hidraworkspace) or (not peak_collection):
-            raise RuntimeError('Do not have both hidraworkspace and peak_collection defined')
+        if (not point_list) or (not peak_collection):
+            raise RuntimeError('Do not have both point_list and peak_collection defined')
 
-        # convert the information into a usable form for setting up this object
-        if hidraworkspace.get_sub_runs() != peak_collection.sub_runs:  # type: ignore
-            raise RuntimeError('Need to have matching subruns')
+        if len(point_list) != len(peak_collection):
+            msg = 'point_list and peak_collection are not equal length ({} != {})'.format(len(point_list),
+                                                                                          len(peak_collection))
+            raise ValueError(msg)
 
-        pointlist = hidraworkspace.get_pointlist()
-
-        return pointlist, peak_collection
+        return point_list, peak_collection
 
     def _initialize_with_single_scan(self,
                                      filename: str = '',
                                      projectfile: Optional[HidraProjectFile] = None,
                                      peak_tag: str = '',
                                      hidraworkspace: Optional[HidraWorkspace] = None,
-                                     peak_collection: Optional[PeakCollection] = None) -> None:
+                                     peak_collection: Optional[PeakCollection] = None,
+                                     point_list: Optional[PointList] = None) -> None:
         # get the workspace and peaks by resolving the supplied inputs
         pointlist, peak_collection = StrainField.__to_pointlist_and_peaks(filename, peak_tag,
                                                                           projectfile, hidraworkspace,
-                                                                          peak_collection)
+                                                                          peak_collection,
+                                                                          point_list)
 
         strain, strain_error = peak_collection.get_strain()  # type: ignore
 
