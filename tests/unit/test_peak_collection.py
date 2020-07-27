@@ -1,6 +1,6 @@
 import numpy as np
 from pyrs.core.peak_profile_utility import PeakShape, BackgroundFunction, get_parameter_dtype
-from pyrs.peaks import PeakCollection  # type: ignore
+from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
 import pytest
 
 
@@ -176,6 +176,18 @@ def test_peak_collection_PseudoVoigt():
                           wavelength=1.53229, d_reference=1.08, target_d_spacing_center=[1.08, 1.07],
                           target_d_spacing_center_error=[0.0, 0.0], target_strain=[3234., -5408.],
                           target_strain_error=[0.0, 0.0])
+
+
+def test_peak_collection_list():
+    SIZE = 10
+
+    peaks = PeakCollectionLite('dummy',
+                               strain=np.zeros(SIZE, dtype=float),
+                               strain_error=np.zeros(SIZE, dtype=float))
+    obs, obs_error = peaks.get_strain()
+    np.testing.assert_equal(obs, 0.)
+    np.testing.assert_equal(obs_error, 0.)
+    assert len(peaks.get_d_reference()[0]) == SIZE
 
 
 if __name__ == '__main__':

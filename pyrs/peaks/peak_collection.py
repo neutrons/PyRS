@@ -5,7 +5,119 @@ from pyrs.dataobjects import SubRuns  # type: ignore
 from typing import Tuple, Union
 from uncertainties import unumpy
 
-__all__ = ['PeakCollection']
+__all__ = ['PeakCollection', 'PeakCollectionLite']
+
+
+def get_strain_conversion_factor(units: str = 'strain') -> float:
+    '''
+    get factor to convert strain to correct units
+
+    Parameters
+    ----------
+    units: str
+        Can be ``strain`` or ``microstrain``
+
+    Returns
+    -------
+    float'''
+    # prepare to return the requested units
+    conversion_factor = 1.
+    if units == 'strain':
+        pass  # data is calculated as strain
+    elif units == 'microstrain':
+        conversion_factor = 1.e6
+    else:
+        raise ValueError('Cannot return units of "{}". Must be "strain" or "microstrain"'.format(units))
+    return conversion_factor
+
+
+class PeakCollectionLite:
+    '''
+    A variant of the :py:obj:PeakCollection which does not have the full peak profile information
+    '''
+    def __init__(self, peak_tag: str,
+                 strain: np.ndarray,
+                 strain_error: np.ndarray,
+                 d_reference: Union[float, np.ndarray] = np.nan,
+                 d_reference_error: Union[float, np.ndarray] = 0.) -> None:
+        print('PeakCollectionLite(', peak_tag, strain)
+
+        if strain.size != strain_error.size:
+            raise ValueError('strain and error must have identical size ({} != {})'.format(strain.size,
+                                                                                           strain_error.size))
+        self._tag: str = peak_tag
+        self._strain = unumpy.uarray(strain, strain_error)
+
+        # must happen after the sub_run array is set
+        self.set_d_reference(d_reference, d_reference_error)
+
+    def __len__(self):
+        return self._strain.size
+
+    def __bool__(self):
+        return True
+
+    def set_d_reference(self, values: Union[float, np.ndarray] = np.nan,
+                        errors: Union[float, np.ndarray] = 0.) -> None:
+        """Set d reference values
+
+        Parameters
+        ----------
+        values :
+            1D numpy array or floats
+
+        Returns
+        -------
+
+        """
+        # d-reference should be, at minimum, length one
+        num_values = self._strain.size if self._strain.size else 1
+
+        if isinstance(values, np.ndarray):
+            nd_values = values
+        else:
+            nd_values = np.array([values] * num_values)
+
+        if isinstance(errors, np.ndarray):
+            nd_errors = errors
+        else:
+            nd_errors = np.array([errors] * num_values)
+
+        # store value and uncertainties together
+        self._d_reference = unumpy.uarray(nd_values, nd_errors)
+
+    def get_d_reference(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Get d reference for all the sub runs
+
+        Returns
+        -------
+        numpy.ndarray
+            1D array for peak's reference position in dSpacing.  NaN for not being set.
+
+        """
+        return unumpy.nominal_values(self._d_reference), unumpy.std_devs(self._d_reference)
+
+    def get_strain(self, units: str = 'strain') -> Tuple[np.ndarray, np.ndarray]:
+        """get strain values and uncertainties in units of strain
+
+          Parameters
+          ----------
+          units: str
+              Can be ``strain`` or ``microstrain``
+
+          Returns
+          -------
+            tuple
+                A two-item tuple containing the strain and its uncertainty.
+          """
+        # prepare to return the requested units
+        conversion_factor = get_strain_conversion_factor(units)
+
+        # multiplying by 1e6 converts to micro
+        strain = conversion_factor * self._strain
+
+        # unpack the values to return
+        return unumpy.nominal_values(strain), unumpy.std_devs(strain)
 
 
 class PeakCollection:
@@ -48,6 +160,12 @@ class PeakCollection:
 
         # must happen after the sub_run array is set
         self.set_d_reference(d_reference, d_reference_error)
+
+    def __len__(self):
+        return len(self._sub_run_array)
+
+    def __bool__(self):
+        return True
 
     @property
     def peak_tag(self) -> str:
@@ -207,13 +325,7 @@ class PeakCollection:
                 A two-item tuple containing the strain and its uncertainty.
           """
         # prepare to return the requested units
-        conversion_factor = 1.
-        if units == 'strain':
-            pass  # data is calculated as strain
-        elif units == 'microstrain':
-            conversion_factor = 1.e6
-        else:
-            raise ValueError('Cannot return units of "{}". Must be "strain" or "microstrain"'.format(units))
+        conversion_factor = get_strain_conversion_factor(units)
 
         d_fitted = self._get_dspacing_center()
 
