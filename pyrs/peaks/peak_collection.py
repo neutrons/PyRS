@@ -39,6 +39,10 @@ def _create_d_reference_array(values: Union[float, np.ndarray],
     ----------
     values :
         1D numpy array or floats
+    errors:
+        1D numpy array or floats
+    size:
+        The number of elements the final object should contain
 
     Returns
     -------
