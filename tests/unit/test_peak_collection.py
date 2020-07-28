@@ -111,6 +111,9 @@ def check_peak_collection(peak_shape, NUM_SUBRUN, target_errors,
     np.testing.assert_equal(peaks.get_subruns(), subruns)
     np.testing.assert_equal(peaks.get_chisq(), chisq)
     assert len(peaks.get_fit_status()) == NUM_SUBRUN
+    assert peaks.runnumber == -1   # tests don't have real data
+    assert peaks.projectfilename == ''   # tests don't have real data
+
     # check raw/native parameters
     obs_raw_peaks, obs_raw_errors = peaks.get_native_params()
     np.testing.assert_equal(obs_raw_peaks, raw_peaks_array)
@@ -178,7 +181,7 @@ def test_peak_collection_PseudoVoigt():
                           target_strain_error=[0.0, 0.0])
 
 
-def test_peak_collection_list():
+def test_peak_collection_lite():
     SIZE = 10
 
     peaks = PeakCollectionLite('dummy',
@@ -188,6 +191,8 @@ def test_peak_collection_list():
     np.testing.assert_equal(obs, 0.)
     np.testing.assert_equal(obs_error, 0.)
     assert len(peaks.get_d_reference()[0]) == SIZE
+    assert peaks.runnumber == -1   # never has a run number
+    assert peaks.projectfilename == ''   # never came from a file
 
 
 if __name__ == '__main__':
