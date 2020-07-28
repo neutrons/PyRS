@@ -1,3 +1,75 @@
+r"""
+Module providing objects to represent strains and stress components, as well as any scalar field
+defined over a set of sample points.
+
+Classes defined in this module:
+
+class ScalarFieldObject
+
+  Definition: Scalar field (values and errors) defined over a set of sample points (a triad of
+  x, y, and z values).
+
+  Functionality:
+    - Scalar fields can be combined in two fundamental ways, "along the same direction"
+      and "accross different directions".
+    - Combining ("fusing") two (or more) fields along the same direction results in one scalar
+      field. The sample points of each field are "fused" together, resulting in a single set
+      of sample points. The resulting field is defined over this new set of sample points. Any
+      point common to two input fields is "fused" into a single point in the combined
+      field. Operator '+' can be used to fuse scalar fields.
+    - Combining ("stacking") two (or more) fields across different directions results in as many
+      output fields as input fields. The sample points of each field are "fused" together,
+      resulting in a single set of sample points. All the output fields are defined over
+      this new set of sample points. Operator '*' can be used to stack scalar fields
+
+class StrainField
+
+  Definition: a scalar field of strain values and errors defined over a set of sample points (a triad of
+  x, y, and z values).
+
+  The set of sample points may originate from one or more experimental runs. Each experimental run has
+  associated one PeakCollection instance, so we'll say that a strain field is associated to one or
+  more PeakCollection instances.
+
+  Functionality:
+  - Strain fields can be fused (combine strains along the same direction) or stacked (combine
+    strains across directions)
+  - Strain fields resulting from the fusion of two or more strains are associated to a list of
+    PeakCollection instances, which can be retrieved from property StrainField.peak_collections
+  - Strain fields store the set of sample points over which they are defined. If a strain is
+    associated to only one PeakCollection, then the sample points are those of the
+    PeakCollection. If a strain is associated to, say, two PeakCollection objects, then some of the
+    sample points will originate in the first PeakCollection object, and the remaining points will
+    originate in the second PeakCollection object. The StrainField object holds a cross-reference
+    index table resolving the provenance of each sample point to one PeakCollection and one sample
+    point within the PeakCollection.
+  - StrainField objects don't store strain values and errors, rather they are calculated every time
+    the are requested using the cross-reference index table and function PeakCollection.get_strain()
+
+class StressField
+
+  Definition: a container of three stress and three strains scalar fields, a pair for each of the
+  three mutually perperdicular directions.
+
+  StressField objects are generated using three StrainField objects, one for each mutually perperdicular
+  direction. Usually, these strains are defined over slightly different sets of sample points, so
+  it is necessary to stack them. After the stacking operation, the three output StrainField objects are
+  defined over the same set of sample points and calculation of the stress components can proceed. The
+  StressField object stores the three stacked StrainField objects, it does not store the three original
+  StrainField objects.
+
+  The three stress components are stored as ScalarFieldSample objects.
+
+  Selected Functionality:
+  - Stacked strains are accessible with properties StressField.strain11 (.strain22, .strain33)
+  - Stress components can be accessed with the bracket operator (stress['11'], stress['22'], stress['33'])
+  - Iterating over a StressField objects returns an iterator over the stress
+    components (for component in stress: ...)
+  - StressField objects hold a "currently accessible direction" which can be updated with the
+    StressField.select() method.
+  - Properties StressField.values and StressField.errors returns the values and errors of the stress
+    component along the currectly accessble direction
+"""
 from enum import Enum
 from enum import unique as unique_enum
 import numpy as np
