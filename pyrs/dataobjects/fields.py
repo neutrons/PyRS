@@ -753,10 +753,6 @@ class StrainField:
 
         # create objects from the project file
         if projectfile:
-            if not hidraworkspace:
-                hidraworkspace = HidraWorkspace()
-                hidraworkspace.load_hidra_project(projectfile, load_raw_counts=False,
-                                                  load_reduced_diffraction=False)
             # create HidraWorkspace
             if not hidraworkspace:
                 hidraworkspace = HidraWorkspace()
