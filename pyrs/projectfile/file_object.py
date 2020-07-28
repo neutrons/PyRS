@@ -507,6 +507,17 @@ class HidraProjectFile:
 
         return samplelogs
 
+    def read_run_number(self) -> int:
+        try:
+            values = self.read_log_value('run_number')
+            values_set = set(values.value.astype(int))
+            if len(values_set) > 1:
+                raise RuntimeError('more than one run number: {}'.format(values_set))
+            return values_set.pop()
+        except KeyError:
+            # field is missing
+            return -1
+
     def read_log_value(self, log_name):
         """Get a log's value
 
@@ -646,7 +657,10 @@ class HidraProjectFile:
         if param_values.shape != error_values.shape:
             raise RuntimeError('Parameters[{}] and Errors[{}] have different shape'.format(param_values.shape,
                                                                                            error_values.shape))
-        peak_collection = PeakCollection(peak_tag, profile, background, self.read_wavelengths())
+        peak_collection = PeakCollection(peak_tag, profile, background, self.read_wavelengths(),
+                                         projectfilename=self._file_name,
+                                         runnumber=self.read_run_number())
+
         peak_collection.set_peak_fitting_values(subruns=sub_run_array, parameter_values=param_values,
                                                 parameter_errors=error_values, fit_costs=chi2_array)
 

@@ -96,7 +96,9 @@ class MantidPeakFitEngine(PeakFitEngine):
 
         # Create PeakCollection instance
         peak_object = PeakCollection(peak_tag=peak_tag, peak_profile=self._peak_function,
-                                     background_type=self._background_function, wavelength=self._wavelength)
+                                     background_type=self._background_function, wavelength=self._wavelength,
+                                     projectfilename=self._project_file_name,
+                                     runnumber=self._runnumber)
         peak_object.set_peak_fitting_values(self._subruns, peak_params_value_array,
                                             peak_params_error_array, fit_cost_array)
 

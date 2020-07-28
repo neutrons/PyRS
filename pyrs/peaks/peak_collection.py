@@ -1,8 +1,9 @@
 import numpy as np
+from pathlib import Path
 from pyrs.core.peak_profile_utility import get_parameter_dtype, get_effective_parameters_converter, PeakShape, \
     BackgroundFunction
 from pyrs.dataobjects import SubRuns  # type: ignore
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 from uncertainties import unumpy
 
 __all__ = ['PeakCollection', 'PeakCollectionLite']
@@ -132,6 +133,16 @@ class PeakCollectionLite:
         # unpack the values to return
         return unumpy.nominal_values(strain), unumpy.std_devs(strain)
 
+    @property
+    def runnumber(self) -> int:
+        '''Negative one means it was never set'''
+        return -1
+
+    @property
+    def projectfilename(self) -> str:
+        '''Empty string because these never came from a project file'''
+        return ''
+
 
 class PeakCollection:
     """
@@ -139,7 +150,9 @@ class PeakCollection:
     """
     def __init__(self, peak_tag: str, peak_profile, background_type, wavelength: float = np.nan,
                  d_reference: Union[float, np.ndarray] = np.nan,
-                 d_reference_error: Union[float, np.ndarray] = 0.) -> None:
+                 d_reference_error: Union[float, np.ndarray] = 0.,
+                 projectfilename: str = '',
+                 runnumber: int = -1) -> None:
         """Initialization
 
         Parameters
@@ -154,6 +167,9 @@ class PeakCollection:
         """
         # Init variables from input
         self._tag = peak_tag
+        self._filename: str = ''
+        self.projectfilename = projectfilename  # use the setter
+        self._runnumber: int = runnumber
 
         # Init other parameters
         self._peak_profile = PeakShape.getShape(peak_profile)
@@ -172,6 +188,7 @@ class PeakCollection:
         self._fit_status = None
 
         # must happen after the sub_run array is set
+        self._d_reference: Optional[unumpy.uarray]
         self.set_d_reference(d_reference, d_reference_error)
 
     def __len__(self):
@@ -223,6 +240,24 @@ class PeakCollection:
     @property
     def fitting_costs(self) -> np.ndarray:
         return self._fit_cost_array
+
+    @property
+    def runnumber(self) -> int:
+        '''The run number. Negative one means it was never set'''
+        return self._runnumber
+
+    @property
+    def projectfilename(self) -> str:
+        return self._filename
+
+    @projectfilename.setter
+    def projectfilename(self, filename: str) -> None:
+        if not filename or filename == '/':
+            # convert all "False" things to empty string
+            self._filename = ''
+        else:
+            # only the name of the file rather than full path
+            self._filename = Path(filename).name
 
     def __convertParameters(self, parameters):
         '''Convert the supplied parameters into an appropriate ndarray'''

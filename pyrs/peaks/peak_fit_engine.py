@@ -29,6 +29,10 @@ class PeakFitEngine:
         # TODO generate_mantid_workspace should not use `mask_id`
         self._mtd_wksp = mantid_helper.generate_mantid_workspace(hidraworkspace, hidraworkspace.name, None)
         self._subruns = hidraworkspace.get_sub_runs()
+        self._project_file_name = hidraworkspace.hidra_project_file
+        self._runnumber = hidraworkspace.get_sample_log_value('run_number') \
+            if 'run_number' in hidraworkspace.get_sample_log_names() \
+               else -1
 
         # create a
         self._peak_function = PeakShape.getShape(peak_function_name)

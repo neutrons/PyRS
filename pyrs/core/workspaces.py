@@ -543,9 +543,16 @@ class HidraWorkspace:
         log_value = self._sample_logs[sample_log_name, sub_run]
 
         if isinstance(log_value, numpy.ndarray):
-            assert log_value.shape == (1, ), 'Single log {} (= {}) is a numpy array with multiple items' \
-                                             '(shape = {})'.format(sample_log_name, log_value, log_value.shape)
-            log_value = log_value[0]
+            if log_value.shape == (1, ):  # only one log value
+                log_value = log_value[0]
+            else:
+                log_set = set(log_value)
+                if len(log_set) == 1:  # all the values are the same
+                    log_value = log_set.pop()
+                else:
+                    msg = 'Single log {} (= {}) is a numpy array with multiple items' \
+                        '(shape = {})'.format(sample_log_name, log_value, log_value.shape)
+                    raise AssertionError(msg)
 
         return log_value
 
