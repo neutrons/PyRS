@@ -370,11 +370,11 @@ class PointList:
         r"""
         List of sample coordinates.
 
-        Some remarks:
-        point_list.vx returns the list of coordinates along the first axis
-        point_list[42] return the (vx, vy, vz) coordinates of point 42
-        point_list.coordinates retuns a numpy array of shape (number_points, 3)
-        Iteration iterates over each point, not over each direction.
+        - Units are set to mili meters always.
+        - point_list.vx returns the list of coordinates along the first axis
+        - point_list[42] return the (vx, vy, vz) coordinates of point 42
+        - point_list.coordinates retuns a numpy array of shape (number_points, 3)
+        - Iteration iterates over each point, not over each direction.
 
         Parameters
         ----------

@@ -448,7 +448,7 @@ class TestScalarFieldSample:
         sample = ScalarFieldSample('strain', signal, errors, *xyz)
 
         # Test export to MDHistoWorkspace
-        workspace = sample.export(form='MDHistoWorkspace', name='strain1', units='mm')
+        workspace = sample.export(form='MDHistoWorkspace', name='strain1')
         assert workspace.name() == 'strain1'
 
         # Test export to CSV file

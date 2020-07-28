@@ -452,7 +452,7 @@ class ScalarFieldSample:
         aggregate_sample = self.aggregate(other)  # combine both scalar field samples
         return aggregate_sample.coalesce(resolution=resolution, criterion=criterion)
 
-    def to_md_histo_workspace(self, name: str = '', units: str = 'meter',
+    def to_md_histo_workspace(self, name: str = '',
                               interpolate: bool = True,
                               method: str = 'linear', fill_value: float = float('nan'), keep_nan: bool = True,
                               resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = 'min_error'
@@ -468,8 +468,6 @@ class ScalarFieldSample:
         ----------
         name: str
             Name of the output workspace.
-        units: str
-            Units of the sample points.
         interpolate: bool
             Interpolate the scalar field sample of a regular 3D grid given by the extents of the sample points.
         method: str
@@ -493,7 +491,6 @@ class ScalarFieldSample:
         if not name:
             name = self.name
 
-        # TODO units should be a member of this class
         if interpolate is True:
             sample = self.interpolated_sample(method=method, fill_value=fill_value, keep_nan=keep_nan,
                                               resolution=resolution, criterion=criterion)
@@ -504,12 +501,10 @@ class ScalarFieldSample:
             assert extent[0] <= extent[1], f'min value of {extent} is greater than max value'
         extents_str = ','.join([extent.to_createmd for extent in extents])
 
-        units_triad = ','.join([units] * 3)  # 'meter,meter,meter'
-
         # create an empty event workspace of the correct dimensions
         axis_labels = ('x', 'y', 'z')
         CreateMDWorkspace(OutputWorkspace='__tmp', Dimensions=3, Extents=extents_str,
-                          Names=','.join(axis_labels), Units=units_triad)
+                          Names=','.join(axis_labels), Units='meter,meter,meter')
         # set the bins for the workspace correctly
         aligned_dimensions = [f'{label},{extent.to_binmd}'  # type: ignore
                               for label, extent in zip(axis_labels, extents)]
@@ -538,7 +533,6 @@ class ScalarFieldSample:
         Allowed formats, along with additional arguments and return object:
         - 'MDHistoWorkspace' calls function `to_md_histo_workspace`
             name: str, name of the workspace
-            units ('meter'): str, length units of the sample points
             interpolate (`True`): bool, interpolate values to a regular coordinate grid
             method: ('linear'): str, method of interpolation. Allowed values are 'nearest' and 'linear'
             fill_value: (float('nan'): float, value used to fill in for requested points outside the input points.
@@ -554,7 +548,7 @@ class ScalarFieldSample:
         """
         exporters = dict(MDHistoWorkspace=self.to_md_histo_workspace,
                          CSV=self.to_csv)
-        exporters_arguments = dict(MDHistoWorkspace=('name', 'units'), CSV=('file',))
+        exporters_arguments = dict(MDHistoWorkspace=('name',), CSV=('file',))
         # Call the exporter
         exporter_arguments = {arg: kwargs[arg] for arg in exporters_arguments[form]}
         return exporters[form](*args, **exporter_arguments)
@@ -946,7 +940,7 @@ class StrainField:
 
         return strain
 
-    def to_md_histo_workspace(self, name: str = '', units: str = 'meter',
+    def to_md_histo_workspace(self, name: str = '',
                               interpolate: bool = True,
                               method: str = 'linear', fill_value: float = float('nan'), keep_nan: bool = True,
                               resolution: float = DEFAULT_POINT_RESOLUTION,
@@ -963,8 +957,6 @@ class StrainField:
         ----------
         name: str
             Name of the output workspace.
-        units: str
-            Units of the sample points.
         interpolate: bool
             Interpolate the scalar field sample of a regular 3D grid given by the extents of the sample points.
         method: str
@@ -983,7 +975,7 @@ class StrainField:
         -------
         MDHistoWorkspace
         """
-        export_kwags = dict(units=units, interpolate=interpolate, method=method, fill_value=fill_value,
+        export_kwags = dict(interpolate=interpolate, method=method, fill_value=fill_value,
                             keep_nan=keep_nan, resolution=resolution, criterion=criterion)
         return self._field.to_md_histo_workspace(name, **export_kwags)  # type: ignore
 
@@ -1505,7 +1497,7 @@ class StressField:
         self._stress_selected = direction_to_stress[self.direction]  # type: ignore
         self._strain_selected = direction_to_strain[self.direction]  # type: ignore
 
-    def to_md_histo_workspace(self, name: str = '', units: str = 'meter',
+    def to_md_histo_workspace(self, name: str = '',
                               interpolate: bool = True,
                               method: str = 'linear', fill_value: float = float('nan'), keep_nan: bool = True,
                               resolution: float = DEFAULT_POINT_RESOLUTION,
@@ -1522,8 +1514,6 @@ class StressField:
         ----------
         name: str
             Name of the output workspace.
-        units: str
-            Units of the sample points.
         interpolate: bool
             Interpolate the scalar field sample of a regular 3D grid given by the extents of the sample points.
         method: str
@@ -1542,7 +1532,7 @@ class StressField:
         -------
         MDHistoWorkspace
         """
-        export_kwags = dict(units=units, interpolate=interpolate, method=method, fill_value=fill_value,
+        export_kwags = dict(interpolate=interpolate, method=method, fill_value=fill_value,
                             keep_nan=keep_nan, resolution=resolution, criterion=criterion)
         return self._stress_selected.to_md_histo_workspace(name, **export_kwags)  # type: ignore
 
