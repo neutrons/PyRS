@@ -205,7 +205,10 @@ class SampleLogs(MutableMapping):
     def get_subrun_indices(self, subruns):
         return self._subruns.get_indices(subruns)
 
-    def get_pointlist(self, subruns=None):
+    def get_pointlist(self, subruns=None) -> 'PointList':
+        '''
+        Create a :py:obj:`PointList` from the vx, vy, vz logs
+        '''
         VX, VY, VZ = 'vx', 'vy', 'vz'
 
         # check the values exist

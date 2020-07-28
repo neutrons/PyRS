@@ -732,12 +732,23 @@ class StrainField:
                                  hidraworkspace: Optional[HidraWorkspace],
                                  peak_collection: Optional[PeakCollection],
                                  point_list: Optional[PointList]) -> Tuple[PointList, PeakCollection]:
+        '''Take all of the various ways to supply the :py:obj:PointList and
+        :py:obj:PeakCollection and convert them into those actual
+        objects. For :py:obj:PeakCollection the first one found in the list
+        * ``peak_collection``
+        * ``projectfile``
+
+        Similarly, for :py:obj:PoinList the first one found in the list
+        * ``point_list``
+        * ``hidraworkspace`` - taken from the :py:obj:SampleLogs
+        * ``projectfile``
+        '''
         # load information from a file
         closeproject = False
         if filename:
             projectfile = HidraProjectFile(filename, HidraProjectFileMode.READONLY)
             closeproject = True
-        elif TYPE_CHECKING:
+        elif TYPE_CHECKING:  # only True when running mypy
             projectfile = cast(HidraProjectFile, projectfile)
 
         # create objects from the project file
@@ -779,7 +790,7 @@ class StrainField:
             # verify the subruns are parallel
             if hidraworkspace and hidraworkspace.get_sub_runs() != peak_collection.sub_runs:  # type: ignore
                 raise RuntimeError('Need to have matching subruns')
-        elif TYPE_CHECKING:
+        elif TYPE_CHECKING:  # only True when running mypy
             hidraworkspace = cast(HidraWorkspace, hidraworkspace)
             peak_collection = cast(PeakCollection, peak_collection)
 
@@ -787,7 +798,7 @@ class StrainField:
         if hidraworkspace:
             if not point_list:
                 point_list = hidraworkspace.get_pointlist()
-        elif TYPE_CHECKING:
+        elif TYPE_CHECKING:  # only True when running mypy
             point_list = cast(PointList, point_list)
 
         # verify that everything is set by now
