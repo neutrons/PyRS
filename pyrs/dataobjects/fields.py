@@ -496,18 +496,22 @@ class ScalarFieldSample:
                                               resolution=resolution, criterion=criterion)
         else:
             sample = self
+
         extents = sample.point_list.extents(resolution=resolution)  # triad of DirectionExtents objects
         for extent in extents:
             assert extent[0] <= extent[1], f'min value of {extent} is greater than max value'
-        extents_str = ','.join([extent.to_createmd for extent in extents])
+        # Units of sample points in PointList are 'mm', but Mantid requires 'm'
+        extents_str = ','.join([extent.to_createmd(input_units='mm', output_units='m') for extent in extents])
 
         # create an empty event workspace of the correct dimensions
         axis_labels = ('x', 'y', 'z')
         CreateMDWorkspace(OutputWorkspace='__tmp', Dimensions=3, Extents=extents_str,
                           Names=','.join(axis_labels), Units='meter,meter,meter')
         # set the bins for the workspace correctly
-        aligned_dimensions = [f'{label},{extent.to_binmd}'  # type: ignore
-                              for label, extent in zip(axis_labels, extents)]
+        aligned_dimensions = list()
+        for label, extent in zip(axis_labels, extents):
+            extent_str = extent.to_binmd(input_units='mm', output_units='m')
+            aligned_dimensions.append(f'{label},{extent_str}')
         aligned_kwargs = {f'AlignedDim{i}': aligned_dimensions[i] for i in range(len(aligned_dimensions))}
         BinMD(InputWorkspace='__tmp', OutputWorkspace=name, **aligned_kwargs)
 
