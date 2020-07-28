@@ -11,8 +11,9 @@ from pyrs.dataobjects.fields import (aggregate_scalar_field_samples, fuse_scalar
                                      ScalarFieldSample, StrainField, StressField, stack_scalar_field_samples,
                                      generateParameterField)
 from pyrs.core.peak_profile_utility import get_parameter_dtype
-from pyrs.peaks import PeakCollection  # type: ignore
+from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
+from pyrs.dataobjects.sample_logs import PointList
 
 SampleMock = namedtuple('SampleMock', 'name values errors x y z')
 
@@ -576,13 +577,13 @@ class TestStrainField:
         assert np.allclose(strain.coordinates, np.concatenate((strain1.coordinates, strain2.coordinates)))
 
     def test_create_strain_field_from_scalar_field_sample(self):
-        values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],  # values
-        errors = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],  # errors
-        x = [0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.5],  # x
-        y = [1.0, 1.0, 1.5, 1.5, 1.0, 1.0, 1.5, 1.5],  # y
-        z = [2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5],  # z
-        field = ScalarFieldSample('strain', values, errors, x, y, z)
-        strain = StrainField(field_sample=field)
+        values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]  # values
+        errors = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]  # errors
+        x = [0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.5]  # x
+        y = [1.0, 1.0, 1.5, 1.5, 1.0, 1.0, 1.5, 1.5]  # y
+        z = [2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5]  # z
+        strain = StrainField(peak_collection=PeakCollectionLite('strain', strain=values, strain_error=errors),
+                             point_list=PointList([x, y, z]))
         assert np.allclose(strain.values, values)
         assert np.allclose(strain.x, x)
 
@@ -674,6 +675,17 @@ class TestStrainField:
             assert dimension.getMinimum() == pytest.approx(min_value, abs=1.e-02)
             assert dimension.getMaximum() == pytest.approx(max_value, abs=1.e-02)
             assert dimension.getNBins() == bin_count
+
+
+def test_calculated_strain():
+    SIZE = 10
+
+    peaks = PeakCollectionLite('dummy',
+                               strain=np.zeros(SIZE, dtype=float),
+                               strain_error=np.zeros(SIZE, dtype=float))
+    pointlist = PointList([np.arange(SIZE, dtype=float), np.arange(SIZE, dtype=float), np.arange(SIZE, dtype=float)])
+    strain = StrainField(point_list=pointlist, peak_collection=peaks)
+    np.testing.assert_equal(strain.values, 0.)
 
 
 def test_generateParameterField(test_data_dir):

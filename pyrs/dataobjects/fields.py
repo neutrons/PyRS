@@ -12,7 +12,7 @@ from pathlib import Path
 
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.dataobjects.sample_logs import PointList, aggregate_point_lists
-from pyrs.peaks import PeakCollection  # type: ignore
+from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 
 # two points in real space separated by less than this amount (in mili meters) are considered the same point
@@ -567,19 +567,21 @@ class StrainField:
                  peak_tag: str = '',
                  hidraworkspace: Optional[HidraWorkspace] = None,
                  peak_collection: Optional[PeakCollection] = None,
-                 field_sample: Optional[ScalarFieldSample] = None) -> None:
+                 point_list: Optional[PointList] = None) -> None:
         r"""
         Converts a HidraWorkspace and PeakCollection into a ScalarField
         """
         self._peak_collection: Optional[PeakCollection] = None
-        # when the strain is composed of more than one scan, we keep references to them
-        self._single_scans: List['StrainField'] = []
-        self._field = field_sample
         self._filenames: List[str] = []
+        # when the strain is composed of more than one scan, we keep references to the individual ones
+        self._single_scans: List['StrainField'] = []
+        # the resolved ScalarFieldSample with the math done
+        self._field: Optional[ScalarFieldSample] = None
 
         # Create a strain field from a single scan, if so requested
-        single_scan_kwargs = dict(filename=filename, projectfile=projectfile, peak_tag=peak_tag,
-                                  hidraworkspace=hidraworkspace, peak_collection=peak_collection)
+        single_scan_kwargs = dict(filename=filename, projectfile=projectfile, peak_tag=peak_tag,  # type: ignore
+                                  hidraworkspace=hidraworkspace, peak_collection=peak_collection,  # type: ignore
+                                  point_list=point_list)  # type: ignore
         if True in [bool(v) for v in single_scan_kwargs.values()]:  # at least one argument is not empty
             self._initialize_with_single_scan(**single_scan_kwargs)  # type: ignore
 
@@ -724,17 +726,29 @@ class StrainField:
         return self._field.coordinates  # type: ignore
 
     @staticmethod  # noqa: C901
-    def __to_wksp_and_peaks(filename: str,
-                            peak_tag: str,
-                            projectfile: Optional[HidraProjectFile],
-                            hidraworkspace: Optional[HidraWorkspace],
-                            peak_collection: Optional[PeakCollection]) -> Tuple[HidraWorkspace, PeakCollection]:
+    def __to_pointlist_and_peaks(filename: str,
+                                 peak_tag: str,
+                                 projectfile: Optional[HidraProjectFile],
+                                 hidraworkspace: Optional[HidraWorkspace],
+                                 peak_collection: Optional[PeakCollection],
+                                 point_list: Optional[PointList]) -> Tuple[PointList, PeakCollection]:
+        '''Take all of the various ways to supply the :py:obj:PointList and
+        :py:obj:PeakCollection and convert them into those actual
+        objects. For :py:obj:PeakCollection the first one found in the list
+        * ``peak_collection``
+        * ``projectfile``
+
+        Similarly, for :py:obj:PoinList the first one found in the list
+        * ``point_list``
+        * ``hidraworkspace`` - taken from the :py:obj:SampleLogs
+        * ``projectfile``
+        '''
         # load information from a file
         closeproject = False
         if filename:
             projectfile = HidraProjectFile(filename, HidraProjectFileMode.READONLY)
             closeproject = True
-        elif TYPE_CHECKING:
+        elif TYPE_CHECKING:  # only True when running mypy
             projectfile = cast(HidraProjectFile, projectfile)
 
         # create objects from the project file
@@ -742,7 +756,8 @@ class StrainField:
             # create HidraWorkspace
             if not hidraworkspace:
                 hidraworkspace = HidraWorkspace()
-                hidraworkspace.load_hidra_project(projectfile, load_raw_counts=False, load_reduced_diffraction=False)
+                hidraworkspace.load_hidra_project(projectfile, load_raw_counts=False,
+                                                  load_reduced_diffraction=False)
 
             # get the PeakCollection
             if not peak_collection:
@@ -767,48 +782,44 @@ class StrainField:
             if closeproject:
                 projectfile.close()
                 del projectfile
-        elif TYPE_CHECKING:
+
+            # verify the subruns are parallel
+            if hidraworkspace and hidraworkspace.get_sub_runs() != peak_collection.sub_runs:  # type: ignore
+                raise RuntimeError('Need to have matching subruns')
+        elif TYPE_CHECKING:  # only True when running mypy
             hidraworkspace = cast(HidraWorkspace, hidraworkspace)
             peak_collection = cast(PeakCollection, peak_collection)
 
+        # extract the PointList
+        if hidraworkspace:
+            if not point_list:
+                point_list = hidraworkspace.get_pointlist()
+        elif TYPE_CHECKING:  # only True when running mypy
+            point_list = cast(PointList, point_list)
+
         # verify that everything is set by now
-        if (not hidraworkspace) or (not peak_collection):
-            raise RuntimeError('Do not have both hidraworkspace and peak_collection defined')
+        if (not point_list) or (not peak_collection):
+            raise RuntimeError('Do not have both point_list and peak_collection defined')
 
-        # convert the information into a usable form for setting up this object
-        if hidraworkspace.get_sub_runs() != peak_collection.sub_runs:  # type: ignore
-            raise RuntimeError('Need to have matching subruns')
+        if len(point_list) != len(peak_collection):
+            msg = 'point_list and peak_collection are not equal length ({} != {})'.format(len(point_list),
+                                                                                          len(peak_collection))
+            raise ValueError(msg)
 
-        return hidraworkspace, peak_collection
+        return point_list, peak_collection
 
     def _initialize_with_single_scan(self,
                                      filename: str = '',
                                      projectfile: Optional[HidraProjectFile] = None,
                                      peak_tag: str = '',
                                      hidraworkspace: Optional[HidraWorkspace] = None,
-                                     peak_collection: Optional[PeakCollection] = None) -> None:
-        r"""
-
-        """
-        VX, VY, VZ = 'vx', 'vy', 'vz'
-
+                                     peak_collection: Optional[PeakCollection] = None,
+                                     point_list: Optional[PointList] = None) -> None:
         # get the workspace and peaks by resolving the supplied inputs
-        hidraworkspace, peak_collection = StrainField.__to_wksp_and_peaks(filename, peak_tag,
+        pointlist, peak_collection = StrainField.__to_pointlist_and_peaks(filename, peak_tag,
                                                                           projectfile, hidraworkspace,
-                                                                          peak_collection)
-
-        lognames = hidraworkspace.get_sample_log_names()
-        missing = []
-        for logname in VX, VY, VZ:
-            if logname not in lognames:
-                missing.append(logname)
-        if missing:
-            raise RuntimeError('Failed to find positions in logs. Missing {}'.format(', '.join(missing)))
-
-        # extract positions
-        x = hidraworkspace.get_sample_log_values(VX)
-        y = hidraworkspace.get_sample_log_values(VY)
-        z = hidraworkspace.get_sample_log_values(VZ)
+                                                                          peak_collection,
+                                                                          point_list)
 
         strain, strain_error = peak_collection.get_strain()  # type: ignore
 
@@ -821,7 +832,8 @@ class StrainField:
             self._filenames = []  # do not know filenames
         self._peak_collection = peak_collection
         self._single_scans = [self]  # when the strain is composed of more than one scan, we keep references to them
-        self._field = ScalarFieldSample('strain', strain, strain_error, x, y, z)
+        self._field = ScalarFieldSample('strain', strain, strain_error,
+                                        pointlist.vx, pointlist.vy, pointlist.vz)
 
     def fuse_with(self, other_strain: 'StrainField',
                   resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = 'min_error') -> 'StrainField':
@@ -1094,8 +1106,12 @@ class StressField:
 
         # Enforce self._strain33 is zero for in-plane strain, or back-calculate it when in-plane stress
         if self.stress_type == StressType.IN_PLANE_STRAIN:
-            field_zero = ScalarFieldSample('strain', [0.0] * self.size, [0.0] * self.size, self.x, self.y, self.z)
-            self._strain33 = StrainField(field_sample=field_zero)
+            # there is no in-plane strain component
+            points = PointList([self.x, self.y, self.z])
+            peaks = PeakCollectionLite(str(StressType.IN_PLANE_STRAIN),
+                                       np.zeros(self.size, dtype=float),
+                                       np.zeros(self.size, dtype=float))
+            self._strain33 = StrainField(peak_collection=peaks, point_list=points)
         elif self.stress_type == StressType.IN_PLANE_STRESS:
             self._strain33 = self._strain33_when_inplane_stress()
 
@@ -1254,7 +1270,10 @@ class StressField:
         factor = self.poisson_ratio / (self.poisson_ratio - 1)
         strain33 = factor * (self._strain11.sample + self._strain22.sample)  # unumpy.array
         values, errors = unumpy.nominal_values(strain33), unumpy.std_devs(strain33)
-        return StrainField(field_sample=ScalarFieldSample('strain', values, errors, self.x, self.y, self.z))
+        peaks = PeakCollectionLite(str(StressType.IN_PLANE_STRESS),
+                                   values, errors)
+        return StrainField(peak_collection=peaks,
+                           point_list=PointList([self.x, self.y, self.z]))
 
     @property
     def size(self) -> int:
