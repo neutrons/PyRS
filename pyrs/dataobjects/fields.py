@@ -509,7 +509,7 @@ class ScalarFieldSample:
                           Names=','.join(axis_labels), Units='meter,meter,meter')
         # set the bins for the workspace correctly
         aligned_dimensions = list()
-        for label, extent in zip(axis_labels, extents):
+        for label, extent in zip(axis_labels, extents):  # type: ignore
             extent_str = extent.to_binmd(input_units='mm', output_units='m')
             aligned_dimensions.append(f'{label},{extent_str}')
         aligned_kwargs = {f'AlignedDim{i}': aligned_dimensions[i] for i in range(len(aligned_dimensions))}
@@ -555,7 +555,7 @@ class ScalarFieldSample:
         exporters_arguments = dict(MDHistoWorkspace=('name',), CSV=('file',))
         # Call the exporter
         exporter_arguments = {arg: kwargs[arg] for arg in exporters_arguments[form]}
-        return exporters[form](*args, **exporter_arguments)
+        return exporters[form](*args, **exporter_arguments)  # type: ignore
 
 
 class StrainField:
@@ -674,9 +674,9 @@ class StrainField:
         return self.fuse_with(other_strain)
 
     def __len__(self) -> int:
-        return len(self._field)
+        return len(self._field)  # type: ignore
 
-    def __mul__(self, other: Union['StrainField', List['StrainField']]) -> List['StrainField']:
+    def __mul__(self, other: Union['StrainField', List['StrainField']]) -> Optional[List['StrainField']]:
         r"""
         Stack this strain with another strain, or with a list of strains
 
@@ -698,6 +698,8 @@ class StrainField:
                 if isinstance(strain, StrainField) is False:
                     raise TypeError(f'{strain} is not a {str(self.__class__)} object')
             return self.__class__.stack_strains(self, *other, **stack_kwargs)
+        else:
+            raise NotImplementedError('Do not know how to multiply these objects')
 
     def __rmul__(self, other: List['StrainField']) -> List['StrainField']:
         r"""
