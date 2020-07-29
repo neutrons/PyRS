@@ -14,6 +14,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import functools
 import traceback
+import os
 
 
 class FileLoad(QWidget):
@@ -33,14 +34,14 @@ class FileLoad(QWidget):
         self.setLayout(layout)
 
     def openFileDialog(self):
-        fileName, _ = QFileDialog.getOpenFileName(self,
-                                                  self.name,
-                                                  "",
-                                                  self.fileType)
-        if fileName:
-            success = self.parent.controller.fileSelected(self.name, fileName)
+        fileNames, _ = QFileDialog.getOpenFileNames(self,
+                                                    self.name,
+                                                    "",
+                                                    self.fileType)
+        if fileNames:
+            success = self.parent.controller.filesSelected(self.name, fileNames)
             if success:
-                self.lineEdit.setText(fileName)
+                self.lineEdit.setText(', '.join(os.path.basename(filename) for filename in fileNames))
             else:
                 self.lineEdit.setText(None)
             self.parent.update_plot()
