@@ -667,7 +667,9 @@ class PointList:
         common_points_coordinates = self.aggregate(other).coordinates[points_common_indexes]
         return PointList(common_points_coordinates.transpose())  # needed (3 x number_common_points) shaped array
 
-    def fuse_aggregated_indexes(self, other: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> List:
+    def fuse_aggregated_indices(self, other: 'PointList',
+                                resolution: float = DEFAULT_POINT_RESOLUTION,
+                                single_value: bool = True) -> List:
         r"""
         Add the points from two lists and find the indexes of the aggregated point list
         corresponding to non redundant points.
@@ -679,15 +681,23 @@ class PointList:
         other: ~pyrs.dataobjects.sample_logs.PointList
         resolution: float
             Two points are considered the same if they are separated by a distance smaller than this quantity
+        single_values: bool
+            Return only the lowest index for each cluster
 
         Returns
         -------
         list
         """
+        # combine all points into a single long list with the first points having the lower indices
         all_points = self.aggregate(other)
+        # create clusters of all points that are within ``resolution`` distance of each other
         clusters = all_points.cluster(resolution=resolution)
-        # Pick only the first point out of each cluster
-        return sorted([point_indexes[0] for point_indexes in clusters])
+
+        if single_value:
+            # Pick only the first point out of each cluster
+            return sorted([point_indexes[0] for point_indexes in clusters])
+        else:
+            return sorted(clusters)
 
     def fuse_with(self, other: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> 'PointList':
         r"""
@@ -705,9 +715,9 @@ class PointList:
         -------
         ~pyrs.dataobjects.sample_logs.PointList
         """
-        points_unique_indexes = self.fuse_aggregated_indexes(other, resolution=resolution)
+        points_unique_indices = self.fuse_aggregated_indices(other, resolution=resolution)
         # points_unique_coordinates.shape == number_common_points x 3
-        points_unique_coordinates = self.aggregate(other).coordinates[points_unique_indexes]
+        points_unique_coordinates = self.aggregate(other).coordinates[points_unique_indices]
         return PointList(points_unique_coordinates.transpose())  # needed (3 x number_common_points) shaped array
 
     def extents(self, resolution=DEFAULT_POINT_RESOLUTION) -> ExtentTriad:

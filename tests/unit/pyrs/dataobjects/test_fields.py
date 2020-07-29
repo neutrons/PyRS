@@ -8,12 +8,13 @@ import random
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.dataobjects.constants import DEFAULT_POINT_RESOLUTION
 from pyrs.dataobjects.fields import (aggregate_scalar_field_samples, fuse_scalar_field_samples,
-                                     ScalarFieldSample, StrainField, StressField, stack_scalar_field_samples,
-                                     generateParameterField)
+                                     ScalarFieldSample, StrainField, StrainFieldSingle, StressField,
+                                     stack_scalar_field_samples, generateParameterField)
 from pyrs.core.peak_profile_utility import get_parameter_dtype
 from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.dataobjects.sample_logs import PointList
+from tests.conftest import assert_allclose_with_sorting
 
 SampleMock = namedtuple('SampleMock', 'name values errors x y z')
 
@@ -507,13 +508,13 @@ def strain_field_samples(test_data_dir):
     workspace.set_sample_log('vz', subruns, np.arange(21, 29, dtype=int))
 
     # call the function
-    strain = StrainField(hidraworkspace=workspace, peak_collection=peak_collection)
+    strain = StrainFieldSingle(hidraworkspace=workspace, peak_collection=peak_collection)
 
     # test the result
     assert strain
     assert not strain.filenames
     assert len(strain) == subruns.size
-    assert strain.peak_collection == peak_collection
+    assert strain.peak_collections == [peak_collection]
     np.testing.assert_almost_equal(strain.values, 0.)
     np.testing.assert_equal(strain.errors, np.zeros(subruns.size, dtype=float))
     sample_fields['strain with two points per direction'] = strain
@@ -528,7 +529,7 @@ def strain_field_samples(test_data_dir):
         file_path = os.path.join(test_data_dir, filename)
         prefix = filename.split('.')[0] + '_'
         for tag in tags:
-            sample_fields[prefix + tag] = StrainField(filename=file_path, peak_tag=tag)
+            sample_fields[prefix + tag] = StrainFieldSingle(filename=file_path, peak_tag=tag)
             assert sample_fields[prefix + tag].filenames == [filename]
 
     return sample_fields
@@ -538,7 +539,9 @@ class TestStrainField:
 
     def test_peak_collection(self, strain_field_samples):
         strain = strain_field_samples['strain with two points per direction']
-        assert isinstance(strain.peak_collection, PeakCollection)
+        assert isinstance(strain.peak_collections, list)
+        assert len(strain.peak_collections) == 1
+        assert isinstance(strain.peak_collections[0], PeakCollection)
         # TODO: test the RuntimeError when the strain is a composite
 
     def test_peak_collections(self, strain_field_samples):
@@ -556,24 +559,18 @@ class TestStrainField:
         strain1 = strain_field_samples['HB2B_1320_peak0']
         strain2 = strain_field_samples['strain with two points per direction']
         strain = strain1.fuse_with(strain2)
-        with pytest.raises(RuntimeError) as exception_info:
-            strain.peak_collection
-        assert 'more than one peak collection' in str(exception_info.value)
-        assert strain.peak_collections == [strain1.peak_collection, strain2.peak_collection]
+        assert strain.peak_collections == [strain1.peak_collections[0], strain2.peak_collections[0]]
         assert np.allclose(strain.coordinates, np.concatenate((strain1.coordinates, strain2.coordinates)))
+        assert strain.field  # should return something
 
-        with pytest.raises(RuntimeError) as exception_info:
-            strain1.fuse_with(strain1)  # fusing a scan with itself should raise a runtime error
-        assert 'both contain scan' in str(exception_info.value)
+        # fusing a scan with itself creates a new copy of the strain
+        assert strain.peak_collections[0] == strain1.peak_collections[0]
 
     def test_add(self, strain_field_samples):
         strain1 = strain_field_samples['HB2B_1320_peak0']
         strain2 = strain_field_samples['strain with two points per direction']
         strain = strain1 + strain2
-        with pytest.raises(RuntimeError) as exception_info:
-            strain.peak_collection
-        assert 'more than one peak collection' in str(exception_info.value)
-        assert strain.peak_collections == [strain1.peak_collection, strain2.peak_collection]
+        assert strain.peak_collections == [strain1.peak_collections[0], strain2.peak_collections[0]]
         assert np.allclose(strain.coordinates, np.concatenate((strain1.coordinates, strain2.coordinates)))
 
     def test_create_strain_field_from_scalar_field_sample(self):
@@ -587,6 +584,42 @@ class TestStrainField:
         assert np.allclose(strain.values, values)
         assert np.allclose(strain.x, x)
 
+    def test_small_fuse(self):
+        '''This test does a fuse with shared PointList that choses every other
+        point from each contributing StrainField'''
+        x = [0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.5]  # x
+        y = [1.0, 1.0, 1.5, 1.5, 1.0, 1.0, 1.5, 1.5]  # y
+        z = [2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5]  # z
+        point_list = PointList([x, y, z])
+
+        values1 = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]  # values
+        errors1 = [1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0]  # errors
+        strain1 = StrainField(peak_collection=PeakCollectionLite('strain',
+                                                                 strain=values1, strain_error=errors1),
+                              point_list=point_list)
+        assert np.allclose(strain1.values, values1)
+        assert np.allclose(strain1.x, x)
+
+        values2 = [9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0]  # values
+        errors2 = [2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0]  # errors
+        strain2 = StrainField(peak_collection=PeakCollectionLite('strain',
+                                                                 strain=values2, strain_error=errors2),
+                              point_list=point_list)
+        assert np.allclose(strain2.values, values2)
+        assert np.allclose(strain2.x, x)
+
+        strain_fused = strain1.fuse_with(strain2)
+
+        # confirm that the points were unchanged
+        assert len(strain_fused) == len(strain1)
+        assert strain_fused.point_list == point_list
+
+        field = strain_fused.field
+        # all uncertainties should be identical
+        np.testing.assert_equal(field.errors, 1.)
+        # every other point comes from a single field
+        np.testing.assert_equal(field.values, [1., 10., 3., 12., 5., 14., 7., 16.])
+
     def test_create_strain_field_from_file_no_peaks(self, test_data_dir):
         # this project file doesn't have peaks in it
         file_path = os.path.join(test_data_dir, 'HB2B_1060_first3_subruns.h5')
@@ -596,7 +629,7 @@ class TestStrainField:
         except IOError:
             pass  # this is what should happen
 
-    def test_fuse_strains(self, strain_field_samples, allclose_with_sorting):
+    def test_fuse_strains(self, strain_field_samples):
         # TODO HB2B_1320_peak0 and HB2B_1320_ are the same scan. We need two different scans
         strain1 = strain_field_samples['HB2B_1320_peak0']
         strain2 = strain_field_samples['HB2B_1320_']
@@ -608,9 +641,9 @@ class TestStrainField:
         strain_sum = strain1 + strain2 + strain3
         for strain in (strain_fused, strain_sum):
             assert len(strain) == 312 + 8  # strain1 and strain2 give strain1 because they contain the same data
-            assert strain.peak_collections == [s.peak_collection for s in (strain1, strain2, strain3)]
+            assert strain.peak_collections == [s.peak_collections[0] for s in (strain1, strain2, strain3)]
             values = np.concatenate((strain1.values, strain3.values))  # no strain2 because it's the same as strain1
-            assert allclose_with_sorting(strain.values, values)
+            assert_allclose_with_sorting(strain.values, values)
 
     def test_stack_strains(self, strain_field_samples, allclose_with_sorting):
         strain1 = strain_field_samples['HB2B_1320_peak0']
