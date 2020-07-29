@@ -696,8 +696,8 @@ class StrainField:
         elif isinstance(other, (list, tuple)):
             for strain in other:
                 if isinstance(strain, StrainField) is False:
-                    raise TypeError(f'{strain} is not a {str(self.__class__)} object')
-            return self.__class__.stack_strains(self, *other, **stack_kwargs)
+                    raise TypeError(f'{strain} is not a {str(self.__class__)} object')  # type: ignore
+            return self.__class__.stack_strains(self, *other, **stack_kwargs)  # type: ignore
         else:
             raise NotImplementedError('Do not know how to multiply these objects')
 
@@ -1185,7 +1185,8 @@ class StressField:
 
         # Stack strains
         self.stress_type = StressType.get(stress_type)
-        self._strain11, self._strain22, self._strain33 = self._stack_strains(strain11, strain22, strain33)
+        strain_triad = [strain11, strain22, strain33]
+        self._strain11, self._strain22, self._strain33 = self._stack_strains(*strain_triad)  # type: ignore
 
         # Enforce self._strain33 is zero for in-plane strain, or back-calculate it when in-plane stress
         if self.stress_type == StressType.IN_PLANE_STRAIN:
@@ -1336,8 +1337,9 @@ class StressField:
         """
         if self.stress_type == StressType.DIAGONAL:
             assert strain33 is not None, 'strain33 is None but the selected stress type is "diagonal"'
-            return strain11 * strain22 * strain33
-        return strain11 * strain22 + [None]  # strain33 is yet undefined, so it's assigned a value of `None`
+            return strain11 * strain22 * strain33  # type: ignore
+        # strain33 is yet undefined, so it's assigned a value of `None`
+        return strain11 * strain22 + [None]  # type: ignore
 
     def _strain33_when_inplane_stress(self) -> StrainField:
         r"""
