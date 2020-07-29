@@ -466,8 +466,9 @@ class TestScalarFieldSample:
             dimension = histo.getDimension(i)
             assert dimension.getUnits() == 'meter'
             # adding half a bin each direction since values from mdhisto are boundaries and constructor uses centers
-            assert dimension.getMinimum() == min_value - .25
-            assert dimension.getMaximum() == max_value + .25
+            # convert from milimeters to meters with factor 1.e-3
+            assert dimension.getMinimum() == pytest.approx(1.e-3 * (min_value - 0.25))
+            assert dimension.getMaximum() == pytest.approx(1.e-3 * (max_value + 0.25))
             assert dimension.getNBins() == 2
 
         np.testing.assert_equal(histo.getSignalArray().ravel(), self.sample3.values, err_msg='Signal')
