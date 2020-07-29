@@ -715,12 +715,13 @@ class StrainField:
         list
             List of stacked strains. Each item is a ~pyrs.dataobjects.fields.StrainField object.
         """
-        stack_kwargs = dict(resolution=DEFAULT_POINT_RESOLUTION, stack_mode='complete')
         if isinstance(other, (list, tuple)):
             for strain in other:
                 if isinstance(strain, StrainField) is False:
                     raise TypeError(f'{strain} is not a StrainField object')
-            return self.__class__.stack_strains(*other, self, **stack_kwargs)
+            return self.__class__.stack_strains(*other, self,
+                                                resolution=DEFAULT_POINT_RESOLUTION,
+                                                stack_mode='complete')
         else:
             raise NotImplementedError(f'Unable to multiply objects of type {str(other.__class__)} and StrainField')
 
@@ -775,26 +776,38 @@ class StrainField:
         -------
         ~unumpy.array
         """
+        if self._field is None:
+            raise RuntimeError('No values found')
         return self._field.sample
 
     @property
     def point_list(self) -> PointList:
+        if self._field is None:
+            raise RuntimeError('No sample points found')
         return self._field.point_list
 
     @property
     def x(self) -> List[float]:
+        if self._field is None:
+            raise RuntimeError('No sample points found')
         return self._field.x
 
     @property
     def y(self) -> List[float]:
+        if self._field is None:
+            raise RuntimeError('No sample points found')
         return self._field.y
 
     @property
     def z(self) -> List[float]:
+        if self._field is None:
+            raise RuntimeError('No sample points found')
         return self._field.z
 
     @property
     def coordinates(self) -> np.ndarray:
+        if self._field is None:
+            raise RuntimeError('No sample points found')
         return self._field.coordinates  # type: ignore
 
     @staticmethod  # noqa: C901
@@ -1298,7 +1311,7 @@ class StressField:
 
     def _stack_strains(self, strain11: StrainField,
                        strain22: StrainField,
-                       strain33: StrainField) -> Tuple[StrainField, StrainField, Optional[StrainField]]:
+                       strain33: StrainField) -> Union[List[StrainField], Any]:
         r"""
         Stach the strain samples taken along the the three different directions
 
