@@ -75,7 +75,7 @@ from enum import unique as unique_enum
 import numpy as np
 from scipy.interpolate import griddata
 from scipy.spatial import cKDTree
-from typing import TYPE_CHECKING, cast, Iterator, List, Optional, Tuple, Union
+from typing import Any, TYPE_CHECKING, cast, Iterator, List, Optional, Tuple, Union
 from uncertainties import unumpy
 
 from mantid.simpleapi import mtd, CreateMDWorkspace, BinMD
@@ -527,10 +527,10 @@ class ScalarFieldSample:
 
         return wksp
 
-    def to_csv(self, file: str):
+    def to_csv(self, file: str) -> None:
         raise NotImplementedError('This functionality has yet to be implemented')
 
-    def export(self, *args, form='MDHistoWokspace', **kwargs):
+    def export(self, *args: Any, form: str ='MDHistoWokspace', **kwargs: Any) -> Any:
         r"""
         Export the scalar field to a particular format. Each format has additional arguments
 
@@ -561,8 +561,8 @@ class ScalarFieldSample:
 class StrainField:
 
     @staticmethod
-    def fuse_strains(*args, resolution: float = DEFAULT_POINT_RESOLUTION,
-                     criterion: str = 'min_error') -> 'ScalarFieldSample':
+    def fuse_strains(*args: 'StrainField', resolution: float = DEFAULT_POINT_RESOLUTION,
+                     criterion: str = 'min_error') -> 'StrainField':
         r"""
         Bring in together several strains measured along the same direction. Overlaps are resolved
         according to a selection criterion.
@@ -594,7 +594,7 @@ class StrainField:
         return strain_fused
 
     @staticmethod
-    def stack_strains(*strains,
+    def stack_strains(*strains: 'StrainField',
                       stack_mode: str = 'complete',
                       resolution: float = DEFAULT_POINT_RESOLUTION) -> List['StrainField']:
         r"""
@@ -655,7 +655,7 @@ class StrainField:
         if True in [bool(v) for v in single_scan_kwargs.values()]:  # at least one argument is not empty
             self._initialize_with_single_scan(**single_scan_kwargs)  # type: ignore
 
-    def __add__(self, other_strain):
+    def __add__(self, other_strain: 'StrainField') -> 'StrainField':
         r"""
         Fuse the current strain with another strain using the default resolution distance and overlap criterion
 
@@ -673,10 +673,10 @@ class StrainField:
         """
         return self.fuse_with(other_strain)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._field)
 
-    def __mul__(self, other):
+    def __mul__(self, other: Union['StrainField', List['StrainField']]) -> List['StrainField']:
         r"""
         Stack this strain with another strain, or with a list of strains
 
@@ -699,7 +699,7 @@ class StrainField:
                     raise TypeError(f'{strain} is not a {str(self.__class__)} object')
             return self.__class__.stack_strains(self, *other, **stack_kwargs)
 
-    def __rmul__(self, other):
+    def __rmul__(self, other: List['StrainField']) -> List['StrainField']:
         r"""
         Stack a list of strains along with this strain.
 
@@ -723,11 +723,11 @@ class StrainField:
             raise NotImplementedError(f'Unable to multiply objects of type {str(other.__class__)} and StrainField')
 
     @property
-    def filenames(self):
+    def filenames(self) -> List['str']:
         return self._filenames
 
     @property
-    def peak_collection(self):
+    def peak_collection(self) -> PeakCollection:
         r"""
         Retrieve the peak collection associated to the strain field. Only valid when the field is not
         a composite of more than one scan.
@@ -746,7 +746,7 @@ class StrainField:
         return self._peak_collection
 
     @property
-    def peak_collections(self):
+    def peak_collections(self) -> List[PeakCollection]:
         r"""
         Retrieve the peak collection objects associated to this (possibly composite) strain field.
 
@@ -757,15 +757,15 @@ class StrainField:
         return [field._peak_collection for field in self._single_scans]
 
     @property
-    def values(self):
+    def values(self) -> np.ndarray:
         return self._field.values
 
     @property
-    def errors(self):
+    def errors(self) -> np.ndarray:
         return self._field.errors
 
     @property
-    def sample(self):
+    def sample(self) -> np.ndarray:
         r"""
         Uncertainties arrays containing both values and errors.
 
@@ -776,19 +776,19 @@ class StrainField:
         return self._field.sample
 
     @property
-    def point_list(self):
+    def point_list(self) -> PointList:
         return self._field.point_list
 
     @property
-    def x(self):
+    def x(self) -> List[float]:
         return self._field.x
 
     @property
-    def y(self):
+    def y(self) -> List[float]:
         return self._field.y
 
     @property
-    def z(self):
+    def z(self) -> List[float]:
         return self._field.z
 
     @property
