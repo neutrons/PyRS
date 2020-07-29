@@ -530,7 +530,7 @@ class ScalarFieldSample:
     def to_csv(self, file: str) -> None:
         raise NotImplementedError('This functionality has yet to be implemented')
 
-    def export(self, *args: Any, form: str ='MDHistoWokspace', **kwargs: Any) -> Any:
+    def export(self, *args: Any, form: str = 'MDHistoWokspace', **kwargs: Any) -> Any:
         r"""
         Export the scalar field to a particular format. Each format has additional arguments
 
@@ -692,7 +692,7 @@ class StrainField:
         """
         stack_kwargs = dict(resolution=DEFAULT_POINT_RESOLUTION, stack_mode='complete')
         if isinstance(other, StrainField):
-            return self.__class__.stack_strains(self, other, **stack_kwargs)
+            return self.__class__.stack_strains(self, other, **stack_kwargs)  # type: ignore
         elif isinstance(other, (list, tuple)):
             for strain in other:
                 if isinstance(strain, StrainField) is False:
@@ -761,10 +761,14 @@ class StrainField:
 
     @property
     def values(self) -> np.ndarray:
+        if self._field is None:
+            raise RuntimeError('No values found')
         return self._field.values
 
     @property
     def errors(self) -> np.ndarray:
+        if self._field is None:
+            raise RuntimeError('No errors found')
         return self._field.errors
 
     @property
