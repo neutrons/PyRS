@@ -9,6 +9,8 @@ from qtpy.QtWidgets import (QHBoxLayout, QVBoxLayout, QLabel, QWidget,
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtGui import QDoubleValidator
 import numpy as np
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 import functools
 import traceback
 
@@ -282,8 +284,10 @@ class PeakSelection(QGroupBox):
 class VizTabs(QTabWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.oneDViewer = None
         self.strainSliceViewer = None
 
+        self.plot_1d = QStackedWidget()
         self.plot_2d = QStackedWidget()
 
         self.message = QLabel("Load project files")
@@ -293,10 +297,17 @@ class VizTabs(QTabWidget):
         self.message.setFont(font)
         self.plot_2d.addWidget(self.message)
 
+        self.addTab(self.plot_1d, "1D")
         self.addTab(self.plot_2d, "2D")
         self.addTab(QWidget(), "3D")
-        self.setTabEnabled(1, False)
+        self.setTabEnabled(0, False)
+        self.setTabEnabled(2, False)
         self.setCornerWidget(QLabel("Visualization Pane    "), corner=Qt.TopLeftCorner)
+
+    def set_1d_mode(self, oned):
+        self.setTabEnabled(0, oned)
+        self.setTabEnabled(1, not oned)
+        self.setTabEnabled(2, False)
 
     def set_ws(self, field):
 
@@ -312,15 +323,31 @@ class VizTabs(QTabWidget):
             ws = None
 
         if ws:
-            if self.strainSliceViewer:
-                self.strainSliceViewer.set_new_workspace(ws)
+            if len(ws.getNonIntegratedDimensions()) == 1:
+                self.set_1d_mode(True)
+                if self.oneDViewer:
+                    self.plot_1d.removeWidget(self.oneDViewer)
+                fig = Figure()
+                self.oneDViewer = FigureCanvas(fig)
+                ax = fig.add_subplot(111, projection='mantid')
+                ax.plot(ws)
+                self.plot_1d.addWidget(self.oneDViewer)
+                self.plot_1d.setCurrentIndex(1)
             else:
-                self.strainSliceViewer = StrainSliceViewer(ws, parent=self)
-                self.plot_2d.addWidget(self.strainSliceViewer.view)
-                self.plot_2d.setCurrentIndex(1)
-            self.strainSliceViewer.set_new_field(field,
-                                                 bin_widths=[ws.getDimension(n).getBinWidth() for n in range(3)])
+                self.set_1d_mode(False)
+                if self.strainSliceViewer:
+                    self.strainSliceViewer.set_new_workspace(ws)
+                else:
+                    self.strainSliceViewer = StrainSliceViewer(ws, parent=self)
+                    self.plot_2d.addWidget(self.strainSliceViewer.view)
+                    self.plot_2d.setCurrentIndex(1)
+                self.strainSliceViewer.set_new_field(field,
+                                                     bin_widths=[ws.getDimension(n).getBinWidth() for n in range(3)])
         else:
+            self.set_1d_mode(False)
+            if self.oneDViewer is not None:
+                self.plot_1d.removeWidget(self.oneDViewer)
+                self.oneDViewer = None
             if self.strainSliceViewer is not None:
                 self.plot_2d.removeWidget(self.strainSliceViewer.view)
                 self.strainSliceViewer = None

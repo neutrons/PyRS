@@ -508,14 +508,14 @@ class ScalarFieldSample:
         # create an empty event workspace of the correct dimensions
         axis_labels = ('x', 'y', 'z')
         CreateMDWorkspace(OutputWorkspace='__tmp', Dimensions=3, Extents=extents_str,
-                          Names=','.join(axis_labels), Units='mm,mm,mm')
+                          Names=','.join(axis_labels), Units='mm,mm,mm', EnableLogging=False)
         # set the bins for the workspace correctly
         aligned_dimensions = list()
         for label, extent in zip(axis_labels, extents):  # type: ignore
             extent_str = extent.to_binmd(input_units='mm', output_units='mm')
             aligned_dimensions.append(f'{label},{extent_str}')
         aligned_kwargs = {f'AlignedDim{i}': aligned_dimensions[i] for i in range(len(aligned_dimensions))}
-        BinMD(InputWorkspace='__tmp', OutputWorkspace=name, **aligned_kwargs)
+        BinMD(InputWorkspace='__tmp', OutputWorkspace=name, EnableLogging=False, **aligned_kwargs)
 
         # remove original workspace, so sliceviewer doesn't try to use it
         mtd.remove('__tmp')
