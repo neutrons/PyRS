@@ -10,6 +10,7 @@ from qtpy.QtCore import Qt, Signal
 from qtpy.QtGui import QDoubleValidator
 import numpy as np
 import functools
+import traceback
 
 
 class FileLoad(QWidget):
@@ -172,26 +173,57 @@ class MechanicalConstants(QGroupBox):
 
 class StrainSliceViewer(SliceViewer):
     def __init__(self, ws, parent=None):
+        self.overlay_visible = False
+        self.scatter = None
         super().__init__(ws, parent=parent)
         self.view.data_view.mpl_toolbar.peaksOverlayClicked.disconnect()
         self.view.data_view.mpl_toolbar.peaksOverlayClicked.connect(self.overlay)
-        self.overlay = False
-        self.scatter = None
 
     def new_plot_MDH(self):
         """redefine this function so we can change the default plot interpolation"""
         self.view.data_view.plot_MDH(self.model.get_ws(), slicepoint=self.get_slicepoint(), interpolation='bilinear')
+        if self.overlay_visible:
+            self.update_overlay()
+
+    def update_plot_data_MDH(self):
+        super().update_plot_data_MDH()
+        if self.overlay_visible:
+            self.update_overlay()
 
     def overlay(self):
-        """Demo only of potential plotting of measurement points"""
-        self.overlay = not self.overlay
-        if self.overlay:
-            X, Y = np.meshgrid(range(20), range(20))
-            self.scatter = self.view.data_view.canvas.figure.axes[0].scatter(X, Y, c='black')
-            self.view.data_view.canvas.draw_idle()
+        self.overlay_visible = not self.overlay_visible
+
+        if self.overlay_visible:
+            self.update_overlay()
         else:
             self.scatter.remove()
             self.view.data_view.canvas.draw_idle()
+
+    def update_overlay(self):
+        if self.scatter:
+            self.scatter.remove()
+        slicepoint = self.view.data_view.dimensions.get_slicepoint()
+        x, y, z = self.current_field.x, self.current_field.y, self.current_field.z
+
+        xy = []
+        for n, (point, values) in enumerate(zip(slicepoint, (x, y, z))):
+            if point is not None:
+                mask = np.isclose(values, point, atol=self.bin_widths[n]/2)
+            else:
+                xy.append(values)
+
+        X = xy[0][mask]
+        Y = xy[1][mask]
+
+        if self.view.data_view.dimensions.transpose:
+            X, Y = Y, X
+
+        self.scatter = self.view.data_view.canvas.figure.axes[0].scatter(X, Y, c='black')
+        self.view.data_view.canvas.draw_idle()
+
+    def set_new_field(self, field, bin_widths):
+        self.current_field = field
+        self.bin_widths = bin_widths
 
     def set_new_workspace(self, ws):
         self.model = SliceViewerModel(ws)
@@ -266,7 +298,19 @@ class VizTabs(QTabWidget):
         self.setTabEnabled(1, False)
         self.setCornerWidget(QLabel("Visualization Pane    "), corner=Qt.TopLeftCorner)
 
-    def set_ws(self, ws):
+    def set_ws(self, field):
+
+        if field is not None:
+            try:
+                ws = field.to_md_histo_workspace()
+            except Exception as e:
+                self.show_failure_msg("Failed to generate field",
+                                      str(e),
+                                      traceback.format_exc())
+                ws = None
+        else:
+            ws = None
+
         if ws:
             if self.strainSliceViewer:
                 self.strainSliceViewer.set_new_workspace(ws)
@@ -274,6 +318,8 @@ class VizTabs(QTabWidget):
                 self.strainSliceViewer = StrainSliceViewer(ws, parent=self)
                 self.plot_2d.addWidget(self.strainSliceViewer.view)
                 self.plot_2d.setCurrentIndex(1)
+            self.strainSliceViewer.set_new_field(field,
+                                                 bin_widths=[ws.getDimension(n).getBinWidth() for n in range(3)])
         else:
             if self.strainSliceViewer is not None:
                 self.plot_2d.removeWidget(self.strainSliceViewer.view)
@@ -371,8 +417,8 @@ class StrainStressViewer(QSplitter):
                                                  self.mechanicalConstants.youngModulus.text(),
                                                  self.mechanicalConstants.poissonsRatio.text())
 
-            self.viz_tab.set_ws(self.model.get_field_md(direction=self.plot_select.get_direction(),
-                                                        plot_param=self.plot_select.get_plot_param()))
+            self.viz_tab.set_ws(self.model.get_field(direction=self.plot_select.get_direction(),
+                                                     plot_param=self.plot_select.get_plot_param()))
         else:
             self.viz_tab.set_ws(None)
             self.viz_tab.set_message(validated)
