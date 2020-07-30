@@ -464,11 +464,10 @@ class TestScalarFieldSample:
 
         for i, (min_value, max_value) in enumerate(((0.0, 0.5), (1.0, 1.5), (2.0, 2.5))):
             dimension = histo.getDimension(i)
-            assert dimension.getUnits() == 'meter'
+            assert dimension.getUnits() == 'mm'
             # adding half a bin each direction since values from mdhisto are boundaries and constructor uses centers
-            # convert from milimeters to meters with factor 1.e-3
-            assert dimension.getMinimum() == pytest.approx(1.e-3 * (min_value - 0.25))
-            assert dimension.getMaximum() == pytest.approx(1.e-3 * (max_value + 0.25))
+            assert dimension.getMinimum() == pytest.approx(min_value - 0.25)
+            assert dimension.getMaximum() == pytest.approx(max_value + 0.25)
             assert dimension.getNBins() == 2
 
         np.testing.assert_equal(histo.getSignalArray().ravel(), self.sample3.values, err_msg='Signal')
@@ -672,10 +671,9 @@ class TestStrainField:
         bin_counts = (18, 6, 3)  # number of bins along  X, Y, and Z
         for i, (min_value, max_value, bin_count) in enumerate(zip(minimum_values, maximum_values, bin_counts)):
             dimension = histo.getDimension(i)
-            assert dimension.getUnits() == 'meter'
-            # convert from milimeters to meters with factor 1.e-3
-            assert dimension.getMinimum() == pytest.approx(1.e-3 * min_value, abs=1.e-02)
-            assert dimension.getMaximum() == pytest.approx(1.e-3 * max_value, abs=1.e-02)
+            assert dimension.getUnits() == 'mm'
+            assert dimension.getMinimum() == pytest.approx(min_value, abs=0.01)
+            assert dimension.getMaximum() == pytest.approx(max_value, abs=0.01)
             assert dimension.getNBins() == bin_count
 
 
@@ -716,17 +714,16 @@ def test_generateParameterField(test_data_dir):
     center_md = center.to_md_histo_workspace()
     dim_x = center_md.getXDimension()
     assert dim_x.getNBins() == 18
-    # convert from milimeters to meters with factor 1.e-3
-    np.testing.assert_almost_equal(dim_x.getMinimum(), -31.765 * 1.e-3, decimal=6)
-    np.testing.assert_almost_equal(dim_x.getMaximum(), 31.765 * 1.e-3, decimal=6)
+    np.testing.assert_almost_equal(dim_x.getMinimum(), -31.765, decimal=3)
+    np.testing.assert_almost_equal(dim_x.getMaximum(), 31.765, decimal=3)
     dim_y = center_md.getYDimension()
     assert dim_y.getNBins() == 6
-    np.testing.assert_almost_equal(dim_y.getMinimum(), -7.2 * 1.e-3, decimal=6)
-    np.testing.assert_almost_equal(dim_y.getMaximum(), 7.2 * 1.e-3, decimal=6)
+    np.testing.assert_almost_equal(dim_y.getMinimum(), -7.2, decimal=3)
+    np.testing.assert_almost_equal(dim_y.getMaximum(), 7.2, decimal=3)
     dim_z = center_md.getZDimension()
     assert dim_z.getNBins() == 3
-    np.testing.assert_almost_equal(dim_z.getMinimum(), -15 * 1.e-3)
-    np.testing.assert_almost_equal(dim_z.getMaximum(), 15 * 1.e-3)
+    np.testing.assert_almost_equal(dim_z.getMinimum(), -15.0, decimal=3)
+    np.testing.assert_almost_equal(dim_z.getMaximum(), 15.0, decimal=3)
     signal = center_md.getSignalArray()
     np.testing.assert_almost_equal(signal.min(), 89.94377, decimal=5)
     np.testing.assert_almost_equal(signal.max(), 90.15296, decimal=5)
@@ -948,10 +945,9 @@ class TestStressField:
         assert histo.id() == 'MDHistoWorkspace'
         for i, (min_value, max_value, bin_count) in enumerate(zip(minimum_values, maximum_values, bin_counts)):
             dimension = histo.getDimension(i)
-            assert dimension.getUnits() == 'meter'
-            # convert from milimeters to meters with factor 1.e-3
-            assert dimension.getMinimum() == pytest.approx(min_value * 1.e-3, abs=1.e-02)
-            assert dimension.getMaximum() == pytest.approx(max_value * 1.e-3, abs=1.e-02)
+            assert dimension.getUnits() == 'mm'
+            assert dimension.getMinimum() == pytest.approx(min_value, abs=0.01)
+            assert dimension.getMaximum() == pytest.approx(max_value, abs=0.01)
             assert dimension.getNBins() == bin_count
 
 
@@ -1102,8 +1098,8 @@ def test_stack_scalar_field_samples(field_sample_collection,
     assert allclose_with_sorting(sample3.values, sample3_values, equal_nan=True)
 
 
-def test_stress_field_from_files():
-    HB2B_1320_PROJECT = 'tests/data/HB2B_1320.h5'
+def test_stress_field_from_files(test_data_dir):
+    HB2B_1320_PROJECT = os.path.join(test_data_dir, 'HB2B_1320.h5')
 
     # create 3 strain objects
     sample11 = StrainField(HB2B_1320_PROJECT)
