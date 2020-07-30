@@ -213,14 +213,15 @@ def test_combine_strains_1(test_data_dir):
     #
     # Export to Workspace
     histo = strain.to_md_histo_workspace()
-    minimum_values = (-33.0, -12.25, -15.0)  # bin boundary with the smallest coordinate along X, Y, and Z
-    maximum_values = (81.0, 12.25, 15.0)  # bin boundary with the largest coordinate along X, Y, and Z
+    minimum_values = (-33, -12.25, -15)  # bin boundary with the smallest coordinate along X, Y, and Z
+    maximum_values = (81, 12.25, 15)  # bin boundary with the largest coordinate along X, Y, and Z
     bin_counts = (19, 49, 3)  # number of bins along  X, Y, and Z
     for i, (min_value, max_value, bin_count) in enumerate(zip(minimum_values, maximum_values, bin_counts)):
         dimension = histo.getDimension(i)
         assert dimension.getUnits() == 'meter'
-        assert dimension.getMinimum() == pytest.approx(min_value, abs=1.e-02)
-        assert dimension.getMaximum() == pytest.approx(max_value, abs=1.e-02)
+        # convert from milimeters to meters with factor 1.e-3
+        assert dimension.getMinimum() == pytest.approx(1.e-3 * min_value, abs=1.e-05)
+        assert dimension.getMaximum() == pytest.approx(1.e-3 * max_value, abs=1.e-05)
         assert dimension.getNBins() == bin_count
     signal, errors = histo.getSignalArray(), histo.getErrorSquaredArray()
     assert len(signal.ravel()) == 2793

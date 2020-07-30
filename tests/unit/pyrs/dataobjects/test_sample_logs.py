@@ -31,15 +31,15 @@ class TestDirectionExtents:
 
     def test_to_createmd(self):
         d = DirectionExtents(range(42))
-        assert d.to_createmd == '-0.500,41.500'
+        assert d.to_createmd() == '-0.000500,0.041500'
         d = DirectionExtents([0.001, 0.009], resolution=0.01)
-        assert d.to_createmd == '0.000,0.010'
+        assert d.to_createmd() == '0.000000,0.000010'
 
     def test_to_binmd(self):
         d = DirectionExtents(range(42))
-        assert d.to_binmd == '-0.500,41.500,42'
+        assert d.to_binmd() == '-0.000500,0.041500,42'
         d = DirectionExtents([0.001, 0.009], resolution=0.01)
-        assert d.to_binmd == '0.000,0.010,1'
+        assert d.to_binmd() == '0.000000,0.000010,1'
 
 
 @pytest.fixture(scope='module')

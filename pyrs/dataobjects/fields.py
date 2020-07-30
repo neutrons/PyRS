@@ -75,7 +75,7 @@ from enum import unique as unique_enum
 import numpy as np
 from scipy.interpolate import griddata
 from scipy.spatial import cKDTree
-from typing import TYPE_CHECKING, cast, Iterator, List, Optional, Tuple, Union
+from typing import Any, TYPE_CHECKING, cast, Iterator, List, Optional, Tuple, Union
 from uncertainties import unumpy
 
 from mantid.simpleapi import mtd, CreateMDWorkspace, BinMD
@@ -452,7 +452,7 @@ class ScalarFieldSample:
         aggregate_sample = self.aggregate(other)  # combine both scalar field samples
         return aggregate_sample.coalesce(resolution=resolution, criterion=criterion)
 
-    def to_md_histo_workspace(self, name: str = '', units: str = 'meter',
+    def to_md_histo_workspace(self, name: str = '',
                               interpolate: bool = True,
                               method: str = 'linear', fill_value: float = float('nan'), keep_nan: bool = True,
                               resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = 'min_error'
@@ -468,8 +468,6 @@ class ScalarFieldSample:
         ----------
         name: str
             Name of the output workspace.
-        units: str
-            Units of the sample points.
         interpolate: bool
             Interpolate the scalar field sample of a regular 3D grid given by the extents of the sample points.
         method: str
@@ -493,26 +491,27 @@ class ScalarFieldSample:
         if not name:
             name = self.name
 
-        # TODO units should be a member of this class
         if interpolate is True:
             sample = self.interpolated_sample(method=method, fill_value=fill_value, keep_nan=keep_nan,
                                               resolution=resolution, criterion=criterion)
         else:
             sample = self
+
         extents = sample.point_list.extents(resolution=resolution)  # triad of DirectionExtents objects
         for extent in extents:
             assert extent[0] <= extent[1], f'min value of {extent} is greater than max value'
-        extents_str = ','.join([extent.to_createmd for extent in extents])
-
-        units_triad = ','.join([units] * 3)  # 'meter,meter,meter'
+        # Units of sample points in PointList are 'mm', but Mantid requires 'm'
+        extents_str = ','.join([extent.to_createmd(input_units='mm', output_units='m') for extent in extents])
 
         # create an empty event workspace of the correct dimensions
         axis_labels = ('x', 'y', 'z')
         CreateMDWorkspace(OutputWorkspace='__tmp', Dimensions=3, Extents=extents_str,
-                          Names=','.join(axis_labels), Units=units_triad)
+                          Names=','.join(axis_labels), Units='meter,meter,meter')
         # set the bins for the workspace correctly
-        aligned_dimensions = [f'{label},{extent.to_binmd}'  # type: ignore
-                              for label, extent in zip(axis_labels, extents)]
+        aligned_dimensions = list()
+        for label, extent in zip(axis_labels, extents):  # type: ignore
+            extent_str = extent.to_binmd(input_units='mm', output_units='m')
+            aligned_dimensions.append(f'{label},{extent_str}')
         aligned_kwargs = {f'AlignedDim{i}': aligned_dimensions[i] for i in range(len(aligned_dimensions))}
         BinMD(InputWorkspace='__tmp', OutputWorkspace=name, **aligned_kwargs)
 
@@ -528,17 +527,16 @@ class ScalarFieldSample:
 
         return wksp
 
-    def to_csv(self, file: str):
+    def to_csv(self, file: str) -> None:
         raise NotImplementedError('This functionality has yet to be implemented')
 
-    def export(self, *args, form='MDHistoWokspace', **kwargs):
+    def export(self, *args: Any, form: str = 'MDHistoWokspace', **kwargs: Any) -> Any:
         r"""
         Export the scalar field to a particular format. Each format has additional arguments
 
         Allowed formats, along with additional arguments and return object:
         - 'MDHistoWorkspace' calls function `to_md_histo_workspace`
             name: str, name of the workspace
-            units ('meter'): str, length units of the sample points
             interpolate (`True`): bool, interpolate values to a regular coordinate grid
             method: ('linear'): str, method of interpolation. Allowed values are 'nearest' and 'linear'
             fill_value: (float('nan'): float, value used to fill in for requested points outside the input points.
@@ -554,17 +552,17 @@ class ScalarFieldSample:
         """
         exporters = dict(MDHistoWorkspace=self.to_md_histo_workspace,
                          CSV=self.to_csv)
-        exporters_arguments = dict(MDHistoWorkspace=('name', 'units'), CSV=('file',))
+        exporters_arguments = dict(MDHistoWorkspace=('name',), CSV=('file',))
         # Call the exporter
         exporter_arguments = {arg: kwargs[arg] for arg in exporters_arguments[form]}
-        return exporters[form](*args, **exporter_arguments)
+        return exporters[form](*args, **exporter_arguments)  # type: ignore
 
 
 class StrainField:
 
     @staticmethod
-    def fuse_strains(*args, resolution: float = DEFAULT_POINT_RESOLUTION,
-                     criterion: str = 'min_error') -> 'ScalarFieldSample':
+    def fuse_strains(*args: 'StrainField', resolution: float = DEFAULT_POINT_RESOLUTION,
+                     criterion: str = 'min_error') -> 'StrainField':
         r"""
         Bring in together several strains measured along the same direction. Overlaps are resolved
         according to a selection criterion.
@@ -596,7 +594,7 @@ class StrainField:
         return strain_fused
 
     @staticmethod
-    def stack_strains(*strains,
+    def stack_strains(*strains: 'StrainField',
                       stack_mode: str = 'complete',
                       resolution: float = DEFAULT_POINT_RESOLUTION) -> List['StrainField']:
         r"""
@@ -657,7 +655,7 @@ class StrainField:
         if True in [bool(v) for v in single_scan_kwargs.values()]:  # at least one argument is not empty
             self._initialize_with_single_scan(**single_scan_kwargs)  # type: ignore
 
-    def __add__(self, other_strain):
+    def __add__(self, other_strain: 'StrainField') -> 'StrainField':
         r"""
         Fuse the current strain with another strain using the default resolution distance and overlap criterion
 
@@ -675,10 +673,10 @@ class StrainField:
         """
         return self.fuse_with(other_strain)
 
-    def __len__(self):
-        return len(self._field)
+    def __len__(self) -> int:
+        return len(self._field)  # type: ignore
 
-    def __mul__(self, other):
+    def __mul__(self, other: Union['StrainField', List['StrainField']]) -> Optional[List['StrainField']]:
         r"""
         Stack this strain with another strain, or with a list of strains
 
@@ -694,14 +692,16 @@ class StrainField:
         """
         stack_kwargs = dict(resolution=DEFAULT_POINT_RESOLUTION, stack_mode='complete')
         if isinstance(other, StrainField):
-            return self.__class__.stack_strains(self, other, **stack_kwargs)
+            return self.__class__.stack_strains(self, other, **stack_kwargs)  # type: ignore
         elif isinstance(other, (list, tuple)):
             for strain in other:
                 if isinstance(strain, StrainField) is False:
-                    raise TypeError(f'{strain} is not a {str(self.__class__)} object')
-            return self.__class__.stack_strains(self, *other, **stack_kwargs)
+                    raise TypeError(f'{strain} is not a {str(self.__class__)} object')  # type: ignore
+            return self.__class__.stack_strains(self, *other, **stack_kwargs)  # type: ignore
+        else:
+            raise NotImplementedError('Do not know how to multiply these objects')
 
-    def __rmul__(self, other):
+    def __rmul__(self, other: List['StrainField']) -> List['StrainField']:
         r"""
         Stack a list of strains along with this strain.
 
@@ -715,21 +715,22 @@ class StrainField:
         list
             List of stacked strains. Each item is a ~pyrs.dataobjects.fields.StrainField object.
         """
-        stack_kwargs = dict(resolution=DEFAULT_POINT_RESOLUTION, stack_mode='complete')
         if isinstance(other, (list, tuple)):
             for strain in other:
                 if isinstance(strain, StrainField) is False:
                     raise TypeError(f'{strain} is not a StrainField object')
-            return self.__class__.stack_strains(*other, self, **stack_kwargs)
+            return self.__class__.stack_strains(*other, self,
+                                                resolution=DEFAULT_POINT_RESOLUTION,
+                                                stack_mode='complete')
         else:
             raise NotImplementedError(f'Unable to multiply objects of type {str(other.__class__)} and StrainField')
 
     @property
-    def filenames(self):
+    def filenames(self) -> List['str']:
         return self._filenames
 
     @property
-    def peak_collection(self):
+    def peak_collection(self) -> PeakCollection:
         r"""
         Retrieve the peak collection associated to the strain field. Only valid when the field is not
         a composite of more than one scan.
@@ -748,7 +749,7 @@ class StrainField:
         return self._peak_collection
 
     @property
-    def peak_collections(self):
+    def peak_collections(self) -> List[PeakCollection]:
         r"""
         Retrieve the peak collection objects associated to this (possibly composite) strain field.
 
@@ -759,15 +760,19 @@ class StrainField:
         return [field._peak_collection for field in self._single_scans]
 
     @property
-    def values(self):
+    def values(self) -> np.ndarray:
+        if self._field is None:
+            raise RuntimeError('No values found')
         return self._field.values
 
     @property
-    def errors(self):
+    def errors(self) -> np.ndarray:
+        if self._field is None:
+            raise RuntimeError('No errors found')
         return self._field.errors
 
     @property
-    def sample(self):
+    def sample(self) -> np.ndarray:
         r"""
         Uncertainties arrays containing both values and errors.
 
@@ -775,26 +780,38 @@ class StrainField:
         -------
         ~unumpy.array
         """
+        if self._field is None:
+            raise RuntimeError('No values found')
         return self._field.sample
 
     @property
-    def point_list(self):
+    def point_list(self) -> PointList:
+        if self._field is None:
+            raise RuntimeError('No sample points found')
         return self._field.point_list
 
     @property
-    def x(self):
+    def x(self) -> List[float]:
+        if self._field is None:
+            raise RuntimeError('No sample points found')
         return self._field.x
 
     @property
-    def y(self):
+    def y(self) -> List[float]:
+        if self._field is None:
+            raise RuntimeError('No sample points found')
         return self._field.y
 
     @property
-    def z(self):
+    def z(self) -> List[float]:
+        if self._field is None:
+            raise RuntimeError('No sample points found')
         return self._field.z
 
     @property
     def coordinates(self) -> np.ndarray:
+        if self._field is None:
+            raise RuntimeError('No sample points found')
         return self._field.coordinates  # type: ignore
 
     @staticmethod  # noqa: C901
@@ -946,7 +963,7 @@ class StrainField:
 
         return strain
 
-    def to_md_histo_workspace(self, name: str = '', units: str = 'meter',
+    def to_md_histo_workspace(self, name: str = '',
                               interpolate: bool = True,
                               method: str = 'linear', fill_value: float = float('nan'), keep_nan: bool = True,
                               resolution: float = DEFAULT_POINT_RESOLUTION,
@@ -963,8 +980,6 @@ class StrainField:
         ----------
         name: str
             Name of the output workspace.
-        units: str
-            Units of the sample points.
         interpolate: bool
             Interpolate the scalar field sample of a regular 3D grid given by the extents of the sample points.
         method: str
@@ -983,7 +998,7 @@ class StrainField:
         -------
         MDHistoWorkspace
         """
-        export_kwags = dict(units=units, interpolate=interpolate, method=method, fill_value=fill_value,
+        export_kwags = dict(interpolate=interpolate, method=method, fill_value=fill_value,
                             keep_nan=keep_nan, resolution=resolution, criterion=criterion)
         return self._field.to_md_histo_workspace(name, **export_kwags)  # type: ignore
 
@@ -1174,7 +1189,8 @@ class StressField:
 
         # Stack strains
         self.stress_type = StressType.get(stress_type)
-        self._strain11, self._strain22, self._strain33 = self._stack_strains(strain11, strain22, strain33)
+        strain_triad = [strain11, strain22, strain33]
+        self._strain11, self._strain22, self._strain33 = self._stack_strains(*strain_triad)  # type: ignore
 
         # Enforce self._strain33 is zero for in-plane strain, or back-calculate it when in-plane stress
         if self.stress_type == StressType.IN_PLANE_STRAIN:
@@ -1300,7 +1316,7 @@ class StressField:
 
     def _stack_strains(self, strain11: StrainField,
                        strain22: StrainField,
-                       strain33: StrainField) -> Tuple[StrainField, StrainField, Optional[StrainField]]:
+                       strain33: StrainField) -> Union[List[StrainField], Any]:
         r"""
         Stach the strain samples taken along the the three different directions
 
@@ -1325,8 +1341,9 @@ class StressField:
         """
         if self.stress_type == StressType.DIAGONAL:
             assert strain33 is not None, 'strain33 is None but the selected stress type is "diagonal"'
-            return strain11 * strain22 * strain33
-        return strain11 * strain22 + [None]  # strain33 is yet undefined, so it's assigned a value of `None`
+            return strain11 * strain22 * strain33  # type: ignore
+        # strain33 is yet undefined, so it's assigned a value of `None`
+        return strain11 * strain22 + [None]  # type: ignore
 
     def _strain33_when_inplane_stress(self) -> StrainField:
         r"""
@@ -1505,7 +1522,7 @@ class StressField:
         self._stress_selected = direction_to_stress[self.direction]  # type: ignore
         self._strain_selected = direction_to_strain[self.direction]  # type: ignore
 
-    def to_md_histo_workspace(self, name: str = '', units: str = 'meter',
+    def to_md_histo_workspace(self, name: str = '',
                               interpolate: bool = True,
                               method: str = 'linear', fill_value: float = float('nan'), keep_nan: bool = True,
                               resolution: float = DEFAULT_POINT_RESOLUTION,
@@ -1522,8 +1539,6 @@ class StressField:
         ----------
         name: str
             Name of the output workspace.
-        units: str
-            Units of the sample points.
         interpolate: bool
             Interpolate the scalar field sample of a regular 3D grid given by the extents of the sample points.
         method: str
@@ -1542,7 +1557,7 @@ class StressField:
         -------
         MDHistoWorkspace
         """
-        export_kwags = dict(units=units, interpolate=interpolate, method=method, fill_value=fill_value,
+        export_kwags = dict(interpolate=interpolate, method=method, fill_value=fill_value,
                             keep_nan=keep_nan, resolution=resolution, criterion=criterion)
         return self._stress_selected.to_md_histo_workspace(name, **export_kwags)  # type: ignore
 

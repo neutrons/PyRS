@@ -289,8 +289,7 @@ class DirectionExtents(_DirectionExtents):
         """
         return self._resolution  # same as number of center points
 
-    @property
-    def to_createmd(self) -> str:
+    def to_createmd(self, input_units: str = 'mm', output_units: str = 'm') -> str:
         r"""
         Minimum and maximum extents to be passed as argument Extent of Mantid algorithm
         `CreateMDWorkspace <https://docs.mantidproject.org/nightly/algorithms/CreateMDWorkspace-v1.html>`_.
@@ -300,27 +299,41 @@ class DirectionExtents(_DirectionExtents):
 
         Note: precision is limited to three decimal places.
 
+        Parameters
+        ----------
+        input_units: str
+            Units of the direction extents
+        output_units: str
+            Units of the output extents
+
         Returns
         -------
         str
         """
-        pair = f'{self.min - self.delta / 2: .3f},{self.max + self.delta / 2: .3f}'
-        pair = pair.replace(' ', '').replace('-0.000', '0.000')  # remove white-spacnes and deal with corner case
+        factors = {'mm_to_mm': 1., 'm_to_m': 1., 'm_to_mm': 1.e3, 'mm_to_m': 1.e-3}
+        f = factors[input_units + '_to_' + output_units]
+        pair = f'{f * self.min - f * self.delta / 2: .6f},{f * self.max + f * self.delta / 2: .6f}'
+        pair = pair.replace(' ', '').replace('-0.000000', '0.000000')  # remove white-spaces and deal with corner case
         return pair
 
-    @property
-    def to_binmd(self) -> str:
+    def to_binmd(self, input_units: str = 'mm', output_units: str = 'm') -> str:
         r"""
         Binning parameters to be passed as one of the AlignedDimX arguments of Mantid algorithm
         `BinMD <>`_.
 
         Note: precision is limited to three decimal places.
 
+        input_units: str
+            Units of the direction extents
+        output_units: str
+            Units of the output extents
+
         Returns
         -------
         str
         """
-        return f'{self.to_createmd},{self.number_of_bins}'.replace(' ', '')
+        extents = self.to_createmd(input_units=input_units, output_units=output_units)
+        return f'{extents},{self.number_of_bins}'.replace(' ', '')
 
 
 ExtentTriad = Tuple[DirectionExtents, DirectionExtents, DirectionExtents]  # a shortcut
@@ -330,7 +343,7 @@ class PointList:
     ATOL: float = 0.01
 
     class _PointList(NamedTuple):
-        r"""Data structure containing the list of coordinates"""
+        r"""Data structure containing the list of coordinates. Units are in milimeters."""
         vx: List[float]  # coordinates stored in log name HidraConstants.SAMPLE_COORDINATE_NAMES[0]
         vy: List[float]  # coordinates stored in log name HidraConstants.SAMPLE_COORDINATE_NAMES[1]
         vz: List[float]  # coordinates stored in log name HidraConstants.SAMPLE_COORDINATE_NAMES[2]
@@ -370,11 +383,11 @@ class PointList:
         r"""
         List of sample coordinates.
 
-        Some remarks:
-        point_list.vx returns the list of coordinates along the first axis
-        point_list[42] return the (vx, vy, vz) coordinates of point 42
-        point_list.coordinates retuns a numpy array of shape (number_points, 3)
-        Iteration iterates over each point, not over each direction.
+        - Units are set to milimeters always.
+        - point_list.vx returns the list of coordinates along the first axis
+        - point_list[42] return the (vx, vy, vz) coordinates of point 42
+        - point_list.coordinates retuns a numpy array of shape (number_points, 3)
+        - Iteration iterates over each point, not over each direction.
 
         Parameters
         ----------
