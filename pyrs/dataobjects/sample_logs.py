@@ -312,8 +312,12 @@ class DirectionExtents(_DirectionExtents):
         """
         factors = {'mm_to_mm': 1., 'm_to_m': 1., 'm_to_mm': 1.e3, 'mm_to_m': 1.e-3}
         f = factors[input_units + '_to_' + output_units]
-        pair = f'{f * self.min - f * self.delta / 2: .6f},{f * self.max + f * self.delta / 2: .6f}'
-        pair = pair.replace(' ', '').replace('-0.000000', '0.000000')  # remove white-spaces and deal with corner case
+        pair_template = {'m': '{0: .6f},{1: .6f}', 'mm': '{0: .3f},{1: .3f}'}[output_units]
+        pair = pair_template.format(f * self.min - f * self.delta / 2, f * self.max + f * self.delta / 2)
+        pair = pair.replace(' ', '')  # remove white-spaces
+        # deal with corner case having zero with a negative sign
+        zero = {'m': '0.000000', 'mm': '0.000'}[output_units]  # different precision
+        pair = pair.replace('-' + zero, zero)
         return pair
 
     def to_binmd(self, input_units: str = 'mm', output_units: str = 'mm') -> str:
