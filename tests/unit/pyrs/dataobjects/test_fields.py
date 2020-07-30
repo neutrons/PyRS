@@ -949,8 +949,9 @@ class TestStressField:
         for i, (min_value, max_value, bin_count) in enumerate(zip(minimum_values, maximum_values, bin_counts)):
             dimension = histo.getDimension(i)
             assert dimension.getUnits() == 'meter'
-            assert dimension.getMinimum() == pytest.approx(min_value, abs=1.e-02)
-            assert dimension.getMaximum() == pytest.approx(max_value, abs=1.e-02)
+            # convert from milimeters to meters with factor 1.e-3
+            assert dimension.getMinimum() == pytest.approx(min_value * 1.e-3, abs=1.e-02)
+            assert dimension.getMaximum() == pytest.approx(max_value * 1.e-3, abs=1.e-02)
             assert dimension.getNBins() == bin_count
 
 
