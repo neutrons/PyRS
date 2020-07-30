@@ -98,16 +98,15 @@ class Model(QObject):
         if self.selectedPeak not in getattr(self, f'e{direction}_peaks'):
             return f"Peak {self.selectedPeak} is not in e{direction}"
 
-    def get_field_md(self, direction, plot_param):
+    def get_field(self, direction, plot_param):
         try:
             if plot_param == "stress":
                 self._stress.select(direction)
-                return self._stress.to_md_histo_workspace(f'e{direction} {plot_param}')
+                return self._stress
             else:
                 return generateParameterField(plot_param,
                                               hidraworkspace=getattr(self, f'e{direction}'),
-                                              peak_collection=getattr(self, f'e{direction}_peaks')[self.selectedPeak],
-                                              ).to_md_histo_workspace(f'e{direction} {plot_param}')
+                                              peak_collection=getattr(self, f'e{direction}_peaks')[self.selectedPeak])
         except Exception as e:
             self.failureMsg.emit(f"Failed to generate field for parameter {plot_param} in direction {direction}",
                                  str(e),
