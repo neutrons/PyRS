@@ -289,7 +289,7 @@ class DirectionExtents(_DirectionExtents):
         """
         return self._resolution  # same as number of center points
 
-    def to_createmd(self, input_units: str = 'mm', output_units: str = 'm') -> str:
+    def to_createmd(self, input_units: str = 'mm', output_units: str = 'mm') -> str:
         r"""
         Minimum and maximum extents to be passed as argument Extent of Mantid algorithm
         `CreateMDWorkspace <https://docs.mantidproject.org/nightly/algorithms/CreateMDWorkspace-v1.html>`_.
@@ -316,7 +316,7 @@ class DirectionExtents(_DirectionExtents):
         pair = pair.replace(' ', '').replace('-0.000000', '0.000000')  # remove white-spaces and deal with corner case
         return pair
 
-    def to_binmd(self, input_units: str = 'mm', output_units: str = 'm') -> str:
+    def to_binmd(self, input_units: str = 'mm', output_units: str = 'mm') -> str:
         r"""
         Binning parameters to be passed as one of the AlignedDimX arguments of Mantid algorithm
         `BinMD <>`_.

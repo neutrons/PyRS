@@ -464,6 +464,8 @@ class ScalarFieldSample:
         Parameters `method`, `fill_value`, `keep_nan`, `resolution` , and `criterion` are  used only if
         `interpolate` is `True`.
 
+        Saved units for the sample points are in milimeters
+
         Parameters
         ----------
         name: str
@@ -500,17 +502,17 @@ class ScalarFieldSample:
         extents = sample.point_list.extents(resolution=resolution)  # triad of DirectionExtents objects
         for extent in extents:
             assert extent[0] <= extent[1], f'min value of {extent} is greater than max value'
-        # Units of sample points in PointList are 'mm', but Mantid requires 'm'
-        extents_str = ','.join([extent.to_createmd(input_units='mm', output_units='m') for extent in extents])
+        # Units of sample points in PointList are 'mm', which we keep when exporting
+        extents_str = ','.join([extent.to_createmd(input_units='mm', output_units='mm') for extent in extents])
 
         # create an empty event workspace of the correct dimensions
         axis_labels = ('x', 'y', 'z')
         CreateMDWorkspace(OutputWorkspace='__tmp', Dimensions=3, Extents=extents_str,
-                          Names=','.join(axis_labels), Units='meter,meter,meter')
+                          Names=','.join(axis_labels), Units='mm,mm,mm')
         # set the bins for the workspace correctly
         aligned_dimensions = list()
         for label, extent in zip(axis_labels, extents):  # type: ignore
-            extent_str = extent.to_binmd(input_units='mm', output_units='m')
+            extent_str = extent.to_binmd(input_units='mm', output_units='mm')
             aligned_dimensions.append(f'{label},{extent_str}')
         aligned_kwargs = {f'AlignedDim{i}': aligned_dimensions[i] for i in range(len(aligned_dimensions))}
         BinMD(InputWorkspace='__tmp', OutputWorkspace=name, **aligned_kwargs)
@@ -975,6 +977,8 @@ class StrainField:
 
         Parameters `method`, `fill_value`, `keep_nan`, `resolution` , and `criterion` are  used only if
         `interpolate` is `True`.
+
+        Saved units for the sample points are in milimeters
 
         Parameters
         ----------
