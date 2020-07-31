@@ -1,5 +1,6 @@
 from mantidqt.widgets.sliceviewer.presenter import SliceViewer
 from mantidqt.widgets.sliceviewer.model import SliceViewerModel
+from mantidqt.icons import get_icon
 from qtpy.QtWidgets import (QHBoxLayout, QVBoxLayout, QLabel, QWidget,
                             QLineEdit, QPushButton, QComboBox,
                             QGroupBox, QSplitter, QTabWidget,
@@ -177,7 +178,20 @@ class StrainSliceViewer(SliceViewer):
     def __init__(self, ws, parent=None):
         self.overlay_visible = False
         self.scatter = None
+        self.aspect_equal = False
         super().__init__(ws, parent=parent)
+
+        self.view.data_view.mpl_toolbar.addSeparator()
+
+        # Add aspect ratio button, use used nonOrthogonalClicked
+        # signal, easier than creating a new one
+        self.view.data_view.mpl_toolbar.nonOrthogonalClicked.disconnect()
+        self.view.data_view.mpl_toolbar.addAction(get_icon('mdi.aspect-ratio'),
+                                                  'aspect',
+                                                  self.view.data_view.mpl_toolbar.nonOrthogonalClicked).setToolTip(
+                                                      'Toggle aspect ratio')
+        self.view.data_view.mpl_toolbar.nonOrthogonalClicked.connect(self.toggle_aspect)
+
         self.view.data_view.mpl_toolbar.peaksOverlayClicked.disconnect()
         self.view.data_view.mpl_toolbar.peaksOverlayClicked.connect(self.overlay)
 
@@ -186,6 +200,8 @@ class StrainSliceViewer(SliceViewer):
         self.view.data_view.plot_MDH(self.model.get_ws(), slicepoint=self.get_slicepoint(), interpolation='bilinear')
         if self.overlay_visible:
             self.update_overlay()
+        if self.aspect_equal:
+            self.update_aspect()
 
     def update_plot_data_MDH(self):
         super().update_plot_data_MDH()
@@ -230,6 +246,17 @@ class StrainSliceViewer(SliceViewer):
     def set_new_workspace(self, ws):
         self.model = SliceViewerModel(ws)
         self.new_plot()
+
+    def toggle_aspect(self, state):
+        self.aspect_equal = not self.aspect_equal
+        self.update_aspect()
+
+    def update_aspect(self):
+        if self.aspect_equal:
+            self.view.data_view.ax.set_aspect('equal')
+        else:
+            self.view.data_view.ax.set_aspect('auto')
+        self.view.data_view.canvas.draw_idle()
 
 
 class PlotSelect(QGroupBox):
