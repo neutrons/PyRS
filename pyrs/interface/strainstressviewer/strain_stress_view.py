@@ -356,11 +356,18 @@ class VizTabs(QTabWidget):
                     self.plot_1d.removeWidget(self.oneDViewer)
                 fig = Figure()
                 self.oneDViewer = FigureCanvas(fig)
-                ax = fig.add_subplot(111, projection='mantid')
-                ax.errorbar(ws, marker='o')
-                d = ws.getNonIntegratedDimensions()[0]
-                ax.set_xlabel(f'{d.name} ({d.getUnits()})')
-                ax.set_ylabel(None)
+
+                # get scan direction
+                for d in ('x', 'y', 'z'):
+                    dim = getattr(field, d)
+                    if not np.allclose(dim, dim[0], atol=0.1):
+                        scan_dir = d
+
+                # create simple 1D plot
+                ax = fig.add_subplot()
+                ax.errorbar(getattr(field, scan_dir), field.values, field.errors, marker='o')
+                ax.set_xlabel(f'{scan_dir} (mm)')
+
                 self.plot_1d.addWidget(self.oneDViewer)
                 self.plot_1d.setCurrentIndex(1)
             else:
