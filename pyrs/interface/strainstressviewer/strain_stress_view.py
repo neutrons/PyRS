@@ -214,12 +214,15 @@ class StrainSliceViewer(SliceViewer):
         if self.overlay_visible:
             self.update_overlay()
         else:
-            self.scatter.remove()
+            if self.scatter:
+                self.scatter.remove()
+                self.scatter = None
             self.view.data_view.canvas.draw_idle()
 
     def update_overlay(self):
         if self.scatter:
             self.scatter.remove()
+            self.scatter = None
         slicepoint = self.view.data_view.dimensions.get_slicepoint()
         x, y, z = self.current_field.x, self.current_field.y, self.current_field.z
 
