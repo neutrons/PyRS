@@ -283,6 +283,7 @@ class PeakSelection(QGroupBox):
 
 class VizTabs(QTabWidget):
     def __init__(self, parent=None):
+        self._parent = parent
         super().__init__(parent)
         self.oneDViewer = None
         self.strainSliceViewer = None
@@ -300,8 +301,7 @@ class VizTabs(QTabWidget):
         self.addTab(self.plot_1d, "1D")
         self.addTab(self.plot_2d, "2D")
         self.addTab(QWidget(), "3D")
-        self.setTabEnabled(0, False)
-        self.setTabEnabled(2, False)
+        self.set_1d_mode(False)
         self.setCornerWidget(QLabel("Visualization Pane    "), corner=Qt.TopLeftCorner)
 
     def set_1d_mode(self, oned):
@@ -315,9 +315,9 @@ class VizTabs(QTabWidget):
             try:
                 ws = field.to_md_histo_workspace()
             except Exception as e:
-                self.show_failure_msg("Failed to generate field",
-                                      str(e),
-                                      traceback.format_exc())
+                self._parent.show_failure_msg("Failed to generate field",
+                                              str(e),
+                                              traceback.format_exc())
                 ws = None
         else:
             ws = None
@@ -423,14 +423,15 @@ class StrainStressViewer(QSplitter):
 
     def dimChanged(self, bool2d):
         self.fileLoading.file_load_e33.setDisabled(bool2d)
-        self.viz_tab.setTabEnabled(1, not bool2d)
         self.update_plot()
 
     def measure_dir_changed(self):
         self.update_plot()
 
     def update_plot(self):
-        if self.plot_select.get_plot_param() == 'stress':
+        if self.plot_select.get_plot_param() == 'stress' or (self.plot_select.get_plot_param() == 'strain' and
+                                                             self.plot_select.get_direction() == "33" and
+                                                             self.stressCase.get_stress_case() == "In-plane stress"):
             validated = self.controller.validate_stress_selection(self.stressCase.get_stress_case(),
                                                                   self.mechanicalConstants.youngModulus.text(),
                                                                   self.mechanicalConstants.poissonsRatio.text())
@@ -439,13 +440,17 @@ class StrainStressViewer(QSplitter):
                                                            self.stressCase.get_stress_case() != 'diagonal')
 
         if validated is None:
-            if self.plot_select.get_plot_param() == 'stress':
+            if self.plot_select.get_plot_param() == 'stress' or (self.plot_select.get_plot_param() == 'strain' and
+                                                                 self.plot_select.get_direction() == "33" and
+                                                                 self.stressCase.get_stress_case()
+                                                                 == "In-plane stress"):
                 self.controller.calculate_stress(self.stressCase.get_stress_case(),
                                                  self.mechanicalConstants.youngModulus.text(),
                                                  self.mechanicalConstants.poissonsRatio.text())
 
             self.viz_tab.set_ws(self.model.get_field(direction=self.plot_select.get_direction(),
-                                                     plot_param=self.plot_select.get_plot_param()))
+                                                     plot_param=self.plot_select.get_plot_param(),
+                                                     stress_case=self.stressCase.get_stress_case()))
         else:
             self.viz_tab.set_ws(None)
             self.viz_tab.set_message(validated)
