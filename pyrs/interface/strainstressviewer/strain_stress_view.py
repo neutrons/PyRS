@@ -357,7 +357,10 @@ class VizTabs(QTabWidget):
                 fig = Figure()
                 self.oneDViewer = FigureCanvas(fig)
                 ax = fig.add_subplot(111, projection='mantid')
-                ax.plot(ws)
+                ax.errorbar(ws, marker='o')
+                d = ws.getNonIntegratedDimensions()[0]
+                ax.set_xlabel(f'{d.name} ({d.getUnits()})')
+                ax.set_ylabel(None)
                 self.plot_1d.addWidget(self.oneDViewer)
                 self.plot_1d.setCurrentIndex(1)
             else:
