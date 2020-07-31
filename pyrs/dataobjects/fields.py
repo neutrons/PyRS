@@ -811,6 +811,45 @@ class _StrainField:
         """
         return self.fuse_with(other_strain)
 
+    def stack_with(self, other, mode: str = 'union',
+                   resolution: float = DEFAULT_POINT_RESOLUTION) -> List['_ScalarFieldSample']:
+        # validate the mode and convert to a single set of terms
+        valid_stack_modes = ('union', 'intersection', 'complete', 'common')
+        if mode not in valid_stack_modes:
+            raise ValueError(f'{mode} is not a valid stack mode. Valid modes are {valid_stack_modes}')
+        if mode == 'complete':
+            mode = 'union'
+        if mode == 'common':
+            mode = 'intersection'
+
+        results = []
+        if mode == 'union':
+            point_list_union = self.point_list.fuse_with(other.point_list,
+                                                         resolution=resolution)
+            if len(point_list_union) == len(self.point_list) == len(other.point_list):
+                results = [self, other]
+            else:
+                strain1 = StrainField()
+                strain1._strains = self.strains
+                strain1._winners = self._winners
+                strain1._point_list = point_list_union
+
+                # create the union the other direction as "self" keeps its order
+                point_list_union = other.point_list.fuse_with(self.point_list,
+                                                              resolution=resolution)
+                strain2 = StrainField()
+                strain2._strains = other.strains
+                strain2._winners = other._winners
+                strain2._point_list = point_list_union
+
+                results = [strain1, strain2]
+        elif mode == 'intersection':
+            raise NotImplementedError('intersection mode is not currently supported')
+        else:
+            raise RuntimeError('Should not be possible to get here')
+
+        return results
+
 
 class StrainFieldSingle(_StrainField):
     '''This class holds strain information for a single ``PeakCollection``
@@ -888,7 +927,11 @@ class StrainFieldSingle(_StrainField):
         if self._peak_collection is None:
             raise RuntimeError('PeakCollection has not been set')
         values, errors = self._peak_collection.get_strain()
-        return ScalarFieldSample('strain', values, errors,
+        full_values = np.full(len(self.point_list), np.nan, dtype=float)
+        full_errors = np.full(len(self.point_list), np.nan, dtype=float)
+        full_values[:values.size] = values.size
+        full_errors[:errors.size] = errors.size
+        return ScalarFieldSample('strain', full_values, full_errors,
                                  self.x, self.y, self.z)
 
 
@@ -1038,8 +1081,8 @@ class StrainField(_StrainField):
         """
         # Validate all strains are strain fields
         for strain in strains:
-            assert isinstance(strain, StrainField), f'{strain} is not a StrainField object'
-        fields = [strain._field for strain in strains]
+            assert isinstance(strain, _StrainField), f'{strain} is not a StrainField object'
+        fields = [strain.field for strain in strains]
         fields_stacked = stack_scalar_field_samples(*fields, stack_mode=stack_mode, resolution=resolution)
         strains_stacked = list()
         for strain, field_stacked in zip(strains, fields_stacked):

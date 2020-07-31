@@ -620,6 +620,57 @@ class TestStrainField:
         # every other point comes from a single field
         np.testing.assert_equal(field.values, [1., 10., 3., 12., 5., 14., 7., 16.])
 
+    def test_small_stack(self):
+        x = [0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.5]  # x
+        y = [1.0, 1.0, 1.5, 1.5, 1.0, 1.0, 1.5, 1.5]  # y
+        z = [2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5]  # z
+        point_list1 = PointList([x, y, z])
+
+        # changes a single x-value in the last 4 points
+        x = [0.0, 0.5, 0.0, 0.5, 1.0, 1.5, 1.0, 1.0]  # x
+        y = [1.0, 1.0, 1.5, 1.5, 1.0, 1.0, 1.5, 1.5]  # y
+        z = [2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5]  # z
+        point_list2 = PointList([x, y, z])
+
+        values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]  # values
+        errors = np.full(len(values), 1., dtype=float)
+
+        strain1 = StrainField(peak_collection=PeakCollectionLite('strain',
+                                                                 strain=values, strain_error=errors),
+                              point_list=point_list1)
+
+        strain2 = StrainField(peak_collection=PeakCollectionLite('strain',
+                                                                 strain=values, strain_error=errors),
+                              point_list=point_list2)
+
+        # simple case of all points are identical - union
+        strain_stack = strain1.stack_with(strain1, mode='union')
+        assert len(strain_stack) == 2
+        for stacked, orig in zip(strain_stack, [strain1, strain1]):
+            assert len(stacked) == len(orig)
+            assert stacked.point_list == orig.point_list
+
+        # case when there are 4 points not commont
+        strain_stack = strain1.stack_with(strain2, mode='union')
+        assert len(strain_stack) == 2
+        for stacked, orig in zip(strain_stack, [strain1, strain1]):
+            assert stacked.peak_collections[0] == orig.peak_collections[0]
+            assert stacked.point_list != orig.point_list
+            field = stacked.field
+            assert field
+            assert len(field) == 12
+            # TODO should confirm 4 nans in each
+            assert len(stacked.point_list) == 12  # 4 points in common
+
+        # simple case of all points are identical - intersection
+        ''' THIS ISN'T CURRENTLY SUPPORTED
+        strain_stack = strain1.stack_with(strain1, mode='intersection')
+        assert len(strain_stack) == 2
+        for stacked, orig in zip(strain_stack, [strain1, strain1]):
+            assert len(stacked) == len(orig)
+            assert stacked.point_list == orig.point_list
+        '''
+
     def test_create_strain_field_from_file_no_peaks(self, test_data_dir):
         # this project file doesn't have peaks in it
         file_path = os.path.join(test_data_dir, 'HB2B_1060_first3_subruns.h5')
