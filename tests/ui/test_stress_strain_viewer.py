@@ -53,12 +53,12 @@ def test_model():
                        "Mixing",
                        "Intensity",
                        "strain"):
-        e11_md = model.get_field('11', plot_param).to_md_histo_workspace()
+        e11_md = model.get_field('11', plot_param, 'stress_case').to_md_histo_workspace()
         assert e11_md.name() == f'{plot_param}'
         assert e11_md.getNumDims() == 3
         assert [e11_md.getDimension(n).getNBins() for n in range(3)] == [18, 6, 3]
-        assert model.get_field('22', plot_param) is None
-        assert model.get_field('33', plot_param) is None
+        assert model.get_field('22', plot_param, 'stress_case') is None
+        assert model.get_field('33', plot_param, 'stress_case') is None
 
     # Need to load ε22 so it should fail
     with pytest.raises(KeyError):
@@ -70,24 +70,31 @@ def test_model():
     model.calculate_stress('in-plane-stress', 200, 0.3)
 
     for direction in ('11', '22', '33'):
-        stress_md = model.get_field(direction, 'stress').to_md_histo_workspace()
+        stress_md = model.get_field(direction, 'stress', 'In-plane stress').to_md_histo_workspace()
         assert stress_md.name() == 'stress'
         assert stress_md.getNumDims() == 3
         assert [stress_md.getDimension(n).getNBins() for n in range(3)] == [18, 6, 3]
 
-    # Should be all zero for in-plane stress case
-    assert np.count_nonzero(model.get_field('33', 'stress').to_md_histo_workspace().getSignalArray()) == 0
+    # Stress should be all zero for in-plane stress case
+    assert np.count_nonzero(model.get_field('33', 'stress', 'In-plane stress')
+                            .to_md_histo_workspace().getSignalArray()) == 0
+    # Strain should be all non-zero for in-plane stress case
+    assert np.count_nonzero(model.get_field('33', 'strain', 'In-plane stress')
+                            .to_md_histo_workspace().getSignalArray()) == 18*6*3
 
     model.calculate_stress('in-plane-strain', 200, 0.3)
 
     for direction in ('11', '22', '33'):
-        stress_md = model.get_field(direction, 'stress').to_md_histo_workspace()
+        stress_md = model.get_field(direction, 'stress', 'In-plane strain').to_md_histo_workspace()
         assert stress_md.name() == 'stress'
         assert stress_md.getNumDims() == 3
         assert [stress_md.getDimension(n).getNBins() for n in range(3)] == [18, 6, 3]
 
-    # Should be all non-zero for in-plane strain case
-    assert np.count_nonzero(model.get_field('33', 'stress').to_md_histo_workspace().getSignalArray()) == 18*6*3
+    # Stress should be all non-zero for in-plane strain case
+    assert np.count_nonzero(model.get_field('33', 'stress', 'In-plane strain')
+                            .to_md_histo_workspace().getSignalArray()) == 18*6*3
+    # Strain shouldn't exist for for in-plane strain case
+    assert model.get_field('33', 'strain', 'In-plane strain') is None
 
     model.e33 = 'tests/data/HB2B_1320.h5'
     assert model.e33.name == '33'
@@ -95,13 +102,14 @@ def test_model():
     model.calculate_stress('diagonal', 200, 0.3)
 
     for direction in ('11', '22', '33'):
-        stress_md = model.get_field(direction, 'stress').to_md_histo_workspace()
+        stress_md = model.get_field(direction, 'stress', 'diagonal').to_md_histo_workspace()
         assert stress_md.name() == 'stress'
         assert stress_md.getNumDims() == 3
         assert [stress_md.getDimension(n).getNBins() for n in range(3)] == [18, 6, 3]
 
     # Should be all non-zero for diagonal stress case
-    assert np.count_nonzero(model.get_field('33', 'stress').to_md_histo_workspace().getSignalArray()) == 18*6*3
+    assert np.count_nonzero(model.get_field('33', 'stress', 'diagonal')
+                            .to_md_histo_workspace().getSignalArray()) == 18*6*3
 
     # Check message when 22 is loaded without 11
     model = Model()

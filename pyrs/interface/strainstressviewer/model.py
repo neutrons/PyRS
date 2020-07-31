@@ -98,11 +98,13 @@ class Model(QObject):
         if self.selectedPeak not in getattr(self, f'e{direction}_peaks'):
             return f"Peak {self.selectedPeak} is not in e{direction}"
 
-    def get_field(self, direction, plot_param):
+    def get_field(self, direction, plot_param, stress_case):
         try:
             if plot_param == "stress":
                 self._stress.select(direction)
                 return self._stress
+            elif plot_param == "strain" and direction == "33" and stress_case == "In-plane stress":
+                return self._stress.strain33
             else:
                 return generateParameterField(plot_param,
                                               hidraworkspace=getattr(self, f'e{direction}'),
