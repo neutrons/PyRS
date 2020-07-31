@@ -13,6 +13,8 @@ import math
 class SummaryGeneratorStress:
     """
         Generates a CSV summary from stress fields inputs from multiple project files on a grid point basis.
+        From user story `for Grid Information CSV Output
+        <github.com/neutrons/PyRS/blob/master/docs/planning/UserStory_GridInformation_CSVOutputs.md>`_
     """
 
     directions = ['11', '22', '33']
@@ -40,21 +42,26 @@ class SummaryGeneratorStress:
         # check for length of lists
         self._filename: str = str(filename)
 
-        if not stress:
+        if isinstance(stress, StressField) is False:
             raise RuntimeError(
-                'Error: stress of type StressField input can\'t be invalid' + self._error_postfix)
+                'Error: stress input must be of type StressField in SummaryGeneratorStress constructor '
+                + self._error_postfix)
 
         self._stress = stress
+        self._strain33_is_calculated = False
 
         # check for filenames in StrainField per direction
         for direction in SummaryGeneratorStress.directions:
             strain = self._get_strain_field(direction)
             assert isinstance(strain, StrainField)
 
-            # add exception if filenames is empty
+            # add exception if filenames is empty for 11 and 22 directions
             if not strain.filenames:
-                raise RuntimeError('StrainField filenames in direction ' + str(direction) +
-                                   'can\'t be empty for Stress CSV output ' + self._filename)
+                if direction == '11' or direction == '22':
+                    raise RuntimeError('StrainField filenames in direction ' + str(direction) +
+                                       ' can\'t be empty for Stress CSV output ' + self._filename)
+                elif direction == '33':
+                    self._strain33_is_calculated = True
 
     def _write_csv_header(self, handle):
         """
@@ -66,12 +73,17 @@ class SummaryGeneratorStress:
             strain = self._get_strain_field(direction)
             assert isinstance(strain, StrainField)
 
-            line = '# Direction ' + str(direction) + ': '
-            for filename in strain.filenames:
-                run_number = filename[filename.index('HB2B_') + 5: filename.index('.h5')]
-                line += str(run_number) + ', '
+            if direction == '33' and self._strain33_is_calculated:
+                line = '# Direction 33: calculated\n'
 
-            line = line[:-2] + '\n'
+            else:
+                line = '# Direction ' + str(direction) + ': '
+                for filename in strain.filenames:
+                    run_number = filename[filename.index('HB2B_') + 5: filename.index('.h5')]
+                    line += str(run_number) + ', '
+
+                line = line[:-2] + '\n'
+
             header += line
 
         header += '# E: ' + str(self._stress.youngs_modulus) + '\n'
@@ -84,7 +96,7 @@ class SummaryGeneratorStress:
             Public function to generate a summary csv file for stress and input fields
         """
         def _write_summary_csv_column_names(handle):
-            column_names = 'vx, vy, vz, d0, d0_error '
+            column_names = 'vx, vy, vz, d0, d0_error, '
             # directional variables
             for field_3dir in SummaryGeneratorStress.fields_3dir:
                 for direction in SummaryGeneratorStress.directions:
@@ -103,6 +115,13 @@ class SummaryGeneratorStress:
                 return str(number) + ', '
 
             def _write_field_3d(row: int, field: str):
+                """
+                   Writes 3 dimensional entries as value, error pairs per dimension
+                   for an input field in a row
+                   Args:
+                       row: row index for a particular value and error array
+                       field: name of the field from SummaryGeneratorStress.fields_3dir
+                """
                 entries = ''
                 for direction in SummaryGeneratorStress.directions:
                     if field == 'Strain':
@@ -122,27 +141,48 @@ class SummaryGeneratorStress:
 
                     else:
                         peak_collection = self._get_peak_collection(direction)
-                        assert(isinstance(peak_collection, PeakCollection))
 
                         if field == 'd':
-                            d_value = peak_collection.get_dspacing_center()[0][row]
-                            d_error = peak_collection.get_dspacing_center()[1][row]
-                            entries += _write_number(d_value) + _write_number(d_error)
+                            # TODO current assumption is that stress and peak collections
+                            # arrays for values and errors are of the same size
+                            if not isinstance(peak_collection, PeakCollection):
+                                entries += ', , '
+                            elif row >= len(peak_collection.get_dspacing_center()[0]):
+                                entries += ', , '
+                            else:
+                                d_value = peak_collection.get_dspacing_center()[0][row]
+                                d_error = peak_collection.get_dspacing_center()[1][row]
+                                entries += _write_number(d_value) + _write_number(d_error)
 
                         elif field == 'FWHM':
-                            fwhm_value = peak_collection.get_effective_params()[0]['FWHM'][row]
-                            fwhm_error = peak_collection.get_effective_params()[1]['FWHM'][row]
-                            entries += _write_number(fwhm_value) + _write_number(fwhm_error)
+
+                            if not isinstance(peak_collection, PeakCollection):
+                                entries += ', , '
+                            elif row >= len(peak_collection.get_effective_params()[0]['FWHM']):
+                                entries += ', , '
+                            else:
+                                fwhm_value = peak_collection.get_effective_params()[0]['FWHM'][row]
+                                fwhm_error = peak_collection.get_effective_params()[1]['FWHM'][row]
+                                entries += _write_number(fwhm_value) + _write_number(fwhm_error)
 
                         elif field == 'Peak_Height':
-                            height_value = peak_collection.get_effective_params()[0]['Height'][row]
-                            height_error = peak_collection.get_effective_params()[1]['Height'][row]
-                            entries += _write_number(height_value) + _write_number(height_error)
+
+                            if not isinstance(peak_collection, PeakCollection):
+                                entries += ', , '
+                            elif row >= len(peak_collection.get_effective_params()[0]['Height']):
+                                entries += ', , '
+                            else:
+                                height_value = peak_collection.get_effective_params()[0]['Height'][row]
+                                height_error = peak_collection.get_effective_params()[1]['Height'][row]
+                                entries += _write_number(height_value) + _write_number(height_error)
 
                 return entries
 
             # Function starts here
             body = ''
+
+            # write for each row of the CSV body, first coordinates, d0 and
+            # then fields in SummaryGeneratorStress.fields_3dir value, error per dimension
             for row, coordinate in enumerate(self._stress.coordinates):
 
                 line = str(coordinate[0]) + ', ' + str(coordinate[1]) + ', ' + str(coordinate[2]) + ', '
@@ -152,13 +192,16 @@ class SummaryGeneratorStress:
                     peak_collection = self._get_peak_collection(direction)
                     if not peak_collection:
                         continue
-                    d0_value = peak_collection.get_d_reference()[0][row]
-                    d0_error = peak_collection.get_d_reference()[1][row]
 
-                    line += _write_number(d0_value) + _write_number(d0_error)
-                    break
+                    if row >= len(peak_collection.get_d_reference()[0]):
+                        line += ', , '
+                    else:
+                        d0_value = peak_collection.get_d_reference()[0][row]
+                        d0_error = peak_collection.get_d_reference()[1][row]
+                        line += _write_number(d0_value) + _write_number(d0_error)
+                        break
 
-                # fields_3dir = ['d', 'FWHM', 'Peak_Height', 'Strain', 'Stress']
+                # value error for fields_3dir = ['d', 'FWHM', 'Peak_Height', 'Strain', 'Stress']
                 for field_3dir in SummaryGeneratorStress.fields_3dir:
                     line += _write_field_3d(row, field_3dir)
 
@@ -195,6 +238,6 @@ class SummaryGeneratorStress:
         """
         strain = self._get_strain_field(direction)
         if isinstance(strain, StrainField):
-            return strain.peak_collection
+            return strain.peak_collections[0]
 
         return None
