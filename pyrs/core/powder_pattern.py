@@ -118,7 +118,8 @@ class ReductionApp:
         if sub_runs is None or not bool(sub_runs):  # None or empty list
             self._sub_runs = self._hydra_ws.get_sub_runs()
         else:
-            self._sub_runs = sub_runs
+            # sort array to make sure the sub-run data are written into project files in increasing order
+            self._sub_runs = sorted(sub_runs)
 
         # instrument file
         if instrument_file is not None:
