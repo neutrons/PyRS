@@ -208,37 +208,89 @@ class SubRuns(Iterable):
 
 
 class SampleLogs(MutableMapping):
-    SUBRUN_KEY = HidraConstants.SUB_RUNS
+    r"""
+    Log data for the selected subrun numbers
+
+    Parameters
+    ----------
+    kwargs: dict
+        Map of log names to log data
+    """
+
+    SUBRUN_KEY = HidraConstants.SUB_RUNS  # string in the Nexus logs identifying the subrun numbers
 
     def __init__(self, **kwargs):
-        self._data = dict(kwargs)
-        self._subruns = SubRuns()
-        self._plottable = set([self.SUBRUN_KEY])
+        self._data = dict(kwargs)  # data structure containing the log data
+        self._subruns = SubRuns()  # list of included subruns
+        self._plottable = set([self.SUBRUN_KEY])  # list of log entries that can be plotted
 
     def __del__(self):
         del self._data
         del self._subruns
 
     def __delitem__(self, key):
+        r"""
+        Remove one log entry, including the contents of the `SubRuns` object if so requested
+
+        Parameters
+        ----------
+        key: str
+            Log entry
+        """
         if key == self.SUBRUN_KEY:
             self.subruns = SubRuns()  # set to empty subruns
         else:
             del self._data[key]
 
     def __getitem__(self, key):
+        r"""
+        Log data for all or for a subset of the sub run numbers
+
+        If `type(key)==str`, then the key is the name of a log value, and this function fetches
+        the log values for all subruns contained in `self._subruns`.
+        If `type(key)==tuple`, then key is of the form `(name, subruns)` where `name` is the name
+        of the log entry, and `subruns` is an instance of either `int`, `list`, `np.ndarray`,
+        or `SubRuns`. This function will fetch the log values for the subruns numbers contained
+        in `subruns`.
+
+        Examples
+        --------
+        >>> sample_logs['sub-runs']
+        array([1, 2, 3, 8, 9])  # all subrun numbers stored in sample_logs objects
+        >>> sample_logs['vx']
+        array([3.456, 4.324, 5.889, 23.925, 24.572])  # vx coordinates for all stored subrun numbers
+        >>> sample_logs[('vx', [0, 1, 2])]
+        array([3.456, 4.324, 5.889])  # vx coordinates for subrun numbers 1, 2, and 3
+        >>> sample_logs[('sub-runs', [0, 1, 2])]
+        RuntimeError: Cannot use __getitem__ to get subset of subruns
+
+        Parameters
+        ----------
+        key: str, tuple
+
+        Returns
+        -------
+        np.ndarray
+
+        Raises
+        ------
+        RuntimeError
+            when requesting a subset of subruns
+        """
         if isinstance(key, tuple):
             key, subruns = key
         else:
             subruns = None
 
         if key == self.SUBRUN_KEY:
-            if subruns:
+            if subruns:  # Example: key == ('sub-runs', [0, 1, 2])  request the first three subrun numbers
                 raise RuntimeError('Cannot use __getitem__ to get subset of subruns')
             return self._subruns
         else:
             if (subruns is None) or self.matching_subruns(subruns):
-                return self._data[key]
+                return self._data[key]  # all log values contained for this log entry
             else:
+                # log values for this log entry and for the requested subrun numbers
                 return self._data[key][self.get_subrun_indices(subruns)]
 
     def __iter__(self):
