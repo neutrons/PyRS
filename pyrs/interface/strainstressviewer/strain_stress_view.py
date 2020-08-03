@@ -367,7 +367,7 @@ class VizTabs(QTabWidget):
                         scan_dir = d
 
                 # create simple 1D plot
-                ax = fig.add_subplot()
+                ax = fig.add_subplot(111)
                 ax.errorbar(getattr(field, scan_dir), field.values, field.errors, marker='o')
                 ax.set_xlabel(f'{scan_dir} (mm)')
 

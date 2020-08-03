@@ -84,7 +84,8 @@ class ReductionApp:
         self._reduction_manager.init_session(self._session, self._hydra_ws)
 
     def reduce_data(self, sub_runs, instrument_file, calibration_file, mask, mask_id=None,
-                    van_file=None, num_bins=1000, eta_step=None, eta_min=-8.2, eta_max=8.2):
+                    van_file=None, num_bins=1000, eta_step=None, eta_min=-8.2, eta_max=8.2,
+                    min_2theta=None, max_2theta=None, delta_2theta=None):
         """Reduce data from HidraWorkspace
 
         Parameters
@@ -109,6 +110,12 @@ class ReductionApp:
             min angle for out-of-plane reduction
         eta_max : float
             max angle for out-of-plane reduction
+        min_2theta : float or None
+            min 2theta
+        max_2theta : float or None
+            max 2theta
+        delta_2theta : float or None
+            2theta increment in the reduced diffraction data
 
         Returns
         -------
@@ -152,8 +159,12 @@ class ReductionApp:
 
         self._reduction_manager.reduce_diffraction_data(self._session,
                                                         apply_calibrated_geometry=geometry_calibration,
+                                                        min_2theta=min_2theta,
+                                                        max_2theta=max_2theta,
                                                         num_bins=num_bins,
                                                         sub_run_list=self._sub_runs,
+                                                        delta_2theta=delta_2theta,
+                                                        sub_run_list=sub_runs,
                                                         mask=mask,
                                                         mask_id=mask_id,
                                                         vanadium_counts=van_array,
