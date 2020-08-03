@@ -254,7 +254,7 @@ class Plot:
                 (y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys())):
             is_plot_with_error = True
 
-        is_plot_with_error = False  # REMOVE that line once the error bars are correctAT
+        # is_plot_with_error = False  # REMOVE that line once the error bars are correctAT
         if is_plot_with_error:
             self.parent.ui.graphicsView_fitResult.plot_scatter_with_errors(vec_x=axis_x_data,
                                                                            vec_y=axis_y_data,
