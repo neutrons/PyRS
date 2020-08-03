@@ -5,6 +5,7 @@ from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ign
 from pyrs.utilities import calibration_file_io
 from matplotlib import pyplot as plt
 
+
 def _mask_detectors(counts_vec, mask_file=None):
     # ignoring returns two_theta and note
     mask_vec, _, _ = mask_util.load_pyrs_mask(mask_file)
