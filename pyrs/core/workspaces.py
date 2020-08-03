@@ -922,6 +922,8 @@ class HidraWorkspace:
             diff_key = list(self._diff_data_set.keys())[0]
             _diff_data_temp = {}
             _var_data_temp = {}
+
+            # sub_runs - 1 is used to convert sub_run naming into a numpy index
             _diff_data_temp[diff_key] = self._diff_data_set[diff_key][sub_runs - 1]
             _var_data_temp[diff_key] = self._var_data_set[diff_key][sub_runs - 1]
 
