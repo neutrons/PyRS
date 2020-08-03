@@ -895,14 +895,31 @@ class HidraWorkspace:
         if self._wave_length is not None:
             hidra_project.write_wavelength(self._wave_length)
 
-    def save_reduced_diffraction_data(self, hidra_project):
+    def save_reduced_diffraction_data(self, hidra_project, sub_runs):
         """ Export reduced diffraction data to project
         :param hidra_project: HidraProjectFile instance
         :return:
         """
         checkdatatypes.check_type('HIDRA project file', hidra_project, HidraProjectFile)
 
-        hidra_project.write_reduced_diffraction_data_set(self._2theta_matrix, self._diff_data_set, self._var_data_set)
+        if len(self._raw_counts.keys()) == len(sub_runs):
+            hidra_project.write_reduced_diffraction_data_set(self._2theta_matrix,
+                                                             self._diff_data_set,
+                                                             self._var_data_set)
+        else:
+            if type(sub_runs) is list:
+                sub_runs = numpy.array(sub_runs)
+                
+            diff_key = list(self._diff_data_set.keys())[0]
+            _diff_data_temp = {}
+            _var_data_temp = {}
+            _diff_data_temp[diff_key] = self._diff_data_set[diff_key][sub_runs - 1]
+            _var_data_temp[diff_key] = self._var_data_set[diff_key][sub_runs - 1]
+            
+            hidra_project.write_reduced_diffraction_data_set(self._2theta_matrix[sub_runs - 1],
+                                                             _diff_data_temp,
+                                                             _var_data_temp)
+
 
     @property
     def sample_log_names(self):
