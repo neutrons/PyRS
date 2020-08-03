@@ -896,10 +896,19 @@ class HidraWorkspace:
             hidra_project.write_wavelength(self._wave_length)
 
     def save_reduced_diffraction_data(self, hidra_project, sub_runs):
-        """ Export reduced diffraction data to project
-        :param hidra_project: HidraProjectFile instance
-        :return:
+        """Save reduced diffraction data to HiDRA project file
+        Parameters
+        ----------
+        hidra_project: HidraProjectFile
+            reference to a HyDra project file
+        sub_runs: None or list/ndarray(1D)
+            None for exporting all or the specified sub runs
+
+        Returns
+        -------
+        None
         """
+
         checkdatatypes.check_type('HIDRA project file', hidra_project, HidraProjectFile)
 
         if len(self._raw_counts.keys()) == len(sub_runs):
