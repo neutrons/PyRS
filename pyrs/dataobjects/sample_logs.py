@@ -11,6 +11,17 @@ __all__ = ['SampleLogs', 'SubRuns']
 
 
 def _coerce_to_ndarray(value):
+    r"""
+    Cast input subrun lists into a numpy array
+
+    Parameters
+    ----------
+    value: int, list np.ndarray, ~pyrs.dataobjects.sample_logs.SubRuns,
+
+    Returns
+    -------
+    np.ndarray
+    """
     if isinstance(value, np.ndarray):
         return value
     elif isinstance(value, SubRuns):
@@ -20,12 +31,20 @@ def _coerce_to_ndarray(value):
 
 
 class SubRuns(Iterable):
-    '''SubRun class is a (mostly) immutable object that allows for getting the index of its arguments.'''
-    def __init__(self, subruns=None):
-        '''Default is to create zero-length subruns. This is the only version of
-        subrun that can have its value updated'''
-        self._value = np.ndarray((0))
+    r"""
+    A (mostly) immutable object that allows for getting the index of its arguments.
 
+    Default constructor returns an instance with zero-length subruns. This is the only version of
+    subrun that can have its value updated
+
+    Parameters
+    ----------
+    subruns: list
+        A list of subrun numbers
+    """
+
+    def __init__(self, subruns=None):
+        self._value = np.ndarray((0))
         if subruns is not None:
             self.set(subruns)
 
@@ -33,6 +52,17 @@ class SubRuns(Iterable):
         return self._value[key]
 
     def __eq__(self, other):
+        r"""
+        Two SubRuns instances are equal if and only if their subrun list are identical
+
+        Parameters
+        ----------
+        other: int, list, np.ndarray, ~pyrs.dataobjects.sample_logs.Subruns
+            Extended comparison to objects of other type than the SubRun class
+        Returns
+        -------
+        bool
+        """
         other = _coerce_to_ndarray(other)
         if other.size != self._value.size:
             return False
@@ -40,11 +70,22 @@ class SubRuns(Iterable):
             return np.all(other == self._value)
 
     def __ne__(self, other):
+        r"""
+        Two SubRuns instances are different if only if their subrun list are not identical
+
+        Parameters
+        ----------
+        other: int, list, np.ndarray, ~pyrs.dataobjects.sample_logs.Subruns
+            Extended comparison to objects of other type than the SubRun class
+
+        Returns
+        -------
+        bool
+        """
         return not (self.__eq__(other))
 
     def __iter__(self):
         iterable = self._value.tolist()
-
         return iterable.__iter__()
 
     def __repr__(self):
@@ -55,6 +96,13 @@ class SubRuns(Iterable):
 
     @property
     def size(self):
+        r"""
+        Total number of subruns
+
+        Returns
+        -------
+        int
+        """
         return self._value.size
 
     @property
@@ -69,30 +117,85 @@ class SubRuns(Iterable):
         return self._value.size
 
     def empty(self):
+        r"""
+        Assert if the list of subruns is empty
+
+        Returns
+        -------
+        bool
+        """
         return self._value.size == 0
 
     def set(self, value):
+        r"""
+        Initialize the list of subruns
+
+        Parameters
+        ----------
+        value: int, list, np.ndarray, ~pyrs.dataobjects.sample_logs.SubRuns
+            Input list of subruns
+
+        Raises
+        ------
+        RuntimeError
+            Attempt to initialize a list that was initialized previously
+        """
         value = _coerce_to_ndarray(value)
         if not self.empty():
             if self.__ne__(value):
                 raise RuntimeError('Cannot change subruns when non-empty '
                                    '(previous={}, new={})'.format(self._value, value))
         if not np.all(value[:-1] < value[1:]):
-            raise RuntimeError('subruns are not soryed in increasing order')
+            raise RuntimeError('subruns are not sorted in increasing order')
         self._value = value.astype(int)
 
     def raw_copy(self):
-        '''Raw copy of underlying values'''
+        r"""
+        Raw copy of underlying values
+
+        Returns
+        -------
+        np.ndarray
+        """
         return np.copy(self._value)
 
     def get_indices(self, subruns):
-        '''Convert the list of subruns into indices into the subrun array'''
+        r"""
+        Find index positions in `self._values` matching the numbers contained
+        in the input list `subruns`
+
+        When `subruns` is a list, its first and last values must be in  `self._values`
+
+        Examples
+        --------
+        >>> s = Subruns([1, 2, 3, 4, 5])
+        >>> s.get_indices(s)
+        array([0, 1, 2, 3, 4])
+        >>> s.get_indices(3)
+        array([2])
+        >>> s.get_indices([4, 5, 1])
+        array([3, 4, 0])
+
+        Parameters
+        ----------
+        subruns: int, list, np.ndarray, ~pyrs.dataobjects.sample_logs.Subruns
+
+        Returns
+        -------
+        np.ndarray
+
+        Raises
+        ------
+        IndexError
+            No matching numbers are found
+        """
         if self.__eq__(subruns):
             return np.arange(self._value.size)
         else:
             subruns = _coerce_to_ndarray(subruns)
             # look for the single value
             if subruns.size == 1:
+                # Find index of array self_value containing the query subruns
                 indices = np.nonzero(self._value == subruns[0])[0]
                 if indices.size > 0:
                     return indices
