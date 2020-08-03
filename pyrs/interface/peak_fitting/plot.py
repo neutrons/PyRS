@@ -15,6 +15,7 @@ class Plot:
 
     def __init__(self, parent=None):
         self.parent = parent
+        self.sub_run_list = self.parent.hidra_workspace._sample_logs._subruns
 
     def plot_diff_data(self, plot_model=True):
         """
@@ -117,13 +118,16 @@ class Plot:
         else:
             scan_value = value
 
+        # reference sub_run number from list of sub_runs in project file
+        sub_run = self.sub_run_list[scan_value - 1]
+
         try:
             self.parent._ui_graphicsView_fitSetup.reset_viewer()
-            self.plot_diff_and_fitted_data(scan_value, True)
+            self.plot_diff_and_fitted_data(sub_run, True)
         except RuntimeError:
             pass
 
-        self.parent.ui.label_SubRunsValue.setText('{}'.format(scan_value))
+        self.parent.ui.label_SubRunsValue.setText('{}'.format(sub_run))
 
     def plot_2d(self):
 

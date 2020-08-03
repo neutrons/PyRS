@@ -390,10 +390,13 @@ class HB2BReductionManager:
         else:
             rebuild_instrument = True
 
+        if self._last_reduction_engine is None:
+            rebuild_instrument = True
+
         # Convert 2-theta from DAS convention to Mantid/PyRS convention
         mantid_two_theta = -two_theta
 
-        # Set up reduction engine and also
+        # Set up reduction engine
         if not rebuild_instrument:
             reduction_engine = self._last_reduction_engine
             reduction_engine.set_raw_counts(raw_count_vec)
