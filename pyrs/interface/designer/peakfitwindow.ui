@@ -440,18 +440,18 @@
                  <widget class="QPushButton" name="pushButton_exportCSV">
                   <property name="minimumSize">
                    <size>
-                    <width>120</width>
+                    <width>160</width>
                     <height>0</height>
                    </size>
                   </property>
                   <property name="maximumSize">
                    <size>
-                    <width>120</width>
+                    <width>160</width>
                     <height>16777215</height>
                    </size>
                   </property>
                   <property name="text">
-                   <string>Export CSV ...</string>
+                   <string>Export Peak Information</string>
                   </property>
                  </widget>
                 </item>
