@@ -170,7 +170,8 @@ def test_exclude_subruns(nexusfile, projectfile):
                         van_file=None)
 
     for sub_run in sub_runs:
-        np.testing.assert_allclose(reducer.get_diffraction_data(sub_run), reduced_ws.get_reduced_diffraction_data(sub_run))
+        np.testing.assert_allclose(reducer.get_diffraction_data(sub_run),
+                                   reduced_ws.get_reduced_diffraction_data(sub_run))
 
     # cleanup
     reduced_project.close()

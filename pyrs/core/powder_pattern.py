@@ -164,7 +164,6 @@ class ReductionApp:
                                                         num_bins=num_bins,
                                                         sub_run_list=self._sub_runs,
                                                         delta_2theta=delta_2theta,
-                                                        sub_run_list=sub_runs,
                                                         mask=mask,
                                                         mask_id=mask_id,
                                                         vanadium_counts=van_array,
