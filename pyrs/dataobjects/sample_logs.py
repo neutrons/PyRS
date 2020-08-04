@@ -139,6 +139,8 @@ class SubRuns(Iterable):
         ------
         RuntimeError
             Attempt to initialize a list that was initialized previously
+        RuntimeError
+            input subruns are not sorted in increasing order
         """
         value = _coerce_to_ndarray(value)
         if not self.empty():
@@ -178,7 +180,7 @@ class SubRuns(Iterable):
 
         Parameters
         ----------
-        subruns: int, list, np.ndarray, ~pyrs.dataobjects.sample_logs.Subruns
+        subruns: int, list, np.ndarray, ~pyrs.dataobjects.sample_logs.SubRuns
 
         Returns
         -------
@@ -210,6 +212,12 @@ class SubRuns(Iterable):
 class SampleLogs(MutableMapping):
     r"""
     Log data for the selected subrun numbers
+
+    Private data structures:
+    - list of selected subrun numbers
+    - log entries for the selected subrun numbers
+    Each log entry must contain a list of same size as the list of selected subrun numbers, so that
+    we have one log value for each selected subrun
 
     Parameters
     ----------
@@ -294,15 +302,48 @@ class SampleLogs(MutableMapping):
                 return self._data[key][self.get_subrun_indices(subruns)]
 
     def __iter__(self):
-        # does not include subruns
+        r"""
+        Iterate over the names of the log entries
+
+        Returns
+        -------
+        dict_keyiterator
+        """
         return iter(self._data)
 
     def __len__(self):
-        '''The number of keys in the underlying dictionary'''
+        r"""
+        Number of log entries
+
+        Returns
+        -------
+        int
+        """
         # does not include subruns
         return len(self._data)
 
     def __setitem__(self, key, value):
+        r"""
+        Initialize/update the subruns instance, or insert/update the value of a log entry
+
+        `value` is coerced into a numpy array, which could be a one-item array if passing an int of float.
+
+        Parameters
+        ----------
+        key: str
+            Name of the log value, or dedicated string 'sub-runs'
+        value: int, flat, list, np.ndarray, ~pyrs.dataobjects.sample_logs.Subruns
+            A list of subrun numbers of the values of a log entry
+
+        Raises
+        ------
+        ValueError
+            Attempt to insert/update the value of a log entry prior to initialization of the
+            selected subruns list
+        ValueError
+            Attempt to insert/update the value of a log entry with a list of different size
+            then the selected subruns list
+        """
         value = _coerce_to_ndarray(value)
         if key == self.SUBRUN_KEY:
             self.subruns = SubRuns(value)  # use full method
@@ -318,52 +359,134 @@ class SampleLogs(MutableMapping):
                 self._plottable.add(key)
 
     def plottable_logs(self):
-        '''Return the name of all logs that are plottable
+        r"""
+        List of names of all the logs that are to be plotted
 
-        This always includes :py:obj:`~pyrs.projectfile.HidraConstants.SUB_RUNS`
-        in addition to all the other logs'''
+        This list always includes ~pyrs.projectfile.HidraConstants.SUB_RUNS
+        in addition to all the other plottable logs
+
+        Returns
+        -------
+        list
+        """
         return list(self._plottable)
 
     def constant_logs(self, atol=0.):
-        '''Return the name of all logs that have a constant value
+        r"""
+        List of log names for logs having a constant value
 
         Parameters
         ----------
         atol: float
-            Logs with a smaller stddev than the atol (inclusive) will be considered constant'''
+            Log values to be plotted having a stddev smaller than `atol` (inclusive) will be
+            considered as constant
+
+        Returns
+        -------
+        list
+        """
         result = list()
         # plottable logs are the numeric ones
         for key in sorted(self.keys()):
             if key == self.SUBRUN_KEY:
                 continue
-            elif key in self._plottable:  # plottable things are numbers
+            elif key in self._plottable:  # plottable logs contain numbers
                 if self._data[key].std() <= atol:
                     result.append(key)
             elif np.alltrue(self._data[key] == self._data[key][0]):  # all values are equal
                 result.append(key)
-
         return result
 
     @property
     def subruns(self):
-        '''This method must exist in order to customize the setter'''
+        r"""
+        List of selected subruns
+
+        Returns
+        -------
+        ~pyrs.dataobjects.sample_logs.SubRuns
+        """
         return self._subruns
 
     @subruns.setter
     def subruns(self, value):
-        '''Set the subruns and build up associated values'''
+        r"""
+        Initialize the list of selected subruns
+
+        RuntimeError
+            Attempt to initialize a list that was initialized previously
+        RuntimeError
+            input subruns are not sorted in increasing order
+        """
         self._subruns.set(value)
 
     def matching_subruns(self, subruns):
+        r"""
+        Compare the list of selected subruns to an input list of subrun numbers
+
+        Parameters
+        ----------
+        subruns: int, list, np.ndarray, ~pyrs.dataobjects.sample_logs.SubRuns
+
+        Returns
+        -------
+        bool
+        """
         return self._subruns == subruns
 
     def get_subrun_indices(self, subruns):
+        r"""
+        Find index positions in the list of selected subruns matching the numbers contained
+        in the input list `subruns`
+
+        When `subruns` is a list, its first and last values must be in the list of selected
+        subruns
+
+        Examples
+        --------
+        >>> s = SampleLogs()
+        >>> s.subruns = [1, 2, 3, 4, 5]
+        >>> s.get_indices(s)
+        array([0, 1, 2, 3, 4])
+        >>> s.get_indices(3)
+        array([2])
+        >>> s.get_indices([4, 5, 1])
+        array([3, 4, 0])
+
+        Parameters
+        ----------
+        subruns: int, list, np.ndarray, ~pyrs.dataobjects.sample_logs.SubRuns
+
+        Returns
+        -------
+        np.ndarray
+
+        Raises
+        ------
+        IndexError
+            No matching numbers are found
+        """
         return self._subruns.get_indices(subruns)
 
     def get_pointlist(self, subruns=None) -> 'PointList':
-        '''
-        Create a :py:obj:`PointList` from the vx, vy, vz logs
-        '''
+        r"""
+        Create a ~pyrs.dataobjects.sample_logs.PointList instance from the vx, vy, and vz logs
+
+        Parameters
+        ----------
+        subruns: int, list, np.ndarray, ~pyrs.dataobjects.sample_logs.SubRuns
+            Create a :py:obj:`PointList` instance using the vx, vy, and vz values associated
+            to this list of subrun numbers.
+
+        Returns
+        -------
+        ~pyrs.dataobjects.sample_logs.PointList
+
+        Raises
+        ------
+        ValueError
+            One of more of logs vx, vy, or vz are missing in this sample logs
+        """
         VX, VY, VZ = 'vx', 'vy', 'vz'
 
         # check the values exist
