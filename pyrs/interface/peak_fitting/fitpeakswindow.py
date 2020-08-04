@@ -79,6 +79,8 @@ class FitPeaksWindow(QMainWindow):
         self._init_widgets()
 
         # set up handling
+        self.ui.lineEdit_expNumber.setValidator(QtGui.QIntValidator(1, 999999))
+        self.ui.pushButton_expNumberLoad.clicked.connect(self.load_run_number)
         self.ui.pushButton_browseHDF.clicked.connect(self.browse_hdf)
         self.ui.lineEdit_listSubRuns.returnPressed.connect(self.plot_diff_data)
         self.ui.pushButton_FitPeaks.clicked.connect(self.fit_peaks)
@@ -158,6 +160,12 @@ class FitPeaksWindow(QMainWindow):
         o_handler.save_as()
 
     # Menu event handler
+    def load_run_number(self):
+        o_handler = EventHandler(parent=self)
+        o_handler.load_run_number_plot()
+        o_plot = Plot(parent=self)
+        o_plot.plot_1d()
+
     def browse_hdf(self):
         """ Browse Hidra project HDF file
         """
