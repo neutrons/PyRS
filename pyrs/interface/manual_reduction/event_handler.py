@@ -1,11 +1,10 @@
 import os
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QApplication
-from pyrs.interface.gui_helper import pop_message, browse_file, browse_dir, parse_combo_box
+from pyrs.interface.gui_helper import pop_message, parse_combo_box
 from mantidqt.utils.asynchronous import BlockingAsyncTaskWithCallback
 from pyrs.interface.manual_reduction.pyrs_api import ReductionController
 from pyrs.dataobjects.constants import HidraConstants  # type: ignore
-from pyrs.utilities import get_default_output_dir, get_nexus_file  # type: ignore
 
 
 class EventHandler:
@@ -51,67 +50,7 @@ class EventHandler:
         for sub_run in sorted(sub_runs):
             self.ui.comboBox_sub_runs.addItem('{}'.format(sub_run))
 
-    def browse_calibration_file(self):
-        calibration_file = browse_file(self.parent, caption='Choose and set up the calibration file',
-                                       default_dir=self._controller.get_default_calibration_dir(),
-                                       file_filter='hdf5 (*hdf)', file_list=False, save_file=False)
-        if calibration_file is None or calibration_file == '':
-            # operation canceled
-            return
-
-        # set to the browser
-        self.ui.lineEdit_calibrationFile.setText(calibration_file)
-
-    def browse_mask_file(self):
-        """Browse masking file
-
-        Returns
-        -------
-
-        """
-        mask_file_name = browse_file(self.parent, 'Hidra Mask File', self._controller.get_default_mask_dir(),
-                                     'Mantid Mask(*.xml)', False, False)
-        self.ui.lineEdit_maskFile.setText(mask_file_name)
-        return
-
-    def browse_nexus_path(self):
-        """Browse NeXus file path from file system and write the browsed value to lineEdit_runNumber
-
-        Returns
-        -------
-
-        """
-        nexus_file_path = browse_file(self.parent, 'NeXus File',
-                                      self._controller.get_default_nexus_dir(ipts_number=None),
-                                      'NeXus(*.nxs.h5)', False, False)
-        if nexus_file_path is not None:
-            self.ui.lineEdit_runNumber.setText(nexus_file_path)
-
-    def browse_output_dir(self):
-        """Browse output directory
-
-        Returns
-        -------
-
-        """
-        output_dir = browse_dir(self.parent, caption='Output directory for reduced data',
-                                default_dir='/HFIR/HB2B/')
-        if output_dir != '':
-            self.ui.lineEdit_outputDirectory.setText(output_dir)
-
-    def browse_vanadium_file(self):
-        """Browse vanadium HiDRA project file and set to line edit
-
-        Returns
-        -------
-
-        """
-        vanadium_file_name = browse_file(self.parent, 'HiDRA Vanadium File', self._controller.get_default_mask_dir(),
-                                         'HiDRA project(*.h5)', False, False)
-
-        if vanadium_file_name is not None and vanadium_file_name != '':
-            self.ui.lineEdit_vanRunNumber.setText(vanadium_file_name)
-
+  
     def plot_detector_counts(self):
         """
 
@@ -190,10 +129,7 @@ class EventHandler:
         """
         # Files names: NeXus, (output) project, mask, calibration
         run_number = self._current_runnumber()
-        if isinstance(run_number, int):
-            # use specify run number (integer)
-            nexus_file = get_nexus_file(run_number)
-        else:
+        if not isinstance(run_number, int):
             nexus_file = str(self.ui.lineEdit_runNumber.text()).strip()
 
             # quit if the input is not NeXus
@@ -289,23 +225,6 @@ class EventHandler:
         self.ui.lineEdit_calibrationFile.setEnabled(state == Qt.Unchecked)
         self.ui.pushButton_browseCalibrationFile.setEnabled(state == Qt.Unchecked)
 
-    def set_output_dir_widgets(self, state):
-        """Set the default value of directory for output files
-
-        Parameters
-        ----------
-        state : Qt.State
-            Qt state as unchecked or checked
-
-        Returns
-        -------
-        None
-
-        """
-        if state != Qt.Unchecked:
-            self.update_run_changed(self._current_runnumber())
-        self.ui.lineEdit_outputDirectory.setEnabled(state == Qt.Unchecked)
-        self.ui.pushButton_browseOutputDirectory.setEnabled(state == Qt.Unchecked)
 
     def update_run_changed(self, run_number):
         """Update widgets including output directory and etc due to change of run number
@@ -325,13 +244,3 @@ class EventHandler:
             return
         elif not isinstance(run_number, int):
             return
-
-        # new default
-        try:
-            project_dir = get_default_output_dir(run_number)
-            # set to line edit
-            self.ui.lineEdit_outputDirectory.setText(project_dir)
-            self.__last_run_number = run_number
-        except RuntimeError as e:
-            print('Failed to find project directory for {}'.format(run_number))
-            print(e)
