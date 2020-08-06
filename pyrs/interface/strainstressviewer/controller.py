@@ -48,3 +48,6 @@ class Controller:
             return errors
         else:
             return None
+
+    def write_stress_to_csv(self, filename):
+        self._model.write_stress_to_csv(filename)
