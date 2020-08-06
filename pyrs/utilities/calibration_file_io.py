@@ -1,6 +1,6 @@
 # Class providing a series of static methods to work with files
 from pyrs.utilities import checkdatatypes
-from pyrs.core.instrument_geometry import AnglerCameraDetectorShift, AnglerCameraDetectorGeometry
+from pyrs.core.instrument_geometry import AnglerCameraDetectorShift
 import json
 
 
