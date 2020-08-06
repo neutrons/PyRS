@@ -80,6 +80,19 @@ class HB2BReductionManager:
 
         return log_value
 
+    def get_sample_logs_names(self, session_name, can_plot):
+        """
+        Get the names of all sample logs in the workspace
+        :param session_name:
+        :param can_plot:
+        :return:
+        """
+        workspace = self._session_dict[session_name]
+
+        sample_logs = workspace.sample_log_names
+
+        return sample_logs
+
     def init_session(self, session_name, hidra_ws=None):
         """
         Initialize a new session of reduction and thus to store data according to session name
