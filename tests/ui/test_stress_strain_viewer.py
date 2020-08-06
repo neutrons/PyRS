@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 
-def test_model():
+def test_model(tmpdir):
     model = Model()
 
     assert model.selectedPeak is None
@@ -82,6 +82,15 @@ def test_model():
     assert np.count_nonzero(model.get_field('33', 'strain', 'In-plane stress')
                             .to_md_histo_workspace().getSignalArray()) == 18*6*3
 
+    # Check default csv filename
+    assert model.get_default_csv_filename() == "HB2B_1320_1320_stress_grid_peak0.csv"
+
+    # Check writing csv file
+    filename = tmpdir.join("test_model_csv1.csv")
+    model.write_stress_to_csv(str(filename))
+    # check number of lines written
+    assert len(open(filename).readlines()) == 318
+
     model.calculate_stress('in-plane-strain', 200, 0.3)
 
     for direction in ('11', '22', '33'):
@@ -95,6 +104,15 @@ def test_model():
                             .to_md_histo_workspace().getSignalArray()) == 18*6*3
     # Strain shouldn't exist for for in-plane strain case
     assert model.get_field('33', 'strain', 'In-plane strain') is None
+
+    # Check default csv filename
+    assert model.get_default_csv_filename() == "HB2B_1320_1320_stress_grid_peak0.csv"
+
+    # Check writing csv file
+    filename = tmpdir.join("test_model_csv2.csv")
+    model.write_stress_to_csv(str(filename))
+    # check number of lines written
+    assert len(open(filename).readlines()) == 318
 
     model.e33 = 'tests/data/HB2B_1320.h5'
     assert model.e33.name == '33'
@@ -110,6 +128,15 @@ def test_model():
     # Should be all non-zero for diagonal stress case
     assert np.count_nonzero(model.get_field('33', 'stress', 'diagonal')
                             .to_md_histo_workspace().getSignalArray()) == 18*6*3
+
+    # Check default csv filename
+    assert model.get_default_csv_filename() == "HB2B_1320_1320_1320_stress_grid_peak0.csv"
+
+    # Check writing csv file
+    filename = tmpdir.join("test_model_csv3.csv")
+    model.write_stress_to_csv(str(filename))
+    # check number of lines written
+    assert len(open(filename).readlines()) == 318
 
     # Check message when 22 is loaded without 11
     model = Model()
