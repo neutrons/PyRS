@@ -140,7 +140,7 @@ class HidraProjectFile:
         """
         File name on HDD
         """
-        return self._project_h5.name
+        return self._project_h5.filename
 
     def append_raw_counts(self, sub_run_number: int, counts_array: numpy.ndarray) -> None:
         """Add raw detector counts collected in a single scan/Pt
