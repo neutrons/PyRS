@@ -10,6 +10,7 @@ from pyrs.dataobjects.constants import HidraConstants  # type: ignore
 class EventHandler:
     """Class to handle the event sent from UI widget
     """
+
     def __init__(self, parent):
         """Init
 
@@ -50,7 +51,6 @@ class EventHandler:
         for sub_run in sorted(sub_runs):
             self.ui.comboBox_sub_runs.addItem('{}'.format(sub_run))
 
-  
     def plot_detector_counts(self):
         """
 
@@ -224,7 +224,6 @@ class EventHandler:
                                                      'HB2B_Latest.json')
         self.ui.lineEdit_calibrationFile.setEnabled(state == Qt.Unchecked)
         self.ui.pushButton_browseCalibrationFile.setEnabled(state == Qt.Unchecked)
-
 
     def update_run_changed(self, run_number):
         """Update widgets including output directory and etc due to change of run number
