@@ -213,20 +213,36 @@ class PeakMeasurement:
         vy = hidraworkspace.get_sample_log_values('vy')
         vz = hidraworkspace.get_sample_log_values('vz')
 
+        measurements = list()
         for peak_tag in peak_tags:
             peak_collection = projectfile.read_peak_parameters(peak_tag)
             # verify the subruns are parallel
             if hidraworkspace.get_sub_runs() != peak_collection.sub_runs:  # type: ignore
                 raise RuntimeError('Need to have matching subruns')
-            values, errors = peak_collection.get_effective_params()
-
-            values, errors = peak_collection.get_dspacing_center()
-
+            d_values, d_errors = peak_collection.get_dspacing_center()
+            all_params_values, all_params_errors = peak_collection.get_effective_params()
+            for index, subrun in enumerate(subruns):
+                peak = PeakMeasurement()
+                peak.filename = filename
+                peak.peak_collection = peak_collection
+                peak.peak_tag = peak_tag
+                peak.xyz = np.ndarray([vx[index], vy[index], vz[index]])
+                peak.peak_properties['d'] = d_values[index], d_errors[index]
+                param_values, param_errors = all_params_values[index], all_params_errors[index]
+                for param_index, name in enumerate(['Center', 'Height', 'FWHM', 'Mixing', 'A0', 'A1', 'Intensity']):
+                    peak.peak_properties[name] = param_values[param_index], param_errors[param_index]
+            measurements.append(peak)
 
         projectfile.close()
         del projectfile
+        return measurements
 
-
+    def __init__(self, *args, **kwargs):
+        self.filename = None
+        self.peak_collection = None
+        self.peak_tag = None
+        self.peak_properties = {}
+        self.xyz = None
 
 
 
