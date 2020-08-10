@@ -32,6 +32,7 @@ class ReductionApp:
         # initialize reduction session with a general name (single session script)
         self._session = 'GeneralHB2BReduction'
         self._hydra_file_name = None
+        self._sub_runs = None
 
         return
 
@@ -122,7 +123,10 @@ class ReductionApp:
         """
         # Check inputs
         if sub_runs is None or not bool(sub_runs):  # None or empty list
-            sub_runs = self._hydra_ws.get_sub_runs()
+            self._sub_runs = self._hydra_ws.get_sub_runs()
+        else:
+            # sort array to make sure the sub-run data are written into project files in increasing order
+            self._sub_runs = sorted(sub_runs)
 
         # instrument file
         if instrument_file is not None:
@@ -158,8 +162,8 @@ class ReductionApp:
                                                         min_2theta=min_2theta,
                                                         max_2theta=max_2theta,
                                                         num_bins=num_bins,
+                                                        sub_run_list=self._sub_runs,
                                                         delta_2theta=delta_2theta,
-                                                        sub_run_list=sub_runs,
                                                         mask=mask,
                                                         mask_id=mask_id,
                                                         vanadium_counts=van_array,
@@ -214,10 +218,10 @@ class ReductionApp:
 
         # If it is a new file, the sample logs and other information shall be exported too
         if mode == HidraProjectFileMode.OVERWRITE:
-            self._hydra_ws.save_experimental_data(out_file, ignore_raw_counts=True)
+            self._hydra_ws.save_experimental_data(out_file, sub_runs=self._sub_runs, ignore_raw_counts=True)
 
         # Calibrated wave length shall be written
         self._hydra_ws.save_wavelength(out_file)
 
         # Write & close
-        self._hydra_ws.save_reduced_diffraction_data(out_file)
+        self._hydra_ws.save_reduced_diffraction_data(out_file, sub_runs=self._sub_runs)

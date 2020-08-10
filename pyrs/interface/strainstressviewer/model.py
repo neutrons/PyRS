@@ -1,5 +1,6 @@
 import traceback
 from pyrs.dataobjects.fields import generateParameterField, StressField, StrainField
+from pyrs.core.summary_generator_stress import SummaryGeneratorStress
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
 from qtpy.QtCore import Signal, QObject
@@ -124,6 +125,15 @@ class Model(QObject):
                                                peak_collection=self.e33_peaks[self.selectedPeak])
                                    if stress_case == "diagonal" else None,
                                    youngModulus, poissonsRatio, stress_case)
+
+    def write_stress_to_csv(self, filename):
+        stress_csv = SummaryGeneratorStress(filename, self._stress)
+        stress_csv.write_summary_csv()
+
+    def get_default_csv_filename(self):
+        runnumbers = [getattr(self._stress, f'strain{d}').peak_collection.runnumber for d in ('11', '22', '33')]
+        return "HB2B_{}_stress_grid_{}.csv".format('_'.join(str(run) for run in runnumbers if run != -1),
+                                                   self.selectedPeak)
 
     def load_hidra_project_file(self, filename, direction):
         try:

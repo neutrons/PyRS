@@ -311,6 +311,33 @@ class PeakSelection(QGroupBox):
         self.peak_select.addItems(peak_tags)
 
 
+class CSVExport(QGroupBox):
+    def __init__(self, parent=None):
+        self._parent = parent
+        super().__init__(parent=parent)
+        self.setTitle("CSV Export")
+        layout = QHBoxLayout()
+        self.export = QPushButton("Export Grid Information")
+        self.export.clicked.connect(self.save_CSV)
+        layout.addWidget(self.export)
+        self.setLayout(layout)
+
+        self.setEnabled(False)
+
+    def setEnabled(self, enabled):
+        self.export.setEnabled(enabled)
+
+    def save_CSV(self):
+        self._parent.calculate_stress()
+        filename, _ = QFileDialog.getSaveFileName(self,
+                                                  "Export Grid Information",
+                                                  self._parent.model.get_default_csv_filename(),
+                                                  "CSV (*.csv);;All Files (*)")
+        if not filename:
+            return
+        self._parent.controller.write_stress_to_csv(filename)
+
+
 class VizTabs(QTabWidget):
     def __init__(self, parent=None):
         self._parent = parent
@@ -430,6 +457,9 @@ class StrainStressViewer(QSplitter):
         self.mechanicalConstants.poissonsRatio.editingFinished.connect(self.update_plot)
         left_layout.addWidget(self.mechanicalConstants)
 
+        self.csvExport = CSVExport(self)
+        left_layout.addWidget(self.csvExport)
+
         left_layout.addStretch(0)
 
         left.setLayout(left_layout)
@@ -484,9 +514,7 @@ class StrainStressViewer(QSplitter):
                                                                  self.plot_select.get_direction() == "33" and
                                                                  self.stressCase.get_stress_case()
                                                                  == "In-plane stress"):
-                self.controller.calculate_stress(self.stressCase.get_stress_case(),
-                                                 self.mechanicalConstants.youngModulus.text(),
-                                                 self.mechanicalConstants.poissonsRatio.text())
+                self.calculate_stress()
 
             self.viz_tab.set_ws(self.model.get_field(direction=self.plot_select.get_direction(),
                                                      plot_param=self.plot_select.get_plot_param(),
@@ -494,6 +522,11 @@ class StrainStressViewer(QSplitter):
         else:
             self.viz_tab.set_ws(None)
             self.viz_tab.set_message(validated)
+
+        self.csvExport.setEnabled(
+            self.controller.validate_stress_selection(self.stressCase.get_stress_case(),
+                                                      self.mechanicalConstants.youngModulus.text(),
+                                                      self.mechanicalConstants.poissonsRatio.text()) is None)
 
     def updatePropertyFromModel(self, name):
         getattr(self, name)(getattr(self.model, name))
@@ -516,3 +549,8 @@ class StrainStressViewer(QSplitter):
         msgBox.setInformativeText(info)
         msgBox.setDetailedText(details)
         msgBox.exec()
+
+    def calculate_stress(self):
+        self.controller.calculate_stress(self.stressCase.get_stress_case(),
+                                         self.mechanicalConstants.youngModulus.text(),
+                                         self.mechanicalConstants.poissonsRatio.text())

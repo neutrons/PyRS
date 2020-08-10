@@ -45,9 +45,30 @@
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout_2">
             <item>
+             <widget class="QLabel" name="label_4">
+              <property name="text">
+               <string>Reduction:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QComboBox" name="comboBox_reduction">
+              <item>
+               <property name="text">
+                <string>Auto</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Manual</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+            <item>
              <widget class="QLabel" name="label_2">
               <property name="text">
-               <string>Run Number</string>
+               <string>Run Number:</string>
               </property>
              </widget>
             </item>
@@ -64,6 +85,13 @@
                 <width>100</width>
                 <height>16777215</height>
                </size>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="pushButton_expNumberLoad">
+              <property name="text">
+               <string>Load</string>
               </property>
              </widget>
             </item>

@@ -60,14 +60,14 @@ def convertNeXusToProject(nexusfile, projectfile, skippable, mask_file_name=None
     return hidra_ws
 
 
-def addPowderToProject(projectfile, calibration_file=None):
+def addPowderToProject(projectfile, calibration_file=None, sub_runs=None):
     checkFileExists(projectfile, feedback='assert')
 
     # extract the powder patterns and add them to the project file
     reducer = ReductionApp()
     # TODO should add versions for testing arguments: instrument_file, calibration_file, mask, sub_runs
     reducer.load_project_file(projectfile)
-    reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=calibration_file, mask=None)
+    reducer.reduce_data(sub_runs=sub_runs, instrument_file=None, calibration_file=calibration_file, mask=None)
     reducer.save_diffraction_data(projectfile)
 
     # tests for the created file
@@ -117,6 +117,64 @@ def test_nexus_to_project(nexusfile, projectfile):
     addPowderToProject(projectfile)
 
     # cleanup
+    os.remove(projectfile)
+
+# [('/HFIR/HB2B/IPTS-22331/nexus/HB2B_1431.nxs.h5', 'HB2B_1431.h5')],
+
+
+@pytest.mark.parametrize('nexusfile, projectfile',
+                         [('tests/data/HB2B_1431.nxs.h5', 'HB2B_1431.h5')],
+                         ids=(['HB2B_1431']))
+def test_exclude_subruns(nexusfile, projectfile):
+    """Test converting NeXus to project and convert to diffraction pattern
+
+    Note: project file cannot be the same as NeXus file as the output file will be
+    removed by pytest
+
+    Parameters
+    ----------
+    nexusfile
+    projectfile
+
+    Returns
+    -------
+
+    """
+    sub_runs = [2, 4, 5]
+
+    # convert the nexus file to a project file and do the "simple" checks
+    converter = NeXusConvertingApp(nexusfile, None)
+    hidra_ws = converter.convert()
+
+    reducer = ReductionApp()
+    reducer.load_hidra_workspace(hidra_ws)
+
+    reducer.reduce_data(instrument_file=None,
+                        calibration_file=None,
+                        mask=None,
+                        sub_runs=sub_runs,
+                        van_file=None)
+
+    reducer.save_diffraction_data(projectfile)
+
+    reduced_ws = HidraWorkspace('test_powder_pattern')
+    reduced_project = HidraProjectFile(projectfile)
+    reduced_ws.load_hidra_project(reduced_project, load_raw_counts=False, load_reduced_diffraction=True)
+
+    assert sub_runs == reduced_ws.get_sub_runs()
+
+    reducer.reduce_data(instrument_file=None,
+                        calibration_file=None,
+                        mask=None,
+                        sub_runs=[],
+                        van_file=None)
+
+    for sub_run in sub_runs:
+        np.testing.assert_allclose(reducer.get_diffraction_data(sub_run),
+                                   reduced_ws.get_reduced_diffraction_data(sub_run))
+
+    # cleanup
+    reduced_project.close()
     os.remove(projectfile)
 
 
