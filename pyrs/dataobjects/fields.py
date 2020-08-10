@@ -93,7 +93,7 @@ from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 
 # two points in real space separated by less than this amount (in mili meters) are considered the same point
-from .constants import DEFAULT_POINT_RESOLUTION
+from .constants import DEFAULT_POINT_RESOLUTION, NOT_MEASURED_NUMPY
 SCALAR_FIELD_NAMES = ('lattice', 'strain', 'stress')  # standard names for most used fields
 
 
@@ -1041,8 +1041,8 @@ class StrainFieldSingle(_StrainField):
         if self._peak_collection is None:
             raise RuntimeError('PeakCollection has not been set')
         values, errors = self._peak_collection.get_strain()
-        full_values = np.full(len(self.point_list), np.nan, dtype=float)
-        full_errors = np.full(len(self.point_list), np.nan, dtype=float)
+        full_values = np.full(len(self.point_list), NOT_MEASURED_NUMPY, dtype=float)
+        full_errors = np.full(len(self.point_list), NOT_MEASURED_NUMPY, dtype=float)
         full_values[:values.size] = values.size
         full_errors[:errors.size] = errors.size
         return ScalarFieldSample('strain', full_values, full_errors,
@@ -1326,6 +1326,13 @@ class StrainField(_StrainField):
 
     @property
     def field(self):
+        r"""
+        Fetch the strain values and errors for the list of sample points.
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.ScalarFieldSamples
+        """
         if len(self._strains) == 1:
             return self._strains[0].field
         else:
@@ -1336,19 +1343,19 @@ class StrainField(_StrainField):
                 raise RuntimeError('The PointList has not been initialized')
 
             num_values = len(self)
-            values = np.full(num_values, np.nan, dtype=float)
-            errors = np.full(num_values, np.nan, dtype=float)
+            values = np.full(num_values, NOT_MEASURED_NUMPY, dtype=float)
+            errors = np.full(num_values, NOT_MEASURED_NUMPY, dtype=float)
 
             # loop over the winning strain indices
-            for strain_index in set(self._winners[0]):
+            for strain_index in set(self._winners.scan_indexes):
                 # pick out the indices for this StrainField
-                indices = np.where(self._winners[0] == strain_index)
+                indices = np.where(self._winners.scan_indexes == strain_index)
                 # get handle to the strain and uncertainties
                 strain_i, error_i = self._strains[strain_index].peak_collections[0].get_strain()
 
-                # assign values in the final array
-                values[indices] = strain_i[self._winners[1][indices]]
-                errors[indices] = error_i[self._winners[1][indices]]
+                # find points of the current single-scan strain's list contributing to the overall list of points
+                idx = self._winners.point_indexes[indices]
+                values[indices], errors[indices] = strain_i[idx], error_i[idx]
 
             return ScalarFieldSample('strain', values, errors,
                                      self.point_list.vx,
