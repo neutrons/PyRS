@@ -882,6 +882,31 @@ class _StrainField:
         """
         return self.fuse_with(other_strain)
 
+    def __mul__(self, other: Union['_StrainField', List['_StrainField']]) -> Optional[List['StrainField']]:
+        r"""
+        Stack this strain with another strain, or with a list of strains
+
+        Parameters
+        ----------
+        other: ~pyrs.dataobjects.fields.StrainField, list
+            If a list, each item is a ~pyrs.dataobjects.fields.StrainField object
+
+        Returns
+        -------
+        list
+            list of stacked ~pyrs.dataobjects.fields.StrainField objects.
+        """
+        stack_kwargs = dict(resolution=DEFAULT_POINT_RESOLUTION, mode='union')
+        if isinstance(other, _StrainField):
+            return self.__class__.stack_with(self, other, **stack_kwargs)  # type: ignore
+        elif isinstance(other, (list, tuple)):
+            for strain in other:
+                if isinstance(strain, _StrainField) is False:
+                    raise TypeError(f'{strain} is not a {str(self.__class__)} object')  # type: ignore
+            return self.__class__.stack_with(self, *other, **stack_kwargs)  # type: ignore
+        else:
+            raise NotImplementedError('Do not know how to multiply these objects')
+
     def stack_with(self, other_strain: '_StrainField',
                    mode: str = 'union',
                    resolution: float = DEFAULT_POINT_RESOLUTION) -> List['_StrainField']:
@@ -955,7 +980,8 @@ class _StrainField:
                 # of the aggregated list `point_list_union`. There are points in `point_list_union` with
                 # no counterpart in the single scans (see example in the docstring), thus
                 # len(strain1._winners) < len(point_list_union)
-                strain1._winners = self._winners
+                if isinstance(self, StrainField):
+                    strain1._winners = self._winners
 
                 # Stack `other_strain` over `self`. In the new aggregated point list, first come the points
                 # from `other_strain`, then come the points from `self`
@@ -965,7 +991,8 @@ class _StrainField:
                 strain2 = StrainField()
                 strain2._point_list = point_list_union_2
                 strain2._strains = other_strain.strains
-                strain2._winners = other_strain._winners  # Notice len(strain2._winners) < len(point_list_union_2)
+                if isinstance(other_strain, StrainField):
+                    strain2._winners = other_strain._winners  # Notice len(strain2._winners) < len(point_list_union_2)
 
                 # make sure both have the same length as that is the point of stacking
                 assert len(point_list_union) == len(point_list_union_2)
@@ -1080,9 +1107,9 @@ def _to_pointlist_and_peaks(filename: str,
     * ``hidraworkspace`` - taken from the :py:obj:SampleLogs
     * ``projectfile``
     '''
-    # load information from a file
+    # load information from a file if it isn't already provided
     closeproject = False
-    if filename:
+    if filename and not (peak_collection or point_list):
         projectfile = HidraProjectFile(filename, HidraProjectFileMode.READONLY)
         closeproject = True
     elif TYPE_CHECKING:  # only True when running mypy
@@ -1276,31 +1303,6 @@ class StrainField(_StrainField):
 
         # otherwise it was an empty constructor and only initialize the starting layout
 
-    def __mul__(self, other: Union['StrainField', List['StrainField']]) -> Optional[List['StrainField']]:
-        r"""
-        Stack this strain with another strain, or with a list of strains
-
-        Parameters
-        ----------
-        other: ~pyrs.dataobjects.fields.StrainField, list
-            If a list, each item is a ~pyrs.dataobjects.fields.StrainField object
-
-        Returns
-        -------
-        list
-            list of stacked ~pyrs.dataobjects.fields.StrainField objects.
-        """
-        stack_kwargs = dict(resolution=DEFAULT_POINT_RESOLUTION, stack_mode='complete')
-        if isinstance(other, StrainField):
-            return self.__class__.stack_strains(self, other, **stack_kwargs)  # type: ignore
-        elif isinstance(other, (list, tuple)):
-            for strain in other:
-                if isinstance(strain, StrainField) is False:
-                    raise TypeError(f'{strain} is not a {str(self.__class__)} object')  # type: ignore
-            return self.__class__.stack_strains(self, *other, **stack_kwargs)  # type: ignore
-        else:
-            raise NotImplementedError('Do not know how to multiply these objects')
-
     def __rmul__(self, other: List['StrainField']) -> List['StrainField']:
         r"""
         Stack a list of strains along with this strain.
@@ -1319,9 +1321,9 @@ class StrainField(_StrainField):
             for strain in other:
                 if not isinstance(strain, _StrainField):
                     raise TypeError(f'{strain} is not a StrainField object')
-            return self.__class__.stack_strains(*other, self,
-                                                resolution=DEFAULT_POINT_RESOLUTION,
-                                                stack_mode='complete')
+            return self.__class__.stack_with(*other, self,
+                                             resolution=DEFAULT_POINT_RESOLUTION,
+                                             stack_mode='complete')
         else:
             raise NotImplementedError(f'Unable to multiply objects of type {str(other.__class__)} and StrainField')
 

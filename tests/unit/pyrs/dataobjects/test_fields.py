@@ -770,7 +770,7 @@ class TestStrainField:
             nan_measurements_count = len(np.where(np.isnan(strain_stacked.values))[0])
             assert nan_measurements_count == nan_count
         # Check peak collections carry-over
-        assert strain1_stacked.peak_collection == strain1.peak_collection
+        assert strain1_stacked.peak_collections[0] == strain1.peak_collections[0]
         assert strain23_stacked.peak_collections == [strain2.peak_collection, strain3.peak_collection]
 
     def test_to_md_histo_workspace(self, strain_field_samples):
