@@ -864,32 +864,30 @@ class PointList:
         r"""
         Cluster the points according to mutual euclidean distance.
 
+        The return value is a list with as many elements as clusters. Each list element represents one
+        cluster, and is made up of a list of point-list indexes, specifying the sample points belonging
+        to one cluster.
+
+        The returned list is sorted by the length of the list items, with the longest list item being the
+        first. Each list item is sorted by increasing point-list index.
+
         Parameters
         ----------
         resolution: float
             Two points are considered the same if they are separated by a distance smaller than this quantity
 
-        The return value is a dictionary with as many elements as clusters. Each dictionary element is made up of a
-        key and a value. The key is the cluster number (running from 1 to the number of clusters). The value
-        is a list containing the indexes of the points that belong to the cluster.
-
-        The dictionary is sorted by cluster size, with the biggest cluster being the first. Each list of
-        point indexes within a cluster is sorted by increasing index.
-
         Returns
         -------
-        dict
-
+        list
         """
         # fclusterdata returns a vector T of length equal to the number of points. T[i] is the cluster number to
         # which point i belongs. Notice that cluster numbers begin at 1, not 0.
         cluster_assignments = fclusterdata(self.coordinates, resolution, criterion='distance', method='single')
-        clusters: List[List] = [[] for _ in range(max(cluster_assignments))]  # each list will hold the point indexes
-        # of a
-        # cluster
+        # variable `clusters` is a list of lists, each list-item containing the point-list indexes for one cluster
+        clusters: List[List] = [[] for _ in range(max(cluster_assignments))]
         for point_index, cluster_number in enumerate(cluster_assignments):
             clusters[cluster_number - 1].append(point_index)
-        # Sort the clusters by size
+        # Sort the clusters by size (i.e, sort the list items by list length)
         clusters = sorted(clusters, key=lambda x: len(x), reverse=True)
         # Sort the points indexes within each cluster according to increasing index
         return [sorted(indexes) for indexes in clusters]

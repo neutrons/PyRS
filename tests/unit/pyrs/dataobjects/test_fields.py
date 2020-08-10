@@ -1,5 +1,6 @@
 # Standard and third party libraries
 from collections import namedtuple
+import copy
 import numpy as np
 import os
 import pytest
@@ -533,6 +534,30 @@ def strain_field_samples(test_data_dir):
             assert sample_fields[prefix + tag].filenames == [filename]
 
     return sample_fields
+
+
+class Test_StrainField:
+
+    class StrainFieldMock(StrainField):
+        r"""Mocks a StrainField object overloading the initialization"""
+
+        def __init__(self, *strains):
+            for s in strains:
+                assert isinstance(s, StrainFieldSingle)
+            self._strains = strains
+
+    def test_eq(self, strain_field_samples):
+        strains_single_scan = copy.deepcopy(list(strain_field_samples.values()))
+        # single-scan strains
+        assert strains_single_scan[0] == strains_single_scan[0]
+        assert (strains_single_scan[0] == strains_single_scan[1]) is False
+
+        # multi-scan scans
+        strain_multi = self.StrainFieldMock(*strains_single_scan)
+        assert strain_multi == strain_multi
+        assert (strain_multi == strains_single_scan[0]) is False
+        strain_multi_2 = self.StrainFieldMock(*strains_single_scan[:-1])  # all except the last one
+        assert (strain_multi == strain_multi_2) is False
 
 
 class TestStrainField:

@@ -70,12 +70,18 @@ class StressField
   - Properties StressField.values and StressField.errors returns the values and errors of the stress
     component along the currectly accessble direction
 """
+from collections import namedtuple
 from enum import Enum
 from enum import unique as unique_enum
 import numpy as np
 from scipy.interpolate import griddata
 from scipy.spatial import cKDTree
-from typing import TYPE_CHECKING, Any, cast, final, Iterator, List, Optional, Tuple, Union
+import sys
+from typing import TYPE_CHECKING, Any, cast, Iterator, List, Optional, Tuple, Union
+if sys.version_info < (3, 8):
+    from typing_extensions import final
+else:
+    from typing import final
 from uncertainties import unumpy
 
 from mantid.simpleapi import mtd, CreateMDWorkspace, BinMD
@@ -560,12 +566,29 @@ class ScalarFieldSample:
 
 
 class _StrainField:
-    '''Base class for common implementation details of StrainFields'''
+
+    POINT_MISSING_INDEX = -1  # indicates one single-scan index is not present in one of the overlapping clusters
+
+    r"""Base class for common implementation details of StrainFields"""
     def __init__(self):
         pass  # this stores nothing
 
     def __len__(self):
         return len(self.point_list)
+
+    def __eq__(self, other_strain: '_StrainField') -> bool:
+        r"""
+        Assert if two strains are the same by comparing their list of scan-strains
+
+        Parameters
+        ----------
+        other_strain: ~pyrs.dataobjects.fields._StrainField
+
+        Returns
+        -------
+        bool
+        """
+        return set([id(s) for s in self.strains]) == set([id(s) for s in other_strain.strains])
 
     @property
     def field(self):
@@ -656,56 +679,94 @@ class _StrainField:
             'min_error': the sample with the minimal uncertainty is selected.
         Returns
         -------
-        MDHistoWorkspace
+        IMDHistoWorkspace
         """
         export_kwags = dict(interpolate=interpolate, method=method, fill_value=fill_value,
                             keep_nan=keep_nan, resolution=resolution, criterion=criterion)
         return self.field.to_md_histo_workspace(name, **export_kwags)  # type: ignore
 
-    def _calculate_pointlist_map(self, point_lists: List['PointList'],
-                                 resolution: float) -> Tuple[PointList,
-                                                             List[np.ndarray]]:
+    def _calculate_pointlist_map(self,
+                                 point_lists: List['PointList'],
+                                 resolution: float) -> Tuple[PointList, List[np.ndarray]]:
+        r"""
+        Calculate the aggregated point list, and the sample points for each collection associated to each of
+        the points in the aggregated point list
+
+        Caveat: each individual point list cannot contain any two points within `resolution` distance
+
+        Parameters
+        ----------
+        point_lists: list
+            list of ~pyrs.dataobjects.sample_logs.PointList instances
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity
+
+        Returns
+        -------
+        tuple
+            A two-item tuple whose items are, in order:
+            - ~pyrs.dataobjects.sample_logs.PointList
+            -
+        """
         # create a list of all points
-        full_point_list = PointList([point_lists[0].vx,
-                                     point_lists[0].vy,
-                                     point_lists[0].vz])
+        full_point_list = PointList([point_lists[0].vx, point_lists[0].vy, point_lists[0].vz])
         for points in point_lists[1:]:
-            full_point_list = full_point_list.aggregate(points)  # this concatonates the lists
+            full_point_list = full_point_list.aggregate(points)  # this concatenates the lists
 
         # calculate the clustering of all points
+        # variable `cluster_indices` is a list with as many elements as clusters. Each list element represents one
+        # cluster, and is made up of a list of point-list indexes, specifying the sample points belonging to the
+        # cluster.
+        # TODO why call `sorted`? Seems irrelevant in this algorithm
         cluster_indices = sorted(full_point_list.cluster(resolution=resolution))
 
-        # create list of what index starts each contributing PointList
+        # create a list of which aggregate index starts each contributing PointList
         point_list_starts = list(np.cumsum([len(point_list) for point_list in point_lists]))
         point_list_starts.insert(0, 0)  # pointlist start at index=0
 
-        # the average position of the cluster
-        merged_positions = []
-        # has an index for each contributing PointList. A value of -1
-        # means that the value doesn't exist
+        merged_positions = []  # average position of the sample points contained in each cluster
+        # variable `full_clusters`:
+        #     - is a list, with an item per cluster (or per point of the aggregated point list)
+        #     - each item is a list of length `num_point_lists`
+        #     - each value in the item list is an index of an individual input point list.
+        # Example: I have two input point lists of length 3 and 2.
+        # Individual point lists indexes are [0, 1, 2] and [0, 1] for the first and second point list.
+        #     aggregate indexes then run from zero to four: [0, 1, 2, 3, 4]
+        #     the correspondence between aggregate and individual indexes: [0, 1, 2, 3 ,4] --> [0, 1, 2, 0, 1]
+        # cluster_indices = [[0, 3], [1], [2, 4]]  three clusters, first and last have contributions for all lists
+        # full_clusters = [[0, 0], [1, -1], [2, 1]]  second cluster is missing a point from the second list
         full_clusters = []
-        num_point_lists = len(point_lists)
+        num_point_lists = len(point_lists)  # number of input PointList instances
         for i, cluster in enumerate(cluster_indices):
-            # make sure the indices in the cluster are sorted
-            cluster = sorted(cluster)
+            # make sure the aggregate indices in list `cluster` are sorted, from lowest to highest
+            cluster = sorted(cluster)  # variable `cluster` is a list of aggregate indices
+
             # new position is the average of all the contributing points
             x = np.average(full_point_list.vx[cluster])
             y = np.average(full_point_list.vy[cluster])
             z = np.average(full_point_list.vz[cluster])
 
-            # a full cluster has an index for each PointList. -1 means
-            # it doesn't exist in the PointList
-            full_cluster = np.full(num_point_lists, -1, dtype=int)
+            # variable `full_cluster` is a 1D array of length `num_point_lists`
+            # a "full cluster" has an aggregate index for each PointList, otherwise some of the entries in
+            # `full_cluster` will remain with a value of POINT_MISSING_INDEX
+            full_cluster = np.full(num_point_lists, self.POINT_MISSING_INDEX, dtype=int)
 
-            # convert the PointList indices into which PeakList they are associated with
-            peak_list_index = np.searchsorted(point_list_starts, cluster,
-                                              side='right')
+            # convert each index of the aggregated point list into the index of the individual point list it's
+            # associated with.
+            # for every aggregate index of `cluster`, find where in `point_list_startst` should be inserted in
+            # order to preserve the order of `point_list_starts`. This identifies which point list the aggregate
+            # index belongs to.
+            # Example: If I have three lists of lengths 3, 5, and 2, then `point_list_starts==[0, 3, 8]`. Then
+            # np.searchsorted(point_list_starts, [2, 4, 9], side='right') == [1, 2, 3] indicating that
+            # aggregated point 2 corresponds to the first point list, point 4 corresponds to the second list, and
+            # point 9 corresponds to the third list
+            pointlist_indexes = np.searchsorted(point_list_starts, cluster, side='right') - 1  # -1, number-->index
 
-            # use the gained information to create the list of which
-            # position is in which PeakList
-            for which_peaks, pos_index in zip(peak_list_index, cluster):
-                which_peaks -= 1
-                full_cluster[which_peaks] = int(pos_index - point_list_starts[which_peaks])
+            for pointlist_index, aggregate_index in zip(pointlist_indexes, cluster):
+                # TODO if we have two sample points within resolution in the same point list, then
+                # TODO we will write to full_cluster[pointlist_index] twice, thus loosing one of the two points
+                # TODO instrument scientist confirm this possibility flags a problem with the motors
+                full_cluster[pointlist_index] = int(aggregate_index - point_list_starts[pointlist_index])
 
             merged_positions.append((x, y, z))
             full_clusters.append(full_cluster)
@@ -725,7 +786,7 @@ class _StrainField:
 
         Parameters
         ----------
-        other_strain:  ~pyrs.dataobjects.fields.StrainField
+        other_strain:  ~pyrs.dataobjects.fields._StrainField
         resolution: float
             Two points are considered the same if they are separated by a distance smaller than this quantity
         criterion: str
@@ -737,61 +798,55 @@ class _StrainField:
         -------
         ~pyrs.dataobjects.fields.StrainField
         """
-        # loop through all strains and get unique list of StrainFieldSingle
-        strains_to_merge: List['StrainFieldSingle'] = []
-        if isinstance(self, StrainFieldSingle):
-            strains_to_merge.append(self)  # this is an individual strain
+        # Corner case: attempt to fuse with itself
+        if self == other_strain:
+            return self
+
+        # collect the individual strains from the two (possibly) composite strains
+        # remove possible duplicates by casting the ID of the strains as dictionary keys (order is preserved)
+        single_scan_strains: List['StrainFieldSingle'] = list(dict.fromkeys(self.strains + other_strain.strains))
+
+        multi_scan_strain: StrainField = StrainField()  # object to be returned
+        multi_scan_strain._strains = single_scan_strains  # copy over everything
+
+        point_lists = [strain.point_list for strain in single_scan_strains]
+        # variable `map_points` is a list specifying the sample points
+        multi_scan_strain._point_list, map_points = self._calculate_pointlist_map(point_lists, resolution)
+
+        # Identify which sample points from the single scans are chosen to represent
+        # each sample point of the multi scan
+        single_scan_winner_indexes = []
+        single_scan_pointlist_winner_indexes = []
+        single_scan_strains_count = len(single_scan_strains)
+        if criterion == 'min_error':
+            # collect the criterion values from all StrainFieldSingle objects
+            strain_errors = [strain.errors for strain in single_scan_strains]
+
+            def get_cost(single_scan_strain_errors, index):
+                return np.inf if index == self.POINT_MISSING_INDEX else single_scan_strain_errors[index]
+
+            # loop over each sample point of the multi-scan strain
+            for point_list_index in range(len(multi_scan_strain)):
+                # in principle, each single scan contributes with a cost for this sample point
+                costs = np.zeros(single_scan_strains_count)
+                # loop over all single-scan strains, finding the associated cost
+                for single_scan_index, single_scan_errors in enumerate(strain_errors):
+                    # find the sample point index in the single scan, associated to the sample point
+                    single_scan_point_list_index = map_points[point_list_index][single_scan_index]
+                    costs[single_scan_index] = get_cost(single_scan_errors, single_scan_point_list_index)
+                assert np.all(costs > 0.0)  # costs are either infinite or positive
+                single_scan_winner_index = np.argmin(costs)  # find the single scan with the smallest cost
+                single_scan_winner_indexes.append(single_scan_winner_index)
+                single_scan_pointlist_winner_indexes.append(map_points[point_list_index][single_scan_winner_index])
+
+            # convert the winners to arrays
+            scan_indexes = np.asarray(single_scan_winner_indexes, dtype=int)
+            point_indexes = np.asarray(single_scan_pointlist_winner_indexes, dtype=int)
+            multi_scan_strain._winners = multi_scan_strain.ChosenSamplePoints(scan_indexes, point_indexes)
         else:
-            # get individual strains
-            strains_to_merge.extend(self.strains)
+            raise ValueError(f'Unallowed value of criterion="{criterion}"')
 
-        if isinstance(other_strain, StrainFieldSingle):
-            if other_strain not in strains_to_merge:
-                strains_to_merge.append(other_strain)  # this is an individual strain
-        else:  # the other option is that it is a StrainField
-            for test_strain in other_strain._strains:  # type: ignore
-                if test_strain not in strains_to_merge:
-                    strains_to_merge.append(test_strain)  # this is an individual strain
-
-        strain: StrainField = StrainField()  # New empty composite strain object
-        strain._strains = strains_to_merge  # copy over everything
-
-        if len(strains_to_merge) == 1:
-            # return the original simple strain
-            strain = strains_to_merge[0]  # type: ignore
-        else:
-            def get_cost(cost_array, index):
-                if index < 0:
-                    return np.inf
-                else:
-                    return cost_array[index]
-
-            # get a mapping of all points
-            point_lists = [temp.point_list for temp in strains_to_merge]
-            strain._point_list, map_points = self._calculate_pointlist_map(point_lists, resolution)
-
-            # time to pick some winners
-            winners = []
-            winners_index = []
-            num_strains = len(strains_to_merge)
-            if criterion == 'min_error':
-                # collect the creterion from all StrainFields
-                strain_errors = [strain.peak_collections[0].get_strain()[1]
-                                 for strain in strains_to_merge]
-
-                for i in range(len(strain._point_list)):  # loop over all point
-                    costs = np.zeros(num_strains)
-                    for j in range(num_strains):  # loop over all StrainFields
-                        costs[j] = get_cost(strain_errors[j], map_points[i][j])
-                    winners.append(np.argmin(costs))
-                    winners_index.append(map_points[i][winners[-1]])
-                # convert the winners to arrays
-                strain._winners = (np.asarray(winners, dtype=int),
-                                   np.asarray(winners_index, dtype=int))
-            else:
-                raise ValueError(f'Unalowed value of crierion="{criterion}"')
-
-        return strain
+        return multi_scan_strain
 
     def __add__(self, other_strain: '_StrainField') -> '_StrainField':
         r"""
@@ -811,40 +866,92 @@ class _StrainField:
         """
         return self.fuse_with(other_strain)
 
-    def stack_with(self, other, mode: str = 'union',
-                   resolution: float = DEFAULT_POINT_RESOLUTION) -> List['_ScalarFieldSample']:
+    def stack_with(self, other_strain: '_StrainField',
+                   mode: str = 'union',
+                   resolution: float = DEFAULT_POINT_RESOLUTION) -> List['_StrainField']:
+        r"""
+        Combine the sample points of two strains scanned at different directions.
+
+        The two strains can be single or multi-scan.
+
+        Examples
+        --------
+        Consider combining two multi-scan strains s0 and s1. Strain s0 is made up of single-scan strains
+        s00 and s01 that overlap in some region (the XX in the diagram below). Strain s1 results from the
+        combination of three single-scan strains s10, s11, and s12. Strains s0 and s1 overlap considerably
+
+          Stacking s0 over s1                               Stacking s1 over s0
+        -----------------------                      --------------------------------
+        |     s00    XX  s01  |                      | s10 |     s11    XXXXX  s12  |
+        -----------------------                      --------------------------------
+        |          s0         |                      |             s1               |
+        ------------------------------------         ------------------------------------
+            |             s1               |                      |          s0         |
+            --------------------------------                      -----------------------
+            | s10 |     s11    XXXXX  s12  |                      |     s00    XX  s01  |
+            --------------------------------                      -----------------------
+
+        Below we plot the stacked strains s0* and s1*. The value '-1' indicates sample points of s0* that
+        are not points of s00 or s01 (similarly for s1*)
+
+           The stacked s0 strain, s0*                      The stacked s` strain, s1*
+        ------------------------------------         ------------------------------------
+        |             s0*     -1,....... -1|         |             s1*               -1 |
+        ------------------------------------         ------------------------------------
+
+        Parameters
+        ----------
+        other_strain: ~pyrs.dataobjects.fields._StrainField
+        mode: str
+            A mode to stack the scalar fields. Valid values are 'union' and 'intersection'
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity
+
+        Raises
+        ------
+        NotImplementedError
+            Stacking currently not supported for 'intersection' and 'common'
+
+        Returns
+        -------
+        list
+            A two-item list containing the two stacked strains
+        """
         # validate the mode and convert to a single set of terms
         valid_stack_modes = ('union', 'intersection', 'complete', 'common')
         if mode not in valid_stack_modes:
             raise ValueError(f'{mode} is not a valid stack mode. Valid modes are {valid_stack_modes}')
-        if mode == 'complete':
-            mode = 'union'
-        if mode == 'common':
-            mode = 'intersection'
+        if mode in ('intersection', 'common'):
+            raise NotImplementedError(f'mode "{mode}"is not currently supported')
 
         results = []
-        if mode == 'union':
-            point_list_union = self.point_list.fuse_with(other.point_list,
-                                                         resolution=resolution)
-            if len(point_list_union) == len(self.point_list) == len(other.point_list):
-                results = [self, other]
+        if mode in ('union', 'complete'):
+            # Stack `self` over `other_strain`. In the aggregated point list, first come the points from `self`,
+            # then come the points from `other_strain`
+            point_list_union = self.point_list.fuse_with(other_strain.point_list, resolution=resolution)
+            if len(point_list_union) == len(self.point_list) == len(other_strain.point_list):
+                results = [self, other_strain]
             else:
                 strain1 = StrainField()
-                strain1._strains = self.strains
-                strain1._winners = self._winners
                 strain1._point_list = point_list_union
+                strain1._strains = self.strains
+                # `strain1._winners` relates each of the points of the single scans of `self` to the points
+                # of the aggregated list `point_list_union`. There are points in `point_list_union` with
+                # no counterpart in the single scans (see example in the docstring), thus
+                # len(strain1._winners) < len(point_list_union)
+                strain1._winners = self._winners
 
-                # create the union the other direction as "self" keeps its order
-                point_list_union = other.point_list.fuse_with(self.point_list,
-                                                              resolution=resolution)
+                # Stack `other_strain` over `self`. In the new aggregated point list, first come the points
+                # from `other_strain`, then come the points from `self`
+                # `point_list_union` and `point_list_union_2` contain the same sample points,
+                # BUT WITH DIFFERENT ORDER !!!!
+                point_list_union_2 = other_strain.point_list.fuse_with(self.point_list, resolution=resolution)
                 strain2 = StrainField()
-                strain2._strains = other.strains
-                strain2._winners = other._winners
-                strain2._point_list = point_list_union
+                strain2._point_list = point_list_union_2
+                strain2._strains = other_strain.strains
+                strain2._winners = other_strain._winners  # Notice len(strain2._winners) < len(point_list_union_2)
 
                 results = [strain1, strain2]
-        elif mode == 'intersection':
-            raise NotImplementedError('intersection mode is not currently supported')
         else:
             raise RuntimeError('Should not be possible to get here')
 
@@ -901,6 +1008,10 @@ class StrainFieldSingle(_StrainField):
             return []
         else:
             return [self._peak_collection.projectfilename]
+
+    @property
+    def peak_collection(self):
+        return self._peak_collection
 
     @property
     def peak_collections(self):
@@ -1019,10 +1130,35 @@ def _to_pointlist_and_peaks(filename: str,
 
 
 class StrainField(_StrainField):
-    '''This class holds the strain information for a composite set of
+    r"""
+    This class holds the strain information for a composite set of
     ``StrainFieldSingle``. It holds what is needed to create the
     ``ScalarFieldSample`` and to update information about the peaks.
-    '''
+    """
+
+    ChosenSamplePoints = namedtuple('ChosenSamplePoints', ['scan_indexes', 'point_indexes'])
+    r"""
+    Data structure relating sample points from single scans to sample points of a multi scan
+
+    Examples
+    chosen = ChosenSamplePoints([0, 0, 1], [3, 4, 0]) indicates that:
+    - the multi scan is made up of three sample points
+    - the first sample point in the multi scan is associated to sample point with
+      index 3 of `StrainFieldSingle` object with index 0
+    - the second sample point in the multi scan is associated to sample point with
+      index 4 of `StrainFieldSingle` object with index 0
+    - the third and last sample point in the multi scan is associated to sample point with
+      index 0 of `StrainFieldSingle` object with index 1
+
+    Parameters
+    ----------
+    scan_indexes: np.ndarray
+        each index identifies one of the StrainFieldSingle instances making up the multi scan
+    point_indexes: np.ndarray
+        each index identifies one of the sample points in one of the single scans that make up
+        the multi scan
+    """
+
     @staticmethod
     def fuse_strains(*args: 'StrainField', resolution: float = DEFAULT_POINT_RESOLUTION,
                      criterion: str = 'min_error') -> '_StrainField':
@@ -1228,6 +1364,13 @@ class StrainField(_StrainField):
 
     @property
     def strains(self) -> List['StrainFieldSingle']:
+        r"""
+        List of strains associated to individual peak collections
+
+        Returns
+        -------
+        list
+        """
         return self._strains
 
     @property
