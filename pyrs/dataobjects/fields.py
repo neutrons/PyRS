@@ -807,7 +807,20 @@ class _StrainField:
 
         # collect the individual strains from the two (possibly) composite strains
         # remove possible duplicates by casting the ID of the strains as dictionary keys (order is preserved)
-        single_scan_strains: List['StrainFieldSingle'] = list(dict.fromkeys(self.strains + other_strain.strains))
+        single_scan_strains: List['StrainFieldSingle'] = []
+        if isinstance(self, StrainFieldSingle):
+            single_scan_strains.append(self)  # this is an individual strain
+        else:
+            # get individual strains
+            single_scan_strains.extend(self.strains)
+
+        if isinstance(single_scan_strains, StrainFieldSingle):
+            if other_strain not in single_scan_strains:
+                single_scan_strains.append(other_strain)  # this is an individual strain
+        else:  # the other option is that it is a StrainField
+            for test_strain in other_strain.strains:  # type: ignore
+                if test_strain not in single_scan_strains:
+                    single_scan_strains.append(test_strain)  # this is an individual strain
 
         multi_scan_strain: StrainField = StrainField()  # object to be returned
         multi_scan_strain._strains = single_scan_strains  # copy over everything
