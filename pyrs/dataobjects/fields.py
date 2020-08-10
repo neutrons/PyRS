@@ -78,12 +78,7 @@ from scipy.interpolate import griddata
 from scipy.spatial import cKDTree
 import sys
 from typing import TYPE_CHECKING, Any, cast, Iterator, List, Optional, Tuple, Union
-if sys.version_info < (3, 8):
-    from typing_extensions import final
-else:
-    from typing import final
 from uncertainties import unumpy
-
 from mantid.simpleapi import mtd, CreateMDWorkspace, BinMD
 from mantid.api import IMDHistoWorkspace
 
@@ -91,9 +86,14 @@ from pyrs.core.workspaces import HidraWorkspace
 from pyrs.dataobjects.sample_logs import PointList, aggregate_point_lists
 from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
+from .constants import DEFAULT_POINT_RESOLUTION, NOT_MEASURED_NUMPY
+if sys.version_info < (3, 8):
+    from typing_extensions import final
+else:
+    from typing import final
+
 
 # two points in real space separated by less than this amount (in mili meters) are considered the same point
-from .constants import DEFAULT_POINT_RESOLUTION, NOT_MEASURED_NUMPY
 SCALAR_FIELD_NAMES = ('lattice', 'strain', 'stress')  # standard names for most used fields
 
 
@@ -967,6 +967,9 @@ class _StrainField:
                 strain2._strains = other_strain.strains
                 strain2._winners = other_strain._winners  # Notice len(strain2._winners) < len(point_list_union_2)
 
+                # make sure both have the same length as that is the point of stacking
+                assert len(point_list_union) == len(point_list_union_2)
+
                 results = [strain1, strain2]
         else:
             raise RuntimeError('Should not be possible to get here')
@@ -1008,12 +1011,10 @@ class StrainFieldSingle(_StrainField):
                                      peak_collection: Optional[PeakCollection] = None,
                                      point_list: Optional[PointList] = None) -> None:
         # get the workspace and peaks by resolving the supplied inputs
-        pointlist, peak_collection = _to_pointlist_and_peaks(filename, peak_tag,
-                                                             projectfile, hidraworkspace,
-                                                             peak_collection,
-                                                             point_list)
-        self._peak_collection = peak_collection
-        self._point_list = pointlist
+        self._point_list, self._peak_collection = _to_pointlist_and_peaks(filename, peak_tag,
+                                                                          projectfile, hidraworkspace,
+                                                                          peak_collection,
+                                                                          point_list)
 
     def __len__(self):
         return len(self._peak_collection)
@@ -1137,9 +1138,9 @@ def _to_pointlist_and_peaks(filename: str,
     if (not point_list) or (not peak_collection):
         raise RuntimeError('Do not have both point_list and peak_collection defined')
 
-    if len(point_list) != len(peak_collection):
-        msg = 'point_list and peak_collection are not equal length ({} != {})'.format(len(point_list),
-                                                                                      len(peak_collection))
+    if len(point_list) < len(peak_collection):
+        msg = 'point_list and peak_collection are not compatible length ({} < {})'.format(len(point_list),
+                                                                                          len(peak_collection))
         raise ValueError(msg)
 
     return point_list, peak_collection
@@ -1347,7 +1348,16 @@ class StrainField(_StrainField):
         ~pyrs.dataobjects.fields.ScalarFieldSamples
         """
         if len(self._strains) == 1:
-            return self._strains[0].field
+            if len(self._strains[0]) == len(self._point_list):
+                return self._strains[0].field
+            else:
+                # update the zeroth strain with the extended PointList
+                # other values are copied
+                filename = self._strains[0].filenames[0] if self._strains[0].filenames else []
+                self._strains[0] = StrainFieldSingle(filename=filename,
+                                                     peak_collection=self._strains[0].peak_collections[0],
+                                                     point_list=self.point_list)
+                return self._strains[0].field
         else:
             # make sure there is enough information to create the field
             if not self._winners:

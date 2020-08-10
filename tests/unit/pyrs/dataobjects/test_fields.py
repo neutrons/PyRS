@@ -652,7 +652,7 @@ class TestStrainField:
         point_list1 = PointList([x, y, z])
 
         # changes a single x-value in the last 4 points
-        x = [0.0, 0.5, 0.0, 0.5, 1.0, 1.5, 1.0, 1.0]  # x
+        x = [0.0, 0.5, 0.0, 0.5, 1.0, 1.5, 1.0, 1.5]  # x
         y = [1.0, 1.0, 1.5, 1.5, 1.0, 1.0, 1.5, 1.5]  # y
         z = [2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5]  # z
         point_list2 = PointList([x, y, z])
@@ -678,9 +678,11 @@ class TestStrainField:
         # case when there are 4 points not commont
         strain_stack = strain1.stack_with(strain2, mode='union')
         assert len(strain_stack) == 2
-        for stacked, orig in zip(strain_stack, [strain1, strain1]):
+        assert len(strain_stack[0]) == len(strain_stack[1])
+        for stacked, orig in zip(strain_stack, [strain1, strain2]):
             assert stacked.peak_collections[0] == orig.peak_collections[0]
             assert stacked.point_list != orig.point_list
+            assert len(stacked.point_list) == 12
             field = stacked.field
             assert field
             assert len(field) == 12
