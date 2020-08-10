@@ -96,6 +96,7 @@ class SamplePoint:
     def append(self, measurement):
         r"""Append a new measurement"""
         self.measurements.append(measurement)
+        self.measurent.sample_point = self
 
     def compliants(self):
         r"""Find out which measurements are compliant with the filter selections"""
@@ -238,6 +239,7 @@ class PeakMeasurement:
         return measurements
 
     def __init__(self, *args, **kwargs):
+        self.sample_point = None  # reference to the sample point holding this measurement
         self.filename = None
         self.peak_collection = None
         self.peak_tag = None
