@@ -574,7 +574,10 @@ class _StrainField:
         pass  # this stores nothing
 
     def __len__(self):
-        return len(self.point_list)
+        if self.point_list:
+            return len(self.point_list)
+        else:
+            return 0
 
     def __eq__(self, other_strain: '_StrainField') -> bool:
         r"""
