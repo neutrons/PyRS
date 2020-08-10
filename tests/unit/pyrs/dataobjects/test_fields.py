@@ -834,7 +834,7 @@ def test_generateParameterField(test_data_dir):
     np.testing.assert_almost_equal(dim_z.getMinimum(), -15.0, decimal=3)
     np.testing.assert_almost_equal(dim_z.getMaximum(), 15.0, decimal=3)
     signal = center_md.getSignalArray()
-    np.testing.assert_almost_equal(signal.min(), 89.94799, decimal=5)
+    np.testing.assert_almost_equal(signal.min(), 89.94377, decimal=5)
     np.testing.assert_almost_equal(signal.max(), 90.15296, decimal=5)
     errors = center_md.getErrorSquaredArray()
     np.testing.assert_almost_equal(errors.min(), 0.02019792)
