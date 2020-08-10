@@ -1329,6 +1329,12 @@ class StrainField(_StrainField):
         if len(self._strains) == 1:
             return self._strains[0].field
         else:
+            # make sure there is enough information to create the field
+            if not self._winners:
+                raise RuntimeError('List of winners has not been initialized')
+            if not self.point_list:
+                raise RuntimeError('The PointList has not been initialized')
+
             num_values = len(self)
             values = np.full(num_values, np.nan, dtype=float)
             errors = np.full(num_values, np.nan, dtype=float)
