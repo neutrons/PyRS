@@ -850,7 +850,7 @@ class _StrainField:
                     # find the sample point index in the single scan, associated to the sample point
                     single_scan_point_list_index = map_points[point_list_index][single_scan_index]
                     costs[single_scan_index] = get_cost(single_scan_errors, single_scan_point_list_index)
-                assert np.all(costs > 0.0)  # costs are either infinite or positive
+                assert np.all(costs >= 0.0)  # costs are either infinite or positive
                 single_scan_winner_index = np.argmin(costs)  # find the single scan with the smallest cost
                 single_scan_winner_indexes.append(single_scan_winner_index)
                 single_scan_pointlist_winner_indexes.append(map_points[point_list_index][single_scan_winner_index])
