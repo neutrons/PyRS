@@ -1043,8 +1043,8 @@ class StrainFieldSingle(_StrainField):
         values, errors = self._peak_collection.get_strain()
         full_values = np.full(len(self.point_list), NOT_MEASURED_NUMPY, dtype=float)
         full_errors = np.full(len(self.point_list), NOT_MEASURED_NUMPY, dtype=float)
-        full_values[:values.size] = values.size
-        full_errors[:errors.size] = errors.size
+        full_values[:values.size] = values
+        full_errors[:errors.size] = errors
         return ScalarFieldSample('strain', full_values, full_errors,
                                  self.x, self.y, self.z)
 
