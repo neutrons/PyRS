@@ -1038,7 +1038,7 @@ class StrainFieldSingle(_StrainField):
                                   hidraworkspace=hidraworkspace, peak_collection=peak_collection,  # type: ignore
                                   point_list=point_list)  # type: ignore
         if True in [bool(v) for v in single_scan_kwargs.values()]:  # at least one argument is not empty
-            single_scan_kwargs['resolution'] = resolution
+            single_scan_kwargs['resolution'] = resolution  # type: ignore
             self._initialize_with_single_scan(**single_scan_kwargs)  # type: ignore
 
     def _initialize_with_single_scan(self,
@@ -1203,7 +1203,7 @@ def _to_pointlist_and_peaks(filename: str,
         point_list = cast(PointList, point_list)
 
     # Check the point list doesn't have overlapping points
-    if point_list.has_overlapping_points(resolution):
+    if point_list and point_list.has_overlapping_points(resolution):
         raise RuntimeError('At least two sample points are overlapping')
 
     # verify that everything is set by now
@@ -1282,9 +1282,9 @@ class StrainField(_StrainField):
         return strain_fused
 
     @staticmethod
-    def stack_strains(*strains: 'StrainField',
+    def stack_strains(*strains: '_StrainField',
                       stack_mode: str = 'complete',
-                      resolution: float = DEFAULT_POINT_RESOLUTION) -> List['StrainField']:
+                      resolution: float = DEFAULT_POINT_RESOLUTION) -> List['_StrainField']:
         r"""
         Evaluate a list of strain fields taken at different directions on a list of commont points.
 
@@ -1307,16 +1307,23 @@ class StrainField(_StrainField):
         # Validate all strains are strain fields
         for strain in strains:
             assert isinstance(strain, _StrainField), f'{strain} is not a StrainField object'
-        fields = [strain.field for strain in strains]
-        fields_stacked = stack_scalar_field_samples(*fields, stack_mode=stack_mode, resolution=resolution)
-        strains_stacked = list()
-        for strain, field_stacked in zip(strains, fields_stacked):
-            strain_stacked = StrainField()
-            strain_stacked._field = field_stacked
-            strain_stacked._peak_collection = strain._peak_collection
-            strain_stacked._single_scans = strain._single_scans
-            strain_stacked._filenames = strain.filenames[:]
-            strains_stacked.append(strain_stacked)
+
+        # make a copy
+        strains_stacked: List['_StrainField'] = list(strains)
+
+        # do the various combinations of stacking
+        strains_stacked[0:2] = strains_stacked[0].stack_with(strains_stacked[1], mode=stack_mode,
+                                                             resolution=resolution)
+        if len(strains_stacked) == 3:
+            strains_stacked[0], strains_stacked[2] = strains_stacked[0].stack_with(strains_stacked[2],
+                                                                                   mode=stack_mode,
+                                                                                   resolution=resolution)
+            strains_stacked[1], strains_stacked[2] = strains_stacked[1].stack_with(strains_stacked[2],
+                                                                                   mode=stack_mode,
+                                                                                   resolution=resolution)
+        elif len(strains_stacked) > 3:  # don't bother with more than 3 strains
+            raise NotImplementedError('Cannot stack more than 3 strains')
+
         return strains_stacked
 
     def __init__(self,
@@ -1348,7 +1355,7 @@ class StrainField(_StrainField):
 
         # otherwise it was an empty constructor and only initialize the starting layout
 
-    def __rmul__(self, other: List['StrainField']) -> List['StrainField']:
+    def __rmul__(self, other: List['_StrainField']) -> List['_StrainField']:
         r"""
         Stack a list of strains along with this strain.
 
