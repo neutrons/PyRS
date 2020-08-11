@@ -129,6 +129,16 @@ class TestPointList:
         for cluster, comparison in zip(clusters, [[1, 4, 5], [2, 6], [3, 7], [0], [8]]):
             assert cluster == pytest.approx(comparison)
 
+    def test_has_overlapping_points(self):
+        xyz = [[0.0, 1.0, 2.0],
+               [0.0, 0.0, 0.0],
+               [0.0, 0.0, 0.0]]
+        assert PointList(xyz).has_overlapping_points(resolution=DEFAULT_POINT_RESOLUTION) is False
+        xyz = [[0.0, 1.0, 2.0, 2.009],
+               [0.0, 0.0, 0.0, 0.0],
+               [0.0, 0.0, 0.0, 0.0]]
+        assert PointList(xyz).has_overlapping_points(resolution=DEFAULT_POINT_RESOLUTION) is True
+
     def test_coordinates(self, sample_logs_mock):
         point_list = PointList(sample_logs_mock['logs'])
         np.testing.assert_allclose(point_list.coordinates, np.array(sample_logs_mock['xyz']).transpose())

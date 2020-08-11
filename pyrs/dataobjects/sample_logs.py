@@ -892,6 +892,24 @@ class PointList:
         # Sort the points indexes within each cluster according to increasing index
         return [sorted(indexes) for indexes in clusters]
 
+    def has_overlapping_points(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> bool:
+        r"""
+        Find if two or more sample points are closer than `resolution
+
+        Parameters
+        ----------
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity
+
+        Returns
+        -------
+        bool
+        """
+        largest_cluster = self.cluster(resolution=resolution)[0]  # the first cluster is the largest
+        if len(largest_cluster) > 1:
+            return True
+        return False
+
     def intersection_aggregated_indexes(self, other: 'PointList',
                                         resolution: float = DEFAULT_POINT_RESOLUTION) -> List:
         r"""
