@@ -1008,16 +1008,23 @@ class _StrainField:
 
 
 class StrainFieldSingle(_StrainField):
-    '''This class holds strain information for a single ``PeakCollection``
+    r"""
+    This class holds strain information for a single ``PeakCollection``
     and its associated ``PointList``.
-    '''
+
+    Parameters
+    ----------
+    resolution: float
+        Two points are considered the same if they are separated by a distance smaller than this quantity
+    """
     def __init__(self,
                  filename: str = '',
                  projectfile: Optional[HidraProjectFile] = None,
                  peak_tag: str = '',
                  hidraworkspace: Optional[HidraWorkspace] = None,
                  peak_collection: Optional[PeakCollection] = None,
-                 point_list: Optional[PointList] = None) -> None:
+                 point_list: Optional[PointList] = None,
+                 resolution: float = DEFAULT_POINT_RESOLUTION) -> None:
         r"""
         Converts a HidraWorkspace and PeakCollection into a ScalarField
         """
@@ -1031,6 +1038,7 @@ class StrainFieldSingle(_StrainField):
                                   hidraworkspace=hidraworkspace, peak_collection=peak_collection,  # type: ignore
                                   point_list=point_list)  # type: ignore
         if True in [bool(v) for v in single_scan_kwargs.values()]:  # at least one argument is not empty
+            single_scan_kwargs['resolution'] = resolution
             self._initialize_with_single_scan(**single_scan_kwargs)  # type: ignore
 
     def _initialize_with_single_scan(self,
@@ -1039,12 +1047,31 @@ class StrainFieldSingle(_StrainField):
                                      peak_tag: str = '',
                                      hidraworkspace: Optional[HidraWorkspace] = None,
                                      peak_collection: Optional[PeakCollection] = None,
-                                     point_list: Optional[PointList] = None) -> None:
+                                     point_list: Optional[PointList] = None,
+                                     resolution: float = DEFAULT_POINT_RESOLUTION) -> None:
+        r"""
+
+        Parameters
+        ----------
+        filename
+        projectfile
+        peak_tag
+        hidraworkspace
+        peak_collection
+        point_list
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity
+
+        Returns
+        -------
+
+        """
         # get the workspace and peaks by resolving the supplied inputs
         self._point_list, self._peak_collection = _to_pointlist_and_peaks(filename, peak_tag,
                                                                           projectfile, hidraworkspace,
                                                                           peak_collection,
-                                                                          point_list)
+                                                                          point_list,
+                                                                          resolution=resolution)
 
     def __len__(self):
         return len(self._peak_collection)
@@ -1098,7 +1125,8 @@ def _to_pointlist_and_peaks(filename: str,
                             projectfile: Optional[HidraProjectFile],
                             hidraworkspace: Optional[HidraWorkspace],
                             peak_collection: Optional[PeakCollection],
-                            point_list: Optional[PointList]) -> Tuple[PointList, PeakCollection]:
+                            point_list: Optional[PointList],
+                            resolution: float = DEFAULT_POINT_RESOLUTION) -> Tuple[PointList, PeakCollection]:
     '''Take all of the various ways to supply the :py:obj:PointList and
     :py:obj:PeakCollection and convert them into those actual
     objects. For :py:obj:PeakCollection the first one found in the list
@@ -1109,6 +1137,16 @@ def _to_pointlist_and_peaks(filename: str,
     * ``point_list``
     * ``hidraworkspace`` - taken from the :py:obj:SampleLogs
     * ``projectfile``
+
+    Parameters
+    ----------
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity
+
+    Raises
+    ------
+    RuntimeError
+        The peak collection contains at least two points that overlap (closer than `resolution`)
     '''
     # load information from a file if it isn't already provided
     closeproject = False
@@ -1163,6 +1201,10 @@ def _to_pointlist_and_peaks(filename: str,
             point_list = hidraworkspace.get_pointlist()
     elif TYPE_CHECKING:  # only True when running mypy
         point_list = cast(PointList, point_list)
+
+    # Check the point list doesn't have overlapping points
+    if point_list.has_overlapping_points(resolution):
+        raise RuntimeError('At least two sample points are overlapping')
 
     # verify that everything is set by now
     if (not point_list) or (not peak_collection):

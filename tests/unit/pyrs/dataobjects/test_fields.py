@@ -536,6 +536,20 @@ def strain_field_samples(test_data_dir):
     return sample_fields
 
 
+class TestStrainFieldSingle:
+
+    def test_overlapping_list(self):
+        x = [0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.0]  # x
+        y = [1.0, 1.0, 1.5, 1.5, 1.0, 1.0, 1.5, 1.5]  # y
+        z = [2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5]  # z
+        values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]  # values
+        errors = [1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0]  # errors
+        peak_collection = PeakCollectionLite('strain', strain=values, strain_error=errors)
+        with pytest.raises(RuntimeError) as exception_info:
+            StrainField(peak_collection=peak_collection, point_list=PointList([x, y, z]))
+        assert 'sample points are overlapping' in str(exception_info.value)
+
+
 class Test_StrainField:
 
     class StrainFieldMock(StrainField):
