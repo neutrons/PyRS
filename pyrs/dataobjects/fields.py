@@ -569,6 +569,51 @@ class _StrainField:
 
     POINT_MISSING_INDEX = -1  # indicates one single-scan index is not present in one of the overlapping clusters
 
+    @staticmethod
+    def stack_strains(*strains: '_StrainField',
+                      stack_mode: str = 'complete',
+                      resolution: float = DEFAULT_POINT_RESOLUTION) -> List['_StrainField']:
+        r"""
+        Evaluate a list of strain fields taken at different directions on a list of commont points.
+
+        The list of common points is obtained by combining the list of points from each strain field.
+
+        Parameters
+        ----------
+        strains: list
+            List of input strain fields.
+        stack_mode: str
+            A mode to stack the scalar fields. Valid values are 'complete' and 'common'
+        resolution: float
+        Two points are considered the same if they are separated by a distance smaller than this quantity
+
+
+        Returns
+        -------
+
+        """
+        # Validate all strains are strain fields
+        for strain in strains:
+            assert isinstance(strain, _StrainField), f'{strain} is not a StrainField object'
+
+        # make a copy
+        strains_stacked: List['_StrainField'] = list(strains)
+
+        # do the various combinations of stacking
+        strains_stacked[0:2] = strains_stacked[0].stack_with(strains_stacked[1], mode=stack_mode,
+                                                             resolution=resolution)
+        if len(strains_stacked) == 3:
+            strains_stacked[0], strains_stacked[2] = strains_stacked[0].stack_with(strains_stacked[2],
+                                                                                   mode=stack_mode,
+                                                                                   resolution=resolution)
+            strains_stacked[1], strains_stacked[2] = strains_stacked[1].stack_with(strains_stacked[2],
+                                                                                   mode=stack_mode,
+                                                                                   resolution=resolution)
+        elif len(strains_stacked) > 3:  # don't bother with more than 3 strains
+            raise NotImplementedError('Cannot stack more than 3 strains')
+
+        return strains_stacked
+
     r"""Base class for common implementation details of StrainFields"""
     def __init__(self):
         pass  # this stores nothing
@@ -906,7 +951,7 @@ class _StrainField:
             for strain in other:
                 if isinstance(strain, _StrainField) is False:
                     raise TypeError(f'{strain} is not a {str(self.__class__)} object')  # type: ignore
-            return self.__class__.stack_with(self, *other, **stack_kwargs)  # type: ignore
+            return self.__class__.stack_strains(self, *other, **stack_kwargs)  # type: ignore
         else:
             raise NotImplementedError('Do not know how to multiply these objects')
 
@@ -1292,51 +1337,6 @@ class StrainField(_StrainField):
         for strain_other in args[2:]:  # fuse with remaining strains, one at a time
             strain_fused = strain_fused.fuse_with(strain_other, resolution=resolution, criterion=criterion)
         return strain_fused
-
-    @staticmethod
-    def stack_strains(*strains: '_StrainField',
-                      stack_mode: str = 'complete',
-                      resolution: float = DEFAULT_POINT_RESOLUTION) -> List['_StrainField']:
-        r"""
-        Evaluate a list of strain fields taken at different directions on a list of commont points.
-
-        The list of common points is obtained by combining the list of points from each strain field.
-
-        Parameters
-        ----------
-        strains: list
-            List of input strain fields.
-        stack_mode: str
-            A mode to stack the scalar fields. Valid values are 'complete' and 'common'
-        resolution: float
-        Two points are considered the same if they are separated by a distance smaller than this quantity
-
-
-        Returns
-        -------
-
-        """
-        # Validate all strains are strain fields
-        for strain in strains:
-            assert isinstance(strain, _StrainField), f'{strain} is not a StrainField object'
-
-        # make a copy
-        strains_stacked: List['_StrainField'] = list(strains)
-
-        # do the various combinations of stacking
-        strains_stacked[0:2] = strains_stacked[0].stack_with(strains_stacked[1], mode=stack_mode,
-                                                             resolution=resolution)
-        if len(strains_stacked) == 3:
-            strains_stacked[0], strains_stacked[2] = strains_stacked[0].stack_with(strains_stacked[2],
-                                                                                   mode=stack_mode,
-                                                                                   resolution=resolution)
-            strains_stacked[1], strains_stacked[2] = strains_stacked[1].stack_with(strains_stacked[2],
-                                                                                   mode=stack_mode,
-                                                                                   resolution=resolution)
-        elif len(strains_stacked) > 3:  # don't bother with more than 3 strains
-            raise NotImplementedError('Cannot stack more than 3 strains')
-
-        return strains_stacked
 
     def __init__(self,
                  filename: str = '',
