@@ -880,17 +880,18 @@ def test_generateParameterField(test_data_dir):
         np.testing.assert_equal(field.errors, expected_errors)
 
 
+def strain_instantiator(name, values, errors, x, y, z):
+    return StrainField(name,
+                       peak_collection=PeakCollectionLite(name, strain=values, strain_error=errors),
+                       point_list=PointList([x, y, z]))
+
+
 @pytest.fixture(scope='module')
 def strains_for_stress_field_1():
     X = [0.000, 1.000, 2.000, 3.000, 4.000, 5.000, 6.000, 7.000, 8.000, 9.000]
     Y = [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
     Z = [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
     # selected to make terms drop out
-
-    def strain_instantiator(name, values, errors, x, y, z):
-        return StrainField(name,
-                           peak_collection=PeakCollectionLite(name, strain=values, strain_error=errors),
-                           point_list=PointList([x, y, z]))
 
     sample11 = strain_instantiator('strain',
                                    [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.080, 0.009],  # values
@@ -966,11 +967,6 @@ class TestStressField:
         Y = [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
         Z = [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
         # selected to make terms drop out
-
-        def strain_instantiator(name, values, errors, x, y, z):
-            strain = StrainField()
-            strain._field = ScalarFieldSample(name, values, errors, x, y, z)
-            return strain
 
         sample11 = strain_instantiator('strain',
                                        [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],
