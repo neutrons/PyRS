@@ -1111,6 +1111,12 @@ def test_stress_field_from_files(test_data_dir):
     # use the 11 direction as what everything else should match
     stress.select('11')
     epsilon_11 = stress.values
+
+    # regression
+    stress11_1320_expected = os.path.join(test_data_dir, 'stress11_1320_expected.npy')
+    stress_values_expected = np.load(stress11_1320_expected)
+    np.testing.assert_equal(stress_values_expected, epsilon_11)
+
     stress.select('22')
     np.testing.assert_equal(stress.values, epsilon_11)
     stress.select('33')
