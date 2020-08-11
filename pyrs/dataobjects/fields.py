@@ -579,7 +579,7 @@ class _StrainField:
         else:
             return 0
 
-    def __eq__(self, other_strain: '_StrainField') -> bool:
+    def __eq__(self, other) -> bool:
         r"""
         Assert if two strains are the same by comparing their list of scan-strains
 
@@ -591,7 +591,10 @@ class _StrainField:
         -------
         bool
         """
-        return set([id(s) for s in self.strains]) == set([id(s) for s in other_strain.strains])
+        try:
+            return set([id(s) for s in self.strains]) == set([id(s) for s in other.strains])
+        except AttributeError:
+            return False
 
     @property
     def field(self):
@@ -1286,7 +1289,7 @@ class StrainField(_StrainField):
         """
         super().__init__()
         # list of underlying StrainFields
-        self._strains: Optional[List[StrainFieldSingle]] = []
+        self._strains: List[StrainFieldSingle] = []
         # the first element is the index of the winning StrainField
         # the second index is the index into the strain_values array
         self._winners: Optional[Tuple[np.ndarray, np.ndarray]] = None
@@ -1323,7 +1326,7 @@ class StrainField(_StrainField):
                     raise TypeError(f'{strain} is not a StrainField object')
             return self.__class__.stack_with(*other, self,
                                              resolution=DEFAULT_POINT_RESOLUTION,
-                                             stack_mode='complete')
+                                             mode='union')
         else:
             raise NotImplementedError(f'Unable to multiply objects of type {str(other.__class__)} and StrainField')
 
@@ -1398,7 +1401,7 @@ class StrainField(_StrainField):
         """
         if self._strains is None:
             raise RuntimeError('List of peaks was not initialized')
-        peaks = []
+        peaks: List[PeakCollection] = []
         for strain in self._strains:
             peaks.extend(strain.peak_collections)
         return peaks
