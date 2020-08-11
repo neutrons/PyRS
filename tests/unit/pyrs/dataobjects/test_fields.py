@@ -888,9 +888,9 @@ def strains_for_stress_field_1():
     # selected to make terms drop out
 
     def strain_instantiator(name, values, errors, x, y, z):
-        strain = StrainField()
-        strain._field = ScalarFieldSample(name, values, errors, x, y, z)
-        return strain
+        return StrainField(name,
+                           peak_collection=PeakCollectionLite(name, strain=values, strain_error=errors),
+                           point_list=PointList([x, y, z]))
 
     sample11 = strain_instantiator('strain',
                                    [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.080, 0.009],  # values
