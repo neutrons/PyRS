@@ -1229,17 +1229,21 @@ def test_stress_field_from_files(test_data_dir):
     # create the stress field (with very uninteresting values
     stress = StressField(sample11, sample22, sample33, 200, 0.3)
 
+    # confirm the strains are unchanged
+    for direction in ('11', '22', '33'):
+        stress.select(direction)
+        np.testing.assert_equal(stress.strain.values, sample11.peak_collections[0].get_strain()[0],
+                                err_msg=f'strain direction {direction}')
+
     # load the stress values from a file
     stress11_1320_expected = os.path.join(test_data_dir, 'stress11_1320_expected.npy')
     stress_values_expected = np.load(stress11_1320_expected)
 
     # since all of the contributing strains are identical, everything else should match
-    stress.select('11')
-    np.testing.assert_equal(stress.values, stress_values_expected)
-    stress.select('22')
-    np.testing.assert_equal(stress.values, stress_values_expected)
-    stress.select('33')
-    np.testing.assert_equal(stress.values, stress_values_expected)
+    for direction in ('11', '22', '33'):
+        stress.select(direction)
+        np.testing.assert_equal(stress.values, stress_values_expected,
+                                err_msg=f'stress direction {direction}')
 
 
 if __name__ == '__main__':
