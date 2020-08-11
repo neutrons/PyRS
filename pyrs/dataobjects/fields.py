@@ -969,7 +969,10 @@ class _StrainField:
             raise NotImplementedError(f'mode "{mode}"is not currently supported')
 
         results = []
-        if mode in ('union', 'complete'):
+        if self.point_list == other_strain.point_list:
+            # they are already common
+            results = [self, other_strain]
+        elif mode in ('union', 'complete'):
             # Stack `self` over `other_strain`. In the aggregated point list, first come the points from `self`,
             # then come the points from `other_strain`
             point_list_union = self.point_list.fuse_with(other_strain.point_list, resolution=resolution)
