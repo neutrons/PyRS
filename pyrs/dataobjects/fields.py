@@ -171,7 +171,7 @@ class ScalarFieldSample:
         list
             list of stacked ~pyrs.dataobjects.fields.ScalarFieldSample objects.
         """
-        stack_kwargs = dict(resolution=DEFAULT_POINT_RESOLUTION, stack_mode='complete')
+        stack_kwargs = dict(resolution=DEFAULT_POINT_RESOLUTION, stack_mode='union')
         if isinstance(other, ScalarFieldSample):
             return stack_scalar_field_samples(self, other, **stack_kwargs)  # type: ignore
         elif isinstance(other, (list, tuple)):
@@ -1366,9 +1366,10 @@ class StrainField(_StrainField):
             for strain in other:
                 if not isinstance(strain, _StrainField):
                     raise TypeError(f'{strain} is not a StrainField object')
-            return self.__class__.stack_with(*other, self,
-                                             resolution=DEFAULT_POINT_RESOLUTION,
-                                             mode='union')
+
+            return self.__class__.stack_strains(*other, self,
+                                                resolution=DEFAULT_POINT_RESOLUTION,
+                                                stack_mode='union')
         else:
             raise NotImplementedError(f'Unable to multiply objects of type {str(other.__class__)} and StrainField')
 
@@ -2046,9 +2047,14 @@ def stack_scalar_field_samples(*fields,
     list
         List of ~pyrs.dataobjects.fields.ScalarFieldSample stacked objects. Input order is preserved
     """
-    valid_stack_modes = ('complete', 'common')
+    valid_stack_modes = ('union', 'intersection', 'complete', 'common')
     if stack_mode not in valid_stack_modes:
         raise ValueError(f'{stack_mode} is not a valid stack mode. Valid modes are {valid_stack_modes}')
+    # map to cannonical names
+    if stack_mode == 'complete':
+        stack_mode = 'union'
+    if stack_mode == 'common':
+        stack_mode = 'intersection'
 
     # If it so happens that one of the input fields contains two (or more) sampled points separated by
     # less than `resolution` distance, we have to discard all but one of them.
@@ -2096,7 +2102,7 @@ def stack_scalar_field_samples(*fields,
     for aggregated_indexes in clusters:
         # if we selected stack_mode='common' and the cluster is missing at least one point from an input field,
         # then the common point is not common to all fields, so we discard the point
-        if stack_mode == 'common' and len(aggregated_indexes) < fields_count:
+        if stack_mode == 'intersection' and len(aggregated_indexes) < fields_count:
             break  # common point not common to all fields. Discard and go to the next cluster
         # Here we either selected stack_mode=complete or the common point is common to all input fields
         cluster_x, cluster_y, cluster_z = 0, 0, 0  # cluster's common point coordinates
