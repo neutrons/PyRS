@@ -1073,9 +1073,6 @@ class StrainFieldSingle(_StrainField):
                                                                           point_list,
                                                                           resolution=resolution)
 
-    def __len__(self):
-        return len(self._peak_collection)
-
     @property
     def filenames(self):
         if not self._peak_collection.projectfilename:
@@ -1398,14 +1395,20 @@ class StrainField(_StrainField):
         r"""
         Fetch the strain values and errors for the list of sample points.
 
+        If the strain has been stacked against strain(s) measured along different direction(s), the number of
+        sample points in the point list may be larger than the number of sample points associated with
+        the peak collections of this strain. The extra sample points in this stacked point list are
+        guaranteed to be located at the end of the point list, and they will be given
+        :obj:`~pyrs.dataobjects.constants.NOT_MEASURED` strains values and errors.
+
         Returns
         -------
-        ~pyrs.dataobjects.fields.ScalarFieldSamples
+        ~pyrs.dataobjects.fields.ScalarFieldSample
         """
         if len(self._strains) == 1:
-            if len(self._strains[0]) == len(self._point_list):
+            if len(self._strains[0]) == len(self._point_list):  # `self` hasn't been previously stacked
                 return self._strains[0].field
-            else:
+            else:  # `self` has been previously stacked with other StrainField object
                 # update the zeroth strain with the extended PointList
                 # other values are copied
                 filename = self._strains[0].filenames[0] if self._strains[0].filenames else []
