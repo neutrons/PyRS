@@ -1106,6 +1106,19 @@ class StrainFieldSingle(_StrainField):
 
     @property
     def field(self) -> ScalarFieldSample:
+        r"""
+        Fetch the strain values and errors for the list of sample points.
+
+        If the strain has been stacked against strain(s) measured along different direction(s),
+        the number of sample points in the point list may be larger than the number of sample
+        points associated with the peak collections of this strain. The extra sample points in
+        this stacked point list are guaranteed to be located at the end, and they will be given
+        :obj:`~pyrs.dataobjects.constants.NOT_MEASURED_NUMPY` strains values and errors.
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.ScalarFieldSample
+        """
         if self._peak_collection is None:
             raise RuntimeError('PeakCollection has not been set')
         values, errors = self._peak_collection.get_strain()
@@ -1113,8 +1126,7 @@ class StrainFieldSingle(_StrainField):
         full_errors = np.full(len(self.point_list), NOT_MEASURED_NUMPY, dtype=float)
         full_values[:values.size] = values
         full_errors[:errors.size] = errors
-        return ScalarFieldSample('strain', full_values, full_errors,
-                                 self.x, self.y, self.z)
+        return ScalarFieldSample('strain', full_values, full_errors, self.x, self.y, self.z)
 
 
 def _to_pointlist_and_peaks(filename: str,
@@ -1405,12 +1417,14 @@ class StrainField(_StrainField):
         -------
         ~pyrs.dataobjects.fields.ScalarFieldSample
         """
+        # Corner case: when the strain is composed of only one StrainFieldSingle component, the point list of
+        # `self` may have diverged from the point list of the StrainFieldSingle component. This scenario
+        # may happen if `self` has been stacked against other strains measured along different directions
         if len(self._strains) == 1:
-            if len(self._strains[0]) == len(self._point_list):  # `self` hasn't been previously stacked
+            if len(self._strains[0]) == len(self):  # `self` hasn't been previously stacked
                 return self._strains[0].field
             else:  # `self` has been previously stacked with other StrainField object
                 # update the zeroth strain with the extended PointList
-                # other values are copied
                 filename = self._strains[0].filenames[0] if self._strains[0].filenames else []
                 self._strains[0] = StrainFieldSingle(filename=filename,
                                                      peak_collection=self._strains[0].peak_collections[0],
