@@ -68,9 +68,9 @@ EXPECTED_FILE_SUMMARY_CSV_1320 = 'tests/data/HB2B_StressStrain_peak0_Summary_exp
                          ids=['HB2B_1320_SUMMARY_CSV'])
 def test_write_summary_csv(test_data_dir: str, project_tags: str, expected_file: str):
 
-    sample11 = StrainField(test_data_dir + '/HB2B_' + str(project_tags[0]) + '.h5')
-    sample22 = StrainField(test_data_dir + '/HB2B_' + str(project_tags[1]) + '.h5')
-    sample33 = StrainField(test_data_dir + '/HB2B_' + str(project_tags[2]) + '.h5')
+    sample11 = StrainField(test_data_dir + '/HB2B_{}.h5'.format(project_tags[0]))
+    sample22 = StrainField(test_data_dir + '/HB2B_{}.h5'.format(project_tags[1]))
+    sample33 = StrainField(test_data_dir + '/HB2B_{}.h5'.format(project_tags[2]))
 
     stress = StressField(sample11, sample22, sample33, 200, 0.3)
 
