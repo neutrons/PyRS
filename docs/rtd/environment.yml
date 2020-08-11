@@ -1,0 +1,11 @@
+name: pyrs-rtd-docs
+
+channels:
+  - conda-forge
+
+dependencies:
+  - python
+  - sphinx
+  - pip
+  - pip:
+    - sphinx_rtd_theme>=0.4.1
