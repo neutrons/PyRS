@@ -1184,27 +1184,29 @@ def _to_pointlist_and_peaks(filename: str,
                             peak_collection: Optional[PeakCollection],
                             point_list: Optional[PointList],
                             resolution: float = DEFAULT_POINT_RESOLUTION) -> Tuple[PointList, PeakCollection]:
-    '''Take all of the various ways to supply the :py:obj:PointList and
-    :py:obj:PeakCollection and convert them into those actual
-    objects. For :py:obj:PeakCollection the first one found in the list
+    r"""
+    Take all of the various ways to supply the :py:obj:PointList and :py:obj:PeakCollection and convert
+    them into those actual objects.
+
+    Assignment of :py:obj:PeakCollection occurs for the first one found in the following list:
     * ``peak_collection``
     * ``projectfile``
 
-    Similarly, for :py:obj:PoinList the first one found in the list
+    Similarly, assignment of :py:obj:PoinList occurs for the first one found in the following list:
     * ``point_list``
     * ``hidraworkspace`` - taken from the :py:obj:SampleLogs
     * ``projectfile``
 
     Parameters
     ----------
-        resolution: float
-            Two points are considered the same if they are separated by a distance smaller than this quantity
+    resolution: float
+        Two points are considered the same if they are separated by a distance smaller than this quantity
 
     Raises
     ------
     RuntimeError
         The peak collection contains at least two points that overlap (closer than `resolution`)
-    '''
+    """
     # load information from a file if it isn't already provided
     closeproject = False
     if filename and not (peak_collection or point_list):
