@@ -1014,6 +1014,63 @@ class PointList:
         points_unique_coordinates = self.aggregate(other).coordinates[points_unique_indices]
         return PointList(points_unique_coordinates.transpose())  # needed (3 x number_common_points) shaped array
 
+    def sorted_indices(self, point_list: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> np.ndarray:
+        r"""
+        Compare the order of the sample points against another point list with the same sample
+        points (within resolution) but with different ordering of the points.
+
+        We require that both point list should not contain overlapping points, otherwise the
+        comporison is ambiguous.
+
+        Parameters
+        ----------
+        point_list: ~pyrs.dataobjects.sample_logs.PointList
+            Another point list with the same set of sample points but with different ordering
+        resolution: float
+            Points separated by less than this quantity are considered the same point. Units are mili meters.
+
+        Examples
+        --------
+        >>> point_list = PointList([0.0, 1.0, 2.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0])
+        >>> point_list_other = PointList([2.0, 0.005, 1.009], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0])
+        >>> point_list.sorted_indices(point_list=point_list_other, resolution=DEFAULT_POINT_RESOLUTION)
+        array([2, 0, 1])
+
+        Raises
+        ------
+        AssertionError
+            The point lists do not contain the same number of sample points
+        ValueError
+            Either of the point lists contain overlapping points
+        ValueError
+            Point lists do not contain the same set of sample points, within resolution
+
+        Returns
+        -------
+        np.ndarray
+            Permutation of the indices of the point list in order to match the sample points of the input `point_list`
+        """
+        assert len(self) == len(point_list), 'The two point lists do not contain same number of sample points'
+
+        if self.has_overlapping_points(resolution) or point_list.has_overlapping_points(resolution):
+            raise ValueError('Either of the point lists contains overlapping points')
+
+        if self.is_equal_within_resolution(point_list, resolution) is False:
+            raise ValueError('The two point lists are not the same, within resolution')
+
+        point_list_aggregated = self.aggregate(point_list)
+        # Each cluster should contain two indices of the aggregated point list, the first index
+        # also being an index of point list `self`. Function `sorted()` below will sort the clusters
+        # according to the value of this first index within each cluster
+        clusters = sorted(point_list_aggregated.cluster())
+        # Each cluster should contain two indices of the aggregated list
+        populations = [len(cluster) for cluster in clusters]
+        assert np.all(np.array(populations) == 2), 'No one-to-one correspondence between sample points'
+        # `sample_points_count` is a shift taking us from indices of the aggregated point list to indices
+        # of `point_list`
+        sample_points_count = len(self)
+        return np.array([cluster[1] - sample_points_count for cluster in clusters], dtype=int)
+
     def extents(self, resolution=DEFAULT_POINT_RESOLUTION) -> ExtentTriad:
         r"""
         Extents along each direction. Each extent is composed of the minimum and maximum coordinates,
