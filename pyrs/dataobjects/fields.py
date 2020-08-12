@@ -694,6 +694,12 @@ class _StrainField:
     def z(self):
         return self.point_list.vz
 
+    def set_d_reference(self, values: Union[Tuple[float, float], ScalarFieldSample]) -> None:
+        raise NotImplementedError()
+
+    def get_d_reference(self) -> ScalarFieldSample:
+        raise NotImplementedError()
+
     @final
     def to_md_histo_workspace(self, name: str = '',
                               interpolate: bool = True,
@@ -1204,6 +1210,14 @@ class StrainFieldSingle(_StrainField):
         full_errors[:errors.size] = errors
         return ScalarFieldSample('strain', full_values, full_errors, self.x, self.y, self.z)
 
+    def set_d_reference(self, values: Union[Tuple[float, float], ScalarFieldSample]) -> None:
+        raise NotImplementedError()
+
+    def get_d_reference(self) -> ScalarFieldSample:
+        if self._peak_collection is None:
+            raise RuntimeError('PeakCollection has not been set')
+        raise NotImplementedError()
+
 
 def _to_pointlist_and_peaks(filename: str,
                             peak_tag: str,
@@ -1500,6 +1514,15 @@ class StrainField(_StrainField):
     @property
     def point_list(self):
         return self._point_list
+
+    def set_d_reference(self, values: Union[Tuple[float, float], ScalarFieldSample]) -> None:
+        raise NotImplementedError()
+
+    def get_d_reference(self) -> ScalarFieldSample:
+        if len(self._strains) == 1:
+            return self._strains[0].get_d_reference()
+        else:
+            raise NotImplementedError()
 
 
 def generateParameterField(parameter: str,
