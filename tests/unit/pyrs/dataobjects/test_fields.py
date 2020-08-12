@@ -1070,18 +1070,16 @@ class TestStressField:
                                                                 strain=values, strain_error=errors),
                              point_list=point_list1)
 
-        # let uncertainties do the work
-        exp_stress = unumpy.uarray(values, errors)
-        exp_stress = YOUNG * (exp_stress + (POISSON * 3. * exp_stress / (1. - 2. * POISSON))) / (1. + POISSON)
-
         # create a simple stress field
         stress = StressField(strain, strain, strain, YOUNG, POISSON)
+        # verify the values
         for direction in DIRECTIONS:
             stress.select(direction)
             assert stress.strain == strain  # it is the same reference
-            np.testing.assert_almost_equal(stress.values, unumpy.nominal_values(exp_stress))
-            # hand calculations show that this should be 4*strain.errors
-            np.testing.assert_almost_equal(stress.errors, unumpy.std_devs(exp_stress))
+            # hand calculations show that this should be 4*strain
+            np.testing.assert_almost_equal(stress.values, 4. * values)
+            # by hand says this should be 2
+            np.testing.assert_almost_equal(stress.errors, 2.4494897)
 
     def test_strain33_when_inplane_stress(self, strains_for_stress_field_1):
         sample11, sample22 = strains_for_stress_field_1[0:2]
