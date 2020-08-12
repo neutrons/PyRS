@@ -1780,12 +1780,13 @@ class StressField:
         youngs_modulus, poisson_ratio = self.youngs_modulus, self.poisson_ratio
         prefactor = youngs_modulus / (1 + poisson_ratio)
 
-        strain11, strain22 = self._strain11.sample, self._strain22.sample  # unumpy.arrays
+        strain11: unumpy.uarray = self._strain11.sample
+        strain22: unumpy.uarray = self._strain22.sample
         sample_zero = unumpy.uarray(np.zeros(self.size, dtype=float), np.zeros(self.size, dtype=float))
 
         # calculate the additive trace
         if self.stress_type == StressType.DIAGONAL:
-            strain33 = self._strain33.sample  # type: ignore
+            strain33: unumpy.uarray = self._strain33.sample
         else:
             strain33 = sample_zero
         f = 1.0 if self.stress_type == StressType.IN_PLANE_STRESS else 2.0
