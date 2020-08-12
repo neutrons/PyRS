@@ -213,14 +213,14 @@ class ScalarFieldSample:
 
     @property
     def values(self) -> np.ndarray:
-        return unumpy.nominal_values(self._sample)
+        return unumpy.nominal_values(self.sample)
 
     @property
     def errors(self) -> np.ndarray:
-        return unumpy.std_devs(self._sample)
+        return unumpy.std_devs(self.sample)
 
     @property
-    def sample(self) -> np.ndarray:
+    def sample(self) -> unumpy.uarray:
         r"""
         Uncertainties arrays containing both values and errors.
 
