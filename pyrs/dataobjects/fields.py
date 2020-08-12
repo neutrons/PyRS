@@ -1784,11 +1784,13 @@ class StressField:
         strain22: unumpy.uarray = self._strain22.sample
         sample_zero = unumpy.uarray(np.zeros(self.size, dtype=float), np.zeros(self.size, dtype=float))
 
-        # calculate the additive trace
+        # fill in the correct value for the strain in the 33-direction
         if self.stress_type == StressType.DIAGONAL:
             strain33: unumpy.uarray = self._strain33.sample
         else:
             strain33 = sample_zero
+
+        # calculate the additive trace
         f = 1.0 if self.stress_type == StressType.IN_PLANE_STRESS else 2.0
         additive = poisson_ratio * (strain11 + strain22 + strain33) / (1 - f * poisson_ratio)
 
