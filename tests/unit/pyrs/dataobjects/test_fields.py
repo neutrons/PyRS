@@ -16,7 +16,6 @@ from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.dataobjects.sample_logs import PointList
 from tests.conftest import assert_allclose_with_sorting
-from uncertainties import unumpy
 
 SampleMock = namedtuple('SampleMock', 'name values errors x y z')
 

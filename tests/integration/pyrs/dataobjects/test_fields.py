@@ -198,10 +198,9 @@ def test_combine_strains_1(test_data_dir):
     strain = StrainField.fuse_strains(*strains)
     assert np.all(np.isfinite(strain.values))  # all sample points have a finite value
     assert strain.filenames == file_names
-    with pytest.raises(RuntimeError) as exception_info:
-        strain.peak_collection
-    assert 'more than one peak collection' in str(exception_info.value)
-    assert strain.peak_collections == [s.peak_collection for s in strains]
+    assert len(strain.peak_collections) == len(file_names)
+    for peaks_obs, peaks_exp in zip(strain.peak_collections, [s.peak_collections[0] for s in strains]):
+        assert peaks_obs == peaks_exp  # each PeakCollection is in the new object
     assert len(strain) == sum([len(s) for s in strains]) - 1  # -1 because of one overlap
     #
     # The extents of the fused strain encompass the extents of the individual strain
