@@ -3,7 +3,7 @@ import pytest
 from filecmp import cmp
 from os import remove
 
-from pyrs.peaks import PeakCollectionLite
+from pyrs.peaks import PeakCollectionLite  # type: ignore
 from pyrs.dataobjects.sample_logs import PointList
 from pyrs.dataobjects.fields import StressField
 from pyrs.dataobjects.fields import StrainField
