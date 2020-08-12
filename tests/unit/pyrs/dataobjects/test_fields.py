@@ -1080,6 +1080,7 @@ class TestStressField:
             stress.select(direction)
             assert stress.strain == strain  # it is the same reference
             np.testing.assert_almost_equal(stress.values, unumpy.nominal_values(exp_stress))
+            # hand calculations show that this should be 4*strain.errors
             np.testing.assert_almost_equal(stress.errors, unumpy.std_devs(exp_stress))
 
     def test_strain33_when_inplane_stress(self, strains_for_stress_field_1):
