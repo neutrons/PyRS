@@ -16,8 +16,11 @@ from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.dataobjects.sample_logs import PointList
 from tests.conftest import assert_allclose_with_sorting
+from uncertainties import unumpy
 
 SampleMock = namedtuple('SampleMock', 'name values errors x y z')
+
+DIRECTIONS = ('11', '22', '33')  # directions for the StrainField
 
 
 @pytest.fixture(scope='module')
@@ -688,6 +691,7 @@ class TestStrainField:
         for stacked, orig in zip(strain_stack, [strain1, strain1]):
             assert len(stacked) == len(orig)
             assert stacked.point_list == orig.point_list
+            np.testing.assert_equal(stacked.values, orig.values)
 
         # case when there are 4 points not commont
         strain_stack = strain1.stack_with(strain2, mode='union')
@@ -1052,6 +1056,32 @@ class TestStressField:
         factor = POISSON / (POISSON - 1)
         assert np.allclose(strain33, factor * (strain11 + strain22))
 
+    def test_small(self):
+        POISSON = 1. / 3.  # makes nu / (1 - 2*nu) == 1
+        YOUNG = 1 + POISSON  # makes E / (1 + nu) == 1
+
+        x = np.array([0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.5])
+        y = np.array([1.0, 1.0, 1.5, 1.5, 1.0, 1.0, 1.5, 1.5])
+        z = np.array([2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5])
+        point_list1 = PointList([x, y, z])
+        values = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+        errors = np.full(len(values), 1., dtype=float)
+        strain = StrainField(peak_collection=PeakCollectionLite('strain',
+                                                                strain=values, strain_error=errors),
+                             point_list=point_list1)
+
+        # let uncertainties do the work
+        exp_stress = unumpy.uarray(values, errors)
+        exp_stress = YOUNG * (exp_stress + (POISSON * 3. * exp_stress / (1. - 2. * POISSON))) / (1. + POISSON)
+
+        # create a simple stress field
+        stress = StressField(strain, strain, strain, YOUNG, POISSON)
+        for direction in DIRECTIONS:
+            stress.select(direction)
+            assert stress.strain == strain  # it is the same reference
+            np.testing.assert_almost_equal(stress.values, unumpy.nominal_values(exp_stress))
+            np.testing.assert_almost_equal(stress.errors, unumpy.std_devs(exp_stress))
+
     def test_strain33_when_inplane_stress(self, strains_for_stress_field_1):
         sample11, sample22 = strains_for_stress_field_1[0:2]
         stress = StressField(sample11, sample22, None, 1.0, 2.0, 'in-plane-stress')
@@ -1221,7 +1251,6 @@ def test_stack_scalar_field_samples(field_sample_collection,
 
 def test_stress_field_from_files(test_data_dir):
     HB2B_1320_PROJECT = os.path.join(test_data_dir, 'HB2B_1320.h5')
-    DIRECTIONS = ('11', '22', '33')
 
     # create 3 strain objects
     sample11 = StrainField(HB2B_1320_PROJECT)
