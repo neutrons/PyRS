@@ -955,6 +955,34 @@ class _StrainField:
         else:
             raise NotImplementedError('Do not know how to multiply these objects')
 
+    def __rmul__(self, other: List['_StrainField']) -> List['_StrainField']:
+        r"""
+        Stack a list of strains along with this strain.
+
+        Used as in [strain1, strain2] * strain3, an intermediate step in the operation
+        strain1 * strain2 * strain3
+
+        Parameters
+        ----------
+        other: list
+            Each item is a ~pyrs.dataobjects.fields.StrainField object.
+
+        Return
+        ------
+        list
+            List of stacked strains. Each item is a ~pyrs.dataobjects.fields.StrainField object.
+        """
+        if isinstance(other, (list, tuple)):
+            for strain in other:
+                if not isinstance(strain, _StrainField):
+                    raise TypeError(f'{strain} is not a StrainField object')
+
+            return self.__class__.stack_strains(*other, self,
+                                                resolution=DEFAULT_POINT_RESOLUTION,
+                                                stack_mode='union')
+        else:
+            raise NotImplementedError(f'Unable to multiply objects of type {str(other.__class__)} and StrainField')
+
     def stack_with(self, other_strain: '_StrainField',
                    mode: str = 'union',
                    resolution: float = DEFAULT_POINT_RESOLUTION) -> List['_StrainField']:
@@ -1368,31 +1396,6 @@ class StrainField(_StrainField):
             self._point_list = self._strains[0].point_list
 
         # otherwise it was an empty constructor and only initialize the starting layout
-
-    def __rmul__(self, other: List['_StrainField']) -> List['_StrainField']:
-        r"""
-        Stack a list of strains along with this strain.
-
-        Parameters
-        ----------
-        other: list
-            Each item is a ~pyrs.dataobjects.fields.StrainField object.
-
-        Return
-        ------
-        list
-            List of stacked strains. Each item is a ~pyrs.dataobjects.fields.StrainField object.
-        """
-        if isinstance(other, (list, tuple)):
-            for strain in other:
-                if not isinstance(strain, _StrainField):
-                    raise TypeError(f'{strain} is not a StrainField object')
-
-            return self.__class__.stack_strains(*other, self,
-                                                resolution=DEFAULT_POINT_RESOLUTION,
-                                                stack_mode='union')
-        else:
-            raise NotImplementedError(f'Unable to multiply objects of type {str(other.__class__)} and StrainField')
 
     @property
     def filenames(self) -> List['str']:
