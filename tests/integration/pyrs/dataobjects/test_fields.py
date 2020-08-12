@@ -252,8 +252,8 @@ def test_stack_strains_1(data_stack_strains_1):
     assert len(np.where(np.isnan(strain11.values))[0]) == len(strains[1]) - 1  # there's an overlap of only one point
     assert len(np.where(np.isnan(strain22.values))[0]) == len(strains[2])
     assert len(np.where(np.isnan(strain33.values))[0]) == len(strains[3])
-    assert strain11.point_list == strain22.point_list
-    assert strain22.point_list == strain33.point_list
+    assert strain11.point_list.is_equal_within_resolution(strain22.point_list)
+    assert strain11.point_list.is_equal_within_resolution(strain33.point_list)
 
 
 ########################################
