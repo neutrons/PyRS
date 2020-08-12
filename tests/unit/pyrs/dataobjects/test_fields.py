@@ -1221,6 +1221,7 @@ def test_stack_scalar_field_samples(field_sample_collection,
 
 def test_stress_field_from_files(test_data_dir):
     HB2B_1320_PROJECT = os.path.join(test_data_dir, 'HB2B_1320.h5')
+    DIRECTIONS = ('11', '22', '33')
 
     # create 3 strain objects
     sample11 = StrainField(HB2B_1320_PROJECT)
@@ -1230,7 +1231,7 @@ def test_stress_field_from_files(test_data_dir):
     stress = StressField(sample11, sample22, sample33, 200, 0.3)
 
     # confirm the strains are unchanged
-    for direction in ('11', '22', '33'):
+    for direction in DIRECTIONS:
         stress.select(direction)
         np.testing.assert_equal(stress.strain.values, sample11.peak_collections[0].get_strain()[0],
                                 err_msg=f'strain direction {direction}')
@@ -1240,8 +1241,9 @@ def test_stress_field_from_files(test_data_dir):
     stress_values_expected = np.load(stress11_1320_expected)
 
     # since all of the contributing strains are identical, everything else should match
-    for direction in ('11', '22', '33'):
+    for direction in DIRECTIONS:
         stress.select(direction)
+        np.testing.assert_equal(stress.point_list.coordinates, sample11.point_list.coordinates)
         np.testing.assert_equal(stress.values, stress_values_expected,
                                 err_msg=f'stress direction {direction}')
 
