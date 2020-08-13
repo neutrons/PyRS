@@ -694,6 +694,12 @@ class _StrainField:
     def z(self):
         return self.point_list.vz
 
+    def set_d_reference(self, values: Union[Tuple[float, float], ScalarFieldSample]) -> None:
+        raise NotImplementedError()
+
+    def get_d_reference(self) -> ScalarFieldSample:
+        raise NotImplementedError()
+
     @final
     def to_md_histo_workspace(self, name: str = '',
                               interpolate: bool = True,
@@ -1180,6 +1186,21 @@ class StrainFieldSingle(_StrainField):
     def errors(self):
         return self._peak_collection.get_strain()[1]
 
+    def _create_scalar_field(self, method, name):
+        # the data is taken from the `PeakCollection`
+        if self._peak_collection is None:
+            raise RuntimeError('PeakCollection has not been set')
+
+        # get the data
+        values, errors = getattr(self._peak_collection, f'{method}')()
+
+        # put it all together into a ScalarFieldSample
+        full_values = np.full(len(self.point_list), NOT_MEASURED_NUMPY, dtype=float)
+        full_errors = np.full(len(self.point_list), NOT_MEASURED_NUMPY, dtype=float)
+        full_values[:values.size] = values
+        full_errors[:errors.size] = errors
+        return ScalarFieldSample(name, full_values, full_errors, self.x, self.y, self.z)
+
     @property
     def field(self) -> ScalarFieldSample:
         r"""
@@ -1195,14 +1216,21 @@ class StrainFieldSingle(_StrainField):
         -------
         ~pyrs.dataobjects.fields.ScalarFieldSample
         """
+        return self._create_scalar_field(method='get_strain', name='strain')
+
+    def set_d_reference(self, values: Union[Tuple[float, float], ScalarFieldSample]) -> None:
         if self._peak_collection is None:
             raise RuntimeError('PeakCollection has not been set')
-        values, errors = self._peak_collection.get_strain()
-        full_values = np.full(len(self.point_list), NOT_MEASURED_NUMPY, dtype=float)
-        full_errors = np.full(len(self.point_list), NOT_MEASURED_NUMPY, dtype=float)
-        full_values[:values.size] = values
-        full_errors[:errors.size] = errors
-        return ScalarFieldSample('strain', full_values, full_errors, self.x, self.y, self.z)
+
+        if isinstance(values, ScalarFieldSample):
+            # TODO the PeakCollection needs to be explored to determine a mapping of positions
+            # to indices then set the d_reference with an ndarray
+            raise NotImplementedError()
+        else:
+            self._peak_collection.set_d_reference(values[0], values[1])
+
+    def get_d_reference(self) -> ScalarFieldSample:
+        return self._create_scalar_field(method='get_d_reference', name='d-reference')
 
 
 def _to_pointlist_and_peaks(filename: str,
@@ -1410,6 +1438,59 @@ class StrainField(_StrainField):
                     raise RuntimeError(msg)
         return filenames
 
+    def _update_single_strain(self):
+        '''
+        Update the PointList in the contained StrainField if they are not the same length
+
+        This is used to handle a corner case when the strain is composed of only one StrainFieldSingle
+        component, the point list of `self` may have diverged from the point list of the
+        StrainFieldSingle component. This scenario may happen if `self` has been stacked against
+        other strains measured along different direction.
+
+        The method only has effect when there is a single StrainField'''
+        # `self` hasn't been previously stacked
+        if len(self._strains) == 1 and (not len(self._strains[0]) == len(self)):
+            # update the zeroth strain with the extended PointList
+            filename = self._strains[0].filenames[0] if self._strains[0].filenames else []
+            self._strains[0] = StrainFieldSingle(filename=filename,
+                                                 peak_collection=self._strains[0].peak_collections[0],
+                                                 point_list=self.point_list)
+
+    def _create_scalar_field(self, method, name):
+        # make sure there is enough information to create the field
+        if not self._winners:
+            raise RuntimeError('List of winners has not been initialized')
+        if not self.point_list:
+            raise RuntimeError('The PointList has not been initialized')
+
+        num_values = len(self)  # number of sample points in the point list
+        values = np.full(num_values, NOT_MEASURED_NUMPY, dtype=float)
+        errors = np.full(num_values, NOT_MEASURED_NUMPY, dtype=float)
+
+        # loop over the winning strain indices
+        # `strain_index` identifies one of the StrainFieldSingle instances in the list self._strains
+        for strain_index in set(self._winners.scan_indexes):
+            # Find out which sample points of the aggregate point list are associated to the
+            # StrainFieldSingle object specified by `strain_index`
+            # `indices` below denote indices along the aggregated point list `self._point_list`
+            indices = np.where(self._winners.scan_indexes == strain_index)
+            # get handle to the strain and uncertainties of the StrainFieldSingle object
+            strain_field_single = self._strains[strain_index]
+
+            # get the values to put together
+            values_i, errors_i = getattr(strain_field_single.peak_collections[0], f'{method}')()
+
+            # find points of the current single-scan strain's list contributing to the overall list of points
+            # `self._winners.point_indexes` is a list as long as `self._point_list`. Each entry provides
+            # an index, specifying one sample point from one of the StrainFieldSingle components. Here
+            # we are finding out the sample points of the StrainFieldSingle object specified by
+            # `strain_index` contributing to the overall StrainField object
+            idx = self._winners.point_indexes[indices]
+            assert np.all(idx < len(strain_field_single.peak_collection))
+            values[indices], errors[indices] = values_i[idx], errors_i[idx]
+
+        return ScalarFieldSample(name, values, errors, self.x, self.y, self.z)
+
     @property
     def field(self):
         r"""
@@ -1425,50 +1506,12 @@ class StrainField(_StrainField):
         -------
         ~pyrs.dataobjects.fields.ScalarFieldSample
         """
-        # Corner case: when the strain is composed of only one StrainFieldSingle component, the point list of
-        # `self` may have diverged from the point list of the StrainFieldSingle component. This scenario
-        # may happen if `self` has been stacked against other strains measured along different directions
+        self._update_single_strain()
+
         if len(self._strains) == 1:
-            if len(self._strains[0]) == len(self):  # `self` hasn't been previously stacked
-                return self._strains[0].field
-            else:  # `self` has been previously stacked with other StrainField object
-                # update the zeroth strain with the extended PointList
-                filename = self._strains[0].filenames[0] if self._strains[0].filenames else []
-                self._strains[0] = StrainFieldSingle(filename=filename,
-                                                     peak_collection=self._strains[0].peak_collections[0],
-                                                     point_list=self.point_list)
-                return self._strains[0].field
-        else:  # this strains is the union of two or more StrainFieldSingle objects
-            # make sure there is enough information to create the field
-            if not self._winners:
-                raise RuntimeError('List of winners has not been initialized')
-            if not self.point_list:
-                raise RuntimeError('The PointList has not been initialized')
-
-            num_values = len(self)  # number of sample points in the point list
-            values = np.full(num_values, NOT_MEASURED_NUMPY, dtype=float)
-            errors = np.full(num_values, NOT_MEASURED_NUMPY, dtype=float)
-
-            # loop over the winning strain indices
-            # `strain_index` identifies one of the StrainFieldSingle instances in the list self._strains
-            for strain_index in set(self._winners.scan_indexes):
-                # Find out which sample points of the aggregate point list are associated to the
-                # StrainFieldSingle object specified by `strain_index`
-                # `indices` below denote indices along the aggregated point list `self._point_list`
-                indices = np.where(self._winners.scan_indexes == strain_index)
-                # get handle to the strain and uncertainties of the StrainFieldSingle object
-                strain_field_single = self._strains[strain_index]
-                strain_i, error_i = strain_field_single.peak_collections[0].get_strain()
-                # find points of the current single-scan strain's list contributing to the overall list of points
-                # `self._winners.point_indexes` is a list as long as `self._point_list`. Each entry provides
-                # an index, specifying one sample point from one of the StrainFieldSingle components. Here
-                # we are finding out the sample points of the StrainFieldSingle object specified by
-                # `strain_index` contributing to the overall StrainField object
-                idx = self._winners.point_indexes[indices]
-                assert np.all(idx < len(strain_field_single.peak_collection))
-                values[indices], errors[indices] = strain_i[idx], error_i[idx]
-
-            return ScalarFieldSample('strain', values, errors, self.x, self.y, self.z)
+            return self._strains[0].field
+        else:
+            return self._create_scalar_field(method='get_strain', name='strain')
 
     @property
     def peak_collections(self) -> List[PeakCollection]:
@@ -1500,6 +1543,18 @@ class StrainField(_StrainField):
     @property
     def point_list(self):
         return self._point_list
+
+    def set_d_reference(self, values: Union[Tuple[float, float], ScalarFieldSample]) -> None:
+        for strain in self._strains:
+            strain.set_d_reference(values)
+
+    def get_d_reference(self) -> ScalarFieldSample:
+        self._update_single_strain()
+
+        if len(self._strains) == 1:
+            return self._strains[0].get_d_reference()
+        else:
+            return self._create_scalar_field(method='get_d_reference', name='d-reference')
 
 
 def generateParameterField(parameter: str,
