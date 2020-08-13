@@ -71,13 +71,13 @@ class SummaryGeneratorStress:
         # value: Dict
         #        key: direction ( ''1' , '22', '33' )
         #        value: [0]-> value [1]-> error 1D numpy arrays
-        self._peak_colllections_data: Dict[str, Dict[str, Tuple[np.ndarray, np.ndarray]]] = {}
+        self._field_3dir_data: Dict[str, Dict[str, Tuple[np.ndarray, np.ndarray]]] = {}
         # initialize empty dictionaries keys
-        self._peak_colllections_data['d'] = dict()
+        self._field_3dir_data['d'] = dict()
         for field in SummaryGeneratorStress.fields_3dir:
-            self._peak_colllections_data[field] = dict()
+            self._field_3dir_data[field] = dict()
             for direction in SummaryGeneratorStress.directions:
-                self._peak_colllections_data[field][direction] = (np.ndarray, np.ndarray)
+                self._field_3dir_data[field][direction] = (np.ndarray, np.ndarray)
 
     def _write_csv_header(self, handle):
         """
@@ -149,20 +149,11 @@ class SummaryGeneratorStress:
                 """
                 entries = ''
                 for direction in SummaryGeneratorStress.directions:
-                    if field == 'Strain':
-                        # TODO add check for strain?
-                        strain = self._get_strain_field(direction)
-                        assert(isinstance(strain, StrainField))
-                        strain_field = strain.field
-                        strain_value = strain_field.values[row]
-                        strain_error = strain_field.errors[row]
-                        entries += _write_number(strain_value) + _write_number(strain_error)
-
-                    elif field == 'Stress':
-                        self._stress.select(direction)
-                        stress_value = self._stress.values[row]
-                        stress_error = self._stress.errors[row]
-                        entries += _write_number(stress_value) + _write_number(stress_error)
+                    if field == 'Strain' or field == 'Stress':
+                        field_data = self._field_3dir_data[field][direction]
+                        value = field_data[0][row]
+                        error = field_data[1][row]
+                        entries += _write_number(value) + _write_number(error)
 
                     else:
                         peak_collection = self._get_peak_collection(direction)
@@ -170,7 +161,7 @@ class SummaryGeneratorStress:
                             entries += ', , '
                             continue
 
-                        field_data = self._peak_colllections_data[field][direction]
+                        field_data = self._field_3dir_data[field][direction]
                         if row >= len(field_data[0]):
                             entries += ', , '
                         else:
@@ -251,12 +242,20 @@ class SummaryGeneratorStress:
         # initialize
         peak_collection11 = self._get_peak_collection('11')
         assert isinstance(peak_collection11, PeakCollection)
-        self._peak_colllections_data['d']['11'] = peak_collection11.get_d_reference()
+        self._field_3dir_data['d']['11'] = peak_collection11.get_d_reference()
 
         for field in SummaryGeneratorStress.fields_3dir:
             for direction in SummaryGeneratorStress.directions:
 
-                if field == 'Stress' or field == 'Strain':
+                if field == 'Stress':
+                    self._stress.select(direction)
+                    self._field_3dir_data[field][direction] = (self._stress.values, self._stress.errors)
+                    continue
+
+                if field == 'Strain':
+                    strain = self._get_strain_field(direction)
+                    assert(isinstance(strain, StrainField))
+                    self._field_3dir_data[field][direction] = (strain.values, strain.errors)
                     continue
 
                 peak_collection = self._get_peak_collection(direction)
@@ -264,8 +263,8 @@ class SummaryGeneratorStress:
                     continue
 
                 if field == 'd':
-                    self._peak_colllections_data[field][direction] = peak_collection.get_dspacing_center()
+                    self._field_3dir_data[field][direction] = peak_collection.get_dspacing_center()
                 else:
-                    self._peak_colllections_data[field][direction] = \
+                    self._field_3dir_data[field][direction] = \
                         (peak_collection.get_effective_params()[0][field],
                          peak_collection.get_effective_params()[1][field])
