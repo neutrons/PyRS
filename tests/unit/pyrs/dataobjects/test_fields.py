@@ -552,6 +552,26 @@ class TestStrainFieldSingle:
         assert 'sample points are overlapping' in str(exception_info.value)
 
 
+    def test_d_reference(self):
+        x = np.array([0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.5])
+        y = np.array([1.0, 1.0, 1.5, 1.5, 1.0, 1.0, 1.5, 1.5])
+        z = np.array([2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5])
+        point_list = PointList([x, y, z])
+        values = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+        errors = np.full(len(values), 1., dtype=float)
+        strain = StrainField(peak_collection=PeakCollectionLite('strain',
+                                                                strain=values, strain_error=errors),
+                             point_list=point_list)
+
+        D_REFERENCE = np.pi
+        D_REFERENCE_ERROR = 42
+        strain.set_d_reference((D_REFERENCE, D_REFERENCE_ERROR))
+
+        d_reference = strain.get_d_reference()
+        assert d_reference.point_list == point_list
+        np.testing.assert_equal(d_reference.values, D_REFERENCE)
+        np.testing.assert_equal(d_reference.errors, D_REFERENCE_ERROR)
+
 class Test_StrainField:
 
     class StrainFieldMock(StrainField):

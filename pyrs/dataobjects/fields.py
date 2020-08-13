@@ -1211,12 +1211,23 @@ class StrainFieldSingle(_StrainField):
         return ScalarFieldSample('strain', full_values, full_errors, self.x, self.y, self.z)
 
     def set_d_reference(self, values: Union[Tuple[float, float], ScalarFieldSample]) -> None:
-        raise NotImplementedError()
+        if isinstance(values, ScalarFieldSample):
+            # TODO the PeakCollection needs to be explored to determine a mapping of positions
+            # to indices then set the d_reference with an ndarray
+            raise NotImplementedError()
+        else:
+            self._peak_collection.set_d_reference(values[0], values[1])
 
     def get_d_reference(self) -> ScalarFieldSample:
         if self._peak_collection is None:
             raise RuntimeError('PeakCollection has not been set')
-        raise NotImplementedError()
+
+        values, errors = self._peak_collection.get_d_reference()
+        full_values = np.full(len(self.point_list), NOT_MEASURED_NUMPY, dtype=float)
+        full_errors = np.full(len(self.point_list), NOT_MEASURED_NUMPY, dtype=float)
+        full_values[:values.size] = values
+        full_errors[:errors.size] = errors
+        return ScalarFieldSample('d-reference', full_values, full_errors, self.x, self.y, self.z)
 
 
 def _to_pointlist_and_peaks(filename: str,
@@ -1516,7 +1527,8 @@ class StrainField(_StrainField):
         return self._point_list
 
     def set_d_reference(self, values: Union[Tuple[float, float], ScalarFieldSample]) -> None:
-        raise NotImplementedError()
+        for strain in self._strains:
+            strain.set_d_reference(values)
 
     def get_d_reference(self) -> ScalarFieldSample:
         if len(self._strains) == 1:
