@@ -131,7 +131,7 @@ class Model(QObject):
         stress_csv.write_summary_csv()
 
     def get_default_csv_filename(self):
-        runnumbers = [getattr(self._stress, f'strain{d}').peak_collection.runnumber for d in ('11', '22', '33')]
+        runnumbers = [getattr(self._stress, f'strain{d}').peak_collections[0].runnumber for d in ('11', '22', '33')]
         return "HB2B_{}_stress_grid_{}.csv".format('_'.join(str(run) for run in runnumbers if run != -1),
                                                    self.selectedPeak)
 

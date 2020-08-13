@@ -129,6 +129,16 @@ class TestPointList:
         for cluster, comparison in zip(clusters, [[1, 4, 5], [2, 6], [3, 7], [0], [8]]):
             assert cluster == pytest.approx(comparison)
 
+    def test_has_overlapping_points(self):
+        xyz = [[0.0, 1.0, 2.0],
+               [0.0, 0.0, 0.0],
+               [0.0, 0.0, 0.0]]
+        assert PointList(xyz).has_overlapping_points(resolution=DEFAULT_POINT_RESOLUTION) is False
+        xyz = [[0.0, 1.0, 2.0, 2.009],
+               [0.0, 0.0, 0.0, 0.0],
+               [0.0, 0.0, 0.0, 0.0]]
+        assert PointList(xyz).has_overlapping_points(resolution=DEFAULT_POINT_RESOLUTION) is True
+
     def test_coordinates(self, sample_logs_mock):
         point_list = PointList(sample_logs_mock['logs'])
         np.testing.assert_allclose(point_list.coordinates, np.array(sample_logs_mock['xyz']).transpose())
@@ -254,6 +264,39 @@ class TestPointList:
         assert point_list.is_a_grid(resolution=sample_logs_mock['resolution']) is False
         regular_point_list = point_list.grid_point_list(resolution=sample_logs_mock['resolution'])
         assert regular_point_list.is_a_grid(resolution=sample_logs_mock['resolution']) is True
+
+    def test_sorted_indices(self):
+
+        # The two point lists contain a different number of sample points
+        point_list = PointList([[0.0, 1.0, 2.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+        point_list_other = PointList([[2.0, 0.005], [0.0, 0.0], [0.0, 0.0]])
+        with pytest.raises(AssertionError) as exception_info:
+            point_list.sorted_indices(point_list=point_list_other, resolution=DEFAULT_POINT_RESOLUTION)
+        assert 'point lists do not contain same number of sample points' in str(exception_info.value)
+
+        # Corner case: one of the point lists contains overlapping points
+        point_list = PointList([[0.0, 0.009, 1.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])  # three points, two overlap
+        with pytest.raises(ValueError) as exception_info:
+            point_list.sorted_indices(point_list=point_list, resolution=DEFAULT_POINT_RESOLUTION)
+        assert 'point lists contains overlapping points' in str(exception_info.value)
+
+        # The two point lists are not equal within resolution
+        point_list = PointList([[0.0, 1.0, 2.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+        point_list_other = PointList([[0.0, 1.1, 2.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+        with pytest.raises(ValueError) as exception_info:
+            point_list.sorted_indices(point_list=point_list_other, resolution=DEFAULT_POINT_RESOLUTION)
+        assert 'point lists are not the same, within resolution' in str(exception_info.value)
+
+        # Compare against itself
+        point_list = PointList([[0.0, 1.0, 2.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+        indices = point_list.sorted_indices(point_list=point_list, resolution=DEFAULT_POINT_RESOLUTION)
+        np.testing.assert_equal(indices, np.array([0, 1, 2]))
+
+        # General case
+        point_list = PointList([[0.0, 1.0, 2.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+        point_list_other = PointList([[2.0, 0.005, 1.009], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+        indices = point_list.sorted_indices(point_list=point_list_other, resolution=DEFAULT_POINT_RESOLUTION)
+        np.testing.assert_equal(indices, np.array([1, 2, 0]))
 
 
 def test_aggregate_point_list(sample_logs_mock):

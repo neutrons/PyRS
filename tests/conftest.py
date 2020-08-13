@@ -25,6 +25,24 @@ def assert_almost_equal_with_sorting():
     return inner_function
 
 
+def assert_allclose_with_sorting(left, right, *args, **kwargs) -> None:
+    r"""
+    np.allclose with sorting incorporated, since different versions of scipy.cluster
+    can yield different ordering.
+    """
+    if np.allclose(left, right, *args, **kwargs):
+        return
+
+    equal_nan = kwargs.pop('equal_nan', False)
+    if equal_nan is True:
+        assert len(np.where(np.isnan(left))[0]) == len(np.where(np.isnan(right))[0])  # same number of nan
+    # create copies of the arrays and sort them
+    left_array, right_array = np.array(left), np.array(right)  # cast to numpy array
+    left_array, right_array = sorted(left_array[np.isfinite(left)]), sorted(right_array[np.isfinite(right)])
+
+    np.testing.assert_allclose(left_array, right_array, *args, **kwargs)
+
+
 @pytest.fixture(scope='session')
 def allclose_with_sorting():
     r"""

@@ -93,6 +93,17 @@ class PeakCollectionLite:
     def __bool__(self):
         return True
 
+    def __eq__(self, other) -> bool:
+        if self._tag != other._tag:
+            return False
+        strain_self, error_self = self.get_strain()
+        strain_other, error_other = self.get_strain()
+        if not np.all(strain_self == strain_other):
+            return False
+        if not np.all(error_self == error_other):
+            return False
+        return True
+
     def set_d_reference(self, values: Union[float, np.ndarray] = np.nan,
                         errors: Union[float, np.ndarray] = 0.) -> None:
         """Set d reference values

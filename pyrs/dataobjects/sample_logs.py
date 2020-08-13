@@ -864,35 +864,51 @@ class PointList:
         r"""
         Cluster the points according to mutual euclidean distance.
 
+        The return value is a list with as many elements as clusters. Each list element represents one
+        cluster, and is made up of a list of point-list indexes, specifying the sample points belonging
+        to one cluster.
+
+        The returned list is sorted by the length of the list items, with the longest list item being the
+        first. Each list item is sorted by increasing point-list index.
+
         Parameters
         ----------
         resolution: float
             Two points are considered the same if they are separated by a distance smaller than this quantity
 
-        The return value is a dictionary with as many elements as clusters. Each dictionary element is made up of a
-        key and a value. The key is the cluster number (running from 1 to the number of clusters). The value
-        is a list containing the indexes of the points that belong to the cluster.
-
-        The dictionary is sorted by cluster size, with the biggest cluster being the first. Each list of
-        point indexes within a cluster is sorted by increasing index.
-
         Returns
         -------
-        dict
-
+        list
         """
         # fclusterdata returns a vector T of length equal to the number of points. T[i] is the cluster number to
         # which point i belongs. Notice that cluster numbers begin at 1, not 0.
         cluster_assignments = fclusterdata(self.coordinates, resolution, criterion='distance', method='single')
-        clusters: List[List] = [[] for _ in range(max(cluster_assignments))]  # each list will hold the point indexes
-        # of a
-        # cluster
+        # variable `clusters` is a list of lists, each list-item containing the point-list indexes for one cluster
+        clusters: List[List] = [[] for _ in range(max(cluster_assignments))]
         for point_index, cluster_number in enumerate(cluster_assignments):
             clusters[cluster_number - 1].append(point_index)
-        # Sort the clusters by size
+        # Sort the clusters by size (i.e, sort the list items by list length)
         clusters = sorted(clusters, key=lambda x: len(x), reverse=True)
         # Sort the points indexes within each cluster according to increasing index
         return [sorted(indexes) for indexes in clusters]
+
+    def has_overlapping_points(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> bool:
+        r"""
+        Find if two or more sample points are closer than `resolution
+
+        Parameters
+        ----------
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity
+
+        Returns
+        -------
+        bool
+        """
+        largest_cluster = self.cluster(resolution=resolution)[0]  # the first cluster is the largest
+        if len(largest_cluster) > 1:
+            return True
+        return False
 
     def intersection_aggregated_indexes(self, other: 'PointList',
                                         resolution: float = DEFAULT_POINT_RESOLUTION) -> List:
@@ -945,7 +961,9 @@ class PointList:
         common_points_coordinates = self.aggregate(other).coordinates[points_common_indexes]
         return PointList(common_points_coordinates.transpose())  # needed (3 x number_common_points) shaped array
 
-    def fuse_aggregated_indexes(self, other: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> List:
+    def fuse_aggregated_indices(self, other: 'PointList',
+                                resolution: float = DEFAULT_POINT_RESOLUTION,
+                                single_value: bool = True) -> List:
         r"""
         Add the points from two lists and find the indexes of the aggregated point list
         corresponding to non redundant points.
@@ -957,15 +975,23 @@ class PointList:
         other: ~pyrs.dataobjects.sample_logs.PointList
         resolution: float
             Two points are considered the same if they are separated by a distance smaller than this quantity
+        single_values: bool
+            Return only the lowest index for each cluster
 
         Returns
         -------
         list
         """
+        # combine all points into a single long list with the first points having the lower indices
         all_points = self.aggregate(other)
+        # create clusters of all points that are within ``resolution`` distance of each other
         clusters = all_points.cluster(resolution=resolution)
-        # Pick only the first point out of each cluster
-        return sorted([point_indexes[0] for point_indexes in clusters])
+
+        if single_value:
+            # Pick only the first point out of each cluster
+            return sorted([point_indexes[0] for point_indexes in clusters])
+        else:
+            return sorted(clusters)
 
     def fuse_with(self, other: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> 'PointList':
         r"""
@@ -983,10 +1009,67 @@ class PointList:
         -------
         ~pyrs.dataobjects.sample_logs.PointList
         """
-        points_unique_indexes = self.fuse_aggregated_indexes(other, resolution=resolution)
+        points_unique_indices = self.fuse_aggregated_indices(other, resolution=resolution)
         # points_unique_coordinates.shape == number_common_points x 3
-        points_unique_coordinates = self.aggregate(other).coordinates[points_unique_indexes]
+        points_unique_coordinates = self.aggregate(other).coordinates[points_unique_indices]
         return PointList(points_unique_coordinates.transpose())  # needed (3 x number_common_points) shaped array
+
+    def sorted_indices(self, point_list: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> np.ndarray:
+        r"""
+        Compare the order of the sample points against another point list with the same sample
+        points (within resolution) but with different ordering of the points.
+
+        We require that both point list should not contain overlapping points, otherwise the
+        comporison is ambiguous.
+
+        Parameters
+        ----------
+        point_list: ~pyrs.dataobjects.sample_logs.PointList
+            Another point list with the same set of sample points but with different ordering
+        resolution: float
+            Points separated by less than this quantity are considered the same point. Units are mili meters.
+
+        Examples
+        --------
+        >>> point_list = PointList([0.0, 1.0, 2.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0])
+        >>> point_list_other = PointList([2.0, 0.005, 1.009], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0])
+        >>> point_list.sorted_indices(point_list=point_list_other, resolution=DEFAULT_POINT_RESOLUTION)
+        array([2, 0, 1])
+
+        Raises
+        ------
+        AssertionError
+            The point lists do not contain the same number of sample points
+        ValueError
+            Either of the point lists contain overlapping points
+        ValueError
+            Point lists do not contain the same set of sample points, within resolution
+
+        Returns
+        -------
+        np.ndarray
+            Permutation of the indices of the point list in order to match the sample points of the input `point_list`
+        """
+        assert len(self) == len(point_list), 'The two point lists do not contain same number of sample points'
+
+        if self.has_overlapping_points(resolution) or point_list.has_overlapping_points(resolution):
+            raise ValueError('Either of the point lists contains overlapping points')
+
+        if self.is_equal_within_resolution(point_list, resolution) is False:
+            raise ValueError('The two point lists are not the same, within resolution')
+
+        point_list_aggregated = self.aggregate(point_list)
+        # Each cluster should contain two indices of the aggregated point list, the first index
+        # also being an index of point list `self`. Function `sorted()` below will sort the clusters
+        # according to the value of this first index within each cluster
+        clusters = sorted(point_list_aggregated.cluster())
+        # Each cluster should contain two indices of the aggregated list
+        populations = [len(cluster) for cluster in clusters]
+        assert np.all(np.array(populations) == 2), 'No one-to-one correspondence between sample points'
+        # `sample_points_count` is a shift taking us from indices of the aggregated point list to indices
+        # of `point_list`
+        sample_points_count = len(self)
+        return np.array([cluster[1] - sample_points_count for cluster in clusters], dtype=int)
 
     def extents(self, resolution=DEFAULT_POINT_RESOLUTION) -> ExtentTriad:
         r"""

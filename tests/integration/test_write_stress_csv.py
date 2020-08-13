@@ -3,10 +3,17 @@ import pytest
 from filecmp import cmp
 from os import remove
 
-from pyrs.dataobjects.fields import ScalarFieldSample
+from pyrs.peaks import PeakCollectionLite  # type: ignore
+from pyrs.dataobjects.sample_logs import PointList
 from pyrs.dataobjects.fields import StressField
 from pyrs.dataobjects.fields import StrainField
 from pyrs.core.summary_generator_stress import SummaryGeneratorStress
+
+
+def strain_instantiator(name, values, errors, x, y, z):
+    return StrainField(name,
+                       peak_collection=PeakCollectionLite(name, strain=values, strain_error=errors),
+                       point_list=PointList([x, y, z]))
 
 
 def test_write_csv_empty_strain_filenames():
@@ -16,11 +23,6 @@ def test_write_csv_empty_strain_filenames():
         X = [0.000, 1.000, 2.000, 3.000, 4.000, 5.000, 6.000, 7.000, 8.000, 9.000]
         Y = [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
         Z = [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
-
-        def strain_instantiator(name, values, errors, x, y, z):
-            strain = StrainField()
-            strain._field = ScalarFieldSample(name, values, errors, x, y, z)
-            return strain
 
         strain11 = strain_instantiator('strain',
                                        [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.080, 0.009],
@@ -66,9 +68,9 @@ EXPECTED_FILE_SUMMARY_CSV_1320 = 'tests/data/HB2B_StressStrain_peak0_Summary_exp
                          ids=['HB2B_1320_SUMMARY_CSV'])
 def test_write_summary_csv(test_data_dir: str, project_tags: str, expected_file: str):
 
-    sample11 = StrainField(test_data_dir + '/HB2B_' + str(project_tags[0]) + '.h5')
-    sample22 = StrainField(test_data_dir + '/HB2B_' + str(project_tags[1]) + '.h5')
-    sample33 = StrainField(test_data_dir + '/HB2B_' + str(project_tags[2]) + '.h5')
+    sample11 = StrainField(test_data_dir + '/HB2B_{}.h5'.format(project_tags[0]))
+    sample22 = StrainField(test_data_dir + '/HB2B_{}.h5'.format(project_tags[1]))
+    sample33 = StrainField(test_data_dir + '/HB2B_{}.h5'.format(project_tags[2]))
 
     stress = StressField(sample11, sample22, sample33, 200, 0.3)
 

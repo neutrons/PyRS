@@ -1,5 +1,6 @@
 # Standard and third party libraries
 from collections import namedtuple
+import copy
 import numpy as np
 import os
 import pytest
@@ -8,14 +9,17 @@ import random
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.dataobjects.constants import DEFAULT_POINT_RESOLUTION
 from pyrs.dataobjects.fields import (aggregate_scalar_field_samples, fuse_scalar_field_samples,
-                                     ScalarFieldSample, StrainField, StressField, stack_scalar_field_samples,
-                                     generateParameterField)
+                                     ScalarFieldSample, StrainField, StrainFieldSingle, StressField,
+                                     stack_scalar_field_samples, generateParameterField)
 from pyrs.core.peak_profile_utility import get_parameter_dtype
 from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.dataobjects.sample_logs import PointList
+from tests.conftest import assert_allclose_with_sorting
 
 SampleMock = namedtuple('SampleMock', 'name values errors x y z')
+
+DIRECTIONS = ('11', '22', '33')  # directions for the StrainField
 
 
 @pytest.fixture(scope='module')
@@ -507,13 +511,13 @@ def strain_field_samples(test_data_dir):
     workspace.set_sample_log('vz', subruns, np.arange(21, 29, dtype=int))
 
     # call the function
-    strain = StrainField(hidraworkspace=workspace, peak_collection=peak_collection)
+    strain = StrainFieldSingle(hidraworkspace=workspace, peak_collection=peak_collection)
 
     # test the result
     assert strain
     assert not strain.filenames
     assert len(strain) == subruns.size
-    assert strain.peak_collection == peak_collection
+    assert strain.peak_collections == [peak_collection]
     np.testing.assert_almost_equal(strain.values, 0.)
     np.testing.assert_equal(strain.errors, np.zeros(subruns.size, dtype=float))
     sample_fields['strain with two points per direction'] = strain
@@ -528,17 +532,57 @@ def strain_field_samples(test_data_dir):
         file_path = os.path.join(test_data_dir, filename)
         prefix = filename.split('.')[0] + '_'
         for tag in tags:
-            sample_fields[prefix + tag] = StrainField(filename=file_path, peak_tag=tag)
+            sample_fields[prefix + tag] = StrainFieldSingle(filename=file_path, peak_tag=tag)
             assert sample_fields[prefix + tag].filenames == [filename]
 
     return sample_fields
+
+
+class TestStrainFieldSingle:
+
+    def test_overlapping_list(self):
+        x = [0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.0]  # x
+        y = [1.0, 1.0, 1.5, 1.5, 1.0, 1.0, 1.5, 1.5]  # y
+        z = [2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5]  # z
+        values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]  # values
+        errors = [1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0]  # errors
+        peak_collection = PeakCollectionLite('strain', strain=values, strain_error=errors)
+        with pytest.raises(RuntimeError) as exception_info:
+            StrainField(peak_collection=peak_collection, point_list=PointList([x, y, z]))
+        assert 'sample points are overlapping' in str(exception_info.value)
+
+
+class Test_StrainField:
+
+    class StrainFieldMock(StrainField):
+        r"""Mocks a StrainField object overloading the initialization"""
+
+        def __init__(self, *strains):
+            for s in strains:
+                assert isinstance(s, StrainFieldSingle)
+            self._strains = strains
+
+    def test_eq(self, strain_field_samples):
+        strains_single_scan = copy.deepcopy(list(strain_field_samples.values()))
+        # single-scan strains
+        assert strains_single_scan[0] == strains_single_scan[0]
+        assert (strains_single_scan[0] == strains_single_scan[1]) is False
+
+        # multi-scan scans
+        strain_multi = self.StrainFieldMock(*strains_single_scan)
+        assert strain_multi == strain_multi
+        assert (strain_multi == strains_single_scan[0]) is False
+        strain_multi_2 = self.StrainFieldMock(*strains_single_scan[:-1])  # all except the last one
+        assert (strain_multi == strain_multi_2) is False
 
 
 class TestStrainField:
 
     def test_peak_collection(self, strain_field_samples):
         strain = strain_field_samples['strain with two points per direction']
-        assert isinstance(strain.peak_collection, PeakCollection)
+        assert isinstance(strain.peak_collections, list)
+        assert len(strain.peak_collections) == 1
+        assert isinstance(strain.peak_collections[0], PeakCollection)
         # TODO: test the RuntimeError when the strain is a composite
 
     def test_peak_collections(self, strain_field_samples):
@@ -556,24 +600,18 @@ class TestStrainField:
         strain1 = strain_field_samples['HB2B_1320_peak0']
         strain2 = strain_field_samples['strain with two points per direction']
         strain = strain1.fuse_with(strain2)
-        with pytest.raises(RuntimeError) as exception_info:
-            strain.peak_collection
-        assert 'more than one peak collection' in str(exception_info.value)
-        assert strain.peak_collections == [strain1.peak_collection, strain2.peak_collection]
+        assert strain.peak_collections == [strain1.peak_collections[0], strain2.peak_collections[0]]
         assert np.allclose(strain.coordinates, np.concatenate((strain1.coordinates, strain2.coordinates)))
+        assert strain.field  # should return something
 
-        with pytest.raises(RuntimeError) as exception_info:
-            strain1.fuse_with(strain1)  # fusing a scan with itself should raise a runtime error
-        assert 'both contain scan' in str(exception_info.value)
+        # fusing a scan with itself creates a new copy of the strain
+        assert strain.peak_collections[0] == strain1.peak_collections[0]
 
     def test_add(self, strain_field_samples):
         strain1 = strain_field_samples['HB2B_1320_peak0']
         strain2 = strain_field_samples['strain with two points per direction']
         strain = strain1 + strain2
-        with pytest.raises(RuntimeError) as exception_info:
-            strain.peak_collection
-        assert 'more than one peak collection' in str(exception_info.value)
-        assert strain.peak_collections == [strain1.peak_collection, strain2.peak_collection]
+        assert strain.peak_collections == [strain1.peak_collections[0], strain2.peak_collections[0]]
         assert np.allclose(strain.coordinates, np.concatenate((strain1.coordinates, strain2.coordinates)))
 
     def test_create_strain_field_from_scalar_field_sample(self):
@@ -587,6 +625,96 @@ class TestStrainField:
         assert np.allclose(strain.values, values)
         assert np.allclose(strain.x, x)
 
+    def test_small_fuse(self):
+        '''This test does a fuse with shared PointList that choses every other
+        point from each contributing StrainField'''
+        x = [0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.5]  # x
+        y = [1.0, 1.0, 1.5, 1.5, 1.0, 1.0, 1.5, 1.5]  # y
+        z = [2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5]  # z
+        point_list = PointList([x, y, z])
+
+        values1 = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]  # values
+        errors1 = [1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0]  # errors
+        strain1 = StrainField(peak_collection=PeakCollectionLite('strain',
+                                                                 strain=values1, strain_error=errors1),
+                              point_list=point_list)
+        assert np.allclose(strain1.values, values1)
+        assert np.allclose(strain1.x, x)
+
+        values2 = [9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0]  # values
+        errors2 = [2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0]  # errors
+        strain2 = StrainField(peak_collection=PeakCollectionLite('strain',
+                                                                 strain=values2, strain_error=errors2),
+                              point_list=point_list)
+        assert np.allclose(strain2.values, values2)
+        assert np.allclose(strain2.x, x)
+
+        strain_fused = strain1.fuse_with(strain2)
+
+        # confirm that the points were unchanged
+        assert len(strain_fused) == len(strain1)
+        assert strain_fused.point_list == point_list
+
+        field = strain_fused.field
+        # all uncertainties should be identical
+        np.testing.assert_equal(field.errors, 1.)
+        # every other point comes from a single field
+        np.testing.assert_equal(field.values, [1., 10., 3., 12., 5., 14., 7., 16.])
+
+    def test_small_stack(self):
+        x = [0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.5]  # x
+        y = [1.0, 1.0, 1.5, 1.5, 1.0, 1.0, 1.5, 1.5]  # y
+        z = [2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5]  # z
+        point_list1 = PointList([x, y, z])
+
+        # changes a single x-value in the last 4 points
+        x = [0.0, 0.5, 0.0, 0.5, 1.0, 1.5, 1.0, 1.5]  # x
+        y = [1.0, 1.0, 1.5, 1.5, 1.0, 1.0, 1.5, 1.5]  # y
+        z = [2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5]  # z
+        point_list2 = PointList([x, y, z])
+
+        values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]  # values
+        errors = np.full(len(values), 1., dtype=float)
+
+        strain1 = StrainField(peak_collection=PeakCollectionLite('strain',
+                                                                 strain=values, strain_error=errors),
+                              point_list=point_list1)
+
+        strain2 = StrainField(peak_collection=PeakCollectionLite('strain',
+                                                                 strain=values, strain_error=errors),
+                              point_list=point_list2)
+
+        # simple case of all points are identical - union
+        strain_stack = strain1.stack_with(strain1, mode='union')
+        assert len(strain_stack) == 2
+        for stacked, orig in zip(strain_stack, [strain1, strain1]):
+            assert len(stacked) == len(orig)
+            assert stacked.point_list == orig.point_list
+            np.testing.assert_equal(stacked.values, orig.values)
+
+        # case when there are 4 points not commont
+        strain_stack = strain1.stack_with(strain2, mode='union')
+        assert len(strain_stack) == 2
+        assert len(strain_stack[0]) == len(strain_stack[1])
+        for stacked, orig in zip(strain_stack, [strain1, strain2]):
+            assert stacked.peak_collections[0] == orig.peak_collections[0]
+            assert stacked.point_list != orig.point_list
+            assert len(stacked.point_list) == 12
+            field = stacked.field
+            assert field
+            assert len(field) == 12
+            # TODO should confirm 4 nans in each
+            assert len(stacked.point_list) == 12  # 4 points in common
+
+        # simple case of all points are identical - intersection
+        ''' THIS ISN'T CURRENTLY SUPPORTED
+        strain_stack = strain1.stack_with(strain1, mode='intersection')
+        assert len(strain_stack) == 2
+        for stacked, orig in zip(strain_stack, [strain1, strain1]):
+            assert len(stacked) == len(orig)
+            assert stacked.point_list == orig.point_list
+        '''
+
     def test_create_strain_field_from_file_no_peaks(self, test_data_dir):
         # this project file doesn't have peaks in it
         file_path = os.path.join(test_data_dir, 'HB2B_1060_first3_subruns.h5')
@@ -596,7 +724,7 @@ class TestStrainField:
         except IOError:
             pass  # this is what should happen
 
-    def test_fuse_strains(self, strain_field_samples, allclose_with_sorting):
+    def test_fuse_strains(self, strain_field_samples):
         # TODO HB2B_1320_peak0 and HB2B_1320_ are the same scan. We need two different scans
         strain1 = strain_field_samples['HB2B_1320_peak0']
         strain2 = strain_field_samples['HB2B_1320_']
@@ -608,9 +736,9 @@ class TestStrainField:
         strain_sum = strain1 + strain2 + strain3
         for strain in (strain_fused, strain_sum):
             assert len(strain) == 312 + 8  # strain1 and strain2 give strain1 because they contain the same data
-            assert strain.peak_collections == [s.peak_collection for s in (strain1, strain2, strain3)]
+            assert strain.peak_collections == [s.peak_collections[0] for s in (strain1, strain2, strain3)]
             values = np.concatenate((strain1.values, strain3.values))  # no strain2 because it's the same as strain1
-            assert allclose_with_sorting(strain.values, values)
+            assert_allclose_with_sorting(strain.values, values)
 
     def test_stack_strains(self, strain_field_samples, allclose_with_sorting):
         strain1 = strain_field_samples['HB2B_1320_peak0']
@@ -659,7 +787,7 @@ class TestStrainField:
             nan_measurements_count = len(np.where(np.isnan(strain_stacked.values))[0])
             assert nan_measurements_count == nan_count
         # Check peak collections carry-over
-        assert strain1_stacked.peak_collection == strain1.peak_collection
+        assert strain1_stacked.peak_collections[0] == strain1.peak_collections[0]
         assert strain23_stacked.peak_collections == [strain2.peak_collection, strain3.peak_collection]
 
     def test_to_md_histo_workspace(self, strain_field_samples):
@@ -755,17 +883,18 @@ def test_generateParameterField(test_data_dir):
         np.testing.assert_equal(field.errors, expected_errors)
 
 
+def strain_instantiator(name, values, errors, x, y, z):
+    return StrainField(name,
+                       peak_collection=PeakCollectionLite(name, strain=values, strain_error=errors),
+                       point_list=PointList([x, y, z]))
+
+
 @pytest.fixture(scope='module')
 def strains_for_stress_field_1():
     X = [0.000, 1.000, 2.000, 3.000, 4.000, 5.000, 6.000, 7.000, 8.000, 9.000]
     Y = [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
     Z = [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
     # selected to make terms drop out
-
-    def strain_instantiator(name, values, errors, x, y, z):
-        strain = StrainField()
-        strain._field = ScalarFieldSample(name, values, errors, x, y, z)
-        return strain
 
     sample11 = strain_instantiator('strain',
                                    [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.080, 0.009],  # values
@@ -841,11 +970,6 @@ class TestStressField:
         Y = [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
         Z = [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
         # selected to make terms drop out
-
-        def strain_instantiator(name, values, errors, x, y, z):
-            strain = StrainField()
-            strain._field = ScalarFieldSample(name, values, errors, x, y, z)
-            return strain
 
         sample11 = strain_instantiator('strain',
                                        [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],
@@ -930,6 +1054,31 @@ class TestStressField:
         assert allclose_with_sorting(in_plane_stress.errors, 0.)
         factor = POISSON / (POISSON - 1)
         assert np.allclose(strain33, factor * (strain11 + strain22))
+
+    def test_small(self):
+        POISSON = 1. / 3.  # makes nu / (1 - 2*nu) == 1
+        YOUNG = 1 + POISSON  # makes E / (1 + nu) == 1
+
+        x = np.array([0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.5])
+        y = np.array([1.0, 1.0, 1.5, 1.5, 1.0, 1.0, 1.5, 1.5])
+        z = np.array([2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5])
+        point_list1 = PointList([x, y, z])
+        values = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+        errors = np.full(len(values), 1., dtype=float)
+        strain = StrainField(peak_collection=PeakCollectionLite('strain',
+                                                                strain=values, strain_error=errors),
+                             point_list=point_list1)
+
+        # create a simple stress field
+        stress = StressField(strain, strain, strain, YOUNG, POISSON)
+        # verify the values
+        for direction in DIRECTIONS:
+            stress.select(direction)
+            assert stress.strain == strain  # it is the same reference
+            # hand calculations show that this should be 4*strain
+            np.testing.assert_almost_equal(stress.values, 4. * values)
+            # by hand says this should be 2
+            np.testing.assert_almost_equal(stress.errors, 2.4494897)
 
     def test_strain33_when_inplane_stress(self, strains_for_stress_field_1):
         sample11, sample22 = strains_for_stress_field_1[0:2]
@@ -1100,27 +1249,33 @@ def test_stack_scalar_field_samples(field_sample_collection,
 
 def test_stress_field_from_files(test_data_dir):
     HB2B_1320_PROJECT = os.path.join(test_data_dir, 'HB2B_1320.h5')
+    YOUNG = 200.
+    POISSON = 0.3
 
     # create 3 strain objects
     sample11 = StrainField(HB2B_1320_PROJECT)
     sample22 = StrainField(HB2B_1320_PROJECT)
     sample33 = StrainField(HB2B_1320_PROJECT)
     # create the stress field (with very uninteresting values
-    stress = StressField(sample11, sample22, sample33, 200, 0.3)
+    stress = StressField(sample11, sample22, sample33, YOUNG, POISSON)
 
-    # use the 11 direction as what everything else should match
-    stress.select('11')
-    epsilon_11 = stress.values
+    # confirm the strains are unchanged
+    for direction in DIRECTIONS:
+        stress.select(direction)
+        np.testing.assert_equal(stress.strain.values, sample11.peak_collections[0].get_strain()[0],
+                                err_msg=f'strain direction {direction}')
 
-    # regression
-    stress11_1320_expected = os.path.join(test_data_dir, 'stress11_1320_expected.npy')
-    stress_values_expected = np.load(stress11_1320_expected)
-    np.testing.assert_equal(stress_values_expected, epsilon_11)
+    # calculate the values for stress
+    strains = sample11.peak_collections[0].get_strain()[0]
+    stress_exp = strains + POISSON * (strains + strains + strains) / (1. - 2. * POISSON)
+    stress_exp *= YOUNG / (1. + POISSON)
 
-    stress.select('22')
-    np.testing.assert_equal(stress.values, epsilon_11)
-    stress.select('33')
-    np.testing.assert_equal(stress.values, epsilon_11)
+    # since all of the contributing strains are identical, everything else should match
+    for direction in DIRECTIONS:
+        stress.select(direction)
+        np.testing.assert_equal(stress.point_list.coordinates, sample11.point_list.coordinates)
+        np.testing.assert_equal(stress.values, stress_exp,
+                                err_msg=f'stress direction {direction}')
 
 
 if __name__ == '__main__':
