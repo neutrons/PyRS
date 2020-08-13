@@ -153,9 +153,9 @@ class SummaryGeneratorStress:
                         # TODO add check for strain?
                         strain = self._get_strain_field(direction)
                         assert(isinstance(strain, StrainField))
-
-                        strain_value = strain.values[row]
-                        strain_error = strain.errors[row]
+                        strain_field = strain.field
+                        strain_value = strain_field.values[row]
+                        strain_error = strain_field.errors[row]
                         entries += _write_number(strain_value) + _write_number(strain_error)
 
                     elif field == 'Stress':
