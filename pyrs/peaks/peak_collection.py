@@ -70,11 +70,12 @@ def _create_d_reference_array(values: Union[float, np.ndarray],
 
 
 class PeakCollectionLite:
-    '''A variant of the :py:obj:PeakCollection which does not have the
-    full peak profile information. The intent is to be a very
-    lightweight version of a :py:obj:PeakCollection to be created for
+    r"""
+    A variant of the :py:obj:PeakCollection which does not have the full peak profile information.
+
+    The intent is to be a very lightweight version of a :py:obj:PeakCollection to be created for
     the in-plane strain and in-plane stress special cases.
-    '''
+    """
     def __init__(self, peak_tag: str,
                  strain: np.ndarray,
                  strain_error: np.ndarray,
