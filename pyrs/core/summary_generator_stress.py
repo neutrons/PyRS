@@ -129,9 +129,14 @@ class SummaryGeneratorStress:
         def _write_summary_csv_body(handle):
 
             def _write_number(number) -> str:
-                if math.isnan(number):
+                if abs(number-math.floor(number)) <= 1e-15:
+                    return f'{number:.1f}' + ', '
+                elif abs(number) <= 1e-15:
+                    return '0.0, '
+                elif math.isnan(number):
                     return ', '
-                return str(number) + ', '
+
+                return f'{number:.15f}' + ', '
 
             def _write_field_3d(row: int, field: str):
                 """
@@ -261,5 +266,5 @@ class SummaryGeneratorStress:
                     self._peak_colllections_data[field][direction] = peak_collection.get_dspacing_center()
                 else:
                     self._peak_colllections_data[field][direction] = \
-                         (peak_collection.get_effective_params()[0][field],
-                          peak_collection.get_effective_params()[1][field])
+                        (peak_collection.get_effective_params()[0][field],
+                         peak_collection.get_effective_params()[1][field])
