@@ -1132,8 +1132,7 @@ class TestStressField:
             assert stress.strain == strain  # it is the same reference
             # hand calculations show that this should be 4*strain
             np.testing.assert_almost_equal(stress.values, 4. * values)
-            # by hand says this should be 2
-            np.testing.assert_almost_equal(stress.errors, 2.4494897)
+            np.testing.assert_almost_equal(stress.errors, 4. * errors)
 
     def test_strain33_when_inplane_stress(self, strains_for_stress_field_1):
         sample11, sample22 = strains_for_stress_field_1[0:2]

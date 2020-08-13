@@ -1114,6 +1114,8 @@ class StrainFieldSingle(_StrainField):
         self._peak_collection: Optional[PeakCollection] = None
         # this are made as top level property to follow interface of StrainField
         self._point_list: Optional[PointList] = None
+        # cached version of the ScalarFieldSample
+        self._scalar_field: Optional[ScalarFieldSample] = None
 
         # Create a strain field from a single scan, if so requested
         single_scan_kwargs = dict(filename=filename, projectfile=projectfile, peak_tag=peak_tag,  # type: ignore
@@ -1216,7 +1218,11 @@ class StrainFieldSingle(_StrainField):
         -------
         ~pyrs.dataobjects.fields.ScalarFieldSample
         """
-        return self._create_scalar_field(method='get_strain', name='strain')
+        # create value and cache it
+        if self._scalar_field is None:
+            self._scalar_field = self._create_scalar_field(method='get_strain', name='strain')
+
+        return self._scalar_field
 
     def set_d_reference(self, values: Union[Tuple[float, float], ScalarFieldSample]) -> None:
         if self._peak_collection is None:
@@ -1228,6 +1234,9 @@ class StrainFieldSingle(_StrainField):
             raise NotImplementedError()
         else:
             self._peak_collection.set_d_reference(values[0], values[1])
+
+        # invalidate cached version
+        self._scalar_field = None
 
     def get_d_reference(self) -> ScalarFieldSample:
         return self._create_scalar_field(method='get_d_reference', name='d-reference')
