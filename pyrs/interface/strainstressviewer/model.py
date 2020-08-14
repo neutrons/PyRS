@@ -35,7 +35,7 @@ class Model(QObject):
     @e11.setter
     def e11(self, filename):
         self._e11, self._e11_peaks = self.load_hidra_project_files(filename, '11')
-        self._peakTags = list(self._e11_peaks[0].keys())
+        self._peakTags = list(self._e11_peaks[0].keys()) if len(self._e11_peaks) > 0 else []
         self.propertyUpdated.emit("peakTags")
 
     @property
@@ -49,7 +49,8 @@ class Model(QObject):
     @e22.setter
     def e22(self, filename):
         self._e22, self._e22_peaks = self.load_hidra_project_files(filename, '22')
-        self.create_strain('22')
+        if self._e22 and self.check_peak_for_direction('22'):
+            self.create_strain('22')
 
     @property
     def e22_peaks(self):
@@ -62,7 +63,8 @@ class Model(QObject):
     @e33.setter
     def e33(self, filename):
         self._e33, self._e33_peaks = self.load_hidra_project_files(filename, '33')
-        self.create_strain('33')
+        if self._e33 and self.check_peak_for_direction('33'):
+            self.create_strain('33')
 
     @property
     def e33_peaks(self):
@@ -80,7 +82,7 @@ class Model(QObject):
     def selectedPeak(self, tag):
         self._selectedPeak = tag
         for direction in ('11', '22', '33'):
-            if getattr(self, f'e{direction}'):
+            if getattr(self, f'e{direction}') and self.check_peak_for_direction(f'{direction}'):
                 self.create_strain(direction)
         self.propertyUpdated.emit("selectedPeak")
 
@@ -102,6 +104,12 @@ class Model(QObject):
         else:
             setattr(self, f'_e{direction}_strain', sum(strain_list[1:], start=strain_list[0]))
 
+    def check_peak_for_direction(self, direction):
+        for peak in getattr(self, f'e{direction}_peaks'):
+            if self.selectedPeak not in peak:
+                return False
+        return True
+
     def validate_selection(self, direction):
         if not getattr(self, f'e{direction}'):
             return f"e{direction} file hasn't been loaded"
@@ -112,9 +120,8 @@ class Model(QObject):
         if not self.e11_peaks:
             return "e11 contains no peaks, fit peaks first"
 
-        for peaks in getattr(self, f'e{direction}_peaks'):
-            if self.selectedPeak not in peaks:
-                return f"Peak {self.selectedPeak} is not in e{direction}"
+        if not self.check_peak_for_direction(f'{direction}'):
+            return f"Peak {self.selectedPeak} is not in e{direction}"
 
     def get_parameter_field(self, plot_param, direction):
         if plot_param == 'strain':
@@ -153,8 +160,13 @@ class Model(QObject):
         stress_csv.write_summary_csv()
 
     def get_default_csv_filename(self):
-        runnumbers = [getattr(self._stress, f'strain{d}').peak_collections[0].runnumber for d in ('11', '22', '33')]
-        return "HB2B_{}_stress_grid_{}.csv".format('_'.join(str(run) for run in runnumbers if run != -1),
+        runs = [[peak_collection.runnumber for peak_collection in getattr(self._stress, f'strain{d}').peak_collections] for d in ('11', '22', '33')]
+        runnumbers = []
+        for runs in runs:
+            for runnumber in runs:
+                if runnumber != -1:
+                    runnumbers.append(str(runnumber))
+        return "HB2B_{}_stress_grid_{}.csv".format('_'.join(runnumbers),
                                                    self.selectedPeak)
 
     def load_hidra_project_file(self, filename, direction):
@@ -175,11 +187,14 @@ class Model(QObject):
     def load_hidra_project_files(self, filenames, direction):
         workspaces = []
         peaks = []
+        if isinstance(filenames, str):
+            filenames = [filenames]
         for filename in filenames:
             ws, p = self.load_hidra_project_file(filename, direction)
             if ws is None:
                 return [], []
             workspaces.append(ws)
-            peaks.append(p)
+            if p:
+                peaks.append(p)
 
         return workspaces, peaks
