@@ -104,3 +104,15 @@ def test_write_summary_33calculated_csv(test_data_dir: str, project_tags: str, e
     assert(cmp(stress_csv_filename, expected_file))
     # cleanup
     remove(stress_csv_filename)
+
+
+def test_write_summary_33calculated_nan_csv(test_data_dir: str):
+
+    sample11 = StrainField(test_data_dir + '/HB2B_1331.h5', peak_tag='peak0')
+    sample22 = StrainField(test_data_dir + '/HB2B_1332.h5', peak_tag='peak0')
+
+    stress = StressField(sample11, sample22, None, 200, 0.3, stress_type='in-plane-strain')  # type: ignore
+
+    stress_csv_filename = 'HB2B_StressStrain_peak0_Summary_33Calculated_1331_1332.csv'
+    stress_csv = SummaryGeneratorStress(stress_csv_filename, stress)
+    stress_csv.write_summary_csv()
