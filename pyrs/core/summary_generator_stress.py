@@ -132,7 +132,7 @@ class SummaryGeneratorStress:
 
                 if math.isnan(number):
                     return ', '
-                
+
                 TOLERANCE = 1e-12
 
                 if abs(number-math.floor(number)) <= TOLERANCE \
