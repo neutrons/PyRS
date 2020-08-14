@@ -1114,6 +1114,8 @@ class StrainFieldSingle(_StrainField):
         self._peak_collection: Optional[PeakCollection] = None
         # this are made as top level property to follow interface of StrainField
         self._point_list: Optional[PointList] = None
+        # cached version of the ScalarFieldSample
+        self._scalar_field: Optional[ScalarFieldSample] = None
 
         # Create a strain field from a single scan, if so requested
         single_scan_kwargs = dict(filename=filename, projectfile=projectfile, peak_tag=peak_tag,  # type: ignore
@@ -1186,6 +1188,10 @@ class StrainFieldSingle(_StrainField):
     def errors(self):
         return self._peak_collection.get_strain()[1]
 
+    def _clear_cache(self) -> None:
+        '''Invalidate any and all cached information'''
+        self._scalar_field = None
+
     def _create_scalar_field(self, method, name):
         # the data is taken from the `PeakCollection`
         if self._peak_collection is None:
@@ -1216,7 +1222,11 @@ class StrainFieldSingle(_StrainField):
         -------
         ~pyrs.dataobjects.fields.ScalarFieldSample
         """
-        return self._create_scalar_field(method='get_strain', name='strain')
+        # create value and cache it
+        if self._scalar_field is None:
+            self._scalar_field = self._create_scalar_field(method='get_strain', name='strain')
+
+        return self._scalar_field
 
     def set_d_reference(self, values: Union[Tuple[float, float], ScalarFieldSample]) -> None:
         if self._peak_collection is None:
@@ -1228,6 +1238,8 @@ class StrainFieldSingle(_StrainField):
             raise NotImplementedError()
         else:
             self._peak_collection.set_d_reference(values[0], values[1])
+
+        self._clear_cache()
 
     def get_d_reference(self) -> ScalarFieldSample:
         return self._create_scalar_field(method='get_d_reference', name='d-reference')
@@ -1413,6 +1425,9 @@ class StrainField(_StrainField):
         # the second index is the index into the strain_values array
         self._winners: Optional[Tuple[np.ndarray, np.ndarray]] = None
         self._point_list: Optional[PointList] = None
+        # cached version of the ScalarFieldSample
+        # it is not used if there is only one StrainField contained in this object
+        self._scalar_field: Optional[ScalarFieldSample] = None
 
         # Create a strain field from a single scan, if so requested
         single_scan_kwargs = dict(filename=filename, projectfile=projectfile, peak_tag=peak_tag,  # type: ignore
@@ -1455,6 +1470,10 @@ class StrainField(_StrainField):
             self._strains[0] = StrainFieldSingle(filename=filename,
                                                  peak_collection=self._strains[0].peak_collections[0],
                                                  point_list=self.point_list)
+
+    def _clear_cache(self) -> None:
+        '''Invalidate any and all cached information'''
+        self._scalar_field = None
 
     def _create_scalar_field(self, method, name):
         # make sure there is enough information to create the field
@@ -1511,7 +1530,10 @@ class StrainField(_StrainField):
         if len(self._strains) == 1:
             return self._strains[0].field
         else:
-            return self._create_scalar_field(method='get_strain', name='strain')
+            # cache the calculation
+            self._scalar_field = self._create_scalar_field(method='get_strain', name='strain')
+
+            return self._scalar_field
 
     @property
     def peak_collections(self) -> List[PeakCollection]:
@@ -1547,6 +1569,8 @@ class StrainField(_StrainField):
     def set_d_reference(self, values: Union[Tuple[float, float], ScalarFieldSample]) -> None:
         for strain in self._strains:
             strain.set_d_reference(values)
+
+        self._clear_cache()
 
     def get_d_reference(self) -> ScalarFieldSample:
         self._update_single_strain()
