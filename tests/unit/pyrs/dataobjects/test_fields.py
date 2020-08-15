@@ -634,6 +634,30 @@ class TestStrainField:
         assert strain.peak_collections == [strain1.peak_collections[0], strain2.peak_collections[0]]
         assert np.allclose(strain.coordinates, np.concatenate((strain1.coordinates, strain2.coordinates)))
 
+    def test_field_after_fuse_with(self):
+        r"""Evaluate one strain before and after fusing it with other strain"""
+        x = np.array([0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.5])
+        y = np.array([1.0, 1.0, 1.5, 1.5, 1.0, 1.0, 1.5, 1.5])
+        z = np.array([2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5])
+        values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]  # values
+        errors = [1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0]  # errors
+        # First strain using the first half of the values
+        peak_collection1 = PeakCollectionLite('strain', strain=values[:4], strain_error=errors[:4])
+        strain1 = StrainField(peak_collection=peak_collection1, point_list=PointList([x[:4], y[:4], z[:4]]))
+        field1_before = strain1.field
+        # Second strain using the last half of the values
+        peak_collection2 = PeakCollectionLite('strain', strain=values[-4:], strain_error=errors[-4:])
+        strain2 = StrainField(peak_collection=peak_collection1, point_list=PointList([x[-4:], y[-4:], z[-4:]]))
+        strain = strain1 + strain2
+        field1_after = strain.strains[0].field
+        assert id(field1_before) == id(field1_after)  # it's the same object after fusing, the cached one
+        # strain.strains[0] it's using its old point list
+        assert len(strain.strains[0].field.values) == 4
+        assert len(strain.field.values) == 8
+        # strain.strains[0] is still using its old point list, not the combined point list
+        assert len(strain.strains[0].field.values) == 4
+
+
     def test_create_strain_field_from_scalar_field_sample(self):
         values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]  # values
         errors = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]  # errors
@@ -734,6 +758,40 @@ class TestStrainField:
             assert len(stacked) == len(orig)
             assert stacked.point_list == orig.point_list
         '''
+
+    def test_field_after_stack_with(self):
+        r"""
+        Evaluate one strain component before and after stacking it with other
+        Stack s1 against two fused strains s2 and s3: s1 * (s2 + s3)
+        """
+        def serve_strain(b, e):
+            r"""
+            b (int): start of the array
+            e (int): end of the array
+            """
+            x = np.array([0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.5])
+            y = np.array([1.0, 1.0, 1.5, 1.5, 1.0, 1.0, 1.5, 1.5])
+            z = np.array([2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5])
+            values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]  # values
+            errors = [1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0]  # errors
+            peak_collection = PeakCollectionLite('strain', strain=values[b:e], strain_error=errors[b:e])
+            return StrainField(peak_collection=peak_collection, point_list=PointList([x[b:e], y[b:e], z[b:e]]))
+
+        strain1, strain2, strain3 = serve_strain(0, 3), serve_strain(3, 5), serve_strain(5, 8)
+        strain1, strain23 = strain1 * (strain2 + strain3)
+        # assertions on strain1 after stacking
+        assert strain1.strains[0]._scalar_field is None
+        assert len(strain1.strains[0].field.values) == 3  # uses its own (prior to stacking) point list
+        assert len(strain1.strains[0].values) == 3  # get values from the peak collection
+        assert len(strain1.field.values) == 8  # strain1.strains[0] is recreated using the stacked point list
+        assert len(strain1.strains[0].field.values) == 8  # uses the updated point list
+        assert len(strain1.strains[0].values) == 3  # bypasses the updated point list, goes to the peak collection
+        # assertion on strain23
+        assert len(strain23.strains[0].field.values) == 2  # uses its own (prior to stacking) point list
+        assert len(strain23.strains[0].values) == 2  # get values from the peak collection
+        assert len(strain23.field.values) == 8  # strain1.strains[0] is NOT recreated using the stacked point list
+        assert len(strain23.strains[0].field.values) == 2  # uses its own (prior to stacking) point list
+        assert len(strain23.strains[0].values) == 2  # get values from the peak collection
 
     def test_create_strain_field_from_file_no_peaks(self, test_data_dir):
         # this project file doesn't have peaks in it
