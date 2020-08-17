@@ -129,15 +129,17 @@ class SummaryGeneratorStress:
         def _write_summary_csv_body(handle):
 
             def _write_number(number) -> str:
+
+                if math.isnan(number):
+                    return ', '
+
                 TOLERANCE = 1e-12
 
                 if abs(number-math.floor(number)) <= TOLERANCE \
                    or abs(number-math.ceil(number)) <= TOLERANCE:
                     return f'{number:.1f}' + ', '
-                elif math.isnan(number):
-                    return ', '
-                else:
-                    return f'{number:.12f}' + ', '
+
+                return f'{number:.12f}' + ', '
 
             def _write_field_3d(row: int, field: str):
                 """
