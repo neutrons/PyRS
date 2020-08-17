@@ -396,7 +396,7 @@ class PeakCollection:
         try:
             dspacing_center = 0.5 * self._wavelength / sine_theta
         except ZeroDivisionError:
-            # replace zeros in the denomenator with nan explicitly
+            # replace zeros in the denominator with nan explicitly
             dspacing_center = np.where(unumpy.nominal_values(sine_theta) != 0.,
                                        unumpy.std_devs(0.5 * self._wavelength / sine_theta.clip(1e-9)), np.nan)
 
