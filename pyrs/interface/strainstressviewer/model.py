@@ -1,5 +1,5 @@
 import traceback
-from pyrs.dataobjects.fields import generateParameterField, StressField, StrainField
+from pyrs.dataobjects.fields import StressField, StrainField
 from pyrs.core.summary_generator_stress import SummaryGeneratorStress
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
@@ -12,18 +12,21 @@ class Model(QObject):
 
     def __init__(self):
         super().__init__()
-        self._e11 = None
-        self._e22 = None
-        self._e33 = None
-        self._e11_peaks = dict()
-        self._e22_peaks = dict()
-        self._e33_peaks = dict()
+        self._e11 = []
+        self._e11_strain = None
+        self._e22 = []
+        self._e22_strain = None
+        self._e33 = []
+        self._e33_strain = None
+        self._e11_peaks = []
+        self._e22_peaks = []
+        self._e33_peaks = []
         self._peakTags = []
         self._selectedPeak = None
         self._stress = None
 
-    def set_workspace(self, name, filename):
-        setattr(self, name, filename)
+    def set_workspaces(self, name, filenames):
+        setattr(self, name, filenames)
 
     @property
     def e11(self):
@@ -31,8 +34,8 @@ class Model(QObject):
 
     @e11.setter
     def e11(self, filename):
-        self._e11, self._e11_peaks = self.load_hidra_project_file(filename, '11')
-        self._peakTags = list(self._e11_peaks.keys())
+        self._e11, self._e11_peaks = self.load_hidra_project_files(filename, '11')
+        self._peakTags = list(self._e11_peaks[0].keys()) if len(self._e11_peaks) > 0 else []
         self.propertyUpdated.emit("peakTags")
 
     @property
@@ -45,7 +48,9 @@ class Model(QObject):
 
     @e22.setter
     def e22(self, filename):
-        self._e22, self._e22_peaks = self.load_hidra_project_file(filename, '22')
+        self._e22, self._e22_peaks = self.load_hidra_project_files(filename, '22')
+        if self._e22 and self.check_peak_for_direction('22'):
+            self.create_strain('22')
 
     @property
     def e22_peaks(self):
@@ -57,7 +62,9 @@ class Model(QObject):
 
     @e33.setter
     def e33(self, filename):
-        self._e33, self._e33_peaks = self.load_hidra_project_file(filename, '33')
+        self._e33, self._e33_peaks = self.load_hidra_project_files(filename, '33')
+        if self._e33 and self.check_peak_for_direction('33'):
+            self.create_strain('33')
 
     @property
     def e33_peaks(self):
@@ -74,30 +81,57 @@ class Model(QObject):
     @selectedPeak.setter
     def selectedPeak(self, tag):
         self._selectedPeak = tag
+        for direction in ('11', '22', '33'):
+            if getattr(self, f'e{direction}') and self.check_peak_for_direction(f'{direction}'):
+                self.create_strain(direction)
         self.propertyUpdated.emit("selectedPeak")
 
     @property
     def d0(self):
-        return self.e11_peaks[self.selectedPeak].get_d_reference()[0][0]
+        return self._e11_strain.get_d_reference()
 
     @d0.setter
     def d0(self, d0):
-        for peaks in [self.e11_peaks, self.e22_peaks, self.e33_peaks]:
-            if self.selectedPeak in peaks:
-                peaks[self.selectedPeak].set_d_reference(d0)
+        for strain in [self._e11_strain, self._e22_strain, self._e33_strain]:
+            if strain:
+                strain.set_d_reference((d0, 0))
+
+    def create_strain(self, direction):
+        strain_list = [StrainField(hidraworkspace=ws, peak_collection=peak[self.selectedPeak])
+                       for ws, peak in zip(getattr(self, f'e{direction}'), getattr(self, f'e{direction}_peaks'))]
+        if len(strain_list) == 1:
+            setattr(self, f'_e{direction}_strain', strain_list[0])
+        else:
+            setattr(self, f'_e{direction}_strain', sum(strain_list[1:], strain_list[0]))
+
+    def check_peak_for_direction(self, direction):
+        for peak in getattr(self, f'e{direction}_peaks'):
+            if self.selectedPeak not in peak:
+                return False
+        return True
 
     def validate_selection(self, direction):
-        if getattr(self, f'e{direction}') is None:
+        if not getattr(self, f'e{direction}'):
             return f"e{direction} file hasn't been loaded"
 
-        if self.e11 is None:
+        if not self.e11:
             return "e11 is not loaded, the peak tags from this file will be used"
 
         if not self.e11_peaks:
             return "e11 contains no peaks, fit peaks first"
 
-        if self.selectedPeak not in getattr(self, f'e{direction}_peaks'):
+        if not self.check_peak_for_direction(f'{direction}'):
             return f"Peak {self.selectedPeak} is not in e{direction}"
+
+    def get_parameter_field(self, plot_param, direction):
+        if plot_param == 'strain':
+            return getattr(self, f'_e{direction}_strain')
+        elif plot_param == 'd-reference':
+            return getattr(self, f'_e{direction}_strain').get_d_reference()
+        elif plot_param == "dspacing-center":
+            return getattr(self, f'_e{direction}_strain').get_dspacing_center()
+        else:
+            return getattr(self, f'_e{direction}_strain').get_effective_peak_parameter(plot_param)
 
     def get_field(self, direction, plot_param, stress_case):
         try:
@@ -107,9 +141,7 @@ class Model(QObject):
             elif plot_param == "strain" and direction == "33" and stress_case == "In-plane stress":
                 return self._stress.strain33
             else:
-                return generateParameterField(plot_param,
-                                              hidraworkspace=getattr(self, f'e{direction}'),
-                                              peak_collection=getattr(self, f'e{direction}_peaks')[self.selectedPeak])
+                return self.get_parameter_field(plot_param, direction)
         except Exception as e:
             self.failureMsg.emit(f"Failed to generate field for parameter {plot_param} in direction {direction}",
                                  str(e),
@@ -117,13 +149,9 @@ class Model(QObject):
             return None
 
     def calculate_stress(self, stress_case, youngModulus, poissonsRatio):
-        self._stress = StressField(StrainField(hidraworkspace=self.e11,
-                                               peak_collection=self.e11_peaks[self.selectedPeak]),
-                                   StrainField(hidraworkspace=self.e22,
-                                               peak_collection=self.e22_peaks[self.selectedPeak]),
-                                   StrainField(hidraworkspace=self.e33,
-                                               peak_collection=self.e33_peaks[self.selectedPeak])
-                                   if stress_case == "diagonal" else None,
+        self._stress = StressField(self._e11_strain,
+                                   self._e22_strain,
+                                   self._e33_strain if stress_case == "diagonal" else None,
                                    youngModulus, poissonsRatio, stress_case)
 
     def write_stress_to_csv(self, filename):
@@ -131,8 +159,14 @@ class Model(QObject):
         stress_csv.write_summary_csv()
 
     def get_default_csv_filename(self):
-        runnumbers = [getattr(self._stress, f'strain{d}').peak_collections[0].runnumber for d in ('11', '22', '33')]
-        return "HB2B_{}_stress_grid_{}.csv".format('_'.join(str(run) for run in runnumbers if run != -1),
+        runs = [[peak_collection.runnumber for peak_collection in getattr(self._stress, f'strain{d}').peak_collections]
+                for d in ('11', '22', '33')]
+        runnumbers = []
+        for runs in runs:
+            for runnumber in runs:
+                if runnumber != -1:
+                    runnumbers.append(str(runnumber))
+        return "HB2B_{}_stress_grid_{}.csv".format('_'.join(runnumbers),
                                                    self.selectedPeak)
 
     def load_hidra_project_file(self, filename, direction):
@@ -149,3 +183,18 @@ class Model(QObject):
                                  str(e),
                                  traceback.format_exc())
             return None, dict()
+
+    def load_hidra_project_files(self, filenames, direction):
+        workspaces = []
+        peaks = []
+        if isinstance(filenames, str):
+            filenames = [filenames]
+        for filename in filenames:
+            ws, p = self.load_hidra_project_file(filename, direction)
+            if ws is None:
+                return [], []
+            workspaces.append(ws)
+            if p:
+                peaks.append(p)
+
+        return workspaces, peaks

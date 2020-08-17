@@ -6,6 +6,10 @@ class Controller:
         self._model.set_workspace(name, filename)
         return getattr(self._model, name) is not None
 
+    def filesSelected(self, name, filenames):
+        self._model.set_workspaces(name, filenames)
+        return getattr(self._model, name) is not None
+
     def peakSelected(self, name):
         if name != "":
             self._model.selectedPeak = name

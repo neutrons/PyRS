@@ -14,6 +14,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import functools
 import traceback
+import os
 
 
 class FileLoad(QWidget):
@@ -33,14 +34,14 @@ class FileLoad(QWidget):
         self.setLayout(layout)
 
     def openFileDialog(self):
-        fileName, _ = QFileDialog.getOpenFileName(self,
-                                                  self.name,
-                                                  "",
-                                                  self.fileType)
-        if fileName:
-            success = self.parent.controller.fileSelected(self.name, fileName)
+        fileNames, _ = QFileDialog.getOpenFileNames(self,
+                                                    self.name,
+                                                    "",
+                                                    self.fileType)
+        if fileNames:
+            success = self.parent.controller.filesSelected(self.name, fileNames)
             if success:
-                self.lineEdit.setText(fileName)
+                self.lineEdit.setText(', '.join(os.path.basename(filename) for filename in fileNames))
             else:
                 self.lineEdit.setText(None)
             self.parent.update_plot()
@@ -268,8 +269,8 @@ class PlotSelect(QGroupBox):
         layout = QFormLayout()
         layout.setFieldGrowthPolicy(0)
         self.plot_param = QComboBox()
-        self.plot_param.addItems(["dspacing_center",
-                                  "d_reference",
+        self.plot_param.addItems(["dspacing-center",
+                                  "d-reference",
                                   "Center",
                                   "Height",
                                   "FWHM",
@@ -538,7 +539,7 @@ class StrainStressViewer(QSplitter):
         self.peak_selection.set_peak_tags(peak_tags)
 
     def selectedPeak(self, peak):
-        self.d0.set_d0(self.model.d0)
+        self.d0.set_d0(self.model.d0.values[0])
         self.update_plot()
 
     def show_failure_msg(self, msg, info, details):

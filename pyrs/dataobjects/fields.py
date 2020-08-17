@@ -1269,13 +1269,16 @@ class StrainFieldSingle(_StrainField):
     def get_d_reference(self) -> ScalarFieldSample:
         return self._create_scalar_field(method='get_d_reference', name='d-reference')
 
+    def get_dspacing_center(self) -> ScalarFieldSample:
+        return self._create_scalar_field(method='get_dspacing_center', name='dspacing-center')
+
     def get_effective_peak_parameter(self, name: str) -> ScalarFieldSample:
         self._validate_peak_param_name(name)
 
         # look for it in the cache
         if name not in self._effective_params.keys():
             self._effective_params[name] = self._create_scalar_field(method=name,
-                                                                     name='d-reference')
+                                                                     name=name)
 
         return self._effective_params[name]
 
@@ -1625,6 +1628,14 @@ class StrainField(_StrainField):
         else:
             return self._create_scalar_field(method='get_d_reference', name='d-reference')
 
+    def get_dspacing_center(self) -> ScalarFieldSample:
+        self._update_single_strain()
+
+        if len(self._strains) == 1:
+            return self._strains[0].get_dspacing_center()
+        else:
+            return self._create_scalar_field(method='get_dspacing_center', name='dspacing-center')
+
     def get_effective_peak_parameter(self, name: str) -> ScalarFieldSample:
         self._validate_peak_param_name(name)
 
@@ -1635,29 +1646,9 @@ class StrainField(_StrainField):
             # look for it in the cache
             if name not in self._effective_params.keys():
                 self._effective_params[name] = self._create_scalar_field(method=name,
-                                                                         name='d-reference')
+                                                                         name=name)
 
             return self._effective_params[name]
-
-
-def generateParameterField(parameter: str,
-                           hidraworkspace: HidraWorkspace,
-                           peak_collection: PeakCollection) -> ScalarFieldSample:
-    '''Converts a HidraWorkspace and PeakCollection into a ScalarFieldSample for a specify peak parameter'''
-    # TODO client code should use the StrainField directly
-    # extract positions
-    pointlist = hidraworkspace.get_pointlist()
-
-    # put together values
-    if parameter in EFFECTIVE_PEAK_PARAMETERS:
-        values, errors = peak_collection.get_effective_params()  # type: ignore
-        values = values[parameter]
-        errors = errors[parameter]
-    else:  # dspacing_center, d_reference, strain
-        values, errors = getattr(peak_collection, f'get_{parameter}')()  # type: ignore
-
-    return ScalarFieldSample(parameter, values, errors,
-                             pointlist.vx, pointlist.vy, pointlist.vz)
 
 
 def aggregate_scalar_field_samples(*args) -> 'ScalarFieldSample':
