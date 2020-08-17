@@ -269,8 +269,8 @@ class PlotSelect(QGroupBox):
         layout = QFormLayout()
         layout.setFieldGrowthPolicy(0)
         self.plot_param = QComboBox()
-        self.plot_param.addItems(["dspacing_center",
-                                  "d_reference",
+        self.plot_param.addItems(["dspacing-center",
+                                  "d-reference",
                                   "Center",
                                   "Height",
                                   "FWHM",
@@ -539,7 +539,7 @@ class StrainStressViewer(QSplitter):
         self.peak_selection.set_peak_tags(peak_tags)
 
     def selectedPeak(self, peak):
-        self.d0.set_d0(self.model.d0)
+        self.d0.set_d0(self.model.d0.values[0])
         self.update_plot()
 
     def show_failure_msg(self, msg, info, details):

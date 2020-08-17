@@ -10,10 +10,9 @@ from pyrs.core.workspaces import HidraWorkspace
 from pyrs.dataobjects.constants import DEFAULT_POINT_RESOLUTION
 from pyrs.dataobjects.fields import (aggregate_scalar_field_samples, fuse_scalar_field_samples,
                                      ScalarFieldSample, StrainField, StrainFieldSingle, StressField,
-                                     stack_scalar_field_samples, generateParameterField)
+                                     stack_scalar_field_samples)
 from pyrs.core.peak_profile_utility import EFFECTIVE_PEAK_PARAMETERS, get_parameter_dtype
 from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
-from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.dataobjects.sample_logs import PointList
 from tests.conftest import assert_allclose_with_sorting
 
@@ -891,73 +890,6 @@ def test_calculated_strain():
     pointlist = PointList([np.arange(SIZE, dtype=float), np.arange(SIZE, dtype=float), np.arange(SIZE, dtype=float)])
     strain = StrainField(point_list=pointlist, peak_collection=peaks)
     np.testing.assert_equal(strain.values, 0.)
-
-
-def test_generateParameterField(test_data_dir):
-    file_path = os.path.join(test_data_dir, 'HB2B_1320.h5')
-
-    source_project = HidraProjectFile(file_path, mode=HidraProjectFileMode.READONLY)
-    workspace = HidraWorkspace(file_path)
-    workspace.load_hidra_project(source_project, False, False)
-    x = workspace.get_sample_log_values('vx')
-    y = workspace.get_sample_log_values('vy')
-    z = workspace.get_sample_log_values('vz')
-
-    peak = source_project.read_peak_parameters('peak0')
-    expected_values, expected_errors = peak.get_effective_params()
-
-    # thorough testing of Center
-    center = generateParameterField('Center', workspace, peak)
-    assert isinstance(center, ScalarFieldSample)
-    assert center.name == 'Center'
-    np.testing.assert_equal(center.x, x)
-    np.testing.assert_equal(center.y, y)
-    np.testing.assert_equal(center.z, z)
-    np.testing.assert_equal(center.values, expected_values['Center'])
-    np.testing.assert_equal(center.errors, expected_errors['Center'])
-
-    center_md = center.to_md_histo_workspace()
-    dim_x = center_md.getXDimension()
-    assert dim_x.getNBins() == 18
-    np.testing.assert_almost_equal(dim_x.getMinimum(), -31.765, decimal=3)
-    np.testing.assert_almost_equal(dim_x.getMaximum(), 31.765, decimal=3)
-    dim_y = center_md.getYDimension()
-    assert dim_y.getNBins() == 6
-    np.testing.assert_almost_equal(dim_y.getMinimum(), -7.2, decimal=3)
-    np.testing.assert_almost_equal(dim_y.getMaximum(), 7.2, decimal=3)
-    dim_z = center_md.getZDimension()
-    assert dim_z.getNBins() == 3
-    np.testing.assert_almost_equal(dim_z.getMinimum(), -15.0, decimal=3)
-    np.testing.assert_almost_equal(dim_z.getMaximum(), 15.0, decimal=3)
-    signal = center_md.getSignalArray()
-    np.testing.assert_almost_equal(signal.min(), 89.94377, decimal=5)
-    np.testing.assert_almost_equal(signal.max(), 90.15296, decimal=5)
-    errors = center_md.getErrorSquaredArray()
-    np.testing.assert_almost_equal(errors.min(), 0.02019792)
-    np.testing.assert_almost_equal(errors.max(), 0.57951983)
-
-    # quick test the other peak paramters
-    for param in ('Height', 'FWHM', 'Mixing', 'A0', 'A1', 'Intensity'):
-        field = generateParameterField(param, workspace, peak)
-        assert isinstance(field, ScalarFieldSample)
-        assert field.name == param
-        np.testing.assert_equal(field.x, x)
-        np.testing.assert_equal(field.y, y)
-        np.testing.assert_equal(field.z, z)
-        np.testing.assert_equal(field.values, expected_values[param])
-        np.testing.assert_equal(field.errors, expected_errors[param])
-
-    # quick test the d spacing
-    for param in ('dspacing_center', 'd_reference'):
-        field = generateParameterField(param, workspace, peak)
-        assert isinstance(field, ScalarFieldSample)
-        assert field.name == param
-        np.testing.assert_equal(field.x, x)
-        np.testing.assert_equal(field.y, y)
-        np.testing.assert_equal(field.z, z)
-        expected_values, expected_errors = getattr(peak, f'get_{param}')()
-        np.testing.assert_equal(field.values, expected_values)
-        np.testing.assert_equal(field.errors, expected_errors)
 
 
 def strain_instantiator(name, values, errors, x, y, z):

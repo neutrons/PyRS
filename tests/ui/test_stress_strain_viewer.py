@@ -42,13 +42,13 @@ def test_model(tmpdir):
     assert model.validate_selection('22') == "e22 file hasn't been loaded"
     assert model.validate_selection('33') == "e33 file hasn't been loaded"
 
-    assert model.d0 == 1
+    assert model.d0.values[0] == 1
 
-    # model.d0 = 1.05
-    # assert model.d0 == 1.05
+    model.d0 = 1.05
+    assert model.d0.values[0] == 1.05
 
-    for plot_param in ("dspacing_center",
-                       "d_reference",
+    for plot_param in ("dspacing-center",
+                       "d-reference",
                        "Center",
                        "Height",
                        "FWHM",
@@ -157,6 +157,7 @@ def test_model(tmpdir):
     model.set_workspaces('11', 'tests/data/HB2B_1320.h5')
     model.e11 is not None
 
+
 def test_model_multiple_files(tmpdir):
     model = Model()
 
@@ -189,13 +190,13 @@ def test_model_multiple_files(tmpdir):
     assert model.validate_selection('22') == "e22 file hasn't been loaded"
     assert model.validate_selection('33') == "e33 file hasn't been loaded"
 
-    assert model.d0 == 1
+    assert model.d0.values[0] == 1
 
-    # model.d0 = 1.05
-    # assert model.d0 == 1.05
+    model.d0 = 1.05
+    assert model.d0.values[0] == 1.05
 
-    for plot_param in ("dspacing_center",
-                       "d_reference",
+    for plot_param in ("dspacing-center",
+                       "d-reference",
                        "Center",
                        "Height",
                        "FWHM",
@@ -227,7 +228,7 @@ def test_model_multiple_files(tmpdir):
         assert [stress_md.getDimension(n).getNBins() for n in range(3)] == [19, 49, 3]
 
     # Stress should be all zero for in-plane stress case
-    #assert np.count_nonzero(model.get_field('33', 'stress', 'In-plane stress')
+    # assert np.count_nonzero(model.get_field('33', 'stress', 'In-plane stress')
     #                        .to_md_histo_workspace().getSignalArray()) == 0
     # Strain should be all non-zero for in-plane stress case
     assert np.count_nonzero(model.get_field('33', 'strain', 'In-plane stress')
@@ -251,7 +252,7 @@ def test_model_multiple_files(tmpdir):
         assert [stress_md.getDimension(n).getNBins() for n in range(3)] == [19, 49, 3]
 
     # Stress should be all non-zero for in-plane strain case
-    #assert np.count_nonzero(model.get_field('33', 'stress', 'In-plane strain')
+    # assert np.count_nonzero(model.get_field('33', 'stress', 'In-plane strain')
     #                        .to_md_histo_workspace().getSignalArray()) == 18*49*3
     # Strain shouldn't exist for for in-plane strain case
     assert model.get_field('33', 'strain', 'In-plane strain') is None

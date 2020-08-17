@@ -1,5 +1,5 @@
 import traceback
-from pyrs.dataobjects.fields import generateParameterField, StressField, StrainField
+from pyrs.dataobjects.fields import StressField, StrainField
 from pyrs.core.summary_generator_stress import SummaryGeneratorStress
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
@@ -88,13 +88,13 @@ class Model(QObject):
 
     @property
     def d0(self):
-        return self.e11_peaks[0][self.selectedPeak].get_d_reference()[0][0]
+        return self._e11_strain.get_d_reference()
 
     @d0.setter
     def d0(self, d0):
-        for peaks in [self.e11_peaks, self.e22_peaks, self.e33_peaks]:
-            if self.selectedPeak in peaks:
-                peaks[self.selectedPeak].set_d_reference(d0)
+        for strain in [self._e11_strain, self._e22_strain, self._e33_strain]:
+            if strain:
+                strain.set_d_reference((d0, 0))
 
     def create_strain(self, direction):
         strain_list = [StrainField(hidraworkspace=ws, peak_collection=peak[self.selectedPeak])
@@ -102,7 +102,7 @@ class Model(QObject):
         if len(strain_list) == 1:
             setattr(self, f'_e{direction}_strain', strain_list[0])
         else:
-            setattr(self, f'_e{direction}_strain', sum(strain_list[1:], start=strain_list[0]))
+            setattr(self, f'_e{direction}_strain', sum(strain_list[1:], strain_list[0]))
 
     def check_peak_for_direction(self, direction):
         for peak in getattr(self, f'e{direction}_peaks'):
@@ -126,13 +126,12 @@ class Model(QObject):
     def get_parameter_field(self, plot_param, direction):
         if plot_param == 'strain':
             return getattr(self, f'_e{direction}_strain')
+        elif plot_param == 'd-reference':
+            return getattr(self, f'_e{direction}_strain').get_d_reference()
+        elif plot_param == "dspacing-center":
+            return getattr(self, f'_e{direction}_strain').get_dspacing_center()
         else:
-            parameter_fields = [generateParameterField(plot_param,
-                                                       hidraworkspace=getattr(self, f'e{direction}')[n],
-                                                       peak_collection=getattr(self, f'e{direction}_peaks')
-                                                       [n][self.selectedPeak])
-                                for n in range(len(getattr(self, f'e{direction}')))]
-            return sum(parameter_fields[1:], start=parameter_fields[0])
+            return getattr(self, f'_e{direction}_strain').get_effective_peak_parameter(plot_param)
 
     def get_field(self, direction, plot_param, stress_case):
         try:
@@ -160,7 +159,8 @@ class Model(QObject):
         stress_csv.write_summary_csv()
 
     def get_default_csv_filename(self):
-        runs = [[peak_collection.runnumber for peak_collection in getattr(self._stress, f'strain{d}').peak_collections] for d in ('11', '22', '33')]
+        runs = [[peak_collection.runnumber for peak_collection in getattr(self._stress, f'strain{d}').peak_collections]
+                for d in ('11', '22', '33')]
         runnumbers = []
         for runs in runs:
             for runnumber in runs:
