@@ -11,7 +11,7 @@ from pyrs.dataobjects.constants import DEFAULT_POINT_RESOLUTION
 from pyrs.dataobjects.fields import (aggregate_scalar_field_samples, fuse_scalar_field_samples,
                                      ScalarFieldSample, StrainField, StrainFieldSingle, StressField,
                                      stack_scalar_field_samples, generateParameterField)
-from pyrs.core.peak_profile_utility import get_parameter_dtype
+from pyrs.core.peak_profile_utility import EFFECTIVE_PEAK_PARAMETERS, get_parameter_dtype
 from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.dataobjects.sample_logs import PointList
@@ -571,6 +571,20 @@ class TestStrainFieldSingle:
         np.testing.assert_equal(d_reference.values, D_REFERENCE)
         np.testing.assert_equal(d_reference.errors, D_REFERENCE_ERROR)
 
+    def test_get_peak_params(self, strain_field_samples):
+        strain = strain_field_samples['strain with two points per direction']  # mock object
+
+        # test that getting non-existant parameter works
+        with pytest.raises(ValueError) as exception_info:
+            strain.get_effective_peak_parameter('impossible')
+        assert 'impossible' in str(exception_info.value)
+
+        num_values = len(strain)
+        for name in EFFECTIVE_PEAK_PARAMETERS:
+            scalar_field = strain.get_effective_peak_parameter(name)
+            assert scalar_field, f'Failed to get {name}'
+            assert len(scalar_field) == num_values, f'{name} does not have correct length'
+
 
 class Test_StrainField:
 
@@ -843,7 +857,7 @@ class TestStrainField:
             assert nan_measurements_count == nan_count
         # Check peak collections carry-over
         assert strain1_stacked.peak_collections[0] == strain1.peak_collections[0]
-        assert strain23_stacked.peak_collections == [strain2.peak_collection, strain3.peak_collection]
+        assert strain23_stacked.peak_collections == [strain2.peak_collections[0], strain3.peak_collections[0]]
 
     def test_to_md_histo_workspace(self, strain_field_samples):
         strain = strain_field_samples['HB2B_1320_peak0']

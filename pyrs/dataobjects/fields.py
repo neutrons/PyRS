@@ -77,11 +77,12 @@ import numpy as np
 from scipy.interpolate import griddata
 from scipy.spatial import cKDTree
 import sys
-from typing import TYPE_CHECKING, Any, cast, Iterator, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, cast, Dict, Iterator, List, Optional, Tuple, Union
 from uncertainties import unumpy
 from mantid.simpleapi import mtd, CreateMDWorkspace, BinMD
 from mantid.api import IMDHistoWorkspace
 
+from pyrs.core.peak_profile_utility import EFFECTIVE_PEAK_PARAMETERS
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.dataobjects.sample_logs import PointList, aggregate_point_lists
 from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
@@ -700,6 +701,14 @@ class _StrainField:
     def get_d_reference(self) -> ScalarFieldSample:
         raise NotImplementedError()
 
+    def _validate_peak_param_name(self, name: str) -> None:
+        '''Raises a ValueError if the name is not allowed'''
+        if name not in EFFECTIVE_PEAK_PARAMETERS:
+            raise ValueError(f'Peak parameter {name} not in {EFFECTIVE_PEAK_PARAMETERS}')
+
+    def get_effective_peak_parameter(self, name: str) -> ScalarFieldSample:
+        raise NotImplementedError()
+
     @final
     def to_md_histo_workspace(self, name: str = '',
                               interpolate: bool = True,
@@ -1116,6 +1125,10 @@ class StrainFieldSingle(_StrainField):
         self._point_list: Optional[PointList] = None
         # cached version of the ScalarFieldSample
         self._scalar_field: Optional[ScalarFieldSample] = None
+        # cached version of the ScalarFieldSample for each requested effective peak parameter
+        # this only caches the ones that were requested rather than everything by using the
+        # name of the porameter as a key
+        self._effective_params: Dict[str, ScalarFieldSample] = {}
 
         # Create a strain field from a single scan, if so requested
         single_scan_kwargs = dict(filename=filename, projectfile=projectfile, peak_tag=peak_tag,  # type: ignore
@@ -1165,10 +1178,6 @@ class StrainFieldSingle(_StrainField):
             return [self._peak_collection.projectfilename]
 
     @property
-    def peak_collection(self):
-        return self._peak_collection
-
-    @property
     def peak_collections(self):
         return [self._peak_collection]
 
@@ -1191,14 +1200,30 @@ class StrainFieldSingle(_StrainField):
     def _clear_cache(self) -> None:
         '''Invalidate any and all cached information'''
         self._scalar_field = None
+        self._effective_params = {}
 
-    def _create_scalar_field(self, method, name):
+    def _create_scalar_field(self, method: str, name: str):
+        '''
+        Parameters
+        ----------
+        method
+            The name of the effective peak parameter to get the value of or the name of
+            the method to call
+
+        name
+            The name of the output ScalarFieldSample
+        '''
         # the data is taken from the `PeakCollection`
         if self._peak_collection is None:
             raise RuntimeError('PeakCollection has not been set')
 
         # get the data
-        values, errors = getattr(self._peak_collection, f'{method}')()
+        if method in EFFECTIVE_PEAK_PARAMETERS:
+            peak_param_values, peak_param_errors = self._peak_collection.get_effective_params()
+            values = peak_param_values[method]
+            errors = peak_param_errors[method]
+        else:
+            values, errors = getattr(self._peak_collection, f'{method}')()
 
         # put it all together into a ScalarFieldSample
         full_values = np.full(len(self.point_list), NOT_MEASURED_NUMPY, dtype=float)
@@ -1243,6 +1268,16 @@ class StrainFieldSingle(_StrainField):
 
     def get_d_reference(self) -> ScalarFieldSample:
         return self._create_scalar_field(method='get_d_reference', name='d-reference')
+
+    def get_effective_peak_parameter(self, name: str) -> ScalarFieldSample:
+        self._validate_peak_param_name(name)
+
+        # look for it in the cache
+        if name not in self._effective_params.keys():
+            self._effective_params[name] = self._create_scalar_field(method=name,
+                                                                     name='d-reference')
+
+        return self._effective_params[name]
 
 
 def _to_pointlist_and_peaks(filename: str,
@@ -1428,6 +1463,10 @@ class StrainField(_StrainField):
         # cached version of the ScalarFieldSample
         # it is not used if there is only one StrainField contained in this object
         self._scalar_field: Optional[ScalarFieldSample] = None
+        # cached version of the ScalarFieldSample for each requested effective peak parameter
+        # this only caches the ones that were requested rather than everything by using the
+        # name of the porameter as a key
+        self._effective_params: Dict[str, ScalarFieldSample] = {}
 
         # Create a strain field from a single scan, if so requested
         single_scan_kwargs = dict(filename=filename, projectfile=projectfile, peak_tag=peak_tag,  # type: ignore
@@ -1474,6 +1513,7 @@ class StrainField(_StrainField):
     def _clear_cache(self) -> None:
         '''Invalidate any and all cached information'''
         self._scalar_field = None
+        self._effective_params = {}
 
     def _create_scalar_field(self, method, name):
         # make sure there is enough information to create the field
@@ -1493,11 +1533,16 @@ class StrainField(_StrainField):
             # StrainFieldSingle object specified by `strain_index`
             # `indices` below denote indices along the aggregated point list `self._point_list`
             indices = np.where(self._winners.scan_indexes == strain_index)
-            # get handle to the strain and uncertainties of the StrainFieldSingle object
-            strain_field_single = self._strains[strain_index]
+            # get handle to the underlying PeakCollection via the correct StrainFieldSingle object
+            peak_collection = self._strains[strain_index].peak_collections[0]
 
             # get the values to put together
-            values_i, errors_i = getattr(strain_field_single.peak_collections[0], f'{method}')()
+            if method in EFFECTIVE_PEAK_PARAMETERS:
+                peak_param_values, peak_param_errors = peak_collection.get_effective_params()
+                values_i = peak_param_values[method]
+                errors_i = peak_param_errors[method]
+            else:
+                values_i, errors_i = getattr(peak_collection, f'{method}')()
 
             # find points of the current single-scan strain's list contributing to the overall list of points
             # `self._winners.point_indexes` is a list as long as `self._point_list`. Each entry provides
@@ -1505,7 +1550,7 @@ class StrainField(_StrainField):
             # we are finding out the sample points of the StrainFieldSingle object specified by
             # `strain_index` contributing to the overall StrainField object
             idx = self._winners.point_indexes[indices]
-            assert np.all(idx < len(strain_field_single.peak_collection))
+            assert np.all(idx < len(peak_collection))
             values[indices], errors[indices] = values_i[idx], errors_i[idx]
 
         return ScalarFieldSample(name, values, errors, self.x, self.y, self.z)
@@ -1580,16 +1625,27 @@ class StrainField(_StrainField):
         else:
             return self._create_scalar_field(method='get_d_reference', name='d-reference')
 
+    def get_effective_peak_parameter(self, name: str) -> ScalarFieldSample:
+        self._validate_peak_param_name(name)
+
+        # look for it in the cache
+        if name not in self._effective_params.keys():
+            self._effective_params[name] = self._create_scalar_field(method=name,
+                                                                     name='d-reference')
+
+        return self._effective_params[name]
+
 
 def generateParameterField(parameter: str,
                            hidraworkspace: HidraWorkspace,
                            peak_collection: PeakCollection) -> ScalarFieldSample:
     '''Converts a HidraWorkspace and PeakCollection into a ScalarFieldSample for a specify peak parameter'''
+    # TODO client code should use the StrainField directly
     # extract positions
     pointlist = hidraworkspace.get_pointlist()
 
     # put together values
-    if parameter in ('Center', 'Height', 'FWHM', 'Mixing', 'A0', 'A1', 'Intensity'):
+    if parameter in EFFECTIVE_PEAK_PARAMETERS:
         values, errors = peak_collection.get_effective_params()  # type: ignore
         values = values[parameter]
         errors = errors[parameter]
