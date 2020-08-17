@@ -97,7 +97,6 @@ def strain_builder():
 
         Examples
         --------
-
         """
 
         # Required arguments
@@ -105,13 +104,17 @@ def strain_builder():
                          'error_fraction', 'vx', 'vy', 'vz'):
             assert required in peaks_data
 
+        # coerce to numpy array
         for key in ('subruns', 'd_reference', 'd_spacing', 'fit_costs', 'vx', 'vy', 'vz'):
             if isinstance(peaks_data[key], (list, tuple)):
                 peaks_data[key] = np.array(peaks_data[key])
         for key in peaks_data['native']:
             peaks_data['native'][key] = _coerce_to_ndarray(peaks_data['native'][key])
+
         # Default values for optional arguments of the PeakCollection constructor
         runnumber = peaks_data.get('runnumber', -1)
+        d_reference = peaks_data.get('d_reference', np.nan)
+        d_reference_error = peaks_data['error_fraction'] * peaks_data.get('d_reference', 0.0)
 
         peak_collection = PeakCollection(peaks_data['peak_tag'],
                                          peaks_data['peak_profile'], peaks_data['background_type'],
@@ -138,14 +141,6 @@ def strain_builder():
 
         # set the reference lattice spacing
         peak_collection.set_d_reference(1.0, 0.1)
-
-        # create the test workspace - only subruns and motor positions are needed
-        workspace = HidraWorkspace()
-        workspace.set_sub_runs(peaks_data['subruns'])
-        # arbitray points in space
-        workspace.set_sample_log('vx', peaks_data['subruns'], peaks_data['vx'])
-        workspace.set_sample_log('vy', peaks_data['subruns'], peaks_data['vy'])
-        workspace.set_sample_log('vz', peaks_data['subruns'], peaks_data['vz'])
 
         # Point list
         point_list = PointList([peaks_data['vx'], peaks_data['vy'], peaks_data['vz']])

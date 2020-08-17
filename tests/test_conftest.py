@@ -1,6 +1,6 @@
 import numpy as np
 from numpy.testing import assert_allclose
-
+import pytest
 
 def test_strain_builder(strain_builder):
     # all input data
@@ -29,6 +29,7 @@ def test_strain_builder(strain_builder):
         'vy': [0.] * 8,
         'vz': [0.] * 8
     }
+
     # create a StrainField object
     strain = strain_builder(scan)
 
