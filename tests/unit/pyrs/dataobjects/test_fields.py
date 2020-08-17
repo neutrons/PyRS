@@ -758,6 +758,14 @@ class TestStrainField:
         except IOError:
             pass  # this is what should happen
 
+    def test_from_file(self, test_data_dir):
+        file_path = os.path.join(test_data_dir, 'HB2B_1320.h5')
+        strain = StrainField(filename=file_path, peak_tag='peak0')
+
+        assert strain
+        assert strain.field
+        assert strain.get_effective_peak_parameter('Center')
+
     def test_fuse_strains(self, strain_field_samples):
         # TODO HB2B_1320_peak0 and HB2B_1320_ are the same scan. We need two different scans
         strain1 = strain_field_samples['HB2B_1320_peak0']
