@@ -15,26 +15,45 @@ class StressFacade:
         assert isinstance(stress, StressField)
         self._stress = stress
         self._selection = None
+        self._strain_cache = {}  # cache of strain references
+        self._stress_cache = {}  # cache of stress references
+        self._update_caches()
 
-    def select(self, selection: str) -> None:
-        r"""
-        Pick a scanning direction or run number
+    def _update_caches(self):
+        r"""Update the strain and stress references for each direction and run number"""
+        self._stress_cache = {'11': self._stress.stress11, '22': self._stress.stress22, '33':self._stress.stress33}
+        self._strain_cache = {'11': self._stress.strain11, '22': self._stress.strain22, '33':self._stress.strain33}
+        for direction in ('11', '22', '33'):
+            strain = self._strain_cache[direction]
+            for peak_collection, strain in zip(strain.peak_collections, strain.strains):
+                self._strain_cache[peak_collection.runnumber] = strain
 
-        Parameters
-        ----------
-        selection: str
-            If a scanning direction, pick one of ('11', '22', '33'), or enter a run number
-        """
-        if len(selection) == 2:
-            assert selection in ('11', '22', '33')
+    @property
+    def selection(self):
+        r"""Pick a scanning direction or run number"""
+        return self._selection
+
+    @selection.setter
+    def selection(self, choice):
+        if len(choice) == 2:
+            assert choice in ('11', '22', '33')
         else:
-            assert selection in self._all_runs()
-        self._selection = selection
+            assert choice in self._all_runs()
+        self._selection = choice
+
+    @property
+    def strain(self):
+        self._strain[self._selection]
+
+    @property
+    def stress(self):
+        if self._selection not in ('11', '22', '33'):
+            raise ValueError(f'Selection {self._selection} must specify one direction')
+        self._stress[self._selection]
 
     def _all_runs(self):
         run_lists = [self.runs(direction) for direction in ('11', '22', '33')]
         return [run for run_list in run_lists for run in run_list]
-
 
     def runs(self, direction: str) -> List[str]:
         r"""

@@ -17,7 +17,14 @@ class TestStressFacade:
 
     def test_init(self, strain_stress_object_1):
         for stress in strain_stress_object_1['stresses'].values():
-            assert StressFacade(stress)
+            facade = StressFacade(stress)
+            assert facade
+            assert facade._stress_cache['11'] == facade._stress.stress11
+            assert facade._strain_cache['11'] == facade._stress.strain11
+            assert facade._strain_cache['1234'] == facade._stress.strain11.strains[0]
+            assert facade._strain_cache['1236'] == facade._stress.strain22.strains[1]
+            assert facade._stress_cache['33'] == facade._stress.stress33
+            assert facade._strain_cache['33'] == facade._stress.strain33
 
     def test_runs(self, strain_stress_object_1):
         r"""Find runs for a particular direction"""
