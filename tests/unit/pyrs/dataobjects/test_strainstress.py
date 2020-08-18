@@ -1,6 +1,7 @@
 import pytest
 import numpy as np
 
+from copy import deepcopy
 from pyrs.core.stress_facade import StressFacade
 from pyrs.dataobjects.fields import StrainField, StressField
 from pyrs.dataobjects.sample_logs import PointList, SubRuns
@@ -8,58 +9,26 @@ from pyrs.peaks.peak_collection import PeakCollection
 
 NAN = np.nan
 
-@pytest.fixture(scope='module')
-def stress_mock2():
-    r"""Mock of a facade object"""
-
-    def serve_list(begin, end):
-        vx = 0.1 * np.arange(10)  # from 0.0 to 0.9
-        return PointList([vx[begin: end], np.zeros(end - begin), np.zeros(end - begin)])
-
-
-    class PeakCollectionMock(PeakCollection):
-        r"""Duck typing for PeakCollection"""
-
-        def __init__(self,  runnumber=None):
-            self._runnumber = runnumber
-            self._sub_run_array = SubRuns()
-
-    r"""We create four single strain instances, below is how they overlap over the vx's extent
-        0  1  2  3  4  5  6  7  8  9
-    s0  ***********************
-    s1    ************
-    s2             ***************
-    s3       ***********************
-    """
-    point_lists = [serve_list(begin, end) for begin, end in [(0, 8), (1, 5), (4, 9), (2, 10)]]
-    peak_collections = [PeakCollectionMock(runnumber=runnumber) for runnumber in [1234, 1235, 1236, 1237]]
-
-    strains = list()
-    for point_list, peak_collection in zip(point_lists, peak_collections):
-        strains.append(StrainField(point_list=point_list, peak_collection=peak_collection))
-    strain11, strain22, strain33 = strains[0], strains[1] + strains[2], strains[3]
-
-    # values of Young's modulus and Poisson's ratio to render simpler strain-to-stress formulae
-    return {'diagonal': StressField(strain11, strain22, strain33, 1./3, 4./3, 'diagonal'),
-            'in-plane-strain': StressField(strain11, strain22, None, 1./3, 4./3, 'in-plane-strain'),
-            'in-plane-stress': StressField(strain11, strain22, None, 1./2, 3./2, 'in-plane-stress')}
-
-
 def assert_workspace():
     return True
 
 
-class TestFacade:
+class TestStressFacade:
 
-    def test_init(self, stress_mock):
-        assert StressFacade(stress_mock['diagonal'])
-        assert StressFacade(stress_mock['in-plane'])
+    def test_init(self, strain_stress_object_1):
+        for stress in strain_stress_object_1['stresses'].values():
+            assert StressFacade(stress)
 
-    def test_runs(self, stress_mock):
+    def test_runs(self, strain_stress_object_1):
         r"""Find runs for a particular direction"""
-        assert stress_mock.runs('11') == ['1234', '1235']
-        assert stress_mock.runs('22') == ['1236']
-        assert stress_mock.runs('33') == ['1237', '1238']
+        facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
+        assert facade.runs('11') == ['1234']
+        assert facade.runs('22') == ['1235', '1236']
+        assert facade.runs('33') == ['1237']
+        facade = StressFacade(strain_stress_object_1['stresses']['in-plane-strain'])
+        assert facade.runs('33') == []
+        facade = StressFacade(strain_stress_object_1['stresses']['in-plane-stress'])
+        assert facade.runs('33') == []
 
     @pytest.mark.skip(reason='Not yet implemented')
     def test_youngs_modulus(self, stress_mock):

@@ -259,7 +259,7 @@ def strain_stress_object_1(strain_builder):
 
     strain33_data = deepcopy(common_data)
     strain33_data.update({
-        'runnumber': '1234',
+        'runnumber': '1237',
         'subruns': [1, 2, 3, 4, 5, 6, 7, 8],
         'native': {
             'Intensity': [120, 130, 140, 150, 160, 170, 180, 190],
