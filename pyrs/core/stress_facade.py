@@ -21,12 +21,16 @@ class StressFacade:
 
     def _update_caches(self):
         r"""Update the strain and stress references for each direction and run number"""
+        # Update stress cache
         self._stress_cache = {'11': self._stress.stress11, '22': self._stress.stress22, '33':self._stress.stress33}
+        # Update strain cache
         self._strain_cache = {'11': self._stress.strain11, '22': self._stress.strain22, '33':self._stress.strain33}
         for direction in ('11', '22', '33'):
             strain = self._strain_cache[direction]
             for peak_collection, strain in zip(strain.peak_collections, strain.strains):
                 self._strain_cache[peak_collection.runnumber] = strain
+        # Update d_reference
+
 
     @property
     def selection(self):
@@ -83,5 +87,5 @@ class StressFacade:
         return self._stress.poisson_ratio
 
     @property
-    def d0(self):
+    def d_refernce(self):
         pass

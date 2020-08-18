@@ -49,13 +49,13 @@ class TestStressFacade:
         assert facade.poisson_ratio == pytest.approx(1. / 3)
 
     @pytest.mark.skip(reason='Not yet implemented')
-    def test_d0(self, strain_stress_object_1):
+    def test_d_refence(self, strain_stress_object_1):
         r"""Get the reference lattice spacing"""
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
-        facade.select('11')
-        assert facade.d0.values
-        assert facade.d0.errors
-        assert facade.workspace('d0')
+        facade.selection
+        assert facade.d_reference.values
+        assert facade.d_reference.errors
+        assert facade.workspace('d_reference')
 
     @pytest.mark.skip(reason='Not yet implemented')
     def test_select(self, stress_mock):
