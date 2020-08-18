@@ -87,10 +87,6 @@ from pyrs.dataobjects.sample_logs import PointList, aggregate_point_lists
 from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from .constants import DEFAULT_POINT_RESOLUTION, NOT_MEASURED_NUMPY
-try:
-    from typing import final  # type: ignore
-except ImportError:
-    def final(func): return func  # type: ignore
 
 # two points in real space separated by less than this amount (in mili meters) are considered the same point
 SCALAR_FIELD_NAMES = ('lattice', 'strain', 'stress')  # standard names for most used fields
@@ -673,22 +669,18 @@ class _StrainField:
     def strains(self) -> List['StrainFieldSingle']:
         raise NotImplementedError()
 
-    @final  # type: ignore
     @property
     def coordinates(self) -> np.ndarray:
         return self.point_list.coordinates
 
-    @final  # type: ignore
     @property
     def x(self):
         return self.point_list.vx
 
-    @final  # type: ignore
     @property
     def y(self):
         return self.point_list.vy
 
-    @final  # type: ignore
     @property
     def z(self):
         return self.point_list.vz
@@ -707,7 +699,6 @@ class _StrainField:
     def get_effective_peak_parameter(self, name: str) -> ScalarFieldSample:
         raise NotImplementedError()
 
-    @final
     def to_md_histo_workspace(self, name: str = '',
                               interpolate: bool = True,
                               method: str = 'linear', fill_value: float = float('nan'), keep_nan: bool = True,
@@ -840,7 +831,6 @@ class _StrainField:
 
         return PointList([x_array, y_array, z_array]), full_clusters
 
-    @final
     def fuse_with(self, other_strain: '_StrainField',
                   resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = 'min_error') -> '_StrainField':
         r"""
