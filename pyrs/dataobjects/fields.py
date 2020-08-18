@@ -1811,8 +1811,7 @@ class StressField:
             self._strain33 = self._strain33_when_inplane_stress()
 
         # Calculate stress fields, and strain33 if stress_type=StressType.IN_PLANE_STRESS
-        stress11, stress22, stress33 = self._calc_stress_components()  # returns unumpy.array objects
-        self._initialize_stress_fields(stress11, stress22, stress33)
+        self.update_stress_calculation()
 
         # At any given time, the StresField object access only one of the 11, 22, and 33 directions
         self.direction, self._stress_selected, self._strain_selected = None, None, None
@@ -1973,6 +1972,19 @@ class StressField:
                                    values, errors)
         return StrainField(peak_collection=peaks,
                            point_list=PointList([self.x, self.y, self.z]))
+
+    def set_d_reference(self, values: Union[Tuple[float, float], ScalarFieldSample]) -> None:
+        # the strains have already been stacked
+        for strain in (self._strain11, self._strain22, self._strain33):
+            strain.set_d_reference(values)
+
+        self.update_stress_calculation()
+
+    def update_stress_calculation(self):
+        print('update_stress_calculation()')
+        # update stress values now that strains have been updated
+        stress11, stress22, stress33 = self._calc_stress_components()  # returns unumpy.array objects
+        self._initialize_stress_fields(stress11, stress22, stress33)
 
     @property
     def size(self) -> int:

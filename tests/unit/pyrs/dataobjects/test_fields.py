@@ -1285,6 +1285,18 @@ def test_stress_field_from_files(test_data_dir):
         np.testing.assert_equal(stress.values, stress_exp,
                                 err_msg=f'stress direction {direction}')
 
+    stress11 = stress.stress11.values
+    print(stress11)
+    assert np.all(np.logical_not(np.isnan(stress11)))  # confirm something was set
+
+    # redo the calculation - this should change nothing
+    stress.update_stress_calculation()
+    np.testing.assert_equal(stress.stress11.values, stress11)
+
+    # set the d-reference and see that the values are changed
+    stress.set_d_reference((42., 0.))
+    assert np.all(stress.stress11.values != stress11)
+
 
 if __name__ == '__main__':
     pytest.main()
