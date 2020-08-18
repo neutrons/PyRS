@@ -76,7 +76,6 @@ from enum import unique as unique_enum
 import numpy as np
 from scipy.interpolate import griddata
 from scipy.spatial import cKDTree
-import sys
 from typing import TYPE_CHECKING, Any, cast, Dict, Iterator, List, Optional, Tuple, Union
 from uncertainties import unumpy
 from mantid.simpleapi import mtd, CreateMDWorkspace, BinMD
@@ -88,11 +87,6 @@ from pyrs.dataobjects.sample_logs import PointList, aggregate_point_lists
 from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from .constants import DEFAULT_POINT_RESOLUTION, NOT_MEASURED_NUMPY
-if sys.version_info < (3, 8):
-    from typing_extensions import final
-else:
-    from typing import final
-
 
 # two points in real space separated by less than this amount (in mili meters) are considered the same point
 SCALAR_FIELD_NAMES = ('lattice', 'strain', 'stress')  # standard names for most used fields
@@ -675,22 +669,18 @@ class _StrainField:
     def strains(self) -> List['StrainFieldSingle']:
         raise NotImplementedError()
 
-    @final
     @property
     def coordinates(self) -> np.ndarray:
         return self.point_list.coordinates
 
-    @final
     @property
     def x(self):
         return self.point_list.vx
 
-    @final
     @property
     def y(self):
         return self.point_list.vy
 
-    @final
     @property
     def z(self):
         return self.point_list.vz
@@ -709,7 +699,6 @@ class _StrainField:
     def get_effective_peak_parameter(self, name: str) -> ScalarFieldSample:
         raise NotImplementedError()
 
-    @final
     def to_md_histo_workspace(self, name: str = '',
                               interpolate: bool = True,
                               method: str = 'linear', fill_value: float = float('nan'), keep_nan: bool = True,
@@ -842,7 +831,6 @@ class _StrainField:
 
         return PointList([x_array, y_array, z_array]), full_clusters
 
-    @final
     def fuse_with(self, other_strain: '_StrainField',
                   resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = 'min_error') -> '_StrainField':
         r"""
