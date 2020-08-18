@@ -3,6 +3,12 @@ import os
 import pytest
 import sys
 
+from pyrs.dataobjects.fields import StrainField
+from pyrs.dataobjects.sample_logs import _coerce_to_ndarray, PointList
+from pyrs.core.peak_profile_utility import get_parameter_dtype
+from pyrs.core.workspaces import HidraWorkspace
+from pyrs.peaks.peak_collection import PeakCollection
+
 
 @pytest.fixture(scope='session')
 def test_data_dir():
@@ -73,3 +79,77 @@ def approx_with_sorting():
         except AssertionError:
             assert sorted(left) == pytest.approx(sorted(right), *args, **kwargs)
     return inner_function
+
+
+@pytest.fixture(scope='session')
+def strain_builder():
+    def wrapped_function(peaks_data):
+        r"""
+        Constructor of `StrainField` objects
+
+        Parameters
+        ----------
+        peaks_data: dict
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.StrainField
+
+        Examples
+        --------
+
+        """
+
+        # Required arguments
+        for required in ('subruns', 'wavelength', 'peak_profile', 'background_type', 'd_spacing',
+                         'error_fraction', 'vx', 'vy', 'vz'):
+            assert required in peaks_data
+
+        for key in ('subruns', 'd_reference', 'd_spacing', 'fit_costs', 'vx', 'vy', 'vz'):
+            if isinstance(peaks_data[key], (list, tuple)):
+                peaks_data[key] = np.array(peaks_data[key])
+        for key in peaks_data['native']:
+            peaks_data['native'][key] = _coerce_to_ndarray(peaks_data['native'][key])
+        # Default values for optional arguments of the PeakCollection constructor
+        runnumber = peaks_data.get('runnumber', -1)
+
+        peak_collection = PeakCollection(peaks_data['peak_tag'],
+                                         peaks_data['peak_profile'], peaks_data['background_type'],
+                                         peaks_data['wavelength'],
+                                         runnumber=runnumber)
+
+        # Back-calculate the peak centers from supplied lattice spacings
+        centers = 2 * np.rad2deg(np.arcsin(peaks_data['wavelength'] / (2 * peaks_data['d_spacing'])))
+
+        # Enter the native parameters in the peak collection
+        subruns_count = len(peaks_data['subruns'])
+        peaks_data['native'].update({'PeakCentre': centers})
+        dtype = get_parameter_dtype(peaks_data['peak_profile'], peaks_data['background_type'])
+        parameters_value = np.zeros(subruns_count, dtype=dtype)
+        parameters_error = np.zeros(subruns_count, dtype=dtype)
+        for parameter_name in peaks_data['native']:
+            values = peaks_data['native'][parameter_name]
+            parameters_value[parameter_name] = values
+            parameters_error[parameter_name] = peaks_data['error_fraction'] * values
+        # set_peak_fitting_values ensures all required fitting parameters are being passed
+        peak_collection.set_peak_fitting_values(peaks_data['subruns'],
+                                                parameters_value, parameters_error,
+                                                peaks_data['fit_costs'])
+
+        # set the reference lattice spacing
+        peak_collection.set_d_reference(1.0, 0.1)
+
+        # create the test workspace - only subruns and motor positions are needed
+        workspace = HidraWorkspace()
+        workspace.set_sub_runs(peaks_data['subruns'])
+        # arbitray points in space
+        workspace.set_sample_log('vx', peaks_data['subruns'], peaks_data['vx'])
+        workspace.set_sample_log('vy', peaks_data['subruns'], peaks_data['vy'])
+        workspace.set_sample_log('vz', peaks_data['subruns'], peaks_data['vz'])
+
+        # Point list
+        point_list = PointList([peaks_data['vx'], peaks_data['vy'], peaks_data['vz']])
+
+        return StrainField(point_list=point_list, peak_collection=peak_collection)
+
+    return wrapped_function
