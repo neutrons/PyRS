@@ -76,7 +76,6 @@ from enum import unique as unique_enum
 import numpy as np
 from scipy.interpolate import griddata
 from scipy.spatial import cKDTree
-import sys
 from typing import TYPE_CHECKING, Any, cast, Dict, Iterator, List, Optional, Tuple, Union
 from uncertainties import unumpy
 from mantid.simpleapi import mtd, CreateMDWorkspace, BinMD
@@ -88,11 +87,10 @@ from pyrs.dataobjects.sample_logs import PointList, aggregate_point_lists
 from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from .constants import DEFAULT_POINT_RESOLUTION, NOT_MEASURED_NUMPY
-if sys.version_info < (3, 8):
-    from typing_extensions import final
-else:
+try:
     from typing import final
-
+except ImportError:
+    def final(func): return func
 
 # two points in real space separated by less than this amount (in mili meters) are considered the same point
 SCALAR_FIELD_NAMES = ('lattice', 'strain', 'stress')  # standard names for most used fields
