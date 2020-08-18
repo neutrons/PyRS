@@ -25,29 +25,30 @@ class TestStressFacade:
         assert facade.runs('11') == ['1234']
         assert facade.runs('22') == ['1235', '1236']
         assert facade.runs('33') == ['1237']
+        assert facade._all_runs() == ['1234', '1235', '1236', '1237']
+
         facade = StressFacade(strain_stress_object_1['stresses']['in-plane-strain'])
         assert facade.runs('33') == []
         facade = StressFacade(strain_stress_object_1['stresses']['in-plane-stress'])
         assert facade.runs('33') == []
+        assert facade._all_runs() == ['1234', '1235', '1236']
+
+    def test_youngs_modulus(self, strain_stress_object_1):
+        facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
+        assert facade.youngs_modulus == pytest.approx(4. / 3)
+
+    def test_poisson_ratio(self, strain_stress_object_1):
+        facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
+        assert facade.poisson_ratio == pytest.approx(1. / 3)
 
     @pytest.mark.skip(reason='Not yet implemented')
-    def test_youngs_modulus(self, stress_mock):
-        assert stress_mock.youngs_modulus == 1.0
-
-    @pytest.mark.skip(reason='Not yet implemented')
-    def test_poisson_ratio(self, stress_mock):
-        assert stress_mock.poisson_ratio == 1.0
-
-    @pytest.mark.skip(reason='Not yet implemented')
-    def test_d0(self, stress_mock):
+    def test_d0(self, strain_stress_object_1):
         r"""Get the reference lattice spacing"""
-        assert stress_mock.d0.values
-        assert stress_mock.d0.errors
-
-    @pytest.mark.skip(reason='Not yet implemented')
-    def test_d0(self, stress_mock):
-        r"""Export the reference spacing to a MDHistoWorkspace"""
-        assert stress_mock.workspace('d0')
+        facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
+        facade.select('11')
+        assert facade.d0.values
+        assert facade.d0.errors
+        assert facade.workspace('d0')
 
     @pytest.mark.skip(reason='Not yet implemented')
     def test_select(self, stress_mock):
