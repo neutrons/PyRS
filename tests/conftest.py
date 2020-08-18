@@ -97,6 +97,7 @@ def strain_builder():
 
         Examples
         --------
+
         """
 
         # Required arguments
