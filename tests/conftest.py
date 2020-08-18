@@ -104,17 +104,13 @@ def strain_builder():
                          'error_fraction', 'vx', 'vy', 'vz'):
             assert required in peaks_data
 
-        # coerce to numpy array
         for key in ('subruns', 'd_reference', 'd_spacing', 'fit_costs', 'vx', 'vy', 'vz'):
             if isinstance(peaks_data[key], (list, tuple)):
                 peaks_data[key] = np.array(peaks_data[key])
         for key in peaks_data['native']:
             peaks_data['native'][key] = _coerce_to_ndarray(peaks_data['native'][key])
-
         # Default values for optional arguments of the PeakCollection constructor
         runnumber = peaks_data.get('runnumber', -1)
-        d_reference = peaks_data.get('d_reference', np.nan)
-        d_reference_error = peaks_data['error_fraction'] * peaks_data.get('d_reference', 0.0)
 
         peak_collection = PeakCollection(peaks_data['peak_tag'],
                                          peaks_data['peak_profile'], peaks_data['background_type'],
