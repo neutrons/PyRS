@@ -88,9 +88,9 @@ from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from .constants import DEFAULT_POINT_RESOLUTION, NOT_MEASURED_NUMPY
 try:
-    from typing import final
+    from typing import final  # type: ignore
 except ImportError:
-    def final(func): return func
+    def final(func): return func  # type: ignore
 
 # two points in real space separated by less than this amount (in mili meters) are considered the same point
 SCALAR_FIELD_NAMES = ('lattice', 'strain', 'stress')  # standard names for most used fields
@@ -673,22 +673,22 @@ class _StrainField:
     def strains(self) -> List['StrainFieldSingle']:
         raise NotImplementedError()
 
-    @final
+    @final  # type: ignore
     @property
     def coordinates(self) -> np.ndarray:
         return self.point_list.coordinates
 
-    @final
+    @final  # type: ignore
     @property
     def x(self):
         return self.point_list.vx
 
-    @final
+    @final  # type: ignore
     @property
     def y(self):
         return self.point_list.vy
 
-    @final
+    @final  # type: ignore
     @property
     def z(self):
         return self.point_list.vz
