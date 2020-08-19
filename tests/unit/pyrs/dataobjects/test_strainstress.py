@@ -2,13 +2,11 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 
-from copy import deepcopy
 from pyrs.core.stress_facade import StressFacade
-from pyrs.dataobjects.fields import StrainField, StressField
-from pyrs.dataobjects.sample_logs import PointList, SubRuns
-from pyrs.peaks.peak_collection import PeakCollection
+
 
 NAN = np.nan
+
 
 def assert_workspace():
     return True
@@ -60,6 +58,7 @@ class TestStressFacade:
         assert_allclose(facade.y, np.zeros(9))
         assert_allclose(facade.z, np.zeros(9))
 
+    @pytest.mark.skip(reason='Not yet implemented')
     def test_d_reference(self, strain_stress_object_1):
         r"""Get the reference lattice spacing"""
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])

@@ -1,13 +1,13 @@
 import numpy as np
 from numpy.testing import assert_allclose
-from typing import List
+from typing import List, Union
 
-from pyrs.dataobjects.fields import ScalarFieldSample, StressField, StressType
+from pyrs.dataobjects.fields import ScalarFieldSample, StrainField, StrainFieldSingle, StressField, StressType
 
 
 class StressFacade:
 
-    def __init__(self, stress: StressField):
+    def __init__(self, stress: StressField) -> None:
         r"""
 
         Parameters
@@ -22,25 +22,24 @@ class StressFacade:
         self._update_caches()
         self._d_reference = None
 
-    def _update_caches(self):
+    def _update_caches(self) -> None:
         r"""Update the strain and stress references for each direction and run number"""
         # Update stress cache
-        self._stress_cache = {'11': self._stress.stress11, '22': self._stress.stress22, '33':self._stress.stress33}
+        self._stress_cache = {'11': self._stress.stress11, '22': self._stress.stress22, '33': self._stress.stress33}
         # Update strain cache
-        self._strain_cache = {'11': self._stress.strain11, '22': self._stress.strain22, '33':self._stress.strain33}
+        self._strain_cache = {'11': self._stress.strain11, '22': self._stress.strain22, '33': self._stress.strain33}
         for direction in ('11', '22', '33'):
             strain = self._strain_cache[direction]
             for peak_collection, strain in zip(strain.peak_collections, strain.strains):
                 self._strain_cache[peak_collection.runnumber] = strain
-        # Update d_reference
 
     @property
-    def selection(self):
+    def selection(self) -> str:
         r"""Pick a scanning direction or run number"""
         return self._selection
 
     @selection.setter
-    def selection(self, choice):
+    def selection(self, choice: str) -> None:
         if len(choice) == 2:
             assert choice in ('11', '22', '33')
         else:
@@ -48,19 +47,19 @@ class StressFacade:
         self._selection = choice
 
     @property
-    def x(self):
+    def x(self) -> np.ndarray:
         return self._stress.x
 
     @property
-    def y(self):
+    def y(self) -> np.ndarray:
         return self._stress.y
 
     @property
-    def z(self):
+    def z(self) -> np.ndarray:
         return self._stress.z
 
     @property
-    def d_reference(self):
+    def d_reference(self) -> ScalarFieldSample:
         if self._d_reference is None:  # initialize from the strains along each direction
             # Do we probe two or three directions?
             strains = [self._stress.strain11, self._stress.strain22]
@@ -87,18 +86,17 @@ class StressFacade:
             self._d_reference = ScalarFieldSample('d-reference', d0_values, d0_errors, self.x, self.y, self.z)
         return self._d_reference
 
-
     @property
-    def strain(self):
+    def strain(self) -> Union[StrainFieldSingle, StrainField]:
         self._strain[self._selection]
 
     @property
-    def stress(self):
+    def stress(self) -> ScalarFieldSample:
         if self._selection not in ('11', '22', '33'):
             raise ValueError(f'Selection {self._selection} must specify one direction')
         self._stress[self._selection]
 
-    def _all_runs(self):
+    def _all_runs(self) -> List[str]:
         run_lists = [self.runs(direction) for direction in ('11', '22', '33')]
         return [run for run_list in run_lists for run in run_list]
 
@@ -122,13 +120,9 @@ class StressFacade:
         return [str(peak_collection.runnumber) for peak_collection in self._stress.strain.peak_collections]
 
     @property
-    def youngs_modulus(self):
+    def youngs_modulus(self) -> float:
         return self._stress.youngs_modulus
 
     @property
-    def poisson_ratio(self):
+    def poisson_ratio(self) -> float:
         return self._stress.poisson_ratio
-
-    @property
-    def d_refernce(self):
-        pass
