@@ -70,11 +70,12 @@ def _create_d_reference_array(values: Union[float, np.ndarray],
 
 
 class PeakCollectionLite:
-    '''A variant of the :py:obj:PeakCollection which does not have the
-    full peak profile information. The intent is to be a very
-    lightweight version of a :py:obj:PeakCollection to be created for
+    r"""
+    A variant of the :py:obj:PeakCollection which does not have the full peak profile information.
+
+    The intent is to be a very lightweight version of a :py:obj:PeakCollection to be created for
     the in-plane strain and in-plane stress special cases.
-    '''
+    """
     def __init__(self, peak_tag: str,
                  strain: np.ndarray,
                  strain_error: np.ndarray,
@@ -395,7 +396,7 @@ class PeakCollection:
         try:
             dspacing_center = 0.5 * self._wavelength / sine_theta
         except ZeroDivisionError:
-            # replace zeros in the denomenator with nan explicitly
+            # replace zeros in the denominator with nan explicitly
             dspacing_center = np.where(unumpy.nominal_values(sine_theta) != 0.,
                                        unumpy.std_devs(0.5 * self._wavelength / sine_theta.clip(1e-9)), np.nan)
 

@@ -29,6 +29,7 @@ def test_strain_builder(strain_builder):
         'vy': [0.] * 8,
         'vz': [0.] * 8
     }
+
     # create a StrainField object
     strain = strain_builder(scan)
 
@@ -40,3 +41,33 @@ def test_strain_builder(strain_builder):
     assert_allclose(strain.field.values, strain_expected_values, rtol=1e-07, atol=1.e-07)
     for name in ['Intensity', 'FWHM', 'Mixing', 'A0', 'A1']:
         assert_allclose(strain.get_effective_peak_parameter(name).values, np.array(scan['native'][name]))
+
+
+def test_strain_stress_object_1(strain_stress_object_1):
+    strains, stresses = strain_stress_object_1['strains'], strain_stress_object_1['stresses']
+
+    # check strain values
+    assert_allclose(strains['11'].values, np.arange(0.0, 0.075, 0.01), rtol=1.e-07, atol=1.e-07)
+    assert_allclose(strains['22'].values, np.arange(0.01, 0.085, 0.01), rtol=1.e-07, atol=1.e-07)
+    assert_allclose(strains['33'].values, np.arange(0.02, 0.095, 0.01), rtol=1.e-07, atol=1.e-07)
+
+    # Check stress values.  Young's modulus and Poisson ratio values yield simple formulae
+    stress = stresses['diagonal']
+    trace = stress.strain11.values + stress.strain22.values + stress.strain33.values
+    assert_allclose(stress['11'].values, stress.strain11.values + trace, equal_nan=True)
+    assert_allclose(stress['22'].values, stress.strain22.values + trace, equal_nan=True)
+    assert_allclose(stress['33'].values, stress.strain33.values + trace, equal_nan=True)
+
+    stress = stresses['in-plane-strain']
+    assert_allclose(stress.strain33.values, np.zeros(9))
+    trace = stress.strain11.values + stress.strain22.values + stress.strain33.values
+    assert_allclose(stress['11'].values, stress.strain11.values + trace, equal_nan=True)
+    assert_allclose(stress['22'].values, stress.strain22.values + trace, equal_nan=True)
+    assert_allclose(stress['33'].values, stress.strain33.values + trace, equal_nan=True)
+
+    stress = stresses['in-plane-stress']
+    assert_allclose(stress.strain33.values, -1. * (stress.strain11.values + stress.strain22.values))
+    trace = stress.strain11.values + stress.strain22.values
+    assert_allclose(stress['11'].values, stress.strain11.values + trace, equal_nan=True)
+    assert_allclose(stress['22'].values, stress.strain22.values + trace, equal_nan=True)
+    assert_allclose(stress.stress33.values, np.zeros(9))
