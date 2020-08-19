@@ -58,6 +58,15 @@ class TestStressFacade:
         assert_allclose(facade.y, np.zeros(9))
         assert_allclose(facade.z, np.zeros(9))
 
+    # TODO Current bug in StrainField.get_d_reference.
+    # TODO For each of the three stacked directions, StrainField.get_d_reference() should return:
+    # TODO d_reference from strain11: 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, nan, nan
+    # TODO d_reference from strain22: nan, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, nan
+    # TODO d_reference from strain33: nan, nan, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0
+    # TODO instead I get:
+    # TODO d_reference from strain11: 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, nan, nan
+    # TODO d_reference from strain22: 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, nan, nan
+    # TODO d_reference from strain33: 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, nan, nan
     @pytest.mark.skip(reason='Not yet implemented')
     def test_d_reference(self, strain_stress_object_1):
         r"""Get the reference lattice spacing"""

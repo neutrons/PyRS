@@ -60,6 +60,20 @@ class StressFacade:
 
     @property
     def d_reference(self) -> ScalarFieldSample:
+        r"""
+        Consensus d_reference by probing  strains from different directions
+
+        Example:
+            vx                 :   0.0  1.0  2.0  3.0  4.0  5.0  6.0  7.0
+            d_ref from strain11:   1.0  1.1  1.1  1.2  1.2  1.2  nan  nan
+            d_ref from strain22:   nan  1.1  1.1  1.2  1.2  nan  nan  nan
+            d_ref from strain33:   nan  nan  1.1  1.2  1.2  1.2  1.2  1.3
+            consensus d_ref    :   1.0  1.1  1.1  1.2  1.2  1.2  1.2  1.3
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.ScalarFieldSample
+        """
         if self._d_reference is None:  # initialize from the strains along each direction
             # Do we probe two or three directions?
             strains = [self._stress.strain11, self._stress.strain22]
