@@ -1283,6 +1283,19 @@ class TestStressField:
         assert_allclose(stress['33'].values, np.zeros(stress.size))  # because in-plane-stress
         # TODO also test with fixture strain_stress_object_1
 
+    def test_strain_fields(self, strain_stress_object_1):
+        r"""Test the values of the stacked strains along each direction"""
+        stress = strain_stress_object_1['stresses']['diagonal']
+        # strain values for stacked strain along direction 11
+        expected = [0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, float('nan'), float('nan')]
+        assert_allclose(stress.strain11.field.values, expected, equal_nan=True, atol=1.e-02)
+        # strain values for stacked strain along direction 22
+        expected = [float('nan'), 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, float('nan')]
+        assert_allclose(stress.strain22.field.values, expected, equal_nan=True, atol=1.e-02)
+        # strain values for stacked strain along direction 33
+        expected = [float('nan'), float('nan'), 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09]
+        assert_allclose(stress.strain33.field.values, expected, equal_nan=True, atol=1.e-02)
+
 
 @pytest.fixture(scope='module')
 def field_sample_collection():
