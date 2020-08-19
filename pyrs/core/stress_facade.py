@@ -1,6 +1,8 @@
+import numpy as np
+from numpy.testing import assert_allclose
 from typing import List
 
-from pyrs.dataobjects.fields import StressField, StressType
+from pyrs.dataobjects.fields import ScalarFieldSample, StressField, StressType
 
 
 class StressFacade:
@@ -18,6 +20,7 @@ class StressFacade:
         self._strain_cache = {}  # cache of strain references
         self._stress_cache = {}  # cache of stress references
         self._update_caches()
+        self._d_reference = None
 
     def _update_caches(self):
         r"""Update the strain and stress references for each direction and run number"""
@@ -31,7 +34,6 @@ class StressFacade:
                 self._strain_cache[peak_collection.runnumber] = strain
         # Update d_reference
 
-
     @property
     def selection(self):
         r"""Pick a scanning direction or run number"""
@@ -44,6 +46,47 @@ class StressFacade:
         else:
             assert choice in self._all_runs()
         self._selection = choice
+
+    @property
+    def x(self):
+        return self._stress.x
+
+    @property
+    def y(self):
+        return self._stress.y
+
+    @property
+    def z(self):
+        return self._stress.z
+
+    @property
+    def d_reference(self):
+        if self._d_reference is None:  # initialize from the strains along each direction
+            # Do we probe two or three directions?
+            strains = [self._stress.strain11, self._stress.strain22]
+            if self._stress.stress_type is not StressType.IN_PLANE_STRAIN:
+                strains.append(self._stress.strain33)
+
+            # Collect reference spacings from each valid direction
+            d0s = [strain.get_d_reference() for strain in strains]
+
+            # Ensure reference spacings along different directions coincide where is not nan
+            d0s_values = [d0.values for d0 in d0s]
+            for d0_ii in d0s_values[:-1]:
+                for d0_jj in d0s_values[1:]:
+                    mask = ~(np.isnan(d0_ii) | np.isnan(d0_ii))
+                    assert_allclose(d0_ii[mask], d0_jj[mask],
+                                    err_msg='reference spacings are different on different directions')
+
+            # "merge" reference spacings along different directions where is not nan
+            d0_values = np.sum([np.nan_to_num(d0.values) for d0 in d0s], axis=0) / 3.0
+            d0_values[d0_values < 1e-9] = np.nan  # revert zeros to nan
+            d0_errors = np.sum([np.nan_to_num(d0.errors) for d0 in d0s], axis=0) / 3.0  # they're the same
+
+            # build the consensus scalar field
+            self._d_reference = ScalarFieldSample('d-reference', d0_values, d0_errors, self.x, self.y, self.z)
+        return self._d_reference
+
 
     @property
     def strain(self):

@@ -1,5 +1,6 @@
 import pytest
 import numpy as np
+from numpy.testing import assert_allclose
 
 from copy import deepcopy
 from pyrs.core.stress_facade import StressFacade
@@ -48,14 +49,21 @@ class TestStressFacade:
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
         assert facade.poisson_ratio == pytest.approx(1. / 3)
 
-    @pytest.mark.skip(reason='Not yet implemented')
-    def test_d_refence(self, strain_stress_object_1):
+    def test_x_y_z(self, strain_stress_object_1):
+        facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
+        assert_allclose(facade.x, np.arange(10))
+        assert_allclose(facade.y, np.zeros(10))
+        assert_allclose(facade.z, np.zeros(10))
+
+        facade = StressFacade(strain_stress_object_1['stresses']['in-plane-strain'])
+        assert_allclose(facade.x, np.arange(9))
+        assert_allclose(facade.y, np.zeros(9))
+        assert_allclose(facade.z, np.zeros(9))
+
+    def test_d_reference(self, strain_stress_object_1):
         r"""Get the reference lattice spacing"""
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
-        facade.selection
-        assert facade.d_reference.values
-        assert facade.d_reference.errors
-        assert facade.workspace('d_reference')
+        assert_allclose(facade.d_reference, np.ones(10))
 
     @pytest.mark.skip(reason='Not yet implemented')
     def test_select(self, stress_mock):
@@ -77,13 +85,6 @@ class TestStressFacade:
         assert stress_mock.selection == 1236
         assert stress_mock.direction == '22'
         assert stress_mock.runs == [1236]
-
-    @pytest.mark.skip(reason='Not yet implemented')
-    def test_xyz(self, stress_mock):
-        r"""Coordinates of the sample points"""
-        assert stress_mock.x == np.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 9.0])
-        assert stress_mock.y == np.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0])
-        assert stress_mock.z == np.array([0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0])
 
     @pytest.mark.skip(reason='Not yet implemented')
     def test_strain_array(self, stress_mock):
