@@ -1,6 +1,6 @@
 import numpy as np
 from numpy.testing import assert_allclose
-from typing import List, Union
+from typing import Dict, List, Optional, Union
 
 from pyrs.dataobjects.fields import ScalarFieldSample, StrainField, StrainFieldSingle, StressField, StressType
 
@@ -16,11 +16,11 @@ class StressFacade:
         """
         assert isinstance(stress, StressField)
         self._stress = stress
-        self._selection = None
-        self._strain_cache = {}  # cache of strain references
-        self._stress_cache = {}  # cache of stress references
+        self._selection: Optional[str] = None
+        self._strain_cache: Dict[str, Union[StrainFieldSingle, StrainField]] = {}  # cache of strain references
+        self._stress_cache: Dict[str, Optional[ScalarFieldSample]] = {}  # cache of stress references
         self._update_caches()
-        self._d_reference = None
+        self._d_reference: Optional[ScalarFieldSample] = None
 
     def _update_caches(self) -> None:
         r"""Update the strain and stress references for each direction and run number"""
@@ -31,10 +31,10 @@ class StressFacade:
         for direction in ('11', '22', '33'):
             strain = self._strain_cache[direction]
             for peak_collection, strain in zip(strain.peak_collections, strain.strains):
-                self._strain_cache[peak_collection.runnumber] = strain
+                self._strain_cache[str(peak_collection.runnumber)] = strain
 
     @property
-    def selection(self) -> str:
+    def selection(self) -> Optional[str]:
         r"""Pick a scanning direction or run number"""
         return self._selection
 
@@ -88,13 +88,16 @@ class StressFacade:
 
     @property
     def strain(self) -> Union[StrainFieldSingle, StrainField]:
-        self._strain[self._selection]
+        assert self._selection is not None, 'No selection has been entered'
+        return self._strain_cache[self._selection]
 
     @property
     def stress(self) -> ScalarFieldSample:
         if self._selection not in ('11', '22', '33'):
             raise ValueError(f'Selection {self._selection} must specify one direction')
-        self._stress[self._selection]
+        stress = self._stress_cache[self._selection]
+        assert stress is not None, 'StressField has not been initialized'
+        return stress
 
     def _all_runs(self) -> List[str]:
         run_lists = [self.runs(direction) for direction in ('11', '22', '33')]
@@ -117,6 +120,7 @@ class StressFacade:
         if self._stress.stress_type != StressType.DIAGONAL and direction == '33':
             return []
         self._stress.select(direction)
+        assert self._stress.strain is not None, 'The StressField object has not been initialized'
         return [str(peak_collection.runnumber) for peak_collection in self._stress.strain.peak_collections]
 
     @property
