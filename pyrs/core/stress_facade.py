@@ -21,6 +21,7 @@ class StressFacade:
         self._stress_cache: Dict[str, Optional[ScalarFieldSample]] = {}  # cache of stress references
         self._update_caches()
         self._d_reference: Optional[ScalarFieldSample] = None
+        self._directions: Dict[str, str] = {}
 
     def _update_caches(self) -> None:
         r"""Update the strain and stress references for each direction and run number"""
@@ -32,6 +33,10 @@ class StressFacade:
             strain = self._strain_cache[direction]
             for peak_collection, strain in zip(strain.peak_collections, strain.strains):
                 self._strain_cache[str(peak_collection.runnumber)] = strain
+
+    def _initialize_directions(self) -> None:
+        r"""Associate a direction to each run number"""
+
 
     @property
     def selection(self) -> Optional[str]:
@@ -45,6 +50,19 @@ class StressFacade:
         else:
             assert choice in self._all_runs()
         self._selection = choice
+
+    @property
+    def direction(self) -> str:
+        r"""Report the direction associated to the current selection"""
+        # if the current selection is a direction, then return the selection
+        assert self._selection is not None, 'A selection has not been made'
+        if self._selection in ('11', '22', '33'):
+            return self._selection
+        # the current selection is a run number
+        if bool(self._directions) is False:  # initialize empty dictionary
+            for ii in ('11', '22', '33'):
+                self._directions.update({run: ii for run in self.runs(ii)})
+        return self._directions[self._selection]
 
     @property
     def x(self) -> np.ndarray:

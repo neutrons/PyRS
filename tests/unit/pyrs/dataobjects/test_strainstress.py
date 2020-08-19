@@ -58,6 +58,18 @@ class TestStressFacade:
         assert_allclose(facade.y, np.zeros(9))
         assert_allclose(facade.z, np.zeros(9))
 
+    def test_direction(self, strain_stress_object_1):
+        r"""Select run numbers or directions"""
+        facade = StressFacade(strain_stress_object_1['stresses']['in-plane-stress'])
+        facade.selection = '11'
+        assert facade.direction == '11'
+        facade.selection = '1234'
+        assert facade.direction == '11'
+        facade.selection = '1235'
+        assert facade.direction == '22'
+        facade.selection = '33'
+        assert facade.direction == '33'
+
     # TODO Current bug in StrainField.get_d_reference.
     # TODO For each of the three stacked directions, StrainField.get_d_reference() should return:
     # TODO d_reference from strain11: 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, nan, nan
@@ -72,27 +84,6 @@ class TestStressFacade:
         r"""Get the reference lattice spacing"""
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
         assert_allclose(facade.d_reference, np.ones(10))
-
-    @pytest.mark.skip(reason='Not yet implemented')
-    def test_select(self, stress_mock):
-        r"""Select run numbers or directions"""
-
-        stress_mock.select('11')
-        assert stress_mock.direction == '11'
-        stress_mock.runs == ['1234', '1235']
-        assert stress_mock.selection == '11'
-        stress_mock.select('1234')
-        assert stress_mock.direction == '11'
-        stress_mock.runs == '1234'
-        assert stress_mock.selection == '11'
-        with pytest.raises(TypeError) as exception_info:
-            stress_mock.select(1234)
-        assert 'Expected format for run numbers is a strin' in str(exception_info.value)
-
-        stress_mock.select(1236)
-        assert stress_mock.selection == 1236
-        assert stress_mock.direction == '22'
-        assert stress_mock.runs == [1236]
 
     @pytest.mark.skip(reason='Not yet implemented')
     def test_strain_array(self, stress_mock):
