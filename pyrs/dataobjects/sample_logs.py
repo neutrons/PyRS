@@ -1104,6 +1104,7 @@ class PointList:
         full_point_list = PointList([self.vx, self.vy, self.vz])
         for points in point_lists:
             full_point_list = full_point_list.aggregate(points)  # this concatenates the lists
+        point_lists.insert(0, self)  # insert self to the beginning to treat it generically
 
         # calculate the clustering of all points
         # variable `cluster_indices` is a list with as many elements as clusters. Each list element represents one
@@ -1128,7 +1129,7 @@ class PointList:
         # cluster_indices = [[0, 3], [1], [2, 4]]  three clusters, first and last have contributions for all lists
         # full_clusters = [[0, 0], [1, -1], [2, 1]]  second cluster is missing a point from the second list
         full_clusters = []
-        num_point_lists = 1 + len(point_lists)  # number of input PointList instances + 1 for self
+        num_point_lists = len(point_lists)  # number of input PointList instances
         for i, cluster in enumerate(cluster_indices):
             # make sure the aggregate indices in list `cluster` are sorted, from lowest to highest
             cluster = sorted(cluster)  # variable `cluster` is a list of aggregate indices
