@@ -217,6 +217,7 @@ class StressFacade:
         -------
         ~pyrs.dataobjects.fields.ScalarFieldSample
         """
+        assert self._selection is not None, 'Please make a direction or number number selection'
         if self._selection in ('11', '22', '33'):
             msg = 'Peak parameters can only be retrieved for run numbers, not directions. Update your selection'
             raise ValueError(msg)
