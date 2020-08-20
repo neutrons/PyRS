@@ -125,13 +125,30 @@ class StressFacade:
 
     @property
     def strain(self) -> ScalarFieldSample:
-        r"""Scalar field sample with strain values for the selected direction or run number"""
+        r"""
+        Scalar field sample with strain values for the selected direction or run number
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.ScalarFieldSample
+        """
         assert self._selection is not None, 'No selection has been entered'
         return self._strain_cache[self._selection].field
 
     @property
     def stress(self) -> ScalarFieldSample:
-        r"""Scalar field sample with stress values for the selected direction or run number"""
+        r"""
+        Scalar field sample with stress values for the selected direction or run number
+
+        Raises
+        ------
+        ValueError
+            When the the selection is a run number, instead of one of the directions
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.ScalarFieldSample
+        """
         if self._selection not in ('11', '22', '33'):
             raise ValueError(f'Stress can only be computed for directions, not for run numbers')
         stress = self._stress_cache[self._selection]
