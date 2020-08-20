@@ -4,12 +4,23 @@ from numpy.testing import assert_allclose
 
 from pyrs.core.stress_facade import StressFacade
 
-
+nanf = float('nan')
 NAN = np.nan
 
 
-def assert_workspace():
-    return True
+def assert_workspace(workspace, signal_array):
+    r"""
+    Set of assertions for data related to fixture strain_stress_object_1
+    """
+    assert workspace.id() == 'MDHistoWorkspace'
+    dimension = workspace.getDimension(0)
+    assert dimension.getUnits() == 'mm'
+    # adding half a bin each direction since values from mdhisto are boundaries and constructor uses centers
+    min_value, max_value = 0.0, 9.0
+    assert dimension.getMinimum() == pytest.approx(min_value - 0.5)
+    assert dimension.getMaximum() == pytest.approx(max_value + 0.5)
+    assert dimension.getNBins() == 10
+    assert_allclose(workspace.getSignalArray().ravel(), signal_array, atol=1.e-6)
 
 
 class TestStressFacade:
@@ -58,110 +69,163 @@ class TestStressFacade:
         assert_allclose(facade.y, np.zeros(9))
         assert_allclose(facade.z, np.zeros(9))
 
-    # TODO Current bug in StrainField.get_d_reference.
-    # TODO For each of the three stacked directions, StrainField.get_d_reference() should return:
-    # TODO d_reference from strain11: 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, nan, nan
-    # TODO d_reference from strain22: nan, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, nan
-    # TODO d_reference from strain33: nan, nan, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0
-    # TODO instead I get:
-    # TODO d_reference from strain11: 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, nan, nan
-    # TODO d_reference from strain22: 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, nan, nan
-    # TODO d_reference from strain33: 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, nan, nan
+    def test_direction(self, strain_stress_object_1):
+        r"""Select run numbers or directions"""
+        facade = StressFacade(strain_stress_object_1['stresses']['in-plane-stress'])
+        facade.selection = '11'
+        assert facade.direction == '11'
+        facade.selection = '1234'
+        assert facade.direction == '11'
+        facade.selection = '1235'
+        assert facade.direction == '22'
+        facade.selection = '33'
+        assert facade.direction == '33'
+
+    def test_strain_field(self, strain_stress_object_1):
+        r"""strains along for a particular direction or run number"""
+        facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
+        # direction 11 and components
+        facade.selection = '11'
+        expected = [0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf, nanf]
+        r"""
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        facade.selection = '1234'
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        # direction 22 and components
+        facade.selection = '22'
+        expected = [nanf, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, nanf]
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        facade.selection = '1235'
+        expected = [nanf, 0.01, 0.02, 0.03, 0.04, nanf, nanf, nanf, nanf, nanf]
+        facade.selection = '1236'
+        expected = [nanf, nanf, nanf, nanf, 0.04, 0.05, 0.06, 0.07, 0.08, nanf]
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        # direction 33 and components
+        facade.selection = '33'
+        expected = [nanf, nanf, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09]
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        facade.selection = '1237'
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        """
+
+        facade = StressFacade(strain_stress_object_1['stresses']['in-plane-strain'])
+        r"""
+        # direction 11 and components
+        facade.selection = '11'
+        expected = [0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf]
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        facade.selection = '1234'
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        # direction 22 and components
+        facade.selection = '22'
+        expected = [nanf, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08]
+        assert_allclose(facade.strain.values, expected, equanlnan=True, atol=1e-6)
+        facade.selection = '1235'
+        expected = [nanf, 0.01, 0.02, 0.03, 0.04, nanf, nanf, nanf, nanf]
+        facade.selection = '1236'
+        expected = [nanf, nanf, nanf, nanf, 0.04, 0.05, 0.06, 0.07, 0.08]
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        """
+        # direction 33 and components
+        facade.selection = '33'
+        expected = [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+
+        facade = StressFacade(strain_stress_object_1['stresses']['in-plane-stress'])
+        r"""
+        # direction 11 and components
+        facade.selection = '11'
+        expected = [0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf]
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        facade.selection = '1234'
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        # direction 22 and components
+        facade.selection = '22'
+        expected = [nanf, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08]
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        facade.selection = '1235'
+        expected = [nanf, 0.01, 0.02, 0.03, 0.04, nanf, nanf, nanf, nanf]
+        facade.selection = '1236'
+        expected = [nanf, nanf, nanf, nanf, 0.04, 0.05, 0.06, 0.07, 0.08]
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        # direction 33 and components
+        facade.selection = '33'
+        expected = [nanf, -0.02, -0.04, -0.06, -0.08, -0.10, -0.12, -0.14, nanf]
+        """
+
+    def test_strain_workspace(self, strain_stress_object_1):
+        r"""Export the strains to a MDHistoWorkspace"""
+        facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
+        facade.selection = '11'
+        assert_workspace(facade.workspace('strain'), facade.strain.values)
+
+        r"""
+        facade = StressFacade(strain_stress_object_1['stresses']['in-plane-strain'])
+        facade.selection = '33'
+        assert_workspace(facade.workspace('strain'), facade.strain.values)
+        """
+
+    def test_stress_field(self, strain_stress_object_1):
+        r"""Stresses along a particular direction. Also for a run number, when a direction contains only one run
+        number"""
+        facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
+        facade.selection = '1234'
+        with pytest.raises(ValueError) as exception_info:
+            facade.stress.values
+        assert 'Stress can only be computed for directions' in str(exception_info.value)
+        # TODO assert stresses for the remaining selections
+
+    def test_stress_workspace(self, strain_stress_object_1):
+        r"""Stresses along a particular direction. Also for a run number, when a direction contains only one run
+        number"""
+        facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
+        facade.selection = '1234'
+        with pytest.raises(ValueError) as exception_info:
+            facade.workspace('stress')
+        assert 'Stress can only be computed for directions' in str(exception_info.value)
+        # TODO assert stresses for the remaining selections
+
     @pytest.mark.skip(reason='Not yet implemented')
-    def test_d_reference(self, strain_stress_object_1):
+    def test_d_reference_field(self, strain_stress_object_1):
         r"""Get the reference lattice spacing"""
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
         assert_allclose(facade.d_reference, np.ones(10))
 
-    @pytest.mark.skip(reason='Not yet implemented')
-    def test_select(self, stress_mock):
-        r"""Select run numbers or directions"""
+    def test_peak_parameters(self, strain_stress_object_1):
+        facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
+        assert set(facade.peak_parameters) == {'Center', 'Height', 'FWHM', 'Mixing', 'A0', 'A1', 'Intensity'}
 
-        stress_mock.select('11')
-        assert stress_mock.direction == '11'
-        stress_mock.runs == ['1234', '1235']
-        assert stress_mock.selection == '11'
-        stress_mock.select('1234')
-        assert stress_mock.direction == '11'
-        stress_mock.runs == '1234'
-        assert stress_mock.selection == '11'
-        with pytest.raises(TypeError) as exception_info:
-            stress_mock.select(1234)
-        assert 'Expected format for run numbers is a strin' in str(exception_info.value)
-
-        stress_mock.select(1236)
-        assert stress_mock.selection == 1236
-        assert stress_mock.direction == '22'
-        assert stress_mock.runs == [1236]
-
-    @pytest.mark.skip(reason='Not yet implemented')
-    def test_strain_array(self, stress_mock):
-        r"""strains along a particular direction or run number"""
-        stress_mock.select(1234)
-        assert stress_mock.strain.values == np.array([100, 110, 120, 130, 140, 150, NAN, NAN, NAN, NAN])
-        assert stress_mock.strain.errors == np.array([10, 11, 12, 13, 14, 15, NAN, NAN, NAN, NAN])
-        stress_mock.select(1235)
-        assert stress_mock.strain.values == np.array([NAN, NAN, NAN, NAN, NAN, 150, 160, 170, 180, 190])
-        assert stress_mock.strain.errors == np.array([NAN, NAN, NAN, NAN, NAN, 15, 16, 17, 18, 19])
-        stress_mock.select('11')
-        assert stress_mock.strain.values == np.array([100, 110, 120, 130, 140, 150, 160, 170, 180, 190])
-        assert stress_mock.strain.values == np.array([10, 11, 12, 13, 14, 15, 16, 17, 18, 19])
-
-    @pytest.mark.skip(reason='Not yet implemented')
-    def test_strain_workspace(self, stress_mock):
-        r"""Export the strains to a MDHistoWorkspace"""
-        stress_mock.select(1234)
-        assert stress_mock.workspace('strain')
-        stress_mock.select('11')
-        assert stress_mock.workspace('strain')
-
-    @pytest.mark.skip(reason='Not yet implemented')
-    def test_stress(self, stress_mock):
-        r"""strains along a particular direction. Also for a run number, when a direction contains only one run
-        number"""
-        stress_mock.select(1234)
+    def test_peak_parameter_field(self, strain_stress_object_1):
+        r"""Retrieve the effective peak parameters for a particular run, or for a particular direction"""
+        facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
+        facade.selection = '11'
         with pytest.raises(ValueError) as exception_info:
-            stress_mock.stress
-        assert 'The selection (run 1234) does not define a direction' in str(exception_info.value)
-        stress_mock.select('11')
-        assert stress_mock.stress.values == [200, 210, 220, 230, 240, 250, 260, 270, 280, 290]
-        assert stress_mock.stress.errors == [20, 21, 22, 23, 24, 25, 26, 27, 28, 29]
-        stress_mock.select('22')
-        assert stress_mock.stress.values == [300, 310, 320, 330, 340, 350, 360, 370, 380, 390]
-        assert stress_mock.stress.errors == [30, 31, 32, 33, 34, 35, 36, 37, 38, 39]
+            facade.peak_parameter('Center')
+        assert 'Peak parameters can only be retrieved for run numbers' in str(exception_info.value)
+        facade.selection = '1234'
+        with pytest.raises(AssertionError) as exception_info:
+            facade.peak_parameter('center')
+        assert 'Peak parameter must be one of' in str(exception_info.value)
+        r"""
+        facade.selection = '1234'
+        expected = [100, 110, 120, 130, 140, 150, 160, 170, nanf, nanf]
+        assert_allclose(facade.peak_parameter('Intensity').values, expected, equal_nan=True)
+        """
+        # TODO assertions for remaining selections
 
-    @pytest.mark.skip(reason='Not yet implemented')
-    def test_stress_workspace(self, stress_mock):
-        r"""Export the stress components to a MDHistoWorkspace"""
-        stress_mock.select(1234)
+    def test_peak_parameter_workspace(self, strain_stress_object_1):
+        r"""Retrieve the effective peak parameters for a particular run, or for a particular direction"""
+        facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
+        facade.selection = '11'
         with pytest.raises(ValueError) as exception_info:
-            stress_mock.to_worksapce('stress')
-        assert 'The selection (run 1234) does not define a direction' in str(exception_info.value)
-        stress_mock.select('11')
-        assert stress_mock.workspace('stress')
-        stress_mock.select('1236')
-        assert stress_mock.workspace('stress')
-
-    @pytest.mark.skip(reason='Not yet implemented')
-    def test_fitting_parameters(self, stress_mock):
-        r"""Retrieve the titting parameters for a particular run, or for a particular direction"""
-        parameters = ['Center', 'Height', 'FWHM', 'Mixing', 'A0', 'A1', 'Intensity']
-        stress_mock.select(1234)
-        for parameter in parameters:
-            assert stress_mock.get_parameter(parameter).values
-            assert stress_mock.get_parameter(parameter).errors
-        stress_mock.select('11')
-        for parameter in parameters:
-            assert stress_mock.get_parameter(parameter).values
-            assert stress_mock.get_parameter(parameter).errors
-
-    @pytest.mark.skip(reason='Not yet implemented')
-    def test_fitting_parameters_workspace(self, stress_mock):
-        r"""Export the fitting parameters to MDHistoWorkspace"""
-        parameters = ['Center', 'Height', 'FWHM', 'Mixing', 'A0', 'A1', 'Intensity']
-        stress_mock.select(1234)
-        for parameter in parameters:
-            assert stress_mock.workspace(parameter)
-        stress_mock.select('11')
-        for parameter in parameters:
-            assert stress_mock.workspace(parameter)
+            facade.workspace('Center')
+        assert 'Peak parameters can only be retrieved for run numbers' in str(exception_info.value)
+        facade.selection = '1234'
+        with pytest.raises(AssertionError) as exception_info:
+            facade.workspace('center')
+        assert 'Peak parameter must be one of' in str(exception_info.value)
+        facade.workspace('Center')
+        r"""
+        assert_workspace(facade.workspace('Center'), [])
+        """
+        # TODO assertions for remaining selections

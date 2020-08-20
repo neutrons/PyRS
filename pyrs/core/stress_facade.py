@@ -1,7 +1,9 @@
+from mantid.api import IMDHistoWorkspace
 import numpy as np
 from numpy.testing import assert_allclose
 from typing import Dict, List, Optional, Union
 
+from pyrs.core.peak_profile_utility import EFFECTIVE_PEAK_PARAMETERS
 from pyrs.dataobjects.fields import ScalarFieldSample, StrainField, StrainFieldSingle, StressField, StressType
 
 
@@ -21,6 +23,7 @@ class StressFacade:
         self._stress_cache: Dict[str, Optional[ScalarFieldSample]] = {}  # cache of stress references
         self._update_caches()
         self._d_reference: Optional[ScalarFieldSample] = None
+        self._directions: Dict[str, str] = {}
 
     def _update_caches(self) -> None:
         r"""Update the strain and stress references for each direction and run number"""
@@ -35,7 +38,14 @@ class StressFacade:
 
     @property
     def selection(self) -> Optional[str]:
-        r"""Pick a scanning direction or run number"""
+        r"""
+        Pick a scanning direction or run number
+
+        Examples
+        --------
+        > facade.selection = '11'  # select along the first direction
+        > facade.selection = '1234'  # select run number 1234
+        """
         return self._selection
 
     @selection.setter
@@ -45,6 +55,19 @@ class StressFacade:
         else:
             assert choice in self._all_runs()
         self._selection = choice
+
+    @property
+    def direction(self) -> str:
+        r"""Report the direction associated to the current selection"""
+        # if the current selection is a direction, then return the selection
+        assert self._selection is not None, 'A selection has not been made'
+        if self._selection in ('11', '22', '33'):
+            return self._selection
+        # the current selection is a run number
+        if bool(self._directions) is False:  # initialize empty dictionary
+            for ii in ('11', '22', '33'):
+                self._directions.update({run: ii for run in self.runs(ii)})
+        return self._directions[self._selection]
 
     @property
     def x(self) -> np.ndarray:
@@ -101,19 +124,45 @@ class StressFacade:
         return self._d_reference
 
     @property
-    def strain(self) -> Union[StrainFieldSingle, StrainField]:
+    def strain(self) -> ScalarFieldSample:
+        r"""
+        Scalar field sample with strain values for the selected direction or run number
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.ScalarFieldSample
+        """
         assert self._selection is not None, 'No selection has been entered'
-        return self._strain_cache[self._selection]
+        return self._strain_cache[self._selection].field
 
     @property
     def stress(self) -> ScalarFieldSample:
+        r"""
+        Scalar field sample with stress values for the selected direction or run number
+
+        Raises
+        ------
+        ValueError
+            When the the selection is a run number, instead of one of the directions
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.ScalarFieldSample
+        """
         if self._selection not in ('11', '22', '33'):
-            raise ValueError(f'Selection {self._selection} must specify one direction')
+            raise ValueError('Stress can only be computed for directions, not for run numbers')
         stress = self._stress_cache[self._selection]
         assert stress is not None, 'StressField has not been initialized'
         return stress
 
     def _all_runs(self) -> List[str]:
+        r"""
+        All run numbers contributing to the stress
+
+        Returns
+        -------
+        list
+        """
         run_lists = [self.runs(direction) for direction in ('11', '22', '33')]
         return [run for run_list in run_lists for run in run_list]
 
@@ -144,3 +193,54 @@ class StressFacade:
     @property
     def poisson_ratio(self) -> float:
         return self._stress.poisson_ratio
+
+    @property
+    def peak_parameters(self) -> List[str]:
+        r"""
+        List of effective peak parameter names
+
+        Returns
+        -------
+        list
+        """
+        return EFFECTIVE_PEAK_PARAMETERS
+
+    def peak_parameter(self, query: str) -> ScalarFieldSample:
+        r"""
+        Peak parameter values for the selection direction or run number
+
+        Parameters
+        ----------
+        query: str
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.ScalarFieldSample
+        """
+        assert self._selection is not None, 'Please make a direction or number number selection'
+        if self._selection in ('11', '22', '33'):
+            msg = 'Peak parameters can only be retrieved for run numbers, not directions. Update your selection'
+            raise ValueError(msg)
+        assert query in self.peak_parameters, f'Peak parameter must be one of {self.peak_parameters}'
+        return self._strain_cache[self._selection].get_effective_peak_parameter(query)
+
+    def workspace(self, query: str) -> IMDHistoWorkspace:
+        r"""
+        Create an MDHistoWorkspace for the selection strain, stress, or effective peak parameter
+
+        Parameters
+        ----------
+        query: str
+            One of 'strain', 'stress', or one of the effective peak parameter names
+
+        Returns
+        -------
+        ~mantid.api.IMDHistoWorkspace
+        """
+        if query == 'strain':
+            field = self.strain
+        elif query == 'stress':
+            field = self.stress
+        else:
+            field = self.peak_parameter(query)
+        return field.to_md_histo_workspace()
