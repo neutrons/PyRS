@@ -3,6 +3,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 from typing import Dict, List, Optional, Union
 
+from pyrs.core.peak_profile_utility import EFFECTIVE_PEAK_PARAMETERS
 from pyrs.dataobjects.fields import ScalarFieldSample, StrainField, StrainFieldSingle, StressField, StressType
 
 
@@ -125,7 +126,7 @@ class StressFacade:
     def stress(self) -> ScalarFieldSample:
         r"""Scalar field sample with stress values for the selected direction or run number"""
         if self._selection not in ('11', '22', '33'):
-            raise ValueError(f'Selection {self._selection} must specify one direction')
+            raise ValueError(f'Stress can only be computed for directions, not for run numbers')
         stress = self._stress_cache[self._selection]
         assert stress is not None, 'StressField has not been initialized'
         return stress
@@ -169,6 +170,17 @@ class StressFacade:
     def poisson_ratio(self) -> float:
         return self._stress.poisson_ratio
 
+    @property
+    def peak_parameters(self) -> List[str]:
+        r"""
+        List of effective peak parameter names
+
+        Returns
+        -------
+        list
+        """
+        return EFFECTIVE_PEAK_PARAMETERS
+
     def peak_parameter(self, query: str) -> ScalarFieldSample:
         r"""
         Peak parameter values for the selection direction or run number
@@ -181,7 +193,11 @@ class StressFacade:
         -------
         ~pyrs.dataobjects.fields.ScalarFieldSample
         """
-        return self.strain.get_effective_peak_parameter(query)
+        if self._selection in ('11', '22', '33'):
+            msg = 'Peak parameters can only be retrieved for run numbers, not directions. Update your selection'
+            raise ValueError(msg)
+        assert query in self.peak_parameters, f'Peak parameter must be one of {self.peak_parameters}'
+        return self._strain_cache[self._selection].get_effective_peak_parameter(query)
 
     def workspace(self, query: str) -> IMDHistoWorkspace:
         r"""
