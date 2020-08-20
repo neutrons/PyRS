@@ -642,12 +642,16 @@ class _StrainField:
 
     @property
     def values(self) -> np.ndarray:
-        '''Default implementation which is likely slower than it needs to be'''
+        r"""
+        Strain values via invocation of the sample scalar field
+        """
         return self.field.values
 
     @property
     def errors(self) -> np.ndarray:
-        '''Default implementation which is likely slower than it needs to be'''
+        r"""
+        Strain errors via invocation of the sample scalar field
+        """
         return self.field.errors
 
     @property
@@ -1176,14 +1180,6 @@ class StrainFieldSingle(_StrainField):
     @property
     def point_list(self):
         return self._point_list
-
-    @property
-    def values(self):
-        return self._peak_collection.get_strain()[0]
-
-    @property
-    def errors(self):
-        return self._peak_collection.get_strain()[1]
 
     def _clear_cache(self) -> None:
         '''Invalidate any and all cached information'''
