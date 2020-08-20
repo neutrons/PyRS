@@ -211,7 +211,7 @@ class StressFacade:
 
         Parameters
         ----------
-        query
+        query: str
 
         Returns
         -------
