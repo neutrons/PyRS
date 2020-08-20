@@ -1,3 +1,4 @@
+from mantid.api import IMDHistoWorkspace
 import numpy as np
 from numpy.testing import assert_allclose
 from typing import Dict, List, Optional, Union
@@ -33,10 +34,6 @@ class StressFacade:
             strain = self._strain_cache[direction]
             for peak_collection, strain in zip(strain.peak_collections, strain.strains):
                 self._strain_cache[str(peak_collection.runnumber)] = strain
-
-    def _initialize_directions(self) -> None:
-        r"""Associate a direction to each run number"""
-
 
     @property
     def selection(self) -> Optional[str]:
@@ -119,12 +116,14 @@ class StressFacade:
         return self._d_reference
 
     @property
-    def strain(self) -> Union[StrainFieldSingle, StrainField]:
+    def strain(self) -> ScalarFieldSample:
+        r"""Scalar field sample with strain values for the selected direction or run number"""
         assert self._selection is not None, 'No selection has been entered'
-        return self._strain_cache[self._selection]
+        return self._strain_cache[self._selection].field
 
     @property
     def stress(self) -> ScalarFieldSample:
+        r"""Scalar field sample with stress values for the selected direction or run number"""
         if self._selection not in ('11', '22', '33'):
             raise ValueError(f'Selection {self._selection} must specify one direction')
         stress = self._stress_cache[self._selection]
@@ -132,6 +131,13 @@ class StressFacade:
         return stress
 
     def _all_runs(self) -> List[str]:
+        r"""
+        All run numbers contributing to the stress
+
+        Returns
+        -------
+        list
+        """
         run_lists = [self.runs(direction) for direction in ('11', '22', '33')]
         return [run for run_list in run_lists for run in run_list]
 
@@ -162,3 +168,38 @@ class StressFacade:
     @property
     def poisson_ratio(self) -> float:
         return self._stress.poisson_ratio
+
+    def peak_parameter(self, query: str) -> ScalarFieldSample:
+        r"""
+        Peak parameter values for the selection direction or run number
+
+        Parameters
+        ----------
+        query
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.ScalarFieldSample
+        """
+        return self.strain.get_effective_peak_parameter(query)
+
+    def workspace(self, query: str) -> IMDHistoWorkspace:
+        r"""
+        Create an MDHistoWorkspace for the selection strain, stress, or effective peak parameter
+
+        Parameters
+        ----------
+        query: str
+            One of 'strain', 'stress', or one of the effective peak parameter names
+
+        Returns
+        -------
+        ~mantid.api.IMDHistoWorkspace
+        """
+        if query == 'strain':
+            field = self.strain
+        elif query == 'stress':
+            field = self.stress
+        else:
+            field = self.peak_parameter(query)
+        return field.to_md_histo_workspace()

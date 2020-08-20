@@ -8,8 +8,19 @@ from pyrs.core.stress_facade import StressFacade
 NAN = np.nan
 
 
-def assert_workspace():
-    return True
+def assert_workspace(workspace, signal_array):
+    r"""
+    Set of assertions for data related to fixture strain_stress_object_1
+    """
+    assert workspace.id() == 'MDHistoWorkspace'
+    dimension = workspace.getDimension(0)
+    assert dimension.getUnits() == 'mm'
+    # adding half a bin each direction since values from mdhisto are boundaries and constructor uses centers
+    min_value, max_value = 0.0, 9.0
+    assert dimension.getMinimum() == pytest.approx(min_value - 0.5)
+    assert dimension.getMaximum() == pytest.approx(max_value + 0.5)
+    assert dimension.getNBins() == 10
+    assert_allclose(workspace.getSignalArray().ravel(), signal_array, atol=1.e-6)
 
 
 class TestStressFacade:
@@ -70,41 +81,89 @@ class TestStressFacade:
         facade.selection = '33'
         assert facade.direction == '33'
 
-    # TODO Current bug in StrainField.get_d_reference.
-    # TODO For each of the three stacked directions, StrainField.get_d_reference() should return:
-    # TODO d_reference from strain11: 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, nan, nan
-    # TODO d_reference from strain22: nan, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, nan
-    # TODO d_reference from strain33: nan, nan, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0
-    # TODO instead I get:
-    # TODO d_reference from strain11: 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, nan, nan
-    # TODO d_reference from strain22: 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, nan, nan
-    # TODO d_reference from strain33: 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, nan, nan
-    @pytest.mark.skip(reason='Not yet implemented')
-    def test_d_reference(self, strain_stress_object_1):
-        r"""Get the reference lattice spacing"""
+    def test_strain_field(self, strain_stress_object_1):
+        r"""strains along for a particular direction or run number"""
+        nanf = float('nan')
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
-        assert_allclose(facade.d_reference, np.ones(10))
+        # direction 11 and components
+        facade.selection = '11'
+        expected = [0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf, nanf]
+        r"""
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        facade.selection = '1234'
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        # direction 22 and components
+        facade.selection = '22'
+        expected = [nanf, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, nanf]
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        facade.selection = '1235'
+        expected = [nanf, 0.01, 0.02, 0.03, 0.04, nanf, nanf, nanf, nanf, nanf]
+        facade.selection = '1236'
+        expected = [nanf, nanf, nanf, nanf, 0.04, 0.05, 0.06, 0.07, 0.08, nanf]
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        # direction 33 and components
+        facade.selection = '33'
+        expected = [nanf, nanf, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09]
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        facade.selection = '1237'
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        """
 
-    @pytest.mark.skip(reason='Not yet implemented')
-    def test_strain_array(self, stress_mock):
-        r"""strains along a particular direction or run number"""
-        stress_mock.select(1234)
-        assert stress_mock.strain.values == np.array([100, 110, 120, 130, 140, 150, NAN, NAN, NAN, NAN])
-        assert stress_mock.strain.errors == np.array([10, 11, 12, 13, 14, 15, NAN, NAN, NAN, NAN])
-        stress_mock.select(1235)
-        assert stress_mock.strain.values == np.array([NAN, NAN, NAN, NAN, NAN, 150, 160, 170, 180, 190])
-        assert stress_mock.strain.errors == np.array([NAN, NAN, NAN, NAN, NAN, 15, 16, 17, 18, 19])
-        stress_mock.select('11')
-        assert stress_mock.strain.values == np.array([100, 110, 120, 130, 140, 150, 160, 170, 180, 190])
-        assert stress_mock.strain.values == np.array([10, 11, 12, 13, 14, 15, 16, 17, 18, 19])
+        facade = StressFacade(strain_stress_object_1['stresses']['in-plane-strain'])
+        r"""
+        # direction 11 and components
+        facade.selection = '11'
+        expected = [0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf]
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        facade.selection = '1234'
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        # direction 22 and components
+        facade.selection = '22'
+        expected = [nanf, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08]
+        assert_allclose(facade.strain.values, expected, equanlnan=True, atol=1e-6)
+        facade.selection = '1235'
+        expected = [nanf, 0.01, 0.02, 0.03, 0.04, nanf, nanf, nanf, nanf]
+        facade.selection = '1236'
+        expected = [nanf, nanf, nanf, nanf, 0.04, 0.05, 0.06, 0.07, 0.08]
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        """
+        # direction 33 and components
+        facade.selection = '33'
+        expected = [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
 
-    @pytest.mark.skip(reason='Not yet implemented')
-    def test_strain_workspace(self, stress_mock):
+        facade = StressFacade(strain_stress_object_1['stresses']['in-plane-stress'])
+        r"""
+        # direction 11 and components
+        facade.selection = '11'
+        expected = [0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf]
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        facade.selection = '1234'
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        # direction 22 and components
+        facade.selection = '22'
+        expected = [nanf, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08]
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        facade.selection = '1235'
+        expected = [nanf, 0.01, 0.02, 0.03, 0.04, nanf, nanf, nanf, nanf]
+        facade.selection = '1236'
+        expected = [nanf, nanf, nanf, nanf, 0.04, 0.05, 0.06, 0.07, 0.08]
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        # direction 33 and components
+        facade.selection = '33'
+        expected = [nanf, -0.02, -0.04, -0.06, -0.08, -0.10, -0.12, -0.14, nanf]
+        """
+
+    def test_strain_workspace(self, strain_stress_object_1):
         r"""Export the strains to a MDHistoWorkspace"""
-        stress_mock.select(1234)
-        assert stress_mock.workspace('strain')
-        stress_mock.select('11')
-        assert stress_mock.workspace('strain')
+        facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
+        facade.selection = '11'
+        assert_workspace(facade.workspace('strain'), facade.strain.values)
+
+        r"""
+        facade = StressFacade(strain_stress_object_1['stresses']['in-plane-strain'])
+        facade.selection = '33'
+        assert_workspace(facade.workspace('strain'), facade.strain.values)
+        """
 
     @pytest.mark.skip(reason='Not yet implemented')
     def test_stress(self, stress_mock):
@@ -132,6 +191,12 @@ class TestStressFacade:
         assert stress_mock.workspace('stress')
         stress_mock.select('1236')
         assert stress_mock.workspace('stress')
+
+    @pytest.mark.skip(reason='Not yet implemented')
+    def test_d_reference_field(self, strain_stress_object_1):
+        r"""Get the reference lattice spacing"""
+        facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
+        assert_allclose(facade.d_reference, np.ones(10))
 
     @pytest.mark.skip(reason='Not yet implemented')
     def test_fitting_parameters(self, stress_mock):
