@@ -150,7 +150,7 @@ class StressFacade:
         ~pyrs.dataobjects.fields.ScalarFieldSample
         """
         if self._selection not in ('11', '22', '33'):
-            raise ValueError(f'Stress can only be computed for directions, not for run numbers')
+            raise ValueError('Stress can only be computed for directions, not for run numbers')
         stress = self._stress_cache[self._selection]
         assert stress is not None, 'StressField has not been initialized'
         return stress
