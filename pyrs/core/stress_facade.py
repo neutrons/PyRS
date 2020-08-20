@@ -38,7 +38,14 @@ class StressFacade:
 
     @property
     def selection(self) -> Optional[str]:
-        r"""Pick a scanning direction or run number"""
+        r"""
+        Pick a scanning direction or run number
+
+        Examples
+        --------
+        > facade.selection = '11'  # select along the first direction
+        > facade.selection = '1234'  # select run number 1234
+        """
         return self._selection
 
     @selection.setter
