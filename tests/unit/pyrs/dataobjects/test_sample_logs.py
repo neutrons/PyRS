@@ -298,6 +298,36 @@ class TestPointList:
         indices = point_list.sorted_indices(point_list=point_list_other, resolution=DEFAULT_POINT_RESOLUTION)
         np.testing.assert_equal(indices, np.array([1, 2, 0]))
 
+    def test_get_indices(self):
+        x = [0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.5]  # x
+        y = [1.0, 1.0, 1.5, 1.5, 1.0, 1.0, 1.5, 1.5]  # y
+        z = [2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5]  # z
+        point_list1 = PointList([x, y, z])
+
+        # changes a single x-value in the last 4 points of point_list1
+        x = [0.0, 0.5, 0.0, 0.5, 1.0, 1.5, 1.0, 1.5]  # x
+        y = [1.0, 1.0, 1.5, 1.5, 1.0, 1.0, 1.5, 1.5]  # y
+        z = [2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5]  # z
+        point_list2 = PointList([x, y, z])
+
+        # reverse order of point_list1
+        x = [0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0]
+        y = [1.5, 1.5, 1.0, 1.0, 1.5, 1.5, 1.0, 1.0]
+        z = [2.5, 2.5, 2.5, 2.5, 2.0, 2.0, 2.0, 2.0]
+        point_list3 = PointList([x, y, z])
+
+        # indices with self are running numbers
+        for point_list in (point_list1, point_list2, point_list3):
+            np.testing.assert_equal(point_list.get_indices(point_list), np.arange(len(x)))
+
+        # reversing values gets decreasing numbers
+        for forward, reverse in zip((point_list1, point_list3), (point_list3, point_list1)):
+            np.testing.assert_equal(forward.get_indices(reverse), [7, 6, 5, 4, 3, 2, 1, 0])
+
+        # partial matching tests
+        np.testing.assert_equal(point_list1.get_indices(point_list2), [0, 1, 2, 3, -1, -1, -1, -1])
+        np.testing.assert_equal(point_list3.get_indices(point_list2), [-1, -1, -1, -1, 3, 2, 1, 0])
+
 
 def test_aggregate_point_list(sample_logs_mock):
     point_list = aggregate_point_lists(*[PointList(sample_logs_mock['logs']) for _ in range(3)])  # three lists

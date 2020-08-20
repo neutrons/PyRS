@@ -744,97 +744,6 @@ class _StrainField:
                             keep_nan=keep_nan, resolution=resolution, criterion=criterion)
         return self.field.to_md_histo_workspace(name, **export_kwags)  # type: ignore
 
-    def _calculate_pointlist_map(self,
-                                 point_lists: List['PointList'],
-                                 resolution: float) -> Tuple[PointList, List[np.ndarray]]:
-        r"""
-        Calculate the aggregated point list, and the sample points for each collection associated to each of
-        the points in the aggregated point list
-
-        Caveat: each individual point list cannot contain any two points within `resolution` distance
-
-        Parameters
-        ----------
-        point_lists: list
-            list of ~pyrs.dataobjects.sample_logs.PointList instances
-        resolution: float
-            Two points are considered the same if they are separated by a distance smaller than this quantity
-
-        Returns
-        -------
-        tuple
-            A two-item tuple whose items are, in order:
-            - ~pyrs.dataobjects.sample_logs.PointList
-            -
-        """
-        # create a list of all points
-        full_point_list = PointList([point_lists[0].vx, point_lists[0].vy, point_lists[0].vz])
-        for points in point_lists[1:]:
-            full_point_list = full_point_list.aggregate(points)  # this concatenates the lists
-
-        # calculate the clustering of all points
-        # variable `cluster_indices` is a list with as many elements as clusters. Each list element represents one
-        # cluster, and is made up of a list of point-list indexes, specifying the sample points belonging to the
-        # cluster.
-        # TODO why call `sorted`? Seems irrelevant in this algorithm
-        cluster_indices = sorted(full_point_list.cluster(resolution=resolution))
-
-        # create a list of which aggregate index starts each contributing PointList
-        point_list_starts = list(np.cumsum([len(point_list) for point_list in point_lists]))
-        point_list_starts.insert(0, 0)  # pointlist start at index=0
-
-        merged_positions = []  # average position of the sample points contained in each cluster
-        # variable `full_clusters`:
-        #     - is a list, with an item per cluster (or per point of the aggregated point list)
-        #     - each item is a list of length `num_point_lists`
-        #     - each value in the item list is an index of an individual input point list.
-        # Example: I have two input point lists of length 3 and 2.
-        # Individual point lists indexes are [0, 1, 2] and [0, 1] for the first and second point list.
-        #     aggregate indexes then run from zero to four: [0, 1, 2, 3, 4]
-        #     the correspondence between aggregate and individual indexes: [0, 1, 2, 3 ,4] --> [0, 1, 2, 0, 1]
-        # cluster_indices = [[0, 3], [1], [2, 4]]  three clusters, first and last have contributions for all lists
-        # full_clusters = [[0, 0], [1, -1], [2, 1]]  second cluster is missing a point from the second list
-        full_clusters = []
-        num_point_lists = len(point_lists)  # number of input PointList instances
-        for i, cluster in enumerate(cluster_indices):
-            # make sure the aggregate indices in list `cluster` are sorted, from lowest to highest
-            cluster = sorted(cluster)  # variable `cluster` is a list of aggregate indices
-
-            # new position is the average of all the contributing points
-            x = np.average(full_point_list.vx[cluster])
-            y = np.average(full_point_list.vy[cluster])
-            z = np.average(full_point_list.vz[cluster])
-
-            # variable `full_cluster` is a 1D array of length `num_point_lists`
-            # a "full cluster" has an aggregate index for each PointList, otherwise some of the entries in
-            # `full_cluster` will remain with a value of POINT_MISSING_INDEX
-            full_cluster = np.full(num_point_lists, self.POINT_MISSING_INDEX, dtype=int)
-
-            # convert each index of the aggregated point list into the index of the individual point list it's
-            # associated with.
-            # for every aggregate index of `cluster`, find where in `point_list_startst` should be inserted in
-            # order to preserve the order of `point_list_starts`. This identifies which point list the aggregate
-            # index belongs to.
-            # Example: If I have three lists of lengths 3, 5, and 2, then `point_list_starts==[0, 3, 8]`. Then
-            # np.searchsorted(point_list_starts, [2, 4, 9], side='right') == [1, 2, 3] indicating that
-            # aggregated point 2 corresponds to the first point list, point 4 corresponds to the second list, and
-            # point 9 corresponds to the third list
-            pointlist_indexes = np.searchsorted(point_list_starts, cluster, side='right') - 1  # -1, number-->index
-
-            for pointlist_index, aggregate_index in zip(pointlist_indexes, cluster):
-                # TODO if we have two sample points within resolution in the same point list, then
-                # TODO we will write to full_cluster[pointlist_index] twice, thus loosing one of the two points
-                # TODO instrument scientist confirm this possibility flags a problem with the motors
-                full_cluster[pointlist_index] = int(aggregate_index - point_list_starts[pointlist_index])
-
-            merged_positions.append((x, y, z))
-            full_clusters.append(full_cluster)
-
-        # prepare to convert x,y,z triplets into a PointList
-        x_array, y_array, z_array = np.asarray(merged_positions).transpose()
-
-        return PointList([x_array, y_array, z_array]), full_clusters
-
     def fuse_with(self, other_strain: '_StrainField',
                   resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = 'min_error') -> '_StrainField':
         r"""
@@ -882,7 +791,7 @@ class _StrainField:
 
         point_lists = [strain.point_list for strain in single_scan_strains]
         # variable `map_points` is a list specifying the sample points
-        multi_scan_strain._point_list, map_points = self._calculate_pointlist_map(point_lists, resolution)
+        multi_scan_strain._point_list, map_points = point_lists[0].calculate_pointlist_map(point_lists[1:], resolution)
 
         # Identify which sample points from the single scans are chosen to represent
         # each sample point of the multi scan
