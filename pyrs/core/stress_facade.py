@@ -25,10 +25,13 @@ class StressFacade:
         self._d_reference: Optional[ScalarFieldSample] = None
         self._directions: Dict[str, str] = {}
 
-    def _update_caches(self) -> None:
-        r"""Update the strain and stress references for each direction and run number"""
+    def _update_cache_stress(self) -> None:
         # Update stress cache
         self._stress_cache = {'11': self._stress.stress11, '22': self._stress.stress22, '33': self._stress.stress33}
+
+    def _update_caches(self) -> None:
+        r"""Update the strain and stress references for each direction and run number"""
+        self._update_cache_stress()
         # Update strain cache
         self._strain_cache = {'11': self._stress.strain11, '22': self._stress.strain22, '33': self._stress.strain33}
         for direction in ('11', '22', '33'):
@@ -193,9 +196,19 @@ class StressFacade:
     def youngs_modulus(self) -> float:
         return self._stress.youngs_modulus
 
+    @youngs_modulus.setter
+    def youngs_modulus(self, value: float) -> None:
+        self._stress.youngs_modulus = value
+        self._update_cache_stress()
+
     @property
     def poisson_ratio(self) -> float:
         return self._stress.poisson_ratio
+
+    @poisson_ratio.setter
+    def poisson_ratio(self, value: float) -> None:
+        self._stress.poisson_ratio = value
+        self._update_cache_stress()
 
     @property
     def peak_parameters(self) -> List[str]:

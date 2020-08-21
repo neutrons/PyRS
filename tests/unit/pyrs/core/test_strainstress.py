@@ -54,9 +54,28 @@ class TestStressFacade:
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
         assert facade.youngs_modulus == pytest.approx(4. / 3)
 
+    def test_youngs_modulus_setter(self, strain_stress_object_0):
+        facade = StressFacade(strain_stress_object_0['stresses']['diagonal'])
+        facade.youngs_modulus *= 2
+        assert facade.youngs_modulus == pytest.approx(8. / 3)
+        facade.selection = '11'
+        assert_allclose(facade.stress.values, 2 * np.array([0.30, 0.34, 0.38, 0.42, 0.46]), atol=0.01)
+        facade.selection = '22'
+        assert_allclose(facade.stress.values, 2 * np.array([0.40, 0.44, 0.48, 0.52, 0.56]), atol=0.01)
+        facade.selection = '33'
+        assert_allclose(facade.stress.values, 2 * np.array([0.50, 0.54, 0.58, 0.62, 0.66]), atol=0.01)
+
     def test_poisson_ratio(self, strain_stress_object_1):
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
         assert facade.poisson_ratio == pytest.approx(1. / 3)
+
+    def test_poisson_ratio_setter(self, strain_stress_object_0):
+        facade = StressFacade(strain_stress_object_0['stresses']['diagonal'])
+        facade.poisson_ratio = 0.0
+        assert facade.poisson_ratio == pytest.approx(0.0)
+        for selection in ('11', '22', '33'):
+            facade.selection = selection
+            assert_allclose(facade.stress.values, facade.youngs_modulus * facade.strain.values, atol=0.001)
 
     def test_x_y_z(self, strain_stress_object_1):
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
