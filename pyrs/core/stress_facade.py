@@ -25,10 +25,13 @@ class StressFacade:
         self._d_reference: Optional[ScalarFieldSample] = None
         self._directions: Dict[str, str] = {}
 
-    def _update_caches(self) -> None:
-        r"""Update the strain and stress references for each direction and run number"""
+    def _update_cache_stress(self) -> None:
         # Update stress cache
         self._stress_cache = {'11': self._stress.stress11, '22': self._stress.stress22, '33': self._stress.stress33}
+
+    def _update_caches(self) -> None:
+        r"""Update the strain and stress references for each direction and run number"""
+        self._update_cache_stress()
         # Update strain cache
         self._strain_cache = {'11': self._stress.strain11, '22': self._stress.strain22, '33': self._stress.strain33}
         for direction in ('11', '22', '33'):
@@ -110,14 +113,17 @@ class StressFacade:
             d0s_values = [d0.values for d0 in d0s]
             for d0_ii in d0s_values[:-1]:
                 for d0_jj in d0s_values[1:]:
-                    mask = ~(np.isnan(d0_ii) | np.isnan(d0_ii))
-                    assert_allclose(d0_ii[mask], d0_jj[mask],
+                    mask = ~(np.isnan(d0_ii) | np.isnan(d0_jj))
+                    assert_allclose(d0_ii[mask], d0_jj[mask], rtol=1.e-4,
                                     err_msg='reference spacings are different on different directions')
 
             # "merge" reference spacings along different directions where is not nan
-            d0_values = np.sum([np.nan_to_num(d0.values) for d0 in d0s], axis=0) / 3.0
-            d0_values[d0_values < 1e-9] = np.nan  # revert zeros to nan
-            d0_errors = np.sum([np.nan_to_num(d0.errors) for d0 in d0s], axis=0) / 3.0  # they're the same
+            d0_values = np.full(len(self.x), np.nan)
+            d0_errors = np.full(len(self.x), 0.0)
+            for d0 in d0s:
+                not_nan_indices = ~np.isnan(d0.values)
+                d0_values[not_nan_indices] = d0.values[not_nan_indices]
+                d0_errors[not_nan_indices] = d0.errors[not_nan_indices]
 
             # build the consensus scalar field
             self._d_reference = ScalarFieldSample('d-reference', d0_values, d0_errors, self.x, self.y, self.z)
@@ -190,9 +196,19 @@ class StressFacade:
     def youngs_modulus(self) -> float:
         return self._stress.youngs_modulus
 
+    @youngs_modulus.setter
+    def youngs_modulus(self, value: float) -> None:
+        self._stress.youngs_modulus = value
+        self._update_cache_stress()
+
     @property
     def poisson_ratio(self) -> float:
         return self._stress.poisson_ratio
+
+    @poisson_ratio.setter
+    def poisson_ratio(self, value: float) -> None:
+        self._stress.poisson_ratio = value
+        self._update_cache_stress()
 
     @property
     def peak_parameters(self) -> List[str]:
