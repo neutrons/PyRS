@@ -7,7 +7,9 @@ from pyrs.peaks import PeakCollectionLite  # type: ignore
 from pyrs.dataobjects.sample_logs import PointList
 from pyrs.dataobjects.fields import StressField
 from pyrs.dataobjects.fields import StrainField
+from pyrs.core.stress_facade import StressFacade
 from pyrs.core.summary_generator_stress import SummaryGeneratorStress
+from pyrs.core import stress_facade
 
 
 def strain_instantiator(name, values, errors, x, y, z):
@@ -73,9 +75,10 @@ def test_write_summary_csv(test_data_dir: str, project_tags: str, expected_file:
     sample33 = StrainField(test_data_dir + '/HB2B_{}.h5'.format(project_tags[2]))
 
     stress = StressField(sample11, sample22, sample33, 200, 0.3)
+    stress_facade = StressFacade(stress)
 
     stress_csv_filename = 'HB2B_StressStrain_peak0_Summary.csv'
-    stress_csv = SummaryGeneratorStress(stress_csv_filename, stress)
+    stress_csv = SummaryGeneratorStress(stress_csv_filename, stress_facade)
     stress_csv.write_summary_csv()
 
     assert(cmp(stress_csv_filename, expected_file))
@@ -112,7 +115,36 @@ def test_write_summary_33calculated_nan_csv(test_data_dir: str):
     sample22 = StrainField(test_data_dir + '/HB2B_1332.h5', peak_tag='peak0')
 
     stress = StressField(sample11, sample22, None, 200, 0.3, stress_type='in-plane-strain')  # type: ignore
+    stress_facade = StressFacade(stress)
 
     stress_csv_filename = 'HB2B_StressStrain_peak0_Summary_33Calculated_1331_1332.csv'
-    stress_csv = SummaryGeneratorStress(stress_csv_filename, stress)
+    stress_csv = SummaryGeneratorStress(stress_csv_filename, stress_facade )
     stress_csv.write_summary_csv()
+    
+    # cleanup
+    remove(stress_csv_filename)
+    
+    
+EXPECTED_FILE_FULL_CSV_1320 = 'tests/data/HB2B_StressStrain_peak0_Full_expected_1320.csv'
+
+@pytest.mark.parametrize('project_tags, expected_file',
+                         [([1320, 1320, 1320], EXPECTED_FILE_FULL_CSV_1320)],
+                         ids=['HB2B_1320_FULL_CSV'])
+def test_write_full_csv(test_data_dir: str, project_tags: str, expected_file: str):
+
+    sample11 = StrainField(test_data_dir + '/HB2B_{}.h5'.format(project_tags[0]))
+    sample22 = StrainField(test_data_dir + '/HB2B_{}.h5'.format(project_tags[1]))
+    sample33 = StrainField(test_data_dir + '/HB2B_{}.h5'.format(project_tags[2]))
+
+    stress = StressField(sample11, sample22, sample33, 200, 0.3)
+    stress_facade = StressFacade(stress)
+
+    stress_csv_filename = 'HB2B_StressStrain_peak0_Full.csv'
+    stress_csv = SummaryGeneratorStress(stress_csv_filename, stress_facade)
+    stress_csv.write_full_csv()
+
+    #assert(cmp(stress_csv_filename, expected_file))
+    # cleanup
+    #remove(stress_csv_filename)
+
+    

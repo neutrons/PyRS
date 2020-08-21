@@ -10,6 +10,7 @@ from pyrs.dataobjects.fields import StrainField
 from pyrs.peaks.peak_collection import PeakCollection
 
 import numpy as np
+from pyrs.core.stress_facade import StressFacade
 
 
 class SummaryGeneratorStress:
@@ -44,12 +45,16 @@ class SummaryGeneratorStress:
         # check for length of lists
         self._filename: str = str(filename)
 
-        if isinstance(stress, StressField) is False:
+        if isinstance(stress, StressField):
+            self._stress = stress    
+        elif isinstance(stress, StressFacade):
+            self._stress_facade = stress
+            self._stress = self._stress_facade._stress
+        else: 
             raise RuntimeError(
-                'Error: stress input must be of type StressField in SummaryGeneratorStress constructor '
+                'Error: SummaryGeneratorStress stress input must be of type StressField or StressFacade'
                 + self._error_postfix)
 
-        self._stress = stress
         self._strain33_is_calculated = False
 
         # check for filenames in StrainField per direction
@@ -225,7 +230,59 @@ class SummaryGeneratorStress:
             _write_summary_csv_body(handle)
 
         return
+    
 
+    def write_full_csv(self):
+        
+        def _write_full_csv_column_names(handle):
+            
+            column_names = 'vx, vy, vz, d0, d0_error, '
+            
+            # directional variables
+            for field_3dir in SummaryGeneratorStress.fields_3dir:
+
+                field_name = field_3dir if field_3dir != 'Height' else 'Peak_Height'
+
+                for direction in SummaryGeneratorStress.directions:
+                    runs = self._stress_facade.runs(direction)
+                    
+                    for run in runs:
+                        entry_base = field_name + '_Dir' + direction + '_' + str(run)
+                        column_names += entry_base + ', '
+                        column_names += entry_base + '_error, '
+
+            column_names = column_names[:-2] + '\n'
+            handle.write(column_names)
+            
+            return
+
+        
+        def _write_full_csv_body(handle):
+            
+            return
+        
+        
+        # function starts here
+        with open(self._filename, 'w') as handle:
+            self._write_csv_header(handle)
+            _write_full_csv_column_names(handle)
+            _write_full_csv_body(handle)
+
+        return 
+    
+    
+    def _write_number(self, number, tolerance = 1e-12) -> str:
+
+        if math.isnan(number):
+            return ', '
+
+        if abs(number-math.floor(number)) <= tolerance \
+            or abs(number-math.ceil(number)) <= tolerance:
+                return f'{number:.1f}' + ', '
+
+        return f'{number:.12f}' + ', '
+    
+    
     def _get_strain_field(self, direction: str) -> Optional[StrainField]:
         """
             Returns a StrainField for a particular direction from self._stress
