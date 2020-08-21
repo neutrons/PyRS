@@ -1893,7 +1893,6 @@ class StressField:
         self.update_stress_calculation()
 
     def update_stress_calculation(self):
-        print('update_stress_calculation()')
         # update stress values now that strains have been updated
         stress11, stress22, stress33 = self._calc_stress_components()  # returns unumpy.array objects
         self._initialize_stress_fields(stress11, stress22, stress33)
@@ -2003,8 +2002,7 @@ class StressField:
     @poisson_ratio.setter
     def poisson_ratio(self, value: float) -> None:
         self._poisson_ratio = value
-        stress_components = self._calc_stress_components()
-        self._initialize_stress_fields(*stress_components)
+        self.update_stress_calculation()
 
     @property
     def values(self) -> np.ndarray:
