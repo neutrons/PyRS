@@ -2,9 +2,12 @@
 from collections import namedtuple
 import copy
 import numpy as np
+from numpy.testing import assert_allclose
 import os
 import pytest
 import random
+from uncertainties import unumpy
+
 # PyRs libraries
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.dataobjects.constants import DEFAULT_POINT_RESOLUTION
@@ -243,6 +246,16 @@ class TestScalarFieldSample:
     def test_errors(self):
         field = ScalarFieldSample(*TestScalarFieldSample.sample1)
         np.testing.assert_equal(field.errors, TestScalarFieldSample.sample1.errors)
+
+    def test_sample(self):
+        field = ScalarFieldSample(*TestScalarFieldSample.sample1)
+        # Test get
+        assert_allclose(unumpy.nominal_values(field.sample), TestScalarFieldSample.sample1.values)
+        assert_allclose(unumpy.std_devs(field.sample), TestScalarFieldSample.sample1.errors)
+        # Test set
+        field.sample *= 2
+        assert_allclose(unumpy.nominal_values(field.sample), 2 * np.array(TestScalarFieldSample.sample1.values))
+        assert_allclose(unumpy.std_devs(field.sample), 2 * np.array(TestScalarFieldSample.sample1.errors))
 
     def test_point_list(self):
         field = ScalarFieldSample(*TestScalarFieldSample.sample1)
@@ -967,6 +980,16 @@ class TestStressField:
         youngs_modulus = random.random()
         field = StressField(*strains_for_stress_field_1, youngs_modulus, 1.0)
         assert field.youngs_modulus == pytest.approx(youngs_modulus)
+
+    def test_youngs_modulus_setter(self, strain_stress_object_0):
+        stress = strain_stress_object_0['stresses']['diagonal']
+        assert_allclose(stress.stress11.values, [0.30, 0.34, 0.38, 0.42, 0.46], atol=0.01)
+        assert_allclose(stress.stress22.values, [0.40, 0.44, 0.48, 0.52, 0.56], atol=0.01)
+        assert_allclose(stress.stress33.values, [0.50, 0.54, 0.58, 0.62, 0.66], atol=0.01)
+        stress.youngs_modulus *= 2.0
+        assert_allclose(stress.stress11.values, 2 * np.array([0.30, 0.34, 0.38, 0.42, 0.46]), atol=0.01)
+        assert_allclose(stress.stress22.values, 2 * np.array([0.40, 0.44, 0.48, 0.52, 0.56]), atol=0.01)
+        assert_allclose(stress.stress33.values, 2 * np.array([0.50, 0.54, 0.58, 0.62, 0.66]), atol=0.01)
 
     def test_poisson_ratio(self, strains_for_stress_field_1):
         r"""Test poisson_ratio property"""

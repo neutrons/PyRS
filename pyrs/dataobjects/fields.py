@@ -77,6 +77,7 @@ import numpy as np
 from scipy.interpolate import griddata
 from scipy.spatial import cKDTree
 from typing import TYPE_CHECKING, Any, cast, Dict, Iterator, List, Optional, Tuple, Union
+import uncertainties
 from uncertainties import unumpy
 from mantid.simpleapi import mtd, CreateMDWorkspace, BinMD
 from mantid.api import IMDHistoWorkspace
@@ -224,6 +225,12 @@ class ScalarFieldSample:
         ~unumpy.array
         """
         return self._sample
+
+    @sample.setter
+    def sample(self, value: np.ndarray) -> None:
+        isinstance(value[0], uncertainties.core.Variable)
+        assert len(value) == len(self._sample)
+        self._sample = value
 
     @property
     def point_list(self) -> PointList:
@@ -1973,6 +1980,14 @@ class StressField:
         float
         """
         return self._youngs_modulus
+
+    @youngs_modulus.setter
+    def youngs_modulus(self, value: float) -> None:
+        # Update the stress components
+        for stress_component in self:
+            stress_component.sample *= value / self._youngs_modulus
+        # Update the stored young modulus
+        self._youngs_modulus = value
 
     @property
     def poisson_ratio(self) -> float:
