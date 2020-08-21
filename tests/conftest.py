@@ -148,6 +148,114 @@ def strain_builder():
 
 
 @pytest.fixture(scope='function')
+def strain_stress_object_0(strain_builder):
+    r"""
+    We create three single strain instances, all sharing the same set of sample points
+
+          RUN          vx-coordinate
+        NUMBER  0.0  1.0  2.0  3.0  4.0  5.0
+        1234    ****************************
+        1235    ****************************
+        1236    ****************************
+
+    For simplicity, vy and vz values are all zero, so these are unidimensional scans
+
+    From these four strains, we create strains in three dimensions:
+        strain11 = strain_1234
+        strain22 = strain_1235
+        strain33 = strain_1237
+
+    We create three stress objects with the previous strains:
+        'diagonal' uses strain11, strain22, and strain33
+        'in-plane-strain': uses strain11 and strain22
+        'in-plane-stress': uses strain11 and strain22
+
+    Returns
+    -------
+    dict
+        {
+            'strains': {
+                '11': strain11, '22': strain22, '33': strain33
+            },
+            'stresses': {
+                'diagonal': StressField(strain11, strain22, strain33, 1. / 3, 4. / 3, 'diagonal'),
+                'in-plane-strain': StressField(strain11, strain22, None, 1. / 3, 4. / 3, 'in-plane-strain'),
+                'in-plane-stress': StressField(strain11, strain22, None, 1. / 2, 3. / 2, 'in-plane-stress')
+            }
+        }
+    """
+
+    common_data = {
+        'peak_tag': 'test',
+        'subruns': [1, 2, 3, 4, 5],
+        'wavelength': 2.0,
+        'd_reference': 1.0,
+        'peak_profile': 'pseudovoigt',
+        'background_type': 'linear',
+        'fit_costs': [1.0] * 5,
+        'vx': [0., 1., 2., 3., 4.],
+        'vy': [0.] * 5,
+        'vz': [0.] * 5,
+        # errors in native parameters are taken to be their values times this error fraction
+        'error_fraction': 0.1,
+    }
+
+    strain11_data = deepcopy(common_data)
+    strain11_data.update({
+        'runnumber': '1234',
+        'd_spacing': [1.00, 1.01, 1.02, 1.03, 1.04],
+        'native': {
+            'Intensity': [100, 110, 120, 130, 140],
+            'FWHM': [1.0, 1.1, 1.2, 1.3, 1.4],
+            'Mixing': [1.0] * 5,
+            'A0': [10., 11., 12., 13., 14.],
+            'A1': [0.00, 0.01, 0.02, 0.03, 0.04],
+        },
+    })
+    strain11 = strain_builder(strain11_data)
+
+    strain22_data = deepcopy(common_data)
+    strain22_data.update({
+        'runnumber': '1235',
+        'd_spacing': [1.10, 1.11, 1.12, 1.13, 1.14],
+        'native': {
+            'Intensity': [101, 111, 121, 131, 141],
+            'FWHM': [1.01, 1.11, 1.21, 1.31, 1.41],
+            'Mixing': [1.01] * 5,
+            'A0': [10.1, 11.1, 12.1, 13.1, 14.1],
+            'A1': [0.001, 0.011, 0.021, 0.031, 0.041],
+        },
+    })
+    strain22 = strain_builder(strain22_data)
+
+    strain33_data = deepcopy(common_data)
+    strain33_data.update({
+        'runnumber': '1236',
+        'd_spacing': [1.20, 1.21, 1.22, 1.23, 1.24],
+        'native': {
+            'Intensity': [102, 112, 122, 132, 142],
+            'FWHM': [1.02, 1.12, 1.22, 1.32, 1.42],
+            'Mixing': [1.02] * 5,
+            'A0': [10.2, 11.2, 12.2, 13.2, 14.2],
+            'A1': [0.002, 0.012, 0.022, 0.032, 0.042],
+        },
+    })
+    strain33 = strain_builder(strain33_data)
+
+    # values of Young's modulus and Poisson's ratio to render simpler strain-to-stress formulae
+    return {
+        'strains': {
+            '11': strain11, '22': strain22, '33': strain33
+        },
+        'stresses': {
+            'diagonal': StressField(strain11, strain22, strain33, 4. / 3, 1. / 3, 'diagonal'),
+            'in-plane-strain': StressField(strain11, strain22, None, 4. / 3, 1. / 3, 'in-plane-strain'),
+            'in-plane-stress': StressField(strain11, strain22, None, 3. / 2, 1. / 2, 'in-plane-stress')
+        }
+    }
+
+
+@pytest.fixture(scope='function')
 def strain_stress_object_1(strain_builder):
     r"""
     We create four single strain instances, below is how they overlap over the vx's extent
