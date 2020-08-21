@@ -43,6 +43,34 @@ def test_strain_builder(strain_builder):
         assert_allclose(strain.get_effective_peak_parameter(name).values, np.array(scan['native'][name]))
 
 
+def test_strain_stress_object_0(strain_stress_object_0):
+    strains = strain_stress_object_0['strains']
+    assert_allclose(strains['11'].values, np.arange(0.0, 0.045, 0.01), rtol=1.e-07, atol=1.e-07)
+    assert_allclose(strains['22'].values, np.arange(0.10, 0.145, 0.01), rtol=1.e-07, atol=1.e-07)
+    assert_allclose(strains['33'].values, np.arange(0.20, 0.245, 0.01), rtol=1.e-07, atol=1.e-07)
+
+    # Check stress values.  Young's modulus and Poisson ratio values yield simple formulae
+    stress = strain_stress_object_0['stresses']['diagonal']
+    trace = stress.strain11.values + stress.strain22.values + stress.strain33.values
+    assert_allclose(stress['11'].values, stress.strain11.values + trace, equal_nan=True)
+    assert_allclose(stress['22'].values, stress.strain22.values + trace, equal_nan=True)
+    assert_allclose(stress['33'].values, stress.strain33.values + trace, equal_nan=True)
+
+    stress = strain_stress_object_0['stresses']['in-plane-strain']
+    assert_allclose(stress.strain33.values, np.zeros(5))
+    trace = stress.strain11.values + stress.strain22.values + stress.strain33.values
+    assert_allclose(stress['11'].values, stress.strain11.values + trace, equal_nan=True)
+    assert_allclose(stress['22'].values, stress.strain22.values + trace, equal_nan=True)
+    assert_allclose(stress['33'].values, stress.strain33.values + trace, equal_nan=True)
+
+    stress = strain_stress_object_0['stresses']['in-plane-stress']
+    assert_allclose(stress.strain33.values, -1. * (stress.strain11.values + stress.strain22.values))
+    trace = stress.strain11.values + stress.strain22.values
+    assert_allclose(stress['11'].values, stress.strain11.values + trace, equal_nan=True)
+    assert_allclose(stress['22'].values, stress.strain22.values + trace, equal_nan=True)
+    assert_allclose(stress.stress33.values, np.zeros(5))
+
+
 def test_strain_stress_object_1(strain_stress_object_1):
     strains, stresses = strain_stress_object_1['strains'], strain_stress_object_1['stresses']
 
