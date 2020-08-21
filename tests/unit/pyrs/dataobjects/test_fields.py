@@ -987,6 +987,7 @@ class TestStressField:
         assert_allclose(stress.stress22.values, [0.40, 0.44, 0.48, 0.52, 0.56], atol=0.01)
         assert_allclose(stress.stress33.values, [0.50, 0.54, 0.58, 0.62, 0.66], atol=0.01)
         stress.youngs_modulus *= 2.0
+        assert stress.youngs_modulus == pytest.approx(8. / 3)
         assert_allclose(stress.stress11.values, 2 * np.array([0.30, 0.34, 0.38, 0.42, 0.46]), atol=0.01)
         assert_allclose(stress.stress22.values, 2 * np.array([0.40, 0.44, 0.48, 0.52, 0.56]), atol=0.01)
         assert_allclose(stress.stress33.values, 2 * np.array([0.50, 0.54, 0.58, 0.62, 0.66]), atol=0.01)
@@ -996,6 +997,18 @@ class TestStressField:
         poisson_ratio = random.random()
         field = StressField(*strains_for_stress_field_1, 1.0, poisson_ratio)
         assert field.poisson_ratio == pytest.approx(poisson_ratio)
+
+    def test_poisson_ratio_setter(self, strain_stress_object_0):
+        stress = strain_stress_object_0['stresses']['diagonal']
+        assert_allclose(stress.stress11.values, [0.30, 0.34, 0.38, 0.42, 0.46], atol=0.01)
+        assert_allclose(stress.stress22.values, [0.40, 0.44, 0.48, 0.52, 0.56], atol=0.01)
+        assert_allclose(stress.stress33.values, [0.50, 0.54, 0.58, 0.62, 0.66], atol=0.01)
+        strains = strain_stress_object_0['strains']
+        stress.poisson_ratio = 0.0
+        assert stress.poisson_ratio == pytest.approx(0.0)
+        assert_allclose(stress.stress11.values, stress.youngs_modulus * strains['11'].values, atol=0.001)
+        assert_allclose(stress.stress22.values, stress.youngs_modulus * strains['22'].values, atol=0.001)
+        assert_allclose(stress.stress33.values, stress.youngs_modulus * strains['33'].values, atol=0.001)
 
     def test_create_stress_field(self, allclose_with_sorting):
         X = [0.000, 1.000, 2.000, 3.000, 4.000, 5.000, 6.000, 7.000, 8.000, 9.000]

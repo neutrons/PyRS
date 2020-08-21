@@ -2000,6 +2000,12 @@ class StressField:
         """
         return self._poisson_ratio
 
+    @poisson_ratio.setter
+    def poisson_ratio(self, value: float) -> None:
+        self._poisson_ratio = value
+        stress_components = self._calc_stress_components()
+        self._initialize_stress_fields(*stress_components)
+
     @property
     def values(self) -> np.ndarray:
         r"""
