@@ -42,10 +42,7 @@ def test_model(tmpdir):
     assert model.validate_selection('22') == "e22 file hasn't been loaded"
     assert model.validate_selection('33') == "e33 file hasn't been loaded"
 
-    assert model.d0.values[0] == 1
-
-    model.d0 = 1.05
-    assert model.d0.values[0] == 1.05
+    assert model.d0 == 1
 
     for plot_param in ("dspacing-center",
                        "d-reference",
@@ -64,13 +61,15 @@ def test_model(tmpdir):
 
     # Need to load ε22 so it should fail
     with pytest.raises(NotImplementedError):
-        model.calculate_stress('in-plane-stress', 200, 0.3)
+        model.calculate_stress('in-plane-stress', 200, 0.3, 1.08)
 
     model.e22 = 'tests/data/HB2B_1320.h5'
     assert len(model.e22) == 1
     assert model.e22[0].name == '22'
 
-    model.calculate_stress('in-plane-stress', 200, 0.3)
+    model.calculate_stress('in-plane-stress', 200, 0.3, 1.08)
+
+    assert model.d0 == 1.08
 
     for direction in ('11', '22', '33'):
         stress_md = model.get_field(direction, 'stress', 'In-plane stress').to_md_histo_workspace()
@@ -94,7 +93,7 @@ def test_model(tmpdir):
     # check number of lines written
     assert len(open(filename).readlines()) == 318
 
-    model.calculate_stress('in-plane-strain', 200, 0.3)
+    model.calculate_stress('in-plane-strain', 200, 0.3, 1.08)
 
     for direction in ('11', '22', '33'):
         stress_md = model.get_field(direction, 'stress', 'In-plane strain').to_md_histo_workspace()
@@ -121,7 +120,7 @@ def test_model(tmpdir):
     assert len(model.e33) == 1
     assert model.e33[0].name == '33'
 
-    model.calculate_stress('diagonal', 200, 0.3)
+    model.calculate_stress('diagonal', 200, 0.3, 1)
 
     for direction in ('11', '22', '33'):
         stress_md = model.get_field(direction, 'stress', 'diagonal').to_md_histo_workspace()
@@ -141,6 +140,47 @@ def test_model(tmpdir):
     model.write_stress_to_csv(str(filename))
     # check number of lines written
     assert len(open(filename).readlines()) == 318
+
+    # Check rerunning calculate_stress while change and not change
+    # parameter, it should only recalculate when changed
+    current_stress = model._stress
+    current_stress11_values = current_stress.stress11.values
+    current_strain11 = model._stress.strain11
+    current_strain11_values = model._stress.strain11.values
+
+    # Should not re-calculate stress
+    model.calculate_stress('diagonal', 200, 0.3, 1)
+    assert model._stress is current_stress
+    assert model._stress.strain11 is current_strain11
+    np.testing.assert_equal(current_stress11_values, model._stress.stress11.values)
+    np.testing.assert_equal(current_strain11_values, model._stress.strain11.values)
+
+    # Should re-calculate stress with different young modulus, stress*2
+    model.calculate_stress('diagonal', 400, 0.3, 1)
+    assert model._stress is current_stress
+    assert model._stress.strain11 is current_strain11
+    np.testing.assert_allclose(current_stress11_values*2, model._stress.stress11.values)
+    np.testing.assert_equal(current_strain11_values, model._stress.strain11.values)
+
+    # Should re-calculate stress with different poissons ratio
+    model.calculate_stress('diagonal', 200, 0.4, 1)
+    assert model._stress is current_stress
+    assert model._stress.strain11 is current_strain11
+    assert not np.all(current_stress11_values == model._stress.stress11.values)
+    np.testing.assert_equal(current_strain11_values, model._stress.strain11.values)
+
+    # Should re-calculate strain and stress with new d, but should be the same StressField
+    model.calculate_stress('diagonal', 200, 0.3, 1.08)
+    assert model._stress is current_stress
+    assert model._stress.strain11 is current_strain11
+    assert not np.all(current_stress11_values == model._stress.stress11.values)
+    assert not np.all(current_strain11_values == model._stress.strain11.values)
+
+    # Should build new StressField
+    model.calculate_stress('in-plane-stress', 200, 0.3, 1)
+    assert model._stress is not current_stress
+    assert model._stress.strain11 is current_strain11
+    np.testing.assert_equal(current_strain11_values, model._stress.strain11.values)
 
     # Check message when 22 is loaded without 11
     model = Model()
@@ -190,10 +230,7 @@ def test_model_multiple_files(tmpdir):
     assert model.validate_selection('22') == "e22 file hasn't been loaded"
     assert model.validate_selection('33') == "e33 file hasn't been loaded"
 
-    assert model.d0.values[0] == 1
-
-    model.d0 = 1.05
-    assert model.d0.values[0] == 1.05
+    assert model.d0 == 1
 
     for plot_param in ("dspacing-center",
                        "d-reference",
@@ -212,14 +249,16 @@ def test_model_multiple_files(tmpdir):
 
     # Need to load ε22 so it should fail
     with pytest.raises(NotImplementedError):
-        model.calculate_stress('in-plane-stress', 200, 0.3)
+        model.calculate_stress('in-plane-stress', 200, 0.3, 1.05)
 
     model.e22 = ['tests/data/HB2B_1328.h5', 'tests/data/HB2B_1332.h5']
     assert len(model.e22) == 2
     assert model.e22[0].name == '22'
     assert model.e22[1].name == '22'
 
-    model.calculate_stress('in-plane-stress', 200, 0.3)
+    model.calculate_stress('in-plane-stress', 200, 0.3, 1.05)
+
+    assert model.d0 == 1.05
 
     for direction in ('11', '22', '33'):
         stress_md = model.get_field(direction, 'stress', 'In-plane stress').to_md_histo_workspace()
@@ -243,7 +282,7 @@ def test_model_multiple_files(tmpdir):
     # check number of lines written
     assert len(open(filename).readlines()) == 367
 
-    model.calculate_stress('in-plane-strain', 200, 0.3)
+    model.calculate_stress('in-plane-strain', 200, 0.3, 1.05)
 
     for direction in ('11', '22', '33'):
         stress_md = model.get_field(direction, 'stress', 'In-plane strain').to_md_histo_workspace()
@@ -270,7 +309,7 @@ def test_model_multiple_files(tmpdir):
     assert len(model.e33) == 1
     assert model.e33[0].name == '33'
 
-    model.calculate_stress('diagonal', 200, 0.3)
+    model.calculate_stress('diagonal', 200, 0.3, 1.05)
 
     for direction in ('11', '22', '33'):
         stress_md = model.get_field(direction, 'stress', 'diagonal').to_md_histo_workspace()
