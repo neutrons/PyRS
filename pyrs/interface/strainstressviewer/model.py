@@ -145,7 +145,6 @@ class Model(QObject):
             self.failureMsg.emit(f"Failed to generate field for parameter {plot_param} in direction {direction}",
                                  str(e),
                                  traceback.format_exc())
-            return None
 
     def calculate_stress(self, stress_case, youngModulus, poissonsRatio, d0):
 
@@ -174,8 +173,13 @@ class Model(QObject):
         self._d0 = d0
 
     def write_stress_to_csv(self, filename):
-        stress_csv = SummaryGeneratorStress(filename, self._stress)
-        stress_csv.write_summary_csv()
+        try:
+            stress_csv = SummaryGeneratorStress(filename, self._stress)
+            stress_csv.write_summary_csv()
+        except Exception as e:
+            self.failureMsg.emit("Failed to write csv",
+                                 str(e),
+                                 traceback.format_exc())
 
     def get_default_csv_filename(self):
         runs = [[peak_collection.runnumber for peak_collection in getattr(self._stress, f'strain{d}').peak_collections]
