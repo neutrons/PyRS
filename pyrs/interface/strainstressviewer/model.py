@@ -24,6 +24,10 @@ class Model(QObject):
         self._peakTags = []
         self._selectedPeak = None
         self._stress = None
+        self._stressCase = None
+        self._youngs_modulus = None
+        self._poisson_ratio = None
+        self._d0 = None
 
     def set_workspaces(self, name, filenames):
         setattr(self, name, filenames)
@@ -88,13 +92,8 @@ class Model(QObject):
 
     @property
     def d0(self):
-        return self._e11_strain.get_d_reference()
-
-    @d0.setter
-    def d0(self, d0):
-        for strain in [self._e11_strain, self._e22_strain, self._e33_strain]:
-            if strain:
-                strain.set_d_reference((d0, 0))
+        self._d0 = self._e11_strain.get_d_reference().values[0]
+        return self._d0
 
     def create_strain(self, direction):
         strain_list = [StrainField(hidraworkspace=ws, peak_collection=peak[self.selectedPeak])
@@ -148,11 +147,31 @@ class Model(QObject):
                                  traceback.format_exc())
             return None
 
-    def calculate_stress(self, stress_case, youngModulus, poissonsRatio):
-        self._stress = StressField(self._e11_strain,
-                                   self._e22_strain,
-                                   self._e33_strain if stress_case == "diagonal" else None,
-                                   youngModulus, poissonsRatio, stress_case)
+    def calculate_stress(self, stress_case, youngModulus, poissonsRatio, d0):
+
+        build_stress = False
+        if self._stress is None or stress_case != self._stressCase:
+            build_stress = True
+
+        if build_stress:
+            self._stress = StressField(self._e11_strain,
+                                       self._e22_strain,
+                                       self._e33_strain if stress_case == "diagonal" else None,
+                                       youngModulus, poissonsRatio, stress_case)
+        else:
+            if youngModulus != self._youngs_modulus:
+                self._stress.youngs_modulus = youngModulus
+            if poissonsRatio != self._poisson_ratio:
+                self._stress.poisson_ratio = poissonsRatio
+
+        if self._d0 is None or self._d0 != d0:
+            self._stress.set_d_reference((d0, 0))
+
+        # cache values to compare if they are changed
+        self._stressCase = stress_case
+        self._youngs_modulus = youngModulus
+        self._poisson_ratio = poissonsRatio
+        self._d0 = d0
 
     def write_stress_to_csv(self, filename):
         stress_csv = SummaryGeneratorStress(filename, self._stress)
@@ -185,6 +204,9 @@ class Model(QObject):
             return None, dict()
 
     def load_hidra_project_files(self, filenames, direction):
+        # remove existing stress as it will need to be recreated
+        self._stress = None
+
         workspaces = []
         peaks = []
         if isinstance(filenames, str):

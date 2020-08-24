@@ -135,11 +135,13 @@ class D0(QGroupBox):
         self.setLayout(layout)
 
     def update_d0(self):
-        self._parent.controller.update_d0(float(self.d0.text()))
         self._parent.update_plot()
 
     def set_d0(self, d0):
         self.d0.setText(str(d0))
+
+    def get_d0(self):
+        return float(self.d0.text())
 
 
 class FileLoading(QGroupBox):
@@ -539,7 +541,7 @@ class StrainStressViewer(QSplitter):
         self.peak_selection.set_peak_tags(peak_tags)
 
     def selectedPeak(self, peak):
-        self.d0.set_d0(self.model.d0.values[0])
+        self.d0.set_d0(self.model.d0)
         self.update_plot()
 
     def show_failure_msg(self, msg, info, details):
@@ -554,4 +556,5 @@ class StrainStressViewer(QSplitter):
     def calculate_stress(self):
         self.controller.calculate_stress(self.stressCase.get_stress_case(),
                                          self.mechanicalConstants.youngModulus.text(),
-                                         self.mechanicalConstants.poissonsRatio.text())
+                                         self.mechanicalConstants.poissonsRatio.text(),
+                                         self.d0.get_d0())

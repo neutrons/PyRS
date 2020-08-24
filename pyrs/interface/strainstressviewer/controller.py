@@ -14,13 +14,11 @@ class Controller:
         if name != "":
             self._model.selectedPeak = name
 
-    def update_d0(self, d0):
-        self._model.d0 = d0
-
-    def calculate_stress(self, stress_case, youngModulus, poissonsRatio):
+    def calculate_stress(self, stress_case, youngModulus, poissonsRatio, d0):
         self._model.calculate_stress(stress_case.replace(' ', '-'),
                                      float(youngModulus),
-                                     float(poissonsRatio))
+                                     float(poissonsRatio),
+                                     d0)
 
     def validate_selection(self, direction, twoD):
         if twoD and direction == '33':
