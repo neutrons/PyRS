@@ -23,6 +23,7 @@ class SummaryGeneratorStress:
 
     directions = ['11', '22', '33']
     fields_3dir = ['d', 'FWHM', 'Height', 'Strain', 'Stress']
+    decimals = {'d0': 7, 'd': 7, 'FWHM': 2, 'Height': 12, 'Strain': 6, 'Stress': 6}
 
     def __init__(self, filename: str, stress: StressField):
         """Initialization
@@ -47,11 +48,12 @@ class SummaryGeneratorStress:
         self._filename: str = str(filename)
 
         if isinstance(stress, StressField):
-            self._stress = stress    
+            self._stress_facade = StressFacade(stress)
+            self._stress = stress
         elif isinstance(stress, StressFacade):
             self._stress_facade = stress
             self._stress = self._stress_facade._stress
-        else: 
+        else:
             raise RuntimeError(
                 'Error: SummaryGeneratorStress stress input must be of type StressField or StressFacade'
                 + self._error_postfix)
@@ -92,17 +94,16 @@ class SummaryGeneratorStress:
         header = ''
 
         for direction in SummaryGeneratorStress.directions:
-            strain = self._get_strain_field(direction)
-            assert isinstance(strain, StrainField)
 
             if direction == '33' and self._strain33_is_calculated:
                 line = '# Direction 33: calculated\n'
 
             else:
                 line = '# Direction ' + str(direction) + ': '
-                for filename in strain.filenames:
-                    run_number = filename[filename.index('HB2B_') + 5: filename.index('.h5')]
-                    line += str(run_number) + ', '
+
+                runs = self._stress_facade.runs(direction)
+                for run in runs:
+                    line += str(run) + ', '
 
                 line = line[:-2] + '\n'
 
@@ -142,7 +143,10 @@ class SummaryGeneratorStress:
                        row: row index for a particular value and error array
                        field: name of the field from SummaryGeneratorStress.fields_3dir
                 """
+
                 entries = ''
+                decimals = SummaryGeneratorStress.decimals[field]
+
                 for direction in SummaryGeneratorStress.directions:
                     if field == 'Strain':
                         # TODO add check for strain?
@@ -151,15 +155,15 @@ class SummaryGeneratorStress:
                         strain_field = strain.field
                         strain_value = strain_field.values[row]
                         strain_error = strain_field.errors[row]
-                        entries += self._write_number(strain_value) + \
-                                   self._write_number(strain_error)
+                        entries += self._write_number(strain_value, decimals) + \
+                            self._write_number(strain_error, decimals)
 
                     elif field == 'Stress':
                         self._stress.select(direction)
                         stress_value = self._stress.values[row]
                         stress_error = self._stress.errors[row]
-                        entries += self._write_number(stress_value) + \
-                                   self._write_number(stress_error)
+                        entries += self._write_number(stress_value, decimals) + \
+                            self._write_number(stress_error, decimals)
 
                     else:
                         peak_collection = self._get_peak_collection(direction)
@@ -173,8 +177,8 @@ class SummaryGeneratorStress:
                         else:
                             value = field_data[0][row]
                             error = field_data[1][row]
-                            entries += self._write_number(value) + \
-                                       self._write_number(error)
+                            entries += self._write_number(value, decimals) + \
+                                self._write_number(error, decimals)
 
                 return entries
 
@@ -187,7 +191,9 @@ class SummaryGeneratorStress:
             # then fields in SummaryGeneratorStress.fields_3dir value, error per dimension
             for row, coordinate in enumerate(self._stress.coordinates):
 
-                line = str(coordinate[0]) + ', ' + str(coordinate[1]) + ', ' + str(coordinate[2]) + ', '
+                line = ''
+                for coord in coordinate:
+                    line += self._write_number(coord, 2)
 
                 # d0 doesn't depend on direction so just picking the first peak_collection
                 for direction in SummaryGeneratorStress.directions:
@@ -200,7 +206,9 @@ class SummaryGeneratorStress:
                     else:
                         d0_value = peak_collection.get_d_reference()[0][row]
                         d0_error = peak_collection.get_d_reference()[1][row]
-                        line += self._write_number(d0_value) + self._write_number(d0_error) 
+                        decimals = SummaryGeneratorStress.decimals['d0']
+                        line += self._write_number(d0_value, decimals) + \
+                            self._write_number(d0_error, decimals)
                         break
 
                 # value error for fields_3dir = ['d', 'FWHM', 'Peak_Height', 'Strain', 'Stress']
@@ -221,14 +229,13 @@ class SummaryGeneratorStress:
             _write_summary_csv_body(handle)
 
         return
-    
 
     def write_full_csv(self):
-        
+
         def _write_full_csv_column_names(handle):
-            
+
             column_names = 'vx, vy, vz, d0, d0_error, '
-            
+
             # directional variables
             for field_3dir in SummaryGeneratorStress.fields_3dir:
 
@@ -236,7 +243,7 @@ class SummaryGeneratorStress:
 
                 for direction in SummaryGeneratorStress.directions:
                     runs = self._stress_facade.runs(direction)
-                    
+
                     for run in runs:
                         entry_base = field_name + '_Dir' + direction + '_' + str(run)
                         column_names += entry_base + ', '
@@ -244,49 +251,40 @@ class SummaryGeneratorStress:
 
             column_names = column_names[:-2] + '\n'
             handle.write(column_names)
-            
+
             return
 
-        
         def _write_full_csv_body(handle):
-            
+
             return
-        
-        
+
         # function starts here
         with open(self._filename, 'w') as handle:
             self._write_csv_header(handle)
             _write_full_csv_column_names(handle)
             _write_full_csv_body(handle)
 
-        return 
-    
-    
-    def _write_number(self, number, decimal_digits = 12) -> str:
+        return
+
+    def _write_number(self, number, decimal_digits=12) -> str:
 
         if math.isnan(number):
             return ', '
 
-        tolerance = 10 ** -int(decimal_digits)
-        if abs(number-math.floor(number)) <= tolerance \
-            or abs(number-math.ceil(number)) <= tolerance:
-                return f'{number:.1f}' + ', '
-        
         output = ''
         if decimal_digits == 12:
             output = f'{number:.12f}' + ', '
         elif decimal_digits == 2:
             output = f'{number:.2f}' + ', '
         elif decimal_digits == 7:
-            output = f'{number:.7f}' + ', '                
+            output = f'{number:.7f}' + ', '
         elif decimal_digits == 6:
             output = f'{number:.6f}' + ', '
         else:
-            raise RuntimeError('ERROR: ' + str(decimal_digits) + ' decimal digits not supported in CSV file' )
-                 
+            raise RuntimeError('ERROR: ' + str(decimal_digits) + ' decimal digits not supported in CSV file')
+
         return output
-    
-    
+
     def _get_strain_field(self, direction: str) -> Optional[StrainField]:
         """
             Returns a StrainField for a particular direction from self._stress

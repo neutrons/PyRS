@@ -118,14 +118,15 @@ def test_write_summary_33calculated_nan_csv(test_data_dir: str):
     stress_facade = StressFacade(stress)
 
     stress_csv_filename = 'HB2B_StressStrain_peak0_Summary_33Calculated_1331_1332.csv'
-    stress_csv = SummaryGeneratorStress(stress_csv_filename, stress_facade )
+    stress_csv = SummaryGeneratorStress(stress_csv_filename, stress_facade)
     stress_csv.write_summary_csv()
-    
+
     # cleanup
     remove(stress_csv_filename)
-    
-    
+
+
 EXPECTED_FILE_FULL_CSV_1320 = 'tests/data/HB2B_StressStrain_peak0_Full_expected_1320.csv'
+
 
 @pytest.mark.parametrize('project_tags, expected_file',
                          [([1320, 1320, 1320], EXPECTED_FILE_FULL_CSV_1320)],
@@ -145,6 +146,4 @@ def test_write_full_csv(test_data_dir: str, project_tags: str, expected_file: st
 
     #assert(cmp(stress_csv_filename, expected_file))
     # cleanup
-    #remove(stress_csv_filename)
-
-    
+    remove(stress_csv_filename)
