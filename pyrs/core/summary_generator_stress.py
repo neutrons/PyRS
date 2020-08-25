@@ -48,10 +48,10 @@ class SummaryGeneratorStress:
         self._filename: str = str(filename)
 
         if isinstance(stress, StressField):
-            self._stress_facade = StressFacade(stress)
+            self._stress_facade:StressFacade = StressFacade(stress)
             self._stress = stress
         elif isinstance(stress, StressFacade):
-            self._stress_facade = stress
+            self._stress_facade:StressFacade = stress
             self._stress = self._stress_facade._stress
         else:
             raise RuntimeError(
@@ -230,7 +230,12 @@ class SummaryGeneratorStress:
 
         return
 
+
     def write_full_csv(self):
+        """
+            Public function to generate a full csv file for stress and input fields.
+            Provides info for each run.
+        """
 
         def _write_full_csv_column_names(handle):
 
@@ -255,6 +260,44 @@ class SummaryGeneratorStress:
             return
 
         def _write_full_csv_body(handle):
+            
+            self._recalc_peak_collections_data()
+
+            body = ''
+            
+            d0_scalar_field : ScalarFieldSample = self._stress_facade.d_reference
+            d0_values = d0_scalar_field.values
+            d0_errors = d0_scalar_field.errors
+            
+
+            # write for each row of the CSV body, first coordinates, d0 and
+            # then fields in SummaryGeneratorStress.fields_3dir value, error per dimension
+            for row, coordinate in enumerate(self._stress.coordinates):
+                line = ''
+                for coord in coordinate:
+                    line += self._write_number(coord, 2)
+                
+                # d0
+                if row >= len(d0_values):
+                    line += ', , '
+                else:
+                    d0_value = d0_values[row]
+                    d0_error = d0_errors[row]
+                    decimals = SummaryGeneratorStress.decimals['d0']
+                    line += self._write_number(d0_value, decimals) + \
+                            self._write_number(d0_error, decimals)
+
+                # value error for fields_3dir = ['d', 'FWHM', 'Peak_Height', 'Strain', 'Stress']
+                #for field_3dir in SummaryGeneratorStress.fields_3dir:
+                    #for direction in SummaryGeneratorStress.directions:
+                        # TODO line += _write_field_3d(row, field_3dir)
+                        
+
+                line = line[:-2] + '\n'
+
+                body += line
+
+            handle.write(body)
 
             return
 
