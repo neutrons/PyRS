@@ -583,6 +583,17 @@ class TestStrainFieldSingle:
         np.testing.assert_equal(d_reference.values, D_REFERENCE)
         np.testing.assert_equal(d_reference.errors, D_REFERENCE_ERROR)
 
+    def test_set_d_reference(self, strain_single_object_0):
+        r"""Test using a ScalarFieldSample"""
+        d_spacing = strain_single_object_0.get_dspacing_center()
+        expected = [1.00, 1.01, 1.02, 1.03, 1.04, 1.05, 1.06, 1.07]
+        assert_allclose(d_spacing.values, expected, atol=0.001)
+        # Set the reference spacings as the observed lattice plane spacings
+        strain_single_object_0.set_d_reference(d_spacing)
+        assert_allclose(strain_single_object_0.get_d_reference().values, expected)
+        # There should be no strain, since the observed lattice plane spacings are the reference spacings
+        assert_allclose(strain_single_object_0.values, np.zeros(8), atol=1.e-5)
+
     def test_get_peak_params(self, strain_field_samples):
         strain = strain_field_samples['strain with two points per direction']  # mock object
 
@@ -608,7 +619,7 @@ class Test_StrainField:
                 assert isinstance(s, StrainFieldSingle)
             self._strains = strains
 
-    def test_eq(self, strain_field_samples):
+    def test_eq(self, strain_field_samples, str):
         strains_single_scan = copy.deepcopy(list(strain_field_samples.values()))
         # single-scan strains
         assert strains_single_scan[0] == strains_single_scan[0]

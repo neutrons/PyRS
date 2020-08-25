@@ -71,6 +71,7 @@ class StressField
     component along the currectly accessble direction
 """
 from collections import namedtuple
+from copy import deepcopy
 from enum import Enum
 from enum import unique as unique_enum
 import numpy as np
@@ -1031,6 +1032,8 @@ class StrainFieldSingle(_StrainField):
         self._peak_collection: Optional[PeakCollection] = None
         # this are made as top level property to follow interface of StrainField
         self._point_list: Optional[PointList] = None
+        # immutable point list, doesn't change upon stacking or fusing
+        self._point_list_immutable: Optional[PointList] = None
         # cached version of the ScalarFieldSample
         self._scalar_field: Optional[ScalarFieldSample] = None
         # cached version of the ScalarFieldSample for each requested effective peak parameter
@@ -1077,6 +1080,7 @@ class StrainFieldSingle(_StrainField):
                                                                           peak_collection,
                                                                           point_list,
                                                                           resolution=resolution)
+        self._point_list_immutable = deepcopy(self._point_list)
 
     @property
     def filenames(self):
@@ -1156,11 +1160,15 @@ class StrainFieldSingle(_StrainField):
     def set_d_reference(self, values: Union[Tuple[float, float], ScalarFieldSample]) -> None:
         if self._peak_collection is None:
             raise RuntimeError('PeakCollection has not been set')
-
         if isinstance(values, ScalarFieldSample):
-            # TODO the PeakCollection needs to be explored to determine a mapping of positions
-            # to indices then set the d_reference with an ndarray
-            raise NotImplementedError()
+            # Find sample points in the point list associated to the peak collection
+            assert self._point_list_immutable is not None
+            indices = self._point_list_immutable.get_indices(values.point_list)
+            d_reference = self.get_d_reference()
+            values_new, errors_new = d_reference.values, d_reference.errors
+            values_new[indices] = values.values
+            errors_new[indices] = values.errors
+            self._peak_collection.set_d_reference(values_new, errors_new)
         else:
             self._peak_collection.set_d_reference(values[0], values[1])
 
