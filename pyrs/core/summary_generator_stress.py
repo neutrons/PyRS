@@ -11,6 +11,7 @@ from pyrs.peaks.peak_collection import PeakCollection
 
 import numpy as np
 from pyrs.core.stress_facade import StressFacade
+from unicodedata import decimal
 
 
 class SummaryGeneratorStress:
@@ -133,19 +134,6 @@ class SummaryGeneratorStress:
 
         def _write_summary_csv_body(handle):
 
-            def _write_number(number) -> str:
-
-                if math.isnan(number):
-                    return ', '
-
-                TOLERANCE = 1e-12
-
-                if abs(number-math.floor(number)) <= TOLERANCE \
-                   or abs(number-math.ceil(number)) <= TOLERANCE:
-                    return f'{number:.1f}' + ', '
-
-                return f'{number:.12f}' + ', '
-
             def _write_field_3d(row: int, field: str):
                 """
                    Writes 3 dimensional entries as value, error pairs per dimension
@@ -163,13 +151,15 @@ class SummaryGeneratorStress:
                         strain_field = strain.field
                         strain_value = strain_field.values[row]
                         strain_error = strain_field.errors[row]
-                        entries += _write_number(strain_value) + _write_number(strain_error)
+                        entries += self._write_number(strain_value) + \
+                                   self._write_number(strain_error)
 
                     elif field == 'Stress':
                         self._stress.select(direction)
                         stress_value = self._stress.values[row]
                         stress_error = self._stress.errors[row]
-                        entries += _write_number(stress_value) + _write_number(stress_error)
+                        entries += self._write_number(stress_value) + \
+                                   self._write_number(stress_error)
 
                     else:
                         peak_collection = self._get_peak_collection(direction)
@@ -183,7 +173,8 @@ class SummaryGeneratorStress:
                         else:
                             value = field_data[0][row]
                             error = field_data[1][row]
-                            entries += _write_number(value) + _write_number(error)
+                            entries += self._write_number(value) + \
+                                       self._write_number(error)
 
                 return entries
 
@@ -209,7 +200,7 @@ class SummaryGeneratorStress:
                     else:
                         d0_value = peak_collection.get_d_reference()[0][row]
                         d0_error = peak_collection.get_d_reference()[1][row]
-                        line += _write_number(d0_value) + _write_number(d0_error)
+                        line += self._write_number(d0_value) + self._write_number(d0_error) 
                         break
 
                 # value error for fields_3dir = ['d', 'FWHM', 'Peak_Height', 'Strain', 'Stress']
@@ -271,16 +262,29 @@ class SummaryGeneratorStress:
         return 
     
     
-    def _write_number(self, number, tolerance = 1e-12) -> str:
+    def _write_number(self, number, decimal_digits = 12) -> str:
 
         if math.isnan(number):
             return ', '
 
+        tolerance = 10 ** -int(decimal_digits)
         if abs(number-math.floor(number)) <= tolerance \
             or abs(number-math.ceil(number)) <= tolerance:
                 return f'{number:.1f}' + ', '
-
-        return f'{number:.12f}' + ', '
+        
+        output = ''
+        if decimal_digits == 12:
+            output = f'{number:.12f}' + ', '
+        elif decimal_digits == 2:
+            output = f'{number:.2f}' + ', '
+        elif decimal_digits == 7:
+            output = f'{number:.7f}' + ', '                
+        elif decimal_digits == 6:
+            output = f'{number:.6f}' + ', '
+        else:
+            raise RuntimeError('ERROR: ' + str(decimal_digits) + ' decimal digits not supported in CSV file' )
+                 
+        return output
     
     
     def _get_strain_field(self, direction: str) -> Optional[StrainField]:
