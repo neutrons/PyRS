@@ -41,6 +41,8 @@ def test_calibration_json_io():
     with open(test_calib_file, 'r') as t:
         test_calib_dict = json.load(t)
 
+    print(calib_dict)
+    print(test_calib_dict)
     # compare
     if calib_dict == test_calib_dict:
         os.remove(test_calib_file)
