@@ -619,7 +619,7 @@ class Test_StrainField:
                 assert isinstance(s, StrainFieldSingle)
             self._strains = strains
 
-    def test_eq(self, strain_field_samples, str):
+    def test_eq(self, strain_field_samples):
         strains_single_scan = copy.deepcopy(list(strain_field_samples.values()))
         # single-scan strains
         assert strains_single_scan[0] == strains_single_scan[0]
