@@ -1209,6 +1209,80 @@ class TestStressField:
             assert dimension.getMaximum() == pytest.approx(max_value, abs=0.01)
             assert dimension.getNBins() == bin_count
 
+    # flake8: noqa: C901
+    def test_set_d_reference(self, strain_stress_object_0):
+        #
+        # Diagonal case
+        stress = strain_stress_object_0['stresses']['diagonal']
+        for direction in ('11', '22', '33'):
+            stress.select(direction)
+            # Use the spacings along the current direction as the new reference spacings
+            d_reference_new = stress.strain.get_dspacing_center()
+            stress.set_d_reference(d_reference_new)
+            assert_allclose(stress.strain.get_d_reference().values, d_reference_new.values)
+            # This direction should be free of strain because observed and reference spacings coincide
+            assert_allclose(stress.strain.values, np.zeros(stress.size))
+        # The current d_reference is the spacing along the last direction
+        expected = np.array([1.20, 1.21, 1.22, 1.23, 1.24])
+        for strain in stress.strain11, stress.strain22, stress.strain33:
+            assert_allclose(strain.get_d_reference().values, expected, atol=0.001)
+            assert_allclose(strain.values, (strain.get_dspacing_center().values - expected) / expected, atol=0.001)
+        # Stresses must be also be updated
+        trace = stress.strain11.values + stress.strain22.values + stress.strain33.values
+        for direction, strain in zip(('11', '22', '33'), (stress.strain11, stress.strain22, stress.strain33)):
+            # Young's modulus and Poisson ratio for strain_stress_object_0 simplify the formulae
+            assert_allclose(stress[direction].values, strain.values + trace)
+        #
+        # in-plane-strain case
+        stress = strain_stress_object_0['stresses']['in-plane-strain']
+        for direction in ('11', '22'):
+            stress.select(direction)
+            # Use the spacings along the current direction as the new reference spacings
+            d_reference_new = stress.strain.get_dspacing_center()
+            stress.set_d_reference(d_reference_new)
+            assert_allclose(stress.strain.get_d_reference().values, d_reference_new.values)
+            # This direction should be free of strain because observed and reference spacings coincide
+            assert_allclose(stress.strain.values, np.zeros(stress.size))
+            assert_allclose(stress.strain33.values, np.zeros(stress.size))  # because in-plane-strain
+        # The current d_reference is the spacing along the '22' direction
+        expected = np.array([1.10, 1.11, 1.12, 1.13, 1.14])
+        for strain in stress.strain11, stress.strain22:
+            assert_allclose(strain.get_d_reference().values, expected, atol=0.001)
+            assert_allclose(strain.values, (strain.get_dspacing_center().values - expected) / expected, atol=0.001)
+        assert_allclose(stress.strain33.values, np.zeros(stress.size))  # because in-plane-strain
+        # Stresses must be also be updated
+        trace = stress.strain11.values + stress.strain22.values
+        for direction, strain in zip(('11', '22', '33'), (stress.strain11, stress.strain22, stress.strain33)):
+            # Young's modulus and Poisson ratio for strain_stress_object_0 simplify the formulae
+            assert_allclose(stress[direction].values, strain.values + trace)
+        #
+        # in-plane-stress case
+        stress = strain_stress_object_0['stresses']['in-plane-stress']
+        for direction in ('11', '22'):
+            stress.select(direction)
+            # Use the spacings along the current direction as the new reference spacings
+            d_reference_new = stress.strain.get_dspacing_center()
+            stress.set_d_reference(d_reference_new)
+            assert_allclose(stress.strain.get_d_reference().values, d_reference_new.values)
+            # This direction should be free of strain because observed and reference spacings coincide
+            assert_allclose(stress.strain.values, np.zeros(stress.size))
+            # Young's modulus and Poisson ratio for strain_stress_object_0 simplify the formulae
+            assert_allclose(stress.strain33.values, -(stress.strain11.values + stress.strain22.values))
+            assert_allclose(stress['33'].values, np.zeros(stress.size))  # because in-plane-stress
+        # The current d_reference is the spacing along the '22' direction
+        expected = np.array([1.10, 1.11, 1.12, 1.13, 1.14])
+        for strain in stress.strain11, stress.strain22:
+            assert_allclose(strain.get_d_reference().values, expected, atol=0.001)
+            assert_allclose(strain.values, (strain.get_dspacing_center().values - expected) / expected, atol=0.001)
+        assert_allclose(stress.strain33.values, -(stress.strain11.values + stress.strain22.values))
+        # Stresses must be also be updated
+        trace = stress.strain11.values + stress.strain22.values
+        for direction, strain in zip(('11', '22'), (stress.strain11, stress.strain22)):
+            # Young's modulus and Poisson ratio for strain_stress_object_0 simplify the formulae
+            assert_allclose(stress[direction].values, strain.values + trace)
+        assert_allclose(stress['33'].values, np.zeros(stress.size))  # because in-plane-stress
+        # TODO also test with fixture strain_stress_object_1
+
 
 @pytest.fixture(scope='module')
 def field_sample_collection():
