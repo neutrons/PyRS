@@ -316,9 +316,15 @@ class TestPointList:
         z = [2.5, 2.5, 2.5, 2.5, 2.0, 2.0, 2.0, 2.0]
         point_list3 = PointList([x, y, z])
 
+        # last three sample points of point_list1
+        x = [0.5, 0.0, 0.5]  # x
+        y = [1.0, 1.5, 1.5]  # y
+        z = [2.5, 2.5, 2.5]  # z
+        point_list4 = PointList([x, y, z])
+
         # indices with self are running numbers
-        for point_list in (point_list1, point_list2, point_list3):
-            np.testing.assert_equal(point_list.get_indices(point_list), np.arange(len(x)))
+        for point_list in (point_list1, point_list2, point_list3, point_list4):
+            np.testing.assert_equal(point_list.get_indices(point_list), np.arange(len(point_list)))
 
         # reversing values gets decreasing numbers
         for forward, reverse in zip((point_list1, point_list3), (point_list3, point_list1)):
@@ -327,6 +333,10 @@ class TestPointList:
         # partial matching tests
         np.testing.assert_equal(point_list1.get_indices(point_list2), [0, 1, 2, 3, -1, -1, -1, -1])
         np.testing.assert_equal(point_list3.get_indices(point_list2), [-1, -1, -1, -1, 3, 2, 1, 0])
+
+        np.testing.assert_equal(point_list4.get_indices(point_list1), [5, 6, 7])
+        np.testing.assert_equal(point_list4.get_indices(point_list2), [-1, -1, -1])
+        np.testing.assert_equal(point_list4.get_indices(point_list3), [2, 1, 0])
 
 
 def test_aggregate_point_list(sample_logs_mock):

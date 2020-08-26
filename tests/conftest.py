@@ -4,7 +4,7 @@ import os
 import pytest
 import sys
 
-from pyrs.dataobjects.fields import StrainField, StressField
+from pyrs.dataobjects.fields import StrainField, StrainFieldSingle, StressField
 from pyrs.dataobjects.sample_logs import _coerce_to_ndarray, PointList
 from pyrs.core.peak_profile_utility import get_parameter_dtype
 from pyrs.peaks.peak_collection import PeakCollection
@@ -82,7 +82,7 @@ def approx_with_sorting():
 
 
 @pytest.fixture(scope='session')
-def strain_builder():
+def strain_single_builder():
     def wrapped_function(peaks_data):
         r"""
         Constructor of `StrainField` objects
@@ -142,9 +142,211 @@ def strain_builder():
         # Point list
         point_list = PointList([peaks_data['vx'], peaks_data['vy'], peaks_data['vz']])
 
-        return StrainField(point_list=point_list, peak_collection=peak_collection)
+        return StrainFieldSingle(point_list=point_list, peak_collection=peak_collection)
 
     return wrapped_function
+
+
+@pytest.fixture(scope='function')
+def strain_single_object_0(strain_single_builder):
+    r"""Serves a StrainFieldSingle object"""
+    scan = {
+        'runnumber': '1234',
+        'subruns': [1, 2, 3, 4, 5, 6, 7, 8],
+        'peak_tag': 'test',
+        'wavelength': 2.0,
+        'd_reference': 1.0,
+        'peak_profile': 'pseudovoigt',
+        'background_type': 'linear',
+        # parameters appropriate to the selected peak shape, except for parameter PeakCentre
+        'native': {
+            'Intensity': [100, 110, 120, 130, 140, 150, 160, 170],
+            'FWHM': [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7],
+            'Mixing': [1.0] * 8,
+            'A0': [10., 11., 12., 13., 14., 15., 16., 17.],
+            'A1': [0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07],
+        },
+        'fit_costs': [1.0] * 8,
+        # will back-calculate PeakCentre values in order to end up with these lattice spacings
+        'd_spacing': [1.00, 1.01, 1.02, 1.03, 1.04, 1.05, 1.06, 1.07],
+        # errors in native parameters are taken to be their values times this error fraction
+        'error_fraction': 0.1,
+        'vx': [0., 1., 2., 3., 4., 5., 6., 7.],
+        'vy': [0.] * 8,
+        'vz': [0.] * 8
+    }
+
+    # create a StrainField object
+    return strain_single_builder(scan)
+
+
+@pytest.fixture(scope='session')
+def strain_builder(strain_single_builder):
+
+    def wrapped_function(peaks_data):
+        r"""
+        Constructor of `StrainField` objects
+
+        Parameters
+        ----------
+        peaks_data: dict
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.StrainField
+
+        Examples
+        --------
+
+        """
+        strain_single = strain_single_builder(peaks_data)
+        strain = StrainField()
+        strain._strains.append(strain_single)
+        strain._point_list = strain_single.point_list
+
+        return strain
+
+    return wrapped_function
+
+
+@pytest.fixture(scope='function')
+def strain_object_0(strain_builder):
+    r"""Serves a StrainField object made up of one StrainFieldSingle object"""
+    scan = {
+        'runnumber': '1234',
+        'subruns': [1, 2, 3, 4, 5, 6, 7, 8],
+        'peak_tag': 'test',
+        'wavelength': 2.0,
+        'd_reference': 1.0,
+        'peak_profile': 'pseudovoigt',
+        'background_type': 'linear',
+        # parameters appropriate to the selected peak shape, except for parameter PeakCentre
+        'native': {
+            'Intensity': [100, 110, 120, 130, 140, 150, 160, 170],
+            'FWHM': [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7],
+            'Mixing': [1.0] * 8,
+            'A0': [10., 11., 12., 13., 14., 15., 16., 17.],
+            'A1': [0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07],
+        },
+        'fit_costs': [1.0] * 8,
+        # will back-calculate PeakCentre values in order to end up with these lattice spacings
+        'd_spacing': [1.00, 1.01, 1.02, 1.03, 1.04, 1.05, 1.06, 1.07],
+        # errors in native parameters are taken to be their values times this error fraction
+        'error_fraction': 0.1,
+        'vx': [0., 1., 2., 3., 4., 5., 6., 7.],
+        'vy': [0.] * 8,
+        'vz': [0.] * 8
+    }
+
+    # create a StrainField object
+    return strain_builder(scan)
+
+
+@pytest.fixture(scope='function')
+def strain_object_1(strain_builder):
+    r"""Serves a StrainField object made up of two non-overlapping StrainFieldSingle objects"""
+    common_data = {
+        'peak_tag': 'test',
+        'wavelength': 2.0,
+        'd_reference': 1.0,
+        'peak_profile': 'pseudovoigt',
+        'background_type': 'linear',
+        # errors in native parameters are taken to be their values times this error fraction
+        'error_fraction': 0.1,
+    }
+
+    strain_1235_data = deepcopy(common_data)
+    strain_1235_data.update({
+        'runnumber': '1235',
+        'subruns': [1, 2, 3, 4],
+        'native': {
+            'Intensity': [110, 120, 130, 140],
+            'FWHM': [1.1, 1.2, 1.3, 1.4],
+            'Mixing': [1.0] * 4,
+            'A0': [11., 12., 13., 14.],
+            'A1': [0.01, 0.02, 0.03, 0.04],
+        },
+        'fit_costs': [1.0] * 4,
+        'd_spacing': [1.01, 1.02, 1.03, 1.04],  # notice the last value
+        'vx': [1., 2., 3., 4.],
+        'vy': [0.] * 4,
+        'vz': [0.] * 4
+    })
+    strain_1235 = strain_builder(strain_1235_data)
+
+    strain_1236_data = deepcopy(common_data)
+    strain_1236_data.update({
+        'runnumber': '1236',
+        'subruns': [1, 2, 3, 4],
+        'native': {
+            'Intensity': [150, 160, 170, 180],
+            'FWHM': [1.5, 1.6, 1.7, 1.8],
+            'Mixing': [1.0] * 4,
+            'A0': [15., 16., 17., 18.],
+            'A1': [0.05, 0.06, 0.07, 0.08],
+        },
+        'fit_costs': [1.0] * 4,
+        'd_spacing': [1.05, 1.06, 1.07, 1.08],  # notice the first value
+        'vx': [5., 6., 7., 8.],
+        'vy': [0.] * 4,
+        'vz': [0.] * 4
+    })
+    strain_1236 = strain_builder(strain_1236_data)
+
+    return strain_1235 + strain_1236
+
+
+@pytest.fixture(scope='function')
+def strain_object_2(strain_builder):
+    r"""Serves a StrainField object made up of two overlapping StrainFieldSingle objects"""
+    common_data = {
+        'peak_tag': 'test',
+        'wavelength': 2.0,
+        'd_reference': 1.0,
+        'peak_profile': 'pseudovoigt',
+        'background_type': 'linear',
+        # errors in native parameters are taken to be their values times this error fraction
+        'error_fraction': 0.1,
+    }
+    strain_1235_data = deepcopy(common_data)
+    strain_1235_data.update({
+        'runnumber': '1235',
+        'subruns': [1, 2, 3, 4],
+        'native': {
+            'Intensity': [110, 120, 130, 140],
+            'FWHM': [1.1, 1.2, 1.3, 1.4],
+            'Mixing': [1.0] * 4,
+            'A0': [11., 12., 13., 14.],
+            'A1': [0.01, 0.02, 0.03, 0.04],
+        },
+        'fit_costs': [1.0] * 4,
+        'd_spacing': [1.01, 1.02, 1.03, 1.04],  # notice the last value
+        'vx': [1., 2., 3., 4.],
+        'vy': [0.] * 4,
+        'vz': [0.] * 4
+    })
+    strain_1235 = strain_builder(strain_1235_data)
+
+    strain_1236_data = deepcopy(common_data)
+    strain_1236_data.update({
+        'runnumber': '1236',
+        'subruns': [1, 2, 3, 4, 5],
+        'native': {
+            'Intensity': [140, 150, 160, 170, 180],
+            'FWHM': [1.4, 1.5, 1.6, 1.7, 1.8],
+            'Mixing': [1.0] * 5,
+            'A0': [14., 15., 16., 17., 18.],
+            'A1': [0.04, 0.05, 0.06, 0.07, 0.08],
+        },
+        'fit_costs': [1.0] * 5,
+        'd_spacing': [1.045, 1.05, 1.06, 1.07, 1.08],  # notice the first value
+        'vx': [4., 5., 6., 7., 8.],
+        'vy': [0.] * 5,
+        'vz': [0.] * 5
+    })
+    strain_1236 = strain_builder(strain_1236_data)
+
+    return strain_1235 + strain_1236
 
 
 @pytest.fixture(scope='function')

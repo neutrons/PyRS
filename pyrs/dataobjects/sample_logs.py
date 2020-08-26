@@ -1171,9 +1171,17 @@ class PointList:
 
     def get_indices(self, other: 'PointList',
                     resolution: float = DEFAULT_POINT_RESOLUTION) -> np.ndarray:
-        """return an array that is parallel to the input for indices into self of the
+        """
+        Return an array that is parallel to the input for indices into self of the
         supplied other. Any position that isn't found should be filled
-        with MISSING_INDEX (-1)."""
+        with MISSING_INDEX (-1).
+
+        Examples using unidimensional point lists:
+        If list1.vx == [1.0, 2.0, 3.0, 4.0. 5.0] and list2.vx = [4.0, 3.0], then
+        list2.get_indices(list1) == [3, 2]
+        If list1.vx == [1.0, 2.0, 3.0, 4.0. 5.0] and list2.vx = [6.0, 7.0], then
+        list2.get_indices(list1) == [-1, -1]
+        """
         if self == other:
             return np.arange(len(self))
         elif self.is_equal_within_resolution(other, resolution):
@@ -1186,7 +1194,7 @@ class PointList:
             indices = np.full(len(full_indices), self.MISSING_INDEX, dtype=int)
             for i, index in enumerate(full_indices):
                 indices[i] = index[1]
-            return indices[:len(other)]
+            return indices[:len(self)]
 
     def extents(self, resolution=DEFAULT_POINT_RESOLUTION) -> ExtentTriad:
         r"""

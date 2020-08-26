@@ -583,6 +583,17 @@ class TestStrainFieldSingle:
         np.testing.assert_equal(d_reference.values, D_REFERENCE)
         np.testing.assert_equal(d_reference.errors, D_REFERENCE_ERROR)
 
+    def test_set_d_reference(self, strain_single_object_0):
+        r"""Test using a ScalarFieldSample"""
+        d_spacing = strain_single_object_0.get_dspacing_center()
+        expected = [1.00, 1.01, 1.02, 1.03, 1.04, 1.05, 1.06, 1.07]
+        assert_allclose(d_spacing.values, expected, atol=0.001)
+        # Set the reference spacings as the observed lattice plane spacings
+        strain_single_object_0.set_d_reference(d_spacing)
+        assert_allclose(strain_single_object_0.get_d_reference().values, expected)
+        # There should be no strain, since the observed lattice plane spacings are the reference spacings
+        assert_allclose(strain_single_object_0.values, np.zeros(8), atol=1.e-5)
+
     def test_get_peak_params(self, strain_field_samples):
         strain = strain_field_samples['strain with two points per direction']  # mock object
 
@@ -828,6 +839,61 @@ class TestStrainField:
         d_reference = strain.get_d_reference()
         np.testing.assert_equal(d_reference.values, D_REFERENCE)
         np.testing.assert_equal(d_reference.errors, D_REFERENCE_ERROR)
+
+    def test_set_d_reference(self, strain_object_0, strain_object_1, strain_object_2,
+                             strain_stress_object_0, strain_stress_object_1):
+        r"""
+        Test using a ScalarFieldSample
+        strain_object_0: StrainField object made up of one StrainFieldSingle object
+        strain_object_1: StrainField object made up of two non-overlapping StrainFieldSingle object
+        strain_object_2: StrainField object made up of two overlapping StrainFieldSingle objects
+        strain_stress_object_0: strains stacked, all have the same set of sample points
+        """
+        for strain, expected in [(strain_object_0, [1.00, 1.01, 1.02, 1.03, 1.04, 1.05, 1.06, 1.07]),
+                                 (strain_object_1, [1.01, 1.02, 1.03, 1.04, 1.05, 1.06, 1.07, 1.08]),
+                                 (strain_object_2, [1.01, 1.02, 1.03, 1.04, 1.05, 1.06, 1.07, 1.08])]:
+            d_spacing = strain.get_dspacing_center()
+            assert_allclose(d_spacing.values, expected, atol=0.001)
+            # Set the reference spacings as the observed lattice plane spacings
+            strain.set_d_reference(d_spacing)
+            assert_allclose(strain.get_d_reference().values, expected)
+            # There should be no strain, since the observed lattice plane spacings are the reference spacings
+            assert_allclose(strain.values, np.zeros(8), atol=1.e-5)
+        #
+        # Use a new d_reference defined over a set of sample points having no overlap. In this case,
+        # the d_reference of the strains should be left untouched
+        d_reference_update = ScalarFieldSample('d_reference',
+                                               values=[9, 9, 9], errors=[0.0, 0.0, 0.0],
+                                               x=[9, 9, 9], y=[0, 0, 0], z=[0, 0, 0])
+        for strain in (strain_object_0, strain_object_1, strain_object_2):
+            d_reference_old = strain.get_d_reference()
+            strain.set_d_reference(d_reference_update)  # no effect
+            assert_allclose(strain.get_d_reference().values, d_reference_old.values)
+        #
+        # Use a new d_reference defined over a set of sample points corresponding to the last
+        # three points of the strain field
+        for strain in (strain_object_0,):
+            d_reference_update = ScalarFieldSample('d_reference',
+                                                   values=[9, 9, 9], errors=[0.0, 0.0, 0.0],
+                                                   x=strain.x[-3:], y=strain.y[-3:], z=strain.z[-3:])
+            d_reference_old = strain.get_d_reference()
+            strain.set_d_reference(d_reference_update)  # affects only the last three points
+            assert_allclose(strain.get_d_reference().values[: -3], d_reference_old.values[: -3])
+            assert_allclose(strain.get_d_reference().values[-3:], [9, 9, 9])
+
+        #
+        # Use a new d_reference defined over a set of sample points corresponding to the last
+        # three points of the stacked strains in strain_stress_object_0
+        strains = strain_stress_object_0['strains']
+        pl = strains['11'].point_list
+        d_reference_update = ScalarFieldSample('d_reference',
+                                               values=[9, 9, 9], errors=[0.0, 0.0, 0.0],
+                                               x=pl.vx[-3:], y=pl.vy[-3:], z=pl.vz[-3:])
+        for strain in strains.values():  # `strains` is a dictionary
+            d_reference_old = strain.get_d_reference()
+            strain.set_d_reference(d_reference_update)  # affects only the last three points
+            assert_allclose(strain.get_d_reference().values[: -3], d_reference_old.values[: -3])
+            assert_allclose(strain.get_d_reference().values[-3:], [9, 9, 9])
 
     def test_stack_strains(self, strain_field_samples, allclose_with_sorting):
         strain1 = strain_field_samples['HB2B_1320_peak0']
