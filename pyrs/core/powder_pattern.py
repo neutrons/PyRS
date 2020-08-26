@@ -32,6 +32,7 @@ class ReductionApp:
         # initialize reduction session with a general name (single session script)
         self._session = 'GeneralHB2BReduction'
         self._hydra_file_name = None
+        self._sub_runs = None
 
         return
 
@@ -83,7 +84,8 @@ class ReductionApp:
         self._reduction_manager.init_session(self._session, self._hydra_ws)
 
     def reduce_data(self, sub_runs, instrument_file, calibration_file, mask, mask_id=None,
-                    van_file=None, num_bins=1000, eta_step=None, eta_min=-8.2, eta_max=8.2):
+                    van_file=None, num_bins=1000, eta_step=None, eta_min=-8.2, eta_max=8.2,
+                    min_2theta=None, max_2theta=None, delta_2theta=None):
         """Reduce data from HidraWorkspace
 
         Parameters
@@ -108,6 +110,12 @@ class ReductionApp:
             min angle for out-of-plane reduction
         eta_max : float
             max angle for out-of-plane reduction
+        min_2theta : float or None
+            min 2theta
+        max_2theta : float or None
+            max 2theta
+        delta_2theta : float or None
+            2theta increment in the reduced diffraction data
 
         Returns
         -------
@@ -115,7 +123,10 @@ class ReductionApp:
         """
         # Check inputs
         if sub_runs is None or not bool(sub_runs):  # None or empty list
-            sub_runs = self._hydra_ws.get_sub_runs()
+            self._sub_runs = self._hydra_ws.get_sub_runs()
+        else:
+            # sort array to make sure the sub-run data are written into project files in increasing order
+            self._sub_runs = sorted(sub_runs)
 
         # instrument file
         if instrument_file is not None:
@@ -148,8 +159,11 @@ class ReductionApp:
 
         self._reduction_manager.reduce_diffraction_data(self._session,
                                                         apply_calibrated_geometry=geometry_calibration,
+                                                        min_2theta=min_2theta,
+                                                        max_2theta=max_2theta,
                                                         num_bins=num_bins,
-                                                        sub_run_list=sub_runs,
+                                                        sub_run_list=self._sub_runs,
+                                                        delta_2theta=delta_2theta,
                                                         mask=mask,
                                                         mask_id=mask_id,
                                                         vanadium_counts=van_array,
@@ -204,10 +218,10 @@ class ReductionApp:
 
         # If it is a new file, the sample logs and other information shall be exported too
         if mode == HidraProjectFileMode.OVERWRITE:
-            self._hydra_ws.save_experimental_data(out_file, ignore_raw_counts=False)
+            self._hydra_ws.save_experimental_data(out_file, sub_runs=self._sub_runs, ignore_raw_counts=True)
 
         # Calibrated wave length shall be written
         self._hydra_ws.save_wavelength(out_file)
 
         # Write & close
-        self._hydra_ws.save_reduced_diffraction_data(out_file)
+        self._hydra_ws.save_reduced_diffraction_data(out_file, sub_runs=self._sub_runs)

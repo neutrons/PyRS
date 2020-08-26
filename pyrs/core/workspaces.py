@@ -543,9 +543,16 @@ class HidraWorkspace:
         log_value = self._sample_logs[sample_log_name, sub_run]
 
         if isinstance(log_value, numpy.ndarray):
-            assert log_value.shape == (1, ), 'Single log {} (= {}) is a numpy array with multiple items' \
-                                             '(shape = {})'.format(sample_log_name, log_value, log_value.shape)
-            log_value = log_value[0]
+            if log_value.shape == (1, ):  # only one log value
+                log_value = log_value[0]
+            else:
+                log_set = set(log_value)
+                if len(log_set) == 1:  # all the values are the same
+                    log_value = log_set.pop()
+                else:
+                    msg = 'Single log {} (= {}) is a numpy array with multiple items' \
+                        '(shape = {})'.format(sample_log_name, log_value, log_value.shape)
+                    raise AssertionError(msg)
 
         return log_value
 
@@ -576,6 +583,10 @@ class HidraWorkspace:
                                              list(self._sample_logs.keys()))
 
         return self._sample_logs[sample_log_name, sub_runs]
+
+    def get_pointlist(self, subruns=None):
+        '''Get list PointList from the SampleLogs'''
+        return self._sample_logs.get_pointlist(subruns)
 
     def get_spectrum_index(self, sub_run: int) -> Any:
         """
@@ -884,14 +895,41 @@ class HidraWorkspace:
         if self._wave_length is not None:
             hidra_project.write_wavelength(self._wave_length)
 
-    def save_reduced_diffraction_data(self, hidra_project):
-        """ Export reduced diffraction data to project
-        :param hidra_project: HidraProjectFile instance
-        :return:
+    def save_reduced_diffraction_data(self, hidra_project, sub_runs):
+        """Save reduced diffraction data to HiDRA project file
+        Parameters
+        ----------
+        hidra_project: HidraProjectFile
+            reference to a HyDra project file
+        sub_runs: None or list/ndarray(1D)
+            None for exporting all or the specified sub runs
+
+        Returns
+        -------
+        None
         """
+
         checkdatatypes.check_type('HIDRA project file', hidra_project, HidraProjectFile)
 
-        hidra_project.write_reduced_diffraction_data_set(self._2theta_matrix, self._diff_data_set, self._var_data_set)
+        if len(self._raw_counts.keys()) == len(sub_runs):
+            hidra_project.write_reduced_diffraction_data_set(self._2theta_matrix,
+                                                             self._diff_data_set,
+                                                             self._var_data_set)
+        else:
+            if type(sub_runs) is list:
+                sub_runs = numpy.array(sub_runs)
+
+            diff_key = list(self._diff_data_set.keys())[0]
+            _diff_data_temp = {}
+            _var_data_temp = {}
+
+            # sub_runs - 1 is used to convert sub_run naming into a numpy index
+            _diff_data_temp[diff_key] = self._diff_data_set[diff_key][sub_runs - 1]
+            _var_data_temp[diff_key] = self._var_data_set[diff_key][sub_runs - 1]
+
+            hidra_project.write_reduced_diffraction_data_set(self._2theta_matrix[sub_runs - 1],
+                                                             _diff_data_temp,
+                                                             _var_data_temp)
 
     @property
     def sample_log_names(self):

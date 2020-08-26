@@ -1,6 +1,6 @@
 import numpy as np
 from pyrs.core.peak_profile_utility import PeakShape, BackgroundFunction, get_parameter_dtype
-from pyrs.peaks import PeakCollection  # type: ignore
+from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
 import pytest
 
 
@@ -111,6 +111,9 @@ def check_peak_collection(peak_shape, NUM_SUBRUN, target_errors,
     np.testing.assert_equal(peaks.get_subruns(), subruns)
     np.testing.assert_equal(peaks.get_chisq(), chisq)
     assert len(peaks.get_fit_status()) == NUM_SUBRUN
+    assert peaks.runnumber == -1   # tests don't have real data
+    assert peaks.projectfilename == ''   # tests don't have real data
+
     # check raw/native parameters
     obs_raw_peaks, obs_raw_errors = peaks.get_native_params()
     np.testing.assert_equal(obs_raw_peaks, raw_peaks_array)
@@ -176,6 +179,20 @@ def test_peak_collection_PseudoVoigt():
                           wavelength=1.53229, d_reference=1.08, target_d_spacing_center=[1.08, 1.07],
                           target_d_spacing_center_error=[0.0, 0.0], target_strain=[3234., -5408.],
                           target_strain_error=[0.0, 0.0])
+
+
+def test_peak_collection_lite():
+    SIZE = 10
+
+    peaks = PeakCollectionLite('dummy',
+                               strain=np.zeros(SIZE, dtype=float),
+                               strain_error=np.zeros(SIZE, dtype=float))
+    obs, obs_error = peaks.get_strain()
+    np.testing.assert_equal(obs, 0.)
+    np.testing.assert_equal(obs_error, 0.)
+    assert len(peaks.get_d_reference()[0]) == SIZE
+    assert peaks.runnumber == -1   # never has a run number
+    assert peaks.projectfilename == ''   # never came from a file
 
 
 if __name__ == '__main__':

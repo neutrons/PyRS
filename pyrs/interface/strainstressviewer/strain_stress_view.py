@@ -1,16 +1,20 @@
 from mantidqt.widgets.sliceviewer.presenter import SliceViewer
 from mantidqt.widgets.sliceviewer.model import SliceViewerModel
+from mantidqt.icons import get_icon
 from qtpy.QtWidgets import (QHBoxLayout, QVBoxLayout, QLabel, QWidget,
                             QLineEdit, QPushButton, QComboBox,
                             QGroupBox, QSplitter, QTabWidget,
-                            QTableWidget, QTableWidgetItem,
                             QFormLayout, QFileDialog,
                             QStyledItemDelegate, QDoubleSpinBox,
                             QStackedWidget, QMessageBox)
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtGui import QDoubleValidator
 import numpy as np
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 import functools
+import traceback
+import os
 
 
 class FileLoad(QWidget):
@@ -30,14 +34,14 @@ class FileLoad(QWidget):
         self.setLayout(layout)
 
     def openFileDialog(self):
-        fileName, _ = QFileDialog.getOpenFileName(self,
-                                                  self.name,
-                                                  "",
-                                                  self.fileType)
-        if fileName:
-            success = self.parent.controller.fileSelected(self.name, fileName)
+        fileNames, _ = QFileDialog.getOpenFileNames(self,
+                                                    self.name,
+                                                    "",
+                                                    self.fileType)
+        if fileNames:
+            success = self.parent.controller.filesSelected(self.name, fileNames)
             if success:
-                self.lineEdit.setText(fileName)
+                self.lineEdit.setText(', '.join(os.path.basename(filename) for filename in fileNames))
             else:
                 self.lineEdit.setText(None)
             self.parent.update_plot()
@@ -124,56 +128,20 @@ class D0(QGroupBox):
         validator.setBottom(0)
         self.d0 = QLineEdit()
         self.d0.setValidator(validator)
-        self.d0.editingFinished.connect(self.set_d0)
+        self.d0.editingFinished.connect(self.update_d0)
         d0_box_layout.addWidget(self.d0)
         d0_box.setLayout(d0_box_layout)
         layout.addWidget(d0_box)
-        load_grid = FileLoad("d₀ Grid", parent=self)
-        load_grid.setEnabled(False)
-        layout.addWidget(load_grid)
-
-        self.d0_grid = QTableWidget()
-        self.d0_grid.setColumnCount(2)
-        self.d0_grid.verticalHeader().setVisible(False)
-        self.d0_grid.horizontalHeader().setStretchLastSection(True)
-        self.d0_grid.setHorizontalHeaderLabels(['Sub-run', "d₀"])
-        self.d0_grid.cellChanged.connect(self.cellChanged)
-        self.d0_grid.setItemDelegateForColumn(1, SpinBoxDelegate())
-
-        layout.addWidget(self.d0_grid)
         self.setLayout(layout)
 
-    def set_sub_runs(self, sub_runs, d0_list):
-        self.d0_grid.cellChanged.disconnect()
-        self.d0_grid.setRowCount(len(sub_runs))
-        for n, (sub_run, d0) in enumerate(zip(sub_runs, d0_list)):
-            subrun_item = QTableWidgetItem(str(sub_run))
-            subrun_item.setFlags(subrun_item.flags() ^ Qt.ItemIsEditable)
-            d0_item = QTableWidgetItem()
-            d0_item.setData(Qt.EditRole, float(d0))
-            self.d0_grid.setItem(n, 0, QTableWidgetItem(subrun_item))
-            self.d0_grid.setItem(n, 1, QTableWidgetItem(d0_item))
-        self.d0_grid.cellChanged.connect(self.cellChanged)
-
-    def set_d0(self, d0=None):
-        self.d0_grid.cellChanged.disconnect()
-        if d0 is None:
-            d0 = self.d0.text()
-
-        d0_item = QTableWidgetItem()
-        d0_item.setData(Qt.EditRole, float(d0))
-        for n in range(self.d0_grid.rowCount()):
-            self.d0_grid.setItem(n, 1, QTableWidgetItem(d0_item))
-        self.d0_grid.cellChanged.connect(self.cellChanged)
-        self.d0_grid.cellChanged.emit(0, 0)
+    def update_d0(self):
         self._parent.update_plot()
 
-    def get_d0(self):
-        return [float(self.d0_grid.item(n, 1).text()) for n in range(self.d0_grid.rowCount())]
+    def set_d0(self, d0):
+        self.d0.setText(str(d0))
 
-    def cellChanged(self, row, column):
-        self.d0.clear()
-        self._parent.controller.update_d0(self.get_d0())
+    def get_d0(self):
+        return float(self.d0.text())
 
 
 class FileLoading(QGroupBox):
@@ -211,30 +179,90 @@ class MechanicalConstants(QGroupBox):
 
 class StrainSliceViewer(SliceViewer):
     def __init__(self, ws, parent=None):
+        self.overlay_visible = False
+        self.scatter = None
+        self.aspect_equal = False
         super().__init__(ws, parent=parent)
+
+        self.view.data_view.mpl_toolbar.addSeparator()
+
+        # Add aspect ratio button, use used nonOrthogonalClicked
+        # signal, easier than creating a new one
+        self.view.data_view.mpl_toolbar.nonOrthogonalClicked.disconnect()
+        self.view.data_view.mpl_toolbar.addAction(get_icon('mdi.aspect-ratio'),
+                                                  'aspect',
+                                                  self.view.data_view.mpl_toolbar.nonOrthogonalClicked).setToolTip(
+                                                      'Toggle aspect ratio')
+        self.view.data_view.mpl_toolbar.nonOrthogonalClicked.connect(self.toggle_aspect)
+
         self.view.data_view.mpl_toolbar.peaksOverlayClicked.disconnect()
         self.view.data_view.mpl_toolbar.peaksOverlayClicked.connect(self.overlay)
-        self.overlay = False
-        self.scatter = None
 
     def new_plot_MDH(self):
         """redefine this function so we can change the default plot interpolation"""
         self.view.data_view.plot_MDH(self.model.get_ws(), slicepoint=self.get_slicepoint(), interpolation='bilinear')
+        if self.overlay_visible:
+            self.update_overlay()
+        if self.aspect_equal:
+            self.update_aspect()
+
+    def update_plot_data_MDH(self):
+        super().update_plot_data_MDH()
+        if self.overlay_visible:
+            self.update_overlay()
 
     def overlay(self):
-        """Demo only of potential plotting of measurement points"""
-        self.overlay = not self.overlay
-        if self.overlay:
-            X, Y = np.meshgrid(range(20), range(20))
-            self.scatter = self.view.data_view.canvas.figure.axes[0].scatter(X, Y, c='black')
-            self.view.data_view.canvas.draw_idle()
+        self.overlay_visible = not self.overlay_visible
+
+        if self.overlay_visible:
+            self.update_overlay()
         else:
-            self.scatter.remove()
+            if self.scatter:
+                self.scatter.remove()
+                self.scatter = None
             self.view.data_view.canvas.draw_idle()
+
+    def update_overlay(self):
+        if self.scatter:
+            self.scatter.remove()
+            self.scatter = None
+        slicepoint = self.view.data_view.dimensions.get_slicepoint()
+        x, y, z = self.current_field.x, self.current_field.y, self.current_field.z
+
+        xy = []
+        for n, (point, values) in enumerate(zip(slicepoint, (x, y, z))):
+            if point is not None:
+                mask = np.isclose(values, point, atol=self.bin_widths[n]/2)
+            else:
+                xy.append(values)
+
+        X = xy[0][mask]
+        Y = xy[1][mask]
+
+        if self.view.data_view.dimensions.transpose:
+            X, Y = Y, X
+
+        self.scatter = self.view.data_view.canvas.figure.axes[0].scatter(X, Y, c='black')
+        self.view.data_view.canvas.draw_idle()
+
+    def set_new_field(self, field, bin_widths):
+        self.current_field = field
+        self.bin_widths = bin_widths
 
     def set_new_workspace(self, ws):
         self.model = SliceViewerModel(ws)
         self.new_plot()
+
+    def toggle_aspect(self, state):
+        self.aspect_equal = not self.aspect_equal
+        self.update_aspect()
+
+    def update_aspect(self):
+        if self.aspect_equal:
+            self.view.data_view.ax.set_aspect('equal')
+        else:
+            self.view.data_view.ax.set_aspect('auto')
+        self.view.data_view.canvas.draw_idle()
 
 
 class PlotSelect(QGroupBox):
@@ -243,8 +271,8 @@ class PlotSelect(QGroupBox):
         layout = QFormLayout()
         layout.setFieldGrowthPolicy(0)
         self.plot_param = QComboBox()
-        self.plot_param.addItems(["dspacing_center",
-                                  "d_reference",
+        self.plot_param.addItems(["dspacing-center",
+                                  "d-reference",
                                   "Center",
                                   "Height",
                                   "FWHM",
@@ -286,11 +314,41 @@ class PeakSelection(QGroupBox):
         self.peak_select.addItems(peak_tags)
 
 
+class CSVExport(QGroupBox):
+    def __init__(self, parent=None):
+        self._parent = parent
+        super().__init__(parent=parent)
+        self.setTitle("CSV Export")
+        layout = QHBoxLayout()
+        self.export = QPushButton("Export Grid Information")
+        self.export.clicked.connect(self.save_CSV)
+        layout.addWidget(self.export)
+        self.setLayout(layout)
+
+        self.setEnabled(False)
+
+    def setEnabled(self, enabled):
+        self.export.setEnabled(enabled)
+
+    def save_CSV(self):
+        self._parent.calculate_stress()
+        filename, _ = QFileDialog.getSaveFileName(self,
+                                                  "Export Grid Information",
+                                                  self._parent.model.get_default_csv_filename(),
+                                                  "CSV (*.csv);;All Files (*)")
+        if not filename:
+            return
+        self._parent.controller.write_stress_to_csv(filename)
+
+
 class VizTabs(QTabWidget):
     def __init__(self, parent=None):
+        self._parent = parent
         super().__init__(parent)
+        self.oneDViewer = None
         self.strainSliceViewer = None
 
+        self.plot_1d = QStackedWidget()
         self.plot_2d = QStackedWidget()
 
         self.message = QLabel("Load project files")
@@ -300,20 +358,66 @@ class VizTabs(QTabWidget):
         self.message.setFont(font)
         self.plot_2d.addWidget(self.message)
 
+        self.addTab(self.plot_1d, "1D")
         self.addTab(self.plot_2d, "2D")
         self.addTab(QWidget(), "3D")
-        self.setTabEnabled(1, False)
+        self.set_1d_mode(False)
         self.setCornerWidget(QLabel("Visualization Pane    "), corner=Qt.TopLeftCorner)
 
-    def set_ws(self, ws):
-        if ws:
-            if self.strainSliceViewer:
-                self.strainSliceViewer.set_new_workspace(ws)
-            else:
-                self.strainSliceViewer = StrainSliceViewer(ws, parent=self)
-                self.plot_2d.addWidget(self.strainSliceViewer.view)
-                self.plot_2d.setCurrentIndex(1)
+    def set_1d_mode(self, oned):
+        self.setTabEnabled(0, oned)
+        self.setTabEnabled(1, not oned)
+        self.setTabEnabled(2, False)
+
+    def set_ws(self, field):
+
+        if field is not None:
+            try:
+                ws = field.to_md_histo_workspace()
+            except Exception as e:
+                self._parent.show_failure_msg("Failed to generate field",
+                                              str(e),
+                                              traceback.format_exc())
+                ws = None
         else:
+            ws = None
+
+        if ws:
+            if len(ws.getNonIntegratedDimensions()) == 1:
+                self.set_1d_mode(True)
+                if self.oneDViewer:
+                    self.plot_1d.removeWidget(self.oneDViewer)
+                fig = Figure()
+                self.oneDViewer = FigureCanvas(fig)
+
+                # get scan direction
+                for d in ('x', 'y', 'z'):
+                    dim = getattr(field, d)
+                    if not np.allclose(dim, dim[0], atol=0.1):
+                        scan_dir = d
+
+                # create simple 1D plot
+                ax = fig.add_subplot(111)
+                ax.errorbar(getattr(field, scan_dir), field.values, field.errors, marker='o')
+                ax.set_xlabel(f'{scan_dir} (mm)')
+
+                self.plot_1d.addWidget(self.oneDViewer)
+                self.plot_1d.setCurrentIndex(1)
+            else:
+                self.set_1d_mode(False)
+                if self.strainSliceViewer:
+                    self.strainSliceViewer.set_new_workspace(ws)
+                else:
+                    self.strainSliceViewer = StrainSliceViewer(ws, parent=self)
+                    self.plot_2d.addWidget(self.strainSliceViewer.view)
+                    self.plot_2d.setCurrentIndex(1)
+                self.strainSliceViewer.set_new_field(field,
+                                                     bin_widths=[ws.getDimension(n).getBinWidth() for n in range(3)])
+        else:
+            self.set_1d_mode(False)
+            if self.oneDViewer is not None:
+                self.plot_1d.removeWidget(self.oneDViewer)
+                self.oneDViewer = None
             if self.strainSliceViewer is not None:
                 self.plot_2d.removeWidget(self.strainSliceViewer.view)
                 self.strainSliceViewer = None
@@ -356,6 +460,9 @@ class StrainStressViewer(QSplitter):
         self.mechanicalConstants.poissonsRatio.editingFinished.connect(self.update_plot)
         left_layout.addWidget(self.mechanicalConstants)
 
+        self.csvExport = CSVExport(self)
+        left_layout.addWidget(self.csvExport)
+
         left_layout.addStretch(0)
 
         left.setLayout(left_layout)
@@ -389,14 +496,15 @@ class StrainStressViewer(QSplitter):
 
     def dimChanged(self, bool2d):
         self.fileLoading.file_load_e33.setDisabled(bool2d)
-        self.viz_tab.setTabEnabled(1, not bool2d)
         self.update_plot()
 
     def measure_dir_changed(self):
         self.update_plot()
 
     def update_plot(self):
-        if self.plot_select.get_plot_param() == 'stress':
+        if self.plot_select.get_plot_param() == 'stress' or (self.plot_select.get_plot_param() == 'strain' and
+                                                             self.plot_select.get_direction() == "33" and
+                                                             self.stressCase.get_stress_case() == "In-plane stress"):
             validated = self.controller.validate_stress_selection(self.stressCase.get_stress_case(),
                                                                   self.mechanicalConstants.youngModulus.text(),
                                                                   self.mechanicalConstants.poissonsRatio.text())
@@ -405,16 +513,23 @@ class StrainStressViewer(QSplitter):
                                                            self.stressCase.get_stress_case() != 'diagonal')
 
         if validated is None:
-            if self.plot_select.get_plot_param() == 'stress':
-                self.controller.calculate_stress(self.stressCase.get_stress_case(),
-                                                 self.mechanicalConstants.youngModulus.text(),
-                                                 self.mechanicalConstants.poissonsRatio.text())
+            if self.plot_select.get_plot_param() == 'stress' or (self.plot_select.get_plot_param() == 'strain' and
+                                                                 self.plot_select.get_direction() == "33" and
+                                                                 self.stressCase.get_stress_case()
+                                                                 == "In-plane stress"):
+                self.calculate_stress()
 
-            self.viz_tab.set_ws(self.model.get_field_md(direction=self.plot_select.get_direction(),
-                                                        plot_param=self.plot_select.get_plot_param()))
+            self.viz_tab.set_ws(self.model.get_field(direction=self.plot_select.get_direction(),
+                                                     plot_param=self.plot_select.get_plot_param(),
+                                                     stress_case=self.stressCase.get_stress_case()))
         else:
             self.viz_tab.set_ws(None)
             self.viz_tab.set_message(validated)
+
+        self.csvExport.setEnabled(
+            self.controller.validate_stress_selection(self.stressCase.get_stress_case(),
+                                                      self.mechanicalConstants.youngModulus.text(),
+                                                      self.mechanicalConstants.poissonsRatio.text()) is None)
 
     def updatePropertyFromModel(self, name):
         getattr(self, name)(getattr(self.model, name))
@@ -425,8 +540,9 @@ class StrainStressViewer(QSplitter):
         self.peak_selection.peak_select.currentTextChanged.connect(self.controller.peakSelected)
         self.peak_selection.set_peak_tags(peak_tags)
 
-    def subruns(self, subruns):
-        self.d0.set_sub_runs(subruns, self.model.d0[0])
+    def selectedPeak(self, peak):
+        self.d0.set_d0(self.model.d0)
+        self.update_plot()
 
     def show_failure_msg(self, msg, info, details):
         self.viz_tab.set_message(msg)
@@ -436,3 +552,9 @@ class StrainStressViewer(QSplitter):
         msgBox.setInformativeText(info)
         msgBox.setDetailedText(details)
         msgBox.exec()
+
+    def calculate_stress(self):
+        self.controller.calculate_stress(self.stressCase.get_stress_case(),
+                                         self.mechanicalConstants.youngModulus.text(),
+                                         self.mechanicalConstants.poissonsRatio.text(),
+                                         self.d0.get_d0())

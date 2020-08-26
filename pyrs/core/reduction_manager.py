@@ -252,7 +252,8 @@ class HB2BReductionManager:
 
     def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, num_bins, sub_run_list,
                                 mask, mask_id, vanadium_counts=None, van_duration=None, normalize_by_duration=True,
-                                eta_step=None, eta_min=None, eta_max=None):
+                                eta_step=None, eta_min=None, eta_max=None, min_2theta=None, max_2theta=None,
+                                delta_2theta=None):
         """Reduce ALL sub runs in a workspace from detector counts to diffraction data
 
         Parameters
@@ -278,6 +279,12 @@ class HB2BReductionManager:
             min angle for out-of-plane reduction
         eta_max : float
             max angle for out-of-plane reduction
+        min_2theta : float or None
+            min 2theta
+        max_2theta : float or None
+            max 2theta
+        delta_2theta : float or None
+            2theta increment in the reduced diffraction data
 
         Returns
         -------
@@ -342,7 +349,10 @@ class HB2BReductionManager:
                 # reduce sub run
                 self.reduce_sub_run_diffraction(workspace, sub_run, det_pos_shift,
                                                 mask_vec_tuple=(mask_id, mask_vec),
+                                                min_2theta=min_2theta,
+                                                max_2theta=max_2theta,
                                                 num_bins=num_bins,
+                                                delta_2theta=delta_2theta,
                                                 sub_run_duration=duration_i,
                                                 vanadium_counts=vanadium_counts,
                                                 van_duration=van_duration)
@@ -350,13 +360,16 @@ class HB2BReductionManager:
                 # reduce sub run texture
                 self.reduce_sub_run_texture(workspace, sub_run, det_pos_shift,
                                             mask_vec_tuple=(mask_id, mask_vec),
+                                            min_2theta=min_2theta,
+                                            max_2theta=max_2theta,
                                             num_bins=num_bins,
                                             sub_run_duration=duration_i,
                                             vanadium_counts=vanadium_counts,
                                             van_duration=van_duration,
                                             eta_step=eta_step,
                                             eta_min=eta_min,
-                                            eta_max=eta_max)
+                                            eta_max=eta_max,
+                                            delta_2theta=delta_2theta)
 
     def setup_reduction_engine(self, workspace, sub_run, geometry_calibration):
         """Setup reduction engine to reduce data (workspace or vector) to 2-theta ~ I
@@ -390,10 +403,13 @@ class HB2BReductionManager:
         else:
             rebuild_instrument = True
 
+        if self._last_reduction_engine is None:
+            rebuild_instrument = True
+
         # Convert 2-theta from DAS convention to Mantid/PyRS convention
         mantid_two_theta = -two_theta
 
-        # Set up reduction engine and also
+        # Set up reduction engine
         if not rebuild_instrument:
             reduction_engine = self._last_reduction_engine
             reduction_engine.set_raw_counts(raw_count_vec)
@@ -409,7 +425,8 @@ class HB2BReductionManager:
     # NOTE: Refer to compare_reduction_engines_tst
     def reduce_sub_run_diffraction(self, workspace, sub_run, geometry_calibration,
                                    mask_vec_tuple, min_2theta=None, max_2theta=None, num_bins=1000,
-                                   sub_run_duration=None, vanadium_counts=None, van_duration=None):
+                                   sub_run_duration=None, vanadium_counts=None, van_duration=None,
+                                   delta_2theta=None):
         """Reduce import data (workspace or vector) to 2-theta ~ I
 
         The binning of 2theta is linear in range (min, max) with given resolution
@@ -444,6 +461,8 @@ class HB2BReductionManager:
             2theta resolution/step
         num_bins : int
             number of bins
+        delta_2theta : float or None
+            2theta increment in the reduced diffraction data
         sub_run_duration: float or None
             If None, then no normalization to time (duration) will be done. Otherwise, intensity will be
             normalized by time (duration)
@@ -466,7 +485,8 @@ class HB2BReductionManager:
         # Histogram
         bin_centers, hist, variances = self.convert_counts_to_diffraction(reduction_engine,
                                                                           (min_2theta, max_2theta),
-                                                                          num_bins, mask_vec, vanadium_counts)
+                                                                          num_bins, delta_2theta, mask_vec,
+                                                                          vanadium_counts)
 
         if van_duration is not None:
             hist *= van_duration
@@ -477,7 +497,6 @@ class HB2BReductionManager:
         self._last_reduction_engine = reduction_engine
 
     def generate_eta_roi_vector(self, eta_step, eta_min, eta_max):
-
         """Generate vector of out-of-plane angle centers
 
         Determines list of out-of-plane centers for texture reduction
@@ -525,8 +544,7 @@ class HB2BReductionManager:
     def reduce_sub_run_texture(self, workspace, sub_run, geometry_calibration,
                                mask_vec_tuple, min_2theta=None, max_2theta=None, num_bins=1000,
                                sub_run_duration=None, vanadium_counts=None, van_duration=None,
-                               eta_step=None, eta_min=None, eta_max=None):
-
+                               eta_step=None, eta_min=None, eta_max=None, delta_2theta=None):
         """Reduce import data (workspace or vector) to 2-theta ~ I
 
         The binning of 2theta is linear in range (min, max) with given resolution
@@ -561,6 +579,8 @@ class HB2BReductionManager:
             2theta resolution/step
         num_bins : int
             number of bins
+        delta_2theta : float or None
+            2theta increment in the reduced diffraction data
         sub_run_duration: float or None
             If None, then no normalization to time (duration) will be done. Otherwise, intensity will be
             normalized by time (duration)
@@ -607,7 +627,8 @@ class HB2BReductionManager:
             # Histogram data
             bin_centers, hist, variances = self.convert_counts_to_diffraction(reduction_engine,
                                                                               (min_2theta, max_2theta),
-                                                                              num_bins, eta_mask, vanadium_counts)
+                                                                              num_bins, delta_2theta, eta_mask,
+                                                                              vanadium_counts)
 
             if van_duration is not None:
                 hist *= van_duration
@@ -624,8 +645,7 @@ class HB2BReductionManager:
         self._last_reduction_engine = reduction_engine
 
     def convert_counts_to_diffraction(self, reduction_engine,
-                                      two_theta_range, num_bins, mask_array, vanadium_array):
-
+                                      two_theta_range, num_bins, delta_2theta, mask_array, vanadium_array):
         """Histogram detector counts with detectors' 2theta angle
 
         Parameters
@@ -638,6 +658,8 @@ class HB2BReductionManager:
                 max 2theta
         num_bins : float or None
             2theta resolution/step
+        delta_2theta : float or None
+            2theta increment in the reduced diffraction data
         mask_array : numpy.ndarray or None
             mask: 1 to keep, 0 to mask (exclude)
         vanadium_counts : numpy.ndarray or None
@@ -658,7 +680,7 @@ class HB2BReductionManager:
         pixel_2theta_array = reduction_engine.instrument.get_pixels_2theta(1)
 
         bin_boundaries_2theta = self.generate_2theta_histogram_vector(min_2theta, num_bins, max_2theta,
-                                                                      pixel_2theta_array, mask_array)
+                                                                      pixel_2theta_array, mask_array, delta_2theta)
 
         # Histogram
         data_set = reduction_engine.reduce_to_2theta_histogram(bin_boundaries_2theta,
@@ -674,7 +696,8 @@ class HB2BReductionManager:
     @staticmethod
     def generate_2theta_histogram_vector(min_2theta: Optional[float], num_bins: int,
                                          max_2theta: Optional[float],
-                                         pixel_2theta_array, mask_array):
+                                         pixel_2theta_array, mask_array,
+                                         step_2theta=None):
         """Generate a 1-D array for histogram 2theta bins
 
         Parameters
@@ -696,6 +719,7 @@ class HB2BReductionManager:
             2theta values serving as bin boundaries, such its size is 1 larger than num_bins
 
         """
+
         # If default value is required: set the default
         if min_2theta is None or max_2theta is None:
             # check inputs
@@ -714,11 +738,14 @@ class HB2BReductionManager:
                 # upper boundary of 2theta for bins is the maximum 2theta angle of all the pixels
                 max_2theta = np.max(pixel_2theta_array)
 
-        step_2theta = (max_2theta - min_2theta) * 1. / num_bins
+        if step_2theta is None:
+            step_2theta = (max_2theta - min_2theta) * 1. / num_bins
+        else:
+            num_bins = np.ceil((max_2theta - min_2theta) / step_2theta) + 1
 
         # Check inputs
-        min_2theta = to_float('Minimum 2theta', min_2theta, -180, 180)
-        max_2theta = to_float('Maximum 2theta', max_2theta, -180, 180)
+        min_2theta = to_float('Minimum 2theta', min_2theta, 20, 140)
+        max_2theta = to_float('Maximum 2theta', max_2theta, 21, 180)
         step_2theta = to_float('2theta bin size', step_2theta, 0, 180)
         if min_2theta >= max_2theta:
             raise RuntimeError('2theta range ({}, {}) is invalid for generating histogram'

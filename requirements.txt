@@ -1,3 +1,4 @@
+typing_extensions
 uncertainties
 scipy>=0.18
 qtpy

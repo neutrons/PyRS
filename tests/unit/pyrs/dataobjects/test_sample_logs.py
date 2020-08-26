@@ -31,15 +31,15 @@ class TestDirectionExtents:
 
     def test_to_createmd(self):
         d = DirectionExtents(range(42))
-        assert d.to_createmd == '-0.500,41.500'
+        assert d.to_createmd() == '-0.500,41.500'
         d = DirectionExtents([0.001, 0.009], resolution=0.01)
-        assert d.to_createmd == '0.000,0.010'
+        assert d.to_createmd() == '0.000,0.010'
 
     def test_to_binmd(self):
         d = DirectionExtents(range(42))
-        assert d.to_binmd == '-0.500,41.500,42'
+        assert d.to_binmd() == '-0.500,41.500,42'
         d = DirectionExtents([0.001, 0.009], resolution=0.01)
-        assert d.to_binmd == '0.000,0.010,1'
+        assert d.to_binmd() == '0.000,0.010,1'
 
 
 @pytest.fixture(scope='module')
@@ -128,6 +128,16 @@ class TestPointList:
         clusters = PointList(xyz).cluster(resolution=DEFAULT_POINT_RESOLUTION)
         for cluster, comparison in zip(clusters, [[1, 4, 5], [2, 6], [3, 7], [0], [8]]):
             assert cluster == pytest.approx(comparison)
+
+    def test_has_overlapping_points(self):
+        xyz = [[0.0, 1.0, 2.0],
+               [0.0, 0.0, 0.0],
+               [0.0, 0.0, 0.0]]
+        assert PointList(xyz).has_overlapping_points(resolution=DEFAULT_POINT_RESOLUTION) is False
+        xyz = [[0.0, 1.0, 2.0, 2.009],
+               [0.0, 0.0, 0.0, 0.0],
+               [0.0, 0.0, 0.0, 0.0]]
+        assert PointList(xyz).has_overlapping_points(resolution=DEFAULT_POINT_RESOLUTION) is True
 
     def test_coordinates(self, sample_logs_mock):
         point_list = PointList(sample_logs_mock['logs'])
@@ -254,6 +264,79 @@ class TestPointList:
         assert point_list.is_a_grid(resolution=sample_logs_mock['resolution']) is False
         regular_point_list = point_list.grid_point_list(resolution=sample_logs_mock['resolution'])
         assert regular_point_list.is_a_grid(resolution=sample_logs_mock['resolution']) is True
+
+    def test_sorted_indices(self):
+
+        # The two point lists contain a different number of sample points
+        point_list = PointList([[0.0, 1.0, 2.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+        point_list_other = PointList([[2.0, 0.005], [0.0, 0.0], [0.0, 0.0]])
+        with pytest.raises(AssertionError) as exception_info:
+            point_list.sorted_indices(point_list=point_list_other, resolution=DEFAULT_POINT_RESOLUTION)
+        assert 'point lists do not contain same number of sample points' in str(exception_info.value)
+
+        # Corner case: one of the point lists contains overlapping points
+        point_list = PointList([[0.0, 0.009, 1.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])  # three points, two overlap
+        with pytest.raises(ValueError) as exception_info:
+            point_list.sorted_indices(point_list=point_list, resolution=DEFAULT_POINT_RESOLUTION)
+        assert 'point lists contains overlapping points' in str(exception_info.value)
+
+        # The two point lists are not equal within resolution
+        point_list = PointList([[0.0, 1.0, 2.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+        point_list_other = PointList([[0.0, 1.1, 2.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+        with pytest.raises(ValueError) as exception_info:
+            point_list.sorted_indices(point_list=point_list_other, resolution=DEFAULT_POINT_RESOLUTION)
+        assert 'point lists are not the same, within resolution' in str(exception_info.value)
+
+        # Compare against itself
+        point_list = PointList([[0.0, 1.0, 2.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+        indices = point_list.sorted_indices(point_list=point_list, resolution=DEFAULT_POINT_RESOLUTION)
+        np.testing.assert_equal(indices, np.array([0, 1, 2]))
+
+        # General case
+        point_list = PointList([[0.0, 1.0, 2.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+        point_list_other = PointList([[2.0, 0.005, 1.009], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+        indices = point_list.sorted_indices(point_list=point_list_other, resolution=DEFAULT_POINT_RESOLUTION)
+        np.testing.assert_equal(indices, np.array([1, 2, 0]))
+
+    def test_get_indices(self):
+        x = [0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.5]  # x
+        y = [1.0, 1.0, 1.5, 1.5, 1.0, 1.0, 1.5, 1.5]  # y
+        z = [2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5]  # z
+        point_list1 = PointList([x, y, z])
+
+        # changes a single x-value in the last 4 points of point_list1
+        x = [0.0, 0.5, 0.0, 0.5, 1.0, 1.5, 1.0, 1.5]  # x
+        y = [1.0, 1.0, 1.5, 1.5, 1.0, 1.0, 1.5, 1.5]  # y
+        z = [2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5]  # z
+        point_list2 = PointList([x, y, z])
+
+        # reverse order of point_list1
+        x = [0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0]
+        y = [1.5, 1.5, 1.0, 1.0, 1.5, 1.5, 1.0, 1.0]
+        z = [2.5, 2.5, 2.5, 2.5, 2.0, 2.0, 2.0, 2.0]
+        point_list3 = PointList([x, y, z])
+
+        # last three sample points of point_list1
+        x = [0.5, 0.0, 0.5]  # x
+        y = [1.0, 1.5, 1.5]  # y
+        z = [2.5, 2.5, 2.5]  # z
+        point_list4 = PointList([x, y, z])
+
+        # indices with self are running numbers
+        for point_list in (point_list1, point_list2, point_list3, point_list4):
+            np.testing.assert_equal(point_list.get_indices(point_list), np.arange(len(point_list)))
+
+        # reversing values gets decreasing numbers
+        for forward, reverse in zip((point_list1, point_list3), (point_list3, point_list1)):
+            np.testing.assert_equal(forward.get_indices(reverse), [7, 6, 5, 4, 3, 2, 1, 0])
+
+        # partial matching tests
+        np.testing.assert_equal(point_list1.get_indices(point_list2), [0, 1, 2, 3, -1, -1, -1, -1])
+        np.testing.assert_equal(point_list3.get_indices(point_list2), [-1, -1, -1, -1, 3, 2, 1, 0])
+
+        np.testing.assert_equal(point_list4.get_indices(point_list1), [5, 6, 7])
+        np.testing.assert_equal(point_list4.get_indices(point_list2), [-1, -1, -1])
+        np.testing.assert_equal(point_list4.get_indices(point_list3), [2, 1, 0])
 
 
 def test_aggregate_point_list(sample_logs_mock):

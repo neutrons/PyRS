@@ -1,11 +1,159 @@
 import numpy as np
+from pathlib import Path
 from pyrs.core.peak_profile_utility import get_parameter_dtype, get_effective_parameters_converter, PeakShape, \
     BackgroundFunction
 from pyrs.dataobjects import SubRuns  # type: ignore
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 from uncertainties import unumpy
 
-__all__ = ['PeakCollection']
+__all__ = ['PeakCollection', 'PeakCollectionLite']
+
+
+def get_strain_conversion_factor(units: str = 'strain') -> float:
+    '''
+    get factor to convert strain to correct units
+
+    Parameters
+    ----------
+    units: str
+        Can be ``strain`` or ``microstrain``
+
+    Returns
+    -------
+    float'''
+    # prepare to return the requested units
+    conversion_factor = 1.
+    if units == 'strain':
+        pass  # data is calculated as strain
+    elif units == 'microstrain':
+        conversion_factor = 1.e6
+    else:
+        raise ValueError('Cannot return units of "{}". Must be "strain" or "microstrain"'.format(units))
+    return conversion_factor
+
+
+def _create_d_reference_array(values: Union[float, np.ndarray],
+                              errors: Union[float, np.ndarray], size: int) -> unumpy.uarray:
+    '''Convert the d-reference values to a :py:obj:`unumpy.uarray`
+
+    Parameters
+    ----------
+    values :
+        1D numpy array or floats
+    errors:
+        1D numpy array or floats
+    size:
+        The number of elements the final object should contain
+
+    Returns
+    -------
+    :py:obj:`unumpy.uarray`
+    '''
+    # d-reference should be, at minimum, length one
+    num_values = size if size else 1
+
+    if isinstance(values, np.ndarray) and values.size > 1:
+        msg = 'Incompatible number of values for d-reference: {} should be 1 or {}'.format(values.size,
+                                                                                           size)
+        assert values.size == size, msg
+        nd_values = values
+    else:
+        nd_values = np.array([values] * num_values)
+
+    if isinstance(errors, np.ndarray):
+        nd_errors = errors
+    else:
+        nd_errors = np.array([errors] * num_values)
+
+    # store value and uncertainties together
+    return unumpy.uarray(nd_values, nd_errors)
+
+
+class PeakCollectionLite:
+    r"""
+    A variant of the :py:obj:PeakCollection which does not have the full peak profile information.
+
+    The intent is to be a very lightweight version of a :py:obj:PeakCollection to be created for
+    the in-plane strain and in-plane stress special cases.
+    """
+    def __init__(self, peak_tag: str,
+                 strain: np.ndarray,
+                 strain_error: np.ndarray,
+                 d_reference: Union[float, np.ndarray] = np.nan,
+                 d_reference_error: Union[float, np.ndarray] = 0.) -> None:
+        self._tag: str = peak_tag
+        self._strain = unumpy.uarray(strain, strain_error)
+
+        # must happen after the sub_run array is set
+        self._d_reference = unumpy.uarray(np.nan, np.nan)  # set this correctly in next call
+        self.set_d_reference(d_reference, d_reference_error)
+
+    def __len__(self):
+        return self._strain.size
+
+    def __bool__(self):
+        return True
+
+    def __eq__(self, other) -> bool:
+        if self._tag != other._tag:
+            return False
+        strain_self, error_self = self.get_strain()
+        strain_other, error_other = self.get_strain()
+        if not np.all(strain_self == strain_other):
+            return False
+        if not np.all(error_self == error_other):
+            return False
+        return True
+
+    def set_d_reference(self, values: Union[float, np.ndarray] = np.nan,
+                        errors: Union[float, np.ndarray] = 0.) -> None:
+        """Set d reference values
+        """
+        # store value and uncertainties together
+        self._d_reference = _create_d_reference_array(values, errors, self._strain.size)
+
+    def get_d_reference(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Get d reference for all the sub runs
+
+        Returns
+        -------
+        numpy.ndarray
+            1D array for peak's reference position in dSpacing.  NaN for not being set.
+
+        """
+        return unumpy.nominal_values(self._d_reference), unumpy.std_devs(self._d_reference)
+
+    def get_strain(self, units: str = 'strain') -> Tuple[np.ndarray, np.ndarray]:
+        """get strain values and uncertainties in units of strain
+
+          Parameters
+          ----------
+          units: str
+              Can be ``strain`` or ``microstrain``
+
+          Returns
+          -------
+            tuple
+                A two-item tuple containing the strain and its uncertainty.
+          """
+        # prepare to return the requested units
+        conversion_factor = get_strain_conversion_factor(units)
+
+        # multiplying by 1e6 converts to micro
+        strain = conversion_factor * self._strain
+
+        # unpack the values to return
+        return unumpy.nominal_values(strain), unumpy.std_devs(strain)
+
+    @property
+    def runnumber(self) -> int:
+        '''Negative one means it was never set'''
+        return -1
+
+    @property
+    def projectfilename(self) -> str:
+        '''Empty string because these never came from a project file'''
+        return ''
 
 
 class PeakCollection:
@@ -14,7 +162,9 @@ class PeakCollection:
     """
     def __init__(self, peak_tag: str, peak_profile, background_type, wavelength: float = np.nan,
                  d_reference: Union[float, np.ndarray] = np.nan,
-                 d_reference_error: Union[float, np.ndarray] = 0.) -> None:
+                 d_reference_error: Union[float, np.ndarray] = 0.,
+                 projectfilename: str = '',
+                 runnumber: int = -1) -> None:
         """Initialization
 
         Parameters
@@ -29,6 +179,9 @@ class PeakCollection:
         """
         # Init variables from input
         self._tag = peak_tag
+        self._filename: str = ''
+        self.projectfilename = projectfilename  # use the setter
+        self._runnumber: int = runnumber
 
         # Init other parameters
         self._peak_profile = PeakShape.getShape(peak_profile)
@@ -47,7 +200,14 @@ class PeakCollection:
         self._fit_status = None
 
         # must happen after the sub_run array is set
+        self._d_reference: Optional[unumpy.uarray]
         self.set_d_reference(d_reference, d_reference_error)
+
+    def __len__(self):
+        return len(self._sub_run_array)
+
+    def __bool__(self):
+        return True
 
     @property
     def peak_tag(self) -> str:
@@ -92,6 +252,24 @@ class PeakCollection:
     @property
     def fitting_costs(self) -> np.ndarray:
         return self._fit_cost_array
+
+    @property
+    def runnumber(self) -> int:
+        '''The run number. Negative one means it was never set'''
+        return self._runnumber
+
+    @property
+    def projectfilename(self) -> str:
+        return self._filename
+
+    @projectfilename.setter
+    def projectfilename(self, filename: str) -> None:
+        if not filename or filename == '/':
+            # convert all "False" things to empty string
+            self._filename = ''
+        else:
+            # only the name of the file rather than full path
+            self._filename = Path(filename).name
 
     def __convertParameters(self, parameters):
         '''Convert the supplied parameters into an appropriate ndarray'''
@@ -166,32 +344,9 @@ class PeakCollection:
 
     def set_d_reference(self, values: Union[float, np.ndarray] = np.nan,
                         errors: Union[float, np.ndarray] = 0.) -> None:
-        """Set d reference values
-
-        Parameters
-        ----------
-        values :
-            1D numpy array or floats
-
-        Returns
-        -------
-
-        """
-        # d-reference should be, at minimum, length one
-        num_values = self._sub_run_array.size if self._sub_run_array.size else 1
-
-        if isinstance(values, np.ndarray):
-            nd_values = values
-        else:
-            nd_values = np.array([values] * num_values)
-
-        if isinstance(errors, np.ndarray):
-            nd_errors = errors
-        else:
-            nd_errors = np.array([errors] * num_values)
-
+        '''Set d reference values'''
         # store value and uncertainties together
-        self._d_reference = unumpy.uarray(nd_values, nd_errors)
+        self._d_reference = _create_d_reference_array(values, errors, self._sub_run_array.size)
 
     def get_strain(self, units: str = 'strain') -> Tuple[np.ndarray, np.ndarray]:
         """get strain values and uncertainties in units of strain
@@ -207,13 +362,7 @@ class PeakCollection:
                 A two-item tuple containing the strain and its uncertainty.
           """
         # prepare to return the requested units
-        conversion_factor = 1.
-        if units == 'strain':
-            pass  # data is calculated as strain
-        elif units == 'microstrain':
-            conversion_factor = 1.e6
-        else:
-            raise ValueError('Cannot return units of "{}". Must be "strain" or "microstrain"'.format(units))
+        conversion_factor = get_strain_conversion_factor(units)
 
         d_fitted = self._get_dspacing_center()
 
@@ -247,7 +396,7 @@ class PeakCollection:
         try:
             dspacing_center = 0.5 * self._wavelength / sine_theta
         except ZeroDivisionError:
-            # replace zeros in the denomenator with nan explicitly
+            # replace zeros in the denominator with nan explicitly
             dspacing_center = np.where(unumpy.nominal_values(sine_theta) != 0.,
                                        unumpy.std_devs(0.5 * self._wavelength / sine_theta.clip(1e-9)), np.nan)
 

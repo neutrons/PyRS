@@ -71,6 +71,9 @@ def test_mask():
     verify_solid_mask = verify_project_file.read_mask_solid_angle('test')
     assert np.allclose(solid_mask, verify_solid_mask, 1.E-2)
 
+    # check name
+    assert verify_project_file.name.endswith('test_mask.hdf')
+
     # Clean
     os.remove('test_mask.hdf')
 
@@ -326,6 +329,9 @@ def test_strain_io():
     verify_d_ref_2, verify_d_err_2 = peak_info2.get_d_reference()
     np.testing.assert_allclose(verify_d_ref_2, test_ref_d2)
     assert np.all(verify_d_err_2 == 0.)
+
+    # check name
+    assert verify_project_file.name.endswith(test_file_name)
 
     # Clean
     os.remove(test_file_name)

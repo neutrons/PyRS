@@ -13,6 +13,7 @@ from pyrs.interface.peak_fitting.plot import Plot
 from pyrs.interface.peak_fitting.fit import Fit
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
+from pyrs.utilities import get_input_project_file  # type: ignore
 
 
 class EventHandler:
@@ -64,6 +65,19 @@ class EventHandler:
         #                                        self.parent._curr_file_name,
         #                                        out_file_name)
 
+    def load_run_number_plot(self):
+        try:
+            project_dir = get_input_project_file(int(self.parent.ui.lineEdit_expNumber.text()),
+                                                 preferredType=self.parent.ui.comboBox_reduction.currentText().lower())
+        except (FileNotFoundError, RuntimeError) as run_err:
+            pop_message(self, f'Failed to find run {self.parent.ui.lineEdit_expNumber.text()}',
+                        str(run_err), 'error')
+            return
+
+        hidra_file_name = os.path.join(project_dir, f'HB2B_{self.parent.ui.lineEdit_expNumber.text()}.h5')
+        self.parent.current_hidra_file_name = hidra_file_name
+        self.load_and_plot(hidra_file_name)
+
     def browse_load_plot_hdf(self):
         if self.parent._core is None:
             raise RuntimeError('Not set up yet!')
@@ -83,6 +97,9 @@ class EventHandler:
                 return  # user clicked cancel
 
         self.parent.current_hidra_file_name = hidra_file_name
+        self.load_and_plot(hidra_file_name)
+
+    def load_and_plot(self, hidra_file_name):
         try:
             o_load = Load(parent=self.parent)
             o_load.load(project_file=hidra_file_name)

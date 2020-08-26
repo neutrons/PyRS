@@ -60,5 +60,34 @@ def test_multi():
         np.testing.assert_equal(sample['variable1', [10]], [0., 50., 75., 100.])
 
 
+def test_get_pointlist():
+    sample = SampleLogs()
+    sample.subruns = np.arange(1, 6, dtype=int)
+
+    with pytest.raises(ValueError):
+        sample.get_pointlist()
+
+    # check getting whole PointList
+    sample['vx'] = np.arange(5, dtype=float)
+    sample['vy'] = np.arange(5, dtype=float)
+    sample['vz'] = np.arange(5, dtype=float)
+    pointlist = sample.get_pointlist()
+
+    assert pointlist
+    assert len(pointlist) == 5
+    np.testing.assert_equal(pointlist.vx, np.arange(5, dtype=float))
+    np.testing.assert_equal(pointlist.vy, np.arange(5, dtype=float))
+    np.testing.assert_equal(pointlist.vz, np.arange(5, dtype=float))
+
+    # check getting partial PointList
+    pointlist = sample.get_pointlist([1, 3, 4])
+
+    assert pointlist
+    assert len(pointlist) == 3
+    np.testing.assert_equal(pointlist.vx, [0, 2, 3])
+    np.testing.assert_equal(pointlist.vy, [0, 2, 3])
+    np.testing.assert_equal(pointlist.vz, [0, 2, 3])
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

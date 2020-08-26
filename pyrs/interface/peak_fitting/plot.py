@@ -15,6 +15,7 @@ class Plot:
 
     def __init__(self, parent=None):
         self.parent = parent
+        self.sub_run_list = self.parent.hidra_workspace._sample_logs._subruns
 
     def plot_diff_data(self, plot_model=True):
         """
@@ -117,13 +118,16 @@ class Plot:
         else:
             scan_value = value
 
+        # reference sub_run number from list of sub_runs in project file
+        sub_run = self.sub_run_list[scan_value - 1]
+
         try:
             self.parent._ui_graphicsView_fitSetup.reset_viewer()
-            self.plot_diff_and_fitted_data(scan_value, True)
+            self.plot_diff_and_fitted_data(sub_run, True)
         except RuntimeError:
             pass
 
-        self.parent.ui.label_SubRunsValue.setText('{}'.format(scan_value))
+        self.parent.ui.label_SubRunsValue.setText('{}'.format(sub_run))
 
     def plot_2d(self):
 
@@ -196,12 +200,16 @@ class Plot:
         else:
 
             self.parent.ui.graphicsView_plot2D.ax = self.parent.ui.graphicsView_plot2D.figure.gca(projection='3d')
-            self.parent.ui.graphicsView_plot2D.ax.scatter(axis_x_data, axis_y_data, axis_z_data)
-            self.parent.ui.graphicsView_plot2D._myCanvas.draw()
 
-            self.parent.ui.graphicsView_plot2D.ax.set_xlabel(x_axis_name)
-            self.parent.ui.graphicsView_plot2D.ax.set_ylabel(y_axis_name)
-            self.parent.ui.graphicsView_plot2D.ax.set_zlabel(z_axis_name)
+            # only try plotting if the figure height is larger than 0
+            fig_size = self.parent.ui.graphicsView_plot2D.figure.get_size_inches()
+            if fig_size[1] > 0:
+                self.parent.ui.graphicsView_plot2D.ax.scatter(axis_x_data, axis_y_data, axis_z_data)
+                self.parent.ui.graphicsView_plot2D._myCanvas.draw()
+
+                self.parent.ui.graphicsView_plot2D.ax.set_xlabel(x_axis_name)
+                self.parent.ui.graphicsView_plot2D.ax.set_ylabel(y_axis_name)
+                self.parent.ui.graphicsView_plot2D.ax.set_zlabel(z_axis_name)
 
     def format_3D_axis_data(self, axis_x=[], axis_y=[], axis_z=[]):
 
@@ -254,7 +262,7 @@ class Plot:
                 (y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys())):
             is_plot_with_error = True
 
-        is_plot_with_error = False  # REMOVE that line once the error bars are correctAT
+        # is_plot_with_error = False  # REMOVE that line once the error bars are correctAT
         if is_plot_with_error:
             self.parent.ui.graphicsView_fitResult.plot_scatter_with_errors(vec_x=axis_x_data,
                                                                            vec_y=axis_y_data,

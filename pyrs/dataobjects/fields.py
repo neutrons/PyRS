@@ -1,22 +1,96 @@
+r"""
+Module providing objects to represent strains and stress components, as well as any scalar field
+defined over a set of sample points.
+
+Classes defined in this module:
+
+class ScalarFieldObject
+
+  Definition: Scalar field (values and errors) defined over a set of sample points (a triad of
+  x, y, and z values).
+
+  Functionality:
+    - Scalar fields can be combined in two fundamental ways, "along the same direction"
+      and "accross different directions".
+    - Combining ("fusing") two (or more) fields along the same direction results in one scalar
+      field. The sample points of each field are "fused" together, resulting in a single set
+      of sample points. The resulting field is defined over this new set of sample points. Any
+      point common to two input fields is "fused" into a single point in the combined
+      field. Operator '+' can be used to fuse scalar fields.
+    - Combining ("stacking") two (or more) fields across different directions results in as many
+      output fields as input fields. The sample points of each field are "fused" together,
+      resulting in a single set of sample points. All the output fields are defined over
+      this new set of sample points. Operator '*' can be used to stack scalar fields
+
+class StrainField
+
+  Definition: a scalar field of strain values and errors defined over a set of sample points (a triad of
+  x, y, and z values).
+
+  The set of sample points may originate from one or more experimental runs. Each experimental run has
+  associated one PeakCollection instance, so we'll say that a strain field is associated to one or
+  more PeakCollection instances.
+
+  Functionality:
+  - Strain fields can be fused (combine strains along the same direction) or stacked (combine
+    strains across directions)
+  - Strain fields resulting from the fusion of two or more strains are associated to a list of
+    PeakCollection instances, which can be retrieved from property StrainField.peak_collections
+  - Strain fields store the set of sample points over which they are defined. If a strain is
+    associated to only one PeakCollection, then the sample points are those of the
+    PeakCollection. If a strain is associated to, say, two PeakCollection objects, then some of the
+    sample points will originate in the first PeakCollection object, and the remaining points will
+    originate in the second PeakCollection object. The StrainField object holds a cross-reference
+    index table resolving the provenance of each sample point to one PeakCollection and one sample
+    point within the PeakCollection.
+  - StrainField objects don't store strain values and errors, rather they are calculated every time
+    the are requested using the cross-reference index table and function PeakCollection.get_strain()
+
+class StressField
+
+  Definition: a container of three stress and three strains scalar fields, a pair for each of the
+  three mutually perperdicular directions.
+
+  StressField objects are generated using three StrainField objects, one for each mutually perperdicular
+  direction. Usually, these strains are defined over slightly different sets of sample points, so
+  it is necessary to stack them. After the stacking operation, the three output StrainField objects are
+  defined over the same set of sample points and calculation of the stress components can proceed. The
+  StressField object stores the three stacked StrainField objects, it does not store the three original
+  StrainField objects.
+
+  The three stress components are stored as ScalarFieldSample objects.
+
+  Selected Functionality:
+  - Stacked strains are accessible with properties StressField.strain11 (.strain22, .strain33)
+  - Stress components can be accessed with the bracket operator (stress['11'], stress['22'], stress['33'])
+  - Iterating over a StressField objects returns an iterator over the stress
+    components (for component in stress: ...)
+  - StressField objects hold a "currently accessible direction" which can be updated with the
+    StressField.select() method.
+  - Properties StressField.values and StressField.errors returns the values and errors of the stress
+    component along the currectly accessble direction
+"""
+from collections import namedtuple
+from copy import deepcopy
 from enum import Enum
 from enum import unique as unique_enum
 import numpy as np
 from scipy.interpolate import griddata
 from scipy.spatial import cKDTree
-from typing import TYPE_CHECKING, cast, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, cast, Dict, Iterator, List, Optional, Tuple, Union
+import uncertainties
 from uncertainties import unumpy
-
 from mantid.simpleapi import mtd, CreateMDWorkspace, BinMD
 from mantid.api import IMDHistoWorkspace
-from pathlib import Path
 
+from pyrs.core.peak_profile_utility import EFFECTIVE_PEAK_PARAMETERS
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.dataobjects.sample_logs import PointList, aggregate_point_lists
-from pyrs.peaks import PeakCollection  # type: ignore
+from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
+from .constants import DEFAULT_POINT_RESOLUTION, NOT_MEASURED_NUMPY
 
 # two points in real space separated by less than this amount (in mili meters) are considered the same point
-from .constants import DEFAULT_POINT_RESOLUTION
 SCALAR_FIELD_NAMES = ('lattice', 'strain', 'stress')  # standard names for most used fields
 
 
@@ -94,7 +168,7 @@ class ScalarFieldSample:
         list
             list of stacked ~pyrs.dataobjects.fields.ScalarFieldSample objects.
         """
-        stack_kwargs = dict(resolution=DEFAULT_POINT_RESOLUTION, stack_mode='complete')
+        stack_kwargs = dict(resolution=DEFAULT_POINT_RESOLUTION, stack_mode='union')
         if isinstance(other, ScalarFieldSample):
             return stack_scalar_field_samples(self, other, **stack_kwargs)  # type: ignore
         elif isinstance(other, (list, tuple)):
@@ -136,14 +210,14 @@ class ScalarFieldSample:
 
     @property
     def values(self) -> np.ndarray:
-        return unumpy.nominal_values(self._sample)
+        return unumpy.nominal_values(self.sample)
 
     @property
     def errors(self) -> np.ndarray:
-        return unumpy.std_devs(self._sample)
+        return unumpy.std_devs(self.sample)
 
     @property
-    def sample(self) -> np.ndarray:
+    def sample(self) -> unumpy.uarray:
         r"""
         Uncertainties arrays containing both values and errors.
 
@@ -152,6 +226,12 @@ class ScalarFieldSample:
         ~unumpy.array
         """
         return self._sample
+
+    @sample.setter
+    def sample(self, value: np.ndarray) -> None:
+        isinstance(value[0], uncertainties.core.Variable)
+        assert len(value) == len(self._sample)
+        self._sample = value
 
     @property
     def point_list(self) -> PointList:
@@ -380,7 +460,7 @@ class ScalarFieldSample:
         aggregate_sample = self.aggregate(other)  # combine both scalar field samples
         return aggregate_sample.coalesce(resolution=resolution, criterion=criterion)
 
-    def to_md_histo_workspace(self, name: str = '', units: str = 'meter',
+    def to_md_histo_workspace(self, name: str = '',
                               interpolate: bool = True,
                               method: str = 'linear', fill_value: float = float('nan'), keep_nan: bool = True,
                               resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = 'min_error'
@@ -392,12 +472,12 @@ class ScalarFieldSample:
         Parameters `method`, `fill_value`, `keep_nan`, `resolution` , and `criterion` are  used only if
         `interpolate` is `True`.
 
+        Saved units for the sample points are in milimeters
+
         Parameters
         ----------
         name: str
             Name of the output workspace.
-        units: str
-            Units of the sample points.
         interpolate: bool
             Interpolate the scalar field sample of a regular 3D grid given by the extents of the sample points.
         method: str
@@ -421,28 +501,29 @@ class ScalarFieldSample:
         if not name:
             name = self.name
 
-        # TODO units should be a member of this class
         if interpolate is True:
             sample = self.interpolated_sample(method=method, fill_value=fill_value, keep_nan=keep_nan,
                                               resolution=resolution, criterion=criterion)
         else:
             sample = self
+
         extents = sample.point_list.extents(resolution=resolution)  # triad of DirectionExtents objects
         for extent in extents:
             assert extent[0] <= extent[1], f'min value of {extent} is greater than max value'
-        extents_str = ','.join([extent.to_createmd for extent in extents])
-
-        units_triad = ','.join([units] * 3)  # 'meter,meter,meter'
+        # Units of sample points in PointList are 'mm', which we keep when exporting
+        extents_str = ','.join([extent.to_createmd(input_units='mm', output_units='mm') for extent in extents])
 
         # create an empty event workspace of the correct dimensions
         axis_labels = ('x', 'y', 'z')
         CreateMDWorkspace(OutputWorkspace='__tmp', Dimensions=3, Extents=extents_str,
-                          Names=','.join(axis_labels), Units=units_triad)
+                          Names=','.join(axis_labels), Units='mm,mm,mm', EnableLogging=False)
         # set the bins for the workspace correctly
-        aligned_dimensions = [f'{label},{extent.to_binmd}'  # type: ignore
-                              for label, extent in zip(axis_labels, extents)]
+        aligned_dimensions = list()
+        for label, extent in zip(axis_labels, extents):  # type: ignore
+            extent_str = extent.to_binmd(input_units='mm', output_units='mm')
+            aligned_dimensions.append(f'{label},{extent_str}')
         aligned_kwargs = {f'AlignedDim{i}': aligned_dimensions[i] for i in range(len(aligned_dimensions))}
-        BinMD(InputWorkspace='__tmp', OutputWorkspace=name, **aligned_kwargs)
+        BinMD(InputWorkspace='__tmp', OutputWorkspace=name, EnableLogging=False, **aligned_kwargs)
 
         # remove original workspace, so sliceviewer doesn't try to use it
         mtd.remove('__tmp')
@@ -456,17 +537,16 @@ class ScalarFieldSample:
 
         return wksp
 
-    def to_csv(self, file: str):
+    def to_csv(self, file: str) -> None:
         raise NotImplementedError('This functionality has yet to be implemented')
 
-    def export(self, *args, form='MDHistoWokspace', **kwargs):
+    def export(self, *args: Any, form: str = 'MDHistoWokspace', **kwargs: Any) -> Any:
         r"""
         Export the scalar field to a particular format. Each format has additional arguments
 
         Allowed formats, along with additional arguments and return object:
         - 'MDHistoWorkspace' calls function `to_md_histo_workspace`
             name: str, name of the workspace
-            units ('meter'): str, length units of the sample points
             interpolate (`True`): bool, interpolate values to a regular coordinate grid
             method: ('linear'): str, method of interpolation. Allowed values are 'nearest' and 'linear'
             fill_value: (float('nan'): float, value used to fill in for requested points outside the input points.
@@ -482,17 +562,770 @@ class ScalarFieldSample:
         """
         exporters = dict(MDHistoWorkspace=self.to_md_histo_workspace,
                          CSV=self.to_csv)
-        exporters_arguments = dict(MDHistoWorkspace=('name', 'units'), CSV=('file',))
+        exporters_arguments = dict(MDHistoWorkspace=('name',), CSV=('file',))
         # Call the exporter
         exporter_arguments = {arg: kwargs[arg] for arg in exporters_arguments[form]}
-        return exporters[form](*args, **exporter_arguments)
+        return exporters[form](*args, **exporter_arguments)  # type: ignore
 
 
-class StrainField:
+class _StrainField:
+
+    POINT_MISSING_INDEX = -1  # indicates one single-scan index is not present in one of the overlapping clusters
 
     @staticmethod
-    def fuse_strains(*args, resolution: float = DEFAULT_POINT_RESOLUTION,
-                     criterion: str = 'min_error') -> 'ScalarFieldSample':
+    def stack_strains(*strains: '_StrainField',
+                      stack_mode: str = 'complete',
+                      resolution: float = DEFAULT_POINT_RESOLUTION) -> List['_StrainField']:
+        r"""
+        Evaluate a list of strain fields taken at different directions on a list of commont points.
+
+        The list of common points is obtained by combining the list of points from each strain field.
+
+        Parameters
+        ----------
+        strains: list
+            List of input strain fields.
+        stack_mode: str
+            A mode to stack the scalar fields. Valid values are 'complete' and 'common'
+        resolution: float
+        Two points are considered the same if they are separated by a distance smaller than this quantity
+
+
+        Returns
+        -------
+
+        """
+        # Validate all strains are strain fields
+        for strain in strains:
+            assert isinstance(strain, _StrainField), f'{strain} is not a StrainField object'
+
+        # make a copy
+        strains_stacked: List['_StrainField'] = list(strains)
+
+        # do the various combinations of stacking
+        strains_stacked[0:2] = strains_stacked[0].stack_with(strains_stacked[1], mode=stack_mode,
+                                                             resolution=resolution)
+        if len(strains_stacked) == 3:
+            strains_stacked[0], strains_stacked[2] = strains_stacked[0].stack_with(strains_stacked[2],
+                                                                                   mode=stack_mode,
+                                                                                   resolution=resolution)
+            strains_stacked[1], strains_stacked[2] = strains_stacked[1].stack_with(strains_stacked[2],
+                                                                                   mode=stack_mode,
+                                                                                   resolution=resolution)
+        elif len(strains_stacked) > 3:  # don't bother with more than 3 strains
+            raise NotImplementedError('Cannot stack more than 3 strains')
+
+        return strains_stacked
+
+    r"""Base class for common implementation details of StrainFields"""
+    def __init__(self):
+        pass  # this stores nothing
+
+    def __len__(self):
+        if self.point_list:
+            return len(self.point_list)
+        else:
+            return 0
+
+    def __eq__(self, other) -> bool:
+        r"""
+        Assert if two strains are the same by comparing their list of scan-strains
+
+        Parameters
+        ----------
+        other_strain: ~pyrs.dataobjects.fields._StrainField
+
+        Returns
+        -------
+        bool
+        """
+        try:
+            return set([id(s) for s in self.strains]) == set([id(s) for s in other.strains])
+        except AttributeError:
+            return False
+
+    @property
+    def field(self):
+        raise NotImplementedError()
+
+    @property
+    def values(self) -> np.ndarray:
+        r"""
+        Strain values via invocation of the sample scalar field
+        """
+        return self.field.values
+
+    @property
+    def errors(self) -> np.ndarray:
+        r"""
+        Strain errors via invocation of the sample scalar field
+        """
+        return self.field.errors
+
+    @property
+    def sample(self) -> unumpy.uarray:
+        '''Uncertainties arrays containing both values and errors.
+
+        Default implementation which is likely slower than it needs to be'''
+        return self.field.sample
+
+    @property
+    def point_list(self):
+        raise NotImplementedError()
+
+    @property
+    def peak_collections(self):
+        raise NotImplementedError()
+
+    @property
+    def strains(self) -> List['StrainFieldSingle']:
+        raise NotImplementedError()
+
+    @property
+    def coordinates(self) -> np.ndarray:
+        return self.point_list.coordinates
+
+    @property
+    def x(self):
+        return self.point_list.vx
+
+    @property
+    def y(self):
+        return self.point_list.vy
+
+    @property
+    def z(self):
+        return self.point_list.vz
+
+    def set_d_reference(self, values: Union[Tuple[float, float], ScalarFieldSample]) -> None:
+        raise NotImplementedError()
+
+    def get_d_reference(self) -> ScalarFieldSample:
+        raise NotImplementedError()
+
+    def _validate_peak_param_name(self, name: str) -> None:
+        '''Raises a ValueError if the name is not allowed'''
+        if name not in EFFECTIVE_PEAK_PARAMETERS:
+            raise ValueError(f'Peak parameter {name} not in {EFFECTIVE_PEAK_PARAMETERS}')
+
+    def get_effective_peak_parameter(self, name: str) -> ScalarFieldSample:
+        raise NotImplementedError()
+
+    def to_md_histo_workspace(self, name: str = '',
+                              interpolate: bool = True,
+                              method: str = 'linear', fill_value: float = float('nan'), keep_nan: bool = True,
+                              resolution: float = DEFAULT_POINT_RESOLUTION,
+                              criterion: str = 'min_error'
+                              ) -> IMDHistoWorkspace:
+        r"""
+        Save the strain field into a MDHistoWorkspace. Interpolation of the sample points is carried out
+        by default.
+
+        Parameters `method`, `fill_value`, `keep_nan`, `resolution` , and `criterion` are  used only if
+        `interpolate` is `True`.
+
+        Saved units for the sample points are in milimeters
+
+        Parameters
+        ----------
+        name: str
+            Name of the output workspace.
+        interpolate: bool
+            Interpolate the scalar field sample of a regular 3D grid given by the extents of the sample points.
+        method: str
+            Method of interpolation. Allowed values are 'nearest' and 'linear'
+        fill_value: float
+            Value used to fill in for requested points outside the input points.
+        keep_nan: bool
+            Incorporate :math:`nan` found in the sample points into the interpolated field sample.
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity.
+        criterion: str
+            Criterion by which to resolve which sample points out of two (or more) ends up being selected,
+            while the rest of the sample points are discarded is discarded. Possible values are:
+            'min_error': the sample with the minimal uncertainty is selected.
+        Returns
+        -------
+        IMDHistoWorkspace
+        """
+        export_kwags = dict(interpolate=interpolate, method=method, fill_value=fill_value,
+                            keep_nan=keep_nan, resolution=resolution, criterion=criterion)
+        return self.field.to_md_histo_workspace(name, **export_kwags)  # type: ignore
+
+    def fuse_with(self, other_strain: '_StrainField',
+                  resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = 'min_error') -> '_StrainField':
+        r"""
+        Fuse the current strain scan with another scan taken along the same direction.
+
+        Resolve any occurring overlaps between the scans according to a selection criterion.
+
+        Parameters
+        ----------
+        other_strain:  ~pyrs.dataobjects.fields._StrainField
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity
+        criterion: str
+            Criterion by which to resolve which sample points out of two (or more) ends up being selected,
+            while the rest of the sample points are discarded is discarded. Possible values are:
+            'min_error': the sample with the minimal uncertainty is selected.
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.StrainField
+        """
+        # Corner case: attempt to fuse with itself
+        if self == other_strain:
+            return self
+
+        # collect the individual strains from the two (possibly) composite strains
+        # remove possible duplicates by casting the ID of the strains as dictionary keys (order is preserved)
+        single_scan_strains: List['StrainFieldSingle'] = []
+        if isinstance(self, StrainFieldSingle):
+            single_scan_strains.append(self)  # this is an individual strain
+        else:
+            # get individual strains
+            single_scan_strains.extend(self.strains)
+
+        if isinstance(single_scan_strains, StrainFieldSingle):
+            if other_strain not in single_scan_strains:
+                single_scan_strains.append(other_strain)  # this is an individual strain
+        else:  # the other option is that it is a StrainField
+            for test_strain in other_strain.strains:  # type: ignore
+                if test_strain not in single_scan_strains:
+                    single_scan_strains.append(test_strain)  # this is an individual strain
+
+        multi_scan_strain: StrainField = StrainField()  # object to be returned
+        multi_scan_strain._strains = single_scan_strains  # copy over everything
+
+        point_lists = [strain.point_list for strain in single_scan_strains]
+        # variable `map_points` is a list specifying the sample points
+        multi_scan_strain._point_list, map_points = point_lists[0].calculate_pointlist_map(point_lists[1:], resolution)
+
+        # Identify which sample points from the single scans are chosen to represent
+        # each sample point of the multi scan
+        single_scan_winner_indexes = []
+        single_scan_pointlist_winner_indexes = []
+        single_scan_strains_count = len(single_scan_strains)
+        if criterion == 'min_error':
+            # collect the criterion values from all StrainFieldSingle objects
+            strain_errors = [strain.errors for strain in single_scan_strains]
+
+            def get_cost(single_scan_strain_errors, index):
+                return np.inf if index == self.POINT_MISSING_INDEX else single_scan_strain_errors[index]
+
+            # loop over each sample point of the multi-scan strain
+            for point_list_index in range(len(multi_scan_strain)):
+                # in principle, each single scan contributes with a cost for this sample point
+                costs = np.zeros(single_scan_strains_count)
+                # loop over all single-scan strains, finding the associated cost
+                for single_scan_index, single_scan_errors in enumerate(strain_errors):
+                    # find the sample point index in the single scan, associated to the sample point
+                    single_scan_point_list_index = map_points[point_list_index][single_scan_index]
+                    costs[single_scan_index] = get_cost(single_scan_errors, single_scan_point_list_index)
+                assert np.all(costs >= 0.0)  # costs are either infinite or positive
+                single_scan_winner_index = np.argmin(costs)  # find the single scan with the smallest cost
+                single_scan_winner_indexes.append(single_scan_winner_index)
+                single_scan_pointlist_winner_indexes.append(map_points[point_list_index][single_scan_winner_index])
+
+            # convert the winners to arrays
+            scan_indexes = np.asarray(single_scan_winner_indexes, dtype=int)
+            point_indexes = np.asarray(single_scan_pointlist_winner_indexes, dtype=int)
+            multi_scan_strain._winners = multi_scan_strain.ChosenSamplePoints(scan_indexes, point_indexes)
+        else:
+            raise ValueError(f'Unallowed value of criterion="{criterion}"')
+
+        return multi_scan_strain
+
+    def __add__(self, other_strain: '_StrainField') -> '_StrainField':
+        r"""
+        Fuse the current strain with another strain using the default resolution distance and overlap criterion
+
+        resolution = ~pyrs.dataobjects.constants.DEFAULT_POINT_RESOLUTION
+        criterion = 'min_error'
+
+        Parameters
+        ----------
+        other_strain:  ~pyrs.dataobjects.fields.StrainField
+            Right-hand side of operation addition
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.StrainField
+        """
+        return self.fuse_with(other_strain)
+
+    def __mul__(self, other: Union['_StrainField', List['_StrainField']]) -> Optional[List['StrainField']]:
+        r"""
+        Stack this strain with another strain, or with a list of strains
+
+        Parameters
+        ----------
+        other: ~pyrs.dataobjects.fields.StrainField, list
+            If a list, each item is a ~pyrs.dataobjects.fields.StrainField object
+
+        Returns
+        -------
+        list
+            list of stacked ~pyrs.dataobjects.fields.StrainField objects.
+        """
+        stack_kwargs = dict(resolution=DEFAULT_POINT_RESOLUTION, mode='union')
+        if isinstance(other, _StrainField):
+            return self.__class__.stack_with(self, other, **stack_kwargs)  # type: ignore
+        elif isinstance(other, (list, tuple)):
+            for strain in other:
+                if isinstance(strain, _StrainField) is False:
+                    raise TypeError(f'{strain} is not a {str(self.__class__)} object')  # type: ignore
+            return self.__class__.stack_strains(self, *other, **stack_kwargs)  # type: ignore
+        else:
+            raise NotImplementedError('Do not know how to multiply these objects')
+
+    def __rmul__(self, other: List['_StrainField']) -> List['_StrainField']:
+        r"""
+        Stack a list of strains along with this strain.
+
+        Used as in [strain1, strain2] * strain3, an intermediate step in the operation
+        strain1 * strain2 * strain3
+
+        Parameters
+        ----------
+        other: list
+            Each item is a ~pyrs.dataobjects.fields.StrainField object.
+
+        Return
+        ------
+        list
+            List of stacked strains. Each item is a ~pyrs.dataobjects.fields.StrainField object.
+        """
+        if isinstance(other, (list, tuple)):
+            for strain in other:
+                if not isinstance(strain, _StrainField):
+                    raise TypeError(f'{strain} is not a StrainField object')
+
+            return self.__class__.stack_strains(*other, self,
+                                                resolution=DEFAULT_POINT_RESOLUTION,
+                                                stack_mode='union')
+        else:
+            raise NotImplementedError(f'Unable to multiply objects of type {str(other.__class__)} and StrainField')
+
+    def stack_with(self, other_strain: '_StrainField',
+                   mode: str = 'union',
+                   resolution: float = DEFAULT_POINT_RESOLUTION) -> List['_StrainField']:
+        r"""
+        Combine the sample points of two strains scanned at different directions.
+
+        The two strains can be single or multi-scan.
+
+        Examples
+        --------
+        Consider combining two multi-scan strains s0 and s1. Strain s0 is made up of single-scan strains
+        s00 and s01 that overlap in some region (the XX in the diagram below). Strain s1 results from the
+        combination of three single-scan strains s10, s11, and s12. Strains s0 and s1 overlap considerably
+
+          Stacking s0 over s1                               Stacking s1 over s0
+        -----------------------                      --------------------------------
+        |     s00    XX  s01  |                      | s10 |     s11    XXXXX  s12  |
+        -----------------------                      --------------------------------
+        |          s0         |                      |             s1               |
+        ------------------------------------         ------------------------------------
+            |             s1               |                      |          s0         |
+            --------------------------------                      -----------------------
+            | s10 |     s11    XXXXX  s12  |                      |     s00    XX  s01  |
+            --------------------------------                      -----------------------
+
+        Below we plot the stacked strains s0* and s1*. The value '-1' indicates sample points of s0* that
+        are not points of s00 or s01 (similarly for s1*)
+
+           The stacked s0 strain, s0*                      The stacked s` strain, s1*
+        ------------------------------------         ------------------------------------
+        |             s0*     -1,....... -1|         |             s1*               -1 |
+        ------------------------------------         ------------------------------------
+
+        Parameters
+        ----------
+        other_strain: ~pyrs.dataobjects.fields._StrainField
+        mode: str
+            A mode to stack the scalar fields. Valid values are 'union' and 'intersection'
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity
+
+        Raises
+        ------
+        NotImplementedError
+            Stacking currently not supported for 'intersection' and 'common'
+
+        Returns
+        -------
+        list
+            A two-item list containing the two stacked strains
+        """
+        # validate the mode and convert to a single set of terms
+        valid_stack_modes = ('union', 'intersection', 'complete', 'common')
+        if mode not in valid_stack_modes:
+            raise ValueError(f'{mode} is not a valid stack mode. Valid modes are {valid_stack_modes}')
+        if mode in ('intersection', 'common'):
+            raise NotImplementedError(f'mode "{mode}"is not currently supported')
+
+        results = []
+        if self.point_list == other_strain.point_list:
+            # they are already common
+            results = [self, other_strain]
+        elif mode in ('union', 'complete'):
+            # Stack `self` over `other_strain`. In the aggregated point list, first come the points from `self`,
+            # then come the points from `other_strain`
+            point_list_union = self.point_list.fuse_with(other_strain.point_list, resolution=resolution)
+            if len(point_list_union) == len(self.point_list) == len(other_strain.point_list):
+                results = [self, other_strain]
+            else:
+                strain1 = StrainField()
+                strain1._point_list = point_list_union
+                strain1._strains = self.strains
+                # `strain1._winners` relates each of the points of the single scans of `self` to the points
+                # of the aggregated list `point_list_union`. There are points in `point_list_union` with
+                # no counterpart in the single scans (see example in the docstring), thus
+                # len(strain1._winners) < len(point_list_union)
+                if isinstance(self, StrainField):
+                    strain1._winners = self._winners
+
+                # Stack `other_strain` over `self`. In the new aggregated point list, first come the points
+                # from `other_strain`, then come the points from `self`
+                # `point_list_union` and `point_list_union_2` contain the same sample points,
+                # BUT WITH DIFFERENT ORDER !!!!
+                point_list_union_2 = other_strain.point_list.fuse_with(self.point_list, resolution=resolution)
+                strain2 = StrainField()
+                strain2._point_list = point_list_union_2
+                strain2._strains = other_strain.strains
+                if isinstance(other_strain, StrainField):
+                    strain2._winners = other_strain._winners  # Notice len(strain2._winners) < len(point_list_union_2)
+
+                # make sure both have the same length as that is the point of stacking
+                assert len(point_list_union) == len(point_list_union_2)
+
+                results = [strain1, strain2]
+        else:
+            raise RuntimeError('Should not be possible to get here')
+
+        return results
+
+
+class StrainFieldSingle(_StrainField):
+    r"""
+    This class holds strain information for a single ``PeakCollection``
+    and its associated ``PointList``.
+
+    Parameters
+    ----------
+    resolution: float
+        Two points are considered the same if they are separated by a distance smaller than this quantity
+    """
+    def __init__(self,
+                 filename: str = '',
+                 projectfile: Optional[HidraProjectFile] = None,
+                 peak_tag: str = '',
+                 hidraworkspace: Optional[HidraWorkspace] = None,
+                 peak_collection: Optional[PeakCollection] = None,
+                 point_list: Optional[PointList] = None,
+                 resolution: float = DEFAULT_POINT_RESOLUTION) -> None:
+        r"""
+        Converts a HidraWorkspace and PeakCollection into a ScalarField
+        """
+        super().__init__()
+        self._peak_collection: Optional[PeakCollection] = None
+        # this are made as top level property to follow interface of StrainField
+        self._point_list: Optional[PointList] = None
+        # immutable point list, doesn't change upon stacking or fusing
+        self._point_list_immutable: Optional[PointList] = None
+        # cached version of the ScalarFieldSample
+        self._scalar_field: Optional[ScalarFieldSample] = None
+        # cached version of the ScalarFieldSample for each requested effective peak parameter
+        # this only caches the ones that were requested rather than everything by using the
+        # name of the porameter as a key
+        self._effective_params: Dict[str, ScalarFieldSample] = {}
+
+        # Create a strain field from a single scan, if so requested
+        single_scan_kwargs = dict(filename=filename, projectfile=projectfile, peak_tag=peak_tag,  # type: ignore
+                                  hidraworkspace=hidraworkspace, peak_collection=peak_collection,  # type: ignore
+                                  point_list=point_list)  # type: ignore
+        if True in [bool(v) for v in single_scan_kwargs.values()]:  # at least one argument is not empty
+            single_scan_kwargs['resolution'] = resolution  # type: ignore
+            self._initialize_with_single_scan(**single_scan_kwargs)  # type: ignore
+
+    def _initialize_with_single_scan(self,
+                                     filename: str = '',
+                                     projectfile: Optional[HidraProjectFile] = None,
+                                     peak_tag: str = '',
+                                     hidraworkspace: Optional[HidraWorkspace] = None,
+                                     peak_collection: Optional[PeakCollection] = None,
+                                     point_list: Optional[PointList] = None,
+                                     resolution: float = DEFAULT_POINT_RESOLUTION) -> None:
+        r"""
+
+        Parameters
+        ----------
+        filename
+        projectfile
+        peak_tag
+        hidraworkspace
+        peak_collection
+        point_list
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity
+
+        Returns
+        -------
+
+        """
+        # get the workspace and peaks by resolving the supplied inputs
+        self._point_list, self._peak_collection = _to_pointlist_and_peaks(filename, peak_tag,
+                                                                          projectfile, hidraworkspace,
+                                                                          peak_collection,
+                                                                          point_list,
+                                                                          resolution=resolution)
+        self._point_list_immutable = deepcopy(self._point_list)
+
+    @property
+    def filenames(self):
+        if not self._peak_collection.projectfilename:
+            return []
+        else:
+            return [self._peak_collection.projectfilename]
+
+    @property
+    def peak_collections(self):
+        return [self._peak_collection]
+
+    @property
+    def strains(self) -> List['StrainFieldSingle']:
+        return [self]
+
+    @property
+    def point_list(self):
+        return self._point_list
+
+    def _clear_cache(self) -> None:
+        '''Invalidate any and all cached information'''
+        self._scalar_field = None
+        self._effective_params = {}
+
+    def _create_scalar_field(self, method: str, name: str):
+        '''
+        Parameters
+        ----------
+        method
+            The name of the effective peak parameter to get the value of or the name of
+            the method to call
+
+        name
+            The name of the output ScalarFieldSample
+        '''
+        # the data is taken from the `PeakCollection`
+        if self._peak_collection is None:
+            raise RuntimeError('PeakCollection has not been set')
+
+        # get the data
+        if method in EFFECTIVE_PEAK_PARAMETERS:
+            peak_param_values, peak_param_errors = self._peak_collection.get_effective_params()
+            values = peak_param_values[method]
+            errors = peak_param_errors[method]
+        else:
+            values, errors = getattr(self._peak_collection, f'{method}')()
+
+        # put it all together into a ScalarFieldSample
+        full_values = np.full(len(self.point_list), NOT_MEASURED_NUMPY, dtype=float)
+        full_errors = np.full(len(self.point_list), NOT_MEASURED_NUMPY, dtype=float)
+        full_values[:values.size] = values
+        full_errors[:errors.size] = errors
+        return ScalarFieldSample(name, full_values, full_errors, self.x, self.y, self.z)
+
+    @property
+    def field(self) -> ScalarFieldSample:
+        r"""
+        Fetch the strain values and errors for the list of sample points.
+
+        If the strain has been stacked against strain(s) measured along different direction(s),
+        the number of sample points in the point list may be larger than the number of sample
+        points associated with the peak collections of this strain. The extra sample points in
+        this stacked point list are guaranteed to be located at the end, and they will be given
+        :obj:`~pyrs.dataobjects.constants.NOT_MEASURED_NUMPY` strains values and errors.
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.ScalarFieldSample
+        """
+        # create value and cache it
+        if self._scalar_field is None:
+            self._scalar_field = self._create_scalar_field(method='get_strain', name='strain')
+
+        return self._scalar_field
+
+    def set_d_reference(self, values: Union[Tuple[float, float], ScalarFieldSample]) -> None:
+        if self._peak_collection is None:
+            raise RuntimeError('PeakCollection has not been set')
+        if isinstance(values, ScalarFieldSample):
+            # Find sample points in the point list associated to the peak collection
+            assert self._point_list_immutable is not None
+            d_reference = self.get_d_reference()
+            values_new, errors_new = d_reference.values, d_reference.errors  # initialize new reference spacings
+            for self_index, values_index in enumerate(self._point_list_immutable.get_indices(values.point_list)):
+                if values_index == PointList.MISSING_INDEX:
+                    continue  # sample point corresponding to `self_index` is not found in `values`
+                values_new[self_index] = values.values[values_index]
+                errors_new[self_index] = values.errors[values_index]
+            self._peak_collection.set_d_reference(values_new, errors_new)
+        else:
+            self._peak_collection.set_d_reference(values[0], values[1])
+
+        self._clear_cache()
+
+    def get_d_reference(self) -> ScalarFieldSample:
+        return self._create_scalar_field(method='get_d_reference', name='d-reference')
+
+    def get_dspacing_center(self) -> ScalarFieldSample:
+        return self._create_scalar_field(method='get_dspacing_center', name='dspacing-center')
+
+    def get_effective_peak_parameter(self, name: str) -> ScalarFieldSample:
+        self._validate_peak_param_name(name)
+
+        # look for it in the cache
+        if name not in self._effective_params.keys():
+            self._effective_params[name] = self._create_scalar_field(method=name,
+                                                                     name=name)
+
+        return self._effective_params[name]
+
+
+def _to_pointlist_and_peaks(filename: str,
+                            peak_tag: str,
+                            projectfile: Optional[HidraProjectFile],
+                            hidraworkspace: Optional[HidraWorkspace],
+                            peak_collection: Optional[PeakCollection],
+                            point_list: Optional[PointList],
+                            resolution: float = DEFAULT_POINT_RESOLUTION) -> Tuple[PointList, PeakCollection]:
+    r"""
+    Take all of the various ways to supply the :py:obj:PointList and :py:obj:PeakCollection and convert
+    them into those actual objects.
+
+    Assignment of :py:obj:PeakCollection occurs for the first one found in the following list:
+    * ``peak_collection``
+    * ``projectfile``
+
+    Similarly, assignment of :py:obj:PoinList occurs for the first one found in the following list:
+    * ``point_list``
+    * ``hidraworkspace`` - taken from the :py:obj:SampleLogs
+    * ``projectfile``
+
+    Parameters
+    ----------
+    resolution: float
+        Two points are considered the same if they are separated by a distance smaller than this quantity
+
+    Raises
+    ------
+    RuntimeError
+        The peak collection contains at least two points that overlap (closer than `resolution`)
+    """
+    # load information from a file if it isn't already provided
+    closeproject = False
+    if filename and not (peak_collection or point_list):
+        projectfile = HidraProjectFile(filename, HidraProjectFileMode.READONLY)
+        closeproject = True
+    elif TYPE_CHECKING:  # only True when running mypy
+        projectfile = cast(HidraProjectFile, projectfile)
+
+    # create objects from the project file
+    if projectfile:
+        # create HidraWorkspace
+        if not hidraworkspace:
+            hidraworkspace = HidraWorkspace()
+            hidraworkspace.load_hidra_project(projectfile, load_raw_counts=False,
+                                              load_reduced_diffraction=False)
+
+        # get the PeakCollection
+        if not peak_collection:
+            peak_tags = projectfile.read_peak_tags()
+            # verify peaks were savsed in the file
+            if len(peak_tags) == 0:
+                raise IOError('File "{}" does not have peaks defined'.format(filename))
+            if peak_tag:  # verify the tag is in the file
+                if peak_tag not in peak_tags:
+                    raise ValueError('Failed to find tag "{}" in file with tags {}'.format(peak_tag, peak_tags))
+            else:
+                # use the only one if nothing is specified
+                if len(peak_tags) == 1:
+                    peak_tag = peak_tags[0]
+                else:
+                    raise RuntimeError('Need to specify peak tag: {}'.format(peak_tags))
+
+            # load the peak_tag from the file
+            peak_collection = projectfile.read_peak_parameters(peak_tag)
+
+        # cleanup
+        if closeproject:
+            projectfile.close()
+            del projectfile
+
+        # verify the subruns are parallel
+        if hidraworkspace and hidraworkspace.get_sub_runs() != peak_collection.sub_runs:  # type: ignore
+            raise RuntimeError('Need to have matching subruns')
+    elif TYPE_CHECKING:  # only True when running mypy
+        hidraworkspace = cast(HidraWorkspace, hidraworkspace)
+        peak_collection = cast(PeakCollection, peak_collection)
+
+    # extract the PointList
+    if hidraworkspace:
+        if not point_list:
+            point_list = hidraworkspace.get_pointlist()
+    elif TYPE_CHECKING:  # only True when running mypy
+        point_list = cast(PointList, point_list)
+
+    # Check the point list doesn't have overlapping points
+    if point_list and point_list.has_overlapping_points(resolution):
+        raise RuntimeError('At least two sample points are overlapping')
+
+    # verify that everything is set by now
+    if (not point_list) or (not peak_collection):
+        raise RuntimeError('Do not have both point_list and peak_collection defined')
+
+    if len(point_list) < len(peak_collection):
+        msg = 'point_list and peak_collection are not compatible length ({} < {})'.format(len(point_list),
+                                                                                          len(peak_collection))
+        raise ValueError(msg)
+
+    return point_list, peak_collection
+
+
+class StrainField(_StrainField):
+    r"""
+    This class holds the strain information for a composite set of
+    ``StrainFieldSingle``. It holds what is needed to create the
+    ``ScalarFieldSample`` and to update information about the peaks.
+    """
+
+    ChosenSamplePoints = namedtuple('ChosenSamplePoints', ['scan_indexes', 'point_indexes'])
+    r"""
+    Data structure relating sample points from single scans to sample points of a multi scan
+
+    Examples
+    chosen = ChosenSamplePoints([0, 0, 1], [3, 4, 0]) indicates that:
+    - the multi scan is made up of three sample points
+    - the first sample point in the multi scan is associated to sample point with
+      index 3 of `StrainFieldSingle` object with index 0
+    - the second sample point in the multi scan is associated to sample point with
+      index 4 of `StrainFieldSingle` object with index 0
+    - the third and last sample point in the multi scan is associated to sample point with
+      index 0 of `StrainFieldSingle` object with index 1
+
+    Parameters
+    ----------
+    scan_indexes: np.ndarray
+        each index identifies one of the StrainFieldSingle instances making up the multi scan
+    point_indexes: np.ndarray
+        each index identifies one of the sample points in one of the single scans that make up
+        the multi scan
+    """
+
+    @staticmethod
+    def fuse_strains(*args: 'StrainField', resolution: float = DEFAULT_POINT_RESOLUTION,
+                     criterion: str = 'min_error') -> '_StrainField':
         r"""
         Bring in together several strains measured along the same direction. Overlaps are resolved
         according to a selection criterion.
@@ -515,7 +1348,7 @@ class StrainField:
         # Validation checks
         assert len(args) > 1, 'More than one strain is needed'
         for strain in args:
-            assert isinstance(strain, StrainField), 'This input is not a StrainField object'
+            assert isinstance(strain, _StrainField), 'This input is not a StrainField object'
         # Iterative fusing
         strain, strain_other = args[0: 2]  # first two strains in the list
         strain_fused = strain.fuse_with(strain_other, resolution=resolution, criterion=criterion)
@@ -523,158 +1356,145 @@ class StrainField:
             strain_fused = strain_fused.fuse_with(strain_other, resolution=resolution, criterion=criterion)
         return strain_fused
 
-    @staticmethod
-    def stack_strains(*strains,
-                      stack_mode: str = 'complete',
-                      resolution: float = DEFAULT_POINT_RESOLUTION) -> List['StrainField']:
-        r"""
-        Evaluate a list of strain fields taken at different directions on a list of commont points.
-
-        The list of common points is obtained by combining the list of points from each strain field.
-
-        Parameters
-        ----------
-        strains: list
-            List of input strain fields.
-        stack_mode: str
-            A mode to stack the scalar fields. Valid values are 'complete' and 'common'
-        resolution: float
-        Two points are considered the same if they are separated by a distance smaller than this quantity
-
-
-        Returns
-        -------
-
-        """
-        # Validate all strains are strain fields
-        for strain in strains:
-            assert isinstance(strain, StrainField), f'{strain} is not a StrainField object'
-        fields = [strain._field for strain in strains]
-        fields_stacked = stack_scalar_field_samples(*fields, stack_mode=stack_mode, resolution=resolution)
-        strains_stacked = list()
-        for strain, field_stacked in zip(strains, fields_stacked):
-            strain_stacked = StrainField()
-            strain_stacked._field = field_stacked
-            strain_stacked._peak_collection = strain._peak_collection
-            strain_stacked._single_scans = strain._single_scans
-            strain_stacked._filenames = strain.filenames[:]
-            strains_stacked.append(strain_stacked)
-        return strains_stacked
-
     def __init__(self,
                  filename: str = '',
                  projectfile: Optional[HidraProjectFile] = None,
                  peak_tag: str = '',
                  hidraworkspace: Optional[HidraWorkspace] = None,
                  peak_collection: Optional[PeakCollection] = None,
-                 field_sample: Optional[ScalarFieldSample] = None) -> None:
+                 point_list: Optional[PointList] = None) -> None:
         r"""
         Converts a HidraWorkspace and PeakCollection into a ScalarField
         """
-        self._peak_collection: Optional[PeakCollection] = None
-        # when the strain is composed of more than one scan, we keep references to them
-        self._single_scans: List['StrainField'] = []
-        self._field = field_sample
-        self._filenames: List[str] = []
+        super().__init__()
+        # list of underlying StrainFields
+        self._strains: List[StrainFieldSingle] = []
+        # the first element is the index of the winning StrainField
+        # the second index is the index into the strain_values array
+        self._winners: Optional[Tuple[np.ndarray, np.ndarray]] = None
+        self._point_list: Optional[PointList] = None
+        # cached version of the ScalarFieldSample
+        # it is not used if there is only one StrainField contained in this object
+        self._scalar_field: Optional[ScalarFieldSample] = None
+        # cached version of the ScalarFieldSample for each requested effective peak parameter
+        # this only caches the ones that were requested rather than everything by using the
+        # name of the porameter as a key
+        self._effective_params: Dict[str, ScalarFieldSample] = {}
 
         # Create a strain field from a single scan, if so requested
-        single_scan_kwargs = dict(filename=filename, projectfile=projectfile, peak_tag=peak_tag,
-                                  hidraworkspace=hidraworkspace, peak_collection=peak_collection)
+        single_scan_kwargs = dict(filename=filename, projectfile=projectfile, peak_tag=peak_tag,  # type: ignore
+                                  hidraworkspace=hidraworkspace, peak_collection=peak_collection,  # type: ignore
+                                  point_list=point_list)  # type: ignore
         if True in [bool(v) for v in single_scan_kwargs.values()]:  # at least one argument is not empty
-            self._initialize_with_single_scan(**single_scan_kwargs)  # type: ignore
+            self._strains.append(StrainFieldSingle(**single_scan_kwargs))  # type: ignore
+            # copy the pointlist from the only child that exists
+            self._point_list = self._strains[0].point_list
 
-    def __add__(self, other_strain):
+        # otherwise it was an empty constructor and only initialize the starting layout
+
+    @property
+    def filenames(self) -> List['str']:
+        filenames: List[str] = []
+        if self._strains is not None:
+            for strain in self._strains:
+                if isinstance(strain, StrainFieldSingle):
+                    filenames.extend(strain.filenames)
+                else:
+                    msg = 'StrainField encountered a class it can\'t work with: ' \
+                        + str(strain.__class__.___name__)
+                    raise RuntimeError(msg)
+        return filenames
+
+    def _update_single_strain(self):
+        '''
+        Update the PointList in the contained StrainField if they are not the same length
+
+        This is used to handle a corner case when the strain is composed of only one StrainFieldSingle
+        component, the point list of `self` may have diverged from the point list of the
+        StrainFieldSingle component. This scenario may happen if `self` has been stacked against
+        other strains measured along different direction.
+
+        The method only has effect when there is a single StrainField'''
+        # `self` hasn't been previously stacked
+        if len(self._strains) == 1 and (not len(self._strains[0]) == len(self)):
+            # update the zeroth strain with the extended PointList
+            filename = self._strains[0].filenames[0] if self._strains[0].filenames else []
+            self._strains[0] = StrainFieldSingle(filename=filename,
+                                                 peak_collection=self._strains[0].peak_collections[0],
+                                                 point_list=self.point_list)
+
+    def _clear_cache(self) -> None:
+        '''Invalidate any and all cached information'''
+        self._scalar_field = None
+        self._effective_params = {}
+
+    def _create_scalar_field(self, method, name):
+        # make sure there is enough information to create the field
+        if not self._winners:
+            raise RuntimeError('List of winners has not been initialized')
+        if not self.point_list:
+            raise RuntimeError('The PointList has not been initialized')
+
+        num_values = len(self)  # number of sample points in the point list
+        values = np.full(num_values, NOT_MEASURED_NUMPY, dtype=float)
+        errors = np.full(num_values, NOT_MEASURED_NUMPY, dtype=float)
+
+        # loop over the winning strain indices
+        # `strain_index` identifies one of the StrainFieldSingle instances in the list self._strains
+        for strain_index in set(self._winners.scan_indexes):
+            # Find out which sample points of the aggregate point list are associated to the
+            # StrainFieldSingle object specified by `strain_index`
+            # `indices` below denote indices along the aggregated point list `self._point_list`
+            indices = np.where(self._winners.scan_indexes == strain_index)
+            # get handle to the underlying PeakCollection via the correct StrainFieldSingle object
+            peak_collection = self._strains[strain_index].peak_collections[0]
+
+            # get the values to put together
+            if method in EFFECTIVE_PEAK_PARAMETERS:
+                peak_param_values, peak_param_errors = peak_collection.get_effective_params()
+                values_i = peak_param_values[method]
+                errors_i = peak_param_errors[method]
+            else:
+                values_i, errors_i = getattr(peak_collection, f'{method}')()
+
+            # find points of the current single-scan strain's list contributing to the overall list of points
+            # `self._winners.point_indexes` is a list as long as `self._point_list`. Each entry provides
+            # an index, specifying one sample point from one of the StrainFieldSingle components. Here
+            # we are finding out the sample points of the StrainFieldSingle object specified by
+            # `strain_index` contributing to the overall StrainField object
+            idx = self._winners.point_indexes[indices]
+            assert np.all(idx < len(peak_collection))
+            values[indices], errors[indices] = values_i[idx], errors_i[idx]
+
+        return ScalarFieldSample(name, values, errors, self.x, self.y, self.z)
+
+    @property
+    def field(self):
         r"""
-        Fuse the current strain with another strain using the default resolution distance and overlap criterion
+        Fetch the strain values and errors for the list of sample points.
 
-        resolution = ~pyrs.dataobjects.constants.DEFAULT_POINT_RESOLUTION
-        criterion = 'min_error'
-
-        Parameters
-        ----------
-        other_strain:  ~pyrs.dataobjects.fields.StrainField
-            Right-hand side of operation addition
+        If the strain has been stacked against strain(s) measured along different direction(s), the number of
+        sample points in the point list may be larger than the number of sample points associated with
+        the peak collections of this strain. The extra sample points in this stacked point list are
+        guaranteed to be located at the end of the point list, and they will be given
+        :obj:`~pyrs.dataobjects.constants.NOT_MEASURED` strains values and errors.
 
         Returns
         -------
-        ~pyrs.dataobjects.fields.StrainField
+        ~pyrs.dataobjects.fields.ScalarFieldSample
         """
-        return self.fuse_with(other_strain)
+        self._update_single_strain()
 
-    def __len__(self):
-        return len(self._field)
-
-    def __mul__(self, other):
-        r"""
-        Stack this strain with another strain, or with a list of strains
-
-        Parameters
-        ----------
-        other: ~pyrs.dataobjects.fields.StrainField, list
-            If a list, each item is a ~pyrs.dataobjects.fields.StrainField object
-
-        Returns
-        -------
-        list
-            list of stacked ~pyrs.dataobjects.fields.StrainField objects.
-        """
-        stack_kwargs = dict(resolution=DEFAULT_POINT_RESOLUTION, stack_mode='complete')
-        if isinstance(other, StrainField):
-            return self.__class__.stack_strains(self, other, **stack_kwargs)
-        elif isinstance(other, (list, tuple)):
-            for strain in other:
-                if isinstance(strain, StrainField) is False:
-                    raise TypeError(f'{strain} is not a {str(self.__class__)} object')
-            return self.__class__.stack_strains(self, *other, **stack_kwargs)
-
-    def __rmul__(self, other):
-        r"""
-        Stack a list of strains along with this strain.
-
-        Parameters
-        ----------
-        other: list
-            Each item is a ~pyrs.dataobjects.fields.StrainField object.
-
-        Return
-        ------
-        list
-            List of stacked strains. Each item is a ~pyrs.dataobjects.fields.StrainField object.
-        """
-        stack_kwargs = dict(resolution=DEFAULT_POINT_RESOLUTION, stack_mode='complete')
-        if isinstance(other, (list, tuple)):
-            for strain in other:
-                if isinstance(strain, StrainField) is False:
-                    raise TypeError(f'{strain} is not a StrainField object')
-            return self.__class__.stack_strains(*other, self, **stack_kwargs)
+        if len(self._strains) == 1:
+            return self._strains[0].field
         else:
-            raise NotImplementedError(f'Unable to multiply objects of type {str(other.__class__)} and StrainField')
+            # cache the calculation
+            self._scalar_field = self._create_scalar_field(method='get_strain', name='strain')
+
+            return self._scalar_field
 
     @property
-    def filenames(self):
-        return self._filenames
-
-    @property
-    def peak_collection(self):
-        r"""
-        Retrieve the peak collection associated to the strain field. Only valid when the field is not
-        a composite of more than one scan.
-
-        Raises
-        ------
-        RuntimeError
-            There is more than one peak collection associated to this strain field
-
-        Returns
-        -------
-        ~pyrs.dataobjects.fields.StrainField
-        """
-        if len(self._single_scans) > 1:
-            raise RuntimeError('There is more than one peak collection associated to this strain field')
-        return self._peak_collection
-
-    @property
-    def peak_collections(self):
+    def peak_collections(self) -> List[PeakCollection]:
         r"""
         Retrieve the peak collection objects associated to this (possibly composite) strain field.
 
@@ -682,255 +1502,63 @@ class StrainField:
         -------
         list
         """
-        return [field._peak_collection for field in self._single_scans]
+        if self._strains is None:
+            raise RuntimeError('List of peaks was not initialized')
+        peaks: List[PeakCollection] = []
+        for strain in self._strains:
+            peaks.extend(strain.peak_collections)
+        return peaks
 
     @property
-    def values(self):
-        return self._field.values
-
-    @property
-    def errors(self):
-        return self._field.errors
-
-    @property
-    def sample(self):
+    def strains(self) -> List['StrainFieldSingle']:
         r"""
-        Uncertainties arrays containing both values and errors.
+        List of strains associated to individual peak collections
 
         Returns
         -------
-        ~unumpy.array
+        list
         """
-        return self._field.sample
+        return self._strains
 
     @property
     def point_list(self):
-        return self._field.point_list
+        return self._point_list
 
-    @property
-    def x(self):
-        return self._field.x
+    def set_d_reference(self, values: Union[Tuple[float, float], ScalarFieldSample]) -> None:
+        for strain in self._strains:
+            strain.set_d_reference(values)
 
-    @property
-    def y(self):
-        return self._field.y
+        self._clear_cache()
 
-    @property
-    def z(self):
-        return self._field.z
+    def get_d_reference(self) -> ScalarFieldSample:
+        self._update_single_strain()
 
-    @property
-    def coordinates(self) -> np.ndarray:
-        return self._field.coordinates  # type: ignore
-
-    @staticmethod  # noqa: C901
-    def __to_wksp_and_peaks(filename: str,
-                            peak_tag: str,
-                            projectfile: Optional[HidraProjectFile],
-                            hidraworkspace: Optional[HidraWorkspace],
-                            peak_collection: Optional[PeakCollection]) -> Tuple[HidraWorkspace, PeakCollection]:
-        # load information from a file
-        closeproject = False
-        if filename:
-            projectfile = HidraProjectFile(filename, HidraProjectFileMode.READONLY)
-            closeproject = True
-        elif TYPE_CHECKING:
-            projectfile = cast(HidraProjectFile, projectfile)
-
-        # create objects from the project file
-        if projectfile:
-            # create HidraWorkspace
-            if not hidraworkspace:
-                hidraworkspace = HidraWorkspace()
-                hidraworkspace.load_hidra_project(projectfile, load_raw_counts=False, load_reduced_diffraction=False)
-
-            # get the PeakCollection
-            if not peak_collection:
-                peak_tags = projectfile.read_peak_tags()
-                # verify peaks were savsed in the file
-                if len(peak_tags) == 0:
-                    raise IOError('File "{}" does not have peaks defined'.format(filename))
-                if peak_tag:  # verify the tag is in the file
-                    if peak_tag not in peak_tags:
-                        raise ValueError('Failed to find tag "{}" in file with tags {}'.format(peak_tag, peak_tags))
-                else:
-                    # use the only one if nothing is specified
-                    if len(peak_tags) == 1:
-                        peak_tag = peak_tags[0]
-                    else:
-                        raise RuntimeError('Need to specify peak tag: {}'.format(peak_tags))
-
-                # load the peak_tag from the file
-                peak_collection = projectfile.read_peak_parameters(peak_tag)
-
-            # cleanup
-            if closeproject:
-                projectfile.close()
-                del projectfile
-        elif TYPE_CHECKING:
-            hidraworkspace = cast(HidraWorkspace, hidraworkspace)
-            peak_collection = cast(PeakCollection, peak_collection)
-
-        # verify that everything is set by now
-        if (not hidraworkspace) or (not peak_collection):
-            raise RuntimeError('Do not have both hidraworkspace and peak_collection defined')
-
-        # convert the information into a usable form for setting up this object
-        if hidraworkspace.get_sub_runs() != peak_collection.sub_runs:  # type: ignore
-            raise RuntimeError('Need to have matching subruns')
-
-        return hidraworkspace, peak_collection
-
-    def _initialize_with_single_scan(self,
-                                     filename: str = '',
-                                     projectfile: Optional[HidraProjectFile] = None,
-                                     peak_tag: str = '',
-                                     hidraworkspace: Optional[HidraWorkspace] = None,
-                                     peak_collection: Optional[PeakCollection] = None) -> None:
-        r"""
-
-        """
-        VX, VY, VZ = 'vx', 'vy', 'vz'
-
-        # get the workspace and peaks by resolving the supplied inputs
-        hidraworkspace, peak_collection = StrainField.__to_wksp_and_peaks(filename, peak_tag,
-                                                                          projectfile, hidraworkspace,
-                                                                          peak_collection)
-
-        lognames = hidraworkspace.get_sample_log_names()
-        missing = []
-        for logname in VX, VY, VZ:
-            if logname not in lognames:
-                missing.append(logname)
-        if missing:
-            raise RuntimeError('Failed to find positions in logs. Missing {}'.format(', '.join(missing)))
-
-        # extract positions
-        x = hidraworkspace.get_sample_log_values(VX)
-        y = hidraworkspace.get_sample_log_values(VY)
-        z = hidraworkspace.get_sample_log_values(VZ)
-
-        strain, strain_error = peak_collection.get_strain()  # type: ignore
-
-        # set the names of files used to create the strain
-        if filename:  #
-            self._filenames = [Path(filename).name]
-        elif hidraworkspace and hidraworkspace.hidra_project_file:  # get it from the workspace
-            self._filenames = [Path(hidraworkspace.hidra_project_file).name]
+        if len(self._strains) == 1:
+            return self._strains[0].get_d_reference()
         else:
-            self._filenames = []  # do not know filenames
-        self._peak_collection = peak_collection
-        self._single_scans = [self]  # when the strain is composed of more than one scan, we keep references to them
-        self._field = ScalarFieldSample('strain', strain, strain_error, x, y, z)
+            return self._create_scalar_field(method='get_d_reference', name='d-reference')
 
-    def fuse_with(self, other_strain: 'StrainField',
-                  resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = 'min_error') -> 'StrainField':
-        r"""
-        Fuse the current strain scan with another scan taken along the same direction.
+    def get_dspacing_center(self) -> ScalarFieldSample:
+        self._update_single_strain()
 
-        Resolve any occurring overlaps between the scans according to a selection criterion.
+        if len(self._strains) == 1:
+            return self._strains[0].get_dspacing_center()
+        else:
+            return self._create_scalar_field(method='get_dspacing_center', name='dspacing-center')
 
-        Parameters
-        ----------
-        other_strain:  ~pyrs.dataobjects.fields.StrainField
-        resolution: float
-            Two points are considered the same if they are separated by a distance smaller than this quantity
-        criterion: str
-            Criterion by which to resolve which sample points out of two (or more) ends up being selected,
-            while the rest of the sample points are discarded is discarded. Possible values are:
-            'min_error': the sample with the minimal uncertainty is selected.
+    def get_effective_peak_parameter(self, name: str) -> ScalarFieldSample:
+        self._validate_peak_param_name(name)
 
-        Returns
-        -------
-        ~pyrs.dataobjects.fields.StrainField
-        """
-        strain = StrainField()  # New empty strain object
+        if len(self._strains) == 1:
+            # delegate the work to the only StrainField
+            return self._strains[0].get_effective_peak_parameter(name)
+        else:
+            # look for it in the cache
+            if name not in self._effective_params.keys():
+                self._effective_params[name] = self._create_scalar_field(method=name,
+                                                                         name=name)
 
-        # Check there are no repeated scans
-        for scan1 in self._single_scans:
-            for scan2 in other_strain._single_scans:
-                # Verify if the labels are references to the same object
-                if scan1 == scan2:
-                    raise RuntimeError(f'{self} and {other_strain} both contain scan {scan1}')
-        strain._single_scans = self._single_scans + other_strain._single_scans
-        strain._field = self._field.fuse_with(other_strain._field,  # type: ignore
-                                              resolution=resolution, criterion=criterion)
-        # copy over the filenames
-        strain._filenames = []
-        strain._filenames.extend(self._filenames)
-        strain._filenames.extend(other_strain._filenames)
-
-        return strain
-
-    def to_md_histo_workspace(self, name: str = '', units: str = 'meter',
-                              interpolate: bool = True,
-                              method: str = 'linear', fill_value: float = float('nan'), keep_nan: bool = True,
-                              resolution: float = DEFAULT_POINT_RESOLUTION,
-                              criterion: str = 'min_error'
-                              ) -> IMDHistoWorkspace:
-        r"""
-        Save the strain field into a MDHistoWorkspace. Interpolation of the sample points is carried out
-        by default.
-
-        Parameters `method`, `fill_value`, `keep_nan`, `resolution` , and `criterion` are  used only if
-        `interpolate` is `True`.
-
-        Parameters
-        ----------
-        name: str
-            Name of the output workspace.
-        units: str
-            Units of the sample points.
-        interpolate: bool
-            Interpolate the scalar field sample of a regular 3D grid given by the extents of the sample points.
-        method: str
-            Method of interpolation. Allowed values are 'nearest' and 'linear'
-        fill_value: float
-            Value used to fill in for requested points outside the input points.
-        keep_nan: bool
-            Incorporate :math:`nan` found in the sample points into the interpolated field sample.
-        resolution: float
-            Two points are considered the same if they are separated by a distance smaller than this quantity.
-        criterion: str
-            Criterion by which to resolve which sample points out of two (or more) ends up being selected,
-            while the rest of the sample points are discarded is discarded. Possible values are:
-            'min_error': the sample with the minimal uncertainty is selected.
-        Returns
-        -------
-        MDHistoWorkspace
-        """
-        export_kwags = dict(units=units, interpolate=interpolate, method=method, fill_value=fill_value,
-                            keep_nan=keep_nan, resolution=resolution, criterion=criterion)
-        return self._field.to_md_histo_workspace(name, **export_kwags)  # type: ignore
-
-
-def generateParameterField(parameter: str,
-                           hidraworkspace: HidraWorkspace,
-                           peak_collection: PeakCollection) -> ScalarFieldSample:
-    '''Converts a HidraWorkspace and PeakCollection into a ScalarFieldSample for a specify peak parameter'''
-    VX, VY, VZ = 'vx', 'vy', 'vz'
-
-    lognames = hidraworkspace.get_sample_log_names()
-    missing = []
-    for logname in VX, VY, VZ:
-        if logname not in lognames:
-            missing.append(logname)
-    if missing:
-        raise RuntimeError('Failed to find positions in logs. Missing {}'.format(', '.join(missing)))
-
-    # extract positions
-    x = hidraworkspace.get_sample_log_values(VX)
-    y = hidraworkspace.get_sample_log_values(VY)
-    z = hidraworkspace.get_sample_log_values(VZ)
-
-    if parameter in ('Center', 'Height', 'FWHM', 'Mixing', 'A0', 'A1', 'Intensity'):
-        values, errors = peak_collection.get_effective_params()  # type: ignore
-        values = values[parameter]
-        errors = errors[parameter]
-    else:  # dspacing_center, d_reference, strain
-        values, errors = getattr(peak_collection, f'get_{parameter}')()  # type: ignore
-
-    return ScalarFieldSample(parameter, values, errors, x, y, z)
+            return self._effective_params[name]
 
 
 def aggregate_scalar_field_samples(*args) -> 'ScalarFieldSample':
@@ -1019,6 +1647,18 @@ class Direction(Enum):
             except KeyError:  # give clearer error message
                 raise KeyError('Cannot determine direction type from "{}"'.format(direction))
 
+    @property
+    def ii(self) -> str:
+        r"""
+        Two-number string representation of the direction. One of ('11', '22', '33')
+
+        Returns
+        -------
+        str
+        """
+        one_to_two = dict(x='11', y='22', z='33')
+        return one_to_two[self.value]
+
 
 class StressField:
     r"""
@@ -1065,6 +1705,7 @@ class StressField:
     youngs_modulus: float
     poisson_ratio: float
     stress_type: str, ~pyrs.dataobjects.fields.StressType
+        If a string, one of ('diagonal', 'in-plane-strain', 'in-plane-stress')
     """  # noqa E501
 
     def __init__(self, strain11: StrainField, strain22: StrainField, strain33: StrainField,
@@ -1077,22 +1718,57 @@ class StressField:
 
         # Stack strains
         self.stress_type = StressType.get(stress_type)
-        self._strain11, self._strain22, self._strain33 = self._stack_strains(strain11, strain22, strain33)
+        strain_triad = [strain11, strain22, strain33]
+        self._strain11, self._strain22, self._strain33 = self._stack_strains(*strain_triad)  # type: ignore
 
         # Enforce self._strain33 is zero for in-plane strain, or back-calculate it when in-plane stress
         if self.stress_type == StressType.IN_PLANE_STRAIN:
-            field_zero = ScalarFieldSample('strain', [0.0] * self.size, [0.0] * self.size, self.x, self.y, self.z)
-            self._strain33 = StrainField(field_sample=field_zero)
+            # there is no in-plane strain component
+            points = PointList([self.x, self.y, self.z])
+            peaks = PeakCollectionLite(str(StressType.IN_PLANE_STRAIN),
+                                       np.zeros(self.size, dtype=float),
+                                       np.zeros(self.size, dtype=float))
+            self._strain33 = StrainField(peak_collection=peaks, point_list=points)
         elif self.stress_type == StressType.IN_PLANE_STRESS:
             self._strain33 = self._strain33_when_inplane_stress()
 
         # Calculate stress fields, and strain33 if stress_type=StressType.IN_PLANE_STRESS
-        stress11, stress22, stress33 = self._calc_stress_components()  # returns unumpy.array objects
-        self._initialize_stress_fields(stress11, stress22, stress33)
+        self.update_stress_calculation()
 
         # At any given time, the StresField object access only one of the 11, 22, and 33 directions
         self.direction, self._stress_selected, self._strain_selected = None, None, None
         self.select(Direction.X)  # initialize the selected direction to be the 11 direction
+
+    def __getitem__(self, direction) -> ScalarFieldSample:
+        r"""
+        Stress along one of the directions.
+
+        This operation doesn't change the currently accessible direction.
+
+        Parameters
+        ----------
+        direction: str
+            One of ('11', '22', '33')
+
+        Returns
+        -------
+        ~pyrs.databojects.fields.ScalarFieldSample
+        """
+        assert direction in ('11', '22', '33'), 'The direction is not one of ("11", "22", "33")'
+        return getattr(self, f'stress{direction}')
+
+    def __iter__(self) -> Iterator[ScalarFieldSample]:
+        r"""
+        Access the stress along the different directions
+
+        This operation doesn't change the currently accessible direction.
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.ScalarFieldSample
+        """
+        for stress_component in (self.stress11, self.stress22, self.stress33):
+            yield stress_component  # type: ignore
 
     def _initialize_stress_fields(self, stress11: np.ndarray, stress22: np.ndarray, stress33: np.ndarray) -> None:
         r"""
@@ -1143,14 +1819,17 @@ class StressField:
         youngs_modulus, poisson_ratio = self.youngs_modulus, self.poisson_ratio
         prefactor = youngs_modulus / (1 + poisson_ratio)
 
-        strain11, strain22 = self._strain11.sample, self._strain22.sample  # unumpy.arrays
+        strain11: unumpy.uarray = self._strain11.sample
+        strain22: unumpy.uarray = self._strain22.sample
         sample_zero = unumpy.uarray(np.zeros(self.size, dtype=float), np.zeros(self.size, dtype=float))
 
-        # calculate the additive trace
+        # fill in the correct value for the strain in the 33-direction
         if self.stress_type == StressType.DIAGONAL:
-            strain33 = self._strain33.sample  # type: ignore
+            strain33: unumpy.uarray = self._strain33.sample
         else:
             strain33 = sample_zero
+
+        # calculate the additive trace
         f = 1.0 if self.stress_type == StressType.IN_PLANE_STRESS else 2.0
         additive = poisson_ratio * (strain11 + strain22 + strain33) / (1 - f * poisson_ratio)
 
@@ -1168,7 +1847,7 @@ class StressField:
 
     def _stack_strains(self, strain11: StrainField,
                        strain22: StrainField,
-                       strain33: StrainField) -> Tuple[StrainField, StrainField, Optional[StrainField]]:
+                       strain33: StrainField) -> Union[List[StrainField], Any]:
         r"""
         Stach the strain samples taken along the the three different directions
 
@@ -1192,8 +1871,10 @@ class StressField:
         list
         """
         if self.stress_type == StressType.DIAGONAL:
-            return strain11 * strain22 * strain33
-        return strain11 * strain22 + [None]  # strain33 is yet undefined, so it's assigned a value of `None`
+            assert strain33 is not None, 'strain33 is None but the selected stress type is "diagonal"'
+            return strain11 * strain22 * strain33  # type: ignore
+        # strain33 is yet undefined, so it's assigned a value of `None`
+        return strain11 * strain22 + [None]  # type: ignore
 
     def _strain33_when_inplane_stress(self) -> StrainField:
         r"""
@@ -1209,7 +1890,22 @@ class StressField:
         factor = self.poisson_ratio / (self.poisson_ratio - 1)
         strain33 = factor * (self._strain11.sample + self._strain22.sample)  # unumpy.array
         values, errors = unumpy.nominal_values(strain33), unumpy.std_devs(strain33)
-        return StrainField(field_sample=ScalarFieldSample('strain', values, errors, self.x, self.y, self.z))
+        peaks = PeakCollectionLite(str(StressType.IN_PLANE_STRESS),
+                                   values, errors)
+        return StrainField(peak_collection=peaks,
+                           point_list=PointList([self.x, self.y, self.z]))
+
+    def set_d_reference(self, values: Union[Tuple[float, float], ScalarFieldSample]) -> None:
+        # the strains have already been stacked
+        for strain in (self._strain11, self._strain22, self._strain33):
+            strain.set_d_reference(values)
+
+        self.update_stress_calculation()
+
+    def update_stress_calculation(self):
+        # update stress values now that strains have been updated
+        stress11, stress22, stress33 = self._calc_stress_components()  # returns unumpy.array objects
+        self._initialize_stress_fields(stress11, stress22, stress33)
 
     @property
     def size(self) -> int:
@@ -1272,16 +1968,16 @@ class StressField:
         return self._strain11.coordinates
 
     @property
-    def diagonal_strains(self) -> Tuple[StrainField, StrainField, StrainField]:
-        r"""
-        Diagonal strains :math:`\epsilon{11}`, :math:`\epsilon{22}`, and :math:`\epsilon{33}` after stacking.
+    def strain11(self) -> StrainField:
+        return self._strain11
 
-        Returns
-        -------
-        list
-            Each item is a ~pyrs.dataobjects.fields.StrainField object.
-        """
-        return self._strain11, self._strain22, self._strain33  # type: ignore
+    @property
+    def strain22(self) -> StrainField:
+        return self._strain22
+
+    @property
+    def strain33(self) -> StrainField:
+        return self._strain33  # type: ignore
 
     @property
     def youngs_modulus(self) -> float:
@@ -1294,6 +1990,14 @@ class StressField:
         """
         return self._youngs_modulus
 
+    @youngs_modulus.setter
+    def youngs_modulus(self, value: float) -> None:
+        # Update the stress components
+        for stress_component in self:
+            stress_component.sample *= value / self._youngs_modulus
+        # Update the stored young modulus
+        self._youngs_modulus = value
+
     @property
     def poisson_ratio(self) -> float:
         r"""
@@ -1304,6 +2008,11 @@ class StressField:
         float
         """
         return self._poisson_ratio
+
+    @poisson_ratio.setter
+    def poisson_ratio(self, value: float) -> None:
+        self._poisson_ratio = value
+        self.update_stress_calculation()
 
     @property
     def values(self) -> np.ndarray:
@@ -1369,7 +2078,7 @@ class StressField:
         self._stress_selected = direction_to_stress[self.direction]  # type: ignore
         self._strain_selected = direction_to_strain[self.direction]  # type: ignore
 
-    def to_md_histo_workspace(self, name: str = '', units: str = 'meter',
+    def to_md_histo_workspace(self, name: str = '',
                               interpolate: bool = True,
                               method: str = 'linear', fill_value: float = float('nan'), keep_nan: bool = True,
                               resolution: float = DEFAULT_POINT_RESOLUTION,
@@ -1386,8 +2095,6 @@ class StressField:
         ----------
         name: str
             Name of the output workspace.
-        units: str
-            Units of the sample points.
         interpolate: bool
             Interpolate the scalar field sample of a regular 3D grid given by the extents of the sample points.
         method: str
@@ -1406,7 +2113,7 @@ class StressField:
         -------
         MDHistoWorkspace
         """
-        export_kwags = dict(units=units, interpolate=interpolate, method=method, fill_value=fill_value,
+        export_kwags = dict(interpolate=interpolate, method=method, fill_value=fill_value,
                             keep_nan=keep_nan, resolution=resolution, criterion=criterion)
         return self._stress_selected.to_md_histo_workspace(name, **export_kwags)  # type: ignore
 
@@ -1444,9 +2151,14 @@ def stack_scalar_field_samples(*fields,
     list
         List of ~pyrs.dataobjects.fields.ScalarFieldSample stacked objects. Input order is preserved
     """
-    valid_stack_modes = ('complete', 'common')
+    valid_stack_modes = ('union', 'intersection', 'complete', 'common')
     if stack_mode not in valid_stack_modes:
         raise ValueError(f'{stack_mode} is not a valid stack mode. Valid modes are {valid_stack_modes}')
+    # map to cannonical names
+    if stack_mode == 'complete':
+        stack_mode = 'union'
+    if stack_mode == 'common':
+        stack_mode = 'intersection'
 
     # If it so happens that one of the input fields contains two (or more) sampled points separated by
     # less than `resolution` distance, we have to discard all but one of them.
@@ -1494,7 +2206,7 @@ def stack_scalar_field_samples(*fields,
     for aggregated_indexes in clusters:
         # if we selected stack_mode='common' and the cluster is missing at least one point from an input field,
         # then the common point is not common to all fields, so we discard the point
-        if stack_mode == 'common' and len(aggregated_indexes) < fields_count:
+        if stack_mode == 'intersection' and len(aggregated_indexes) < fields_count:
             break  # common point not common to all fields. Discard and go to the next cluster
         # Here we either selected stack_mode=complete or the common point is common to all input fields
         cluster_x, cluster_y, cluster_z = 0, 0, 0  # cluster's common point coordinates
