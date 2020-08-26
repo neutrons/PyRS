@@ -51,5 +51,5 @@ class Controller:
         else:
             return None
 
-    def write_stress_to_csv(self, filename):
-        self._model.write_stress_to_csv(filename)
+    def write_stress_to_csv(self, filename, detailed):
+        self._model.write_stress_to_csv(filename, detailed)

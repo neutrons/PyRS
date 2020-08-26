@@ -98,12 +98,12 @@ def test_model(tmpdir, test_data_dir):
 
     # Check writing csv file
     filename = tmpdir.join("test_model_csv1.csv")
-    model.write_stress_to_csv(str(filename))
+    model.write_stress_to_csv(str(filename), False)
     # check number of lines written
     assert len(open(filename).readlines()) == 318
 
     # Check writing with bad filename, should fail but should emit failure message
-    model.write_stress_to_csv("/bin/false")
+    model.write_stress_to_csv("/bin/false", False)
 
     model.calculate_stress('in-plane-strain', 200, 0.3, (1.08, 0))
 
@@ -124,7 +124,7 @@ def test_model(tmpdir, test_data_dir):
 
     # Check writing csv file
     filename = tmpdir.join("test_model_csv2.csv")
-    model.write_stress_to_csv(str(filename))
+    model.write_stress_to_csv(str(filename), False)
     # check number of lines written
     assert len(open(filename).readlines()) == 318
 
@@ -149,7 +149,7 @@ def test_model(tmpdir, test_data_dir):
 
     # Check writing csv file
     filename = tmpdir.join("test_model_csv3.csv")
-    model.write_stress_to_csv(str(filename))
+    model.write_stress_to_csv(str(filename), False)
     # check number of lines written
     assert len(open(filename).readlines()) == 318
 
@@ -304,7 +304,7 @@ def test_model_multiple_files(tmpdir, test_data_dir):
 
     # Check writing csv file
     filename = tmpdir.join("test_model_csv1.csv")
-    model.write_stress_to_csv(str(filename))
+    model.write_stress_to_csv(str(filename), False)
     # check number of lines written
     assert len(open(filename).readlines()) == 318
 
@@ -327,7 +327,7 @@ def test_model_multiple_files(tmpdir, test_data_dir):
 
     # Check writing csv file
     filename = tmpdir.join("test_model_csv2.csv")
-    model.write_stress_to_csv(str(filename))
+    model.write_stress_to_csv(str(filename), False)
     # check number of lines written
     assert len(open(filename).readlines()) == 318
 
@@ -352,7 +352,7 @@ def test_model_multiple_files(tmpdir, test_data_dir):
 
     # Check writing csv file
     filename = tmpdir.join("test_model_csv3.csv")
-    model.write_stress_to_csv(str(filename))
+    model.write_stress_to_csv(str(filename), False)
     # check number of lines written
     assert len(open(filename).readlines()) == 318
 
