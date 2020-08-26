@@ -6,6 +6,7 @@ from qtpy.QtWidgets import (QHBoxLayout, QVBoxLayout, QLabel, QWidget,
                             QGroupBox, QSplitter, QTabWidget,
                             QFormLayout, QFileDialog,
                             QStyledItemDelegate, QDoubleSpinBox,
+                            QTableWidget, QTableWidgetItem,
                             QStackedWidget, QMessageBox)
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtGui import QDoubleValidator
@@ -121,7 +122,11 @@ class D0(QGroupBox):
         super().__init__(parent)
         self.setTitle("Define d₀")
         layout = QVBoxLayout()
-        d0_box = QWidget()
+        self.d0_grid_switch = QComboBox()
+        self.d0_grid_switch.addItems(["Constant", "Field"])
+        self.d0_grid_switch.currentTextChanged.connect(self.set_case)
+        layout.addWidget(self.d0_grid_switch)
+        self.d0_box = QWidget()
         d0_box_layout = QHBoxLayout()
         d0_box_layout.addWidget(QLabel("d₀"))
         validator = QDoubleValidator()
@@ -130,18 +135,115 @@ class D0(QGroupBox):
         self.d0.setValidator(validator)
         self.d0.editingFinished.connect(self.update_d0)
         d0_box_layout.addWidget(self.d0)
-        d0_box.setLayout(d0_box_layout)
-        layout.addWidget(d0_box)
+        d0_box_layout.addWidget(QLabel("Δd₀"))
+        self.d0e = QLineEdit()
+        self.d0e.setValidator(validator)
+        self.d0e.editingFinished.connect(self.update_d0)
+        d0_box_layout.addWidget(self.d0e)
+        self.d0_box.setLayout(d0_box_layout)
+        layout.addWidget(self.d0_box)
+
+        load_save = QWidget()
+        load_save_layout = QHBoxLayout()
+        self.load_grid = QPushButton("Load d₀ Grid")
+        self.load_grid.clicked.connect(self.load_d0_field)
+        load_save_layout.addWidget(self.load_grid)
+        self.save_grid = QPushButton("Save d₀ Grid")
+        self.save_grid.clicked.connect(self.save_d0_field)
+        load_save_layout.addWidget(self.save_grid)
+        load_save.setLayout(load_save_layout)
+        layout.addWidget(load_save)
+        self.d0_grid = QTableWidget()
+        self.d0_grid.setColumnCount(5)
+        self.d0_grid.setColumnWidth(0, 60)
+        self.d0_grid.setColumnWidth(1, 60)
+        self.d0_grid.setColumnWidth(2, 60)
+        self.d0_grid.setColumnWidth(3, 60)
+        self.d0_grid.verticalHeader().setVisible(False)
+        self.d0_grid.horizontalHeader().setStretchLastSection(True)
+        self.d0_grid.setHorizontalHeaderLabels(['vx', 'vy', 'vz', "d₀", "Δd₀"])
+        spinBoxDelegate = SpinBoxDelegate()
+        self.d0_grid.setItemDelegateForColumn(3, spinBoxDelegate)
+        self.d0_grid.setItemDelegateForColumn(4, spinBoxDelegate)
+        layout.addWidget(self.d0_grid)
+
         self.setLayout(layout)
+
+        self.set_case('Constant')
+
+    def set_case(self, case):
+        if case == "Constant":
+            self.d0_box.setEnabled(True)
+            self.load_grid.setEnabled(False)
+            self.save_grid.setEnabled(False)
+            self.d0_grid.setEnabled(False)
+        else:
+            self.d0_box.setEnabled(False)
+            self.load_grid.setEnabled(True)
+            self.save_grid.setEnabled(True)
+            self.d0_grid.setEnabled(True)
 
     def update_d0(self):
         self._parent.update_plot()
 
-    def set_d0(self, d0):
+    def set_d0(self, d0, d0e):
         self.d0.setText(str(d0))
+        self.d0e.setText(str(d0e))
+
+    def set_d0_field(self, x, y, z, d0, d0e):
+        self.d0_grid.setRowCount(len(x))
+
+        for n in range(len(x)):
+            x_item = QTableWidgetItem(f'{x[n]: 7.2f}')
+            x_item.setFlags(x_item.flags() ^ Qt.ItemIsEditable)
+            y_item = QTableWidgetItem(f'{y[n]: 7.2f}')
+            y_item.setFlags(y_item.flags() ^ Qt.ItemIsEditable)
+            z_item = QTableWidgetItem(f'{z[n]: 7.2f}')
+            z_item.setFlags(z_item.flags() ^ Qt.ItemIsEditable)
+            d0_item = QTableWidgetItem()
+            d0_item.setData(Qt.EditRole, float(d0[n]))
+            d0e_item = QTableWidgetItem()
+            d0e_item.setData(Qt.EditRole, float(d0e[n]))
+            self.d0_grid.setItem(n, 0, QTableWidgetItem(x_item))
+            self.d0_grid.setItem(n, 1, QTableWidgetItem(y_item))
+            self.d0_grid.setItem(n, 2, QTableWidgetItem(z_item))
+            self.d0_grid.setItem(n, 3, QTableWidgetItem(d0_item))
+            self.d0_grid.setItem(n, 4, QTableWidgetItem(d0e_item))
+
+    def get_d0_field(self):
+        x = [float(self.d0_grid.item(row, 0).text()) for row in range(self.d0_grid.rowCount())]
+        y = [float(self.d0_grid.item(row, 1).text()) for row in range(self.d0_grid.rowCount())]
+        z = [float(self.d0_grid.item(row, 2).text()) for row in range(self.d0_grid.rowCount())]
+        d0 = [float(self.d0_grid.item(row, 3).text()) for row in range(self.d0_grid.rowCount())]
+        d0e = [float(self.d0_grid.item(row, 4).text()) for row in range(self.d0_grid.rowCount())]
+        return (d0, d0e, x, y, z)
+
+    def save_d0_field(self):
+        filename, _ = QFileDialog.getSaveFileName(self,
+                                                  "Save d0 Grid",
+                                                  "",
+                                                  "CSV (*.csv);;All Files (*)")
+        if filename:
+            d0, d0e, x, y, z = self.get_d0_field()
+            np.savetxt(filename, np.array([x, y, z, d0, d0e]).T,
+                       fmt=['%.4g', '%.4g', '%.4g', '%.9g', '%.9g'],
+                       header="vx, vy, vz, d0, delta_d0",
+                       delimiter=',')
+
+    def load_d0_field(self):
+        filename, _ = QFileDialog.getOpenFileName(self,
+                                                  "Load d0 Grid",
+                                                  "",
+                                                  "CSV (*.csv);;All Files (*)")
+        if filename:
+            x, y, z, d0, d0e = np.loadtxt(filename, delimiter=',', unpack=True)
+            self.set_d0_field(x, y, z, d0, d0e)
 
     def get_d0(self):
-        return float(self.d0.text())
+        if self.d0_grid_switch.currentText() == "Constant":
+            return (float(self.d0.text()), float(self.d0e.text()))
+        else:
+            return self.get_d0_field()
 
 
 class FileLoading(QGroupBox):
@@ -541,7 +643,9 @@ class StrainStressViewer(QSplitter):
         self.peak_selection.set_peak_tags(peak_tags)
 
     def selectedPeak(self, peak):
-        self.d0.set_d0(self.model.d0)
+        d0 = self.model.d0
+        self.d0.set_d0(d0.values[0], d0.errors[0])
+        self.d0.set_d0_field(d0.x, d0.y, d0.z, d0.values, d0.errors)
         self.update_plot()
 
     def show_failure_msg(self, msg, info, details):

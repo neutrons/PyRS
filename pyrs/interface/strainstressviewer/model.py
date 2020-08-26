@@ -1,5 +1,5 @@
 import traceback
-from pyrs.dataobjects.fields import StressField, StrainField
+from pyrs.dataobjects.fields import StressField, StrainField, ScalarFieldSample
 from pyrs.core.summary_generator_stress import SummaryGeneratorStress
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
@@ -92,8 +92,7 @@ class Model(QObject):
 
     @property
     def d0(self):
-        self._d0 = self._e11_strain.get_d_reference().values[0]
-        return self._d0
+        return self._e11_strain.get_d_reference()
 
     def create_strain(self, direction):
         strain_list = [StrainField(hidraworkspace=ws, peak_collection=peak[self.selectedPeak])
@@ -164,7 +163,10 @@ class Model(QObject):
                 self._stress.poisson_ratio = poissonsRatio
 
         if self._d0 is None or self._d0 != d0:
-            self._stress.set_d_reference((d0, 0))
+            if len(d0) == 5:  # ScalarFieldSample case
+                self._stress.set_d_reference(ScalarFieldSample('d0', *d0))
+            else:
+                self._stress.set_d_reference(d0)
 
         # cache values to compare if they are changed
         self._stressCase = stress_case
