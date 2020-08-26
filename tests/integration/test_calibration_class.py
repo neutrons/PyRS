@@ -53,11 +53,6 @@ def are_equivalent_jsons(test_json_name, gold_json_name, atol):
     with open(gold_json_name, 'r') as json2:
         gold_json_dict = json.load(json2)
 
-    test_json_dict['two_theta_0'] = 0.0
-    test_json_dict['error_two_theta_0'] = -1.0
-    gold_json_dict['two_theta_0'] = 0.0
-    gold_json_dict['error_two_theta_0'] = -1.0
-
     # Compare
     diff = False
     for key in gold_json_dict.keys():
@@ -101,9 +96,6 @@ def print_out_json_diff(json_file1_name, json_file2_name):
     # Load file 1
     with open(json_file1_name, 'r') as json1:
         json_dict1 = json.load(json1)
-
-    json_dict1['two_theta_0'] = 0.0
-    json_dict1['error_two_theta_0'] = -1.0
 
     # Load file 2
     with open(json_file2_name, 'r') as json2:
