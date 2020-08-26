@@ -3,7 +3,6 @@ Containing classes serving for
 1. instrument geometry
 2. instrument geometry calibration
 """
-import json
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.convertdatatypes import to_float, to_int
 
@@ -243,67 +242,3 @@ class AnglerCameraDetectorShift:
         geometry_shift_dict['error_Rot_z'] = self._rotation_z
 
         return geometry_shift_dict
-
-    # TODO - #86 - Synchronize with convert_to_dict
-    def set_from_dict(self, geometry_shift_dict):
-        """ Set geometry shift parameters from a dictionary, which may miss some parameters
-        :param geometry_shift_dict:
-        :return:
-        """
-        checkdatatypes.check_dict('Geometry shift parameters', geometry_shift_dict)
-
-        if 'shift x' in geometry_shift_dict:
-            self._center_shift_x = geometry_shift_dict['shift x']
-        if 'shift y' in geometry_shift_dict:
-            self._center_shift_y = geometry_shift_dict['shift y']
-        if 'shift z' in geometry_shift_dict:
-            self._center_shift_z = geometry_shift_dict['shift z']
-
-        if 'rotation x' in geometry_shift_dict:
-            self._rotation_x = geometry_shift_dict['rotation x']
-        if 'rotation y' in geometry_shift_dict:
-            self._rotation_y = geometry_shift_dict['rotation y']
-        if 'rotation z' in geometry_shift_dict:
-            self._rotation_z = geometry_shift_dict['rotation z']
-
-    # TODO - #86 - Synchronize with convert_to_dict and implement
-    def set_from_dict_error(self):
-        return
-
-    def to_json(self, file_name):
-        """ Convert to a dictionary and convert to Json string
-        :return:
-        """
-        checkdatatypes.check_file_name(file_name, False, True, False, 'Json file name to export instrument setup')
-
-        # construct dictionary
-        instrument_dict = self.convert_to_dict()
-
-        # create file
-        jfile = open(file_name, 'w')
-        json.dump(instrument_dict, jfile)
-        jfile.close()
-
-    def from_json(self, file_name):
-        """ Convert from a Json string (dicionary) and set to parameters
-        :param file_name: json file name
-        :return:
-        """
-        checkdatatypes.check_file_name(file_name, True, False, False, 'Json file name to import instrument setup')
-
-        # read file
-        json_file = open(file_name, 'r')
-        lines = json_file.readlines()
-        json_string = ''
-        for line in lines:
-            json_string += line.strip()
-
-        instrument_dict = json.loads(json_string)
-
-        self.set_from_dict(instrument_dict)
-
-
-if __name__ == '__main__':
-    # Test main
-    shift = AnglerCameraDetectorShift(0., 0., 0., 0., 0., 0.)
-    shift.to_json('geometry_shift_template.json')
