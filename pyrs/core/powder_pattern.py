@@ -204,7 +204,7 @@ class ReductionApp:
 
         # If it is a new file, the sample logs and other information shall be exported too
         if mode == HidraProjectFileMode.OVERWRITE:
-            self._hydra_ws.save_experimental_data(out_file, ignore_raw_counts=True)
+            self._hydra_ws.save_experimental_data(out_file, ignore_raw_counts=False)
 
         # Calibrated wave length shall be written
         self._hydra_ws.save_wavelength(out_file)

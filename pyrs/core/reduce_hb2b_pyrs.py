@@ -132,6 +132,9 @@ class ResidualStressInstrument:
             # print ('[DB...BAT] Calibration rotation matrix:\n{}'.format(calib_matrix))
             # and rotate at origin
             self._pixel_matrix = self._rotate_detector(self._pixel_matrix, calib_matrix)
+
+            # shift two_theta by offset
+            two_theta += instrument_calibration.two_theta_0
         # END-IF-ELSE
 
         # push to +Z at length of detector arm
@@ -442,7 +445,7 @@ class PyHB2BReduction:
         return
 
     def build_instrument_prototype(self, two_theta, arm_length, arm_length_shift, center_shift_x, center_shift_y,
-                                   rot_x_flip, rot_y_flip, rot_z_spin):
+                                   rot_x_flip, rot_y_flip, rot_z_spin, two_theta_shift):
         """
         build an instrument
         :param two_theta: 2theta position of the detector panel.  It shall be negative to sample log value
@@ -454,12 +457,12 @@ class PyHB2BReduction:
         :param rot_z_spin:
         :return: 2D numpy array
         """
-        print('[INFO] Building instrument: 2theta @ {}'.format(two_theta))
+        print('[INFO] Building instrument: 2theta @ {}'.format(two_theta + two_theta_shift))
 
         calibration = instrument_geometry.AnglerCameraDetectorShift(
             arm_length_shift, center_shift_x, center_shift_y, rot_x_flip, rot_y_flip, rot_z_spin)
 
-        self._instrument.build_instrument(two_theta=two_theta, l2=arm_length,
+        self._instrument.build_instrument(two_theta=(two_theta + two_theta_shift), l2=arm_length,
                                           instrument_calibration=calibration)
 
         return

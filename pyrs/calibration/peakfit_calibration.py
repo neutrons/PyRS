@@ -42,6 +42,27 @@ def quadratic_background(x, p0, p1, p2):
     return p2*x*x + p1*x + p0
 
 
+def linear_background(x, p0, p1, p2):
+    """linear background
+
+    Y = p1 * x + p0
+
+    Parameters
+    ----------
+    x: float or ndarray
+        x value
+    p0: float
+    p1: float
+    p2: float
+
+    Returns
+    -------
+    float or numpy array
+        background
+    """
+    return p2*x*x + p1*x + p0
+
+
 def GaussianModel(x, mu, sigma, Amp):
     """Gaussian Model
 
@@ -157,12 +178,12 @@ class PeakFitCalibration:
         self.monosetting, self.tth_ref = get_ref_flags(powder_engine, pin_engine)
 
         # calibration: numpy array. size as 7 for ... [6] for wave length
-        self._calib = np.array(7 * [0], dtype=np.float)
+        self._calib = np.array(8 * [0], dtype=np.float)
         # calibration error: numpy array. size as 7 for ...
-        self._caliberr = np.array(7 * [-1], dtype=np.float)
+        self._caliberr = np.array(8 * [-1], dtype=np.float)
 
         # calibration starting point: numpy array. size as 7 for ...
-        self._calib_start = np.array(7 * [0], dtype=np.float)
+        self._calib_start = np.array(8 * [0], dtype=np.float)
 
         # Set wave length
         self._calib[6] = float(self.monosetting)
@@ -344,7 +365,7 @@ class PeakFitCalibration:
 
                 pyrs_reducer.build_instrument_prototype(-1. * self._engine.get_sample_log_value('2theta', i_tth),
                                                         self._instrument._arm_length,
-                                                        x[0], x[1], x[2], x[3], x[4], x[5])
+                                                        x[0], x[1], x[2], x[3], x[4], x[5], x[7])
 
                 # Load raw counts
                 pyrs_reducer._detector_counts = self._engine.get_detector_counts(i_tth)
@@ -359,7 +380,7 @@ class PeakFitCalibration:
                 minEta = Eta_val.min() + 2
 
                 if roi_vec_set is None:
-                    eta_roi_vec = np.arange(minEta, maxEta + 0.2, 2.0)
+                    eta_roi_vec = np.arange(minEta, maxEta + 0.2, 3)
                 else:
                     eta_roi_vec = np.array(roi_vec_set)
 
@@ -383,8 +404,8 @@ class PeakFitCalibration:
                         resq.append([])
                         Peaks.append(ipeak)
 
-                        pars1['g%d_center' % ipeak] = [CalibPeaks[ipeak], CalibPeaks[ipeak] - .5,
-                                                       CalibPeaks[ipeak] + .5]
+                        pars1['g%d_center' % ipeak] = [CalibPeaks[ipeak], CalibPeaks[ipeak] - 0.5,
+                                                       CalibPeaks[ipeak] + 0.5]
                         pars1['g%d_sigma' % ipeak] = [0.5, 1e-1, 1.5]
                         pars1['g%d_amplitude' % ipeak] = [0.5, 0.001, 1e6]
 
@@ -412,7 +433,7 @@ class PeakFitCalibration:
                             self.ReductionResults[i_tth][(i_roi, GlobalParameter.global_curr_sequence)] = \
                                                  [reduced_i[0], reduced_i[1], Fitresult[1]]
 
-                        if Fitresult[2] == 5 or Fitresult[2] < 1:
+                        if Fitresult[2] == 5 or Fitresult[2] < 2:
                             pass
 
                         elif ConPeaks:
@@ -497,8 +518,8 @@ class PeakFitCalibration:
         """
 
         paramVec = np.copy(self._calib)
-        paramVec[i_index] = x[0]
-
+        paramVec[i_index] = x
+        print(x)
         residual = self.get_alignment_residual(paramVec, roi_vec_set, ConstrainPosition, False, start, stop)
 
         if ReturnScalar:
@@ -516,7 +537,7 @@ class PeakFitCalibration:
         """
         paramVec = np.copy(self._calib)
         paramVec[0:3] = x[:]
-
+        print(x)
         residual = self.get_alignment_residual(paramVec, roi_vec_set, ConstrainPosition, False, start, stop)
 
         if ReturnScalar:
@@ -614,11 +635,11 @@ class PeakFitCalibration:
 #        GlobalParameter.global_curr_sequence = 0
 
         if initial_guess is None:
-            initial_guess = self.get_wavelength()
+            # initial_guess = self.get_wavelength()
             initial_guess = np.concatenate((self.get_shiftx(), self.get_wavelength()))
 
         out = self.FitDetector(self.peak_alignment_wavelength, initial_guess, jac='3-point',
-                               bounds=([-0.05, self._calib[6]-.005], [0.05, self._calib[6]+.005]), method='dogbox',
+                               bounds=([-0.05, self._calib[6]-.01], [0.05, self._calib[6]+.01]), method='dogbox',
                                ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', f_scale=1.0,
                                diff_step=None, tr_solver='exact', factor=100., epsfcn=1e-8,
                                tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0, start=start, stop=stop,
@@ -694,7 +715,7 @@ class PeakFitCalibration:
             initial_guess = np.array([self.get_calib()[2]])
 
         out = self.calibrate_single(initial_guess=initial_guess, ConstrainPosition=ConstrainPosition,
-                                    LL=[-0.05], UL=[0.05], i_index=2,
+                                    LL=[-0.1], UL=[0.1], i_index=2,
                                     start=start, stop=stop, Brute=Brute)
 
         self.set_distance(out)
@@ -707,7 +728,7 @@ class PeakFitCalibration:
             initalGuess = self.get_shift()
 
         out = self.FitDetector(self.peak_alignment_shift, initalGuess, jac='3-point',
-                               bounds=([-.05, -.05, -.05], [.05, .05, .05]), method='dogbox',
+                               bounds=([-.05, -.05, -.15], [.05, .05, .15]), method='dogbox',
                                ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear',
                                f_scale=1.0, diff_step=1e-3, tr_solver='exact', tr_options={},
                                jac_sparsity=None, max_nfev=None, verbose=0,
@@ -762,8 +783,8 @@ class PeakFitCalibration:
             initalGuess = self.get_calib()
 
         out = self.FitDetector(self.peaks_alignment_all, initalGuess, jac='3-point',
-                               bounds=([-.05, -.05, -.05, -5.0, -5.0, -5.0, self._calib[6]-.05],
-                                       [.05, .05, .05, 5.0, 5.0, 5.0, self._calib[6]+.05]),
+                               bounds=([-.05, -.05, -.15, -5.0, -5.0, -5.0, self._calib[6]-.05, -3.0],
+                                       [.05, .05, .15, 5.0, 5.0, 5.0, self._calib[6]+.05, 3.0]),
                                method='dogbox', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0,
                                loss='linear', f_scale=1.0, diff_step=None, tr_solver='exact', tr_options={},
                                jac_sparsity=None, max_nfev=None, verbose=0, start=start, stop=stop,
@@ -928,10 +949,11 @@ class PeakFitCalibration:
         from pyrs.core.instrument_geometry import AnglerCameraDetectorShift
         # Form AnglerCameraDetectorShift objects
         cal_shift = AnglerCameraDetectorShift(self._calib[0], self._calib[1], self._calib[2], self._calib[3],
-                                              self._calib[4], self._calib[5])
+                                              self._calib[4], self._calib[5], self._calib[7])
 
         cal_shift_error = AnglerCameraDetectorShift(self._caliberr[0], self._caliberr[1], self._caliberr[2],
-                                                    self._caliberr[3], self._caliberr[4], self._caliberr[5])
+                                                    self._caliberr[3], self._caliberr[4], self._caliberr[5],
+                                                    self._caliberr[7])
 
         wl = self._calib[6]
         wl_error = self._caliberr[6]
@@ -964,7 +986,7 @@ class PeakFitCalibration:
 
         res = self.singleEval()
 
-        keys = ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda']
+        keys = ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda', 'two_theta_0']
         print_string = '\n###########################################'
         print_string += '\n########### Calibration Summary ###########'
         print_string += '\n###########################################\n'
