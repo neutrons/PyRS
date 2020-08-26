@@ -1163,11 +1163,13 @@ class StrainFieldSingle(_StrainField):
         if isinstance(values, ScalarFieldSample):
             # Find sample points in the point list associated to the peak collection
             assert self._point_list_immutable is not None
-            indices = self._point_list_immutable.get_indices(values.point_list)
             d_reference = self.get_d_reference()
-            values_new, errors_new = d_reference.values, d_reference.errors
-            values_new[indices] = values.values
-            errors_new[indices] = values.errors
+            values_new, errors_new = d_reference.values, d_reference.errors  # initialize new reference spacings
+            for self_index, values_index in enumerate(self._point_list_immutable.get_indices(values.point_list)):
+                if values_index == PointList.MISSING_INDEX:
+                    continue  # sample point corresponding to `self_index` is not found in `values`
+                values_new[self_index] = values.values[values_index]
+                errors_new[self_index] = values.errors[values_index]
             self._peak_collection.set_d_reference(values_new, errors_new)
         else:
             self._peak_collection.set_d_reference(values[0], values[1])

@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.testing import assert_allclose
 
-from pyrs.dataobjects.fields import StrainFieldSingle
+from pyrs.dataobjects.fields import StrainField, StrainFieldSingle
 
 
 def test_strain_single_builder(strain_single_builder):
@@ -90,6 +90,22 @@ def test_strain_single_object_0(strain_single_object_0):
     assert isinstance(strain_single_object_0, StrainFieldSingle)
     expected = [0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07]
     assert_allclose(strain_single_object_0.values, expected, rtol=1.e-07, atol=1.e-07)
+
+
+def test_strain_object_0(strain_object_0):
+    assert isinstance(strain_object_0, StrainField)
+    expected = [0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07]
+    assert_allclose(strain_object_0.values, expected, rtol=1.e-07, atol=1.e-07)
+
+
+def test_strain_object_1(strain_object_1):
+    assert isinstance(strain_object_1, StrainField)
+    assert_allclose(strain_object_1.values, np.arange(0.01, 0.085, 0.01), rtol=1.e-07, atol=1.e-07)
+
+
+def test_strain_object_2(strain_object_2):
+    assert isinstance(strain_object_2, StrainField)
+    assert_allclose(strain_object_2.values, np.arange(0.01, 0.085, 0.01), rtol=1.e-07, atol=1.e-07)
 
 
 def test_strain_stress_object_0(strain_stress_object_0):
