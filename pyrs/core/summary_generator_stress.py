@@ -259,9 +259,46 @@ class SummaryGeneratorStress:
 
             return
 
+        
+        def _write_field_3d(row : int, field: str) -> str:
+            
+            entries = ''
+            decimals = SummaryGeneratorStress.decimals[field]
+            
+            if field == 'Strain':
+                
+                # TODO check bounds
+                strain_field = self._stress_facade.strain
+                strain_value = strain_field.values[row]
+                strain_error = strain_field.errors[row]
+                entries += self._write_number(strain_value, decimals) + \
+                            self._write_number(strain_error, decimals)
+             
+            elif field == 'Stress':
+                stress_value = self._stress_facade.stress.values[row]
+                stress_error = self._stress_facade.stress.errors[row]
+                entries += self._write_number(stress_value, decimals) + \
+                            self._write_number(stress_error, decimals)
+            
+            else:
+                
+                field_name = 'Center' if field == 'd' else field 
+                
+                field_data = self._stress_facade.peak_parameter(field_name)
+                if row >= len(field_data):
+                    entries += ', , '
+                else:
+                    value = field_data.values[row]
+                    error = field_data.errors[row]
+                    entries += self._write_number(value, decimals) + \
+                                self._write_number(error, decimals)
+
+            return entries
+
+
         def _write_full_csv_body(handle):
             
-            self._recalc_peak_collections_data()
+            # self._recalc_peak_collections_data()
 
             body = ''
             
@@ -288,10 +325,15 @@ class SummaryGeneratorStress:
                             self._write_number(d0_error, decimals)
 
                 # value error for fields_3dir = ['d', 'FWHM', 'Peak_Height', 'Strain', 'Stress']
-                #for field_3dir in SummaryGeneratorStress.fields_3dir:
-                    #for direction in SummaryGeneratorStress.directions:
-                        # TODO line += _write_field_3d(row, field_3dir)
+                for field_3dir in SummaryGeneratorStress.fields_3dir:
+                    for direction in SummaryGeneratorStress.directions:
                         
+                        self._stress_facade.selection = direction
+                        runs = self._stress_facade.runs(direction)
+                        
+                        for run in runs:
+                            self._stress_facade.selection = run
+                            line += _write_field_3d(row, field_3dir)
 
                 line = line[:-2] + '\n'
 

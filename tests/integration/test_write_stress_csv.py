@@ -146,4 +146,4 @@ def test_write_full_csv(test_data_dir: str, project_tags: str, expected_file: st
 
     #assert(cmp(stress_csv_filename, expected_file))
     # cleanup
-    remove(stress_csv_filename)
+    # remove(stress_csv_filename)
