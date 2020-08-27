@@ -3,6 +3,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from pyrs.core.stress_facade import StressFacade
+from pyrs.dataobjects.fields import ScalarFieldSample
 
 nanf = float('nan')
 NAN = np.nan
@@ -208,7 +209,40 @@ class TestStressFacade:
     def test_d_reference_field(self, strain_stress_object_1):
         r"""Get the reference lattice spacing"""
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
-        assert_allclose(facade.d_reference, np.ones(10))
+        assert_allclose(facade.d_reference, np.ones(facade.size))
+
+    def test_set_d_reference(self, strain_stress_object_0):
+        facade = StressFacade(strain_stress_object_0['stresses']['diagonal'])
+        #
+        # Case single value (errors assumed 0.0)
+        facade.d_reference = 2.0
+        assert_allclose(facade.d_reference.values, 2.0 * np.ones(facade.size))
+        assert_allclose(facade.d_reference.errors, np.zeros(facade.size))
+        #
+        # Case single value and error
+        for d_update in [(2.0, 0.20), [2.1, 0.21], np.array([2.2, 0.22])]:
+            value, error = d_update
+            facade.d_reference = d_update
+            assert_allclose(facade.d_reference.values, value * np.ones(facade.size))
+            assert_allclose(facade.d_reference.errors, error * np.ones(facade.size))
+        #
+        # Case scalar field with d_reference update for all sample points
+        values = 1.0 + 0.1 * np.arange(facade.size)  # (1.0, 1.1, 1.2, 1.3, 1.4)
+        d_update = ScalarFieldSample('d_reference', values, 0.1 * values, facade.x, facade.y, facade.z)
+        facade.d_reference = d_update
+        assert_allclose(facade.d_reference.values, values)
+        assert_allclose(facade.d_reference.errors, 0.1 * values)
+        #
+        # Case scalar field with d_reference update for some sample points
+        facade.d_reference = (1.0, 0.0)  # "reset" d_reference
+        assert_allclose(facade.d_reference.values, [1.0, 1.0, 1.0, 1.0, 1.0])
+        assert_allclose(facade.d_reference.errors, [0.0, 0.0, 0.0, 0.0, 0.0])
+        indexes = [0, 2, 4]  # indexes of the sample points whose d_reference will be updated
+        d_update = ScalarFieldSample('d_reference', values[indexes], 0.1 * values[indexes],
+                                     facade.x[indexes], facade.y[indexes], facade.z[indexes])
+        facade.d_reference = d_update
+        assert_allclose(facade.d_reference.values, [1.0, 1.0, 1.2, 1.0, 1.4])
+        assert_allclose(facade.d_reference.errors, [0.10, 0.00, 0.12, 0.00, 0.14])
 
     def test_peak_parameters(self, strain_stress_object_1):
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
