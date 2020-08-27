@@ -42,7 +42,7 @@ def test_model(tmpdir):
     assert model.validate_selection('22') == "e22 file hasn't been loaded"
     assert model.validate_selection('33') == "e33 file hasn't been loaded"
 
-    assert model.d0.values[0] == 1
+    assert model.d0 is None
 
     for plot_param in ("dspacing-center",
                        "d-reference",
@@ -246,7 +246,7 @@ def test_model_multiple_files(tmpdir):
     assert model.validate_selection('22') == "e22 file hasn't been loaded"
     assert model.validate_selection('33') == "e33 file hasn't been loaded"
 
-    assert model.d0.values[0] == 1
+    assert model.d0 is None
 
     for plot_param in ("dspacing-center",
                        "d-reference",

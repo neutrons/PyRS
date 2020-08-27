@@ -187,36 +187,46 @@ class D0(QGroupBox):
         self._parent.update_plot()
 
     def set_d0(self, d0, d0e):
-        self.d0.setText(str(d0))
-        self.d0e.setText(str(d0e))
+        if d0 is None:
+            self.d0.clear()
+            self.d0e.clear()
+        else:
+            self.d0.setText(str(d0))
+            self.d0e.setText(str(d0e))
 
     def set_d0_field(self, x, y, z, d0, d0e):
-        self.d0_grid.setRowCount(len(x))
+        if x is None:
+            self.d0_grid.clearContents()
+        else:
+            self.d0_grid.setRowCount(len(x))
 
-        for n in range(len(x)):
-            x_item = QTableWidgetItem(f'{x[n]: 7.2f}')
-            x_item.setFlags(x_item.flags() ^ Qt.ItemIsEditable)
-            y_item = QTableWidgetItem(f'{y[n]: 7.2f}')
-            y_item.setFlags(y_item.flags() ^ Qt.ItemIsEditable)
-            z_item = QTableWidgetItem(f'{z[n]: 7.2f}')
-            z_item.setFlags(z_item.flags() ^ Qt.ItemIsEditable)
-            d0_item = QTableWidgetItem()
-            d0_item.setData(Qt.EditRole, float(d0[n]))
-            d0e_item = QTableWidgetItem()
-            d0e_item.setData(Qt.EditRole, float(d0e[n]))
-            self.d0_grid.setItem(n, 0, QTableWidgetItem(x_item))
-            self.d0_grid.setItem(n, 1, QTableWidgetItem(y_item))
-            self.d0_grid.setItem(n, 2, QTableWidgetItem(z_item))
-            self.d0_grid.setItem(n, 3, QTableWidgetItem(d0_item))
-            self.d0_grid.setItem(n, 4, QTableWidgetItem(d0e_item))
+            for n in range(len(x)):
+                x_item = QTableWidgetItem(f'{x[n]: 7.2f}')
+                x_item.setFlags(x_item.flags() ^ Qt.ItemIsEditable)
+                y_item = QTableWidgetItem(f'{y[n]: 7.2f}')
+                y_item.setFlags(y_item.flags() ^ Qt.ItemIsEditable)
+                z_item = QTableWidgetItem(f'{z[n]: 7.2f}')
+                z_item.setFlags(z_item.flags() ^ Qt.ItemIsEditable)
+                d0_item = QTableWidgetItem()
+                d0_item.setData(Qt.EditRole, float(d0[n]))
+                d0e_item = QTableWidgetItem()
+                d0e_item.setData(Qt.EditRole, float(d0e[n]))
+                self.d0_grid.setItem(n, 0, QTableWidgetItem(x_item))
+                self.d0_grid.setItem(n, 1, QTableWidgetItem(y_item))
+                self.d0_grid.setItem(n, 2, QTableWidgetItem(z_item))
+                self.d0_grid.setItem(n, 3, QTableWidgetItem(d0_item))
+                self.d0_grid.setItem(n, 4, QTableWidgetItem(d0e_item))
 
     def get_d0_field(self):
-        x = [float(self.d0_grid.item(row, 0).text()) for row in range(self.d0_grid.rowCount())]
-        y = [float(self.d0_grid.item(row, 1).text()) for row in range(self.d0_grid.rowCount())]
-        z = [float(self.d0_grid.item(row, 2).text()) for row in range(self.d0_grid.rowCount())]
-        d0 = [float(self.d0_grid.item(row, 3).text()) for row in range(self.d0_grid.rowCount())]
-        d0e = [float(self.d0_grid.item(row, 4).text()) for row in range(self.d0_grid.rowCount())]
-        return (d0, d0e, x, y, z)
+        if self.d0_grid.rowCount() == 0:
+            return None
+        else:
+            x = [float(self.d0_grid.item(row, 0).text()) for row in range(self.d0_grid.rowCount())]
+            y = [float(self.d0_grid.item(row, 1).text()) for row in range(self.d0_grid.rowCount())]
+            z = [float(self.d0_grid.item(row, 2).text()) for row in range(self.d0_grid.rowCount())]
+            d0 = [float(self.d0_grid.item(row, 3).text()) for row in range(self.d0_grid.rowCount())]
+            d0e = [float(self.d0_grid.item(row, 4).text()) for row in range(self.d0_grid.rowCount())]
+            return (d0, d0e, x, y, z)
 
     def save_d0_field(self):
         filename, _ = QFileDialog.getSaveFileName(self,
@@ -241,7 +251,10 @@ class D0(QGroupBox):
 
     def get_d0(self):
         if self.d0_grid_switch.currentText() == "Constant":
-            return (float(self.d0.text()), float(self.d0e.text()))
+            try:
+                return (float(self.d0.text()), float(self.d0e.text()))
+            except ValueError:
+                return None
         else:
             return self.get_d0_field()
 
@@ -628,10 +641,15 @@ class StrainStressViewer(QSplitter):
             self.viz_tab.set_ws(None)
             self.viz_tab.set_message(validated)
 
-        self.csvExport.setEnabled(
-            self.controller.validate_stress_selection(self.stressCase.get_stress_case(),
-                                                      self.mechanicalConstants.youngModulus.text(),
-                                                      self.mechanicalConstants.poissonsRatio.text()) is None)
+        if self.controller.validate_stress_selection(self.stressCase.get_stress_case(),
+                                                     self.mechanicalConstants.youngModulus.text(),
+                                                     self.mechanicalConstants.poissonsRatio.text()) is None:
+            self.calculate_stress()
+            self.csvExport.setEnabled(True)
+            self.d0.setEnabled(True)
+        else:
+            self.csvExport.setEnabled(False)
+            self.d0.setEnabled(False)
 
     def updatePropertyFromModel(self, name):
         getattr(self, name)(getattr(self.model, name))
@@ -643,9 +661,6 @@ class StrainStressViewer(QSplitter):
         self.peak_selection.set_peak_tags(peak_tags)
 
     def selectedPeak(self, peak):
-        d0 = self.model.d0
-        self.d0.set_d0(d0.values[0], d0.errors[0])
-        self.d0.set_d0_field(d0.x, d0.y, d0.z, d0.values, d0.errors)
         self.update_plot()
 
     def show_failure_msg(self, msg, info, details):
@@ -662,3 +677,10 @@ class StrainStressViewer(QSplitter):
                                          self.mechanicalConstants.youngModulus.text(),
                                          self.mechanicalConstants.poissonsRatio.text(),
                                          self.d0.get_d0())
+        d0 = self.model.d0
+        if d0 is None:
+            self.d0.set_d0(None, None)
+            self.d0.set_d0_field(None, None, None, None, None)
+        else:
+            self.d0.set_d0(d0.values[0], d0.errors[0])
+            self.d0.set_d0_field(d0.x, d0.y, d0.z, d0.values, d0.errors)
