@@ -1903,7 +1903,7 @@ class StressField:
         if self.stress_type == StressType.DIAGONAL:
             self._strain33.set_d_reference(values)
         elif self.stress_type == StressType.IN_PLANE_STRESS:
-            self._strain33 = self._strain33_when_inplane_stress()
+            self._strain33 = self._strain33_when_inplane_stress()  # recalculate the strain33 component
         else:
             pass  # in-plane-strain is unaffected by d_reference because it's always zero
 
