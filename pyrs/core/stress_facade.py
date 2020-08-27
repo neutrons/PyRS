@@ -73,6 +73,10 @@ class StressFacade:
         return self._directions[self._selection]
 
     @property
+    def size(self) -> int:
+        return self._stress.size
+
+    @property
     def x(self) -> np.ndarray:
         return self._stress.x
 
@@ -128,6 +132,29 @@ class StressFacade:
             # build the consensus scalar field
             self._d_reference = ScalarFieldSample('d-reference', d0_values, d0_errors, self.x, self.y, self.z)
         return self._d_reference
+
+    @d_reference.setter
+    def d_reference(self, d_update: Union[float, list, tuple, ScalarFieldSample]) -> None:
+        r"""
+        Update the reference lattice spacing, and recalculate strains and stresses.
+
+        Examples
+        --------
+        facade.d_reference = 1.01  # single value, and assumed a 0.0 error
+        facade.d_reference = (1.01, 0.03)  # single value and error
+        facade.d_reference = field  # an instance of ScalarFieldSample
+
+        Parameters
+        ----------
+        d_update: float, tuple list, ~pyrs.dataobjects.fields.ScalarFieldSample
+        """
+        if isinstance(d_update, float):
+            self._stress.set_d_reference((d_update, 0.0))
+        elif isinstance(d_update, (list, tuple, np.ndarray)):
+            self._stress.set_d_reference(d_update[0:2])
+        elif isinstance(d_update, ScalarFieldSample):
+            self._stress.set_d_reference(d_update)
+
 
     @property
     def strain(self) -> ScalarFieldSample:

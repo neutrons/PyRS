@@ -208,7 +208,12 @@ class TestStressFacade:
     def test_d_reference_field(self, strain_stress_object_1):
         r"""Get the reference lattice spacing"""
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
-        assert_allclose(facade.d_reference, np.ones(10))
+        assert_allclose(facade.d_reference, np.ones(facade.size))
+
+    def test_set_d_reference(self, strain_stress_object_0):
+        facade = StressFacade(strain_stress_object_0['stresses']['diagonal'])
+        facade.d_reference *= 2.0
+        assert_allclose(facade.d_reference.values, 2.0 * np.ones(facade.size))
 
     def test_peak_parameters(self, strain_stress_object_1):
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
