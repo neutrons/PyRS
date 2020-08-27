@@ -1,5 +1,6 @@
 import traceback
 from pyrs.dataobjects.fields import StressField, StrainField, ScalarFieldSample
+from pyrs.core.stress_facade import StressFacade
 from pyrs.core.summary_generator_stress import SummaryGeneratorStress
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
@@ -24,6 +25,7 @@ class Model(QObject):
         self._peakTags = []
         self._selectedPeak = None
         self._stress = None
+        self._stress_facade = None
         self._stressCase = None
         self._youngs_modulus = None
         self._poisson_ratio = None
@@ -92,7 +94,29 @@ class Model(QObject):
 
     @property
     def d0(self):
-        return self._e11_strain.get_d_reference()
+        if self.stress_facade:
+            try:
+                return self.stress_facade.d_reference
+            except Exception as e:
+                self.failureMsg.emit("Reference d spacings are different on different directions",
+                                     str(e), None)
+                return None, dict()
+
+    @property
+    def stress(self):
+        return self._stress
+
+    @stress.setter
+    def stress(self, stress):
+        self._stress = stress
+        if stress is None:
+            self._stress_facade = None
+        else:
+            self._stress_facade = StressFacade(stress)
+
+    @property
+    def stress_facade(self):
+        return self._stress_facade
 
     def create_strain(self, direction):
         strain_list = [StrainField(hidraworkspace=ws, peak_collection=peak[self.selectedPeak])
@@ -134,10 +158,10 @@ class Model(QObject):
     def get_field(self, direction, plot_param, stress_case):
         try:
             if plot_param == "stress":
-                self._stress.select(direction)
+                self.stress.select(direction)
                 return self._stress
             elif plot_param == "strain" and direction == "33" and stress_case == "In-plane stress":
-                return self._stress.strain33
+                return self.stress.strain33
             else:
                 return self.get_parameter_field(plot_param, direction)
         except Exception as e:
@@ -146,27 +170,26 @@ class Model(QObject):
                                  traceback.format_exc())
 
     def calculate_stress(self, stress_case, youngModulus, poissonsRatio, d0):
-
         build_stress = False
-        if self._stress is None or stress_case != self._stressCase:
+        if self.stress is None or stress_case != self._stressCase:
             build_stress = True
 
         if build_stress:
-            self._stress = StressField(self._e11_strain,
-                                       self._e22_strain,
-                                       self._e33_strain if stress_case == "diagonal" else None,
-                                       youngModulus, poissonsRatio, stress_case)
+            self.stress = StressField(self._e11_strain,
+                                      self._e22_strain,
+                                      self._e33_strain if stress_case == "diagonal" else None,
+                                      youngModulus, poissonsRatio, stress_case)
         else:
             if youngModulus != self._youngs_modulus:
                 self._stress.youngs_modulus = youngModulus
             if poissonsRatio != self._poisson_ratio:
                 self._stress.poisson_ratio = poissonsRatio
 
-        if self._d0 is None or self._d0 != d0:
+        if d0 is not None and (self._d0 is None or self._d0 != d0):
             if len(d0) == 5:  # ScalarFieldSample case
-                self._stress.set_d_reference(ScalarFieldSample('d0', *d0))
+                self.stress_facade.d_reference = ScalarFieldSample('d0', *d0)
             else:
-                self._stress.set_d_reference(d0)
+                self.stress_facade.d_reference = d0
 
         # cache values to compare if they are changed
         self._stressCase = stress_case
@@ -211,7 +234,7 @@ class Model(QObject):
 
     def load_hidra_project_files(self, filenames, direction):
         # remove existing stress as it will need to be recreated
-        self._stress = None
+        self.stress = None
 
         workspaces = []
         peaks = []
