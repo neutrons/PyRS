@@ -1,7 +1,7 @@
 from mantid.api import IMDHistoWorkspace
 import numpy as np
 from numpy.testing import assert_allclose
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from pyrs.core.peak_profile_utility import EFFECTIVE_PEAK_PARAMETERS
 from pyrs.dataobjects.fields import ScalarFieldSample, StrainField, StrainFieldSingle, StressField, StressType
@@ -105,36 +105,13 @@ class StressFacade:
         ~pyrs.dataobjects.fields.ScalarFieldSample
         """
         if self._d_reference is None:  # initialize from the strains along each direction
-            # Do we probe two or three directions?
-            strains = [self._stress.strain11, self._stress.strain22]
-            if self._stress.stress_type is not StressType.IN_PLANE_STRAIN:
-                strains.append(self._stress.strain33)
-
-            # Collect reference spacings from each valid direction
-            d0s = [strain.get_d_reference() for strain in strains]
-
-            # Ensure reference spacings along different directions coincide where is not nan
-            d0s_values = [d0.values for d0 in d0s]
-            for d0_ii in d0s_values[:-1]:
-                for d0_jj in d0s_values[1:]:
-                    mask = ~(np.isnan(d0_ii) | np.isnan(d0_jj))
-                    assert_allclose(d0_ii[mask], d0_jj[mask], rtol=1.e-4,
-                                    err_msg='reference spacings are different on different directions')
-
-            # "merge" reference spacings along different directions where is not nan
-            d0_values = np.full(len(self.x), np.nan)
-            d0_errors = np.full(len(self.x), 0.0)
-            for d0 in d0s:
-                not_nan_indices = ~np.isnan(d0.values)
-                d0_values[not_nan_indices] = d0.values[not_nan_indices]
-                d0_errors[not_nan_indices] = d0.errors[not_nan_indices]
-
-            # build the consensus scalar field
-            self._d_reference = ScalarFieldSample('d-reference', d0_values, d0_errors, self.x, self.y, self.z)
+            self._update_d_reference()
+        assert self._d_reference is not None  # this line is brought to you by mypy
         return self._d_reference
 
     @d_reference.setter
-    def d_reference(self, d_update: Union[float, list, tuple, ScalarFieldSample]) -> None:
+    def d_reference(self, d_update: Union[float, Tuple[float, float], List[float],
+                                          np.ndarray, ScalarFieldSample]) -> None:
         r"""
         Update the reference lattice spacing, and recalculate strains and stresses.
 
@@ -151,10 +128,41 @@ class StressFacade:
         if isinstance(d_update, float):
             self._stress.set_d_reference((d_update, 0.0))
         elif isinstance(d_update, (list, tuple, np.ndarray)):
-            self._stress.set_d_reference(d_update[0:2])
+            self._stress.set_d_reference(d_update[0:2])  # type: ignore
         elif isinstance(d_update, ScalarFieldSample):
             self._stress.set_d_reference(d_update)
+        self._update_d_reference()
 
+    def _update_d_reference(self) -> None:
+        r"""
+        Initialize or update the cache `self._d_reference`
+        """
+        # Do we probe two or three directions?
+        strains = [self._stress.strain11, self._stress.strain22]
+        if self._stress.stress_type is not StressType.IN_PLANE_STRAIN:
+            strains.append(self._stress.strain33)
+
+        # Collect reference spacings from each valid direction
+        d0s = [strain.get_d_reference() for strain in strains]
+
+        # Ensure reference spacings along different directions coincide where is not nan
+        d0s_values = [d0.values for d0 in d0s]
+        for d0_ii in d0s_values[:-1]:
+            for d0_jj in d0s_values[1:]:
+                mask = ~(np.isnan(d0_ii) | np.isnan(d0_jj))
+                assert_allclose(d0_ii[mask], d0_jj[mask], rtol=1.e-4,
+                                err_msg='reference spacings are different on different directions')
+
+        # "merge" reference spacings along different directions where is not nan
+        d0_values = np.full(len(self.x), np.nan)
+        d0_errors = np.full(len(self.x), 0.0)
+        for d0 in d0s:
+            not_nan_indices = ~np.isnan(d0.values)
+            d0_values[not_nan_indices] = d0.values[not_nan_indices]
+            d0_errors[not_nan_indices] = d0.errors[not_nan_indices]
+
+        # build the consensus scalar field
+        self._d_reference = ScalarFieldSample('d-reference', d0_values, d0_errors, self.x, self.y, self.z)
 
     @property
     def strain(self) -> ScalarFieldSample:
