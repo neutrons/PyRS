@@ -9,7 +9,6 @@ from pyrs.dataobjects.fields import StressField
 from pyrs.dataobjects.fields import StrainField
 from pyrs.core.stress_facade import StressFacade
 from pyrs.core.summary_generator_stress import SummaryGeneratorStress
-from pyrs.core import stress_facade
 
 
 def strain_instantiator(name, values, errors, x, y, z):
@@ -144,6 +143,6 @@ def test_write_full_csv(test_data_dir: str, project_tags: str, expected_file: st
     stress_csv = SummaryGeneratorStress(stress_csv_filename, stress_facade)
     stress_csv.write_full_csv()
 
-    #assert(cmp(stress_csv_filename, expected_file))
+    assert(cmp(stress_csv_filename, expected_file))
     # cleanup
-    # remove(stress_csv_filename)
+    remove(stress_csv_filename)

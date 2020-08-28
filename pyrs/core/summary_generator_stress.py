@@ -7,11 +7,11 @@ import math
 
 from pyrs.dataobjects.fields import StressField
 from pyrs.dataobjects.fields import StrainField
+from pyrs.dataobjects.fields import ScalarFieldSample
 from pyrs.peaks.peak_collection import PeakCollection
 
 import numpy as np
 from pyrs.core.stress_facade import StressFacade
-from unicodedata import decimal
 
 
 class SummaryGeneratorStress:
@@ -22,17 +22,18 @@ class SummaryGeneratorStress:
     """
 
     directions = ['11', '22', '33']
+    # order of these fields matter on the CSV order
     fields_3dir = ['d', 'FWHM', 'Height', 'Strain', 'Stress']
     decimals = {'d0': 7, 'd': 7, 'FWHM': 2, 'Height': 12, 'Strain': 6, 'Stress': 6}
 
-    def __init__(self, filename: str, stress: StressField):
+    def __init__(self, filename: str, stress_input):
         """Initialization
 
         Parameters
         ----------
         filename: str
             Name of the '.csv' file to write
-        stress: StressField
+        stress_input: can either be StressField or StressFacade
             stress field input to generate summary or full csv files
         """
         # do file name checks
@@ -47,11 +48,11 @@ class SummaryGeneratorStress:
         # check for length of lists
         self._filename: str = str(filename)
 
-        if isinstance(stress, StressField):
-            self._stress_facade:StressFacade = StressFacade(stress)
-            self._stress = stress
-        elif isinstance(stress, StressFacade):
-            self._stress_facade:StressFacade = stress
+        if isinstance(stress_input, StressField):
+            self._stress_facade: StressFacade = StressFacade(stress_input)
+            self._stress = stress_input
+        elif isinstance(stress_input, StressFacade):
+            self._stress_facade: StressFacade = stress_input  # type: ignore
             self._stress = self._stress_facade._stress
         else:
             raise RuntimeError(
@@ -230,7 +231,6 @@ class SummaryGeneratorStress:
 
         return
 
-
     def write_full_csv(self):
         """
             Public function to generate a full csv file for stress and input fields.
@@ -247,43 +247,41 @@ class SummaryGeneratorStress:
                 field_name = field_3dir if field_3dir != 'Height' else 'Peak_Height'
 
                 for direction in SummaryGeneratorStress.directions:
-                    runs = self._stress_facade.runs(direction)
 
-                    for run in runs:
-                        entry_base = field_name + '_Dir' + direction + '_' + str(run)
+                    if field_name == 'Stress':
+                        entry_base = field_name + '_Dir' + direction
                         column_names += entry_base + ', '
                         column_names += entry_base + '_error, '
+                    else:
+                        runs = self._stress_facade.runs(direction)
+                        for run in runs:
+                            entry_base = field_name + '_Dir' + direction + '_' + str(run)
+                            column_names += entry_base + ', '
+                            column_names += entry_base + '_error, '
 
             column_names = column_names[:-2] + '\n'
             handle.write(column_names)
 
             return
 
-        
-        def _write_field_3d(row : int, field: str) -> str:
-            
+        def _write_field_3d(row: int, field: str) -> str:
+
             entries = ''
             decimals = SummaryGeneratorStress.decimals[field]
-            
+
             if field == 'Strain':
-                
+
                 # TODO check bounds
                 strain_field = self._stress_facade.strain
                 strain_value = strain_field.values[row]
                 strain_error = strain_field.errors[row]
                 entries += self._write_number(strain_value, decimals) + \
-                            self._write_number(strain_error, decimals)
-             
-            elif field == 'Stress':
-                stress_value = self._stress_facade.stress.values[row]
-                stress_error = self._stress_facade.stress.errors[row]
-                entries += self._write_number(stress_value, decimals) + \
-                            self._write_number(stress_error, decimals)
-            
+                    self._write_number(strain_error, decimals)
+
             else:
-                
-                field_name = 'Center' if field == 'd' else field 
-                
+
+                field_name = 'Center' if field == 'd' else field
+
                 field_data = self._stress_facade.peak_parameter(field_name)
                 if row >= len(field_data):
                     entries += ', , '
@@ -291,21 +289,18 @@ class SummaryGeneratorStress:
                     value = field_data.values[row]
                     error = field_data.errors[row]
                     entries += self._write_number(value, decimals) + \
-                                self._write_number(error, decimals)
+                        self._write_number(error, decimals)
 
             return entries
 
-
         def _write_full_csv_body(handle):
-            
-            # self._recalc_peak_collections_data()
 
             body = ''
-            
-            d0_scalar_field : ScalarFieldSample = self._stress_facade.d_reference
+
+            # retrieve d_reference once as it implies calculations
+            d0_scalar_field: ScalarFieldSample = self._stress_facade.d_reference
             d0_values = d0_scalar_field.values
             d0_errors = d0_scalar_field.errors
-            
 
             # write for each row of the CSV body, first coordinates, d0 and
             # then fields in SummaryGeneratorStress.fields_3dir value, error per dimension
@@ -313,7 +308,7 @@ class SummaryGeneratorStress:
                 line = ''
                 for coord in coordinate:
                     line += self._write_number(coord, 2)
-                
+
                 # d0
                 if row >= len(d0_values):
                     line += ', , '
@@ -322,18 +317,25 @@ class SummaryGeneratorStress:
                     d0_error = d0_errors[row]
                     decimals = SummaryGeneratorStress.decimals['d0']
                     line += self._write_number(d0_value, decimals) + \
-                            self._write_number(d0_error, decimals)
+                        self._write_number(d0_error, decimals)
 
                 # value error for fields_3dir = ['d', 'FWHM', 'Peak_Height', 'Strain', 'Stress']
                 for field_3dir in SummaryGeneratorStress.fields_3dir:
+
                     for direction in SummaryGeneratorStress.directions:
-                        
+
                         self._stress_facade.selection = direction
-                        runs = self._stress_facade.runs(direction)
-                        
-                        for run in runs:
-                            self._stress_facade.selection = run
-                            line += _write_field_3d(row, field_3dir)
+
+                        if field_3dir == 'Stress':
+                            stress_value = self._stress_facade.stress.values[row]
+                            stress_error = self._stress_facade.stress.errors[row]
+                            line += self._write_number(stress_value, decimals) + \
+                                self._write_number(stress_error, decimals)
+                        else:
+                            runs = self._stress_facade.runs(direction)
+                            for run in runs:
+                                self._stress_facade.selection = run
+                                line += _write_field_3d(row, field_3dir)
 
                 line = line[:-2] + '\n'
 
