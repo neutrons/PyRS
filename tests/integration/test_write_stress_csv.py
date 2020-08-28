@@ -2,6 +2,7 @@
 import pytest
 from filecmp import cmp
 from os import remove
+import subprocess
 
 from pyrs.peaks import PeakCollectionLite  # type: ignore
 from pyrs.dataobjects.sample_logs import PointList
@@ -144,5 +145,48 @@ def test_write_full_csv(test_data_dir: str, project_tags: str, expected_file: st
     stress_csv.write_full_csv()
 
     assert(cmp(stress_csv_filename, expected_file))
+    # cleanup
+    remove(stress_csv_filename)
+
+
+EXPECTED_FILE_FULL_CSV_1320_33Calculated =\
+    'tests/data/HB2B_StressStrain_peak0_Full_expected_1320_33Calculated.csv'
+
+
+@pytest.mark.parametrize('project_tags, expected_file',
+                         [([1320, 1320], EXPECTED_FILE_FULL_CSV_1320_33Calculated)],
+                         ids=['HB2B_1320_FULL_CSV_33Calculated'])
+def test_write_full_33calculated_csv(test_data_dir: str, project_tags: str, expected_file: str):
+
+    sample11 = StrainField(test_data_dir + '/HB2B_' + str(project_tags[0]) + '.h5')
+    sample22 = StrainField(test_data_dir + '/HB2B_' + str(project_tags[1]) + '.h5')
+
+    stress = StressField(sample11, sample22, None, 200, 0.3, stress_type='in-plane-strain')  # type: ignore
+
+    stress_csv_filename = 'HB2B_StressStrain_peak0_Full_33Calculated.csv'
+    stress_csv = SummaryGeneratorStress(stress_csv_filename, stress)
+    stress_csv.write_full_csv()
+
+    result = cmp(stress_csv_filename, expected_file)
+    if not result:
+        subprocess.run(["diff", stress_csv_filename, expected_file])
+
+    assert(result)
+    # cleanup
+    remove(stress_csv_filename)
+
+
+def test_write_full_33calculated_nan_csv(test_data_dir: str):
+
+    sample11 = StrainField(test_data_dir + '/HB2B_1331.h5', peak_tag='peak0')
+    sample22 = StrainField(test_data_dir + '/HB2B_1332.h5', peak_tag='peak0')
+
+    stress = StressField(sample11, sample22, None, 200, 0.3, stress_type='in-plane-strain')  # type: ignore
+    stress_facade = StressFacade(stress)
+
+    stress_csv_filename = 'HB2B_StressStrain_peak0_Full_33Calculated_1331_1332.csv'
+    stress_csv = SummaryGeneratorStress(stress_csv_filename, stress_facade)
+    stress_csv.write_full_csv()
+
     # cleanup
     remove(stress_csv_filename)
