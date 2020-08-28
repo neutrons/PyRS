@@ -1109,6 +1109,7 @@ class _StrainField:
         clusters_sorted = sorted(clusters, key=lambda cluster: cluster[0])
 
         # New winners lists. Initialize with missing scans and points
+        # There are as many clusters and points in the stacked point list
         left_scan_indexes = np.full(len(clusters), self.SCAN_MISSING_INDEX, dtype=int)
         left_point_indexes = np.full(len(clusters), self.POINT_MISSING_INDEX, dtype=int)
         right_scan_indexes = np.full(len(clusters), self.SCAN_MISSING_INDEX, dtype=int)
@@ -1116,9 +1117,10 @@ class _StrainField:
 
         # Fill the new winner lists as we scan the clusters. Make sure each strain has no overlapping points
         left_size = len(strain_left)
-        for cluster in clusters_sorted:
+        for cluster_index, cluster in enumerate(clusters_sorted):
             if len(cluster) > 2:
                 raise RuntimeError('Either of the two strains have overlapping sample points')
+            # Also make sure that a cluster can only have one and only point from each strain
             index_left_count, index_right_count = 0, 0
             for index_aggregate in cluster:
                 if index_aggregate < left_size:
@@ -1126,18 +1128,18 @@ class _StrainField:
                     if index_left_count > 1:
                         raise RuntimeError('Strain on the left side has overlapping sample points')
                     index_left = index_aggregate
-                    left_scan_indexes[index_aggregate] =\
+                    left_scan_indexes[cluster_index] =\
                         strain_left._winners.scan_indexes[index_left]  # type: ignore
-                    left_point_indexes[index_aggregate] =\
+                    left_point_indexes[cluster_index] =\
                         strain_left._winners.point_indexes[index_left]  # type: ignore
                 else:
                     index_right_count += 1
                     if index_right_count > 1:
                         raise RuntimeError('Strain on the right side has overlapping sample points')
                     index_right = index_aggregate - left_size
-                    right_scan_indexes[index_aggregate] = \
+                    right_scan_indexes[cluster_index] = \
                         strain_right._winners.scan_indexes[index_right]  # type: ignore
-                    right_point_indexes[index_aggregate] =\
+                    right_point_indexes[cluster_index] =\
                         strain_right._winners.point_indexes[index_right]  # type: ignore
 
         # Pick the coordinates of the sample points as the average of the coordinates for each cluster
@@ -1146,19 +1148,18 @@ class _StrainField:
         coordinates_left = strain_left.point_list.coordinates
         coordinates_right = strain_right.point_list.coordinates
         xyzs = list()  # will hold the coordinates of the stacked point list
-        for cluster in clusters_sorted:
-            for cluster in clusters:
-                xyz = np.zeros(3)  # aggregate the coordinates of each point in this cluster
-                for index_aggregate in cluster:
-                    if index_aggregate < left_size:
-                        index_left = index_aggregate
-                        xyz += coordinates_left[index_left]
-                    else:
-                        index_right = index_aggregate - left_size
-                        xyz += coordinates_right[index_right]
-                xyzs.append(xyz / len(cluster))  # geometrical center of the points in this cluster
-        xyzs = np.array(xyzs).T  # shape = (number of points, 3)
-        point_list_stacked = PointList(*xyzs)
+        for cluster_index, cluster in enumerate(clusters_sorted):
+            xyz = np.zeros(3)  # aggregate the coordinates of each point in this cluster
+            for index_aggregate in cluster:
+                if index_aggregate < left_size:
+                    index_left = index_aggregate
+                    xyz += coordinates_left[index_left]
+                else:
+                    index_right = index_aggregate - left_size
+                    xyz += coordinates_right[index_right]
+            xyzs.append(xyz / len(cluster))  # geometrical center of the points in this cluster
+        xyzs = np.array(xyzs).T  # shape = (3, number of points)
+        point_list_stacked = PointList(xyzs)
 
         # Assemble the stacked strains
         stacked_left = StrainField()
@@ -1548,7 +1549,8 @@ class StrainField(_StrainField):
         # copy the pointlist from the only child that exists
         self._point_list = self._strains[0].point_list
         # initialize the list of winners.
-        scan_indexes, point_indexes = np.zeros(len(self._point_list)), np.arange(len(self._point_list))
+        scan_indexes = np.zeros(len(self._point_list), dtype=int)
+        point_indexes = np.arange(len(self._point_list), dtype=int)
         self._winners = _StrainField.ChosenSamplePoints(scan_indexes, point_indexes)
 
     @property

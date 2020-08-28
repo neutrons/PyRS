@@ -199,12 +199,7 @@ def strain_builder(strain_single_builder):
         --------
 
         """
-        strain_single = strain_single_builder(peaks_data)
-        strain = StrainField()
-        strain._strains.append(strain_single)
-        strain._point_list = strain_single.point_list
-
-        return strain
+        return StrainField(strain_single=strain_single_builder(peaks_data))
 
     return wrapped_function
 
