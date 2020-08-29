@@ -681,7 +681,7 @@ class _StrainField:
         for i in range(len(strains_unstacked) - 1):
             equal_pairs.append(strains_unstacked[i].point_list == strains_unstacked[i + 1].point_list)
         if np.all(equal_pairs):
-            return strains_unstacked
+            return strains_unstacked  # type: ignore
 
         if stack_mode in ('intersection', 'common'):
             raise NotImplementedError(f'mode "{stack_mode}"is not currently supported')
@@ -734,8 +734,8 @@ class _StrainField:
                 # Find the point index of the point list for object `strain`
                 point_index = index_aggregate - strain_lengths_cumsum[strains_unstacked_index]
                 # Update the winners of the future stacked strain, with info from the winners of the unstacked strain
-                scan_indexes[cluster_index] = strain_unstacked._winners.scan_indexes[point_index]
-                point_indexes[cluster_index] = strain_unstacked._winners.point_indexes[point_index]
+                scan_indexes[cluster_index] = strain_unstacked._winners.scan_indexes[point_index]  # type: ignore
+                point_indexes[cluster_index] = strain_unstacked._winners.point_indexes[point_index]  # type: ignore
 
         # Pick the coordinates of the sample points as the average of the coordinates for each cluster
         # Some of the lines are repeated from the previous loop, but I rather separate out the winners
@@ -758,7 +758,7 @@ class _StrainField:
         for strains_unstacked_index, strain_unstacked in enumerate(strains_unstacked):
             strain_stacked = StrainField()
             strain_stacked._point_list = point_list_stacked
-            strain_stacked._strains = strain_unstacked._strains
+            strain_stacked._strains = strain_unstacked._strains  # type: ignore
             scan_indexes, point_indexes = winners[strains_unstacked_index][0], winners[strains_unstacked_index][1]
             strain_stacked._winners = cls.ChosenSamplePoints(scan_indexes, point_indexes)
             strains_stacked.append(strain_stacked)
@@ -1051,7 +1051,7 @@ class _StrainField:
     # flake8: noqa: C901
     def stack_with(self, other: '_StrainField',
                      mode: str = 'union',
-                     resolution: float = DEFAULT_POINT_RESOLUTION) -> Tuple['StrainField', 'StrainField']:
+                     resolution: float = DEFAULT_POINT_RESOLUTION) -> List['StrainField']:
         r"""
         Combine the sample points of two strains scanned at different directions.
 
@@ -1464,7 +1464,7 @@ class StrainField(_StrainField):
                                   hidraworkspace=hidraworkspace, peak_collection=peak_collection,  # type: ignore
                                   point_list=point_list)  # type: ignore
         if True in [bool(v) for v in single_scan_kwargs.values()]:  # at least one argument is not empty
-            strain_single = StrainFieldSingle(**single_scan_kwargs)
+            strain_single = StrainFieldSingle(**single_scan_kwargs)  # type: ignore
             self._initialize_from_strain_field_single(strain_single)
 
         # Create a strain field from a single strain field
@@ -1476,6 +1476,7 @@ class StrainField(_StrainField):
     def _initialize_from_strain_field_single(self, single_strain: StrainFieldSingle):
         self._strains.append(single_strain)  # type: ignore
         # copy the pointlist from the only child that exists
+        assert self._point_list is not None
         self._point_list = self._strains[0].point_list
         # initialize the list of winners.
         scan_indexes = np.zeros(len(self._point_list), dtype=int)
@@ -1529,13 +1530,13 @@ class StrainField(_StrainField):
         # `strain_index` identifies one of the StrainFieldSingle instances in the list self._strains
         # If the strain has been stacked against one strain with additional sample points, some of the
         # scan_indexes in self._winners will have the SCAN_MISSING_INDEX value
-        for strain_index in set(self._winners.scan_indexes):
+        for strain_index in set(self._winners.scan_indexes):  # type: ignore
             if strain_index == SCAN_MISSING_INDEX:
                 continue
             # Find out which sample points of the aggregate point list are associated to the
             # StrainFieldSingle object specified by `strain_index`
             # `indices` below denote indices along the aggregated point list `self._point_list`
-            indices = np.where(self._winners.scan_indexes == strain_index)
+            indices = np.where(self._winners.scan_indexes == strain_index)  # type: ignore
             # get handle to the underlying PeakCollection via the correct StrainFieldSingle object
             peak_collection = self._strains[strain_index].peak_collections[0]
 
@@ -1552,7 +1553,7 @@ class StrainField(_StrainField):
             # an index, specifying one sample point from one of the StrainFieldSingle components. Here
             # we are finding out the sample points of the StrainFieldSingle object specified by
             # `strain_index` contributing to the overall StrainField object
-            idx = self._winners.point_indexes[indices]
+            idx = self._winners.point_indexes[indices]  # type: ignore
             assert np.all(idx < len(peak_collection))
             values[indices], errors[indices] = values_i[idx], errors_i[idx]
 
@@ -1800,7 +1801,7 @@ class StressField:
             peaks = PeakCollectionLite(str(StressType.IN_PLANE_STRAIN),
                                        np.zeros(self.size, dtype=float),
                                        np.zeros(self.size, dtype=float))
-            self._strain33 = StrainField(peak_collection=peaks, point_list=points)
+            self._strain33 = StrainField(peak_collection=peaks, point_list=points)  # type: ignore
         elif self.stress_type == StressType.IN_PLANE_STRESS:
             self._strain33 = self._strain33_when_inplane_stress()
 
@@ -1962,10 +1963,8 @@ class StressField:
         factor = self.poisson_ratio / (self.poisson_ratio - 1)
         strain33 = factor * (self._strain11.sample + self._strain22.sample)  # unumpy.array
         values, errors = unumpy.nominal_values(strain33), unumpy.std_devs(strain33)
-        peaks = PeakCollectionLite(str(StressType.IN_PLANE_STRESS),
-                                   values, errors)
-        return StrainField(peak_collection=peaks,
-                           point_list=PointList([self.x, self.y, self.z]))
+        peaks = PeakCollectionLite(str(StressType.IN_PLANE_STRESS), values, errors)
+        return StrainField(peak_collection=peaks, point_list=PointList([self.x, self.y, self.z]))  # type: ignore
 
     def set_d_reference(self, values: Union[Tuple[float, float], ScalarFieldSample]) -> None:
         # the strains have already been stacked
