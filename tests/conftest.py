@@ -587,7 +587,7 @@ def strain_stress_object_1(strain_builder):
             '11': strain11, '22': strain22, '33': strain33
         },
         'stresses': {
-            'diagonal': StressField(strain11, strain22, strain33, 4. / 3, 1. / 3, 'diagonal'),
+             'diagonal': StressField(strain11, strain22, strain33, 4. / 3, 1. / 3, 'diagonal'),
             'in-plane-strain': StressField(strain11, strain22, None, 4. / 3, 1. / 3, 'in-plane-strain'),
             'in-plane-stress': StressField(strain11, strain22, None, 3. / 2, 1. / 2, 'in-plane-stress')
         }

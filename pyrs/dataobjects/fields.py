@@ -92,6 +92,8 @@ from .constants import DEFAULT_POINT_RESOLUTION, NOT_MEASURED_NUMPY
 
 # two points in real space separated by less than this amount (in mili meters) are considered the same point
 SCALAR_FIELD_NAMES = ('lattice', 'strain', 'stress')  # standard names for most used fields
+POINT_MISSING_INDEX = -1  # indicates one single-scan index is not present in one of the overlapping clusters
+SCAN_MISSING_INDEX = -1  # indicates one scan is not present in the current strain
 
 
 class ScalarFieldSample:
@@ -570,9 +572,6 @@ class ScalarFieldSample:
 
 class _StrainField:
 
-    POINT_MISSING_INDEX = -1  # indicates one single-scan index is not present in one of the overlapping clusters
-    SCAN_MISSING_INDEX = -1  # indicates one scan is not present in the current strain
-
     ChosenSamplePoints = namedtuple('ChosenSamplePoints', ['scan_indexes', 'point_indexes'])
     r"""
     Data structure relating sample points from single scans to sample points of a multi scan
@@ -596,48 +595,173 @@ class _StrainField:
         the multi scan
     """
 
-    @staticmethod
-    def stack_strains(*strains: '_StrainField',
-                      stack_mode: str = 'complete',
-                      resolution: float = DEFAULT_POINT_RESOLUTION) -> List['_StrainField']:
+    @classmethod
+    def stack_strains(cls, *strains: '_StrainField',
+                      stack_mode: str = 'union',
+                      resolution: float = DEFAULT_POINT_RESOLUTION) -> List['StrainField']:
         r"""
-        Evaluate a list of strain fields taken at different directions on a list of commont points.
+        Stack a list of strain fields taken at different directions on a list of common points.
 
         The list of common points is obtained by combining the list of points from each strain field.
+
+        Examples
+        --------
+        Consider combining three multi-scan strains s0, s1, and s2. Strain s0 is made up of single-scan strains
+        s00 and s01 that overlap in some region (the XX in the diagram below). Strain s1 results from the
+        combination of three single-scan strains s10, s11, and s12. Strains s0 and s1 overlap
+        considerably. Finally, strain s2 is made up of one single scan
+
+          Stacking s0, s1, and s2
+        -----------------------
+        |     s00    XX  s01  |
+        -----------------------
+        |          s0         |
+        ------------------------------------
+            |             s1               |
+            --------------------------------
+            | s10 |     s11    XXXXX  s12  |
+            -------------------------------------
+                     |            s2            |
+                     ----------------------------
+
+        Below we plot the stacked strains s0* and s1*. The value '-1' indicates sample points of s0* that
+        are not points of s00 or s01 (similarly for s1*)
+
+        The stacked strains s0*, s1*, and s2*. The -1 indicate sample points from the stacked sample point
+        that are missing in the indivudual stacked strains
+        ---------------------------------------
+        |             s0*     -1,.......   -1 |
+        ---------------------------------------
+        | -1          s1*                  -1 |
+        ---------------------------------------
+        | -1,....-1   s2*                     |
+        ---------------------------------------
 
         Parameters
         ----------
         strains: list
             List of input strain fields.
         stack_mode: str
-            A mode to stack the scalar fields. Valid values are 'complete' and 'common'
+            A mode to stack the scalar fields. Valid values are 'union' and 'intersection'. However,
+            'intersection' is not currently implemented
         resolution: float
         Two points are considered the same if they are separated by a distance smaller than this quantity
 
+        Raises
+        ------
+        ValueError
+            an invalid stack mode string is passed as argument to `stack_mode`
+        NotImplementedError
+            'intersection' or 'common' is passed as argument to `stack_mode`
+        RuntimeError
+            At least one of the strains has overlapping sample points
 
         Returns
         -------
-
+        list
+            list of ~pyrs.dataobjects.StrainField instances
         """
+        valid_stack_modes = ('union', 'intersection', 'complete', 'common')
+        if stack_mode not in valid_stack_modes:
+            raise ValueError(f'{stack_mode} is not a valid stack mode. Valid modes are {valid_stack_modes}')
+
         # Validate all strains are strain fields
         for strain in strains:
             assert isinstance(strain, _StrainField), f'{strain} is not a StrainField object'
 
-        # make a copy
-        strains_stacked: List['_StrainField'] = list(strains)
+        # Promote the strains from StrainFieldSingle to StrainField, if needed. It will endorse the
+        # new strains with a `self._winners` attribute
+        strains_unstacked = list()
+        for strain in strains:
+            strain_unstacked = StrainField(strain_single=strain) if isinstance(strain, StrainFieldSingle) else strain
+            strains_unstacked.append(strain_unstacked)
 
-        # do the various combinations of stacking
-        strains_stacked[0:2] = strains_stacked[0].stack_with(strains_stacked[1], mode=stack_mode,
-                                                             resolution=resolution)
-        if len(strains_stacked) == 3:
-            strains_stacked[0], strains_stacked[2] = strains_stacked[0].stack_with(strains_stacked[2],
-                                                                                   mode=stack_mode,
-                                                                                   resolution=resolution)
-            strains_stacked[1], strains_stacked[2] = strains_stacked[1].stack_with(strains_stacked[2],
-                                                                                   mode=stack_mode,
-                                                                                   resolution=resolution)
-        elif len(strains_stacked) > 3:  # don't bother with more than 3 strains
-            raise NotImplementedError('Cannot stack more than 3 strains')
+        # Trivial case when the point lists of the individual strains are all the same
+        equal_pairs = list()
+        for i in range(len(strains_unstacked) - 1):
+            equal_pairs.append(strains_unstacked[i].point_list == strains_unstacked[i + 1].point_list)
+        if np.all(equal_pairs):
+            return strains_unstacked
+
+        if stack_mode in ('intersection', 'common'):
+            raise NotImplementedError(f'mode "{stack_mode}"is not currently supported')
+
+        # The mode is 'union' or 'complete'
+
+        # combine all points into a single long list with the first points having the lower indices
+        all_points = aggregate_point_lists(*[strain.point_list for strain in strains_unstacked])
+
+        # cluster all points and sort clusters according to the first index in each cluster
+        clusters = all_points.cluster(resolution=resolution)
+        clusters_sorted = sorted(clusters, key=lambda cluster: cluster[0])
+
+        # New winners lists. Initialize with missing scans and points
+        # There are as many clusters and points in the stacked point list
+        scan_indexes = np.full(len(clusters), SCAN_MISSING_INDEX, dtype=int)
+        point_indexes = np.full(len(clusters), POINT_MISSING_INDEX, dtype=int)
+
+        # We have a pair of winner scan_indexes and point_indexes for every strain to be stacked
+        strains_count = len(strains_unstacked)
+        winners = [[deepcopy(scan_indexes), deepcopy(point_indexes)] for _ in range(strains_count)]
+
+        # Construct array strain_lengths_cumsum, which will tell us the strain associated to a particular
+        # sample point from the agregated point lists `all_points`
+        # Example:
+        #   Three strains with corresponding lengths 4, 5, and 3. Then `all_points` has 4+5+3=12 sample points
+        #   Array `strain_lengths_cumsum` is [0, 4, 9].
+        #   For aggregate index 10, we have np.where(strain_lengths_cumsum <= 10)[0][-1] == 2, meaning this
+        #   sample point corresponds to a point in the last strain (the first strain has index 0)
+        strain_lengths = [len(strain) for strain in strains_unstacked]
+        strain_lengths_cumsum = np.concatenate(([0], + np.cumsum(strain_lengths)[:-1]))
+
+        # Fill the winner scan indexes and point indexes of the future stacked strains with info
+        # from the winner scan indexes and point indexes of the unstacked strains
+        for cluster_index, cluster in enumerate(clusters_sorted):
+            if len(cluster) > strains_count:
+                raise RuntimeError('At lest one of the strains has overlapping sample points')
+            # Also make sure that a cluster can only have one and only point from each strain
+            multiplicities = [0] * strains_count
+            for index_aggregate in cluster:
+                # Find which unstacked strain this aggregate sample point corresponds to
+                strains_unstacked_index = np.where(strain_lengths_cumsum <= index_aggregate)[0][-1]
+                strain_unstacked = strains_unstacked[strains_unstacked_index]
+                # Make sure that a cluster can only have one and only point from each strain
+                multiplicities[strains_unstacked_index] += 1
+                if max(multiplicities) == 2:
+                    raise RuntimeError(f'Strain number {1 + multiplicities.index(2)} has overlapping points')
+                # Fetch the winner scan_indexes and point_indexes for the stacked version of this unstacked strain
+                scan_indexes, point_indexes = winners[strains_unstacked_index][0], winners[strains_unstacked_index][1]
+                # Find the point index of the point list for object `strain`
+                point_index = index_aggregate - strain_lengths_cumsum[strains_unstacked_index]
+                # Update the winners of the future stacked strain, with info from the winners of the unstacked strain
+                scan_indexes[cluster_index] = strain_unstacked._winners.scan_indexes[point_index]
+                point_indexes[cluster_index] = strain_unstacked._winners.point_indexes[point_index]
+
+        # Pick the coordinates of the sample points as the average of the coordinates for each cluster
+        # Some of the lines are repeated from the previous loop, but I rather separate out the winners
+        # and coordinate tasks, for clarity
+        coordinates_all_strains = [strain.point_list.coordinates for strain in strains_unstacked]
+        xyzs = list()  # will hold the coordinates of the stacked point list
+        for cluster_index, cluster in enumerate(clusters_sorted):
+            xyz = np.zeros(3)  # aggregate the coordinates of each point in this cluster
+            for index_aggregate in cluster:
+                strains_unstacked_index = np.where(strain_lengths_cumsum <= index_aggregate)[0][-1]
+                coordinates = coordinates_all_strains[strains_unstacked_index]
+                point_index = index_aggregate - strain_lengths_cumsum[strains_unstacked_index]
+                xyz += coordinates[point_index]
+            xyzs.append(xyz / len(cluster))  # geometrical center of the points in this cluster
+        xyzs = np.array(xyzs).T  # shape = (3, number of points)
+        point_list_stacked = PointList(xyzs)
+
+        # Assemble the stacked strains
+        strains_stacked = list()
+        for strains_unstacked_index, strain_unstacked in enumerate(strains_unstacked):
+            strain_stacked = StrainField()
+            strain_stacked._point_list = point_list_stacked
+            strain_stacked._strains = strain_unstacked._strains
+            scan_indexes, point_indexes = winners[strains_unstacked_index][0], winners[strains_unstacked_index][1]
+            strain_stacked._winners = cls.ChosenSamplePoints(scan_indexes, point_indexes)
+            strains_stacked.append(strain_stacked)
 
         return strains_stacked
 
@@ -688,9 +812,13 @@ class _StrainField:
 
     @property
     def sample(self) -> unumpy.uarray:
-        '''Uncertainties arrays containing both values and errors.
+        r"""
+        Uncertainties arrays containing both values and errors.
 
-        Default implementation which is likely slower than it needs to be'''
+        Returns
+        -------
+        unumpy.uarray
+        """
         return self.field.sample
 
     @property
@@ -835,7 +963,7 @@ class _StrainField:
             strain_errors = [strain.errors for strain in single_scan_strains]
 
             def get_cost(single_scan_strain_errors, index):
-                return np.inf if index == self.POINT_MISSING_INDEX else single_scan_strain_errors[index]
+                return np.inf if index == POINT_MISSING_INDEX else single_scan_strain_errors[index]
 
             # loop over each sample point of the multi-scan strain
             for point_list_index in range(len(multi_scan_strain)):
@@ -878,14 +1006,13 @@ class _StrainField:
         """
         return self.fuse_with(other_strain)
 
-    def __mul__(self, other: Union['_StrainField', List['_StrainField']]) -> Optional[List['StrainField']]:
+    def __mul__(self, other: '_StrainField') -> Tuple['StrainField', 'StrainField']:
         r"""
-        Stack this strain with another strain, or with a list of strains
+        Stack this strain with another strain
 
         Parameters
         ----------
-        other: ~pyrs.dataobjects.fields.StrainField, list
-            If a list, each item is a ~pyrs.dataobjects.fields.StrainField object
+        other: ~pyrs.dataobjects.fields._StrainField
 
         Returns
         -------
@@ -893,17 +1020,9 @@ class _StrainField:
             list of stacked ~pyrs.dataobjects.fields.StrainField objects.
         """
         stack_kwargs = dict(resolution=DEFAULT_POINT_RESOLUTION, mode='union')
-        if isinstance(other, _StrainField):
-            return self.__class__.stack_with(self, other, **stack_kwargs)  # type: ignore
-        elif isinstance(other, (list, tuple)):
-            for strain in other:
-                if isinstance(strain, _StrainField) is False:
-                    raise TypeError(f'{strain} is not a {str(self.__class__)} object')  # type: ignore
-            return self.__class__.stack_strains(self, *other, **stack_kwargs)  # type: ignore
-        else:
-            raise NotImplementedError('Do not know how to multiply these objects')
+        return self.stack_with(other, **stack_kwargs)  # type: ignore
 
-    def __rmul__(self, other: List['_StrainField']) -> List['_StrainField']:
+    def __rmul__(self, other: List['StrainField']) -> List['StrainField']:
         r"""
         Stack a list of strains along with this strain.
 
@@ -920,118 +1039,17 @@ class _StrainField:
         list
             List of stacked strains. Each item is a ~pyrs.dataobjects.fields.StrainField object.
         """
-        if isinstance(other, (list, tuple)):
-            for strain in other:
-                if not isinstance(strain, _StrainField):
-                    raise TypeError(f'{strain} is not a StrainField object')
-
-            return self.__class__.stack_strains(*other, self,
-                                                resolution=DEFAULT_POINT_RESOLUTION,
-                                                stack_mode='union')
-        else:
+        if isinstance(other, (list, tuple)) is False:
             raise NotImplementedError(f'Unable to multiply objects of type {str(other.__class__)} and StrainField')
 
-    def stack_with(self, other_strain: '_StrainField',
-                   mode: str = 'union',
-                   resolution: float = DEFAULT_POINT_RESOLUTION) -> List['_StrainField']:
-        r"""
-        Combine the sample points of two strains scanned at different directions.
+        for strain in other:
+            if not isinstance(strain, _StrainField):
+                raise TypeError(f'{strain} is not a StrainField object')
 
-        The two strains can be single or multi-scan.
-
-        Examples
-        --------
-        Consider combining two multi-scan strains s0 and s1. Strain s0 is made up of single-scan strains
-        s00 and s01 that overlap in some region (the XX in the diagram below). Strain s1 results from the
-        combination of three single-scan strains s10, s11, and s12. Strains s0 and s1 overlap considerably
-
-          Stacking s0 over s1                               Stacking s1 over s0
-        -----------------------                      --------------------------------
-        |     s00    XX  s01  |                      | s10 |     s11    XXXXX  s12  |
-        -----------------------                      --------------------------------
-        |          s0         |                      |             s1               |
-        ------------------------------------         ------------------------------------
-            |             s1               |                      |          s0         |
-            --------------------------------                      -----------------------
-            | s10 |     s11    XXXXX  s12  |                      |     s00    XX  s01  |
-            --------------------------------                      -----------------------
-
-        Below we plot the stacked strains s0* and s1*. The value '-1' indicates sample points of s0* that
-        are not points of s00 or s01 (similarly for s1*)
-
-           The stacked s0 strain, s0*                      The stacked s` strain, s1*
-        ------------------------------------         ------------------------------------
-        |             s0*     -1,....... -1|         |             s1*               -1 |
-        ------------------------------------         ------------------------------------
-
-        Parameters
-        ----------
-        other_strain: ~pyrs.dataobjects.fields._StrainField
-        mode: str
-            A mode to stack the scalar fields. Valid values are 'union' and 'intersection'
-        resolution: float
-            Two points are considered the same if they are separated by a distance smaller than this quantity
-
-        Raises
-        ------
-        NotImplementedError
-            Stacking currently not supported for 'intersection' and 'common'
-
-        Returns
-        -------
-        list
-            A two-item list containing the two stacked strains
-        """
-        # validate the mode and convert to a single set of terms
-        valid_stack_modes = ('union', 'intersection', 'complete', 'common')
-        if mode not in valid_stack_modes:
-            raise ValueError(f'{mode} is not a valid stack mode. Valid modes are {valid_stack_modes}')
-        if mode in ('intersection', 'common'):
-            raise NotImplementedError(f'mode "{mode}"is not currently supported')
-
-        results = []
-        if self.point_list == other_strain.point_list:
-            # they are already common
-            results = [self, other_strain]
-        elif mode in ('union', 'complete'):
-            # Stack `self` over `other_strain`. In the aggregated point list, first come the points from `self`,
-            # then come the points from `other_strain`
-            point_list_union = self.point_list.fuse_with(other_strain.point_list, resolution=resolution)
-            if len(point_list_union) == len(self.point_list) == len(other_strain.point_list):
-                results = [self, other_strain]
-            else:
-                strain1 = StrainField()
-                strain1._point_list = point_list_union
-                strain1._strains = self.strains
-                # `strain1._winners` relates each of the points of the single scans of `self` to the points
-                # of the aggregated list `point_list_union`. There are points in `point_list_union` with
-                # no counterpart in the single scans (see example in the docstring), thus
-                # len(strain1._winners) < len(point_list_union)
-                if isinstance(self, StrainField):
-                    strain1._winners = self._winners
-
-                # Stack `other_strain` over `self`. In the new aggregated point list, first come the points
-                # from `other_strain`, then come the points from `self`
-                # `point_list_union` and `point_list_union_2` contain the same sample points,
-                # BUT WITH DIFFERENT ORDER !!!!
-                point_list_union_2 = other_strain.point_list.fuse_with(self.point_list, resolution=resolution)
-                strain2 = StrainField()
-                strain2._point_list = point_list_union_2
-                strain2._strains = other_strain.strains
-                if isinstance(other_strain, StrainField):
-                    strain2._winners = other_strain._winners  # Notice len(strain2._winners) < len(point_list_union_2)
-
-                # make sure both have the same length as that is the point of stacking
-                assert len(point_list_union) == len(point_list_union_2)
-
-                results = [strain1, strain2]
-        else:
-            raise RuntimeError('Should not be possible to get here')
-
-        return results
+        return self.stack_strains(*other, self, resolution=DEFAULT_POINT_RESOLUTION, stack_mode='union')
 
     # flake8: noqa: C901
-    def stack_with_2(self, other: '_StrainField',
+    def stack_with(self, other: '_StrainField',
                      mode: str = 'union',
                      resolution: float = DEFAULT_POINT_RESOLUTION) -> Tuple['StrainField', 'StrainField']:
         r"""
@@ -1083,96 +1101,7 @@ class _StrainField:
             A two-item list containing the two stacked strains, each an instace of
             ~pyrs.dataobjects.fields.StrainField
         """
-        valid_stack_modes = ('union', 'intersection', 'complete', 'common')
-        if mode not in valid_stack_modes:
-            raise ValueError(f'{mode} is not a valid stack mode. Valid modes are {valid_stack_modes}')
-
-        # Promote the strains from StrainFieldSingle to StrainField, if needed. It will endorse the
-        # new strains with a `self._winners` attribute
-        strain_left = StrainField(strain_single=self) if isinstance(self, StrainFieldSingle) else self
-        strain_right = StrainField(strain_single=other) if isinstance(other, StrainFieldSingle) else other
-
-        # Trivial case when the point lists are the same
-        if strain_left.point_list == strain_right.point_list:
-            return strain_left, strain_right  # type: ignore
-
-        if mode in ('intersection', 'common'):
-            raise NotImplementedError(f'mode "{mode}"is not currently supported')
-
-        # The mode is 'union' or 'complete'
-
-        # combine all points into a single long list with the first points having the lower indices
-        all_points = strain_left.point_list.aggregate(strain_right.point_list)
-
-        # cluster all points and sort clusters according to the first index in each cluster
-        clusters = all_points.cluster(resolution=resolution)
-        clusters_sorted = sorted(clusters, key=lambda cluster: cluster[0])
-
-        # New winners lists. Initialize with missing scans and points
-        # There are as many clusters and points in the stacked point list
-        left_scan_indexes = np.full(len(clusters), self.SCAN_MISSING_INDEX, dtype=int)
-        left_point_indexes = np.full(len(clusters), self.POINT_MISSING_INDEX, dtype=int)
-        right_scan_indexes = np.full(len(clusters), self.SCAN_MISSING_INDEX, dtype=int)
-        right_point_indexes = np.full(len(clusters), self.POINT_MISSING_INDEX, dtype=int)
-
-        # Fill the new winner lists as we scan the clusters. Make sure each strain has no overlapping points
-        left_size = len(strain_left)
-        for cluster_index, cluster in enumerate(clusters_sorted):
-            if len(cluster) > 2:
-                raise RuntimeError('Either of the two strains have overlapping sample points')
-            # Also make sure that a cluster can only have one and only point from each strain
-            index_left_count, index_right_count = 0, 0
-            for index_aggregate in cluster:
-                if index_aggregate < left_size:
-                    index_left_count += 1
-                    if index_left_count > 1:
-                        raise RuntimeError('Strain on the left side has overlapping sample points')
-                    index_left = index_aggregate
-                    left_scan_indexes[cluster_index] =\
-                        strain_left._winners.scan_indexes[index_left]  # type: ignore
-                    left_point_indexes[cluster_index] =\
-                        strain_left._winners.point_indexes[index_left]  # type: ignore
-                else:
-                    index_right_count += 1
-                    if index_right_count > 1:
-                        raise RuntimeError('Strain on the right side has overlapping sample points')
-                    index_right = index_aggregate - left_size
-                    right_scan_indexes[cluster_index] = \
-                        strain_right._winners.scan_indexes[index_right]  # type: ignore
-                    right_point_indexes[cluster_index] =\
-                        strain_right._winners.point_indexes[index_right]  # type: ignore
-
-        # Pick the coordinates of the sample points as the average of the coordinates for each cluster
-        # Some of the lines are repeated from the previous loop, but I rather separate out the winners
-        # and coordinate tasks, for clarity
-        coordinates_left = strain_left.point_list.coordinates
-        coordinates_right = strain_right.point_list.coordinates
-        xyzs = list()  # will hold the coordinates of the stacked point list
-        for cluster_index, cluster in enumerate(clusters_sorted):
-            xyz = np.zeros(3)  # aggregate the coordinates of each point in this cluster
-            for index_aggregate in cluster:
-                if index_aggregate < left_size:
-                    index_left = index_aggregate
-                    xyz += coordinates_left[index_left]
-                else:
-                    index_right = index_aggregate - left_size
-                    xyz += coordinates_right[index_right]
-            xyzs.append(xyz / len(cluster))  # geometrical center of the points in this cluster
-        xyzs = np.array(xyzs).T  # shape = (3, number of points)
-        point_list_stacked = PointList(xyzs)
-
-        # Assemble the stacked strains
-        stacked_left = StrainField()
-        stacked_left._point_list = point_list_stacked
-        stacked_left._strains = strain_left._strains  # type: ignore
-        stacked_left._winners = self.ChosenSamplePoints(left_scan_indexes, left_point_indexes)
-
-        stacked_right = StrainField()
-        stacked_right._point_list = point_list_stacked
-        stacked_right._strains = strain_right._strains  # type: ignore
-        stacked_right._winners = self.ChosenSamplePoints(right_scan_indexes, right_point_indexes)
-
-        return stacked_left, stacked_right
+        return self.stack_strains(self, other)
 
 
 class StrainFieldSingle(_StrainField):
@@ -1566,24 +1495,6 @@ class StrainField(_StrainField):
                     raise RuntimeError(msg)
         return filenames
 
-    def _update_single_strain(self):
-        '''
-        Update the PointList in the contained StrainField if they are not the same length
-
-        This is used to handle a corner case when the strain is composed of only one StrainFieldSingle
-        component, the point list of `self` may have diverged from the point list of the
-        StrainFieldSingle component. This scenario may happen if `self` has been stacked against
-        other strains measured along different direction.
-
-        The method only has effect when there is a single StrainField'''
-        # `self` hasn't been previously stacked
-        if len(self._strains) == 1 and (not len(self._strains[0]) == len(self)):
-            # update the zeroth strain with the extended PointList
-            filename = self._strains[0].filenames[0] if self._strains[0].filenames else []
-            self._strains[0] = StrainFieldSingle(filename=filename,
-                                                 peak_collection=self._strains[0].peak_collections[0],
-                                                 point_list=self.point_list)
-
     def _clear_cache(self) -> None:
         r"""Invalidate any and all cached information"""
         self._scalar_field = None
@@ -1616,7 +1527,11 @@ class StrainField(_StrainField):
 
         # loop over the winning strain indices
         # `strain_index` identifies one of the StrainFieldSingle instances in the list self._strains
+        # If the strain has been stacked against one strain with additional sample points, some of the
+        # scan_indexes in self._winners will have the SCAN_MISSING_INDEX value
         for strain_index in set(self._winners.scan_indexes):
+            if strain_index == SCAN_MISSING_INDEX:
+                continue
             # Find out which sample points of the aggregate point list are associated to the
             # StrainFieldSingle object specified by `strain_index`
             # `indices` below denote indices along the aggregated point list `self._point_list`
@@ -1658,15 +1573,8 @@ class StrainField(_StrainField):
         -------
         ~pyrs.dataobjects.fields.ScalarFieldSample
         """
-        self._update_single_strain()
-
-        if len(self._strains) == 1:
-            return self._strains[0].field
-        else:
-            # cache the calculation
-            self._scalar_field = self._create_scalar_field(method='get_strain', name='strain')
-
-            return self._scalar_field
+        self._scalar_field = self._create_scalar_field(method='get_strain', name='strain')
+        return self._scalar_field
 
     @property
     def peak_collections(self) -> List[PeakCollection]:
@@ -1706,20 +1614,10 @@ class StrainField(_StrainField):
         self._clear_cache()
 
     def get_d_reference(self) -> ScalarFieldSample:
-        self._update_single_strain()
-
-        if len(self._strains) == 1:
-            return self._strains[0].get_d_reference()
-        else:
-            return self._create_scalar_field(method='get_d_reference', name='d-reference')
+        return self._create_scalar_field(method='get_d_reference', name='d-reference')
 
     def get_dspacing_center(self) -> ScalarFieldSample:
-        self._update_single_strain()
-
-        if len(self._strains) == 1:
-            return self._strains[0].get_dspacing_center()
-        else:
-            return self._create_scalar_field(method='get_dspacing_center', name='dspacing-center')
+        return self._create_scalar_field(method='get_dspacing_center', name='dspacing-center')
 
     def get_effective_peak_parameter(self, name: str) -> ScalarFieldSample:
         self._validate_peak_param_name(name)
@@ -2023,7 +1921,7 @@ class StressField:
                        strain22: StrainField,
                        strain33: StrainField) -> Union[List[StrainField], Any]:
         r"""
-        Stach the strain samples taken along the the three different directions
+        Stack the strain samples taken along the the three different directions
 
         Calculation of the stresses require that the three strain samples are defined over the same set
         of sampling points, but this is not usually the case. It is necessary to stack them first. Thus,
@@ -2046,9 +1944,9 @@ class StressField:
         """
         if self.stress_type == StressType.DIAGONAL:
             assert strain33 is not None, 'strain33 is None but the selected stress type is "diagonal"'
-            return strain11 * strain22 * strain33  # type: ignore
+            return _StrainField.stack_strains(strain11, strain22, strain33)  # type: ignore
         # strain33 is yet undefined, so it's assigned a value of `None`
-        return strain11 * strain22 + [None]  # type: ignore
+        return strain11.stack_with(strain22) + [None]  # type: ignore
 
     def _strain33_when_inplane_stress(self) -> StrainField:
         r"""
