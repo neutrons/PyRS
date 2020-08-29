@@ -1465,12 +1465,10 @@ class StrainField(_StrainField):
                                   point_list=point_list)  # type: ignore
         if True in [bool(v) for v in single_scan_kwargs.values()]:  # at least one argument is not empty
             strain_single = StrainFieldSingle(**single_scan_kwargs)  # type: ignore
-            self._initialize_from_strain_field_single(strain_single)
 
         # Create a strain field from a single strain field
         if isinstance(strain_single, StrainFieldSingle):
             self._initialize_from_strain_field_single(strain_single)
-
         # otherwise it was an empty constructor and only initialize the starting layout
 
     def _initialize_from_strain_field_single(self, single_strain: StrainFieldSingle):
