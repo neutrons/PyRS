@@ -1479,8 +1479,8 @@ class StrainField(_StrainField):
         assert self._point_list is not None
         self._point_list = self._strains[0].point_list
         # initialize the list of winners.
-        scan_indexes = np.zeros(len(self._point_list), dtype=int)
-        point_indexes = np.arange(len(self._point_list), dtype=int)
+        scan_indexes = np.zeros(len(self._point_list), dtype=int)  # type: ignore
+        point_indexes = np.arange(len(self._point_list), dtype=int)  # type: ignore
         self._winners = _StrainField.ChosenSamplePoints(scan_indexes, point_indexes)
 
     @property
