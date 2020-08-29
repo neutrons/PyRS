@@ -1476,7 +1476,6 @@ class StrainField(_StrainField):
     def _initialize_from_strain_field_single(self, single_strain: StrainFieldSingle):
         self._strains.append(single_strain)  # type: ignore
         # copy the pointlist from the only child that exists
-        assert self._point_list is not None
         self._point_list = self._strains[0].point_list
         # initialize the list of winners.
         scan_indexes = np.zeros(len(self._point_list), dtype=int)  # type: ignore
