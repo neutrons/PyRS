@@ -665,9 +665,12 @@ class _StrainField:
         if stack_mode not in valid_stack_modes:
             raise ValueError(f'{stack_mode} is not a valid stack mode. Valid modes are {valid_stack_modes}')
 
-        # Validate all strains are strain fields
+        # Validate all strains are strain fields objects
         for strain in strains:
-            assert isinstance(strain, _StrainField), f'{strain} is not a StrainField object'
+            try:
+                assert isinstance(strain, _StrainField)
+            except AssertionError:
+                raise TypeError(f'{strain} is not a _StrainField object')
 
         # Promote the strains from StrainFieldSingle to StrainField, if needed. It will endorse the
         # new strains with a `self._winners` attribute
