@@ -216,6 +216,8 @@ def test_model(tmpdir, test_data_dir):
     model.e11 is not None
 
 
+@pytest.mark.skip(reason="('HB2B_1327.h5', 'HB2B_1331.h5') and ('HB2B_1328.h5', 'HB2B_1332.h5') have only one "
+                         "overlapping point")
 def test_model_multiple_files(tmpdir, test_data_dir):
     model = Model()
 
