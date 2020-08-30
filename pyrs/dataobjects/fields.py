@@ -952,7 +952,7 @@ class _StrainField:
         multi_scan_strain: StrainField = StrainField()  # object to be returned
         multi_scan_strain._strains = single_scan_strains  # copy over everything
 
-        point_lists = [strain.point_list_immutable for strain in single_scan_strains]
+        point_lists = [strain.point_list for strain in single_scan_strains]
         # variable `map_points` is a list specifying the sample points
         multi_scan_strain._point_list, map_points = point_lists[0].calculate_pointlist_map(point_lists[1:], resolution)
 
@@ -1132,8 +1132,6 @@ class StrainFieldSingle(_StrainField):
         self._peak_collection: Optional[PeakCollection] = None
         # this are made as top level property to follow interface of StrainField
         self._point_list: Optional[PointList] = None
-        # immutable point list, doesn't change upon stacking or fusing
-        self._point_list_immutable: Optional[PointList] = None
         # cached version of the ScalarFieldSample
         self._scalar_field: Optional[ScalarFieldSample] = None
         # cached version of the ScalarFieldSample for each requested effective peak parameter
@@ -1180,7 +1178,6 @@ class StrainFieldSingle(_StrainField):
                                                                           peak_collection,
                                                                           point_list,
                                                                           resolution=resolution)
-        self._point_list_immutable = deepcopy(self._point_list)
 
     @property
     def filenames(self):
@@ -1200,10 +1197,6 @@ class StrainFieldSingle(_StrainField):
     @property
     def point_list(self):
         return self._point_list
-
-    @property
-    def point_list_immutable(self):
-        return self._point_list_immutable
 
     def _clear_cache(self) -> None:
         r"""Invalidate any and all cached information"""
@@ -1266,10 +1259,10 @@ class StrainFieldSingle(_StrainField):
             raise RuntimeError('PeakCollection has not been set')
         if isinstance(values, ScalarFieldSample):
             # Find sample points in the point list associated to the peak collection
-            assert self._point_list_immutable is not None
+            assert self._point_list is not None
             d_reference = self.get_d_reference()
             values_new, errors_new = d_reference.values, d_reference.errors  # initialize new reference spacings
-            for self_index, values_index in enumerate(self._point_list_immutable.get_indices(values.point_list)):
+            for self_index, values_index in enumerate(self._point_list.get_indices(values.point_list)):
                 if values_index == PointList.MISSING_INDEX:
                     continue  # sample point corresponding to `self_index` is not found in `values`
                 values_new[self_index] = values.values[values_index]
