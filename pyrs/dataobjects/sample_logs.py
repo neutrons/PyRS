@@ -1305,7 +1305,7 @@ class PointList:
         return self.is_equal_within_resolution(other_list)
 
 
-def aggregate_point_lists(*args):
+def aggregate_point_lists(*args: PointList) -> PointList:
     r"""
     Aggregate a number of ~pyrs.dataobjects.sample_logs.PointList objects into one.
 

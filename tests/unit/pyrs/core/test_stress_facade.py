@@ -89,6 +89,11 @@ class TestStressFacade:
         assert_allclose(facade.y, np.zeros(9))
         assert_allclose(facade.z, np.zeros(9))
 
+    def test_point_list(self, strain_stress_object_1):
+        stress = strain_stress_object_1['stresses']['diagonal']
+        facade = StressFacade(stress)
+        assert facade.point_list == stress.point_list
+
     def test_direction(self, strain_stress_object_1):
         r"""Select run numbers or directions"""
         facade = StressFacade(strain_stress_object_1['stresses']['in-plane-stress'])
@@ -101,13 +106,22 @@ class TestStressFacade:
         facade.selection = '33'
         assert facade.direction == '33'
 
+    def test_extend_to_stacked_point_list(self, strain_stress_object_1):
+        stress = strain_stress_object_1['stresses']['diagonal']
+        facade = StressFacade(stress)
+        facade.selection == '1235'
+        field = stress.strain22.strains[0].field  # scalar field sample for run 1235
+        assert_allclose(field.values, [0.01, 0.02, 0.03, 0.04], atol=0.001)
+        field_extended = facade._extend_to_stacked_point_list(field)
+        nan = float('nan')
+        assert_allclose(field_extended.values, [nan, 0.01, 0.02, 0.03, 0.04, nan, nan, nan, nan, nan, ], atol=0.001)
+
     def test_strain_field(self, strain_stress_object_1):
         r"""strains along for a particular direction or run number"""
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
         # direction 11 and components
         facade.selection = '11'
         expected = [0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf, nanf]
-        r"""
         assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
         facade.selection = '1234'
         assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
@@ -118,7 +132,7 @@ class TestStressFacade:
         facade.selection = '1235'
         expected = [nanf, 0.01, 0.02, 0.03, 0.04, nanf, nanf, nanf, nanf, nanf]
         facade.selection = '1236'
-        expected = [nanf, nanf, nanf, nanf, 0.04, 0.05, 0.06, 0.07, 0.08, nanf]
+        expected = [nanf, nanf, nanf, nanf, 0.045, 0.05, 0.06, 0.07, 0.08, nanf]
         assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
         # direction 33 and components
         facade.selection = '33'
@@ -126,10 +140,8 @@ class TestStressFacade:
         assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
         facade.selection = '1237'
         assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
-        """
 
         facade = StressFacade(strain_stress_object_1['stresses']['in-plane-strain'])
-        r"""
         # direction 11 and components
         facade.selection = '11'
         expected = [0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf]
@@ -139,20 +151,18 @@ class TestStressFacade:
         # direction 22 and components
         facade.selection = '22'
         expected = [nanf, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08]
-        assert_allclose(facade.strain.values, expected, equanlnan=True, atol=1e-6)
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
         facade.selection = '1235'
         expected = [nanf, 0.01, 0.02, 0.03, 0.04, nanf, nanf, nanf, nanf]
         facade.selection = '1236'
-        expected = [nanf, nanf, nanf, nanf, 0.04, 0.05, 0.06, 0.07, 0.08]
+        expected = [nanf, nanf, nanf, nanf, 0.045, 0.05, 0.06, 0.07, 0.08]
         assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
-        """
         # direction 33 and components
         facade.selection = '33'
         expected = [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
         assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
 
         facade = StressFacade(strain_stress_object_1['stresses']['in-plane-stress'])
-        r"""
         # direction 11 and components
         facade.selection = '11'
         expected = [0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf]
@@ -166,12 +176,11 @@ class TestStressFacade:
         facade.selection = '1235'
         expected = [nanf, 0.01, 0.02, 0.03, 0.04, nanf, nanf, nanf, nanf]
         facade.selection = '1236'
-        expected = [nanf, nanf, nanf, nanf, 0.04, 0.05, 0.06, 0.07, 0.08]
+        expected = [nanf, nanf, nanf, nanf, 0.045, 0.05, 0.06, 0.07, 0.08]
         assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
         # direction 33 and components
         facade.selection = '33'
         expected = [nanf, -0.02, -0.04, -0.06, -0.08, -0.10, -0.12, -0.14, nanf]
-        """
 
     def test_strain_workspace(self, strain_stress_object_1):
         r"""Export the strains to a MDHistoWorkspace"""
@@ -244,6 +253,8 @@ class TestStressFacade:
         assert_allclose(facade.d_reference.values, [1.0, 1.0, 1.2, 1.0, 1.4])
         assert_allclose(facade.d_reference.errors, [0.10, 0.00, 0.12, 0.00, 0.14])
 
+        # TODO check setting d_reference with strain_stress_object_1
+
     def test_peak_parameters(self, strain_stress_object_1):
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
         assert set(facade.peak_parameters) == {'Center', 'Height', 'FWHM', 'Mixing', 'A0', 'A1', 'Intensity'}
@@ -259,12 +270,18 @@ class TestStressFacade:
         with pytest.raises(AssertionError) as exception_info:
             facade.peak_parameter('center')
         assert 'Peak parameter must be one of' in str(exception_info.value)
-        r"""
         facade.selection = '1234'
         expected = [100, 110, 120, 130, 140, 150, 160, 170, nanf, nanf]
         assert_allclose(facade.peak_parameter('Intensity').values, expected, equal_nan=True)
-        """
-        # TODO assertions for remaining selections
+        facade.selection = '1235'
+        expected = [nanf, 1.1, 1.2, 1.3, 1.4, nanf, nanf, nanf, nanf, nanf]
+        assert_allclose(facade.peak_parameter('FWHM').values, expected, equal_nan=True)
+        facade.selection = '1236'
+        expected = [nanf, nanf, nanf, nanf, 14., 15., 16., 17., 18., nanf]
+        assert_allclose(facade.peak_parameter('A0').values, expected, equal_nan=True)
+        facade.selection = '1237'
+        expected = [nanf, nanf, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09]
+        assert_allclose(facade.peak_parameter('A1').values, expected, equal_nan=True)
 
     def test_peak_parameter_workspace(self, strain_stress_object_1):
         r"""Retrieve the effective peak parameters for a particular run, or for a particular direction"""
