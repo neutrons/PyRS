@@ -253,6 +253,8 @@ class TestStressFacade:
         assert_allclose(facade.d_reference.values, [1.0, 1.0, 1.2, 1.0, 1.4])
         assert_allclose(facade.d_reference.errors, [0.10, 0.00, 0.12, 0.00, 0.14])
 
+        # TODO check setting d_reference with strain_stress_object_1
+
     def test_peak_parameters(self, strain_stress_object_1):
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
         assert set(facade.peak_parameters) == {'Center', 'Height', 'FWHM', 'Mixing', 'A0', 'A1', 'Intensity'}
@@ -268,12 +270,18 @@ class TestStressFacade:
         with pytest.raises(AssertionError) as exception_info:
             facade.peak_parameter('center')
         assert 'Peak parameter must be one of' in str(exception_info.value)
-        r"""
         facade.selection = '1234'
         expected = [100, 110, 120, 130, 140, 150, 160, 170, nanf, nanf]
         assert_allclose(facade.peak_parameter('Intensity').values, expected, equal_nan=True)
-        """
-        # TODO assertions for remaining selections
+        facade.selection = '1235'
+        expected = [nanf, 1.1, 1.2, 1.3, 1.4, nanf, nanf, nanf, nanf, nanf]
+        assert_allclose(facade.peak_parameter('FWHM').values, expected, equal_nan=True)
+        facade.selection = '1236'
+        expected = [nanf, nanf, nanf, nanf, 14., 15., 16., 17., 18., nanf]
+        assert_allclose(facade.peak_parameter('A0').values, expected, equal_nan=True)
+        facade.selection = '1237'
+        expected = [nanf, nanf, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09]
+        assert_allclose(facade.peak_parameter('A1').values, expected, equal_nan=True)
 
     def test_peak_parameter_workspace(self, strain_stress_object_1):
         r"""Retrieve the effective peak parameters for a particular run, or for a particular direction"""
