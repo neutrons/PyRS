@@ -1,10 +1,11 @@
 # This is a test of the model component of the strain/stress viewer
 from pyrs.interface.strainstressviewer.model import Model
 import numpy as np
+import os
 import pytest
 
 
-def test_model(tmpdir):
+def test_model(tmpdir, test_data_dir):
     model = Model()
 
     assert model.selectedPeak is None
@@ -18,11 +19,11 @@ def test_model(tmpdir):
     assert model.validate_selection('33') == "e33 file hasn't been loaded"
 
     # load file without fitted peaks
-    model.e11 = 'tests/data/HB2B_1423.h5'
+    model.e11 = os.path.join(test_data_dir, 'HB2B_1423.h5')
     assert model.validate_selection('11') == "e11 contains no peaks, fit peaks first"
 
     # load file with fitted peaks
-    model.e11 = 'tests/data/HB2B_1320.h5'
+    model.e11 = os.path.join(test_data_dir, 'HB2B_1320.h5')
     assert len(model.e11) == 1
     assert model.e11[0].name == '11'
     assert model.peakTags == ['peak0']
@@ -60,10 +61,11 @@ def test_model(tmpdir):
         assert model.get_field('33', plot_param, 'stress_case') is None
 
     # Need to load ε22 so it should fail
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(TypeError) as exception_info:
         model.calculate_stress('in-plane-stress', 200, 0.3, (1.08, 0))
+    assert 'None is not a _StrainField object' in str(exception_info.value)
 
-    model.e22 = 'tests/data/HB2B_1320.h5'
+    model.e22 = os.path.join(test_data_dir, 'HB2B_1320.h5')
     assert len(model.e22) == 1
     assert model.e22[0].name == '22'
 
@@ -119,7 +121,7 @@ def test_model(tmpdir):
     # check number of lines written
     assert len(open(filename).readlines()) == 318
 
-    model.e33 = 'tests/data/HB2B_1320.h5'
+    model.e33 = os.path.join(test_data_dir, 'HB2B_1320.h5')
     assert len(model.e33) == 1
     assert model.e33[0].name == '33'
 
@@ -200,21 +202,23 @@ def test_model(tmpdir):
 
     # Check message when 22 is loaded without 11
     model = Model()
-    model.e22 = 'tests/data/HB2B_1320.h5'
+    model.e22 = os.path.join(test_data_dir, 'HB2B_1320.h5')
     assert model.e22 is not None
     assert model.validate_selection('22') == "e11 is not loaded, the peak tags from this file will be used"
 
     # try loading a file that isn't a HidraProjectFile
-    model.e22 = 'tests/data/HB2B_938.nxs.h5'
+    model.e22 = os.path.join(test_data_dir, 'HB2B_938.nxs.h5')
     assert model.e22 == []
 
     # Check set_workspace, this is what is called by the controller
     model.e11 == []
-    model.set_workspaces('11', 'tests/data/HB2B_1320.h5')
+    model.set_workspaces('11', os.path.join(test_data_dir, 'HB2B_1320.h5'))
     model.e11 is not None
 
 
-def test_model_multiple_files(tmpdir):
+@pytest.mark.skip(reason="('HB2B_1327.h5', 'HB2B_1331.h5') and ('HB2B_1328.h5', 'HB2B_1332.h5') have only one "
+                         "overlapping point")
+def test_model_multiple_files(tmpdir, test_data_dir):
     model = Model()
 
     assert model.selectedPeak is None
@@ -224,7 +228,7 @@ def test_model_multiple_files(tmpdir):
     assert model._stress is None
 
     # load 2 files with fitted peaks
-    model.e11 = ['tests/data/HB2B_1327.h5', 'tests/data/HB2B_1331.h5']
+    model.e11 = [os.path.join(test_data_dir, name) for name in ('HB2B_1327.h5', 'HB2B_1331.h5')]
     assert len(model.e11) == 2
     assert model.e11[0].name == '11'
     assert model.e11[1].name == '11'
@@ -264,10 +268,11 @@ def test_model_multiple_files(tmpdir):
         assert model.get_field('33', plot_param, 'stress_case') is None
 
     # Need to load ε22 so it should fail
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(TypeError) as exception_info:
         model.calculate_stress('in-plane-stress', 200, 0.3, (1.05, 0))
+    assert 'None is not a _StrainField object' in str(exception_info.value)
 
-    model.e22 = ['tests/data/HB2B_1328.h5', 'tests/data/HB2B_1332.h5']
+    model.e22 = [os.path.join(test_data_dir, name) for name in ('HB2B_1328.h5', 'HB2B_1332.h5')]
     assert len(model.e22) == 2
     assert model.e22[0].name == '22'
     assert model.e22[1].name == '22'
@@ -321,7 +326,7 @@ def test_model_multiple_files(tmpdir):
     # check number of lines written
     assert len(open(filename).readlines()) == 367
 
-    model.e33 = 'tests/data/HB2B_1320.h5'
+    model.e33 = os.path.join(test_data_dir, 'HB2B_1320.h5')
     assert len(model.e33) == 1
     assert model.e33[0].name == '33'
 

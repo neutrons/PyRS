@@ -199,12 +199,7 @@ def strain_builder(strain_single_builder):
         --------
 
         """
-        strain_single = strain_single_builder(peaks_data)
-        strain = StrainField()
-        strain._strains.append(strain_single)
-        strain._point_list = strain_single.point_list
-
-        return strain
+        return StrainField(strain_single=strain_single_builder(peaks_data))
 
     return wrapped_function
 
@@ -592,8 +587,8 @@ def strain_stress_object_1(strain_builder):
             '11': strain11, '22': strain22, '33': strain33
         },
         'stresses': {
-            'diagonal': StressField(strain11, strain22, strain33, 4. / 3, 1. / 3, 'diagonal'),
-            'in-plane-strain': StressField(strain11, strain22, None, 4. / 3, 1. / 3, 'in-plane-strain'),
-            'in-plane-stress': StressField(strain11, strain22, None, 3. / 2, 1. / 2, 'in-plane-stress')
+             'diagonal': StressField(strain11, strain22, strain33, 4. / 3, 1. / 3, 'diagonal'),
+             'in-plane-strain': StressField(strain11, strain22, None, 4. / 3, 1. / 3, 'in-plane-strain'),
+             'in-plane-stress': StressField(strain11, strain22, None, 3. / 2, 1. / 2, 'in-plane-stress')
         }
     }

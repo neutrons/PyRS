@@ -2,21 +2,21 @@
 from collections import namedtuple
 import copy
 import numpy as np
-from numpy.testing import assert_allclose
+from numpy.testing import assert_allclose, assert_equal
 import os
 import pytest
 import random
 from uncertainties import unumpy
 
 # PyRs libraries
+from pyrs.core.peak_profile_utility import EFFECTIVE_PEAK_PARAMETERS, get_parameter_dtype
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.dataobjects.constants import DEFAULT_POINT_RESOLUTION
 from pyrs.dataobjects.fields import (aggregate_scalar_field_samples, fuse_scalar_field_samples,
-                                     ScalarFieldSample, StrainField, StrainFieldSingle, StressField,
-                                     stack_scalar_field_samples)
-from pyrs.core.peak_profile_utility import EFFECTIVE_PEAK_PARAMETERS, get_parameter_dtype
-from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
+                                     ScalarFieldSample, _StrainField, StrainField, StrainFieldSingle,
+                                     StressField, stack_scalar_field_samples)
 from pyrs.dataobjects.sample_logs import PointList
+from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
 from tests.conftest import assert_allclose_with_sorting
 
 SampleMock = namedtuple('SampleMock', 'name values errors x y z')
@@ -632,6 +632,136 @@ class Test_StrainField:
         strain_multi_2 = self.StrainFieldMock(*strains_single_scan[:-1])  # all except the last one
         assert (strain_multi == strain_multi_2) is False
 
+    def test_stack_with(self, strain_stress_object_0, strain_stress_object_1):
+        r"""
+        Stack pair of strains.
+
+        Description of strain_stress_object_0['strains']:
+          RUN          vx-coordinate
+        NUMBER  0.0  1.0  2.0  3.0  4.0  5.0
+        1234    ****************************
+        1235    ****************************
+        1236    ****************************
+
+        For simplicity, vy and vz values are all zero, so these are unidimensional scans
+
+        From these four strains, we create strains in three dimensions:
+            strain11 = strain_1234
+            strain22 = strain_1235
+            strain33 = strain_1237
+
+        Description of strain_stress_object_1['strains']:
+        We create four single strain instances, below is how they overlap over the vx's extent
+
+              RUN          vx-coordinate
+            NUMBER  0.0  1.0  2.0  3.0  4.0  5.0  6.0  7.0  8.0  9.0
+            1234    **************************************
+            1235         ******************
+            1236                        ***********************
+            1237              **************************************
+
+        Runs 1235 and 1236 overlap in one point. 1235 is the run will the smallest error in strain.
+
+        For simplicity, vy and vz values are all zero, so these are unidimensional scans
+
+        From these four strains, we create strains in three dimensions:
+            strain11 = strain_1234
+            strain22 = strain_1235 + strain_1236
+            strain33 = strain_1237
+        """
+        strains = strain_stress_object_0['strains']
+
+        def assert_stacking(direction_left, direction_right):
+            r"""Stack strains along two directions"""
+            left, right = strains[direction_left].stack_with(strains[direction_right])
+            # evaluate the stacked left direction
+            assert_allclose(left.point_list.vx, [0., 1., 2., 3., 4.])
+            assert left._strains == strains[direction_left]._strains
+            assert_equal(left._winners.scan_indexes, [0, 0, 0, 0, 0])
+            assert_equal(left._winners.point_indexes, [0, 1, 2, 3, 4])
+            # evaluate the stacked right direction
+            assert_allclose(right.point_list.vx, [0., 1., 2., 3., 4.])
+            assert right._strains == strains[direction_right]._strains
+            assert_equal(right._winners.scan_indexes, [0, 0, 0, 0, 0])
+            assert_equal(right._winners.point_indexes, [0, 1, 2, 3, 4])
+
+        assert_stacking('11', '22')
+        assert_stacking('11', '33')
+        assert_stacking('22', '33')
+
+        strains = strain_stress_object_1['strains']
+        #
+        # Stack 11 and 22 directions
+        left, right = strains['11'].stack_with(strains['22'])
+        # evaluate the stacked 11 direction
+        assert_allclose(left.point_list.vx, [0., 1., 2., 3., 4., 5., 6., 7., 8.0])
+        assert left._strains == strains['11']._strains
+        assert_equal(left._winners.scan_indexes, [0, 0, 0, 0, 0, 0, 0, 0, -1])
+        assert_equal(left._winners.point_indexes, [0, 1, 2, 3, 4, 5, 6, 7, -1])
+        # evaluate the stacked 22 direction
+        assert_allclose(right.point_list.vx, [0., 1., 2., 3., 4., 5., 6., 7., 8.0])
+        assert right._strains == strains['22']._strains
+        assert_equal(right._winners.scan_indexes, [-1, 0, 0, 0, 0, 1, 1, 1, 1])
+        assert_equal(right._winners.point_indexes, [-1, 0, 1, 2, 3, 1, 2, 3, 4])
+        #
+        # Stack 11 and 33 directions
+        left, right = strains['11'].stack_with(strains['33'])
+        # evaluate the stacked 11 direction
+        assert_allclose(left.point_list.vx, [0., 1., 2., 3., 4., 5., 6., 7., 8.0, 9.0])
+        assert left._strains == strains['11']._strains
+        assert_equal(left._winners.scan_indexes, [0, 0, 0, 0, 0, 0, 0, 0, -1, -1])
+        assert_equal(left._winners.point_indexes, [0, 1, 2, 3, 4, 5, 6, 7, -1, -1])
+        # evaluate the stacked 33 direction
+        assert_allclose(right.point_list.vx, [0., 1., 2., 3., 4., 5., 6., 7., 8.0, 9.0])
+        assert right._strains == strains['33']._strains
+        assert_equal(right._winners.scan_indexes, [-1, -1, 0, 0, 0, 0, 0, 0, 0, 0])
+        assert_equal(right._winners.point_indexes, [-1, -1, 0, 1, 2, 3, 4, 5, 6, 7])
+        #
+        # Stack 22 and 33 directions
+        left, right = strains['22'].stack_with(strains['33'])
+        # evaluate the stacked 22 direction
+        assert_allclose(left.point_list.vx, [1., 2., 3., 4., 5., 6., 7., 8.0, 9.0])
+        assert left._strains == strains['22']._strains
+        assert_equal(left._winners.scan_indexes, [0, 0, 0, 0, 1, 1, 1, 1, -1])
+        assert_equal(left._winners.point_indexes, [0, 1, 2, 3, 1, 2, 3, 4, -1])
+        # evaluate the stacked 33 direction
+        assert_allclose(right.point_list.vx, [1., 2., 3., 4., 5., 6., 7., 8.0, 9.0])
+        assert right._strains == strains['33']._strains
+        assert_equal(right._winners.scan_indexes, [-1, 0, 0, 0, 0, 0, 0, 0, 0])
+        assert_equal(right._winners.point_indexes, [-1, 0, 1, 2, 3, 4, 5, 6, 7])
+
+    def test_mul(self, strain_object_0, strain_object_2):
+        r"""
+        Strain_object_0 is a StrainField object made up of one StrainFieldSingle object
+            vx: [0., 1., 2., 3., 4., 5., 6., 7.]
+        strain_object_2 is a StrainField object made up of two overlapping StrainFieldSingle objects
+            vx: [1., 2., 3., 4.]  (vx of first StrainFieldSingle)
+            vx:             [4., 5., 6., 7., 8.] (vy of first StrainFieldSingle)
+            The first StrainFieldSingle has smaller errors in the strain
+        """
+        left, right = strain_object_0 * strain_object_2
+        # evaluate the stacked first direction
+        assert_allclose(left.point_list.vx, [0., 1., 2., 3., 4., 5., 6., 7., 8.0])
+        assert left._strains == strain_object_0._strains
+        assert_equal(left._winners.scan_indexes, [0, 0, 0, 0, 0, 0, 0, 0, -1])
+        assert_equal(left._winners.point_indexes, [0, 1, 2, 3, 4, 5, 6, 7, -1])
+        # evaluate the stacked second direction
+        assert_allclose(right.point_list.vx, [0., 1., 2., 3., 4., 5., 6., 7., 8.0])
+        assert right._strains == strain_object_2._strains
+        assert_equal(right._winners.scan_indexes, [-1, 0, 0, 0, 0, 1, 1, 1, 1])
+        assert_equal(right._winners.point_indexes, [-1, 0, 1, 2, 3, 1, 2, 3, 4])
+
+    def test_rmul(self, strain_stress_object_1):
+        strains = strain_stress_object_1['strains']
+        strains12 = strains['11'] * strains['22']
+        # Here comes the call to rmul by stacking a list of two strains against a third strain
+        strains1, strains2, strains3 = strains12 * strains['33']
+        # Compare against stacking the three strains at the same time
+        strains123 = _StrainField.stack_strains(*strains.values())
+        assert_allclose(strains1.values, strains123[0].values)
+        assert_allclose(strains2.values, strains123[1].values)
+        assert_allclose(strains3.values, strains123[2].values)
+
 
 class TestStrainField:
 
@@ -1176,19 +1306,23 @@ class TestStressField:
         point_list1 = PointList([x, y, z])
         values = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
         errors = np.full(len(values), 1., dtype=float)
-        strain = StrainField(peak_collection=PeakCollectionLite('strain',
-                                                                strain=values, strain_error=errors),
+        strain = StrainField(peak_collection=PeakCollectionLite('strain', strain=values, strain_error=errors),
                              point_list=point_list1)
 
         # create a simple stress field
         stress = StressField(strain, strain, strain, YOUNG, POISSON)
-        # verify the values
+        # Stress formulae with the above POISSON and YOUNG simplifies to:
+        #   stress_ii = strain_ii + (strain_11 + strain_22 + strain_33).
+        # Example: for the 11 direction we have:
+        #   stress11 = 2 * strain11 + strain22 + strain33
+        # Strains along different directions are independent, thus their errors add in quadrature
+        #   stress11.errors = sqrt(4 * strain11.errors + strain22.errors + strain33.errors) == sqrt(6) * errors
         for direction in DIRECTIONS:
             stress.select(direction)
             assert stress.strain == strain  # it is the same reference
             # hand calculations show that this should be 4*strain
-            np.testing.assert_almost_equal(stress.values, 4. * values)
-            np.testing.assert_almost_equal(stress.errors, 4. * errors)
+            assert_allclose(stress.values, 4. * values)
+            assert_allclose(stress.errors, np.sqrt(6) * errors)
 
     def test_strain33_when_inplane_stress(self, strains_for_stress_field_1):
         sample11, sample22 = strains_for_stress_field_1[0:2]
@@ -1282,6 +1416,31 @@ class TestStressField:
             assert_allclose(stress[direction].values, strain.values + trace)
         assert_allclose(stress['33'].values, np.zeros(stress.size))  # because in-plane-stress
         # TODO also test with fixture strain_stress_object_1
+
+    def test_strain_fields(self, strain_stress_object_1):
+        r"""
+        Test the values of the stacked strains along each direction as well as their components
+        """
+        stress = strain_stress_object_1['stresses']['diagonal']
+        nanf = float('nan')
+
+        # strain values for stacked strain along direction 11
+        expected = [0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf, nanf]
+        assert_allclose(stress.strain11.values, expected, equal_nan=True, atol=1.e-02)
+
+        # strain values for stacked strain along direction 22
+        expected = [nanf, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, nanf]
+        # TODO bug: we obtain [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, nanf, nanf] instead of `expected`
+        assert_allclose(stress.strain22.values, expected, equal_nan=True, atol=1.e-02)
+
+        # strain values for stacked strain along direction 33
+        expected = [nanf, nanf, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09]
+        # TODO bug: we obtain [0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, nanf, nanf] instead of `expected`
+        assert_allclose(stress.strain33.values, expected, equal_nan=True, atol=1.e-02)
+
+        # strain values for the single strain along direction 11
+        expected = [0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07]
+        assert_allclose(stress.strain11.strains[0].values, expected, equal_nan=True, atol=1.e-02)
 
 
 @pytest.fixture(scope='module')
