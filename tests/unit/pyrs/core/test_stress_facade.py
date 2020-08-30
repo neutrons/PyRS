@@ -228,6 +228,13 @@ class TestStressFacade:
         assert 'reference spacings are different on different directions' in str(exception_info.value)
 
     def test_set_d_reference(self, strain_stress_object_0, strain_stress_object_1):
+        r"""
+        strain_stress_object_0: strains stacked, all have the same set of sample points
+        strain_stress_object_1: strains stacked, having different set of sample points
+        """
+        #
+        # Using strain_stress_object_0
+        #
         facade = StressFacade(strain_stress_object_0['stresses']['diagonal'])
         #
         # Case single value (errors assumed 0.0)
@@ -235,7 +242,7 @@ class TestStressFacade:
         assert_allclose(facade.d_reference.values, 2.0 * np.ones(facade.size))
         assert_allclose(facade.d_reference.errors, np.zeros(facade.size))
         #
-        # Case single value and error
+        # Case single value and error, passing different types of objects
         for d_update in [(2.0, 0.20), [2.1, 0.21], np.array([2.2, 0.22])]:
             value, error = d_update
             facade.d_reference = d_update
@@ -259,8 +266,62 @@ class TestStressFacade:
         facade.d_reference = d_update
         assert_allclose(facade.d_reference.values, [1.0, 1.0, 1.2, 1.0, 1.4])
         assert_allclose(facade.d_reference.errors, [0.10, 0.00, 0.12, 0.00, 0.14])
+        #
+        # Using strain_stress_object_1
+        #
+        facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
+        #
+        # Case single value (errors assumed 0.0)
+        facade.d_reference = 2.0
+        assert_allclose(facade.d_reference.values, 2.0 * np.ones(facade.size))
+        assert_allclose(facade.d_reference.errors, np.zeros(facade.size))
+        #
+        # Case single value and error, passing different types of objects
+        for d_update in [(2.0, 0.20), [2.1, 0.21], np.array([2.2, 0.22])]:
+            value, error = d_update
+            facade.d_reference = d_update
+            assert_allclose(facade.d_reference.values, value * np.ones(facade.size))
+            assert_allclose(facade.d_reference.errors, error * np.ones(facade.size))
+        #
+        # Case scalar field with d_reference update for all sample points
+        values = 1.0 + 0.1 * np.arange(facade.size)  # (1.0, 1.1,.., 1.9)
+        d_update = ScalarFieldSample('d_reference', values, 0.1 * values, facade.x, facade.y, facade.z)
+        facade.d_reference = d_update
+        assert_allclose(facade.d_reference.values, values)
+        assert_allclose(facade.d_reference.errors, 0.1 * values)
+        #
+        # Case scalar field with d_reference update for some sample points
+        values = 1.0 + 0.1 * np.arange(facade.size)  # [1.0, 1.1,.., 1.9]
+        errors = 0.1 * values  # [0.1, 0.11,..,0.19]
+        facade.d_reference = (1.0, 0.0)  # "reset" d_reference
+        assert_allclose(facade.d_reference.values, np.ones(facade.size))
+        assert_allclose(facade.d_reference.errors, np.zeros(facade.size))
+        indexes = [0, 2, 4, 6, 8]  # indexes of the sample points whose d_reference will be updated
+        d_update = ScalarFieldSample('d_reference', values[indexes], 0.1 * values[indexes],
+                                     facade.x[indexes], facade.y[indexes], facade.z[indexes])
+        facade.d_reference = d_update
+        assert_allclose(facade.d_reference.values, [1.00, 1.00, 1.20, 1.00, 1.40, 1.00, 1.60, 1.00, 1.80, 1.00])
+        assert_allclose(facade.d_reference.errors, [0.10, 0.00, 0.12, 0.00, 0.14, 0.00, 0.16, 0.00, 0.18, 0.00])
 
-        # TODO check setting d_reference with strain_stress_object_1
+        # What about d_reference for each strain direction and single strain?
+        # d_reference along the 11 direction
+        d_reference_11 = facade._stress.strain11.get_d_reference().values
+        assert_allclose(d_reference_11, [1.00, 1.00, 1.20, 1.00, 1.40, 1.00, 1.60, 1.00, nanf, nanf])
+        # d_reference for the single strain field with run 1234
+        d_reference_1234 = facade._stress.strain11.strains[0].get_d_reference().values
+        assert_allclose(d_reference_1234, [1.00, 1.00, 1.20, 1.00, 1.40, 1.00, 1.60, 1.00])
+
+        d_reference_22 = facade._stress.strain22.get_d_reference().values
+        assert_allclose(d_reference_22, [nanf, 1.00, 1.20, 1.00, 1.40, 1.00, 1.60, 1.00, 1.80, nanf])
+        d_reference_1235 = facade._stress.strain22.strains[0].get_d_reference().values
+        assert_allclose(d_reference_1235, [1.00, 1.20, 1.00, 1.40])
+        d_reference_1236 = facade._stress.strain22.strains[1].get_d_reference().values
+        assert_allclose(d_reference_1236, [1.40, 1.00, 1.60, 1.00, 1.80])
+
+        d_reference_33 = facade._stress.strain33.get_d_reference().values
+        assert_allclose(d_reference_33, [nanf, nanf, 1.20, 1.00, 1.40, 1.00, 1.60, 1.00, 1.80, 1.00])
+        d_reference_1237 = facade._stress.strain33.strains[0].get_d_reference().values
+        assert_allclose(d_reference_1237, [1.20, 1.00, 1.40, 1.00, 1.60, 1.00, 1.80, 1.00])
 
     def test_peak_parameters(self, strain_stress_object_1):
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
