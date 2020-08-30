@@ -89,6 +89,11 @@ class TestStressFacade:
         assert_allclose(facade.y, np.zeros(9))
         assert_allclose(facade.z, np.zeros(9))
 
+    def test_point_list(self, strain_stress_object_1):
+        stress = strain_stress_object_1['stresses']['diagonal']
+        facade = StressFacade(stress)
+        assert facade.point_list == stress.point_list
+
     def test_direction(self, strain_stress_object_1):
         r"""Select run numbers or directions"""
         facade = StressFacade(strain_stress_object_1['stresses']['in-plane-stress'])
@@ -100,6 +105,16 @@ class TestStressFacade:
         assert facade.direction == '22'
         facade.selection = '33'
         assert facade.direction == '33'
+
+    def test_extend_to_stacked_point_list(self, strain_stress_object_1):
+        stress = strain_stress_object_1['stresses']['diagonal']
+        facade = StressFacade(stress)
+        facade.selection == '1235'
+        field = stress.strain22.strains[0].field  # scalar field sample for run 1235
+        assert_allclose(field.values, [0.01, 0.02, 0.03, 0.04], atol=0.001)
+        field_extended = facade._extend_to_stacked_point_list(field)
+        nan = float('nan')
+        assert_allclose(field_extended.values, [nan, 0.01, 0.02, 0.03, 0.04, nan, nan, nan, nan, nan, ], atol=0.001)
 
     def test_strain_field(self, strain_stress_object_1):
         r"""strains along for a particular direction or run number"""

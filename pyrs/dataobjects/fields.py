@@ -569,7 +569,7 @@ class ScalarFieldSample:
         exporter_arguments = {arg: kwargs[arg] for arg in exporters_arguments[form]}
         return exporters[form](*args, **exporter_arguments)  # type: ignore
 
-    def extent_to_point_list(self, point_list_extended: PointList,
+    def extend_to_point_list(self, point_list_extended: PointList,
                              padding_value: float=float('nan'), padding_error: float=0.0,
                              resolution: float = DEFAULT_POINT_RESOLUTION) -> 'ScalarFieldSample':
         r"""

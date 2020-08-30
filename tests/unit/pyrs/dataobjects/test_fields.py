@@ -493,7 +493,7 @@ class TestScalarFieldSample:
         # clean up
         histo.delete()
 
-    def test_extent_to_point_list(self, strain_object_1, strain_object_2):
+    def test_extend_to_point_list(self, strain_object_1, strain_object_2):
         r"""
         strain_object_1 is a StrainField object made up of two non-overlapping StrainFieldSingle objects.
         strain_object_2 a StrainField object made up of two overlapping StrainFieldSingle objects
@@ -503,14 +503,14 @@ class TestScalarFieldSample:
         # Corner case: the extended point list is the same as the point list
         field = strain_object_1.field
         point_list_extended = deepcopy(field.point_list)
-        field_extended = field.extent_to_point_list(point_list_extended)
+        field_extended = field.extend_to_point_list(point_list_extended)
         assert id(field_extended) == id(field)  # we didn't do a thing
         #
         # Exception: the extended point list does not contain the point list of the field
         field = strain_object_1.field
         point_list_extended = strain_object_1.strains[0].field.point_list  # just half of field.point_list
         with pytest.raises(ValueError) as exception_info:
-            field.extent_to_point_list(point_list_extended)
+            field.extend_to_point_list(point_list_extended)
         assert 'The point list is not contained in' in str(exception_info.value)
         #
         # Use strain_object_1
@@ -518,13 +518,13 @@ class TestScalarFieldSample:
         # Extend the field of the first single strain object
         field = strain_object_1.strains[0].field
         assert_allclose(field.values, [0.01, 0.02, 0.03, 0.04], atol=0.001)
-        field_extended = field.extent_to_point_list(point_list_extended)
+        field_extended = field.extend_to_point_list(point_list_extended)
         assert field_extended.point_list == point_list_extended
         assert_allclose(field_extended.values, [0.01, 0.02, 0.03, 0.04, nan, nan, nan, nan], atol=0.001)
         # Extend the field of the second single strain object
         field = strain_object_1.strains[1].field
         assert_allclose(field.values, [0.05, 0.06, 0.07, 0.08], atol=0.001)
-        field_extended = field.extent_to_point_list(point_list_extended)
+        field_extended = field.extend_to_point_list(point_list_extended)
         assert field_extended.point_list == point_list_extended
         assert_allclose(field_extended.values, [nan, nan, nan, nan, 0.05, 0.06, 0.07, 0.08], atol=0.001)
         #
@@ -533,13 +533,13 @@ class TestScalarFieldSample:
         # Extend the field of the first single strain object
         field = strain_object_2.strains[0].field
         assert_allclose(field.values, [0.01, 0.02, 0.03, 0.04], atol=0.001)
-        field_extended = field.extent_to_point_list(point_list_extended)
+        field_extended = field.extend_to_point_list(point_list_extended)
         assert field_extended.point_list == point_list_extended
         assert_allclose(field_extended.values, [0.01, 0.02, 0.03, 0.04, nan, nan, nan, nan], atol=0.001)
         # Extend the field of the second single strain object
         field = strain_object_2.strains[1].field
         assert_allclose(field.values, [0.045, 0.05, 0.06, 0.07, 0.08], atol=0.001)
-        field_extended = field.extent_to_point_list(point_list_extended)
+        field_extended = field.extend_to_point_list(point_list_extended)
         assert field_extended.point_list == point_list_extended
         assert_allclose(field_extended.values, [nan, nan, nan, 0.045, 0.05, 0.06, 0.07, 0.08], atol=0.001)
 
