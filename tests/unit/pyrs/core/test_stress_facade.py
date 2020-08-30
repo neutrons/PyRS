@@ -297,7 +297,7 @@ class TestStressFacade:
         assert_allclose(facade.d_reference.values, np.ones(facade.size))
         assert_allclose(facade.d_reference.errors, np.zeros(facade.size))
         indexes = [0, 2, 4, 6, 8]  # indexes of the sample points whose d_reference will be updated
-        d_update = ScalarFieldSample('d_reference', values[indexes], errors,
+        d_update = ScalarFieldSample('d_reference', values[indexes], errors[indexes],
                                      facade.x[indexes], facade.y[indexes], facade.z[indexes])
         facade.d_reference = d_update
         assert_allclose(facade.d_reference.values, [1.00, 1.00, 1.20, 1.00, 1.40, 1.00, 1.60, 1.00, 1.80, 1.00])
