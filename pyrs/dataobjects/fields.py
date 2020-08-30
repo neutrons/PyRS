@@ -1266,10 +1266,10 @@ class StrainFieldSingle(_StrainField):
             raise RuntimeError('PeakCollection has not been set')
         if isinstance(values, ScalarFieldSample):
             # Find sample points in the point list associated to the peak collection
-            assert self._point_list_immutable is not None
+            assert self._point_list is not None
             d_reference = self.get_d_reference()
             values_new, errors_new = d_reference.values, d_reference.errors  # initialize new reference spacings
-            for self_index, values_index in enumerate(self._point_list_immutable.get_indices(values.point_list)):
+            for self_index, values_index in enumerate(self._point_list.get_indices(values.point_list)):
                 if values_index == PointList.MISSING_INDEX:
                     continue  # sample point corresponding to `self_index` is not found in `values`
                 values_new[self_index] = values.values[values_index]
