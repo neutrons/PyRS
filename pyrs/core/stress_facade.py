@@ -154,7 +154,7 @@ class StressFacade:
         d0s_values = [d0.values for d0 in d0s]
         for d0_ii in d0s_values[:-1]:
             for d0_jj in d0s_values[1:]:
-                mask = ~(np.isnan(d0_ii) | np.isnan(d0_jj))
+                mask = ~(np.isnan(d0_ii) | np.isnan(d0_jj))  # indexes where d0_ii and d0_jj are not Nan
                 assert_allclose(d0_ii[mask], d0_jj[mask], rtol=1.e-4,
                                 err_msg='reference spacings are different on different directions')
 
