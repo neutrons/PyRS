@@ -569,6 +569,61 @@ class ScalarFieldSample:
         exporter_arguments = {arg: kwargs[arg] for arg in exporters_arguments[form]}
         return exporters[form](*args, **exporter_arguments)  # type: ignore
 
+    def extent_to_point_list(self, point_list_extended: PointList,
+                             padding_value: float=float('nan'), padding_error: float=0.0,
+                             resolution: float = DEFAULT_POINT_RESOLUTION) -> 'ScalarFieldSample':
+        r"""
+        Lay down the values and errors of this scalar field sample onto another point list that
+        encompass the point list of this scalar field sample.
+
+        Parameters
+        ----------
+        point_list_extended: ~pyrs.dataobjects.sample_logs.PointList
+            A point list encompassing the point list of this scalar field sample
+        padding_value: float
+            Fill the additional sample points with this quantity for the field value
+        padding_error: float
+            Fill the additional sample points with this quantity for the field error
+        resolution: float
+            Two points are considered the same if they are separated by a distance smaller than this quantity
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.ScalarFieldSample
+        """
+        # Check the extended point list  the extended one
+        try:
+            assert self.point_list.is_contained_in(point_list_extended, resolution=resolution)
+        except AssertionError:
+            raise ValueError('The point list is not contained in the extended point list')
+
+        # Don't do a thing if the extended point list is the same as the current point list
+        if self.point_list == point_list_extended:
+            return self
+
+        # combine all points into a single long list with the first points having the lower indices
+        all_points = aggregate_point_lists(point_list_extended, self.point_list)
+
+        # cluster all points and sort clusters according to the first index in each cluster
+        clusters = all_points.cluster(resolution=resolution)
+        clusters_sorted = sorted(clusters, key=lambda cluster: cluster[0])
+
+        # values and errors of the field extended to `point_list_extended`
+        values = np.full(len(clusters), padding_value, dtype=float)
+        errors = np.full(len(clusters), padding_error, dtype=float)
+
+        # `all_points` indexes above `offset` are associated with sample points of `self`
+        offset = len(point_list_extended)
+        for cluster_index, cluster in enumerate(clusters_sorted):
+            for index_aggregate in cluster:
+                point_list_index = index_aggregate - offset
+                if point_list_index >= 0:
+                    values[cluster_index] = self.values[point_list_index]
+                    errors[cluster_index] = self.errors[point_list_index]
+
+        return ScalarFieldSample(self.name, values, errors,
+                                 point_list_extended.vx, point_list_extended.vy, point_list_extended.vz)
+
 
 class _StrainField:
 
@@ -645,7 +700,7 @@ class _StrainField:
             A mode to stack the scalar fields. Valid values are 'union' and 'intersection'. However,
             'intersection' is not currently implemented
         resolution: float
-        Two points are considered the same if they are separated by a distance smaller than this quantity
+            Two points are considered the same if they are separated by a distance smaller than this quantity
 
         Raises
         ------
