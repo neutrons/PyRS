@@ -291,16 +291,24 @@ class TestStressFacade:
 
     def test_d_reference_field(self, strain_stress_object_1):
         r"""Get the reference lattice spacing"""
-        stress = strain_stress_object_1['stresses']['diagonal']
-        facade = StressFacade(stress)
-        assert_allclose(facade.d_reference.values, np.ones(facade.size))
+
+        for stress_type in ('diagonal', 'in-plane-strain', 'in-plane-stress'):
+            facade = StressFacade(strain_stress_object_1['stresses'][stress_type])
+            assert_allclose(facade.d_reference.values, np.ones(facade.size))
+
         # "pollute" the reference spacing of run 1235
+        stress = strain_stress_object_1['stresses']['diagonal']
         strain_single_1235 = stress.strain22.strains[0]
         strain_single_1235.set_d_reference([1.001, 0.1])
         facade = StressFacade(stress)
         with pytest.raises(AssertionError) as exception_info:
             facade.d_reference
         assert 'reference spacings are different on different directions' in str(exception_info.value)
+
+    def test_d_reference_workspace(self, strain_stress_object_1):
+        for stress_type in ('diagonal', 'in-plane-strain', 'in-plane-stress'):
+            facade = StressFacade(strain_stress_object_1['stresses'][stress_type])
+            assert_workspace(facade, 'd_reference', np.ones(facade.size))
 
     def test_set_d_reference(self, strain_stress_object_0, strain_stress_object_1):
         r"""

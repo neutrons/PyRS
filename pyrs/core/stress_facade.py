@@ -336,7 +336,8 @@ class StressFacade:
         Parameters
         ----------
         query: str
-            One of 'strain', 'stress', or one of the effective peak parameter names
+            One of 'strain', 'stress', 'd_reference', 'Center', 'Height', 'FWHM', 'Mixing',
+            'A0', 'A1', 'Intensity'
 
         Returns
         -------
@@ -346,6 +347,8 @@ class StressFacade:
             field = self.strain
         elif query == 'stress':
             field = self.stress
+        elif query == 'd_reference':
+            field = self.d_reference
         else:
             field = self.peak_parameter(query)
         return field.to_md_histo_workspace()
