@@ -149,30 +149,26 @@ class SummaryGeneratorStress:
                 decimals = SummaryGeneratorStress.decimals[field]
 
                 for direction in SummaryGeneratorStress.directions:
+                    
+                    self._stress_facade.selection = direction
+                    
                     if field == 'Strain':
-                        # TODO add check for strain?
-                        strain = self._get_strain_field(direction)
-                        assert(isinstance(strain, StrainField))
-                        strain_field = strain.field
+                        strain_field = self._stress_facade.strain
                         strain_value = strain_field.values[row]
                         strain_error = strain_field.errors[row]
                         entries += self._write_number(strain_value, decimals) + \
                             self._write_number(strain_error, decimals)
 
                     elif field == 'Stress':
-                        self._stress.select(direction)
-                        stress_value = self._stress.values[row]
-                        stress_error = self._stress.errors[row]
+                        stress_field = self._stress_facade.stress
+                        stress_value = stress_field.values[row]
+                        stress_error = stress_field.errors[row]
                         entries += self._write_number(stress_value, decimals) + \
                             self._write_number(stress_error, decimals)
 
                     else:
-                        peak_collection = self._get_peak_collection(direction)
-                        if not isinstance(peak_collection, PeakCollection):
-                            entries += ', , '
-                            continue
-
-                        field_data = self._peak_colllections_data[field][direction]
+                        field_data = self._stress_facade.peak_parameter(field)
+                        
                         if row >= len(field_data[0]):
                             entries += ', , '
                         else:
