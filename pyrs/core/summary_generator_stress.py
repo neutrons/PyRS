@@ -87,6 +87,15 @@ class SummaryGeneratorStress:
             self._peak_colllections_data[field] = dict()
             for direction in SummaryGeneratorStress.directions:
                 self._peak_colllections_data[field][direction] = (np.ndarray, np.ndarray)
+                
+        # used to cache summary csv fields
+        self._stress_field: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
+        self._strain_field: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
+        
+        for direction in SummaryGeneratorStress.directions:
+            self._stress_field[direction] = (np.ndarray, np.ndarray)
+            self._strain_field[direction] = (np.ndarray, np.ndarray)
+        
 
     def _write_csv_header(self, handle):
         """
@@ -150,25 +159,28 @@ class SummaryGeneratorStress:
 
                 for direction in SummaryGeneratorStress.directions:
                     
-                    self._stress_facade.selection = direction
-                    
                     if field == 'Strain':
-                        strain_field = self._stress_facade.strain
-                        strain_value = strain_field.values[row]
-                        strain_error = strain_field.errors[row]
+                        
+                        strain_value = self._strain_field[direction][0][row]
+                        strain_error = self._strain_field[direction][1][row]
                         entries += self._write_number(strain_value, decimals) + \
                             self._write_number(strain_error, decimals)
 
                     elif field == 'Stress':
-                        stress_field = self._stress_facade.stress
-                        stress_value = stress_field.values[row]
-                        stress_error = stress_field.errors[row]
+                        
+                        stress_value = self._stress_field[direction][0][row]
+                        stress_error = self._stress_field[direction][1][row]
                         entries += self._write_number(stress_value, decimals) + \
                             self._write_number(stress_error, decimals)
 
                     else:
-                        field_data = self._stress_facade.peak_parameter(field)
                         
+                        peak_collection = self._get_peak_collection(direction)
+                        if not isinstance(peak_collection, PeakCollection):
+                            entries += ', , '
+                            continue
+
+                        field_data = self._peak_colllections_data[field][direction]
                         if row >= len(field_data[0]):
                             entries += ', , '
                         else:
@@ -399,17 +411,26 @@ class SummaryGeneratorStress:
 
         for field in SummaryGeneratorStress.fields_3dir:
             for direction in SummaryGeneratorStress.directions:
+                
+                self._stress_facade.selection = direction
 
-                if field == 'Stress' or field == 'Strain':
-                    continue
-
-                peak_collection = self._get_peak_collection(direction)
-                if not isinstance(peak_collection, PeakCollection):
-                    continue
-
-                if field == 'd':
-                    self._peak_colllections_data[field][direction] = peak_collection.get_dspacing_center()
+                if field == 'Stress':
+                    self._stress_field[direction] = ( self._stress_facade.stress.values, \
+                                                       self._stress_facade.stress.errors)
+                    
+                elif field == 'Strain':
+                    self._strain_field[direction] = (self._stress_facade.strain.values, \
+                                                     self._stress_facade.strain.errors)
+                    
                 else:
-                    self._peak_colllections_data[field][direction] = \
-                        (peak_collection.get_effective_params()[0][field],
-                         peak_collection.get_effective_params()[1][field])
+                    peak_collection = self._get_peak_collection(direction)
+                    if not isinstance(peak_collection, PeakCollection):
+                        continue
+
+                    if field == 'd':
+                        self._peak_colllections_data[field][direction] = \
+                            peak_collection.get_dspacing_center()
+                    else:
+                        self._peak_colllections_data[field][direction] = \
+                            (peak_collection.get_effective_params()[0][field],
+                             peak_collection.get_effective_params()[1][field])
