@@ -363,7 +363,7 @@ class TestStressFacade:
         facade.selection = '11'
         with pytest.raises(ValueError) as exception_info:
             facade.workspace('Center')
-        assert 'Peak parameters can only be retrieved for run numbers' in str(exception_info.value)
+        assert 'Peak parameter Center can only be retrieved for run numbers' in str(exception_info.value)
         facade.selection = '1234'
         with pytest.raises(AssertionError) as exception_info:
             facade.workspace('center')
