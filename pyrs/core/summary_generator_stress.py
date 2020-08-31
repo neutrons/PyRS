@@ -87,15 +87,14 @@ class SummaryGeneratorStress:
             self._peak_colllections_data[field] = dict()
             for direction in SummaryGeneratorStress.directions:
                 self._peak_colllections_data[field][direction] = (np.ndarray, np.ndarray)
-                
+
         # used to cache summary csv fields
         self._stress_field: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
         self._strain_field: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
-        
+
         for direction in SummaryGeneratorStress.directions:
             self._stress_field[direction] = (np.ndarray, np.ndarray)
             self._strain_field[direction] = (np.ndarray, np.ndarray)
-        
 
     def _write_csv_header(self, handle):
         """
@@ -158,36 +157,37 @@ class SummaryGeneratorStress:
                 decimals = SummaryGeneratorStress.decimals[field]
 
                 for direction in SummaryGeneratorStress.directions:
-                    
+
                     if field == 'Strain':
-                        
+
                         strain_value = self._strain_field[direction][0][row]
                         strain_error = self._strain_field[direction][1][row]
                         entries += self._write_number(strain_value, decimals) + \
                             self._write_number(strain_error, decimals)
 
                     elif field == 'Stress':
-                        
+
                         stress_value = self._stress_field[direction][0][row]
                         stress_error = self._stress_field[direction][1][row]
                         entries += self._write_number(stress_value, decimals) + \
                             self._write_number(stress_error, decimals)
 
                     else:
-                        
-                        peak_collection = self._get_peak_collection(direction)
-                        if not isinstance(peak_collection, PeakCollection):
+                        # by pass calculated direction as there are no measured quantities
+                        if self._stress_facade.stress_type == 'in-plane-strain' and \
+                                direction == '33':
                             entries += ', , '
                             continue
 
                         field_data = self._peak_colllections_data[field][direction]
                         if row >= len(field_data[0]):
                             entries += ', , '
-                        else:
-                            value = field_data[0][row]
-                            error = field_data[1][row]
-                            entries += self._write_number(value, decimals) + \
-                                self._write_number(error, decimals)
+                            continue
+
+                        value = field_data[0][row]
+                        error = field_data[1][row]
+                        entries += self._write_number(value, decimals) + \
+                            self._write_number(error, decimals)
 
                 return entries
 
@@ -288,9 +288,7 @@ class SummaryGeneratorStress:
 
             else:
 
-                field_name = 'Center' if field == 'd' else field
-
-                field_data = self._stress_facade.peak_parameter(field_name)
+                field_data = self._stress_facade.peak_parameter(field)
                 if row >= len(field_data):
                     entries += ', , '
                 else:
@@ -411,26 +409,22 @@ class SummaryGeneratorStress:
 
         for field in SummaryGeneratorStress.fields_3dir:
             for direction in SummaryGeneratorStress.directions:
-                
+
                 self._stress_facade.selection = direction
 
                 if field == 'Stress':
-                    self._stress_field[direction] = ( self._stress_facade.stress.values, \
-                                                       self._stress_facade.stress.errors)
-                    
+                    self._stress_field[direction] = (self._stress_facade.stress.values,
+                                                     self._stress_facade.stress.errors)
+
                 elif field == 'Strain':
-                    self._strain_field[direction] = (self._stress_facade.strain.values, \
+                    self._strain_field[direction] = (self._stress_facade.strain.values,
                                                      self._stress_facade.strain.errors)
-                    
+
                 else:
-                    peak_collection = self._get_peak_collection(direction)
-                    if not isinstance(peak_collection, PeakCollection):
+                    if self._stress_facade.stress_type == 'in-plane-strain' and \
+                            direction == '33':
                         continue
 
-                    if field == 'd':
-                        self._peak_colllections_data[field][direction] = \
-                            peak_collection.get_dspacing_center()
-                    else:
-                        self._peak_colllections_data[field][direction] = \
-                            (peak_collection.get_effective_params()[0][field],
-                             peak_collection.get_effective_params()[1][field])
+                    field_data = self._stress_facade.peak_parameter(field)
+                    self._peak_colllections_data[field][direction] = (field_data.values,
+                                                                      field_data.errors)
