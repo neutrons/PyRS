@@ -456,7 +456,7 @@ class TestStressFacade:
         """
         # TODO assertions for remaining selections
 
-    def test_d(self, strain_stress_object_1):
+    def test_d_field(self, strain_stress_object_1):
         r"""Retrieve the d spacing for a particular direction and for a particular run"""
         facade = StressFacade(strain_stress_object_1['stresses']['in-plane-strain'])
         # Peak parameters can only be retrieved for run numbers
@@ -478,3 +478,13 @@ class TestStressFacade:
         with pytest.raises(ValueError) as exception_info:
             facade.peak_parameter('d')
         assert 'd-spacing not measured along 33 when in in-plane-strain' in str(exception_info.value)
+
+    def test_d_workspace(self, strain_stress_object_1):
+        facade = StressFacade(strain_stress_object_1['stresses']['in-plane-strain'])
+        for selection, expected in [('11', [1.00, 1.01, 1.02, 1.03, 1.04, 1.05, 1.06, 1.07, nanf]),
+                                    ('1234', [1.00, 1.01, 1.02, 1.03, 1.04, 1.05, 1.06, 1.07, nanf]),
+                                    ('22', [nanf, 1.01, 1.02, 1.03, 1.04, 1.05, 1.06, 1.07, 1.08]),
+                                    ('1235', [nanf, 1.01, 1.02, 1.03, 1.04, nanf, nanf, nanf, nanf]),
+                                    ('1236', [nanf, nanf, nanf, nanf, 1.045, 1.05, 1.06, 1.07, 1.08])]:
+            facade.selection = selection
+            assert_workspace(facade, 'd', expected)

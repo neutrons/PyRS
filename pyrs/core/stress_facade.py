@@ -336,7 +336,7 @@ class StressFacade:
         Parameters
         ----------
         query: str
-            One of 'strain', 'stress', 'd_reference', 'Center', 'Height', 'FWHM', 'Mixing',
+            One of 'strain', 'stress', 'd_reference', 'd', 'Center', 'Height', 'FWHM', 'Mixing',
             'A0', 'A1', 'Intensity'
 
         Returns
