@@ -216,8 +216,6 @@ def test_model(tmpdir, test_data_dir):
     model.e11 is not None
 
 
-@pytest.mark.skip(reason="('HB2B_1327.h5', 'HB2B_1331.h5') and ('HB2B_1328.h5', 'HB2B_1332.h5') have only one "
-                         "overlapping point")
 def test_model_multiple_files(tmpdir, test_data_dir):
     model = Model()
 
@@ -228,7 +226,7 @@ def test_model_multiple_files(tmpdir, test_data_dir):
     assert model._stress is None
 
     # load 2 files with fitted peaks
-    model.e11 = [os.path.join(test_data_dir, name) for name in ('HB2B_1327.h5', 'HB2B_1331.h5')]
+    model.e11 = [os.path.join(test_data_dir, name) for name in ('HB2B_1327.h5', 'HB2B_1328.h5')]
     assert len(model.e11) == 2
     assert model.e11[0].name == '11'
     assert model.e11[1].name == '11'
@@ -263,7 +261,7 @@ def test_model_multiple_files(tmpdir, test_data_dir):
         e11_md = model.get_field('11', plot_param, 'stress_case').to_md_histo_workspace()
         assert e11_md.name() == f'{plot_param}'
         assert e11_md.getNumDims() == 3
-        assert [e11_md.getDimension(n).getNBins() for n in range(3)] == [19, 24, 3]
+        assert [e11_md.getDimension(n).getNBins() for n in range(3)] == [18, 6, 3]
         assert model.get_field('22', plot_param, 'stress_case') is None
         assert model.get_field('33', plot_param, 'stress_case') is None
 
@@ -272,7 +270,7 @@ def test_model_multiple_files(tmpdir, test_data_dir):
         model.calculate_stress('in-plane-stress', 200, 0.3, (1.05, 0))
     assert 'None is not a _StrainField object' in str(exception_info.value)
 
-    model.e22 = [os.path.join(test_data_dir, name) for name in ('HB2B_1328.h5', 'HB2B_1332.h5')]
+    model.e22 = [os.path.join(test_data_dir, name) for name in ('HB2B_1327.h5', 'HB2B_1328.h5')]
     assert len(model.e22) == 2
     assert model.e22[0].name == '22'
     assert model.e22[1].name == '22'
@@ -285,23 +283,23 @@ def test_model_multiple_files(tmpdir, test_data_dir):
         stress_md = model.get_field(direction, 'stress', 'In-plane stress').to_md_histo_workspace()
         assert stress_md.name() == 'stress'
         assert stress_md.getNumDims() == 3
-        assert [stress_md.getDimension(n).getNBins() for n in range(3)] == [19, 49, 3]
+        assert [stress_md.getDimension(n).getNBins() for n in range(3)] == [18, 6, 3]
 
     # Stress should be all zero for in-plane stress case
     # assert np.count_nonzero(model.get_field('33', 'stress', 'In-plane stress')
     #                        .to_md_histo_workspace().getSignalArray()) == 0
     # Strain should be all non-zero for in-plane stress case
     assert np.count_nonzero(model.get_field('33', 'strain', 'In-plane stress')
-                            .to_md_histo_workspace().getSignalArray()) == 19*49*3
+                            .to_md_histo_workspace().getSignalArray()) == 18*6*3
 
     # Check default csv filename
-    assert model.get_default_csv_filename() == "HB2B_1327_1331_1328_1332_stress_grid_peak0.csv"
+    assert model.get_default_csv_filename() == "HB2B_1327_1328_1327_1328_stress_grid_peak0.csv"
 
     # Check writing csv file
     filename = tmpdir.join("test_model_csv1.csv")
     model.write_stress_to_csv(str(filename))
     # check number of lines written
-    assert len(open(filename).readlines()) == 367
+    assert len(open(filename).readlines()) == 318
 
     model.calculate_stress('in-plane-strain', 200, 0.3, (1.05, 0))
 
@@ -309,7 +307,7 @@ def test_model_multiple_files(tmpdir, test_data_dir):
         stress_md = model.get_field(direction, 'stress', 'In-plane strain').to_md_histo_workspace()
         assert stress_md.name() == 'stress'
         assert stress_md.getNumDims() == 3
-        assert [stress_md.getDimension(n).getNBins() for n in range(3)] == [19, 49, 3]
+        assert [stress_md.getDimension(n).getNBins() for n in range(3)] == [18, 6, 3]
 
     # Stress should be all non-zero for in-plane strain case
     # assert np.count_nonzero(model.get_field('33', 'stress', 'In-plane strain')
@@ -318,15 +316,15 @@ def test_model_multiple_files(tmpdir, test_data_dir):
     assert model.get_field('33', 'strain', 'In-plane strain') is None
 
     # Check default csv filename
-    assert model.get_default_csv_filename() == "HB2B_1327_1331_1328_1332_stress_grid_peak0.csv"
+    assert model.get_default_csv_filename() == "HB2B_1327_1328_1327_1328_stress_grid_peak0.csv"
 
     # Check writing csv file
     filename = tmpdir.join("test_model_csv2.csv")
     model.write_stress_to_csv(str(filename))
     # check number of lines written
-    assert len(open(filename).readlines()) == 367
+    assert len(open(filename).readlines()) == 318
 
-    model.e33 = os.path.join(test_data_dir, 'HB2B_1320.h5')
+    model.e33 = os.path.join(test_data_dir, 'HB2B_1327.h5')
     assert len(model.e33) == 1
     assert model.e33[0].name == '33'
 
@@ -336,17 +334,17 @@ def test_model_multiple_files(tmpdir, test_data_dir):
         stress_md = model.get_field(direction, 'stress', 'diagonal').to_md_histo_workspace()
         assert stress_md.name() == 'stress'
         assert stress_md.getNumDims() == 3
-        assert [stress_md.getDimension(n).getNBins() for n in range(3)] == [19, 49, 3]
+        assert [stress_md.getDimension(n).getNBins() for n in range(3)] == [18, 6, 3]
 
     # Should be all non-zero for diagonal stress case
     assert np.count_nonzero(model.get_field('33', 'stress', 'diagonal')
-                            .to_md_histo_workspace().getSignalArray()) == 19*49*3
+                            .to_md_histo_workspace().getSignalArray()) == 18*6*3
 
     # Check default csv filename
-    assert model.get_default_csv_filename() == "HB2B_1327_1331_1328_1332_1320_stress_grid_peak0.csv"
+    assert model.get_default_csv_filename() == "HB2B_1327_1328_1327_1328_1327_stress_grid_peak0.csv"
 
     # Check writing csv file
     filename = tmpdir.join("test_model_csv3.csv")
     model.write_stress_to_csv(str(filename))
     # check number of lines written
-    assert len(open(filename).readlines()) == 367
+    assert len(open(filename).readlines()) == 318
