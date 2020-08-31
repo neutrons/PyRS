@@ -238,17 +238,56 @@ class TestStressFacade:
         with pytest.raises(ValueError) as exception_info:
             facade.stress.values
         assert 'Stress can only be computed for directions' in str(exception_info.value)
-        # TODO assert stresses for the remaining selections
+
+        for direction, expected in [('11', [nanf, nanf, 0.08, 0.12, 0.16, 0.20, 0.24, 0.28, nanf, nanf]),
+                                    ('22', [nanf, nanf, 0.08, 0.12, 0.16, 0.20, 0.24, 0.28, nanf, nanf]),
+                                    ('33', [nanf, nanf, 0.08, 0.12, 0.16, 0.20, 0.24, 0.28, nanf, nanf])]:
+            facade.selection = direction
+            assert_allclose(facade.stress.values, expected, atol=1.e-5)
+
+        facade = StressFacade(strain_stress_object_1['stresses']['in-plane-strain'])
+        for direction, expected in [('11', [nanf, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21, nanf]),
+                                    ('22', [nanf, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21, nanf]),
+                                    ('33', [nanf, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.14, nanf])]:
+            facade.selection = direction
+            assert_allclose(facade.stress.values, expected, atol=1.e-5)
+
+        facade = StressFacade(strain_stress_object_1['stresses']['in-plane-stress'])
+        for direction, expected in [('11', [nanf, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21, nanf]),
+                                    ('22', [nanf, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21, nanf]),
+                                    ('33', [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00])]:
+            facade.selection = direction
+            assert_allclose(facade.stress.values, expected, atol=1.e-5)
 
     def test_stress_workspace(self, strain_stress_object_1):
         r"""Stresses along a particular direction. Also for a run number, when a direction contains only one run
         number"""
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
+
         facade.selection = '1234'
         with pytest.raises(ValueError) as exception_info:
             facade.workspace('stress')
         assert 'Stress can only be computed for directions' in str(exception_info.value)
-        # TODO assert stresses for the remaining selections
+
+        for direction, expected in [('11', [nanf, nanf, 0.08, 0.12, 0.16, 0.20, 0.24, 0.28, nanf, nanf]),
+                                    ('22', [nanf, nanf, 0.08, 0.12, 0.16, 0.20, 0.24, 0.28, nanf, nanf]),
+                                    ('33', [nanf, nanf, 0.08, 0.12, 0.16, 0.20, 0.24, 0.28, nanf, nanf])]:
+            facade.selection = direction
+            assert_workspace(facade, 'stress', expected)
+
+        facade = StressFacade(strain_stress_object_1['stresses']['in-plane-strain'])
+        for direction, expected in [('11', [nanf, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21, nanf]),
+                                    ('22', [nanf, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21, nanf]),
+                                    ('33', [nanf, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.14, nanf])]:
+            facade.selection = direction
+            assert_workspace(facade, 'stress', expected)
+
+        facade = StressFacade(strain_stress_object_1['stresses']['in-plane-stress'])
+        for direction, expected in [('11', [nanf, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21, nanf]),
+                                    ('22', [nanf, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21, nanf]),
+                                    ('33', [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00])]:
+            facade.selection = direction
+            assert_workspace(facade, 'stress', expected)
 
     def test_d_reference_field(self, strain_stress_object_1):
         r"""Get the reference lattice spacing"""
