@@ -336,10 +336,10 @@ class TestStressFacade:
     def test_peak_parameter_field(self, strain_stress_object_1):
         r"""Retrieve the effective peak parameters for a particular run, or for a particular direction"""
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
+
         facade.selection = '11'
-        with pytest.raises(ValueError) as exception_info:
-            facade.peak_parameter('Center')
-        assert 'Peak parameter Center can only be retrieved for run numbers' in str(exception_info.value)
+        expected = [100, 110, 120, 130, 140, 150, 160, 170, nanf, nanf]
+        assert_allclose(facade.peak_parameter('Intensity').values, expected, equal_nan=True)
         facade.selection = '1234'
         with pytest.raises(AssertionError) as exception_info:
             facade.peak_parameter('center')
@@ -347,12 +347,20 @@ class TestStressFacade:
         facade.selection = '1234'
         expected = [100, 110, 120, 130, 140, 150, 160, 170, nanf, nanf]
         assert_allclose(facade.peak_parameter('Intensity').values, expected, equal_nan=True)
+
+        facade.selection = '22'
+        expected = [nanf, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, nanf]
+        assert_allclose(facade.peak_parameter('FWHM').values, expected, equal_nan=True)
         facade.selection = '1235'
         expected = [nanf, 1.1, 1.2, 1.3, 1.4, nanf, nanf, nanf, nanf, nanf]
         assert_allclose(facade.peak_parameter('FWHM').values, expected, equal_nan=True)
         facade.selection = '1236'
         expected = [nanf, nanf, nanf, nanf, 14., 15., 16., 17., 18., nanf]
         assert_allclose(facade.peak_parameter('A0').values, expected, equal_nan=True)
+
+        facade.selection = '33'
+        expected = [nanf, nanf, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09]
+        assert_allclose(facade.peak_parameter('A1').values, expected, equal_nan=True)
         facade.selection = '1237'
         expected = [nanf, nanf, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09]
         assert_allclose(facade.peak_parameter('A1').values, expected, equal_nan=True)
@@ -360,10 +368,6 @@ class TestStressFacade:
     def test_peak_parameter_workspace(self, strain_stress_object_1):
         r"""Retrieve the effective peak parameters for a particular run, or for a particular direction"""
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
-        facade.selection = '11'
-        with pytest.raises(ValueError) as exception_info:
-            facade.workspace('Center')
-        assert 'Peak parameter Center can only be retrieved for run numbers' in str(exception_info.value)
         facade.selection = '1234'
         with pytest.raises(AssertionError) as exception_info:
             facade.workspace('center')

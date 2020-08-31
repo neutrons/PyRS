@@ -1671,15 +1671,10 @@ class StrainField(_StrainField):
     def get_effective_peak_parameter(self, name: str) -> ScalarFieldSample:
         self._validate_peak_param_name(name)
 
-        if len(self._strains) == 1:
-            # delegate the work to the only StrainField
-            return self._strains[0].get_effective_peak_parameter(name)
-        else:
-            # look for it in the cache
-            if name not in self._effective_params.keys():
-                self._effective_params[name] = self._create_scalar_field(method=name, name=name)
+        if name not in self._effective_params.keys():  # look for it in the cache
+            self._effective_params[name] = self._create_scalar_field(method=name, name=name)
 
-            return self._effective_params[name]
+        return self._effective_params[name]
 
 
 def aggregate_scalar_field_samples(*args) -> 'ScalarFieldSample':
