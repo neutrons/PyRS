@@ -395,4 +395,4 @@ class TestStressFacade:
         facade.selection = '33'
         with pytest.raises(ValueError) as exception_info:
             facade.peak_parameter('d')
-        assert f'd-spacing not measured along 33 when in in-plane-strain' in str(exception_info.value)
+        assert 'd-spacing not measured along 33 when in in-plane-strain' in str(exception_info.value)

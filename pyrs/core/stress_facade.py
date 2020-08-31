@@ -328,6 +328,7 @@ class StressFacade:
             msg = f'd-spacing not measured along 33 when in {self.stress_type}'
             raise ValueError(msg)
 
+        assert self._selection is not None
         d_spacing_field = self._strain_cache[self._selection].get_dspacing_center()
 
         return self._extend_to_stacked_point_list(d_spacing_field)
