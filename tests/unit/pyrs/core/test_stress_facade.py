@@ -481,6 +481,7 @@ class TestStressFacade:
 
     def test_d_workspace(self, strain_stress_object_1):
         facade = StressFacade(strain_stress_object_1['stresses']['in-plane-strain'])
+
         for selection, expected in [('11', [1.00, 1.01, 1.02, 1.03, 1.04, 1.05, 1.06, 1.07, nanf]),
                                     ('1234', [1.00, 1.01, 1.02, 1.03, 1.04, 1.05, 1.06, 1.07, nanf]),
                                     ('22', [nanf, 1.01, 1.02, 1.03, 1.04, 1.05, 1.06, 1.07, 1.08]),
@@ -488,3 +489,8 @@ class TestStressFacade:
                                     ('1236', [nanf, nanf, nanf, nanf, 1.045, 1.05, 1.06, 1.07, 1.08])]:
             facade.selection = selection
             assert_workspace(facade, 'd', expected)
+
+        facade.selection = '33'
+        with pytest.raises(ValueError) as exception_info:
+            facade.workspace('d')
+        assert 'd-spacing not measured along 33 when in in-plane-strain' in str(exception_info.value)
