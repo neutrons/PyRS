@@ -308,10 +308,6 @@ class StressFacade:
         if query == 'd':
             return self._d_spacing()
 
-        if self._selection in ('11', '22', '33'):
-            msg = f'Peak parameter {query} can only be retrieved for run numbers, not directions.'
-            raise ValueError(msg)
-
         peak_parameter_field = self._strain_cache[self._selection].get_effective_peak_parameter(query)
 
         return self._extend_to_stacked_point_list(peak_parameter_field)
