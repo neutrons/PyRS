@@ -9,19 +9,29 @@ nanf = float('nan')
 NAN = np.nan
 
 
-def assert_workspace(workspace, signal_array):
+def assert_workspace(facade, query, signal_array):
     r"""
     Set of assertions for data related to fixture strain_stress_object_1
+
+    Parameters
+    ----------
+    facade: StressFacade
+    query: str
+        Data to be exported to MDHistoWorkspace (e.g. 'strain', 'FWHM')
+    signal_array: list
+        List of expected values
     """
+    workspace = facade.workspace(query)
     assert workspace.id() == 'MDHistoWorkspace'
     dimension = workspace.getDimension(0)
     assert dimension.getUnits() == 'mm'
     # adding half a bin each direction since values from mdhisto are boundaries and constructor uses centers
-    min_value, max_value = 0.0, 9.0
-    assert dimension.getMinimum() == pytest.approx(min_value - 0.5)
-    assert dimension.getMaximum() == pytest.approx(max_value + 0.5)
-    assert dimension.getNBins() == 10
-    assert_allclose(workspace.getSignalArray().ravel(), signal_array, atol=1.e-6)
+    min_value, max_value = min(facade.x), max(facade.x)
+    half_bin_width = (max_value - min_value) / (2 * (facade.size - 1))
+    assert dimension.getMinimum() == pytest.approx(min_value - half_bin_width)
+    assert dimension.getMaximum() == pytest.approx(max_value + half_bin_width)
+    assert dimension.getNBins() == facade.size
+    assert_allclose(workspace.getSignalArray().ravel(), signal_array, equal_nan=True, atol=1.e-5)
 
 
 class TestStressFacade:
@@ -190,14 +200,35 @@ class TestStressFacade:
     def test_strain_workspace(self, strain_stress_object_1):
         r"""Export the strains to a MDHistoWorkspace"""
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
-        facade.selection = '11'
-        assert_workspace(facade.workspace('strain'), facade.strain.values)
+        for selection, expected in [('11', [0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf, nanf]),
+                                    ('1234', [0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf, nanf]),
+                                    ('22', [nanf, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, nanf]),
+                                    ('1235', [nanf, 0.01, 0.02, 0.03, 0.04, nanf, nanf, nanf, nanf, nanf]),
+                                    ('1236', [nanf, nanf, nanf, nanf, 0.045, 0.05, 0.06, 0.07, 0.08, nanf]),
+                                    ('33', [nanf, nanf, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09]),
+                                    ('1237', [nanf, nanf, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09])]:
+            facade.selection = selection
+            assert_workspace(facade, 'strain', expected)
 
-        r"""
         facade = StressFacade(strain_stress_object_1['stresses']['in-plane-strain'])
-        facade.selection = '33'
-        assert_workspace(facade.workspace('strain'), facade.strain.values)
-        """
+        for selection, expected in [('11', [0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf]),
+                                    ('1234', [0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf]),
+                                    ('22', [nanf, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08]),
+                                    ('1235', [nanf, 0.01, 0.02, 0.03, 0.04, nanf, nanf, nanf, nanf]),
+                                    ('1236', [nanf, nanf, nanf, nanf, 0.045, 0.05, 0.06, 0.07, 0.08]),
+                                    ('33', [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00])]:
+            facade.selection = selection
+            assert_workspace(facade, 'strain', expected)
+
+        facade = StressFacade(strain_stress_object_1['stresses']['in-plane-stress'])
+        for selection, expected in [('11', [0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf]),
+                                    ('1234', [0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf]),
+                                    ('22', [nanf, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08]),
+                                    ('1235', [nanf, 0.01, 0.02, 0.03, 0.04, nanf, nanf, nanf, nanf]),
+                                    ('1236', [nanf, nanf, nanf, nanf, 0.045, 0.05, 0.06, 0.07, 0.08]),
+                                    ('33', [nanf, -0.02, -0.04, -0.06, -0.08, -0.10, -0.12, -0.14, nanf])]:
+            facade.selection = selection
+            assert_workspace(facade, 'strain', expected)
 
     def test_stress_field(self, strain_stress_object_1):
         r"""Stresses along a particular direction. Also for a run number, when a direction contains only one run
