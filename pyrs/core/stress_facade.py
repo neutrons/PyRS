@@ -269,19 +269,30 @@ class StressFacade:
         self._update_cache_stress()
 
     @property
+    def stress_type(self) -> str:
+        r"""
+        Stress type, one of ('diagonal', 'in-plane-strain', 'in-plane-stress')
+
+        Returns
+        -------
+        str
+        """
+        return self._stress.stress_type.value
+
+    @property
     def peak_parameters(self) -> List[str]:
         r"""
-        List of effective peak parameter names
+        List of effective peak parameter names, plus 'd' for lattice-plane spacing.
 
         Returns
         -------
         list
         """
-        return EFFECTIVE_PEAK_PARAMETERS
+        return ['d'] + EFFECTIVE_PEAK_PARAMETERS
 
     def peak_parameter(self, query: str) -> ScalarFieldSample:
         r"""
-        Peak parameter values for the selection direction or run number
+        Peak parameter values (including d-spacing) for the selection direction or run number
 
         Parameters
         ----------
@@ -292,12 +303,34 @@ class StressFacade:
         ~pyrs.dataobjects.fields.ScalarFieldSample
         """
         assert self._selection is not None, 'Please make a direction or number number selection'
-        if self._selection in ('11', '22', '33'):
-            msg = 'Peak parameters can only be retrieved for run numbers, not directions. Update your selection'
-            raise ValueError(msg)
         assert query in self.peak_parameters, f'Peak parameter must be one of {self.peak_parameters}'
+
+        if query == 'd':
+            return self._d_spacing()
+
+        if self._selection in ('11', '22', '33'):
+            msg = f'Peak parameter {query} can only be retrieved for run numbers, not directions.'
+            raise ValueError(msg)
+
         peak_parameter_field = self._strain_cache[self._selection].get_effective_peak_parameter(query)
+
         return self._extend_to_stacked_point_list(peak_parameter_field)
+
+    def _d_spacing(self) -> ScalarFieldSample:
+        r"""
+        Calculate d-spacing for a direction or single run
+
+        Returns
+        -------
+        ~pyrs.dataobjects.fields.ScalarFieldSample
+        """
+        if self._selection == '33' and self.stress_type in ('in-plane-strain', 'in-plane-stress'):
+            msg = f'd-spacing not measured along 33 when in {self.stress_type}'
+            raise ValueError(msg)
+
+        d_spacing_field = self._strain_cache[self._selection].get_dspacing_center()
+
+        return self._extend_to_stacked_point_list(d_spacing_field)
 
     def workspace(self, query: str) -> IMDHistoWorkspace:
         r"""

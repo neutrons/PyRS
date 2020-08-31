@@ -78,6 +78,11 @@ class TestStressFacade:
             facade.selection = selection
             assert_allclose(facade.stress.values, facade.youngs_modulus * facade.strain.values, atol=0.001)
 
+    def test_stress_type(self, strain_stress_object_1):
+        for stress_type in ('diagonal', 'in-plane-strain', 'in-plane-stress'):
+            facade = StressFacade(strain_stress_object_1['stresses'][stress_type])
+            assert facade.stress_type == stress_type
+
     def test_x_y_z(self, strain_stress_object_1):
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
         assert_allclose(facade.x, np.arange(10))
@@ -325,7 +330,8 @@ class TestStressFacade:
 
     def test_peak_parameters(self, strain_stress_object_1):
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
-        assert set(facade.peak_parameters) == {'Center', 'Height', 'FWHM', 'Mixing', 'A0', 'A1', 'Intensity'}
+        assert set(facade.peak_parameters) == {'d', 'Center', 'Height', 'FWHM', 'Mixing',
+                                               'A0', 'A1', 'Intensity'}
 
     def test_peak_parameter_field(self, strain_stress_object_1):
         r"""Retrieve the effective peak parameters for a particular run, or for a particular direction"""
@@ -333,7 +339,7 @@ class TestStressFacade:
         facade.selection = '11'
         with pytest.raises(ValueError) as exception_info:
             facade.peak_parameter('Center')
-        assert 'Peak parameters can only be retrieved for run numbers' in str(exception_info.value)
+        assert 'Peak parameter Center can only be retrieved for run numbers' in str(exception_info.value)
         facade.selection = '1234'
         with pytest.raises(AssertionError) as exception_info:
             facade.peak_parameter('center')
@@ -367,3 +373,26 @@ class TestStressFacade:
         assert_workspace(facade.workspace('Center'), [])
         """
         # TODO assertions for remaining selections
+
+    def test_d(self, strain_stress_object_1):
+        r"""Retrieve the d spacing for a particular direction and for a particular run"""
+        facade = StressFacade(strain_stress_object_1['stresses']['in-plane-strain'])
+        # Peak parameters can only be retrieved for run numbers
+        facade.selection = '11'
+        expected = [1.00, 1.01, 1.02, 1.03, 1.04, 1.05, 1.06, 1.07, nanf]
+        assert_allclose(facade.peak_parameter('d').values, expected, equal_nan=True)
+        facade.selection = '1234'
+        assert_allclose(facade.peak_parameter('d').values, expected, equal_nan=True)
+        facade.selection = '22'
+        expected = [nanf, 1.01, 1.02, 1.03, 1.04, 1.05, 1.06, 1.07, 1.08]
+        assert_allclose(facade.peak_parameter('d').values, expected, equal_nan=True)
+        facade.selection = '1235'
+        expected = [nanf, 1.01, 1.02, 1.03, 1.04, nanf, nanf, nanf, nanf]
+        assert_allclose(facade.peak_parameter('d').values, expected, equal_nan=True)
+        facade.selection = '1236'
+        expected = [nanf, nanf, nanf, nanf, 1.045, 1.05, 1.06, 1.07, 1.08]
+        assert_allclose(facade.peak_parameter('d').values, expected, equal_nan=True)
+        facade.selection = '33'
+        with pytest.raises(ValueError) as exception_info:
+            facade.peak_parameter('d')
+        assert f'd-spacing not measured along 33 when in in-plane-strain' in str(exception_info.value)
