@@ -446,15 +446,34 @@ class TestStressFacade:
     def test_peak_parameter_workspace(self, strain_stress_object_1):
         r"""Retrieve the effective peak parameters for a particular run, or for a particular direction"""
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
+
+        facade.selection = '11'
+        expected = [100, 110, 120, 130, 140, 150, 160, 170, nanf, nanf]
+        assert_workspace(facade, 'Intensity', expected)
         facade.selection = '1234'
+        expected = [100, 110, 120, 130, 140, 150, 160, 170, nanf, nanf]
+        assert_workspace(facade, 'Intensity', expected)
+
+        facade.selection = '22'
+        expected = [nanf, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, nanf]
+        assert_workspace(facade, 'FWHM', expected)
+        facade.selection = '1235'
+        expected = [nanf, 1.1, 1.2, 1.3, 1.4, nanf, nanf, nanf, nanf, nanf]
+        assert_workspace(facade, 'FWHM', expected)
+        facade.selection = '1236'
+        expected = [nanf, nanf, nanf, nanf, 14., 15., 16., 17., 18., nanf]
+        assert_workspace(facade, 'A0', expected)
+
+        facade.selection = '33'
+        expected = [nanf, nanf, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09]
+        assert_workspace(facade, 'A1', expected)
+        facade.selection = '1237'
+        expected = [nanf, nanf, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09]
+        assert_workspace(facade, 'A1', expected)
+
         with pytest.raises(AssertionError) as exception_info:
             facade.workspace('center')
         assert 'Peak parameter must be one of' in str(exception_info.value)
-        facade.workspace('Center')
-        r"""
-        assert_workspace(facade.workspace('Center'), [])
-        """
-        # TODO assertions for remaining selections
 
     def test_d_field(self, strain_stress_object_1):
         r"""Retrieve the d spacing for a particular direction and for a particular run"""
