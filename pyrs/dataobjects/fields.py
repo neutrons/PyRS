@@ -1784,6 +1784,27 @@ class Direction(Enum):
 
 
 class StressField:
+
+    @staticmethod
+    def to_megapascal(stress_values):
+        r"""
+        Convert from GPa * microstrain to MPa, which amounts to a factor of 1.e-3
+
+        Parameters
+        ----------
+        stress_values: np.ndarray, tuple, list
+            stress values to be converted from (GPa * microstrain) to MPa units
+        Returns
+        -------
+        np.ndarray, list
+            numpy array if `stress` is also a numpy array, otherwise a list
+        """
+        conversion_factor = 1.0e-03
+        if isinstance(stress_values, np.ndarray):
+            return conversion_factor * stress_values
+        else:
+            return [conversion_factor * s for s in stress_values]
+
     r"""
     Calculate the three diagonal components of the stress tensor, assuming a diagonal strain tensor.
 
@@ -2025,8 +2046,8 @@ class StressField:
         """
         factor = self.poisson_ratio / (self.poisson_ratio - 1)
         strain33 = factor * (self._strain11.sample + self._strain22.sample)  # unumpy.array
-        values, errors = unumpy.nominal_values(strain33), unumpy.std_devs(strain33)
-        peaks = PeakCollectionLite(str(StressType.IN_PLANE_STRESS), values, errors)
+        values, errors = unumpy.nominal_values(strain33), unumpy.std_devs(strain33)  # units are microstrain
+        peaks = PeakCollectionLite(str(StressType.IN_PLANE_STRESS), values, errors, strain_units='microstrain')
         return StrainField(peak_collection=peaks, point_list=PointList([self.x, self.y, self.z]))  # type: ignore
 
     def set_d_reference(self, values: Union[Tuple[float, float], ScalarFieldSample]) -> None:
