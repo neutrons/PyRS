@@ -101,6 +101,9 @@ def test_model(tmpdir, test_data_dir):
     model.write_stress_to_csv(str(filename), False)
     # check number of lines written
     assert len(open(filename).readlines()) == 318
+    filename = tmpdir.join("test_model_csv1_full.csv")
+    model.write_stress_to_csv(str(filename), True)
+    assert len(open(filename).readlines()) == 318
 
     # Check writing with bad filename, should fail but should emit failure message
     model.write_stress_to_csv("/bin/false", False)
@@ -127,6 +130,9 @@ def test_model(tmpdir, test_data_dir):
     model.write_stress_to_csv(str(filename), False)
     # check number of lines written
     assert len(open(filename).readlines()) == 318
+    filename = tmpdir.join("test_model_csv2_full.csv")
+    model.write_stress_to_csv(str(filename), True)
+    assert len(open(filename).readlines()) == 318
 
     model.e33 = os.path.join(test_data_dir, 'HB2B_1320.h5')
     assert len(model.e33) == 1
@@ -151,6 +157,9 @@ def test_model(tmpdir, test_data_dir):
     filename = tmpdir.join("test_model_csv3.csv")
     model.write_stress_to_csv(str(filename), False)
     # check number of lines written
+    assert len(open(filename).readlines()) == 318
+    filename = tmpdir.join("test_model_csv3_full.csv")
+    model.write_stress_to_csv(str(filename), True)
     assert len(open(filename).readlines()) == 318
 
     # Check rerunning calculate_stress while change and not change
@@ -307,6 +316,9 @@ def test_model_multiple_files(tmpdir, test_data_dir):
     model.write_stress_to_csv(str(filename), False)
     # check number of lines written
     assert len(open(filename).readlines()) == 318
+    filename = tmpdir.join("test_model_csv1_full.csv")
+    model.write_stress_to_csv(str(filename), True)
+    assert len(open(filename).readlines()) == 318
 
     model.calculate_stress('in-plane-strain', 200, 0.3, (1.05, 0))
 
@@ -330,10 +342,14 @@ def test_model_multiple_files(tmpdir, test_data_dir):
     model.write_stress_to_csv(str(filename), False)
     # check number of lines written
     assert len(open(filename).readlines()) == 318
+    filename = tmpdir.join("test_model_csv2_full.csv")
+    model.write_stress_to_csv(str(filename), True)
+    assert len(open(filename).readlines()) == 318
 
     model.e33 = os.path.join(test_data_dir, 'HB2B_1327.h5')
     assert len(model.e33) == 1
     assert model.e33[0].name == '33'
+    model._e33_strain.set_d_reference((1.05, 0))
 
     model.calculate_stress('diagonal', 200, 0.3, (1.05, 0))
 
@@ -354,6 +370,9 @@ def test_model_multiple_files(tmpdir, test_data_dir):
     filename = tmpdir.join("test_model_csv3.csv")
     model.write_stress_to_csv(str(filename), False)
     # check number of lines written
+    assert len(open(filename).readlines()) == 318
+    filename = tmpdir.join("test_model_csv3_full.csv")
+    model.write_stress_to_csv(str(filename), True)
     assert len(open(filename).readlines()) == 318
 
 
