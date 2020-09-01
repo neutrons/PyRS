@@ -197,10 +197,13 @@ class Model(QObject):
         self._poisson_ratio = poissonsRatio
         self._d0 = d0
 
-    def write_stress_to_csv(self, filename):
+    def write_stress_to_csv(self, filename, detailed):
         try:
             stress_csv = SummaryGeneratorStress(filename, self._stress)
-            stress_csv.write_summary_csv()
+            if detailed:
+                stress_csv.write_full_csv()
+            else:
+                stress_csv.write_summary_csv()
         except Exception as e:
             self.failureMsg.emit("Failed to write csv",
                                  str(e),

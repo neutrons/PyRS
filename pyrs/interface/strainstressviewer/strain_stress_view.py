@@ -4,7 +4,7 @@ from mantidqt.icons import get_icon
 from qtpy.QtWidgets import (QHBoxLayout, QVBoxLayout, QLabel, QWidget,
                             QLineEdit, QPushButton, QComboBox,
                             QGroupBox, QSplitter, QTabWidget,
-                            QFormLayout, QFileDialog,
+                            QFormLayout, QFileDialog, QCheckBox,
                             QStyledItemDelegate, QDoubleSpinBox,
                             QTableWidget, QTableWidgetItem,
                             QStackedWidget, QMessageBox)
@@ -444,13 +444,16 @@ class CSVExport(QGroupBox):
         layout = QHBoxLayout()
         self.export = QPushButton("Export Grid Information")
         self.export.clicked.connect(self.save_CSV)
+        self.detailed = QCheckBox("Detailed")
         layout.addWidget(self.export)
+        layout.addWidget(self.detailed)
         self.setLayout(layout)
 
         self.setEnabled(False)
 
     def setEnabled(self, enabled):
         self.export.setEnabled(enabled)
+        self.detailed.setEnabled(enabled)
 
     def save_CSV(self):
         self._parent.calculate_stress()
@@ -460,7 +463,7 @@ class CSVExport(QGroupBox):
                                                   "CSV (*.csv);;All Files (*)")
         if not filename:
             return
-        self._parent.controller.write_stress_to_csv(filename)
+        self._parent.controller.write_stress_to_csv(filename, self.detailed.isChecked())
 
 
 class VizTabs(QTabWidget):
