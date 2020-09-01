@@ -443,6 +443,18 @@ class TestStressFacade:
         expected = [nanf, nanf, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09]
         assert_allclose(facade.peak_parameter('A1').values, expected, equal_nan=True)
 
+        facade = StressFacade(strain_stress_object_1['stresses']['in-plane-strain'])
+        facade.selection = '33'
+        with pytest.raises(ValueError) as exception_info:
+            facade.peak_parameter('Intensity')
+        assert 'Intensity not measured along 33 when in in-plane-strain'
+
+        facade = StressFacade(strain_stress_object_1['stresses']['in-plane-stress'])
+        facade.selection = '33'
+        with pytest.raises(ValueError) as exception_info:
+            facade.peak_parameter('FWHM')
+        assert 'FWHM not measured along 33 when in in-plane-stress'
+
     def test_peak_parameter_workspace(self, strain_stress_object_1):
         r"""Retrieve the effective peak parameters for a particular run, or for a particular direction"""
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
