@@ -9,6 +9,9 @@ from pyrs.dataobjects.sample_logs import _coerce_to_ndarray, PointList
 from pyrs.core.peak_profile_utility import get_parameter_dtype
 from pyrs.peaks.peak_collection import PeakCollection
 
+# set to True when running on build servers
+ON_TRAVIS = (os.environ.get('TRAVIS', 'false').upper() == 'TRUE')
+
 
 @pytest.fixture(scope='session')
 def test_data_dir():
