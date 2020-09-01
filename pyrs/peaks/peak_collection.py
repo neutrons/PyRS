@@ -32,6 +32,25 @@ def get_strain_conversion_factor(units: str = 'strain') -> float:
     return conversion_factor
 
 
+def to_microstrain(strains):
+    r"""
+    convert a list of strains from strain to microstrains units
+
+    Parameters
+    ----------
+    strains: np.ndarray, tuple, list
+
+    Returns
+    -------
+    np.ndarray, list
+        numpy array if `strains` is also a numpy array, otherwise return a list
+    """
+    microstrain = get_strain_conversion_factor(units='microstrain')
+    if isinstance(strains, np.ndarray):
+        return microstrain * strains
+    return [microstrain * x for x in strains]
+
+
 def _create_d_reference_array(values: Union[float, np.ndarray],
                               errors: Union[float, np.ndarray], size: int) -> unumpy.uarray:
     '''Convert the d-reference values to a :py:obj:`unumpy.uarray`
@@ -79,10 +98,13 @@ class PeakCollectionLite:
     def __init__(self, peak_tag: str,
                  strain: np.ndarray,
                  strain_error: np.ndarray,
+                 strain_units: str = 'strain',
                  d_reference: Union[float, np.ndarray] = np.nan,
                  d_reference_error: Union[float, np.ndarray] = 0.) -> None:
         self._tag: str = peak_tag
-        self._strain = unumpy.uarray(strain, strain_error)
+
+        # We need to store strains in strain units, NOT in microstrains
+        self._strain = unumpy.uarray(strain, strain_error) / get_strain_conversion_factor(strain_units)
 
         # must happen after the sub_run array is set
         self._d_reference = unumpy.uarray(np.nan, np.nan)  # set this correctly in next call
