@@ -87,12 +87,12 @@ def test_write_summary_csv(test_data_dir: str, project_tags: str, expected_file:
 
 
 EXPECTED_FILE_SUMMARY_CSV_1320_33Calculated =\
-    'tests/data/HB2B_StressStrain_peak0_Summary_expected_1320_33Calculated.csv'
+    'tests/data/HB2B_StressStrain_peak0_Summary_expected_1320_33InPlaneStrain.csv'
 
 
 @pytest.mark.parametrize('project_tags, expected_file',
                          [([1320, 1320], EXPECTED_FILE_SUMMARY_CSV_1320_33Calculated)],
-                         ids=['HB2B_1320_SUMMARY_CSV_33Calculated'])
+                         ids=['HB2B_1320_SUMMARY_CSV_33INPLAINSTRAIN'])
 def test_write_summary_33calculated_csv(test_data_dir: str, project_tags: str, expected_file: str):
 
     sample11 = StrainField(test_data_dir + '/HB2B_' + str(project_tags[0]) + '.h5')
@@ -100,7 +100,30 @@ def test_write_summary_33calculated_csv(test_data_dir: str, project_tags: str, e
 
     stress = StressField(sample11, sample22, None, 200, 0.3, stress_type='in-plane-strain')  # type: ignore
 
-    stress_csv_filename = 'HB2B_StressStrain_peak0_Summary_33Calculated.csv'
+    stress_csv_filename = 'HB2B_StressStrain_peak0_Summary_33InPlaneStrain.csv'
+    stress_csv = SummaryGeneratorStress(stress_csv_filename, stress)
+    stress_csv.write_summary_csv()
+
+    assert(cmp(stress_csv_filename, expected_file))
+    # cleanup
+    remove(stress_csv_filename)
+
+
+EXPECTED_FILE_SUMMARY_CSV_1320_33Calculated =\
+    'tests/data/HB2B_StressStrain_peak0_Summary_expected_1320_33InPlaneStress.csv'
+
+
+@pytest.mark.parametrize('project_tags, expected_file',
+                         [([1320, 1320], EXPECTED_FILE_SUMMARY_CSV_1320_33Calculated)],
+                         ids=['HB2B_1320_SUMMARY_CSV_33INPLAINSTRESS'])
+def test_write_summary_33inplanestress_csv(test_data_dir: str, project_tags: str, expected_file: str):
+
+    sample11 = StrainField(test_data_dir + '/HB2B_' + str(project_tags[0]) + '.h5')
+    sample22 = StrainField(test_data_dir + '/HB2B_' + str(project_tags[1]) + '.h5')
+
+    stress = StressField(sample11, sample22, None, 200, 0.3, stress_type='in-plane-stress')  # type: ignore
+
+    stress_csv_filename = 'HB2B_StressStrain_peak0_Summary_33InPlaneStress.csv'
     stress_csv = SummaryGeneratorStress(stress_csv_filename, stress)
     stress_csv.write_summary_csv()
 
@@ -150,7 +173,7 @@ def test_write_full_csv(test_data_dir: str, project_tags: str, expected_file: st
 
 
 EXPECTED_FILE_FULL_CSV_1320_33Calculated =\
-    'tests/data/HB2B_StressStrain_peak0_Full_expected_1320_33Calculated.csv'
+    'tests/data/HB2B_StressStrain_peak0_Full_expected_1320_33InPlainStrain.csv'
 
 
 @pytest.mark.parametrize('project_tags, expected_file',
@@ -163,7 +186,34 @@ def test_write_full_33calculated_csv(test_data_dir: str, project_tags: str, expe
 
     stress = StressField(sample11, sample22, None, 200, 0.3, stress_type='in-plane-strain')  # type: ignore
 
-    stress_csv_filename = 'HB2B_StressStrain_peak0_Full_33Calculated.csv'
+    stress_csv_filename = 'HB2B_StressStrain_peak0_Full_33InPlainStrain.csv'
+    stress_csv = SummaryGeneratorStress(stress_csv_filename, stress)
+    stress_csv.write_full_csv()
+
+    result = cmp(stress_csv_filename, expected_file)
+    if not result:
+        subprocess.run(["diff", stress_csv_filename, expected_file])
+
+    assert(result)
+    # cleanup
+    remove(stress_csv_filename)
+
+
+EXPECTED_FILE_FULL_CSV_1320_33Calculated =\
+    'tests/data/HB2B_StressStrain_peak0_Full_expected_1320_33InPlainStress.csv'
+
+
+@pytest.mark.parametrize('project_tags, expected_file',
+                         [([1320, 1320], EXPECTED_FILE_FULL_CSV_1320_33Calculated)],
+                         ids=['HB2B_1320_FULL_CSV_33INPLAINSTRESS'])
+def test_write_full_33inplanestress_csv(test_data_dir: str, project_tags: str, expected_file: str):
+
+    sample11 = StrainField(test_data_dir + '/HB2B_' + str(project_tags[0]) + '.h5')
+    sample22 = StrainField(test_data_dir + '/HB2B_' + str(project_tags[1]) + '.h5')
+
+    stress = StressField(sample11, sample22, None, 200, 0.3, stress_type='in-plane-stress')  # type: ignore
+
+    stress_csv_filename = 'HB2B_StressStrain_peak0_Full_33InPlainStress.csv'
     stress_csv = SummaryGeneratorStress(stress_csv_filename, stress)
     stress_csv.write_full_csv()
 

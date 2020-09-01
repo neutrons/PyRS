@@ -174,7 +174,8 @@ class SummaryGeneratorStress:
 
                     else:
                         # by pass calculated direction as there are no measured quantities
-                        if self._stress_facade.stress_type == 'in-plane-strain' and \
+                        if (self._stress_facade.stress_type == 'in-plane-strain' or
+                            self._stress_facade.stress_type == 'in-plane-stress') and \
                                 direction == '33':
                             entries += ', , '
                             continue
@@ -402,11 +403,6 @@ class SummaryGeneratorStress:
 
     def _recalc_peak_collections_data(self):
 
-        # initialize
-        peak_collection11 = self._get_peak_collection('11')
-        assert isinstance(peak_collection11, PeakCollection)
-        self._peak_colllections_data['d']['11'] = peak_collection11.get_d_reference()
-
         for field in SummaryGeneratorStress.fields_3dir:
             for direction in SummaryGeneratorStress.directions:
 
@@ -421,7 +417,8 @@ class SummaryGeneratorStress:
                                                      self._stress_facade.strain.errors)
 
                 else:
-                    if self._stress_facade.stress_type == 'in-plane-strain' and \
+                    if (self._stress_facade.stress_type == 'in-plane-strain' or
+                        self._stress_facade.stress_type == 'in-plane-stress') and \
                             direction == '33':
                         continue
 
