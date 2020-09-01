@@ -10,12 +10,19 @@ from qtpy.QtWidgets import (QHBoxLayout, QVBoxLayout, QLabel, QWidget,
                             QStackedWidget, QMessageBox)
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtGui import QDoubleValidator
+from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
+from vtk.util.numpy_support import numpy_to_vtk, get_vtk_array_type
+import vtk
 import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import functools
 import traceback
 import os
+
+# Can't run VTK embedded in PyQT5 using VirtualGL
+# See https://gitlab.kitware.com/vtk/vtk/-/issues/17338
+USING_THINLINC = "TLSESSIONDATA" in os.environ
 
 
 class FileLoad(QWidget):
@@ -462,27 +469,37 @@ class VizTabs(QTabWidget):
         super().__init__(parent)
         self.oneDViewer = None
         self.strainSliceViewer = None
+        self.vtk3dviewer = None
 
         self.plot_1d = QStackedWidget()
         self.plot_2d = QStackedWidget()
+        self.plot_3d = QStackedWidget()
 
         self.message = QLabel("Load project files")
         self.message.setAlignment(Qt.AlignCenter)
         font = self.message.font()
         font.setPointSize(20)
         self.message.setFont(font)
+
+        self.message2 = QLabel("Load project files")
+        self.message2.setAlignment(Qt.AlignCenter)
+        self.message2.setFont(font)
+
         self.plot_2d.addWidget(self.message)
+        self.plot_3d.addWidget(self.message2)
 
         self.addTab(self.plot_1d, "1D")
         self.addTab(self.plot_2d, "2D")
-        self.addTab(QWidget(), "3D")
+        self.addTab(self.plot_3d, "3D")
+
         self.set_1d_mode(False)
+
         self.setCornerWidget(QLabel("Visualization Pane    "), corner=Qt.TopLeftCorner)
 
     def set_1d_mode(self, oned):
         self.setTabEnabled(0, oned)
         self.setTabEnabled(1, not oned)
-        self.setTabEnabled(2, False)
+        self.setTabEnabled(2, not USING_THINLINC and not oned)
 
     def set_ws(self, field):
 
@@ -528,6 +545,14 @@ class VizTabs(QTabWidget):
                     self.plot_2d.setCurrentIndex(1)
                 self.strainSliceViewer.set_new_field(field,
                                                      bin_widths=[ws.getDimension(n).getBinWidth() for n in range(3)])
+
+                if not USING_THINLINC:
+                    if self.vtk3dviewer:
+                        self.vtk3dviewer.set_ws(ws)
+                    else:
+                        self.vtk3dviewer = VTK3DView(ws)
+                        self.plot_3d.addWidget(self.vtk3dviewer)
+                        self.plot_3d.setCurrentIndex(1)
         else:
             self.set_1d_mode(False)
             if self.oneDViewer is not None:
@@ -536,9 +561,96 @@ class VizTabs(QTabWidget):
             if self.strainSliceViewer is not None:
                 self.plot_2d.removeWidget(self.strainSliceViewer.view)
                 self.strainSliceViewer = None
+            if self.vtk3dviewer:
+                self.plot_3d.removeWidget(self.vtk3dviewer)
+                self.vtk3dviewer = None
 
     def set_message(self, text):
         self.message.setText(text)
+        self.message2.setText(text)
+
+
+class VTK3DView(QWidget):
+    def __init__(self, ws, parent=None):
+        super().__init__(parent)
+        self.vtkWidget = QVTKRenderWindowInteractor(self)
+
+        vti = self.md_to_vti(ws)
+        self.mapper = vtk.vtkDataSetMapper()
+        self.mapper.SetInputData(vti)
+
+        self.mapper.ScalarVisibilityOn()
+        self.mapper.SetScalarModeToUseCellData()
+        self.mapper.SetColorModeToMapScalars()
+
+        self.actor = vtk.vtkActor()
+        self.actor.SetMapper(self.mapper)
+
+        scalarBar = vtk.vtkScalarBarActor()
+        scalarBar.SetLookupTable(self.mapper.GetLookupTable())
+        scalarBar.SetNumberOfLabels(4)
+
+        srange = vti.GetScalarRange()
+
+        self.lut = vtk.vtkLookupTable()
+        self.lut.SetTableRange(srange)
+        self.lut.Build()
+
+        self.mapper.UseLookupTableScalarRangeOn()
+        self.mapper.SetLookupTable(self.lut)
+        scalarBar.SetLookupTable(self.lut)
+
+        self.renderer = vtk.vtkRenderer()
+        self.renderer.GradientBackgroundOn()
+        self.renderer.SetBackground(0.8, 0.8, 0.8)
+        self.renderer.SetBackground2(0, 0, 0)
+
+        axes = vtk.vtkCubeAxesActor()
+        axes.SetUseTextActor3D(1)
+        axes.SetBounds(vti.GetBounds())
+        axes.SetCamera(self.renderer.GetActiveCamera())
+
+        axes.DrawXGridlinesOn()
+        axes.DrawYGridlinesOn()
+        axes.DrawZGridlinesOn()
+        axes.SetFlyModeToOuterEdges()
+
+        self.renderer.AddActor(self.actor)
+        self.renderer.AddActor(axes)
+        self.renderer.AddActor2D(scalarBar)
+        self.renderer.ResetCamera()
+
+        self.vtkWidget.GetRenderWindow().AddRenderer(self.renderer)
+        self.iren = self.vtkWidget.GetRenderWindow().GetInteractor()
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.vtkWidget)
+        self.setLayout(layout)
+
+        self.iren.Initialize()
+
+    def set_ws(self, ws):
+        vti = self.md_to_vti(ws)
+        self.mapper.SetInputData(vti)
+        self.lut.SetTableRange(vti.GetScalarRange())
+        self.vtkWidget.Render()
+
+    def md_to_vti(self, md):
+        array = md.getSignalArray()
+        origin = [md.getDimension(n).getMinimum() for n in range(3)]
+        spacing = [md.getDimension(n).getBinWidth() for n in range(3)]
+        dimensions = [n+1 for n in array.shape]
+
+        vtkArray = numpy_to_vtk(num_array=array.flatten('F'), deep=True,
+                                array_type=get_vtk_array_type(array.dtype))
+
+        imageData = vtk.vtkImageData()
+        imageData.SetOrigin(origin)
+        imageData.SetSpacing(spacing)
+        imageData.SetDimensions(dimensions)
+        imageData.GetCellData().SetScalars(vtkArray)
+
+        return imageData
 
 
 class StrainStressViewer(QSplitter):
