@@ -308,6 +308,10 @@ class StressFacade:
         if query == 'd':
             return self._d_spacing()
 
+        if self._selection == '33' and self.stress_type in ('in-plane-strain', 'in-plane-stress'):
+            msg = f'{query} not measured along 33 when in {self.stress_type}'
+            raise ValueError(msg)
+
         peak_parameter_field = self._strain_cache[self._selection].get_effective_peak_parameter(query)
 
         return self._extend_to_stacked_point_list(peak_parameter_field)
