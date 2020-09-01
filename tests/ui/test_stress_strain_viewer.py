@@ -1,10 +1,19 @@
-# This is a test of the model component of the strain/stress viewer
+from pyrs.interface.strainstressviewer.strain_stress_view import StrainStressViewer
 from pyrs.interface.strainstressviewer.model import Model
+from pyrs.interface.strainstressviewer.controller import Controller
+from qtpy import QtCore, QtWidgets
+import functools
 import numpy as np
 import os
 import pytest
 
+wait = 100
 
+# set to True when running on build servers
+ON_TRAVIS = (os.environ.get('TRAVIS', 'false').upper() == 'TRUE')
+
+
+# This is a test of the model component of the strain/stress viewer
 def test_model(tmpdir, test_data_dir):
     model = Model()
 
@@ -348,3 +357,105 @@ def test_model_multiple_files(tmpdir, test_data_dir):
     model.write_stress_to_csv(str(filename))
     # check number of lines written
     assert len(open(filename).readlines()) == 318
+
+
+# changes to SliceViewer from Mantid in the version 5.1 is needed for the stress/strain viewer to run
+@pytest.mark.skipif(ON_TRAVIS, reason='Need mantid version >= 5.1')
+def test_stress_strain_viewer(qtbot):
+
+    model = Model()
+    ctrl = Controller(model)
+    window = StrainStressViewer(model, ctrl)
+
+    qtbot.addWidget(window)
+    window.show()
+    qtbot.wait(wait)
+
+    assert window.isVisible()
+
+    # This is to handle modal dialogs
+    def handle_dialog(filename):
+        # get a reference to the dialog and handle it here
+        dialog = window.findChild(QtWidgets.QFileDialog)
+        # get a File Name field
+        lineEdit = dialog.findChild(QtWidgets.QLineEdit)
+        # Type in file to load and press enter
+        qtbot.keyClicks(lineEdit, filename)
+        qtbot.wait(wait)
+        qtbot.keyClick(lineEdit, QtCore.Qt.Key_Enter)
+
+    # Browse e11 Data File ...
+    # wait until dialog is loaded then handle it, this is required
+    # because the dialog is modal
+    QtCore.QTimer.singleShot(500, functools.partial(handle_dialog, "tests/data/HB2B_1320.h5"))
+    qtbot.mouseClick(window.fileLoading.file_load_e11.browse_button, QtCore.Qt.LeftButton)
+
+    qtbot.wait(wait)
+
+    # check that the sliceviewer widget is created
+    assert window.viz_tab.strainSliceViewer is not None
+
+    # go to stress and check that it is removed
+    qtbot.keyClick(window.plot_select.plot_param, QtCore.Qt.Key_Down)
+    # check that the sliceviewer widget is removed
+    assert window.viz_tab.strainSliceViewer is None
+
+    qtbot.wait(wait)
+
+    # Browse e22 Data File ...
+    # wait until dialog is loaded then handle it, this is required
+    # because the dialog is modal
+    QtCore.QTimer.singleShot(500, functools.partial(handle_dialog, "tests/data/HB2B_1320.h5"))
+    qtbot.mouseClick(window.fileLoading.file_load_e22.browse_button, QtCore.Qt.LeftButton)
+
+    qtbot.wait(wait)
+
+    # set constants
+    qtbot.keyClicks(window.mechanicalConstants.youngModulus, "200")
+    qtbot.keyClicks(window.mechanicalConstants.poissonsRatio, "0.3")
+    qtbot.keyClick(window.mechanicalConstants.poissonsRatio, QtCore.Qt.Key_Enter)
+    qtbot.wait(wait)
+
+    # check that the sliceviewer widget is created
+    assert window.viz_tab.strainSliceViewer is not None
+
+    # Change dimension to 22
+    qtbot.keyClick(window.plot_select.measure_dir, QtCore.Qt.Key_Down)
+    qtbot.wait(wait)
+    assert window.viz_tab.strainSliceViewer is not None
+
+    # Change dimension to 33
+    qtbot.keyClick(window.plot_select.measure_dir, QtCore.Qt.Key_Down)
+    qtbot.wait(wait)
+    assert window.viz_tab.strainSliceViewer is not None
+
+    # Change to in-plane strain
+    qtbot.keyClick(window.stressCase.combo, QtCore.Qt.Key_Down)
+    qtbot.wait(wait)
+    assert window.viz_tab.strainSliceViewer is not None
+
+    # Change to 3D
+    qtbot.mouseClick(window.stressCase.switch.button_3d, QtCore.Qt.LeftButton)
+    qtbot.wait(wait)
+    # check that the sliceviewer widget is removed
+    assert window.viz_tab.strainSliceViewer is None
+
+    # Browse e33 Data File ...
+    # wait until dialog is loaded then handle it, this is required
+    # because the dialog is modal
+    QtCore.QTimer.singleShot(500, functools.partial(handle_dialog, "tests/data/HB2B_1320.h5"))
+    qtbot.mouseClick(window.fileLoading.file_load_e33.browse_button, QtCore.Qt.LeftButton)
+
+    qtbot.wait(wait)
+
+    # check that the sliceviewer widget is created
+    assert window.viz_tab.strainSliceViewer is not None
+
+    qtbot.wait(wait)
+
+    # Change plot selection, check other paramters
+    for _ in range(9):
+        qtbot.keyClick(window.plot_select.plot_param, QtCore.Qt.Key_Up)
+        qtbot.wait(wait)
+        # check that the sliceviewer widget is created
+        assert window.viz_tab.strainSliceViewer is not None
