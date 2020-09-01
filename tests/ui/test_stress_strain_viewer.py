@@ -9,6 +9,8 @@ import pytest
 
 wait = 100
 
+# set to True when running on build servers
+ON_TRAVIS = (os.environ.get('TRAVIS', 'false').upper() == 'TRUE')
 
 
 # This is a test of the model component of the strain/stress viewer
@@ -357,6 +359,8 @@ def test_model_multiple_files(tmpdir, test_data_dir):
     assert len(open(filename).readlines()) == 318
 
 
+# changes to SliceViewer from Mantid in the version 5.1 is needed for the stress/strain viewer to run
+@pytest.mark.skipif(ON_TRAVIS, reason='Need mantid version >= 5.1')
 def test_stress_strain_viewer(qtbot):
 
     model = Model()
