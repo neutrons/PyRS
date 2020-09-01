@@ -20,6 +20,10 @@ import functools
 import traceback
 import os
 
+# Can't run VTK embedded in PyQT5 using VirtualGL
+# See https://gitlab.kitware.com/vtk/vtk/-/issues/17338
+USING_THINLINC = "TLSESSIONDATA" in os.environ
+
 
 class FileLoad(QWidget):
     def __init__(self, name, fileType="HidraProjectFile (*.h5);;All Files (*)", parent=None):
@@ -495,7 +499,7 @@ class VizTabs(QTabWidget):
     def set_1d_mode(self, oned):
         self.setTabEnabled(0, oned)
         self.setTabEnabled(1, not oned)
-        self.setTabEnabled(2, not oned)
+        self.setTabEnabled(2, not USING_THINLINC and not oned)
 
     def set_ws(self, field):
 
@@ -542,12 +546,13 @@ class VizTabs(QTabWidget):
                 self.strainSliceViewer.set_new_field(field,
                                                      bin_widths=[ws.getDimension(n).getBinWidth() for n in range(3)])
 
-                if self.vtk3dviewer:
-                    self.vtk3dviewer.set_ws(ws)
-                else:
-                    self.vtk3dviewer = VTK3DView(ws)
-                    self.plot_3d.addWidget(self.vtk3dviewer)
-                    self.plot_3d.setCurrentIndex(1)
+                if not USING_THINLINC:
+                    if self.vtk3dviewer:
+                        self.vtk3dviewer.set_ws(ws)
+                    else:
+                        self.vtk3dviewer = VTK3DView(ws)
+                        self.plot_3d.addWidget(self.vtk3dviewer)
+                        self.plot_3d.setCurrentIndex(1)
         else:
             self.set_1d_mode(False)
             if self.oneDViewer is not None:
