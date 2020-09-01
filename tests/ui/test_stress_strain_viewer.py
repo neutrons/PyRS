@@ -6,11 +6,9 @@ import functools
 import numpy as np
 import os
 import pytest
+from tests.conftest import ON_TRAVIS  # set to True when running on build servers
 
 wait = 100
-
-# set to True when running on build servers
-ON_TRAVIS = (os.environ.get('TRAVIS', 'false').upper() == 'TRUE')
 
 
 # This is a test of the model component of the strain/stress viewer
