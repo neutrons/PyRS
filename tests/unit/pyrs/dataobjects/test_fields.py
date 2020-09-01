@@ -18,8 +18,10 @@ from pyrs.dataobjects.fields import (aggregate_scalar_field_samples, fuse_scalar
                                      StressField, stack_scalar_field_samples)
 from pyrs.dataobjects.sample_logs import PointList
 from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
+from pyrs.peaks.peak_collection import to_microstrain
 from tests.conftest import assert_allclose_with_sorting
 
+to_megapascal = StressField.to_megapascal
 SampleMock = namedtuple('SampleMock', 'name values errors x y z')
 
 DIRECTIONS = ('11', '22', '33')  # directions for the StrainField
@@ -517,31 +519,31 @@ class TestScalarFieldSample:
         point_list_extended = strain_object_1.point_list
         # Extend the field of the first single strain object
         field = strain_object_1.strains[0].field
-        assert_allclose(field.values, [0.01, 0.02, 0.03, 0.04], atol=0.001)
+        assert_allclose(field.values, to_microstrain([0.01, 0.02, 0.03, 0.04]), atol=1)
         field_extended = field.extend_to_point_list(point_list_extended)
         assert field_extended.point_list == point_list_extended
-        assert_allclose(field_extended.values, [0.01, 0.02, 0.03, 0.04, nan, nan, nan, nan], atol=0.001)
+        assert_allclose(field_extended.values, to_microstrain([0.01, 0.02, 0.03, 0.04, nan, nan, nan, nan]), atol=1)
         # Extend the field of the second single strain object
         field = strain_object_1.strains[1].field
-        assert_allclose(field.values, [0.05, 0.06, 0.07, 0.08], atol=0.001)
+        assert_allclose(field.values, to_microstrain([0.05, 0.06, 0.07, 0.08]), atol=1)
         field_extended = field.extend_to_point_list(point_list_extended)
         assert field_extended.point_list == point_list_extended
-        assert_allclose(field_extended.values, [nan, nan, nan, nan, 0.05, 0.06, 0.07, 0.08], atol=0.001)
+        assert_allclose(field_extended.values, to_microstrain([nan, nan, nan, nan, 0.05, 0.06, 0.07, 0.08]), atol=1)
         #
         # Use strain_object_2
         point_list_extended = strain_object_2.point_list
         # Extend the field of the first single strain object
         field = strain_object_2.strains[0].field
-        assert_allclose(field.values, [0.01, 0.02, 0.03, 0.04], atol=0.001)
+        assert_allclose(field.values, to_microstrain([0.01, 0.02, 0.03, 0.04]), atol=1)
         field_extended = field.extend_to_point_list(point_list_extended)
         assert field_extended.point_list == point_list_extended
-        assert_allclose(field_extended.values, [0.01, 0.02, 0.03, 0.04, nan, nan, nan, nan], atol=0.001)
+        assert_allclose(field_extended.values, to_microstrain([0.01, 0.02, 0.03, 0.04, nan, nan, nan, nan]), atol=1)
         # Extend the field of the second single strain object
         field = strain_object_2.strains[1].field
-        assert_allclose(field.values, [0.045, 0.05, 0.06, 0.07, 0.08], atol=0.001)
+        assert_allclose(field.values, to_microstrain([0.045, 0.05, 0.06, 0.07, 0.08]), atol=1)
         field_extended = field.extend_to_point_list(point_list_extended)
         assert field_extended.point_list == point_list_extended
-        assert_allclose(field_extended.values, [nan, nan, nan, 0.045, 0.05, 0.06, 0.07, 0.08], atol=0.001)
+        assert_allclose(field_extended.values, to_microstrain([nan, nan, nan, 0.045, 0.05, 0.06, 0.07, 0.08]), atol=1)
 
 
 @pytest.fixture(scope='module')
@@ -860,7 +862,7 @@ class TestStrainField:
         z = [2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5]  # z
         strain = StrainField(peak_collection=PeakCollectionLite('strain', strain=values, strain_error=errors),
                              point_list=PointList([x, y, z]))
-        assert np.allclose(strain.values, values)
+        assert np.allclose(strain.values, to_microstrain(values), atol=1)
         assert np.allclose(strain.x, x)
 
     def test_small_fuse(self):
@@ -876,7 +878,7 @@ class TestStrainField:
         strain1 = StrainField(peak_collection=PeakCollectionLite('strain',
                                                                  strain=values1, strain_error=errors1),
                               point_list=point_list)
-        assert np.allclose(strain1.values, values1)
+        assert np.allclose(strain1.values, to_microstrain(values1))
         assert np.allclose(strain1.x, x)
 
         values2 = [9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0]  # values
@@ -884,7 +886,7 @@ class TestStrainField:
         strain2 = StrainField(peak_collection=PeakCollectionLite('strain',
                                                                  strain=values2, strain_error=errors2),
                               point_list=point_list)
-        assert np.allclose(strain2.values, values2)
+        assert np.allclose(strain2.values, to_microstrain(values2))
         assert np.allclose(strain2.x, x)
 
         strain_fused = strain1.fuse_with(strain2)
@@ -895,9 +897,9 @@ class TestStrainField:
 
         field = strain_fused.field
         # all uncertainties should be identical
-        np.testing.assert_equal(field.errors, 1.)
+        np.testing.assert_equal(field.errors, to_microstrain(np.ones(len(field))))
         # every other point comes from a single field
-        np.testing.assert_equal(field.values, [1., 10., 3., 12., 5., 14., 7., 16.])
+        np.testing.assert_equal(field.values, to_microstrain([1., 10., 3., 12., 5., 14., 7., 16.]))
 
     def test_small_stack(self):
         x = [0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.5]  # x
@@ -1230,14 +1232,14 @@ class TestStressField:
 
     def test_youngs_modulus_setter(self, strain_stress_object_0):
         stress = strain_stress_object_0['stresses']['diagonal']
-        assert_allclose(stress.stress11.values, [0.30, 0.34, 0.38, 0.42, 0.46], atol=0.01)
-        assert_allclose(stress.stress22.values, [0.40, 0.44, 0.48, 0.52, 0.56], atol=0.01)
-        assert_allclose(stress.stress33.values, [0.50, 0.54, 0.58, 0.62, 0.66], atol=0.01)
+        assert_allclose(stress.stress11.values, [300, 340, 380, 420, 460], atol=1)
+        assert_allclose(stress.stress22.values, [400, 440, 480, 520, 560], atol=1)
+        assert_allclose(stress.stress33.values, [500, 540, 580, 620, 660], atol=1)
         stress.youngs_modulus *= 2.0
         assert stress.youngs_modulus == pytest.approx(8. / 3)
-        assert_allclose(stress.stress11.values, 2 * np.array([0.30, 0.34, 0.38, 0.42, 0.46]), atol=0.01)
-        assert_allclose(stress.stress22.values, 2 * np.array([0.40, 0.44, 0.48, 0.52, 0.56]), atol=0.01)
-        assert_allclose(stress.stress33.values, 2 * np.array([0.50, 0.54, 0.58, 0.62, 0.66]), atol=0.01)
+        assert_allclose(stress.stress11.values, 2 * np.array([300, 340, 380, 420, 460]), atol=1)
+        assert_allclose(stress.stress22.values, 2 * np.array([400, 440, 480, 520, 560]), atol=1)
+        assert_allclose(stress.stress33.values, 2 * np.array([500, 540, 580, 620, 660]), atol=1)
 
     def test_poisson_ratio(self, strains_for_stress_field_1):
         r"""Test poisson_ratio property"""
@@ -1247,15 +1249,15 @@ class TestStressField:
 
     def test_poisson_ratio_setter(self, strain_stress_object_0):
         stress = strain_stress_object_0['stresses']['diagonal']
-        assert_allclose(stress.stress11.values, [0.30, 0.34, 0.38, 0.42, 0.46], atol=0.01)
-        assert_allclose(stress.stress22.values, [0.40, 0.44, 0.48, 0.52, 0.56], atol=0.01)
-        assert_allclose(stress.stress33.values, [0.50, 0.54, 0.58, 0.62, 0.66], atol=0.01)
+        assert_allclose(stress.stress11.values, [300, 340, 380, 420, 460], atol=1)
+        assert_allclose(stress.stress22.values, [400, 440, 480, 520, 560], atol=1)
+        assert_allclose(stress.stress33.values, [500, 540, 580, 620, 660], atol=1)
         strains = strain_stress_object_0['strains']
         stress.poisson_ratio = 0.0
         assert stress.poisson_ratio == pytest.approx(0.0)
-        assert_allclose(stress.stress11.values, stress.youngs_modulus * strains['11'].values, atol=0.001)
-        assert_allclose(stress.stress22.values, stress.youngs_modulus * strains['22'].values, atol=0.001)
-        assert_allclose(stress.stress33.values, stress.youngs_modulus * strains['33'].values, atol=0.001)
+        assert_allclose(stress.stress11.values, to_megapascal(stress.youngs_modulus * strains['11'].values), atol=1)
+        assert_allclose(stress.stress22.values, to_megapascal(stress.youngs_modulus * strains['22'].values), atol=1)
+        assert_allclose(stress.stress33.values, to_megapascal(stress.youngs_modulus * strains['33'].values), atol=1)
 
     def test_create_stress_field(self, allclose_with_sorting):
         X = [0.000, 1.000, 2.000, 3.000, 4.000, 5.000, 6.000, 7.000, 8.000, 9.000]
@@ -1290,7 +1292,7 @@ class TestStressField:
         # check strains
         for direction, sample in zip(('11', '22', '33'), (sample11, sample22, sample33)):
             diagonal.select(direction)
-            assert allclose_with_sorting(diagonal.strain.values, sample.values)
+            assert allclose_with_sorting(diagonal.strain.values, sample.values, atol=1)
         # check coordinates
         assert allclose_with_sorting(diagonal.x, X)
         assert allclose_with_sorting(diagonal.y, Y)
@@ -1298,11 +1300,11 @@ class TestStressField:
         # check values
         second = (sample11.values + sample22.values + sample33.values)
         diagonal.select('11')
-        assert allclose_with_sorting(diagonal.values, sample11.values + second)
+        assert allclose_with_sorting(diagonal.values, to_megapascal(sample11.values + second), atol=1)
         diagonal.select('22')
-        assert allclose_with_sorting(diagonal.values, sample22.values + second)
+        assert allclose_with_sorting(diagonal.values, to_megapascal(sample22.values + second), atol=1)
         diagonal.select('33')
-        assert allclose_with_sorting(diagonal.values, sample33.values + second)
+        assert allclose_with_sorting(diagonal.values, to_megapascal(sample33.values + second), atol=1)
 
         in_plane_strain = StressField(sample11, sample22, None, YOUNG, POISSON, 'in-plane-strain')
         assert in_plane_strain
@@ -1313,11 +1315,11 @@ class TestStressField:
         # check values
         second = (sample11.values + sample22.values)
         in_plane_strain.select('11')
-        allclose_with_sorting(in_plane_strain.values, sample11.values + second)
+        allclose_with_sorting(in_plane_strain.values, to_megapascal(sample11.values + second), atol=1)
         in_plane_strain.select('22')
-        allclose_with_sorting(in_plane_strain.values, sample22.values + second)
+        allclose_with_sorting(in_plane_strain.values, to_megapascal(sample22.values + second), atol=1)
         in_plane_strain.select('33')
-        allclose_with_sorting(in_plane_strain.values, second)
+        allclose_with_sorting(in_plane_strain.values, to_megapascal(second), atol=1)
         # The strain along the 33 direction is zero by definition
         assert np.allclose(in_plane_strain.strain.values, [0.0] * in_plane_strain.size)
         assert np.allclose(in_plane_strain.strain.errors, [0.0] * in_plane_strain.size)
@@ -1336,10 +1338,10 @@ class TestStressField:
         second = (sample11.values + sample22.values)
         in_plane_stress.select('11')
         strain11 = in_plane_stress.strain.values
-        assert allclose_with_sorting(in_plane_stress.values, sample11.values + second)
+        assert allclose_with_sorting(in_plane_stress.values, to_megapascal(sample11.values + second), atol=1)
         in_plane_stress.select('22')
         strain22 = in_plane_stress.strain.values
-        assert allclose_with_sorting(in_plane_stress.values, sample22.values + second)
+        assert allclose_with_sorting(in_plane_stress.values, to_megapascal(sample22.values + second), atol=1)
         in_plane_stress.select('33')
         strain33 = in_plane_stress.strain.values
         assert allclose_with_sorting(in_plane_stress.values, 0.)  # no stress on the 33 direction
@@ -1372,8 +1374,8 @@ class TestStressField:
             stress.select(direction)
             assert stress.strain == strain  # it is the same reference
             # hand calculations show that this should be 4*strain
-            assert_allclose(stress.values, 4. * values)
-            assert_allclose(stress.errors, np.sqrt(6) * errors)
+            assert_allclose(stress.values, 1000 * 4. * values)
+            assert_allclose(stress.errors, 1000 * np.sqrt(6) * errors)
 
     def test_strain33_when_inplane_stress(self, strains_for_stress_field_1):
         sample11, sample22 = strains_for_stress_field_1[0:2]
@@ -1411,12 +1413,13 @@ class TestStressField:
         expected = np.array([1.20, 1.21, 1.22, 1.23, 1.24])
         for strain in stress.strain11, stress.strain22, stress.strain33:
             assert_allclose(strain.get_d_reference().values, expected, atol=0.001)
-            assert_allclose(strain.values, (strain.get_dspacing_center().values - expected) / expected, atol=0.001)
+            assert_allclose(strain.values,
+                            to_microstrain((strain.get_dspacing_center().values - expected) / expected), atol=1)
         # Stresses must be also be updated
         trace = stress.strain11.values + stress.strain22.values + stress.strain33.values
         for direction, strain in zip(('11', '22', '33'), (stress.strain11, stress.strain22, stress.strain33)):
             # Young's modulus and Poisson ratio for strain_stress_object_0 simplify the formulae
-            assert_allclose(stress[direction].values, strain.values + trace)
+            assert_allclose(stress[direction].values, to_megapascal(strain.values + trace), atol=1)
         #
         # in-plane-strain case
         stress = strain_stress_object_0['stresses']['in-plane-strain']
@@ -1432,14 +1435,15 @@ class TestStressField:
         # The current d_reference is the spacing along the '22' direction
         expected = np.array([1.10, 1.11, 1.12, 1.13, 1.14])
         for strain in stress.strain11, stress.strain22:
-            assert_allclose(strain.get_d_reference().values, expected, atol=0.001)
-            assert_allclose(strain.values, (strain.get_dspacing_center().values - expected) / expected, atol=0.001)
+            assert_allclose(strain.get_d_reference().values, expected, atol=1)
+            assert_allclose(strain.values,
+                            to_microstrain((strain.get_dspacing_center().values - expected) / expected), atol=1)
         assert_allclose(stress.strain33.values, np.zeros(stress.size))  # because in-plane-strain
         # Stresses must be also be updated
         trace = stress.strain11.values + stress.strain22.values
         for direction, strain in zip(('11', '22', '33'), (stress.strain11, stress.strain22, stress.strain33)):
             # Young's modulus and Poisson ratio for strain_stress_object_0 simplify the formulae
-            assert_allclose(stress[direction].values, strain.values + trace)
+            assert_allclose(stress[direction].values, to_megapascal(strain.values + trace), atol=1)
         #
         # in-plane-stress case
         stress = strain_stress_object_0['stresses']['in-plane-stress']
@@ -1457,14 +1461,15 @@ class TestStressField:
         # The current d_reference is the spacing along the '22' direction
         expected = np.array([1.10, 1.11, 1.12, 1.13, 1.14])
         for strain in stress.strain11, stress.strain22:
-            assert_allclose(strain.get_d_reference().values, expected, atol=0.001)
-            assert_allclose(strain.values, (strain.get_dspacing_center().values - expected) / expected, atol=0.001)
+            assert_allclose(strain.get_d_reference().values, expected, atol=1)
+            assert_allclose(strain.values,
+                            to_microstrain((strain.get_dspacing_center().values - expected) / expected), atol=1)
         assert_allclose(stress.strain33.values, -(stress.strain11.values + stress.strain22.values))
         # Stresses must be also be updated
         trace = stress.strain11.values + stress.strain22.values
         for direction, strain in zip(('11', '22'), (stress.strain11, stress.strain22)):
             # Young's modulus and Poisson ratio for strain_stress_object_0 simplify the formulae
-            assert_allclose(stress[direction].values, strain.values + trace)
+            assert_allclose(stress[direction].values, to_megapascal(strain.values + trace), atol=1)
         assert_allclose(stress['33'].values, np.zeros(stress.size))  # because in-plane-stress
         # TODO also test with fixture strain_stress_object_1
 
@@ -1476,22 +1481,22 @@ class TestStressField:
         nanf = float('nan')
 
         # strain values for stacked strain along direction 11
-        expected = [0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf, nanf]
-        assert_allclose(stress.strain11.values, expected, equal_nan=True, atol=1.e-02)
+        expected = to_microstrain([0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf, nanf])
+        assert_allclose(stress.strain11.values, expected, equal_nan=True, atol=1)
 
         # strain values for stacked strain along direction 22
-        expected = [nanf, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, nanf]
+        expected = to_microstrain([nanf, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, nanf])
         # TODO bug: we obtain [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, nanf, nanf] instead of `expected`
-        assert_allclose(stress.strain22.values, expected, equal_nan=True, atol=1.e-02)
+        assert_allclose(stress.strain22.values, expected, equal_nan=True, atol=1)
 
         # strain values for stacked strain along direction 33
-        expected = [nanf, nanf, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09]
+        expected = to_microstrain([nanf, nanf, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09])
         # TODO bug: we obtain [0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, nanf, nanf] instead of `expected`
-        assert_allclose(stress.strain33.values, expected, equal_nan=True, atol=1.e-02)
+        assert_allclose(stress.strain33.values, expected, equal_nan=True, atol=1)
 
         # strain values for the single strain along direction 11
-        expected = [0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07]
-        assert_allclose(stress.strain11.strains[0].values, expected, equal_nan=True, atol=1.e-02)
+        expected = to_microstrain([0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07])
+        assert_allclose(stress.strain11.strains[0].values, expected, equal_nan=True, atol=1)
 
 
 @pytest.fixture(scope='module')
@@ -1656,11 +1661,12 @@ def test_stress_field_from_files(test_data_dir):
     # confirm the strains are unchanged
     for direction in DIRECTIONS:
         stress.select(direction)
-        np.testing.assert_equal(stress.strain.values, sample11.peak_collections[0].get_strain()[0],
-                                err_msg=f'strain direction {direction}')
+        np.testing.assert_allclose(stress.strain.values,
+                                   sample11.peak_collections[0].get_strain(units='microstrain')[0],
+                                   atol=1, err_msg=f'strain direction {direction}')
 
     # calculate the values for stress
-    strains = sample11.peak_collections[0].get_strain()[0]
+    strains = sample11.peak_collections[0].get_strain(units='microstrain')[0]
     stress_exp = strains + POISSON * (strains + strains + strains) / (1. - 2. * POISSON)
     stress_exp *= YOUNG / (1. + POISSON)
 
@@ -1668,8 +1674,8 @@ def test_stress_field_from_files(test_data_dir):
     for direction in DIRECTIONS:
         stress.select(direction)
         np.testing.assert_equal(stress.point_list.coordinates, sample11.point_list.coordinates)
-        np.testing.assert_equal(stress.values, stress_exp,
-                                err_msg=f'stress direction {direction}')
+        np.testing.assert_allclose(stress.values, to_megapascal(stress_exp), atol=1,
+                                   err_msg=f'stress direction {direction}')
 
     stress11 = stress.stress11.values
     print(stress11)
