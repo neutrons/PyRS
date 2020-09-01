@@ -3,8 +3,10 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from pyrs.core.stress_facade import StressFacade
-from pyrs.dataobjects.fields import ScalarFieldSample
+from pyrs.dataobjects.fields import ScalarFieldSample, StressField
+from pyrs.peaks.peak_collection import to_microstrain
 
+to_megapascal = StressField.to_megapascal
 nanf = float('nan')
 NAN = np.nan
 
@@ -31,7 +33,8 @@ def assert_workspace(facade, query, signal_array):
     assert dimension.getMinimum() == pytest.approx(min_value - half_bin_width)
     assert dimension.getMaximum() == pytest.approx(max_value + half_bin_width)
     assert dimension.getNBins() == facade.size
-    assert_allclose(workspace.getSignalArray().ravel(), signal_array, equal_nan=True, atol=1.e-5)
+    atols = {'strain': 1.0, 'stress': 1.0}  # different queries have different decimal accuracies
+    assert_allclose(workspace.getSignalArray().ravel(), signal_array, equal_nan=True, atol=atols.get(query, 1.e-5))
 
 
 class TestStressFacade:
@@ -70,11 +73,11 @@ class TestStressFacade:
         facade.youngs_modulus *= 2
         assert facade.youngs_modulus == pytest.approx(8. / 3)
         facade.selection = '11'
-        assert_allclose(facade.stress.values, 2 * np.array([0.30, 0.34, 0.38, 0.42, 0.46]), atol=0.01)
+        assert_allclose(facade.stress.values, 2 * np.array([300, 340, 380, 420, 460]), atol=1)
         facade.selection = '22'
-        assert_allclose(facade.stress.values, 2 * np.array([0.40, 0.44, 0.48, 0.52, 0.56]), atol=0.01)
+        assert_allclose(facade.stress.values, 2 * np.array([400, 440, 480, 520, 560]), atol=1)
         facade.selection = '33'
-        assert_allclose(facade.stress.values, 2 * np.array([0.50, 0.54, 0.58, 0.62, 0.66]), atol=0.01)
+        assert_allclose(facade.stress.values, 2 * np.array([500, 540, 580, 620, 660]), atol=1)
 
     def test_poisson_ratio(self, strain_stress_object_1):
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
@@ -86,7 +89,7 @@ class TestStressFacade:
         assert facade.poisson_ratio == pytest.approx(0.0)
         for selection in ('11', '22', '33'):
             facade.selection = selection
-            assert_allclose(facade.stress.values, facade.youngs_modulus * facade.strain.values, atol=0.001)
+            assert_allclose(facade.stress.values, to_megapascal(facade.youngs_modulus * facade.strain.values), atol=1)
 
     def test_stress_type(self, strain_stress_object_1):
         for stress_type in ('diagonal', 'in-plane-strain', 'in-plane-stress'):
@@ -126,76 +129,77 @@ class TestStressFacade:
         facade = StressFacade(stress)
         facade.selection == '1235'
         field = stress.strain22.strains[0].field  # scalar field sample for run 1235
-        assert_allclose(field.values, [0.01, 0.02, 0.03, 0.04], atol=0.001)
+        assert_allclose(field.values, to_microstrain([0.01, 0.02, 0.03, 0.04]), atol=1)
         field_extended = facade._extend_to_stacked_point_list(field)
         nan = float('nan')
-        assert_allclose(field_extended.values, [nan, 0.01, 0.02, 0.03, 0.04, nan, nan, nan, nan, nan, ], atol=0.001)
+        assert_allclose(field_extended.values,
+                        to_microstrain([nan, 0.01, 0.02, 0.03, 0.04, nan, nan, nan, nan, nan]), atol=1)
 
     def test_strain_field(self, strain_stress_object_1):
         r"""strains along for a particular direction or run number"""
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
         # direction 11 and components
         facade.selection = '11'
-        expected = [0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf, nanf]
-        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        expected = to_microstrain([0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf, nanf])
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1)
         facade.selection = '1234'
-        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1)
         # direction 22 and components
         facade.selection = '22'
-        expected = [nanf, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, nanf]
-        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        expected = to_microstrain([nanf, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, nanf])
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1)
         facade.selection = '1235'
-        expected = [nanf, 0.01, 0.02, 0.03, 0.04, nanf, nanf, nanf, nanf, nanf]
+        expected = to_microstrain([nanf, 0.01, 0.02, 0.03, 0.04, nanf, nanf, nanf, nanf, nanf])
         facade.selection = '1236'
-        expected = [nanf, nanf, nanf, nanf, 0.045, 0.05, 0.06, 0.07, 0.08, nanf]
-        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        expected = to_microstrain([nanf, nanf, nanf, nanf, 0.045, 0.05, 0.06, 0.07, 0.08, nanf])
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1)
         # direction 33 and components
         facade.selection = '33'
-        expected = [nanf, nanf, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09]
-        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        expected = to_microstrain([nanf, nanf, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09])
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1)
         facade.selection = '1237'
-        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1)
 
         facade = StressFacade(strain_stress_object_1['stresses']['in-plane-strain'])
         # direction 11 and components
         facade.selection = '11'
-        expected = [0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf]
-        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        expected = to_microstrain([0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf])
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1)
         facade.selection = '1234'
-        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1)
         # direction 22 and components
         facade.selection = '22'
-        expected = [nanf, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08]
-        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        expected = to_microstrain([nanf, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08])
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1)
         facade.selection = '1235'
-        expected = [nanf, 0.01, 0.02, 0.03, 0.04, nanf, nanf, nanf, nanf]
+        expected = to_microstrain([nanf, 0.01, 0.02, 0.03, 0.04, nanf, nanf, nanf, nanf])
         facade.selection = '1236'
-        expected = [nanf, nanf, nanf, nanf, 0.045, 0.05, 0.06, 0.07, 0.08]
-        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        expected = to_microstrain([nanf, nanf, nanf, nanf, 0.045, 0.05, 0.06, 0.07, 0.08])
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1)
         # direction 33 and components
         facade.selection = '33'
-        expected = [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
-        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        expected = to_microstrain([0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00])
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1)
 
         facade = StressFacade(strain_stress_object_1['stresses']['in-plane-stress'])
         # direction 11 and components
         facade.selection = '11'
-        expected = [0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf]
-        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        expected = to_microstrain([0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf])
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1)
         facade.selection = '1234'
-        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1)
         # direction 22 and components
         facade.selection = '22'
-        expected = [nanf, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08]
-        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        expected = to_microstrain([nanf, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08])
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1)
         facade.selection = '1235'
-        expected = [nanf, 0.01, 0.02, 0.03, 0.04, nanf, nanf, nanf, nanf]
+        expected = to_microstrain([nanf, 0.01, 0.02, 0.03, 0.04, nanf, nanf, nanf, nanf])
         facade.selection = '1236'
-        expected = [nanf, nanf, nanf, nanf, 0.045, 0.05, 0.06, 0.07, 0.08]
-        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1e-6)
+        expected = to_microstrain([nanf, nanf, nanf, nanf, 0.045, 0.05, 0.06, 0.07, 0.08])
+        assert_allclose(facade.strain.values, expected, equal_nan=True, atol=1)
         # direction 33 and components
         facade.selection = '33'
-        expected = [nanf, -0.02, -0.04, -0.06, -0.08, -0.10, -0.12, -0.14, nanf]
+        expected = to_microstrain([nanf, -0.02, -0.04, -0.06, -0.08, -0.10, -0.12, -0.14, nanf])
 
     def test_strain_workspace(self, strain_stress_object_1):
         r"""Export the strains to a MDHistoWorkspace"""
@@ -208,7 +212,7 @@ class TestStressFacade:
                                     ('33', [nanf, nanf, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09]),
                                     ('1237', [nanf, nanf, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09])]:
             facade.selection = selection
-            assert_workspace(facade, 'strain', expected)
+            assert_workspace(facade, 'strain', to_microstrain(expected))
 
         facade = StressFacade(strain_stress_object_1['stresses']['in-plane-strain'])
         for selection, expected in [('11', [0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf]),
@@ -218,7 +222,7 @@ class TestStressFacade:
                                     ('1236', [nanf, nanf, nanf, nanf, 0.045, 0.05, 0.06, 0.07, 0.08]),
                                     ('33', [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00])]:
             facade.selection = selection
-            assert_workspace(facade, 'strain', expected)
+            assert_workspace(facade, 'strain', to_microstrain(expected))
 
         facade = StressFacade(strain_stress_object_1['stresses']['in-plane-stress'])
         for selection, expected in [('11', [0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, nanf]),
@@ -228,7 +232,7 @@ class TestStressFacade:
                                     ('1236', [nanf, nanf, nanf, nanf, 0.045, 0.05, 0.06, 0.07, 0.08]),
                                     ('33', [nanf, -0.02, -0.04, -0.06, -0.08, -0.10, -0.12, -0.14, nanf])]:
             facade.selection = selection
-            assert_workspace(facade, 'strain', expected)
+            assert_workspace(facade, 'strain', to_microstrain(expected))
 
     def test_stress_field(self, strain_stress_object_1):
         r"""Stresses along a particular direction. Also for a run number, when a direction contains only one run
@@ -239,25 +243,25 @@ class TestStressFacade:
             facade.stress.values
         assert 'Stress can only be computed for directions' in str(exception_info.value)
 
-        for direction, expected in [('11', [nanf, nanf, 0.08, 0.12, 0.16, 0.20, 0.24, 0.28, nanf, nanf]),
-                                    ('22', [nanf, nanf, 0.08, 0.12, 0.16, 0.20, 0.24, 0.28, nanf, nanf]),
-                                    ('33', [nanf, nanf, 0.08, 0.12, 0.16, 0.20, 0.24, 0.28, nanf, nanf])]:
+        for direction, expected in [('11', [nanf, nanf, 80, 120, 160, 200, 240, 280, nanf, nanf]),
+                                    ('22', [nanf, nanf, 80, 120, 160, 200, 240, 280, nanf, nanf]),
+                                    ('33', [nanf, nanf, 80, 120, 160, 200, 240, 280, nanf, nanf])]:
             facade.selection = direction
-            assert_allclose(facade.stress.values, expected, atol=1.e-5)
+            assert_allclose(facade.stress.values, expected, atol=1)
 
         facade = StressFacade(strain_stress_object_1['stresses']['in-plane-strain'])
-        for direction, expected in [('11', [nanf, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21, nanf]),
-                                    ('22', [nanf, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21, nanf]),
-                                    ('33', [nanf, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.14, nanf])]:
+        for direction, expected in [('11', [nanf, 30, 60, 90, 120, 150, 180, 210, nanf]),
+                                    ('22', [nanf, 30, 60, 90, 120, 150, 180, 210, nanf]),
+                                    ('33', [nanf, 20, 40, 60, 80, 100, 120, 140, nanf])]:
             facade.selection = direction
-            assert_allclose(facade.stress.values, expected, atol=1.e-5)
+            assert_allclose(facade.stress.values, expected, atol=1)
 
         facade = StressFacade(strain_stress_object_1['stresses']['in-plane-stress'])
-        for direction, expected in [('11', [nanf, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21, nanf]),
-                                    ('22', [nanf, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21, nanf]),
+        for direction, expected in [('11', [nanf, 30, 60, 90, 120, 150, 180, 210, nanf]),
+                                    ('22', [nanf, 30, 60, 90, 120, 150, 180, 210, nanf]),
                                     ('33', [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00])]:
             facade.selection = direction
-            assert_allclose(facade.stress.values, expected, atol=1.e-5)
+            assert_allclose(facade.stress.values, expected, atol=1)
 
     def test_stress_workspace(self, strain_stress_object_1):
         r"""Stresses along a particular direction. Also for a run number, when a direction contains only one run
@@ -269,22 +273,22 @@ class TestStressFacade:
             facade.workspace('stress')
         assert 'Stress can only be computed for directions' in str(exception_info.value)
 
-        for direction, expected in [('11', [nanf, nanf, 0.08, 0.12, 0.16, 0.20, 0.24, 0.28, nanf, nanf]),
-                                    ('22', [nanf, nanf, 0.08, 0.12, 0.16, 0.20, 0.24, 0.28, nanf, nanf]),
-                                    ('33', [nanf, nanf, 0.08, 0.12, 0.16, 0.20, 0.24, 0.28, nanf, nanf])]:
+        for direction, expected in [('11', [nanf, nanf, 80, 120, 160, 200, 240, 280, nanf, nanf]),
+                                    ('22', [nanf, nanf, 80, 120, 160, 200, 240, 280, nanf, nanf]),
+                                    ('33', [nanf, nanf, 80, 120, 160, 200, 240, 280, nanf, nanf])]:
             facade.selection = direction
             assert_workspace(facade, 'stress', expected)
 
         facade = StressFacade(strain_stress_object_1['stresses']['in-plane-strain'])
-        for direction, expected in [('11', [nanf, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21, nanf]),
-                                    ('22', [nanf, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21, nanf]),
-                                    ('33', [nanf, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.14, nanf])]:
+        for direction, expected in [('11', [nanf, 30, 60, 90, 120, 150, 180, 210, nanf]),
+                                    ('22', [nanf, 30, 60, 90, 120, 150, 180, 210, nanf]),
+                                    ('33', [nanf, 20, 40, 60, 80, 100, 120, 140, nanf])]:
             facade.selection = direction
             assert_workspace(facade, 'stress', expected)
 
         facade = StressFacade(strain_stress_object_1['stresses']['in-plane-stress'])
-        for direction, expected in [('11', [nanf, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21, nanf]),
-                                    ('22', [nanf, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21, nanf]),
+        for direction, expected in [('11', [nanf, 30, 60, 90, 120, 150, 180, 210, nanf]),
+                                    ('22', [nanf, 30, 60, 90, 120, 150, 180, 210, nanf]),
                                     ('33', [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00])]:
             facade.selection = direction
             assert_workspace(facade, 'stress', expected)
