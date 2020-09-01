@@ -1258,16 +1258,19 @@ class StrainFieldSingle(_StrainField):
         self._scalar_field = None
         self._effective_params = {}
 
-    def _create_scalar_field(self, method: str, name: str):
+    def _create_scalar_field(self, method: str, name: str, *args, **kwargs):
         r"""
         Parameters
         ----------
         method
             The name of the effective peak parameter to get the value of or the name of
-            the method to call
-
+            the PeakCollection method to call
         name
             The name of the output ScalarFieldSample
+        args:
+            Positional arguments to PeakCollection method
+        kwargs:
+            Optional arguments to the method of PeakCollection method
         """
         # the data is taken from the `PeakCollection`
         if self._peak_collection is None:
@@ -1275,11 +1278,11 @@ class StrainFieldSingle(_StrainField):
 
         # get the data
         if method in EFFECTIVE_PEAK_PARAMETERS:
-            peak_param_values, peak_param_errors = self._peak_collection.get_effective_params()
+            peak_param_values, peak_param_errors = self._peak_collection.get_effective_params(*args, **kwargs)
             values = peak_param_values[method]
             errors = peak_param_errors[method]
         else:
-            values, errors = getattr(self._peak_collection, f'{method}')()
+            values, errors = getattr(self._peak_collection, f'{method}')(*args, **kwargs)
 
         # put it all together into a ScalarFieldSample
         full_values = np.full(len(self.point_list), NOT_MEASURED_NUMPY, dtype=float)
@@ -1291,7 +1294,7 @@ class StrainFieldSingle(_StrainField):
     @property
     def field(self) -> ScalarFieldSample:
         r"""
-        Fetch the strain values and errors for the list of sample points.
+        Fetch the strain values and errors for the list of sample points, in microstrain units.
 
         If the strain has been stacked against strain(s) measured along different direction(s),
         the number of sample points in the point list may be larger than the number of sample
@@ -1305,7 +1308,7 @@ class StrainFieldSingle(_StrainField):
         """
         # create value and cache it
         if self._scalar_field is None:
-            self._scalar_field = self._create_scalar_field(method='get_strain', name='strain')
+            self._scalar_field = self._create_scalar_field(method='get_strain', name='strain', units='microstrain')
 
         return self._scalar_field
 
@@ -1549,7 +1552,7 @@ class StrainField(_StrainField):
         self._scalar_field = None
         self._effective_params = {}
 
-    def _create_scalar_field(self, method, name) -> ScalarFieldSample:
+    def _create_scalar_field(self, method, name, *args, **kwargs) -> ScalarFieldSample:
         r"""
 
         Parameters
@@ -1559,6 +1562,10 @@ class StrainField(_StrainField):
             effective peak parameters
         name: str
             Either string 'strain' or the name of one of the effective peak parameters
+        args:
+            Positional arguments to PeakCollection method
+        kwargs:
+            Optional arguments to the method of PeakCollection method
 
         Returns
         -------
@@ -1590,11 +1597,11 @@ class StrainField(_StrainField):
 
             # get the values to put together
             if method in EFFECTIVE_PEAK_PARAMETERS:
-                peak_param_values, peak_param_errors = peak_collection.get_effective_params()
+                peak_param_values, peak_param_errors = peak_collection.get_effective_params(*args, **kwargs)
                 values_i = peak_param_values[method]
                 errors_i = peak_param_errors[method]
             else:
-                values_i, errors_i = getattr(peak_collection, f'{method}')()
+                values_i, errors_i = getattr(peak_collection, f'{method}')(*args, **kwargs)
 
             # find points of the current single-scan strain's list contributing to the overall list of points
             # `self._winners.point_indexes` is a list as long as `self._point_list`. Each entry provides
@@ -1610,7 +1617,7 @@ class StrainField(_StrainField):
     @property
     def field(self):
         r"""
-        Fetch the strain values and errors for the list of sample points.
+        Fetch the strain values and errors for the list of sample points, in microstrain units.
 
         If the strain has been stacked against strain(s) measured along different direction(s), the number of
         sample points in the point list may be larger than the number of sample points associated with
@@ -1622,7 +1629,7 @@ class StrainField(_StrainField):
         -------
         ~pyrs.dataobjects.fields.ScalarFieldSample
         """
-        self._scalar_field = self._create_scalar_field(method='get_strain', name='strain')
+        self._scalar_field = self._create_scalar_field(method='get_strain', name='strain', units='microstrain')
         return self._scalar_field
 
     @property
@@ -1780,6 +1787,9 @@ class StressField:
     r"""
     Calculate the three diagonal components of the stress tensor, assuming a diagonal strain tensor.
 
+    If input strains' units are microstrain and input Young's Modulus units are GPa, then stresses'
+    units are MPa.
+
     Strains along two or three directions are used to calculate the stress. Three types of sampling
     are considered:
     - diagonal: strains along three different directions are used
@@ -1813,12 +1823,13 @@ class StressField:
     Parameters
     ----------
     strain11: ~pyrs.dataobjects.fields.StrainField
-        Strain sample along the first direction
+        Strain sample along the first direction, in units of microstrain.
     strain22: ~pyrs.dataobjects.fields.StrainField
-        Strain sample along the second direction
+        Strain sample along the second direction, in units of microstrain.
     strain33: ~pyrs.dataobjects.fields.StrainField
-        Strain sample along the third direction
+        Strain sample along the third direction, in units of microstrain.
     youngs_modulus: float
+        Young's modulus in GPa units
     poisson_ratio: float
     stress_type: str, ~pyrs.dataobjects.fields.StressType
         If a string, one of ('diagonal', 'in-plane-strain', 'in-plane-stress')
@@ -1859,6 +1870,9 @@ class StressField:
         r"""
         Stress along one of the directions.
 
+        If input strains' units are microstrain and input Young's Modulus units are GPa, then stresses'
+        units are MPa.
+
         This operation doesn't change the currently accessible direction.
 
         Parameters
@@ -1876,6 +1890,9 @@ class StressField:
     def __iter__(self) -> Iterator[ScalarFieldSample]:
         r"""
         Access the stress along the different directions
+
+        If input strains' units are microstrain and input Young's Modulus units are GPa, then stresses'
+        units are MPa.
 
         This operation doesn't change the currently accessible direction.
 
@@ -1933,7 +1950,10 @@ class StressField:
             Each item is a ~unumpy.array object, corresponding to the values and error for one of the stress fields
         """  # noqa: E501
         youngs_modulus, poisson_ratio = self.youngs_modulus, self.poisson_ratio
-        prefactor = youngs_modulus / (1 + poisson_ratio)
+        # If strain in microstrain and youngs_modulus in GPa, `to_mega_pascal` ensures
+        # stress' units are MPa
+        to_mega_pascal = 1.0e-03
+        prefactor = to_mega_pascal * youngs_modulus / (1 + poisson_ratio)
 
         strain11: unumpy.uarray = self._strain11.sample
         strain22: unumpy.uarray = self._strain22.sample
@@ -2103,7 +2123,7 @@ class StressField:
     @property
     def youngs_modulus(self) -> float:
         r"""
-        Input Young's mudulus
+        Input Young's mudulus. Assumed units are GPa
 
         Returns
         -------
@@ -2122,7 +2142,7 @@ class StressField:
     @property
     def poisson_ratio(self) -> float:
         r"""
-        Input Poisson's ratio
+        Input Poisson's ratio.
 
         Returns
         -------
@@ -2140,6 +2160,10 @@ class StressField:
         r"""
         Stress values along the currently selected direction
 
+        If input strains' units are microstrain and input Young's Modulus units are GPa, then stresses'
+        units are MPa.
+
+
         Returns
         -------
         np.ndarray
@@ -2151,6 +2175,9 @@ class StressField:
     def errors(self) -> np.ndarray:
         r"""
         Stress uncertainties along the currently selected direction
+
+        If input strains' units are microstrain and input Young's Modulus units are GPa, then stresses'
+        units are MPa.
 
         Returns
         -------
@@ -2174,6 +2201,9 @@ class StressField:
     def stress(self) -> Optional[StrainField]:
         r"""
         Strain (after stacking) along the currently selected direction
+
+        If input strains' units are microstrain and input Young's Modulus units are GPa, then stresses'
+        units are MPa.
 
         Returns
         -------
@@ -2208,6 +2238,9 @@ class StressField:
         r"""
         Save the selected stress field into a MDHistoWorkspace. Interpolation of the sample points is carried out
         by default.
+
+        If input strains' units are microstrain and input Young's Modulus units are GPa, then stresses'
+        units are MPa.
 
         Parameters `method`, `fill_value`, `keep_nan`, `resolution` , and `criterion` are  used only if
         `interpolate` is `True`.
