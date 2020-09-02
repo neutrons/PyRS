@@ -47,7 +47,7 @@ Data reduction workflow
 The workflow is as follows.
 The word "script" is used to denote a distict step in processing the data rather than actual script.
 
-1. Start with a nexus file. As in, /HFIR/HB2B/IPTS-22731/nexus/HB2B_439.nxs.h5
+1. Start with a nexus file. As in, ``/HFIR/HB2B/IPTS-22731/nexus/HB2B_439.nxs.h5``
 2. This is read in by something that will split into sub-scans and create a project file [script 1 - currently convert_nexus_to_hidra.py]
 3. This is read in by something that will create powder patterns and add them to the project file [script 2 - currently reduce_HB2B.py]
 4. This is read in by the gui to do the peak fitting and add the results to the project file [script 3 - currently somewhere in the gui]
