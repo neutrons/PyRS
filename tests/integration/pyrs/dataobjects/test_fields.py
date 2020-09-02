@@ -4,7 +4,6 @@ import pytest
 
 from pyrs.dataobjects.constants import DEFAULT_POINT_RESOLUTION
 from pyrs.dataobjects.fields import fuse_scalar_field_samples, ScalarFieldSample, StrainField, StressField
-from pyrs.peaks.peak_collection import to_microstrain
 
 to_megapascal = StressField.to_megapascal
 
