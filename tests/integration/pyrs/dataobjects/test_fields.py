@@ -5,6 +5,8 @@ import pytest
 from pyrs.dataobjects.constants import DEFAULT_POINT_RESOLUTION
 from pyrs.dataobjects.fields import fuse_scalar_field_samples, ScalarFieldSample, StrainField, StressField
 
+to_megapascal = StressField.to_megapascal
+
 
 @pytest.fixture(scope='module')
 def fuse_data():
@@ -289,18 +291,18 @@ def test_create_stress_1(data_create_stress_1):
     trace = stress.strain11.values + stress.strain22.values + stress.strain33.values
     assert stress['11'].point_list == stress['22'].point_list
     assert stress['22'].point_list == stress['33'].point_list
-    assert np.allclose(stress['11'].values, stress.strain11.values + trace, equal_nan=True)
-    assert np.allclose(stress['22'].values, stress.strain22.values + trace, equal_nan=True)
-    assert np.allclose(stress['33'].values, stress.strain33.values + trace, equal_nan=True)
+    assert np.allclose(stress['11'].values, to_megapascal(stress.strain11.values + trace), equal_nan=True, atol=1)
+    assert np.allclose(stress['22'].values, to_megapascal(stress.strain22.values + trace), equal_nan=True, atol=1)
+    assert np.allclose(stress['33'].values, to_megapascal(stress.strain33.values + trace), equal_nan=True, atol=1)
     #
     # In-plane strain (strain33 is zero)
     poisson_ratio = 1. / 3.  # makes nu / (1 - 2*nu) == 1
     young_modulus = 1 + poisson_ratio  # makes E / (1 + nu) == 1
     stress = StressField(strain11, strain22, None, young_modulus, poisson_ratio, stress_type='in-plane-strain')
     trace = stress.strain11.values + stress.strain22.values
-    assert np.allclose(stress['11'].values, stress.strain11.values + trace, equal_nan=True)
-    assert np.allclose(stress['22'].values, stress.strain22.values + trace, equal_nan=True)
-    assert np.allclose(stress['33'].values, trace, equal_nan=True)
+    assert np.allclose(stress['11'].values, to_megapascal(stress.strain11.values + trace), equal_nan=True, atol=1)
+    assert np.allclose(stress['22'].values, to_megapascal(stress.strain22.values + trace), equal_nan=True, atol=1)
+    assert np.allclose(stress['33'].values, to_megapascal(trace), equal_nan=True, atol=1)
     assert np.all(stress.strain33.values == 0.0)
     #
     # In-plane stress (stress33 is zero)
@@ -308,10 +310,11 @@ def test_create_stress_1(data_create_stress_1):
     young_modulus = 1 + poisson_ratio
     stress = StressField(strain11, strain22, None, young_modulus, poisson_ratio, stress_type='in-plane-stress')
     trace = stress.strain11.values + stress.strain22.values
-    assert np.allclose(stress['11'].values, stress.strain11.values + trace, equal_nan=True)
-    assert np.allclose(stress['22'].values, stress.strain22.values + trace, equal_nan=True)
+    assert np.allclose(stress['11'].values, to_megapascal(stress.strain11.values + trace), equal_nan=True, atol=1)
+    assert np.allclose(stress['22'].values, to_megapascal(stress.strain22.values + trace), equal_nan=True, atol=1)
     assert np.all(stress['33'].values == 0.0)
-    assert np.allclose(stress.strain33.values, -(stress.strain11.values + stress.strain22.values), equal_nan=True)
+    assert np.allclose(stress.strain33.values,
+                       -(stress.strain11.values + stress.strain22.values), equal_nan=True, atol=1)
 
 
 if __name__ == '__main__':

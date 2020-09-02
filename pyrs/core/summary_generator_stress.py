@@ -24,7 +24,7 @@ class SummaryGeneratorStress:
     directions = ['11', '22', '33']
     # order of these fields matter on the CSV order
     fields_3dir = ['d', 'FWHM', 'Height', 'Strain', 'Stress']
-    decimals = {'d0': 7, 'd': 7, 'FWHM': 2, 'Height': 12, 'Strain': 6, 'Stress': 6}
+    decimals = {'d0': 7, 'd': 7, 'FWHM': 2, 'Height': 12, 'Strain': 0, 'Stress': 0}
 
     def __init__(self, filename: str, stress_input):
         """Initialization
@@ -368,6 +368,8 @@ class SummaryGeneratorStress:
         output = ''
         if decimal_digits == 12:
             output = f'{number:.12f}' + ', '
+        elif decimal_digits == 0:
+            output = f'{number:.0f}' + ', '
         elif decimal_digits == 2:
             output = f'{number:.2f}' + ', '
         elif decimal_digits == 7:
