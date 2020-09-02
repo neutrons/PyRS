@@ -308,6 +308,20 @@ class SummaryGeneratorStress:
             d0_scalar_field: ScalarFieldSample = self._stress_facade.d_reference
             d0_values = d0_scalar_field.values
             d0_errors = d0_scalar_field.errors
+            
+            stress_fields:Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
+            #strain_fields:Dict[str, Tuple[np.ndarray, np.ndarray]]
+            
+            for field_3dir in SummaryGeneratorStress.fields_3dir:
+
+                for direction in SummaryGeneratorStress.directions:
+
+                    self._stress_facade.selection = direction
+
+                    if field_3dir == 'Stress':
+                        stress_fields[direction] = (self._stress_facade.stress.values, \
+                                                   self._stress_facade.stress.errors )
+            
 
             # write for each row of the CSV body, first coordinates, d0 and
             # then fields in SummaryGeneratorStress.fields_3dir value, error per dimension
@@ -334,8 +348,8 @@ class SummaryGeneratorStress:
                         self._stress_facade.selection = direction
 
                         if field_3dir == 'Stress':
-                            stress_value = self._stress_facade.stress.values[row]
-                            stress_error = self._stress_facade.stress.errors[row]
+                            stress_value = stress_fields[direction][0][row]
+                            stress_error = stress_fields[direction][1][row]
                             line += self._write_number(stress_value, decimals) + \
                                 self._write_number(stress_error, decimals)
                         else:
