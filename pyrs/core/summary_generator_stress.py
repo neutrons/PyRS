@@ -278,25 +278,14 @@ class SummaryGeneratorStress:
             entries = ''
             decimals = SummaryGeneratorStress.decimals[field]
 
-            if field == 'Strain':
-
-                # TODO check bounds
-                strain_field = self._stress_facade.strain
-                strain_value = strain_field.values[row]
-                strain_error = strain_field.errors[row]
-                entries += self._write_number(strain_value, decimals) + \
-                    self._write_number(strain_error, decimals)
-
+            field_data = self._stress_facade.peak_parameter(field)
+            if row >= len(field_data):
+                entries += ', , '
             else:
-
-                field_data = self._stress_facade.peak_parameter(field)
-                if row >= len(field_data):
-                    entries += ', , '
-                else:
-                    value = field_data.values[row]
-                    error = field_data.errors[row]
-                    entries += self._write_number(value, decimals) + \
-                        self._write_number(error, decimals)
+                value = field_data.values[row]
+                error = field_data.errors[row]
+                entries += self._write_number(value, decimals) + \
+                            self._write_number(error, decimals)
 
             return entries
 
@@ -309,8 +298,11 @@ class SummaryGeneratorStress:
             d0_values = d0_scalar_field.values
             d0_errors = d0_scalar_field.errors
             
+            # [direction][0] = values, [direction][1] = errors
             stress_fields:Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
-            #strain_fields:Dict[str, Tuple[np.ndarray, np.ndarray]]
+            # [direction][run][0] = values, [direction][run][1] = errors
+            strain_fields:Dict[str, Dict[str,Tuple[np.ndarray, np.ndarray]]] = {}
+            peak_data:Dict[str, Dict[str, Dict[str, Tuple[np.ndarray, np.ndarray]]]] = {}
             
             for field_3dir in SummaryGeneratorStress.fields_3dir:
 
@@ -321,7 +313,15 @@ class SummaryGeneratorStress:
                     if field_3dir == 'Stress':
                         stress_fields[direction] = (self._stress_facade.stress.values, \
                                                    self._stress_facade.stress.errors )
-            
+                    else:
+                        # initialize
+                        strain_fields[direction] = {} 
+                        
+                        runs = self._stress_facade.runs(direction)
+                        for run in runs:
+                            strain_fields[direction][run] = (self._stress_facade.strain.values, \
+                                                             self._stress_facade.strain.errors )
+                            
 
             # write for each row of the CSV body, first coordinates, d0 and
             # then fields in SummaryGeneratorStress.fields_3dir value, error per dimension
@@ -342,6 +342,7 @@ class SummaryGeneratorStress:
 
                 # value error for fields_3dir = ['d', 'FWHM', 'Peak_Height', 'Strain', 'Stress']
                 for field_3dir in SummaryGeneratorStress.fields_3dir:
+                    decimals = SummaryGeneratorStress.decimals[field_3dir]
 
                     for direction in SummaryGeneratorStress.directions:
 
@@ -356,7 +357,14 @@ class SummaryGeneratorStress:
                             runs = self._stress_facade.runs(direction)
                             for run in runs:
                                 self._stress_facade.selection = run
-                                line += _write_field_3d(row, field_3dir)
+
+                                if field_3dir == 'Strain':
+                                    strain_value = strain_fields[direction][run][0][row] 
+                                    strain_error = strain_fields[direction][run][1][row]
+                                    line += self._write_number(strain_value, decimals) + \
+                                            self._write_number(strain_error, decimals)
+                                else:
+                                    line += _write_field_3d(row, field_3dir)
 
                 line = line[:-2] + '\n'
 
