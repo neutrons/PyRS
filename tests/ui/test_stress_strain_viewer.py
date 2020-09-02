@@ -6,6 +6,7 @@ import functools
 import numpy as np
 import os
 import pytest
+import json
 from tests.conftest import ON_TRAVIS  # set to True when running on build servers
 
 wait = 100
@@ -76,9 +77,7 @@ def test_model(tmpdir, test_data_dir):
     assert len(model.e22) == 1
     assert model.e22[0].name == '22'
 
-    model.calculate_stress('in-plane-stress', 200, 0.3, (1.08, 0))
-
-    assert model.d0.values[0] == 1.08
+    model.calculate_stress('in-plane-stress', 200, 0.3, None)
 
     for direction in ('11', '22', '33'):
         stress_md = model.get_field(direction, 'stress', 'In-plane stress').to_md_histo_workspace()
@@ -105,10 +104,33 @@ def test_model(tmpdir, test_data_dir):
     model.write_stress_to_csv(str(filename), True)
     assert len(open(filename).readlines()) == 318
 
+    # Check saving to JSON file
+    filename = tmpdir.join("test_model1.json")
+    model.to_json(filename)
+    # check file output
+    with open(filename) as f:
+        data = json.load(f)
+    assert data.pop("stress_case") == "in-plane-stress"
+    filenames_11 = data.pop("filenames_11")
+    assert len(filenames_11) == 1
+    assert filenames_11[0].endswith("tests/data/HB2B_1320.h5")
+    filenames_22 = data.pop("filenames_22")
+    assert len(filenames_22) == 1
+    assert filenames_22[0].endswith("tests/data/HB2B_1320.h5")
+    filenames_33 = data.pop("filenames_33")
+    assert len(filenames_33) == 0
+    assert data.pop("peak_tag") == "peak0"
+    assert data.pop("youngs_modulus") == 200
+    assert data.pop("poisson_ratio") == 0.3
+    assert data.pop("d0") is None
+    assert len(data) == 0
+
     # Check writing with bad filename, should fail but should emit failure message
     model.write_stress_to_csv("/bin/false", False)
 
     model.calculate_stress('in-plane-strain', 200, 0.3, (1.08, 0))
+
+    assert model.d0.values[0] == 1.08
 
     for direction in ('11', '22', '33'):
         stress_md = model.get_field(direction, 'stress', 'In-plane strain').to_md_histo_workspace()
@@ -133,6 +155,29 @@ def test_model(tmpdir, test_data_dir):
     filename = tmpdir.join("test_model_csv2_full.csv")
     model.write_stress_to_csv(str(filename), True)
     assert len(open(filename).readlines()) == 318
+
+    # Check saving to JSON file
+    filename = tmpdir.join("test_model2.json")
+    model.to_json(filename)
+    # check file output
+    with open(filename) as f:
+        data = json.load(f)
+    assert data.pop("stress_case") == "in-plane-strain"
+    filenames_11 = data.pop("filenames_11")
+    assert len(filenames_11) == 1
+    assert filenames_11[0].endswith("tests/data/HB2B_1320.h5")
+    filenames_22 = data.pop("filenames_22")
+    assert len(filenames_22) == 1
+    assert filenames_22[0].endswith("tests/data/HB2B_1320.h5")
+    filenames_33 = data.pop("filenames_33")
+    assert len(filenames_33) == 0
+    assert data.pop("peak_tag") == "peak0"
+    assert data.pop("youngs_modulus") == 200
+    assert data.pop("poisson_ratio") == 0.3
+    d0 = data.pop("d0")
+    assert d0["d0"] == 1.08
+    assert d0["d0_error"] == 0
+    assert len(data) == 0
 
     model.e33 = os.path.join(test_data_dir, 'HB2B_1320.h5')
     assert len(model.e33) == 1
@@ -161,6 +206,30 @@ def test_model(tmpdir, test_data_dir):
     filename = tmpdir.join("test_model_csv3_full.csv")
     model.write_stress_to_csv(str(filename), True)
     assert len(open(filename).readlines()) == 318
+
+    # Check saving to JSON file
+    filename = tmpdir.join("test_model3.json")
+    model.to_json(filename)
+    # check file output
+    with open(filename) as f:
+        data = json.load(f)
+    assert data.pop("stress_case") == "diagonal"
+    filenames_11 = data.pop("filenames_11")
+    assert len(filenames_11) == 1
+    assert filenames_11[0].endswith("tests/data/HB2B_1320.h5")
+    filenames_22 = data.pop("filenames_22")
+    assert len(filenames_22) == 1
+    assert filenames_22[0].endswith("tests/data/HB2B_1320.h5")
+    filenames_33 = data.pop("filenames_33")
+    assert len(filenames_33) == 1
+    assert filenames_33[0].endswith("tests/data/HB2B_1320.h5")
+    assert data.pop("peak_tag") == "peak0"
+    assert data.pop("youngs_modulus") == 200
+    assert data.pop("poisson_ratio") == 0.3
+    d0 = data.pop("d0")
+    assert d0["d0"] == 1
+    assert d0["d0_error"] == 0
+    assert len(data) == 0
 
     # Check rerunning calculate_stress while change and not change
     # parameter, it should only recalculate when changed
@@ -209,6 +278,33 @@ def test_model(tmpdir, test_data_dir):
     assert model._stress.strain11 is current_strain11
     np.testing.assert_equal(current_strain11_values, model._stress.strain11.values)
     np.testing.assert_equal(current_strain11_values, model._stress.strain11.values)
+
+    # Check saving to JSON file
+    filename = tmpdir.join("test_model4.json")
+    model.to_json(filename)
+    # check file output
+    with open(filename) as f:
+        data = json.load(f)
+    assert data.pop("stress_case") == "diagonal"
+    filenames_11 = data.pop("filenames_11")
+    assert len(filenames_11) == 1
+    assert filenames_11[0].endswith("tests/data/HB2B_1320.h5")
+    filenames_22 = data.pop("filenames_22")
+    assert len(filenames_22) == 1
+    assert filenames_22[0].endswith("tests/data/HB2B_1320.h5")
+    filenames_33 = data.pop("filenames_33")
+    assert len(filenames_33) == 1
+    assert filenames_33[0].endswith("tests/data/HB2B_1320.h5")
+    assert data.pop("peak_tag") == "peak0"
+    assert data.pop("youngs_modulus") == 200
+    assert data.pop("poisson_ratio") == 0.3
+    d0 = data.pop("d0")
+    np.testing.assert_equal(d0["vx"], d0_grid.x)
+    np.testing.assert_equal(d0["vy"], d0_grid.y)
+    np.testing.assert_equal(d0["vz"], d0_grid.z)
+    np.testing.assert_equal(d0["d0"], d0_grid.values)
+    np.testing.assert_equal(d0["d0_error"], d0_grid.errors)
+    assert len(data) == 0
 
     # Should build new StressField
     model.calculate_stress('in-plane-stress', 200, 0.3, (1, 0))
@@ -319,6 +415,31 @@ def test_model_multiple_files(tmpdir, test_data_dir):
     filename = tmpdir.join("test_model_csv1_full.csv")
     model.write_stress_to_csv(str(filename), True)
     assert len(open(filename).readlines()) == 318
+
+    # Check saving to JSON file
+    filename = tmpdir.join("test_model1.json")
+    model.to_json(filename)
+    # check file output
+    with open(filename) as f:
+        data = json.load(f)
+    assert data.pop("stress_case") == "in-plane-stress"
+    filenames_11 = data.pop("filenames_11")
+    assert len(filenames_11) == 2
+    assert filenames_11[0].endswith("tests/data/HB2B_1327.h5")
+    assert filenames_11[1].endswith("tests/data/HB2B_1328.h5")
+    filenames_22 = data.pop("filenames_22")
+    assert len(filenames_22) == 2
+    assert filenames_22[0].endswith("tests/data/HB2B_1327.h5")
+    assert filenames_22[1].endswith("tests/data/HB2B_1328.h5")
+    filenames_33 = data.pop("filenames_33")
+    assert len(filenames_33) == 0
+    assert data.pop("peak_tag") == "peak0"
+    assert data.pop("youngs_modulus") == 200
+    assert data.pop("poisson_ratio") == 0.3
+    d0 = data.pop("d0")
+    assert d0["d0"] == 1.05
+    assert d0["d0_error"] == 0
+    assert len(data) == 0
 
     model.calculate_stress('in-plane-strain', 200, 0.3, (1.05, 0))
 

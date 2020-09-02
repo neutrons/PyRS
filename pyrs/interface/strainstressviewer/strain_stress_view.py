@@ -7,7 +7,8 @@ from qtpy.QtWidgets import (QHBoxLayout, QVBoxLayout, QLabel, QWidget,
                             QFormLayout, QFileDialog, QCheckBox,
                             QStyledItemDelegate, QDoubleSpinBox,
                             QTableWidget, QTableWidgetItem,
-                            QStackedWidget, QMessageBox)
+                            QStackedWidget, QMessageBox,
+                            QMainWindow, QAction)
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtGui import QDoubleValidator
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
@@ -244,7 +245,7 @@ class D0(QGroupBox):
             d0, d0e, x, y, z = self.get_d0_field()
             np.savetxt(filename, np.array([x, y, z, d0, d0e]).T,
                        fmt=['%.4g', '%.4g', '%.4g', '%.9g', '%.9g'],
-                       header="vx, vy, vz, d0, delta_d0",
+                       header="vx, vy, vz, d0, d0_error",
                        delimiter=',')
 
     def load_d0_field(self):
@@ -656,7 +657,7 @@ class VTK3DView(QWidget):
         return imageData
 
 
-class StrainStressViewer(QSplitter):
+class StrainStressViewer(QMainWindow):
     def __init__(self, model, ctrl, parent=None):
         self._model = model
         self._model.propertyUpdated.connect(self.updatePropertyFromModel)
@@ -666,7 +667,25 @@ class StrainStressViewer(QSplitter):
         super().__init__(parent)
 
         self.setWindowTitle("PyRS Strain-Stress Viewer")
-        self.setHandleWidth(10)
+
+        mainMenu = self.menuBar()
+        fileMenu = mainMenu.addMenu('File')
+        self.saveAction = QAction('&Save state', self)
+        self.saveAction.setShortcut('Ctrl+S')
+        self.saveAction.setStatusTip('Save application state')
+        self.saveAction.triggered.connect(self.save)
+        self.saveAction.setEnabled(False)
+        fileMenu.addAction(self.saveAction)
+        fileMenu.addSeparator()
+        exitAction = QAction('&Exit', self)
+        exitAction.setShortcut('Ctrl+Q')
+        exitAction.setStatusTip('Exit application')
+        exitAction.triggered.connect(self.save)
+        fileMenu.addAction(exitAction)
+
+        self.splitter = QSplitter()
+        self.splitter.setHandleWidth(10)
+        self.setCentralWidget(self.splitter)
 
         left = QWidget()
         left_layout = QVBoxLayout()
@@ -697,7 +716,7 @@ class StrainStressViewer(QSplitter):
 
         left.setLayout(left_layout)
 
-        self.addWidget(left)
+        self.splitter.addWidget(left)
 
         right = QWidget()
         right_layout = QVBoxLayout()
@@ -712,9 +731,9 @@ class StrainStressViewer(QSplitter):
 
         right.setLayout(right_layout)
 
-        self.addWidget(right)
-        self.setStretchFactor(0, 1)
-        self.setStretchFactor(1, 5)
+        self.splitter.addWidget(right)
+        self.splitter.setStretchFactor(0, 1)
+        self.splitter.setStretchFactor(1, 5)
 
     @property
     def controller(self):
@@ -760,11 +779,14 @@ class StrainStressViewer(QSplitter):
                                                      self.mechanicalConstants.youngModulus.text(),
                                                      self.mechanicalConstants.poissonsRatio.text()) is None:
             self.calculate_stress()
-            self.csvExport.setEnabled(True)
-            self.d0.setEnabled(True)
+            self.enable_stress_output(True)
         else:
-            self.csvExport.setEnabled(False)
-            self.d0.setEnabled(False)
+            self.enable_stress_output(False)
+
+    def enable_stress_output(self, enable):
+        self.csvExport.setEnabled(enable)
+        self.d0.setEnabled(enable)
+        self.saveAction.setEnabled(enable)
 
     def updatePropertyFromModel(self, name):
         getattr(self, name)(getattr(self.model, name))
@@ -799,3 +821,11 @@ class StrainStressViewer(QSplitter):
         else:
             self.d0.set_d0(d0.values[0], d0.errors[0])
             self.d0.set_d0_field(d0.x, d0.y, d0.z, d0.values, d0.errors)
+
+    def save(self):
+        filename, _ = QFileDialog.getSaveFileName(self,
+                                                  "Save Stress state",
+                                                  "",
+                                                  "JSON (*.json);;All Files (*)")
+        if filename:
+            self.controller.save(filename)

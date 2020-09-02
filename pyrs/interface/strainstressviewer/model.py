@@ -1,3 +1,4 @@
+import json
 import traceback
 from pyrs.dataobjects.fields import StressField, StrainField, ScalarFieldSample
 from pyrs.core.stress_facade import StressFacade
@@ -252,3 +253,32 @@ class Model(QObject):
                 peaks.append(p)
 
         return workspaces, peaks
+
+    def to_json(self, filename):
+        try:
+            json_output = dict()
+            json_output['stress_case'] = self._stressCase
+            json_output['filenames_11'] = [w.hidra_project_file for w in self.e11]
+            json_output['filenames_22'] = [w.hidra_project_file for w in self.e22]
+            json_output['filenames_33'] = [w.hidra_project_file for w in self.e33]
+            json_output['peak_tag'] = self.selectedPeak
+            json_output['youngs_modulus'] = self._youngs_modulus
+            json_output['poisson_ratio'] = self._poisson_ratio
+            if self._d0 is None:
+                json_output['d0'] = None
+            elif len(self._d0) == 5:  # ScalarFieldSample case
+                json_output['d0'] = {"d0": self._d0[0],
+                                     "d0_error": self._d0[1],
+                                     "vx": self._d0[2],
+                                     "vy": self._d0[3],
+                                     "vz": self._d0[4]}
+            else:
+                json_output['d0'] = {"d0": self._d0[0],
+                                     "d0_error": self._d0[1]}
+
+            with open(filename, 'w') as f:
+                json.dump(json_output, f)
+        except Exception as e:
+            self.failureMsg.emit(f"Failed save json file to {filename}",
+                                 str(e),
+                                 traceback.format_exc())
