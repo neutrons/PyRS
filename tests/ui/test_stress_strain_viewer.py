@@ -497,6 +497,103 @@ def test_model_multiple_files(tmpdir, test_data_dir):
     assert len(open(filename).readlines()) == 318
 
 
+def test_model_from_json(tmpdir, test_data_dir):
+    model_json = dict()
+    model_json['stress_case'] = 'in-plane-stress'
+    model_json['filenames_11'] = [os.path.join(test_data_dir, 'HB2B_1320.h5')]
+    model_json['filenames_22'] = [os.path.join(test_data_dir, 'HB2B_1320.h5')]
+    model_json['filenames_33'] = []
+    model_json['peak_tag'] = 'peak0'
+    model_json['youngs_modulus'] = 200
+    model_json['poisson_ratio'] = 0.3
+    model_json['d0'] = None
+
+    json_filename1 = tmpdir.join("model1.json")
+    with open(json_filename1, 'w') as f:
+        json.dump(model_json, f)
+
+    model = Model()
+    assert len(model.e11) == 0
+    assert len(model.e22) == 0
+    assert len(model.e33) == 0
+    assert model.stress is None
+    assert model.modelUpdated == (None, None, None, None)
+
+    model.from_json(json_filename1)
+    assert len(model.e11) == 1
+    assert len(model.e22) == 1
+    assert len(model.e33) == 0
+    assert model.stress is not None
+    assert model.modelUpdated == ('in-plane-stress', 'peak0', 200, 0.3)
+    d0 = model.d0
+    assert d0.values[0] == 1
+    assert d0.errors[0] == 0
+
+    model_json['d0'] = {'d0': 1.0123,
+                        'd0_error': 0.000123}
+
+    json_filename2 = tmpdir.join("model2.json")
+    with open(json_filename2, 'w') as f:
+        json.dump(model_json, f)
+
+    model.from_json(json_filename2)
+    assert len(model.e11) == 1
+    assert len(model.e22) == 1
+    assert len(model.e33) == 0
+    assert model.stress is not None
+    assert model.modelUpdated == ('in-plane-stress', 'peak0', 200, 0.3)
+    d0 = model.d0
+    assert d0.values[0] == 1.0123
+    assert d0.errors[0] == 0.000123
+
+    d0 = model.d0
+    d0_values = d0.values
+    d0_values[:4] = [1.01, 1.02, 1.03, 1.04]
+
+    model_json['d0'] = {"d0": list(d0_values),
+                        "d0_error": list(d0.errors),
+                        "vx": list(d0.x),
+                        "vy": list(d0.y),
+                        "vz": list(d0.z)}
+
+    json_filename3 = tmpdir.join("model3.json")
+    with open(json_filename3, 'w') as f:
+        json.dump(model_json, f)
+
+    model.from_json(json_filename3)
+    assert len(model.e11) == 1
+    assert len(model.e22) == 1
+    assert len(model.e33) == 0
+    assert model.stress is not None
+    assert model.modelUpdated == ('in-plane-stress', 'peak0', 200, 0.3)
+    d0 = model.d0
+    assert list(d0.values[:5]) == [1.01, 1.02, 1.03, 1.04, 1.0123]
+    assert d0.errors[0] == 0.000123
+
+    model_json['stress_case'] = 'diagonal'
+    model_json['filenames_11'] = [os.path.join(test_data_dir, 'HB2B_1327.h5'),
+                                  os.path.join(test_data_dir, 'HB2B_1328.h5')]
+    model_json['filenames_22'] = [os.path.join(test_data_dir, 'HB2B_1327.h5'),
+                                  os.path.join(test_data_dir, 'HB2B_1328.h5')]
+    model_json['filenames_33'] = [os.path.join(test_data_dir, 'HB2B_1327.h5')]
+    model_json['d0'] = {'d0': 1.0123,
+                        'd0_error': 0.000123}
+
+    json_filename4 = tmpdir.join("model4.json")
+    with open(json_filename4, 'w') as f:
+        json.dump(model_json, f)
+
+    model.from_json(json_filename4)
+    assert len(model.e11) == 2
+    assert len(model.e22) == 2
+    assert len(model.e33) == 1
+    assert model.stress is not None
+    assert model.modelUpdated == ('diagonal', 'peak0', 200, 0.3)
+    d0 = model.d0
+    assert d0.values[0] == 1.0123
+    assert d0.errors[0] == 0.000123
+
+
 # changes to SliceViewer from Mantid in the version 5.1 is needed for the stress/strain viewer to run
 @pytest.mark.skipif(ON_TRAVIS, reason='Need mantid version >= 5.1')
 def test_stress_strain_viewer(qtbot):

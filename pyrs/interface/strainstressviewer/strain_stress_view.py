@@ -55,6 +55,9 @@ class FileLoad(QWidget):
                 self.lineEdit.setText(None)
             self.parent.update_plot()
 
+    def setFilenamesText(self, filenames):
+        self.lineEdit.setText(filenames)
+
 
 class DimSwitch(QWidget):
     dimChanged = Signal(bool)
@@ -110,6 +113,16 @@ class StressCase(QGroupBox):
             return "diagonal"
         else:
             return self.combo.currentText()
+
+    def set_stress_case(self, stressCase):
+        if stressCase.lower() == "diagonal":
+            self.switch.set_2D(False)
+        else:
+            self.switch.set_2D(True)
+            if "stress" in stressCase.lower():
+                self.combo.setCurrentIndex(0)
+            else:
+                self.combo.setCurrentIndex(1)
 
 
 class SpinBoxDelegate(QStyledItemDelegate):
@@ -281,6 +294,9 @@ class FileLoading(QGroupBox):
         layout.addWidget(self.file_load_e33)
         self.setLayout(layout)
 
+    def set_text_values(self, direction, text):
+        getattr(self, f"file_load_e{direction}").setFilenamesText(text)
+
 
 class MechanicalConstants(QGroupBox):
     def __init__(self, parent=None):
@@ -298,6 +314,10 @@ class MechanicalConstants(QGroupBox):
         layout.addRow(QLabel("Poisson's ratio, ν"), self.poissonsRatio)
 
         self.setLayout(layout)
+
+    def set_values(self, youngModulus, poissonsRatio):
+        self.youngModulus.setText(str(youngModulus))
+        self.poissonsRatio.setText(str(poissonsRatio))
 
 
 class StrainSliceViewer(SliceViewer):
@@ -435,6 +455,9 @@ class PeakSelection(QGroupBox):
 
     def set_peak_tags(self, peak_tags):
         self.peak_select.addItems(peak_tags)
+
+    def set_selected_peak(self, peak_tag):
+        self.peak_select.setCurrentText(peak_tag)
 
 
 class CSVExport(QGroupBox):
@@ -676,11 +699,15 @@ class StrainStressViewer(QMainWindow):
         self.saveAction.triggered.connect(self.save)
         self.saveAction.setEnabled(False)
         fileMenu.addAction(self.saveAction)
+        self.loadAction = QAction('&Load state', self)
+        self.loadAction.setStatusTip('Load application state')
+        self.loadAction.triggered.connect(self.load)
+        fileMenu.addAction(self.loadAction)
         fileMenu.addSeparator()
         exitAction = QAction('&Exit', self)
         exitAction.setShortcut('Ctrl+Q')
         exitAction.setStatusTip('Exit application')
-        exitAction.triggered.connect(self.save)
+        exitAction.triggered.connect(self.close)
         fileMenu.addAction(exitAction)
 
         self.splitter = QSplitter()
@@ -800,6 +827,27 @@ class StrainStressViewer(QMainWindow):
     def selectedPeak(self, peak):
         self.update_plot()
 
+    def modelUpdated(self, modelUpdated):
+        stressCase, selectedPeak, youngs_modulus, poisson_ratio = modelUpdated
+
+        self.mechanicalConstants.set_values(youngs_modulus, poisson_ratio)
+
+        self.peak_selection.peak_select.currentTextChanged.disconnect()
+        self.peak_selection.set_selected_peak(selectedPeak)
+        self.peak_selection.peak_select.currentTextChanged.connect(self.controller.peakSelected)
+
+        self.stressCase.dimChanged.disconnect()
+        self.stressCase.set_stress_case(stressCase)
+        self.stressCase.dimChanged.connect(self.dimChanged)
+        self.fileLoading.file_load_e33.setDisabled(stressCase.lower() != "diagonal")
+
+        for d in ("11", "22", "33"):
+            self.fileLoading.set_text_values(d,
+                                             ", ".join(os.path.basename(filename)
+                                                       for filename in self.model.get_filenames_for_direction(d)))
+        self.update_d0_from_model()
+        self.update_plot()
+
     def show_failure_msg(self, msg, info, details):
         self.viz_tab.set_message(msg)
         msgBox = QMessageBox()
@@ -814,6 +862,9 @@ class StrainStressViewer(QMainWindow):
                                          self.mechanicalConstants.youngModulus.text(),
                                          self.mechanicalConstants.poissonsRatio.text(),
                                          self.d0.get_d0())
+        self.update_d0_from_model()
+
+    def update_d0_from_model(self):
         d0 = self.model.d0
         if d0 is None:
             self.d0.set_d0(None, None)
@@ -829,3 +880,11 @@ class StrainStressViewer(QMainWindow):
                                                   "JSON (*.json);;All Files (*)")
         if filename:
             self.controller.save(filename)
+
+    def load(self):
+        filename, _ = QFileDialog.getOpenFileName(self,
+                                                  "Load Stress state",
+                                                  "",
+                                                  "JSON (*.json);;All Files (*)")
+        if filename:
+            self.controller.load(filename)

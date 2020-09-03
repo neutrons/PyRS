@@ -254,13 +254,16 @@ class Model(QObject):
 
         return workspaces, peaks
 
+    def get_filenames_for_direction(self, direction):
+        return [w.hidra_project_file for w in getattr(self, f"e{direction}")]
+
     def to_json(self, filename):
         try:
             json_output = dict()
             json_output['stress_case'] = self._stressCase
-            json_output['filenames_11'] = [w.hidra_project_file for w in self.e11]
-            json_output['filenames_22'] = [w.hidra_project_file for w in self.e22]
-            json_output['filenames_33'] = [w.hidra_project_file for w in self.e33]
+            json_output['filenames_11'] = self.get_filenames_for_direction('11')
+            json_output['filenames_22'] = self.get_filenames_for_direction('22')
+            json_output['filenames_33'] = self.get_filenames_for_direction('33')
             json_output['peak_tag'] = self.selectedPeak
             json_output['youngs_modulus'] = self._youngs_modulus
             json_output['poisson_ratio'] = self._poisson_ratio
@@ -282,3 +285,37 @@ class Model(QObject):
             self.failureMsg.emit(f"Failed save json file to {filename}",
                                  str(e),
                                  traceback.format_exc())
+
+    def from_json(self, filename):
+        with open(filename) as f:
+            data = json.load(f)
+
+        self._selectedPeak = data["peak_tag"]
+
+        for direction in ('11', '22', '33'):
+            self.set_workspaces(f'e{direction}', data[f'filenames_{direction}'])
+            if getattr(self, f'e{direction}'):
+                self.create_strain(direction)
+
+        d0_data = data["d0"]
+        if d0_data is None:
+            d0 = None
+        elif len(d0_data) == 2:
+            d0 = (d0_data['d0'], d0_data['d0_error'])
+        else:
+            d0 = (d0_data['d0'],
+                  d0_data['d0_error'],
+                  d0_data['vx'],
+                  d0_data['vy'],
+                  d0_data['vz'])
+
+        self.calculate_stress(data["stress_case"],
+                              data["youngs_modulus"],
+                              data["poisson_ratio"],
+                              d0)
+
+        self.propertyUpdated.emit("modelUpdated")
+
+    @property
+    def modelUpdated(self):
+        return self._stressCase, self.selectedPeak, self._youngs_modulus, self._poisson_ratio

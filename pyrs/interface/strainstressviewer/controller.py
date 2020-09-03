@@ -56,3 +56,6 @@ class Controller:
 
     def save(self, filename):
         self._model.to_json(filename)
+
+    def load(self, filename):
+        self._model.from_json(filename)
