@@ -53,3 +53,9 @@ class Controller:
 
     def write_stress_to_csv(self, filename, detailed):
         self._model.write_stress_to_csv(filename, detailed)
+
+    def save(self, filename):
+        self._model.to_json(filename)
+
+    def load(self, filename):
+        self._model.from_json(filename)
