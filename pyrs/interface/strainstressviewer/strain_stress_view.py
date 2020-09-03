@@ -46,7 +46,8 @@ class FileLoad(QWidget):
         fileNames, _ = QFileDialog.getOpenFileNames(self,
                                                     self.name,
                                                     "",
-                                                    self.fileType)
+                                                    self.fileType,
+                                                    options=QFileDialog.DontUseNativeDialog)
         if fileNames:
             success = self.parent.controller.filesSelected(self.name, fileNames)
             if success:

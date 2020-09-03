@@ -16,7 +16,8 @@ def browse_dir(parent, caption, default_dir):
     checkdatatypes.check_file_name(default_dir, check_exist=False, is_dir=True)
 
     # get directory
-    chosen_dir = QFileDialog.getExistingDirectory(parent, caption, default_dir)
+    chosen_dir = QFileDialog.getExistingDirectory(parent, caption, default_dir,
+                                                  options=QFileDialog.DontUseNativeDialog)
     print('[DB...BAT] Chosen dir: {} of type {}'.format(chosen_dir, type(chosen_dir)))
     chosen_dir = str(chosen_dir).strip()
 
@@ -63,7 +64,8 @@ def browse_file(parent, caption, default_dir, file_filter, file_list=False, save
         save_set = QFileDialog.getSaveFileName(parent,
                                                caption=caption,
                                                directory=default_dir,
-                                               filter=file_filter)
+                                               filter=file_filter,
+                                               options=QFileDialog.DontUseNativeDialog)
         if isinstance(save_set, tuple):
             # returned include both file name and filter
             file_name = str(save_set[0])
@@ -72,7 +74,8 @@ def browse_file(parent, caption, default_dir, file_filter, file_list=False, save
 
     elif file_list:
         # browse file names to load
-        open_set = QFileDialog.getOpenFileNames(parent, caption, default_dir, file_filter)
+        open_set = QFileDialog.getOpenFileNames(parent, caption, default_dir, file_filter,
+                                                options=QFileDialog.DontUseNativeDialog)
 
         if isinstance(open_set, tuple):
             file_name_list = open_set[0]
@@ -86,7 +89,8 @@ def browse_file(parent, caption, default_dir, file_filter, file_list=False, save
 
     else:
         # browse single file name
-        open_set = QFileDialog.getOpenFileName(parent, caption, default_dir, file_filter)
+        open_set = QFileDialog.getOpenFileName(parent, caption, default_dir, file_filter,
+                                               options=QFileDialog.DontUseNativeDialog)
 
         if isinstance(open_set, tuple):
             file_name = open_set[0]
