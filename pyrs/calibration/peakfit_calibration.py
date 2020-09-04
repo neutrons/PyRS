@@ -11,7 +11,7 @@ from pyrs.core import MonoSetting  # type: ignore
 from pyrs.core.reduce_hb2b_pyrs import PyHB2BReduction
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
 from pyrs.core.reduction_manager import HB2BReductionManager
-from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry
+from pyrs.core.instrument_geometry import DENEXDetectorGeometry
 
 # Import instrument constants
 from pyrs.core.nexus_conversion import NUM_PIXEL_1D, PIXEL_SIZE, ARM_LENGTH
@@ -142,7 +142,7 @@ class PeakFitCalibration:
 
         Parameters
         ----------
-        hb2b_inst : AnglerCameraDetectorGeometry
+        hb2b_inst : DENEXDetectorGeometry
             Overide default instrument configuration
         powder_engine : HiDraWorksapce
             HiDraWorksapce with powder raw counts and log data
@@ -159,9 +159,9 @@ class PeakFitCalibration:
 
         # define instrument setup
         if hb2b_inst is None:
-            self._instrument = AnglerCameraDetectorGeometry(NUM_PIXEL_1D, NUM_PIXEL_1D,
-                                                            PIXEL_SIZE, PIXEL_SIZE,
-                                                            ARM_LENGTH, False)
+            self._instrument = DENEXDetectorGeometry(NUM_PIXEL_1D, NUM_PIXEL_1D,
+                                                     PIXEL_SIZE, PIXEL_SIZE,
+                                                     ARM_LENGTH, False)
         else:
             self._instrument = hb2b_inst
 
@@ -946,14 +946,14 @@ class PeakFitCalibration:
         -------
         None
         """
-        from pyrs.core.instrument_geometry import AnglerCameraDetectorShift
-        # Form AnglerCameraDetectorShift objects
-        cal_shift = AnglerCameraDetectorShift(self._calib[0], self._calib[1], self._calib[2], self._calib[3],
-                                              self._calib[4], self._calib[5], self._calib[7])
+        from pyrs.core.instrument_geometry import DENEXDetectorShift
+        # Form DENEXDetectorShift objects
+        cal_shift = DENEXDetectorShift(self._calib[0], self._calib[1], self._calib[2], self._calib[3],
+                                       self._calib[4], self._calib[5], self._calib[7])
 
-        cal_shift_error = AnglerCameraDetectorShift(self._caliberr[0], self._caliberr[1], self._caliberr[2],
-                                                    self._caliberr[3], self._caliberr[4], self._caliberr[5],
-                                                    self._caliberr[7])
+        cal_shift_error = DENEXDetectorShift(self._caliberr[0], self._caliberr[1], self._caliberr[2],
+                                             self._caliberr[3], self._caliberr[4], self._caliberr[5],
+                                             self._caliberr[7])
 
         wl = self._calib[6]
         wl_error = self._caliberr[6]

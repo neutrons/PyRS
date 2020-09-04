@@ -6,7 +6,7 @@ import numpy as np
 import h5py
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.core.reduce_hb2b_pyrs import ResidualStressInstrument
-from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry
+from pyrs.core.instrument_geometry import DENEXDetectorGeometry
 from pyrs.core.reduction_manager import HB2BReductionManager
 import pytest
 
@@ -87,7 +87,7 @@ def test_2theta_calculation():
     # Create geometry setup
     pixel_size = 0.3 / 1024.0
     arm_length = 0.985
-    test_setup = AnglerCameraDetectorGeometry(1024, 1024, pixel_size, pixel_size, arm_length, False)
+    test_setup = DENEXDetectorGeometry(1024, 1024, pixel_size, pixel_size, arm_length, False)
     # Create instrument
     instrument = ResidualStressInstrument(test_setup)
 

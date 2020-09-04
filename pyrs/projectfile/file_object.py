@@ -7,7 +7,7 @@ from pathlib import Path
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.convertdatatypes import to_float, to_int
 from pyrs.utilities.file_util import to_filepath
-from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSetup
+from pyrs.core.instrument_geometry import DENEXDetectorGeometry, HidraSetup
 from pyrs.peaks import PeakCollection  # type: ignore
 from pyrs.dataobjects import HidraConstants, SampleLogs  # type: ignore
 from pyrs.projectfile import HidraProjectFileMode  # type: ignore
@@ -470,12 +470,12 @@ class HidraProjectFile:
         arm_length = detector_group['L2'].value
 
         # Initialize
-        instrument_setup = AnglerCameraDetectorGeometry(num_rows=num_rows,
-                                                        num_columns=num_cols,
-                                                        pixel_size_x=pixel_size_x,
-                                                        pixel_size_y=pixel_size_y,
-                                                        arm_length=arm_length,
-                                                        calibrated=False)
+        instrument_setup = DENEXDetectorGeometry(num_rows=num_rows,
+                                                 num_columns=num_cols,
+                                                 pixel_size_x=pixel_size_x,
+                                                 pixel_size_y=pixel_size_y,
+                                                 arm_length=arm_length,
+                                                 calibrated=False)
 
         return instrument_setup
 
