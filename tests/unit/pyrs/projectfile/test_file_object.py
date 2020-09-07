@@ -21,7 +21,17 @@ def assert_allclose_structured_numpy_arrays(expected, calculated):
     return
 
 
+@pytest.fixture(scope='module')
+def project_HB2B_938(test_data_dir):
+    r"""A hidra project containing, among other things, units in the logs"""
+    return HidraProjectFile(os.path.join(test_data_dir, 'HB2B_938_v2.h5'), HidraProjectFileMode.READONLY)
+
+
 class TestHidraProjectFile:
+
+    def test_read_sample_logs(self, project_HB2B_938):
+        sample_logs = project_HB2B_938.read_sample_logs()
+        assert sample_logs.units('vx') == 'mm'
 
     def test_append_experiment_log(self, tmpdir):
         project = HidraProjectFile(os.path.join(tmpdir, 'project_file.hdf'), HidraProjectFileMode.OVERWRITE)

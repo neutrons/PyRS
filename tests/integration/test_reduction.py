@@ -116,8 +116,7 @@ def test_nexus_to_project(nexusfile, projectfile):
     # extract the powder patterns and add them to the project file
     addPowderToProject(projectfile)
 
-    # cleanup
-    os.remove(projectfile)
+    # cleanup    os.remove(projectfile)
 
 # [('/HFIR/HB2B/IPTS-22331/nexus/HB2B_1431.nxs.h5', 'HB2B_1431.h5')],
 

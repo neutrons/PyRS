@@ -5,14 +5,14 @@ import os
 import pytest
 
 
-def test_rw_raw():
+def test_rw_raw(test_data_dir):
     """Test read a project to workspace and write in the scope of raw data
 
     Returns
     -------
 
     """
-    raw_project_name = os.path.join(os.getcwd(), 'tests/data/HZB_Raw_Project.h5')
+    raw_project_name = os.path.join(test_data_dir, 'HZB_Raw_Project.h5')
 
     # Read to workspace
     source_project = HidraProjectFile(raw_project_name, 'r')
