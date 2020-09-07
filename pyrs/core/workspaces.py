@@ -584,6 +584,9 @@ class HidraWorkspace:
 
         return self._sample_logs[sample_log_name, sub_runs]
 
+    def get_sample_log_units(self, sample_log_name):
+        return self._sample_logs.units(sample_log_name)
+
     def get_pointlist(self, subruns=None):
         '''Get list PointList from the SampleLogs'''
         return self._sample_logs.get_pointlist(subruns)
@@ -781,7 +784,7 @@ class HidraWorkspace:
         # Set variances
         self._var_data_set[mask_id][spec_id] = variances_array
 
-    def set_sample_log(self, log_name, sub_runs, log_value_array):
+    def set_sample_log(self, log_name, sub_runs, log_value_array, units=''):
         """Set sample log value for each sub run, i.e., average value in each sub run
 
         Parameters
@@ -792,6 +795,8 @@ class HidraWorkspace:
             sub runs with same shape as log_value_array
         log_value_array : ndarray
             log values
+        units: str
+            Units of the sample log
 
         Returns
         -------
@@ -805,8 +810,8 @@ class HidraWorkspace:
         else:
             self._sample_logs.subruns = numpy.atleast_1d(sub_runs)
 
-        # Set sub runs and log value to dictionary
-        self._sample_logs[log_name] = numpy.atleast_1d(log_value_array)
+        # Set sub runs and log value, units to dictionary
+        self._sample_logs[log_name, units] = numpy.atleast_1d(log_value_array)
 
     def set_sub_runs(self, sub_runs):
         """Set sub runs to this workspace
