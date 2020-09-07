@@ -4,6 +4,118 @@ from pyrs.dataobjects.constants import HidraConstants, DEFAULT_POINT_RESOLUTION
 from pyrs.dataobjects.sample_logs import DirectionExtents, PointList, aggregate_point_lists, SampleLogs
 
 
+@pytest.fixture(scope='module')
+def sample_logs_mock():
+    logs = SampleLogs()
+    # Simple subruns
+    subruns_size = 14
+    logs[HidraConstants.SUB_RUNS] = list(range(subruns_size))
+    # Create sample coordinates
+    xyz = [[-0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],
+           [0.5, 0.495, 0.5, 0.509, 0.5, 0.5, 0.5, 0.595, 0.6, 0.601, 0.6, 0.6, 0.6, 0.6],
+           [1.5, 1.5, 1.501, 1.499, 1.5, 1.498, 1.5, 1.5, 1.5, 1.5, 1.6, 1.6, 1.6, 1.7]
+           ]
+    for i, name in enumerate(HidraConstants.SAMPLE_COORDINATE_NAMES):
+        logs[name] = xyz[i]
+    # Extents
+    extents = [[-0.6, 0.7, 0.1],  # min, max, delta
+               [0.495, 0.601, (0.601 - 0.495) / 3],  # notice that 0.509 - 0.495 > DEFAULT_POINT_RESOLUTION
+               [1.498, 1.7, (1.7 - 1.498) / 3]]
+    return {'logs': logs, 'xyz': xyz, 'extents': extents, 'resolution': DEFAULT_POINT_RESOLUTION}
+
+
+class TestSampleLogs:
+
+    def test_setitem(self, sample_logs_mock):
+        sample_logs, xyz = sample_logs_mock['logs'], sample_logs_mock['xyz']
+
+        sample_logs['vx'] = xyz[0]
+        assert sample_logs.units('vx') == ''
+        sample_logs['vx', 'mm'] = xyz[0]
+        assert sample_logs.units('vx') == 'mm'
+
+    def test_reassign_subruns(self):
+        sample = SampleLogs()
+        sample.subruns = [1, 2, 3, 4]
+        sample.subruns = [1, 2, 3, 4]  # setting same value is fine
+        with pytest.raises(RuntimeError):
+            sample.subruns = [1, 3, 4]
+        with pytest.raises(RuntimeError):
+            sample.subruns = [4, 3, 2, 1]
+
+    def test_subrun_second(self):
+        sample = SampleLogs()
+        # do it wrong
+        with pytest.raises(RuntimeError):
+            sample['variable1'] = np.linspace(0., 100., 5)
+        # do it right
+        sample.subruns = [1, 2, 3, 4, 5]
+        sample['variable1'] = np.linspace(0., 100., 5)
+
+    def test_one(self):
+        sample = SampleLogs()
+        sample.subruns = 1
+        assert len(sample) == 0
+
+        sample['variable1'] = 27
+        assert len(sample) == 1
+
+        with pytest.raises(ValueError):
+            sample['variable1'] = [27, 28]
+
+        assert sorted(sample.plottable_logs()) == ['sub-runs', 'variable1']
+        assert sample.constant_logs() == ['variable1']
+
+    def test_multi(self):
+        sample = SampleLogs()
+        sample.subruns = [1, 2, 3, 4, 5]
+        sample['constant1'] = np.zeros(5) + 42
+        sample['variable1'] = np.linspace(0., 100., 5)
+        sample['string1'] = np.array(['a'] * sample.subruns.size)  # will be constant as well
+
+        # names of logs
+        assert sorted(sample.plottable_logs()) == ['constant1', 'sub-runs', 'variable1']
+        assert sorted(sample.constant_logs()) == ['constant1', 'string1']
+
+        # slicing
+        np.testing.assert_equal(sample['variable1'], [0., 25., 50., 75., 100.])
+        np.testing.assert_equal(sample['variable1', 3], [50.])
+        np.testing.assert_equal(sample['variable1', [1, 2, 3]], [0., 25., 50.])
+
+        with pytest.raises(IndexError):
+            np.testing.assert_equal(sample['variable1', [0]], [0., 50., 75., 100.])
+        with pytest.raises(IndexError):
+            np.testing.assert_equal(sample['variable1', [10]], [0., 50., 75., 100.])
+
+    def test_get_pointlist(self):
+        sample = SampleLogs()
+        sample.subruns = np.arange(1, 6, dtype=int)
+
+        with pytest.raises(ValueError):
+            sample.get_pointlist()
+
+        # check getting whole PointList
+        sample['vx'] = np.arange(5, dtype=float)
+        sample['vy'] = np.arange(5, dtype=float)
+        sample['vz'] = np.arange(5, dtype=float)
+        pointlist = sample.get_pointlist()
+
+        assert pointlist
+        assert len(pointlist) == 5
+        np.testing.assert_equal(pointlist.vx, np.arange(5, dtype=float))
+        np.testing.assert_equal(pointlist.vy, np.arange(5, dtype=float))
+        np.testing.assert_equal(pointlist.vz, np.arange(5, dtype=float))
+
+        # check getting partial PointList
+        pointlist = sample.get_pointlist([1, 3, 4])
+
+        assert pointlist
+        assert len(pointlist) == 3
+        np.testing.assert_equal(pointlist.vx, [0, 2, 3])
+        np.testing.assert_equal(pointlist.vy, [0, 2, 3])
+        np.testing.assert_equal(pointlist.vz, [0, 2, 3])
+
+
 class TestDirectionExtents:
 
     def test_init(self):
@@ -40,26 +152,6 @@ class TestDirectionExtents:
         assert d.to_binmd() == '-0.500,41.500,42'
         d = DirectionExtents([0.001, 0.009], resolution=0.01)
         assert d.to_binmd() == '0.000,0.010,1'
-
-
-@pytest.fixture(scope='module')
-def sample_logs_mock():
-    logs = SampleLogs()
-    # Simple subruns
-    subruns_size = 14
-    logs[HidraConstants.SUB_RUNS] = list(range(subruns_size))
-    # Create sample coordinates
-    xyz = [[-0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],
-           [0.5, 0.495, 0.5, 0.509, 0.5, 0.5, 0.5, 0.595, 0.6, 0.601, 0.6, 0.6, 0.6, 0.6],
-           [1.5, 1.5, 1.501, 1.499, 1.5, 1.498, 1.5, 1.5, 1.5, 1.5, 1.6, 1.6, 1.6, 1.7]
-           ]
-    for i, name in enumerate(HidraConstants.SAMPLE_COORDINATE_NAMES):
-        logs[name] = xyz[i]
-    # Extents
-    extents = [[-0.6, 0.7, 0.1],  # min, max, delta
-               [0.495, 0.601, (0.601 - 0.495) / 3],  # notice that 0.509 - 0.495 > DEFAULT_POINT_RESOLUTION
-               [1.498, 1.7, (1.7 - 1.498) / 3]]
-    return {'logs': logs, 'xyz': xyz, 'extents': extents, 'resolution': DEFAULT_POINT_RESOLUTION}
 
 
 class TestPointList:

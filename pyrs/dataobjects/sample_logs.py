@@ -229,11 +229,13 @@ class SampleLogs(MutableMapping):
 
     def __init__(self, **kwargs):
         self._data = dict(kwargs)  # data structure containing the log data
+        self._units = dict()  # store units of each log entry
         self._subruns = SubRuns()  # list of included subruns
         self._plottable = set([self.SUBRUN_KEY])  # list of log entries that can be plotted
 
     def __del__(self):
         del self._data
+        del self._units
         del self._subruns
 
     def __delitem__(self, key):
@@ -249,6 +251,7 @@ class SampleLogs(MutableMapping):
             self.subruns = SubRuns()  # set to empty subruns
         else:
             del self._data[key]
+            del self._units[key]
 
     def __getitem__(self, key):
         r"""
@@ -322,7 +325,8 @@ class SampleLogs(MutableMapping):
         # does not include subruns
         return len(self._data)
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: Union[str, Tuple[str, str]],
+                    value: Union[int, float, List[int], List[float], np.ndarray]) -> None:
         r"""
         Initialize/update the subruns instance, or insert/update the value of a log entry
 
@@ -330,8 +334,9 @@ class SampleLogs(MutableMapping):
 
         Parameters
         ----------
-        key: str
-            Name of the log value, or dedicated string 'sub-runs'
+        key: str, tuple
+            If `str`, then name of the log value, or dedicated string 'sub-runs'. It `tuple`, then the
+            first item is the same as previously, and the second item is a string representing the log units.
         value: int, flat, list, np.ndarray, ~pyrs.dataobjects.sample_logs.Subruns
             A list of subrun numbers of the values of a log entry
 
@@ -344,8 +349,13 @@ class SampleLogs(MutableMapping):
             Attempt to insert/update the value of a log entry with a list of different size
             then the selected subruns list
         """
+        if isinstance(key, str):
+            log_name = key
+            units = ''
+        else:
+            log_name, units = key
         value = _coerce_to_ndarray(value)
-        if key == self.SUBRUN_KEY:
+        if log_name == self.SUBRUN_KEY:
             self.subruns = SubRuns(value)  # use full method
         else:
             if self._subruns.size == 0:
@@ -353,10 +363,25 @@ class SampleLogs(MutableMapping):
             elif value.size != self.subruns.size:
                 raise ValueError('Number of values[{}] isn\'t the same as number of '
                                  'subruns[{}]'.format(value.size, self.subruns.size))
-            self._data[key] = value
+            self._data[log_name] = value
+            self._units[log_name] = units
             # add this to the list of plottable parameters
             if value.dtype.kind in 'iuf':  # int, uint, float
                 self._plottable.add(key)
+
+    def units(self, log_name: str) -> str:
+        r"""
+        Units of a sample log
+
+        Parameters
+        ----------
+        log_name: str
+
+        Returns
+        -------
+        str
+        """
+        return self._units.get(log_name, '')
 
     def plottable_logs(self):
         r"""
