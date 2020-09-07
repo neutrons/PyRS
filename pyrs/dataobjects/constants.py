@@ -51,5 +51,5 @@ class HidraConstants:
     D_REFERENCE_ERROR = 'd reference error'
 
     # Special sample logs
-    SUB_RUN_DURATION = 'sub-run duration'
+    SUB_RUN_DURATION = 'sub-run duration'  # units in seconds
     SAMPLE_COORDINATE_NAMES = ('vx', 'vy', 'vz')
