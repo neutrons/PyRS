@@ -497,6 +497,9 @@ class SampleLogs(MutableMapping):
         r"""
         Create a ~pyrs.dataobjects.sample_logs.PointList instance from the vx, vy, and vz logs
 
+        Units are converted to mili-meters, if the logs are in meters. If the logs lack units, it's
+        assumed units are mili-meters
+
         Parameters
         ----------
         subruns: int, list, np.ndarray, ~pyrs.dataobjects.sample_logs.SubRuns
@@ -522,9 +525,12 @@ class SampleLogs(MutableMapping):
         if missing:
             raise ValueError('Failed to find positions in logs. Missing {}'.format(', '.join(missing)))
 
+        # Check the units are in mili meters
+        factor = 1000.0 if self._units.get(VX, 'mm') == 'm' else 1.0
+
         # create a PointList on the fly
         # passing the subruns down allow for slicing/selecting
-        return PointList([self[VX, subruns], self[VY, subruns], self[VZ, subruns]])
+        return PointList([factor * self[vi, subruns] for vi in (VX, VY, VZ)])
 
 
 class _DirectionExtents(NamedTuple):

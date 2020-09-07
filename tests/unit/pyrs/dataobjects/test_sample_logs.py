@@ -115,6 +115,13 @@ class TestSampleLogs:
         np.testing.assert_equal(pointlist.vy, [0, 2, 3])
         np.testing.assert_equal(pointlist.vz, [0, 2, 3])
 
+        # check unit conversion
+        sample['vx', 'm'] = np.arange(5, dtype=float)
+        sample['vy', 'm'] = np.arange(5, dtype=float)
+        sample['vz', 'm'] = np.arange(5, dtype=float)
+        pointlist = sample.get_pointlist()
+        np.testing.assert_allclose(pointlist.vx, 1000 * np.arange(5, dtype=float), atol=0.1)
+
 
 class TestDirectionExtents:
 
