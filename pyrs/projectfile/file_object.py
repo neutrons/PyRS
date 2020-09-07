@@ -520,7 +520,11 @@ class HidraProjectFile:
         # first set subruns
         samplelogs[HidraConstants.SUB_RUNS] = logs_group[HidraConstants.SUB_RUNS].value
         for log_name in logs_group.keys():
-            samplelogs[log_name] = logs_group[log_name].value
+            data_set = logs_group[log_name]  # an instance of HDF5::DataSet
+            try:
+                samplelogs[log_name, data_set.attrs['units']] = data_set.value
+            except KeyError:  # this log entry has no units. True for old project files
+                samplelogs[log_name] = data_set.value
 
         return samplelogs
 
