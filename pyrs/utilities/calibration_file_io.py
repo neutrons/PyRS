@@ -1,6 +1,6 @@
 # Class providing a series of static methods to work with files
 from pyrs.utilities import checkdatatypes
-from pyrs.core.instrument_geometry import AnglerCameraDetectorShift, AnglerCameraDetectorGeometry
+from pyrs.core.instrument_geometry import DENEXDetectorShift, DENEXDetectorGeometry
 import json
 
 
@@ -33,7 +33,7 @@ def read_calibration_json_file(calibration_file_name):
     Returns
     -------
     ~tuple
-        (AnglerCameraDetectorShift, AnglerCameraDetectorShift, float, float, int)
+        (DENEXDetectorShift, DENEXDetectorShift, float, float, int)
         detector position shifts as the calibration result,detector position shifts error from fitting
         status
 
@@ -48,27 +48,27 @@ def read_calibration_json_file(calibration_file_name):
     if calib_dict is None:
         raise RuntimeError('Failed to load JSON calibration file {}'.format(calibration_file_name))
 
-    # Convert dictionary to AnglerCameraDetectorShift
+    # Convert dictionary to DENEXDetectorShift
     try:
-        shift = AnglerCameraDetectorShift(shift_x=calib_dict['Shift_x'],
-                                          shift_y=calib_dict['Shift_y'],
-                                          shift_z=calib_dict['Shift_z'],
-                                          rotation_x=calib_dict['Rot_x'],
-                                          rotation_y=calib_dict['Rot_y'],
-                                          rotation_z=calib_dict['Rot_z'],
-                                          two_theta_0=calib_dict['two_theta_0'])
+        shift = DENEXDetectorShift(shift_x=calib_dict['Shift_x'],
+                                   shift_y=calib_dict['Shift_y'],
+                                   shift_z=calib_dict['Shift_z'],
+                                   rotation_x=calib_dict['Rot_x'],
+                                   rotation_y=calib_dict['Rot_y'],
+                                   rotation_z=calib_dict['Rot_z'],
+                                   two_theta_0=calib_dict['two_theta_0'])
     except KeyError as key_error:
         raise RuntimeError('Missing key parameter from JSON file {}: {}'.format(calibration_file_name, key_error))
 
     # shift error
     try:
-        shift_error = AnglerCameraDetectorShift(shift_x=calib_dict['error_Shift_x'],
-                                                shift_y=calib_dict['error_Shift_y'],
-                                                shift_z=calib_dict['error_Shift_z'],
-                                                rotation_x=calib_dict['error_Rot_x'],
-                                                rotation_y=calib_dict['error_Rot_y'],
-                                                rotation_z=calib_dict['error_Rot_z'],
-                                                two_theta_0=calib_dict['error_two_theta_0'])
+        shift_error = DENEXDetectorShift(shift_x=calib_dict['error_Shift_x'],
+                                         shift_y=calib_dict['error_Shift_y'],
+                                         shift_z=calib_dict['error_Shift_z'],
+                                         rotation_x=calib_dict['error_Rot_x'],
+                                         rotation_y=calib_dict['error_Rot_y'],
+                                         rotation_z=calib_dict['error_Rot_z'],
+                                         two_theta_0=calib_dict['error_two_theta_0'])
 
     except KeyError as key_error:
         raise RuntimeError('Missing key parameter from JSON file {}: {}'.format(calibration_file_name, key_error))
@@ -103,7 +103,7 @@ def import_calibration_ascii_file(geometry_file_name):
     checkdatatypes.check_file_name(geometry_file_name, True, False, False, 'Geometry configuration file in ASCII')
 
     # init output
-    calibration_setup = AnglerCameraDetectorShift(0, 0, 0, 0, 0, 0)
+    calibration_setup = DENEXDetectorShift(0, 0, 0, 0, 0, 0)
 
     calibration_file = open(geometry_file_name, 'r')
     geom_lines = calibration_file.readlines()
@@ -157,7 +157,7 @@ def import_instrument_setup(instrument_ascii_file):
 
     Returns
     -------
-    AnglerCameraDetectorGeometry
+    DENEXDetectorGeometry
         Instrument geometry setup for HB2B
 
     """
@@ -197,12 +197,12 @@ def import_instrument_setup(instrument_ascii_file):
             raise RuntimeError('Argument {} is not recognized'.format(arg_name))
     # END-FOR
 
-    instrument = AnglerCameraDetectorGeometry(num_rows=detector_rows,
-                                              num_columns=detector_columns,
-                                              pixel_size_x=pixel_size_x,
-                                              pixel_size_y=pixel_size_y,
-                                              arm_length=arm_length,
-                                              calibrated=False)
+    instrument = DENEXDetectorGeometry(num_rows=detector_rows,
+                                       num_columns=detector_columns,
+                                       pixel_size_x=pixel_size_x,
+                                       pixel_size_y=pixel_size_y,
+                                       arm_length=arm_length,
+                                       calibrated=False)
 
     return instrument
 
@@ -220,8 +220,8 @@ def write_calibration_to_json(shifts, shifts_error, wave_length, wave_lenngth_er
     """
     # Check inputs
     checkdatatypes.check_file_name(file_name, False, True, False, 'Output JSON calibration file')
-    assert isinstance(shifts, AnglerCameraDetectorShift)
-    assert isinstance(shifts_error, AnglerCameraDetectorShift)
+    assert isinstance(shifts, DENEXDetectorShift)
+    assert isinstance(shifts_error, DENEXDetectorShift)
 
     # Create calibration dictionary
     calibration_dict = shifts.convert_to_dict()

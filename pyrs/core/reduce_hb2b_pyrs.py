@@ -1,6 +1,5 @@
 # This is a prototype reduction engine for HB2B living independently from Mantid
 import numpy as np
-import numpy
 from pyrs.core import instrument_geometry
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.convertdatatypes import to_float
@@ -19,7 +18,7 @@ class ResidualStressInstrument:
         """
         # check input
         checkdatatypes.check_type('Instrument setup', instrument_setup,
-                                  instrument_geometry.AnglerCameraDetectorGeometry)
+                                  instrument_geometry.DENEXDetectorGeometry)
 
         # Instrument geometry parameters
         self._instrument_geom_params = instrument_setup
@@ -96,7 +95,8 @@ class ResidualStressInstrument:
         step 1: rotate instrument according to the calibration
         step 2: rotate instrument about 2theta
         :param two_theta
-        :param instrument_calibration: AnglerCameraDetectorShift or None (no calibration)
+        :param l2
+        :param instrument_calibration: DENEXDetectorShift or None (no calibration)
         :return:
         """
         # Check input
@@ -117,7 +117,7 @@ class ResidualStressInstrument:
         if instrument_calibration is not None:
             # check type
             checkdatatypes.check_type('Instrument calibration', instrument_calibration,
-                                      instrument_geometry.AnglerCameraDetectorShift)
+                                      instrument_geometry.DENEXDetectorShift)
 
             # shift center
             self._pixel_matrix[:, :, 0] += instrument_calibration.center_shift_x
@@ -256,7 +256,7 @@ class ResidualStressInstrument:
 
     def generate_rotation_matrix(self, rot_x_rad, rot_y_rad, rot_z_rad):
         """
-        build a ration matrix with 3 orthognol directions
+        build a ration matrix with 3 orthogonal directions
         :param rot_x_rad: rotation about X-axis in rad (flip forward/backward)
         :param rot_y_rad: rotation about Y-axis in rad (vertical rotation)
         :param rot_z_rad: rotation about Z-axis in rad (spin)
@@ -277,10 +277,10 @@ class ResidualStressInstrument:
         :param angle_rad:
         :return:
         """
-        rotate_matrix = numpy.matrix([[1., 0., 0.],
-                                      [0., numpy.cos(angle_rad), -numpy.sin(angle_rad)],
-                                      [0., numpy.sin(angle_rad), numpy.cos(angle_rad)]],
-                                     'float')
+        rotate_matrix = np.matrix([[1., 0., 0.],
+                                   [0., np.cos(angle_rad), -np.sin(angle_rad)],
+                                   [0., np.sin(angle_rad), np.cos(angle_rad)]],
+                                  'float')
 
         return rotate_matrix
 
@@ -291,10 +291,10 @@ class ResidualStressInstrument:
         :param angle_rad:
         :return:
         """
-        rotate_matrix = numpy.matrix([[numpy.cos(angle_rad), 0., numpy.sin(angle_rad)],
-                                      [0., 1., 0.],
-                                      [-numpy.sin(angle_rad), 0., numpy.cos(angle_rad)]],
-                                     'float')
+        rotate_matrix = np.matrix([[np.cos(angle_rad), 0., np.sin(angle_rad)],
+                                   [0., 1., 0.],
+                                   [-np.sin(angle_rad), 0., np.cos(angle_rad)]],
+                                  'float')
 
         return rotate_matrix
 
@@ -305,10 +305,10 @@ class ResidualStressInstrument:
         :param angle_rad:
         :return:
         """
-        rotate_matrix = numpy.matrix([[numpy.cos(angle_rad), -numpy.sin(angle_rad), 0.],
-                                      [numpy.sin(angle_rad), numpy.cos(angle_rad), 0.],
-                                      [0., 0., 1.]],
-                                     'float')
+        rotate_matrix = np.matrix([[np.cos(angle_rad), -np.sin(angle_rad), 0.],
+                                   [np.sin(angle_rad), np.cos(angle_rad), 0.],
+                                   [0., 0., 1.]],
+                                  'float')
 
         return rotate_matrix
 
@@ -365,11 +365,11 @@ class ResidualStressInstrument:
         two_theta_array = self.get_pixels_2theta(dimension)
         print('[DB...BAT] 2theta range: ({}, {})'
               ''.format(two_theta_array.min(), two_theta_array.max()))
-        assert isinstance(two_theta_array, numpy.ndarray), 'check'
+        assert isinstance(two_theta_array, np.ndarray), 'check'
 
         # convert to d-spacing
-        d_spacing_array = 0.5 * self._wave_length / numpy.sin(0.5 * two_theta_array * numpy.pi / 180.)
-        assert isinstance(d_spacing_array, numpy.ndarray)
+        d_spacing_array = 0.5 * self._wave_length / np.sin(0.5 * two_theta_array * np.pi / 180.)
+        assert isinstance(d_spacing_array, np.ndarray)
 
         print('[DB...BAT] Converted d-spacing range: ({}, {})'
               ''.format(d_spacing_array.min(), d_spacing_array.max()))
@@ -432,12 +432,12 @@ class PyHB2BReduction:
 
     def build_instrument(self, calibration):
         """ Build an instrument for each pixel's position in cartesian coordinate
-        :param calibration: AnglerCameraDetectorShift from geometry calibration
+        :param calibration: DENEXDetectorShift from geometry calibration
         :return: 2D numpy array
         """
         if calibration is not None:
             checkdatatypes.check_type('Instrument geometry calibrated shift', calibration,
-                                      instrument_geometry.AnglerCameraDetectorShift)
+                                      instrument_geometry.DENEXDetectorShift)
 
         self._instrument.build_instrument(self._detector_2theta, self._detector_l2,
                                           instrument_calibration=calibration)
@@ -449,17 +449,19 @@ class PyHB2BReduction:
         """
         build an instrument
         :param two_theta: 2theta position of the detector panel.  It shall be negative to sample log value
+        :param arm_length: Distance of detector from center of rotation
         :param arm_length_shift: shift along Z-direction (arm length)
         :param center_shift_x:
         :param center_shift_y:
         :param rot_x_flip:
         :param rot_y_flip:
         :param rot_z_spin:
+        :param two_theta_shift:
         :return: 2D numpy array
         """
         print('[INFO] Building instrument: 2theta @ {}'.format(two_theta + two_theta_shift))
 
-        calibration = instrument_geometry.AnglerCameraDetectorShift(
+        calibration = instrument_geometry.DENEXDetectorShift(
             arm_length_shift, center_shift_x, center_shift_y, rot_x_flip, rot_y_flip, rot_z_spin)
 
         self._instrument.build_instrument(two_theta=(two_theta + two_theta_shift), l2=arm_length,
@@ -501,7 +503,7 @@ class PyHB2BReduction:
 
             if corner_center:
                 # only return 5 positions: 4 corners and center
-                pos_array = numpy.ndarray(shape=(5, 3), dtype='float')
+                pos_array = np.ndarray(shape=(5, 3), dtype='float')
 
                 # num detectors
                 num_dets = pixel_array.shape[0]
@@ -604,6 +606,7 @@ class PyHB2BReduction:
     def set_experimental_data(self, two_theta: float, l2: Optional[float], raw_count_vec):
         """ Set experimental data (for a sub-run)
         :param two_theta: detector position
+        :param l2: detector distance from center of rotation
         :param raw_count_vec: detector raw counts
         :return:
         """
@@ -658,10 +661,10 @@ class PyHB2BReduction:
 
         # Exclude pixels with no vanadium counts
         if vanadium_counts is not None:
-            vandium_mask = vanadium_counts < 0.9
-            pixel_2theta_array = np.ma.masked_where(vandium_mask, pixel_2theta_array)
-            pixel_count_array = np.ma.masked_where(vandium_mask, pixel_count_array)
-            vanadium_counts = np.ma.masked_where(vandium_mask, vanadium_counts)
+            vanadium_mask = vanadium_counts < 0.9
+            pixel_2theta_array = np.ma.masked_where(vanadium_mask, pixel_2theta_array)
+            pixel_count_array = np.ma.masked_where(vanadium_mask, pixel_count_array)
+            vanadium_counts = np.ma.masked_where(vanadium_mask, vanadium_counts)
 
         # Exclude NaN and infinity regions
         masked_pixels = (np.isnan(pixel_count_array)) | (np.isinf(pixel_count_array))
@@ -674,10 +677,10 @@ class PyHB2BReduction:
 
         # Call numpy to histogram raw counts and variance
         data_hist, bin_edges = np.histogram(pixel_2theta_array, bins=two_theta_bins, weights=pixel_count_array)
-        data_var, var_edges = np.histogram(pixel_2theta_array, bins=two_theta_bins, weights=pixel_var_array**2)
+        data_var, var_edges = np.histogram(pixel_2theta_array, bins=two_theta_bins, weights=pixel_var_array ** 2)
         data_var = np.sqrt(data_var)
 
-        # get indexs in histograms that do not have neturon counts
+        # get indexs in histograms that do not have neutron counts
         zero_count_mask = data_hist == 0.0
 
         # Optionally to normalize by number of pixels (sampling points) in the 2theta bin
@@ -694,7 +697,7 @@ class PyHB2BReduction:
 
             # Call numpy to histogram vanadium counts and variance
             van_hist, be_temp = np.histogram(pixel_2theta_array, bins=two_theta_bins, weights=vanadium_counts)
-            van_var, van_var_temp = np.histogram(pixel_2theta_array, bins=two_theta_bins, weights=vanadium_var**2)
+            van_var, van_var_temp = np.histogram(pixel_2theta_array, bins=two_theta_bins, weights=vanadium_var ** 2)
             van_var = np.sqrt(van_var)
 
             # get indexs in histograms with no counts to 1
@@ -703,8 +706,8 @@ class PyHB2BReduction:
             data_var[zero_count_mask] = 1.0
             van_var[zero_count_mask] = 1.0
 
-            # propogation of error
-            data_var = np.sqrt((data_var / data_hist)**2 + (van_var / van_hist)**2)
+            # propagation of error
+            data_var = np.sqrt((data_var / data_hist) ** 2 + (van_var / van_hist) ** 2)
 
             # Normalize diffraction data
             data_hist /= van_hist  # normalize
@@ -712,7 +715,7 @@ class PyHB2BReduction:
 
         # END-IF-ELSE
 
-        # set indexs in histograms that do not have any neturon counts to 0 with var = 1
+        # set indexs in histograms that do not have any neutron counts to 0 with var = 1
         data_hist[zero_count_mask] = 0.
         data_var[zero_count_mask] = 1.
 

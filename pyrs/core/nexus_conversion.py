@@ -9,7 +9,7 @@ from mantid.simpleapi import mtd, DeleteWorkspace, LoadEventNexus, LoadMask, Rem
 import numpy as np
 import os
 from pyrs.core import workspaces
-from pyrs.core.instrument_geometry import AnglerCameraDetectorGeometry, HidraSetup
+from pyrs.core.instrument_geometry import DENEXDetectorGeometry, HidraSetup
 from pyrs.core import MonoSetting  # type: ignore
 from pyrs.dataobjects import HidraConstants  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
@@ -275,8 +275,9 @@ class NeXusConvertingApp:
         # Set a default instrument with this workspace
         # set up instrument
         # initialize instrument with hard coded values
-        instrument = AnglerCameraDetectorGeometry(NUM_PIXEL_1D, NUM_PIXEL_1D, PIXEL_SIZE, PIXEL_SIZE,
-                                                  ARM_LENGTH, False)
+        instrument = DENEXDetectorGeometry(NUM_PIXEL_1D, NUM_PIXEL_1D, PIXEL_SIZE, PIXEL_SIZE,
+                                           ARM_LENGTH, False)
+
         self._hidra_workspace.set_instrument_geometry(instrument)
 
         # project file

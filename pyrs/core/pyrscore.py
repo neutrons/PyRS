@@ -265,7 +265,7 @@ class PyRsCore:
         :param num_bins:
         :param pyrs_engine:
         :param mask_file_name:
-        :param geometry_calibration: True/file name/AnglerCameraDetectorShift/None), False, None/(False, )
+        :param geometry_calibration: True/file name/DENEXDetectorShift/None), False, None/(False, )
         :param sub_run_list: list of sub run numbers or None (for all)
         :return:
         """
@@ -283,11 +283,11 @@ class PyRsCore:
             apply_calibration = False
         elif isinstance(geometry_calibration, str):
             # From a Json file
-            calib_shift = instrument_geometry.AnglerCameraDetectorShift(0, 0, 0, 0, 0, 0)
+            calib_shift = instrument_geometry.DENEXDetectorShift(0, 0, 0, 0, 0, 0)
             calib_shift.from_json(geometry_calibration)
             apply_calibration = calib_shift
-        elif isinstance(geometry_calibration, instrument_geometry.AnglerCameraDetectorShift):
-            # Already a AnglerCameraDetectorShift instance
+        elif isinstance(geometry_calibration, instrument_geometry.DENEXDetectorShift):
+            # Already a DENEXDetectorShift instance
             apply_calibration = geometry_calibration
         elif geometry_calibration is True:
             # Use what is loaded from file or set to workspace before

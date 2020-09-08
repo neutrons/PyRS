@@ -22,11 +22,10 @@ class HidraSetup:
 
         Parameters
         ----------
-        l1
         detector_setup
         """
         # check inputs
-        checkdatatypes.check_type('Detector geometry setup', detector_setup, AnglerCameraDetectorGeometry)
+        checkdatatypes.check_type('Detector geometry setup', detector_setup, DENEXDetectorGeometry)
 
         # set for original instrument setup defined by engineering
         self._geometry_setup = detector_setup
@@ -85,7 +84,7 @@ class HidraSetup:
         return 'HB2B'
 
 
-class AnglerCameraDetectorGeometry:
+class DENEXDetectorGeometry:
     """
     A class to handle and save instrument geometry setup
     """
@@ -94,7 +93,7 @@ class AnglerCameraDetectorGeometry:
                  pixel_size_x: float, pixel_size_y: float,
                  arm_length: float, calibrated: bool) -> None:
         """
-        Initialization of instrument geometry setup for 1 angler camera
+        Initialization of instrument geometry setup for 1 denex detector
         :param num_rows: number of rows of pixels in detector (number of pixels per column)
         :param num_columns: number of columns of pixels in detector (number of pixels per row)
         :param pixel_size_x: pixel size at X direction (along a row)
@@ -112,7 +111,7 @@ class AnglerCameraDetectorGeometry:
         checkdatatypes.check_bool_variable('Flag indicating instrument setup been calibrated', calibrated)
 
     def apply_shift(self, geometry_shift):
-        checkdatatypes.check_type('Detector geometry shift', geometry_shift, AnglerCameraDetectorShift)
+        checkdatatypes.check_type('Detector geometry shift', geometry_shift, DENEXDetectorShift)
 
         self._arm_length += geometry_shift.center_shift_z
 
@@ -137,7 +136,7 @@ class AnglerCameraDetectorGeometry:
         return self._pixel_size_x, self._pixel_size_y
 
 
-class AnglerCameraDetectorShift:
+class DENEXDetectorShift:
     """
     A class to handle and save instrument geometry calibration information
     """
@@ -298,7 +297,7 @@ class AnglerCameraDetectorShift:
         jfile.close()
 
     def from_json(self, file_name):
-        """ Convert from a Json string (dicionary) and set to parameters
+        """ Convert from a Json string (dictionary) and set to parameters
         :param file_name: json file name
         :return:
         """
@@ -318,5 +317,5 @@ class AnglerCameraDetectorShift:
 
 if __name__ == '__main__':
     # Test main
-    shift = AnglerCameraDetectorShift(0., 0., 0., 0., 0., 0.)
+    shift = DENEXDetectorShift(0., 0., 0., 0., 0., 0.)
     shift.to_json('geometry_shift_template.json')

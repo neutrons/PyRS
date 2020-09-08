@@ -259,8 +259,8 @@ class HB2BReductionManager:
         Parameters
         ----------
         session_name
-        apply_calibrated_geometry : ~AnglerCameraDetectorShift or bool
-            3 options (1) user-provided AnglerCameraDetectorShift
+        apply_calibrated_geometry : ~DENEXDetectorShift or bool
+            3 options (1) user-provided DENEXDetectorShift
                                           (2) True (use the one in workspace) (3) False (no calibration)
         num_bins : int
             number of bins
@@ -315,7 +315,7 @@ class HB2BReductionManager:
             mask_vec *= default_mask
 
         # Apply (or not) instrument geometry calibration shift
-        if isinstance(apply_calibrated_geometry, instrument_geometry.AnglerCameraDetectorShift):
+        if isinstance(apply_calibrated_geometry, instrument_geometry.DENEXDetectorShift):
             det_pos_shift = apply_calibrated_geometry
         elif apply_calibrated_geometry:
             det_pos_shift = workspace.get_detector_shift()
@@ -382,7 +382,7 @@ class HB2BReductionManager:
             workspace with detector counts and position
         sub_run : integer
             sub run number in workspace to reduce
-        geometry_calibration : instrument_geometry.AnglerCameraDetectorShift
+        geometry_calibration : instrument_geometry.DENEXDetectorShift
             instrument geometry to calculate diffraction pattern
 
         Returns
@@ -449,7 +449,7 @@ class HB2BReductionManager:
             workspace with detector counts and position
         sub_run : integer
             sub run number in workspace to reduce
-        geometry_calibration : instrument_geometry.AnglerCameraDetectorShift
+        geometry_calibration : instrument_geometry.DENEXDetectorShift
             instrument geometry to calculate diffraction pattern
         mask_vec_tuple : tuple (str, numpy.ndarray)
             mask ID and 1D array for masking (1 to keep, 0 to mask out)
@@ -567,7 +567,7 @@ class HB2BReductionManager:
             workspace with detector counts and position
         sub_run : integer
             sub run number in workspace to reduce
-        geometry_calibration : instrument_geometry.AnglerCameraDetectorShift
+        geometry_calibration : instrument_geometry.DENEXDetectorShift
             instrument geometry to calculate diffraction pattern
         mask_vec_tuple : tuple (str, numpy.ndarray)
             mask ID and 1D array for masking (1 to keep, 0 to mask out)
@@ -662,7 +662,7 @@ class HB2BReductionManager:
             2theta increment in the reduced diffraction data
         mask_array : numpy.ndarray or None
             mask: 1 to keep, 0 to mask (exclude)
-        vanadium_counts : numpy.ndarray or None
+        vanadium_array : numpy.ndarray or None
             detector pixels' vanadium for efficiency and normalization.
             If vanadium duration is recorded, the vanadium counts are normalized by its duration in seconds
 
@@ -705,7 +705,7 @@ class HB2BReductionManager:
         min_2theta : float or None
             minimum 2theta or None
         num_bins : int
-            nubmer of bins
+            number of bins
         max_2theta : float  or None
              maximum 2theta and must be integer
         pixel_2theta_array : numpy.ndarray
