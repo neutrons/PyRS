@@ -72,6 +72,13 @@ def calculate_sub_run_time_average(log_property, time_filter) -> float:
 
 
 class Splitter:
+    r"""
+    Time splitter
+
+    Parameters
+    ----------
+    runObj: ~mantid.
+    """
     def __init__(self, runObj):
         self._log = Logger(__name__)
 
@@ -402,15 +409,23 @@ class NeXusConvertingApp:
         return np.array(subruns)
 
     def split_sample_logs(self, subruns):
-        """Create dictionary for sample log of a sub run
+        r"""
+        Partition each log entry according to the subruns
 
         Goal:
             1. set sample logs on the hidra workspace
             2. set duration on the hidra worksapce
+
+        Returns
+        -------
+        dict
+            Each key corresponds to one log name, and each value corresponds to an array of log values. Each item
+            in this array corresponds to the average value of the log within a particular subrun
         """
         run_obj = self._event_wksp.run()
 
-        # this contains all of the sample logs
+        # Example: if we have three subruns and the average value of log entry 'vx` for each subrun
+        # is 0.1, 0.3, and 0.5, then we have  ample_log_dict['vx'] == np.array([0.1, 0.3, 0.5])
         sample_log_dict = dict()
 
         if self._splitter:
@@ -437,7 +452,12 @@ class NeXusConvertingApp:
         for log_name, log_value in sample_log_dict.items():
             if log_name in ['scan_index', HidraConstants.SUB_RUNS]:
                 continue  # skip 'SUB_RUNS'
-            self._hidra_workspace.set_sample_log(log_name, subruns, log_value)
+            # find the units of the log
+            if log_name == HidraConstants.SUB_RUN_DURATION:
+                log_units = 'second'
+            else:
+                log_units = run_obj.getProperty(log_name).units
+            self._hidra_workspace.set_sample_log(log_name, subruns, log_value, units=log_units)
 
         return sample_log_dict  # needed for testing
 
@@ -446,8 +466,8 @@ class NeXusConvertingApp:
 
         Parameters
         ----------
-        log_property
-        splitter_times
+        runObj
+        log_name
         log_array_size
 
         Returns

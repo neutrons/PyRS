@@ -162,25 +162,42 @@ class HidraProjectFile:
             '{:04}'.format(sub_run_number))
         scan_i_group.create_dataset('counts', data=counts_array.reshape(-1))
 
-    def append_experiment_log(self, log_name, log_value_array):
-        """ add information about the experiment including scan indexes, sample logs, 2theta and etc
-        :param log_name: name of the sample log
-        :param log_value_array:
+    def append_experiment_log(self, log_name, log_value_array, units=''):
+        r"""
+        Insert information about the experiment including scan indexes, sample logs, 2theta, etc
+
+        Parameters
+        ----------
+        log_name: str
+            Name of the sample log
+        log_value_array: np.ndarray
+            Values of the log, one value for each subrun
+        units: str
+            Units of the sample log
+
+        Raises
+        ------
+        RuntimeError
+            Unable to write this log to the project file
+        TypeError
+            Unable to write this type of log value to the project file
         """
         # check
         assert self._project_h5 is not None, 'cannot be None'
         assert self._is_writable, 'must be writable'
         checkdatatypes.check_string_variable('Log name', log_name)
 
+        self._log.debug('Add sample log: {}'.format(log_name))
+        node_logs = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS]
         try:
-            self._log.debug('Add sample log: {}'.format(log_name))
-            self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS].create_dataset(
-                log_name, data=log_value_array)
+            data_set = node_logs.create_dataset(log_name, data=log_value_array)
         except RuntimeError as run_err:
             raise RuntimeError('Unable to add log {} due to {}'.format(log_name, run_err))
         except TypeError as type_err:
             raise RuntimeError('Failed to add log {} with value {} of type {}: {}'
                                ''.format(log_name, log_value_array, type(log_value_array), type_err))
+        if units:
+            data_set.attrs['units'] = units
 
     def read_default_masks(self):
         """Read default mask, i.e., for pixels at the edges
@@ -503,7 +520,11 @@ class HidraProjectFile:
         # first set subruns
         samplelogs[HidraConstants.SUB_RUNS] = logs_group[HidraConstants.SUB_RUNS].value
         for log_name in logs_group.keys():
-            samplelogs[log_name] = logs_group[log_name].value
+            data_set = logs_group[log_name]  # an instance of HDF5::DataSet
+            try:
+                samplelogs[log_name, data_set.attrs['units']] = data_set.value
+            except KeyError:  # this log entry has no units. True for old project files
+                samplelogs[log_name] = data_set.value
 
         return samplelogs
 
@@ -534,6 +555,30 @@ class HidraProjectFile:
         log_value = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS][log_name]
 
         return log_value
+
+    def read_log_units(self, log_name):
+        r"""
+        Read the units of a sample log
+
+        Parameters
+        ----------
+        log_name: str
+
+        Returns
+        -------
+        str
+            Empty string if the sample log has no units associated
+        """
+        # Validation
+        assert self._project_h5 is not None, 'Project HDF5 is not loaded yet'
+        group = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS]
+        assert log_name in group.keys(), f'Missing sample log: {log_name}'
+
+        data_set = group[log_name]
+        try:
+            return data_set.attrs['units']
+        except KeyError:
+            return ''
 
     def read_raw_counts(self, sub_run: int) -> numpy.ndarray:
         """
