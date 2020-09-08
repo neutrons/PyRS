@@ -67,8 +67,7 @@ class ManualReductionWindow(QMainWindow):
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.progressBar.setVisible(False)
         # event handling for combobox
-        # TODO - Make this work properly
-        # self.ui.comboBox_sub_runs.currentIndexChanged.connect(self.event_different_sub_run_selected)
+        self.ui.comboBox_sub_runs.currentIndexChanged.connect(self.plot_sub_runs)
 
         # TODO - ASAP - Use these 2 buttons to enable/disable write access to configuration
         # actionEdit_Calibrations
@@ -185,17 +184,11 @@ class ManualReductionWindow(QMainWindow):
         """ Plot detector counts as 2D detector view view OR reduced data according to the tab that is current on
         :return:
         """
-        current_tab_index = self.ui.tabWidget_View.currentIndex()
 
-        if current_tab_index == 0:
-            # raw view
-            self._event_handler.plot_detector_counts()
-        elif current_tab_index == 1:
-            # reduced view
-            self._event_handler.plot_powder_pattern()
-        else:
-            raise NotImplementedError('Tab {} with index {} is not defined'
-                                      ''.format(self.ui.tabWidget_View.name(), current_tab_index))
+        # raw view
+        self._event_handler.plot_detector_counts()
+        # reduced view
+        self._event_handler.plot_powder_pattern()
 
     def do_quit(self):
         """

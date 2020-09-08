@@ -125,9 +125,10 @@ def parse_combo_box(combo_box, data_type):
     # parse
     input_str = str(combo_box.currentText()).strip()
     # cast to specified type
-    return_value = data_type(input_str)
-
-    return return_value
+    try:
+        return data_type(input_str)
+    except ValueError:
+        return None
 
 
 def parse_integer(int_str):
