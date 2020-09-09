@@ -67,10 +67,12 @@ class PyRSLauncher(QMainWindow):
         launch the strain/stress calculation and visualization window
         """
 
-        if self.strain_stress_window is None:
-            self.strain_stress_model = Model()
-            self.strain_stress_ctrl = Controller(self.strain_stress_model)
-            self.strain_stress_window = StrainStressViewer(self.strain_stress_model, self.strain_stress_ctrl)
+        if self.strain_stress_window is not None:
+            self.strain_stress_window.close()
+
+        self.strain_stress_model = Model()
+        self.strain_stress_ctrl = Controller(self.strain_stress_model)
+        self.strain_stress_window = StrainStressViewer(self.strain_stress_model, self.strain_stress_ctrl)
 
         # launch
         self.strain_stress_window.show()
