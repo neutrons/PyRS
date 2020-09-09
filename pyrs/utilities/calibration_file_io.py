@@ -10,7 +10,7 @@ def check_calibration_dictionary(calib_dict):
     Parameters
     ----------
     calib_dict: dictionary
-        dictionary with calibration 
+        dictionary with calibration
 
     Returns
     -------
@@ -21,7 +21,7 @@ def check_calibration_dictionary(calib_dict):
 
     keys = ['Lambda', 'Rot_x', 'Rot_y', 'Rot_z', 'Shift_x', 'Shift_y', 'Shift_z', 'two_theta_0']
 
-    for key in keys: 
+    for key in keys:
         if key not in calib_dict:
             calib_dict[key] = 0
             calib_dict['error_{}'.format(key)] = -1
