@@ -27,6 +27,10 @@ class EventHandler:
                                     default_dir=self.parent._core.working_dir,
                                     file_filter='H5 (*.h5);;HDF (*.hdf5)',
                                     save_file=True)
+
+        if not (out_file_name.endswith('.hdf5') or out_file_name.endswith('.h5')):
+            out_file_name += '.h5'
+
         self.save_fit_result(out_file_name)
 
     def save(self):
