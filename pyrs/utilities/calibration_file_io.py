@@ -4,6 +4,31 @@ from pyrs.core.instrument_geometry import DENEXDetectorShift, DENEXDetectorGeome
 import json
 
 
+def check_calibration_dictionary(calib_dict):
+    """Check calibration file input
+
+    Parameters
+    ----------
+    calib_dict: dictionary
+        dictionary with calibration
+
+    Returns
+    -------
+    calib_dict: dictionary
+        dictionary with calibration
+
+    """
+
+    keys = ['Lambda', 'Rot_x', 'Rot_y', 'Rot_z', 'Shift_x', 'Shift_y', 'Shift_z', 'two_theta_0']
+
+    for key in keys:
+        if key not in calib_dict:
+            calib_dict[key] = 0
+            calib_dict['error_{}'.format(key)] = -1
+
+    return calib_dict
+
+
 def read_calibration_json_file(calibration_file_name):
     """Import calibration file in json format
 
@@ -47,6 +72,9 @@ def read_calibration_json_file(calibration_file_name):
         calib_dict = json.load(calib_file)
     if calib_dict is None:
         raise RuntimeError('Failed to load JSON calibration file {}'.format(calibration_file_name))
+
+    # check for properly formated dictionary
+    calib_dict = check_calibration_dictionary(calib_dict)
 
     # Convert dictionary to DENEXDetectorShift
     try:
