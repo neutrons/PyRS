@@ -11,9 +11,14 @@ from qtpy.QtWidgets import (QHBoxLayout, QVBoxLayout, QLabel, QWidget,
                             QMainWindow, QAction)
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtGui import QDoubleValidator
-from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
-from vtk.util.numpy_support import numpy_to_vtk, get_vtk_array_type
-import vtk
+try:
+    from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
+    from vtk.util.numpy_support import numpy_to_vtk, get_vtk_array_type
+    import vtk
+    DISABLE_3D = False
+except ImportError:
+    # if we don't have vtk then disable the 3D Viewer
+    DISABLE_3D = True
 import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -527,7 +532,7 @@ class VizTabs(QTabWidget):
     def set_1d_mode(self, oned):
         self.setTabEnabled(0, oned)
         self.setTabEnabled(1, not oned)
-        self.setTabEnabled(2, not USING_THINLINC and not oned)
+        self.setTabEnabled(2, not USING_THINLINC and not DISABLE_3D and not oned)
 
     def set_ws(self, field):
 
@@ -574,7 +579,7 @@ class VizTabs(QTabWidget):
                 self.strainSliceViewer.set_new_field(field,
                                                      bin_widths=[ws.getDimension(n).getBinWidth() for n in range(3)])
 
-                if not USING_THINLINC:
+                if not USING_THINLINC and not DISABLE_3D:
                     if self.vtk3dviewer:
                         self.vtk3dviewer.set_ws(ws)
                     else:
