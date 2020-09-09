@@ -4,9 +4,13 @@ from pyrs.core import pyrscore
 from pyrs.interface.peak_fitting import fitpeakswindow
 from pyrs.interface.manual_reduction import manualreductionwindow
 
-import vtk.qt
-# https://stackoverflow.com/questions/51357630/vtk-rendering-not-working-as-expected-inside-pyqt
-vtk.qt.QVTKRWIBase = "QGLWidget"  # noqa: E402
+try:
+    import vtk.qt
+    # https://stackoverflow.com/questions/51357630/vtk-rendering-not-working-as-expected-inside-pyqt
+    vtk.qt.QVTKRWIBase = "QGLWidget"  # noqa: E402
+except ImportError:
+    # if vtk is not aviable we will disable the 3D viewer
+    pass
 from pyrs.interface.strainstressviewer.strain_stress_view import StrainStressViewer  # noqa: E402
 from pyrs.interface.strainstressviewer.model import Model  # noqa: E402
 from pyrs.interface.strainstressviewer.controller import Controller  # noqa: E402
