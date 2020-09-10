@@ -1,10 +1,58 @@
-# In order to test the core methods for peak fitting and thus strain/stress calculation
+#!/usr/bin/python
 import os
 from pyrs.core import pyrscore
 import pytest
 
 
+def broken_test_pole_figure_calculation():
+    """
+    main testing body to test the workflow to calculate pole figure
+    :return:
+    """
+    # initialize core
+    rs_core = pyrscore.PyRsCore()
+    assert rs_core
+
+    # import data file: detector ID and file name
+    test_data_set = [(1, 'tests/testdata/HB2B_exp129_Long_Al_222[1]_single.hdf5'),
+                     (2, 'tests/testdata/HB2B_exp129_Long_Al_222[2]_single.hdf5'),
+                     (3, 'tests/testdata/HB2B_exp129_Long_Al_222[3]_single.hdf5'),
+                     (4, 'tests/testdata/HB2B_exp129_Long_Al_222[4]_single.hdf5'),
+                     (5, 'tests/testdata/HB2B_exp129_Long_Al_222[5]_single.hdf5'),
+                     (6, 'tests/testdata/HB2B_exp129_Long_Al_222[6]_single.hdf5'),
+                     (7, 'tests/testdata/HB2B_exp129_Long_Al_222[7]_single.hdf5')]
+    assert test_data_set
+
+
+def test_main():
+    """
+    test main
+    :return:
+    """
+    rs_core = pyrscore.PyRsCore()
+
+    # pre-requisite is that the data file exists
+    test_data = 'tests/data/Hidra_16-1_cor_log.h5'
+    assert os.path.exists(test_data), 'File {} does not exist'.format(test_data)
+
+    # load data
+    test_hd_ws = rs_core.load_hidra_project(test_data, 'test core', False, True)
+    assert test_hd_ws is not None
+
+    # Get sub runs
+    sub_runs = rs_core.reduction_service.get_sub_runs('test core')
+    assert sub_runs is not None
+
+    # Get sample logs
+    log_names = rs_core.reduction_service.get_sample_logs_names('test core', None)
+    assert isinstance(log_names, list)
+
+    return
+
+# In order to test the core methods for peak fitting and thus strain/stress calculation
 # default testing directory is ..../PyRS/
+
+
 print(os.getcwd())
 # therefore it is not too hard to locate testing data
 # TODO: convert BD_Data_Log.hdf5 to Hidra_BD_Data.hdf
@@ -316,6 +364,4 @@ def modify_test_plane_stress():
 
 
 if __name__ == '__main__':
-    """ main
-    """
     pytest.main()
