@@ -129,7 +129,28 @@ class Plot:
 
         self.parent.ui.label_SubRunsValue.setText('{}'.format(sub_run))
 
-    def plot_2d(self):
+    def parse_sub_run_list(self, sub_run_list, num_sub_runs):
+        '''
+        parse sub_run_list to ensure that the user inputs are within the bounds of the number of data 
+        Parameters
+        ----------
+        sub_run_list : list
+            list of sublogs input by the user.
+        num_sub_runs : int
+            number of subruns in the project file.
+
+        Returns
+        -------
+        sub_run_list : np.array
+            array of input sub_runs that has been cropped to exlcude inputs outside of the number of sublogs
+
+        '''
+        sub_run_list = np.array(sub_run_list)
+        sub_run_index = (sub_run_list >= 1) == (sub_run_list < num_sub_runs)
+
+        return sub_run_list[sub_run_index]
+
+    def plot_2d(self, sub_run_list=None):
 
         o_gui = GuiUtilities(parent=self.parent)
         x_axis_name = str(self.parent.ui.comboBox_xaxisNames_2dplot.currentText())
@@ -145,6 +166,12 @@ class Plot:
         axis_x_data, axis_x_error = o_data_retriever.get_data(name=x_axis_name, peak_index=x_axis_peak_index)
         axis_y_data, axis_y_error = o_data_retriever.get_data(name=y_axis_name, peak_index=y_axis_peak_index)
         axis_z_data, axis_z_error = o_data_retriever.get_data(name=z_axis_name, peak_index=z_axis_peak_index)
+
+        if sub_run_list is not None:
+            sub_run_list = self.parse_sub_run_list(sub_run_list, len(axis_x_data))
+            axis_x_data = axis_x_data[sub_run_list]
+            axis_y_data = axis_y_data[sub_run_list]
+            axis_z_data = axis_z_data[sub_run_list]
 
         if not self.parent.ui.radioButton_3dscatter.isChecked():
 
