@@ -131,7 +131,7 @@ class Plot:
 
     def parse_sub_run_list(self, sub_run_list, num_sub_runs):
         '''
-        parse sub_run_list to ensure that the user inputs are within the bounds of the number of data 
+        parse sub_run_list to ensure that the user inputs are within the bounds of the number of data
         Parameters
         ----------
         sub_run_list : list
