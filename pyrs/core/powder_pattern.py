@@ -49,12 +49,31 @@ class ReductionApp:
         ~numpy.ndarray, ~numpy.ndarray
 
         """
-        vec_x, vec_y = self._reduction_manager.get_reduced_diffraction_data(self._session, sub_run, mask_id)
+        vec_x, vec_y, vec_error = self._reduction_manager.get_reduced_diffraction_data(self._session, sub_run, mask_id)
 
-        return vec_x, vec_y
+        return vec_x, vec_y, vec_error
+
+    def get_raw_counts(self, sub_run, mask_id=None):
+        """Get raw diffraction data
+
+        Parameters
+        ----------
+        sub_run : int
+            sub run number
+
+        Returns
+        -------
+        ~numpy.ndarray, ~numpy.ndarray
+
+        """
+
+        return self._hydra_ws._raw_counts[sub_run]
 
     def get_sub_runs(self):
         return self._reduction_manager.get_sub_runs(self._session)
+
+    def get_reduced_sub_runs(self):
+        return self._sub_runs
 
     def load_project_file(self, data_file):
         # init session
@@ -184,7 +203,7 @@ class ReductionApp:
             plt.plot(vec_x, vec_y)
         plt.show()
 
-    def save_diffraction_data(self, output_file_name=None, append_mode=False):
+    def save_diffraction_data(self, output_file_name=None, append_mode=False, ignore_raw_counts=True):
         """Save reduced diffraction data to Hidra project file
         Parameters
         ----------
@@ -218,7 +237,8 @@ class ReductionApp:
 
         # If it is a new file, the sample logs and other information shall be exported too
         if mode == HidraProjectFileMode.OVERWRITE:
-            self._hydra_ws.save_experimental_data(out_file, sub_runs=self._sub_runs, ignore_raw_counts=True)
+            self._hydra_ws.save_experimental_data(out_file, sub_runs=self._sub_runs,
+                                                  ignore_raw_counts=ignore_raw_counts)
 
         # Calibrated wave length shall be written
         self._hydra_ws.save_wavelength(out_file)
