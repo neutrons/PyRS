@@ -472,7 +472,9 @@ class HidraWorkspace:
         return vec_2theta
 
     def get_reduced_diffraction_data(self, sub_run: int,
-                                     mask_id: Optional[str] = None) -> Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
+                                     mask_id: Optional[str] = None) -> Tuple[numpy.ndarray,
+                                                                             numpy.ndarray,
+                                                                             numpy.ndarray]:
         """Get data set of a single diffraction pattern
 
         Parameters
