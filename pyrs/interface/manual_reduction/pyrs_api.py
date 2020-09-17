@@ -148,8 +148,8 @@ class ReductionController:
             raise RuntimeError('No HidraWorkspace is created or loaded')
 
         # Get powder pattern
-        vec_2theta, vec_intensity = self._curr_hidra_ws.get_reduced_diffraction_data(sub_run=sub_run_number,
-                                                                                     mask_id=None)
+        vec_2theta, vec_intensity, vec_variance = self._curr_hidra_ws.get_reduced_diffraction_data(sub_run=sub_run_number,
+                                                                                                   mask_id=None)
 
         return vec_2theta, vec_intensity
 
