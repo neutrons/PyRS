@@ -211,7 +211,8 @@ class FitPeaksWindow(QMainWindow):
 
     def list_subruns_2dplot_returned(self):
         o_handle = EventHandler(parent=self)
-        o_handle.list_subruns_2dplot_returned()
+        sub_run_list = o_handle.list_subruns_2dplot_returned()
+        self.axis_2d_changed(sub_run_list=sub_run_list)
 
     def list_subruns_2dplot_changed(self):
         o_handle = EventHandler(parent=self)
@@ -223,11 +224,11 @@ class FitPeaksWindow(QMainWindow):
         o_plot = Plot(parent=self)
         o_plot.plot_1d()
 
-    def axis_2d_changed(self):
+    def axis_2d_changed(self, **kwargs):
         o_gui = GuiUtilities(parent=self)
         o_gui.check_axis2d_status()
         o_plot = Plot(parent=self)
-        o_plot.plot_2d()
+        o_plot.plot_2d(**kwargs)
 
     def export_csv(self):
         o_export = ExportCSV(parent=self)
