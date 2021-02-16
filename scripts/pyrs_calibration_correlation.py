@@ -244,8 +244,10 @@ if __name__ == '__main__':
         single_material = True
         mono = MonoSetting.getFromRotation(calibration_inputs['PIN_RUN'].get_sample_log_value('mrot', 1))
 
-    calibrator = peakfit_calibration.PeakFitCalibration(powder_engine=POWDER_RUN, pin_engine=PIN_RUN,
-                                                        powder_lines=POWDER_LINES, single_material=single_material)
+    calibrator = peakfit_calibration.PeakFitCalibration(powder_engine=calibration_inputs['POWDER_RUN'],
+                                                        pin_engine=calibration_inputs['PIN_RUN'],
+                                                        powder_lines=calibration_inputs['POWDER_LINES'],
+                                                        single_material=single_material)
 
     calibrator.bins = calibration_inputs['bins']
     calibrator.min_tth = calibration_inputs['min_tth']
