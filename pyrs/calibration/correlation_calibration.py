@@ -187,15 +187,16 @@ class PeakFitCalibration:
         self._calib_start = np.array(8 * [0], dtype=np.float)
 
         if wavelength is None:
+            self.monosetting, self.tth_ref = get_ref_flags(powder_engine, pin_engine)
+
             # Set wave length
             self._calib[6] = float(self.monosetting)
             self._calib_start[6] = float(self.monosetting)
-
-            self.monosetting, self.tth_ref = get_ref_flags(powder_engine, pin_engine)
         else:
+            self.monosetting = 1
             self._calib[6] = wavelength
             self._calib_start[6] = wavelength
-            self.monosetting = 1
+
 
         # Initalize calibration status to -1
         self._calibstatus = -1
