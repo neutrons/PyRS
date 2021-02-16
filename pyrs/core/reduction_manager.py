@@ -744,8 +744,8 @@ class HB2BReductionManager:
             num_bins = np.ceil((max_2theta - min_2theta) / step_2theta) + 1
 
         # Check inputs
-        min_2theta = to_float('Minimum 2theta', min_2theta, 20, 140)
-        max_2theta = to_float('Maximum 2theta', max_2theta, 21, 180)
+        min_2theta = to_float('Minimum 2theta', min_2theta, 0.0, 140)
+        max_2theta = to_float('Maximum 2theta', max_2theta, 0.5, 180)
         step_2theta = to_float('2theta bin size', step_2theta, 0, 180)
         if min_2theta >= max_2theta:
             raise RuntimeError('2theta range ({}, {}) is invalid for generating histogram'
