@@ -96,7 +96,7 @@ def _load_nexus_data(ipts, nexus_run, mask_file):
     return hidra_ws
 
 
-def _run_calibration(calibrator, calib_method, calibration_inputs):
+def _run_calibration(calibrator, calib_method):
     """
     """
 
