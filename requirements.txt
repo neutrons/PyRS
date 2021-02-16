@@ -1,3 +1,4 @@
+mantid-workbench>=4.2
 typing_extensions
 uncertainties
 scipy>=0.18
