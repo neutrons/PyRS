@@ -259,7 +259,7 @@ if __name__ == '__main__':
         calibrator.get_archived_calibration(calibration_inputs['INSTRUMENT_CALIBRATION'])
 
     for calib_method in calibration_inputs['REFINE_METHOD'].split(SPLITTER):
-        calibrator = _run_calibration(calibrator, calib_method)
+        calibrator = _run_calibration(calibrator, calib_method, calibration_inputs)
 
     if calibration_inputs['SAVE_CALIB']:
         datatime = time.strftime('%Y-%m-%dT%H-%M', time.localtime())
