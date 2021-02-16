@@ -102,36 +102,28 @@ def _run_calibration(calibrator, calib_method, calibration_inputs):
 
     if calib_method == "full":
         calibrator.singlepeak = False
-        calibrator.FullCalibration(ConstrainPosition=True, start=calibration_inputs["min_subrun"],
-                                   stop=calibration_inputs["max_subrun"])
+        calibrator.FullCalibration(ConstrainPosition=True)
     elif calib_method == "geometry":
         calibrator.singlepeak = False
-        calibrator.CalibrateGeometry(ConstrainPosition=True, start=calibration_inputs["min_subrun"],
-                                     stop=calibration_inputs["max_subrun"])
+        calibrator.CalibrateGeometry(ConstrainPosition=True)
     elif calib_method == "shifts":
         calibrator.singlepeak = False
-        calibrator.CalibrateShift(ConstrainPosition=True, start=calibration_inputs["min_subrun"],
-                                  stop=calibration_inputs["max_subrun"])
+        calibrator.CalibrateShift(ConstrainPosition=True)
     elif calib_method in ["shift x", "shift_x"]:
         calibrator.singlepeak = True
-        calibrator.calibrate_shiftx(ConstrainPosition=True, start=calibration_inputs["min_subrun"],
-                                    stop=calibration_inputs["max_subrun"])
+        calibrator.calibrate_shiftx(ConstrainPosition=True)
     elif calib_method in ["shift y", "shift_y"]:
         calibrator.singlepeak = False
-        calibrator.calibrate_shifty(ConstrainPosition=True, start=calibration_inputs["min_subrun"],
-                                    stop=calibration_inputs["max_subrun"])
+        calibrator.calibrate_shifty(ConstrainPosition=True)
     elif calib_method == "distance":
         calibrator.singlepeak = False
-        calibrator.calibrate_distance(ConstrainPosition=True, start=calibration_inputs["min_subrun"],
-                                      stop=calibration_inputs["max_subrun"])
+        calibrator.calibrate_distance(ConstrainPosition=True)
     elif calib_method == "rotations":
         calibrator.singlepeak = False
-        calibrator.CalibrateRotation(ConstrainPosition=True, start=calibration_inputs["min_subrun"],
-                                     stop=calibration_inputs["max_subrun"])
+        calibrator.CalibrateRotation(ConstrainPosition=True)
     elif calib_method == "wavelength":
         calibrator.singlepeak = True
-        calibrator.calibrate_wave_length(ConstrainPosition=True, start=calibration_inputs["min_subrun"],
-                                         stop=calibration_inputs["max_subrun"])
+        calibrator.calibrate_wave_length(ConstrainPosition=True)
     else:
         raise RuntimeError('{} is not a valid calibration method\n{}'.format(calib_method, M_options))
 
@@ -254,12 +246,14 @@ if __name__ == '__main__':
     calibrator.max_tth = calibration_inputs['max_tth']
     calibrator.min_eta = calibration_inputs['min_eta']
     calibrator.max_eta = calibration_inputs['max_eta']
+    calibrator.min_subrun = calibration_inputs['min_subrun']
+    calibrator.max_subrun = calibration_inputs['max_subrun']
 
     if calibration_inputs['INSTRUMENT_CALIBRATION'] is not None:
         calibrator.get_archived_calibration(calibration_inputs['INSTRUMENT_CALIBRATION'])
 
     for calib_method in calibration_inputs['REFINE_METHOD'].split(SPLITTER):
-        calibrator = _run_calibration(calibrator, calib_method, calibration_inputs)
+        calibrator = _run_calibration(calibrator, calib_method)
 
     if calibration_inputs['SAVE_CALIB']:
         datatime = time.strftime('%Y-%m-%dT%H-%M', time.localtime())
