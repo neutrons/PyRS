@@ -73,7 +73,7 @@ method_options = ["full", "geometry", "shifts", "shift x", "shift_x", "shift y",
 calibration_inputs = {"POWDER_LINES": None,
                       "POWDER_RUN": None,
                       "PIN_RUN": None,
-                      "IPTS_": None,
+                      "ipts": None,
                       "HFIR_CYCLE": None,
                       "REFINE_METHOD": 'shifts+distance+rotations+full',
                       "INSTRUMENT_CALIBRATION": None,
@@ -207,19 +207,19 @@ if __name__ == '__main__':
 
     for key in list(calibration_user_inputs.keys()):
         if key.lower() in powderlineinput:
-            calibration_inputs['POWDER_LINES'] = _parse_powder_line(calibration_inputs[key])
+            calibration_inputs['POWDER_LINES'] = _parse_powder_line(calibration_user_inputs[key])
         elif key.lower() in powerinput:
-            calibration_inputs['POWDER_RUN'] = calibration_inputs[key]
+            calibration_inputs['POWDER_RUN'] = calibration_user_inputs[key]
         elif key.lower() in pininput:
-            calibration_inputs['PIN_RUN'] = calibration_inputs[key]
+            calibration_inputs['PIN_RUN'] = calibration_user_inputs[key]
         elif key.lower() in calinput:
-            calibration_inputs['INSTRUMENT_CALIBRATION'] = calibration_inputs[key]
+            calibration_inputs['INSTRUMENT_CALIBRATION'] = calibration_user_inputs[key]
         elif key.lower() in maskinput:
-            calibration_inputs['DATA_MASK'] = calibration_inputs[key]
+            calibration_inputs['DATA_MASK'] = calibration_user_inputs[key]
         elif key.lower() in exportinput:
-            calibration_inputs['SAVE_CALIB'] = bool(str(calibration_inputs[key]).lower() == 'true')
+            calibration_inputs['SAVE_CALIB'] = bool(str(calibration_user_inputs[key]).lower() == 'true')
         else:
-            calibration_inputs[key.lower()] = calibration_inputs[key]
+            calibration_inputs[key.lower()] = calibration_user_inputs[key]
 
     if '+' in calibration_inputs['REFINE_METHOD']:
         SPLITTER = '+'
