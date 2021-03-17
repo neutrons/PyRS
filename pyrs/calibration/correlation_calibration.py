@@ -754,8 +754,8 @@ class PeakFitCalibration:
         :return:
         """
         paramVec = np.copy(self._calib)
-        paramVec[0] = x[0]
-        paramVec[6] = x[1]
+        # paramVec[0] = x[0]
+        paramVec[6] = x
 
         residual = self.get_alignment_residual(paramVec, roi_vec_set, True)
 
@@ -865,8 +865,10 @@ class PeakFitCalibration:
         :param roi_vec_set: list/array of ROI/mask vector
         :return:
         """
+        paramVec = np.copy(self._calib)
+        paramVec[:7] = x[:]
 
-        residual = self.get_alignment_residual(x, roi_vec_set, True, False)
+        residual = self.get_alignment_residual(paramVec, roi_vec_set, True, False)
 
         if ReturnScalar:
             residual = np.sqrt(np.mean(residual**2))
@@ -909,11 +911,11 @@ class PeakFitCalibration:
         """
 
         if initial_guess is None:
-            # initial_guess = self.get_wavelength()
-            initial_guess = np.concatenate((self.get_shiftx(), self.get_wavelength()))
+            initial_guess = self.get_wavelength()
+            # initial_guess = np.concatenate((self.get_shiftx(), self.get_wavelength()))
 
         out = self.FitDetector(self.peak_alignment_wavelength, initial_guess, jac='3-point',
-                               bounds=([-0.05, self._calib[6]-.01], [0.05, self._calib[6]+.01]), method='dogbox',
+                               bounds=([self._calib[6]-.01], [self._calib[6]+.01]), method='dogbox',
                                ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', f_scale=1.0,
                                diff_step=None, tr_solver='exact', factor=100., epsfcn=1e-8,
                                tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0,
@@ -1101,11 +1103,14 @@ class PeakFitCalibration:
         GlobalParameter.global_curr_sequence = 0
 
         if initalGuess is None:
-            initalGuess = self.get_calib()
+            initalGuess = self.get_calib()[:-1]
+            # initalGuess = self.get_calib()
 
         out = self.FitDetector(self.peaks_alignment_all, initalGuess, jac='3-point',
-                               bounds=([-.05, -.05, -.15, -5.0, -5.0, -5.0, self._calib[6]-.01, -0.05],
-                                       [.05, .05, .15, 5.0, 5.0, 5.0, self._calib[6]+.01, 0.05]),
+                               bounds=([-.05, -.05, -.15, -5.0, -5.0, -5.0, self._calib[6]-.01],
+                                       [.05, .05, .15, 5.0, 5.0, 5.0, self._calib[6]+.01]),
+                               # bounds=([-.05, -.05, -.15, -5.0, -5.0, -5.0, self._calib[6]-.01, -0.05],
+                               #         [.05, .05, .15, 5.0, 5.0, 5.0, self._calib[6]+.01, 0.05]),
                                method='dogbox', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0,
                                loss='linear', f_scale=1.0, diff_step=None, tr_solver='exact', tr_options={},
                                jac_sparsity=None, max_nfev=None, verbose=0,
