@@ -7,7 +7,7 @@ from pyrs.core import MonoSetting  # type: ignore
 
 # Define Default Material
 _Materials = {}
-_Materials['ffe'] = 2.8663982
+_Materials['fe'] = 2.8663982
 _Materials['mo'] = 3.14719963
 _Materials['ni'] = 3.523799438
 _Materials['ge'] = 5.657568976977
@@ -85,7 +85,8 @@ calibration_inputs = {"POWDER_LINES": None,
                       "SAVE_CALIB": False,
                       "bins": 512,
                       "min_subrun": 0,
-                      "max_subrun": 0}
+                      "max_subrun": 0,
+                      "solver": "least_squares"}
 
 
 def _load_nexus_data(ipts, nexus_run, mask_file):
@@ -96,13 +97,21 @@ def _load_nexus_data(ipts, nexus_run, mask_file):
     return hidra_ws
 
 
-def _run_calibration(calibrator, calib_method):
+def _run_calibration(calibrator, calib_method, solver):
     """
     """
+    if solver.lower() == 'least_squares':
+        Brute=False
+    elif solver.lower() == 'brute':
+        Brute=True
+    elif solver.lower() == 'differential evolution':
+        Brute=2
+    else:
+        Brute=3
 
     if calib_method == "full":
         calibrator.singlepeak = False
-        calibrator.FullCalibration(ConstrainPosition=True)
+        calibrator.FullCalibration(ConstrainPosition=True, Brute=Brute)
     elif calib_method == "geometry":
         calibrator.singlepeak = False
         calibrator.CalibrateGeometry(ConstrainPosition=True)
@@ -167,7 +176,7 @@ def _write_template():
         out.write('\t"Powder scan": 1090,\n')
         out.write('\t"Pin scan": 1086,\n')
         out.write('\t"Method": "full",\n')
-        out.write('\t"Powder Lines": ["ffe 200", "Mo 211", "Ni 220", "ffe 211", "Mo 220", "Ni 311", ')
+        out.write('\t"Powder Lines": ["fe 200", "Mo 211", "Ni 220", "ffe 211", "Mo 220", "Ni 311", ')
         out.write('"Ni 222", "fFe 220", "Mo 310", "fFe 310"]\n')
         out.write('}\n')
 
@@ -213,14 +222,14 @@ if __name__ == '__main__':
         else:
             calibration_inputs[key.lower()] = calibration_user_inputs[key]
 
-    if '+' in calibration_inputs['REFINE_METHOD']:
+    if '+' in calibration_inputs['method']:
         SPLITTER = '+'
-    elif ',' in calibration_inputs['REFINE_METHOD']:
+    elif ',' in calibration_inputs['method']:
         SPLITTER = ','
     else:
         SPLITTER = ' '
 
-    check_method_input(calibration_inputs['REFINE_METHOD'], SPLITTER)
+    check_method_input(calibration_inputs['method'], SPLITTER)
 
     if calibration_inputs['POWDER_RUN'] is not None:
         calibration_inputs['POWDER_RUN'] = _load_nexus_data(calibration_inputs['ipts'],
@@ -249,11 +258,13 @@ if __name__ == '__main__':
     calibrator.min_subrun = calibration_inputs['min_subrun']
     calibrator.max_subrun = calibration_inputs['max_subrun']
 
+    print(calibration_inputs['INSTRUMENT_CALIBRATION'])
     if calibration_inputs['INSTRUMENT_CALIBRATION'] is not None:
         calibrator.get_archived_calibration(calibration_inputs['INSTRUMENT_CALIBRATION'])
+        print(calibrator._calib)
 
-    for calib_method in calibration_inputs['REFINE_METHOD'].split(SPLITTER):
-        calibrator = _run_calibration(calibrator, calib_method)
+    for calib_method in calibration_inputs['method'].split(SPLITTER):
+        calibrator = _run_calibration(calibrator, calib_method, calibration_inputs["solver"])
 
     if calibration_inputs['SAVE_CALIB']:
         datatime = time.strftime('%Y-%m-%dT%H-%M', time.localtime())

@@ -20,6 +20,7 @@ from pyrs.core.nexus_conversion import NUM_PIXEL_1D, PIXEL_SIZE, ARM_LENGTH
 from scipy.optimize import least_squares
 from scipy.optimize import brute
 from scipy.optimize import differential_evolution
+from scipy.optimize import basinhopping
 
 
 def quadratic_background(x, p0, p1, p2):
@@ -238,6 +239,27 @@ class PeakFitCalibration:
         return
 
     @staticmethod
+    class RandomDisplacementBounds(object):
+        """random displacement with bounds:  see: https://stackoverflow.com/a/21967888/2320035
+            Modified! (dropped acceptance-rejection sampling for a more specialized approach)
+        """
+        def __init__(self, xmin, xmax, stepsize=0.5):
+            self.xmin = xmin
+            self.xmax = xmax
+            self.stepsize = stepsize
+
+        def __call__(self, x):
+            """take a random step but ensure the new position is within the bounds """
+            min_step = np.maximum(self.xmin - x, -self.stepsize)
+            max_step = np.minimum(self.xmax - x, self.stepsize)
+
+            random_step = np.random.uniform(low=min_step, high=max_step, size=x.shape)
+            xnew = x + random_step
+
+            return xnew
+
+
+    @staticmethod
     def convert_to_2theta(pyrs_reducer, roi_vec, min_2theta=16., max_2theta=61., num_bins=1800):
         """Convert data, with ROI, to 2theta
 
@@ -320,7 +342,6 @@ class PeakFitCalibration:
         if self.plot_res:
             self.plot_data(x, y, CalcPatt(x, y, dict(zip(ParamNames, x0)), Peak_Num))
             self.plot_data(x, y, CalcPatt(x, y, dict(zip(ParamNames, out.x)), Peak_Num))
-            print(dict(zip(ParamNames, out.x))['g1_sigma'])
 
         returnSetup = [dict(zip(ParamNames, out.x)), CalcPatt(x, y, dict(zip(ParamNames, out.x)), Peak_Num),
                        out.status]
@@ -346,7 +367,12 @@ class PeakFitCalibration:
         elif Brute == 2:
             out1 = differential_evolution(fun, bounds=BOUNDS, args=(ROI, ConPos, True, i_index))
             return [out1.x, np.array([0]), 1]
-            print('Diff_ev')
+        elif Brute == 3:
+            bounded_step = self.RandomDisplacementBounds(np.array([b[0] for b in BOUNDS]), np.array([b[1] for b in BOUNDS]))
+            minimizer_kwargs = {"method":"L-BFGS-B", "args":(ROI, ConPos, True, i_index), "bounds": BOUNDS}
+#            out1 = basinhopping(fun, x0, minimizer_kwargs=minimizer_kwargs, take_step=bounded_step)
+            out1 = basinhopping(fun, x0, minimizer_kwargs=minimizer_kwargs)
+            return [out1.x, np.array([0]) * out1.x.shape[0], 1]
         else:
             if len(bounds[0]) != len(bounds[1]):
                 raise RuntimeError('User must specify bounds of equal length')
@@ -478,7 +504,7 @@ class PeakFitCalibration:
                 two_theta_calib = two_theta_calib[~np.isnan(two_theta_calib)]
 
                 sub_runs = self.get_sub_runs(datasets)
-                    
+
                 for i_tth in sub_runs:
                     if ReturnFit:
                         self.ReductionResults[i_tth] = {}
@@ -531,7 +557,7 @@ class PeakFitCalibration:
                             if (CalibPeaks[ipeak] > self.min_tth) and (CalibPeaks[ipeak] < self.max_tth):
                                 resq.append([])
                                 Peaks.append(ipeak)
-                                print(CalibPeaks[ipeak])
+
                                 pars1['g%d_center' % ipeak] = [CalibPeaks[ipeak], CalibPeaks[ipeak] - 0.5,
                                                                CalibPeaks[ipeak] + 0.5]
                                 pars1['g%d_sigma' % ipeak] = [self.inital_width, 1e-3, 1.5]
@@ -592,8 +618,9 @@ class PeakFitCalibration:
                 residual = np.concatenate([residual, np.array([1000.0] * (self._residualpoints-residual.shape[0]))])
             elif residual.shape[0] > self._residualpoints:
                 residual = residual[:self._residualpoints]
-
+        
         print("")
+        print(x)
         print('Iteration      {}'.format(GlobalParameter.global_curr_sequence))
         print('RMSE         = {}'.format(np.sqrt((residual**2).sum() / residual.shape[0])))
         print('Residual Sum = {}'.format(np.sum(residual)))
@@ -832,14 +859,14 @@ class PeakFitCalibration:
         return residual
 
     def peaks_alignment_all(self, x, roi_vec_set=None, ConstrainPosition=False,
-                            ReturnScalar=False, i_index=2, start=0, stop=0):
+                            ReturnScalar=False, i_index=2):
         """ Cost function for peaks alignment to determine wavelength and detector shift and rotation
         :param x:
         :param roi_vec_set: list/array of ROI/mask vector
         :return:
         """
 
-        residual = self.get_alignment_residual(x, roi_vec_set, True, False, start, stop)
+        residual = self.get_alignment_residual(x, roi_vec_set, True, False)
 
         if ReturnScalar:
             residual = np.sqrt(np.mean(residual**2))
@@ -880,8 +907,6 @@ class PeakFitCalibration:
         -------
 
         """
-
-#        GlobalParameter.global_curr_sequence = 0
 
         if initial_guess is None:
             # initial_guess = self.get_wavelength()
@@ -1071,7 +1096,7 @@ class PeakFitCalibration:
 
         return
 
-    def FullCalibration(self, initalGuess=None, ConstrainPosition=False):
+    def FullCalibration(self, initalGuess=None, ConstrainPosition=False, Brute=False):
 
         GlobalParameter.global_curr_sequence = 0
 
@@ -1079,12 +1104,12 @@ class PeakFitCalibration:
             initalGuess = self.get_calib()
 
         out = self.FitDetector(self.peaks_alignment_all, initalGuess, jac='3-point',
-                               bounds=([-.05, -.05, -.15, -5.0, -5.0, -5.0, self._calib[6]-.05, -3.0],
-                                       [.05, .05, .15, 5.0, 5.0, 5.0, self._calib[6]+.05, 3.0]),
+                               bounds=([-.05, -.05, -.15, -5.0, -5.0, -5.0, self._calib[6]-.01, -0.05],
+                                       [.05, .05, .15, 5.0, 5.0, 5.0, self._calib[6]+.01, 0.05]),
                                method='dogbox', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0,
                                loss='linear', f_scale=1.0, diff_step=None, tr_solver='exact', tr_options={},
                                jac_sparsity=None, max_nfev=None, verbose=0,
-                               ROI=None, ConPos=ConstrainPosition)
+                               ROI=None, ConPos=ConstrainPosition, Brute=Brute)
 
         self.set_calibration(out)
 
@@ -1246,7 +1271,7 @@ class PeakFitCalibration:
         """
         with open(file_name) as fIN:
             CalibData = json.load(fIN)
-            keys = ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda']
+            keys = ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda', 'two_theta_0']
             for i in range(len(keys)):
                 self._calib[i] = CalibData[keys[i]]
 
