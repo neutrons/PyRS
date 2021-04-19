@@ -1,7 +1,7 @@
-mantid-workbench>=4.2
 typing_extensions
 uncertainties
 scipy>=0.18
 qtpy
 h5py
 vtk
+mantid-framework<=5.2
