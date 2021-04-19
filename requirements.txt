@@ -4,4 +4,4 @@ scipy>=0.18
 qtpy
 h5py
 vtk
-mantid-framework<=5.2
+mantid-workbench<=5.2

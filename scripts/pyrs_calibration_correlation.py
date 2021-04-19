@@ -101,13 +101,13 @@ def _run_calibration(calibrator, calib_method, solver):
     """
     """
     if solver.lower() == 'least_squares':
-        Brute=False
+        Brute = False
     elif solver.lower() == 'brute':
-        Brute=True
+        Brute = True
     elif solver.lower() == 'differential evolution':
-        Brute=2
+        Brute = 2
     else:
-        Brute=3
+        Brute = 3
 
     if calib_method == "full":
         calibrator.singlepeak = False

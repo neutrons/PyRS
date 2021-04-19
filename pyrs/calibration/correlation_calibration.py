@@ -198,7 +198,6 @@ class PeakFitCalibration:
             self._calib[6] = wavelength
             self._calib_start[6] = wavelength
 
-
         # Initalize calibration status to -1
         self._calibstatus = -1
 
@@ -257,7 +256,6 @@ class PeakFitCalibration:
             xnew = x + random_step
 
             return xnew
-
 
     @staticmethod
     def convert_to_2theta(pyrs_reducer, roi_vec, min_2theta=16., max_2theta=61., num_bins=1800):
@@ -368,8 +366,9 @@ class PeakFitCalibration:
             out1 = differential_evolution(fun, bounds=BOUNDS, args=(ROI, ConPos, True, i_index))
             return [out1.x, np.array([0]), 1]
         elif Brute == 3:
-            bounded_step = self.RandomDisplacementBounds(np.array([b[0] for b in BOUNDS]), np.array([b[1] for b in BOUNDS]))
-            minimizer_kwargs = {"method":"L-BFGS-B", "args":(ROI, ConPos, True, i_index), "bounds": BOUNDS}
+            # bounded_step = self.RandomDisplacementBounds(np.array([b[0] for b in BOUNDS]),
+            #                                              np.array([b[1] for b in BOUNDS]))
+            minimizer_kwargs = {"method": "L-BFGS-B", "args": (ROI, ConPos, True, i_index), "bounds": BOUNDS}
 #            out1 = basinhopping(fun, x0, minimizer_kwargs=minimizer_kwargs, take_step=bounded_step)
             out1 = basinhopping(fun, x0, minimizer_kwargs=minimizer_kwargs)
             return [out1.x, np.array([0]) * out1.x.shape[0], 1]
@@ -618,7 +617,7 @@ class PeakFitCalibration:
                 residual = np.concatenate([residual, np.array([1000.0] * (self._residualpoints-residual.shape[0]))])
             elif residual.shape[0] > self._residualpoints:
                 residual = residual[:self._residualpoints]
-        
+
         print("")
         print(x)
         print('Iteration      {}'.format(GlobalParameter.global_curr_sequence))
