@@ -53,7 +53,7 @@ IPTS_ = 22731
 PIN_RUN = None
 HFIR_CYCLE = None
 REFINE_METHOD = 'full'
-POWDER_LINES = []
+POWDER_LINES = list()
 SAVE_CALIB = True
 
 # Allow a varriety of inputs to catch errors
@@ -95,6 +95,10 @@ def _load_nexus_data(ipts, nexus_run, mask_file):
     hidra_ws = converter.convert()
 
     return hidra_ws
+
+
+def _get_mono_setting(dataset):
+    return MonoSetting.getFromRotation(dataset.get_sample_log_value('mrot', 1))
 
 
 def _run_calibration(calibrator, calib_method, solver):
@@ -236,14 +240,14 @@ if __name__ == '__main__':
                                                             calibration_inputs['POWDER_RUN'],
                                                             calibration_inputs['DATA_MASK'])
         single_material = False
-        mono = MonoSetting.getFromRotation(calibration_inputs['POWDER_RUN'].get_sample_log_value('mrot', 1))
+        mono = _get_mono_setting(calibration_inputs['POWDER_RUN'])
 
     if calibration_inputs['PIN_RUN'] is not None:
         calibration_inputs['PIN_RUN'] = _load_nexus_data(calibration_inputs['ipts'],
                                                          calibration_inputs['PIN_RUN'],
                                                          calibration_inputs['DATA_MASK'])
         single_material = True
-        mono = MonoSetting.getFromRotation(calibration_inputs['PIN_RUN'].get_sample_log_value('mrot', 1))
+        mono = _get_mono_setting(calibration_inputs['PIN_RUN'])
 
     calibrator = peakfit_calibration.PeakFitCalibration(powder_engine=calibration_inputs['POWDER_RUN'],
                                                         pin_engine=calibration_inputs['PIN_RUN'],
@@ -263,7 +267,8 @@ if __name__ == '__main__':
         calibrator.get_archived_calibration(calibration_inputs['INSTRUMENT_CALIBRATION'])
         print(calibrator._calib)
 
-    for calib_method in calibration_inputs['method'].split(SPLITTER):
+    calibration_methods = calibration_inputs['method']
+    for calib_method in calibration_methods.split(SPLITTER):
         calibrator = _run_calibration(calibrator, calib_method, calibration_inputs["solver"])
 
     if calibration_inputs['SAVE_CALIB']:

@@ -186,9 +186,9 @@ class PeakFitCalibration:
 
         if wavelength is None:
             # Set wave length
+            self.monosetting, self.tth_ref = get_ref_flags(powder_engine, pin_engine)
             self._calib[6] = float(self.monosetting)
             self._calib_start[6] = float(self.monosetting)
-            self.monosetting, self.tth_ref = get_ref_flags(powder_engine, pin_engine)
         else:
             self._calib[6] = wavelength
             self._calib_start[6] = wavelength
