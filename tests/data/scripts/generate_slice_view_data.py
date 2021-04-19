@@ -31,9 +31,9 @@ for k in range(num_layer):
             data_set.append(coord_i)
 # END-FOR
 
-data_set = np.array(data_set)
-print(data_set)
-print(data_set.shape)
+np_data_set = np.array(data_set)
+print(np_data_set)
+print(np_data_set.shape)
 
 
 def get_height(x, y, z):
@@ -64,16 +64,18 @@ def get_width(x, y, z):
     return vec_w
 
 
-vec_height = get_height(data_set[:, 0], data_set[:, 1], data_set[:, 2])
+vec_height = get_height(np_data_set[:, 0], np_data_set[:, 1], np_data_set[:, 2])
 print(vec_height, '\n', vec_height.shape)
 
-vec_width = get_width(data_set[:, 0], data_set[:, 1], data_set[:, 2])
+vec_width = get_width(np_data_set[:, 0], np_data_set[:, 1], np_data_set[:, 2])
 print(vec_width)
 
 
 wbuf = '# {0:12}{1:12}{2:12}{3:12}{4:12}\n'.format('X', 'Y', 'Z', 'Height', 'Width')
-for index in range(len(data_set)):
-    wbuf += '{0:-12}{1:-12}{2:-12}  {3:12}{4:12}\n'.format(data_set[index, 0], data_set[index, 1], data_set[index, 2],
+for index in range(len(np_data_set)):
+    wbuf += '{0:-12}{1:-12}{2:-12}  {3:12}{4:12}\n'.format(np_data_set[index, 0],
+                                                           np_data_set[index, 1],
+                                                           np_data_set[index, 2],
                                                            '{0:.5f}'.format(vec_height[index]),
                                                            '{0:.5f}'.format(vec_width[index]))
 
