@@ -45,7 +45,7 @@ class MonoSetting(Enum):
             return MonoSetting.Si331
         elif 14.0 < mrot < 18.0:
             return MonoSetting.Si400
-        elif -14.0 < mrot < -6.0:
+        elif -11.5 < mrot < -6.0:
             return MonoSetting.Si311
         elif -200.0 < mrot < -175.0:
             return MonoSetting.Si220
