@@ -35,7 +35,8 @@ install:
 
 script:
     # TEST: Create test environment and test build
-  - conda create -q -n PyRS_test python=$CONDA mantid-workbench>=4.2 --file requirements.txt --file requirements_dev.txt
+  - conda install mamba
+  - mamba create -q -n PyRS_test python=$CONDA mantid-workbench>=4.2 --file requirements.txt --file requirements_dev.txt
   - conda info --envs
   - conda activate PyRS_test
   - python --version
