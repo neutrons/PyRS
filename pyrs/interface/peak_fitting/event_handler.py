@@ -155,6 +155,7 @@ class EventHandler:
             parse_input = parse_integers(raw_input)
             o_gui.make_visible_listsubruns_warning(False)
         except RuntimeError:
+            parse_input = []
             o_gui.make_visible_listsubruns_warning(True)
 
         return parse_input
@@ -163,11 +164,7 @@ class EventHandler:
         self.list_subruns_2dplot()
 
     def list_subruns_2dplot_returned(self):
-        list_subruns_parsed = self.list_subruns_2dplot()
-        print(list_subruns_parsed)
-
-        # updating the plot here
-        pass
+        return self.list_subruns_2dplot()
 
     def update_fit_peak_ranges_table(self, **kwargs):
 

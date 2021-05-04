@@ -38,7 +38,7 @@ def read_requirements_from_file(filepath):
     :param filepath: Path to the file to read
     :return: A list of strings containing the requirements
     '''
-    with open(filepath, 'rU') as req_file:
+    with open(filepath, 'r') as req_file:
         return req_file.readlines()
 
 
@@ -79,7 +79,6 @@ if __name__ == "__main__":
     main
     """
     scripts = ['scripts/pyrsplot',
-               'scripts/reduce_manual_HB2B.py',
                'scripts/pyrs_calibration.py',
                'scripts/create_mask.py']
     setup(
