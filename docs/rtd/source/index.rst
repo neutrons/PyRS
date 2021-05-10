@@ -3,11 +3,15 @@
 PyRS User's Guide
 =================
 
-PyRS is a reduction and visualization software for Stress Residual (HB2B) using Python. 
-PyRS is part of the Oak Ridge `Neutrons Scattering Software suite <https://github.com/neutrons>`_.
+Python Residual Stress analysis
+---------------------------------
+
+pyRS is a reduction and visualization software for residual stress analysis using Python.
+The pyRS software is tailored to meet the needs of the High Intensity Diffractometer for Residual stress Analysis instrument at the High Flux Isotope Reactor.
+pyRS is part of the Oak Ridge `Neutrons Scattering Software suite <https://github.com/neutrons>`_.
 Funded by the `Office of Energy Science <https://www.energy.gov/science/bes/basic-energy-sciences>`_, U.S. Department of Energy
 
-.. toctree:: 
+.. toctree::
    :caption: Introduction
 
    introduction/introduction
@@ -15,12 +19,11 @@ Funded by the `Office of Energy Science <https://www.energy.gov/science/bes/basi
 
 .. toctree::
    :caption: Basics
-   
+
    basics/basics
 
 
 .. toctree::
    :caption: Advanced
-   
+
    advanced/advanced
-   
