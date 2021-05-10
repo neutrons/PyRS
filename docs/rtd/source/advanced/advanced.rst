@@ -27,7 +27,7 @@ Here is a list of reduced data that will be stored in project file
 File Structure
 ==============
 
-HIDRA project file utilizes an HDF file format with the following organizational tree structure.
+HIDRA project file utilizes an HDF5 file format with the following organizational tree structure.
 
 - Instrument
   - Geometry parameters: table of parameters
@@ -50,7 +50,7 @@ HIDRA project file utilizes an HDF file format with the following organizational
     - sub-runs
 
   - HKL_1
-      - ... ...
+    - ... ...
 
 - Raw Data
   - logs
@@ -68,11 +68,4 @@ HIDRA project file utilizes an HDF file format with the following organizational
   - main_XANG
     - count vectors for each sub-run for a given out-of-plane angle (X)
   - main_XANG_var
-      - estimated error in counts for each sub-run for a given out-of-plane angle (X)
-
-
-
-Python Scripts
-##############
-
-#TODO
+    - estimated error in counts for each sub-run for a given out-of-plane angle (X)
