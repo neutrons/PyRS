@@ -16,7 +16,6 @@ Funded by the `Office of Energy Science <https://www.energy.gov/science/bes/basi
 
    introduction/introduction
 
-
 .. toctree::
    :caption: Basics
 
@@ -25,7 +24,7 @@ Funded by the `Office of Energy Science <https://www.energy.gov/science/bes/basi
 .. toctree::
   :caption: pyRS API
 
-  api/pyRS
+  api/modules
 
 .. toctree::
    :caption: Advanced
