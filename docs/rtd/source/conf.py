@@ -20,11 +20,21 @@
 
 # If your documentation needs a minimal Sphinx version, state it here.
 # needs_sphinx = '1.0'
+import os
+import sys
+project_dir = os.path.abspath(os.path.join(__file__, "..", "..", "..", ".."))
+sys.path.insert(0, project_dir)
 
+print(project_dir)
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = []
+extensions = [
+    'sphinx.ext.autodoc',
+    'sphinx.ext.todo',
+    'sphinxcontrib.programoutput',
+    'sphinx.ext.mathjax',
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -97,7 +107,7 @@ pygments_style = 'sphinx'
 # keep_warnings = False
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
-todo_include_todos = True
+todo_include_todos = False
 
 
 # -- Options for HTML output ----------------------------------------------
