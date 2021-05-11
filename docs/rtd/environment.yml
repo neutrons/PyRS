@@ -2,10 +2,17 @@ name: pyrs-rtd-docs
 
 channels:
   - conda-forge
+  - mantid/label/nightly
+  - mantid
 
 dependencies:
   - python
   - sphinx
   - pip
+  - sphinx.ext.autodoc
+  - sphinx.ext.todo
+  - sphinxcontrib.programoutput
+  - sphinx.ext.mathjax
+  - mantid-workbench>=4.2
   - pip:
     - sphinx_rtd_theme>=0.4.1
