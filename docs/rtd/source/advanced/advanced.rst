@@ -27,7 +27,7 @@ Here is a list of reduced data that will be stored in project file
 File Structure
 ==============
 
-HIDRA project file utilizes an HDF5 file format with the following organizational tree structure.
+The HIDRA project file utilizes an HDF5 file format with the following organizational tree structure.
 
 - Instrument
   - Geometry parameters: table of parameters
