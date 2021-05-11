@@ -6,7 +6,7 @@ channels:
   - mantid
 
 dependencies:
-  - python
+  - python=3.6
   - sphinx
   - pip
   - sphinx.ext.autodoc
@@ -14,5 +14,10 @@ dependencies:
   - sphinxcontrib.programoutput
   - sphinx.ext.mathjax
   - mantid-workbench>=4.2
+  - uncertainties
+  - scipy>=0.18
+  - qtpy
+  - h5py
+  - vtk
   - pip:
     - sphinx_rtd_theme>=0.4.1
