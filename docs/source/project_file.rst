@@ -4,34 +4,27 @@ HB2B Project File
 Definition
 ==========
 
-HB2B's project file shall contain reduced data in a project scope, which may contain multiple runs.
+The HIDRA project file contains reduced data, which may contain multiple runs.
 There are several levels reduced data for an engineering diffraction experiment project, such as
-diffraction pattern, fitted peaks and calculated strain and stress.
-This project file shall record all these regular reduced data.
+diffraction patterns, fitted peaks and calculated strains/stresses.
+This project file shall store information about measured diffraction patterns (intensity vs :math:`2\theta`) and results from single peak fitting.
+Strain/stress results are not stored in individual project files because these calculations rely on information from addition project files (d0 and additional strain components).
 
 Here is a list of reduced data that will be stored in project file
- - Raw experimental data presented as neutron counts on each pixel
- - Histogram data as :math:`2\theta` vs counts
- - Histogram data as :math:`d-Spacing` vs counts
- - Instrument geometry parameters
- - Calibrated instrument geometry parameters
- - Fitted peaks' parameters
- - Calculated strain and stress
 
-To be noticed that neutron event data will not be saved to this file.
-
+- Raw experimental data presented as neutron intensity on each pixel (not by default)
+- Histogram data vectors
+  - :math:`2\theta`
+  - intensity
+  - estimated intensity uncertainty
+- Instrument geometry parameters
+- Calibrated instrument geometry parameters
+- Fitted peaks' parameters
 
 File Structure
 ==============
 
-Project file will be saved to HDF file format.
-Therefore all the reduced data will be organized in tree structure.
-
-Here is the proposed structure of the project file
-
-- Experiment information
-  - IPTS number: single value
-  - Run numbers: vector of integers
+HiDRA project file utilizes an HDF file format with the following organizational tree structure.
 
 - Instrument
   - Geometry parameters: table of parameters
@@ -40,28 +33,36 @@ Here is the proposed structure of the project file
       - Calibration run
       - Calibration date
       - Table of calibrated parameters
-
-- Raw Data (i.e., counts per pixel)
-  - RunNumber[0]: 1D integer array in order of pixel number
-  - RunNumber[1]:
-  - ... ...
-
-- Histogram
-  - RunNumber[0]
-    - :math:`2\theta` vs counts
-    - :math:`d-Spacing` vs counts
-  - RunNumber[1]
-    - :math:`2\theta` vs counts
-    - :math:`d-Spacing` vs counts
-  - ... ...
+- Mask
+  - detector
+      - default detector masked used to exclude pixels near the edge of the detector
 
 - Peaks
   - HKL_0
-    - RunNumber[0]
-      - Parameter table: peak profile type, fitted parameter value and error, cost, and etc
-    - ...
-  - HKL_1
-    ... ...
-  - ... ...
+    - chi2
+    - d reference
+    - d reference error
+    - fitting error
+    - parameters
+    - sub-runs
 
-- Strain
+  - HKL_1
+      - ... ...
+
+- Raw Data
+  - logs
+    - logs for motor positions and metadata information for each sub-run
+  - sub-runs
+    - intensity count vs pixel vectors (by default not saved)
+
+- reduced diffraction data
+  - 2theta
+    - :math:`2\theta` vectors for each sub-run
+  - main
+    - count vectors for each sub-run
+  - main_var
+    - estimated error in counts for each sub-run
+  - main_XANG
+    - count vectors for each sub-run for a given out-of-plane angle (X)
+  - main_XANG_var
+      - estimated error in counts for each sub-run for a given out-of-plane angle (X)
