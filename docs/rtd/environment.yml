@@ -10,11 +10,7 @@ dependencies:
   - sphinx
   - pip
   - sphinxcontrib-programoutput
-  - mantid-workbench>=4.2
   - uncertainties
-  - scipy>=0.18
-  - qtpy
-  - h5py
-  - vtk
+  - mock
   - pip:
     - sphinx_rtd_theme>=0.4.1
