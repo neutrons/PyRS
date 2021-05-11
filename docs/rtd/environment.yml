@@ -9,7 +9,7 @@ dependencies:
   - python=3.6
   - sphinx
   - pip
-  - sphinxcontrib.programoutput
+  - sphinxcontrib-programoutput
   - mantid-workbench>=4.2
   - uncertainties
   - scipy>=0.18
