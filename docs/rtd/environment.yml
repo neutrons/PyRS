@@ -2,8 +2,6 @@ name: pyrs-rtd-docs
 
 channels:
   - conda-forge
-  - mantid/label/nightly
-  - mantid
 
 dependencies:
   - python=3.6
@@ -14,3 +12,5 @@ dependencies:
   - mock
   - pip:
     - sphinx_rtd_theme>=0.4.1
+    - scipy
+    - numpy
