@@ -38,7 +38,7 @@ extensions = [
 
 import mock
 
-MOCK_MODULES = ['mantid', 'mantid.kernel', 'mantid.simpleapi', 'mantid.api']
+MOCK_MODULES = ['mantid', 'mantid.kernel', 'mantid.simpleapi', 'mantid.api', 'h5py', 'qtpy']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
 
