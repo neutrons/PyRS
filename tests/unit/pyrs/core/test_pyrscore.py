@@ -44,7 +44,7 @@ def test_main():
     assert sub_runs is not None
 
     # Get sample logs
-    log_names = rs_core.reduction_service.get_sample_logs_names('test core', None)
+    log_names = rs_core.reduction_service.get_sample_logs_names('test core')
     assert isinstance(log_names, list)
 
     return
