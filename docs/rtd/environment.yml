@@ -10,6 +10,7 @@ dependencies:
   - sphinxcontrib-programoutput
   - uncertainties
   - mock
+  - qtpy
   - pip:
     - sphinx_rtd_theme>=0.4.1
     - scipy

@@ -18,8 +18,8 @@ class PeakFitEngine:
     '''This is the virtual base class as the fitting frame
 
     :param str hidraworkspace: hidraworkspace with detector counts and position
-    :param str peak_function_name: peak shape function for peak fitting ()
-    :param str background_function_name: background function for peak fitting ()
+    :param str peak_function_name: peak shape function for peak fitting (Gaussian, PseudoVoigt, or Voigt)
+    :param str background_function_name: background function for peak fitting (Linear)
     :param float wavelength: neutron wavelength used to measure diffraction data
     :param out_of_plane_angle: out-of-plane angle used for texture analysis
     :type out_of_plane_angle: float, optional
