@@ -10,7 +10,7 @@ from pyrs.dataobjects import HidraConstants  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.convertdatatypes import to_float, to_int
-from typing import Optional, Union
+from typing import Optional
 
 
 class HB2BReductionManager:
@@ -635,7 +635,7 @@ class HB2BReductionManager:
         # Get the 2theta values for all pixels
         pixel_2theta_array = reduction_engine.instrument.get_pixels_2theta(1)
 
-        bin_boundaries_2theta = self.generate_2theta_histogram_vector(min_2theta, num_bins, max_2theta,
+        bin_boundaries_2theta = self.generate_2theta_histogram_vector(min_2theta, max_2theta, num_bins,
                                                                       pixel_2theta_array, mask_array, delta_2theta)
 
         # Histogram

@@ -542,8 +542,8 @@ class PyHB2BReduction:
         :param numpy.ndarray two_theta_bins: 2theta bin boundaries
         :param numpy.ndarray mask_array: mask: 1 to keep, 0 to mask (exclude)
         :param bool is_point_data: Flag whether the output is point data (numbers of X and Y are same)
-        :param numpy.ndarray_or_None vanadium_counts_array: Vanadium counts array for normalization and efficiency calibration
-
+        :param vanadium_counts_array: Vanadium counts array for normalization and efficiency calibration
+        :type vanadium_counts_array:numpy.ndarray, optional
         :return: two_theta_bins, intensity_vector, variances_vector
         :rtype: numpy.ndarray
         """
