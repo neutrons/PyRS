@@ -416,11 +416,10 @@ class NeXusConvertingApp:
             1. set sample logs on the hidra workspace
             2. set duration on the hidra worksapce
 
-        Returns
-        -------
-        dict
-            Each key corresponds to one log name, and each value corresponds to an array of log values. Each item
+        :params list subruns: list of sub-runs to split sample logs
+        :return: Each key corresponds to one log name, and each value corresponds to an array of log values. Each item
             in this array corresponds to the average value of the log within a particular subrun
+        :rtype: dict
         """
         run_obj = self._event_wksp.run()
 
@@ -504,18 +503,13 @@ class NeXusConvertingApp:
         1. split the workspace to sub runs
         2. for each split workspace, aka a sub run, get the total counts for each spectrum and save to a 1D array
 
-        Parameters
-        ----------
-        use_mantid : bool
-            Flag to use Mantid library to convert NeXus (True);
+        :params bool use_mantid: Flag to use Mantid library to convert NeXus (True);
             Otherwise, use PyRS/Python algorithms to convert NeXus
 
-        Returns
-        -------
-        pyrs.core.workspaces.HidraWorkspace
-            HidraWorkspace for converted data
-
+        :returns: HidraWorkspace for converted data
+        :rtype: pyrs.core.workspaces.HidraWorkspace
         """
+
         if use_mantid:
             raise RuntimeError('use_mantid=True is no longer supported')
 

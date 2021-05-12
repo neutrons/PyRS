@@ -22,6 +22,15 @@ class MantidPeakFitEngine(PeakFitEngine):
         self._log = Logger(__name__)
 
     def fit_peaks(self, peak_tag, x_min, x_max):
+        '''
+
+        :param str peak_tag: Id to define peak
+        :param float x_min: min 2theta for peak fitting window
+        :param float x_max: max 2theta for peak fitting window
+        :return: peaks collections of fitting results
+        :rtype: FitResult
+        '''
+
         x_min, x_max = self._check_fit_range(x_min, x_max)
 
         # Create output workspace names

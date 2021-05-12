@@ -338,7 +338,7 @@ class Plot:
             pop_message(self, 'No data loaded', 'error')
             return
 
-        sample_log_names = self.parent._core.reduction_service.get_sample_logs_names(self.parent._project_name, True)
+        sample_log_names = self.parent._core.reduction_service.get_sample_logs_names(self.parent._project_name)
 
         if name == HidraConstants.SUB_RUNS:
             # sub run vector
