@@ -1,47 +1,47 @@
 pyRS package
 =============
 
-:mod:`pyRS` Package
---------------------
-
-.. automodule:: pyrs.__init__
+:mod:`Event Nexus Conversion`
+---------------------------------
+.. autoclass:: pyrs.core.nexus_conversion.NeXusConvertingApp
     :members:
     :undoc-members:
     :show-inheritance:
 
-:mod:`Nexus Conversion` Module
+:mod:`Data Reduction Manager`
 ---------------------------------
 
-.. automodule:: pyrs.core.nexus_conversion
+.. autoclass:: pyrs.core.reduction_manager.HB2BReductionManager
     :members:
     :undoc-members:
     :show-inheritance:
 
-:mod:`reduction_manager` Module
+:mod:`Data Reduction`
 ---------------------------------
 
-.. automodule:: pyrs.core.reduction_manager
+.. autoclass:: pyrs.core.reduce_hb2b_pyrs.PyHB2BReduction
     :members:
     :undoc-members:
     :show-inheritance:
 
-:mod:`reduce_hb2b_pyrs` Module
+:mod:`Instrument Definition`
 ---------------------------------
 
-.. automodule:: pyrs.core.reduce_hb2b_pyrs
+.. autoclass:: pyrs.core.reduce_hb2b_pyrs.ResidualStressInstrument
     :members:
     :undoc-members:
     :show-inheritance:
 
-Other sub-packages:
--------------------
+:mod:`Instrument Calibration`
+---------------------------------
 
-.. toctree::
+.. autoclass:: pyrs.calibration.peakfit_calibration.PeakFitCalibration
 
-    core/index
-    dataobjects/index
-    peaks/index
-    projectfile/index
-    calibration/index
-    interface/index
-    utilities/index
+    :undoc-members:
+    :show-inheritance:
+
+:mod:`Peak Fitting Methods`
+---------------------------------
+
+.. autoclass:: pyrs.peaks.peak_fit_engine.PeakFitEngine
+.. autofunction:: pyrs.peaks.peak_fit_engine.PeakFitEngine.fit_multiple_peaks
