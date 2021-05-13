@@ -1,8 +1,8 @@
 Python programming API
 ======================
 
-This chapter describes the programming interface of pyRS, so what you can
-expect after having launched *Jupyter notebook* (or ipython) and typed:
+This chapter describes the programming interface of pyRS, and the implementation of methods for the reduction of
+raw neutron event data.
 
 .. code-block:: python
 

@@ -4,9 +4,9 @@ pyRS package
 :mod:`Event Nexus Conversion`
 ---------------------------------
 .. autoclass:: pyrs.core.nexus_conversion.NeXusConvertingApp
-    :members:
-    :undoc-members:
-    :show-inheritance:
+.. autofunction:: pyrs.core.nexus_conversion.NeXusConvertingApp.convert
+.. autofunction:: pyrs.core.nexus_conversion.NeXusConvertingApp.save
+
 
 :mod:`Data Reduction Manager`
 ---------------------------------
