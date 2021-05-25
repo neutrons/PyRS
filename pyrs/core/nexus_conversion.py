@@ -232,6 +232,12 @@ class Splitter:
 class NeXusConvertingApp:
     """
     Convert NeXus file to Hidra project file
+
+    :param str nexus_file_name: Name of NeXus file
+    :param mask_file_name: Name of masking file
+    :type mask_file_name: str, optional
+    :param extra_logs: list of string with no default logs to keep in project file
+    :type extra_logs: list, optional
     """
     def __init__(self, nexus_file_name, mask_file_name=None, extra_logs=list()):
         """Initialization
@@ -503,9 +509,6 @@ class NeXusConvertingApp:
         1. split the workspace to sub runs
         2. for each split workspace, aka a sub run, get the total counts for each spectrum and save to a 1D array
 
-        :params bool use_mantid: Flag to use Mantid library to convert NeXus (True);
-            Otherwise, use PyRS/Python algorithms to convert NeXus
-
         :returns: HidraWorkspace for converted data
         :rtype: pyrs.core.workspaces.HidraWorkspace
         """
@@ -535,6 +538,8 @@ class NeXusConvertingApp:
     def save(self, projectfile):
         """
         Save workspace to Hidra project file
+
+        :param str projectfile: output filename
         """
         projectfile = os.path.abspath(projectfile)  # confirm absolute path to make logs more readable
         checkdatatypes.check_file_name(projectfile, check_exist=False, check_writable=True, is_dir=False,
