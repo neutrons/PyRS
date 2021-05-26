@@ -1,6 +1,6 @@
 
-Quick Start
-###########
+pyRS User Interface
+###################
 
 Launch the Graphical Interface
 ==============================
@@ -26,5 +26,10 @@ Data Manual Reduction
 
 Peak Fitting
 ============
+
+#TODO
+
+Stress Strain Analysis
+======================
 
 #TODO

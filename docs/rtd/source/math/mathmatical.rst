@@ -50,6 +50,11 @@ Normalizing each raw 1D data using a vanadium dataset provides corrections for 1
 See SFIG X for a comparison of a representative dataset before and after vanadium normalization.
 We note that normalization is performed after data are histogrammed into 1D to reduce the overall computational expense.
 
+.. figure:: Angular_maps_new_.png
+   :align: center
+   :alt: image
+
+
 Azimuthal data reduction
 ------------------------
 
@@ -57,6 +62,10 @@ pyRS provides users the option to reduce specific regions of the 2D data into an
 The implemented azimuthal integration builds upon the standard powder reduction (including vanadium normalization and error propagation) by isolating a specific η region of interest(s) (ROI) that is reduced.
 Users define the number of ROIs and/or minimum and maximum η. pyRS isolates the specific ROIs based using the η map constructed from (x, y, z) pixel coordinates (eq. 2).
 Figure 4 illustrates how specific regions from the 2D η map are isolated for reducing a representative data set into 1D I(2θ, η) data using a 2.68° azimuthal range.
+
+.. figure:: eta_maps_new.png
+   :align: center
+   :alt: image
 
 Uncertainties Propagation
 -------------------------
@@ -156,3 +165,8 @@ Figure 8 shows representative information that is access to the users.
 This dataset was automatically analyzed via single peak fitting, which allows the visualization of key peak-shape parameters (peak center, FWHM, and intensity).
 Only a 2D contour (or 1D if only one subrun is present) of the measure diffraction data is shown if the peaks_file is undefined.
 We note that the plots published on monitors are for quick visualization and are not well suited for use in publications.
+
+.. figure:: autoreduction_V3.png
+   :align: center
+   :width: 400
+   :alt: image
