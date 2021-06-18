@@ -53,8 +53,7 @@ script:
   # lint the code and generate an error if a warning is introduced
   - flake8 . --count
   # static analysis for typing
-  - mypy --install-types
-  - mypy pyrs scripts tests
+  - mypy --install-types pyrs scripts tests
 
   # run some basic import tests to confirm things are working
   - python -c "import mantid"
