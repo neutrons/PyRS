@@ -71,5 +71,5 @@ def test_manual_reduction(qtbot, tmpdir):
     assert line.get_xdata().min() == pytest.approx(81.88955539289697)
     assert line.get_xdata().max() == pytest.approx(98.07327399000138)
     # first data point is a nan so exclude it
-    assert line.get_ydata()[1::].min() == pytest.approx(46.154437570576924)
+    assert line.get_ydata()[1::].min() == pytest.approx(56.53846153846154)
     assert line.get_ydata()[1::].max() == pytest.approx(473.8784126395234)
