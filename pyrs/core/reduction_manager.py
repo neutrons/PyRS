@@ -488,10 +488,6 @@ class HB2BReductionManager:
                                                                           num_bins, delta_2theta, mask_vec,
                                                                           vanadium_counts)
 
- #            if van_duration is not None:
- #                hist *= van_duration
- #                variances *= van_duration
-
         # record
         workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_centers, hist, variances)
         self._last_reduction_engine = reduction_engine
@@ -629,10 +625,6 @@ class HB2BReductionManager:
                                                                               (min_2theta, max_2theta),
                                                                               num_bins, delta_2theta, eta_mask,
                                                                               vanadium_counts)
-
- #            if van_duration is not None:
- #                hist *= van_duration
- #                variances *= van_duration
 
             if mask_id is None:
                 eta_mask_id = 'eta_{}'.format(eta_cent)

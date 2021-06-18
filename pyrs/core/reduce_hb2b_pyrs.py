@@ -712,14 +712,9 @@ class PyHB2BReduction:
             van_array = unp.uarray(van_hist, van_var)
 
             # normalize data
-            normalized_data = data_array / (van_array.max() / van_array)
+            normalized_data = data_array * (van_array.max() / van_array)
             data_hist = unp.nominal_values(normalized_data)
             data_var = unp.std_devs(normalized_data)
- #            data_var = np.sqrt((data_var / data_hist) ** 2 + (van_var / van_hist) ** 2)
-
-            # Normalize diffraction data
- #            data_hist /= van_hist  # normalize
- #            data_var *= data_hist
 
         # END-IF-ELSE
 
