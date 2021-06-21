@@ -1,5 +1,6 @@
 # This is a prototype reduction engine for HB2B living independently from Mantid
 import numpy as np
+import uncertainties.unumpy as unp
 from pyrs.core import instrument_geometry
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.convertdatatypes import to_float
@@ -700,18 +701,20 @@ class PyHB2BReduction:
             van_var, van_var_temp = np.histogram(pixel_2theta_array, bins=two_theta_bins, weights=vanadium_var ** 2)
             van_var = np.sqrt(van_var)
 
-            # get indexs in histograms with no counts to 1
+            # set indexs in histograms with no counts to 1
             data_hist[zero_count_mask] = 1.0
             van_hist[zero_count_mask] = 1.0
             data_var[zero_count_mask] = 1.0
             van_var[zero_count_mask] = 1.0
 
-            # propagation of error
-            data_var = np.sqrt((data_var / data_hist) ** 2 + (van_var / van_hist) ** 2)
+            # setup uncertainties arrays
+            data_array = unp.uarray(data_hist, data_var)
+            van_array = unp.uarray(van_hist, van_var)
 
-            # Normalize diffraction data
-            data_hist /= van_hist  # normalize
-            data_var *= data_hist
+            # normalize data
+            normalized_data = data_array * (van_array.max() / van_array)
+            data_hist = unp.nominal_values(normalized_data)
+            data_var = unp.std_devs(normalized_data)
 
         # END-IF-ELSE
 
