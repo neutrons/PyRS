@@ -4,7 +4,7 @@
 codecov
 pytest
 pytest-cov
-pytest-qt
+pytest-qt<4.0
 
 # linting and static analysis
 flake8
