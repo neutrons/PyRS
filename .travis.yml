@@ -36,7 +36,7 @@ install:
 script:
     # TEST: Create test environment and test build
   - conda install mamba
-  - mamba create -q -n PyRS_test python=$CONDA --file requirements.txt --file requirements_dev.txt
+  - mamba create -q -n PyRS_test python=$CONDA mantid-workbench>=4.2 --file requirements.txt --file requirements_dev.txt
   - conda info --envs
   - conda activate PyRS_test
   - python --version
@@ -53,6 +53,7 @@ script:
   # lint the code and generate an error if a warning is introduced
   - flake8 . --count
   # static analysis for typing
+  - yes | pip install types-pkg_resources types-six types-toml
   - mypy pyrs scripts tests
 
   # run some basic import tests to confirm things are working

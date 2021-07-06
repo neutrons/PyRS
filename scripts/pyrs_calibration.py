@@ -55,6 +55,7 @@ HFIR_CYCLE = None
 REFINE_METHOD = 'full'
 POWDER_LINES = []
 SAVE_CALIB = True
+WRITE_LATEST = False
 
 # Allow a varriety of inputs to catch errors
 powderlineinput = ['powder lines', 'powder_lines', 'powderlines', 'powder line', 'powder_line', 'powderline']
@@ -64,6 +65,7 @@ calinput = ['calibration', 'old calibration', 'old_calibration']
 methodinput = ['method', 'methods']
 maskinput = ['mask', 'default mask']
 exportinput = ['save', 'export', 'save calibration', 'save_calibration']
+savelatest = ['write latest', 'write_latest', 'latest']
 
 # Defualt check for method input
 method_options = ["full", "geometry", "shifts", "shift x", "shift_x", "shift y", "shift_y",
@@ -198,6 +200,8 @@ if __name__ == '__main__':
             DATA_MASK = calibration_inputs[key]
         elif key.lower() in exportinput:
             SAVE_CALIB = bool(str(calibration_inputs[key]).lower() == 'true')
+        elif key.lower() in savelatest:
+            WRITE_LATEST = bool(str(calibration_inputs[key]).lower() == 'true')
 
     if '+' in REFINE_METHOD:
         SPLITTER = '+'
@@ -237,6 +241,11 @@ if __name__ == '__main__':
 
         CalibName = '/HFIR/HB2B/shared/CALIBRATION/HB2B_{}_{}.json'.format(mono, datatime)
         calibrator.write_calibration(CalibName)
+
+        if WRITE_LATEST:
+            CalibName = '/HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json'
+            calibrator.write_calibration(CalibName)
+
         print(calibrator.refinement_summary)
     else:
         calibrator.print_calibration()
