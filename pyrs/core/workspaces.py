@@ -472,7 +472,9 @@ class HidraWorkspace:
         return vec_2theta
 
     def get_reduced_diffraction_data(self, sub_run: int,
-                                     mask_id: Optional[str] = None) -> Tuple[numpy.ndarray, numpy.ndarray]:
+                                     mask_id: Optional[str] = None) -> Tuple[numpy.ndarray,
+                                                                             numpy.ndarray,
+                                                                             numpy.ndarray]:
         """Get data set of a single diffraction pattern
 
         Parameters
@@ -483,8 +485,8 @@ class HidraWorkspace:
             None (as default main) or ID as a String
         Returns
         -------
-        numpy.ndarray, numpy.ndarray
-            vector 2theta, vector intensity
+        numpy.ndarray, numpy.ndarray, numpy.ndarray
+            vector 2theta, vector intensity, vector variance
 
         """
         # Check inputs
@@ -508,8 +510,14 @@ class HidraWorkspace:
             raise RuntimeError('Mask ID {} does not exist in reduced diffraction pattern. '
                                'The available masks are {}'
                                ''.format(mask_id, self._diff_data_set.keys()))
+        try:
+            vec_variance = self._var_data_set[mask_id][spec_index].copy()
+        except KeyError:
+            raise RuntimeError('Mask ID {} does not exist in reduced diffraction pattern. '
+                               'The available masks are {}'
+                               ''.format(mask_id, self._var_data_set.keys()))
 
-        return vec_2theta, vec_intensity
+        return vec_2theta, vec_intensity, vec_variance
 
     def get_mask_ids(self):
         """
