@@ -1,13 +1,14 @@
+# type: ignore
 import numpy as np
 import time
 import os
-from pyrs.calibration import peakfit_calibration
+from pyrs.calibration import correlation_calibration as peakfit_calibration
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core import MonoSetting  # type: ignore
 
 # Define Default Material
 _Materials = {}
-_Materials['ffe'] = 2.8663982
+_Materials['fe'] = 2.8663982
 _Materials['mo'] = 3.14719963
 _Materials['ni'] = 3.523799438
 _Materials['ge'] = 5.657568976977
@@ -53,9 +54,8 @@ IPTS_ = 22731
 PIN_RUN = None
 HFIR_CYCLE = None
 REFINE_METHOD = 'full'
-POWDER_LINES = []
+POWDER_LINES = list()
 SAVE_CALIB = True
-WRITE_LATEST = False
 
 # Allow a varriety of inputs to catch errors
 powderlineinput = ['powder lines', 'powder_lines', 'powderlines', 'powder line', 'powder_line', 'powderline']
@@ -65,11 +65,29 @@ calinput = ['calibration', 'old calibration', 'old_calibration']
 methodinput = ['method', 'methods']
 maskinput = ['mask', 'default mask']
 exportinput = ['save', 'export', 'save calibration', 'save_calibration']
-savelatest = ['write latest', 'write_latest', 'latest']
 
 # Defualt check for method input
 method_options = ["full", "geometry", "shifts", "shift x", "shift_x", "shift y", "shift_y",
                   "distance", "rotations", "wavelength"]
+
+# set default calibration inputs
+calibration_inputs = {"POWDER_LINES": None,
+                      "POWDER_RUN": None,
+                      "PIN_RUN": None,
+                      "ipts": None,
+                      "HFIR_CYCLE": None,
+                      "REFINE_METHOD": 'shifts+distance+rotations+full',
+                      "INSTRUMENT_CALIBRATION": None,
+                      "DATA_MASK": None,
+                      "min_tth": None,
+                      "max_tth": None,
+                      "min_eta": None,
+                      "max_eta": None,
+                      "SAVE_CALIB": False,
+                      "bins": 512,
+                      "min_subrun": 0,
+                      "max_subrun": 0,
+                      "solver": "least_squares"}
 
 
 def _load_nexus_data(ipts, nexus_run, mask_file):
@@ -80,13 +98,25 @@ def _load_nexus_data(ipts, nexus_run, mask_file):
     return hidra_ws
 
 
-def _run_calibration(calibrator, calib_method):
+def _get_mono_setting(dataset):
+    return MonoSetting.getFromRotation(dataset.get_sample_log_value('mrot', 1))
+
+
+def _run_calibration(calibrator, calib_method, solver):
     """
     """
+    if solver.lower() == 'least_squares':
+        Brute = False
+    elif solver.lower() == 'brute':
+        Brute = True
+    elif solver.lower() == 'differential evolution':
+        Brute = 2
+    else:
+        Brute = 3
 
     if calib_method == "full":
         calibrator.singlepeak = False
-        calibrator.FullCalibration(ConstrainPosition=True)
+        calibrator.FullCalibration(ConstrainPosition=True, Brute=Brute)
     elif calib_method == "geometry":
         calibrator.singlepeak = False
         calibrator.CalibrateGeometry(ConstrainPosition=True)
@@ -151,7 +181,7 @@ def _write_template():
         out.write('\t"Powder scan": 1090,\n')
         out.write('\t"Pin scan": 1086,\n')
         out.write('\t"Method": "full",\n')
-        out.write('\t"Powder Lines": ["ffe 200", "Mo 211", "Ni 220", "ffe 211", "Mo 220", "Ni 311", ')
+        out.write('\t"Powder Lines": ["fe 200", "Mo 211", "Ni 220", "ffe 211", "Mo 220", "Ni 311", ')
         out.write('"Ni 222", "fFe 220", "Mo 310", "fFe 310"]\n')
         out.write('}\n')
 
@@ -175,65 +205,77 @@ if __name__ == '__main__':
 
     with open(sys.argv[1], 'r') as json_input:
         try:
-            calibration_inputs = json.load(json_input)
+            calibration_user_inputs = json.load(json_input)
         except ValueError:
             print('Formating error in json input file.\n{}\n{}\n{}'.format(_options, M_options, P_options))
             _write_template()
             raise RuntimeError('template.json was created as an example input')
 
-    for key in list(calibration_inputs.keys()):
+    for key in list(calibration_user_inputs.keys()):
         if key.lower() in powderlineinput:
-            POWDER_LINES = _parse_powder_line(calibration_inputs[key])
+            calibration_inputs['POWDER_LINES'] = _parse_powder_line(calibration_user_inputs[key])
         elif key.lower() in powerinput:
-            POWDER_RUN = calibration_inputs[key]
+            calibration_inputs['POWDER_RUN'] = calibration_user_inputs[key]
         elif key.lower() in pininput:
-            PIN_RUN = calibration_inputs[key]
-        elif key.lower() == 'ipts':
-            IPTS_ = calibration_inputs[key]
-        elif key.lower() == 'cycle':
-            HFIR_CYCLE = calibration_inputs[key]
-        elif key.lower() == 'method':
-            REFINE_METHOD = calibration_inputs[key]
+            calibration_inputs['PIN_RUN'] = calibration_user_inputs[key]
         elif key.lower() in calinput:
-            INSTRUMENT_CALIBRATION = calibration_inputs[key]
+            calibration_inputs['INSTRUMENT_CALIBRATION'] = calibration_user_inputs[key]
         elif key.lower() in maskinput:
-            DATA_MASK = calibration_inputs[key]
+            calibration_inputs['DATA_MASK'] = calibration_user_inputs[key]
         elif key.lower() in exportinput:
-            SAVE_CALIB = bool(str(calibration_inputs[key]).lower() == 'true')
-        elif key.lower() in savelatest:
-            WRITE_LATEST = bool(str(calibration_inputs[key]).lower() == 'true')
+            calibration_inputs['SAVE_CALIB'] = bool(str(calibration_user_inputs[key]).lower() == 'true')
+        else:
+            calibration_inputs[key.lower()] = calibration_user_inputs[key]
 
-    if '+' in REFINE_METHOD:
+    if '+' in calibration_inputs['method']:
         SPLITTER = '+'
-    elif ',' in REFINE_METHOD:
+    elif ',' in calibration_inputs['method']:
         SPLITTER = ','
     else:
         SPLITTER = ' '
 
-    check_method_input(REFINE_METHOD, SPLITTER)
+    check_method_input(calibration_inputs['method'], SPLITTER)
 
-    if POWDER_RUN is not None:
-        POWDER_RUN = _load_nexus_data(IPTS_, POWDER_RUN, DATA_MASK)
+    if calibration_inputs['POWDER_RUN'] is not None:
+        calibration_inputs['POWDER_RUN'] = _load_nexus_data(calibration_inputs['ipts'],
+                                                            calibration_inputs['POWDER_RUN'],
+                                                            calibration_inputs['DATA_MASK'])
         single_material = False
-        mono = MonoSetting.getFromRotation(POWDER_RUN.get_sample_log_value('mrot', 1))
-    if PIN_RUN is not None:
-        PIN_RUN = _load_nexus_data(IPTS_, PIN_RUN, DATA_MASK)
+        mono = _get_mono_setting(calibration_inputs['POWDER_RUN'])
+
+    if calibration_inputs['PIN_RUN'] is not None:
+        calibration_inputs['PIN_RUN'] = _load_nexus_data(calibration_inputs['ipts'],
+                                                         calibration_inputs['PIN_RUN'],
+                                                         calibration_inputs['DATA_MASK'])
         single_material = True
-        mono = MonoSetting.getFromRotation(PIN_RUN.get_sample_log_value('mrot', 1))
+        mono = _get_mono_setting(calibration_inputs['PIN_RUN'])
 
-    calibrator = peakfit_calibration.PeakFitCalibration(powder_engine=POWDER_RUN, pin_engine=PIN_RUN,
-                                                        powder_lines=POWDER_LINES, single_material=single_material)
+    calibrator = peakfit_calibration.PeakFitCalibration(powder_engine=calibration_inputs['POWDER_RUN'],
+                                                        pin_engine=calibration_inputs['PIN_RUN'],
+                                                        powder_lines=calibration_inputs['POWDER_LINES'],
+                                                        single_material=single_material)
 
-    if INSTRUMENT_CALIBRATION is not None:
-        calibrator.get_archived_calibration(INSTRUMENT_CALIBRATION)
+    calibrator.bins = calibration_inputs['bins']
+    calibrator.min_tth = calibration_inputs['min_tth']
+    calibrator.max_tth = calibration_inputs['max_tth']
+    calibrator.min_eta = calibration_inputs['min_eta']
+    calibrator.max_eta = calibration_inputs['max_eta']
+    calibrator.min_subrun = calibration_inputs['min_subrun']
+    calibrator.max_subrun = calibration_inputs['max_subrun']
 
-    for calib_method in REFINE_METHOD.split(SPLITTER):
-        calibrator = _run_calibration(calibrator, calib_method)
+    print(calibration_inputs['INSTRUMENT_CALIBRATION'])
+    if calibration_inputs['INSTRUMENT_CALIBRATION'] is not None:
+        calibrator.get_archived_calibration(calibration_inputs['INSTRUMENT_CALIBRATION'])
+        print(calibrator._calib)
 
-    if SAVE_CALIB:
+    calibration_methods = calibration_inputs['method']
+    for calib_method in calibration_methods.split(SPLITTER):
+        calibrator = _run_calibration(calibrator, calib_method, calibration_inputs["solver"])
+
+    if calibration_inputs['SAVE_CALIB']:
         datatime = time.strftime('%Y-%m-%dT%H-%M', time.localtime())
         if HFIR_CYCLE is not None:
-            FolderName = '/HFIR/HB2B/shared/CALIBRATION/cycle{}'.format(HFIR_CYCLE)
+            FolderName = '/HFIR/HB2B/shared/CALIBRATION/cycle{}'.format(calibration_inputs['cycle'])
             if not os.path.exists(FolderName):
                 os.makedirs(FolderName)
             CalibName = '/HFIR/HB2B/shared/CALIBRATION/cycle{}/HB2B_{}_{}.json'.format(HFIR_CYCLE, mono, datatime)
@@ -241,11 +283,6 @@ if __name__ == '__main__':
 
         CalibName = '/HFIR/HB2B/shared/CALIBRATION/HB2B_{}_{}.json'.format(mono, datatime)
         calibrator.write_calibration(CalibName)
-
-        if WRITE_LATEST:
-            CalibName = '/HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json'
-            calibrator.write_calibration(CalibName)
-
         print(calibrator.refinement_summary)
     else:
         calibrator.print_calibration()
