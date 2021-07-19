@@ -26,9 +26,9 @@ DEFAULT_KEEP_LOGS = ['experiment_identifier', 'run_number', 'run_title', 'file_n
                      'Filename', 'sub-run', 'duration', 'mrot', 'mtilt', 'mb220', 'mb511', 'ISD', 'ISR:X:Gap',
                      'ISR:Y:Gap', 'DOX', 'DOY', 'DOR', 'omega', '2theta', 'phi', 'chi', 'sx', 'sy', 'sz',
                      'vx', 'vy', 'vz', 'omegaSetpoint', '2thetaSetpoint', 'phiSetpoint', 'chiSetpoint', 'sxSetpoint',
-                     'sySetpoint', 'szSetpoint', 'scan_index', 'duration', 'HB2B:CS:Sweep:Control',
-                     'HB2B:CS:Sweep:Device']
+                     'sySetpoint', 'szSetpoint', 'scan_index', 'duration']
 
+SWEEPING_LOGS = ['HB2B:CS:Sweep:Control', 'HB2B:CS:Sweep:Device']
 
 def convert_pulses_to_datetime64(h5obj):
     '''The h5object is the h5py handle to ``event_time_zero``. This only supports pulsetimes in seconds'''
@@ -92,7 +92,7 @@ def check_sweeping_motor(runObj) -> list:
     if 'HB2B:CS:Sweep:Control' in list(runObj.keys()):
         if runObj['HB2B:CS:Sweep:Control'][()] == 1:
             motor_search.pop(motor_search.index(runObj['HB2B:CS:Sweep:Device'][()]))
-    else:    # Guess sweeping logs based on the number of entries
+    elif len(list(runObj.keys())) > 1:    # Guess sweeping logs based on the number of entries
         num_points = runObj['scan_index'].size() * 10
 
         for motor in motor_search:
@@ -303,6 +303,7 @@ class NeXusConvertingApp:
 
         logs_to_keep = list(extra_logs)
         logs_to_keep.extend(DEFAULT_KEEP_LOGS)
+        logs_to_keep.extend(SWEEPING_LOGS)
 
         self.__load_logs(logs_to_keep)
 
