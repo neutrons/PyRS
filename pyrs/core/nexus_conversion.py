@@ -26,7 +26,8 @@ DEFAULT_KEEP_LOGS = ['experiment_identifier', 'run_number', 'run_title', 'file_n
                      'Filename', 'sub-run', 'duration', 'mrot', 'mtilt', 'mb220', 'mb511', 'ISD', 'ISR:X:Gap',
                      'ISR:Y:Gap', 'DOX', 'DOY', 'DOR', 'omega', '2theta', 'phi', 'chi', 'sx', 'sy', 'sz',
                      'vx', 'vy', 'vz', 'omegaSetpoint', '2thetaSetpoint', 'phiSetpoint', 'chiSetpoint', 'sxSetpoint',
-                     'sySetpoint', 'szSetpoint', 'scan_index', 'duration', 'HB2B:CS:Sweep:Control', 'HB2B:CS:Sweep:Device']
+                     'sySetpoint', 'szSetpoint', 'scan_index', 'duration', 'HB2B:CS:Sweep:Control',
+                     'HB2B:CS:Sweep:Device']
 
 
 def convert_pulses_to_datetime64(h5obj):
@@ -87,16 +88,17 @@ def check_sweeping_motor(runObj) -> list:
     """
     motor_search = ['sx', 'sy', 'sz', '2theta', 'omega', 'chi', 'phi']
 
-    try:
-        runObj['HB2B:CS:Sweep:Control']
-    except RuntimeError:
-
-        num_points = runObj['vx'].value.shape[0] * 2
+    # Check if sweeping logs are stored in nexus file
+    if 'HB2B:CS:Sweep:Control' in list(runObj.keys()):
+        if runObj['HB2B:CS:Sweep:Control'][()] == 1:
+            motor_search.pop(motor_search.index(runObj['HB2B:CS:Sweep:Device'][()]))
+    else:    # Guess sweeping logs based on the number of entries
+        num_points = runObj['scan_index'].size() * 10
 
         for motor in motor_search:
-            if runObj[motor].value.shape[0] > num_points:
+            if runObj[motor].size() > num_points:
                 motor_search.pop(motor_search.index(motor))
-    
+
     return motor_search
 
 
@@ -183,7 +185,7 @@ class Splitter:
         if self.times.shape[0] != self.subruns.shape[0] * 2:
             raise RuntimeError('Sub run number {} and sub run times {} do not match (as twice)'
                                ''.format(self.subruns, self.times))
-    
+
     def __correct_starting_scan_index_time(self, runObj, abs_tolerance: float = 0.05) -> None:
         """Correct the DAS-issue for mis-record the first scan_index/sub run before the motor is in position
 
@@ -404,7 +406,7 @@ class NeXusConvertingApp:
                 event_index_array = bank1_events['event_index'].value
                 # get pulse times
                 pulse_time_array = convert_pulses_to_datetime64(bank1_events['event_time_zero'])
-                
+
                 subrun_eventindex_array = self._generate_subrun_event_indices(pulse_time_array, event_index_array,
                                                                               event_id_array.size)
                 # reduce memory foot print
