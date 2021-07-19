@@ -30,6 +30,7 @@ DEFAULT_KEEP_LOGS = ['experiment_identifier', 'run_number', 'run_title', 'file_n
 
 SWEEPING_LOGS = ['HB2B:CS:Sweep:Control', 'HB2B:CS:Sweep:Device']
 
+
 def convert_pulses_to_datetime64(h5obj):
     '''The h5object is the h5py handle to ``event_time_zero``. This only supports pulsetimes in seconds'''
     if h5obj.attrs['units'].decode() != 'second':
