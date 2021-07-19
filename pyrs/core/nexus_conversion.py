@@ -28,6 +28,8 @@ DEFAULT_KEEP_LOGS = ['experiment_identifier', 'run_number', 'run_title', 'file_n
                      'vx', 'vy', 'vz', 'omegaSetpoint', '2thetaSetpoint', 'phiSetpoint', 'chiSetpoint', 'sxSetpoint',
                      'sySetpoint', 'szSetpoint', 'scan_index', 'duration']
 
+SWEEPING_LOGS = ['HB2B:CS:Sweep:Control', 'HB2B:CS:Sweep:Device']
+
 
 def convert_pulses_to_datetime64(h5obj):
     '''The h5object is the h5py handle to ``event_time_zero``. This only supports pulsetimes in seconds'''
@@ -69,6 +71,36 @@ def calculate_sub_run_time_average(log_property, time_filter) -> float:
         del filtered_tsp
 
     return time_average_value
+
+
+def check_sweeping_motor(runObj) -> list:
+    """Check if sweeping is active and exclude motor from time correction search
+
+    Parameters
+    ----------
+    runObj: hdf5 stack
+        event worksapce stack
+
+    Returns
+    -------
+    list
+        list of motor names for start time correction search
+
+    """
+    motor_search = ['sx', 'sy', 'sz', '2theta', 'omega', 'chi', 'phi']
+
+    # Check if sweeping logs are stored in nexus file
+    if 'HB2B:CS:Sweep:Control' in list(runObj.keys()):
+        if runObj['HB2B:CS:Sweep:Control'][()] == 1:
+            motor_search.pop(motor_search.index(runObj['HB2B:CS:Sweep:Device'][()]))
+    elif len(list(runObj.keys())) > 1:    # Guess sweeping logs based on the number of entries
+        num_points = runObj['scan_index'].size() * 10
+
+        for motor in motor_search:
+            if runObj[motor].size() > num_points:
+                motor_search.pop(motor_search.index(motor))
+
+    return motor_search
 
 
 class Splitter:
@@ -164,8 +196,8 @@ class Splitter:
 
         Parameters
         ----------
-        start_time: numpy.datetime64
-            The start time according to the scan_index log
+        runObj: hdf5 stack
+            event worksapce stack
         abs_tolerance: float
             When then log is within this absolute tolerance of the setpoint, it is correct
 
@@ -176,8 +208,12 @@ class Splitter:
 
         """
         start_time = self.times[0]
+
+        # get motor 'special' logs
+        motor_search = check_sweeping_motor(runObj)
+
         # loop through the 'special' logs
-        for log_name in ['sx', 'sy', 'sz', '2theta', 'omega', 'chi', 'phi']:
+        for log_name in motor_search:
             if log_name not in runObj:
                 continue  # log doesn't exist - not a good one to look at
             if log_name + 'Setpoint' not in runObj:
@@ -268,6 +304,7 @@ class NeXusConvertingApp:
 
         logs_to_keep = list(extra_logs)
         logs_to_keep.extend(DEFAULT_KEEP_LOGS)
+        logs_to_keep.extend(SWEEPING_LOGS)
 
         self.__load_logs(logs_to_keep)
 
@@ -371,6 +408,7 @@ class NeXusConvertingApp:
                 event_index_array = bank1_events['event_index'].value
                 # get pulse times
                 pulse_time_array = convert_pulses_to_datetime64(bank1_events['event_time_zero'])
+
                 subrun_eventindex_array = self._generate_subrun_event_indices(pulse_time_array, event_index_array,
                                                                               event_id_array.size)
                 # reduce memory foot print

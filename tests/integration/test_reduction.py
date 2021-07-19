@@ -231,7 +231,7 @@ def test_reduce_data(mask_file_name, filtered_counts, histogram_counts):
     # check ranges and total counts
     for sub_run, angle, total_counts in zip(SUBRUNS, CENTERS, histogram_counts):
         assert_label = 'mismatch in subrun={} for histogrammed data'.format(sub_run)
-        x, y = reducer.get_diffraction_data(sub_run)
+        x, y, e = reducer.get_diffraction_data(sub_run)
         assert x[0] < angle < x[-1], assert_label
         # assert np.isnan(np.sum(y[1:])), assert_label
         np.testing.assert_almost_equal(np.nansum(y), total_counts, decimal=1, err_msg=assert_label)

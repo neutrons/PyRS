@@ -488,10 +488,6 @@ class HB2BReductionManager:
                                                                           num_bins, delta_2theta, mask_vec,
                                                                           vanadium_counts)
 
-        if van_duration is not None:
-            hist *= van_duration
-            variances *= van_duration
-
         # record
         workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_centers, hist, variances)
         self._last_reduction_engine = reduction_engine
@@ -630,10 +626,6 @@ class HB2BReductionManager:
                                                                               num_bins, delta_2theta, eta_mask,
                                                                               vanadium_counts)
 
-            if van_duration is not None:
-                hist *= van_duration
-                variances *= van_duration
-
             if mask_id is None:
                 eta_mask_id = 'eta_{}'.format(eta_cent)
             else:
@@ -744,8 +736,8 @@ class HB2BReductionManager:
             num_bins = np.ceil((max_2theta - min_2theta) / step_2theta) + 1
 
         # Check inputs
-        min_2theta = to_float('Minimum 2theta', min_2theta, 20, 140)
-        max_2theta = to_float('Maximum 2theta', max_2theta, 21, 180)
+        min_2theta = to_float('Minimum 2theta', min_2theta, 0.0, 140)
+        max_2theta = to_float('Maximum 2theta', max_2theta, 0.5, 180)
         step_2theta = to_float('2theta bin size', step_2theta, 0, 180)
         if min_2theta >= max_2theta:
             raise RuntimeError('2theta range ({}, {}) is invalid for generating histogram'
