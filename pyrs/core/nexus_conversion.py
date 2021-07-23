@@ -90,10 +90,10 @@ def check_sweeping_motor(runObj) -> list:
     motor_search = ['sx', 'sy', 'sz', '2theta', 'omega', 'chi', 'phi']
 
     # Check if sweeping logs are stored in nexus file
-    if 'HB2B:CS:Sweep:Control' in list(runObj.keys()):
+    if runObj.hasProperty('HB2B:CS:Sweep:Control'):
         if runObj['HB2B:CS:Sweep:Control'][()] == 1:
             motor_search.pop(motor_search.index(runObj['HB2B:CS:Sweep:Device'][()]))
-    elif len(list(runObj.keys())) > 1:    # Guess sweeping logs based on the number of entries
+    elif runObj.hasProperty('2theta'):    # Guess sweeping logs based on the number of entries
         num_points = runObj['scan_index'].size() * 10
 
         for motor in motor_search:
@@ -571,7 +571,9 @@ class NeXusConvertingApp:
         if runObj.hasProperty('MonoSetting'):
             monosetting = MonoSetting.getFromIndex(runObj.getPropertyAsSingleValue('MonoSetting'))
         else:
-            monosetting = MonoSetting.getFromRotation(runObj.getPropertyAsSingleValue('mrot'))
+            # monosetting = MonoSetting.getFromRotation(runObj.getPropertyAsSingleValue('mrot'))
+            monosetting = MonoSetting.getFromRotation(self._hidra_workspace.get_sample_log_values('mrot', sub_runs=1))
+
         self._hidra_workspace.set_wavelength(float(monosetting), calibrated=False)
 
         return self._hidra_workspace
