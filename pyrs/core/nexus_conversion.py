@@ -90,10 +90,10 @@ def check_sweeping_motor(runObj) -> list:
     motor_search = ['sx', 'sy', 'sz', '2theta', 'omega', 'chi', 'phi']
 
     # Check if sweeping logs are stored in nexus file
-    if runObj.hasProperty('HB2B:CS:Sweep:Control'):
+    if 'HB2B:CS:Sweep:Control' in runObj:
         if runObj['HB2B:CS:Sweep:Control'][()] == 1:
             motor_search.pop(motor_search.index(runObj['HB2B:CS:Sweep:Device'][()]))
-    elif runObj.hasProperty('2theta'):    # Guess sweeping logs based on the number of entries
+    elif '2theta' in runObj:    # Guess sweeping logs based on the number of entries
         num_points = runObj['scan_index'].size() * 10
 
         for motor in motor_search:
