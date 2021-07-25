@@ -498,8 +498,9 @@ class TestScalarFieldSample:
             assert dimension.getMaximum() == pytest.approx(max_value + 0.25)
             assert dimension.getNBins() == 2
 
-        np.testing.assert_equal(histo.getSignalArray().ravel(), self.sample3.values, err_msg='Signal')
-        np.testing.assert_equal(histo.getErrorSquaredArray().ravel(), np.square(self.sample3.errors), err_msg='Errors')
+        field.sort()  # converting to MDHistoWorkspace does sort the input scalar field
+        np.testing.assert_equal(histo.getSignalArray().ravel(), field.values, err_msg='Signal')
+        np.testing.assert_equal(histo.getErrorSquaredArray().ravel(), np.square(field.errors), err_msg='Errors')
 
         # clean up
         histo.delete()
