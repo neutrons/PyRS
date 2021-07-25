@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.testing import assert_array_equal, assert_array_almost_equal
 import pytest
 from pyrs.dataobjects.constants import HidraConstants, DEFAULT_POINT_RESOLUTION
 from pyrs.dataobjects.sample_logs import DirectionExtents, PointList, aggregate_point_lists, SampleLogs
@@ -241,6 +242,18 @@ class TestPointList:
     def test_coordinates(self, sample_logs_mock):
         point_list = PointList(sample_logs_mock['logs'])
         np.testing.assert_allclose(point_list.coordinates, np.array(sample_logs_mock['xyz']).transpose())
+
+    def test_sort(self):
+        xyz = [[0, 0, 0, 0], [1, 2, 1, 2], [3, 3, 4, 4]]
+        point_list = PointList(xyz)
+        point_list.sort()
+        assert_array_almost_equal(point_list.vy, [1, 1, 2, 2], decimal=1)
+        assert_array_almost_equal(point_list.vz, [3, 4, 3, 4], decimal=1)
+
+    def test_argsort(self):
+        xyz = [[0, 0, 0, 0], [1, 2, 1, 2], [3, 3, 4, 4]]
+        point_list = PointList(xyz)
+        assert_array_equal(point_list.argsort(), [0, 2, 1, 3])
 
     def test_coordinates_along_direction(self):
         xyz = [[0, 1], [2, 3], [4, 5]]

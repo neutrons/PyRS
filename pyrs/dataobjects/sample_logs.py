@@ -752,6 +752,20 @@ class PointList:
         return np.allclose(self.vx, other.vx, atol=self.ATOL) and np.allclose(self.vy, other.vy, atol=self.ATOL) \
             and np.allclose(self.vz, other.vz, atol=self.ATOL)
 
+    def sort(self) -> None:
+        r"""Reorder the points in the list by increasing vz, then by increasing vy, and finally by
+         increasing vx"""
+        coordinates = sorted([xyz.tolist() for xyz in self.coordinates])
+        self._vx, self._vy, self._vz = np.array(coordinates).transpose()
+
+    def argsort(self) -> np.ndarray:
+        r"""Return the permutation that reorder the points in the list by increasing vz, then by increasing vy,
+         and finally by increasing vx"""
+        enumerated_coordinates = [[i, x.tolist()] for i, x in enumerate(self.coordinates)]
+        enumerated_coordinates_sorted = sorted(enumerated_coordinates, key=lambda a: a[1])
+        permutation = [i for i, _ in enumerated_coordinates_sorted]
+        return np.array(permutation)
+
     def is_contained_in(self, other: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> bool:
         r"""
         For every point in the list, check that a point in the other list exist within
