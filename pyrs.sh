@@ -1,6 +1,6 @@
 #!/bin/sh
 # check that a valid mantidpython was found
-MANTIDPYTHON=mantidpythonnightly
+MANTIDPYTHON=mantidpython51
 if [ ! $(command -v $MANTIDPYTHON) ]; then
     echo "Failed to find mantidpython \"$MANTIDPYTHON\""
     exit -1

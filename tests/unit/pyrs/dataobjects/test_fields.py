@@ -286,6 +286,15 @@ class TestScalarFieldSample:
         for attribute in ('values', 'errors', 'x', 'y', 'z'):
             assert getattr(field, attribute) == pytest.approx([0.1, 0.2, 0.5, 0.6])
 
+    def test_sort(self):
+        field = ScalarFieldSample(*TestScalarFieldSample.sample3)
+        field.sort()
+        assert field.x == pytest.approx([0, 0, 0, 0, 0.5, 0.5, 0.5, 0.5])
+        assert field.y == pytest.approx([1, 1, 1.5, 1.5, 1, 1, 1.5, 1.5])
+        assert field.z == pytest.approx([2, 2.5, 2, 2.5, 2, 2.5, 2, 2.5])
+        assert field.values == pytest.approx([1, 5, 3, 7, 2, 6, 4, 8])
+        assert field.errors == pytest.approx([0.1, 0.5, 0.3, 0.7, 0.2, 0.6, 0.4, 0.8])
+
     def test_interpolated_sample_regular(self, field_cube_regular):
         r"""
         Test with an input regular grid. No interpolation should be necessary because
@@ -489,8 +498,9 @@ class TestScalarFieldSample:
             assert dimension.getMaximum() == pytest.approx(max_value + 0.25)
             assert dimension.getNBins() == 2
 
-        np.testing.assert_equal(histo.getSignalArray().ravel(), self.sample3.values, err_msg='Signal')
-        np.testing.assert_equal(histo.getErrorSquaredArray().ravel(), np.square(self.sample3.errors), err_msg='Errors')
+        field.sort()  # converting to MDHistoWorkspace does sort the input scalar field
+        np.testing.assert_equal(histo.getSignalArray().ravel(), field.values, err_msg='Signal')
+        np.testing.assert_equal(histo.getErrorSquaredArray().ravel(), np.square(field.errors), err_msg='Errors')
 
         # clean up
         histo.delete()

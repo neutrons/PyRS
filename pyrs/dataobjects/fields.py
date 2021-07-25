@@ -267,11 +267,21 @@ class ScalarFieldSample:
         indexes_finite = np.where(np.isfinite(self.values))[0]
         return self.extract(indexes_finite)
 
+    def sort(self):
+        r"""In-place reordering of the list of points (along with their associated values
+         and errors) by increasing z, then by increasing y, and finally by increasing x"""
+        permutation = self.point_list.argsort()
+        self._point_list.sort()  # in-place sort
+        self._sample = self._sample[permutation]
+
     def interpolated_sample(self, method: str = 'linear', fill_value: float = float('nan'), keep_nan: bool = True,
                             resolution: float = DEFAULT_POINT_RESOLUTION,
                             criterion: str = 'min_error') -> 'ScalarFieldSample':
         r"""
         Interpolate the scalar field sample of a regular grid given by the extents of the sample points.
+
+        If the original points are already a regular grid. Thus, there's no need to interpolate and the original
+        sample is returned, after we filter out duplicated points.
 
         Interpolation for linear scans is done along the scan direction, and interpolation for surface scans
         is done on the 2D surface.
@@ -502,19 +512,19 @@ class ScalarFieldSample:
         # use ScalarFieldSample name is one isn't defined
         if not name:
             name = self.name
-
         if interpolate is True:
             sample = self.interpolated_sample(method=method, fill_value=fill_value, keep_nan=keep_nan,
                                               resolution=resolution, criterion=criterion)
         else:
             sample = self
 
+        sample.sort()  # reorder points by increasing z, then increasing y, then increasing x
+
         extents = sample.point_list.extents(resolution=resolution)  # triad of DirectionExtents objects
         for extent in extents:
             assert extent[0] <= extent[1], f'min value of {extent} is greater than max value'
         # Units of sample points in PointList are 'mm', which we keep when exporting
         extents_str = ','.join([extent.to_createmd(input_units='mm', output_units='mm') for extent in extents])
-
         # create an empty event workspace of the correct dimensions
         axis_labels = ('x', 'y', 'z')
         CreateMDWorkspace(OutputWorkspace='__tmp', Dimensions=3, Extents=extents_str,
