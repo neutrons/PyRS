@@ -66,7 +66,7 @@ The 2nd Generation Neutron Residual Stress Facility (NRSF2) residual stress mapp
   * *Peak Fitting Analysis*
     * Reduced 1D data are analyzed using single-peak fitting to extract information about the position, intensity, full-width half maximum of N peaks within the detector field of view. Users can define specific peak fitting ranges using the graphical interface or using a JSON formatted text file. Users can export the graphically select peak ranges into a JSON file for later use. Peak fitting results are automatically appended into the loaded HIDRA project file. Alternatively, users can export a CSV summary of the results.
   * *Residual Stress Analysis*
-    * Residual stress analysis requires peak fitting results for 2 or 3 orthogonal directions. `pyRS` does not limit users to only defining a single HIDRA project file per direction. `pyRS` can merge multiple project files based on the spatial position metadata logs. `pyRS` determines residual stresses by:
+    * Residual stress analysis requires peak fitting results for 2 or 3 orthogonal directions. `pyRS` does not limit users to only defining a single HIDRA project file per direction. `pyRS` can merge multiple project files based on the spatial position metadata logs. `pyRS` determines residual stresses using a simple linear elasticity model to related the resulting stress from the calculated strain from the measured Bragg peaks typical in neutron scattering experiments, by:
     \begin{equation}\label{eq:stress}
     \sigma_{ii}=\frac{E}{\left ( 1 + \nu \right )}\left [ \varepsilon_{ii} + \frac{\nu}{1-2\nu} \left ( \varepsilon_{11} + \varepsilon_{22} + \varepsilon_{33} \right )\right ]
     \end{equation}
@@ -82,6 +82,17 @@ The 2nd Generation Neutron Residual Stress Facility (NRSF2) residual stress mapp
     \begin{equation}\label{eq:d}
     d_{hkl}(x,y,z) = \frac{\lambda}{2sin\theta(x,y,z)}
     \end{equation}
+
+    in which:
+    - $\sigma_{ii}$: orthogonal residual stresses
+    - $\varepsilon_{ii}$: orthogonal calculated strains
+    - $d$: atomic lattice d-spacing from Bragg's Law
+    - $d_0$: nominal atomic lattice d-spacing
+    - $hkl$: crytallographic plane indices
+    - $(x,y,z)$: spatial coordinates
+    - $\lambda$: measured wavelength
+    - $\theta$: angle measured from a normal surface
+
 
 # Acknowledgements
 
