@@ -714,12 +714,12 @@ def test_pseudovoigt_HB2B_1060(target_values):
 
 
      """
-    # Define HiDRA project file name and skip test if it does not exist (on Travis)
+    # Define HiDRA project file name and skip test if it does not exist (on GitHub Actions)
 
     project_file_name = 'tests/data/HB2B_1060_first3_subruns.h5'
 
     if not os.path.exists(project_file_name):
-        pytest.skip('{} does not exist on Travis'.format(project_file_name))
+        pytest.skip('{} does not exist on GitHub Actions'.format(project_file_name))
 
     # Create calibration control
     controller = pyrscore.PyRsCore()
