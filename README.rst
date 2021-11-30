@@ -1,5 +1,5 @@
-.. image:: https://travis-ci.org/neutrons/PyRS.svg?branch=master
-    :target: https://travis-ci.org/neutrons/PyRS
+.. image:: https://github.com/neutrons/PyRS/actions/workflows/ci.yml/badge.svg?branch=next
+  :target: https://github.com/neutrons/PyRS/actions?query=branch:next
 
 .. image:: https://codecov.io/gh/neutrons/PyRS/branch/master/graph/badge.svg
   :target: https://codecov.io/gh/neutrons/PyRS

@@ -7,7 +7,7 @@ import numpy as np
 import os
 import pytest
 import json
-from tests.conftest import ON_TRAVIS  # set to True when running on build servers
+from tests.conftest import ON_GITHUB_ACTIONS  # set to True when running on build servers
 
 wait = 100
 
@@ -595,7 +595,7 @@ def test_model_from_json(tmpdir, test_data_dir):
 
 
 # changes to SliceViewer from Mantid in the version 5.1 is needed for the stress/strain viewer to run
-@pytest.mark.skipif(ON_TRAVIS, reason='Need mantid version >= 5.1')
+@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason='Need mantid version >= 5.1')
 def test_stress_strain_viewer(qtbot):
 
     model = Model()

@@ -164,7 +164,7 @@ def test_retrieve_fit_metadata(source_project_file, output_project_file, peak_ty
 
     """
     if os.path.exists(source_project_file) is False:
-        pytest.skip('{} does not exist on Travis'.format(source_project_file))
+        pytest.skip('{} does not exist on Github Actions'.format(source_project_file))
 
     # Create calibration control
     controller = pyrscore.PyRsCore()
@@ -267,10 +267,10 @@ def test_improve_quality():
     -------
 
     """
-    # Define HiDRA project file name and skip test if it does not exist (on Travis)
+    # Define HiDRA project file name and skip test if it does not exist (on Github Actions)
     project_file_name = '/HFIR/HB2B/IPTS-22731/shared/autoreduce/HB2B_1060.h5'
     if not os.path.exists(project_file_name):
-        pytest.skip('{} does not exist on Travis'.format(project_file_name))
+        pytest.skip('{} does not exist on Github Actions'.format(project_file_name))
 
     # Create calibration control
     controller = pyrscore.PyRsCore()
