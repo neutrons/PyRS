@@ -1,7 +1,12 @@
 name: PyRS
 dependencies:
-- configparser
 - mantid-workbench
-- psutil
-- python
-- setuptools
+- qtpy
+- pytest
+- pytest-cov
+- pytest-qt==3.3.0
+- uncertainties
+- vtk
+- flake8
+- mypy
+- types-six
