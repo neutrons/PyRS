@@ -398,6 +398,9 @@ class LiveConvertingApp:
     def split_events_sub_runs(self):
         '''Filter the data by ``scan_index`` and set counts array in the hidra_workspace'''
 
+        start_time = self._live_wsp.getRun().getProperty('start_time').value
+        start_time = np.array(start_time, dtype='datetime64[ns]')
+
         # Load: this h5 will be opened all the time
         event_id_array = np.zeros(self._live_wsp.getNumberEvents(), dtype=np.int32)
         pulse_time_array = np.zeros(self._live_wsp.getNumberEvents(), dtype='datetime64[ns]')
@@ -411,10 +414,10 @@ class LiveConvertingApp:
 
             event_0 += num_events
 
-        sort_index = np.argsort(pulse_time_array.astype(np.float32))
+        sort_index = np.argsort((pulse_time_array - start_time) / np.timedelta64(1, 's'))
 
-        pulse_time_array = pulse_time_array[sort_index]
         event_id_array = event_id_array[sort_index]
+        pulse_time_array = pulse_time_array[sort_index]
 
         event_index_array = np.arange(event_id_array.size)
 
