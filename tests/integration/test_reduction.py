@@ -1,5 +1,6 @@
 import os
 from pyrs.core.nexus_conversion import NeXusConvertingApp, DEFAULT_KEEP_LOGS
+from pyrs.core.live_data_conversion import LiveConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
 from pyrs.dataobjects import HidraConstants  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
@@ -52,6 +53,39 @@ def convertNeXusToProject(nexusfile, projectfile, skippable, mask_file_name=None
 
     converter = NeXusConvertingApp(nexusfile, mask_file_name=mask_file_name)
     hidra_ws = converter.convert(use_mantid=False)
+    if projectfile is not None:
+        converter.save(projectfile)
+        # tests for the created file
+        assert os.path.exists(projectfile), 'Project file {} does not exist'.format(projectfile)
+
+    return hidra_ws
+
+
+def convertMantidToProject(nexusfile, projectfile, skippable, mask_file_name=None):
+    '''
+    Parameters
+    ==========
+    nexusfile: str
+        Path to Nexus file to reduce
+    projectfile: str or None
+        Path to the project file to save. If this is :py:obj:`None`, then the project file is not created
+    skippable: bool
+        Whether missing the nexus file skips the test or fails it
+    mask_file_name: str or None
+        Name of the masking file to use
+    :return:
+    '''
+    if skippable:
+        checkFileExists(nexusfile, feedback='skip')
+    else:
+        checkFileExists(nexusfile, feedback='assert')
+
+    # remove the project file if it currently exists
+    if projectfile and os.path.exists(projectfile):
+        os.remove(projectfile)
+
+    converter = LiveConvertingApp(nexusfile, mask_file_name=mask_file_name)
+    hidra_ws = converter.convert()
     if projectfile is not None:
         converter.save(projectfile)
         # tests for the created file
@@ -236,7 +270,91 @@ def test_reduce_data(mask_file_name, filtered_counts, histogram_counts):
         # assert np.isnan(np.sum(y[1:])), assert_label
         np.testing.assert_almost_equal(np.nansum(y), total_counts, decimal=1, err_msg=assert_label)
 
-    # TODO add checks for against golden version
+
+@pytest.mark.parametrize('mask_file_name, filtered_counts, histogram_counts',
+                         [('tests/data/HB2B_Mask_12-18-19.xml', (540461, 1635432, 1193309),
+                           (540435.0, 1634566.0, 1192944.0)),
+                          (None, (548953, 1661711, 1212586), (548953.0, 1661711.0, 1212586.0))],
+                         ids=('HB2B_1017_Masked', 'HB2B_1017_NoMask'))
+def test_reduce_method_data(mask_file_name, filtered_counts, histogram_counts):
+    """Verify NeXus converters including counts and sample log values"""
+    SUBRUNS = (1, 2, 3)
+    CENTERS = (69.99525,  80.,  97.50225)
+
+    # reduce with PyRS/Python
+    hidra_ws = convertNeXusToProject('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.ORIG.nxs.h5',
+                                     projectfile=None, skippable=True, mask_file_name=mask_file_name)
+
+    hidra_live_ws = convertMantidToProject('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.ORIG.nxs.h5',
+                                           projectfile=None, skippable=True, mask_file_name=mask_file_name)
+
+    # verify that sample logs exist
+    sample_log_names = hidra_ws.get_sample_log_names()
+    live_sample_log_names = hidra_live_ws.get_sample_log_names()
+    # missing fields for HB2B_1017: SampleDescription, SampleId, SampleName, sub-run, Wavelength
+    # scan_index is not exposed through this method
+    # this list is imported from pyrs/core/nexus_conversion.py
+    EXPECTED_NAMES = DEFAULT_KEEP_LOGS.copy()
+    EXPECTED_NAMES.remove('SampleDescription')
+    EXPECTED_NAMES.remove('SampleId')
+    EXPECTED_NAMES.remove('SampleName')
+    EXPECTED_NAMES.remove('scan_index')
+    EXPECTED_NAMES.remove('sub-run')
+    EXPECTED_NAMES.remove('Wavelength')
+    assert len(sample_log_names) == len(EXPECTED_NAMES), 'Same number of log names'
+    for name in EXPECTED_NAMES:  # check all expected names are found
+        assert name in sample_log_names
+
+    assert len(live_sample_log_names) == len(EXPECTED_NAMES), 'Same number of log names'
+    for name in EXPECTED_NAMES:  # check all expected names are found
+        assert name in live_sample_log_names
+
+    # verify subruns
+    np.testing.assert_equal(hidra_ws.get_sub_runs(), SUBRUNS)
+    np.testing.assert_equal(hidra_live_ws.get_sub_runs(), SUBRUNS)
+
+    for sub_run, total_counts in zip(hidra_ws.get_sub_runs(), filtered_counts):
+        counts_array = hidra_ws.get_detector_counts(sub_run)
+        np.testing.assert_equal(counts_array.shape, (1048576,))
+        assert np.sum(counts_array) == total_counts, 'mismatch in subrun={} for filtered data'.format(sub_run)
+
+    for sub_run, total_counts in zip(hidra_live_ws.get_sub_runs(), filtered_counts):
+        counts_array = hidra_live_ws.get_detector_counts(sub_run)
+        np.testing.assert_equal(counts_array.shape, (1048576,))
+        assert np.sum(counts_array) == total_counts, 'mismatch in subrun={} for filtered data'.format(sub_run)
+
+    # Test reduction to diffraction pattern
+    reducer = ReductionApp()
+    reducer.load_hidra_workspace(hidra_ws)
+    reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None)
+
+    live_reducer = ReductionApp()
+    live_reducer.load_hidra_workspace(hidra_live_ws)
+    live_reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None)
+
+    # plot the patterns
+    if DIAGNOSTIC_PLOTS:
+        for sub_run, angle in zip(SUBRUNS, CENTERS):
+            x, y = reducer.get_diffraction_data(sub_run)
+            plt.plot(x, y, label='SUBRUN {} at {:.1f} deg'.format(sub_run, angle))
+        plt.legend()
+        plt.show()
+
+    # check ranges and total counts
+    for sub_run, angle, total_counts in zip(SUBRUNS, CENTERS, histogram_counts):
+        assert_label = 'mismatch in subrun={} for histogrammed data'.format(sub_run)
+        x, y, e = reducer.get_diffraction_data(sub_run)
+        assert x[0] < angle < x[-1], assert_label
+        # assert np.isnan(np.sum(y[1:])), assert_label
+        np.testing.assert_almost_equal(np.nansum(y), total_counts, decimal=1, err_msg=assert_label)
+
+    # check ranges and total counts
+    for sub_run, angle, total_counts in zip(SUBRUNS, CENTERS, histogram_counts):
+        assert_label = 'mismatch in subrun={} for histogrammed data'.format(sub_run)
+        x, y, e = live_reducer.get_diffraction_data(sub_run)
+        assert x[0] < angle < x[-1], assert_label
+        # assert np.isnan(np.sum(y[1:])), assert_label
+        np.testing.assert_almost_equal(np.nansum(y), total_counts, decimal=1, err_msg=assert_label)
 
 
 def test_split_log_time_average():
