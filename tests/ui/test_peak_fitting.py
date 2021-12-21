@@ -6,10 +6,12 @@ import functools
 import json
 import pytest
 import os
+from tests.conftest import ON_GITHUB_ACTIONS  # set to True when running on build servers
 
 wait = 100
 
 
+@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason='Test hangs on github CI')
 def test_peak_fitting(qtbot, tmpdir):
     fit_peak_core = pyrscore.PyRsCore()
     window = fitpeakswindow.FitPeaksWindow(None, fit_peak_core=fit_peak_core)

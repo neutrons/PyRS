@@ -13,6 +13,7 @@ wait = 100
 
 
 # This is a test of the model component of the strain/stress viewer
+@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason='Test hangs on github CI')
 def test_model(tmpdir, test_data_dir):
     model = Model()
 
@@ -328,6 +329,7 @@ def test_model(tmpdir, test_data_dir):
     model.e11 is not None
 
 
+@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason='Test hangs on github CI')
 def test_model_multiple_files(tmpdir, test_data_dir):
     model = Model()
 
@@ -497,6 +499,7 @@ def test_model_multiple_files(tmpdir, test_data_dir):
     assert len(open(filename).readlines()) == 318
 
 
+@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason='Test hangs on github CI')
 def test_model_from_json(tmpdir, test_data_dir):
     model_json = dict()
     model_json['stress_case'] = 'in-plane-stress'
