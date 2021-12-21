@@ -49,7 +49,7 @@ The 2nd Generation Neutron Residual Stress Facility (NRSF2) residual stress mapp
 `pyRS` is a python software package that was designed to meet the data reduction and analysis needs of the neutron residual stress mapping user community at Oak Ridge National Laboratory (ORNL). `pyRS` incorporates separate modules that provide a streamlined workflow for reducing raw neutron events into 1D intensity vs. scattering angle and subsequent analysis to extract the interatomic spacing and intensity for residual stress and texture analysis. Users can access the modules through either a graphical or command-line interface. `pyRS` saves data into a single HDF5 file.[@hdf5], in which the metadata, reduced diffraction data, and peak analysis results are passed between different modules.
 
 # Overview of pyRS
-`pyRS` was designed with three distinct graphical user interfaces (GUIs) that enable users to 1) reduce neutron event data, 2) perform single-peak fitting of reduced data, and 3) combine single-peak fitting results for residual stress analysis and subsequent visualization. Figure \ref{fig:data_flow} provides an overview for how data flow through and where users interact with `pyRS`.
+`pyRS` was designed with three distinct graphical user interfaces (GUIs) that enable users to 1) reduce neutron event data, 2) perform single-peak fitting of reduced data, and 3) combine single-peak fitting results for residual stress analysis and subsequent visualization. Figure \ref{fig:data_flow} provides an overview for how data flow through, and where users interact with `pyRS`.
 
 <p style="text-align: center;">
 
@@ -61,7 +61,7 @@ The 2nd Generation Neutron Residual Stress Facility (NRSF2) residual stress mapp
   * *Filter Events and Logs*: The High-Intensity Diffractometer for Residual Stress Analysis (HIDRA) stores raw measured neutron events in HDF5 files using an event data structure using the NeXus standard schema.[@Konnecke2015] The event NeXus data structure stores information about the pixel position and detection time with respect to the start of a measurement. HIDRA leverages this flexibility to encode scan_index metadata signals that `pyRS` uses to filter events into separate datasets. `pyRS` reduces measured events based on how scan_index increments throughout a single NeXus file. `pyRS` reconstructs the measured 2-dimensional diffraction datasets by first filtering the event index array based on the scan_index time, then histogramed based on pixel position (np.histogram).[@Harris2020] Metadata events are filtered using the Mantid framework time-filtering algorithm.[@Arnold2014a]. Users can specify to exclude unwanted logs.
   * *Integrate 2D into 1D data*: Calibration information about the position of the detector in space (XYZ shifts and rotations about the engineering position) are used to determine the angular position of the detector pixels. Pixel angular position and intensity data are histogramed to construct raw Intensity vs. scattering angle datasets based on the default or user-defined angular range.
   * *Normalize by Vanadium (optional)*: raw Intensity vs. scattering angle is normalized by the incoherent scattering intensity from a Vanadium sample if a Vanadium run number is defined.
-  * A HIDRA project file is created that stores the calibration information, Intensity vs. scattering data, and metadata logs
+  * A HIDRA project file is created that stores the calibration information, Intensity vs. scattering data, and metadata logs.
 * Data analysis
   * *Peak Fitting Analysis*
     * Reduced 1D data are analyzed using single-peak fitting to extract information about the position, intensity, full-width half maximum of N peaks within the detector field of view. Users can define specific peak fitting ranges using the graphical interface or using a JSON formatted text file. Users can export the graphically select peak ranges into a JSON file for later use. Peak fitting results are automatically appended into the loaded HIDRA project file. Alternatively, users can export a CSV summary of the results.
@@ -92,6 +92,8 @@ The 2nd Generation Neutron Residual Stress Facility (NRSF2) residual stress mapp
     - $(x,y,z)$: spatial coordinates
     - $\lambda$: measured wavelength
     - $\theta$: angle measured from a normal surface
+    - $\nu$: Poison's ratio
+    - E: Youngs modulus
 
 
 # Acknowledgements
