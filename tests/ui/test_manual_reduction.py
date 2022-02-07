@@ -6,7 +6,7 @@ from tests.conftest import ON_GITHUB_ACTIONS  # set to True when running on buil
 
 wait = 100
 
-
+ON_GITHUB_ACTIONS = True
 @pytest.mark.skipif(ON_GITHUB_ACTIONS, reason='Test hangs on github CI')
 def test_manual_reduction(qtbot, tmpdir):
     window = manualreductionwindow.ManualReductionWindow(None)
