@@ -37,24 +37,26 @@ Installation using an anaconda environment
 ------------
 Anaconda environments are only supported on Linux using python 3.6
 
-.. code-block::
-   $ conda config --add channels conda-forge --add channels mantid --add channels mantid/label/nightly
-   $ conda install mamba
-   $ mamba create -n pyrs python=3.6 --file requirements.txt --file requirements_dev.txt
+1. Configure anaconda environment
+```
+conda config --add channels conda-forge --add channels mantid --add channels mantid/label/nightly
+conda install mamba
+mamba create -n pyrs python=3.6 --file requirements.txt --file requirements_dev.txt
+```
 
-3. Activate the conda environment
+2. Activate the conda environment
 
 .. code-block::
 
    $ conda activate pyrs
 
-4. From the PyRS directory, run the setup script in developer mode
+3. From the PyRS directory, run the setup script in developer mode
 
 .. code-block::
 
-   $ python setup.py develop
+   $ python setup.py build
 
-5. From the PyRS directory, start the user interface (``develop`` mode puts it in your ``PATH``)
+4. From the PyRS directory, start the user interface
 
 .. code-block::
 
