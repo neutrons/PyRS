@@ -10,12 +10,13 @@ Developer Quick Start
 
 If you've never used PyRS before, you can get started quickly by doing the following.
 
-1. Install basic dependencies: Conda, Python, and PyQt
+1. Install basic dependencies: Conda, Python, and PyQt. Conda installation requires linux.
 2. Create a new Conda environment with additional dependencies:
 
 .. code-block::
-
-   $ conda create -n pyrs -c mantid -c mantid/label/nightly mantid-workbench -c conda-forge  --file requirements.txt --file requirements_dev.txt
+   $ conda config --add channels conda-forge --add channels mantid --add channels mantid/label/nightly
+   $ conda install mamba
+   $ mamba create -n pyrs python=3.6 --file requirements.txt --file requirements_dev.txt
 
 3. Activate the conda environment
 
@@ -66,7 +67,7 @@ To start main window from analysis machine
 
 .. code-block::
 
-   $ PYTHONPATH=$PWD:$PYTHONPATH QT_API=pyqt python scripts/pyrsplot
+   $ PYTHONPATH=$PWD:$PYTHONPATH python scripts/pyrsplot
 
 To develop
 
