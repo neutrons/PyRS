@@ -41,15 +41,15 @@ Anaconda environments are only supported on Linux using python 3.6
 
 .. code-block::
 
-conda config --add channels conda-forge --add channels mantid --add channels mantid/label/nightly
+  conda config --add channels conda-forge --add channels mantid --add channels mantid/label/nightly
 
 .. code-block::
 
-conda install mamba
+  conda install mamba
 
 .. code-block::
 
-mamba create -n pyrs python=3.6 --file requirements.txt --file requirements_dev.txt
+  mamba create -n pyrs python=3.6 --file requirements.txt --file requirements_dev.txt
 
 
 2. Activate the conda environment
