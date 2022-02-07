@@ -34,10 +34,10 @@ If you've never used PyRS before, you can get started quickly by doing the follo
 2. Create a new Conda environment with additional dependencies:
 
 Installation using an anaconda environment
-------------
+------------------------------------------
 Anaconda environments are only supported on Linux using python 3.6
 
-1. Configure anaconda environment
+1. Configure anaconda environment:
 
 .. code-block::
   conda config --add channels conda-forge --add channels mantid --add channels mantid/label/nightly
@@ -48,19 +48,16 @@ Anaconda environments are only supported on Linux using python 3.6
 2. Activate the conda environment
 
 .. code-block::
-
    conda activate pyrs
 
 3. From the PyRS directory, run the setup script in developer mode
 
 .. code-block::
-
    python setup.py build
 
 4. From the PyRS directory, start the user interface
 
 .. code-block::
-
    PYTHONPATH=$PWD:$PYTHONPATH python scripts/pyrsplot
 
 For those setting up in a virtual environment, the dependencies are
@@ -74,27 +71,23 @@ Running and developing PyRS
 To start main window from analysis machine
 
 .. code-block::
-
-   $ PYTHONPATH=$PWD:$PYTHONPATH python scripts/pyrsplot
+   PYTHONPATH=$PWD:$PYTHONPATH python scripts/pyrsplot
 
 To develop
 
 .. code-block::
-
    $ pyrsdev.sh
 
 To run all of the tests
 
 
 .. code-block::
-
    $ python -m pytest
 
 Running specific tests can be done `through standard ways`
 <https://docs.pytest.org/en/stable/usage.html>`_. For example
 
 .. code-block::
-
    $ python -m pytest tests/unit
 
 will only run the unit tests
@@ -103,7 +96,7 @@ will only run the unit tests
 Related packages
 ----------------
 * `Mantid <https://github.com/mantidproject/mantid>`_ - The Mantid project provides a framework that supports high-performance computing and visualisation of scientific data.
-* `Steca2 https://gitlab-public.fz-juelich.de/mlz/steca/-/tree/main`_ - The stress and texture calculator used by the Heinz Maier-Leibnitz Zentrum Garching facility.
+* `Steca2 <https://gitlab-public.fz-juelich.de/mlz/steca/-/tree/main>`_ - The stress and texture calculator used by the Heinz Maier-Leibnitz Zentrum Garching facility.
 
 
 # Contributing to pyRS
