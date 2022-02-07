@@ -108,13 +108,15 @@ Related packages
 * `Steca2 <https://gitlab-public.fz-juelich.de/mlz/steca/-/tree/main>`_ - The stress and texture calculator used by the Heinz Maier-Leibnitz Zentrum Garching facility.
 
 
-# Contributing to pyRS
-
+Contributing to pyRS
+--------------------
 If you want to suggest changes of a feature or the inclusion of new features, you can either 1) [fork](https://github.com/neutrons/PyRS/fork) the repository to work on it and create an [issue](https://github.com/neutrons/PyRS/issues/new) to discuss it before proceeding with a pull request, or 2) create an [issue](https://github.com/neutrons/PyRS/issues/new) with your suggestion for others to discuss and potentially work on it.
 
-# Reporting bugs or asking for help
+Reporting bugs or asking for help
+---------------------------------
 
 Please report any bugs or ask for help by creating a new [issue](https://github.com/neutrons/PyRS/issues/new).
 
-# Funding
+Funding
+-------
 This material is based upon work supported by the U.S. Department of Energy, Office of Science, Office of Basic Energy Sciences.
