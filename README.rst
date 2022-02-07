@@ -37,12 +37,12 @@ Installation using an anaconda environment
 ------------
 Anaconda environments are only supported on Linux using python 3.6
 
-1. Configure anaconda environment
-```
+1. Configure anaconda environment::
+
 conda config --add channels conda-forge --add channels mantid --add channels mantid/label/nightly
 conda install mamba
 mamba create -n pyrs python=3.6 --file requirements.txt --file requirements_dev.txt
-```
+
 
 2. Activate the conda environment
 
