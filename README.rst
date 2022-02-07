@@ -40,25 +40,35 @@ Anaconda environments are only supported on Linux using python 3.6
 1. Configure anaconda environment:
 
 .. code-block::
-  conda config --add channels conda-forge --add channels mantid --add channels mantid/label/nightly
-  conda install mamba
-  mamba create -n pyrs python=3.6 --file requirements.txt --file requirements_dev.txt
+
+conda config --add channels conda-forge --add channels mantid --add channels mantid/label/nightly
+
+.. code-block::
+
+conda install mamba
+
+.. code-block::
+
+mamba create -n pyrs python=3.6 --file requirements.txt --file requirements_dev.txt
 
 
 2. Activate the conda environment
 
 .. code-block::
-   conda activate pyrs
+
+conda activate pyrs
 
 3. From the PyRS directory, run the setup script in developer mode
 
 .. code-block::
-   python setup.py build
+
+python setup.py build
 
 4. From the PyRS directory, start the user interface
 
 .. code-block::
-   PYTHONPATH=$PWD:$PYTHONPATH python scripts/pyrsplot
+
+PYTHONPATH=$PWD:$PYTHONPATH python scripts/pyrsplot
 
 For those setting up in a virtual environment, the dependencies are
 listed in ``requirements.txt`` and ``requirements_dev.txt``.  They can
@@ -71,18 +81,16 @@ Running and developing PyRS
 To start main window from analysis machine
 
 .. code-block::
-   PYTHONPATH=$PWD:$PYTHONPATH python scripts/pyrsplot
+
+PYTHONPATH=$PWD:$PYTHONPATH python scripts/pyrsplot
 
 To develop
 
-.. code-block::
-   $ pyrsdev.sh
-
 To run all of the tests
 
-
 .. code-block::
-   $ python -m pytest
+
+python -m pytest
 
 Running specific tests can be done `through standard ways`
 <https://docs.pytest.org/en/stable/usage.html>`_. For example
