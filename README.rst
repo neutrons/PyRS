@@ -56,19 +56,19 @@ Anaconda environments are only supported on Linux using python 3.6
 
 .. code-block::
 
-conda activate pyrs
+  conda activate pyrs
 
 3. From the PyRS directory, run the setup script in developer mode
 
 .. code-block::
 
-python setup.py build
+  python setup.py build
 
 4. From the PyRS directory, start the user interface
 
 .. code-block::
 
-PYTHONPATH=$PWD:$PYTHONPATH python scripts/pyrsplot
+  PYTHONPATH=$PWD:$PYTHONPATH python scripts/pyrsplot
 
 For those setting up in a virtual environment, the dependencies are
 listed in ``requirements.txt`` and ``requirements_dev.txt``.  They can
@@ -82,7 +82,7 @@ To start main window from analysis machine
 
 .. code-block::
 
-PYTHONPATH=$PWD:$PYTHONPATH python scripts/pyrsplot
+  PYTHONPATH=$PWD:$PYTHONPATH python scripts/pyrsplot
 
 To develop
 
@@ -90,13 +90,14 @@ To run all of the tests
 
 .. code-block::
 
-python -m pytest
+  python -m pytest
 
 Running specific tests can be done `through standard ways`
 <https://docs.pytest.org/en/stable/usage.html>`_. For example
 
 .. code-block::
-   $ python -m pytest tests/unit
+
+   python -m pytest tests/unit
 
 will only run the unit tests
 
