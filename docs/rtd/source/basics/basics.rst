@@ -69,8 +69,11 @@ Results from the peak fitting are visualized on the right using 1D or 2D scatter
 Stress Strain Analysis
 ======================
 
-#TODO
+Select the Stress/Strain Calculation option to launch the stress analysis UI. Reminder overivew of the UI interface:
 
+.. image:: ../basics/stress_overview.svg
+  :width: 800
+  :alt: Stress Analysis overivew
 
 pyRS Example Use
 ################
@@ -82,3 +85,26 @@ pyRS graphical interface can launched using the pyrsplot executable
   PYTHONPATH=$PWD:$PYTHONPATH python scripts/pyrsplot
 
 Select the peak fitting option to launch the peak fitting UI. After the UI loads, select the "Browse Exp. Data File" to select one of the three hidraprojectfiles in the examples folder "HB2B_2246.h5, HB2B_2247.h5, and HB2B_2251.h5". These three files represents data for the LD, TD, and ST directions.
+
+you should be able to see pyRS's MainWindow:
+
+.. image:: startup.png
+  :width: 400
+  :alt: pyrsplot startup window
+
+As listed in the MainWindow, pyrsplot can run 3 different usage modes as described in the next sections.
+
+Data Manual Reduction
+=====================
+
+Manual data reduction requires access to raw neutron events stored on ORNL data mounts. The best mechanism to access these data is through analysis.sns.gov. Consult your local contact or the HB2B instrument team for further information about re-reducing data.
+
+Peak Fitting
+============
+
+Overview of the pyRS peak fitting UI
+------------------------------------
+
+.. image:: peak_overview.png
+  :width: 600
+  :alt: pyrsplot startup window

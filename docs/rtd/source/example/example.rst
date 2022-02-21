@@ -1,0 +1,57 @@
+pyRS Example Use
+################
+
+Launch the pyRS graphical interface to load the peak fitting UI.
+
+.. code-block::
+
+  PYTHONPATH=$PWD:$PYTHONPATH python scripts/pyrsplot
+
+.. image:: ../basics/startup.png
+  :width: 400
+  :alt: pyrsplot startup window
+
+Peak Fitting
+============
+
+Select the peak fitting option to launch the peak fitting UI. Reminder overivew of the UI interface:
+
+.. image:: ../basics/peak_overview.svg
+  :width: 800
+  :alt: Peak Fitting overivew
+
+Load measured data
+------------------
+After the UI loads, select the "Browse Exp. Data File" to select one of the three hidraprojectfiles in the examples folder "HB2B_2246.h5, HB2B_2247.h5, and HB2B_2251.h5". These three files represents data for the LD, TD, and ST directions.
+
+Fitting measured data using pyRS
+--------------------------------
+
+Graphically define a fit window over the peak of interest. Double click in the x_left (87.0), x_right (92.5), and Label (Al_311). Save the fit range for later use. See below for an example of what the UI should look like before Fitting. After saving the range, click the "Fit Peak(s)" button to start the peak fitting process. After fitting, save the results using either "File/Save" or "File/Save As" to save a new hidraprojectfile. Note that the hidraprojectfiles are not write protected and you can overwrite prior peak fitting results.
+
+.. image:: Example_Fit.png
+  :width: 800
+  :alt: pyrsplot startup window
+
+Below are examples of peak fits that use a single an multiple fit windows.
+
+.. image:: Fit_2646.png
+  :width: 800
+  :alt: Fit of run 2646
+
+.. image:: Fit_2647.png
+  :width: 800
+  :alt: Fit of run 2647
+
+.. image:: Fit_2651.png
+  :width: 800
+  :alt: Fit of run 2651
+
+Stress Analysis
+===============
+
+Select the Stress/Strain Calculation option to launch the stress analysis UI. Reminder overivew of the UI interface:
+
+.. image:: ../basics/stress_overview.svg
+  :width: 800
+  :alt: Stress Analysis overivew
