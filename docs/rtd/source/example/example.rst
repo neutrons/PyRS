@@ -35,15 +35,15 @@ Graphically define a fit window over the peak of interest. Double click in the x
 
 Below are examples of peak fits that use a single an multiple fit windows.
 
-.. image:: ../figures/Fit_2646.png
+.. image:: ../figures/Fit_2246.png
   :width: 800
   :alt: Fit of run 2646
 
-.. image:: ../figures/Fit_2647.png
+.. image:: ../figures/Fit_2247.png
   :width: 800
   :alt: Fit of run 2647
 
-.. image:: ../figures/Fit_2651.png
+.. image:: ../figures/Fit_2251.png
   :width: 800
   :alt: Fit of run 2651
 
