@@ -92,6 +92,10 @@ class DENEXDetectorGeometry:
         checkdatatypes.check_bool_variable('Flag indicating instrument setup been calibrated', calibrated)
 
     def apply_shift(self, geometry_shift):
+        """Apply detector Calibration
+        :param geometry_shift: DENEXDetectorShift
+        :return:
+        """
         checkdatatypes.check_type('Detector geometry shift', geometry_shift, DENEXDetectorShift)
 
         self._arm_length += geometry_shift.center_shift_z
@@ -156,6 +160,9 @@ class DENEXDetectorShift:
 
     @property
     def center_shift_x(self):
+        """
+        :return float: detector shift along x
+        """
         return self._center_shift_x
 
     @center_shift_x.setter
@@ -164,6 +171,9 @@ class DENEXDetectorShift:
 
     @property
     def center_shift_y(self):
+        """
+        :return float: detector shift along y
+        """
         return self._center_shift_y
 
     @center_shift_y.setter
@@ -172,6 +182,9 @@ class DENEXDetectorShift:
 
     @property
     def center_shift_z(self):
+        """
+        :return float: detector shift along z
+        """
         return self._center_shift_z
 
     @center_shift_z.setter
@@ -180,6 +193,9 @@ class DENEXDetectorShift:
 
     @property
     def rotation_x(self):
+        """
+        :return float: detector rotation about z
+        """
         return self._rotation_x
 
     @rotation_x.setter
@@ -188,6 +204,9 @@ class DENEXDetectorShift:
 
     @property
     def rotation_y(self):
+        """
+        :return float: detector rotation about y
+        """
         return self._rotation_y
 
     @rotation_y.setter
@@ -196,6 +215,9 @@ class DENEXDetectorShift:
 
     @property
     def rotation_z(self):
+        """
+        :return float: detector rotation about z
+        """
         return self._rotation_z
 
     @rotation_z.setter
@@ -204,6 +226,9 @@ class DENEXDetectorShift:
 
     @property
     def two_theta_0(self):
+        """
+        :return float: Shift of the 2theta zero point
+        """
         return self._two_theta_0
 
     @two_theta_0.setter

@@ -398,6 +398,9 @@ class ResidualStressInstrument:
         return pixel_pos_array
 
     def set_wavelength(self, w_l):
+        """
+        :param w_l: Neutron wavelength
+        """
         self._wave_length = w_l
 
 
