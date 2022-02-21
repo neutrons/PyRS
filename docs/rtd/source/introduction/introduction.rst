@@ -23,24 +23,41 @@ Installation
 
 Using a Conda Environment
 =========================
+Anaconda environments are only supported on Linux using python 3.6
 
-pyRS preferred method is to create a conda environment with the required Python dependencies.
-Follow these steps:
-
-1. Install basic dependencies: `Conda <https://docs.anaconda.com/anaconda/install/>`_, Python 3, and PyQt
-2. Create a new Conda environment with additional dependencies:
+1. Configure anaconda environment:
 
 .. code-block::
 
-   $ conda create -n pyrs -c mantid -c mantid/label/nightly mantid-workbench -c conda-forge  --file requirements.txt --file requirements_dev.txt
-
-3. Activate the conda environment
+  conda config --add channels conda-forge --add channels mantid --add channels mantid/label/nightly
 
 .. code-block::
 
-   $ conda activate pyrs
+  conda install mamba
 
+.. code-block::
+
+  mamba create -n pyrs python=3.6 --file requirements.txt --file requirements_dev.txt
+
+
+2. Activate the conda environment
+
+.. code-block::
+
+  conda activate pyrs
+
+3. From the PyRS directory, run the setup script in developer mode
+
+.. code-block::
+
+  python setup.py build
+
+4. From the PyRS directory, start the user interface
+
+.. code-block::
+
+  PYTHONPATH=$PWD:$PYTHONPATH python scripts/pyrsplot
 
 .. caution::
 
-   Do not update this newly created environment as some dependencies might not be backwards compatible.
+   Do not update this newly created environment as the primary environment as some dependencies might not be backwards compatible.
