@@ -10,7 +10,7 @@ pyRS graphical interface can launched using the pyrsplot executable
 
 .. code-block::
 
-   $ pyrsplot
+  PYTHONPATH=$PWD:$PYTHONPATH python scripts/pyrsplot
 
 you should be able to see pyRS's MainWindow:
 
@@ -38,7 +38,7 @@ Overview of the pyRS peak fitting UI
 Fitting measured data using pyRS
 --------------------------------
 
-pyRS was designed to allow the software user to define the peak fitting of data stored using the hidraprojectfile definition. Users interact with the peak fitting UI by defining N ranges for individual peak fitting, where N is the number of windows of interest. Data are loaded by either selecting a specific project file or on the anlaysis cluster by loading a specific run number. A user defines a peak window interactively in the UI by clicking (and holding) on one side of the peak dragging over the specific peak of interest. The user can tweek the graphically defined window by double clicking on the x_left, x_right, or Label entry intry in Peak Ranges.
+pyRS was designed to allow the software user to define the peak fitting of data stored using the hidraprojectfile definition. Users interact with the peak fitting UI by defining N ranges for individual peak fitting, where N is the number of windows of interest. Data are loaded by either selecting a specific project file or on the anlaysis cluster by loading a specific run number. A user defines a peak window interactively in the UI by clicking (and holding) on one side of the peak dragging over the specific peak of interest. The user can tweek the graphically defined window by double clicking on the x_left, x_right, or Label entry intry in Peak Ranges. Users can export these inputs as a json file for use in later sessions.
 
 .. image:: define_range.png
   :width: 600
@@ -74,3 +74,11 @@ Stress Strain Analysis
 
 pyRS Example Use
 ################
+
+pyRS graphical interface can launched using the pyrsplot executable
+
+.. code-block::
+
+  PYTHONPATH=$PWD:$PYTHONPATH python scripts/pyrsplot
+
+Select the peak fitting option to launch the peak fitting UI. After the UI loads, select the "Browse Exp. Data File" to select one of the three hidraprojectfiles in the examples folder "HB2B_2246.h5, HB2B_2247.h5, and HB2B_2251.h5". These three files represents data for the LD, TD, and ST directions.
