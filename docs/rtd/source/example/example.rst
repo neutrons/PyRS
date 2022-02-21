@@ -7,7 +7,7 @@ Launch the pyRS graphical interface to load the peak fitting UI.
 
   PYTHONPATH=$PWD:$PYTHONPATH python scripts/pyrsplot
 
-.. image:: ../basics/startup.png
+.. image:: ../figures/startup.png
   :width: 400
   :alt: pyrsplot startup window
 

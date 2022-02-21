@@ -14,7 +14,7 @@ pyRS graphical interface can launched using the pyrsplot executable
 
 you should be able to see pyRS's MainWindow:
 
-.. image:: startup.png
+.. image:: ../figures/startup.png
   :width: 400
   :alt: pyrsplot startup window
 
