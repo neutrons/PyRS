@@ -43,8 +43,26 @@ pyRS package
     :undoc-members:
     :show-inheritance:
 
+:mod:`Detector Definition` Module
+----------------------------------
+
+.. autoclass:: pyrs.core.instrument_geometry.DENEXDetectorGeometry
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pyrs.core.instrument_geometry.DENEXDetectorShift
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 :mod:`Instrument Definition` Module
 -----------------------------------
+
+.. autoclass:: pyrs.core.instrument_geometry.HidraSetup
+    :members:
+    :undoc-members:
+    :show-inheritance:
 
 .. autoclass:: pyrs.core.reduce_hb2b_pyrs.ResidualStressInstrument
     :members:
@@ -55,7 +73,6 @@ pyRS package
 ------------------------------------
 
 .. autoclass:: pyrs.calibration.peakfit_calibration.PeakFitCalibration
-
     :undoc-members:
     :show-inheritance:
 

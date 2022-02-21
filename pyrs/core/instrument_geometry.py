@@ -16,14 +16,11 @@ class HidraSetup:
     """
 
     def __init__(self, detector_setup):
-        """Initialization
-
-        Initialization HB2B instrument setup
-
-        Parameters
-        ----------
-        detector_setup
         """
+        initialization
+        :param detector_setup: DENEXDetectorGeometry
+        """
+
         # check inputs
         checkdatatypes.check_type('Detector geometry setup', detector_setup, DENEXDetectorGeometry)
 
@@ -39,17 +36,9 @@ class HidraSetup:
 
     def get_instrument_geometry(self, calibrated):
         """Get instrument geometry parameters
-
         Get HB2B geometry setup, raw or calibrated optionally
-
-        Parameters
-        ----------
-        calibrated
-
-        Returns
-        -------
-        GeometrySetup
-            Geometry setup parameters
+        :param calibrated: Bool
+        :return GeometrySetup: Geometry setup parameters
         """
         if calibrated and self._geometry_shift is not None:
             return self._geometry_setup.apply_shift(self._geometry_shift)
@@ -58,18 +47,10 @@ class HidraSetup:
 
     def get_wavelength(self, wave_length_tag):
         """Get wave length
-
         Get wave length for only calibrated
-
-        Parameters
-        ----------
-        wave_length_tag: str
+        :param wave_length_tag: str
             user tag (as 111, 222) for wave length. None for single wave length
-
-        Returns
-        -------
-        float
-            wave length in A
+        :return float: wave length in A
         """
         if wave_length_tag is not None:
             raise NotImplementedError('Need use case to re-define the method')
@@ -117,7 +98,8 @@ class DENEXDetectorGeometry:
 
     @property
     def arm_length(self):
-        """L2/arm length
+        """
+        :return float: sample to detector distance
         """
         return self._arm_length
 
@@ -143,8 +125,16 @@ class DENEXDetectorShift:
 
     def __init__(self, shift_x, shift_y, shift_z, rotation_x, rotation_y, rotation_z, two_theta_0=0.0):
         """
-        initialize
+        Initialization of instrument geometry setup for 1 denex detector
+        :param shift_x: detector shift along x
+        :param shift_y: detector shift along y
+        :param shift_z: detector shift along z
+        :param rotation_x: detector rotation about x
+        :param rotation_y: detector rotation about y
+        :param rotation_z: detector rotation about z
+        :param two_theta_0: Shift of the 2theta zero point
         """
+
         self._center_shift_x = shift_x
         self._center_shift_y = shift_y
         self._center_shift_z = shift_z  # center shift Z along detector arm
@@ -254,7 +244,6 @@ class DENEXDetectorShift:
 
         return geometry_shift_dict
 
-    # TODO - #86 - Synchronize with convert_to_dict
     def set_from_dict(self, geometry_shift_dict):
         """ Set geometry shift parameters from a dictionary, which may miss some parameters
         :param geometry_shift_dict:

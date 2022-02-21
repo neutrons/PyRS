@@ -14,7 +14,7 @@ class ResidualStressInstrument:
     def __init__(self, instrument_setup):
         """
         initialization
-        :param instrument_setup:
+        :param instrument_setup: DENEXDetectorGeometry
         """
         # check input
         checkdatatypes.check_type('Instrument setup', instrument_setup,
