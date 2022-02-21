@@ -44,10 +44,13 @@ class HB2BReductionManager:
 
     def get_reduced_diffraction_data(self, session_name, sub_run=None, mask_id=None):
         """ Get the reduce data
-        :param session_name:
-        :param sub_run:
-        :param mask_id:
+
+        :param str session_name: name of the session for locating workspace
+        :param int sub_run: sub-run index
+        :param mask_id: mask used to reduce diffraction data (default is None)
+        :type mask_id: str, optional
         :return: 2-vectors: 2theta and intensity
+        :rtype: numpy.ndarray
         """
         checkdatatypes.check_string_variable('Session name', session_name, list(self._session_dict.keys()))
         workspace = self._session_dict[session_name]
@@ -57,10 +60,11 @@ class HB2BReductionManager:
         return data_set
 
     def get_sub_runs(self, session_name):
-        """
-        Get sub runs from a workspace belonged to a session
-        :param session_name:
-        :return:
+        """Get sub runs from a workspace belonged to a session
+
+        :param str session_name: name of the session for locating workspace
+        :return: return a list of sub-runs in the workspace
+        :rtype: list
         """
         checkdatatypes.check_string_variable('Session name', session_name, list(self._session_dict.keys()))
         workspace = self._session_dict[session_name]
@@ -70,10 +74,11 @@ class HB2BReductionManager:
     def get_sample_log_value(self, session_name, log_name, sub_run):
         """Get an individual sample log's value for a sub run
 
-        :param session_name:
-        :param log_name:
-        :param sub_run:
-        :return:
+        :param str session_name: name of the session for locating workspace
+        :param str log_name: Name of the sample log
+        :param int sub_run: sub-run index
+        :return: vector of sample log values
+        :rtype: numpy.ndarray
         """
         workspace = self._session_dict[session_name]
 
@@ -81,12 +86,12 @@ class HB2BReductionManager:
 
         return log_value
 
-    def get_sample_logs_names(self, session_name, can_plot):
-        """
-        Get the names of all sample logs in the workspace
-        :param session_name:
-        :param can_plot:
-        :return:
+    def get_sample_logs_names(self, session_name):
+        """Get the names of all sample logs in the workspace
+
+        :param str session_name: name of the session for locating workspace
+        :return: list of sample logs
+        :rtype: list
         """
         workspace = self._session_dict[session_name]
 
@@ -95,12 +100,14 @@ class HB2BReductionManager:
         return sample_logs
 
     def get_sub_run_2theta(self, session_name, sub_run):
+        """Get the detector arm's 2theta position of a sub run
+
+        :param str session_name: name of the session for locating workspace
+        :param int sub_run: sub-run index
+        :return: 2theta vector for the sub-run
+        :rtype: numpy.ndarray
         """
-        Get the detector arm's 2theta position of a sub run
-        :param session_name: name of the session for locating workspace
-        :param sub_run:
-        :return:
-        """
+
         checkdatatypes.check_string_variable('Session name', session_name, list(self._session_dict.keys()))
         workspace = self._session_dict[session_name]
 
@@ -108,10 +115,13 @@ class HB2BReductionManager:
 
     def get_detector_counts(self, session_name, sub_run: int):
         """ Get the raw counts from detector of the specified sub run
-        :param session_name: name of the session for locating workspace
-        :param sub_run: sub run number (integer)
+
+        :param str session_name: name of the session for locating workspace
+        :param int sub_run: sub run number
         :return: array of detector counts
+        :rtype: numpy.ndarray
         """
+
         sub_run = to_int('Sub run number', sub_run, min_value=0)
         workspace = self._session_dict[session_name]
 
@@ -120,8 +130,8 @@ class HB2BReductionManager:
     def init_session(self, session_name, hidra_ws=None):
         """
         Initialize a new session of reduction and thus to store data according to session name
-        :return:
         """
+
         # Check inputs
         checkdatatypes.check_string_variable('Reduction session name', session_name)
         if session_name == '':
@@ -143,11 +153,12 @@ class HB2BReductionManager:
 
     def load_hidra_project(self, project_file_name, load_calibrated_instrument, load_detectors_counts,
                            load_reduced_diffraction):
-        """ Load hidra project file and then CLOSE!
-        :param project_file_name:
-        :param load_calibrated_instrument:
-        :param load_detectors_counts: Flag to load detector counts
-        :param load_reduced_diffraction: Flag to reduced diffraction data
+        """ Load hidra project file
+
+        :param str project_file_name: filename for the Hidra project file
+        :param bool load_calibrated_instrument:
+        :param bool load_detectors_counts: Flag to load detector counts
+        :param bool load_reduced_diffraction: Flag to reduced diffraction data
         :return: HidraWorkspace instance
         """
         # check inputs
@@ -178,8 +189,9 @@ class HB2BReductionManager:
 
     def load_mask_file(self, mask_file_name):
         """ Load mask file to 1D array and auxiliary information
-        :param mask_file_name:
-        :return:
+
+        :param str mask_file_name: mask filename
+        :return: two_theta, note, mask_id
         """
         mask_vec, two_theta, note = mask_util.load_pyrs_mask(mask_file_name)
 
@@ -192,18 +204,12 @@ class HB2BReductionManager:
         return two_theta, note, mask_id
 
     def load_vanadium(self, van_project_file):
-        """Load vanadium from HiDRA project file
+        """Load vanadium from HiDRA project file or NeXus file
 
-        Parameters
-        ----------
-        van_project_file : str
-            vanadium HiDRA project file or NeXus file
-
-        Returns
-        -------
-        ~numpy.narray, float
-            1D array as vanadium counts and duration of vanadium run (second)
-
+        :param str van_project_file: vanadium HiDRA project file or NeXus file
+        :returns:
+            - van_array (numpy.ndarray) - 1D array as vanadium counts
+            - van_duration (numpy.ndarray) - duration of vanadium run (second)
         """
         checkdatatypes.check_file_name(van_project_file, True, False, False, 'Vanadium project/NeXus file')
 
@@ -243,8 +249,10 @@ class HB2BReductionManager:
     def get_mask_vector(self, mask_id):
         """
         Get the detector mask
-        :param mask_id:  String as ID
+
+        :param str mask_id:  String as ID
         :return: a 1D array (0: mask, 1: keep)
+        :rtype: numpy.ndarray
         """
         checkdatatypes.check_string_variable('Mask ID', mask_id, list(self._loaded_mask_dict.keys()))
 
@@ -256,41 +264,37 @@ class HB2BReductionManager:
                                 delta_2theta=None):
         """Reduce ALL sub runs in a workspace from detector counts to diffraction data
 
-        Parameters
-        ----------
-        session_name
-        apply_calibrated_geometry : ~DENEXDetectorShift or bool
-            3 options (1) user-provided DENEXDetectorShift
-                                          (2) True (use the one in workspace) (3) False (no calibration)
-        num_bins : int
-            number of bins
-        mask : numpy.ndarray
-            Mask
-        mask_id : str or None
-            ID for mask.  If mask ID is None, then it is the default universal mask applied to all data
-        sub_run_list : List of None
-            sub runs
-        vanadium_counts : None or ~numpy.ndarray
-            vanadium counts of each detector pixels for normalization
+        :param session_name: Name for the reduction session
+        :type session_name: str
+        :param apply_calibrated_geometry: (1) user-provided DENEXDetectorShift
+            (2) True (use calibrated geometry in workspace)
+            (3) False (no calibration)
+        :type apply_calibrated_geometry: DENEXDetectorShift, bool
+        :param num_bins: 2theta resolution/step
+        :type num_bins: int
+        :param mask: 1D array for masking (1 to keep, 0 to mask out)
+        :type mask_vec_tuple: numpy.ndarray
+        :param mask_id: ID for mask.  If mask ID is None, then it is the default universal mask applied to all data
+        :type mask_id: str, optional
+        :param integer sub_run: sub run number in workspace to reduce
+        :param vanadium_counts: detector pixels' vanadium for efficiency and normalization.
             If vanadium duration is recorded, the vanadium counts are normalized by its duration in seconds
-        eta_step : float
-            angular step size for out-of-plane reduction
-        eta_min : float
-            min angle for out-of-plane reduction
-        eta_max : float
-            max angle for out-of-plane reduction
-        min_2theta : float or None
-            min 2theta
-        max_2theta : float or None
-            max 2theta
-        delta_2theta : float or None
-            2theta increment in the reduced diffraction data
-
-        Returns
-        -------
-        None
-
+        :type vanadium_counts: numpy.ndarray, optional
+        :param eta_step: angular step size for out-of-plane reduction
+        :type eta_step: float, optional
+        :param eta_min: min angle for out-of-plane reduction
+        :type eta_min: float, optional
+        :param eta_max: max angle for out-of-plane reduction
+        :type eta_max: float, optional
+        :param min_2theta: min 2theta
+        :type min_2theta: float, optional
+        :param max_2theta: max 2theta
+        :type max_2theta: float, optional
+        :param delta_2theta: 2theta increment in the reduced diffraction data
+        :type delta_2theta: float, optional
+        :return: None
         """
+
         # Get workspace
         if session_name is None:  # default as current session/workspace
             workspace = self._curr_workspace
@@ -376,19 +380,10 @@ class HB2BReductionManager:
 
         Builds a new 2theta pixel map if none is present or if the detector has moved
 
-        Parameters
-        ----------
-        workspace : HidraWorkspace
-            workspace with detector counts and position
-        sub_run : integer
-            sub run number in workspace to reduce
-        geometry_calibration : instrument_geometry.DENEXDetectorShift
-            instrument geometry to calculate diffraction pattern
-
-        Returns
-        -------
-        None
-
+        :param HidraWorkspace workspace: workspace with detector counts and position
+        :param int sub_run: sub run number in workspace to reduce
+        :param DENEXDetectorShift geometry_calibration: instrument geometry to calculate diffraction pattern
+        :return: None
         """
 
         # Get the raw data
@@ -433,46 +428,37 @@ class HB2BReductionManager:
 
         1. 2-theta range:
             If nothing is given, then the default range is from detector arm's 2theta value
-           going up and down with half of default_two_theta_range
+            going up and down with half of default_two_theta_range
         2. 2-theta resolution/step size:
             If 2theta resolution is not given, num_bins will be used to determine resolution with 2-theta range;
             Otherwise, use resolution
 
         Normalization to time/duration
-        ------------------------------
+
         If both sub run duration and vanadium duration are given
         normalized intensity = raw histogram / vanadium histogram * vanadium duration / sub run duration
 
-        Parameters
-        ----------
-        workspace : HidraWorkspace
-            workspace with detector counts and position
-        sub_run : integer
-            sub run number in workspace to reduce
-        geometry_calibration : instrument_geometry.DENEXDetectorShift
-            instrument geometry to calculate diffraction pattern
-        mask_vec_tuple : tuple (str, numpy.ndarray)
-            mask ID and 1D array for masking (1 to keep, 0 to mask out)
-        min_2theta : float or None
-            min 2theta
-        max_2theta : float or None
-            max 2theta
-        num_bins : float or None
-            2theta resolution/step
-        num_bins : int
-            number of bins
-        delta_2theta : float or None
-            2theta increment in the reduced diffraction data
-        sub_run_duration: float or None
-            If None, then no normalization to time (duration) will be done. Otherwise, intensity will be
-            normalized by time (duration)
-        vanadium_counts : numpy.ndarray or None
-            detector pixels' vanadium for efficiency and normalization.
+        :param HidraWorkspace workspace: workspace with detector counts and position
+        :param integer sub_run: sub run number in workspace to reduce
+        :param DENEXDetectorShift geometry_calibration: instrument geometry to calculate diffraction pattern
+        :param mask_vec_tuple: mask ID and 1D array for masking (1 to keep, 0 to mask out)
+        :type mask_vec_tuple: tuple, [str, numpy.ndarray]
+        :param min_2theta: min 2theta
+        :type min_2theta: float, optional
+        :param max_2theta: max 2theta
+        :type max_2theta: float, optional
+        :param num_bins: 2theta resolution/step
+        :type num_bins: float, optional
+        :param int num_bins: number of bins
+        :param delta_2theta: 2theta increment in the reduced diffraction data
+        :type delta_2theta: float, optional
+        :param sub_run_duration: If None, then no normalization to time (duration) will be done.
+            Otherwise, intensity will be normalized by time (duration)
+        :type sub_run_duration: float, optional
+        :param vanadium_counts: detector pixels' vanadium for efficiency and normalization.
             If vanadium duration is recorded, the vanadium counts are normalized by its duration in seconds
-
-        Returns
-        -------
-        None
+        :type vanadium_counts: numpy.ndarray, optional
+        :return: None
 
         """
 
@@ -495,23 +481,14 @@ class HB2BReductionManager:
     def generate_eta_roi_vector(self, eta_step, eta_min, eta_max):
         """Generate vector of out-of-plane angle centers
 
-        Determines list of out-of-plane centers for texture reduction
-        generated list is centered at eta of 0
-        e.g.; 0, +/-step, +/-2step, +/-3step, ...
+        Determines list of out-of-plane centers for texture reduction generated list is centered at eta of 0
+            e.g.; 0, +/-step, +/-2step, +/-3step, ...
 
-        ------------------------------
-        Parameters
-        ----------
-        eta_step : float
-            angular step size for out-of-plane reduction
-        eta_min : float
-            min angle for out-of-plane reduction
-        eta_max : float
-            max angle for out-of-plane reduction
-
-        Returns
-        -------
-        numpy array
+        :param float eta_step: angular step size for out-of-plane reduction
+        :param float eta_min: min angle for out-of-plane reduction
+        :param float eta_max: max angle for out-of-plane reduction
+        :return: eta_roi_vector
+        :rtype: numpy.ndarray
 
         """
 
@@ -541,59 +518,47 @@ class HB2BReductionManager:
                                mask_vec_tuple, min_2theta=None, max_2theta=None, num_bins=1000,
                                sub_run_duration=None, vanadium_counts=None, van_duration=None,
                                eta_step=None, eta_min=None, eta_max=None, delta_2theta=None):
-        """Reduce import data (workspace or vector) to 2-theta ~ I
+
+        """
+        Reduce import data (workspace or vector) to 2-theta ~ I
 
         The binning of 2theta is linear in range (min, max) with given resolution
 
-        1. 2-theta range:
-            If nothing is given, then the default range is from detector arm's 2theta value
-           going up and down with half of default_two_theta_range
-        2. 2-theta resolution/step size:
-            If 2theta resolution is not given, num_bins will be used to determine resolution with 2-theta range;
-            Otherwise, use resolution
+        1) 2-theta range:
+        If nothing is given, then the default range is from detector arm's 2theta value
+        going up and down with half of default_two_theta_range
+        2) 2-theta resolution/step size:
+        If 2theta resolution is not given, num_bins will be used to determine resolution with 2-theta range;
+        Otherwise, use resolution
 
         Normalization to time/duration
-        ------------------------------
         If both sub run duration and vanadium duration are given
         normalized intensity = raw histogram / vanadium histogram * vanadium duration / sub run duration
 
-        Parameters
-        ----------
-        workspace : HidraWorkspace
-            workspace with detector counts and position
-        sub_run : integer
-            sub run number in workspace to reduce
-        geometry_calibration : instrument_geometry.DENEXDetectorShift
-            instrument geometry to calculate diffraction pattern
-        mask_vec_tuple : tuple (str, numpy.ndarray)
-            mask ID and 1D array for masking (1 to keep, 0 to mask out)
-        min_2theta : float or None
-            min 2theta
-        max_2theta : float or None
-            max 2theta
-        num_bins : float or None
-            2theta resolution/step
-        num_bins : int
-            number of bins
-        delta_2theta : float or None
-            2theta increment in the reduced diffraction data
-        sub_run_duration: float or None
-            If None, then no normalization to time (duration) will be done. Otherwise, intensity will be
-            normalized by time (duration)
-        vanadium_counts : numpy.ndarray or None
-            detector pixels' vanadium for efficiency and normalization.
+        :param HidraWorkspace workspace: workspace with detector counts and position
+        :param integer sub_run: sub run number in workspace to reduce
+        :param DENEXDetectorShift geometry_calibration: instrument geometry to calculate diffraction pattern
+        :param mask_vec_tuple: mask ID and 1D array for masking (1 to keep, 0 to mask out)
+        :type mask_vec_tuple: tuple, [str, numpy.ndarray]
+        :param min_2theta: min 2theta
+        :type min_2theta: float, optional
+        :param max_2theta: max 2theta
+        :type max_2theta: float, optional
+        :param num_bins: 2theta resolution/step
+        :type num_bins: float, optional
+        :param int num_bins: number of bins
+        :param delta_2theta: 2theta increment in the reduced diffraction data
+        :type delta_2theta: float, optional
+        :param sub_run_duration: If None, then no normalization to time (duration) will be done.
+            Otherwise, intensity will be normalized by time (duration)
+        :type sub_run_duration: float, optional
+        :param vanadium_counts: detector pixels' vanadium for efficiency and normalization.
             If vanadium duration is recorded, the vanadium counts are normalized by its duration in seconds
-        eta_step : float
-            angular step size for out-of-plane reduction
-        eta_min : float
-            min angle for out-of-plane reduction
-        eta_max : float
-            max angle for out-of-plane reduction
-
-        Returns
-        -------
-        None
-
+        :type vanadium_counts: numpy.ndarray, optional
+        :param float eta_step: angular step size for out-of-plane reduction
+        :param float eta_min: min angle for out-of-plane reduction
+        :param float eta_max: max angle for out-of-plane reduction
+        :return: None
         """
 
         # Setup reduction enegine
@@ -638,31 +603,22 @@ class HB2BReductionManager:
 
     def convert_counts_to_diffraction(self, reduction_engine,
                                       two_theta_range, num_bins, delta_2theta, mask_array, vanadium_array):
-        """Histogram detector counts with detectors' 2theta angle
+        """Histogram detector counts for a defined 2theta range
 
-        Parameters
-        ----------
-        reduction_engine
-        two_theta_range : (min_2theta, max_2theta)
-            min_2theta : float or None
-                min 2theta
-            max_2theta : float or None
-                max 2theta
-        num_bins : float or None
-            2theta resolution/step
-        delta_2theta : float or None
-            2theta increment in the reduced diffraction data
-        mask_array : numpy.ndarray or None
-            mask: 1 to keep, 0 to mask (exclude)
-        vanadium_array : numpy.ndarray or None
-            detector pixels' vanadium for efficiency and normalization.
+        :param object reduction_engine: object containing information about the instrument geometry
+        :param two_theta_range: tuple with the min and max 2theta range
+        :type two_theta_range: tuple, [float, optional]
+        :param num_bins: number of bins in 2theta vector
+        :type num_bins: int, optional
+        :param delta_2theta: 2theta increment in the reduced diffraction data
+        :type delta_2theta: float, optional
+        :param mask_array: mask: 1 to keep, 0 to mask (exclude)
+        :type mask_array: numpy.ndarray, optional
+        :param vanadium_array: detector pixels' vanadium for efficiency and normalization.
             If vanadium duration is recorded, the vanadium counts are normalized by its duration in seconds
-
-        Returns
-        -------
-        numpy.ndarray, numpy.ndarray, numpy.ndarray
-            2theta bins, histogram of counts, variances of counts
-
+        :type vanadium_array: numpy.ndarray, optional
+        :return: 2theta bins, histogram of counts, variances of counts
+        :rtype: numpy.ndarray
         """
 
         # Default minimum and maximum 2theta are related with
@@ -671,7 +627,7 @@ class HB2BReductionManager:
         # Get the 2theta values for all pixels
         pixel_2theta_array = reduction_engine.instrument.get_pixels_2theta(1)
 
-        bin_boundaries_2theta = self.generate_2theta_histogram_vector(min_2theta, num_bins, max_2theta,
+        bin_boundaries_2theta = self.generate_2theta_histogram_vector(min_2theta, max_2theta, num_bins,
                                                                       pixel_2theta_array, mask_array, delta_2theta)
 
         # Histogram
@@ -686,30 +642,22 @@ class HB2BReductionManager:
         return bin_centers, hist, variances
 
     @staticmethod
-    def generate_2theta_histogram_vector(min_2theta: Optional[float], num_bins: int,
-                                         max_2theta: Optional[float],
+    def generate_2theta_histogram_vector(min_2theta: Optional[float], max_2theta: Optional[float],
+                                         num_bins: int,
                                          pixel_2theta_array, mask_array,
                                          step_2theta=None):
         """Generate a 1-D array for histogram 2theta bins
 
-        Parameters
-        ----------
-        min_2theta : float or None
-            minimum 2theta or None
-        num_bins : int
-            number of bins
-        max_2theta : float  or None
-             maximum 2theta and must be integer
-        pixel_2theta_array : numpy.ndarray
-            2theta of each detector pixel
-        mask_array : numpy.ndarray or None
-            array of mask
-
-        Returns
-        -------
-        numpy.ndarray
-            2theta values serving as bin boundaries, such its size is 1 larger than num_bins
-
+        :param min_2theta: minimum 2theta to use for generating vector
+        :type min_2theta: float, optional
+        :param max_2theta: maximum 2theta to use for generating vector
+        :type max_2theta: float, optional
+        :param int num_bins: number of bins in 2theta vector
+        :param numpy.ndarray pixel_2theta_array: 2theta of each detector pixel
+        :param mask_array: vector for pixel mask
+        :type mask_array: numpy.ndarray, optional
+        :return: 2theta values serving as bin boundaries, such its size is 1 larger than num_bins
+        :rtype: numpy.ndarray
         """
 
         # If default value is required: set the default
@@ -759,10 +707,10 @@ class HB2BReductionManager:
         return vec_2theta
 
     def save_reduced_diffraction(self, session_name, output_name):
-        """
-        Save the reduced diffraction data to file
-        :param session_name:
-        :param output_name:
+        """Save the reduced diffraction data to file
+
+        :param str session_name: name of the session for locating workspace
+        :param str output_name: output filename
         :return:
         """
         checkdatatypes.check_file_name(output_name, False, True, False, 'Output reduced file')

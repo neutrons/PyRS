@@ -250,8 +250,7 @@ class PeakFitCalibration:
         # Default minimum and maximum 2theta are related with
         pixel_2theta_array = pyrs_reducer.instrument.get_pixels_2theta(1)
 
-        bin_boundaries_2theta = HB2BReductionManager.generate_2theta_histogram_vector(min_2theta, num_bins,
-                                                                                      max_2theta,
+        bin_boundaries_2theta = HB2BReductionManager.generate_2theta_histogram_vector(min_2theta, max_2theta, num_bins,
                                                                                       pixel_2theta_array,
                                                                                       roi_vec)
 
