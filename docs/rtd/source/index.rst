@@ -1,4 +1,4 @@
-
+Ex
 
 PyRS User's Guide
 =================
@@ -17,6 +17,7 @@ Funded by the `Office of Energy Science <https://www.energy.gov/science/bes/basi
 
    introduction/introduction
    basics/basics
+   example/example
    math/mathmatical
    api/modules
    advanced/advanced
