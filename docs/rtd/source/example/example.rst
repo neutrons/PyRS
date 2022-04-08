@@ -27,7 +27,7 @@ Select the peak fitting option to launch the peak fitting UI. Reminder overview 
 
 Load measured data
 ------------------
-After the UI loads, select the "Browse Exp. Data File" to select one of the three hidraprojectfiles in the examples folder "HB2B_2246.h5, HB2B_2247.h5, and HB2B_2251.h5". These three files represent data for the LD, TD, and ST directions.
+After the UI loads, select the "Browse Exp. Data File" to select one of the three hidraprojectfiles in the example folder in the pyRS home directory "example/HB2B_2246.h5, example/HB2B_2247.h5, and example/HB2B_2251.h5". These three files represent data for the LD, TD, and ST directions.
 
 Fitting measured data using pyRS
 --------------------------------
