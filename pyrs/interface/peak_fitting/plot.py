@@ -236,7 +236,7 @@ class Plot:
 
                 self.parent.ui.graphicsView_plot2D.ax.set_xlabel(x_axis_name)
                 self.parent.ui.graphicsView_plot2D.ax.set_ylabel(y_axis_name)
-                self.parent.ui.graphicsView_plot2D.ax.set_zlabel(z_axis_name)
+                # self.parent.ui.graphicsView_plot2D.ax.set_zlabel(z_axis_name)
 
     def format_3D_axis_data(self, axis_x=[], axis_y=[], axis_z=[]):
 

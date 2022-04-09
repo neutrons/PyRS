@@ -198,9 +198,9 @@ def parse_gold_file(file_name):
     data_set_names = list(gold_file.keys())
     for name in data_set_names:
         if isinstance(gold_file[name], h5py.Dataset):
-            data_dict[name] = gold_file[name].value
+            data_dict[name] = gold_file[name][()]
         else:
-            data_dict[name] = gold_file[name]['x'].value, gold_file[name]['y'].value
+            data_dict[name] = gold_file[name]['x'][()], gold_file[name]['y'][()]
     # END-FOR
 
     if len(data_dict) == 1 and data_dict.keys()[0] == 'data':

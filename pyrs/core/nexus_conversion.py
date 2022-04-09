@@ -37,7 +37,7 @@ def convert_pulses_to_datetime64(h5obj):
         raise RuntimeError('Do not understand time units "{}"'.format(h5obj.attrs['units']))
 
     # the value is number of seconds as a float
-    pulse_time = h5obj.value
+    pulse_time = h5obj[()]
 
     # Convert deltas to times with units. This has to be done through
     # nanoseconds because numpy truncates things to integers during the conversion
@@ -395,17 +395,17 @@ class NeXusConvertingApp:
         with h5py.File(self._nexus_name, 'r') as nexus_h5:
             bank1_events = nexus_h5['entry']['bank1_events']
             # Check number of neutron events.  Raise exception if there is no neutron event
-            if bank1_events['total_counts'].value[0] < 0.1:
+            if bank1_events['total_counts'][()][0] < 0.1:
                 # no counts
                 raise RuntimeError('Run {} has no count.  Proper reduction requires the run to have count'
                                    ''.format(self._nexus_name))
 
             # detector id for the events
-            event_id_array = bank1_events['event_id'].value
+            event_id_array = bank1_events['event_id'][()]
 
             if self._splitter:
                 # get event index array: same size as pulse times
-                event_index_array = bank1_events['event_index'].value
+                event_index_array = bank1_events['event_index'][()]
                 # get pulse times
                 pulse_time_array = convert_pulses_to_datetime64(bank1_events['event_time_zero'])
 

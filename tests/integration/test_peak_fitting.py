@@ -280,9 +280,7 @@ def test_improve_quality():
     hd_ws = controller.load_hidra_project(project_file_name, project_name=project_name, load_detector_counts=False,
                                           load_diffraction=True)
 
-    # set wave length
-    # TODO : @Jean please find out the correct value
-    wavelength = 1.071
+    wavelength = 1.54
     hd_ws.set_wavelength(wavelength, False)
 
     peak_type = 'Gaussian'

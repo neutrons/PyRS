@@ -349,11 +349,15 @@ class StrainSliceViewer(SliceViewer):
 
     def new_plot_MDH(self):
         """redefine this function so we can change the default plot interpolation"""
-        self.view.data_view.plot_MDH(self.model.get_ws(), slicepoint=self.get_slicepoint(), interpolation='bilinear')
-        if self.overlay_visible:
-            self.update_overlay()
-        if self.aspect_equal:
-            self.update_aspect()
+        if self.view is None:
+            print('view is none')
+        else:
+            self.view.data_view.plot_MDH(self.model.get_ws(), slicepoint=self.get_slicepoint(),
+                                         interpolation='bilinear')
+            if self.overlay_visible:
+                self.update_overlay()
+            if self.aspect_equal:
+                self.update_aspect()
 
     def update_plot_data_MDH(self):
         super().update_plot_data_MDH()
@@ -535,7 +539,6 @@ class VizTabs(QTabWidget):
         self.setTabEnabled(2, not USING_THINLINC and not DISABLE_3D and not oned)
 
     def set_ws(self, field):
-
         if field is not None:
             try:
                 ws = field.to_md_histo_workspace()
@@ -570,12 +573,10 @@ class VizTabs(QTabWidget):
                 self.plot_1d.setCurrentIndex(1)
             else:
                 self.set_1d_mode(False)
-                if self.strainSliceViewer:
-                    self.strainSliceViewer.set_new_workspace(ws)
-                else:
-                    self.strainSliceViewer = StrainSliceViewer(ws, parent=self)
-                    self.plot_2d.addWidget(self.strainSliceViewer.view)
-                    self.plot_2d.setCurrentIndex(1)
+
+                self.strainSliceViewer = StrainSliceViewer(ws, parent=self)
+                self.plot_2d.addWidget(self.strainSliceViewer.view)
+                self.plot_2d.setCurrentWidget(self.strainSliceViewer.view)
                 self.strainSliceViewer.set_new_field(field,
                                                      bin_widths=[ws.getDimension(n).getBinWidth() for n in range(3)])
 
@@ -800,6 +801,7 @@ class StrainStressViewer(QMainWindow):
                                                                  self.stressCase.get_stress_case()
                                                                  == "In-plane stress"):
                 self.calculate_stress()
+            print('plotting from here')
 
             self.viz_tab.set_ws(self.model.get_field(direction=self.plot_select.get_direction(),
                                                      plot_param=self.plot_select.get_plot_param(),
