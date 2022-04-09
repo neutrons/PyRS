@@ -8,8 +8,16 @@ import os
 import pytest
 import json
 from tests.conftest import ON_GITHUB_ACTIONS  # set to True when running on build servers
+import mantid
+
+mantid_version = mantid._version_str().split('.')
+
+old_mantid = True
+if (int(mantid_version[0]) > 5) or (int(mantid_version[0]) == 5 and int(mantid_version[1]) > 1):
+    old_mantid = False
 
 wait = 100
+
 
 
 # This is a test of the model component of the strain/stress viewer
@@ -598,7 +606,7 @@ def test_model_from_json(tmpdir, test_data_dir):
 
 
 # changes to SliceViewer from Mantid in the version 5.1 is needed for the stress/strain viewer to run
-@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason='Need mantid version >= 5.1')
+@pytest.mark.skipif(ON_GITHUB_ACTIONS or old_mantid, reason='Need mantid version >= 5.1')
 def test_stress_strain_viewer(qtbot):
 
     model = Model()
