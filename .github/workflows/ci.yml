@@ -19,7 +19,7 @@ jobs:
         with:
           auto-update-conda: true
           mamba-version: "*"
-          channels: mantid,conda-forge
+          channels: mantid,mantid/label/nightly,conda-forge
           environment-file: environment.yml
 
       - name: Apt install deps

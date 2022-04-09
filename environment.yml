@@ -1,7 +1,8 @@
 name: PyRS
 dependencies:
 - python=3.8 
-- mantidworkbench
+- mantid
+- mantidqt
 - qtpy
 - pytest
 - pytest-cov
