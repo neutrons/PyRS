@@ -19,7 +19,6 @@ if (int(mantid_version[0]) > 5) or (int(mantid_version[0]) == 5 and int(mantid_v
 wait = 100
 
 
-
 # This is a test of the model component of the strain/stress viewer
 @pytest.mark.skipif(ON_GITHUB_ACTIONS, reason='Test hangs on github CI')
 def test_model(tmpdir, test_data_dir):
