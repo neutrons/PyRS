@@ -86,15 +86,15 @@ class SummaryGeneratorStress:
         for field in SummaryGeneratorStress.fields_3dir:
             self._peak_colllections_data[field] = dict()
             for direction in SummaryGeneratorStress.directions:
-                self._peak_colllections_data[field][direction] = (np.ndarray, np.ndarray)
+                self._peak_colllections_data[field][direction] = (np.ndarray, np.ndarray)  # type: ignore
 
         # used to cache summary csv fields
         self._stress_field: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
         self._strain_field: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
 
         for direction in SummaryGeneratorStress.directions:
-            self._stress_field[direction] = (np.ndarray, np.ndarray)
-            self._strain_field[direction] = (np.ndarray, np.ndarray)
+            self._stress_field[direction] = (np.ndarray, np.ndarray)  # type: ignore
+            self._strain_field[direction] = (np.ndarray, np.ndarray)  # type: ignore
 
     def _write_csv_header(self, handle):
         """
