@@ -1,5 +1,10 @@
-from mantidqt.widgets.sliceviewer.presenter import SliceViewer
-from mantidqt.widgets.sliceviewer.model import SliceViewerModel
+try:
+    from mantidqt.widgets.sliceviewer.presenter import SliceViewer
+    from mantidqt.widgets.sliceviewer.model import SliceViewerModel
+except ImportError:
+    from mantidqt.widgets.sliceviewer.presenters.presenter import SliceViewer
+    from mantidqt.widgets.sliceviewer.models.model import SliceViewerModel
+
 from mantidqt.icons import get_icon
 from qtpy.QtWidgets import (QHBoxLayout, QVBoxLayout, QLabel, QWidget,
                             QLineEdit, QPushButton, QComboBox,
