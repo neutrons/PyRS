@@ -122,8 +122,8 @@ class ScalarFieldSample:
 
     def __init__(self, name: str,
                  values: Union[List[float], np.ndarray], errors: Union[List[float], np.ndarray],
-                 x: Union[List[float], np.ndarray], y: Union[List[float],
-                 np.ndarray], z: Union[List[float], np.ndarray]) -> None:
+                 x: Union[List[float], np.ndarray], y: Union[List[float], np.ndarray],
+                 z: Union[List[float], np.ndarray]) -> None:
         all_lengths = [len(values), len(errors), len(x), len(y), len(z)]
         assert len(set(all_lengths)) == 1, 'input lists must all have the same lengths'
         self._sample = unumpy.uarray(values, errors)
@@ -266,7 +266,7 @@ class ScalarFieldSample:
         ~pyrs.dataobjects.fields.ScalarFieldSample
         """
         indexes_finite = np.where(np.isfinite(self.values))[0]
-        return self.extract(indexes_finite)  #type: ignore
+        return self.extract(indexes_finite) # type: ignore
 
     def sort(self):
         r"""In-place reordering of the list of points (along with their associated values
@@ -819,7 +819,7 @@ class _StrainField:
                 point_index = index_aggregate - strain_lengths_cumsum[strains_unstacked_index]
                 xyz += coordinates[point_index]
             xyzs.append(xyz / len(cluster))  # geometrical center of the points in this cluster
-        xyzs = np.array(xyzs).T  #type: ignore # shape = (3, number of points)
+        xyzs = np.array(xyzs).T  # type: ignore # shape = (3, number of points)
         point_list_stacked = PointList(xyzs)
 
         # Assemble the stacked strains
