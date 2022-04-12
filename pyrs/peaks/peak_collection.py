@@ -272,8 +272,8 @@ class PeakCollection:
         return self._sub_run_array
 
     @property
-    def fitting_costs(self):
-        return self._fit_cost_array
+    def fitting_costs(self) -> np.ndarray:
+        return self._fit_cost_array  # type: ignore
 
     @property
     def runnumber(self) -> int:
@@ -436,8 +436,11 @@ class PeakCollection:
         d_spacing = self._get_dspacing_center()
         return unumpy.nominal_values(d_spacing), unumpy.std_devs(d_spacing)
 
-    def get_chisq(self):
-        return np.copy(self._fit_cost_array)
+    def get_chisq(self) -> np.ndarray:
+        if self._fit_cost_array is not None:
+            return np.copy(self._fit_cost_array)
+        else:
+            return np.array([])
 
     def get_subruns(self):
         return self._sub_run_array.raw_copy()  # TODO should this be the actual object

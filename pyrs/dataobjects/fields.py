@@ -427,8 +427,7 @@ class ScalarFieldSample:
             r"""Find index of sample point with minimum error of the scalar field"""
             error_values = np.array(self.errors)[indexes]
             error_min_index = np.nanargmin(error_values)  # ignore 'nan' values
-            return [indexes[error_min_index]] # type: ignore
-
+            return indexes[error_min_index]  #type: ignore
         criterion_functions = {'min_error': min_error}
         assert criterion in criterion_functions, f'The criterion must be one of {criterion_functions.keys()}'
 
@@ -781,8 +780,8 @@ class _StrainField:
         #   Array `strain_lengths_cumsum` is [0, 4, 9].
         #   For aggregate index 10, we have np.where(strain_lengths_cumsum <= 10)[0][-1] == 2, meaning this
         #   sample point corresponds to a point in the last strain (the first strain has index 0)
-        strain_lengths = [len(strain) for strain in strains_unstacked]
-        strain_lengths_cumsum = np.concatenate(([0], + np.cumsum(strain_lengths)[:-1])) # type: ignore
+        strain_lengths = [len(strain) for strain in strains_unstacked]  #type: ignore
+        strain_lengths_cumsum = np.concatenate(([0], + np.cumsum(strain_lengths)[:-1]))  #type: ignore
 
         # Fill the winner scan indexes and point indexes of the future stacked strains with info
         # from the winner scan indexes and point indexes of the unstacked strains

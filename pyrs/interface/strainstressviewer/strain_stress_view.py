@@ -1,4 +1,4 @@
-try:
+try:  # Mantid 6.3 uses a different import pathway
     from mantidqt.widgets.sliceviewer.presenter import SliceViewer
     from mantidqt.widgets.sliceviewer.model import SliceViewerModel
 except ImportError:

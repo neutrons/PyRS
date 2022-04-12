@@ -364,6 +364,8 @@ class SampleLogs(MutableMapping):
                 if value.size != self.subruns.size:
                     raise ValueError('Number of values[{}] isn\'t the same as number of '
                                      'subruns[{}]'.format(value.size, self.subruns.size))
+            else:
+                raise RuntimeError('Must set subruns first')
 
             self._data[log_name] = value
             self._units[log_name] = units
