@@ -153,7 +153,7 @@ class PoleFigureCalculator:
         """
         det_id = to_int('Detector ID', det_id, min_value=0)
 
-        param_vec = np.ndarray(shape=(len(self._peak_fit_info_dict[det_id]), ), dtype='float')
+        param_vec = np.ndarray(shape=(len(self._peak_fit_info_dict[det_id]), ), dtype='float')   # type: ignore
         log_index_list = sorted(self._peak_fit_info_dict[det_id].keys())
         for i, log_index in enumerate(log_index_list):
             try:

@@ -21,7 +21,7 @@ class DataRetriever:
 
         if name == 'd-spacing':
             peak_collection = self.parent.fit_result.peakcollections[peak_index]
-            _d_reference = np.float(str(self.parent.ui.peak_range_table.item(peak_index, 3).text()))
+            _d_reference = np.float32(str(self.parent.ui.peak_range_table.item(peak_index, 3).text()))
             peak_collection.set_d_reference(values=_d_reference)
             values, error = peak_collection.get_dspacing_center()
             return (values, error)

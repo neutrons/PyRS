@@ -360,14 +360,19 @@ class SampleLogs(MutableMapping):
         else:
             if self._subruns.size == 0:
                 raise RuntimeError('Must set subruns first')
-            elif value.size != self.subruns.size:
-                raise ValueError('Number of values[{}] isn\'t the same as number of '
-                                 'subruns[{}]'.format(value.size, self.subruns.size))
+            elif isinstance(value, np.ndarray):
+                if value.size != self.subruns.size:
+                    raise ValueError('Number of values[{}] isn\'t the same as number of '
+                                     'subruns[{}]'.format(value.size, self.subruns.size))
+            else:
+                raise RuntimeError('Must set subruns first')
+
             self._data[log_name] = value
             self._units[log_name] = units
             # add this to the list of plottable parameters
-            if value.dtype.kind in 'iuf':  # int, uint, float
-                self._plottable.add(key)
+            if isinstance(value, np.ndarray):
+                if value.dtype.kind in 'iuf':  # int, uint, float
+                    self._plottable.add(key)
 
     def units(self, log_name: str) -> str:
         r"""
@@ -572,7 +577,7 @@ class DirectionExtents(_DirectionExtents):
             min_coord = np.min(coordinates)
             max_coord = np.max(coordinates)
             delta = (max_coord - min_coord) / (coordinates_floored_count - 1)
-        extents_tuple = super(DirectionExtents, cls).__new__(cls, min_coord, max_coord, delta)
+        extents_tuple = super(DirectionExtents, cls).__new__(cls, min_coord, max_coord, delta)  # type: ignore
         super(DirectionExtents, cls).__setattr__(extents_tuple, '_numpoints', coordinates_floored_count)
         super(DirectionExtents, cls).__setattr__(extents_tuple, '_resolution', resolution)
         return extents_tuple
