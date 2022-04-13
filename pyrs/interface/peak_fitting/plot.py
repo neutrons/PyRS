@@ -38,7 +38,7 @@ class Plot:
         self.parent._ui_graphicsView_fitSetup.reset_viewer()
 
         if len(scan_log_index_list) == 1:
-            self.plot_scan(value=np.int(scan_log_index_list[0]))
+            self.plot_scan(value=np.int32(scan_log_index_list[0]))
             return
 
         # get data and plot
@@ -189,8 +189,8 @@ class Plot:
             self.parent.ui.graphicsView_plot2D.colorbar = None
 
         if self.parent.ui.radioButton_contour.isChecked():
-
-            self.parent.ui.graphicsView_plot2D.ax = self.parent.ui.graphicsView_plot2D.figure.gca()
+            self.parent.ui.graphicsView_plot2D.figure.clear()
+            self.parent.ui.graphicsView_plot2D.ax = self.parent.ui.graphicsView_plot2D.figure.axes()
             my_plot = self.parent.ui.graphicsView_plot2D.ax.contourf(x_axis, y_axis, z_axis)
 
             self.parent.ui.graphicsView_plot2D.colorbar = \
@@ -204,7 +204,9 @@ class Plot:
 
             x, y = np.meshgrid(x_axis, y_axis)
 
-            self.parent.ui.graphicsView_plot2D.ax = self.parent.ui.graphicsView_plot2D.figure.gca(projection='3d')
+            self.parent.ui.graphicsView_plot2D.figure.clear()
+            self.parent.ui.graphicsView_plot2D.ax = \
+                self.parent.ui.graphicsView_plot2D.figure.add_subplot(projection='3d')
             my_plot = self.parent.ui.graphicsView_plot2D.ax.plot_surface(x, y, z_axis,
                                                                          cmap=cm.coolwarm,
                                                                          linewidth=0,
@@ -225,8 +227,9 @@ class Plot:
             self.parent.ui.graphicsView_plot2D._myCanvas.draw()
 
         else:
-
-            self.parent.ui.graphicsView_plot2D.ax = self.parent.ui.graphicsView_plot2D.figure.gca(projection='3d')
+            self.parent.ui.graphicsView_plot2D.figure.clear()
+            self.parent.ui.graphicsView_plot2D.ax = \
+                self.parent.ui.graphicsView_plot2D.figure.add_subplot(projection='3d')
 
             # only try plotting if the figure height is larger than 0
             fig_size = self.parent.ui.graphicsView_plot2D.figure.get_size_inches()
@@ -236,7 +239,7 @@ class Plot:
 
                 self.parent.ui.graphicsView_plot2D.ax.set_xlabel(x_axis_name)
                 self.parent.ui.graphicsView_plot2D.ax.set_ylabel(y_axis_name)
-                # self.parent.ui.graphicsView_plot2D.ax.set_zlabel(z_axis_name)
+                self.parent.ui.graphicsView_plot2D.ax.set_zlabel(z_axis_name)
 
     def format_3D_axis_data(self, axis_x=[], axis_y=[], axis_z=[]):
 
@@ -280,7 +283,7 @@ class Plot:
 
         o_data_retriever = DataRetriever(parent=self.parent)
 
-        is_plot_with_error = False
+        is_plot_with_error = True
 
         axis_x_data, axis_x_error = o_data_retriever.get_data(name=x_axis_name, peak_index=x_axis_peak_index)
         axis_y_data, axis_y_error = o_data_retriever.get_data(name=y_axis_name, peak_index=y_axis_peak_index)

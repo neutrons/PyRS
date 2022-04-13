@@ -67,7 +67,6 @@ class MplGraphicsView1D(QWidget):
         self._vBox.addWidget(self._myToolBar)
 
     def button_clicked_in_canvas(self, event):
-        # print("button pressed here!")
         print("-> {} click: button={:d}, x={:d}, y={:d}, xdata={:f}, ydata={:f}".format(event.dblclick, event.button,
                                                                                         event.x, event.y, event.xdata,
                                                                                         event.ydata))
@@ -786,6 +785,9 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         if line_style is None:
             line_style = '-'
 
+        self.clear_canvas()
+        self.axes_main[row_index, col_index].clear()
+
         # color must be RGBA (4-tuple)
         if plot_error is False:
             # return: list of matplotlib.lines.Line2D object
@@ -793,6 +795,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
                                                           marker=marker, markersize=markersize,
                                                           linestyle=line_style, label=label,
                                                           linewidth=line_width)
+
             self.axes_main[row_index, col_index].autoscale()
 
         else:
@@ -848,7 +851,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         # END-IF
 
         # Flush/commit
-        self.draw()
+        # self.draw()
 
         return line_key
 
@@ -897,7 +900,9 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
             label = 'right'
             color = 'red'
 
+        print(label)
         # return: list of matplotlib.lines.Line2D object
+        self.axes_right[row_index, col_index].clf()
         plot_info = self.axes_right[row_index, col_index].plot(x, y, color=color, marker=marker, markersize=markersize,
                                                                label=label,
                                                                linestyle=line_style, linewidth=linewidth)

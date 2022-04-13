@@ -1,5 +1,5 @@
 # extentable version of dict https://treyhunner.com/2019/04/why-you-shouldnt-inherit-from-list-and-dict-in-python/
-from collections import Iterable, MutableMapping
+from collections.abc import Iterable, MutableMapping
 import numpy as np
 from scipy.cluster.hierarchy import fclusterdata
 from scipy.spatial import cKDTree

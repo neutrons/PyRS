@@ -77,7 +77,7 @@ def test_peak_fitting(qtbot, tmpdir):
     # check number of lines
     assert len(file_contents) == 127
     # check number of values in line
-    assert len(np.fromstring(file_contents[-1], dtype=float, sep=',')) == 33
+    assert len(np.fromstring(file_contents[-1], dtype=np.float64, sep=',')) == 33
 
     # look at 1D results plot
     line = window.ui.graphicsView_fitResult.canvas().get_axis(0, 0, True).lines[0]
@@ -121,7 +121,7 @@ def test_peak_fitting(qtbot, tmpdir):
     # check number of lines
     assert len(file_contents) == 127
     # check number of values in line
-    assert len(np.fromstring(file_contents[-1], dtype=float, sep=',')) == 33
+    assert len(np.fromstring(file_contents[-1], dtype=np.float64, sep=',')) == 33
 
     # look at 1D results plot
     line = window.ui.graphicsView_fitResult.canvas().get_axis(0, 0, True).lines[0]
