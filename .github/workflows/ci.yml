@@ -1,0 +1,54 @@
+name: PyRS CI
+
+on: [push, pull_request]
+
+jobs:
+
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          mamba-version: "*"
+          channels: mantid,mantid/label/nightly,conda-forge
+          environment-file: environment.yml
+
+      - name: Apt install deps
+        run: |
+          sudo apt update
+          sudo apt-get install xvfb freeglut3-dev libglu1-mesa
+
+      - name: Lint
+        run: flake8 . --count
+
+      - name: mypy
+        run: mypy pyrs scripts tests
+
+      - name: Mantid pre-requisites - create a properties file that turns off network access
+        run: |
+          mkdir ~/.mantid
+          echo "CheckMantidVersion.OnStartup=0" > ~/.mantid/Mantid.user.properties
+          echo "UpdateInstrumentDefinitions.OnStartup=0" >> ~/.mantid/Mantid.user.properties
+          echo "usagereports.enabled=0" >> ~/.mantid/Mantid.user.properties
+
+      - name: Test mantid/workbench
+        run: |
+          python -c "import mantid"
+          python -c "import qtpy"
+          python -c "import mantidqt"
+          xvfb-run -a mantidworkbench --help
+
+      - name: Run PyRS tests
+        run: xvfb-run --server-args="-screen 0 640x480x24" -a pytest --cov=pyrs --cov-report=xml --cov-report=term tests
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1

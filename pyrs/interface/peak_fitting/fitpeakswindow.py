@@ -1,5 +1,5 @@
 import os
-from qtpy.QtWidgets import QVBoxLayout, QFileDialog, QMainWindow
+from qtpy.QtWidgets import QVBoxLayout, QFileDialog, QMainWindow  # type:ignore
 from qtpy import QtGui
 
 from pyrs.utilities import load_ui  # type: ignore
@@ -69,8 +69,6 @@ class FitPeaksWindow(QMainWindow):
         # promote
         self.ui.graphicsView_fitResult = qt_util.promote_widget(self, self.ui.graphicsView_fitResult_frame,
                                                                 GeneralDiffDataView)
-        self.ui.graphicsView_fitResult.setEnabled(False)
-        self.ui.graphicsView_fitResult.set_subplots(1, 1)
         self.ui.graphicsView_plot2D = qt_util.promote_widget(self, self.ui.graphicsView_2dPlot_frame,
                                                              MplGraphicsViewContourPlot)
         self.ui.tableView_fitSummary = qt_util.promote_widget(self, self.ui.tableView_fitSummary_frame,
@@ -163,8 +161,11 @@ class FitPeaksWindow(QMainWindow):
     def load_run_number(self):
         o_handler = EventHandler(parent=self)
         o_handler.load_run_number_plot()
-        o_plot = Plot(parent=self)
-        o_plot.plot_1d()
+        try:
+            o_plot = Plot(parent=self)
+            o_plot.plot_1d()
+        except AttributeError:
+            pass
 
     def browse_hdf(self):
         """ Browse Hidra project HDF file

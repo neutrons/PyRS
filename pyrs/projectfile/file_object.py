@@ -22,7 +22,7 @@ class DiffractionUnit(Enum):
     DSpacing = 'dSpacing'
 
     def __str__(self):
-        return self.value
+        return self[()]
 
 
 class HidraProjectFile:
@@ -263,7 +263,7 @@ class HidraProjectFile:
 
         """
         try:
-            mask_array = self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK][mask_name].value
+            mask_array = self._project_h5[HidraConstants.MASK][HidraConstants.DETECTOR_MASK][mask_name][()]
         except KeyError as key_err:
             if HidraConstants.MASK not in self._project_h5.keys():
                 err_msg = 'Project file {} does not have "{}" entry.  Its format is not up-to-date.' \
@@ -382,7 +382,7 @@ class HidraProjectFile:
         else:
             tth_key = HidraConstants.TWO_THETA
 
-        two_theta_vec = self._project_h5[HidraConstants.REDUCED_DATA][tth_key].value
+        two_theta_vec = self._project_h5[HidraConstants.REDUCED_DATA][tth_key][()]
 
         return two_theta_vec
 
@@ -402,7 +402,7 @@ class HidraProjectFile:
         # Get data to return
         if sub_run is None:
             # all the sub runs
-            reduced_diff_hist = self._project_h5[HidraConstants.REDUCED_DATA][mask_id].value
+            reduced_diff_hist = self._project_h5[HidraConstants.REDUCED_DATA][mask_id][()]
         else:
             # specific one sub run
             sub_run_list = self.read_sub_runs()
@@ -411,7 +411,7 @@ class HidraProjectFile:
             if mask_id is None:
                 mask_id = HidraConstants.REDUCED_MAIN
 
-            reduced_diff_hist = self._project_h5[HidraConstants.REDUCED_DATA][mask_id].value[sub_run_index]
+            reduced_diff_hist = self._project_h5[HidraConstants.REDUCED_DATA][mask_id][()][sub_run_index]
         # END-IF-ELSE
 
         return reduced_diff_hist
@@ -436,7 +436,7 @@ class HidraProjectFile:
             # Get data to return
             if sub_run is None:
                 # all the sub runs
-                reduced_variance_hist = self._project_h5[HidraConstants.REDUCED_DATA][mask_id].value
+                reduced_variance_hist = self._project_h5[HidraConstants.REDUCED_DATA][mask_id][()]
             else:
                 # specific one sub run
                 sub_run_list = self.read_sub_runs()
@@ -448,7 +448,7 @@ class HidraProjectFile:
                 if '_var' not in mask_id:
                     mask_id += '_var'
 
-                reduced_variance_hist = self._project_h5[HidraConstants.REDUCED_DATA][mask_id].value[sub_run_index]
+                reduced_variance_hist = self._project_h5[HidraConstants.REDUCED_DATA][mask_id][()][sub_run_index]
             # END-IF-ELSE
         except ValueError:
             reduced_variance_hist = None
@@ -482,9 +482,9 @@ class HidraProjectFile:
         detector_group = geometry_group[HidraConstants.DETECTOR_PARAMS]
 
         # Get value
-        num_rows, num_cols = detector_group['detector size'].value
-        pixel_size_x, pixel_size_y = detector_group['pixel dimension'].value
-        arm_length = detector_group['L2'].value
+        num_rows, num_cols = detector_group['detector size'][()]
+        pixel_size_x, pixel_size_y = detector_group['pixel dimension'][()]
+        arm_length = detector_group['L2'][()]
 
         # Initialize
         instrument_setup = DENEXDetectorGeometry(num_rows=num_rows,
@@ -518,20 +518,20 @@ class HidraProjectFile:
         # Get 2theta and others
         samplelogs = SampleLogs()
         # first set subruns
-        samplelogs[HidraConstants.SUB_RUNS] = logs_group[HidraConstants.SUB_RUNS].value
+        samplelogs[HidraConstants.SUB_RUNS] = logs_group[HidraConstants.SUB_RUNS][()]
         for log_name in logs_group.keys():
             data_set = logs_group[log_name]  # an instance of HDF5::DataSet
             try:
-                samplelogs[log_name, data_set.attrs['units']] = data_set.value
+                samplelogs[log_name, data_set.attrs['units']] = data_set[()]
             except KeyError:  # this log entry has no units. True for old project files
-                samplelogs[log_name] = data_set.value
+                samplelogs[log_name] = data_set[()]
 
         return samplelogs
 
     def read_run_number(self) -> int:
         try:
             values = self.read_log_value('run_number')
-            values_set = set(values.value.astype(int))
+            values_set = set(values[()].astype(int))
             if len(values_set) > 1:
                 raise RuntimeError('more than one run number: {}'.format(values_set))
             return values_set.pop()
@@ -589,7 +589,7 @@ class HidraProjectFile:
 
         sub_run_str = '{:04}'.format(sub_run)
         try:
-            counts = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SUB_RUNS][sub_run_str]['counts'].value
+            counts = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SUB_RUNS][sub_run_str]['counts'][()]
         except KeyError as key_error:
             err_msg = 'Unable to access sub run {} with key {}: {}\nAvailable runs are: {}' \
                       ''.format(sub_run, sub_run_str, key_error,
@@ -607,7 +607,7 @@ class HidraProjectFile:
         # coded a little wacky to be less than 120 characters across
         sub_runs_str_list = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS]
         if HidraConstants.SUB_RUNS in sub_runs_str_list:
-            sub_runs_str_list = sub_runs_str_list[HidraConstants.SUB_RUNS].value
+            sub_runs_str_list = sub_runs_str_list[HidraConstants.SUB_RUNS][()]
         else:
             sub_runs_str_list = []
 
@@ -693,10 +693,10 @@ class HidraProjectFile:
         # Get all the attribute and data
         profile = peak_entry.attrs[HidraConstants.PEAK_PROFILE]
         background = peak_entry.attrs[HidraConstants.BACKGROUND_TYPE]
-        sub_run_array = peak_entry[HidraConstants.SUB_RUNS].value
-        chi2_array = peak_entry[HidraConstants.PEAK_FIT_CHI2].value
-        param_values = peak_entry[HidraConstants.PEAK_PARAMS].value
-        error_values = peak_entry[HidraConstants.PEAK_PARAMS_ERROR].value
+        sub_run_array = peak_entry[HidraConstants.SUB_RUNS][()]
+        chi2_array = peak_entry[HidraConstants.PEAK_FIT_CHI2][()]
+        param_values = peak_entry[HidraConstants.PEAK_PARAMS][()]
+        error_values = peak_entry[HidraConstants.PEAK_PARAMS_ERROR][()]
 
         # validate the information makes sense
         if param_values.shape != error_values.shape:
@@ -712,9 +712,9 @@ class HidraProjectFile:
         # Optionally for strain: reference peak center in dSpacing: (strain)
         if HidraConstants.D_REFERENCE in list(peak_entry.keys()):
             # If reference position D is ever written to this project
-            ref_d_array = peak_entry[HidraConstants.D_REFERENCE].value
+            ref_d_array = peak_entry[HidraConstants.D_REFERENCE][()]
             if HidraConstants.D_REFERENCE_ERROR in list(peak_entry.keys()):
-                ref_d_error = peak_entry[HidraConstants.D_REFERENCE_ERROR].value
+                ref_d_error = peak_entry[HidraConstants.D_REFERENCE_ERROR][()]
                 peak_collection.set_d_reference(ref_d_array, ref_d_error)
             else:
                 peak_collection.set_d_reference(ref_d_array)
@@ -819,7 +819,7 @@ class HidraProjectFile:
         try:
             mono_node = self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.MONO]
             if HidraConstants.WAVELENGTH in mono_node:
-                wl = self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.MONO][HidraConstants.WAVELENGTH].value
+                wl = self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.MONO][HidraConstants.WAVELENGTH][()]
                 if wl.shape[0] == 0:
                     # empty numpy array: no data. keep as nan
                     pass

@@ -122,7 +122,8 @@ class ScalarFieldSample:
 
     def __init__(self, name: str,
                  values: Union[List[float], np.ndarray], errors: Union[List[float], np.ndarray],
-                 x: List[float], y: List[float], z: List[float]) -> None:
+                 x: Union[List[float], np.ndarray], y: Union[List[float], np.ndarray],
+                 z: Union[List[float], np.ndarray]) -> None:
         all_lengths = [len(values), len(errors), len(x), len(y), len(z)]
         assert len(set(all_lengths)) == 1, 'input lists must all have the same lengths'
         self._sample = unumpy.uarray(values, errors)
@@ -265,7 +266,7 @@ class ScalarFieldSample:
         ~pyrs.dataobjects.fields.ScalarFieldSample
         """
         indexes_finite = np.where(np.isfinite(self.values))[0]
-        return self.extract(indexes_finite)
+        return self.extract(indexes_finite) # type: ignore
 
     def sort(self):
         r"""In-place reordering of the list of points (along with their associated values
@@ -426,7 +427,7 @@ class ScalarFieldSample:
             r"""Find index of sample point with minimum error of the scalar field"""
             error_values = np.array(self.errors)[indexes]
             error_min_index = np.nanargmin(error_values)  # ignore 'nan' values
-            return indexes[error_min_index]
+            return indexes[error_min_index]  #type: ignore
         criterion_functions = {'min_error': min_error}
         assert criterion in criterion_functions, f'The criterion must be one of {criterion_functions.keys()}'
 
@@ -779,8 +780,8 @@ class _StrainField:
         #   Array `strain_lengths_cumsum` is [0, 4, 9].
         #   For aggregate index 10, we have np.where(strain_lengths_cumsum <= 10)[0][-1] == 2, meaning this
         #   sample point corresponds to a point in the last strain (the first strain has index 0)
-        strain_lengths = [len(strain) for strain in strains_unstacked]
-        strain_lengths_cumsum = np.concatenate(([0], + np.cumsum(strain_lengths)[:-1]))
+        strain_lengths = [len(strain) for strain in strains_unstacked]  #type: ignore
+        strain_lengths_cumsum = np.concatenate(([0], + np.cumsum(strain_lengths)[:-1]))  #type: ignore
 
         # Fill the winner scan indexes and point indexes of the future stacked strains with info
         # from the winner scan indexes and point indexes of the unstacked strains
@@ -818,7 +819,7 @@ class _StrainField:
                 point_index = index_aggregate - strain_lengths_cumsum[strains_unstacked_index]
                 xyz += coordinates[point_index]
             xyzs.append(xyz / len(cluster))  # geometrical center of the points in this cluster
-        xyzs = np.array(xyzs).T  # shape = (3, number of points)
+        xyzs = np.array(xyzs).T  # type: ignore # shape = (3, number of points)
         point_list_stacked = PointList(xyzs)
 
         # Assemble the stacked strains

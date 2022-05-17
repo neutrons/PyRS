@@ -2,7 +2,7 @@ Definitions
 ###########
 
 HIDRA Project File
------------------
+------------------
 
 Definition
 ==========
@@ -32,16 +32,19 @@ The HIDRA project file utilizes an HDF5 file format with the following organizat
 - Instrument
   - Geometry parameters: table of parameters
   - Geometry calibration:
-      - Calibration file
-      - Calibration run
-      - Calibration date
-      - Table of calibrated parameters
+
+    - Calibration file
+    - Calibration run
+    - Calibration date
+    - Table of calibrated parameters
 - Mask
   - detector
-      - default detector masked used to exclude pixels near the edge of the detector
+
+    - default detector masked used to exclude pixels near the edge of the detector
 
 - Peaks
   - HKL_0
+
     - chi2
     - d reference
     - d reference error
@@ -50,22 +53,35 @@ The HIDRA project file utilizes an HDF5 file format with the following organizat
     - sub-runs
 
   - HKL_1
+
     - ... ...
 
 - Raw Data
   - logs
+
     - logs for motor positions and metadata information for each sub-run
+
   - sub-runs
+
     - intensity count vs pixel vectors (by default not saved)
 
 - reduced diffraction data
   - 2theta
+
     - :math:`2\theta` vectors for each sub-run
+
   - main
+
     - count vectors for each sub-run
+
   - main_var
+
     - estimated error in counts for each sub-run
+
   - main_XANG
+
     - count vectors for each sub-run for a given out-of-plane angle (X)
+    
   - main_XANG_var
+
     - estimated error in counts for each sub-run for a given out-of-plane angle (X)

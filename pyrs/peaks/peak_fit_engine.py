@@ -15,7 +15,15 @@ class FitResult(namedtuple('FitResult', 'peakcollections fitted difference')):
 
 
 class PeakFitEngine:
-    '''This is the virtual base class as the fitting frame'''
+    '''This is the virtual base class as the fitting frame
+
+    :param str hidraworkspace: hidraworkspace with detector counts and position
+    :param str peak_function_name: peak shape function for peak fitting (Gaussian, PseudoVoigt, or Voigt)
+    :param str background_function_name: background function for peak fitting (Linear)
+    :param float wavelength: neutron wavelength used to measure diffraction data
+    :param out_of_plane_angle: out-of-plane angle used for texture analysis
+    :type out_of_plane_angle: float, optional
+    '''
     def __init__(self, hidraworkspace, peak_function_name, background_function_name,
                  wavelength, out_of_plane_angle):
         '''It is not expected that any subclass will need to implement this method. It is
@@ -70,7 +78,15 @@ class PeakFitEngine:
 
     def fit_multiple_peaks(self, peak_tags, x_mins, x_maxs):
         '''Fit multiple peaks across subruns. This will return a :py:obj:`FitResult`
-        Concrete instances may instantiate this as needed'''
+        Concrete instances may instantiate this as needed
+
+        :param str peak_tag: Id to define peak
+        :param float x_min: min 2theta for peak fitting window
+        :param float x_max: max 2theta for peak fitting window
+        :return: peaks collections of fitting results
+        :rtype: FitResult
+        '''
+
         x_mins, x_maxs = self._check_fit_range(x_mins, x_maxs)
         assert len(peak_tags) == len(x_mins) == len(x_maxs), 'All inputs must have same number of values'
 

@@ -1,5 +1,5 @@
 import numpy as np
-from qtpy.QtWidgets import QTableWidgetItem
+from qtpy.QtWidgets import QTableWidgetItem  # type:ignore
 
 from pyrs.interface.peak_fitting.config import LIST_AXIS_TO_PLOT
 from pyrs.interface.peak_fitting.config import DEFAUT_AXIS
@@ -105,8 +105,7 @@ class GuiUtilities:
 
     def set_1D_2D_axis_comboboxes(self, with_clear=False, fill_raw=False, fill_fit=False):
         # Set the widgets about viewer: get the sample logs and add the combo boxes for plotting
-        sample_log_names = self.parent._core.reduction_service.get_sample_logs_names(self.parent._project_name,
-                                                                                     can_plot=True)
+        sample_log_names = self.parent._core.reduction_service.get_sample_logs_names(self.parent._project_name)
 
         list_ui = [self.parent.ui.comboBox_xaxisNames,
                    self.parent.ui.comboBox_yaxisNames,

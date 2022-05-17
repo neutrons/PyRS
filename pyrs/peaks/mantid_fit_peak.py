@@ -17,11 +17,28 @@ class MantidPeakFitEngine(PeakFitEngine):
         super(MantidPeakFitEngine, self).__init__(hidraworkspace, peak_function_name,
                                                   background_function_name, wavelength=wavelength,
                                                   out_of_plane_angle=out_of_plane_angle)
+        '''
+        :param str hidraworkspace: hidraworkspace with detector counts and position
+        :param str peak_function_name: peak shape function for peak fitting ()
+        :param str background_function_name: background function for peak fitting ()
+        :param float wavelength: neutron wavelength used to measure diffraction data
+        :param out_of_plane_angle: out-of-plane angle used for texture analysis
+        :type out_of_plane_angle: float, optional
+        '''
 
         # configure logging for this class
         self._log = Logger(__name__)
 
     def fit_peaks(self, peak_tag, x_min, x_max):
+        '''
+
+        :param str peak_tag: Id to define peak
+        :param float x_min: min 2theta for peak fitting window
+        :param float x_max: max 2theta for peak fitting window
+        :return: peaks collections of fitting results
+        :rtype: FitResult
+        '''
+
         x_min, x_max = self._check_fit_range(x_min, x_max)
 
         # Create output workspace names

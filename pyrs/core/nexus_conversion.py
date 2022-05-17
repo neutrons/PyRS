@@ -37,7 +37,7 @@ def convert_pulses_to_datetime64(h5obj):
         raise RuntimeError('Do not understand time units "{}"'.format(h5obj.attrs['units']))
 
     # the value is number of seconds as a float
-    pulse_time = h5obj.value
+    pulse_time = h5obj[()]
 
     # Convert deltas to times with units. This has to be done through
     # nanoseconds because numpy truncates things to integers during the conversion
@@ -268,6 +268,12 @@ class Splitter:
 class NeXusConvertingApp:
     """
     Convert NeXus file to Hidra project file
+
+    :param str nexus_file_name: Name of NeXus file
+    :param mask_file_name: Name of masking file
+    :type mask_file_name: str, optional
+    :param extra_logs: list of string with no default logs to keep in project file
+    :type extra_logs: list, optional
     """
     def __init__(self, nexus_file_name, mask_file_name=None, extra_logs=list()):
         """Initialization
@@ -395,17 +401,17 @@ class NeXusConvertingApp:
         with h5py.File(self._nexus_name, 'r') as nexus_h5:
             bank1_events = nexus_h5['entry']['bank1_events']
             # Check number of neutron events.  Raise exception if there is no neutron event
-            if bank1_events['total_counts'].value[0] < 0.1:
+            if bank1_events['total_counts'][()][0] < 0.1:
                 # no counts
                 raise RuntimeError('Run {} has no count.  Proper reduction requires the run to have count'
                                    ''.format(self._nexus_name))
 
             # detector id for the events
-            event_id_array = bank1_events['event_id'].value
+            event_id_array = bank1_events['event_id'][()]
 
             if self._splitter:
                 # get event index array: same size as pulse times
-                event_index_array = bank1_events['event_index'].value
+                event_index_array = bank1_events['event_index'][()]
                 # get pulse times
                 pulse_time_array = convert_pulses_to_datetime64(bank1_events['event_time_zero'])
 
@@ -454,11 +460,10 @@ class NeXusConvertingApp:
             1. set sample logs on the hidra workspace
             2. set duration on the hidra worksapce
 
-        Returns
-        -------
-        dict
-            Each key corresponds to one log name, and each value corresponds to an array of log values. Each item
+        :params list subruns: list of sub-runs to split sample logs
+        :return: Each key corresponds to one log name, and each value corresponds to an array of log values. Each item
             in this array corresponds to the average value of the log within a particular subrun
+        :rtype: dict
         """
         run_obj = self._event_wksp.run()
 
@@ -542,18 +547,10 @@ class NeXusConvertingApp:
         1. split the workspace to sub runs
         2. for each split workspace, aka a sub run, get the total counts for each spectrum and save to a 1D array
 
-        Parameters
-        ----------
-        use_mantid : bool
-            Flag to use Mantid library to convert NeXus (True);
-            Otherwise, use PyRS/Python algorithms to convert NeXus
-
-        Returns
-        -------
-        pyrs.core.workspaces.HidraWorkspace
-            HidraWorkspace for converted data
-
+        :returns: HidraWorkspace for converted data
+        :rtype: pyrs.core.workspaces.HidraWorkspace
         """
+
         if use_mantid:
             raise RuntimeError('use_mantid=True is no longer supported')
 
@@ -581,6 +578,8 @@ class NeXusConvertingApp:
     def save(self, projectfile):
         """
         Save workspace to Hidra project file
+
+        :param str projectfile: output filename
         """
         projectfile = os.path.abspath(projectfile)  # confirm absolute path to make logs more readable
         checkdatatypes.check_file_name(projectfile, check_exist=False, check_writable=True, is_dir=False,

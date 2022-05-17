@@ -1,8 +1,8 @@
 import os
 import json
 import numpy as np
-from qtpy.QtWidgets import QTableWidgetItem, QMenu
-from qtpy.QtGui import QCursor
+from qtpy.QtWidgets import QTableWidgetItem, QMenu  # type:ignore
+from qtpy.QtGui import QCursor  # type:ignore
 from shutil import copyfile
 
 from pyrs.interface.gui_helper import pop_message
@@ -65,15 +65,11 @@ class EventHandler:
         project_h5_file.save(False)
         project_h5_file.close()
 
-        # self.parent._core.save_peak_fit_result(self.parent._curr_data_key,
-        #                                        self.parent._curr_file_name,
-        #                                        out_file_name)
-
     def load_run_number_plot(self):
         try:
             project_dir = get_input_project_file(int(self.parent.ui.lineEdit_expNumber.text()),
                                                  preferredType=self.parent.ui.comboBox_reduction.currentText().lower())
-        except (FileNotFoundError, RuntimeError) as run_err:
+        except (FileNotFoundError, RuntimeError, ValueError) as run_err:
             pop_message(self, f'Failed to find run {self.parent.ui.lineEdit_expNumber.text()}',
                         str(run_err), 'error')
             return

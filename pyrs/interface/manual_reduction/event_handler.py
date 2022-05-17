@@ -1,6 +1,6 @@
 import os
-from qtpy.QtCore import Qt
-from qtpy.QtWidgets import QApplication
+from qtpy.QtCore import Qt  # type: ignore
+from qtpy.QtWidgets import QApplication  # type: ignore
 from pyrs.interface.gui_helper import pop_message, browse_file, browse_dir, parse_combo_box
 from mantidqt.utils.asynchronous import BlockingAsyncTaskWithCallback
 from pyrs.interface.manual_reduction.pyrs_api import ReductionController

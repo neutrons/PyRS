@@ -177,12 +177,12 @@ class PeakFitCalibration:
             self.engines.append([powder_engine, powder_lines, single_material])
 
         # calibration: numpy array. size as 7 for ... [6] for wave length
-        self._calib = np.array(8 * [0], dtype=np.float)
+        self._calib = np.array(8 * [0], dtype=np.float64)
         # calibration error: numpy array. size as 7 for ...
-        self._caliberr = np.array(8 * [-1], dtype=np.float)
+        self._caliberr = np.array(8 * [-1], dtype=np.float64)
 
         # calibration starting point: numpy array. size as 7 for ...
-        self._calib_start = np.array(8 * [0], dtype=np.float)
+        self._calib_start = np.array(8 * [0], dtype=np.float64)
 
         if wavelength is None:
             # Set wave length
@@ -250,8 +250,7 @@ class PeakFitCalibration:
         # Default minimum and maximum 2theta are related with
         pixel_2theta_array = pyrs_reducer.instrument.get_pixels_2theta(1)
 
-        bin_boundaries_2theta = HB2BReductionManager.generate_2theta_histogram_vector(min_2theta, num_bins,
-                                                                                      max_2theta,
+        bin_boundaries_2theta = HB2BReductionManager.generate_2theta_histogram_vector(min_2theta, max_2theta, num_bins,
                                                                                       pixel_2theta_array,
                                                                                       roi_vec)
 
@@ -658,7 +657,7 @@ class PeakFitCalibration:
 
         paramVec = np.copy(self._calib)
         paramVec[i_index] = x
-        print(x)
+
         residual = self.get_alignment_residual(paramVec, roi_vec_set, ConstrainPosition, False, start, stop)
 
         if ReturnScalar:
@@ -676,7 +675,7 @@ class PeakFitCalibration:
         """
         paramVec = np.copy(self._calib)
         paramVec[0:3] = x[:]
-        print(x)
+
         residual = self.get_alignment_residual(paramVec, roi_vec_set, ConstrainPosition, False, start, stop)
 
         if ReturnScalar:

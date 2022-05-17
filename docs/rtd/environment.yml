@@ -4,8 +4,14 @@ channels:
   - conda-forge
 
 dependencies:
-  - python
+  - python=3.6
   - sphinx
   - pip
+  - sphinxcontrib-programoutput
+  - uncertainties
+  - mock
+  - qtpy
   - pip:
     - sphinx_rtd_theme>=0.4.1
+    - scipy
+    - numpy

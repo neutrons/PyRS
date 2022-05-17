@@ -1,33 +1,7 @@
-Installation
-############
+pyRS User Interface
+###################
 
-Using a Conda Environment
-=========================
-
-pyRS preferred method is to create a conda environment with the required Python dependencies.
-Follow these steps:
-
-1. Install basic dependencies: `Conda <https://docs.anaconda.com/anaconda/install/>`_, Python 3, and PyQt
-2. Create a new Conda environment with additional dependencies:
-
-.. code-block::
-
-   $ conda create -n pyrs -c mantid -c mantid/label/nightly mantid-workbench -c conda-forge  --file requirements.txt --file requirements_dev.txt
-
-3. Activate the conda environment
-
-.. code-block::
-
-   $ conda activate pyrs
-
-
-.. caution::
-
-   Do not update this newly created environment as some dependencies might not be backwards compatible.
-
-
-Quick Start
-###########
+The python Residual Stress (pyRS) software package was developed to analyze diffraction data measured at the high-intensity diffractometer for residual stress analysis. PyRS provides methods to determine the position, width, and height of diffraction peaks in a measured dataset.
 
 Launch the Graphical Interface
 ==============================
@@ -36,11 +10,11 @@ pyRS graphical interface can launched using the pyrsplot executable
 
 .. code-block::
 
-   $ pyrsplot
+  PYTHONPATH=$PWD:$PYTHONPATH python scripts/pyrsplot
 
 you should be able to see pyRS's MainWindow:
 
-.. image:: startup.png
+.. image:: ../figures/startup.png
   :width: 400
   :alt: pyrsplot startup window
 
@@ -49,67 +23,78 @@ As listed in the MainWindow, pyrsplot can run 3 different usage modes as describ
 Data Manual Reduction
 =====================
 
-#TODO
+Manual data reduction requires access to raw neutron events stored on ORNL data mounts. The best mechanism to access these data is through analysis.sns.gov. Consult your local contact or the HB2B instrument team for further information about re-reducing data.
 
 Peak Fitting
 ============
 
-#TODO
+Overview of the pyRS peak fitting UI
+------------------------------------
 
-Strain/Stress Analysis
-###########
+.. image:: ../figures/peak_overview.svg
+  :width: 800
+  :alt: pyrsplot startup window
 
-Mathematical Framework
-=====================
+Fitting measured data using pyRS
+--------------------------------
 
-PyRS models Strain and Stress tensor :math:`_{ij}` fields using the following formulation:
+pyRS was designed to allow the software user to define the peak fitting of data stored using the hidraprojectfile definition. Users interact with the peak fitting UI by defining N ranges for individual peak fitting, where N is the number of windows of interest. Data are loaded by either selecting a specific project file or on the analysis cluster by loading a specific run number. A user defines a peak window interactively in the UI by clicking (and holding) on one side of the peak dragging over the specific peak of interest. The user can tweak the graphically defined window by double clicking on the x_left, x_right, or Label entry in Peak Ranges. Users can export these inputs as a json file for use in later sessions.
 
-*Strain*, aka  unconstrained strain, :math:`\epsilon_{ij}` is measured as the fraction change from a reference state :math:`d_0`.
+.. image:: ../figures/define_range.png
+  :width: 800
+  :alt: define range
 
-.. math::
+Below are examples of peak fits that use a single and multiple fit windows.
 
-   \epsilon_{ij} = \frac{d_{ij} - d_0}{d_0}
+.. image:: ../figures/single_fit.png
+  :width: 800
+  :alt: single fit example
 
+.. image:: ../figures/multi_fit.png
+  :width: 800
+  :alt: multifit example
 
-*Residual stress* is determined by measuring stress along 3 orthogonal directions
+After defining the range click "Fit Peak(s)" to launch the analysis.
 
-.. math::
+.. image:: ../figures/fit_data.png
+  :width: 800
+  :alt: peak fitting
 
-   \sigma_{ij} = \frac{E}{(1 + \nu)}\left[\epsilon_{ij} + \frac{\nu}{1-2\nu}(\epsilon_{11} + \epsilon_{22} + \epsilon_{33})\right]
+Results from the peak fitting are visualized on the right using 1D or 2D scatter plots. Users can define what parameters are visualized by changing the 1D or 3D scatter parameters
 
-where:
+.. image:: ../figures/visualize_res.png
+  :width: 800
+  :alt: vis peak fit
 
-:math:`\nu`
-   Poisson's ratio
+Stress Strain Analysis
+======================
 
-:math:`E`
-   Young's modulus
+Select the Stress/Strain Calculation option to launch the stress analysis UI. Reminder overview of the UI interface:
 
+.. image:: ../figures/stress_overview.svg
+  :width: 800
+  :alt: Stress Analysis overivew
 
-Notice that :math:`\epsilon_{ij}` with :math:`i = j` are principal strains.
-But not all all three orthogonal strains are equivalent to principal strains.
-The off-diagonal strain component, i.e., :math:`\epsilon_{ij}` with :math:`i \neq j` are all set to *zero*.
-It is very hard to measure these values in HB2B's setup.
+Define the stress condition that pyRS will use to calculate the stresses. A 2D condition allows the selection of either a plane strain or plane stress condition. A 2D condition only prompts loading 2 hidraprojectfiles with peak fit results. Otherwise, a 3D stress condition requires 3 hidraprojectfiles.
 
-As a result, the stress in PyRS is calculated as follows:
+  .. image:: ../figures/Stress_Load.png
+    :width: 800
+    :alt: load project files
 
-.. math::
+After loading 2, or 3, hidraprojectfiles the users need to enter the Mechanical constants (or Materials parameters) Youngs Modulus and Poisson's ratio.
 
-   \sigma_{ii} = \frac{E}{(1 + \nu)}\left[\epsilon_{ii} + \frac{\nu}{1-2\nu}(\epsilon_{11} + \epsilon_{22} + \epsilon_{33})\right]
+  .. image:: ../figures/Stress_Define_Material.png
+    :width: 800
+    :alt: define materials
 
-where the second term in the sum is common to all 3 principle directions, :math:`\sigma_{11}`, :math:`\sigma_{22}`, and :math:`\sigma_{33}`.
+By default the stress/strain framework will use the d0 defined in the peak fitting to determine strains. A constant or spatially varying d0 can be entered at any time after selecting the hidraprojectfiles and entering the materials parameters. Changing the d0 will force the framework to recalculate all strains and stresses.
 
-**in-plane strain**: this is a special case in which the stress in one of the principal directions is zero, :math:`\sigma_{33}=0`. Therefore, the corresponding strain can be determined from the other principal components using Poisson's ratio:
+  .. image:: ../figures/Stress_Define_d0.png
+    :width: 800
+    :alt: define d0
 
-.. math::
+After defining the Materials properties and d0, the user can now visualize the determine stresses by changing what is plotted (Define Visualization in overview). The user can switch between the 11, 22, and 33 components of the stress/strain.
 
-   \epsilon_{33} = \frac{\nu}{\nu-1}(\epsilon_{11} + \epsilon_{22})
-
-
-Resulting in a simplified set of equations for the *in-plane stress* case:
-
-.. math::
-
-   \sigma_{11} &=& \frac{E}{(1 + \nu)}\left[\epsilon_{11} + \frac{\nu (\epsilon_{11} + \epsilon_{22})}{1-\nu}\right] \\[1cm]
-   \sigma_{22} &=& \frac{E}{(1 + \nu)}\left[\epsilon_{22} + \frac{\nu (\epsilon_{11} + \epsilon_{22})}{1-\nu}\right] \\[1cm]
-   \sigma_{33} &=& 0
+  .. image:: ../figures/Stress_Final.png
+    :width: 800
+    :alt: visualize stress strain
