@@ -33,8 +33,8 @@ def parse_gold_file(file_name):
             pass
         else:
             if isinstance(gold_file[u'reduced diffraction data'][name], h5py.Dataset):
-                data_dict[name] = [gold_file[u'reduced diffraction data']['2theta'].value[0, :],
-                                   gold_file[u'reduced diffraction data'][name].value[0, :]]
+                data_dict[name] = [gold_file[u'reduced diffraction data']['2theta'][()][0, :],
+                                   gold_file[u'reduced diffraction data'][name][()][0, :]]
             else:
                 pytest.skip('project file not supplied')
 

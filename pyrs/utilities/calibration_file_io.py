@@ -78,25 +78,25 @@ def read_calibration_json_file(calibration_file_name):
 
     # Convert dictionary to DENEXDetectorShift
     try:
-        shift = DENEXDetectorShift(shift_x=calib_dict['Shift_x'],
-                                   shift_y=calib_dict['Shift_y'],
-                                   shift_z=calib_dict['Shift_z'],
-                                   rotation_x=calib_dict['Rot_x'],
-                                   rotation_y=calib_dict['Rot_y'],
-                                   rotation_z=calib_dict['Rot_z'],
-                                   two_theta_0=calib_dict['two_theta_0'])
+        shift = DENEXDetectorShift(shift_x=float(calib_dict['Shift_x']),
+                                   shift_y=float(calib_dict['Shift_y']),
+                                   shift_z=float(calib_dict['Shift_z']),
+                                   rotation_x=float(calib_dict['Rot_x']),
+                                   rotation_y=float(calib_dict['Rot_y']),
+                                   rotation_z=float(calib_dict['Rot_z']),
+                                   two_theta_0=float(calib_dict['two_theta_0']))
     except KeyError as key_error:
         raise RuntimeError('Missing key parameter from JSON file {}: {}'.format(calibration_file_name, key_error))
 
     # shift error
     try:
-        shift_error = DENEXDetectorShift(shift_x=calib_dict['error_Shift_x'],
-                                         shift_y=calib_dict['error_Shift_y'],
-                                         shift_z=calib_dict['error_Shift_z'],
-                                         rotation_x=calib_dict['error_Rot_x'],
-                                         rotation_y=calib_dict['error_Rot_y'],
-                                         rotation_z=calib_dict['error_Rot_z'],
-                                         two_theta_0=calib_dict['error_two_theta_0'])
+        shift_error = DENEXDetectorShift(shift_x=float(calib_dict['error_Shift_x']),
+                                         shift_y=float(calib_dict['error_Shift_y']),
+                                         shift_z=float(calib_dict['error_Shift_z']),
+                                         rotation_x=float(calib_dict['error_Rot_x']),
+                                         rotation_y=float(calib_dict['error_Rot_y']),
+                                         rotation_z=float(calib_dict['error_Rot_z']),
+                                         two_theta_0=float(calib_dict['error_two_theta_0']))
 
     except KeyError as key_error:
         raise RuntimeError('Missing key parameter from JSON file {}: {}'.format(calibration_file_name, key_error))
@@ -260,6 +260,8 @@ def write_calibration_to_json(shifts, shifts_error, wave_length, wave_lenngth_er
 
     calibration_dict.update({'Status': calibration_status})
 
+    for item in list(calibration_dict.keys()):
+        calibration_dict[item] = float(calibration_dict[item])
     print('DICTIONARY:\n{}'.format(calibration_dict))
 
     with open(file_name, 'w') as outfile:

@@ -47,7 +47,7 @@ def assert_allclose_with_sorting(left, right, *args, **kwargs) -> None:
         assert len(np.where(np.isnan(left))[0]) == len(np.where(np.isnan(right))[0])  # same number of nan
     # create copies of the arrays and sort them
     left_array, right_array = np.array(left), np.array(right)  # cast to numpy array
-    left_array, right_array = sorted(left_array[np.isfinite(left)]), sorted(right_array[np.isfinite(right)])
+    left_array, right_array = np.sort(left_array[np.isfinite(left)]), np.sort(right_array[np.isfinite(right)])
 
     np.testing.assert_allclose(left_array, right_array, *args, **kwargs)
 

@@ -1,6 +1,7 @@
 name: PyRS
 dependencies:
-- mantid-workbench
+- python=3.8
+- mantid/label/nightly::mantidworkbench
 - qtpy
 - pytest
 - pytest-cov
