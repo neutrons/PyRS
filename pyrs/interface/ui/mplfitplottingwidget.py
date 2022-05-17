@@ -5,7 +5,7 @@
 from pyrs.interface.ui.mplgraphicsview1d import MyNavigationToolbar
 from matplotlib.figure import Figure
 import numpy as np
-from qtpy.QtWidgets import QWidget, QVBoxLayout # type:ignore
+from qtpy.QtWidgets import QWidget, QVBoxLayout  # type:ignore
 from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
 from pyrs.interface.ui.mplconstants import MplBasicColors
 

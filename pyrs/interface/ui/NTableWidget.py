@@ -3,8 +3,8 @@
 from six.moves import range
 import csv
 
-from qtpy import QtCore # type:ignore
-from qtpy.QtWidgets import QTableWidget, QTableWidgetItem, QCheckBox # type:ignore
+from qtpy import QtCore  # type:ignore
+from qtpy.QtWidgets import QTableWidget, QTableWidgetItem, QCheckBox  # type:ignore
 
 try:
     _fromUtf8 = QtCore.QString.fromUtf8

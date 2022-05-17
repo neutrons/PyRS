@@ -3,8 +3,8 @@ from matplotlib.figure import Figure
 import os
 import numpy as np
 
-from qtpy.QtCore import Signal # type:ignore
-from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout # type:ignore
+from qtpy.QtCore import Signal  # type:ignore
+from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout  # type:ignore
 from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
 from mantidqt.MPLwidgets import NavigationToolbar2QT as NavigationToolbar2
 

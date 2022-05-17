@@ -4,8 +4,8 @@ Graphics class with matplotlib backend specific for advanced 1D plot
 from matplotlib.figure import Figure
 import matplotlib
 import numpy as np
-from qtpy.QtCore import Signal # type:ignore
-from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout # type:ignore
+from qtpy.QtCore import Signal  # type:ignore
+from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout  # type:ignore
 from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
 from mantidqt.MPLwidgets import NavigationToolbar2QT as NavigationToolbar2
 from pyrs.interface.ui.mplconstants import MplBasicColors, MplLineMarkers, MplLineStyles

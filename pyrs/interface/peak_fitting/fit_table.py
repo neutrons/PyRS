@@ -1,6 +1,6 @@
 import numpy as np
-from qtpy.QtWidgets import QTableWidgetItem, QTableWidgetSelectionRange # type:ignore
-from qtpy.QtGui import QColor # type:ignore
+from qtpy.QtWidgets import QTableWidgetItem, QTableWidgetSelectionRange  # type:ignore
+from qtpy.QtGui import QColor  # type:ignore
 
 MICROSTRAIN = u"\u00b5strain"
 SUCCESS = "success"

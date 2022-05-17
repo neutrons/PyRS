@@ -6,17 +6,17 @@ except ImportError:
     from mantidqt.widgets.sliceviewer.models.model import SliceViewerModel
 
 from mantidqt.icons import get_icon
-from qtpy.QtWidgets import QHBoxLayout, QVBoxLayout, QLabel, QWidget # type:ignore
-from qtpy.QtWidgets import QLineEdit, QPushButton, QComboBox # type:ignore
-from qtpy.QtWidgets import QGroupBox, QSplitter, QTabWidget # type:ignore
-from qtpy.QtWidgets import QFormLayout, QFileDialog, QCheckBox # type:ignore
-from qtpy.QtWidgets import QStyledItemDelegate, QDoubleSpinBox # type:ignore
-from qtpy.QtWidgets import QTableWidget, QTableWidgetItem # type:ignore
-from qtpy.QtWidgets import QStackedWidget, QMessageBox # type:ignore
-from qtpy.QtWidgets import QMainWindow, QAction # type:ignore
+from qtpy.QtWidgets import QHBoxLayout, QVBoxLayout, QLabel, QWidget  # type:ignore
+from qtpy.QtWidgets import QLineEdit, QPushButton, QComboBox  # type:ignore
+from qtpy.QtWidgets import QGroupBox, QSplitter, QTabWidget  # type:ignore
+from qtpy.QtWidgets import QFormLayout, QFileDialog, QCheckBox  # type:ignore
+from qtpy.QtWidgets import QStyledItemDelegate, QDoubleSpinBox  # type:ignore
+from qtpy.QtWidgets import QTableWidget, QTableWidgetItem  # type:ignore
+from qtpy.QtWidgets import QStackedWidget, QMessageBox  # type:ignore
+from qtpy.QtWidgets import QMainWindow, QAction  # type:ignore
 
 from qtpy.QtCore import Qt, Signal
-from qtpy.QtGui import QDoubleValidator # type:ignore
+from qtpy.QtGui import QDoubleValidator  # type:ignore
 try:
     from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
     from vtk.util.numpy_support import numpy_to_vtk, get_vtk_array_type

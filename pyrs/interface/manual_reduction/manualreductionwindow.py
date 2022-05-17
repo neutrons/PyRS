@@ -1,4 +1,4 @@
-from qtpy.QtWidgets import QMainWindow, QVBoxLayout # type: ignore
+from qtpy.QtWidgets import QMainWindow, QVBoxLayout  # type: ignore
 import os
 from pyrs.utilities import load_ui  # type: ignore
 from pyrs.interface.ui.diffdataviews import DetectorView, GeneralDiffDataView

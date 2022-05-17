@@ -1,4 +1,4 @@
-from qtpy.QtWidgets import QMainWindow # type:ignore
+from qtpy.QtWidgets import QMainWindow  # type:ignore
 from pyrs.utilities import load_ui  # type: ignore
 from pyrs.core import pyrscore
 from pyrs.interface.peak_fitting import fitpeakswindow
