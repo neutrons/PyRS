@@ -7,7 +7,7 @@ from qtpy import QtCore  # type:ignore
 from qtpy.QtWidgets import QTableWidget, QTableWidgetItem, QCheckBox  # type:ignore
 
 try:
-    _fromUtf8 = QtCore.QString.fromUtf8
+    _fromUtf8 = QtCore.QString.fromUtf8  # type:ignore
 except AttributeError:
     def _fromUtf8(s):
         return s
