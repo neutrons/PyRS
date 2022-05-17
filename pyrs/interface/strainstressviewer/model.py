@@ -5,7 +5,7 @@ from pyrs.core.stress_facade import StressFacade
 from pyrs.core.summary_generator_stress import SummaryGeneratorStress
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
-from qtpy.QtCore import Signal, QObject
+from qtpy.QtCore import Signal, QObject # type:ignore
 
 
 class Model(QObject):

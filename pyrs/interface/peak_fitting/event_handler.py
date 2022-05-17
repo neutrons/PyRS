@@ -1,8 +1,8 @@
 import os
 import json
 import numpy as np
-from qtpy.QtWidgets import QTableWidgetItem, QMenu
-from qtpy.QtGui import QCursor
+from qtpy.QtWidgets import QTableWidgetItem, QMenu # type:ignore
+from qtpy.QtGui import QCursor # type:ignore
 from shutil import copyfile
 
 from pyrs.interface.gui_helper import pop_message

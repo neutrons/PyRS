@@ -1,5 +1,5 @@
 import numpy as np
-from qtpy.QtWidgets import QTableWidgetItem
+from qtpy.QtWidgets import QTableWidgetItem # type:ignore
 
 from pyrs.interface.peak_fitting.config import LIST_AXIS_TO_PLOT
 from pyrs.interface.peak_fitting.config import DEFAUT_AXIS

@@ -7,7 +7,7 @@ from pyrs.interface.peak_fitting.utilities import Utilities
 from pyrs.interface.gui_helper import pop_message
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
 from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory  # type: ignore
-from qtpy.QtWidgets import QApplication
+from qtpy.QtWidgets import QApplication # type:ignore
 from qtpy.QtCore import Qt
 
 PeakInfo = namedtuple('PeakInfo', 'center left_bound right_bound tag')

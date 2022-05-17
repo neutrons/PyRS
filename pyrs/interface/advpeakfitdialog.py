@@ -1,6 +1,6 @@
 from pyrs.utilities import load_ui  # type: ignore
-from qtpy.QtCore import Signal
-from qtpy.QtWidgets import QDialog, QMainWindow
+from qtpy.QtCore import Signal # type:ignore
+from qtpy.QtWidgets import QDialog, QMainWindow # type:ignore
 
 import os
 from . import gui_helper

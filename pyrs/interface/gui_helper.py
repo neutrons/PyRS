@@ -1,6 +1,6 @@
 # a collection of helper methdos for GUI
 from pyrs.utilities import checkdatatypes
-from qtpy.QtWidgets import QLineEdit, QFileDialog, QMessageBox, QComboBox
+from qtpy.QtWidgets import QLineEdit, QFileDialog, QMessageBox, QComboBox # type:ignore
 
 
 def browse_dir(parent, caption, default_dir):

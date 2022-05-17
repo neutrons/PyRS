@@ -1,5 +1,5 @@
 import os
-from qtpy.QtWidgets import QVBoxLayout, QFileDialog, QMainWindow
+from qtpy.QtWidgets import QVBoxLayout, QFileDialog, QMainWindow # type:ignore
 from qtpy import QtGui
 
 from pyrs.utilities import load_ui  # type: ignore
