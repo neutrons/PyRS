@@ -35,7 +35,7 @@ If you've never used PyRS before, you can get started quickly by doing the follo
 
 Installation using an anaconda environment
 ------------------------------------------
-Anaconda environments are only supported on Linux using python 3.8
+Anaconda environments are only supported on OSx (x86) and Linux using python 3.8
 
 1. Configure anaconda environment:
 
