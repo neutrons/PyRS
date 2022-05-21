@@ -35,22 +35,17 @@ If you've never used PyRS before, you can get started quickly by doing the follo
 
 Installation using an anaconda environment
 ------------------------------------------
-Anaconda environments are only supported on Linux using python 3.6
+Anaconda environments are only supported on Linux using python 3.8
 
 1. Configure anaconda environment:
 
 .. code-block::
 
-  conda config --add channels conda-forge --add channels mantid --add channels mantid/label/nightly
+  conda install -c conda-forge mamba
 
 .. code-block::
 
-  conda install mamba
-
-.. code-block::
-
-  mamba create -n pyrs python=3.6 --file requirements.txt --file requirements_dev.txt
-
+  mamba env create --name pyrs --file environment.yml
 
 2. Activate the conda environment
 
