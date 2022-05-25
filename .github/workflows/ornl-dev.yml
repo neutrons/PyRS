@@ -1,8 +1,8 @@
 name: Deploy to ORNL
 on:
   workflow_run:
-    workflows: ["PyRS CI"]
-    branches: ["next"]
+    workflows: ["ci"]
+    branches: ["next", "main"]
     types:
       - completed
 
@@ -11,4 +11,4 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-20.04
     steps:
-      - run: curl -sX POST -F token=${{ secrets.GITLAB_TRIGGER_TOKEN }} -F ref=next ${{ secrets.GITLAB_TRIGGER_URL }} | jq '. | del( .user )'
+      - run: curl -sX POST -F token=${{ secrets.GITLAB_TRIGGER_TOKEN }} -F ref=${{ GITHUB_REF_NAME }} ${{ secrets.GITLAB_TRIGGER_URL }} | jq '. | del( .user )'
