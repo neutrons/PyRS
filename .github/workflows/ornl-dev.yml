@@ -3,12 +3,11 @@ on:
   workflow_run:
     workflows: [PyRS CI]
     branches: [next, main]
-    types:
-      - completed
+    types: [completed]
 
 jobs:
   ornl-trigger:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
-      - run: curl -sX POST -F token=${{ secrets.GITLAB_TRIGGER_TOKEN }} -F ref=${{ GITHUB_REF_NAME }} ${{ secrets.GITLAB_TRIGGER_URL }} | jq '. | del( .user )'
+      - run: curl --fail-with-body -sX POST -F token=${{ secrets.GITLAB_TRIGGER_TOKEN }} -F ref="${GITHUB_REF_NAME}" ${{ secrets.GITLAB_TRIGGER_URL }} | jq '. | del( .user )'
