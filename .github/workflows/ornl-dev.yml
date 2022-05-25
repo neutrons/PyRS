@@ -1,8 +1,8 @@
 name: Deploy to ORNL
 on:
   workflow_run:
-    workflows: ["ci"]
-    branches: ["next", "main"]
+    workflows: [PyRS CI]
+    branches: [next, main]
     types:
       - completed
 
