@@ -10,4 +10,5 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-22.04
     steps:
-      - run: curl --fail-with-body -sX POST -F token=${{ secrets.GITLAB_TRIGGER_TOKEN }} -F ref="${GITHUB_REF_NAME}" ${{ secrets.GITLAB_TRIGGER_URL }} | jq '. | del( .user )'
+      - run: curl --fail-with-body -sX POST -F token=${{ secrets.GITLAB_TRIGGER_TOKEN }} -F ref="${GITHUB_REF_NAME}" ${{ secrets.GITLAB_TRIGGER_URL }}
+        #| jq '. | del( .user )'
