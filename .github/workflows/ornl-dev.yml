@@ -1,5 +1,5 @@
 name: Deploy to ORNL
-on: 
+on:
   push:
     branches:
       - next
@@ -7,4 +7,4 @@ jobs:
   ornl-trigger:
     runs-on: ubuntu-20.04
     steps:
-      - run: curl -sX POST -F token=${{ secrets.GITLAB_TRIGGER_TOKEN }} -F ref=next ${{ secrets.GITLAB_TRIGGER_URL }} > /dev/null
+      - run: curl -sX POST -F token=${{ secrets.GITLAB_TRIGGER_TOKEN }} -F ref=next ${{ secrets.GITLAB_TRIGGER_URL }} | jq '. | del( .user )'
