@@ -1,10 +1,14 @@
 name: Deploy to ORNL
 on:
-  push:
-    branches:
-      - next
+  workflow_run:
+    workflows: ["PyRS CI"]
+    branches: ["next"]
+    types:
+      - completed
+
 jobs:
   ornl-trigger:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-20.04
     steps:
       - run: curl -sX POST -F token=${{ secrets.GITLAB_TRIGGER_TOKEN }} -F ref=next ${{ secrets.GITLAB_TRIGGER_URL }} | jq '. | del( .user )'
