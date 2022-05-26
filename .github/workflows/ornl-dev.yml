@@ -12,5 +12,5 @@ jobs:
     steps:
       - run: |
           echo "Launching gitlab webhook to deploy ${GITHUB_REF_NAME} from ${GITHUB_REF}"
-          # post to projects/6012 ${{ secrets.GITLAB_TRIGGER_TOKEN }}
-          curl --fail-with-body -sX POST -F token=not_a_token -F ref="${GITHUB_REF_NAME}" ${{ secrets.GITLAB_TRIGGER_URL }} | jq '. | del( .user )' ; exit ${PIPESTATUS[0]}
+          # post to projects/6012
+          curl --fail-with-body -sX POST -F token=${{ secrets.GITLAB_TRIGGER_TOKEN }} -F ref="${GITHUB_REF_NAME}" ${{ secrets.GITLAB_TRIGGER_URL }} | jq '. | del( .user )' ; exit ${PIPESTATUS[0]}
