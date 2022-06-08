@@ -10,7 +10,7 @@ from pyrs.core.peak_profile_utility import get_parameter_dtype
 from pyrs.peaks.peak_collection import PeakCollection
 
 # set to True when running on build servers
-ON_TRAVIS = (os.environ.get('TRAVIS', 'false').upper() == 'TRUE')
+ON_GITHUB_ACTIONS = bool(os.environ.get('GITHUB_ACTIONS', False))
 
 
 @pytest.fixture(scope='session')

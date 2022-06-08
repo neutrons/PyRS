@@ -2,10 +2,12 @@ from pyrs.interface.manual_reduction import manualreductionwindow
 from qtpy import QtCore
 import os
 import pytest
+# from tests.conftest import ON_GITHUB_ACTIONS  # set to True when running on build servers
 
 wait = 100
 
 
+# @pytest.mark.skipif(ON_GITHUB_ACTIONS, reason='Test hangs on github CI')
 def test_manual_reduction(qtbot, tmpdir):
     window = manualreductionwindow.ManualReductionWindow(None)
     qtbot.addWidget(window)

@@ -9,3 +9,4 @@ pytest-qt==3.3
 # linting and static analysis
 flake8
 mypy
+types-six
