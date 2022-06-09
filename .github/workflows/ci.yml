@@ -53,9 +53,11 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
 
+  deploy:
+    runs-on: ubuntu-22.04
+    branches: [next, main]
+    steps:
       - name: ornl-trigger
-        branches: [next, main]
-        runs-on: ubuntu-22.04
         run: |
           echo "Launching gitlab webhook to deploy ${GITHUB_REF_NAME} from ${GITHUB_REF}"
           # post to projects/6012
