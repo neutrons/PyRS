@@ -52,3 +52,11 @@ jobs:
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
+
+      - name: ornl-trigger
+        branches: [next, main]
+        runs-on: ubuntu-22.04
+        run: |
+          echo "Launching gitlab webhook to deploy ${GITHUB_REF_NAME} from ${GITHUB_REF}"
+          # post to projects/6012
+          curl --fail-with-body -sX POST -F token=${{ secrets.GITLAB_TRIGGER_TOKEN }} -F ref="${GITHUB_REF_NAME}" https://code.ornl.gov/api/v4/projects/6012/trigger/pipeline | jq '. | del( .user )' ; exit ${PIPESTATUS[0]}
