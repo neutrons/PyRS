@@ -15,6 +15,10 @@ from pyrs.interface.strainstressviewer.strain_stress_view import StrainStressVie
 from pyrs.interface.strainstressviewer.model import Model  # noqa: E402
 from pyrs.interface.strainstressviewer.controller import Controller  # noqa: E402
 
+from pyrs.interface.texture_fitting.texture_fitting import TextureFittingUI  # noqa: E402
+from pyrs.interface.texture_fitting.texture_fitting_model import TextureFittingModel  # noqa: E402
+from pyrs.interface.texture_fitting.texture_fitting_crtl import TextureFittingCrtl  # noqa: E402
+
 
 class PyRSLauncher(QMainWindow):
     """
@@ -33,6 +37,7 @@ class PyRSLauncher(QMainWindow):
         # define
         self.ui.pushButton_manualReduction.clicked.connect(self.do_launch_manual_reduction)
         self.ui.pushButton_fitPeaks.clicked.connect(self.do_launch_fit_peak_window)
+        self.ui.pushButton_fitTexture.clicked.connect(self.do_launch_fit_texture_window)
         self.ui.pushButton_launchStrainStressCalculation.clicked.connect(self.do_launch_strain_stress_window)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
@@ -41,6 +46,22 @@ class PyRSLauncher(QMainWindow):
         self.peak_fit_window = None
         self.manual_reduction_window = None
         self.strain_stress_window = None
+        self.texture_fit_window = None
+
+    def do_launch_fit_texture_window(self):
+        """
+        launch peak fit window
+        :return:
+        """
+        if self.texture_fit_window is not None:
+            self.texture_fit_window.close()
+
+        self.texture_fitting_model = TextureFittingModel(pyrscore.PyRsCore())
+        self.texture_fitting_ctrl = TextureFittingCrtl(self.texture_fitting_model)
+        self.texture_fit_window = TextureFittingUI(self.texture_fitting_model, self.texture_fitting_ctrl)
+
+        # launch
+        self.texture_fit_window.show()
 
     def do_launch_fit_peak_window(self):
         """
