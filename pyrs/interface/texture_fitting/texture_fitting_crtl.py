@@ -2,13 +2,9 @@ class TextureFittingCrtl:
     def __init__(self, peak_fit_model):
         self._model = peak_fit_model
 
-    def fileSelected(self, name, filename):
-        self._model.set_workspace(name, filename)
-        return getattr(self._model, name) is not None
-
-    def filesSelected(self, name, filenames):
-        self._model.set_workspaces(name, filenames)
-        return getattr(self._model, name) is not None
+    def load_projectfile(self, filename):
+        self._model.load_hidra_project_file(filename)
+        # return getattr(self._model) is not None
 
     def peakSelected(self, name):
         if name != "":
@@ -19,6 +15,20 @@ class TextureFittingCrtl:
                                      float(youngModulus),
                                      float(poissonsRatio),
                                      d0)
+
+    def get_log_plot(self, xname, yname):
+
+        if xname == "sub-runs":
+            xdata = self._model.sub_runs
+        else:
+            xdata = self._model.ws.get_sample_log_values(xname)
+
+        if yname == "sub-runs":
+            ydata = self._model.sub_runs
+        else:
+            ydata = self._model.ws.get_sample_log_values(yname)
+
+        return xdata, ydata
 
     def validate_selection(self, direction, twoD):
         if twoD and direction == '33':

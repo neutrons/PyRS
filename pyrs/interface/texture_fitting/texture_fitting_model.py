@@ -15,6 +15,7 @@ class TextureFittingModel(QObject):
     def __init__(self, peak_fit_core):
         super().__init__()
         self._peak_fit = peak_fit_core
+        self.ws = None
 
     def set_workspaces(self, name, filenames):
         setattr(self, name, filenames)
@@ -205,41 +206,18 @@ class TextureFittingModel(QObject):
         return "HB2B_{}_stress_grid_{}.csv".format('_'.join(runnumbers),
                                                    self.selectedPeak)
 
-    def load_hidra_project_file(self, filename, direction):
+    def load_hidra_project_file(self, filename):
         try:
             source_project = HidraProjectFile(filename, mode=HidraProjectFileMode.READONLY)
-            ws = HidraWorkspace(direction)
-            ws.load_hidra_project(source_project, False, False)
-            peaks = dict()
-            for peak in source_project.read_peak_tags():
-                peaks[peak] = source_project.read_peak_parameters(peak)
-            return ws, peaks
+            self.ws = HidraWorkspace(filename)
+            self.ws.load_hidra_project(source_project, False, True)
+            self.sub_runs = self.ws.get_sub_runs()
+
         except Exception as e:
             self.failureMsg.emit(f"Failed to load {filename}. Check that this is a Hidra Project File",
                                  str(e),
                                  traceback.format_exc())
             return None, dict()
-
-    def load_hidra_project_files(self, filenames, direction):
-        # remove existing stress as it will need to be recreated
-        self.stress = None
-
-        workspaces = []
-        peaks = []
-        if isinstance(filenames, str):
-            filenames = [filenames]
-        for filename in filenames:
-            ws, p = self.load_hidra_project_file(filename, direction)
-            if ws is None:
-                return [], []
-            workspaces.append(ws)
-            if p:
-                peaks.append(p)
-
-        return workspaces, peaks
-
-    def get_filenames_for_direction(self, direction):
-        return [w.hidra_project_file for w in getattr(self, f"e{direction}")]
 
     def to_json(self, filename):
         try:

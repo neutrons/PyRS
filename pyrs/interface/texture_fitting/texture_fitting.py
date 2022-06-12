@@ -3,7 +3,7 @@ from qtpy.QtWidgets import QLineEdit, QPushButton, QComboBox  # type:ignore
 from qtpy.QtWidgets import QGroupBox, QSplitter  # type:ignore
 from qtpy.QtWidgets import QRadioButton, QFileDialog, QCheckBox  # type:ignore
 from qtpy.QtWidgets import QStyledItemDelegate, QDoubleSpinBox  # type:ignore
-from qtpy.QtWidgets import QTableWidget  # type:ignore
+from qtpy.QtWidgets import QTableWidget, QSlider  # type:ignore
 from qtpy.QtWidgets import QGridLayout, QMessageBox  # type:ignore
 from qtpy.QtWidgets import QMainWindow, QAction  # type:ignore
 # QTableWidgetItem, QTabWidget
@@ -79,12 +79,13 @@ class FileLoad(QWidget):
                                                     "",
                                                     self.fileType,
                                                     options=QFileDialog.DontUseNativeDialog)
+
         if fileNames:
-            success = self.parent.controller.filesSelected(self.name, fileNames)
-            if success:
-                self.lineEdit.setText(', '.join(os.path.basename(filename) for filename in fileNames))
-            else:
-                self.lineEdit.setText(None)
+            if type(fileNames) is list:
+                fileNames = fileNames[0]
+            self.parent.controller.load_projectfile(fileNames)
+            self.parent.fit_window.update_diff_view(self.parent._model.sub_runs[0])
+            self.parent.fit_setup.sl.setMaximum(self.parent._model.sub_runs.size - 1)
             self.parent.update_plot()
 
     def loadRunNumber(self):
@@ -119,7 +120,13 @@ class FileLoading(QGroupBox):
         super().__init__(parent)
         self.setTitle("Define Fitting File")
         layout = QHBoxLayout()
-        # self.file_load_e11 = FileLoad("e11", parent=parent)
+        self.run_location = QComboBox()
+        self.run_location.addItems(["auto", "manual"])
+        run_location_label = QLabel("Reduction")
+        run_location_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        layout.addWidget(run_location_label)
+        layout.addWidget(self.run_location)
+
         self.file_load_run_number = FileLoad(name="Run Number:", parent=parent)
         self.file_load_dilg = FileLoad(name=None, parent=parent)
         # layout.addWidget(self.file_load_e11)
@@ -134,6 +141,7 @@ class FileLoading(QGroupBox):
 class SetupViz(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.parent = parent
 
         layout = QGridLayout()
 
@@ -141,11 +149,11 @@ class SetupViz(QWidget):
         self.lines_bt = QRadioButton("3D Lines")
         self.scatter_bt = QRadioButton("3D Scatter")
         self.contour_bt.setChecked(False)
-        self.contour_bt.toggled.connect(self.btnstate(self.contour_bt))
+        self.contour_bt.toggled.connect(lambda: self.btnstate(self.contour_bt))
         self.lines_bt.setChecked(True)
-        self.lines_bt.toggled.connect(self.btnstate(self.lines_bt))
+        self.lines_bt.toggled.connect(lambda: self.btnstate(self.lines_bt))
         self.scatter_bt.setChecked(True)
-        self.scatter_bt.toggled.connect(self.btnstate(self.scatter_bt))
+        self.scatter_bt.toggled.connect(lambda: self.btnstate(self.scatter_bt))
 
         layout.addWidget(self.contour_bt, 0, 3)
         layout.addWidget(self.lines_bt, 0, 4)
@@ -187,29 +195,38 @@ class SetupViz(QWidget):
 
 class PlotSelect(QGroupBox):
     def __init__(self, parent=None):
+        self.parent = parent
         super().__init__(parent)
         layout = QHBoxLayout()
         # layout.setFieldGrowthPolicy(0)
         self.plot_paramX = QComboBox()
-        self.plot_paramX.addItems(["sub_run"])
-        self.plot_paramX.setCurrentIndex(self.plot_paramX.findText('sub_run'))
+        self.plot_paramX.addItems(["sub-runs", "vx", "vy", "vz", "sx", "sy", "sz",
+                                   "phi", "chi", "omega"])
         plot_labelX = QLabel("X-axis")
         plot_labelX.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         layout.addWidget(plot_labelX)
         layout.addWidget(self.plot_paramX)
         self.plot_paramY = QComboBox()
-        self.plot_paramY.addItems([])
-        # layout.addCol(QLabel("Y-axis"), self.measure_dir)
+        self.plot_paramY.addItems(["sub-runs", "vx", "vy", "vz", "sx", "sy", "sz",
+                                   "phi", "chi", "omega"])
         plot_labelY = QLabel("Y-axis")
         plot_labelY.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         layout.addWidget(plot_labelY)
         layout.addWidget(self.plot_paramY)
+
+        self.plot_peakNum = QComboBox()
+        self.plot_peakNum.addItems(["1"])
+        peackNum_label = QLabel("Peak")
+        peackNum_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        layout.addWidget(peackNum_label)
+        layout.addWidget(self.plot_peakNum)
+
         self.setLayout(layout)
 
-    def get_direction(self):
+    def get_Yplot(self):
         return self.plot_paramY.currentText()
 
-    def get_plot_param(self):
+    def get_Xplot(self):
         return self.plot_paramX.currentText()
 
 
@@ -223,14 +240,13 @@ class FixFigureCanvas(FigureCanvas):
 class PlotView(QWidget):
     def __init__(self, parent=None, fit_view=False, three_dim=False):
         super().__init__(parent)
+        self._parent = parent
 
         # self.fit_view = fit_view
         if fit_view:
             self.figure, self.ax = subplots(2, 1, sharex=True,
                                             gridspec_kw={'height_ratios': [3, 1]})
-            self.ax[1].set_xlabel(r"2$\theta$ ($deg.$)")
-            self.ax[0].set_ylabel("Intensity (ct.)")
-            self.ax[1].set_ylabel("Diff (ct.)")
+
         elif three_dim:
             self.figure, self.ax = subplots(1, 1)
         else:
@@ -243,18 +259,33 @@ class PlotView(QWidget):
         grid.addWidget(self.canvas)
         self.setLayout(grid)
 
-    def update_diff_view(self, tth, i_data, fit=None):
+    def update_diff_view(self, sub_run, fit=None):
         self.ax[0].clear()
         self.ax[1].clear()
-        self.ax[0].plot(tth, i_data, 'k')
+        tth, int_vec, var_vec = self._parent._model.ws.get_reduced_diffraction_data(sub_run)
+
+        self.ax[0].plot(tth[1:], int_vec[1:], 'k')
         if fit is not None:
-            self.ax[1].plot(tth, fit - i_data, 'r')
+            self.ax[1].plot(tth, fit - int_vec, 'r')
+
+        self.ax[1].set_xlabel(r"2$\theta$ ($deg.$)")
+        self.ax[0].set_ylabel("Intensity (ct.)")
+        self.ax[1].set_ylabel("Diff (ct.)")
+
+        self.canvas.draw()
 
     def getWidget(self):
         return FixFigureCanvas(self.figure)
 
-    def update_param_view(self, xvalues, yvalues, xlabel, ylabel):
-        self.ax.plot(xvalues, yvalues, color='k', marker='D', linestyle="--")
+    def update_param_view(self, xlabel, ylabel):
+        self.ax.clear()
+        xdata, ydata = self._parent._ctrl.get_log_plot(xlabel, ylabel)
+        self.ax.plot(xdata, ydata, color='k', marker='D', linestyle='None')
+        self.ax.set_xlabel(xlabel)
+        self.ax.set_ylabel(ylabel)
+
+        tight_layout()
+
         self.canvas.draw()
 
 
@@ -296,17 +327,28 @@ class FitSetupView(QGroupBox):
         self.peak_setup_layout = QVBoxLayout()
 
         self.sub_runs_select = QGroupBox()
-        self.sub_runs_select_layout = QHBoxLayout()
+        # self.sub_runs_select_layout = QHBoxLayout()
+        sub_runs_select_layout = QGridLayout()
         self.sub_runs_select.setTitle("Sub Runs")
         self.lineEdit = QLineEdit()
         self.lineEdit.setReadOnly(False)
         self.lineEdit.setFixedWidth(50)
-        self.sub_runs_select_layout.addWidget(self.lineEdit)
         example_label = QLabel('(ex: 1,2,3... or 3-5,8)')
         example_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.sub_runs_select_layout.addWidget(example_label)
 
-        self.sub_runs_select.setLayout(self.sub_runs_select_layout)
+        self.sl = QSlider(Qt.Horizontal)
+        self.sl.setMinimum(0)
+        self.sl.setMaximum(1)
+        self.sl.setValue(0)
+        self.sl.setTickPosition(QSlider.TicksBelow)
+        self.sl.setTickInterval(1)
+
+        self.sl.valueChanged.connect(self.valuechange)
+
+        sub_runs_select_layout.addWidget(self.sl, 0, 1)
+        sub_runs_select_layout.addWidget(self.lineEdit, 1, 0)
+        sub_runs_select_layout.addWidget(example_label, 1, 1)
+        self.sub_runs_select.setLayout(sub_runs_select_layout)
 
         self.fit_setup = QGroupBox()
         self.fit_setup.setTitle("Fitting Functions")
@@ -318,11 +360,12 @@ class FitSetupView(QGroupBox):
         self.peak_back = QComboBox()
         self.peak_back.addItems(["Linear", "Quadraditc"])
 
-        self.fit_peaks = QPushButton("Export Peak Information")
+        self.fit_peaks = QPushButton("Fit")
         self.fit_peaks.clicked.connect(self.fit)
 
         self.fit_setup_layout.addWidget(self.peak_model)
         self.fit_setup_layout.addWidget(self.peak_back)
+        self.fit_setup_layout.addWidget(self.fit_peaks)
         self.fit_setup.setLayout(self.fit_setup_layout)
 
         self.export = QPushButton("Export Peak Information")
@@ -371,6 +414,9 @@ class FitSetupView(QGroupBox):
     def fit(self):
 
         return
+
+    def valuechange(self):
+        self._parent.fit_window.update_diff_view(self._parent._model.sub_runs[self.sl.value()])
 
 
 class FitSummaryView(QGroupBox):
@@ -440,11 +486,11 @@ class CSVExport(QGroupBox):
         self._parent.controller.write_stress_to_csv(filename, self.detailed.isChecked())
 
 
-class TextureFittingUI(QMainWindow):
+class TextureFittingViewer(QMainWindow):
     def __init__(self, fit_peak_model, fit_peak_ctrl, parent=None):
 
-        self.fit_peak_core = fit_peak_model
-        self.controller = fit_peak_ctrl
+        self._model = fit_peak_model
+        self._ctrl = fit_peak_ctrl
 
         super().__init__(parent)
 
@@ -547,38 +593,10 @@ class TextureFittingUI(QMainWindow):
         self.update_plot()
 
     def update_plot(self):
-        if self.plot_select.get_plot_param() == 'stress' or (self.plot_select.get_plot_param() == 'strain' and
-                                                             self.plot_select.get_direction() == "33" and
-                                                             self.stressCase.get_stress_case() == "In-plane stress"):
-            validated = self.controller.validate_stress_selection(self.stressCase.get_stress_case(),
-                                                                  self.mechanicalConstants.youngModulus.text(),
-                                                                  self.mechanicalConstants.poissonsRatio.text())
-        else:
-            validated = self.controller.validate_selection(self.plot_select.get_direction(),
-                                                           self.stressCase.get_stress_case() != 'diagonal')
-
-        if validated is None:
-            if self.plot_select.get_plot_param() == 'stress' or (self.plot_select.get_plot_param() == 'strain' and
-                                                                 self.plot_select.get_direction() == "33" and
-                                                                 self.stressCase.get_stress_case()
-                                                                 == "In-plane stress"):
-                self.calculate_stress()
-            print('plotting from here')
-
-            self.viz_tab.set_ws(self.model.get_field(direction=self.plot_select.get_direction(),
-                                                     plot_param=self.plot_select.get_plot_param(),
-                                                     stress_case=self.stressCase.get_stress_case()))
-        else:
-            self.viz_tab.set_ws(None)
-            self.viz_tab.set_message(validated)
-
-        if self.controller.validate_stress_selection(self.stressCase.get_stress_case(),
-                                                     self.mechanicalConstants.youngModulus.text(),
-                                                     self.mechanicalConstants.poissonsRatio.text()) is None:
-            self.calculate_stress()
-            self.enable_stress_output(True)
-        else:
-            self.enable_stress_output(False)
+        if self._model.ws is not None:
+            if (self.plot_select.get_Xplot() != "") and (self.plot_select.get_Yplot() != ""):
+                self.param_window.update_param_view(self.plot_select.get_Xplot(),
+                                                    self.plot_select.get_Yplot())
 
     def enable_stress_output(self, enable):
         self.csvExport.setEnabled(enable)
