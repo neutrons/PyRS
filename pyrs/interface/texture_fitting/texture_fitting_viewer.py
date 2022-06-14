@@ -17,7 +17,7 @@ from qtpy.QtCore import Qt
 import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-from matplotlib.pyplot import subplots, tight_layout
+from matplotlib.pyplot import subplots, tight_layout, figure
 # import traceback
 import os
 
@@ -163,19 +163,22 @@ class SetupViz(QWidget):
         layout.addWidget(self.scatter_bt, 0, 5)
 
         self.plot_paramX = QComboBox()
-        self.plot_paramX.addItems(["sub_run"])
+        self.plot_paramX.addItems(["sub-runs", "vx", "vy", "vz", "sx", "sy", "sz",
+                                   "phi", "chi", "omega"])
         plot_labelX = QLabel("X-axis")
         plot_labelX.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         layout.addWidget(plot_labelX, 1, 0)
         layout.addWidget(self.plot_paramX, 1, 1)
         self.plot_paramY = QComboBox()
-        self.plot_paramY.addItems(["sub_run"])
+        self.plot_paramY.addItems(["sub-runs", "vx", "vy", "vz", "sx", "sy", "sz",
+                                   "phi", "chi", "omega"])
         plot_labelY = QLabel("Y-axis")
         plot_labelY.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         layout.addWidget(plot_labelY, 1, 2)
         layout.addWidget(self.plot_paramY, 1, 3)
         self.plot_paramZ = QComboBox()
-        self.plot_paramZ.addItems(["sub_run"])
+        self.plot_paramZ.addItems(["sub-runs", "vx", "vy", "vz", "sx", "sy", "sz",
+                                   "phi", "chi", "omega"])
         plot_labelZ = QLabel("Z-axis")
         plot_labelZ.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         layout.addWidget(plot_labelZ, 1, 4)
@@ -194,6 +197,15 @@ class SetupViz(QWidget):
 
     def btnstate(self, button):
         print(button.text())
+
+    def get_X(self):
+        return self.plot_paramX.currentText()
+
+    def get_Y(self):
+        return self.plot_paramY.currentText()
+
+    def get_Z(self):
+        return self.plot_paramZ.currentText()
 
 
 class PlotSelect(QGroupBox):
@@ -226,10 +238,10 @@ class PlotSelect(QGroupBox):
 
         self.setLayout(layout)
 
-    def get_Yplot(self):
+    def get_Y(self):
         return self.plot_paramY.currentText()
 
-    def get_Xplot(self):
+    def get_X(self):
         return self.plot_paramX.currentText()
 
 
@@ -251,7 +263,8 @@ class PlotView(QWidget):
                                             gridspec_kw={'height_ratios': [3, 1]})
 
         elif three_dim:
-            self.figure, self.ax = subplots(1, 1)
+            self.figure = figure()
+            self.ax = self.figure.add_subplot(1, 1, 1, projection='3d')
         else:
             self.figure, self.ax = subplots(1, 1)
 
@@ -292,10 +305,33 @@ class PlotView(QWidget):
 
     def update_param_view(self, xlabel, ylabel):
         self.ax.clear()
-        xdata, ydata = self._parent._ctrl.get_log_plot(xlabel, ylabel)
-        self.ax.plot(xdata, ydata, color='k', marker='D', linestyle='None')
+        xdata, ydata = self._parent._ctrl.get_log_plot(xlabel, ylabel,
+                                                       fit_object=self._parent.fit_summary.fit_table_operator)
+        if len(xdata) != len(ydata):
+            self.ax.errorbar(xdata, ydata[0], yerr=ydata[1], color='k', ls='None')
+        else:
+            self.ax.plot(xdata, ydata, color='k', marker='D', linestyle='None')
+
         self.ax.set_xlabel(xlabel)
         self.ax.set_ylabel(ylabel)
+
+        tight_layout()
+
+        self.canvas.draw()
+
+    def update_3D_view(self, xlabel, ylabel, zlabel):
+        self.ax.clear()
+        xdata, ydata, zdata = self._parent._ctrl.get_log_plot(xlabel, ylabel, zname=zlabel,
+                                                              fit_object=self._parent.fit_summary.fit_table_operator)
+
+        if len(xdata) != len(zdata):
+            self.ax.scatter(xdata, ydata, zdata[0], marker='D')
+        else:
+            self.ax.scatter(xdata, ydata, zdata, marker='D')
+
+        self.ax.set_xlabel(xlabel)
+        self.ax.set_ylabel(ylabel)
+        self.ax.set_zlabel(zlabel)
 
         tight_layout()
 
@@ -370,10 +406,10 @@ class FitSetupView(QGroupBox):
         self.fit_setup_layout = QHBoxLayout()
 
         self.peak_model = QComboBox()
-        self.peak_model.addItems(["PseudoVoigt", "Gaussian", "Voigt"])
+        self.peak_model.addItems(["PseudoVoigt", "Gaussian"])
 
         self.peak_back = QComboBox()
-        self.peak_back.addItems(["Linear", "Quadratic"])
+        self.peak_back.addItems(["Linear"])
 
         self.fit_peaks = QPushButton("Fit")
         self.fit_peaks.clicked.connect(self.fit)
@@ -426,6 +462,18 @@ class FitSetupView(QGroupBox):
             return
         self._parent.controller.write_stress_to_csv(filename, self.detailed.isChecked())
 
+    def setup_view_param(self):
+        plot_selct_params = []
+        plot_3d_params = []
+        for _param in self._parent.fit_summary.fit_table_operator.clean_param_names:
+            if (self._parent.plot_select.plot_paramY.findData(_param) == -1):
+                plot_selct_params.append(_param)
+            if (self._parent.VizSetup.plot_paramZ.findData(_param) == -1):
+                plot_3d_params.append(_param)
+
+        self._parent.plot_select.plot_paramY.addItems(plot_selct_params)
+        self._parent.VizSetup.plot_paramZ.addItems(plot_3d_params)
+
     def fit(self):
 
         if self.fit_range_table.item(0, 0) is not None and self.fit_range_table.item(0, 1) is not None:
@@ -447,6 +495,7 @@ class FitSetupView(QGroupBox):
         self._parent.fit_summary.fit_table_operator.initialize_table()
         self._parent.fit_summary.fit_table_operator.populate_fit_result_table()
         self._parent.fit_window.update_diff_view(self._parent.model.sub_runs[0])
+        self.setup_view_param()
 
     def valuechange(self):
         self._parent.fit_window.update_diff_view(self._parent._model.sub_runs[self.sl.value()])
@@ -605,6 +654,7 @@ class FitTable:
         for _column in np.arange(len(columns_names)):
             self.parent.tableView_fitSummary.insertColumn(_column)
         self.parent.tableView_fitSummary.setHorizontalHeaderLabels(columns_names)
+        self.clean_param_names = self._get_list_of_columns(True)
 
     def initialize_table_column_size(self):
         nbr_column = self.parent.tableView_fitSummary.columnCount()
@@ -633,13 +683,13 @@ class FitTable:
         self._clear_rows()
         self._clear_columns()
 
-    def _get_list_of_columns(self):
+    def _get_list_of_columns(self, plotting=False):
         _peak_collection = self.fit_result.peakcollections[0]
         values, _ = _peak_collection.get_effective_params()
         column_names = values.dtype.names
         clean_column_names = []
         for _col_index, _col_value in enumerate(column_names):
-            if _col_index == 0:
+            if (_col_index == 0) and (not plotting):
                 # _col_value = 'Sub-run #'
                 _col_value = 'Peak Center'
             clean_column_names.append(_col_value)
@@ -651,11 +701,15 @@ class FitTable:
         # add d-spacing column
         clean_column_names.append("d spacing")
 
-        # add strain-mapping column
-        clean_column_names.append("strain mapping (" + MICROSTRAIN + ")")
+        if plotting:
+            clean_column_names.append("microstrain")
+        else:
+            # add strain-mapping column
+            clean_column_names.append("strain mapping (" + MICROSTRAIN + ")")
 
-        # add a status column
-        clean_column_names.append("Status message")
+            # add a status column
+            clean_column_names.append("Status message")
+
         return clean_column_names
 
     def select_first_row(self):
@@ -765,7 +819,6 @@ class TextureFittingViewer(QMainWindow):
         self.plot_select = PlotSelect(self)
         self.plot_select.plot_paramX.currentTextChanged.connect(self.update_plot)
         self.plot_select.plot_paramY.currentTextChanged.connect(self.update_plot)
-        right_layout.addWidget(self.plot_select)
 
         self.viz_splitter = QSplitter(Qt.Vertical)
         self.param_window = PlotView(self)
@@ -774,11 +827,16 @@ class TextureFittingViewer(QMainWindow):
         self.viz_splitter.addWidget(self.param_window)
         self.viz_splitter.addWidget(self.compare_param_window)
 
-        right_layout.addWidget(self.viz_splitter)
-
+        # Lower pannel for controlling 3D plotting
         self.VizSetup = SetupViz(self)
-        right_layout.addWidget(self.VizSetup)
+        self.VizSetup.plot_paramX.currentTextChanged.connect(self.update_3D_plot)
+        self.VizSetup.plot_paramY.currentTextChanged.connect(self.update_3D_plot)
+        self.VizSetup.plot_paramZ.currentTextChanged.connect(self.update_3D_plot)
 
+        # add widgets to pannel layout
+        right_layout.addWidget(self.plot_select)
+        right_layout.addWidget(self.viz_splitter)
+        right_layout.addWidget(self.VizSetup)
         right.setLayout(right_layout)
 
         self.splitter.addWidget(right)
@@ -795,9 +853,16 @@ class TextureFittingViewer(QMainWindow):
 
     def update_plot(self):
         if self._model.ws is not None:
-            if (self.plot_select.get_Xplot() != "") and (self.plot_select.get_Yplot() != ""):
-                self.param_window.update_param_view(self.plot_select.get_Xplot(),
-                                                    self.plot_select.get_Yplot())
+            if (self.plot_select.get_X() != "") and (self.plot_select.get_Y() != ""):
+                self.param_window.update_param_view(self.plot_select.get_X(),
+                                                    self.plot_select.get_Y())
+
+    def update_3D_plot(self):
+        if self._model.ws is not None:
+            if (self.VizSetup.get_X() != "") and (self.VizSetup.get_Y() != "") and (self.VizSetup.get_Z() != ""):
+                self.compare_param_window.update_3D_view(self.VizSetup.get_X(),
+                                                         self.VizSetup.get_Y(),
+                                                         self.VizSetup.get_Z())
 
     def show_failure_msg(self, msg, info, details):
         self.viz_tab.set_message(msg)
