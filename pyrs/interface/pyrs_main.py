@@ -15,7 +15,7 @@ from pyrs.interface.strainstressviewer.strain_stress_view import StrainStressVie
 from pyrs.interface.strainstressviewer.model import Model  # noqa: E402
 from pyrs.interface.strainstressviewer.controller import Controller  # noqa: E402
 
-from pyrs.interface.texture_fitting.texture_fitting import TextureFittingViewer  # noqa: E402
+from pyrs.interface.texture_fitting.texture_fitting_viewer import TextureFittingViewer  # noqa: E402
 from pyrs.interface.texture_fitting.texture_fitting_model import TextureFittingModel  # noqa: E402
 from pyrs.interface.texture_fitting.texture_fitting_crtl import TextureFittingCrtl  # noqa: E402
 

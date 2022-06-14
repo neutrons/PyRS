@@ -1,11 +1,14 @@
 import json
 import traceback
-from pyrs.dataobjects.fields import StressField, StrainField, ScalarFieldSample
-from pyrs.core.stress_facade import StressFacade
-from pyrs.core.summary_generator_stress import SummaryGeneratorStress
+from shutil import copyfile
+import numpy as np
+
+# from pyrs.dataobjects import HidraConstants  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
 from qtpy.QtCore import Signal, QObject  # type:ignore
+# from pyrs.interface.gui_helper import pop_message
+from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory  # type: ignore
 
 
 class TextureFittingModel(QObject):
@@ -16,184 +19,10 @@ class TextureFittingModel(QObject):
         super().__init__()
         self._peak_fit = peak_fit_core
         self.ws = None
+        self.peak_fit_engine = None
 
     def set_workspaces(self, name, filenames):
         setattr(self, name, filenames)
-
-    @property
-    def e11(self):
-        return self._e11
-
-    @e11.setter
-    def e11(self, filename):
-        self._e11, self._e11_peaks = self.load_hidra_project_files(filename, '11')
-        self._peakTags = list(self._e11_peaks[0].keys()) if len(self._e11_peaks) > 0 else []
-        self.propertyUpdated.emit("peakTags")
-
-    @property
-    def e11_peaks(self):
-        return self._e11_peaks
-
-    @property
-    def e22(self):
-        return self._e22
-
-    @e22.setter
-    def e22(self, filename):
-        self._e22, self._e22_peaks = self.load_hidra_project_files(filename, '22')
-        if self._e22 and self.check_peak_for_direction('22'):
-            self.create_strain('22')
-
-    @property
-    def e22_peaks(self):
-        return self._e22_peaks
-
-    @property
-    def e33(self):
-        return self._e33
-
-    @e33.setter
-    def e33(self, filename):
-        self._e33, self._e33_peaks = self.load_hidra_project_files(filename, '33')
-        if self._e33 and self.check_peak_for_direction('33'):
-            self.create_strain('33')
-
-    @property
-    def e33_peaks(self):
-        return self._e33_peaks
-
-    @property
-    def peakTags(self):
-        return self._peakTags
-
-    @property
-    def selectedPeak(self):
-        return self._selectedPeak
-
-    @selectedPeak.setter
-    def selectedPeak(self, tag):
-        self._selectedPeak = tag
-        for direction in ('11', '22', '33'):
-            if getattr(self, f'e{direction}') and self.check_peak_for_direction(f'{direction}'):
-                self.create_strain(direction)
-        self.propertyUpdated.emit("selectedPeak")
-
-    @property
-    def d0(self):
-        if self.stress_facade:
-            try:
-                return self.stress_facade.d_reference
-            except Exception as e:
-                self.failureMsg.emit("Reference d spacings are different on different directions",
-                                     str(e), None)
-                return None, dict()
-
-    @property
-    def stress(self):
-        return self._stress
-
-    @stress.setter
-    def stress(self, stress):
-        self._stress = stress
-        if stress is None:
-            self._stress_facade = None
-        else:
-            self._stress_facade = StressFacade(stress)
-
-    @property
-    def stress_facade(self):
-        return self._stress_facade
-
-    def create_strain(self, direction):
-        strain_list = [StrainField(hidraworkspace=ws, peak_collection=peak[self.selectedPeak])
-                       for ws, peak in zip(getattr(self, f'e{direction}'), getattr(self, f'e{direction}_peaks'))]
-        if len(strain_list) == 1:
-            setattr(self, f'_e{direction}_strain', strain_list[0])
-        else:
-            setattr(self, f'_e{direction}_strain', sum(strain_list[1:], strain_list[0]))
-
-    def check_peak_for_direction(self, direction):
-        for peak in getattr(self, f'e{direction}_peaks'):
-            if self.selectedPeak not in peak:
-                return False
-        return True
-
-    def validate_selection(self, direction):
-        if not getattr(self, f'e{direction}'):
-            return f"e{direction} file hasn't been loaded"
-
-        if not self.e11:
-            return "e11 is not loaded, the peak tags from this file will be used"
-
-        if not self.e11_peaks:
-            return "e11 contains no peaks, fit peaks first"
-
-        if not self.check_peak_for_direction(f'{direction}'):
-            return f"Peak {self.selectedPeak} is not in e{direction}"
-
-    def get_parameter_field(self, plot_param, direction):
-        if plot_param == 'strain':
-            return getattr(self, f'_e{direction}_strain')
-        elif plot_param == 'd-reference':
-            return getattr(self, f'_e{direction}_strain').get_d_reference()
-        elif plot_param == "dspacing-center":
-            return getattr(self, f'_e{direction}_strain').get_dspacing_center()
-        else:
-            return getattr(self, f'_e{direction}_strain').get_effective_peak_parameter(plot_param)
-
-    def get_field(self, direction, plot_param, stress_case):
-        try:
-            if plot_param == "stress":
-                self.stress.select(direction)
-                return self._stress
-            elif plot_param == "strain" and direction == "33" and stress_case == "In-plane stress":
-                return self.stress.strain33
-            else:
-                return self.get_parameter_field(plot_param, direction)
-        except Exception as e:
-            self.failureMsg.emit(f"Failed to generate field for parameter {plot_param} in direction {direction}",
-                                 str(e),
-                                 traceback.format_exc())
-
-    def calculate_stress(self, stress_case, youngModulus, poissonsRatio, d0):
-        build_stress = False
-        if self.stress is None or stress_case != self._stressCase:
-            build_stress = True
-
-        if build_stress:
-            self.stress = StressField(self._e11_strain,
-                                      self._e22_strain,
-                                      self._e33_strain if stress_case == "diagonal" else None,
-                                      youngModulus, poissonsRatio, stress_case)
-        else:
-            if youngModulus != self._youngs_modulus:
-                self._stress.youngs_modulus = youngModulus
-            if poissonsRatio != self._poisson_ratio:
-                self._stress.poisson_ratio = poissonsRatio
-
-        if d0 is not None and (self._d0 is None or self._d0 != d0):
-            if len(d0) == 5:  # ScalarFieldSample case
-                self.stress_facade.d_reference = ScalarFieldSample('d0', *d0)
-            else:
-                self.stress_facade.d_reference = d0
-
-        # cache values to compare if they are changed
-        self._stressCase = stress_case
-        self._youngs_modulus = youngModulus
-        self._poisson_ratio = poissonsRatio
-        self._d0 = d0
-
-    def write_stress_to_csv(self, filename, detailed):
-        try:
-            stress_csv = SummaryGeneratorStress(filename, self._stress)
-            if detailed:
-                stress_csv.write_full_csv()
-            else:
-                stress_csv.write_summary_csv()
-        except Exception as e:
-            self.failureMsg.emit("Failed to write csv",
-                                 str(e),
-                                 traceback.format_exc())
 
     def get_default_csv_filename(self):
         runs = [[peak_collection.runnumber for peak_collection in getattr(self._stress, f'strain{d}').peak_collections]
@@ -211,7 +40,7 @@ class TextureFittingModel(QObject):
             source_project = HidraProjectFile(filename, mode=HidraProjectFileMode.READONLY)
             self.ws = HidraWorkspace(filename)
             self.ws.load_hidra_project(source_project, False, True)
-            self.sub_runs = self.ws.get_sub_runs()
+            self.sub_runs = np.array(self.ws.get_sub_runs())
 
         except Exception as e:
             self.failureMsg.emit(f"Failed to load {filename}. Check that this is a Hidra Project File",
@@ -278,6 +107,45 @@ class TextureFittingModel(QObject):
 
         self.propertyUpdated.emit("modelUpdated")
 
-    @property
-    def modelUpdated(self):
-        return self._stressCase, self.selectedPeak, self._youngs_modulus, self._poisson_ratio
+    def fit_diff_peaks(self, min_tth, max_tth, peak_tag, _peak_function_name,
+                       _background_function_name, out_of_plane_angle):
+        _wavelength = self.ws.get_wavelength(True, True)
+
+        fit_engine = PeakFitEngineFactory.getInstance(self.ws,
+                                                      _peak_function_name, _background_function_name,
+                                                      wavelength=_wavelength)
+
+        fit_result = fit_engine.fit_multiple_peaks(peak_tag,
+                                                   min_tth,
+                                                   max_tth)
+
+        return fit_result
+
+    def save_fit_result(self, out_file_name=''):
+        """Save the fit result, including a copy of the rest of the file if it does not exist at the specified path.
+
+        If out_file_name is empty or if it matches the parent's current file, this updates the file.
+
+        Otherwise, the parent's file is copied to out_file_name and
+        then the updated peak fit data is written to the copy.
+
+        :param out_file_name: string absolute fill path for the place to save the file
+
+        """
+
+        fit_result = self.parent.fit_result
+        if fit_result is None:
+            return
+
+        if out_file_name is not None and self.parent._curr_file_name != out_file_name:
+            copyfile(self.parent._curr_file_name, out_file_name)
+            current_project_file = out_file_name
+        else:
+            current_project_file = self.parent._curr_file_name
+
+        project_h5_file = HidraProjectFile(current_project_file, mode=HidraProjectFileMode.READWRITE)
+        peakcollections = fit_result.peakcollections
+        for peak in peakcollections:
+            project_h5_file.write_peak_parameters(peak)
+        project_h5_file.save(False)
+        project_h5_file.close()

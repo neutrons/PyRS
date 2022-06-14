@@ -425,18 +425,18 @@ class FitPeaksWindow(QMainWindow):
         """
         self.ui.tableView_fitSummary.export_table_csv(file_name)
 
-    def fit_peaks_smart(self, peak_profiles_order):
-        """
-        fit peaks with a "smart" algorithm
-        :param peak_profiles_order: a list for peak profile to fit in specified order
-        :return:
-        """
-        try:
-            self._core.fit_peaks_smart_alg(self._curr_data_key, peak_profiles_order)
-        except RuntimeError as run_err:
-            err_msg = 'Smart peak fitting with order {} failed due to {}' \
-                      ''.format(peak_profiles_order, run_err)
-            pyrs.interface.gui_helper.pop_message(self, err_msg, 'error')
+    # def fit_peaks_smart(self, peak_profiles_order):
+    #     """
+    #     fit peaks with a "smart" algorithm
+    #     :param peak_profiles_order: a list for peak profile to fit in specified order
+    #     :return:
+    #     """
+    #     try:
+    #         self._core.fit_peaks_smart_alg(self._curr_data_key, peak_profiles_order)
+    #     except RuntimeError as run_err:
+    #         err_msg = 'Smart peak fitting with order {} failed due to {}' \
+    #                   ''.format(peak_profiles_order, run_err)
+    #         pyrs.interface.gui_helper.pop_message(self, err_msg, 'error')
 
     def save_data_for_mantid(self, data_key, file_name):
         """

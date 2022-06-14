@@ -1,27 +1,30 @@
 from qtpy.QtWidgets import QHBoxLayout, QVBoxLayout, QLabel, QWidget  # type:ignore
 from qtpy.QtWidgets import QLineEdit, QPushButton, QComboBox  # type:ignore
-from qtpy.QtWidgets import QGroupBox, QSplitter  # type:ignore
+from qtpy.QtWidgets import QGroupBox, QSplitter, QSpinBox  # type:ignore
 from qtpy.QtWidgets import QRadioButton, QFileDialog, QCheckBox  # type:ignore
 from qtpy.QtWidgets import QStyledItemDelegate, QDoubleSpinBox  # type:ignore
-from qtpy.QtWidgets import QTableWidget, QSlider  # type:ignore
+from qtpy.QtWidgets import QTableWidget, QTableWidgetItem, QSlider  # type:ignore
 from qtpy.QtWidgets import QGridLayout, QMessageBox  # type:ignore
-from qtpy.QtWidgets import QMainWindow, QAction  # type:ignore
+from qtpy.QtWidgets import QMainWindow, QAction, QTableWidgetSelectionRange  # type:ignore
+from qtpy.QtGui import QColor  # type:ignore
+
 # QTableWidgetItem, QTabWidget
 from matplotlib import rcParams
 
 from qtpy.QtCore import Qt
 # , Signal
 
-# import numpy as np
+import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-# from matplotlib.figure import Figure
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.pyplot import subplots, tight_layout
 # import traceback
 import os
 
-# Can't run VTK embedded in PyQT5 using VirtualGL
-# See https://gitlab.kitware.com/vtk/vtk/-/issues/17338
-USING_THINLINC = "TLSESSIONDATA" in os.environ
+COLOR_FAILED_FITTING = QColor(247, 173, 13)  # orange
+SUCCESS = "success"
+MICROSTRAIN = u"\u00b5strain"
+
 
 scale_factor = 1
 marker_size = 5 * scale_factor
@@ -152,7 +155,7 @@ class SetupViz(QWidget):
         self.contour_bt.toggled.connect(lambda: self.btnstate(self.contour_bt))
         self.lines_bt.setChecked(True)
         self.lines_bt.toggled.connect(lambda: self.btnstate(self.lines_bt))
-        self.scatter_bt.setChecked(True)
+        self.scatter_bt.setChecked(False)
         self.scatter_bt.toggled.connect(lambda: self.btnstate(self.scatter_bt))
 
         layout.addWidget(self.contour_bt, 0, 3)
@@ -253,24 +256,34 @@ class PlotView(QWidget):
             self.figure, self.ax = subplots(1, 1)
 
         tight_layout()
-        grid = QVBoxLayout(self)
+        self.setLayout(QVBoxLayout())
         self.canvas = self.getWidget()
+        self.toolbar = NavigationToolbar(self.canvas, self)
+        self.layout().addWidget(self.canvas)
+        self.layout().addWidget(self.toolbar)
 
-        grid.addWidget(self.canvas)
-        self.setLayout(grid)
-
-    def update_diff_view(self, sub_run, fit=None):
+    def update_diff_view(self, sub_run):
         self.ax[0].clear()
         self.ax[1].clear()
-        tth, int_vec, var_vec = self._parent._model.ws.get_reduced_diffraction_data(sub_run)
+        tth, int_vec, var_vec = self._parent.model.ws.get_reduced_diffraction_data(sub_run)
 
         self.ax[0].plot(tth[1:], int_vec[1:], 'k')
-        if fit is not None:
-            self.ax[1].plot(tth, fit - int_vec, 'r')
+        if self._parent.fit_summary.fit_table_operator.fit_result is not None:
+            sub_run_index = int(np.where(self._parent._model.sub_runs == sub_run)[0])
+            fit_tth = self._parent.fit_summary.fit_table_operator.fit_result.fitted.readX(sub_run_index)
+            fit_int = self._parent.fit_summary.fit_table_operator.fit_result.fitted.readY(sub_run_index)
+            diff_tth = self._parent.fit_summary.fit_table_operator.fit_result.difference.readX(sub_run_index)
+            diff_int = self._parent.fit_summary.fit_table_operator.fit_result.difference.readY(sub_run_index)
+
+            fit_index = fit_int > 0
+            self.ax[0].plot(fit_tth[fit_index], fit_int[fit_index], 'r')
+            self.ax[1].plot(diff_tth[fit_index], diff_int[fit_index], 'r')
 
         self.ax[1].set_xlabel(r"2$\theta$ ($deg.$)")
         self.ax[0].set_ylabel("Intensity (ct.)")
         self.ax[1].set_ylabel("Diff (ct.)")
+
+        tight_layout()
 
         self.canvas.draw()
 
@@ -315,12 +328,14 @@ class FitSetupView(QGroupBox):
         self.save_load_fit_layout.addWidget(self.save_fit_info)
         self.save_load_fit.setLayout(self.save_load_fit_layout)
 
-        self.table = QTableWidget(self)
-        self.table.setRowCount(2)
-        self.table.setColumnCount(3)
+        self.fit_range_table = QTableWidget(self)
+        self.fit_range_table.setRowCount(2)
+        self.fit_range_table.setColumnCount(4)
+        self.fit_range_table.setHorizontalHeaderLabels(['min 2theta', 'max 2theta', 'Peak Label',  'd0'])
+        self.fit_range_table.resizeColumnsToContents()
 
         self.fit_range_layout.addWidget(self.save_load_fit)
-        self.fit_range_layout.addWidget(self.table)
+        self.fit_range_layout.addWidget(self.fit_range_table)
         self.fit_range.setLayout(self.fit_range_layout)
 
         self.peak_setup = QGroupBox()
@@ -355,10 +370,10 @@ class FitSetupView(QGroupBox):
         self.fit_setup_layout = QHBoxLayout()
 
         self.peak_model = QComboBox()
-        self.peak_model.addItems(["Pseudo Voigt", "Gaussian", "Lorentez"])
+        self.peak_model.addItems(["PseudoVoigt", "Gaussian", "Voigt"])
 
         self.peak_back = QComboBox()
-        self.peak_back.addItems(["Linear", "Quadraditc"])
+        self.peak_back.addItems(["Linear", "Quadratic"])
 
         self.fit_peaks = QPushButton("Fit")
         self.fit_peaks.clicked.connect(self.fit)
@@ -413,7 +428,25 @@ class FitSetupView(QGroupBox):
 
     def fit(self):
 
-        return
+        if self.fit_range_table.item(0, 0) is not None and self.fit_range_table.item(0, 1) is not None:
+            tth_min = [float(self.fit_range_table.item(0, 0).text())]
+            tth_max = [float(self.fit_range_table.item(0, 1).text())]
+            if self.fit_range_table.item(0, 2) is None:
+                peak_label = ['peak_1']
+                self.fit_range_table.setItem(0, 2, QTableWidgetItem('peak_1'))
+            else:
+                peak_label = [self.fit_range_table.item(0, 2).text()]
+
+        if self.fit_range_table.item(0, 3) is None:
+            self.fit_range_table.setItem(0, 3, QTableWidgetItem('1.0'))
+
+        fit_results = self._parent.controller.fit_peaks(tth_min, tth_max, peak_label,
+                                                        self.peak_model.currentText(), self.peak_back.currentText())
+
+        self._parent.fit_summary.fit_table_operator.fit_result = fit_results
+        self._parent.fit_summary.fit_table_operator.initialize_table()
+        self._parent.fit_summary.fit_table_operator.populate_fit_result_table()
+        self._parent.fit_window.update_diff_view(self._parent.model.sub_runs[0])
 
     def valuechange(self):
         self._parent.fit_window.update_diff_view(self._parent._model.sub_runs[self.sl.value()])
@@ -429,31 +462,206 @@ class FitSummaryView(QGroupBox):
         self.summary_select = QGroupBox()
         self.summary_select_layout = QHBoxLayout()
 
-        self.value_button = QPushButton('Value', self)
-        self.error_button = QPushButton('Error', self)
-        self.value_button.clicked.connect(self.btn_click)
-        self.error_button.clicked.connect(self.btn_click)
+        self.spinBox_peak_index = QSpinBox()
+        self.spinBox_peak_index.setRange(1, 1)
 
-        self.summary_select_layout.addWidget(self.value_button)
-        self.summary_select_layout.addWidget(self.error_button)
+        plot_labelY = QLabel("Peak Index")
+        plot_labelY.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+
+        self.radioButton_fit_value = QRadioButton('Fit Param Values')
+        self.radioButton_fit_value.setChecked(True)
+        self.radioButton_fit_error = QRadioButton('Fit Param Errors')
+        self.radioButton_fit_value.clicked.connect(self.btn_click)
+        self.radioButton_fit_error.clicked.connect(self.btn_click)
+
+        self.summary_select_layout.addWidget(plot_labelY)
+        self.summary_select_layout.addWidget(self.spinBox_peak_index)
+        self.summary_select_layout.addWidget(self.radioButton_fit_value)
+        self.summary_select_layout.addWidget(self.radioButton_fit_error)
 
         self.summary_select.setLayout(self.summary_select_layout)
 
-        self.table = QTableWidget(self)
-        self.table.setRowCount(2)
-        self.table.setColumnCount(2)
+        self.tableView_fitSummary = QTableWidget(self)
+        self.tableView_fitSummary.setColumnCount(1)
 
         layout.addWidget(self.summary_select)
-        layout.addWidget(self.table)
+        layout.addWidget(self.tableView_fitSummary)
 
         self.setLayout(layout)
 
-    def btn_click(self):
-        filename = None
+        self.fit_table_operator = FitTable(parent=self)
 
-        if not filename:
-            return
-        self._parent.controller.write_stress_to_csv(filename, self.detailed.isChecked())
+    def btn_click(self):
+        if self.fit_table_operator.fit_result is not None:
+            self.fit_table_operator.initialize_fit_result_widgets()
+            self.fit_table_operator.populate_fit_result_table()
+
+
+class FitTable:
+
+    COL_SIZE = 100
+    STATUS_COL_SIZE = 500  # last column
+
+    def __init__(self, parent=None, fit_result=None):
+        self.parent = parent
+        self.fit_result = fit_result
+
+    def initialize_fit_result_widgets(self):
+        self._initialize_list_of_peaks()
+        self.initialize_table()
+        self.initialize_table_column_size()
+
+    def populate_fit_result_table(self):
+        _peak_selected = self.parent.spinBox_peak_index.value()
+        _peak_collection = self.fit_result.peakcollections[_peak_selected-1]  # peak 1 is at 0 index
+
+        _value = self._get_value_to_display(peak_collection=_peak_collection)
+        _chisq = _peak_collection.fitting_costs
+        _status = _peak_collection.get_fit_status()
+
+        _d_spacing = self._get_d_spacing_to_display(peak_selected=_peak_selected,
+                                                    peak_collection=_peak_collection)
+
+        _microstrain_mapping = self._get_microstrain_mapping_to_display(peak_collection=_peak_collection)
+
+        def set_item(value='', fitting_worked=True):
+            _item = QTableWidgetItem(value)
+            if not fitting_worked:
+                _item.setBackground(COLOR_FAILED_FITTING)
+            return _item
+
+        for _row, _row_value in enumerate(_value):
+            self.parent.tableView_fitSummary.insertRow(_row)
+            _global_col_index = 0
+
+            _fitting_worked = True if _status[_row] == SUCCESS else False
+
+            for _local_col_index, _col_value in enumerate(_row_value):
+                _item = set_item(value=str(np.round(_col_value, 5)), fitting_worked=_fitting_worked)
+                self.parent.tableView_fitSummary.setItem(_row, _global_col_index, _item)
+                _global_col_index += 1
+
+            # add chisq values (but forget when error is selected
+            if self.parent.radioButton_fit_value.isChecked():
+                _item = set_item(value=str(_chisq[_row]), fitting_worked=_fitting_worked)
+                self.parent.tableView_fitSummary.setItem(_row, _global_col_index, _item)
+                _global_col_index += 1
+
+            # add d-spacing
+            _item = set_item(value=str(_d_spacing[_row]), fitting_worked=_fitting_worked)
+            self.parent.tableView_fitSummary.setItem(_row, _global_col_index, _item)
+            _global_col_index += 1
+
+            # add strain calculation
+            _microstrain = _microstrain_mapping[_row]
+            if np.isnan(_microstrain):
+                str_strain_value = "nan"
+            else:
+                str_strain_value = str(np.int(_microstrain))
+            _item = set_item(value=str_strain_value, fitting_worked=_fitting_worked)
+            self.parent.tableView_fitSummary.setItem(_row, _global_col_index, _item)
+            _global_col_index += 1
+
+            # add status message
+            _item = set_item(value=_status[_row], fitting_worked=_fitting_worked)
+            self.parent.tableView_fitSummary.setItem(_row, _global_col_index, _item)
+            _global_col_index += 1
+
+    def _get_d_spacing_to_display(self, peak_selected=1, peak_collection=None):
+        _d_reference = np.float(str(self.parent._parent.fit_setup.fit_range_table.item(peak_selected-1, 3).text()))
+
+        peak_collection.set_d_reference(values=_d_reference)
+        values, error = peak_collection.get_dspacing_center()
+        if self.parent.radioButton_fit_value.isChecked():
+            return values
+        else:
+            return error
+
+    def _get_microstrain_mapping_to_display(self, peak_collection=None):
+        values, error = peak_collection.get_strain(units='microstrain')
+        if self.parent.radioButton_fit_value.isChecked():
+            return values
+        else:
+            return error
+
+    def _get_value_to_display(self, peak_collection):
+        values, error = peak_collection.get_effective_params()
+        if self.parent.radioButton_fit_value.isChecked():
+            return values
+        else:
+            return error
+
+    def fit_value_error_changed(self):
+        self._clear_rows()
+        self.populate_fit_result_table()
+
+    def _initialize_list_of_peaks(self):
+        nbr_peaks = len(self.fit_result.peakcollections)
+        self.parent.spinBox_peak_index.setRange(1, nbr_peaks)
+
+    def initialize_table(self):
+        self._clear_table()
+        columns_names = self._get_list_of_columns()
+        for _column in np.arange(len(columns_names)):
+            self.parent.tableView_fitSummary.insertColumn(_column)
+        self.parent.tableView_fitSummary.setHorizontalHeaderLabels(columns_names)
+
+    def initialize_table_column_size(self):
+        nbr_column = self.parent.tableView_fitSummary.columnCount()
+        for _col in np.arange(nbr_column):
+            if _col < (nbr_column - 1):
+                _col_size = self.COL_SIZE
+            else:
+                _col_size = self.STATUS_COL_SIZE
+        self.parent.tableView_fitSummary.setColumnWidth(_col, _col_size)
+
+    def _clear_rows(self):
+        _nbr_row = self.parent.tableView_fitSummary.rowCount()
+        for _ in np.arange(_nbr_row):
+            self.parent.tableView_fitSummary.removeRow(0)
+
+    def _clear_columns(self):
+        _nbr_column = self.get_number_of_columns()
+        for _ in np.arange(_nbr_column):
+            self.parent.tableView_fitSummary.removeColumn(0)
+
+    def get_number_of_columns(self):
+        _nbr_column = self.parent.tableView_fitSummary.columnCount()
+        return _nbr_column
+
+    def _clear_table(self):
+        self._clear_rows()
+        self._clear_columns()
+
+    def _get_list_of_columns(self):
+        _peak_collection = self.fit_result.peakcollections[0]
+        values, _ = _peak_collection.get_effective_params()
+        column_names = values.dtype.names
+        clean_column_names = []
+        for _col_index, _col_value in enumerate(column_names):
+            if _col_index == 0:
+                # _col_value = 'Sub-run #'
+                _col_value = 'Peak Center'
+            clean_column_names.append(_col_value)
+
+        if self.parent.radioButton_fit_value.isChecked():
+            # also add chisq
+            clean_column_names.append('chisq')
+
+        # add d-spacing column
+        clean_column_names.append("d spacing")
+
+        # add strain-mapping column
+        clean_column_names.append("strain mapping (" + MICROSTRAIN + ")")
+
+        # add a status column
+        clean_column_names.append("Status message")
+        return clean_column_names
+
+    def select_first_row(self):
+        _nbr_column = self.get_number_of_columns()
+        selection_first_row = QTableWidgetSelectionRange(0, 0, 0, _nbr_column-1)
+        self.parent.tableView_fitSummary.setRangeSelected(selection_first_row, True)
 
 
 class CSVExport(QGroupBox):
@@ -585,56 +793,11 @@ class TextureFittingViewer(QMainWindow):
     def model(self):
         return self._model
 
-    def dimChanged(self, bool2d):
-        self.fileLoading.file_load_e33.setDisabled(bool2d)
-        self.update_plot()
-
-    def measure_dir_changed(self):
-        self.update_plot()
-
     def update_plot(self):
         if self._model.ws is not None:
             if (self.plot_select.get_Xplot() != "") and (self.plot_select.get_Yplot() != ""):
                 self.param_window.update_param_view(self.plot_select.get_Xplot(),
                                                     self.plot_select.get_Yplot())
-
-    def enable_stress_output(self, enable):
-        self.csvExport.setEnabled(enable)
-        self.d0.setEnabled(enable)
-        self.saveAction.setEnabled(enable)
-
-    def updatePropertyFromModel(self, name):
-        getattr(self, name)(getattr(self.model, name))
-
-    def peakTags(self, peak_tags):
-        self.peak_selection.peak_select.currentTextChanged.disconnect()
-        self.peak_selection.clear_peak_tags()
-        self.peak_selection.peak_select.currentTextChanged.connect(self.controller.peakSelected)
-        self.peak_selection.set_peak_tags(peak_tags)
-
-    def selectedPeak(self, peak):
-        self.update_plot()
-
-    def modelUpdated(self, modelUpdated):
-        stressCase, selectedPeak, youngs_modulus, poisson_ratio = modelUpdated
-
-        self.mechanicalConstants.set_values(youngs_modulus, poisson_ratio)
-
-        self.peak_selection.peak_select.currentTextChanged.disconnect()
-        self.peak_selection.set_selected_peak(selectedPeak)
-        self.peak_selection.peak_select.currentTextChanged.connect(self.controller.peakSelected)
-
-        self.stressCase.dimChanged.disconnect()
-        self.stressCase.set_stress_case(stressCase)
-        self.stressCase.dimChanged.connect(self.dimChanged)
-        self.fileLoading.file_load_e33.setDisabled(stressCase.lower() != "diagonal")
-
-        for d in ("11", "22", "33"):
-            self.fileLoading.set_text_values(d,
-                                             ", ".join(os.path.basename(filename)
-                                                       for filename in self.model.get_filenames_for_direction(d)))
-        self.update_d0_from_model()
-        self.update_plot()
 
     def show_failure_msg(self, msg, info, details):
         self.viz_tab.set_message(msg)
@@ -644,22 +807,6 @@ class TextureFittingViewer(QMainWindow):
         msgBox.setInformativeText(info)
         msgBox.setDetailedText(details)
         msgBox.exec()
-
-    def calculate_stress(self):
-        self.controller.calculate_stress(self.stressCase.get_stress_case(),
-                                         self.mechanicalConstants.youngModulus.text(),
-                                         self.mechanicalConstants.poissonsRatio.text(),
-                                         self.d0.get_d0())
-        self.update_d0_from_model()
-
-    def update_d0_from_model(self):
-        d0 = self.model.d0
-        if d0 is None:
-            self.d0.set_d0(None, None)
-            self.d0.set_d0_field(None, None, None, None, None)
-        else:
-            self.d0.set_d0(d0.values[0], d0.errors[0])
-            self.d0.set_d0_field(d0.x, d0.y, d0.z, d0.values, d0.errors)
 
     def save(self):
         filename, _ = QFileDialog.getSaveFileName(self,

@@ -4,20 +4,8 @@ class TextureFittingCrtl:
 
     def load_projectfile(self, filename):
         self._model.load_hidra_project_file(filename)
-        # return getattr(self._model) is not None
-
-    def peakSelected(self, name):
-        if name != "":
-            self._model.selectedPeak = name
-
-    def calculate_stress(self, stress_case, youngModulus, poissonsRatio, d0):
-        self._model.calculate_stress(stress_case.replace(' ', '-'),
-                                     float(youngModulus),
-                                     float(poissonsRatio),
-                                     d0)
 
     def get_log_plot(self, xname, yname):
-
         if xname == "sub-runs":
             xdata = self._model.sub_runs
         else:
@@ -30,39 +18,13 @@ class TextureFittingCrtl:
 
         return xdata, ydata
 
-    def validate_selection(self, direction, twoD):
-        if twoD and direction == '33':
-            return "Cannot plot peak parameter for unused 33 direction in 2D stress case"
+    def fit_peaks(self, min_tth, max_tth, peak_tag, peak_function_name, background_function_name,
+                  out_of_plane_angle=False):
 
-        return self._model.validate_selection(direction)
+        fit_results = self._model.fit_diff_peaks(min_tth, max_tth, peak_tag, peak_function_name,
+                                                 background_function_name, out_of_plane_angle=out_of_plane_angle)
 
-    def validate_stress_selection(self, stress_case, youngModulus, poissonsRatio):
-        errors = ""
-
-        directions = ('11', '22', '33') if stress_case == 'diagonal' else ('11', '22')
-
-        for direction in directions:
-            valid = self._model.validate_selection(direction)
-            if valid:
-                errors += valid + '\n'
-
-        try:
-            float(youngModulus)
-        except ValueError:
-            errors += "Need to specify Young Modulus\n"
-
-        try:
-            float(poissonsRatio)
-        except ValueError:
-            errors += "Need to specify Poissons Ratio\n"
-
-        if errors:
-            return errors
-        else:
-            return None
-
-    def write_stress_to_csv(self, filename, detailed):
-        self._model.write_stress_to_csv(filename, detailed)
+        return fit_results
 
     def save(self, filename):
         self._model.to_json(filename)
