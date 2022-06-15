@@ -41,7 +41,6 @@ class TextureFittingModel(QObject):
             self.ws = HidraWorkspace(filename)
             self.ws.load_hidra_project(source_project, False, True)
             self.sub_runs = np.array(self.ws.get_sub_runs())
-
         except Exception as e:
             self.failureMsg.emit(f"Failed to load {filename}. Check that this is a Hidra Project File",
                                  str(e),

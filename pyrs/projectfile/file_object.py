@@ -226,7 +226,7 @@ class HidraProjectFile:
 
         Returns
         -------
-        None
+        None.
 
         """
         # Get mask names except default mask

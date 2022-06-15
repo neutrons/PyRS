@@ -89,6 +89,8 @@ class FileLoad(QWidget):
             self.parent.controller.load_projectfile(fileNames)
             self.parent.fit_window.update_diff_view(self.parent._model.sub_runs[0])
             self.parent.fit_setup.sl.setMaximum(self.parent._model.sub_runs.size - 1)
+            self.parent.fit_summary.setup_out_of_plane_angle(self.parent.model.ws.reduction_masks)
+
             self.parent.update_plot()
 
     def loadRunNumber(self):
@@ -278,7 +280,8 @@ class PlotView(QWidget):
     def update_diff_view(self, sub_run):
         self.ax[0].clear()
         self.ax[1].clear()
-        tth, int_vec, var_vec = self._parent.model.ws.get_reduced_diffraction_data(sub_run)
+        tth, int_vec = self._parent.controller.get_reduced_diffraction_data(sub_run,
+                                                                            self._parent.model.ws.reduction_masks[0])
 
         self.ax[0].plot(tth[1:], int_vec[1:], 'k')
         if self._parent.fit_summary.fit_table_operator.fit_result is not None:
@@ -517,6 +520,12 @@ class FitSummaryView(QGroupBox):
         plot_labelY = QLabel("Peak Index")
         plot_labelY.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
+        self.out_of_plane = QComboBox()
+        self.oop_label = QLabel("out of plane")
+        self.oop_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+
+        self.oop_label.setVisible(False)
+        self.out_of_plane.setVisible(False)
         self.radioButton_fit_value = QRadioButton('Fit Param Values')
         self.radioButton_fit_value.setChecked(True)
         self.radioButton_fit_error = QRadioButton('Fit Param Errors')
@@ -525,6 +534,8 @@ class FitSummaryView(QGroupBox):
 
         self.summary_select_layout.addWidget(plot_labelY)
         self.summary_select_layout.addWidget(self.spinBox_peak_index)
+        self.summary_select_layout.addWidget(self.oop_label)
+        self.summary_select_layout.addWidget(self.out_of_plane)
         self.summary_select_layout.addWidget(self.radioButton_fit_value)
         self.summary_select_layout.addWidget(self.radioButton_fit_error)
 
@@ -544,6 +555,21 @@ class FitSummaryView(QGroupBox):
         if self.fit_table_operator.fit_result is not None:
             self.fit_table_operator.initialize_fit_result_widgets()
             self.fit_table_operator.populate_fit_result_table()
+
+    def setup_out_of_plane_angle(self, dict_keys):
+        if len(dict_keys) > 2:
+            angles = []
+            for key in list(dict_keys):
+                if '_var' not in key:
+                    angles.append(key)
+
+            self.out_of_plane.clear()
+            self.out_of_plane.addItems(angles)
+            self.oop_label.setVisible(True)
+            self.out_of_plane.setVisible(True)
+        else:
+            self.oop_label.setVisible(False)
+            self.out_of_plane.setVisible(False)
 
 
 class FitTable:

@@ -70,6 +70,18 @@ class HidraWorkspace:
         """
         return self._project_file_name
 
+    @property
+    def reduction_masks(self):
+        """ Reduction masks used for texture reduction
+
+        Returns
+        -------
+        list
+            list of dictionary names for reduction masks
+
+        """
+        return list(self._diff_data_set.keys())
+
     def _load_raw_counts(self, hidra_file):
         """ Load raw detector counts from HIDRA file
         :param hidra_file:

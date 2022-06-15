@@ -47,6 +47,12 @@ class TextureFittingCrtl:
 
         return fit_results
 
+    def get_reduced_diffraction_data(self, sub_run, mask_id=None):
+
+        x, y, err = self._model.ws.get_reduced_diffraction_data(sub_run, mask_id=mask_id)
+
+        return x, y
+
     def save(self, filename):
         self._model.to_json(filename)
 
