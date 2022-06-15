@@ -20,6 +20,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from matplotlib.pyplot import subplots, tight_layout, figure
 # import traceback
 import os
+import copy
 
 COLOR_FAILED_FITTING = QColor(247, 173, 13)  # orange
 SUCCESS = "success"
@@ -76,6 +77,10 @@ class FileLoad(QWidget):
         layout.addWidget(self.browse_button)
         self.setLayout(layout)
 
+    def _reset_fit_data(self):
+        self._parent.fit_summary.fit_table_operator.fits = None
+        self._parent.fit_summary.fit_table_operator.fit_result = None
+
     def openFileDialog(self):
         fileNames, _ = QFileDialog.getOpenFileNames(self,
                                                     self.name,
@@ -86,6 +91,8 @@ class FileLoad(QWidget):
         if fileNames:
             if type(fileNames) is list:
                 fileNames = fileNames[0]
+
+            self._reset_fit_data()
             self._parent.controller.load_projectfile(fileNames)
             self._parent.fit_window.update_diff_view(self._parent.model.sub_runs[0])
             self._parent.fit_setup.sl.setMaximum(self._parent.model.sub_runs.size - 1)
@@ -286,14 +293,13 @@ class PlotView(QWidget):
         self.ax[0].plot(tth[1:], int_vec[1:], 'k')
         if self._parent.fit_summary.fit_table_operator.fit_result is not None:
             sub_run_index = int(np.where(self._parent.model.sub_runs == sub_run)[0])
-            fit_tth = self._parent.fit_summary.fit_table_operator.fit_result.fitted.readX(sub_run_index)
-            fit_int = self._parent.fit_summary.fit_table_operator.fit_result.fitted.readY(sub_run_index)
-            diff_tth = self._parent.fit_summary.fit_table_operator.fit_result.difference.readX(sub_run_index)
-            diff_int = self._parent.fit_summary.fit_table_operator.fit_result.difference.readY(sub_run_index)
 
-            fit_index = fit_int > 0
-            self.ax[0].plot(fit_tth[fit_index], fit_int[fit_index], 'r')
-            self.ax[1].plot(diff_tth[fit_index], diff_int[fit_index], 'r')
+            fit_data = self._parent.controller.get_fitted_data(sub_run_index,
+                                                               self._parent.fit_summary.out_of_plan_angle)
+
+            fit_index = fit_data[1] > 0
+            self.ax[0].plot(fit_data[0][fit_index], fit_data[1][fit_index], 'r')
+            self.ax[1].plot(fit_data[2][fit_index], fit_data[3][fit_index], 'r')
 
         self.ax[1].set_xlabel(r"2$\theta$ ($deg.$)")
         self.ax[0].set_ylabel("Intensity (ct.)")
@@ -495,7 +501,7 @@ class FitSetupView(QGroupBox):
                                                         self.peak_model.currentText(), self.peak_back.currentText())
 
         self._parent.fit_summary.fit_table_operator.set_fit_dict(fit_results)
-        self._parent.fit_summary.fit_table_operator.initialize_table()
+        self._parent.fit_summary.fit_table_operator.initialize_fit_result_widgets()
         self._parent.fit_summary.fit_table_operator.populate_fit_result_table()
         self._parent.fit_window.update_diff_view(self._parent.model.sub_runs[0])
         self.setup_view_param()
@@ -594,11 +600,11 @@ class FitTable:
         self.initialize_table_column_size()
 
     def set_fit_dict(self, fit_dictionary):
-        self.fits = fit_dictionary
+        self.fits = copy.copy(fit_dictionary)
 
     def change_fit(self, key):
         if self.fits is not None:
-            self.fit_results = self.fits[key]
+            self.fit_result = copy.copy(self.fits[key])
 
     def populate_fit_result_table(self):
         _peak_selected = self._parent.spinBox_peak_index.value()

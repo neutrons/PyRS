@@ -583,7 +583,7 @@ class HB2BReductionManager:
             eta_mask = np.ones_like(eta_vec)
             eta_mask[eta_vec > (eta_cent + eta_step / 2.)] = 0
             eta_mask[eta_vec < (eta_cent - eta_step / 2.)] = 0
-            #eta_mask[mask_vec] = 0
+            eta_mask[mask_vec] = 0
 
             # Histogram data
             bin_centers, hist, variances = self.convert_counts_to_diffraction(reduction_engine,

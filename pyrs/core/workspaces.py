@@ -957,7 +957,7 @@ class HidraWorkspace:
             hidra_project.write_reduced_diffraction_data_set(self._2theta_matrix[sub_runs - 1],
                                                              _diff_data_temp,
                                                              _var_data_temp)
-        
+
     @property
     def sample_log_names(self):
         """

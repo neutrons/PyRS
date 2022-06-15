@@ -1,9 +1,27 @@
+import numpy as np
+
+
 class TextureFittingCrtl:
     def __init__(self, peak_fit_model):
         self._model = peak_fit_model
+        self._fits = None
+        self._fitted_patterns = {}
 
     def load_projectfile(self, filename):
         self._model.load_hidra_project_file(filename)
+
+    def get_fitted_data(self, sub_run, mask_id):
+
+        # fit_tth = self._fits[mask_id].fitted.readX(sub_run)
+        # fit_int = self._fits[mask_id].fitted.readY(sub_run)
+        # diff_tth = self._fits[mask_id].difference.readX(sub_run)
+        # diff_int = self._fits[mask_id].difference.readY(sub_run)
+        fit_tth = self._fitted_patterns[mask_id][0][0][sub_run, :]
+        fit_int = self._fitted_patterns[mask_id][0][1][sub_run, :]
+        diff_tth = self._fitted_patterns[mask_id][1][0][sub_run, :]
+        diff_int = self._fitted_patterns[mask_id][1][1][sub_run, :]
+
+        return fit_tth, fit_int, diff_tth, diff_int
 
     def get_log_plot(self, xname, yname, peak=1, zname=None, fit_object=None):
         def extract_data(name, fit_class, peak):
@@ -42,9 +60,26 @@ class TextureFittingCrtl:
     def fit_peaks(self, min_tth, max_tth, peak_tag, peak_function_name, background_function_name,
                   out_of_plane_angle=None):
 
+        def _extract_fitted_data(fit_ws):
+            diff_data = np.zeros((self._model.sub_runs.size, len(fit_ws.readX(int(self._model.sub_runs[0])))))
+            tth_data = np.zeros_like(diff_data)
+            for i_sub in range(self._model.sub_runs.size):
+                tth_data[i_sub, :] = fit_ws.readX(int(i_sub))
+                diff_data[i_sub, :] = fit_ws.readY(int(i_sub))
+
+            return tth_data, diff_data
+
+        fit_results = {}
+
         if len(self._model.ws.reduction_masks) == 2:
             fit_results[''] = self._model.fit_diff_peaks(min_tth, max_tth, peak_tag, peak_function_name,
                                                          background_function_name, out_of_plane_angle=None)
+
+            fit_results[''].fitted = _extract_fitted_data(fit_results[''].fitted)
+            fit_results[''].difference = _extract_fitted_data(fit_results[''].difference)
+            self._fitted_patterns[''] = [_extract_fitted_data(fit_results[''].fitted),
+                                         _extract_fitted_data(fit_results[''].difference)]
+
         else:
             for mask_key in self._model.ws.reduction_masks:
                 if '_var' not in mask_key:
@@ -52,7 +87,14 @@ class TextureFittingCrtl:
                                                                        background_function_name,
                                                                        out_of_plane_angle=mask_key)
 
-        return fit_results
+                    self._fitted_patterns[mask_key] = [_extract_fitted_data(fit_results[mask_key].fitted),
+                                                       _extract_fitted_data(fit_results[mask_key].difference)]
+                    # fit_results[mask_key].fitted = _extract_fitted_data(fit_results[mask_key].fitted)
+                    # fit_results[mask_key].difference = _extract_fitted_data(fit_results[mask_key].difference)
+
+        self._fits = fit_results
+
+        return self._fits
 
     def get_reduced_diffraction_data(self, sub_run, mask_id=None):
 
