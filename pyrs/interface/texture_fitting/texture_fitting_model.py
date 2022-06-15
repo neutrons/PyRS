@@ -112,7 +112,7 @@ class TextureFittingModel(QObject):
 
         fit_engine = PeakFitEngineFactory.getInstance(self.ws,
                                                       _peak_function_name, _background_function_name,
-                                                      wavelength=_wavelength)
+                                                      wavelength=_wavelength, out_of_plane_angle=out_of_plane_angle)
 
         fit_result = fit_engine.fit_multiple_peaks(peak_tag,
                                                    min_tth,

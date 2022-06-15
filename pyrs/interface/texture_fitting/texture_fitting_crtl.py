@@ -40,10 +40,17 @@ class TextureFittingCrtl:
             return xdata, ydata, zdata
 
     def fit_peaks(self, min_tth, max_tth, peak_tag, peak_function_name, background_function_name,
-                  out_of_plane_angle=False):
+                  out_of_plane_angle=None):
 
-        fit_results = self._model.fit_diff_peaks(min_tth, max_tth, peak_tag, peak_function_name,
-                                                 background_function_name, out_of_plane_angle=out_of_plane_angle)
+        if len(self._model.ws.reduction_masks) == 2:
+            fit_results[''] = self._model.fit_diff_peaks(min_tth, max_tth, peak_tag, peak_function_name,
+                                                         background_function_name, out_of_plane_angle=None)
+        else:
+            for mask_key in self._model.ws.reduction_masks:
+                if '_var' not in mask_key:
+                    fit_results[mask_key] = self._model.fit_diff_peaks(min_tth, max_tth, peak_tag, peak_function_name,
+                                                                       background_function_name,
+                                                                       out_of_plane_angle=mask_key)
 
         return fit_results
 

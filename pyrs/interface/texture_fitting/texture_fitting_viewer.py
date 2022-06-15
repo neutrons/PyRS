@@ -47,7 +47,7 @@ rcParams["savefig.dpi"] = 200
 
 class FileLoad(QWidget):
     def __init__(self, name=None, fileType="HidraProjectFile (*.h5);;All Files (*)", parent=None):
-        self.parent = parent
+        self._parent = parent
         super().__init__(parent)
         self.name = name
         self.fileType = fileType
@@ -86,23 +86,23 @@ class FileLoad(QWidget):
         if fileNames:
             if type(fileNames) is list:
                 fileNames = fileNames[0]
-            self.parent.controller.load_projectfile(fileNames)
-            self.parent.fit_window.update_diff_view(self.parent.model.sub_runs[0])
-            self.parent.fit_setup.sl.setMaximum(self.parent.model.sub_runs.size - 1)
-            self.parent.fit_summary.setup_out_of_plane_angle(self.parent.model.ws.reduction_masks)
+            self._parent.controller.load_projectfile(fileNames)
+            self._parent.fit_window.update_diff_view(self._parent.model.sub_runs[0])
+            self._parent.fit_setup.sl.setMaximum(self._parent.model.sub_runs.size - 1)
+            self._parent.fit_summary.setup_out_of_plane_angle(self._parent.model.ws.reduction_masks)
 
-            self.parent.update_plot()
+            self._parent.update_plot()
 
     def loadRunNumber(self):
         fileNames = False
         print(self.lineEdit.text())
         if fileNames:
-            success = self.parent.controller.filesSelected(self.name, fileNames)
+            success = self._parent.controller.filesSelected(self.name, fileNames)
             if success:
                 self.lineEdit.setText(', '.join(os.path.basename(filename) for filename in fileNames))
             else:
                 self.lineEdit.setText(None)
-            self.parent.update_plot()
+            self._parent.update_plot()
 
     def setFilenamesText(self, filenames):
         self.lineEdit.setText(filenames)
@@ -146,7 +146,7 @@ class FileLoading(QGroupBox):
 class SetupViz(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.parent = parent
+        self._parent = parent
 
         layout = QGridLayout()
 
@@ -212,7 +212,7 @@ class SetupViz(QWidget):
 
 class PlotSelect(QGroupBox):
     def __init__(self, parent=None):
-        self.parent = parent
+        self._parent = parent
         super().__init__(parent)
         layout = QHBoxLayout()
         # layout.setFieldGrowthPolicy(0)
@@ -494,7 +494,7 @@ class FitSetupView(QGroupBox):
         fit_results = self._parent.controller.fit_peaks(tth_min, tth_max, peak_label,
                                                         self.peak_model.currentText(), self.peak_back.currentText())
 
-        self._parent.fit_summary.fit_table_operator.fit_result = fit_results
+        self._parent.fit_summary.fit_table_operator.set_fit_dict(fit_results)
         self._parent.fit_summary.fit_table_operator.initialize_table()
         self._parent.fit_summary.fit_table_operator.populate_fit_result_table()
         self._parent.fit_window.update_diff_view(self._parent.model.sub_runs[0])
@@ -582,17 +582,26 @@ class FitTable:
     COL_SIZE = 100
     STATUS_COL_SIZE = 500  # last column
 
-    def __init__(self, parent=None, fit_result=None):
-        self.parent = parent
-        self.fit_result = fit_result
+    def __init__(self, parent=None):
+        self._parent = parent
+        self.fits = None
+        self.fit_result = None
 
     def initialize_fit_result_widgets(self):
+        self.change_fit(self._parent.out_of_plan_angle)
         self._initialize_list_of_peaks()
         self.initialize_table()
         self.initialize_table_column_size()
 
+    def set_fit_dict(self, fit_dictionary):
+        self.fits = fit_dictionary
+
+    def change_fit(self, key):
+        if self.fits is not None:
+            self.fit_results = self.fits[key]
+
     def populate_fit_result_table(self):
-        _peak_selected = self.parent.spinBox_peak_index.value()
+        _peak_selected = self._parent.spinBox_peak_index.value()
         _peak_collection = self.fit_result.peakcollections[_peak_selected-1]  # peak 1 is at 0 index
 
         _value = self._get_value_to_display(peak_collection=_peak_collection)
@@ -611,25 +620,25 @@ class FitTable:
             return _item
 
         for _row, _row_value in enumerate(_value):
-            self.parent.tableView_fitSummary.insertRow(_row)
+            self._parent.tableView_fitSummary.insertRow(_row)
             _global_col_index = 0
 
             _fitting_worked = True if _status[_row] == SUCCESS else False
 
             for _local_col_index, _col_value in enumerate(_row_value):
                 _item = set_item(value=str(np.round(_col_value, 5)), fitting_worked=_fitting_worked)
-                self.parent.tableView_fitSummary.setItem(_row, _global_col_index, _item)
+                self._parent.tableView_fitSummary.setItem(_row, _global_col_index, _item)
                 _global_col_index += 1
 
             # add chisq values (but forget when error is selected
-            if self.parent.radioButton_fit_value.isChecked():
+            if self._parent.radioButton_fit_value.isChecked():
                 _item = set_item(value=str(_chisq[_row]), fitting_worked=_fitting_worked)
-                self.parent.tableView_fitSummary.setItem(_row, _global_col_index, _item)
+                self._parent.tableView_fitSummary.setItem(_row, _global_col_index, _item)
                 _global_col_index += 1
 
             # add d-spacing
             _item = set_item(value=str(_d_spacing[_row]), fitting_worked=_fitting_worked)
-            self.parent.tableView_fitSummary.setItem(_row, _global_col_index, _item)
+            self._parent.tableView_fitSummary.setItem(_row, _global_col_index, _item)
             _global_col_index += 1
 
             # add strain calculation
@@ -639,34 +648,34 @@ class FitTable:
             else:
                 str_strain_value = str(np.int(_microstrain))
             _item = set_item(value=str_strain_value, fitting_worked=_fitting_worked)
-            self.parent.tableView_fitSummary.setItem(_row, _global_col_index, _item)
+            self._parent.tableView_fitSummary.setItem(_row, _global_col_index, _item)
             _global_col_index += 1
 
             # add status message
             _item = set_item(value=_status[_row], fitting_worked=_fitting_worked)
-            self.parent.tableView_fitSummary.setItem(_row, _global_col_index, _item)
+            self._parent.tableView_fitSummary.setItem(_row, _global_col_index, _item)
             _global_col_index += 1
 
     def _get_d_spacing_to_display(self, peak_selected=1, peak_collection=None):
-        _d_reference = np.float(str(self.parent._parent.fit_setup.fit_range_table.item(peak_selected-1, 3).text()))
+        _d_reference = np.float(str(self._parent._parent.fit_setup.fit_range_table.item(peak_selected-1, 3).text()))
 
         peak_collection.set_d_reference(values=_d_reference)
         values, error = peak_collection.get_dspacing_center()
-        if self.parent.radioButton_fit_value.isChecked():
+        if self._parent.radioButton_fit_value.isChecked():
             return values
         else:
             return error
 
     def _get_microstrain_mapping_to_display(self, peak_collection=None):
         values, error = peak_collection.get_strain(units='microstrain')
-        if self.parent.radioButton_fit_value.isChecked():
+        if self._parent.radioButton_fit_value.isChecked():
             return values
         else:
             return error
 
     def _get_value_to_display(self, peak_collection):
         values, error = peak_collection.get_effective_params()
-        if self.parent.radioButton_fit_value.isChecked():
+        if self._parent.radioButton_fit_value.isChecked():
             return values
         else:
             return error
@@ -677,37 +686,37 @@ class FitTable:
 
     def _initialize_list_of_peaks(self):
         nbr_peaks = len(self.fit_result.peakcollections)
-        self.parent.spinBox_peak_index.setRange(1, nbr_peaks)
+        self._parent.spinBox_peak_index.setRange(1, nbr_peaks)
 
     def initialize_table(self):
         self._clear_table()
         columns_names = self._get_list_of_columns()
         for _column in np.arange(len(columns_names)):
-            self.parent.tableView_fitSummary.insertColumn(_column)
-        self.parent.tableView_fitSummary.setHorizontalHeaderLabels(columns_names)
+            self._parent.tableView_fitSummary.insertColumn(_column)
+        self._parent.tableView_fitSummary.setHorizontalHeaderLabels(columns_names)
         self.clean_param_names = self._get_list_of_columns(True)
 
     def initialize_table_column_size(self):
-        nbr_column = self.parent.tableView_fitSummary.columnCount()
+        nbr_column = self._parent.tableView_fitSummary.columnCount()
         for _col in np.arange(nbr_column):
             if _col < (nbr_column - 1):
                 _col_size = self.COL_SIZE
             else:
                 _col_size = self.STATUS_COL_SIZE
-        self.parent.tableView_fitSummary.setColumnWidth(_col, _col_size)
+        self._parent.tableView_fitSummary.setColumnWidth(_col, _col_size)
 
     def _clear_rows(self):
-        _nbr_row = self.parent.tableView_fitSummary.rowCount()
+        _nbr_row = self._parent.tableView_fitSummary.rowCount()
         for _ in np.arange(_nbr_row):
-            self.parent.tableView_fitSummary.removeRow(0)
+            self._parent.tableView_fitSummary.removeRow(0)
 
     def _clear_columns(self):
         _nbr_column = self.get_number_of_columns()
         for _ in np.arange(_nbr_column):
-            self.parent.tableView_fitSummary.removeColumn(0)
+            self._parent.tableView_fitSummary.removeColumn(0)
 
     def get_number_of_columns(self):
-        _nbr_column = self.parent.tableView_fitSummary.columnCount()
+        _nbr_column = self._parent.tableView_fitSummary.columnCount()
         return _nbr_column
 
     def _clear_table(self):
@@ -725,7 +734,7 @@ class FitTable:
                 _col_value = 'Peak Center'
             clean_column_names.append(_col_value)
 
-        if self.parent.radioButton_fit_value.isChecked():
+        if self._parent.radioButton_fit_value.isChecked():
             # also add chisq
             clean_column_names.append('chisq')
 
@@ -746,7 +755,7 @@ class FitTable:
     def select_first_row(self):
         _nbr_column = self.get_number_of_columns()
         selection_first_row = QTableWidgetSelectionRange(0, 0, 0, _nbr_column-1)
-        self.parent.tableView_fitSummary.setRangeSelected(selection_first_row, True)
+        self._parent.tableView_fitSummary.setRangeSelected(selection_first_row, True)
 
 
 class CSVExport(QGroupBox):
@@ -897,6 +906,7 @@ class TextureFittingViewer(QMainWindow):
                                                          self.VizSetup.get_Z())
 
     def update_diffraction_plot(self):
+        self.fit_summary.fit_table_operator.change_fit(self.fit_summary.out_of_plan_angle)
         self.fit_window.update_diff_view(self.model.sub_runs[self.fit_setup.sl.value()])
 
     def show_failure_msg(self, msg, info, details):
