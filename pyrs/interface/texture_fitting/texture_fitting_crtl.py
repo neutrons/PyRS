@@ -49,6 +49,9 @@ class TextureFittingCrtl:
 
     def get_reduced_diffraction_data(self, sub_run, mask_id=None):
 
+        if mask_id not in self._model.ws.reduction_masks:
+            mask_id = self._model.ws.reduction_masks[0]
+
         x, y, err = self._model.ws.get_reduced_diffraction_data(sub_run, mask_id=mask_id)
 
         return x, y

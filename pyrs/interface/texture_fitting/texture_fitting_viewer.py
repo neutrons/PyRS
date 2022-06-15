@@ -87,8 +87,8 @@ class FileLoad(QWidget):
             if type(fileNames) is list:
                 fileNames = fileNames[0]
             self.parent.controller.load_projectfile(fileNames)
-            self.parent.fit_window.update_diff_view(self.parent._model.sub_runs[0])
-            self.parent.fit_setup.sl.setMaximum(self.parent._model.sub_runs.size - 1)
+            self.parent.fit_window.update_diff_view(self.parent.model.sub_runs[0])
+            self.parent.fit_setup.sl.setMaximum(self.parent.model.sub_runs.size - 1)
             self.parent.fit_summary.setup_out_of_plane_angle(self.parent.model.ws.reduction_masks)
 
             self.parent.update_plot()
@@ -281,11 +281,11 @@ class PlotView(QWidget):
         self.ax[0].clear()
         self.ax[1].clear()
         tth, int_vec = self._parent.controller.get_reduced_diffraction_data(sub_run,
-                                                                            self._parent.model.ws.reduction_masks[0])
+                                                                            self._parent.fit_summary.out_of_plan_angle)
 
         self.ax[0].plot(tth[1:], int_vec[1:], 'k')
         if self._parent.fit_summary.fit_table_operator.fit_result is not None:
-            sub_run_index = int(np.where(self._parent._model.sub_runs == sub_run)[0])
+            sub_run_index = int(np.where(self._parent.model.sub_runs == sub_run)[0])
             fit_tth = self._parent.fit_summary.fit_table_operator.fit_result.fitted.readX(sub_run_index)
             fit_int = self._parent.fit_summary.fit_table_operator.fit_result.fitted.readY(sub_run_index)
             diff_tth = self._parent.fit_summary.fit_table_operator.fit_result.difference.readX(sub_run_index)
@@ -501,7 +501,7 @@ class FitSetupView(QGroupBox):
         self.setup_view_param()
 
     def valuechange(self):
-        self._parent.fit_window.update_diff_view(self._parent._model.sub_runs[self.sl.value()])
+        self._parent.fit_window.update_diff_view(self._parent.model.sub_runs[self.sl.value()])
 
 
 class FitSummaryView(QGroupBox):
@@ -551,6 +551,10 @@ class FitSummaryView(QGroupBox):
 
         self.fit_table_operator = FitTable(parent=self)
 
+    @property
+    def out_of_plan_angle(self):
+        return self.out_of_plane.currentText()
+
     def btn_click(self):
         if self.fit_table_operator.fit_result is not None:
             self.fit_table_operator.initialize_fit_result_widgets()
@@ -568,6 +572,7 @@ class FitSummaryView(QGroupBox):
             self.oop_label.setVisible(True)
             self.out_of_plane.setVisible(True)
         else:
+            self.out_of_plane.clear()
             self.oop_label.setVisible(False)
             self.out_of_plane.setVisible(False)
 
@@ -827,6 +832,7 @@ class TextureFittingViewer(QMainWindow):
         self.fit_window = PlotView(self, fit_view=True)
         self.fit_setup = FitSetupView(self)
         self.fit_summary = FitSummaryView(self)
+        self.fit_summary.out_of_plane.currentTextChanged.connect(self.update_diffraction_plot)
 
         self.fit_splitter.addWidget(self.fit_window)
         self.fit_splitter.addWidget(self.fit_setup)
@@ -878,17 +884,20 @@ class TextureFittingViewer(QMainWindow):
         return self._model
 
     def update_plot(self):
-        if self._model.ws is not None:
+        if self.model.ws is not None:
             if (self.plot_select.get_X() != "") and (self.plot_select.get_Y() != ""):
                 self.param_window.update_param_view(self.plot_select.get_X(),
                                                     self.plot_select.get_Y())
 
     def update_3D_plot(self):
-        if self._model.ws is not None:
+        if self.model.ws is not None:
             if (self.VizSetup.get_X() != "") and (self.VizSetup.get_Y() != "") and (self.VizSetup.get_Z() != ""):
                 self.compare_param_window.update_3D_view(self.VizSetup.get_X(),
                                                          self.VizSetup.get_Y(),
                                                          self.VizSetup.get_Z())
+
+    def update_diffraction_plot(self):
+        self.fit_window.update_diff_view(self.model.sub_runs[self.fit_setup.sl.value()])
 
     def show_failure_msg(self, msg, info, details):
         self.viz_tab.set_message(msg)
