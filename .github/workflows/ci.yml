@@ -2,6 +2,9 @@ name: PyRS CI
 
 on: [push, pull_request]
 
+env:
+  TRIGGER_URL: "https://code.ornl.gov/api/v4/projects/6012/trigger/pipeline"
+
 jobs:
 
   ci:
@@ -52,3 +55,21 @@ jobs:
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
+
+  trigger-prod-deploy:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: ornl-trigger
+        run: |
+          echo "Launching gitlab webhook to deploy ${GITHUB_REF_NAME} from ${GITHUB_REF}"
+          curl --fail-with-body -sX POST -F token=${{ secrets.GITLAB_TRIGGER_TOKEN }} -F ref="${GITHUB_REF_NAME}" ${TRIGGER_URL} | jq '. | del( .user )' ; exit ${PIPESTATUS[0]}
+
+  trigger-qa-deploy:
+    if: ${{ github.ref == 'refs/heads/qa' }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: ornl-trigger
+        run: |
+          echo "Launching gitlab webhook to deploy ${GITHUB_REF_NAME} from ${GITHUB_REF}"
+          curl --fail-with-body -sX POST -F token=${{ secrets.GITLAB_TRIGGER_TOKEN }} -F ref="${GITHUB_REF_NAME}" ${TRIGGER_URL} | jq '. | del( .user )' ; exit ${PIPESTATUS[0]}

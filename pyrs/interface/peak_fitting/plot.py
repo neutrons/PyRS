@@ -206,7 +206,7 @@ class Plot:
 
             self.parent.ui.graphicsView_plot2D.figure.clear()
             self.parent.ui.graphicsView_plot2D.ax = \
-                self.parent.ui.graphicsView_plot2D.figure.add_subplot(projection='3d')
+                self.parent.ui.graphicsView_plot2D.figure.add_subplot(1, 1, 1, projection='3d')
             my_plot = self.parent.ui.graphicsView_plot2D.ax.plot_surface(x, y, z_axis,
                                                                          cmap=cm.coolwarm,
                                                                          linewidth=0,
@@ -229,7 +229,7 @@ class Plot:
         else:
             self.parent.ui.graphicsView_plot2D.figure.clear()
             self.parent.ui.graphicsView_plot2D.ax = \
-                self.parent.ui.graphicsView_plot2D.figure.add_subplot(projection='3d')
+                self.parent.ui.graphicsView_plot2D.figure.add_subplot(1, 1, 1, projection='3d')
 
             # only try plotting if the figure height is larger than 0
             fig_size = self.parent.ui.graphicsView_plot2D.figure.get_size_inches()
