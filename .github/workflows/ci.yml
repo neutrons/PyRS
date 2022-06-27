@@ -56,12 +56,53 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
 
+  trigger-build-conda:
+    steps:
+      - name: Build conda libraray
+        shell: bash -l {0}
+        run: |
+          echo GITHUB REF ${{ github.ref }}
+          conda install -y anaconda-client conda-build conda-verify
+          cd conda.recipe
+          conda build --output-folder . . -c neutrons -c mantid/label/nightly
+
+  build-conda:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    steps:
+      - name: Build conda libraray
+        shell: bash -l {0}
+        run: |
+          echo GITHUB REF ${{ github.ref }}
+          conda install -y anaconda-client conda-build conda-verify
+          cd conda.recipe
+          conda build --output-folder . . -c neutrons -c mantid/label/nightly
+
+    if: ${{ github.ref == 'refs/heads/next' }}
+    steps:
+      - name: Build conda libraray
+        shell: bash -l {0}
+        run: |
+          echo GITHUB REF ${{ github.ref }}
+          conda install -y anaconda-client conda-build conda-verify
+          cd conda.recipe
+          conda build --output-folder . . -c neutrons -c mantid/label/nightly
+
+    if: ${{ github.ref == 'refs/heads/qa' }}
+    steps:
+      - name: Build conda libraray
+        shell: bash -l {0}
+        run: |
+          echo GITHUB REF ${{ github.ref }}
+          conda install -y anaconda-client conda-build conda-verify
+          cd conda.recipe
+          conda build --output-folder . . -c neutrons -c mantid/label/nightly
+
   trigger-prod-deploy:
     if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-22.04
     steps:
       - name: ornl-trigger
-        run: |
+        run:
           echo "Launching gitlab webhook to deploy ${GITHUB_REF_NAME} from ${GITHUB_REF}"
           curl --fail-with-body -sX POST -F token=${{ secrets.GITLAB_TRIGGER_TOKEN }} -F ref="${GITHUB_REF_NAME}" ${TRIGGER_URL} | jq '. | del( .user )' ; exit ${PIPESTATUS[0]}
 
