@@ -58,8 +58,6 @@ jobs:
 
   trigger-build-conda:
     steps:
-      - uses: actions/checkout@v2
-
       - name: Build conda libraray
         shell: bash -l {0}
         run: |
