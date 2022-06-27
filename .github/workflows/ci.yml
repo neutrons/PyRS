@@ -60,8 +60,18 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Build conda libraray
+      - uses: actions/checkout@v2
+
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          mamba-version: "*"
+          channels: mantid,mantid/label/nightly,conda-forge
+          environment-file: environment.yml
+
         shell: bash -l {0}
         run: |
+          mamba install conda-build
           echo GITHUB REF ${{ github.ref }}
           conda install -y anaconda-client conda-build conda-verify
           cd conda.recipe
