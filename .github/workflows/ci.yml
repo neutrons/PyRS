@@ -74,7 +74,7 @@ jobs:
           echo GITHUB REF ${{ github.ref }}
           conda install -y anaconda-client conda-build conda-verify
           cd conda.recipe
-          conda build --output-folder . . -c neutrons -c mantid/label/nightly
+          conda build --output-folder . . -c mantid/label/nightly
 
   build-conda-main:
     if: ${{ github.ref == 'refs/heads/main' }}
