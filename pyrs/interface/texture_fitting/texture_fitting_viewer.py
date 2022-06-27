@@ -8,6 +8,9 @@ from qtpy.QtWidgets import QGridLayout, QMessageBox  # type:ignore
 from qtpy.QtWidgets import QMainWindow, QAction, QTableWidgetSelectionRange  # type:ignore
 from qtpy.QtGui import QColor  # type:ignore
 
+from pyrs.interface.gui_helper import pop_message
+from pyrs.utilities import get_input_project_file  # type: ignore
+
 # QTableWidgetItem, QTabWidget
 from matplotlib import rcParams
 
@@ -17,7 +20,10 @@ from qtpy.QtCore import Qt
 import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-from matplotlib.pyplot import subplots, tight_layout, figure
+import matplotlib.pyplot as plt
+# import subplots, tight_layout, figure
+from matplotlib.backend_bases import MouseButton
+
 # import traceback
 import os
 import copy
@@ -82,34 +88,40 @@ class FileLoad(QWidget):
         self._parent.fit_summary.fit_table_operator.fit_result = None
 
     def openFileDialog(self):
-        fileNames, _ = QFileDialog.getOpenFileNames(self,
-                                                    self.name,
-                                                    "",
-                                                    self.fileType,
-                                                    options=QFileDialog.DontUseNativeDialog)
+        self._parent._project_file, _ = QFileDialog.getOpenFileNames(self,
+                                                                     self.name,
+                                                                     "",
+                                                                     self.fileType,
+                                                                     options=QFileDialog.DontUseNativeDialog)
 
-        if fileNames:
-            if type(fileNames) is list:
-                fileNames = fileNames[0]
-
-            self._reset_fit_data()
-            self._parent.controller.load_projectfile(fileNames)
-            self._parent.fit_window.update_diff_view(self._parent.model.sub_runs[0])
-            self._parent.fit_setup.sl.setMaximum(self._parent.model.sub_runs.size - 1)
-            self._parent.fit_summary.setup_out_of_plane_angle(self._parent.model.ws.reduction_masks)
+        if self._parent._project_file:
+            if type(self._parent._project_file) is list:
+                self._parent._project_file = self._parent._project_file[0]
 
             self._parent.update_plot()
 
     def loadRunNumber(self):
-        fileNames = False
-        print(self.lineEdit.text())
-        if fileNames:
-            success = self._parent.controller.filesSelected(self.name, fileNames)
-            if success:
-                self.lineEdit.setText(', '.join(os.path.basename(filename) for filename in fileNames))
-            else:
-                self.lineEdit.setText(None)
-            self._parent.update_plot()
+
+        try:
+            project_dir = get_input_project_file(int(self.lineEdit.text()),
+                                                 preferredType=self._parent.fileLoading.run_location.currentText())
+        except (FileNotFoundError, RuntimeError, ValueError) as run_err:
+            pop_message(self, f'Failed to find run {self.lineEdit.text()}',
+                        str(run_err), 'error')
+            return
+
+        self._parent._project_file = os.path.join(project_dir, f'HB2B_{self.lineEdit.text()}.h5')
+
+        self._parent.update_plot()
+
+    def load_project_plot(self):
+        self._reset_fit_data()
+        self._parent.controller.load_projectfile(self._parent._project_file)
+        self._parent.fit_window.update_diff_view(self._parent.model.sub_runs[0])
+        self._parent.fit_setup.sl.setMaximum(self._parent.model.sub_runs.size - 1)
+        self._parent.fit_summary.setup_out_of_plane_angle(self._parent.model.ws.reduction_masks)
+
+        self._parent.update_plot()
 
     def setFilenamesText(self, filenames):
         self.lineEdit.setText(filenames)
@@ -266,18 +278,22 @@ class PlotView(QWidget):
         super().__init__(parent)
         self._parent = parent
 
-        # self.fit_view = fit_view
         if fit_view:
-            self.figure, self.ax = subplots(2, 1, sharex=True,
-                                            gridspec_kw={'height_ratios': [3, 1]})
+            self._define_tabel_x0 = None
+
+            self.figure, self.ax = plt.subplots(2, 1, sharex=True,
+                                                gridspec_kw={'height_ratios': [3, 1]})
+            plt.connect('button_press_event', self.define_peak_tabel)
+            plt.connect('button_release_event', self.define_peak_tabel)
 
         elif three_dim:
-            self.figure = figure()
+            self.figure = plt.figure()
             self.ax = self.figure.add_subplot(1, 1, 1, projection='3d')
-        else:
-            self.figure, self.ax = subplots(1, 1)
 
-        tight_layout()
+        else:
+            self.figure, self.ax = plt.subplots(1, 1)
+
+        plt.tight_layout()
         self.setLayout(QVBoxLayout())
         self.canvas = self.getWidget()
         self.toolbar = NavigationToolbar(self.canvas, self)
@@ -305,7 +321,7 @@ class PlotView(QWidget):
         self.ax[0].set_ylabel("Intensity (ct.)")
         self.ax[1].set_ylabel("Diff (ct.)")
 
-        tight_layout()
+        plt.tight_layout()
 
         self.canvas.draw()
 
@@ -324,7 +340,7 @@ class PlotView(QWidget):
         self.ax.set_xlabel(xlabel)
         self.ax.set_ylabel(ylabel)
 
-        tight_layout()
+        plt.tight_layout()
 
         self.canvas.draw()
 
@@ -342,9 +358,19 @@ class PlotView(QWidget):
         self.ax.set_ylabel(ylabel)
         self.ax.set_zlabel(zlabel)
 
-        tight_layout()
+        plt.tight_layout()
 
         self.canvas.draw()
+
+    def define_peak_tabel(self, event):
+        if event.button is MouseButton.LEFT:
+            if self._define_tabel_x0 is None:
+                self._define_tabel_x0 = event.xdata
+                return
+            else:
+                self._parent.fit_setup.add_peak_tabel_entry(self._define_tabel_x0,
+                                                            event.xdata)
+                self._define_tabel_x0 = None
 
 
 class FitSetupView(QGroupBox):
@@ -374,7 +400,6 @@ class FitSetupView(QGroupBox):
         self.save_load_fit.setLayout(self.save_load_fit_layout)
 
         self.fit_range_table = QTableWidget(self)
-        self.fit_range_table.setRowCount(2)
         self.fit_range_table.setColumnCount(4)
         self.fit_range_table.setHorizontalHeaderLabels(['min 2theta', 'max 2theta', 'Peak Label',  'd0'])
         self.fit_range_table.resizeColumnsToContents()
@@ -444,6 +469,18 @@ class FitSetupView(QGroupBox):
 
         self.setLayout(layout)
 
+    def add_peak_tabel_entry(self, x0, x1):
+
+        self.fit_range_table.insertRow(self.fit_range_table.rowCount())
+        self.fit_range_table.setItem(self.fit_range_table.rowCount() - 1, 0,
+                                     QTableWidgetItem(str(x0)))
+        self.fit_range_table.setItem(self.fit_range_table.rowCount() - 1, 1,
+                                     QTableWidgetItem(str(x1)))
+        self.fit_range_table.setItem(self.fit_range_table.rowCount() - 1, 2,
+                                     QTableWidgetItem(str('Peak_{}'.format(self.fit_range_table.rowCount()))))
+        self.fit_range_table.setItem(self.fit_range_table.rowCount() - 1, 3,
+                                     QTableWidgetItem(str(1.0)))
+
     def save_CSV(self):
         filename, _ = QFileDialog.getSaveFileName(self,
                                                   "Export Peak Information",
@@ -451,7 +488,8 @@ class FitSetupView(QGroupBox):
                                                   "CSV (*.csv);;All Files (*)")
         if not filename:
             return
-        self._parent.controller.write_stress_to_csv(filename, self.detailed.isChecked())
+
+        self._parent.controller.export_peak_data(filename, self._parent.fit_summary.fit_table_operator.fits)
 
     def save_json(self):
         filename, _ = QFileDialog.getSaveFileName(self,
@@ -460,7 +498,7 @@ class FitSetupView(QGroupBox):
                                                   "JSON (*.json);;All Files (*)")
         if not filename:
             return
-        self._parent.controller.write_stress_to_csv(filename, self.detailed.isChecked())
+        self._parent.controller.save_fit_range(filename)
 
     def load_json(self):
         filename, _ = QFileDialog.getSaveFileName(self,
@@ -469,7 +507,7 @@ class FitSetupView(QGroupBox):
                                                   "JSON (*.json);;All Files (*)")
         if not filename:
             return
-        self._parent.controller.write_stress_to_csv(filename, self.detailed.isChecked())
+        self._parent.controller.load_fit_range(filename)
 
     def setup_view_param(self):
         plot_selct_params = []
@@ -799,6 +837,7 @@ class TextureFittingViewer(QMainWindow):
 
         self._model = fit_peak_model
         self._ctrl = fit_peak_ctrl
+        self._project_file = None
 
         super().__init__(parent)
 
@@ -925,12 +964,9 @@ class TextureFittingViewer(QMainWindow):
         msgBox.exec()
 
     def save(self):
-        filename, _ = QFileDialog.getSaveFileName(self,
-                                                  "Save Stress state",
-                                                  "",
-                                                  "JSON (*.json);;All Files (*)")
-        if filename:
-            self.controller.save(filename)
+        if self._project_file is not None:
+            self.controller.save(self._project_file,
+                                 self._parent.fit_summary.fit_table_operator.fit_result)
 
     def saveas(self):
         filename, _ = QFileDialog.getSaveFileName(self,
@@ -938,7 +974,7 @@ class TextureFittingViewer(QMainWindow):
                                                   "",
                                                   "HDF5 (*.h5);;All Files (*)")
         if filename:
-            self.controller.save(filename)
+            self.controller.save(filename, self._parent.fit_summary.fit_table_operator.fit_result)
 
     def load(self):
         filename, _ = QFileDialog.getOpenFileName(self,

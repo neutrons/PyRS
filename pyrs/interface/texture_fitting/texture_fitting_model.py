@@ -120,7 +120,7 @@ class TextureFittingModel(QObject):
 
         return fit_result
 
-    def save_fit_result(self, out_file_name=''):
+    def save_fit_result(self, out_file_name='', fit_result=None):
         """Save the fit result, including a copy of the rest of the file if it does not exist at the specified path.
 
         If out_file_name is empty or if it matches the parent's current file, this updates the file.
@@ -132,7 +132,6 @@ class TextureFittingModel(QObject):
 
         """
 
-        fit_result = self.parent.fit_result
         if fit_result is None:
             return
 

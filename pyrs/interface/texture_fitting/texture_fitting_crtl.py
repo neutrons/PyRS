@@ -12,10 +12,6 @@ class TextureFittingCrtl:
 
     def get_fitted_data(self, sub_run, mask_id):
 
-        # fit_tth = self._fits[mask_id].fitted.readX(sub_run)
-        # fit_int = self._fits[mask_id].fitted.readY(sub_run)
-        # diff_tth = self._fits[mask_id].difference.readX(sub_run)
-        # diff_int = self._fits[mask_id].difference.readY(sub_run)
         fit_tth = self._fitted_patterns[mask_id][0][0][sub_run, :]
         fit_int = self._fitted_patterns[mask_id][0][1][sub_run, :]
         diff_tth = self._fitted_patterns[mask_id][1][0][sub_run, :]
@@ -75,8 +71,6 @@ class TextureFittingCrtl:
             fit_results[''] = self._model.fit_diff_peaks(min_tth, max_tth, peak_tag, peak_function_name,
                                                          background_function_name, out_of_plane_angle=None)
 
-            fit_results[''].fitted = _extract_fitted_data(fit_results[''].fitted)
-            fit_results[''].difference = _extract_fitted_data(fit_results[''].difference)
             self._fitted_patterns[''] = [_extract_fitted_data(fit_results[''].fitted),
                                          _extract_fitted_data(fit_results[''].difference)]
 
@@ -89,8 +83,6 @@ class TextureFittingCrtl:
 
                     self._fitted_patterns[mask_key] = [_extract_fitted_data(fit_results[mask_key].fitted),
                                                        _extract_fitted_data(fit_results[mask_key].difference)]
-                    # fit_results[mask_key].fitted = _extract_fitted_data(fit_results[mask_key].fitted)
-                    # fit_results[mask_key].difference = _extract_fitted_data(fit_results[mask_key].difference)
 
         self._fits = fit_results
 
@@ -105,8 +97,20 @@ class TextureFittingCrtl:
 
         return x, y
 
-    def save(self, filename):
-        self._model.to_json(filename)
+    def saveas(self, filename, fit_result):
+        self._model.save_fit_result(filename, fit_result)
 
     def load(self, filename):
         self._model.from_json(filename)
+
+    def save(self, filename, fit_result):
+        self._model.save_fit_result(filename, fit_result)
+
+    def save_fit_range(self, filename):
+        self._model.to_json(filename)
+
+    def load_fit_range(self, filename):
+        self._model.to_json(filename)
+
+    def export_peak_data(self, filename, fit_collection):
+        pass
