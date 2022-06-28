@@ -69,6 +69,7 @@ jobs:
 
       - name: Build conda libraray
         run: |
+          conda activate test
           echo GITHUB REF ${{ github.ref }}
           conda install -y anaconda-client conda-build conda-verify setuptools
           cd conda.recipe
@@ -107,6 +108,7 @@ jobs:
       - name: Build conda libraray
         shell: bash -l {0}
         run: |
+          conda activate test
           echo GITHUB REF ${{ github.ref }}
           conda install -y anaconda-client conda-build conda-verify
           cd conda.recipe
