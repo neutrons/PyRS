@@ -60,13 +60,19 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          mamba-version: "*"
+          channels: mantid,mantid/label/nightly,conda-forge
+          environment-file: conda.recipe/environment.yml
+
       - name: Build conda libraray
-        shell: bash -l {0}
         run: |
           echo GITHUB REF ${{ github.ref }}
           conda install -y anaconda-client conda-build conda-verify setuptools
           cd conda.recipe
-          pip install pytest-runner
+          pip install pytest-runner versioningit
           conda build --output-folder . . -c mantid/label/nightly
 
   build-conda-main:

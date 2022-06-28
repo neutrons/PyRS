@@ -30,7 +30,6 @@ requirements:
     - pylint
     - python
     - setuptools
-    - versioningit
 
   run:
     - configparser
