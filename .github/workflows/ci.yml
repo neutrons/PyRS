@@ -56,7 +56,16 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
 
+      - name: Build conda libraray
+        shell: bash -l {0}
+        run: |
+          echo GITHUB REF ${{ github.ref }}
+          conda install -y anaconda-client conda-build conda-verify setuptools
+          cd conda.recipe
+          conda build --output-folder . . -c mantid/label/nightly
+
   build-conda:
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
