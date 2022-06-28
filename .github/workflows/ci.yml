@@ -72,7 +72,7 @@ jobs:
         shell: bash -l {0}
         run: |
           echo GITHUB REF ${{ github.ref }}
-          conda install -y anaconda-client conda-build conda-verify
+          conda install -y anaconda-client conda-build conda-verify setuptools
           cd conda.recipe
           conda build --output-folder . . -c mantid/label/nightly
 
