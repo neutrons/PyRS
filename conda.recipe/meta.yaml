@@ -13,13 +13,13 @@ source:
   path: ..
 
 build:
-  noarch: python=3.8
+  noarch: python
   string: py{{py}}
   script: {{ PYTHON }} -m pip install . --no-deps --ignore-installed -vvv
 
 requirements:
   host:
-    - python=3.8
+    - python
     - versioningit
     - pip
 
