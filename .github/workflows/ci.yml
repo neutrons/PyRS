@@ -63,6 +63,7 @@ jobs:
       - uses: conda-incubator/setup-miniconda@v2
         with:
           auto-update-conda: true
+          miniconda-version: 'latest'
           mamba-version: "*"
           channels: mantid,mantid/label/nightly,conda-forge
           environment-file: environment.yml
@@ -83,6 +84,7 @@ jobs:
       - uses: conda-incubator/setup-miniconda@v2
         with:
           auto-update-conda: true
+          miniconda-version: 'latest'
           mamba-version: "*"
           channels: mantid,mantid/label/nightly,conda-forge
           environment-file: environment.yml
