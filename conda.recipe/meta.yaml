@@ -32,10 +32,12 @@ requirements:
     - setuptools
 
   run:
-    - configparser
-    - mantidqt
-    - psutil
-    - python
+    - python=3.8
+    - mantidworkbench
+    - qtpy
+    - pytest
+    - uncertainties
+    - vtk
 
 test:
   imports:
