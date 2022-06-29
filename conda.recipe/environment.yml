@@ -1,6 +1,0 @@
-name: PyRS
-dependencies:
-  - python=3.8
-  - mantidworkbench
-  - qtpy
-  - versioningit
