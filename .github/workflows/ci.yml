@@ -52,27 +52,17 @@ jobs:
       - name: Run PyRS tests
         run: xvfb-run --server-args="-screen 0 640x480x24" -a pytest --cov=pyrs --cov-report=xml --cov-report=term tests
 
-      - name: Build conda libraray
-        run: |
-          echo GITHUB REF ${{ github.ref }}
-          conda install -y anaconda-client conda-build conda-verify setuptools
-          cd conda.recipe
-          conda build --output-folder . . -c mantid/label/nightly
-
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
 
   build-conda:
-    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
 
       - uses: conda-incubator/setup-miniconda@v2
         with:
-          python-version: 3.8
           auto-update-conda: true
-          miniconda-version: 'latest'
           mamba-version: "*"
           channels: mantid,mantid/label/nightly,conda-forge
           environment-file: environment.yml
@@ -88,38 +78,61 @@ jobs:
     if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-22.04
     steps:
+      - uses: actions/checkout@v2
+
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          mamba-version: "*"
+          channels: mantid,mantid/label/nightly,conda-forge
+          environment-file: environment.yml
+
       - name: Build conda libraray
-        shell: bash -l {0}
         run: |
           echo GITHUB REF ${{ github.ref }}
           conda install -y anaconda-client conda-build conda-verify setuptools
           cd conda.recipe
-          conda build --output-folder . . -c neutrons -c mantid/label/nightly
+          conda build --output-folder . . -c mantid/label/nightly
 
   build-conda-nightly:
     if: ${{ github.ref == 'refs/heads/next' }}
     runs-on: ubuntu-22.04
     steps:
+      - uses: actions/checkout@v2
+
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          mamba-version: "*"
+          channels: mantid,mantid/label/nightly,conda-forge
+          environment-file: environment.yml
+
       - name: Build conda libraray
-        shell: bash -l {0}
         run: |
           echo GITHUB REF ${{ github.ref }}
-          conda install -y anaconda-client conda-build conda-verify
+          conda install -y anaconda-client conda-build conda-verify setuptools
           cd conda.recipe
-          conda build --output-folder . . -c neutrons -c mantid/label/nightly
+          conda build --output-folder . . -c mantid/label/nightly
 
   build-conda-rc:
     if: ${{ github.ref == 'refs/heads/qa' }}
     runs-on: ubuntu-22.04
     steps:
+      - uses: actions/checkout@v2
+
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          mamba-version: "*"
+          channels: mantid,mantid/label/nightly,conda-forge
+          environment-file: environment.yml
+
       - name: Build conda libraray
-        shell: bash -l {0}
         run: |
-          conda activate test
           echo GITHUB REF ${{ github.ref }}
-          conda install -y anaconda-client conda-build conda-verify
+          conda install -y anaconda-client conda-build conda-verify setuptools
           cd conda.recipe
-          conda build --output-folder . . -c neutrons -c mantid/label/nightly
+          conda build --output-folder . . -c mantid/label/nightly
 
   trigger-prod-deploy:
     if: ${{ github.ref == 'refs/heads/main' }}
