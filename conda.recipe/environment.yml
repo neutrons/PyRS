@@ -4,4 +4,3 @@ dependencies:
   - mantidworkbench
   - qtpy
   - versioningit
-  - pip

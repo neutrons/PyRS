@@ -15,7 +15,7 @@ source:
 build:
   noarch: python
   string: py{{py}}
-  script: {{ PYTHON }} -m pip install . --no-deps --ignore-installed -vvv
+  script: python setup.py install --single-version-externally-managed --record=record.txt
 
 requirements:
   host:
