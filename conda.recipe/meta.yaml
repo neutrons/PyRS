@@ -15,7 +15,7 @@ source:
 build:
   noarch: python
   string: py{{py}}
-  script: python setup.py install --single-version-externally-managed --record=record.txt
+  script: {{ PYTHON }} -m pip install . --no-deps --ignore-installed -vvv
 
 requirements:
   host:
@@ -25,13 +25,17 @@ requirements:
 
   build:
     - configparser
-    - mantidqt
-    - psutil
-    - pylint
-    - python
+    - python=3.8
+    - mantidworkbench
+    - qtpy
+    - pytest
+    - uncertainties
+    - vtk
     - setuptools
+    - versioningit
 
   run:
+    - configparser
     - python=3.8
     - mantidworkbench
     - qtpy
