@@ -73,9 +73,9 @@ jobs:
           echo GITHUB REF ${{ github.ref }}
           conda install -y python=3.8 anaconda-client conda-build conda-verify setuptools
           cd conda.recipe
-          conda build --output-folder . . -c mantid/label/nightly
+          conda build --output-folder . . -c mantid
 
-  build-conda-main:
+  build-deploy-conda:
     if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/qa' }}
     runs-on: ubuntu-22.04
     steps:
@@ -94,7 +94,7 @@ jobs:
           echo GITHUB REF ${{ github.ref }}
           conda install -y anaconda-client conda-build conda-verify setuptools
           cd conda.recipe
-          conda build --output-folder . . -c mantid/label/nightly
+          conda build --output-folder . . -c mantid
   
       - name: Deploy to Anaconda
         shell: bash -l {0}
@@ -108,46 +108,6 @@ jobs:
           if [ "${IS_RC}" = "true" ]; then CONDA_LABEL="rc"; fi
           echo pushing ${{ github.ref }} with label $CONDA_LABEL
           anaconda upload --label $CONDA_LABEL conda.recipe/noarch/pyrs-*.tar.bz2
-
-  build-conda-nightly:
-    if: ${{ github.ref == 'refs/heads/next' }}
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v2
-
-      - uses: conda-incubator/setup-miniconda@v2
-        with:
-          auto-update-conda: true
-          mamba-version: "*"
-          channels: mantid,mantid/label/nightly,conda-forge
-          environment-file: environment.yml
-
-      - name: Build conda libraray
-        run: |
-          echo GITHUB REF ${{ github.ref }}
-          conda install -y anaconda-client conda-build conda-verify setuptools
-          cd conda.recipe
-          conda build --output-folder . . -c mantid/label/nightly
-
-  build-conda-rc:
-    if: ${{ github.ref == 'refs/heads/qa' }}
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v2
-
-      - uses: conda-incubator/setup-miniconda@v2
-        with:
-          auto-update-conda: true
-          mamba-version: "*"
-          channels: mantid,mantid/label/nightly,conda-forge
-          environment-file: environment.yml
-
-      - name: Build conda libraray
-        run: |
-          echo GITHUB REF ${{ github.ref }}
-          conda install -y anaconda-client conda-build conda-verify setuptools
-          cd conda.recipe
-          conda build --output-folder . . -c mantid/label/nightly
 
   trigger-prod-deploy:
     if: ${{ github.ref == 'refs/heads/main' }}
