@@ -76,7 +76,7 @@ jobs:
           conda build --output-folder . . -c mantid/label/nightly
 
   build-conda-main:
-    if: ${{ github.ref == 'refs/heads/main' } || { github.ref == 'refs/heads/qa' }}
+    if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/qa' }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
