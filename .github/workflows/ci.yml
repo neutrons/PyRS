@@ -76,7 +76,7 @@ jobs:
           conda build --output-folder . . -c mantid/label/nightly
 
   build-conda-main:
-    if: ${{ github.ref == 'refs/heads/main' }}
+    if: ${{ github.ref == 'refs/heads/main' } || { github.ref == 'refs/heads/qa' }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
@@ -95,6 +95,19 @@ jobs:
           conda install -y anaconda-client conda-build conda-verify setuptools
           cd conda.recipe
           conda build --output-folder . . -c mantid/label/nightly
+  
+      - name: Deploy to Anaconda
+        shell: bash -l {0}
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
+          IS_RC: ${{ github.ref == 'refs/heads/qa' }}
+        run: |
+          # label is main or rc depending on the tag-name
+          CONDA_LABEL="main"
+          if [ "${IS_RC}" = "true" ]; then CONDA_LABEL="rc"; fi
+          echo pushing ${{ github.ref }} with label $CONDA_LABEL
+          anaconda upload --label $CONDA_LABEL conda.recipe/noarch/pyrs-*.tar.bz2
 
   build-conda-nightly:
     if: ${{ github.ref == 'refs/heads/next' }}
