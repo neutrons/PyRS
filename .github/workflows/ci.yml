@@ -109,6 +109,47 @@ jobs:
           echo pushing ${{ github.ref }} with label $CONDA_LABEL
           anaconda upload --label $CONDA_LABEL conda.recipe/noarch/pyrs-*.tar.bz2
 
+  trigger-deploy:
+    runs-on: ubuntu-22.04
+    needs: [linux]
+    # only trigger deploys from protected branches
+    if: |
+      github.ref_protected ||
+      ${{ github.ref_type == 'tag' }}
+    steps:
+      - name: Determine Environment
+        id: conda_env_name
+        run: |
+          case ${{ github.ref }} in
+          refs/heads/next)
+            echo "::set-output name=name::pyrs-dev"
+            ;;
+          refs/tags/v*rc*)
+            echo "::set-output name=name::pyrs-qa"
+            ;;
+            # when rc isn't in the tag name
+          refs/tags/v*)
+            echo "::set-output name=name::pyrs"
+            ;;
+          *)
+            echo "This job should not run on unprotected branches REF=${{ github.ref }}"
+            exit 1
+            ;;
+          esac
+      - name: Trigger deploy
+        id: trigger
+        uses: eic/trigger-gitlab-ci@main
+        with:
+          url: https://code.ornl.gov
+          token: ${{ secrets.GITLAB_TRIGGER_TOKEN }}
+          project_id: 6012
+          ref_name: master
+          variables: |
+            PLAY="update"
+            CONDA_ENV="${{ steps.conda_env_name.outputs.name }}"
+      - name: Print web_url for further use
+        run: echo ${{ steps.trigger.outputs.web_url }}
+
   trigger-prod-deploy:
     if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-22.04
