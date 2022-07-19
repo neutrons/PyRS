@@ -94,7 +94,7 @@ jobs:
 
   trigger-deploy:
     runs-on: ubuntu-22.04
-    neds: [build-deploy-conda]
+    needs: [build-deploy-conda]
     # only trigger deploys from protected branches
     if: ${{ github.ref_protected }}
     steps:
