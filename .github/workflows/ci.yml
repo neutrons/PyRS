@@ -112,8 +112,7 @@ jobs:
   trigger-deploy:
     runs-on: ubuntu-22.04
     # only trigger deploys from protected branches
-    if: |
-      {{ github.ref_protected }}
+    if: ${{ github.ref_protected }}
     steps:
       - name: Determine Environment
         id: conda_env_name
