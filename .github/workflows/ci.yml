@@ -48,7 +48,6 @@ jobs:
           python -c "import mantid"
           python -c "import qtpy"
           python -c "import mantidqt"
-          xvfb-run -a mantidworkbench --help
 
       - name: Run PyRS tests
         run: xvfb-run --server-args="-screen 0 640x480x24" -a pytest --cov=pyrs --cov-report=xml --cov-report=term tests
@@ -56,20 +55,78 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
 
-  trigger-prod-deploy:
-    if: ${{ github.ref == 'refs/heads/main' }}
+  build-deploy-conda:
+    if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/qa' || github.ref == 'refs/heads/next' }}
     runs-on: ubuntu-22.04
     steps:
-      - name: ornl-trigger
-        run: |
-          echo "Launching gitlab webhook to deploy ${GITHUB_REF_NAME} from ${GITHUB_REF}"
-          curl --fail-with-body -sX POST -F token=${{ secrets.GITLAB_TRIGGER_TOKEN }} -F ref="${GITHUB_REF_NAME}" ${TRIGGER_URL} | jq '. | del( .user )' ; exit ${PIPESTATUS[0]}
+      - uses: actions/checkout@v2
 
-  trigger-qa-deploy:
-    if: ${{ github.ref == 'refs/heads/qa' }}
-    runs-on: ubuntu-22.04
-    steps:
-      - name: ornl-trigger
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          miniconda-version: 'latest'
+          mamba-version: "*"
+          channels: mantid,mantid/label/nightly,conda-forge
+          environment-file: environment.yml
+
+      - name: Build conda libraray
         run: |
-          echo "Launching gitlab webhook to deploy ${GITHUB_REF_NAME} from ${GITHUB_REF}"
-          curl --fail-with-body -sX POST -F token=${{ secrets.GITLAB_TRIGGER_TOKEN }} -F ref="${GITHUB_REF_NAME}" ${TRIGGER_URL} | jq '. | del( .user )' ; exit ${PIPESTATUS[0]}
+          echo GITHUB REF ${{ github.ref }}
+          conda install -y anaconda-client conda-build conda-verify setuptools
+          cd conda.recipe
+          conda build --output-folder . . -c mantid
+  
+      - name: Deploy to Anaconda
+        shell: bash -l {0}
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
+          IS_RC: ${{ github.ref == 'refs/heads/qa' }}
+          IS_DEV: ${{ github.ref == 'refs/heads/next' }}
+
+        run: |
+          # label is main or rc depending on the tag-name
+          CONDA_LABEL="main"
+          if [ "${IS_RC}" = "true" ]; then CONDA_LABEL="rc"; fi
+          if [ "${IS_DEV}" = "true" ]; then CONDA_LABEL="dev"; fi
+          echo pushing ${{ github.ref }} with label $CONDA_LABEL
+          anaconda upload --label $CONDA_LABEL conda.recipe/noarch/pyrs-*.tar.bz2
+
+  trigger-deploy:
+    runs-on: ubuntu-22.04
+    needs: [build-deploy-conda]
+    # only trigger deploys from protected branches
+    if: ${{ github.ref_protected }}
+    steps:
+      - name: Determine Environment
+        id: conda_env_name
+        run: |
+          case ${{ github.ref }} in
+          refs/heads/next)
+            echo "::set-output name=name::pyrs-dev"
+            ;;
+          refs/tags/v*rc*)
+            echo "::set-output name=name::pyrs-qa"
+            ;;
+            # when rc isn't in the tag name
+          refs/tags/v*)
+            echo "::set-output name=name::pyrs"
+            ;;
+          *)
+            echo "This job should not run on unprotected branches REF=${{ github.ref }}"
+            exit 1
+            ;;
+          esac
+      - name: Trigger deploy
+        id: trigger
+        uses: eic/trigger-gitlab-ci@main
+        with:
+          url: https://code.ornl.gov
+          token: ${{ secrets.GITLAB_TRIGGER_TOKEN }}
+          project_id: 6012
+          ref_name: master
+          variables: |
+            PLAY="update"
+            CONDA_ENV="${{ steps.conda_env_name.outputs.name }}"
+      - name: Print web_url for further use
+        run: echo ${{ steps.trigger.outputs.web_url }}
