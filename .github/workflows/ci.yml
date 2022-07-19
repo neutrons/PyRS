@@ -130,21 +130,3 @@ jobs:
             CONDA_ENV="${{ steps.conda_env_name.outputs.name }}"
       - name: Print web_url for further use
         run: echo ${{ steps.trigger.outputs.web_url }}
-
-  trigger-prod-deploy:
-    if: ${{ github.ref == 'refs/heads/main' }}
-    runs-on: ubuntu-22.04
-    steps:
-      - name: ornl-trigger
-        run:
-          echo "Launching gitlab webhook to deploy ${GITHUB_REF_NAME} from ${GITHUB_REF}"
-          curl --fail-with-body -sX POST -F token=${{ secrets.GITLAB_TRIGGER_TOKEN }} -F ref="${GITHUB_REF_NAME}" ${TRIGGER_URL} | jq '. | del( .user )' ; exit ${PIPESTATUS[0]}
-
-  trigger-qa-deploy:
-    if: ${{ github.ref == 'refs/heads/qa' }}
-    runs-on: ubuntu-22.04
-    steps:
-      - name: ornl-trigger
-        run: |
-          echo "Launching gitlab webhook to deploy ${GITHUB_REF_NAME} from ${GITHUB_REF}"
-          curl --fail-with-body -sX POST -F token=${{ secrets.GITLAB_TRIGGER_TOKEN }} -F ref="${GITHUB_REF_NAME}" ${TRIGGER_URL} | jq '. | del( .user )' ; exit ${PIPESTATUS[0]}
