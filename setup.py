@@ -98,5 +98,5 @@ if __name__ == "__main__":
         package_dir={},
         package_data={'': ['*.ui']},
         scripts=scripts,
-        setup_requires=['pytest-runner'],
+        setup_requires=[],
     )
