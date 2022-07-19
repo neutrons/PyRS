@@ -111,7 +111,6 @@ jobs:
 
   trigger-deploy:
     runs-on: ubuntu-22.04
-    needs: [linux]
     # only trigger deploys from protected branches
     if: |
       github.ref_protected ||
