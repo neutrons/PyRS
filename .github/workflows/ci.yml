@@ -57,7 +57,7 @@ jobs:
         uses: codecov/codecov-action@v1
 
   trigger-prod-deploy:
-    if: ${{ github.ref == 'refs/heads/main' }}
+    if: ${{ github.ref == 'refs/heads/master' }}
     runs-on: ubuntu-22.04
     steps:
       - name: ornl-trigger
