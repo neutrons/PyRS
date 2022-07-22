@@ -55,29 +55,32 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
 
-  trigger-prod-deploy:
-    if: ${{ github.ref == 'refs/heads/main' }}
+  trigger-deploy:
     runs-on: ubuntu-22.04
+    needs: [ci]
+    # only trigger deploys from protected branches
+    if: ${{ github.ref_protected || github.ref_type == 'tag' }}
     steps:
-      - name: ornl-trigger
-        run: |
-          echo "Launching gitlab webhook to deploy ${GITHUB_REF_NAME} from ${GITHUB_REF}"
-          curl --fail-with-body -sX POST -F token=${{ secrets.GITLAB_TRIGGER_TOKEN }} -F ref="${GITHUB_REF_NAME}" ${TRIGGER_URL} | jq '. | del( .user )' ; exit ${PIPESTATUS[0]}
- 
-  trigger-dev-deploy:
-    if: ${{ github.ref == 'refs/heads/next' }}
-    runs-on: ubuntu-22.04
-    steps:
-      - name: ornl-trigger
-        run: |
-          echo "Launching gitlab webhook to deploy ${GITHUB_REF_NAME} from ${GITHUB_REF}"
-          curl --fail-with-body -sX POST -F token=${{ secrets.GITLAB_TRIGGER_TOKEN }} -F ref="${GITHUB_REF_NAME}" ${TRIGGER_URL} | jq '. | del( .user )' ; exit ${PIPESTATUS[0]}
-     
-  trigger-qa-deploy:
-    if: ${{ github.ref == 'refs/heads/qa' }}
-    runs-on: ubuntu-22.04
-    steps:
-      - name: ornl-trigger
-        run: |
-          echo "Launching gitlab webhook to deploy ${GITHUB_REF_NAME} from ${GITHUB_REF}"
-          curl --fail-with-body -sX POST -F token=${{ secrets.GITLAB_TRIGGER_TOKEN }} -F ref="${GITHUB_REF_NAME}" ${TRIGGER_URL} | jq '. | del( .user )' ; exit ${PIPESTATUS[0]}
+      - name: Determine Environment
+        uses: neutrons/branch-mapper@main
+        id: conda_env_name
+        with:
+          prefix: pyrs
+
+      - name: Trigger deploy
+        id: trigger
+        uses: eic/trigger-gitlab-ci@v2
+        with:
+          url: https://code.ornl.gov
+          token: ${{ secrets.GITLAB_TRIGGER_TOKEN }}
+          project_id: 6012
+          ref_name: master
+          variables: |
+            PLAY="update"
+            CONDA_ENV="${{ steps.conda_env_name.outputs.name }}"
+
+      - name: Annotate commit
+        uses: peter-evans/commit-comment@v2
+        with:
+          body: |
+            GitLab pipeline for ${{ steps.conda_env_name.outputs.name }} has been submitted for this commit: ${{ steps.trigger.outputs.web_url }}
