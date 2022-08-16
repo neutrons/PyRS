@@ -19,8 +19,8 @@ build:
 
 requirements:
   host:
-    - python
-    - versioningit
+    - python=3.8
+    - versioningit>=1.1,<1.2
     - pip
 
   build:
@@ -32,7 +32,7 @@ requirements:
     - uncertainties
     - vtk
     - setuptools
-    - versioningit
+    - versioningit>=1.1,<1.2
 
   run:
     - configparser
