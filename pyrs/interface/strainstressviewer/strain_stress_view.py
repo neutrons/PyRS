@@ -15,7 +15,7 @@ from qtpy.QtWidgets import QTableWidget, QTableWidgetItem  # type:ignore
 from qtpy.QtWidgets import QStackedWidget, QMessageBox  # type:ignore
 from qtpy.QtWidgets import QMainWindow, QAction  # type:ignore
 
-from qtpy.QtCore import Qt, Signal
+from qtpy.QtCore import Qt, Signal  # type: ignore
 from qtpy.QtGui import QDoubleValidator  # type:ignore
 try:
     from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
