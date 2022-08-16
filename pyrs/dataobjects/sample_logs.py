@@ -170,7 +170,7 @@ class SubRuns(Iterable):
 
         Examples
         --------
-        >>> s = Subruns([1, 2, 3, 4, 5])
+        >>> s = subruns([1, 2, 3, 4, 5])
         >>> s.get_indices(s)
         array([0, 1, 2, 3, 4])
         >>> s.get_indices(3)
