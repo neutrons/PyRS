@@ -78,7 +78,7 @@ jobs:
   
       - name: Deploy to Anaconda
         shell: bash -l {0}
-        if: startsWith(github.ref, 'v')
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
           IS_RC: ${{ github.ref == 'refs/heads/qa' }}
