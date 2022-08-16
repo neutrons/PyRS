@@ -11,3 +11,4 @@ dependencies:
 - flake8=4.0
 - mypy
 - types-six
+- versioningit

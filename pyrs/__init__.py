@@ -10,4 +10,4 @@ __license__ = 'GNU GENERAL PUBLIC LICENSE'
 try:
     from pyrs._version import __version__  # noqa: F401
 except ImportError:
-    __version__ = "unknown"
+    __version__ = 'unknown'
