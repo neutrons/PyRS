@@ -12,6 +12,7 @@ Hidra_*.h5
 *.so
 
 # Distribution / packaging
+pyrs/_version.py
 .Python
 tests/testdata
 env/

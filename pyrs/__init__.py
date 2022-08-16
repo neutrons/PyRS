@@ -7,6 +7,7 @@ __email__ = 'zhouw@ornl.gov'
 
 __license__ = 'GNU GENERAL PUBLIC LICENSE'
 
-from ._version import get_versions  # noqa: E402
-__version__ = get_versions()['version']
-del get_versions
+try:
+    from pyrs._version import __version__  # noqa: F401
+except ImportError:
+    __version__ = 'unknown'

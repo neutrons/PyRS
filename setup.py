@@ -1,7 +1,7 @@
 import codecs
 import os
 import re
-import versioneer  # https://github.com/warner/python-versioneer
+from versioningit import get_cmdclasses
 from setuptools import setup, find_packages
 
 NAME = "pyrs"
@@ -82,8 +82,7 @@ if __name__ == "__main__":
         description=find_meta("description"),
         license=find_meta("license"),
         url=find_meta("url"),
-        version=versioneer.get_version(),
-        cmdclass=versioneer.get_cmdclass(),
+        cmdclass=get_cmdclasses(),
         author=find_meta("author"),
         author_email=find_meta("email"),
         maintainer=find_meta("author"),

@@ -1,6 +1,5 @@
 # pylint: disable=C0103,R0904
 # N(DAV)TableWidget
-from six.moves import range
 import csv
 
 from qtpy import QtCore  # type:ignore
