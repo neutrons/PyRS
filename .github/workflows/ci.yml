@@ -1,6 +1,11 @@
 name: PyRS CI
 
-on: [push, pull_request]
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [next]
+    tags: ['v*']
 
 env:
   TRIGGER_URL: "https://code.ornl.gov/api/v4/projects/6012/trigger/pipeline"
