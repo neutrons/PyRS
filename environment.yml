@@ -8,6 +8,6 @@ dependencies:
 - pytest-qt==3.3.0
 - uncertainties
 - vtk
-- flake8
+- flake8=4.0
 - mypy
 - types-six
