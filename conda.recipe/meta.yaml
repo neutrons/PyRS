@@ -1,5 +1,5 @@
 # this will reproduce the version from tags to match versioningit
-{% set version_tag = environ.get('git describe --tags', 'default') %}
+{% set version_tag = environ.get('GIT_DESCRIBE_TAG', '0.0.0') %}
 {% set version_number = environ.get('GIT_DESCRIBE_NUMBER', '0') | string %}
 {% set version_number = '_' + version_number if version_number != '0' else '' %}
 
@@ -19,24 +19,21 @@ build:
 
 requirements:
   host:
-    - python=3.8
-    - versioningit>=1.1,<1.2
-    - pip
+    - python
+    - versioningit
 
   build:
     - configparser
-    - python=3.8
     - mantidworkbench
     - qtpy
     - pytest
     - uncertainties
     - vtk
     - setuptools
-    - versioningit>=1.1,<1.2
+    - versioningit
 
   run:
     - configparser
-    - python=3.8
     - mantidworkbench
     - qtpy
     - pytest
