@@ -59,13 +59,16 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
 
+      - name: Build python wheel # cannot be used without mantid
+        run: python setup.py bdist_wheel
+
       - name: Build conda libraray
         run: |
           echo GITHUB REF ${{ github.ref }}
-          conda install -y anaconda-client conda-build conda-verify setuptools
           cd conda.recipe
           conda build --output-folder . . -c mantid
-  
+          conda verify noarch/pyrs-*py*.tar.bz2
+
       - name: Deploy to Anaconda
         shell: bash -l {0}
         if: startsWith(github.ref, 'refs/tags/v')
