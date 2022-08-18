@@ -60,7 +60,9 @@ jobs:
         uses: codecov/codecov-action@v1
 
       - name: Build python wheel # cannot be used without mantid
-        run: python setup.py bdist_wheel
+        run: |
+          python setup.py bdist_wheel
+          check-wheel-contents dist/pyrs-*.whl
 
       - name: Build conda libraray
         run: |
