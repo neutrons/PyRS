@@ -36,7 +36,6 @@ requirements:
     - configparser
     - mantidworkbench
     - qtpy
-    - pytest
     - uncertainties
     - vtk
 
@@ -48,7 +47,7 @@ about:
   home: https://github.com/neutrons/PyRS
   license: GPL (version 3)
   license_family: GPL3
-  license_file:
+  license_file: ../LICENSE
   summary: Reduction and visualization software for Stress Residual (HB2B)
 
 extra:
