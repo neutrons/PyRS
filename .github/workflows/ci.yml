@@ -76,15 +76,12 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
-          IS_RC: ${{ github.ref == 'refs/heads/qa' }}
-          IS_DEV: ${{ github.ref == 'refs/heads/next' }}
-
+          IS_RC: ${{ contains(github.ref, 'rc') }}
         run: |
           conda install -y anaconda-client
           # label is main or rc depending on the tag-name
           CONDA_LABEL="main"
           if [ "${IS_RC}" = "true" ]; then CONDA_LABEL="rc"; fi
-          if [ "${IS_DEV}" = "true" ]; then CONDA_LABEL="dev"; fi
           echo pushing ${{ github.ref }} with label $CONDA_LABEL
           anaconda upload --label $CONDA_LABEL conda.recipe/noarch/pyrs-*.tar.bz2
 
