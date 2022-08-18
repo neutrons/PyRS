@@ -80,6 +80,7 @@ jobs:
           IS_DEV: ${{ github.ref == 'refs/heads/next' }}
 
         run: |
+          conda install -y anaconda-client
           # label is main or rc depending on the tag-name
           CONDA_LABEL="main"
           if [ "${IS_RC}" = "true" ]; then CONDA_LABEL="rc"; fi
