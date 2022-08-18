@@ -1,4 +1,8 @@
 name: PyRS
+channels:
+- conda-forge
+- default
+- mantid
 dependencies:
 - python=3.8
 - mantidworkbench
@@ -12,3 +16,8 @@ dependencies:
 - mypy
 - types-six
 - versioningit
+- conda-build
+- conda-verify
+- setuptools
+- pip:
+  - check-wheel-contents
