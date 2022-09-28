@@ -366,9 +366,9 @@ class NeXusConvertingApp:
         try:
             mask_ws = LoadMask(Instrument='hidra', InputFile=mask_file_name, RefWorkspace=self._event_wksp,
                                OutputWorkspace=mask_ws_name)
-        except RuntimeError: # second mask load added for old data measured prior to instrument rename
+        except RuntimeError:  # second mask load added for old data measured prior to instrument rename
             mask_ws = LoadMask(Instrument='nrsf2', InputFile=mask_file_name, RefWorkspace=self._event_wksp,
-                               OutputWorkspace=mask_ws_name)            
+                               OutputWorkspace=mask_ws_name)
 
         # Extract mask out
         # get the Y array from mask workspace: shape = (1048576, 1)
