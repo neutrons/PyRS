@@ -362,7 +362,7 @@ class NeXusConvertingApp:
 
         # Load mask XML to workspace
         mask_ws_name = os.path.basename(mask_file_name.split('.')[0])
-        mask_ws = LoadMask(Instrument='nrsf2', InputFile=mask_file_name, RefWorkspace=self._event_wksp,
+        mask_ws = LoadMask(InputFile=mask_file_name, RefWorkspace=self._event_wksp,
                            OutputWorkspace=mask_ws_name)
 
         # Extract mask out
