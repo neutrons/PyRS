@@ -106,7 +106,7 @@ jobs:
         with:
           url: https://code.ornl.gov
           token: ${{ secrets.GITLAB_TRIGGER_TOKEN }}
-          project_id: 6012
+          project_id: 11849
           ref_name: master
           variables: |
             PLAY="update"
