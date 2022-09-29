@@ -1,12 +1,12 @@
-# INSTALL THE requirements.txt AS WELL
-
-# testing
+build
+flake8
 codecov
+qtpy
 pytest
 pytest-cov
 pytest-qt==3.3
-
-# linting and static analysis
-flake8
 mypy
+setuptools>=48
 types-six
+typing
+versioningit>=1.1,<1.2

@@ -81,7 +81,7 @@ def test_write_summary_csv(test_data_dir: str, project_tags: str, expected_file:
     stress_csv = SummaryGeneratorStress(stress_csv_filename, stress_facade)
     stress_csv.write_summary_csv()
 
-    assert(cmp(stress_csv_filename, expected_file))
+    assert cmp(stress_csv_filename, expected_file)
     # cleanup
     remove(stress_csv_filename)
 
@@ -104,7 +104,7 @@ def test_write_summary_33calculated_csv(test_data_dir: str, project_tags: str, e
     stress_csv = SummaryGeneratorStress(stress_csv_filename, stress)
     stress_csv.write_summary_csv()
 
-    assert(cmp(stress_csv_filename, expected_file))
+    assert cmp(stress_csv_filename, expected_file)
     # cleanup
     remove(stress_csv_filename)
 
@@ -127,7 +127,7 @@ def test_write_summary_33inplanestress_csv(test_data_dir: str, project_tags: str
     stress_csv = SummaryGeneratorStress(stress_csv_filename, stress)
     stress_csv.write_summary_csv()
 
-    assert(cmp(stress_csv_filename, expected_file))
+    assert cmp(stress_csv_filename, expected_file)
     # cleanup
     remove(stress_csv_filename)
 
@@ -167,7 +167,7 @@ def test_write_full_csv(test_data_dir: str, project_tags: str, expected_file: st
     stress_csv = SummaryGeneratorStress(stress_csv_filename, stress_facade)
     stress_csv.write_full_csv()
 
-    assert(cmp(stress_csv_filename, expected_file))
+    assert cmp(stress_csv_filename, expected_file)
     # cleanup
     remove(stress_csv_filename)
 
@@ -194,7 +194,7 @@ def test_write_full_33calculated_csv(test_data_dir: str, project_tags: str, expe
     if not result:
         subprocess.run(["diff", stress_csv_filename, expected_file])
 
-    assert(result)
+    assert result
     # cleanup
     remove(stress_csv_filename)
 
@@ -221,7 +221,7 @@ def test_write_full_33inplanestress_csv(test_data_dir: str, project_tags: str, e
     if not result:
         subprocess.run(["diff", stress_csv_filename, expected_file])
 
-    assert(result)
+    assert result
     # cleanup
     remove(stress_csv_filename)
 

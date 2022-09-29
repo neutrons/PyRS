@@ -1,45 +1,62 @@
+# load information from setup.cfg/setup.py
 {% set data = load_setup_py_data() %}
+{% set license = data.get('license') %}
+{% set description = data.get('description') %}
+{% set url = data.get('url') %}
+# this will reproduce the version from tags to match versioningit
+{% set version_tag = environ.get('GIT_DESCRIBE_TAG', '0.0.0') %}
+{% set version_number = environ.get('GIT_DESCRIBE_NUMBER', '0') | string %}
+{% set version_number = '_' + version_number if version_number != '0' else '' %}
+
+{% set version = version_tag + version_number %}
 
 package:
   name: "pyrs"
-  version: "{{ data['version'] }}"
+  version: {{ version }}
 
 source:
   path: ..
 
 build:
+  noarch: python
   string: py{{py}}
-  script: python setup.py install --single-version-externally-managed --record=record.txt
+  script: {{ PYTHON }} -m pip install . --no-deps --ignore-installed -vvv
 
 requirements:
+  host:
+    - python
+    - versioningit
+
   build:
     - configparser
-    - mantid-workbench
-    - psutil
-    - pylint
-    - python
+    - mantidworkbench
+    - qtpy
+    - pytest
+    - uncertainties
+    - vtk
     - setuptools
-    - pytest-runner
+    - versioningit
 
   run:
     - configparser
-    - mantid-workbench
-    - psutil
-    - python
+    - mantidworkbench
+    - qtpy
+    - uncertainties
+    - vtk
 
 test:
   imports:
     - pyrs
 
 about:
-  home: https://github.com/neutrons/PyRS
-  license: GPL (version 3)
+  home: {{ url }}
+  license: {{ license }}
   license_family: GPL3
-  license_file:
-  summary: Reduction and visualization software for Stress Residual (HB2B)
+  license_file: ../LICENSE
+  summary: {{ description }}
 
 extra:
   recipe-maintainers:
     - JeanBilheux
     - peterfpeterson
-    - wdzhou
+    - fanchercm
