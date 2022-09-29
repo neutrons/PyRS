@@ -29,7 +29,7 @@ requirements:
 
   build:
     - configparser
-    - mantidworkbench
+    - mantidworkbench=6.4.0
     - qtpy
     - pytest
     - uncertainties
@@ -39,7 +39,7 @@ requirements:
 
   run:
     - configparser
-    - mantidworkbench
+    - mantidworkbench=6.4.0
     - qtpy
     - uncertainties
     - vtk

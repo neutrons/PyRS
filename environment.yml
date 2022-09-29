@@ -5,7 +5,7 @@ channels:
 - mantid
 dependencies:
 - python=3.8
-- mantidworkbench
+- mantidworkbench=6.4.0
 - qtpy
 - pytest
 - pytest-cov
