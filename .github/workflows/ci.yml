@@ -76,7 +76,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
-          IS_RC: ${{ github.ref == 'refs/heads/qa' }}
+          IS_RC: ${{ contains(github.ref, 'rc') }}
           IS_DEV: ${{ github.ref == 'refs/heads/next' }}
 
         run: |
@@ -106,8 +106,7 @@ jobs:
         with:
           url: https://code.ornl.gov
           token: ${{ secrets.GITLAB_TRIGGER_TOKEN }}
-          project_id: 6012
-          ref_name: master
+          project_id: 11849
           variables: |
             PLAY="update"
             CONDA_ENV="${{ steps.conda_env_name.outputs.name }}"
