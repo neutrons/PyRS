@@ -1,7 +1,11 @@
 name: PyRS
+channels:
+- conda-forge
+- default
+- mantid
 dependencies:
 - python=3.8
-- mantid/label/nightly::mantidworkbench
+- mantidworkbench
 - qtpy
 - pytest
 - pytest-cov
@@ -11,3 +15,9 @@ dependencies:
 - flake8
 - mypy
 - types-six
+- versioningit
+- conda-build
+- conda-verify
+- setuptools
+- pip:
+  - check-wheel-contents

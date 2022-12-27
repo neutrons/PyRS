@@ -15,7 +15,7 @@ from qtpy.QtWidgets import QTableWidget, QTableWidgetItem  # type:ignore
 from qtpy.QtWidgets import QStackedWidget, QMessageBox  # type:ignore
 from qtpy.QtWidgets import QMainWindow, QAction  # type:ignore
 
-from qtpy.QtCore import Qt, Signal
+from qtpy.QtCore import Qt, Signal  # type: ignore
 from qtpy.QtGui import QDoubleValidator  # type:ignore
 try:
     from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
@@ -353,7 +353,7 @@ class StrainSliceViewer(SliceViewer):
         self.view.data_view.mpl_toolbar.peaksOverlayClicked.disconnect()
         self.view.data_view.mpl_toolbar.peaksOverlayClicked.connect(self.overlay)
 
-    def new_plot_MDH(self):
+    def new_plot_MDH(self, dimensions_transposing=False, dimensions_changing=False):
         """redefine this function so we can change the default plot interpolation"""
         if self.view is None:
             print('view is none')
@@ -579,10 +579,19 @@ class VizTabs(QTabWidget):
                 self.plot_1d.setCurrentIndex(1)
             else:
                 self.set_1d_mode(False)
+                if self.strainSliceViewer:
+                    if self.strainSliceViewer.view:
+                        self.strainSliceViewer.set_new_workspace(ws)
+                    else:
+                        print('View needs redefined')
+                        self.strainSliceViewer = StrainSliceViewer(ws, parent=self)
+                        self.plot_2d.addWidget(self.strainSliceViewer.view)
+                        self.plot_2d.setCurrentIndex(1)
+                else:
+                    self.strainSliceViewer = StrainSliceViewer(ws, parent=self)
+                    self.plot_2d.addWidget(self.strainSliceViewer.view)
+                    self.plot_2d.setCurrentIndex(1)
 
-                self.strainSliceViewer = StrainSliceViewer(ws, parent=self)
-                self.plot_2d.addWidget(self.strainSliceViewer.view)
-                self.plot_2d.setCurrentWidget(self.strainSliceViewer.view)
                 self.strainSliceViewer.set_new_field(field,
                                                      bin_widths=[ws.getDimension(n).getBinWidth() for n in range(3)])
 
@@ -593,6 +602,7 @@ class VizTabs(QTabWidget):
                         self.vtk3dviewer = VTK3DView(ws)
                         self.plot_3d.addWidget(self.vtk3dviewer)
                         self.plot_3d.setCurrentIndex(1)
+
         else:
             self.set_1d_mode(False)
             if self.oneDViewer is not None:
@@ -807,7 +817,6 @@ class StrainStressViewer(QMainWindow):
                                                                  self.stressCase.get_stress_case()
                                                                  == "In-plane stress"):
                 self.calculate_stress()
-            print('plotting from here')
 
             self.viz_tab.set_ws(self.model.get_field(direction=self.plot_select.get_direction(),
                                                      plot_param=self.plot_select.get_plot_param(),

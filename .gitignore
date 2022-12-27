@@ -8,10 +8,14 @@ HB2B_*.h5
 HZB_*.h5
 Hidra_*.h5
 
+# conda build files - meta.yml is automatically included
+conda.recipe/
+
 # C extensions
 *.so
 
 # Distribution / packaging
+pyrs/_version.py
 .Python
 tests/testdata
 env/
