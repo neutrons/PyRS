@@ -333,7 +333,6 @@ class PlotView(QWidget):
 
     def update_param_view(self, xlabel, ylabel, peak_number=1):
 
-        print(peak_number)
         if peak_number == "":
             peak_number = 1
 

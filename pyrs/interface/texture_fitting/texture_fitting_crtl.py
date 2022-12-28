@@ -37,23 +37,57 @@ class TextureFittingCrtl:
                 elif str(name) == 'chisq':
                     data = fit_class.fit_result.peakcollections[peak - 1].get_chisq()
                 else:
-                    values, error = fit_class.fit_result.peakcollections[peak - 1].get_effective_params()
-                    data = [values[str(name)], error[str(name)]]
-            else:
-                data = self._model.ws.get_sample_log_values(name)
+                    try:
+                        values, error = fit_class.fit_result.peakcollections[peak - 1].get_effective_params()
+                        data = [values[str(name)], error[str(name)]]
+                    except (ValueError, AttributeError):
+                        data = self._model.ws.get_sample_log_values(name)
 
             return data
+
+        def trim_data(xdata, ydata, zdata=None):
+
+            keep_points = [True for i in range(self._model.sub_runs.size)]
+
+            def get_points_to_keep(data):
+                if type(data[0]) is np.ndarray:
+                    keep_points = data[1] != 0
+                else:
+                    keep_points = np.ones_like(data) == 1
+
+                return keep_points
+
+            def remove_points(data, keep_points):
+                if type(data) is np.ndarray:
+                    data = data[keep_points]
+                else:
+                    data = [data[0][keep_points],
+                            data[1][keep_points]]
+                return data
+
+            keep_points *= get_points_to_keep(xdata)
+            keep_points *= get_points_to_keep(ydata)
+
+            if zdata is not None:
+                keep_points *= get_points_to_keep(zdata)
+                zdata = remove_points(zdata, keep_points)
+
+            xdata = remove_points(xdata, keep_points)
+            ydata = remove_points(ydata, keep_points)
+
+            if zdata is not None:
+                return xdata, ydata, zdata
+            else:
+                return xdata, ydata
 
         xdata = extract_data(xname, fit_object, peak)
         ydata = extract_data(yname, fit_object, peak)
 
-        print(ydata)
-
         if zname is None:
-            return xdata, ydata
+            return trim_data(xdata, ydata)
         else:
             zdata = extract_data(zname, fit_object, peak)
-            return xdata, ydata, zdata
+            return trim_data(xdata, ydata, zdata)
 
     def fit_peaks(self, min_tth, max_tth, peak_tag, peak_function_name, background_function_name,
                   out_of_plane_angle=None):
