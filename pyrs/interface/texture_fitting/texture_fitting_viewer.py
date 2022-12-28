@@ -98,7 +98,7 @@ class FileLoad(QWidget):
             if type(self._parent._project_file) is list:
                 self._parent._project_file = self._parent._project_file[0]
 
-            self._parent.update_plot()
+            self.load_project_plot()
 
     def loadRunNumber(self):
 
@@ -112,7 +112,7 @@ class FileLoad(QWidget):
 
         self._parent._project_file = os.path.join(project_dir, f'HB2B_{self.lineEdit.text()}.h5')
 
-        self._parent.update_plot()
+        self.load_project_plot()
 
     def load_project_plot(self):
         self._reset_fit_data()
@@ -251,7 +251,7 @@ class PlotSelect(QGroupBox):
         layout.addWidget(self.plot_paramY)
 
         self.plot_peakNum = QComboBox()
-        self.plot_peakNum.addItems(["1"])
+        # self.plot_peakNum.addItems(["1"])
         peackNum_label = QLabel("Peak")
         peackNum_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         layout.addWidget(peackNum_label)
@@ -264,6 +264,9 @@ class PlotSelect(QGroupBox):
 
     def get_X(self):
         return self.plot_paramX.currentText()
+
+    def get_PeakNum(self):
+        return self.plot_peakNum.currentText()
 
 
 class FixFigureCanvas(FigureCanvas):
@@ -328,10 +331,17 @@ class PlotView(QWidget):
     def getWidget(self):
         return FixFigureCanvas(self.figure)
 
-    def update_param_view(self, xlabel, ylabel):
+    def update_param_view(self, xlabel, ylabel, peak_number=1):
+
+        print(peak_number)
+        if peak_number == "":
+            peak_number = 1
+
         self.ax.clear()
-        xdata, ydata = self._parent._ctrl.get_log_plot(xlabel, ylabel,
+
+        xdata, ydata = self._parent._ctrl.get_log_plot(xlabel, ylabel, peak=int(peak_number),
                                                        fit_object=self._parent.fit_summary.fit_table_operator)
+
         if len(xdata) != len(ydata):
             self.ax.errorbar(xdata, ydata[0], yerr=ydata[1], color='k', ls='None')
         else:
@@ -344,9 +354,17 @@ class PlotView(QWidget):
 
         self.canvas.draw()
 
-    def update_3D_view(self, xlabel, ylabel, zlabel):
+    def update_3D_view(self, xlabel, ylabel, zlabel, peak_number=1):
+
+        if peak_number == "":
+            peak_number = 1
+
         self.ax.clear()
-        xdata, ydata, zdata = self._parent._ctrl.get_log_plot(xlabel, ylabel, zname=zlabel,
+
+        if peak_number == "":
+            peak_number = 1
+
+        xdata, ydata, zdata = self._parent._ctrl.get_log_plot(xlabel, ylabel, zname=zlabel, peak=int(peak_number),
                                                               fit_object=self._parent.fit_summary.fit_table_operator)
 
         if len(xdata) != len(zdata):
@@ -509,7 +527,7 @@ class FitSetupView(QGroupBox):
             return
         self._parent.controller.load_fit_range(filename)
 
-    def setup_view_param(self):
+    def setup_view_param(self, peaks=1):
         plot_selct_params = []
         plot_3d_params = []
         for _param in self._parent.fit_summary.fit_table_operator.clean_param_names:
@@ -519,21 +537,31 @@ class FitSetupView(QGroupBox):
                 plot_3d_params.append(_param)
 
         self._parent.plot_select.plot_paramY.addItems(plot_selct_params)
+        for i_peak in range(peaks):
+            self._parent.plot_select.plot_peakNum.addItems(["{}".format(i_peak + 1)])
+
         self._parent.VizSetup.plot_paramZ.addItems(plot_3d_params)
 
     def fit(self):
 
-        if self.fit_range_table.item(0, 0) is not None and self.fit_range_table.item(0, 1) is not None:
-            tth_min = [float(self.fit_range_table.item(0, 0).text())]
-            tth_max = [float(self.fit_range_table.item(0, 1).text())]
-            if self.fit_range_table.item(0, 2) is None:
-                peak_label = ['peak_1']
-                self.fit_range_table.setItem(0, 2, QTableWidgetItem('peak_1'))
-            else:
-                peak_label = [self.fit_range_table.item(0, 2).text()]
+        peak_label = []
+        tth_min = []
+        tth_max = []
 
-        if self.fit_range_table.item(0, 3) is None:
-            self.fit_range_table.setItem(0, 3, QTableWidgetItem('1.0'))
+        for peak_row in range(self.fit_range_table.rowCount()):
+            if (self.fit_range_table.item(peak_row, 0) is not None and
+                    self.fit_range_table.item(peak_row, 1) is not None):
+
+                tth_min.append(float(self.fit_range_table.item(peak_row, 0).text()))
+                tth_max.append(float(self.fit_range_table.item(peak_row, 1).text()))
+                if self.fit_range_table.item(peak_row, 2) is None:
+                    peak_label.append('peak_{}'.format(peak_row + 1))
+                    self.fit_range_table.setItem(peak_row, 2, QTableWidgetItem('peak_{}'.format(peak_row + 1)))
+                else:
+                    peak_label.append(self.fit_range_table.item(peak_row, 2).text())
+
+            if self.fit_range_table.item(peak_row, 3) is None:
+                self.fit_range_table.setItem(peak_row, 3, QTableWidgetItem('1.0'))
 
         fit_results = self._parent.controller.fit_peaks(tth_min, tth_max, peak_label,
                                                         self.peak_model.currentText(), self.peak_back.currentText())
@@ -542,7 +570,7 @@ class FitSetupView(QGroupBox):
         self._parent.fit_summary.fit_table_operator.initialize_fit_result_widgets()
         self._parent.fit_summary.fit_table_operator.populate_fit_result_table()
         self._parent.fit_window.update_diff_view(self._parent.model.sub_runs[0])
-        self.setup_view_param()
+        self.setup_view_param(peaks=len(tth_min))
 
     def valuechange(self):
         self._parent.fit_window.update_diff_view(self._parent.model.sub_runs[self.sl.value()])
@@ -906,6 +934,9 @@ class TextureFittingViewer(QMainWindow):
         self.plot_select.plot_paramX.currentTextChanged.connect(self.update_plot)
         self.plot_select.plot_paramY.currentTextChanged.connect(self.update_plot)
 
+        # Update 2D and 3D plots
+        self.plot_select.plot_peakNum.currentTextChanged.connect(self.update_plots)
+
         self.viz_splitter = QSplitter(Qt.Vertical)
         self.param_window = PlotView(self)
         self.compare_param_window = PlotView(self, three_dim=True)
@@ -937,18 +968,24 @@ class TextureFittingViewer(QMainWindow):
     def model(self):
         return self._model
 
+    def update_plots(self):
+        self.update_plot()
+        self.update_3D_plot()
+
     def update_plot(self):
         if self.model.ws is not None:
             if (self.plot_select.get_X() != "") and (self.plot_select.get_Y() != ""):
                 self.param_window.update_param_view(self.plot_select.get_X(),
-                                                    self.plot_select.get_Y())
+                                                    self.plot_select.get_Y(),
+                                                    self.plot_select.get_PeakNum())
 
     def update_3D_plot(self):
         if self.model.ws is not None:
             if (self.VizSetup.get_X() != "") and (self.VizSetup.get_Y() != "") and (self.VizSetup.get_Z() != ""):
                 self.compare_param_window.update_3D_view(self.VizSetup.get_X(),
                                                          self.VizSetup.get_Y(),
-                                                         self.VizSetup.get_Z())
+                                                         self.VizSetup.get_Z(),
+                                                         self.plot_select.get_PeakNum())
 
     def update_diffraction_plot(self):
         self.fit_summary.fit_table_operator.change_fit(self.fit_summary.out_of_plan_angle)

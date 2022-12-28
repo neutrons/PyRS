@@ -21,7 +21,7 @@ class TextureFittingCrtl:
 
     def get_log_plot(self, xname, yname, peak=1, zname=None, fit_object=None):
         def extract_data(name, fit_class, peak):
-            param_entry = False
+            param_entry = True
 
             if fit_class.fit_result is not None:
                 if name in fit_class.clean_param_names:
@@ -46,6 +46,8 @@ class TextureFittingCrtl:
 
         xdata = extract_data(xname, fit_object, peak)
         ydata = extract_data(yname, fit_object, peak)
+
+        print(ydata)
 
         if zname is None:
             return xdata, ydata
