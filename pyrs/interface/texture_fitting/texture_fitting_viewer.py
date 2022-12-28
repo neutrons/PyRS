@@ -206,12 +206,12 @@ class SetupViz(QWidget):
         layout.addWidget(self.plot_paramZ, 1, 5)
 
         plot_label_sub = QLabel("List Sub Runs")
-        self.lineEdit = QLineEdit()
-        self.lineEdit.setReadOnly(False)
-        self.lineEdit.setFixedWidth(50)
+        self.sub_runs_list = QLineEdit()
+        self.sub_runs_list.setReadOnly(False)
+        self.sub_runs_list.setFixedWidth(75)
         example_label = QLabel('(ex: 1,2,3... or 3-5,8)')
         layout.addWidget(plot_label_sub, 2, 3)
-        layout.addWidget(self.lineEdit, 2, 4)
+        layout.addWidget(self.sub_runs_list, 2, 4)
         layout.addWidget(example_label, 2, 5)
 
         self.setLayout(layout)
@@ -227,6 +227,9 @@ class SetupViz(QWidget):
 
     def get_Z(self):
         return self.plot_paramZ.currentText()
+
+    def get_sub_run_list(self):
+        return self.sub_runs_list.text()
 
 
 class PlotSelect(QGroupBox):
@@ -353,7 +356,7 @@ class PlotView(QWidget):
 
         self.canvas.draw()
 
-    def update_3D_view(self, xlabel, ylabel, zlabel, peak_number=1):
+    def update_3D_view(self, xlabel, ylabel, zlabel, peak_number=1, sub_run_list=[]):
 
         if peak_number == "":
             peak_number = 1
@@ -364,7 +367,8 @@ class PlotView(QWidget):
             peak_number = 1
 
         xdata, ydata, zdata = self._parent._ctrl.get_log_plot(xlabel, ylabel, zname=zlabel, peak=int(peak_number),
-                                                              fit_object=self._parent.fit_summary.fit_table_operator)
+                                                              fit_object=self._parent.fit_summary.fit_table_operator,
+                                                              include_list=sub_run_list)
 
         if len(xdata) != len(zdata):
             self.ax.scatter(xdata, ydata, zdata[0], marker='D')
@@ -948,6 +952,7 @@ class TextureFittingViewer(QMainWindow):
         self.VizSetup.plot_paramX.currentTextChanged.connect(self.update_3D_plot)
         self.VizSetup.plot_paramY.currentTextChanged.connect(self.update_3D_plot)
         self.VizSetup.plot_paramZ.currentTextChanged.connect(self.update_3D_plot)
+        self.VizSetup.sub_runs_list.editingFinished.connect(self.update_3D_plot)
 
         # add widgets to pannel layout
         right_layout.addWidget(self.plot_select)
@@ -984,7 +989,8 @@ class TextureFittingViewer(QMainWindow):
                 self.compare_param_window.update_3D_view(self.VizSetup.get_X(),
                                                          self.VizSetup.get_Y(),
                                                          self.VizSetup.get_Z(),
-                                                         self.plot_select.get_PeakNum())
+                                                         self.plot_select.get_PeakNum(),
+                                                         self.VizSetup.get_sub_run_list())
 
     def update_diffraction_plot(self):
         self.fit_summary.fit_table_operator.change_fit(self.fit_summary.out_of_plan_angle)

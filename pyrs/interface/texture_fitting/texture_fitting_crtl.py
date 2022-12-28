@@ -19,7 +19,8 @@ class TextureFittingCrtl:
 
         return fit_tth, fit_int, diff_tth, diff_int
 
-    def get_log_plot(self, xname, yname, peak=1, zname=None, fit_object=None):
+    def get_log_plot(self, xname, yname, peak=1, zname=None, fit_object=None,
+                     include_list=[]):
         def extract_data(name, fit_class, peak):
             param_entry = True
 
@@ -45,9 +46,30 @@ class TextureFittingCrtl:
 
             return data
 
-        def trim_data(xdata, ydata, zdata=None):
+        def parse_split_list(sub_run_list):
 
-            keep_points = [True for i in range(self._model.sub_runs.size)]
+            if (sub_run_list == "") or (sub_run_list == []):
+                subrun_list = []
+            else:
+                subrun_list = []
+                for entry in sub_run_list.split(','):
+                    if '-' in entry:
+                        start, stop = entry.split('-')
+                        subrun_list.extend(range(int(start), int(stop) + 1))
+                    elif entry == '':
+                        pass
+                    else:
+                        subrun_list.append(int(entry))
+
+            return subrun_list
+
+        def trim_data(xdata, ydata, zdata=None, include_list=[]):
+
+            if len(include_list) > 1:
+                keep_points = np.array([False for i in range(self._model.sub_runs.size)])
+                keep_points[np.array(include_list)] = True
+            else:
+                keep_points = np.array([True for i in range(self._model.sub_runs.size)])
 
             def get_points_to_keep(data):
                 if type(data[0]) is np.ndarray:
@@ -84,10 +106,10 @@ class TextureFittingCrtl:
         ydata = extract_data(yname, fit_object, peak)
 
         if zname is None:
-            return trim_data(xdata, ydata)
+            return trim_data(xdata, ydata, include_list=parse_split_list(include_list))
         else:
             zdata = extract_data(zname, fit_object, peak)
-            return trim_data(xdata, ydata, zdata)
+            return trim_data(xdata, ydata, zdata, include_list=parse_split_list(include_list))
 
     def fit_peaks(self, min_tth, max_tth, peak_tag, peak_function_name, background_function_name,
                   out_of_plane_angle=None):
