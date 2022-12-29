@@ -4,9 +4,10 @@ from qtpy.QtWidgets import QGroupBox, QSplitter, QSpinBox  # type:ignore
 from qtpy.QtWidgets import QRadioButton, QFileDialog, QCheckBox  # type:ignore
 from qtpy.QtWidgets import QStyledItemDelegate, QDoubleSpinBox  # type:ignore
 from qtpy.QtWidgets import QTableWidget, QTableWidgetItem, QSlider  # type:ignore
-from qtpy.QtWidgets import QGridLayout, QMessageBox  # type:ignore
+from qtpy.QtWidgets import QGridLayout, QMessageBox, QMenu  # type:ignore
 from qtpy.QtWidgets import QMainWindow, QAction, QTableWidgetSelectionRange  # type:ignore
 from qtpy.QtGui import QColor  # type:ignore
+# from qtpy.QtCore.Qt import CustomContextMenu  # type:ignore
 
 from pyrs.interface.gui_helper import pop_message
 from pyrs.utilities import get_input_project_file  # type: ignore
@@ -120,8 +121,9 @@ class FileLoad(QWidget):
         self._parent.fit_window.update_diff_view(self._parent.model.sub_runs[0])
         self._parent.fit_setup.sl.setMaximum(self._parent.model.sub_runs.size - 1)
         self._parent.fit_summary.setup_out_of_plane_angle(self._parent.model.ws.reduction_masks)
+        self._parent.plot_select.setup_out_of_plane_angle(self._parent.model.ws.reduction_masks)
 
-        self._parent.update_plot()
+        self._parent.update_param_plots()
 
     def setFilenamesText(self, filenames):
         self.lineEdit.setText(filenames)
@@ -253,8 +255,15 @@ class PlotSelect(QGroupBox):
         layout.addWidget(plot_labelY)
         layout.addWidget(self.plot_paramY)
 
+        self.out_of_plane = QComboBox()
+        self.oop_label = QLabel("out of plane")
+        self.oop_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.oop_label.setVisible(False)
+        self.out_of_plane.setVisible(False)
+        layout.addWidget(self.oop_label)
+        layout.addWidget(self.out_of_plane)
+
         self.plot_peakNum = QComboBox()
-        # self.plot_peakNum.addItems(["1"])
         peackNum_label = QLabel("Peak")
         peackNum_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         layout.addWidget(peackNum_label)
@@ -262,14 +271,37 @@ class PlotSelect(QGroupBox):
 
         self.setLayout(layout)
 
+    @property
+    def get_out_of_plan_angle(self):
+        return self.out_of_plane.currentText()
+
+    @property
     def get_Y(self):
         return self.plot_paramY.currentText()
 
+    @property
     def get_X(self):
         return self.plot_paramX.currentText()
 
+    @property
     def get_PeakNum(self):
         return self.plot_peakNum.currentText()
+
+    def setup_out_of_plane_angle(self, dict_keys):
+        if len(dict_keys) > 2:
+            angles = []
+            for key in list(dict_keys):
+                if '_var' not in key:
+                    angles.append(key)
+
+            self.out_of_plane.clear()
+            self.out_of_plane.addItems(angles)
+            self.oop_label.setVisible(True)
+            self.out_of_plane.setVisible(True)
+        else:
+            self.out_of_plane.clear()
+            self.oop_label.setVisible(False)
+            self.out_of_plane.setVisible(False)
 
 
 class FixFigureCanvas(FigureCanvas):
@@ -285,11 +317,12 @@ class PlotView(QWidget):
         self._parent = parent
 
         if fit_view:
-            self._define_tabel_x0 = None
+            self.peak_entry_x0 = None
 
             self.figure, self.ax = plt.subplots(2, 1, sharex=True,
                                                 gridspec_kw={'height_ratios': [3, 1]})
             plt.connect('button_press_event', self.define_peak_tabel)
+            plt.connect('motion_notify_event', self.define_peak_tabel)
             plt.connect('button_release_event', self.define_peak_tabel)
 
         elif three_dim:
@@ -313,6 +346,9 @@ class PlotView(QWidget):
                                                                             self._parent.fit_summary.out_of_plan_angle)
 
         self.ax[0].plot(tth[1:], int_vec[1:], 'k')
+
+        self.draw_fit_range(tth.min(), tth.max())
+
         if self._parent.fit_summary.fit_table_operator.fit_result is not None:
             sub_run_index = int(np.where(self._parent.model.sub_runs == sub_run)[0])
 
@@ -331,10 +367,25 @@ class PlotView(QWidget):
 
         self.canvas.draw()
 
+    def draw_fit_range(self, tthmin, tthmax):
+
+        colors = ['b', 'g', 'm']
+
+        for i_entry in range(self._parent.fit_setup.fit_range_table.rowCount()):
+            try:
+                x0 = float(self._parent.fit_setup.fit_range_table.item(i_entry, 0).text())
+                x1 = float(self._parent.fit_setup.fit_range_table.item(i_entry, 1).text())
+
+                if (x0 > tthmin) and (x1 < tthmax):
+                    self.ax[0].axvline(x=x0, color=colors[i_entry])
+                    self.ax[0].axvline(x=x1, color=colors[i_entry])
+            except AttributeError:
+                pass
+
     def getWidget(self):
         return FixFigureCanvas(self.figure)
 
-    def update_param_view(self, xlabel, ylabel, peak_number=1):
+    def update_param_view(self, xlabel, ylabel, peak_number=1, out_of_plane=None):
 
         if peak_number == "":
             peak_number = 1
@@ -342,7 +393,8 @@ class PlotView(QWidget):
         self.ax.clear()
 
         xdata, ydata = self._parent._ctrl.get_log_plot(xlabel, ylabel, peak=int(peak_number),
-                                                       fit_object=self._parent.fit_summary.fit_table_operator)
+                                                       fit_object=self._parent.fit_summary.fit_table_operator,
+                                                       out_of_plane=out_of_plane)
 
         if len(xdata) != len(ydata):
             self.ax.errorbar(xdata, ydata[0], yerr=ydata[1], color='k', ls='None')
@@ -356,7 +408,7 @@ class PlotView(QWidget):
 
         self.canvas.draw()
 
-    def update_3D_view(self, xlabel, ylabel, zlabel, peak_number=1, sub_run_list=[]):
+    def update_3D_view(self, xlabel, ylabel, zlabel, peak_number=1, out_of_plane=None, sub_run_list=[]):
 
         if peak_number == "":
             peak_number = 1
@@ -368,7 +420,7 @@ class PlotView(QWidget):
 
         xdata, ydata, zdata = self._parent._ctrl.get_log_plot(xlabel, ylabel, zname=zlabel, peak=int(peak_number),
                                                               fit_object=self._parent.fit_summary.fit_table_operator,
-                                                              include_list=sub_run_list)
+                                                              out_of_plane=out_of_plane, include_list=sub_run_list)
 
         if len(xdata) != len(zdata):
             self.ax.scatter(xdata, ydata, zdata[0], marker='D')
@@ -385,13 +437,17 @@ class PlotView(QWidget):
 
     def define_peak_tabel(self, event):
         if event.button is MouseButton.LEFT:
-            if self._define_tabel_x0 is None:
-                self._define_tabel_x0 = event.xdata
-                return
-            else:
-                self._parent.fit_setup.add_peak_tabel_entry(self._define_tabel_x0,
+            if self.peak_entry_x0 is None:
+                self.peak_entry_x0 = 1
+                self._parent.fit_setup.add_peak_tabel_entry(event.xdata,
                                                             event.xdata)
-                self._define_tabel_x0 = None
+            elif event.name == 'motion_notify_event':
+                self._parent.fit_setup.update_peak_tabel_entry(event.xdata)
+            elif event.name == 'button_release_event':
+                self._parent.fit_setup.update_peak_tabel_entry(event.xdata)
+                self.peak_entry_x0 = None
+
+        return
 
 
 class FitSetupView(QGroupBox):
@@ -424,6 +480,9 @@ class FitSetupView(QGroupBox):
         self.fit_range_table.setColumnCount(4)
         self.fit_range_table.setHorizontalHeaderLabels(['min 2theta', 'max 2theta', 'Peak Label',  'd0'])
         self.fit_range_table.resizeColumnsToContents()
+
+        self.fit_range_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.fit_range_table.customContextMenuRequested.connect(self.remove_peak_range_table_row)
 
         self.fit_range_layout.addWidget(self.save_load_fit)
         self.fit_range_layout.addWidget(self.fit_range_table)
@@ -502,6 +561,20 @@ class FitSetupView(QGroupBox):
         self.fit_range_table.setItem(self.fit_range_table.rowCount() - 1, 3,
                                      QTableWidgetItem(str(1.0)))
 
+        return
+
+    def update_peak_tabel_entry(self, x1):
+
+        row = self.fit_range_table.rowCount() - 1
+
+        if float(self.fit_range_table.item(row, 0).text()) > x1:
+            self.fit_range_table.setItem(row, 1, self.fit_range_table.item(row, 0).text())
+            self.fit_range_table.setItem(row, 0, QTableWidgetItem(str(x1)))
+        else:
+            self.fit_range_table.setItem(row, 1, QTableWidgetItem(str(x1)))
+
+        return
+
     def save_CSV(self):
         filename, _ = QFileDialog.getSaveFileName(self,
                                                   "Export Peak Information",
@@ -529,6 +602,21 @@ class FitSetupView(QGroupBox):
         if not filename:
             return
         self._parent.controller.load_fit_range(filename)
+
+    def remove_peak_range_table_row(self, pos):
+        it = self.fit_range_table.itemAt(pos)
+        if it is None:
+            return
+
+        selection = it.row()
+        item_range = QTableWidgetSelectionRange(0, selection, self.fit_range_table.rowCount() - 1, selection)
+        self.fit_range_table.setRangeSelected(item_range, True)
+
+        menu = QMenu()
+        delete_column_action = menu.addAction("Delete entry")
+        action = menu.exec_(self.fit_range_table.viewport().mapToGlobal(pos))
+        if action == delete_column_action:
+            self.fit_range_table.removeRow(selection)
 
     def setup_view_param(self, peaks=1):
         plot_selct_params = []
@@ -598,9 +686,9 @@ class FitSummaryView(QGroupBox):
         self.out_of_plane = QComboBox()
         self.oop_label = QLabel("out of plane")
         self.oop_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-
         self.oop_label.setVisible(False)
         self.out_of_plane.setVisible(False)
+
         self.radioButton_fit_value = QRadioButton('Fit Param Values')
         self.radioButton_fit_value.setChecked(True)
         self.radioButton_fit_error = QRadioButton('Fit Param Errors')
@@ -674,6 +762,8 @@ class FitTable:
     def change_fit(self, key):
         if self.fits is not None:
             self.fit_result = copy.copy(self.fits[key])
+            self._clear_rows()
+            self.populate_fit_result_table()
 
     def populate_fit_result_table(self):
         _peak_selected = self._parent.spinBox_peak_index.value()
@@ -917,7 +1007,13 @@ class TextureFittingViewer(QMainWindow):
         self.fit_window = PlotView(self, fit_view=True)
         self.fit_setup = FitSetupView(self)
         self.fit_summary = FitSummaryView(self)
-        self.fit_summary.out_of_plane.currentTextChanged.connect(self.update_diffraction_plot)
+
+        # Update plot if fitsetup is changed
+        self.fit_setup.fit_range_table.itemChanged.connect(self.update_diffraction_data_plot)
+
+        # UPDATE options to change summary table and plot data
+        self.fit_summary.out_of_plane.currentTextChanged.connect(self.update_oop_select)
+        self.fit_summary.spinBox_peak_index.valueChanged.connect(self.update_peak_selection)
 
         self.fit_splitter.addWidget(self.fit_window)
         self.fit_splitter.addWidget(self.fit_setup)
@@ -934,11 +1030,12 @@ class TextureFittingViewer(QMainWindow):
         right_layout = QVBoxLayout()
 
         self.plot_select = PlotSelect(self)
-        self.plot_select.plot_paramX.currentTextChanged.connect(self.update_plot)
-        self.plot_select.plot_paramY.currentTextChanged.connect(self.update_plot)
+        self.plot_select.plot_paramX.currentTextChanged.connect(self.update_2D_param_summary)
+        self.plot_select.plot_paramY.currentTextChanged.connect(self.update_2D_param_summary)
 
         # Update 2D and 3D plots
-        self.plot_select.plot_peakNum.currentTextChanged.connect(self.update_plots)
+        self.plot_select.plot_peakNum.currentTextChanged.connect(self.update_param_plots)
+        self.plot_select.out_of_plane.currentTextChanged.connect(self.sync_oop)
 
         self.viz_splitter = QSplitter(Qt.Vertical)
         self.param_window = PlotView(self)
@@ -949,10 +1046,10 @@ class TextureFittingViewer(QMainWindow):
 
         # Lower pannel for controlling 3D plotting
         self.VizSetup = SetupViz(self)
-        self.VizSetup.plot_paramX.currentTextChanged.connect(self.update_3D_plot)
-        self.VizSetup.plot_paramY.currentTextChanged.connect(self.update_3D_plot)
-        self.VizSetup.plot_paramZ.currentTextChanged.connect(self.update_3D_plot)
-        self.VizSetup.sub_runs_list.editingFinished.connect(self.update_3D_plot)
+        self.VizSetup.plot_paramX.currentTextChanged.connect(self.update_3D_param_summary)
+        self.VizSetup.plot_paramY.currentTextChanged.connect(self.update_3D_param_summary)
+        self.VizSetup.plot_paramZ.currentTextChanged.connect(self.update_3D_param_summary)
+        self.VizSetup.sub_runs_list.editingFinished.connect(self.update_3D_param_summary)
 
         # add widgets to pannel layout
         right_layout.addWidget(self.plot_select)
@@ -972,29 +1069,43 @@ class TextureFittingViewer(QMainWindow):
     def model(self):
         return self._model
 
-    def update_plots(self):
-        self.update_plot()
-        self.update_3D_plot()
+    def update_param_plots(self):
+        self.update_2D_param_summary()
+        self.update_3D_param_summary()
 
-    def update_plot(self):
+    def update_2D_param_summary(self):
         if self.model.ws is not None:
-            if (self.plot_select.get_X() != "") and (self.plot_select.get_Y() != ""):
-                self.param_window.update_param_view(self.plot_select.get_X(),
-                                                    self.plot_select.get_Y(),
-                                                    self.plot_select.get_PeakNum())
+            if (self.plot_select.get_X != "") and (self.plot_select.get_Y != ""):
+                self.param_window.update_param_view(self.plot_select.get_X,
+                                                    self.plot_select.get_Y,
+                                                    self.plot_select.get_PeakNum,
+                                                    self.plot_select.get_out_of_plan_angle)
 
-    def update_3D_plot(self):
+    def update_3D_param_summary(self):
         if self.model.ws is not None:
             if (self.VizSetup.get_X() != "") and (self.VizSetup.get_Y() != "") and (self.VizSetup.get_Z() != ""):
                 self.compare_param_window.update_3D_view(self.VizSetup.get_X(),
                                                          self.VizSetup.get_Y(),
                                                          self.VizSetup.get_Z(),
-                                                         self.plot_select.get_PeakNum(),
+                                                         self.plot_select.get_PeakNum,
+                                                         self.plot_select.get_out_of_plan_angle,
                                                          self.VizSetup.get_sub_run_list())
 
-    def update_diffraction_plot(self):
+    def update_diffraction_data_plot(self):
+        self.fit_window.update_diff_view(self.model.sub_runs[self.fit_setup.sl.value()])
+
+    def sync_oop(self):
+        self.fit_summary.out_of_plane.setCurrentIndex(self.plot_select.out_of_plane.currentIndex())
+
+    def update_peak_selection(self):
+        self.fit_summary.fit_table_operator.change_fit(self.fit_summary.out_of_plan_angle)
+        self.update_param_plots()
+
+    def update_oop_select(self):
+        self.plot_select.out_of_plane.setCurrentIndex(self.fit_summary.out_of_plane.currentIndex())
         self.fit_summary.fit_table_operator.change_fit(self.fit_summary.out_of_plan_angle)
         self.fit_window.update_diff_view(self.model.sub_runs[self.fit_setup.sl.value()])
+        self.update_param_plots()
 
     def show_failure_msg(self, msg, info, details):
         self.viz_tab.set_message(msg)

@@ -20,7 +20,8 @@ class TextureFittingCrtl:
         return fit_tth, fit_int, diff_tth, diff_int
 
     def get_log_plot(self, xname, yname, peak=1, zname=None, fit_object=None,
-                     include_list=[]):
+                     out_of_plane=None, include_list=[]):
+
         def extract_data(name, fit_class, peak):
             param_entry = True
 
