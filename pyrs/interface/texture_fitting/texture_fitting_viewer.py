@@ -19,11 +19,13 @@ from qtpy.QtCore import Qt
 # , Signal
 
 import numpy as np
+from scipy.interpolate import griddata
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.pyplot as plt
 # import subplots, tight_layout, figure
 from matplotlib.backend_bases import MouseButton
+from matplotlib.cm import coolwarm
 
 # import traceback
 import os
@@ -176,9 +178,9 @@ class SetupViz(QWidget):
         self.scatter_bt = QRadioButton("3D Scatter")
         self.contour_bt.setChecked(False)
         self.contour_bt.toggled.connect(lambda: self.btnstate(self.contour_bt))
-        self.lines_bt.setChecked(True)
+        self.lines_bt.setChecked(False)
         self.lines_bt.toggled.connect(lambda: self.btnstate(self.lines_bt))
-        self.scatter_bt.setChecked(False)
+        self.scatter_bt.setChecked(True)
         self.scatter_bt.toggled.connect(lambda: self.btnstate(self.scatter_bt))
 
         layout.addWidget(self.contour_bt, 0, 3)
@@ -219,7 +221,7 @@ class SetupViz(QWidget):
         self.setLayout(layout)
 
     def btnstate(self, button):
-        print(button.text())
+        self._parent.update_3D_param_summary()
 
     def get_X(self):
         return self.plot_paramX.currentText()
@@ -423,9 +425,46 @@ class PlotView(QWidget):
                                                               out_of_plane=out_of_plane, include_list=sub_run_list)
 
         if len(xdata) != len(zdata):
-            self.ax.scatter(xdata, ydata, zdata[0], marker='D')
-        else:
-            self.ax.scatter(xdata, ydata, zdata, marker='D')
+            zdata = zdata[0]
+
+        plot_scatter = False
+        if self._parent.VizSetup.contour_bt.isChecked():
+            if ((ydata.size == np.unique(ydata).size) or
+                    (xdata.size == np.unique(xdata).size)):
+
+                plot_scatter = True
+
+            else:
+                X, Y = np.meshgrid(np.unique(xdata), np.unique(ydata))
+                Z = griddata(((xdata, ydata)), zdata, (X, Y), method='nearest')
+
+                self.ax.plot_surface(X, Y, Z, 50, rstride=1, cstride=1, cmap='coolwarm',
+                                     linewidth=0, antialiased=False)
+
+        elif self._parent.VizSetup.lines_bt.isChecked():
+            if ((ydata.size == np.unique(ydata).size) or
+                    (xdata.size == np.unique(xdata).size)):
+
+                plot_scatter = True
+
+            else:
+                X, Y = np.meshgrid(np.unique(xdata), np.unique(ydata))
+                Z = griddata(((xdata, ydata)), zdata, (X, Y), method='nearest')
+
+                norm = plt.Normalize(Z.min(), Z.max())
+                colors = coolwarm(norm(Z))
+                rcount, ccount, _ = colors.shape
+
+                surf = self.ax.plot_surface(X, Y, Z, rcount=rcount, ccount=ccount,
+                                            facecolors=colors, shade=False)
+                surf.set_facecolor((0, 0, 0, 0))
+
+        if self._parent.VizSetup.scatter_bt.isChecked() or plot_scatter:
+
+            norm = plt.Normalize(zdata.min(), zdata.max())
+            colors = coolwarm(norm(zdata))
+
+            self.ax.scatter(xdata, ydata, zdata, marker='D', color=colors)
 
         self.ax.set_xlabel(xlabel)
         self.ax.set_ylabel(ylabel)

@@ -17,51 +17,34 @@ class PoleFigureCalculator:
         """
         # initialize class instances
         self._peak_info_dict = dict()   # key: detector ID, value: dict; key: scan log index, value: dict
-        self._peak_intensity_dict = dict()   # key: detector ID, scan log index (int, int)
-        self._peak_fit_info_dict = dict()  # key: detector ID, value: dict; key: log index, value: dict
         self._pole_figure_dict = dict()  # key: detector ID, value: 2-tuple.  scan log indexes (list), 2D array
 
         # flag
         self._cal_successful = False
 
-    def add_input_data_set(self, det_id: int,
-                           peak_intensity_dict: dict, peak_fit_info_dict: dict, log_dict: dict) -> None:
+    def add_input_data_set(self, det_id: int, log_dict: dict) -> None:
         """ set peak intensity log and experiment logs that are required by pole figure calculation
         :param det_id
-        :param peak_intensity_dict : dictionary (key = scan log index (int), value = peak intensity (float)
-        :param peak_fit_info_dict: dictionary (key = scan log index (int), value = peak fitting information (float)
         :param log_dict: dictionary (key = scan log index (int), value = dictionary (log name, log value))
         :return:
         """
-        # check inputs
-        if det_id in self._peak_intensity_dict:
-            raise RuntimeError('Detector ID {0} already been added.  Must be reset calculator.'
-                               ''.format(det_id))
+
         det_id = to_int('Detector ID', det_id, min_value=0)
-        checkdatatypes.check_dict('Peak intensities', peak_intensity_dict)
-        checkdatatypes.check_dict('Peak fitting information', peak_fit_info_dict)
         checkdatatypes.check_dict('Log values for pole figure', log_dict)
 
-        # check sample log index
-        if set(peak_intensity_dict.keys()) != set(log_dict.keys()):
-            raise RuntimeError('Sample log indexes from peak intensities and sample logs'
-                               ' do not match.')
+        log_names = list(log_dict.keys())
+        checkdatatypes.check_list('Pole figure motor names', log_names,
+                                  ['chi', 'phi', 'omega', 'eta', 'center', 'intensity'])
 
-        # add peak intensity
-        self._peak_intensity_dict[det_id] = peak_intensity_dict
+        # check inputs
+        if det_id in self._peak_info_dict:
+            # set
+            self._peak_info_dict[det_id].update(log_dict)
+        else:
+            # set
+            self._peak_info_dict[det_id] = log_dict
 
-        # go through all the values
-        for scan_log_index in log_dict:
-            # check each log index (entry) whether there are enough 2theta
-            log_names = log_dict[scan_log_index].keys()
-            checkdatatypes.check_list('Pole figure motor names', log_names, ['2theta', 'chi', 'phi', 'omega'])
-        # END-FOR
-
-        # set
-        self._peak_info_dict[det_id] = log_dict
-        self._peak_fit_info_dict[det_id] = peak_fit_info_dict
-
-    def calculate_pole_figure(self, det_id_list):
+    def calculate_pole_figure(self, det_id_list=None):
         """ Calculate pole figures
         :param det_id_list:
         :return:
@@ -76,26 +59,24 @@ class PoleFigureCalculator:
 
         for det_id in det_id_list:
             # calculator by each detector
-            peak_intensity_dict = self._peak_intensity_dict[det_id]
             peak_info_dict = self._peak_info_dict[det_id]
 
             # construct the output
-            scan_log_index_list = sorted(peak_intensity_dict.keys())
-            num_pts = len(scan_log_index_list)
+            num_pts = len(peak_info_dict['chi'])
             pole_figure_array = np.ndarray(shape=(num_pts, 3), dtype='float')
 
-            for index, scan_index in enumerate(scan_log_index_list):
+            for index in range(num_pts):
                 # check fitting result
-                intensity_i = peak_intensity_dict[scan_index]
+                intensity_i = peak_info_dict['intensity'][index]
 
                 # rotate Q from instrument coordinate to sample coordinate
-                theta_i = 0.5 * peak_info_dict[scan_index]['center']
-                omega_i = peak_info_dict[scan_index]['omega']
+                theta_i = 0.5 * peak_info_dict['center'][index]
+                omega_i = peak_info_dict['omega'][index]
                 if omega_i < 0.:
                     omega_i += 90.
-                chi_i = peak_info_dict[scan_index]['chi']
-                phi_i = peak_info_dict[scan_index]['phi']
-                eta_i = peak_info_dict[scan_index]['eta']
+                chi_i = peak_info_dict['chi'][index]
+                phi_i = peak_info_dict['phi'][index]
+                eta_i = peak_info_dict['eta'][index]
                 alpha, beta = self.rotate_project_q(theta_i, omega_i, chi_i, phi_i, eta_i)
 
                 pole_figure_array[index, 0] = alpha
@@ -105,7 +86,7 @@ class PoleFigureCalculator:
             # END-FOR
 
             # convert
-            self._pole_figure_dict[det_id] = scan_log_index_list, pole_figure_array
+            self._pole_figure_dict[det_id] = pole_figure_array
 
     def export_pole_figure(self, detector_id_list,  file_name, file_type, file_header=''):
         """
@@ -143,7 +124,7 @@ class PoleFigureCalculator:
         get all the detector IDs
         :return: list of integer
         """
-        return self._peak_intensity_dict.keys()
+        return self._peak_info_dict.keys()
 
     def get_peak_fit_parameter_vec(self, param_name: str, det_id: int) -> np.ndarray:
         """ get the fitted parameters and return in vector
@@ -187,36 +168,6 @@ class PoleFigureCalculator:
         beta = pf_tuple[1]
 
         return alpha, beta
-
-    def get_pole_figure_vectors(self, det_id, max_cost, min_cost=1.):
-        """ return Pole figure in a numpy 2D array
-        :param det_id:
-        :param max_cost:
-        :param min_cost:
-        :return: 2-tuple: (1) an integer list (2) numpy array with shape (n, 3).  n is the number of data points
-        """
-        # check input
-        if max_cost is None:
-            max_cost = 1.E20
-        else:
-            max_cost = to_float('Maximum peak fitting cost value', max_cost, min_value=0.)
-
-        # get raw parameters' fitted value
-        log_index_vec, pole_figure_vec = self._pole_figure_dict[det_id]
-
-        # get costs and filter out isnan()
-        cost_vec = self.get_peak_fit_parameter_vec('cost', det_id)
-
-        taken_index_list = list()
-        for idx in range(len(cost_vec)):
-            if min_cost < cost_vec[idx] < max_cost:
-                taken_index_list.append(idx)
-        # END-IF
-
-        selected_log_index_vec = np.take(log_index_vec, taken_index_list, axis=0)
-        selected_pole_figure_vec = np.take(pole_figure_vec, taken_index_list, axis=0)
-
-        return selected_log_index_vec, selected_pole_figure_vec
 
     def rotate_project_q(self, theta: float, omega: float, chi: float, phi: float, eta: float) -> Tuple[float, float]:
         """
@@ -265,10 +216,7 @@ class PoleFigureCalculator:
         :return:
         """
         self._peak_info_dict = dict()
-        self._peak_intensity_dict = dict()
         self._pole_figure_dict = dict()
-
-# END-OF-CLASS (PoleFigureCalculator)
 
 
 def export_arrays_to_ascii(pole_figure_array_dict, detector_id_list, file_name):

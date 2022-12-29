@@ -9,6 +9,7 @@ from pyrs.core.workspaces import HidraWorkspace
 from qtpy.QtCore import Signal, QObject  # type:ignore
 # from pyrs.interface.gui_helper import pop_message
 from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory  # type: ignore
+from pyrs.core.polefigurecalculator import PoleFigureCalculator
 
 
 class TextureFittingModel(QObject):
@@ -20,6 +21,7 @@ class TextureFittingModel(QObject):
         self._peak_fit = peak_fit_core
         self.ws = None
         self.peak_fit_engine = None
+        self._polefigureinterface = None
 
     def set_workspaces(self, name, filenames):
         setattr(self, name, filenames)
@@ -147,3 +149,21 @@ class TextureFittingModel(QObject):
             project_h5_file.write_peak_parameters(peak)
         project_h5_file.save(False)
         project_h5_file.close()
+
+    def load_pole_data(self, peak_id, intensity, eta, peak_center, scan_index):
+        if self._polefigureinterface is None:
+            self._polefigureinterface = PoleFigureCalculator()
+
+        logs_dict = {}
+        for name in ['chi', 'phi', 'omega']:
+            logs_dict[name] = self.ws.get_sample_log_values(name)
+
+        log_dict = {}
+        log_dict['chi'] = logs_dict['chi'][scan_index - 1]
+        log_dict['phi'] = logs_dict['phi'][scan_index - 1]
+        log_dict['omega'] = logs_dict['omega'][scan_index - 1]
+        log_dict['eta'] = eta * np.ones_like(scan_index)
+        log_dict['center'] = peak_center
+        log_dict['intensity'] = intensity
+
+        self._polefigureinterface.add_input_data_set(peak_id, log_dict)
