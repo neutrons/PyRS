@@ -125,6 +125,8 @@ class FileLoad(QWidget):
         self._parent.fit_summary.setup_out_of_plane_angle(self._parent.model.ws.reduction_masks)
         self._parent.plot_select.setup_out_of_plane_angle(self._parent.model.ws.reduction_masks)
 
+        self._parent.VizSetup.enable_polar_plot(self._parent.model.ws.reduction_masks)
+
         self._parent.update_param_plots()
 
     def setFilenamesText(self, filenames):
@@ -173,16 +175,30 @@ class SetupViz(QWidget):
 
         layout = QGridLayout()
 
+        self.shift_bt = QCheckBox("shift")
+        self.shift_bt.setChecked(False)
+        self.shift_bt.setVisible(False)
+        self.shift_bt.stateChanged.connect(lambda: self.btnstate(self.shift_bt))
+
+        self.polar_bt = QRadioButton("Polar")
+        self.polar_bt.setChecked(False)
+        self.polar_bt.toggled.connect(lambda: self.btnstate(self.polar_bt))
+        self.polar_bt.setVisible(False)
+
         self.contour_bt = QRadioButton("Contour")
-        self.lines_bt = QRadioButton("3D Lines")
-        self.scatter_bt = QRadioButton("3D Scatter")
         self.contour_bt.setChecked(False)
         self.contour_bt.toggled.connect(lambda: self.btnstate(self.contour_bt))
+
+        self.lines_bt = QRadioButton("3D Lines")
         self.lines_bt.setChecked(False)
         self.lines_bt.toggled.connect(lambda: self.btnstate(self.lines_bt))
+
+        self.scatter_bt = QRadioButton("3D Scatter")
         self.scatter_bt.setChecked(True)
         self.scatter_bt.toggled.connect(lambda: self.btnstate(self.scatter_bt))
 
+        layout.addWidget(self.shift_bt, 0, 1)
+        layout.addWidget(self.polar_bt, 0, 2)
         layout.addWidget(self.contour_bt, 0, 3)
         layout.addWidget(self.lines_bt, 0, 4)
         layout.addWidget(self.scatter_bt, 0, 5)
@@ -234,6 +250,11 @@ class SetupViz(QWidget):
 
     def get_sub_run_list(self):
         return self.sub_runs_list.text()
+
+    def enable_polar_plot(self, dict_keys):
+        if len(dict_keys) > 2:
+            self.polar_bt.setVisible(True)
+            self.shift_bt.setVisible(True)
 
 
 class PlotSelect(QGroupBox):
@@ -428,38 +449,62 @@ class PlotView(QWidget):
             zdata = zdata[0]
 
         plot_scatter = False
-        if self._parent.VizSetup.contour_bt.isChecked():
-            if ((ydata.size == np.unique(ydata).size) or
-                    (xdata.size == np.unique(xdata).size)):
+        if ((ydata.size == np.unique(ydata).size) or
+                (xdata.size == np.unique(xdata).size)):
 
+            plot_scatter = True
+
+        if (self._parent.VizSetup.polar_bt.isChecked()):
+            polar_data = self._parent._ctrl.extract_polar_projection(peak_number=int(peak_number))
+
+            if polar_data is not None:
+                norm = plt.Normalize(polar_data[:, 2].min(), polar_data[:, 2].max())
+                colors = coolwarm(norm(polar_data[:, 2]))
+
+                alpha_shift = 0
+                if self._parent.VizSetup.shift_bt.isChecked():
+                    alpha_shift = 1
+
+                self.ax.scatter(alpha_shift - polar_data[:, 0], polar_data[:, 1], polar_data[:, 2],
+                                marker='D', color=colors)
+
+                R, P = np.meshgrid(np.unique(polar_data[:, 0]), np.unique(polar_data[:, 1]))
+                Z = griddata(((polar_data[:, 0], polar_data[:, 1])), polar_data[:, 2], (R, P), method='nearest')
+
+                print(np.unique(R), np.unique(P))
+
+                # # Express the mesh in the cartesian system.
+                # X = (alpha_shift - R) * np.cos(P)
+                # Y = (alpha_shift - R) * np.sin(P)
+
+                # self.ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='coolwarm',
+                #                      linewidth=0, antialiased=False)
+
+                plot_scatter = False
+            else:
                 plot_scatter = True
 
-            else:
-                X, Y = np.meshgrid(np.unique(xdata), np.unique(ydata))
-                Z = griddata(((xdata, ydata)), zdata, (X, Y), method='nearest')
+        if (self._parent.VizSetup.contour_bt.isChecked()) and (not plot_scatter):
+            X, Y = np.meshgrid(np.unique(xdata), np.unique(ydata))
+            Z = griddata(((xdata, ydata)), zdata, (X, Y), method='nearest')
 
-                self.ax.plot_surface(X, Y, Z, 50, rstride=1, cstride=1, cmap='coolwarm',
-                                     linewidth=0, antialiased=False)
+            self.ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='coolwarm',
+                                 linewidth=0, antialiased=False)
 
-        elif self._parent.VizSetup.lines_bt.isChecked():
-            if ((ydata.size == np.unique(ydata).size) or
-                    (xdata.size == np.unique(xdata).size)):
+        elif (self._parent.VizSetup.lines_bt.isChecked()) and (not plot_scatter):
 
-                plot_scatter = True
+            X, Y = np.meshgrid(np.unique(xdata), np.unique(ydata))
+            Z = griddata(((xdata, ydata)), zdata, (X, Y), method='nearest')
 
-            else:
-                X, Y = np.meshgrid(np.unique(xdata), np.unique(ydata))
-                Z = griddata(((xdata, ydata)), zdata, (X, Y), method='nearest')
+            norm = plt.Normalize(Z.min(), Z.max())
+            colors = coolwarm(norm(Z))
+            rcount, ccount, _ = colors.shape
 
-                norm = plt.Normalize(Z.min(), Z.max())
-                colors = coolwarm(norm(Z))
-                rcount, ccount, _ = colors.shape
+            surf = self.ax.plot_surface(X, Y, Z, rcount=rcount, ccount=ccount,
+                                        facecolors=colors, shade=False)
+            surf.set_facecolor((0, 0, 0, 0))
 
-                surf = self.ax.plot_surface(X, Y, Z, rcount=rcount, ccount=ccount,
-                                            facecolors=colors, shade=False)
-                surf.set_facecolor((0, 0, 0, 0))
-
-        if self._parent.VizSetup.scatter_bt.isChecked() or plot_scatter:
+        elif (self._parent.VizSetup.scatter_bt.isChecked()) or (plot_scatter):
 
             norm = plt.Normalize(zdata.min(), zdata.max())
             colors = coolwarm(norm(zdata))

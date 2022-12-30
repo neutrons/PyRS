@@ -188,10 +188,14 @@ class TextureFittingCrtl:
                                                                    [peak_fits['Center'], fit_errors['Center']],
                                                                    [peak_fits['Intensity'], fit_errors['Intensity']])
 
-            self._model.load_pole_data(i_peak, peak_intensity[0], float(eta_mask.split('_')[1]),
+            self._model.load_pole_data(i_peak + 1, peak_intensity[0], float(eta_mask.split('_')[1]),
                                        peak_center[0], np.array(sub_runs))
 
         return
 
-    def extract_polar_projection(self, fitting_object):
-        pass
+    def extract_polar_projection(self, peak_number):
+        if self._model._polefigureinterface is not None:
+            return self._model._polefigureinterface.get_polefigure_array(peak_id=int(peak_number))
+
+        else:
+            return None

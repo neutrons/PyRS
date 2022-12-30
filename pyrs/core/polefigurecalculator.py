@@ -22,14 +22,14 @@ class PoleFigureCalculator:
         # flag
         self._cal_successful = False
 
-    def add_input_data_set(self, det_id: int, log_dict: dict) -> None:
+    def add_input_data_set(self, peak_id: int, log_dict: dict) -> None:
         """ set peak intensity log and experiment logs that are required by pole figure calculation
-        :param det_id
+        :param peak_id
         :param log_dict: dictionary (key = scan log index (int), value = dictionary (log name, log value))
         :return:
         """
 
-        det_id = to_int('Detector ID', det_id, min_value=0)
+        peak_id = to_int('Detector ID', peak_id, min_value=0)
         checkdatatypes.check_dict('Log values for pole figure', log_dict)
 
         log_names = list(log_dict.keys())
@@ -37,29 +37,33 @@ class PoleFigureCalculator:
                                   ['chi', 'phi', 'omega', 'eta', 'center', 'intensity'])
 
         # check inputs
-        if det_id in self._peak_info_dict:
+        if peak_id in self._peak_info_dict:
             # set
-            self._peak_info_dict[det_id].update(log_dict)
+            for entry in ['chi', 'omega', 'eta', 'center', 'intensity', 'phi']:
+
+                self._peak_info_dict[peak_id][entry] = np.concatenate((self._peak_info_dict[peak_id][entry],
+                                                                       log_dict[entry]), axis=0)
+
         else:
             # set
-            self._peak_info_dict[det_id] = log_dict
+            self._peak_info_dict[peak_id] = log_dict
 
-    def calculate_pole_figure(self, det_id_list=None):
+    def calculate_pole_figure(self, peak_id_list=None):
         """ Calculate pole figures
         :param det_id_list:
         :return:
         """
         # check input
-        if det_id_list is None:
-            det_id_list = self.get_detector_ids()
+        if peak_id_list is None:
+            peak_id_list = self.get_detector_ids()
         else:
-            checkdatatypes.check_list('Detector IDs to calculate pole figure', det_id_list,
+            checkdatatypes.check_list('Detector IDs to calculate pole figure', peak_id_list,
                                       self.get_detector_ids())
         # END-IF
 
-        for det_id in det_id_list:
+        for peak_id in peak_id_list:
             # calculator by each detector
-            peak_info_dict = self._peak_info_dict[det_id]
+            peak_info_dict = self._peak_info_dict[peak_id]
 
             # construct the output
             num_pts = len(peak_info_dict['chi'])
@@ -74,6 +78,7 @@ class PoleFigureCalculator:
                 omega_i = peak_info_dict['omega'][index]
                 if omega_i < 0.:
                     omega_i += 90.
+
                 chi_i = peak_info_dict['chi'][index]
                 phi_i = peak_info_dict['phi'][index]
                 eta_i = peak_info_dict['eta'][index]
@@ -86,7 +91,28 @@ class PoleFigureCalculator:
             # END-FOR
 
             # convert
-            self._pole_figure_dict[det_id] = pole_figure_array
+            self._pole_figure_dict[peak_id] = pole_figure_array
+
+    def get_polefigure_array(self, peak_id):
+        '''
+        return array with polefigure angles and intensity
+
+        Parameters
+        ----------
+        det_id : peak number
+            DESCRIPTION.
+
+        Returns
+        -------
+        nd.array
+
+        '''
+
+        try:
+            return self._pole_figure_dict[peak_id]
+        except KeyError:
+            self.calculate_pole_figure()
+            return self._pole_figure_dict[peak_id]
 
     def export_pole_figure(self, detector_id_list,  file_name, file_type, file_header=''):
         """
@@ -124,7 +150,7 @@ class PoleFigureCalculator:
         get all the detector IDs
         :return: list of integer
         """
-        return self._peak_info_dict.keys()
+        return list(self._peak_info_dict.keys())
 
     def get_peak_fit_parameter_vec(self, param_name: str, det_id: int) -> np.ndarray:
         """ get the fitted parameters and return in vector
