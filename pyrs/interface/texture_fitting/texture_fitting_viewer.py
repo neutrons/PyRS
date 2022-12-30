@@ -7,16 +7,12 @@ from qtpy.QtWidgets import QTableWidget, QTableWidgetItem, QSlider  # type:ignor
 from qtpy.QtWidgets import QGridLayout, QMessageBox, QMenu  # type:ignore
 from qtpy.QtWidgets import QMainWindow, QAction, QTableWidgetSelectionRange  # type:ignore
 from qtpy.QtGui import QColor  # type:ignore
-# from qtpy.QtCore.Qt import CustomContextMenu  # type:ignore
+from qtpy.QtCore import Qt  # type: ignore
 
 from pyrs.interface.gui_helper import pop_message
 from pyrs.utilities import get_input_project_file  # type: ignore
 
-# QTableWidgetItem, QTabWidget
 from matplotlib import rcParams
-
-from qtpy.QtCore import Qt
-# , Signal
 
 import numpy as np
 from scipy.interpolate import griddata

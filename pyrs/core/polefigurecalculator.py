@@ -152,27 +152,6 @@ class PoleFigureCalculator:
         """
         return list(self._peak_info_dict.keys())
 
-    def get_peak_fit_parameter_vec(self, param_name: str, det_id: int) -> np.ndarray:
-        """ get the fitted parameters and return in vector
-        :param param_name:
-        :param det_id:
-        :return:
-        """
-        det_id = to_int('Detector ID', det_id, min_value=0)
-
-        param_vec = np.ndarray(shape=(len(self._peak_fit_info_dict[det_id]), ), dtype='float')  # type: ignore
-        log_index_list = sorted(self._peak_fit_info_dict[det_id].keys())
-        for i, log_index in enumerate(log_index_list):
-            try:
-                param_vec[i] = self._peak_fit_info_dict[det_id][log_index][param_name]
-            except KeyError:
-                raise RuntimeError('Parameter {0} is not a key.  Candidates are {1} ... {2}'
-                                   ''.format(param_name, self._peak_fit_info_dict[det_id].keys(),
-                                             self._peak_fit_info_dict[det_id][log_index].keys()))
-        # END-FOR
-
-        return param_vec
-
     def get_pole_figure_1_pt(self, det_id: int, log_index: int) -> Tuple[float, float]:
         """ get 1 pole figure value determined by detector and sample log index
         :param det_id:
