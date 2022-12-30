@@ -216,26 +216,26 @@ class PoleFigureCalculator:
         sp = np.sin(np.deg2rad(phi))
         sw = np.sin(np.deg2rad(omega))
         sc = np.sin(np.deg2rad(chi))
-        sg = np.sin(np.deg2rad(eta))
+        sg = np.sin(np.deg2rad(eta + 270))
         st = np.sin(np.deg2rad(theta))
 
         cp = np.cos(np.deg2rad(phi))
         cw = np.cos(np.deg2rad(omega))
         cc = np.cos(np.deg2rad(chi))
-        cg = np.cos(np.deg2rad(eta))
+        cg = np.cos(np.deg2rad(eta + 270))
         ct = np.cos(np.deg2rad(theta))
 
-        h1 = st*(sp*sc*sw+cp*cw) + ct*cg*sp*cc - ct*sg*(sp*sc*cw-cp*sw)
+        h1 = st*(sp*sc*sw + cp*cw) + ct*cg*sp*cc - ct*sg*(sp*sc*cw-cp*sw)
         h2 = -st*(cp*sc*sw-sp*cw) - ct*cg*cp*cc + ct*sg*(cp*sc*cw+sp*sw)
-        # h3 = st*cc*sw - ct*sg*cc*cw - ct*cg*sc
         h_length = np.sqrt(np.square(h1) + np.square(h2))
 
-        alpha = np.arccos(h_length)
+        alpha = np.rad2deg(np.arccos(h_length))
         beta = np.rad2deg(np.arccos(h1 / h_length))
-        if h2 < 0:
-            beta *= -1.
 
-        return alpha, beta
+        if h2 < 0:
+            beta = -1 * beta
+
+        return 90 - alpha, beta
 
     def reset_calculator(self):
         """ reset the pole figure calculator

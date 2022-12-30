@@ -159,7 +159,6 @@ class FileLoading(QGroupBox):
 
         self.file_load_run_number = FileLoad(name="Run Number:", parent=parent)
         self.file_load_dilg = FileLoad(name=None, parent=parent)
-        # layout.addWidget(self.file_load_e11)
         layout.addWidget(self.file_load_run_number)
         layout.addWidget(self.file_load_dilg)
         self.setLayout(layout)
@@ -433,8 +432,8 @@ class PlotView(QWidget):
 
     def update_3D_view(self, xlabel, ylabel, zlabel, peak_number=1, out_of_plane=None, sub_run_list=[]):
 
-        if peak_number == "":
-            peak_number = 1
+        def round_polar(vector, target):
+            return np.round(vector / target, 0) * target
 
         self.ax.clear()
 
@@ -458,27 +457,26 @@ class PlotView(QWidget):
             polar_data = self._parent._ctrl.extract_polar_projection(peak_number=int(peak_number))
 
             if polar_data is not None:
-                norm = plt.Normalize(polar_data[:, 2].min(), polar_data[:, 2].max())
-                colors = coolwarm(norm(polar_data[:, 2]))
 
-                alpha_shift = 0
+                alpha = round_polar(polar_data[:, 0], 5)
+                beta = round_polar(polar_data[:, 1], 5)
+
+                R, P = np.meshgrid(np.unique(alpha), np.unique(beta))
+                Z = griddata(((alpha, beta)), polar_data[:, 2], (R, P), method='nearest')
+
                 if self._parent.VizSetup.shift_bt.isChecked():
-                    alpha_shift = 1
+                    X = (90 - R) * np.cos(np.deg2rad(P))
+                    Y = (90 - R) * np.sin(np.deg2rad(P))
+                else:
+                    X = R * np.cos(np.deg2rad(P))
+                    Y = R * np.sin(np.deg2rad(P))
 
-                self.ax.scatter(alpha_shift - polar_data[:, 0], polar_data[:, 1], polar_data[:, 2],
-                                marker='D', color=colors)
+                self.ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='coolwarm',
+                                     linewidth=0, antialiased=False)
 
-                R, P = np.meshgrid(np.unique(polar_data[:, 0]), np.unique(polar_data[:, 1]))
-                Z = griddata(((polar_data[:, 0], polar_data[:, 1])), polar_data[:, 2], (R, P), method='nearest')
-
-                print(np.unique(R), np.unique(P))
-
-                # # Express the mesh in the cartesian system.
-                # X = (alpha_shift - R) * np.cos(P)
-                # Y = (alpha_shift - R) * np.sin(P)
-
-                # self.ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='coolwarm',
-                #                      linewidth=0, antialiased=False)
+                xlabel = r'$\alpha$'
+                ylabel = r'$\beta$'
+                zlabel = r'Intensity'
 
                 plot_scatter = False
             else:
@@ -712,6 +710,8 @@ class FitSetupView(QGroupBox):
                 plot_3d_params.append(_param)
 
         self._parent.plot_select.plot_paramY.addItems(plot_selct_params)
+        self._parent.plot_select.plot_peakNum.clear()
+
         for i_peak in range(peaks):
             self._parent.plot_select.plot_peakNum.addItems(["{}".format(i_peak + 1)])
 
