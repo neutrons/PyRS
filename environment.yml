@@ -8,7 +8,7 @@ dependencies:
 - mantidworkbench
 - qtpy
 - pytest=7.1
-- pytest-cov=3.0
+- pytest-cov
 - pytest-qt==3.3.0
 - uncertainties
 - vtk
