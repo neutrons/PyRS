@@ -12,7 +12,7 @@ env:
 
 jobs:
   ci:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     timeout-minutes: 100
 
     defaults:
@@ -32,7 +32,8 @@ jobs:
       - name: Apt install deps
         run: |
           sudo apt update
-          # sudo apt-get install xvfb freeglut3-dev libglu1-mesa
+          sudo apt upgrade
+          sudo apt-get install xvfb freeglut3-dev libglu1-mesa
 
       - name: Lint
         run: flake8 . --count
@@ -53,8 +54,8 @@ jobs:
           python -c "import qtpy"
           python -c "import mantidqt"
 
-      - name: Run PyRS tests
-        run: pytest tests
+      - name: Run PyRS test with n=1
+        run: pytest -n 1 --cov=pyrs --cov-report=xml --cov-report=term tests
 
       - name: Run PyRS tests
         run: xvfb-run --server-args="-screen 0 640x480x24" -a pytest --cov=pyrs --cov-report=xml --cov-report=term tests
