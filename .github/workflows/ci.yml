@@ -29,7 +29,7 @@ jobs:
       - name: Apt install deps
         run: |
           sudo apt update
-          sudo apt-get install xvfb freeglut3-dev libglu1-mesa
+          # sudo apt-get install xvfb freeglut3-dev libglu1-mesa
 
       - uses: conda-incubator/setup-miniconda@v2
         with:
