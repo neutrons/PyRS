@@ -54,7 +54,7 @@ jobs:
           python -c "import mantidqt"
 
       - name: Run PyRS tests
-        run: pytest --cov=pyrs --cov-report=xml --cov-report=term tests
+        run: pytest tests
 
       - name: Run PyRS tests
         run: xvfb-run --server-args="-screen 0 640x480x24" -a pytest --cov=pyrs --cov-report=xml --cov-report=term tests
