@@ -10,6 +10,7 @@ dependencies:
 - pytest=7.1.2
 - pytest-cov=3.0
 - pytest-qt==3.3.0
+- pytest-xvfb
 - uncertainties
 - vtk
 - flake8
