@@ -232,9 +232,6 @@ def export_arrays_to_ascii(pole_figure_array_dict: dict, peak_id_list: list, fil
     :return:
     """
 
-    print('[INFO] Export Pole Figure Arrays To ASCII:\nKeys: {0}\nValues[0]: {1}'
-          ''.format(pole_figure_array_dict.keys(), pole_figure_array_dict.values()[0]))
-
     # check for correct file extension
     if '.txt' not in file_name:
         file_name = '{}.txt'.format(file_name.replace('.jul', ''))
