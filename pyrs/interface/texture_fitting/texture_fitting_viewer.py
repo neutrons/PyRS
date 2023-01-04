@@ -247,7 +247,7 @@ class SetupViz(QWidget):
         return self.sub_runs_list.text()
 
     def enable_polar_plot(self, dict_keys):
-        if len(dict_keys) > 2:
+        if (len(dict_keys) > 2) or self._parent.controller.texture_run():
             self.polar_bt.setVisible(True)
             self.shift_bt.setVisible(True)
 

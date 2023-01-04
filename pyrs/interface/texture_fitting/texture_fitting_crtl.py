@@ -134,6 +134,9 @@ class TextureFittingCrtl:
             self._fitted_patterns[''] = [_extract_fitted_data(fit_results[''].fitted),
                                          _extract_fitted_data(fit_results[''].difference)]
 
+            if self.texture_run():
+                self.parse_texture_fits(fit_results[''], 'eta_0.0', len(min_tth))
+
         else:
             for mask_key in self._model.ws.reduction_masks:
                 if '_var' not in mask_key:
@@ -208,3 +211,9 @@ class TextureFittingCrtl:
                                                                 peak_id_list=peak_id_list,
                                                                 peak_name_list=peak_label_list,
                                                                 run_number=self._model.runnumber)
+
+    def texture_run(self):
+        phi = np.unique(self._model.ws.get_sample_log_values("phi"))
+        chi = np.unique(self._model.ws.get_sample_log_values("chi"))
+
+        return not ((phi.size == 1) and (chi.size == 1))
